@@ -21,56 +21,57 @@ public:
         return true;
     }
 
-    virtual bool isASCIIString() = 0;
+    virtual bool isASCIIString()
+    {
+        return false;
+    }
+
+    virtual bool isUTF16String()
+    {
+        return false;
+    }
+
     ASCIIString* asASCIIString()
     {
         ASSERT(isASCIIString());
-#ifndef NDEBUG
-        size_t ptr = (size_t)this;
-        ptr += sizeof(String);
-        return (ASCIIString*)ptr;
-#else
         return (ASCIIString*)this;
-#endif
     }
 
 
     UTF16String* asUTF16String()
     {
-        ASSERT(!isASCIIString());
-#ifndef NDEBUG
-        size_t ptr = (size_t)this;
-        ptr += sizeof(String);
-        return (UTF16String*)ptr;
-#else
+        ASSERT(isUTF16String());
         return (UTF16String*)this;
-#endif
     }
 
+    static String* fromCharCode(char32_t code);
+
+    virtual size_t length() const = 0;
+
+    virtual char16_t charAt(const size_t& idx) const = 0;
+    char16_t operator[](const size_t& idx) const
+    {
+        return charAt(idx);
+    }
+
+    static String* emptyString;
 protected:
-#ifndef NDEBUG
-    ASCIIString* m_asciiString;
-    UTF16String* m_utf16String;
-#endif
 };
 
-typedef std::basic_string<char16_t, std::char_traits<char16_t>, gc_malloc_atomic_ignore_off_page_allocator<char16_t> > UTF16StringData;
 typedef std::basic_string<char, std::char_traits<char>, gc_malloc_atomic_ignore_off_page_allocator<char> > ASCIIStringData;
 typedef std::basic_string<char, std::char_traits<char>, gc_malloc_atomic_ignore_off_page_allocator<char> > UTF8StringData;
+typedef std::basic_string<char16_t, std::char_traits<char16_t>, gc_malloc_atomic_ignore_off_page_allocator<char16_t> > UTF16StringData;
+typedef std::basic_string<char32_t, std::char_traits<char32_t>, gc_malloc_atomic_ignore_off_page_allocator<char32_t> > UTF32StringData;
 
 class ASCIIString : public String, public ASCIIStringData {
     void init()
     {
         m_bufferRoot = ASCIIStringData::data();
-#ifndef NDEBUG
-        m_asciiString = asASCIIString();
-        m_utf16String = nullptr;
-#endif
     }
 public:
     virtual bool isASCIIString()
     {
-        return false;
+        return true;
     }
 
     ASCIIString(ASCIIStringData&& src)
@@ -80,11 +81,21 @@ public:
         init();
     }
 
-    ASCIIString(char* str)
+    ASCIIString(const char* str)
         : String()
         , ASCIIStringData(str)
     {
         init();
+    }
+
+    virtual char16_t charAt(const size_t& idx) const
+    {
+        return this->at(idx);
+    }
+
+    virtual size_t length() const
+    {
+        return ASCIIStringData::length();
     }
 
 protected:
@@ -99,15 +110,11 @@ class UTF16String : public String, public UTF16StringData {
     void init()
     {
         m_bufferRoot = UTF16StringData::data();
-#ifndef NDEBUG
-        m_asciiString = nullptr;
-        m_utf16String = asUTF16String();
-#endif
     }
 public:
-    virtual bool isASCIIString()
+    virtual bool isUTF16String()
     {
-        return false;
+        return true;
     }
 
     UTF16String(UTF16StringData&& src)
@@ -115,6 +122,16 @@ public:
         , UTF16StringData(std::move(src))
     {
         init();
+    }
+
+    virtual char16_t charAt(const size_t& idx) const
+    {
+        return this->at(idx);
+    }
+
+    virtual size_t length() const
+    {
+        return UTF16StringData::length();
     }
 
 protected:
@@ -134,7 +151,25 @@ UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t& len);
 ASCIIStringData utf16StringToASCIIString(const char16_t* buf, const size_t& len);
 ASCIIStringData dtoa(double number);
 
+inline String* fromCharCode(char32_t code)
+{
+    if (code < 128) {
+        char c = (char)code;
+        return new ASCIIString(std::move(ASCIIStringData(&c, 1)));
+    } else if (code <= 0x10000) {
+        char16_t c = (char16_t)code;
+        return new UTF16String(std::move(UTF16StringData(&c, 1)));
+    } else {
+        char16_t buf[3];
+        buf[0] = (char16_t)(0xD800 + ((code - 0x10000) >> 10));
+        buf[1] = (char16_t)(0xDC00 + ((code - 0x10000) & 1023));
+        return new UTF16String(buf);
+    }
 }
+
+}
+
+#include "runtime/StringView.h"
 
 #endif
 

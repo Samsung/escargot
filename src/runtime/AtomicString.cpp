@@ -14,6 +14,16 @@ AtomicString::AtomicString(ExecutionState& ec, const char* src, size_t len)
     init(&ec.context()->m_atomicStringMap, src, len);
 }
 
+AtomicString::AtomicString(Context* c, const char16_t* src, size_t len)
+{
+    init(&c->m_atomicStringMap, src, len);
+}
+
+AtomicString::AtomicString(Context* c, const char* src, size_t len)
+{
+    init(&c->m_atomicStringMap, src, len);
+}
+
 void AtomicString::init(AtomicStringMap* ec, const char* src, size_t len)
 {
     auto iter = ec->find(std::make_pair(src, len));

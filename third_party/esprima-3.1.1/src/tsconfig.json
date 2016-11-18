@@ -1,0 +1,24 @@
+{
+	"compilerOptions": {
+		"target": "ES5",
+		"module": "commonjs"
+	},
+	"files": [
+		"assert.ts",
+		"messages.ts",
+		"error-handler.ts",
+		"character.ts",
+		"token.ts",
+		"syntax.ts",
+		"scanner.ts",
+		"tokenizer.ts",
+		"nodes.ts",
+		"parser.ts",
+		"comment-handler.ts",
+		"xhtml-entities.ts",
+		"jsx-syntax.ts",
+		"jsx-nodes.ts",
+		"jsx-parser.ts",
+		"esprima.ts"
+	]
+}

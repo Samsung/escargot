@@ -196,6 +196,8 @@ endif
 SRC=
 SRC += $(foreach dir, src , $(wildcard $(dir)/*.cpp))
 SRC += $(foreach dir, src/parser , $(wildcard $(dir)/*.cpp))
+SRC += $(foreach dir, src/parser/ast , $(wildcard $(dir)/*.cpp))
+SRC += $(foreach dir, src/parser/esprima_cpp , $(wildcard $(dir)/*.cpp))
 SRC += $(foreach dir, src/runtime , $(wildcard $(dir)/*.cpp))
 SRC += $(foreach dir, src/util , $(wildcard $(dir)/*.cpp))
 ifeq ($(OUTPUT), bin)

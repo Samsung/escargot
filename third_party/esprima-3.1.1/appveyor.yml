@@ -1,0 +1,20 @@
+version: "{build}"
+
+environment:
+  nodejs_version: "6"
+
+matrix:
+  fast_finish: true
+
+install:
+  - choco install firefox
+  - choco install googlechrome
+  - ps: Install-Product node $env:nodejs_version
+  - node --version
+  - npm --version
+  - npm install
+
+test_script:
+  - npm run appveyor
+
+build: off

@@ -25,6 +25,8 @@ public:
 
     AtomicString(ExecutionState& ec, const char16_t* src, size_t len);
     AtomicString(ExecutionState& ec, const char* src, size_t len);
+    AtomicString(Context* c, const char16_t* src, size_t len);
+    AtomicString(Context* ec, const char* src, size_t len);
 
     inline String* string() const
     {
