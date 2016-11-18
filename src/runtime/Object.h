@@ -14,6 +14,12 @@ struct ObjectRareData {
 
 class Object : public PointerValue {
 public:
+    Object(ExecutionState& state)
+    {
+        m_rareData = nullptr;
+        m_structure = nullptr;
+    }
+
     virtual Type type()
     {
         return ObjectType;

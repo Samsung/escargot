@@ -24,6 +24,9 @@
 #include <cwchar>
 #include <climits>
 
+#include <unicode/locid.h>
+#include <unicode/uchar.h>
+
 // #define PROFILE_MASSIF
 
 #ifndef PROFILE_MASSIF
@@ -530,5 +533,6 @@ inline bool operator!=(const gc_malloc_atomic_ignore_off_page_allocator<GC_T1>&,
     static void  operator delete  (void*)  = delete; \
     static void  operator delete[](void*)  = delete;
 
+#define ALLOCA(bytes, typenameWithoutPointer, ec) (typenameWithoutPointer*)alloca(bytes)
 
 #endif

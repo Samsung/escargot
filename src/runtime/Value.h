@@ -24,7 +24,7 @@
 #ifndef __EscargotValue__
 #define __EscargotValue__
 
-#include "runtime/ExecutionContext.h"
+#include "runtime/ExecutionState.h"
 
 namespace Escargot {
 
@@ -155,26 +155,26 @@ public:
     bool isIterable() const;
 
     enum PrimitiveTypeHint { PreferString, PreferNumber };
-    inline Value toPrimitive(ExcutionContext& ec, PrimitiveTypeHint = PreferNumber) const; // $7.1.1 ToPrimitive
-    Value toPrimitiveSlowCase(ExcutionContext& ec, PrimitiveTypeHint = PreferNumber) const;
-    inline bool toBoolean(ExcutionContext& ec) const; // $7.1.2 ToBoolean
-    inline double toNumber(ExcutionContext& ec) const; // $7.1.3 ToNumber
-    inline double toInteger(ExcutionContext& ec) const; // $7.1.4 ToInteger
-    inline int32_t toInt32(ExcutionContext& ec) const; // $7.1.5 ToInt32
-    inline int32_t toInt32SlowCase(ExcutionContext& ec) const; // $7.1.5 ToInt32
-    inline uint32_t toUint32(ExcutionContext& ec) const; // http://www.ecma-international.org/ecma-262/5.1/#sec-9.6
-    inline String* toString(ExcutionContext& ec) const; // $7.1.12 ToString
-    String* toStringSlowCase(ExcutionContext& ec) const; // $7.1.12 ToString
-    inline Object* toObject(ExcutionContext& ec) const; // $7.1.13 ToObject
-    inline Object* toObjectSlowPath(ExcutionContext& ec) const; // $7.1.13 ToObject
-    inline Object* toTransientObject(ExcutionContext& ec) const; // ES5 $8.7.2 transient object
-    inline Object* toTransientObjectSlowPath(ExcutionContext& ec) const; // ES5 $8.7.2 transient object
-    inline double toLength(ExcutionContext& ec) const; // $7.1.15 ToLength
+    inline Value toPrimitive(ExecutionState& ec, PrimitiveTypeHint = PreferNumber) const; // $7.1.1 ToPrimitive
+    Value toPrimitiveSlowCase(ExecutionState& ec, PrimitiveTypeHint = PreferNumber) const;
+    inline bool toBoolean(ExecutionState& ec) const; // $7.1.2 ToBoolean
+    inline double toNumber(ExecutionState& ec) const; // $7.1.3 ToNumber
+    inline double toInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
+    inline int32_t toInt32(ExecutionState& ec) const; // $7.1.5 ToInt32
+    inline int32_t toInt32SlowCase(ExecutionState& ec) const; // $7.1.5 ToInt32
+    inline uint32_t toUint32(ExecutionState& ec) const; // http://www.ecma-international.org/ecma-262/5.1/#sec-9.6
+    inline String* toString(ExecutionState& ec) const; // $7.1.12 ToString
+    String* toStringSlowCase(ExecutionState& ec) const; // $7.1.12 ToString
+    inline Object* toObject(ExecutionState& ec) const; // $7.1.13 ToObject
+    inline Object* toObjectSlowPath(ExecutionState& ec) const; // $7.1.13 ToObject
+    inline Object* toTransientObject(ExecutionState& ec) const; // ES5 $8.7.2 transient object
+    inline Object* toTransientObjectSlowPath(ExecutionState& ec) const; // ES5 $8.7.2 transient object
+    inline double toLength(ExecutionState& ec) const; // $7.1.15 ToLength
 
-    inline bool abstractEqualsTo(ExcutionContext& ec, const Value& val);
-    bool abstractEqualsToSlowCase(ExcutionContext& ec, const Value& val);
-    inline bool equalsTo(ExcutionContext& ec, const Value& val);
-    inline bool equalsToByTheSameValueAlgorithm(ExcutionContext& ec, const Value& val);
+    inline bool abstractEqualsTo(ExecutionState& ec, const Value& val);
+    bool abstractEqualsToSlowCase(ExecutionState& ec, const Value& val);
+    inline bool equalsTo(ExecutionState& ec, const Value& val);
+    inline bool equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val);
 
 
 #ifdef ESCARGOT_32
@@ -215,7 +215,7 @@ public:
 private:
     ValueDescriptor u;
 
-    inline double toNumberSlowCase(ExcutionContext& ec) const; // $7.1.3 ToNumber
+    inline double toNumberSlowCase(ExecutionState& ec) const; // $7.1.3 ToNumber
 };
 
 }

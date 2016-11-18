@@ -127,8 +127,8 @@ int main(int argc, char* argv[])
     */
     GC_set_free_space_divisor(24);
     GC_set_force_unmap_on_gcollect(1);
-    GC_set_full_freq(1);
-    GC_set_time_limit(GC_TIME_UNLIMITED);
+    // GC_set_full_freq(1);
+    // GC_set_time_limit(GC_TIME_UNLIMITED);
 #ifdef PROFILE_MASSIF
     GC_is_valid_displacement_print_proc = [](void* ptr)
     {
@@ -157,8 +157,6 @@ int main(int argc, char* argv[])
 
     Escargot::VMInstance* instance = new Escargot::VMInstance();
     Escargot::Context* context = new Escargot::Context(instance);
-    Escargot::ExcutionContext excutionContext(context);
-
     return 0;
 }
 
@@ -187,4 +185,14 @@ int main(int argc, char* argv[])
     ASSERT(v.asNumber() == 1.1);
     v = obj->m_values[5];
     ASSERT(v == obj2);
+
+    uint64_t cnt = 0;
+    for (int64_t i = std::numeric_limits<int32_t>::min() ; i < std::numeric_limits<int32_t>::max(); i ++) {
+        Escargot::SmallValue smallValue = Escargot::Value(i);
+        RELEASE_ASSERT(Escargot::Value(smallValue).asNumber() == i);
+        cnt++;
+        if (cnt % 100000 == 0) {
+            printf("%lld\n", i);
+        }
+    }
  */

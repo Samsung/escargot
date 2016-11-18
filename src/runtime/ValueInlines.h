@@ -523,7 +523,7 @@ inline double Value::asNumber() const
     return isInt32() ? asInt32() : asDouble();
 }
 
-inline double Value::toNumber(ExcutionContext& ec) const
+inline double Value::toNumber(ExecutionState& ec) const
 {
     // http://www.ecma-international.org/ecma-262/6.0/#sec-tonumber
 #ifdef ESCARGOT_64

@@ -5,12 +5,16 @@ namespace Escargot {
 
 class Context;
 
-class ExcutionContext {
-    MAKE_STACK_ALLOCATED();
+class ExecutionContext {
 public:
-    ExcutionContext(Context* context)
+    ExecutionContext(Context* context)
         : m_context(context)
     {
+    }
+
+    Context* context()
+    {
+        return m_context;
     }
 
 private:
