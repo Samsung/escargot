@@ -14,33 +14,31 @@
  *    limitations under the License.
  */
 
-#ifndef FunctionNode_h
-#define FunctionNode_h
+#ifndef RestElementNode_h
+#define RestElementNode_h
 
-#include "StatementNode.h"
-#include "ExpressionNode.h"
+#include "Node.h"
+#include "IdentifierNode.h"
 
 namespace Escargot {
 
-class FunctionNode {
+class RestElementNode : public Node {
 public:
-    FunctionNode(const AtomicString& id, PatternNodeVector&& params, Node* body, bool isGenerator)
+    RestElementNode(IdentifierNode* argument)
+        : Node()
     {
-        m_id = id;
-        m_params = params;
-        m_body = body;
-        m_isGenerator = isGenerator;
+        m_argument = argument;
     }
 
-    inline const PatternNodeVector& params() { return m_params; }
-    inline Node* body() { return m_body; }
-    inline const AtomicString& id() { return m_id; }
+    virtual ASTNodeType type() { return ASTNodeType::RestElement; }
+
+    IdentifierNode* argument()
+    {
+        return m_argument;
+    }
 
 protected:
-    bool m_isGenerator;
-    AtomicString m_id; // id: Identifier;
-    PatternNodeVector m_params; // params: [ Pattern ];
-    Node* m_body;
+    IdentifierNode* m_argument;
 };
 
 }

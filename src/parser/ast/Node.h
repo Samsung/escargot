@@ -23,6 +23,7 @@
 namespace Escargot {
 
 enum ASTNodeType {
+    ASTNodeTypeError,
     Program,
     Function,
     FunctionExpression,
@@ -41,6 +42,8 @@ enum ASTNodeType {
     ForInStatement,
     WhileStatement,
     DoWhileStatement,
+    SpreadElement,
+    RestElement,
     SwitchStatement,
     SwitchCase,
     Declaration,
@@ -110,6 +113,7 @@ enum ASTNodeType {
     Identifier,
     LabeledStatement,
     Literal,
+    Directive,
     RegExpLiteral,
     NativeFunction,
     TryStatement,
@@ -140,16 +144,33 @@ public:
     {
         return type() == ASTNodeType::Literal;
     }
+
+    virtual bool isExpressionNode()
+    {
+        return false;
+    }
+
+    virtual bool isStatementNode()
+    {
+        return false;
+    }
 protected:
 };
 
+class Pattern {
+public:
+
+};
+
+typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>> NodeVector;
 typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>> ArgumentVector;
 typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>> ExpressionNodeVector;
 typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>> StatementNodeVector;
 typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>> PatternNodeVector;
 class PropertyNode;
 typedef Vector<PropertyNode *, gc_allocator_ignore_off_page<PropertyNode *>> PropertiesNodeVector;
-typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>> VariableDeclaratorVector;
+class VariableDeclaratorNode;
+typedef Vector<VariableDeclaratorNode *, gc_allocator_ignore_off_page<VariableDeclaratorNode *>> VariableDeclaratorVector;
 }
 
 #endif

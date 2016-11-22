@@ -205,6 +205,35 @@ UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t& len)
     return UTF8StringData(std::move(str));
 }
 
+
+UTF16StringData ASCIIString::toUTF16StringData() const
+{
+    UTF16StringData ret;
+    size_t len = length();
+    ret.reserve(len);
+    ret.assign(ASCIIStringData::begin(), ASCIIStringData::end());
+    return ret;
+}
+
+UTF8StringData ASCIIString::toUTF8StringData() const
+{
+    UTF8StringData ret;
+    size_t len = length();
+    ret.reserve(len);
+    ret.assign(ASCIIStringData::begin(), ASCIIStringData::end());
+    return ret;
+}
+
+UTF16StringData UTF16String::toUTF16StringData() const
+{
+    return *const_cast<UTF16String *>(this)->asUTF16String();
+}
+
+UTF8StringData UTF16String::toUTF8StringData() const
+{
+    return utf16StringToUTF8String(UTF16String::data(), length());
+}
+
 enum Flags {
     NO_FLAGS = 0,
     EMIT_POSITIVE_EXPONENT_SIGN = 1,

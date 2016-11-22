@@ -14,33 +14,28 @@
  *    limitations under the License.
  */
 
-#ifndef FunctionNode_h
-#define FunctionNode_h
+#ifndef DirectiveNode_h
+#define DirectiveNode_h
 
-#include "StatementNode.h"
+#include "Node.h"
 #include "ExpressionNode.h"
 
 namespace Escargot {
 
-class FunctionNode {
+class DirectiveNode : public Node {
 public:
-    FunctionNode(const AtomicString& id, PatternNodeVector&& params, Node* body, bool isGenerator)
+    DirectiveNode(ExpressionNode* expr, StringView value)
+        : Node()
     {
-        m_id = id;
-        m_params = params;
-        m_body = body;
-        m_isGenerator = isGenerator;
+        m_expr = expr;
+        m_value = value;
     }
 
-    inline const PatternNodeVector& params() { return m_params; }
-    inline Node* body() { return m_body; }
-    inline const AtomicString& id() { return m_id; }
-
+    virtual ASTNodeType type() { return ASTNodeType::Directive; }
+    StringView value() { return m_value; }
 protected:
-    bool m_isGenerator;
-    AtomicString m_id; // id: Identifier;
-    PatternNodeVector m_params; // params: [ Pattern ];
-    Node* m_body;
+    ExpressionNode* m_expr;
+    StringView m_value;
 };
 
 }

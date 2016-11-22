@@ -24,8 +24,19 @@ AtomicString::AtomicString(Context* c, const char* src, size_t len)
     init(&c->m_atomicStringMap, src, len);
 }
 
+AtomicString::AtomicString(Context* c, const StringView& sv)
+{
+    UTF16StringData data = sv.toUTF16StringData();
+    init(&c->m_atomicStringMap, data.data(), data.length());
+}
+
 void AtomicString::init(AtomicStringMap* ec, const char* src, size_t len)
 {
+    if (!len) {
+        m_string = nullptr;
+        return;
+    }
+
     auto iter = ec->find(std::make_pair(src, len));
     if (iter == ec->end()) {
         ASCIIStringData s(src, &src[len]);
@@ -39,6 +50,11 @@ void AtomicString::init(AtomicStringMap* ec, const char* src, size_t len)
 
 void AtomicString::init(AtomicStringMap* ec, const char16_t* src, size_t len)
 {
+    if (!len) {
+        m_string = nullptr;
+        return;
+    }
+
     if (isAllASCII(src, len)) {
         char* abuf = ALLOCA(len, char, ec);
         for (unsigned i = 0 ; i < len ; i ++) {

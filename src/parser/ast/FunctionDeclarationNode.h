@@ -21,17 +21,18 @@
 
 namespace Escargot {
 
-class FunctionDeclarationNode : public FunctionNode {
+class FunctionDeclarationNode : public StatementNode {
 public:
     friend class ScriptParser;
-    FunctionDeclarationNode(const AtomicString& id, AtomicStringVector&& params, Node* body, bool isStrict)
-        : FunctionNode(id, std::move(params), body, isStrict)
+    FunctionDeclarationNode(const AtomicString& id, PatternNodeVector&& params, Node* body, bool isGenerator)
+        : m_function(id, std::move(params), body, isGenerator)
     {
     }
 
     virtual ASTNodeType type() { return ASTNodeType::FunctionDeclaration; }
 
 protected:
+    FunctionNode m_function;
 };
 
 }

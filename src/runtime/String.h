@@ -6,6 +6,12 @@
 
 namespace Escargot {
 
+typedef std::basic_string<char, std::char_traits<char>, gc_malloc_atomic_ignore_off_page_allocator<char> > ASCIIStringData;
+typedef std::basic_string<char, std::char_traits<char>, gc_malloc_atomic_ignore_off_page_allocator<char> > UTF8StringData;
+typedef std::basic_string<char16_t, std::char_traits<char16_t>, gc_malloc_atomic_ignore_off_page_allocator<char16_t> > UTF16StringData;
+typedef std::basic_string<char32_t, std::char_traits<char32_t>, gc_malloc_atomic_ignore_off_page_allocator<char32_t> > UTF32StringData;
+
+
 class ASCIIString;
 class UTF16String;
 
@@ -54,14 +60,44 @@ public:
         return charAt(idx);
     }
 
+    bool equals(String* src)
+    {
+        size_t srcLen = src->length();
+        if (srcLen != length()) {
+            return false;
+        }
+
+        for (size_t i = 0; i < srcLen; i ++) {
+            if (src->charAt(i) != charAt(i)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool equals(const char* src)
+    {
+        size_t srcLen = strlen(src);
+        if (srcLen != length()) {
+            return false;
+        }
+
+        for (size_t i = 0; i < srcLen; i ++) {
+            if (src[i] != charAt(i)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // NOTE these function generates new copy of string data
+    virtual UTF16StringData toUTF16StringData() const = 0;
+    virtual UTF8StringData toUTF8StringData() const = 0;
     static String* emptyString;
 protected:
 };
-
-typedef std::basic_string<char, std::char_traits<char>, gc_malloc_atomic_ignore_off_page_allocator<char> > ASCIIStringData;
-typedef std::basic_string<char, std::char_traits<char>, gc_malloc_atomic_ignore_off_page_allocator<char> > UTF8StringData;
-typedef std::basic_string<char16_t, std::char_traits<char16_t>, gc_malloc_atomic_ignore_off_page_allocator<char16_t> > UTF16StringData;
-typedef std::basic_string<char32_t, std::char_traits<char32_t>, gc_malloc_atomic_ignore_off_page_allocator<char32_t> > UTF32StringData;
 
 class ASCIIString : public String, public ASCIIStringData {
     void init()
@@ -98,6 +134,9 @@ public:
         return ASCIIStringData::length();
     }
 
+    virtual UTF16StringData toUTF16StringData() const;
+    virtual UTF8StringData toUTF8StringData() const;
+
 protected:
     // FIXME
     // for protect string buffer
@@ -133,6 +172,9 @@ public:
     {
         return UTF16StringData::length();
     }
+
+    virtual UTF16StringData toUTF16StringData() const;
+    virtual UTF8StringData toUTF8StringData() const;
 
 protected:
     // FIXME

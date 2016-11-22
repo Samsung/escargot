@@ -7,6 +7,13 @@ namespace Escargot {
 
 class StringView : public String {
 public:
+    StringView(const StringView& sv)
+    {
+        this->m_string = sv.m_string;
+        this->m_start = sv.m_start;
+        this->m_end = sv.m_end;
+    }
+
     StringView(String* str, const size_t& s, const size_t& e)
         : m_string(str)
         , m_start(s)
@@ -49,7 +56,12 @@ public:
         return true;
     }
 
-    UTF16StringData toUTF16StringData() const
+    bool operator!= (const char* src) const
+    {
+        return !operator ==(src);
+    }
+
+    virtual UTF16StringData toUTF16StringData() const
     {
         UTF16StringData ret;
         size_t len = length();
@@ -60,6 +72,28 @@ public:
         }
 
         return ret;
+    }
+
+    virtual UTF8StringData toUTF8StringData() const
+    {
+        // FIXME optimze this function
+        UTF16StringData s = toUTF16StringData();
+        return utf16StringToUTF8String(s.data(), s.length());
+    }
+
+    String* string()
+    {
+        return m_string;
+    }
+
+    size_t start()
+    {
+        return m_start;
+    }
+
+    size_t end()
+    {
+        return m_end;
     }
 
 protected:

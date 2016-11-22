@@ -25,22 +25,15 @@ namespace Escargot {
 class ProgramNode : public Node {
 public:
     friend class ScriptParser;
-    ProgramNode(StatementNodeVector&& body, bool isStrict)
+    ProgramNode(StatementNodeVector&& body)
         : Node()
     {
-        m_isStrict = isStrict;
         m_body = body;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::Program; }
 
-    bool isStrict()
-    {
-        return m_isStrict;
-    }
-
 protected:
-    bool m_isStrict;
     StatementNodeVector m_body; // body: [ Statement ];
 };
 

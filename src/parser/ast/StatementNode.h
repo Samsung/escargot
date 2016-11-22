@@ -28,6 +28,11 @@ public:
     {
     }
 
+    virtual bool isStatementNode()
+    {
+        return true;
+    }
+
 protected:
 };
 

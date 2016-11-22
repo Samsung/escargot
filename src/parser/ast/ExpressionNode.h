@@ -30,6 +30,11 @@ public:
         : Node()
     {
     }
+
+    virtual bool isExpressionNode()
+    {
+        return true;
+    }
 protected:
 };
 

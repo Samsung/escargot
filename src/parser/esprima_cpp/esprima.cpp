@@ -90,6 +90,7 @@ enum KeywordKind {
     If,
     In,
     Do,
+    Of,
     Var,
     For,
     New,
@@ -100,6 +101,7 @@ enum KeywordKind {
     Void,
     With,
     Enum,
+    Await,
     While,
     Break,
     Catch,
@@ -131,45 +133,6 @@ enum KeywordKind {
     Yield,
     Let,
     KeywordKindEnd
-};
-
-const char16_t* TokenName[] = {
-    u"",
-    u"Boolean",
-    u"<end>",
-    u"Identifier",
-    u"Keyword",
-    u"Null",
-    u"Numeric",
-    u"Punctuator",
-    u"String",
-    u"RegularExpression",
-    u"Template",
-};
-
-const char16_t* PuncuatorsTokens[] = {
-    u"(", u")", u"{", u"}", u".", u"...", u",", u":", u";", u"[", u"]",
-    // binary/unary operators
-    u"?", u"~", u">>>", u">>", u"<<", u"+", u"-", u"*", u"/", u"%", u"!",
-    u"==", u"!==", u"==", u"!=", u"&&", u"||", u"++", u"--", u"&", u"|",
-    u"^", u"<", u">", u"in", u"instanceof" ,
-    // assignment operators
-    u"=", u">>>=", u"<<=", u">>=", u"+=", u"-=", u"*=", u"/=", u"%=",
-    u"&=", u"|=", u"^=", u"<=", u">=",
-    // SubstitutionEnd
-    u"",
-    // arrow
-    u"=>"
-};
-
-const char16_t* KeywordTokens[] = {
-    u"", u"if", u"in", u"do", u"var", u"for", u"new", u"try", u"this",
-    u"else", u"case", u"void", u"with", u"enum", u"while", u"break",
-    u"catch", u"throw", u"const", u"class", u"super", u"return", u"typeof",
-    u"delete", u"switch", u"export", u"import", u"default", u"finally",
-    u"extends", u"function", u"continue", u"debugger", u"instanceof",
-    u"", u"implements", u"interface", u"package", u"private", u"protected", u"public",
-    u"static", u"yield", u"let"
 };
 
 ALWAYS_INLINE bool isDecimalDigit(char16_t ch)
@@ -265,7 +228,6 @@ bool isIdentifierPartSlow(char32_t ch)
 
 ALWAYS_INLINE bool isIdentifierPart(char32_t ch)
 {
-    // TODO
     return (ch >= 97 && ch <= 122) // a..z
         || (ch >= 65 && ch <= 90) // A..Z
         || (ch >= 48 && ch <= 57) // 0..9
@@ -281,7 +243,6 @@ bool isIdentifierStartSlow(char32_t ch)
 
 ALWAYS_INLINE bool isIdentifierStart(char32_t ch)
 {
-    // TODO
     return (ch >= 97 && ch <= 122) // a..z
         || (ch >= 65 && ch <= 90) // A..Z
         || (ch == 36) || (ch == 95) // $ (dollar) and _ (underscore)
@@ -301,118 +262,15 @@ struct Curly {
         m_curly[3] = curly[3];
     }
 };
-/*
-struct ParseStatus : public gc {
-    Token m_type;
-    StringView m_value;
-    bool m_octal;
-    size_t m_lineNumber;
-    size_t m_lineStart;
-    size_t m_start;
-    size_t m_end;
-    int m_prec;
-
-    bool m_head;
-    bool m_tail;
-
-    double m_valueNumber;
-
-    StringView m_regexBody;
-    StringView m_regexFlag;
-
-    PunctuatorsKind m_punctuatorsKind;
-    KeywordKind m_keywordKind;
-
-    void* operator new(size_t, void* p) { return p; }
-    void* operator new[](size_t, void* p) { return p; }
-    void* operator new(size_t size);
-    void operator delete(void* p);
-    void* operator new[](size_t size)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-        return malloc(size);
-    }
-    void operator delete[](void* p)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-        return free(p);
-    }
-};
-
-struct ParseContext {
-    ParseContext(String* src, bool strict)
-        : m_sourceString(src)
-        , m_index(0)
-        , m_lineNumber(src->length() > 0 ? 1 : 0)
-        , m_lineStart(0)
-        , m_startIndex(m_index)
-        , m_startLineNumber(m_lineNumber)
-        , m_startLineStart(m_lineStart)
-        , m_length(src->length())
-        , m_allowIn(true)
-        , m_allowYield(true)
-        , m_inFunctionBody(false)
-        , m_inIteration(false)
-        , m_inSwitch(false)
-        , m_inCatch(false)
-        , m_lastCommentStart(-1)
-        , m_strict(strict)
-        , m_scanning(false)
-        , m_isBindingElement(false)
-        , m_isAssignmentTarget(false)
-        , m_isFunctionIdentifier(false)
-        , m_firstCoverInitializedNameError(NULL)
-        , m_lookahead(nullptr)
-        , m_parenthesizedCount(0)
-        , m_stackCounter(0)
-        // , m_currentBody(nullptr)
-    {
-    }
-
-    String* m_sourceString;
-    size_t m_index;
-    size_t m_lineNumber;
-    size_t m_lineStart;
-    size_t m_startIndex;
-    size_t m_startLineNumber;
-    size_t m_startLineStart;
-    size_t m_lastIndex;
-    size_t m_lastLineNumber;
-    size_t m_lastLineStart;
-    size_t m_length;
-    bool m_allowIn;
-    bool m_allowYield;
-    std::vector<std::pair<String *, bool>, gc_allocator<std::pair<String *, bool>>> m_labelSet;
-    bool m_inFunctionBody;
-    bool m_inIteration;
-    bool m_inSwitch;
-    bool m_inCatch;
-    int m_lastCommentStart;
-    std::vector<Curly> m_curlyStack;
-    bool m_strict;
-    bool m_scanning;
-    bool m_hasLineTerminator;
-    bool m_isBindingElement;
-    bool m_isAssignmentTarget;
-    bool m_isFunctionIdentifier;
-    ParseStatus* m_firstCoverInitializedNameError;
-    ParseStatus* m_lookahead;
-    int m_parenthesizedCount;
-    int m_stackCounter;
-    // escargot::StatementNodeVector* m_currentBody;
-};
-
-*/
-
 
 namespace Messages {
-const char* UnexpectedToken = "Unexpected token %0";
+const char* UnexpectedToken = "Unexpected token %s";
 const char* UnexpectedTokenIllegal = "Unexpected token ILLEGAL";
 const char* UnexpectedNumber = "Unexpected number";
 const char* UnexpectedString = "Unexpected string";
 const char* UnexpectedIdentifier = "Unexpected identifier";
 const char* UnexpectedReserved = "Unexpected reserved word";
-const char* UnexpectedTemplate = "Unexpected quasi %0";
+const char* UnexpectedTemplate = "Unexpected quasi %s";
 const char* UnexpectedEOS = "Unexpected end of input";
 const char* NewlineAfterThrow = "Illegal newline after throw";
 const char* InvalidRegExp = "Invalid regular expression";
@@ -422,8 +280,8 @@ const char* InvalidLHSInForIn = "Invalid left-hand side in for-in";
 const char* InvalidLHSInForLoop = "Invalid left-hand side in for-loop";
 const char* MultipleDefaultsInSwitch = "More than one default clause in switch statement";
 const char* NoCatchOrFinally = "Missing catch or finally after try";
-const char* UnknownLabel = "Undefined label \'%0\'";
-const char* Redeclaration = "%0 \'%1\' has already been declared";
+const char* UnknownLabel = "Undefined label \'%s\'";
+const char* Redeclaration = "%s \'%s\' has already been declared";
 const char* IllegalContinue = "Illegal continue statement";
 const char* IllegalBreak = "Illegal break statement";
 const char* IllegalReturn = "Illegal return statement";
@@ -452,44 +310,9 @@ const char* NoAsAfterImportNamespace = "Unexpected token";
 const char* InvalidModuleSpecifier = "Unexpected token";
 const char* IllegalImportDeclaration = "Unexpected token";
 const char* IllegalExportDeclaration = "Unexpected token";
-const char* DuplicateBinding = "Duplicate binding %0";
-const char* ForInOfLoopInitializer = "%0 loop variable declaration may not have an initializer";
+const char* DuplicateBinding = "Duplicate binding %s";
+const char* ForInOfLoopInitializer = "%s loop variable declaration may not have an initializer";
 }
-
-struct Config : public gc {
-    bool range;
-    bool loc;
-    String* source;
-    bool tokens;
-    bool comment;
-    bool tolerant;
-};
-
-
-struct Context : public gc {
-    bool allowIn;
-    bool allowYield;
-    // firstCoverInitializedNameError: any;
-    bool isAssignmentTarget;
-    bool isBindingElement;
-    bool inFunctionBody;
-    bool inIteration;
-    bool inSwitch;
-    // labelSet: any;
-    bool strict;
-};
-
-struct Marker : public gc {
-    size_t index;
-    size_t lineNumber;
-    size_t lineStart;
-};
-
-struct MetaNode : public gc {
-    size_t index;
-    size_t line;
-    size_t column;
-};
 
 /*
 export interface Comment {
@@ -535,15 +358,19 @@ struct ScanRegExpResult {
 struct ScannerResult : public gc {
     Token type;
     bool octal;
+    bool head;
+
+    int prec;
     size_t lineNumber;
     size_t lineStart;
     size_t start;
     size_t end;
     size_t index;
 
+    StringView valueString;
+    KeywordKind valueKeywordKind;
     union {
-        StringView valueString;
-        PunctuatorsKind punctuatorsKind;
+        PunctuatorsKind valuePunctuatorsKind;
         double valueNumber;
         ScanTemplteResult valueTemplate;
         ScanRegExpResult valueRegexp;
@@ -553,32 +380,40 @@ struct ScannerResult : public gc {
     {
         this->type = type;
         this->octal = false;
+        this->head = false;
+        this->prec = -1;
+        this->valueKeywordKind = NotKeyword;
         this->valueString = valueString;
         this->lineNumber = lineNumber;
         this->valueNumber = 0;
         this->lineStart = lineStart;
         this->start = start;
         this->end = this->index = end;
-        punctuatorsKind = PunctuatorsKindEnd;
+        valuePunctuatorsKind = PunctuatorsKindEnd;
     }
 
     ScannerResult(Token type, StringView valueString, size_t lineNumber, size_t lineStart, size_t start, size_t end)
     {
         this->type = type;
         this->octal = false;
+        this->head = false;
+        this->prec = -1;
+        this->valueKeywordKind = NotKeyword;
         this->valueString = valueString;
         this->lineNumber = lineNumber;
         this->valueNumber = 0;
         this->lineStart = lineStart;
         this->start = start;
         this->end = this->index = end;
-        punctuatorsKind = PunctuatorsKindEnd;
+        valuePunctuatorsKind = PunctuatorsKindEnd;
     }
 
     ScannerResult(Token type, double value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
     {
         this->type = type;
         this->octal = false;
+        this->head = false;
+        this->valueKeywordKind = NotKeyword;
         this->valueNumber = value;
         this->lineNumber = lineNumber;
         this->lineStart = lineStart;
@@ -587,13 +422,16 @@ struct ScannerResult : public gc {
         if (end != SIZE_MAX) {
             this->end = end;
         }
-        punctuatorsKind = PunctuatorsKindEnd;
+        valuePunctuatorsKind = PunctuatorsKindEnd;
     }
 
     ScannerResult(Token type, ScanTemplteResult value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
     {
         this->type = type;
         this->octal = false;
+        this->head = false;
+        this->prec = -1;
+        this->valueKeywordKind = NotKeyword;
         this->valueNumber = 0;
         this->valueTemplate = value;
         this->lineNumber = lineNumber;
@@ -603,13 +441,106 @@ struct ScannerResult : public gc {
         if (end != SIZE_MAX) {
             this->end = end;
         }
-        punctuatorsKind = PunctuatorsKindEnd;
+        valuePunctuatorsKind = PunctuatorsKindEnd;
     }
 };
 
+struct Error : public gc {
+    String* name;
+    String* message;
+    size_t index;
+    size_t lineNumber;
+    size_t column;
+    String* description;
+
+    Error(String* message)
+    {
+        this->name = String::emptyString;
+        this->message = message;
+        this->column = this->lineNumber = this->index = 0;
+        this->description = String::emptyString;
+    }
+};
+
+class ErrorHandler : public gc {
+public:
+    // errors: Error[];
+    // tolerant: boolean;
+
+    ErrorHandler() {
+        // this->errors = [];
+        // this->tolerant = false;
+    }
+
+    // recordError(error: Error): void {
+    //     this->errors.push(error);
+    // };
+
+    void tolerate(Error* error)
+    {
+        /*
+        if (this->tolerant) {
+            this->recordError(error);
+        } else {
+            throw error;
+        }*/
+        throw error;
+    }
+
+    Error* constructError(String* msg, size_t column)
+    {
+        Error* error = new Error(msg);
+        error->column = column;
+        return error;
+        // try {
+        //     throw error;
+        // } catch (base) {
+            /* istanbul ignore else */
+        //     if (Object.create && Object.defineProperty) {
+        //         error = Object.create(base);
+        //         Object.defineProperty(error, 'column', { value: column });
+        //     }
+        // } finally {
+        //     return error;
+        // }
+    }
+
+    Error* createError(size_t index, size_t line, size_t col, String* description)
+    {
+        UTF16StringData msg = u"Line ";
+        msg += line;
+        msg += u": ";
+        msg += description->toUTF16StringData();
+        Error* error = constructError(new UTF16String(std::move(msg)), col);
+        error->index = index;
+        error->lineNumber = line;
+        error->description = description;
+        return error;
+    };
+
+    void throwError(size_t index, size_t line, size_t col, String* description)
+    {
+        throw this->createError(index, line, col, description);
+    }
+
+    void tolerateError(size_t index, size_t line, size_t col, String* description)
+    {
+        Error* error = this->createError(index, line, col, description);
+        /*
+        if (this->tolerant) {
+            this->recordError(error);
+        } else {
+            throw error;
+        }*/
+        throw error;
+    }
+};
+
+
 class Scanner {
+public:
     String* source;
-    // errorHandler: ErrorHandler;
+    ErrorHandler* errorHandler;
     // trackComment: boolean;
 
     size_t length;
@@ -618,10 +549,10 @@ class Scanner {
     size_t lineStart;
     std::vector<Curly> curlyStack;
 
-    Scanner(String* code/*, handler: ErrorHandler*/)
+    Scanner(String* code, ErrorHandler* handler)
     {
         source = code;
-        // errorHandler = handler;
+        errorHandler = handler;
         // trackComment = false;
 
         length = code->length();
@@ -637,12 +568,12 @@ class Scanner {
 
     void throwUnexpectedToken(const char *message = Messages::UnexpectedTokenIllegal)
     {
-        throw new ParserError(index, lineNumber, index - lineStart + 1, message);
+        this->errorHandler->throwError(this->index, this->lineNumber, this->index - this->lineStart + 1, new ASCIIString(message));
     }
 /*
     tolerateUnexpectedToken() {
-        this.errorHandler.tolerateError(this.index, this.lineNumber,
-            this.index - this.lineStart + 1, Messages.UnexpectedTokenIllegal);
+        this->errorHandler.tolerateError(this->index, this->lineNumber,
+            this->index - this->lineStart + 1, Messages.UnexpectedTokenIllegal);
     };
 */
     void tolerateUnexpectedToken()
@@ -658,13 +589,13 @@ class Scanner {
         // size_t start, loc;
 
         /*
-        if (this.trackComment) {
+        if (this->trackComment) {
             comments = [];
-            start = this.index - offset;
+            start = this->index - offset;
             loc = {
                 start: {
-                    line: this.lineNumber,
-                    column: this.index - this.lineStart - offset
+                    line: this->lineNumber,
+                    column: this->index - this->lineStart - offset
                 },
                 end: {}
             };
@@ -699,15 +630,15 @@ class Scanner {
         }
 
         /*
-        if (this.trackComment) {
+        if (this->trackComment) {
             loc.end = {
-                line: this.lineNumber,
-                column: this.index - this.lineStart
+                line: this->lineNumber,
+                column: this->index - this->lineStart
             };
             const entry: Comment = {
                 multiLine: false,
-                slice: [start + offset, this.index],
-                range: [start, this.index],
+                slice: [start + offset, this->index],
+                range: [start, this->index],
                 loc: loc
             };
             comments.push(entry);
@@ -723,13 +654,13 @@ class Scanner {
         // let comments: Comment[];
         // size_t start, loc;
         /*
-        if (this.trackComment) {
+        if (this->trackComment) {
             comments = [];
-            start = this.index - 2;
+            start = this->index - 2;
             loc = {
                 start: {
-                    line: this.lineNumber,
-                    column: this.index - this.lineStart - 2
+                    line: this->lineNumber,
+                    column: this->index - this->lineStart - 2
                 },
                 end: {}
             };
@@ -774,15 +705,15 @@ class Scanner {
 
         /*
         // Ran off the end of the file - the whole thing is a comment
-        if (this.trackComment) {
+        if (this->trackComment) {
             loc.end = {
-                line: this.lineNumber,
-                column: this.index - this.lineStart
+                line: this->lineNumber,
+                column: this->index - this->lineStart
             };
             const entry: Comment = {
                 multiLine: true,
-                slice: [start + 2, this.index],
-                range: [start, this.index],
+                slice: [start + 2, this->index],
+                range: [start, this->index],
                 loc: loc
             };
             comments.push(entry);
@@ -887,7 +818,8 @@ class Scanner {
         return false;
     }
 
-    bool isStrictModeReservedWord(const StringView& id)
+    template <typename T>
+    bool isStrictModeReservedWord(const T& id)
     {
         if (id == "let") {
             return true;
@@ -911,7 +843,8 @@ class Scanner {
         return false;
     }
 
-    bool isRestrictedWord(const StringView& id)
+    template <typename T>
+    bool isRestrictedWord(const T& id)
     {
         return id == "eval" || id == "arguments";
     }
@@ -936,6 +869,8 @@ class Scanner {
 
             } else if (first == 'd' && id == "do") {
                 return Do;
+            } else if (first == 'o' && id == "of") {
+                return Of;
             }
             break;
         case 3:
@@ -990,6 +925,10 @@ class Scanner {
                 */
             } else if (first == 's' && id == "super") {
                 return Super;
+                /*
+            } else if (first == 'a' && id == "await") {
+                return Await;
+                */
             }
             break;
         case 6:
@@ -1238,9 +1177,10 @@ class Scanner {
 
         // There is no keyword or literal with only one character.
         // Thus, it must be an identifier.
+        KeywordKind keywordKind = NotKeyword;
         if (id.length() == 1) {
             type = Token::IdentifierToken;
-        } else if (this->isKeyword(id)) {
+        } else if ((keywordKind = this->isKeyword(id))) {
             type = Token::KeywordToken;
         } else if (id == "null") {
             type = Token::NullLiteralToken;
@@ -1250,7 +1190,13 @@ class Scanner {
             type = Token::IdentifierToken;
         }
 
-        return new ScannerResult(type, id, this->lineNumber, this->lineStart, start, this->index);
+        if (keywordKind) {
+            ScannerResult* r = new ScannerResult(type, id, this->lineNumber, this->lineStart, start, this->index);
+            r->valueKeywordKind = keywordKind;
+            return r;
+        } else {
+            return new ScannerResult(type, id, this->lineNumber, this->lineStart, start, this->index);
+        }
     }
 
     // ECMA-262 11.7 Punctuators
@@ -1506,7 +1452,7 @@ class Scanner {
         }
 
         token->end = this->index;
-        token->punctuatorsKind = kind;
+        token->valuePunctuatorsKind = kind;
         return token;
     }
 
@@ -1949,6 +1895,7 @@ class Scanner {
         ScanTemplteResult result;
         result.head = head;
         result.tail = tail;
+        // TODO when parsing global code, we should generate new string not string view of code
         result.raw = StringView(this->source, start + 1, this->index - rawOffset);
         result.valueCooked = std::move(cooked);
 
@@ -2180,6 +2127,3873 @@ class Scanner {
     }
 
 };
+
+struct Config : public gc {
+    bool range;
+    bool loc;
+    String* source;
+    bool tokens;
+    bool comment;
+    bool tolerant;
+};
+
+
+struct Context : public gc {
+    bool allowIn;
+    bool allowYield;
+    ScannerResult* firstCoverInitializedNameError;
+    bool isAssignmentTarget;
+    bool isBindingElement;
+    bool inFunctionBody;
+    bool inIteration;
+    bool inSwitch;
+    std::vector<std::pair<String*, bool>> labelSet;
+    bool strict;
+};
+
+struct Marker : public gc {
+    size_t index;
+    size_t lineNumber;
+    size_t lineStart;
+};
+
+struct MetaNode : public gc {
+    size_t index;
+    size_t line;
+    size_t column;
+};
+
+
+struct ArrowParameterPlaceHolderNode : public gc {
+    String* type;
+    ExpressionNodeVector params;
+};
+
+struct DeclarationOptions : public gc {
+    bool inFor;
+};
+
+
+struct NodeLOC {
+    size_t line;
+    size_t column;
+    size_t offset;
+
+    NodeLOC(size_t line, size_t column, size_t offset)
+    {
+        this->line = line;
+        this->column = column;
+        this->offset = offset;
+    }
+};
+
+typedef void (*ParserASTNodeHandler)(Node*, NodeLOC start, NodeLOC end);
+
+class Parser : public gc {
+public:
+    ::Escargot::Context* escargotContext;
+    Config config;
+    ParserASTNodeHandler delegate;
+    ErrorHandler* errorHandler;
+    Scanner* scanner;
+    std::unordered_map<IdentifierNode*, ScannerResult*,
+        std::hash<IdentifierNode*>, std::equal_to<IdentifierNode*>, gc_malloc_ignore_off_page_allocator<std::pair<IdentifierNode*, ScannerResult*>>> nodeExtraInfo;
+
+    enum SourceType {
+        Script, Module
+    };
+    SourceType sourceType;
+    ScannerResult* lookahead;
+    bool hasLineTerminator;
+
+    Context* context;
+    std::vector<ScannerResult*, gc_allocator_ignore_off_page<ScannerResult*>> tokens;
+    Marker startMarker;
+    Marker lastMarker;
+
+    Parser(::Escargot::Context* escargotContext, String* code, ParserASTNodeHandler delegate/*, options: any = {}, delegate*/)
+    {
+        this->escargotContext = escargotContext;
+        config.range = false;
+        config.loc = false;
+        config.source = String::emptyString;
+        config.tokens = false;
+        config.comment = false;
+        config.tolerant = false;
+
+        /*
+        this->config = {
+            range: (typeof options.range == 'boolean') && options.range,
+            loc: (typeof options.loc == 'boolean') && options.loc,
+            source: null,
+            tokens: (typeof options.tokens == 'boolean') && options.tokens,
+            comment: (typeof options.comment == 'boolean') && options.comment,
+            tolerant: (typeof options.tolerant == 'boolean') && options.tolerant
+        };
+        if (this->config.loc && options.source && options.source !== null) {
+            this->config.source = String(options.source);
+        }*/
+
+        this->delegate = delegate;
+
+        this->errorHandler = new ErrorHandler();
+
+        this->scanner = new Scanner(code, this->errorHandler);
+
+        // this->sourceType = (options && options.sourceType == 'module') ? 'module' : 'script';
+        this->sourceType = Script;
+        this->lookahead = nullptr;
+        this->hasLineTerminator = false;
+
+        this->context = new Context();
+        this->context->allowIn = true;
+        this->context->allowYield = true;
+        this->context->firstCoverInitializedNameError = nullptr;
+        this->context->isAssignmentTarget = true;
+        this->context->isBindingElement = true;
+        this->context->inFunctionBody = true;
+        this->context->inIteration = true;
+        this->context->inSwitch = true;
+        this->context->strict = this->sourceType == Module;
+
+        this->startMarker.index = 0;
+        this->startMarker.lineNumber = this->scanner->lineNumber;
+        this->startMarker.lineStart = 0;
+
+        this->lastMarker.index = 0;
+        this->lastMarker.lineNumber = this->scanner->lineNumber;
+        this->lastMarker.lineStart = 0;
+
+        this->nextToken();
+        this->lastMarker.index = this->scanner->index;
+        this->lastMarker.lineNumber = this->scanner->lineNumber;
+        this->lastMarker.lineStart = this->scanner->lineStart;
+    }
+
+    void throwError(const char* messageFormat, String* arg0 = String::emptyString, String* arg1 = String::emptyString)
+    {
+        UTF16StringData msg;
+        if (arg0->length() && arg1->length()) {
+            char message[512];
+            UTF8StringData d1 = arg0->toUTF8StringData();
+            UTF8StringData d2 = arg1->toUTF8StringData();
+            snprintf(message, 512, messageFormat, d1.data(), d2.data());
+            msg = utf8StringToUTF16String(message, strlen(message));
+        } else if (arg0->length()) {
+            char message[512];
+            UTF8StringData d1 = arg0->toUTF8StringData();
+            snprintf(message, 512, messageFormat, d1.data());
+            msg = utf8StringToUTF16String(message, strlen(message));
+        } else {
+            msg.assign(messageFormat, &messageFormat[strlen(messageFormat)]);
+        }
+
+        size_t index = this->lastMarker.index;
+        size_t line = this->lastMarker.lineNumber;
+        size_t column = this->lastMarker.index - this->lastMarker.lineStart + 1;
+        throw this->errorHandler->createError(index, line, column, new UTF16String(std::move(msg)));
+
+    }
+
+    void tolerateError(const char* messageFormat, String* arg0 = String::emptyString, String* arg1 = String::emptyString)
+    {
+        throwError(messageFormat, arg0, arg1);
+    }
+
+    void replaceAll(UTF16StringData& str, const UTF16StringData& from, const UTF16StringData& to)
+    {
+        if(from.empty())
+            return;
+        size_t start_pos = 0;
+        while((start_pos = str.find(from, start_pos)) != std::string::npos) {
+            str.replace(start_pos, from.length(), to);
+            start_pos += to.length();
+        }
+    }
+
+    // Throw an exception because of the token.
+    Error* unexpectedTokenError(ScannerResult* token = nullptr, const char* message = nullptr)
+    {
+        const char* msg;
+        if (message)
+            msg = message;
+        else
+            msg = Messages::UnexpectedToken;
+
+        String* value;
+        if (token) {
+            if (!message) {
+                msg = (token->type == Token::EOFToken) ? Messages::UnexpectedEOS :
+                    (token->type == Token::IdentifierToken) ? Messages::UnexpectedIdentifier :
+                        (token->type == Token::NumericLiteralToken) ? Messages::UnexpectedNumber :
+                            (token->type == Token::StringLiteralToken) ? Messages::UnexpectedString :
+                                (token->type == Token::TemplateToken) ? Messages::UnexpectedTemplate :
+                                    Messages::UnexpectedToken;
+
+                if (token->type == Token::KeywordToken) {
+                    if (this->scanner->isFutureReservedWord(token->valueString)) {
+                        msg = Messages::UnexpectedReserved;
+                    } else if (this->context->strict && this->scanner->isStrictModeReservedWord(token->valueString)) {
+                        msg = Messages::StrictReservedWord;
+                    }
+                }
+            }
+
+            value = new StringView((token->type == Token::TemplateToken) ? token->valueTemplate.raw : token->valueString);
+        } else {
+            value = new ASCIIString("ILLEGAL");
+        }
+
+        // msg = msg.replace('%0', value);
+        UTF16StringData msgData;
+        msgData.assign(msg, &msg[strlen(msg)]);
+        UTF16StringData valueData = value->toUTF16StringData();
+        replaceAll(msgData, u"%s", valueData);
+
+        // if (token && typeof token.lineNumber == 'number') {
+        if (token) {
+            const size_t index = token->start;
+            const size_t line = token->lineNumber;
+            const size_t column = token->start - this->lastMarker.lineStart + 1;
+            return this->errorHandler->createError(index, line, column, new UTF16String(std::move(msgData)));
+        } else {
+            const size_t index = this->lastMarker.index;
+            const size_t line = this->lastMarker.lineNumber;
+            const size_t column = index - this->lastMarker.lineStart + 1;
+            return this->errorHandler->createError(index, line, column, new UTF16String(std::move(msgData)));
+        }
+    }
+
+    void throwUnexpectedToken(ScannerResult* token, const char* message = nullptr)
+    {
+        throw this->unexpectedTokenError(token, message = nullptr);
+    }
+
+    void tolerateUnexpectedToken(ScannerResult* token, const char* message = nullptr)
+    {
+        // this->errorHandler.tolerate(this->unexpectedTokenError(token, message));
+        throwUnexpectedToken(token, message);
+    }
+
+    void collectComments()
+    {
+        this->scanner->scanComments();
+        /*
+        if (!this->config.comment) {
+            this->scanner->scanComments();
+        } else {
+            const comments: Comment[] = this->scanner->scanComments();
+            if (comments.length > 0 && this->delegate) {
+                for (let i = 0; i < comments.length; ++i) {
+                    const e: Comment = comments[i];
+                    let node;
+                    node = {
+                        type: e.multiLine ? 'BlockComment' : 'LineComment',
+                        value: this->scanner->source.slice(e.slice[0], e.slice[1])
+                    };
+                    if (this->config.range) {
+                        node.range = e.range;
+                    }
+                    if (this->config.loc) {
+                        node.loc = e.loc;
+                    }
+                    const metadata = {
+                        start: {
+                            line: e.loc.start.line,
+                            column: e.loc.start.column,
+                            offset: e.range[0]
+                        },
+                        end: {
+                            line: e.loc.end.line,
+                            column: e.loc.end.column,
+                            offset: e.range[1]
+                        }
+                    };
+                    this->delegate(node, metadata);
+                }
+            }
+        }*/
+    }
+
+    ScannerResult* nextToken()
+    {
+        ScannerResult* token = this->lookahead;
+
+        this->lastMarker.index = this->scanner->index;
+        this->lastMarker.lineNumber = this->scanner->lineNumber;
+        this->lastMarker.lineStart = this->scanner->lineStart;
+
+        this->collectComments();
+
+        this->startMarker.index = this->scanner->index;
+        this->startMarker.lineNumber = this->scanner->lineNumber;
+        this->startMarker.lineStart = this->scanner->lineStart;
+
+        ScannerResult* next;
+        next = this->scanner->lex();
+        this->hasLineTerminator = (token && next) ? (token->lineNumber != next->lineNumber) : false;
+
+        if (next && this->context->strict && next->type == Token::IdentifierToken) {
+            if (this->scanner->isStrictModeReservedWord(next->valueString)) {
+                next->type = Token::KeywordToken;
+            }
+        }
+        this->lookahead = next;
+
+        /*
+        if (this->config.tokens && next.type !== Token.EOF) {
+            this->tokens.push(this->convertToken(next));
+        }
+        */
+
+        return token;
+    }
+
+    ScannerResult* nextRegexToken()
+    {
+        this->collectComments();
+
+        ScannerResult* token = this->scanner->scanRegExp();
+        /*
+        if (this->config.tokens) {
+            // Pop the previous token, '/' or '/='
+            // This is added from the lookahead token.
+            this->tokens.pop();
+
+            this->tokens.push(this->convertToken(token));
+        }*/
+
+        // Prime the next lookahead.
+        this->lookahead = token;
+        this->nextToken();
+
+        return token;
+    }
+
+    MetaNode createNode()
+    {
+        MetaNode n;
+        n.index = this->startMarker.index;
+        n.line = this->startMarker.lineNumber;
+        n.column = this->startMarker.index - this->startMarker.lineStart;
+        return n;
+    }
+
+    MetaNode startNode(ScannerResult* token)
+    {
+        MetaNode n;
+        n.index = token->start;
+        n.line = token->lineNumber;
+        n.column = token->start - token->lineStart;
+        return n;
+    }
+
+    template <typename T>
+    T* finalize(MetaNode meta, T* node)
+    {
+        /*
+        if (this->config.range) {
+            node.range = [meta.index, this->lastMarker.index];
+        }
+
+        if (this->config.loc) {
+            node.loc = {
+                start: {
+                    line: meta.line,
+                    column: meta.column
+                },
+                end: {
+                    line: this->lastMarker.lineNumber,
+                    column: this->lastMarker.index - this->lastMarker.lineStart
+                }
+            };
+            if (this->config.source) {
+                node.loc.source = this->config.source;
+            }
+        }*/
+
+        if (this->delegate) {
+            this->delegate(node, NodeLOC(meta.line, meta.column, meta.index),
+                NodeLOC(this->lastMarker.lineNumber, this->lastMarker.index - this->lastMarker.lineStart, this->lastMarker.index));
+        }
+
+        return node;
+    }
+
+    // Expect the next token to match the specified punctuator.
+    // If not, an exception will be thrown.
+
+    void expect(PunctuatorsKind value)
+    {
+        ScannerResult* token = this->nextToken();
+        if (token->type != Token::PunctuatorToken || token->valuePunctuatorsKind != value) {
+            this->throwUnexpectedToken(token);
+        }
+    }
+
+    // Quietly expect a comma when in tolerant mode, otherwise delegates to expect().
+
+    void expectCommaSeparator()
+    {
+        /*
+        if (this->config.tolerant) {
+            let token = this->lookahead;
+            if (token.type == Token.Punctuator && token.value == ',') {
+                this->nextToken();
+            } else if (token.type == Token.Punctuator && token.value == ';') {
+                this->nextToken();
+                this->tolerateUnexpectedToken(token);
+            } else {
+                this->tolerateUnexpectedToken(token, Messages.UnexpectedToken);
+            }
+        } else {
+            this->expect(',');
+        }*/
+        this->expect(PunctuatorsKind::Comma);
+    }
+
+    // Expect the next token to match the specified keyword.
+    // If not, an exception will be thrown.
+
+    void expectKeyword(KeywordKind keyword)
+    {
+        ScannerResult* token = this->nextToken();
+        if (token->type != Token::KeywordToken || token->valueKeywordKind != keyword) {
+            this->throwUnexpectedToken(token);
+        }
+    }
+
+    // Return true if the next token matches the specified punctuator.
+
+    bool match(PunctuatorsKind value)
+    {
+        return this->lookahead->type == Token::PunctuatorToken && this->lookahead->valuePunctuatorsKind == value;
+    }
+
+    // Return true if the next token matches the specified keyword
+
+    bool matchKeyword(KeywordKind keyword)
+    {
+        return this->lookahead->type == Token::KeywordToken && this->lookahead->valueKeywordKind == keyword;
+    }
+
+    // Return true if the next token matches the specified contextual keyword
+    // (where an identifier is sometimes a keyword depending on the context)
+
+    bool matchContextualKeyword(KeywordKind keyword)
+    {
+        return this->lookahead->type == Token::IdentifierToken && this->lookahead->valueKeywordKind == keyword;
+    }
+
+    // Return true if the next token is an assignment operator
+
+    bool matchAssign()
+    {
+        if (this->lookahead->type != Token::PunctuatorToken) {
+            return false;
+        }
+        PunctuatorsKind op = this->lookahead->valuePunctuatorsKind;
+
+        if (op >= Substitution && op < SubstitutionEnd) {
+            return true;
+        }
+        return false;
+    }
+
+    // Cover grammar support.
+    //
+    // When an assignment expression position starts with an left parenthesis, the determination of the type
+    // of the syntax is to be deferred arbitrarily long until the end of the parentheses pair (plus a lookahead)
+    // or the first comma. This situation also defers the determination of all the expressions nested in the pair.
+    //
+    // There are three productions that can be parsed in a parentheses pair that needs to be determined
+    // after the outermost pair is closed. They are:
+    //
+    //   1. AssignmentExpression
+    //   2. BindingElements
+    //   3. AssignmentTargets
+    //
+    // In order to avoid exponential backtracking, we use two flags to denote if the production can be
+    // binding element or assignment target.
+    //
+    // The three productions have the relationship:
+    //
+    //   BindingElements ⊆ AssignmentTargets ⊆ AssignmentExpression
+    //
+    // with a single exception that CoverInitializedName when used directly in an Expression, generates
+    // an early error. Therefore, we need the third state, firstCoverInitializedNameError, to track the
+    // first usage of CoverInitializedName and report it when we reached the end of the parentheses pair.
+    //
+    // isolateCoverGrammar function runs the given parser function with a new cover grammar context, and it does not
+    // effect the current flags. This means the production the parser parses is only used as an expression. Therefore
+    // the CoverInitializedName check is conducted.
+    //
+    // inheritCoverGrammar function runs the given parse function with a new cover grammar context, and it propagates
+    // the flags outside of the parser. This means the production the parser parses is used as a part of a potential
+    // pattern. The CoverInitializedName check is deferred.
+
+    typedef Node* (Parser::*ParseFunction)();
+
+    template <typename T>
+    Node* isolateCoverGrammar(T parseFunction)
+    {
+        const bool previousIsBindingElement = this->context->isBindingElement;
+        const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
+        ScannerResult* previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+
+        this->context->isBindingElement = true;
+        this->context->isAssignmentTarget = true;
+        this->context->firstCoverInitializedNameError = nullptr;
+
+
+        Node* result = (this->*parseFunction)();
+        if (this->context->firstCoverInitializedNameError != nullptr) {
+            this->throwUnexpectedToken(this->context->firstCoverInitializedNameError);
+        }
+
+        this->context->isBindingElement = previousIsBindingElement;
+        this->context->isAssignmentTarget = previousIsAssignmentTarget;
+        this->context->firstCoverInitializedNameError = previousFirstCoverInitializedNameError;
+
+        return result;
+    }
+
+    template <typename T>
+    Node* inheritCoverGrammar(T parseFunction)
+    {
+        const bool previousIsBindingElement = this->context->isBindingElement;
+        const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
+        ScannerResult* previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+
+        this->context->isBindingElement = true;
+        this->context->isAssignmentTarget = true;
+        this->context->firstCoverInitializedNameError = nullptr;
+
+        Node* result = (this->*parseFunction)();
+
+        this->context->isBindingElement = this->context->isBindingElement && previousIsBindingElement;
+        this->context->isAssignmentTarget = this->context->isAssignmentTarget && previousIsAssignmentTarget;
+        if (previousFirstCoverInitializedNameError)
+            this->context->firstCoverInitializedNameError = previousFirstCoverInitializedNameError;
+
+        return result;
+    }
+
+    void consumeSemicolon()
+    {
+        if (this->match(PunctuatorsKind::SemiColon)) {
+            this->nextToken();
+        } else if (!this->hasLineTerminator) {
+            if (this->lookahead->type != Token::EOFToken && !this->match(PunctuatorsKind::RightBrace)) {
+                this->throwUnexpectedToken(this->lookahead);
+            }
+            this->lastMarker.index = this->startMarker.index;
+            this->lastMarker.lineNumber = this->startMarker.lineNumber;
+            this->lastMarker.lineStart = this->startMarker.lineStart;
+        }
+    }
+
+    IdentifierNode* finishIdentifier(ScannerResult* token)
+    {
+        auto ret = new IdentifierNode(AtomicString(this->escargotContext, token->valueString));
+        nodeExtraInfo.insert(std::make_pair(ret, token));
+        return ret;
+    }
+
+#define DEFINE_AS_NODE(TypeName) \
+    TypeName##Node* as##TypeName##Node(Node* n) \
+    { \
+        ASSERT(n->is##TypeName##Node()); \
+        return (TypeName##Node*)n; \
+    } \
+
+    DEFINE_AS_NODE(Expression);
+    DEFINE_AS_NODE(Statement);
+
+    // ECMA-262 12.2 Primary Expressions
+
+    Node* parsePrimaryExpression()
+    {
+        MetaNode node = this->createNode();
+
+        Node* expr;
+        // let value, token, raw;
+        ScannerResult* token;
+
+        switch (this->lookahead->type) {
+            case Token::IdentifierToken:
+                if (this->sourceType == SourceType::Module && this->lookahead->valueKeywordKind == KeywordKind::Await) {
+                    this->tolerateUnexpectedToken(this->lookahead);
+                }
+                expr = this->finalize(node, finishIdentifier(this->nextToken()));
+                break;
+
+            case Token::NumericLiteralToken:
+            case Token::StringLiteralToken:
+                if (this->context->strict && this->lookahead->octal) {
+                    this->tolerateUnexpectedToken(this->lookahead, Messages::StrictOctalLiteral);
+                }
+                this->context->isAssignmentTarget = false;
+                this->context->isBindingElement = false;
+                token = this->nextToken();
+                // raw = this->getTokenRaw(token);
+                if (this->lookahead->type == Token::NumericLiteralToken)
+                    expr = this->finalize(node, new LiteralNode(Value(token->valueNumber)));
+                else
+                    expr = this->finalize(node, new LiteralNode(Value(new StringView(token->valueString))));
+                break;
+
+            case Token::BooleanLiteralToken:
+                this->context->isAssignmentTarget = false;
+                this->context->isBindingElement = false;
+                token = this->nextToken();
+                // token.value = (token.value === 'true');
+                // raw = this->getTokenRaw(token);
+                {
+                    bool value = token->valueString == "true";
+                    expr = this->finalize(node, new LiteralNode(Value(value)));
+                }
+                break;
+
+            case Token::NullLiteralToken:
+                this->context->isAssignmentTarget = false;
+                this->context->isBindingElement = false;
+                token = this->nextToken();
+                // token.value = null;
+                // raw = this->getTokenRaw(token);
+                expr = this->finalize(node, new LiteralNode(Value(Value::Null)));
+                break;
+
+            case Token::TemplateToken:
+                expr = this->parseTemplateLiteral();
+                break;
+
+            case Token::PunctuatorToken:
+            {
+                PunctuatorsKind value = this->lookahead->valuePunctuatorsKind;
+                switch (value) {
+                    case LeftParenthesis:
+                        this->context->isBindingElement = false;
+                        // TODO
+                        RELEASE_ASSERT_NOT_REACHED();
+                        // expr = this->inheritCoverGrammar(this->parseGroupExpression);
+                        break;
+                    case LeftSquareBracket:
+                        expr = this->inheritCoverGrammar(&Parser::parseArrayInitializer);
+                        break;
+                    case LeftBrace:
+                        expr = this->inheritCoverGrammar(&Parser::parseObjectInitializer);
+                        break;
+                    case Divide:
+                    case DivideEqual:
+                        this->context->isAssignmentTarget = false;
+                        this->context->isBindingElement = false;
+                        this->scanner->index = this->startMarker.index;
+                        token = this->nextRegexToken();
+                        // raw = this->getTokenRaw(token);
+                        // TODO
+                        RELEASE_ASSERT_NOT_REACHED();
+                        // expr = this->finalize(node, new Node.RegexLiteral(token.value, raw, token.regex));
+                        break;
+                    default:
+                        this->throwUnexpectedToken(this->nextToken());
+                }
+                break;
+            }
+
+            case Token::KeywordToken:
+                if (!this->context->strict && this->context->allowYield && this->matchKeyword(KeywordKind::Yield)) {
+                    expr = this->parseIdentifierName();
+                } else if (!this->context->strict && this->matchKeyword(KeywordKind::Let)) {
+                    expr = this->finalize(node, finishIdentifier(this->nextToken()));
+                } else {
+                    this->context->isAssignmentTarget = false;
+                    this->context->isBindingElement = false;
+                    if (this->matchKeyword(KeywordKind::Function)) {
+                        expr = this->parseFunctionExpression();
+                    } else if (this->matchKeyword(KeywordKind::This)) {
+                        this->nextToken();
+                        expr = this->finalize(node, new ThisExpressionNode());
+                    } else if (this->matchKeyword(KeywordKind::Class)) {
+                        // TODO
+                        RELEASE_ASSERT_NOT_REACHED();
+                        // expr = this->parseClassExpression();
+                    } else {
+                        this->throwUnexpectedToken(this->nextToken());
+                    }
+                }
+                break;
+
+            default:
+                this->throwUnexpectedToken(this->nextToken());
+        }
+
+        return expr;
+    }
+
+    struct ParseParameterOptions {
+        PatternNodeVector params;
+        std::vector<AtomicString, gc_allocator<AtomicString>> paramSet;
+        ScannerResult* stricted;
+        const char* message;
+        ScannerResult* firstRestricted;
+        ParseParameterOptions()
+        {
+            firstRestricted = nullptr;
+            stricted = nullptr;
+            message = nullptr;
+        }
+    };
+
+
+    void validateParam(ParseParameterOptions& options, ScannerResult* param, AtomicString name)
+    {
+        if (this->context->strict) {
+            if (this->scanner->isRestrictedWord(name)) {
+                options.stricted = param;
+                options.message = Messages::StrictParamName;
+            }
+            if (std::find(options.paramSet.begin(), options.paramSet.end(), name) != options.paramSet.end()) {
+                options.stricted = param;
+                options.message = Messages::StrictParamDupe;
+            }
+        } else if (!options.firstRestricted) {
+            if (this->scanner->isRestrictedWord(name)) {
+                options.firstRestricted = param;
+                options.message = Messages::StrictParamName;
+            } else if (this->scanner->isStrictModeReservedWord(name)) {
+                options.firstRestricted = param;
+                options.message = Messages::StrictReservedWord;
+            } else if (std::find(options.paramSet.begin(), options.paramSet.end(), name) != options.paramSet.end()) {
+                options.stricted = param;
+                options.message = Messages::StrictParamDupe;
+            }
+        }
+        options.paramSet.push_back(name);
+    }
+
+    RestElementNode* parseRestElement(std::vector<ScannerResult*, gc_malloc_ignore_off_page_allocator<ScannerResult*>>& params)
+    {
+        MetaNode node = this->createNode();
+
+        this->nextToken();
+        if (this->match(LeftBrace)) {
+            this->throwError(Messages::ObjectPatternAsRestParameter);
+        }
+        params.push_back(this->lookahead);
+
+        IdentifierNode* param = this->parseVariableIdentifier();
+        if (this->match(Equal)) {
+            this->throwError(Messages::DefaultRestParameter);
+        }
+        if (!this->match(RightParenthesis)) {
+            this->throwError(Messages::ParameterAfterRestParameter);
+        }
+
+        return this->finalize(node, new RestElementNode(param));
+    }
+
+    Node* parsePattern(std::vector<ScannerResult*, gc_malloc_ignore_off_page_allocator<ScannerResult*>>& params, String* kind = String::emptyString)
+    {
+        Node* pattern;
+
+        if (this->match(LeftSquareBracket)) {
+            RELEASE_ASSERT_NOT_REACHED();
+            // pattern = this->parseArrayPattern(params, kind);
+        } else if (this->match(LeftBrace)) {
+            RELEASE_ASSERT_NOT_REACHED();
+            // pattern = this->parseObjectPattern(params, kind);
+        } else {
+            if (this->matchKeyword(KeywordKind::Let) && (kind->equals("const") || kind->equals("let"))) {
+                this->tolerateUnexpectedToken(this->lookahead, Messages::UnexpectedToken);
+            }
+            params.push_back(this->lookahead);
+            pattern = this->parseVariableIdentifier(kind);
+        }
+
+        return pattern;
+    }
+
+    Node* parsePatternWithDefault(std::vector<ScannerResult*, gc_malloc_ignore_off_page_allocator<ScannerResult*>>& params, String* kind = String::emptyString)
+    {
+        ScannerResult* startToken = this->lookahead;
+
+        Node* pattern = this->parsePattern(params, kind);
+        if (this->match(PunctuatorsKind::Equal)) {
+            this->nextToken();
+            const bool previousAllowYield = this->context->allowYield;
+            this->context->allowYield = true;
+            Node* right = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+            this->context->allowYield = previousAllowYield;
+            pattern = this->finalize(this->startNode(startToken), new AssignmentExpressionSimpleNode(pattern, right));
+        }
+
+        return pattern;
+    }
+
+    bool parseFormalParameter(ParseParameterOptions& options)
+    {
+        Node* param;
+        std::vector<ScannerResult*, gc_malloc_ignore_off_page_allocator<ScannerResult*>> params;
+        ScannerResult* token = this->lookahead;
+        if (token->type == Token::PunctuatorToken && token->valuePunctuatorsKind == PunctuatorsKind::PeriodPeriodPeriod) {
+            RestElementNode* param = this->parseRestElement(params);
+            this->validateParam(options, params.back(), param->argument()->name());
+            options.params.push_back(param);
+            return false;
+        }
+
+        param = this->parsePatternWithDefault(params);
+        for (size_t i = 0; i < params.size(); i++) {
+            UTF16StringData data = params[i]->valueString.toUTF16StringData();
+            AtomicString as(this->escargotContext, data.data(), data.length());
+            this->validateParam(options, params[i], as);
+        }
+        options.params.push_back(param);
+
+        return !this->match(PunctuatorsKind::RightParenthesis);
+    }
+
+    struct ParseFormalParametersResult {
+        PatternNodeVector params;
+        ScannerResult* stricted;
+        ScannerResult* firstRestricted;
+        const char* message;
+        ParseFormalParametersResult(PatternNodeVector params, ScannerResult* stricted, ScannerResult* firstRestricted, const char* message)
+        {
+            this->params = std::move(params);
+            this->stricted = stricted;
+            this->firstRestricted = firstRestricted;
+            this->message = nullptr;
+        }
+    };
+
+    ParseFormalParametersResult parseFormalParameters(ScannerResult* firstRestricted = nullptr)
+    {
+        ParseParameterOptions options;
+
+        options.firstRestricted = firstRestricted;
+
+        this->expect(LeftParenthesis);
+        if (!this->match(RightParenthesis)) {
+            options.paramSet.clear();
+            while (this->startMarker.index < this->scanner->length) {
+                if (!this->parseFormalParameter(options)) {
+                    break;
+                }
+                this->expect(Comma);
+            }
+        }
+        this->expect(RightParenthesis);
+
+        return ParseFormalParametersResult(options.params, options.stricted, options.firstRestricted, options.message);
+    }
+
+    // ECMA-262 12.2.5 Array Initializer
+
+    SpreadElementNode* parseSpreadElement()
+    {
+        MetaNode node = this->createNode();
+        this->expect(PunctuatorsKind::PeriodPeriodPeriod);
+        Node* arg = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
+        return this->finalize(node, new SpreadElementNode(arg));
+    }
+
+    Node* parseArrayInitializer()
+    {
+        MetaNode node = this->createNode();
+        // const elements: Node.ArrayExpressionElement[] = [];
+        ExpressionNodeVector elements;
+
+        this->expect(LeftSquareBracket);
+        while (!this->match(RightSquareBracket)) {
+            if (this->match(Comma)) {
+                this->nextToken();
+                elements.push_back(nullptr);
+            } else if (this->match(PeriodPeriodPeriod)) {
+                SpreadElementNode* element = this->parseSpreadElement();
+                if (!this->match(RightSquareBracket)) {
+                    this->context->isAssignmentTarget = false;
+                    this->context->isBindingElement = false;
+                    this->expect(Comma);
+                }
+                elements.push_back(element);
+            } else {
+                elements.push_back(this->inheritCoverGrammar(&Parser::parseAssignmentExpression));
+                if (!this->match(RightSquareBracket)) {
+                    this->expect(Comma);
+                }
+            }
+        }
+        this->expect(RightSquareBracket);
+
+        return this->finalize(node, new ArrayExpressionNode(std::move(elements)));
+    }
+
+    // ECMA-262 12.2.6 Object Initializer
+
+     Node* parsePropertyMethod(ParseFormalParametersResult& params)
+     {
+         this->context->isAssignmentTarget = false;
+         this->context->isBindingElement = false;
+
+         const bool previousStrict = this->context->strict;
+         Node* body = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
+         if (this->context->strict && params.firstRestricted) {
+             this->tolerateUnexpectedToken(params.firstRestricted, params.message);
+         }
+         if (this->context->strict && params.stricted) {
+             this->tolerateUnexpectedToken(params.stricted, params.message);
+         }
+         this->context->strict = previousStrict;
+
+         return body;
+     }
+
+     FunctionExpressionNode* parsePropertyMethodFunction()
+     {
+        const bool isGenerator = false;
+        MetaNode node = this->createNode();
+
+        const bool previousAllowYield = this->context->allowYield;
+        this->context->allowYield = false;
+        ParseFormalParametersResult params = this->parseFormalParameters();
+        Node* method = this->parsePropertyMethod(params);
+        this->context->allowYield = previousAllowYield;
+
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method, isGenerator));
+     }
+
+     Node* parseObjectPropertyKey()
+     {
+         MetaNode node = this->createNode();
+         ScannerResult* token = this->nextToken();
+
+         Node* key = nullptr;
+         switch (token->type) {
+             case Token::NumericLiteralToken:
+             case Token::StringLiteralToken:
+                 if (this->context->strict && token->octal) {
+                     this->tolerateUnexpectedToken(token, Messages::StrictOctalLiteral);
+                 }
+                 // const raw = this->getTokenRaw(token);
+                 {
+                     Value v;
+                     if (token->type == Token::NumericLiteralToken) {
+                         v = Value(token->valueNumber);
+                     } else {
+                         v = Value(new StringView(token->valueString));
+                     }
+                     key = this->finalize(node, new LiteralNode(v));
+                 }
+                 break;
+
+             case Token::IdentifierToken:
+             case Token::BooleanLiteralToken:
+             case Token::NullLiteralToken:
+             case Token::KeywordToken:
+                 key = this->finalize(node, finishIdentifier(token));
+                 break;
+
+             case Token::PunctuatorToken:
+                 if (token->valuePunctuatorsKind == LeftSquareBracket) {
+                     key = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+                     this->expect(RightSquareBracket);
+                 } else {
+                     this->throwUnexpectedToken(token);
+                 }
+                 break;
+
+             default:
+                 this->throwUnexpectedToken(token);
+         }
+
+         return key;
+     }
+
+     bool qualifiedPropertyName(ScannerResult* token)
+     {
+         switch (token->type) {
+             case Token::IdentifierToken:
+             case Token::StringLiteralToken:
+             case Token::BooleanLiteralToken:
+             case Token::NullLiteralToken:
+             case Token::NumericLiteralToken:
+             case Token::KeywordToken:
+                 return true;
+             case Token::PunctuatorToken:
+                 return token->valuePunctuatorsKind == LeftSquareBracket;
+             default:
+                 return false;
+         }
+     }
+
+
+     bool isPropertyKey(Node* key, const char* value)
+     {
+         if (key->type() == Identifier) {
+             return ((IdentifierNode*)key)->name() == value;
+         } else if (key->type() == Literal) {
+             if (((LiteralNode*)key)->value().isString()) {
+                 return ((LiteralNode*)key)->value().asString()->equals(value);
+             }
+         }
+
+         return false;
+     }
+
+     PropertyNode* parseObjectProperty(bool& hasProto)//: Node.Property
+     {
+         MetaNode node = this->createNode();
+         ScannerResult* token = this->lookahead;
+
+         PropertyNode::Kind kind;
+         Node* key; //'': Node.PropertyKey;
+         Node* value; //: Node.PropertyValue;
+
+         bool computed = false;
+         bool method = false;
+         bool shorthand = false;
+
+         if (token->type == Token::IdentifierToken) {
+             this->nextToken();
+             key = this->finalize(node, finishIdentifier(token));
+         } else if (this->match(PunctuatorsKind::Multiply)) {
+             this->nextToken();
+         } else {
+             computed = this->match(LeftSquareBracket);
+             key = this->parseObjectPropertyKey();
+         }
+
+         bool lookaheadPropertyKey = this->qualifiedPropertyName(this->lookahead);
+         if (token->type == Token::IdentifierToken && token->valueString == "get" && lookaheadPropertyKey) {
+             kind = PropertyNode::Kind::Get;
+             computed = this->match(LeftSquareBracket);
+             key = this->parseObjectPropertyKey();
+             this->context->allowYield = false;
+             value = this->parseGetterMethod();
+
+         } else if (token->type == Token::IdentifierToken && token->valueString == "set" && lookaheadPropertyKey) {
+             kind = PropertyNode::Kind::Set;
+             computed = this->match(LeftSquareBracket);
+             key = this->parseObjectPropertyKey();
+             value = this->parseSetterMethod();
+
+         } else if (token->type == Token::PunctuatorToken && token->valueString == "*" && lookaheadPropertyKey) {
+             kind = PropertyNode::Kind::Init;
+             computed = this->match(LeftSquareBracket);
+             key = this->parseObjectPropertyKey();
+             value = this->parseGeneratorMethod();
+             method = true;
+
+         } else {
+             if (!key) {
+                 this->throwUnexpectedToken(this->lookahead);
+             }
+
+             kind = PropertyNode::Kind::Init;
+             if (this->match(PunctuatorsKind::Colon)) {
+                 if (!computed && this->isPropertyKey(key, "__proto__")) {
+                     if (hasProto) {
+                         this->tolerateError(Messages::DuplicateProtoProperty);
+                     }
+                     hasProto = true;
+                 }
+                 this->nextToken();
+                 value = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
+
+             } else if (this->match(LeftParenthesis)) {
+                 value = this->parsePropertyMethodFunction();
+                 method = true;
+
+             } else if (token->type == Token::IdentifierToken) {
+                 Node* id = this->finalize(node, finishIdentifier(token));
+                 if (this->match(Equal)) {
+                     this->context->firstCoverInitializedNameError = this->lookahead;
+                     this->nextToken();
+                     shorthand = true;
+                     Node* init = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+                     value = this->finalize(node, new AssignmentExpressionSimpleNode(id, init));
+                 } else {
+                     shorthand = true;
+                     value = id;
+                 }
+             } else {
+                 this->throwUnexpectedToken(this->nextToken());
+             }
+         }
+
+         // return this->finalize(node, new PropertyNode(kind, key, computed, value, method, shorthand));
+         return this->finalize(node, new PropertyNode(key, value, kind));
+     }
+
+     Node* parseObjectInitializer()
+     {
+         MetaNode node = this->createNode();
+
+         this->expect(LeftBrace);
+         PropertiesNodeVector properties;
+         bool hasProto = false;
+         while (!this->match(RightBrace)) {
+             properties.push_back(this->parseObjectProperty(hasProto));
+             if (!this->match(RightBrace)) {
+                 this->expectCommaSeparator();
+             }
+         }
+         this->expect(RightBrace);
+
+         return this->finalize(node, new ObjectExpressionNode(std::move(properties)));
+     }
+
+     // ECMA-262 12.2.9 Template Literals
+     Node* parseTemplateLiteral()
+     {
+         RELEASE_ASSERT_NOT_REACHED();
+     }
+/*
+     parseTemplateHead(): Node.TemplateElement {
+         assert(this->lookahead.head, 'Template literal must start with a template head');
+
+         const node = this->createNode();
+         const token = this->nextToken();
+         const value = {
+             raw: token.value.raw,
+             cooked: token.value.cooked
+         };
+
+         return this->finalize(node, new Node.TemplateElement(value, token.tail));
+     }
+
+     parseTemplateElement(): Node.TemplateElement {
+         if (this->lookahead.type !== Token.Template) {
+             this->throwUnexpectedToken();
+         }
+
+         const node = this->createNode();
+         const token = this->nextToken();
+         const value = {
+             raw: token.value.raw,
+             cooked: token.value.cooked
+         };
+
+         return this->finalize(node, new Node.TemplateElement(value, token.tail));
+     }
+
+     parseTemplateLiteral(): Node.TemplateLiteral {
+         const node = this->createNode();
+
+         const expressions = [];
+         const quasis = [];
+
+         let quasi = this->parseTemplateHead();
+         quasis.push(quasi);
+         while (!quasi.tail) {
+             expressions.push(this->parseExpression());
+             quasi = this->parseTemplateElement();
+             quasis.push(quasi);
+         }
+
+         return this->finalize(node, new Node.TemplateLiteral(quasis, expressions));
+     }
+
+     // ECMA-262 12.2.10 The Grouping Operator
+
+    reinterpretExpressionAsPattern(expr) {
+        switch (expr.type) {
+            case Syntax.Identifier:
+            case Syntax.MemberExpression:
+            case Syntax.RestElement:
+            case Syntax.AssignmentPattern:
+                break;
+            case Syntax.SpreadElement:
+                expr.type = Syntax.RestElement;
+                this->reinterpretExpressionAsPattern(expr.argument);
+                break;
+            case Syntax.ArrayExpression:
+                expr.type = Syntax.ArrayPattern;
+                for (let i = 0; i < expr.elements.length; i++) {
+                    if (expr.elements[i] !== null) {
+                        this->reinterpretExpressionAsPattern(expr.elements[i]);
+                    }
+                }
+                break;
+            case Syntax.ObjectExpression:
+                expr.type = Syntax.ObjectPattern;
+                for (let i = 0; i < expr.properties.length; i++) {
+                    this->reinterpretExpressionAsPattern(expr.properties[i].value);
+                }
+                break;
+            case Syntax.AssignmentExpression:
+                expr.type = Syntax.AssignmentPattern;
+                delete expr.operator;
+                this->reinterpretExpressionAsPattern(expr.left);
+                break;
+            default:
+                // Allow other node type for tolerant parsing.
+                break;
+        }
+    }
+
+    parseGroupExpression(): ArrowParameterPlaceHolderNode | Node.Expression {
+        let expr;
+
+        this->expect('(');
+        if (this->match(')')) {
+            this->nextToken();
+            if (!this->match('=>')) {
+                this->expect('=>');
+            }
+            expr = {
+                type: ArrowParameterPlaceHolder,
+                params: []
+            };
+        } else {
+            const startToken = this->lookahead;
+            let params = [];
+            if (this->match('...')) {
+                expr = this->parseRestElement(params);
+                this->expect(')');
+                if (!this->match('=>')) {
+                    this->expect('=>');
+                }
+                expr = {
+                    type: ArrowParameterPlaceHolder,
+                    params: [expr]
+                };
+            } else {
+                let arrow = false;
+                this->context.isBindingElement = true;
+                expr = this->inheritCoverGrammar(this->parseAssignmentExpression);
+
+                if (this->match(',')) {
+                    const expressions = [];
+
+                    this->context.isAssignmentTarget = false;
+                    expressions.push(expr);
+                    while (this->startMarker.index < this->scanner.length) {
+                        if (!this->match(',')) {
+                            break;
+                        }
+                        this->nextToken();
+
+                        if (this->match('...')) {
+                            if (!this->context.isBindingElement) {
+                                this->throwUnexpectedToken(this->lookahead);
+                            }
+                            expressions.push(this->parseRestElement(params));
+                            this->expect(')');
+                            if (!this->match('=>')) {
+                                this->expect('=>');
+                            }
+                            this->context.isBindingElement = false;
+                            for (let i = 0; i < expressions.length; i++) {
+                                this->reinterpretExpressionAsPattern(expressions[i]);
+                            }
+                            arrow = true;
+                            expr = {
+                                type: ArrowParameterPlaceHolder,
+                                params: expressions
+                            };
+                        } else {
+                            expressions.push(this->inheritCoverGrammar(this->parseAssignmentExpression));
+                        }
+                        if (arrow) {
+                            break;
+                        }
+                    }
+                    if (!arrow) {
+                        expr = this->finalize(this->startNode(startToken), new Node.SequenceExpression(expressions));
+                    }
+                }
+
+                if (!arrow) {
+                    this->expect(')');
+                    if (this->match('=>')) {
+                        if (expr.type === Syntax.Identifier && expr.name === 'yield') {
+                            arrow = true;
+                            expr = {
+                                type: ArrowParameterPlaceHolder,
+                                params: [expr]
+                            };
+                        }
+                        if (!arrow) {
+                            if (!this->context.isBindingElement) {
+                                this->throwUnexpectedToken(this->lookahead);
+                            }
+
+                            if (expr.type === Syntax.SequenceExpression) {
+                                for (let i = 0; i < expr.expressions.length; i++) {
+                                    this->reinterpretExpressionAsPattern(expr.expressions[i]);
+                                }
+                            } else {
+                                this->reinterpretExpressionAsPattern(expr);
+                            }
+
+                            const params = (expr.type === Syntax.SequenceExpression ? expr.expressions : [expr]);
+                            expr = {
+                                type: ArrowParameterPlaceHolder,
+                                params: params
+                            };
+                        }
+                    }
+                    this->context.isBindingElement = false;
+                }
+            }
+        }
+
+        return expr;
+    }
+*/
+     // ECMA-262 12.3 Left-Hand-Side Expressions
+
+     ArgumentVector parseArguments()
+     {
+         this->expect(LeftParenthesis);
+         ArgumentVector args;
+         if (!this->match(RightParenthesis)) {
+             while (true) {
+                 Node* expr = this->match(PeriodPeriodPeriod) ? this->parseSpreadElement() :
+                     this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+                 args.push_back(expr);
+                 if (this->match(RightParenthesis)) {
+                     break;
+                 }
+                 this->expectCommaSeparator();
+             }
+         }
+         this->expect(RightParenthesis);
+
+         return args;
+     }
+
+     bool isIdentifierName(ScannerResult* token)
+     {
+         return token->type == Token::IdentifierToken ||
+             token->type == Token::KeywordToken ||
+             token->type == Token::BooleanLiteralToken ||
+             token->type == Token::NullLiteralToken;
+     }
+
+     IdentifierNode* parseIdentifierName()
+     {
+         MetaNode node = this->createNode();
+         ScannerResult* token = this->nextToken();
+         if (!this->isIdentifierName(token)) {
+             this->throwUnexpectedToken(token);
+         }
+         return this->finalize(node, finishIdentifier(token));
+     }
+
+     Node* parseNewExpression()
+     {
+         MetaNode node = this->createNode();
+
+         IdentifierNode* id = this->parseIdentifierName();
+         // assert(id.name === 'new', 'New expression must start with `new`');
+
+         Node* expr;
+         if (this->match(Period)) {
+             this->nextToken();
+             if (this->lookahead->type == Token::IdentifierToken && this->context->inFunctionBody && this->lookahead->valueString == "target") {
+                 // TODO
+                 IdentifierNode* property = this->parseIdentifierName();
+                 RELEASE_ASSERT_NOT_REACHED();
+                 // expr = new Node.MetaProperty(id, property);
+             } else {
+                 this->throwUnexpectedToken(this->lookahead);
+             }
+         } else {
+             Node* callee = this->isolateCoverGrammar(&Parser::parseLeftHandSideExpression);
+             ArgumentVector args;
+             if (this->match(LeftParenthesis))
+                 args = this->parseArguments();
+             expr = new NewExpressionNode(callee, std::move(args));
+             this->context->isAssignmentTarget = false;
+             this->context->isBindingElement = false;
+         }
+
+         return this->finalize(node, expr);
+     }
+
+     Node* parseLeftHandSideExpressionAllowCall()
+     {
+         ScannerResult* startToken = this->lookahead;
+         bool previousAllowIn = this->context->allowIn;
+         this->context->allowIn = true;
+
+         Node* expr;
+         if (this->matchKeyword(Super) && this->context->inFunctionBody) {
+             MetaNode node = this->createNode();
+             this->nextToken();
+             // TODO
+             RELEASE_ASSERT_NOT_REACHED();
+             // expr = this->finalize(node, new Node.Super());
+             if (!this->match(LeftParenthesis) && !this->match(Period) && !this->match(LeftSquareBracket)) {
+                 this->throwUnexpectedToken(this->lookahead);
+             }
+         } else {
+             expr = this->inheritCoverGrammar(this->matchKeyword(New) ? &Parser::parseNewExpression : &Parser::parsePrimaryExpression);
+         }
+
+         while (true) {
+             if (this->match(Period)) {
+                 this->context->isBindingElement = false;
+                 this->context->isAssignmentTarget = true;
+                 this->expect(Period);
+                 IdentifierNode* property = this->parseIdentifierName();
+                 expr = this->finalize(this->startNode(startToken), new MemberExpressionNode(expr, property, true));
+
+             } else if (this->match(LeftParenthesis)) {
+                 this->context->isBindingElement = false;
+                 this->context->isAssignmentTarget = false;
+                 ArgumentVector args = this->parseArguments();
+                 expr = this->finalize(this->startNode(startToken), new CallExpressionNode(expr, std::move(args)));
+
+             } else if (this->match(LeftSquareBracket)) {
+                 this->context->isBindingElement = false;
+                 this->context->isAssignmentTarget = true;
+                 this->expect(RightSquareBracket);
+                 Node* property = this->isolateCoverGrammar(&Parser::parseExpression);
+                 this->expect(RightSquareBracket);
+                 expr = this->finalize(this->startNode(startToken), new MemberExpressionNode(expr, property, false));
+
+             } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->head) {
+                 Node* quasi = this->parseTemplateLiteral();
+                 // expr = this->finalize(this->startNode(startToken), new Node.TaggedTemplateExpression(expr, quasi));
+                 RELEASE_ASSERT_NOT_REACHED();
+             } else {
+                 break;
+             }
+         }
+         this->context->allowIn = previousAllowIn;
+
+         return expr;
+     }
+
+     Node* parseSuper()
+     {
+         MetaNode node = this->createNode();
+
+         this->expectKeyword(Super);
+         if (!this->match(LeftSquareBracket) && !this->match(Period)) {
+             this->throwUnexpectedToken(this->lookahead);
+         }
+
+         // TODO
+         RELEASE_ASSERT_NOT_REACHED();
+         // return this->finalize(node, new Node.Super());
+         return nullptr;
+     }
+
+     Node* parseLeftHandSideExpression()
+     {
+         // assert(this->context->allowIn, 'callee of new expression always allow in keyword.');
+         ASSERT(this->context->allowIn);
+
+         MetaNode node = this->startNode(this->lookahead);
+         Node* expr = (this->matchKeyword(Super) && this->context->inFunctionBody) ? this->parseSuper() :
+             this->inheritCoverGrammar(this->matchKeyword(New) ? &Parser::parseNewExpression : &Parser::parsePrimaryExpression);
+
+         while (true) {
+             if (this->match(LeftSquareBracket)) {
+                 this->context->isBindingElement = false;
+                 this->context->isAssignmentTarget = true;
+                 this->expect(LeftSquareBracket);
+                 Node* property = this->isolateCoverGrammar(&Parser::parseExpression);
+                 this->expect(RightSquareBracket);
+                 expr = this->finalize(node, new MemberExpressionNode(expr, property, false));
+
+             } else if (this->match(Period)) {
+                 this->context->isBindingElement = false;
+                 this->context->isAssignmentTarget = true;
+                 this->expect(Period);
+                 IdentifierNode* property = this->parseIdentifierName();
+                 expr = this->finalize(node, new MemberExpressionNode(expr, property, true));
+
+             } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->head) {
+                 Node* quasi = this->parseTemplateLiteral();
+                 // TODO
+                 // expr = this->finalize(node, new Node.TaggedTemplateExpression(expr, quasi));
+                 RELEASE_ASSERT_NOT_REACHED();
+             } else {
+                 break;
+             }
+         }
+
+         return expr;
+     }
+
+     // ECMA-262 12.4 Update Expressions
+
+     Node* parseUpdateExpression()
+     {
+         Node* expr;
+         ScannerResult* startToken = this->lookahead;
+
+         if (this->match(PlusPlus) || this->match(MinusMinus)) {
+             bool isPlus = this->match(PlusPlus);
+             MetaNode node = this->startNode(startToken);
+             ScannerResult* token = this->nextToken();
+             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+             if (this->context->strict && expr->type() == Identifier && this->scanner->isRestrictedWord(((IdentifierNode*)expr)->name())) {
+                 this->tolerateError(Messages::StrictLHSPrefix);
+             }
+             if (!this->context->isAssignmentTarget) {
+                 this->tolerateError(Messages::InvalidLHSInAssignment);
+             }
+             bool prefix = true;
+
+             if (isPlus) {
+                 expr = this->finalize(node, new UpdateExpressionIncrementPrefixNode(expr));
+             } else {
+                 expr = this->finalize(node, new UpdateExpressionDecrementPrefixNode(expr));
+             }
+             this->context->isAssignmentTarget = false;
+             this->context->isBindingElement = false;
+         } else {
+             expr = this->inheritCoverGrammar(&Parser::parseLeftHandSideExpressionAllowCall);
+             if (!this->hasLineTerminator && this->lookahead->type == Token::PunctuatorToken) {
+                 if (this->match(PlusPlus) || this->match(MinusMinus)) {
+                     bool isPlus = this->match(PlusPlus);
+                     if (this->context->strict && expr->isIdentifier() && this->scanner->isRestrictedWord(((IdentifierNode*)expr)->name())) {
+                         this->tolerateError(Messages::StrictLHSPostfix);
+                     }
+                     if (!this->context->isAssignmentTarget) {
+                         this->tolerateError(Messages::InvalidLHSInAssignment);
+                     }
+                     this->context->isAssignmentTarget = false;
+                     this->context->isBindingElement = false;
+                     if (isPlus) {
+                         expr = this->finalize(this->startNode(startToken), new UpdateExpressionIncrementPostfixNode(expr));
+                     } else {
+                         expr = this->finalize(this->startNode(startToken), new UpdateExpressionDecrementPostfixNode(expr));
+                     }
+                 }
+             }
+         }
+
+         return expr;
+     }
+
+     // ECMA-262 12.5 Unary Operators
+
+     Node* parseUnaryExpression()
+     {
+         Node* expr;
+
+         if (this->match(Plus)) {
+             MetaNode node = this->startNode(this->lookahead);
+             ScannerResult* token = this->nextToken();
+             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+             expr = this->finalize(node, new UnaryExpressionPlusNode(expr));
+             this->context->isAssignmentTarget = false;
+             this->context->isBindingElement = false;
+         } else if (this->match(Minus)) {
+             MetaNode node = this->startNode(this->lookahead);
+             ScannerResult* token = this->nextToken();
+             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+             expr = this->finalize(node, new UnaryExpressionMinusNode(expr));
+             this->context->isAssignmentTarget = false;
+             this->context->isBindingElement = false;
+         } else if (this->match(Wave)) {
+             MetaNode node = this->startNode(this->lookahead);
+             ScannerResult* token = this->nextToken();
+             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+             expr = this->finalize(node, new UnaryExpressionBitwiseNotNode(expr));
+             this->context->isAssignmentTarget = false;
+             this->context->isBindingElement = false;
+         } else if (this->match(ExclamationMark)) {
+             MetaNode node = this->startNode(this->lookahead);
+             ScannerResult* token = this->nextToken();
+             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+             expr = this->finalize(node, new UnaryExpressionLogicalNotNode(expr));
+             this->context->isAssignmentTarget = false;
+             this->context->isBindingElement = false;
+         } else if (this->matchKeyword(Delete)) {
+             MetaNode node = this->startNode(this->lookahead);
+             ScannerResult* token = this->nextToken();
+             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+             Node* exprOld = expr;
+             expr = this->finalize(node, new UnaryExpressionDeleteNode(expr));
+             this->context->isAssignmentTarget = false;
+             this->context->isBindingElement = false;
+
+             if (exprOld->isIdentifier()) {
+                 this->tolerateError(Messages::StrictDelete);
+             }
+         } else if (this->matchKeyword(Void)) {
+             MetaNode node = this->startNode(this->lookahead);
+             ScannerResult* token = this->nextToken();
+             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+             expr = this->finalize(node, new UnaryExpressionVoidNode(expr));
+             this->context->isAssignmentTarget = false;
+             this->context->isBindingElement = false;
+         } else if (this->matchKeyword(Typeof)) {
+             MetaNode node = this->startNode(this->lookahead);
+             ScannerResult* token = this->nextToken();
+             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+             expr = this->finalize(node, new UnaryExpressionTypeOfNode(expr));
+             this->context->isAssignmentTarget = false;
+             this->context->isBindingElement = false;
+         } else {
+             expr = this->parseUpdateExpression();
+         }
+
+         return expr;
+     }
+
+     ExpressionNode* parseExponentiationExpression()
+     {
+         // TODO
+         RELEASE_ASSERT_NOT_REACHED();
+         /*
+         const startToken = this->lookahead;
+
+         let expr = this->inheritCoverGrammar(this->parseUnaryExpression);
+         if (expr.type !== Syntax.UnaryExpression && this->match('**')) {
+             this->nextToken();
+             this->context->isAssignmentTarget = false;
+             this->context->isBindingElement = false;
+             const left = expr;
+             const right = this->isolateCoverGrammar(this->parseExponentiationExpression);
+             expr = this->finalize(this->startNode(startToken), new Node.BinaryExpression('**', left, right));
+         }
+
+         return expr;
+         */
+     }
+
+     // ECMA-262 12.6 Exponentiation Operators
+     // ECMA-262 12.7 Multiplicative Operators
+     // ECMA-262 12.8 Additive Operators
+     // ECMA-262 12.9 Bitwise Shift Operators
+     // ECMA-262 12.10 Relational Operators
+     // ECMA-262 12.11 Equality Operators
+     // ECMA-262 12.12 Binary Bitwise Operators
+     // ECMA-262 12.13 Binary Logical Operators
+
+     int binaryPrecedence(ScannerResult* token)
+     {
+         if (token->type == Token::PunctuatorToken) {
+             if (token->valuePunctuatorsKind == Substitution) {
+                 return 0;
+             } else if (token->valuePunctuatorsKind == LogicalOr) {
+                 return 1;
+             } else if (token->valuePunctuatorsKind == LogicalAnd) {
+                 return 2;
+             } else if (token->valuePunctuatorsKind == BitwiseOr) {
+                 return 3;
+             } else if (token->valuePunctuatorsKind == BitwiseXor) {
+                 return 4;
+             } else if (token->valuePunctuatorsKind == BitwiseAnd) {
+                 return 5;
+             } else if (token->valuePunctuatorsKind == Equal) {
+                 return 6;
+             } else if (token->valuePunctuatorsKind == NotEqual) {
+                 return 6;
+             } else if (token->valuePunctuatorsKind == StrictEqual) {
+                 return 6;
+             } else if (token->valuePunctuatorsKind == NotStrictEqual) {
+                 return 6;
+             } else if (token->valuePunctuatorsKind == RightInequality) {
+                 return 7;
+             } else if (token->valuePunctuatorsKind == LeftInequality) {
+                 return 7;
+             } else if (token->valuePunctuatorsKind == RightInequalityEqual) {
+                 return 7;
+             } else if (token->valuePunctuatorsKind == LeftInequalityEqual) {
+                 return 7;
+             } else if (token->valuePunctuatorsKind == LeftShift) {
+                 return 8;
+             } else if (token->valuePunctuatorsKind == RightShift) {
+                 return 8;
+             } else if (token->valuePunctuatorsKind == UnsignedRightShift) {
+                 return 8;
+             } else if (token->valuePunctuatorsKind == Plus) {
+                 return 9;
+             } else if (token->valuePunctuatorsKind == Minus) {
+                 return 9;
+             } else if (token->valuePunctuatorsKind == Multiply) {
+                 return 11;
+             } else if (token->valuePunctuatorsKind == Divide) {
+                 return 11;
+             } else if (token->valuePunctuatorsKind == Mod) {
+                 return 11;
+             }
+             return 0;
+         } else if (token->type == Token::KeywordToken) {
+             if (token->valueKeywordKind == In) {
+                 return this->context->allowIn ? 7 : 0;
+             } else if (token->valueKeywordKind == InstanceofKeyword) {
+                 return 7;
+             }
+         } else {
+             return 0;
+         }
+         return 0;
+     }
+
+     Node* parseBinaryExpression()
+     {
+         ScannerResult* startToken = this->lookahead;
+
+         Node* expr = this->inheritCoverGrammar(&Parser::parseExponentiationExpression);
+
+         ScannerResult* token = this->lookahead;
+         int prec = this->binaryPrecedence(token);
+         if (prec > 0) {
+             this->nextToken();
+
+             token->prec = prec;
+             this->context->isAssignmentTarget = false;
+             this->context->isBindingElement = false;
+
+             std::vector<ScannerResult*, gc_malloc_ignore_off_page_allocator<ScannerResult*>> markers;
+             markers.push_back(startToken);
+             markers.push_back(this->lookahead);
+             Node* left = expr;
+             Node* right = this->isolateCoverGrammar(&Parser::parseExponentiationExpression);
+
+             std::vector<void*, gc_malloc_ignore_off_page_allocator<void*>> stack;
+             stack.push_back(left);
+             stack.push_back(token);
+             stack.push_back(right);
+
+             while (true) {
+                 prec = this->binaryPrecedence(this->lookahead);
+                 if (prec <= 0) {
+                     break;
+                 }
+
+                 // Reduce: make a binary expression from the three topmost entries.
+                 while ((stack.size() > 2) && (prec <= ((ScannerResult*)stack[stack.size() - 2])->prec)) {
+                     right = (Node*)stack.back();
+                     stack.pop_back();
+                     PunctuatorsKind operator_ = ((ScannerResult*)stack.back())->valuePunctuatorsKind;
+                     stack.pop_back();
+                     left = (Node*)stack.back();
+                     stack.pop_back();
+                     markers.pop_back();
+                     MetaNode node = this->startNode(markers.back());
+                     stack.push_back(this->finalize(node, finishBinaryExpression(left, right, operator_)));
+                 }
+
+                 // Shift.
+                 token = this->nextToken();
+                 token->prec = prec;
+                 stack.push_back(token);
+                 markers.push_back(this->lookahead);
+                 stack.push_back(this->isolateCoverGrammar(&Parser::parseExponentiationExpression));
+             }
+
+             // Final reduce to clean-up the stack.
+             size_t i = stack.size() - 1;
+             expr = (Node*)stack[i];
+             markers.pop_back();
+             while (i > 1) {
+                 MetaNode node = this->startNode(markers.back());
+                 expr = this->finalize(node, finishBinaryExpression((Node*)stack[i - 2], expr, ((ScannerResult*)stack[i - 1])->valuePunctuatorsKind));
+                 i -= 2;
+             }
+         }
+
+         return expr;
+     }
+
+     Node* finishBinaryExpression(Node* left, Node* right, PunctuatorsKind oper)
+     {
+         // Additive Operators
+         Node* nd;
+         if (oper == Plus)
+             nd = new BinaryExpressionPlusNode(left, right);
+         else if (oper == Minus)
+             nd = new BinaryExpressionMinusNode(left, right);
+
+         // Bitwise Shift Operators
+         else if (oper == LeftShift)
+             nd = new BinaryExpressionLeftShiftNode(left, right);
+         else if (oper == RightShift)
+             nd = new BinaryExpressionSignedRightShiftNode(left, right);
+         else if (oper == UnsignedRightShift)
+             nd = new BinaryExpressionUnsignedRightShiftNode(left, right);
+
+         // Multiplicative Operators
+         else if (oper == Multiply)
+             nd = new BinaryExpressionMultiplyNode(left, right);
+         else if (oper == Divide)
+             nd = new BinaryExpressionDivisionNode(left, right);
+         else if (oper == Mod)
+             nd = new BinaryExpressionModNode(left, right);
+
+         // Relational Operators
+         else if (oper == LeftInequality)
+             nd = new BinaryExpressionLessThanNode(left, right);
+         else if (oper == RightInequality)
+             nd = new BinaryExpressionGreaterThanNode(left, right);
+         else if (oper == LeftInequalityEqual)
+             nd = new BinaryExpressionLessThanOrEqualNode(left, right);
+         else if (oper == RightInequalityEqual)
+             nd = new BinaryExpressionGreaterThanOrEqualNode(left, right);
+
+         // Equality Operators
+         else if (oper == Equal)
+             nd = new BinaryExpressionEqualNode(left, right);
+         else if (oper == NotEqual)
+             nd = new BinaryExpressionNotEqualNode(left, right);
+         else if (oper == StrictEqual)
+             nd = new BinaryExpressionStrictEqualNode(left, right);
+         else if (oper == NotStrictEqual)
+             nd = new BinaryExpressionNotStrictEqualNode(left, right);
+
+         // Binary Bitwise Operator
+         else if (oper == BitwiseAnd)
+             nd = new BinaryExpressionBitwiseAndNode(left, right);
+         else if (oper == BitwiseXor)
+             nd = new BinaryExpressionBitwiseXorNode(left, right);
+         else if (oper == BitwiseOr)
+             nd = new BinaryExpressionBitwiseOrNode(left, right);
+         else if (oper == LogicalOr)
+             nd = new BinaryExpressionLogicalOrNode(left, right);
+         else if (oper == LogicalAnd)
+             nd = new BinaryExpressionLogicalAndNode(left, right);
+         else if (oper == InPunctuator)
+             nd = new BinaryExpressionInNode(left, right);
+         else if (oper == InstanceOfPunctuator)
+             nd = new BinaryExpressionInstanceOfNode(left, right);
+         // TODO
+         else
+             RELEASE_ASSERT_NOT_REACHED();
+
+         return nd;
+     }
+
+     // ECMA-262 12.14 Conditional Operator
+
+     Node* parseConditionalExpression()
+     {
+         ScannerResult* startToken = this->lookahead;
+
+         Node* expr = this->inheritCoverGrammar(&Parser::parseBinaryExpression);
+         if (this->match(GuessMark)) {
+             this->nextToken();
+
+             bool previousAllowIn = this->context->allowIn;
+             this->context->allowIn = true;
+             Node* consequent = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+             this->context->allowIn = previousAllowIn;
+
+             this->expect(Colon);
+             Node* alternate = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+
+             expr = this->finalize(this->startNode(startToken), new ConditionalExpressionNode(expr, consequent, alternate));
+             this->context->isAssignmentTarget = false;
+             this->context->isBindingElement = false;
+         }
+
+         return expr;
+     }
+
+     // ECMA-262 12.15 Assignment Operators
+
+     void checkPatternParam(ParseParameterOptions options, Node* param)
+     {
+         switch (param->type()) {
+             case Identifier:
+                 this->validateParam(options, nodeExtraInfo.find(((IdentifierNode*)param))->second, ((IdentifierNode*)param)->name());
+                 break;
+             case RestElement:
+                 this->checkPatternParam(options, ((RestElementNode*)param)->argument());
+                 break;
+             // case AssignmentPattern:
+             case AssignmentExpression:
+             case AssignmentExpressionBitwiseAnd:
+             case AssignmentExpressionBitwiseOr:
+             case AssignmentExpressionBitwiseXor:
+             case AssignmentExpressionDivision:
+             case AssignmentExpressionLeftShift:
+             case AssignmentExpressionMinus:
+             case AssignmentExpressionMod:
+             case AssignmentExpressionMultiply:
+             case AssignmentExpressionPlus:
+             case AssignmentExpressionSignedRightShift:
+             case AssignmentExpressionUnsignedRightShift:
+             case AssignmentExpressionSimple:
+                 this->checkPatternParam(options, ((AssignmentExpressionSimpleNode*)param)->left());
+                 break;
+             default:
+                 RELEASE_ASSERT_NOT_REACHED();
+                 // TODO
+                 /*
+             case Syntax.ArrayPattern:
+                 for (let i = 0; i < param.elements.length; i++) {
+                     if (param.elements[i] !== null) {
+                         this->checkPatternParam(options, param.elements[i]);
+                     }
+                 }
+                 break;
+             case Syntax.YieldExpression:
+                 break;
+             default:
+                 RELEASE_ASSERT(param->type() == Object)
+                 assert(param.type === Syntax.ObjectPattern, 'Invalid type');
+                 for (let i = 0; i < param.properties.length; i++) {
+                     this->checkPatternParam(options, param.properties[i].value);
+                 }
+                 break;
+                 */
+         }
+     }
+/*
+     reinterpretAsCoverFormalsList(expr) {
+         let params = [expr];
+         let options;
+
+         switch (expr.type) {
+             case Syntax.Identifier:
+                 break;
+             case ArrowParameterPlaceHolder:
+                 params = expr.params;
+                 break;
+             default:
+                 return null;
+         }
+
+         options = {
+             paramSet: {}
+         };
+
+         for (let i = 0; i < params.length; ++i) {
+             const param = params[i];
+             if (param.type === Syntax.AssignmentPattern) {
+                 if (param.right.type === Syntax.YieldExpression) {
+                     if (param.right.argument) {
+                         this->throwUnexpectedToken(this->lookahead);
+                     }
+                     param.right.type = Syntax.Identifier;
+                     param.right.name = 'yield';
+                     delete param.right.argument;
+                     delete param.right.delegate;
+                 }
+             }
+             this->checkPatternParam(options, param);
+             params[i] = param;
+         }
+
+         if (this->context.strict || !this->context.allowYield) {
+             for (let i = 0; i < params.length; ++i) {
+                 const param = params[i];
+                 if (param.type === Syntax.YieldExpression) {
+                     this->throwUnexpectedToken(this->lookahead);
+                 }
+             }
+         }
+
+         if (options.message === Messages.StrictParamDupe) {
+             const token = this->context.strict ? options.stricted : options.firstRestricted;
+             this->throwUnexpectedToken(token, options.message);
+         }
+
+         return {
+             params: params,
+             stricted: options.stricted,
+             firstRestricted: options.firstRestricted,
+             message: options.message
+         };
+     }
+*/
+     Node* parseAssignmentExpression()
+     {
+         Node* expr;
+
+         if (!this->context->allowYield && this->matchKeyword(Yield)) {
+             expr = this->parseYieldExpression();
+         } else {
+             ScannerResult* startToken = this->lookahead;
+             ScannerResult* token = startToken;
+             expr = this->parseConditionalExpression();
+             /*
+             if (expr->type() == ArrowParameterPlaceHolder || this->match('=>')) {
+                 RELEASE_ASSERT_NOT_REACHED();
+                 // ECMA-262 14.2 Arrow Function Definitions
+                 this->context->isAssignmentTarget = false;
+                 this->context->isBindingElement = false;
+                 const list = this->reinterpretAsCoverFormalsList(expr);
+
+                 if (list) {
+                     if (this->hasLineTerminator) {
+                         this->tolerateUnexpectedToken(this->lookahead);
+                     }
+                     this->context->firstCoverInitializedNameError = null;
+
+                     const previousStrict = this->context->strict;
+                     const previousAllowYield = this->context->allowYield;
+                     this->context->allowYield = true;
+
+                     const node = this->startNode(startToken);
+                     this->expect('=>');
+                     const body = this->match('{') ? this->parseFunctionSourceElements() :
+                         this->isolateCoverGrammar(this->parseAssignmentExpression);
+                     const expression = body.type !== Syntax.BlockStatement;
+
+                     if (this->context->strict && list.firstRestricted) {
+                         this->throwUnexpectedToken(list.firstRestricted, list.message);
+                     }
+                     if (this->context->strict && list.stricted) {
+                         this->tolerateUnexpectedToken(list.stricted, list.message);
+                     }
+                     expr = this->finalize(node, new Node.ArrowFunctionExpression(list.params, body, expression));
+
+                     this->context->strict = previousStrict;
+                     this->context->allowYield = previousAllowYield;
+                 }
+
+             } else {
+                 if (this->matchAssign()) {
+                     if (!this->context->isAssignmentTarget) {
+                         this->tolerateError(Messages.InvalidLHSInAssignment);
+                     }
+
+                     if (this->context->strict && expr.type === Syntax.Identifier) {
+                         const id = <Node.Identifier>(expr);
+                         if (this->scanner.isRestrictedWord(id.name)) {
+                             this->tolerateUnexpectedToken(token, Messages.StrictLHSAssignment);
+                         }
+                         if (this->scanner.isStrictModeReservedWord(id.name)) {
+                             this->tolerateUnexpectedToken(token, Messages.StrictReservedWord);
+                         }
+                     }
+
+                     if (!this->match('=')) {
+                         this->context->isAssignmentTarget = false;
+                         this->context->isBindingElement = false;
+                     } else {
+                         this->reinterpretExpressionAsPattern(expr);
+                     }
+
+                     token = this->nextToken();
+                     const right = this->isolateCoverGrammar(this->parseAssignmentExpression);
+                     expr = this->finalize(this->startNode(startToken), new Node.AssignmentExpression(token.value, expr, right));
+                     this->context->firstCoverInitializedNameError = null;
+                 }
+             }*/
+             if (this->matchAssign()) {
+                 if (!this->context->isAssignmentTarget) {
+                     this->tolerateError(Messages::InvalidLHSInAssignment);
+                 }
+
+                 if (this->context->strict && expr->type() == Identifier) {
+                     IdentifierNode* id = (IdentifierNode*)(expr);
+                     if (this->scanner->isRestrictedWord(id->name())) {
+                         this->tolerateUnexpectedToken(token, Messages::StrictLHSAssignment);
+                     }
+                     if (this->scanner->isStrictModeReservedWord(id->name())) {
+                         this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
+                     }
+                 }
+
+                 if (!this->match(Equal)) {
+                     this->context->isAssignmentTarget = false;
+                     this->context->isBindingElement = false;
+                 } else {
+                     // TODO
+                     // this->reinterpretExpressionAsPattern(expr);
+                 }
+
+                 token = this->nextToken();
+                 Node* right = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+                 Node* expr;
+                 if (token->valuePunctuatorsKind == PlusEqual) {
+                     expr = new AssignmentExpressionPlusNode(expr, right);
+                 } else if (token->valuePunctuatorsKind == MinusEqual) {
+                     expr = new AssignmentExpressionMinusNode(expr, right);
+                 } else if (token->valuePunctuatorsKind == MultiplyEqual) {
+                     expr = new AssignmentExpressionMultiplyNode(expr, right);
+                 } else if (token->valuePunctuatorsKind == DivideEqual) {
+                     expr = new AssignmentExpressionDivisionNode(expr, right);
+                 } else if (token->valuePunctuatorsKind == ModEqual) {
+                     expr = new AssignmentExpressionModNode(expr, right);
+                 } else if (token->valuePunctuatorsKind == LeftShiftEqual) {
+                     expr = new AssignmentExpressionLeftShiftNode(expr, right);
+                 } else if (token->valuePunctuatorsKind == RightShiftEqual) {
+                     expr = new AssignmentExpressionSignedRightShiftNode(expr, right);
+                 } else if (token->valuePunctuatorsKind == UnsignedRightShiftEqual) {
+                     expr = new AssignmentExpressionUnsignedShiftNode(expr, right);
+                 } else if (token->valuePunctuatorsKind == BitwiseXorEqual) {
+                     expr = new AssignmentExpressionBitwiseXorNode(expr, right);
+                 } else if (token->valuePunctuatorsKind == BitwiseAndEqual) {
+                     expr = new AssignmentExpressionBitwiseAndNode(expr, right);
+                 } else if (token->valuePunctuatorsKind == BitwiseOrEqual) {
+                     expr = new AssignmentExpressionBitwiseOrNode(expr, right);
+                 } else {
+                     RELEASE_ASSERT_NOT_REACHED();
+                 }
+                 expr = this->finalize(this->startNode(startToken), expr);
+                 this->context->firstCoverInitializedNameError = nullptr;
+             }
+         }
+
+         return expr;
+     }
+
+     // ECMA-262 12.16 Comma Operator
+
+     Node* parseExpression()
+     {
+         ScannerResult* startToken = this->lookahead;
+         Node* expr = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+
+         if (this->match(Comma)) {
+             ExpressionNodeVector expressions;
+             expressions.push_back(expr);
+             while (this->startMarker.index < this->scanner->length) {
+                 if (!this->match(Comma)) {
+                     break;
+                 }
+                 this->nextToken();
+                 expressions.push_back(this->isolateCoverGrammar(&Parser::parseAssignmentExpression));
+             }
+
+             expr = this->finalize(this->startNode(startToken), new SequenceExpressionNode(std::move(expressions)));
+         }
+
+         return expr;
+     }
+
+     // ECMA-262 13.2 Block
+
+     StatementNode* parseStatementListItem()
+     {
+         StatementNode* statement = nullptr;
+         this->context->isAssignmentTarget = true;
+         this->context->isBindingElement = true;
+         if (this->lookahead->type == KeywordToken) {
+             switch (this->lookahead->valueKeywordKind) {
+                 case Function:
+                     statement = this->parseFunctionDeclaration();
+                     break;
+                 default:
+                     statement = this->parseStatement();
+                     break;
+             }
+         } else {
+             statement = this->parseStatement();
+         }
+         /*
+         if (this->lookahead.type === Token.Keyword) {
+             switch (this->lookahead.value) {
+                 case 'export':
+                     if (this->sourceType !== 'module') {
+                         this->tolerateUnexpectedToken(this->lookahead, Messages.IllegalExportDeclaration);
+                     }
+                     statement = this->parseExportDeclaration();
+                     break;
+                 case 'import':
+                     if (this->sourceType !== 'module') {
+                         this->tolerateUnexpectedToken(this->lookahead, Messages.IllegalImportDeclaration);
+                     }
+                     statement = this->parseImportDeclaration();
+                     break;
+                 case 'const':
+                     statement = this->parseLexicalDeclaration({ inFor: false });
+                     break;
+                 case 'function':
+                     statement = this->parseFunctionDeclaration();
+                     break;
+                 case 'class':
+                     statement = this->parseClassDeclaration();
+                     break;
+                 case 'let':
+                     statement = this->isLexicalDeclaration() ? this->parseLexicalDeclaration({ inFor: false }) : this->parseStatement();
+                     break;
+                 default:
+                     statement = this->parseStatement();
+                     break;
+             }
+         } else {
+             statement = this->parseStatement();
+         }*/
+
+         return statement;
+     }
+
+     BlockStatementNode* parseBlock()
+     {
+         MetaNode node = this->createNode();
+
+         this->expect(LeftBrace);
+         StatementNodeVector block;
+         while (true) {
+             if (this->match(RightBrace)) {
+                 break;
+             }
+             block.push_back(this->parseStatementListItem());
+         }
+         this->expect(RightBrace);
+
+         return this->finalize(node, new BlockStatementNode(std::move(block)));
+     }
+/*
+         // ECMA-262 13.3.1 Let and Const Declarations
+
+    parseLexicalBinding(kind: string, options): Node.VariableDeclarator {
+        const node = this->createNode();
+        let params = [];
+        const id = this->parsePattern(params, kind);
+
+        // ECMA-262 12.2.1
+        if (this->context.strict && id.type === Syntax.Identifier) {
+            if (this->scanner.isRestrictedWord((<Node.Identifier>(id)).name)) {
+                this->tolerateError(Messages.StrictVarName);
+            }
+        }
+
+        let init = null;
+        if (kind === 'const') {
+            if (!this->matchKeyword('in') && !this->matchContextualKeyword('of')) {
+                this->expect('=');
+                init = this->isolateCoverGrammar(this->parseAssignmentExpression);
+            }
+        } else if ((!options.inFor && id.type !== Syntax.Identifier) || this->match('=')) {
+            this->expect('=');
+            init = this->isolateCoverGrammar(this->parseAssignmentExpression);
+        }
+
+        return this->finalize(node, new Node.VariableDeclarator(id, init));
+    }
+
+    parseBindingList(kind: string, options): Node.VariableDeclarator[] {
+        let list = [this->parseLexicalBinding(kind, options)];
+
+        while (this->match(',')) {
+            this->nextToken();
+            list.push(this->parseLexicalBinding(kind, options));
+        }
+
+        return list;
+    }
+
+    isLexicalDeclaration(): boolean {
+        const previousIndex = this->scanner.index;
+        const previousLineNumber = this->scanner.lineNumber;
+        const previousLineStart = this->scanner.lineStart;
+        this->collectComments();
+        const next = <any>this->scanner.lex();
+        this->scanner.index = previousIndex;
+        this->scanner.lineNumber = previousLineNumber;
+        this->scanner.lineStart = previousLineStart;
+
+        return (next.type === Token.Identifier) ||
+            (next.type === Token.Punctuator && next.value === '[') ||
+            (next.type === Token.Punctuator && next.value === '{') ||
+            (next.type === Token.Keyword && next.value === 'let') ||
+            (next.type === Token.Keyword && next.value === 'yield');
+    }
+
+    parseLexicalDeclaration(options): Node.VariableDeclaration {
+        const node = this->createNode();
+        const kind = this->nextToken().value;
+        assert(kind === 'let' || kind === 'const', 'Lexical declaration must be either let or const');
+
+        const declarations = this->parseBindingList(kind, options);
+        this->consumeSemicolon();
+
+        return this->finalize(node, new Node.VariableDeclaration(declarations, kind));
+    }
+
+    // ECMA-262 13.3.3 Destructuring Binding Patterns
+
+    parseBindingRestElement(params, kind: string): Node.RestElement {
+        const node = this->createNode();
+        this->expect('...');
+        params.push(this->lookahead);
+        const arg = this->parseVariableIdentifier(kind);
+        return this->finalize(node, new Node.RestElement(arg));
+    }
+
+
+    parseArrayPattern(params, kind: string): Node.ArrayPattern {
+        const node = this->createNode();
+
+        this->expect('[');
+        const elements: Node.ArrayPatternElement[] = [];
+        while (!this->match(']')) {
+            if (this->match(',')) {
+                this->nextToken();
+                elements.push(null);
+            } else {
+                if (this->match('...')) {
+                    elements.push(this->parseBindingRestElement(params, kind));
+                    break;
+                } else {
+                    elements.push(this->parsePatternWithDefault(params, kind));
+                }
+                if (!this->match(']')) {
+                    this->expect(',');
+                }
+            }
+
+        }
+        this->expect(']');
+
+        return this->finalize(node, new Node.ArrayPattern(elements));
+    }
+
+    parsePropertyPattern(params, kind: string): Node.Property {
+        const node = this->createNode();
+
+        let computed = false;
+        let shorthand = false;
+        const method = false;
+
+        let key: Node.PropertyKey;
+        let value: Node.PropertyValue;
+
+        if (this->lookahead.type === Token.Identifier) {
+            const keyToken = this->lookahead;
+            key = this->parseVariableIdentifier();
+            const init = this->finalize(node, new Node.Identifier(keyToken.value));
+            if (this->match('=')) {
+                params.push(keyToken);
+                shorthand = true;
+                this->nextToken();
+                const expr = this->parseAssignmentExpression();
+                value = this->finalize(this->startNode(keyToken), new Node.AssignmentPattern(init, expr));
+            } else if (!this->match(':')) {
+                params.push(keyToken);
+                shorthand = true;
+                value = init;
+            } else {
+                this->expect(':');
+                value = this->parsePatternWithDefault(params, kind);
+            }
+        } else {
+            computed = this->match('[');
+            key = this->parseObjectPropertyKey();
+            this->expect(':');
+            value = this->parsePatternWithDefault(params, kind);
+        }
+
+        return this->finalize(node, new Node.Property('init', key, computed, value, method, shorthand));
+    }
+
+    parseObjectPattern(params, kind: string): Node.ObjectPattern {
+        const node = this->createNode();
+        const properties: Node.Property[] = [];
+
+        this->expect('{');
+        while (!this->match('}')) {
+            properties.push(this->parsePropertyPattern(params, kind));
+            if (!this->match('}')) {
+                this->expect(',');
+            }
+        }
+        this->expect('}');
+
+        return this->finalize(node, new Node.ObjectPattern(properties));
+    }
+
+    parsePattern(params, kind?: string): Node.BindingIdentifier | Node.BindingPattern {
+        let pattern;
+
+        if (this->match('[')) {
+            pattern = this->parseArrayPattern(params, kind);
+        } else if (this->match('{')) {
+            pattern = this->parseObjectPattern(params, kind);
+        } else {
+            if (this->matchKeyword('let') && (kind === 'const' || kind === 'let')) {
+                this->tolerateUnexpectedToken(this->lookahead, Messages.UnexpectedToken);
+            }
+            params.push(this->lookahead);
+            pattern = this->parseVariableIdentifier(kind);
+        }
+
+        return pattern;
+    }
+
+    parsePatternWithDefault(params, kind?: string): Node.AssignmentPattern | Node.BindingIdentifier | Node.BindingPattern {
+        const startToken = this->lookahead;
+
+        let pattern = this->parsePattern(params, kind);
+        if (this->match('=')) {
+            this->nextToken();
+            const previousAllowYield = this->context.allowYield;
+            this->context.allowYield = true;
+            const right = this->isolateCoverGrammar(this->parseAssignmentExpression);
+            this->context.allowYield = previousAllowYield;
+            pattern = this->finalize(this->startNode(startToken), new Node.AssignmentPattern(pattern, right));
+        }
+
+        return pattern;
+    }
+    */
+
+     // ECMA-262 13.3.2 Variable Statement
+    IdentifierNode* parseVariableIdentifier(String* kind = String::emptyString)
+    {
+        MetaNode node = this->createNode();
+
+        ScannerResult* token = this->nextToken();
+        if (token->type == Token::KeywordToken && token->valueKeywordKind == Yield) {
+            if (this->context->strict) {
+                this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
+            }if (!this->context->allowYield) {
+                this->throwUnexpectedToken(token);
+            }
+        } else if (token->type != Token::IdentifierToken) {
+            if (this->context->strict && token->type == Token::KeywordToken && this->scanner->isStrictModeReservedWord(token->valueString)) {
+                this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
+            } else {
+                if (this->context->strict || token->valueString != "let" || (!kind->equals("var"))) {
+                    this->throwUnexpectedToken(token);
+                }
+            }
+        } else if (this->sourceType == Module && token->type == Token::IdentifierToken && token->valueString == "Await") {
+            this->tolerateUnexpectedToken(token);
+        }
+
+        return this->finalize(node, finishIdentifier(token));
+    }
+
+    struct DeclarationOptions {
+        bool inFor;
+    };
+
+    VariableDeclaratorNode* parseVariableDeclaration(DeclarationOptions& options)
+    {
+        MetaNode node = this->createNode();
+
+        std::vector<ScannerResult*, gc_malloc_ignore_off_page_allocator<ScannerResult*>> params;
+        Node* id = this->parsePattern(params, new ASCIIString("var"));
+
+        // ECMA-262 12.2.1
+        if (this->context->strict && id->type() == Identifier) {
+            if (this->scanner->isRestrictedWord(((IdentifierNode*)id)->name())) {
+                this->tolerateError(Messages::StrictVarName);
+            }
+        }
+
+        Node* init = nullptr;
+        if (this->match(Equal)) {
+            this->nextToken();
+            init = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+        } else if (id->type() != Identifier && !options.inFor) {
+            this->expect(Equal);
+        }
+
+        return this->finalize(node, new VariableDeclaratorNode(id, asExpressionNode(init)));
+    }
+
+    VariableDeclaratorVector parseVariableDeclarationList(DeclarationOptions& options)
+    {
+        DeclarationOptions opt;
+        opt.inFor = options.inFor;
+
+        VariableDeclaratorVector list;
+        list.push_back(this->parseVariableDeclaration(opt));
+        while (this->match(Comma)) {
+            this->nextToken();
+            list.push_back(this->parseVariableDeclaration(opt));
+        }
+
+        return list;
+    }
+
+    VariableDeclarationNode* parseVariableStatement()
+    {
+        MetaNode node = this->createNode();
+        this->expectKeyword(Var);
+        DeclarationOptions opt;
+        opt.inFor = false;
+        VariableDeclaratorVector declarations = this->parseVariableDeclarationList(opt);
+        this->consumeSemicolon();
+
+        return this->finalize(node, new VariableDeclarationNode(std::move(declarations)/*, 'var'*/));
+    }
+
+    // ECMA-262 13.4 Empty Statement
+
+    EmptyStatementNode* parseEmptyStatement()
+    {
+        MetaNode node = this->createNode();
+        this->expect(SemiColon);
+        return this->finalize(node, new EmptyStatementNode());
+    }
+
+    // ECMA-262 13.5 Expression Statement
+
+    ExpressionStatementNode* parseExpressionStatement()
+    {
+        MetaNode node = this->createNode();
+        Node* expr = this->parseExpression();
+        this->consumeSemicolon();
+        return this->finalize(node, new ExpressionStatementNode(expr));
+    }
+
+    // ECMA-262 13.6 If statement
+
+    IfStatementNode* parseIfStatement()
+    {
+        MetaNode node = this->createNode();
+        Node* consequent = nullptr;
+        Node* alternate = nullptr;
+
+        this->expectKeyword(If);
+        this->expect(LeftParenthesis);
+        Node* test = this->parseExpression();
+
+        if (!this->match(RightParenthesis) && this->config.tolerant) {
+            RELEASE_ASSERT_NOT_REACHED();
+            /*
+            this->tolerateUnexpectedToken(this->nextToken());
+            consequent = this->finalize(this->createNode(), new Node.EmptyStatement());
+            */
+        } else {
+            this->expect(RightParenthesis);
+            consequent = this->parseStatement();
+            if (this->matchKeyword(Else)) {
+                this->nextToken();
+                alternate = this->parseStatement();
+            }
+        }
+
+        return this->finalize(node, new IfStatementNode(test, consequent, alternate));
+    }
+
+    // ECMA-262 13.7.2 The do-while Statement
+
+    DoWhileStatementNode* parseDoWhileStatement()
+    {
+        MetaNode node = this->createNode();
+        this->expectKeyword(Do);
+
+        bool previousInIteration = this->context->inIteration;
+        this->context->inIteration = true;
+        Node* body = this->parseStatement();
+        this->context->inIteration = previousInIteration;
+
+        this->expectKeyword(While);
+        this->expect(LeftParenthesis);
+        Node* test = this->parseExpression();
+        this->expect(RightParenthesis);
+        if (this->match(SemiColon)) {
+            this->nextToken();
+        }
+
+        return this->finalize(node, new DoWhileStatementNode(test, body));
+    }
+
+    // ECMA-262 13.7.3 The while Statement
+
+    WhileStatementNode* parseWhileStatement()
+    {
+        MetaNode node = this->createNode();
+        Node* body;
+
+        this->expectKeyword(While);
+        this->expect(LeftParenthesis);
+        Node* test = this->parseExpression();
+
+        if (!this->match(RightParenthesis) && this->config.tolerant) {
+            this->tolerateUnexpectedToken(this->nextToken());
+            body = this->finalize(this->createNode(), new EmptyStatementNode());
+        } else {
+            this->expect(RightParenthesis);
+
+            bool previousInIteration = this->context->inIteration;
+            this->context->inIteration = true;
+            body = this->parseStatement();
+            this->context->inIteration = previousInIteration;
+        }
+
+        return this->finalize(node, new WhileStatementNode(test, body));
+    }
+
+    // ECMA-262 13.7.4 The for Statement
+    // ECMA-262 13.7.5 The for-in and for-of Statements
+
+    StatementNode* parseForStatement()
+    {
+        Node* init = nullptr;
+        Node* test = nullptr;
+        Node* update = nullptr;
+        bool forIn = true;
+        Node* left = nullptr;
+        Node* right = nullptr;
+
+        MetaNode node = this->createNode();
+        this->expectKeyword(For);
+        this->expect(LeftParenthesis);
+
+        if (this->match(SemiColon)) {
+            this->nextToken();
+        } else {
+            if (this->matchKeyword(Var)) {
+                MetaNode metaInit = this->createNode();
+                this->nextToken();
+
+                bool previousAllowIn = this->context->allowIn;
+                this->context->allowIn = false;
+                DeclarationOptions opt;
+                opt.inFor = true;
+                VariableDeclaratorVector declarations = this->parseVariableDeclarationList(opt);
+                this->context->allowIn = previousAllowIn;
+
+                if (declarations.size() == 1 && this->matchKeyword(In)) {
+                    VariableDeclaratorNode* decl = declarations[0];
+                    // if (decl->init() && (decl.id.type === Syntax.ArrayPattern || decl.id.type === Syntax.ObjectPattern || this->context->strict)) {
+                    if (decl->init() && (decl->id()->type() == ArrayExpression || decl->id()->type() == ObjectExpression || this->context->strict)) {
+                        this->tolerateError(Messages::ForInOfLoopInitializer, new ASCIIString("for-in"));
+                    }
+                    init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations)/*, 'var'*/));
+                    this->nextToken();
+                    left = init;
+                    right = this->parseExpression();
+                    init = nullptr;
+                } else if (declarations.size() == 1 && declarations[0]->init() == nullptr && this->matchContextualKeyword(Of)) {
+                    init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations)/*, 'var'*/));
+                    this->nextToken();
+                    left = init;
+                    right = this->parseAssignmentExpression();
+                    init = nullptr;
+                    forIn = false;
+                } else {
+                    init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations)/*, 'var'*/));
+                    this->expect(SemiColon);
+                }
+            } else if (this->matchKeyword(Const) || this->matchKeyword(Let)) {
+                // TODO
+                RELEASE_ASSERT_NOT_REACHED();
+                /*
+                init = this->createNode();
+                const kind = this->nextToken().value;
+
+                if (!this->context->strict && this->lookahead.value === 'in') {
+                    init = this->finalize(init, new Node.Identifier(kind));
+                    this->nextToken();
+                    left = init;
+                    right = this->parseExpression();
+                    init = null;
+                } else {
+                    const previousAllowIn = this->context->allowIn;
+                    this->context->allowIn = false;
+                    const declarations = this->parseBindingList(kind, { inFor: true });
+                    this->context->allowIn = previousAllowIn;
+
+                    if (declarations.length === 1 && declarations[0].init === null && this->matchKeyword('in')) {
+                        init = this->finalize(init, new Node.VariableDeclaration(declarations, kind));
+                        this->nextToken();
+                        left = init;
+                        right = this->parseExpression();
+                        init = null;
+                    } else if (declarations.length === 1 && declarations[0].init === null && this->matchContextualKeyword('of')) {
+                        init = this->finalize(init, new Node.VariableDeclaration(declarations, kind));
+                        this->nextToken();
+                        left = init;
+                        right = this->parseAssignmentExpression();
+                        init = null;
+                        forIn = false;
+                    } else {
+                        this->consumeSemicolon();
+                        init = this->finalize(init, new Node.VariableDeclaration(declarations, kind));
+                    }
+                }
+                */
+            } else {
+                ScannerResult* initStartToken = this->lookahead;
+                bool previousAllowIn = this->context->allowIn;
+                this->context->allowIn = false;
+                init = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
+                this->context->allowIn = previousAllowIn;
+
+                if (this->matchKeyword(In)) {
+                    if (!this->context->isAssignmentTarget || init->type() == AssignmentExpression) {
+                        this->tolerateError(Messages::InvalidLHSInForIn);
+                    }
+
+                    this->nextToken();
+                    // this->reinterpretExpressionAsPattern(init);
+                    left = init;
+                    right = this->parseExpression();
+                    init = nullptr;
+                } else if (this->matchContextualKeyword(Of)) {
+                    // TODO
+                    RELEASE_ASSERT_NOT_REACHED();
+                    /*
+                    if (!this->context->isAssignmentTarget || init.type === Syntax.AssignmentExpression) {
+                        this->tolerateError(Messages.InvalidLHSInForLoop);
+                    }
+
+                    this->nextToken();
+                    this->reinterpretExpressionAsPattern(init);
+                    left = init;
+                    right = this->parseAssignmentExpression();
+                    init = null;
+                    forIn = false;
+                    */
+                } else {
+                    if (this->match(Comma)) {
+                        ExpressionNodeVector initSeq;
+                        initSeq.push_back(init);
+                        while (this->match(Comma)) {
+                            this->nextToken();
+                            initSeq.push_back(this->isolateCoverGrammar(&Parser::parseAssignmentExpression));
+                        }
+                        init = this->finalize(this->startNode(initStartToken), new SequenceExpressionNode(std::move(initSeq)));
+                    }
+                    this->expect(SemiColon);
+                }
+            }
+        }
+
+        if (left == nullptr) {
+            if (!this->match(SemiColon)) {
+                test = this->parseExpression();
+            }
+            this->expect(SemiColon);
+            if (!this->match(RightParenthesis)) {
+                update = this->parseExpression();
+            }
+        }
+
+        Node* body = nullptr;
+        if (!this->match(RightParenthesis) && this->config.tolerant) {
+            this->tolerateUnexpectedToken(this->nextToken());
+            body = this->finalize(this->createNode(), new EmptyStatementNode());
+        } else {
+            this->expect(RightParenthesis);
+
+            bool previousInIteration = this->context->inIteration;
+            this->context->inIteration = true;
+            body = this->isolateCoverGrammar(&Parser::parseStatement);
+            this->context->inIteration = previousInIteration;
+        }
+
+        if (left == nullptr) {
+            return this->finalize(node, new ForStatementNode(init, test, update, body));
+        } else {
+            if (forIn) {
+                return this->finalize(node, new ForInStatementNode(left, right, body, false));
+            } else {
+                RELEASE_ASSERT_NOT_REACHED();
+                // return this->finalize(node, new Node.ForOfStatement(left, right, body));
+            }
+        }
+/*
+        return (typeof left === 'undefined') ?
+            this->finalize(node, new Node.ForStatement(init, test, update, body)) :
+            forIn ? this->finalize(node, new Node.ForInStatement(left, right, body)) :
+                this->finalize(node, new Node.ForOfStatement(left, right, body));
+
+*/
+    }
+
+    void removeLabel(String* label)
+    {
+        for (size_t i = 0; i < this->context->labelSet.size(); i ++) {
+            if (this->context->labelSet[i].first->equals(label)) {
+                this->context->labelSet.erase(this->context->labelSet.begin() + i);
+                return;
+            }
+        }
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    bool hasLabel(String* label)
+    {
+        for (size_t i = 0; i < this->context->labelSet.size(); i ++) {
+            if (this->context->labelSet[i].first->equals(label)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    // ECMA-262 13.8 The continue statement
+
+    Node* parseContinueStatement()
+    {
+        MetaNode node = this->createNode();
+        this->expectKeyword(Continue);
+
+        IdentifierNode* label = nullptr;
+        if (this->lookahead->type == IdentifierToken && !this->hasLineTerminator) {
+            label = this->parseVariableIdentifier();
+
+            if (!hasLabel(label->name().string())) {
+                this->throwError(Messages::UnknownLabel, label->name().string());
+            }
+        }
+
+        this->consumeSemicolon();
+        if (label == nullptr && !this->context->inIteration) {
+            this->throwError(Messages::IllegalContinue);
+        }
+
+        if (label)
+            return this->finalize(node, new ContinueLabelStatementNode(label->name().string()));
+        else
+            return this->finalize(node, new ContinueStatementNode());
+    }
+
+    // ECMA-262 13.9 The break statement
+
+    Node* parseBreakStatement()
+    {
+        MetaNode node = this->createNode();
+        this->expectKeyword(Break);
+
+        IdentifierNode* label = nullptr;
+        if (this->lookahead->type == IdentifierToken && !this->hasLineTerminator) {
+            label = this->parseVariableIdentifier();
+
+            if (!hasLabel(label->name().string())) {
+                this->throwError(Messages::UnknownLabel, label->name().string());
+            }
+
+        }
+
+        this->consumeSemicolon();
+        if (label == nullptr && !this->context->inIteration && !this->context->inSwitch) {
+            this->throwError(Messages::IllegalBreak);
+        }
+
+        if (label)
+            return this->finalize(node, new BreakLabelStatementNode(label->name().string()));
+        else
+            return this->finalize(node, new BreakStatementNode());
+    }
+
+    // ECMA-262 13.10 The return statement
+
+    Node* parseReturnStatement()
+    {
+        if (!this->context->inFunctionBody) {
+            this->tolerateError(Messages::IllegalReturn);
+        }
+
+        MetaNode node = this->createNode();
+        this->expectKeyword(Return);
+
+        bool hasArgument = !this->match(SemiColon) && !this->match(RightBrace) &&
+            !this->hasLineTerminator && this->lookahead->type != EOFToken;
+        Node* argument = nullptr;
+        if (hasArgument) {
+            argument = this->parseExpression();
+        }
+        this->consumeSemicolon();
+
+        return this->finalize(node, new ReturnStatmentNode(argument));
+    }
+
+    // ECMA-262 13.11 The with statement
+
+    Node* parseWithStatement()
+    {
+        // TODO
+        RELEASE_ASSERT_NOT_REACHED();
+        /*
+        if (this->context->strict) {
+            this->tolerateError(Messages::StrictModeWith);
+        }
+
+        const node = this->createNode();
+        this->expectKeyword('with');
+        this->expect('(');
+        const object = this->parseExpression();
+        this->expect(')');
+        const body = this->parseStatement();
+
+        return this->finalize(node, new Node.WithStatement(object, body));
+        */
+    }
+
+    // ECMA-262 13.12 The switch statement
+
+    SwitchCaseNode* parseSwitchCase()
+    {
+        MetaNode node = this->createNode();
+
+        Node* test;
+        if (this->matchKeyword(Default)) {
+            this->nextToken();
+            test = nullptr;
+        } else {
+            this->expectKeyword(Case);
+            test = this->parseExpression();
+        }
+        this->expect(Colon);
+
+        StatementNodeVector consequent;
+        while (true) {
+            if (this->match(RightBrace) || this->matchKeyword(Default) || this->matchKeyword(Case)) {
+                break;
+            }
+            consequent.push_back(this->parseStatementListItem());
+        }
+
+        return this->finalize(node, new SwitchCaseNode(test, std::move(consequent)));
+    }
+
+    SwitchStatementNode* parseSwitchStatement()
+    {
+        MetaNode node = this->createNode();
+        this->expectKeyword(Switch);
+
+        this->expect(LeftParenthesis);
+        Node* discriminant = this->parseExpression();
+        this->expect(RightParenthesis);
+
+        bool previousInSwitch = this->context->inSwitch;
+        this->context->inSwitch = true;
+
+        StatementNodeVector casesA, casesB;
+        Node* deflt = nullptr;
+        bool defaultFound = false;
+        this->expect(LeftBrace);
+        while (true) {
+            if (this->match(RightBrace)) {
+                break;
+            }
+            SwitchCaseNode* clause = this->parseSwitchCase();
+            if (clause->isDefaultNode()) {
+                if (defaultFound) {
+                    this->throwError(Messages::MultipleDefaultsInSwitch);
+                }
+                deflt = clause;
+                defaultFound = true;
+            } else {
+                if (defaultFound) {
+                    casesA.push_back(clause);
+                } else {
+                    casesB.push_back(clause);
+                }
+            }
+        }
+        this->expect(RightBrace);
+
+        this->context->inSwitch = previousInSwitch;
+
+        return this->finalize(node, new SwitchStatementNode(discriminant, std::move(casesA), deflt, std::move(casesB), false));
+    }
+
+    // ECMA-262 13.13 Labelled Statements
+
+    Node* parseLabelledStatement()
+    {
+        MetaNode node = this->createNode();
+        Node* expr = this->parseExpression();
+
+        StatementNode* statement;
+        if ((expr->type() == Identifier) && this->match(Colon)) {
+            this->nextToken();
+
+            IdentifierNode* id = (IdentifierNode*)expr;
+            if (hasLabel(id->name().string())) {
+                this->throwError(Messages::Redeclaration, new ASCIIString("Label"), id->name().string());
+            }
+
+            this->context->labelSet.push_back(std::make_pair(id->name().string(), true));
+            StatementNode* labeledBody = this->parseStatement();
+            removeLabel(id->name().string());
+
+            statement = new LabeledStatementNode(labeledBody, id->name().string());
+        } else {
+            this->consumeSemicolon();
+            statement = new ExpressionStatementNode(expr);
+        }
+
+        return this->finalize(node, statement);
+    }
+
+    // ECMA-262 13.14 The throw statement
+
+    Node* parseThrowStatement()
+    {
+        MetaNode node = this->createNode();
+        this->expectKeyword(Throw);
+
+        if (this->hasLineTerminator) {
+            this->throwError(Messages::NewlineAfterThrow);
+        }
+
+        Node* argument = this->parseExpression();
+        this->consumeSemicolon();
+
+        return this->finalize(node, new ThrowStatementNode(argument));
+    }
+
+    // ECMA-262 13.15 The try statement
+
+    CatchClauseNode* parseCatchClause()
+    {
+        MetaNode node = this->createNode();
+
+        this->expectKeyword(Catch);
+
+        this->expect(LeftParenthesis);
+        if (this->match(RightParenthesis)) {
+            this->throwUnexpectedToken(this->lookahead);
+        }
+
+        std::vector<ScannerResult*, gc_malloc_ignore_off_page_allocator<ScannerResult*>> params;
+        Node* param = this->parsePattern(params);
+
+        std::vector<String*, gc_malloc_ignore_off_page_allocator<String*>> paramMap;
+        for (size_t i = 0; i < params.size(); i ++) {
+
+            bool has = false;
+            for (size_t j = 0; j < paramMap.size(); j ++) {
+                if (paramMap[j]->equals(&params[i]->valueString)) {
+                    has = true;
+                }
+            }
+            if (has) {
+                this->tolerateError(Messages::DuplicateBinding, &params[i]->valueString);
+            } else {
+                paramMap.push_back(new StringView(params[i]->valueString));
+            }
+        }
+
+        if (this->context->strict && param->type() == Identifier) {
+            IdentifierNode* id = (IdentifierNode*)param;
+            if (this->scanner->isRestrictedWord(id->name())) {
+                this->tolerateError(Messages::StrictCatchVariable);
+            }
+        }
+
+        this->expect(RightParenthesis);
+        Node* body = this->parseBlock();
+
+        return this->finalize(node, new CatchClauseNode(param, nullptr, body));
+    }
+
+    BlockStatementNode* parseFinallyClause()
+    {
+        this->expectKeyword(Finally);
+        return this->parseBlock();
+    }
+
+    TryStatementNode* parseTryStatement()
+    {
+        MetaNode node = this->createNode();
+        this->expectKeyword(Try);
+
+        BlockStatementNode* block = this->parseBlock();
+        CatchClauseNode* handler = this->matchKeyword(Catch) ? this->parseCatchClause() : nullptr;
+        BlockStatementNode* finalizer = this->matchKeyword(Finally) ? this->parseFinallyClause() : nullptr;
+
+        if (!handler && !finalizer) {
+            this->throwError(Messages::NoCatchOrFinally);
+        }
+
+        return this->finalize(node, new TryStatementNode(block, handler, CatchClauseNodeVector(), finalizer));
+    }
+
+    // ECMA-262 13.16 The debugger statement
+
+    StatementNode* parseDebuggerStatement()
+    {
+        // TODO
+        RELEASE_ASSERT_NOT_REACHED();
+        /*
+        const node = this->createNode();
+        this->expectKeyword('debugger');
+        this->consumeSemicolon();
+        return this->finalize(node, new Node.DebuggerStatement());
+        */
+    }
+
+    // ECMA-262 13 Statements
+
+    StatementNode* parseStatement()
+    {
+        StatementNode* statement = nullptr;
+        switch (this->lookahead->type) {
+            case Token::BooleanLiteralToken:
+            case Token::NullLiteralToken:
+            case Token::NumericLiteralToken:
+            case Token::StringLiteralToken:
+            case Token::TemplateToken:
+            case Token::RegularExpressionToken:
+                statement = this->parseExpressionStatement();
+                break;
+
+            case Token::PunctuatorToken:
+            {
+                PunctuatorsKind value = this->lookahead->valuePunctuatorsKind;
+                if (value == LeftBrace) {
+                    statement = this->parseBlock();
+                } else if (value == LeftParenthesis) {
+                    statement = this->parseExpressionStatement();
+                } else if (value == SemiColon) {
+                    statement = this->parseEmptyStatement();
+                } else {
+                    statement = this->parseExpressionStatement();
+                }
+                break;
+            }
+            case Token::IdentifierToken:
+                statement = asStatementNode(this->parseLabelledStatement());
+                break;
+
+            case Token::KeywordToken:
+                switch (this->lookahead->valueKeywordKind) {
+                    case Break:
+                        statement = asStatementNode(this->parseBreakStatement());
+                        break;
+                    case Continue:
+                        statement = asStatementNode(this->parseContinueStatement());
+                        break;
+                    case Debugger:
+                        statement = asStatementNode(this->parseDebuggerStatement());
+                        break;
+                    case Do:
+                        statement = asStatementNode(this->parseDoWhileStatement());
+                        break;
+                    case For:
+                        statement = asStatementNode(this->parseForStatement());
+                        break;
+                    case Function:
+                        statement = asStatementNode(this->parseFunctionDeclaration());
+                        break;
+                    case If:
+                        statement = asStatementNode(this->parseIfStatement());
+                        break;
+                    case Return:
+                        statement = asStatementNode(this->parseReturnStatement());
+                        break;
+                    case Switch:
+                        statement = asStatementNode(this->parseSwitchStatement());
+                        break;
+                    case Throw:
+                        statement = asStatementNode(this->parseThrowStatement());
+                        break;
+                    case Try:
+                        statement = asStatementNode(this->parseTryStatement());
+                        break;
+                    case Var:
+                        statement = asStatementNode(this->parseVariableStatement());
+                        break;
+                    case While:
+                        statement = asStatementNode(this->parseWhileStatement());
+                        break;
+                    case With:
+                        statement = asStatementNode(this->parseWithStatement());
+                        break;
+                    default:
+                        statement = asStatementNode(this->parseExpressionStatement());
+                        break;
+                }
+                break;
+
+            default:
+                this->throwUnexpectedToken(this->lookahead);
+        }
+
+        return statement;
+    }
+
+    // ECMA-262 14.1 Function Definition
+
+    BlockStatementNode* parseFunctionSourceElements()
+    {
+        MetaNode node = this->createNode();
+
+        this->expect(LeftBrace);
+        StatementNodeVector body = this->parseDirectivePrologues();
+
+        auto previousLabelSet = this->context->labelSet;
+        bool previousInIteration = this->context->inIteration;
+        bool previousInSwitch = this->context->inSwitch;
+        bool previousInFunctionBody = this->context->inFunctionBody;
+
+        this->context->labelSet.clear();
+        this->context->inIteration = false;
+        this->context->inSwitch = false;
+        this->context->inFunctionBody = true;
+
+        while (this->startMarker.index < this->scanner->length) {
+            if (this->match(RightBrace)) {
+                break;
+            }
+            body.push_back(this->parseStatementListItem());
+        }
+
+        this->expect(RightBrace);
+
+        this->context->labelSet = previousLabelSet;
+        this->context->inIteration = previousInIteration;
+        this->context->inSwitch = previousInSwitch;
+        this->context->inFunctionBody = previousInFunctionBody;
+
+        return this->finalize(node, new BlockStatementNode(std::move(body)));
+    }
+
+    FunctionDeclarationNode* parseFunctionDeclaration(bool identifierIsOptional = false)
+    {
+        MetaNode node = this->createNode();
+        this->expectKeyword(Function);
+
+        bool isGenerator = this->match(Multiply);
+        if (isGenerator) {
+            this->nextToken();
+        }
+
+        const char* message = nullptr;
+        IdentifierNode* id = nullptr;
+        ScannerResult* firstRestricted = nullptr;
+
+        if (!identifierIsOptional || !this->match(LeftParenthesis)) {
+            ScannerResult* token = this->lookahead;
+            id = this->parseVariableIdentifier();
+            if (this->context->strict) {
+                if (this->scanner->isRestrictedWord(token->valueString)) {
+                    this->tolerateUnexpectedToken(token, Messages::StrictFunctionName);
+                }
+            } else {
+                if (this->scanner->isRestrictedWord(token->valueString)) {
+                    firstRestricted = token;
+                    message = Messages::StrictFunctionName;
+                } else if (this->scanner->isStrictModeReservedWord(token->valueString)) {
+                    firstRestricted = token;
+                    message = Messages::StrictReservedWord;
+                }
+            }
+        }
+
+        bool previousAllowYield = this->context->allowYield;
+        this->context->allowYield = !isGenerator;
+
+        ParseFormalParametersResult formalParameters = this->parseFormalParameters(firstRestricted);
+        PatternNodeVector params = std::move(formalParameters.params);
+        ScannerResult* stricted = formalParameters.stricted;
+        firstRestricted = formalParameters.firstRestricted;
+        if (formalParameters.message) {
+            message = formalParameters.message;
+        }
+
+        bool previousStrict = this->context->strict;
+        BlockStatementNode* body = this->parseFunctionSourceElements();
+        if (this->context->strict && firstRestricted) {
+            this->throwUnexpectedToken(firstRestricted, message);
+        }
+        if (this->context->strict && stricted) {
+            this->tolerateUnexpectedToken(stricted, message);
+        }
+
+        this->context->strict = previousStrict;
+        this->context->allowYield = previousAllowYield;
+
+        return this->finalize(node, new FunctionDeclarationNode(id->name(), std::move(params), body, isGenerator));
+    }
+
+    FunctionExpressionNode* parseFunctionExpression()
+    {
+        MetaNode node = this->createNode();
+        this->expectKeyword(Function);
+
+        bool isGenerator = this->match(Multiply);
+        if (isGenerator) {
+            this->nextToken();
+        }
+
+        const char* message;
+        IdentifierNode* id = nullptr;
+        ScannerResult* firstRestricted;
+
+        bool previousAllowYield = this->context->allowYield;
+        this->context->allowYield = !isGenerator;
+
+        if (!this->match(LeftParenthesis)) {
+            ScannerResult* token = this->lookahead;
+            id = (!this->context->strict && !isGenerator && this->matchKeyword(Yield)) ? this->parseIdentifierName() : this->parseVariableIdentifier();
+            if (this->context->strict) {
+                if (this->scanner->isRestrictedWord(token->valueString)) {
+                    this->tolerateUnexpectedToken(token, Messages::StrictFunctionName);
+                }
+            } else {
+                if (this->scanner->isRestrictedWord(token->valueString)) {
+                    firstRestricted = token;
+                    message = Messages::StrictFunctionName;
+                } else if (this->scanner->isStrictModeReservedWord(token->valueString)) {
+                    firstRestricted = token;
+                    message = Messages::StrictReservedWord;
+                }
+            }
+        }
+
+        ParseFormalParametersResult formalParameters = this->parseFormalParameters(firstRestricted);
+        PatternNodeVector params = std::move(formalParameters.params);
+        ScannerResult* stricted = formalParameters.stricted;
+        firstRestricted = formalParameters.firstRestricted;
+        if (formalParameters.message) {
+            message = formalParameters.message;
+        }
+
+        bool previousStrict = this->context->strict;
+        BlockStatementNode* body = this->parseFunctionSourceElements();
+        if (this->context->strict && firstRestricted) {
+            this->throwUnexpectedToken(firstRestricted, message);
+        }
+        if (this->context->strict && stricted) {
+            this->tolerateUnexpectedToken(stricted, message);
+        }
+        this->context->strict = previousStrict;
+        this->context->allowYield = previousAllowYield;
+
+        return this->finalize(node, new FunctionExpressionNode(id->name(), std::move(params), body, isGenerator));
+    }
+
+    // ECMA-262 14.1.1 Directive Prologues
+
+    Node* parseDirective()
+    {
+        ScannerResult* token = this->lookahead;
+        StringView directiveValue;
+        bool isLiteral = false;
+
+        MetaNode node = this->createNode();
+        Node* expr = this->parseExpression();
+        if (expr->type() == Literal) {
+            isLiteral = true;
+            size_t newStart = token->valueString.start() + 1;
+            size_t newEnd = token->valueString.end() - 1;
+            if (newStart <= newEnd) {
+                directiveValue = StringView(token->valueString.string(), newStart, newEnd);
+            }
+        }
+        this->consumeSemicolon();
+
+        if (isLiteral) {
+            return this->finalize(node, new DirectiveNode(asExpressionNode(expr), directiveValue));
+        } else {
+            return this->finalize(node, new ExpressionStatementNode(expr));
+        }
+    }
+
+    StatementNodeVector parseDirectivePrologues()
+    {
+        ScannerResult* firstRestricted = nullptr;
+
+        StatementNodeVector body;
+        while (true) {
+            ScannerResult* token = this->lookahead;
+            if (token->type != StringLiteralToken) {
+                break;
+            }
+
+            Node* statement = this->parseDirective();
+            body.push_back(statement);
+
+            if (statement->type() != Directive) {
+                break;
+            }
+
+            DirectiveNode* directive = (DirectiveNode*)statement;
+            if (directive->value().equals("use strict")) {
+                this->context->strict = true;
+                if (firstRestricted) {
+                    this->tolerateUnexpectedToken(firstRestricted, Messages::StrictOctalLiteral);
+                }
+            } else {
+                if (!firstRestricted && token->octal) {
+                    firstRestricted = token;
+                }
+            }
+        }
+
+        return body;
+    }
+
+    // ECMA-262 14.3 Method Definitions
+
+    FunctionExpressionNode* parseGetterMethod()
+    {
+        MetaNode node = this->createNode();
+        this->expect(LeftParenthesis);
+        this->expect(RightParenthesis);
+
+        bool isGenerator = false;
+        // std::vector<Node*, gc_allocator<Node*>> params, ScannerResult* stricted, ScannerResult* firstRestricted, const char* message
+        ParseFormalParametersResult params(PatternNodeVector(), nullptr, nullptr, nullptr);
+        bool previousAllowYield = this->context->allowYield;
+        this->context->allowYield = false;
+        Node* method = this->parsePropertyMethod(params);
+        this->context->allowYield = previousAllowYield;
+
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method, isGenerator));
+    }
+
+    FunctionExpressionNode* parseSetterMethod()
+    {
+        MetaNode node = this->createNode();
+
+        ParseParameterOptions options;
+
+        bool isGenerator = false;
+        bool previousAllowYield = this->context->allowYield;
+        this->context->allowYield = false;
+
+        this->expect(LeftParenthesis);
+        if (this->match(RightParenthesis)) {
+            this->tolerateUnexpectedToken(this->lookahead);
+        } else {
+            this->parseFormalParameter(options);
+        }
+        this->expect(RightParenthesis);
+
+        ParseFormalParametersResult options2(std::move(options.params), options.stricted, options.firstRestricted, options.message);
+        Node* method = this->parsePropertyMethod(options2);
+        this->context->allowYield = previousAllowYield;
+
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(options.params), method, isGenerator));
+    }
+
+    FunctionExpressionNode* parseGeneratorMethod()
+    {
+        // TODO
+        RELEASE_ASSERT_NOT_REACHED();
+        /*
+        MetaNode node = this->createNode();
+        const isGenerator = true;
+        const previousAllowYield = this->context.allowYield;
+
+        this->context.allowYield = true;
+        const params = this->parseFormalParameters();
+        this->context.allowYield = false;
+        const method = this->parsePropertyMethod(params);
+        this->context.allowYield = previousAllowYield;
+
+        return this->finalize(node, new Node.FunctionExpression(null, params.params, method, isGenerator));
+        */
+    }
+
+    // ECMA-262 14.4 Generator Function Definitions
+
+    Node* parseYieldExpression()
+    {
+        // TODO
+        RELEASE_ASSERT_NOT_REACHED();
+        /*
+        const node = this->createNode();
+        this->expectKeyword('yield');
+
+        let argument = null;
+        let delegate = false;
+        if (!this->hasLineTerminator) {
+            const previousAllowYield = this->context.allowYield;
+            this->context.allowYield = false;
+            delegate = this->match('*');
+            if (delegate) {
+                this->nextToken();
+                argument = this->parseAssignmentExpression();
+            } else {
+                if (!this->match(';') && !this->match('}') && !this->match(')') && this->lookahead.type !== Token.EOF) {
+                    argument = this->parseAssignmentExpression();
+                }
+            }
+            this->context.allowYield = previousAllowYield;
+        }
+
+        return this->finalize(node, new Node.YieldExpression(argument, delegate));
+        */
+    }
+
+    // ECMA-262 14.5 Class Definitions
+    /*
+    parseClassElement(hasConstructor): Node.Property {
+        let token = this.lookahead;
+        let node = this.createNode();
+
+        let kind: string;
+        let key: Node.PropertyKey;
+        let value: Node.FunctionExpression;
+        let computed = false;
+        let method = false;
+        let isStatic = false;
+
+        if (this.match('*')) {
+            this.nextToken();
+        } else {
+            computed = this.match('[');
+            key = this.parseObjectPropertyKey();
+            const id = <Node.Identifier>key;
+            if (id.name === 'static' && (this.qualifiedPropertyName(this.lookahead) || this.match('*'))) {
+                token = this.lookahead;
+                isStatic = true;
+                computed = this.match('[');
+                if (this.match('*')) {
+                    this.nextToken();
+                } else {
+                    key = this.parseObjectPropertyKey();
+                }
+            }
+        }
+
+        const lookaheadPropertyKey = this.qualifiedPropertyName(this.lookahead);
+        if (token.type === Token.Identifier) {
+            if (token.value === 'get' && lookaheadPropertyKey) {
+                kind = 'get';
+                computed = this.match('[');
+                key = this.parseObjectPropertyKey();
+                this.context.allowYield = false;
+                value = this.parseGetterMethod();
+            } else if (token.value === 'set' && lookaheadPropertyKey) {
+                kind = 'set';
+                computed = this.match('[');
+                key = this.parseObjectPropertyKey();
+                value = this.parseSetterMethod();
+            }
+        } else if (token.type === Token.Punctuator && token.value === '*' && lookaheadPropertyKey) {
+            kind = 'init';
+            computed = this.match('[');
+            key = this.parseObjectPropertyKey();
+            value = this.parseGeneratorMethod();
+            method = true;
+        }
+
+        if (!kind && key && this.match('(')) {
+            kind = 'init';
+            value = this.parsePropertyMethodFunction();
+            method = true;
+        }
+
+        if (!kind) {
+            this.throwUnexpectedToken(this.lookahead);
+        }
+
+        if (kind === 'init') {
+            kind = 'method';
+        }
+
+        if (!computed) {
+            if (isStatic && this.isPropertyKey(key, 'prototype')) {
+                this.throwUnexpectedToken(token, Messages.StaticPrototype);
+            }
+            if (!isStatic && this.isPropertyKey(key, 'constructor')) {
+                if (kind !== 'method' || !method || value.generator) {
+                    this.throwUnexpectedToken(token, Messages.ConstructorSpecialMethod);
+                }
+                if (hasConstructor.value) {
+                    this.throwUnexpectedToken(token, Messages.DuplicateConstructor);
+                } else {
+                    hasConstructor.value = true;
+                }
+                kind = 'constructor';
+            }
+        }
+
+
+        return this.finalize(node, new Node.MethodDefinition(key, computed, value, kind, isStatic));
+    }
+
+    parseClassElementList(): Node.Property[] {
+        const body = [];
+        let hasConstructor = { value: false };
+
+        this.expect('{');
+        while (!this.match('}')) {
+            if (this.match(';')) {
+                this.nextToken();
+            } else {
+                body.push(this.parseClassElement(hasConstructor));
+            }
+        }
+        this.expect('}');
+
+        return body;
+    }
+
+    parseClassBody(): Node.ClassBody {
+        const node = this.createNode();
+        const elementList = this.parseClassElementList();
+
+        return this.finalize(node, new Node.ClassBody(elementList));
+    }
+
+    parseClassDeclaration(identifierIsOptional?: boolean): Node.ClassDeclaration {
+        const node = this.createNode();
+
+        const previousStrict = this.context.strict;
+        this.context.strict = true;
+        this.expectKeyword('class');
+
+        const id = (identifierIsOptional && (this.lookahead.type !== Token.Identifier)) ? null : this.parseVariableIdentifier();
+        let superClass = null;
+        if (this.matchKeyword('extends')) {
+            this.nextToken();
+            superClass = this.isolateCoverGrammar(this.parseLeftHandSideExpressionAllowCall);
+        }
+        const classBody = this.parseClassBody();
+        this.context.strict = previousStrict;
+
+        return this.finalize(node, new Node.ClassDeclaration(id, superClass, classBody));
+    }
+
+    parseClassExpression(): Node.ClassExpression {
+        const node = this.createNode();
+
+        const previousStrict = this.context.strict;
+        this.context.strict = true;
+        this.expectKeyword('class');
+        const id = (this.lookahead.type === Token.Identifier) ? this.parseVariableIdentifier() : null;
+        let superClass = null;
+        if (this.matchKeyword('extends')) {
+            this.nextToken();
+            superClass = this.isolateCoverGrammar(this.parseLeftHandSideExpressionAllowCall);
+        }
+        const classBody = this.parseClassBody();
+        this.context.strict = previousStrict;
+
+        return this.finalize(node, new Node.ClassExpression(id, superClass, classBody));
+    }
+    */
+
+    // ECMA-262 15.1 Scripts
+    // ECMA-262 15.2 Modules
+
+    ProgramNode* parseProgram()
+    {
+        MetaNode node = this->createNode();
+        StatementNodeVector body = this->parseDirectivePrologues();
+        while (this->startMarker.index < this->scanner->length) {
+            body.push_back(this->parseStatementListItem());
+        }
+        return this->finalize(node, new ProgramNode(std::move(body)/*, this->sourceType*/));
+    }
+
+    // ECMA-262 15.2.2 Imports
+    /*
+    parseModuleSpecifier(): Node.Literal {
+        const node = this.createNode();
+
+        if (this.lookahead.type !== Token.StringLiteral) {
+            this.throwError(Messages.InvalidModuleSpecifier);
+        }
+
+        const token = this.nextToken();
+        const raw = this.getTokenRaw(token);
+        return this.finalize(node, new Node.Literal(token.value, raw));
+    }
+
+    // import {<foo as bar>} ...;
+    parseImportSpecifier(): Node.ImportSpecifier {
+        const node = this.createNode();
+
+        let local;
+        const imported = this.parseIdentifierName();
+        if (this.matchContextualKeyword('as')) {
+            this.nextToken();
+            local = this.parseVariableIdentifier();
+        } else {
+            local = imported;
+        }
+
+        return this.finalize(node, new Node.ImportSpecifier(local, imported));
+    }
+
+    // {foo, bar as bas}
+    parseNamedImports(): Node.ImportSpecifier[] {
+        this.expect('{');
+        const specifiers: Node.ImportSpecifier[] = [];
+        while (!this.match('}')) {
+            specifiers.push(this.parseImportSpecifier());
+            if (!this.match('}')) {
+                this.expect(',');
+            }
+        }
+        this.expect('}');
+
+        return specifiers;
+    }
+
+    // import <foo> ...;
+    parseImportDefaultSpecifier(): Node.ImportDefaultSpecifier {
+        const node = this.createNode();
+        const local = this.parseIdentifierName();
+        return this.finalize(node, new Node.ImportDefaultSpecifier(local));
+    }
+
+    // import <* as foo> ...;
+    parseImportNamespaceSpecifier(): Node.ImportNamespaceSpecifier {
+        const node = this.createNode();
+
+        this.expect('*');
+        if (!this.matchContextualKeyword('as')) {
+            this.throwError(Messages.NoAsAfterImportNamespace);
+        }
+        this.nextToken();
+        const local = this.parseIdentifierName();
+
+        return this.finalize(node, new Node.ImportNamespaceSpecifier(local));
+    }
+
+    parseImportDeclaration(): Node.ImportDeclaration {
+        if (this.context.inFunctionBody) {
+            this.throwError(Messages.IllegalImportDeclaration);
+        }
+
+        const node = this.createNode();
+        this.expectKeyword('import');
+
+        let src: Node.Literal;
+        let specifiers: Node.ImportDeclarationSpecifier[] = [];
+        if (this.lookahead.type === Token.StringLiteral) {
+            // import 'foo';
+            src = this.parseModuleSpecifier();
+        } else {
+            if (this.match('{')) {
+                // import {bar}
+                specifiers = specifiers.concat(this.parseNamedImports());
+            } else if (this.match('*')) {
+                // import * as foo
+                specifiers.push(this.parseImportNamespaceSpecifier());
+            } else if (this.isIdentifierName(this.lookahead) && !this.matchKeyword('default')) {
+                // import foo
+                specifiers.push(this.parseImportDefaultSpecifier());
+                if (this.match(',')) {
+                    this.nextToken();
+                    if (this.match('*')) {
+                        // import foo, * as foo
+                        specifiers.push(this.parseImportNamespaceSpecifier());
+                    } else if (this.match('{')) {
+                        // import foo, {bar}
+                        specifiers = specifiers.concat(this.parseNamedImports());
+                    } else {
+                        this.throwUnexpectedToken(this.lookahead);
+                    }
+                }
+            } else {
+                this.throwUnexpectedToken(this.nextToken());
+            }
+
+            if (!this.matchContextualKeyword('from')) {
+                const message = this.lookahead.value ? Messages.UnexpectedToken : Messages.MissingFromClause;
+                this.throwError(message, this.lookahead.value);
+            }
+            this.nextToken();
+            src = this.parseModuleSpecifier();
+        }
+        this.consumeSemicolon();
+
+        return this.finalize(node, new Node.ImportDeclaration(specifiers, src));
+    }
+
+    // ECMA-262 15.2.3 Exports
+
+    parseExportSpecifier(): Node.ExportSpecifier {
+        const node = this.createNode();
+
+        const local = this.parseIdentifierName();
+        let exported = local;
+        if (this.matchContextualKeyword('as')) {
+            this.nextToken();
+            exported = this.parseIdentifierName();
+        }
+
+        return this.finalize(node, new Node.ExportSpecifier(local, exported));
+    }
+
+    parseExportDeclaration(): Node.ExportDeclaration {
+        if (this.context.inFunctionBody) {
+            this.throwError(Messages.IllegalExportDeclaration);
+        }
+
+        const node = this.createNode();
+        this.expectKeyword('export');
+
+        let exportDeclaration;
+        if (this.matchKeyword('default')) {
+            // export default ...
+            this.nextToken();
+            if (this.matchKeyword('function')) {
+                // export default function foo () {}
+                // export default function () {}
+                const declaration = this.parseFunctionDeclaration(true);
+                exportDeclaration = this.finalize(node, new Node.ExportDefaultDeclaration(declaration));
+            } else if (this.matchKeyword('class')) {
+                // export default class foo {}
+                const declaration = this.parseClassDeclaration(true);
+                exportDeclaration = this.finalize(node, new Node.ExportDefaultDeclaration(declaration));
+            } else {
+                if (this.matchContextualKeyword('from')) {
+                    this.throwError(Messages.UnexpectedToken, this.lookahead.value);
+                }
+                // export default {};
+                // export default [];
+                // export default (1 + 2);
+                const declaration = this.match('{') ? this.parseObjectInitializer() :
+                    this.match('[') ? this.parseArrayInitializer() : this.parseAssignmentExpression();
+                this.consumeSemicolon();
+                exportDeclaration = this.finalize(node, new Node.ExportDefaultDeclaration(declaration));
+            }
+
+        } else if (this.match('*')) {
+            // export * from 'foo';
+            this.nextToken();
+            if (!this.matchContextualKeyword('from')) {
+                const message = this.lookahead.value ? Messages.UnexpectedToken : Messages.MissingFromClause;
+                this.throwError(message, this.lookahead.value);
+            }
+            this.nextToken();
+            const src = this.parseModuleSpecifier();
+            this.consumeSemicolon();
+            exportDeclaration = this.finalize(node, new Node.ExportAllDeclaration(src));
+
+        } else if (this.lookahead.type === Token.Keyword) {
+            // export var f = 1;
+            let declaration;
+            switch (this.lookahead.value) {
+                case 'let':
+                case 'const':
+                    declaration = this.parseLexicalDeclaration({ inFor: false });
+                    break;
+                case 'var':
+                case 'class':
+                case 'function':
+                    declaration = this.parseStatementListItem();
+                    break;
+                default:
+                    this.throwUnexpectedToken(this.lookahead);
+            }
+            exportDeclaration = this.finalize(node, new Node.ExportNamedDeclaration(declaration, [], null));
+
+        } else {
+            const specifiers = [];
+            let source = null;
+            let isExportFromIdentifier = false;
+
+            this.expect('{');
+            while (!this.match('}')) {
+                isExportFromIdentifier = isExportFromIdentifier || this.matchKeyword('default');
+                specifiers.push(this.parseExportSpecifier());
+                if (!this.match('}')) {
+                    this.expect(',');
+                }
+            }
+            this.expect('}');
+
+            if (this.matchContextualKeyword('from')) {
+                // export {default} from 'foo';
+                // export {foo} from 'foo';
+                this.nextToken();
+                source = this.parseModuleSpecifier();
+                this.consumeSemicolon();
+            } else if (isExportFromIdentifier) {
+                // export {default}; // missing fromClause
+                const message = this.lookahead.value ? Messages.UnexpectedToken : Messages.MissingFromClause;
+                this.throwError(message, this.lookahead.value);
+            } else {
+                // export {foo};
+                this.consumeSemicolon();
+            }
+            exportDeclaration = this.finalize(node, new Node.ExportNamedDeclaration(null, specifiers, source));
+        }
+
+        return exportDeclaration;
+    }
+    */
+};
+
 
 }
 

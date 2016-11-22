@@ -36,6 +36,11 @@ public:
         m_right = right;
     }
 
+    Node* left()
+    {
+        return m_left;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionSimple; }
 
 protected:

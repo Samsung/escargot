@@ -14,33 +14,27 @@
  *    limitations under the License.
  */
 
-#ifndef FunctionNode_h
-#define FunctionNode_h
+#ifndef SpreadElementNode_h
+#define SpreadElementNode_h
 
-#include "StatementNode.h"
-#include "ExpressionNode.h"
+#include "Node.h"
 
 namespace Escargot {
 
-class FunctionNode {
+class SpreadElementNode : public Node {
 public:
-    FunctionNode(const AtomicString& id, PatternNodeVector&& params, Node* body, bool isGenerator)
+    SpreadElementNode(Node* arg)
+        : Node()
     {
-        m_id = id;
-        m_params = params;
-        m_body = body;
-        m_isGenerator = isGenerator;
+        m_arg = arg;
     }
 
-    inline const PatternNodeVector& params() { return m_params; }
-    inline Node* body() { return m_body; }
-    inline const AtomicString& id() { return m_id; }
-
+    virtual ASTNodeType type()
+    {
+        return SpreadElement;
+    }
 protected:
-    bool m_isGenerator;
-    AtomicString m_id; // id: Identifier;
-    PatternNodeVector m_params; // params: [ Pattern ];
-    Node* m_body;
+    Node* m_arg;
 };
 
 }

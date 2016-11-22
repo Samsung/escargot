@@ -26,7 +26,8 @@ public:
     AtomicString(ExecutionState& ec, const char16_t* src, size_t len);
     AtomicString(ExecutionState& ec, const char* src, size_t len);
     AtomicString(Context* c, const char16_t* src, size_t len);
-    AtomicString(Context* ec, const char* src, size_t len);
+    AtomicString(Context* c, const char* src, size_t len);
+    AtomicString(Context* c, const StringView& sv);
 
     inline String* string() const
     {
@@ -41,10 +42,28 @@ public:
     inline friend bool operator == (const AtomicString& a, const AtomicString& b);
     inline friend bool operator != (const AtomicString& a, const AtomicString& b);
 
+    bool operator== (const char* src) const
+    {
+        size_t srcLen = strlen(src);
+        if (srcLen != m_string->length()) {
+            return false;
+        }
+
+        for (size_t i = 0; i < srcLen; i ++) {
+            if (src[i] != m_string->charAt(i)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     void clear()
     {
         m_string = NULL;
     }
+
+
 
 protected:
     void init(AtomicStringMap* ec, const char* src, size_t len);
