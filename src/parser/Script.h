@@ -4,6 +4,7 @@
 namespace Escargot {
 
 class Script : public gc {
+public:
     Script();
 };
 

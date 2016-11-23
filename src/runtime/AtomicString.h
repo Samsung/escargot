@@ -3,6 +3,7 @@
 
 #include "runtime/String.h"
 #include "runtime/ExecutionState.h"
+#include "util/Vector.h"
 
 namespace Escargot {
 
@@ -89,7 +90,7 @@ inline size_t stringHash(const char* src, size_t length)
     return hash;
 }
 
-typedef std::vector<AtomicString, gc_allocator_ignore_off_page<AtomicString> > AtomicStringVector;
+typedef Vector<AtomicString, gc_allocator_ignore_off_page<AtomicString> > AtomicStringVector;
 
 }
 

@@ -19,6 +19,7 @@
 #include "runtime/ExecutionContext.h"
 #include "util/Vector.h"
 #include "runtime/Value.h"
+#include "parser/ScriptParser.h"
 
 #ifdef ANDROID
 void __attribute__((optimize("O0"))) fillStack(size_t siz)
@@ -111,6 +112,18 @@ void GC_free_hook(void* address)
 
 #endif
 
+void eval(Escargot::Context* context, Escargot::String* str)
+{
+    auto result = context->scriptParser().parse(str);
+    if (result.m_error) {
+        char msg[10240];
+        auto err = result.m_error->message->toUTF8StringData();
+        puts(err.data());
+    } else {
+
+    }
+}
+
 int main(int argc, char* argv[])
 {
     /*
@@ -157,6 +170,37 @@ int main(int argc, char* argv[])
 
     Escargot::VMInstance* instance = new Escargot::VMInstance();
     Escargot::Context* context = new Escargot::Context(instance);
+
+    bool runShell = true;
+
+    for (int i = 1; i < argc; i ++) {
+        FILE* fp = fopen(argv[i], "r");
+        if (fp) {
+            runShell = false;
+            std::string str;
+            char buf[512];
+            while (fgets(buf, sizeof buf, fp) != NULL) {
+                str += buf;
+            }
+            fclose(fp);
+
+            Escargot::String* src = new Escargot::UTF16String(std::move(Escargot::utf8StringToUTF16String(str.data(), str.length())));
+            eval(context, src);
+        }
+    }
+
+
+    while (runShell) {
+        char buf[2048];
+        printf("escargot> ");
+        if (!fgets(buf, sizeof buf, stdin)) {
+            printf("ERROR: Cannot read interactive shell input\n");
+            return 3;
+        }
+        Escargot::String* str = new Escargot::UTF16String(std::move(Escargot::utf8StringToUTF16String(buf, strlen(buf))));
+        eval(context, str);
+    }
+
     return 0;
 }
 

@@ -7,13 +7,6 @@ namespace Escargot {
 
 class StringView : public String {
 public:
-    StringView(const StringView& sv)
-    {
-        this->m_string = sv.m_string;
-        this->m_start = sv.m_start;
-        this->m_end = sv.m_end;
-    }
-
     StringView(String* str, const size_t& s, const size_t& e)
         : m_string(str)
         , m_start(s)
@@ -21,6 +14,11 @@ public:
     {
         ASSERT(s <= e);
         ASSERT(e <= m_string->length());
+    }
+
+    StringView(const StringView& str, const size_t& s, const size_t& e)
+        : StringView(str.string(), s + str.start(), e + str.start())
+    {
     }
 
     StringView()
@@ -81,17 +79,17 @@ public:
         return utf16StringToUTF8String(s.data(), s.length());
     }
 
-    String* string()
+    String* string() const
     {
         return m_string;
     }
 
-    size_t start()
+    size_t start() const
     {
         return m_start;
     }
 
-    size_t end()
+    size_t end() const
     {
         return m_end;
     }

@@ -152,11 +152,13 @@ public:
 
     T& operator[](const size_t& idx)
     {
+        ASSERT(idx < m_size);
         return m_buffer[idx];
     }
 
     const T& operator[](const size_t& idx) const
     {
+        ASSERT(idx < m_size);
         return m_buffer[idx];
     }
 
@@ -206,6 +208,26 @@ public:
 protected:
     T* m_buffer;
     size_t m_size;
+};
+
+
+class VectorUtil {
+public:
+    static const size_t invalidIndex;
+
+    template <typename T, typename Allocator>
+    static size_t findInVector(const Vector<T, Allocator>& vector, const T& target)
+    {
+        size_t len = vector.size();
+        for (size_t i = 0; i < len; i ++) {
+            if (vector[i] == target) {
+                return i;
+            }
+        }
+
+        return invalidIndex;
+    }
+
 };
 
 }

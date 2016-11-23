@@ -7,10 +7,10 @@
 #include "runtime/StaticStrings.h"
 #include "runtime/GlobalObject.h"
 
-
 namespace Escargot {
 
 class VMInstance;
+class ScriptParser;
 
 class Context : public gc {
     friend class AtomicString;
@@ -20,11 +20,17 @@ public:
     {
         return m_staticStrings;
     }
+
+    ScriptParser& scriptParser()
+    {
+        return *m_scriptParser;
+    }
 protected:
     VMInstance* m_instance;
     StaticStrings m_staticStrings;
     GlobalObject* m_globalObject;
     AtomicStringMap m_atomicStringMap;
+    ScriptParser* m_scriptParser;
 };
 
 }

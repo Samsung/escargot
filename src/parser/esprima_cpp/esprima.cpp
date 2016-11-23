@@ -1,8 +1,8 @@
 #include "Escargot.h"
+#include "esprima.h"
 #include "parser/ast/AST.h"
 #include "double-conversion.h"
 #include "ieee.h"
-
 
 namespace Escargot {
 
@@ -445,23 +445,6 @@ struct ScannerResult : public gc {
     }
 };
 
-struct Error : public gc {
-    String* name;
-    String* message;
-    size_t index;
-    size_t lineNumber;
-    size_t column;
-    String* description;
-
-    Error(String* message)
-    {
-        this->name = String::emptyString;
-        this->message = message;
-        this->column = this->lineNumber = this->index = 0;
-        this->description = String::emptyString;
-    }
-};
-
 class ErrorHandler : public gc {
 public:
     // errors: Error[];
@@ -508,7 +491,8 @@ public:
     Error* createError(size_t index, size_t line, size_t col, String* description)
     {
         UTF16StringData msg = u"Line ";
-        msg += line;
+        std::string lineString = std::to_string(line);
+        msg += UTF16StringData(lineString.begin(), lineString.end());
         msg += u": ";
         msg += description->toUTF16StringData();
         Error* error = constructError(new UTF16String(std::move(msg)), col);
@@ -539,7 +523,7 @@ public:
 
 class Scanner {
 public:
-    String* source;
+    StringView source;
     ErrorHandler* errorHandler;
     // trackComment: boolean;
 
@@ -549,15 +533,15 @@ public:
     size_t lineStart;
     std::vector<Curly> curlyStack;
 
-    Scanner(String* code, ErrorHandler* handler)
+    Scanner(StringView code, ErrorHandler* handler)
     {
         source = code;
         errorHandler = handler;
         // trackComment = false;
 
-        length = code->length();
+        length = code.length();
         index = 0;
-        lineNumber = (code->length() > 0) ? 1 : 0;
+        lineNumber = (code.length() > 0) ? 1 : 0;
         lineStart = 0;
     }
 
@@ -602,7 +586,7 @@ public:
         }*/
 
         while (!this->eof()) {
-            char16_t ch = this->source->charAt(this->index);
+            char16_t ch = this->source.charAt(this->index);
             ++this->index;
             if (isLineTerminator(ch)) {
                 /*
@@ -619,7 +603,7 @@ public:
                     };
                     comments.push(entry);
                 }*/
-                if (ch == 13 && this->source->charAt(this->index) == 10) {
+                if (ch == 13 && this->source.charAt(this->index) == 10) {
                     ++this->index;
                 }
                 ++this->lineNumber;
@@ -667,9 +651,9 @@ public:
         }
          */
         while (!this->eof()) {
-            char16_t ch = this->source->charAt(this->index);
+            char16_t ch = this->source.charAt(this->index);
             if (isLineTerminator(ch)) {
-                if (ch == 0x0D && this->source->charAt(this->index + 1) == 0x0A) {
+                if (ch == 0x0D && this->source.charAt(this->index + 1) == 0x0A) {
                     ++this->index;
                 }
                 ++this->lineNumber;
@@ -677,7 +661,7 @@ public:
                 this->lineStart = this->index;
             } else if (ch == 0x2A) {
                 // Block comment ends with '*/'.
-                if (this->source->charAt(this->index + 1) == 0x2F) {
+                if (this->source.charAt(this->index + 1) == 0x2F) {
                     this->index += 2;
                     /*
                     if (this->trackComment) {
@@ -734,20 +718,20 @@ public:
 
         bool start = (this->index == 0);
         while (!this->eof()) {
-            char16_t ch = this->source->charAt(this->index);
+            char16_t ch = this->source.charAt(this->index);
 
             if (isWhiteSpace(ch)) {
                 ++this->index;
             } else if (isLineTerminator(ch)) {
                 ++this->index;
-                if (ch == 0x0D && this->source->charAt(this->index) == 0x0A) {
+                if (ch == 0x0D && this->source.charAt(this->index) == 0x0A) {
                     ++this->index;
                 }
                 ++this->lineNumber;
                 this->lineStart = this->index;
                 start = true;
             } else if (ch == 0x2F) { // U+002F is '/'
-                ch = this->source->charAt(this->index + 1);
+                ch = this->source.charAt(this->index + 1);
                 if (ch == 0x2F) {
                     this->index += 2;
                     /*
@@ -771,7 +755,7 @@ public:
                 }
             } else if (start && ch == 0x2D) { // U+002D is '-'
                 // U+003E is '>'
-                if ((this->source->charAt(this->index + 1) == 0x2D) && (this->source->charAt(this->index + 2) == 0x3E)) {
+                if ((this->source.charAt(this->index + 1) == 0x2D) && (this->source.charAt(this->index + 2) == 0x3E)) {
                     // '-->' is a single-line comment
                     this->index += 3;
                     /*
@@ -977,9 +961,9 @@ public:
     char32_t codePointAt(size_t i)
     {
         char32_t cp, first, second;
-        cp = this->source->charAt(i);
+        cp = this->source.charAt(i);
         if (cp >= 0xD800 && cp <= 0xDBFF) {
-            cp = this->source->charAt(i + 1);
+            second = this->source.charAt(i + 1);
             if (second >= 0xDC00 && second <= 0xDFFF) {
                 first = cp;
                 cp = (first - 0xD800) * 0x400 + second - 0xDC00 + 0x10000;
@@ -1001,6 +985,7 @@ public:
         } else {
             RELEASE_ASSERT_NOT_REACHED();
         }
+        return c;
     }
 
     char32_t scanHexEscape(char prefix)
@@ -1009,8 +994,8 @@ public:
         char32_t code = 0;
 
         for (size_t i = 0; i < len; ++i) {
-            if (!this->eof() && isHexDigit(this->source->charAt(this->index))) {
-                code = code * 16 + hexValue(this->source->charAt(this->index++));
+            if (!this->eof() && isHexDigit(this->source.charAt(this->index))) {
+                code = code * 16 + hexValue(this->source.charAt(this->index++));
             } else {
                 return 0;
             }
@@ -1021,7 +1006,7 @@ public:
 
     char32_t scanUnicodeCodePointEscape()
     {
-        char16_t ch = this->source->charAt(this->index);
+        char16_t ch = this->source.charAt(this->index);
         char32_t code = 0;
 
         // At least, one hex digit is required.
@@ -1030,7 +1015,7 @@ public:
         }
 
         while (!this->eof()) {
-            ch = this->source->charAt(this->index++);
+            ch = this->source.charAt(this->index++);
             if (!isHexDigit(ch)) {
                 break;
             }
@@ -1048,7 +1033,7 @@ public:
     {
         const size_t start = this->index++;
         while (!this->eof()) {
-            const char16_t ch = this->source->charAt(this->index);
+            const char16_t ch = this->source.charAt(this->index);
             if (ch == 0x5C) {
                 // Blackslash (U+005C) marks Unicode escape sequence.
                 this->index = start;
@@ -1078,11 +1063,11 @@ public:
         // '\u' (U+005C, U+0075) denotes an escaped character.
         char32_t ch;
         if (cp == 0x5C) {
-            if (this->source->charAt(this->index) != 0x75) {
+            if (this->source.charAt(this->index) != 0x75) {
                 this->throwUnexpectedToken();
             }
             ++this->index;
-            if (this->source->charAt(this->index) == '{') {
+            if (this->source.charAt(this->index) == '{') {
                 ++this->index;
                 ch = this->scanUnicodeCodePointEscape();
             } else {
@@ -1111,11 +1096,11 @@ public:
                 // id = id.substr(0, id.length - 1);
                 id.pop_back();
 
-                if (this->source->charAt(this->index) != 0x75) {
+                if (this->source.charAt(this->index) != 0x75) {
                     this->throwUnexpectedToken();
                 }
                 ++this->index;
-                if (this->source->charAt(this->index) == '{') {
+                if (this->source.charAt(this->index) == '{') {
                     ++this->index;
                     ch = this->scanUnicodeCodePointEscape();
                 } else {
@@ -1150,15 +1135,15 @@ public:
         bool octal = (ch != '0');
         char16_t code = octalValue(ch);
 
-        if (!this->eof() && isOctalDigit(this->source->charAt(this->index))) {
+        if (!this->eof() && isOctalDigit(this->source.charAt(this->index))) {
             octal = true;
-            code = code * 8 + octalValue(this->source->charAt(this->index++));
+            code = code * 8 + octalValue(this->source.charAt(this->index++));
 
             // 3 digits are only allowed when string starts
             // with 0, 1, 2, 3
             // if ('0123'.indexOf(ch) >= 0 && !this->eof() && Character.isOctalDigit(this->source.charCodeAt(this->index))) {
-            if ((ch >= '0' && ch <= '3') && !this->eof() && isOctalDigit(this->source->charAt(this->index))) {
-                code = code * 8 + octalValue(this->source->charAt(this->index++));
+            if ((ch >= '0' && ch <= '3') && !this->eof() && isOctalDigit(this->source.charAt(this->index))) {
+                code = code * 8 + octalValue(this->source.charAt(this->index++));
             }
         }
 
@@ -1173,7 +1158,11 @@ public:
         const size_t start = this->index;
 
         // Backslash (U+005C) starts an escaped character.
-        StringView id = (this->source->charAt(start) == 0x5C) ? this->getComplexIdentifier() : this->getIdentifier();
+        StringView id;
+        if (this->source.charAt(start) == 0x5C)
+            id = this->getComplexIdentifier();
+        else
+            id = this->getIdentifier();
 
         // There is no keyword or literal with only one character.
         // Thus, it must be an identifier.
@@ -1206,7 +1195,7 @@ public:
 
         PunctuatorsKind kind;
         // Check for most common single-character punctuators.
-        char16_t ch0 = this->source->charAt(this->index);
+        char16_t ch0 = this->source.charAt(this->index);
         char ch1, ch2, ch3;
         switch (ch0) {
         case '(':
@@ -1223,7 +1212,7 @@ public:
         case '.':
             ++this->index;
             kind = Period;
-            if (this->source->charAt(this->index) == '.' && this->source->charAt(this->index + 1) == '.') {
+            if (this->source.charAt(this->index) == '.' && this->source.charAt(this->index + 1) == '.') {
                 // Spread operator: ...
                 this->index += 2;
                 // resultStr = "...";
@@ -1270,11 +1259,11 @@ public:
             break;
 
         case '>':
-            ch1 = this->source->charAt(this->index + 1);
+            ch1 = this->source.charAt(this->index + 1);
             if (ch1 == '>') {
-                ch2 = this->source->charAt(this->index + 2);
+                ch2 = this->source.charAt(this->index + 2);
                 if (ch2 == '>') {
-                    ch3 = this->source->charAt(this->index + 3);
+                    ch3 = this->source.charAt(this->index + 3);
                     if (ch3 == '=') {
                         this->index += 4;
                         kind = UnsignedRightShiftEqual;
@@ -1298,9 +1287,9 @@ public:
             }
             break;
         case '<':
-            ch1 = this->source->charAt(this->index + 1);
+            ch1 = this->source.charAt(this->index + 1);
             if (ch1 == '<') {
-                ch2 = this->source->charAt(this->index + 2);
+                ch2 = this->source.charAt(this->index + 2);
                 if (ch2 == '=') {
                     kind = LeftShiftEqual;
                     this->index += 3;
@@ -1317,9 +1306,9 @@ public:
             }
             break;
         case '=':
-            ch1 = this->source->charAt(this->index + 1);
+            ch1 = this->source.charAt(this->index + 1);
             if (ch1 == '=') {
-                ch2 = this->source->charAt(this->index + 2);
+                ch2 = this->source.charAt(this->index + 2);
                 if (ch2 == '=') {
                     kind = StrictEqual;
                     this->index += 3;
@@ -1336,9 +1325,9 @@ public:
             }
             break;
         case '!':
-            ch1 = this->source->charAt(this->index + 1);
+            ch1 = this->source.charAt(this->index + 1);
             if (ch1 == '=') {
-                ch2 = this->source->charAt(this->index + 2);
+                ch2 = this->source.charAt(this->index + 2);
                 if (ch2 == '=') {
                     kind = NotStrictEqual;
                     this->index += 3;
@@ -1352,7 +1341,7 @@ public:
             }
             break;
         case '&':
-            ch1 = this->source->charAt(this->index + 1);
+            ch1 = this->source.charAt(this->index + 1);
             if (ch1 == '&') {
                 kind = LogicalAnd;
                 this->index += 2;
@@ -1365,7 +1354,7 @@ public:
             }
             break;
         case '|':
-            ch1 = this->source->charAt(this->index + 1);
+            ch1 = this->source.charAt(this->index + 1);
             if (ch1 == '|') {
                 kind = LogicalOr;
                 this->index += 2;
@@ -1378,7 +1367,7 @@ public:
             }
             break;
         case '^':
-            ch1 = this->source->charAt(this->index + 1);
+            ch1 = this->source.charAt(this->index + 1);
             if (ch1 == '=') {
                 kind = BitwiseXorEqual;
                 this->index += 2;
@@ -1388,7 +1377,7 @@ public:
             }
             break;
         case '+':
-            ch1 = this->source->charAt(this->index + 1);
+            ch1 = this->source.charAt(this->index + 1);
             if (ch1 == '+') {
                 kind = PlusPlus;
                 this->index += 2;
@@ -1401,7 +1390,7 @@ public:
             }
             break;
         case '-':
-            ch1 = this->source->charAt(this->index + 1);
+            ch1 = this->source.charAt(this->index + 1);
             if (ch1 == '-') {
                 kind = MinusMinus;
                 this->index += 2;
@@ -1414,7 +1403,7 @@ public:
             }
             break;
         case '*':
-            ch1 = this->source->charAt(this->index + 1);
+            ch1 = this->source.charAt(this->index + 1);
             if (ch1 == '=') {
                 kind = MultiplyEqual;
                 this->index += 2;
@@ -1424,7 +1413,7 @@ public:
             }
             break;
         case '/':
-            ch1 = this->source->charAt(this->index + 1);
+            ch1 = this->source.charAt(this->index + 1);
             if (ch1 == '=') {
                 kind = DivideEqual;
                 this->index += 2;
@@ -1434,7 +1423,7 @@ public:
             }
             break;
         case '%':
-            ch1 = this->source->charAt(this->index + 1);
+            ch1 = this->source.charAt(this->index + 1);
             if (ch1 == '=') {
                 kind = ModEqual;
                 this->index += 2;
@@ -1467,7 +1456,7 @@ public:
 
         size_t shiftCount = 0;
         while (!this->eof()) {
-            char16_t ch = this->source->charAt(this->index);
+            char16_t ch = this->source.charAt(this->index);
             if (!isHexDigit(ch)) {
                 break;
             }
@@ -1489,7 +1478,7 @@ public:
             this->throwUnexpectedToken();
         }
 
-        if (isIdentifierStart(this->source->charAt(this->index))) {
+        if (isIdentifierStart(this->source.charAt(this->index))) {
             this->throwUnexpectedToken();
         }
 
@@ -1511,7 +1500,7 @@ public:
         bool scanned = false;
 
         while (!this->eof()) {
-            char16_t ch = this->source->charAt(this->index);
+            char16_t ch = this->source.charAt(this->index);
             if (ch != '0' && ch != '1') {
                 break;
             }
@@ -1526,7 +1515,7 @@ public:
         }
 
         if (!this->eof()) {
-            char16_t ch = this->source->charAt(this->index);
+            char16_t ch = this->source.charAt(this->index);
             /* istanbul ignore else */
             if (isIdentifierStart(ch) || isDecimalDigit(ch)) {
                 this->throwUnexpectedToken();
@@ -1543,7 +1532,7 @@ public:
         bool octal = isOctalDigit(prefix);
 
         while (!this->eof()) {
-            char16_t ch = this->source->charAt(this->index);
+            char16_t ch = this->source.charAt(this->index);
             if (!isOctalDigit(ch)) {
                 break;
             }
@@ -1557,7 +1546,7 @@ public:
             throwUnexpectedToken();
         }
 
-        if (isIdentifierStart(this->source->charAt(this->index)) || isDecimalDigit(this->source->charAt(this->index))) {
+        if (isIdentifierStart(this->source.charAt(this->index)) || isDecimalDigit(this->source.charAt(this->index))) {
             throwUnexpectedToken();
         }
         return new ScannerResult(Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index);
@@ -1568,7 +1557,7 @@ public:
         // Implicit octal, unless there is a non-octal digit.
         // (Annex B.1.1 on Numeric Literals)
         for (size_t i = this->index + 1; i < this->length; ++i) {
-            const char16_t ch = this->source->charAt(i);
+            const char16_t ch = this->source.charAt(i);
             if (ch == '8' || ch == '9') {
                 return false;
             }
@@ -1582,7 +1571,7 @@ public:
     ScannerResult* scanNumericLiteral()
     {
         const size_t start = this->index;
-        char16_t ch = this->source->charAt(start);
+        char16_t ch = this->source.charAt(start);
         ASSERT(isDecimalDigit(ch) || (ch == '.'));
             // 'Numeric literal must start with a decimal digit or a decimal point');
 
@@ -1590,8 +1579,8 @@ public:
         number.reserve(32);
 
         if (ch != '.') {
-            number = this->source->charAt(this->index++);
-            ch = this->source->charAt(this->index);
+            number = this->source.charAt(this->index++);
+            ch = this->source.charAt(this->index);
 
             // Hex number starts with '0x'.
             // Octal number starts with '0'.
@@ -1617,37 +1606,37 @@ public:
                 }
             }
 
-            while (isDecimalDigit(this->source->charAt(this->index))) {
-                number += this->source->charAt(this->index++);
+            while (isDecimalDigit(this->source.charAt(this->index))) {
+                number += this->source.charAt(this->index++);
             }
-            ch = this->source->charAt(this->index);
+            ch = this->source.charAt(this->index);
         }
 
         if (ch == '.') {
-            number += this->source->charAt(this->index++);
-            while (isDecimalDigit(this->source->charAt(this->index))) {
-                number += this->source->charAt(this->index++);
+            number += this->source.charAt(this->index++);
+            while (isDecimalDigit(this->source.charAt(this->index))) {
+                number += this->source.charAt(this->index++);
             }
-            ch = this->source->charAt(this->index);
+            ch = this->source.charAt(this->index);
         }
 
         if (ch == 'e' || ch == 'E') {
-            number += this->source->charAt(this->index++);
+            number += this->source.charAt(this->index++);
 
-            ch = this->source->charAt(this->index);
+            ch = this->source.charAt(this->index);
             if (ch == '+' || ch == '-') {
-                number += this->source->charAt(this->index++);
+                number += this->source.charAt(this->index++);
             }
-            if (isDecimalDigit(this->source->charAt(this->index))) {
-                while (isDecimalDigit(this->source->charAt(this->index))) {
-                    number += this->source->charAt(this->index++);
+            if (isDecimalDigit(this->source.charAt(this->index))) {
+                while (isDecimalDigit(this->source.charAt(this->index))) {
+                    number += this->source.charAt(this->index++);
                 }
             } else {
                 this->throwUnexpectedToken();
             }
         }
 
-        if (isIdentifierStart(this->source->charAt(this->index))) {
+        if (isIdentifierStart(this->source.charAt(this->index))) {
             this->throwUnexpectedToken();
         }
 
@@ -1668,7 +1657,7 @@ public:
     {
         // TODO apply rope-string
         const size_t start = this->index;
-        char16_t quote = this->source->charAt(start);
+        char16_t quote = this->source.charAt(start);
         ASSERT((quote == '\'' || quote == '"'));
             // 'String literal must starts with a quote');
 
@@ -1687,19 +1676,19 @@ public:
         } \
 
         while (!this->eof()) {
-            char16_t ch = this->source->charAt(this->index++);
+            char16_t ch = this->source.charAt(this->index++);
 
             if (ch == quote) {
                 quote = '\0';
                 break;
             } else if (ch == '\\') {
-                ch = this->source->charAt(this->index++);
+                ch = this->source.charAt(this->index++);
                 if (!ch || !isLineTerminator(ch)) {
                     CONVERT_UNPLAIN_CASE_IF_NEEDED()
                     switch (ch) {
                         case 'u':
                         case 'x':
-                            if (this->source->charAt(this->index) == '{') {
+                            if (this->source.charAt(this->index) == '{') {
                                 ++this->index;
                                 ParserCharPiece piece(this->scanUnicodeCodePointEscape());
                                 stringUTF16 += piece.data;
@@ -1749,7 +1738,7 @@ public:
                     }
                 } else {
                     ++this->lineNumber;
-                    if (ch == '\r' && this->source->charAt(this->index) == '\n') {
+                    if (ch == '\r' && this->source.charAt(this->index) == '\n') {
                         ++this->index;
                     }
                     this->lineStart = this->index;
@@ -1778,6 +1767,8 @@ public:
             ret = new ScannerResult(Token::StringLiteralToken, StringView(newStr, 0, newStr->length()), /*octal, */this->lineNumber, this->lineStart, start, this->index);
         }
         ret->octal = octal;
+
+        return ret;
     }
 
     // ECMA-262 11.8.6 Template Literal Lexical Components
@@ -1789,21 +1780,21 @@ public:
         bool terminated = false;
         size_t start = this->index;
 
-        bool head = (this->source->charAt(start) == '`');
+        bool head = (this->source.charAt(start) == '`');
         bool tail = false;
         size_t rawOffset = 2;
 
         ++this->index;
 
         while (!this->eof()) {
-            char16_t ch = this->source->charAt(this->index++);
+            char16_t ch = this->source.charAt(this->index++);
             if (ch == '`') {
                 rawOffset = 1;
                 tail = true;
                 terminated = true;
                 break;
             } else if (ch == '$') {
-                if (this->source->charAt(this->index) == '{') {
+                if (this->source.charAt(this->index) == '{') {
                     this->curlyStack.push_back(Curly("${\0"));
                     ++this->index;
                     terminated = true;
@@ -1811,7 +1802,7 @@ public:
                 }
                 cooked += ch;
             } else if (ch == '\\') {
-                ch = this->source->charAt(this->index++);
+                ch = this->source.charAt(this->index++);
                 if (!isLineTerminator(ch)) {
                     switch (ch) {
                         case 'n':
@@ -1825,7 +1816,7 @@ public:
                             break;
                         case 'u':
                         case 'x':
-                            if (this->source->charAt(this->index) == '{') {
+                            if (this->source.charAt(this->index) == '{') {
                                 ++this->index;
                                 cooked += this->scanUnicodeCodePointEscape();
                             } else {
@@ -1852,7 +1843,7 @@ public:
 
                         default:
                             if (ch == '0') {
-                                if (isDecimalDigit(this->source->charAt(this->index))) {
+                                if (isDecimalDigit(this->source.charAt(this->index))) {
                                     // Illegal: \01 \02 and so on
                                     this->throwUnexpectedToken(Messages::TemplateOctalLiteral);
                                 }
@@ -1867,14 +1858,14 @@ public:
                     }
                 } else {
                     ++this->lineNumber;
-                    if (ch == '\r' && this->source->charAt(this->index) == '\n') {
+                    if (ch == '\r' && this->source.charAt(this->index) == '\n') {
                         ++this->index;
                     }
                     this->lineStart = this->index;
                 }
             } else if (isLineTerminator(ch)) {
                 ++this->lineNumber;
-                if (ch == '\r' && this->source->charAt(this->index) == '\n') {
+                if (ch == '\r' && this->source.charAt(this->index) == '\n') {
                     ++this->index;
                 }
                 this->lineStart = this->index;
@@ -1960,21 +1951,21 @@ public:
 
     String* scanRegExpBody()
     {
-        char16_t ch = this->source->charAt(this->index);
+        char16_t ch = this->source.charAt(this->index);
         ASSERT(ch == '/');
         // assert(ch == '/', 'Regular expression literal must start with a slash');
 
         // TODO apply rope-string
-        char16_t ch0 = this->source->charAt(this->index++);
+        char16_t ch0 = this->source.charAt(this->index++);
         UTF16StringData str(&ch0, 1);
         bool classMarker = false;
         bool terminated = false;
 
         while (!this->eof()) {
-            ch = this->source->charAt(this->index++);
+            ch = this->source.charAt(this->index++);
             str += ch;
             if (ch == '\\') {
-                ch = this->source->charAt(this->index++);
+                ch = this->source.charAt(this->index++);
                 // ECMA-262 7.8.5
                 if (isLineTerminator(ch)) {
                     this->throwUnexpectedToken(Messages::UnterminatedRegExp);
@@ -2015,14 +2006,14 @@ public:
         // UTF16StringData str = '';
         UTF16StringData flags;
         while (!this->eof()) {
-            char16_t ch = this->source->charAt(this->index);
+            char16_t ch = this->source.charAt(this->index);
             if (!isIdentifierPart(ch)) {
                 break;
             }
 
             ++this->index;
             if (ch == '\\' && !this->eof()) {
-                ch = this->source->charAt(this->index);
+                ch = this->source.charAt(this->index);
                 if (ch == 'u') {
                     ++this->index;
                     const size_t restore = this->index;
@@ -2082,7 +2073,7 @@ public:
             return new ScannerResult(Token::EOFToken, this->lineNumber, this->lineStart, this->index, this->index);
         }
 
-        const char16_t cp = this->source->charAt(this->index);
+        const char16_t cp = this->source.charAt(this->index);
 
         if (isIdentifierStart(cp)) {
             return this->scanIdentifier();
@@ -2101,7 +2092,7 @@ public:
         // Dot (.) U+002E can also start a floating-point number, hence the need
         // to check the next character.
         if (cp == 0x2E) {
-            if (isDecimalDigit(this->source->charAt(this->index + 1))) {
+            if (isDecimalDigit(this->source.charAt(this->index + 1))) {
                 return this->scanNumericLiteral();
             }
             return this->scanPunctuator();
@@ -2131,7 +2122,7 @@ public:
 struct Config : public gc {
     bool range;
     bool loc;
-    String* source;
+    // String* source;
     bool tokens;
     bool comment;
     bool tolerant;
@@ -2173,22 +2164,6 @@ struct DeclarationOptions : public gc {
     bool inFor;
 };
 
-
-struct NodeLOC {
-    size_t line;
-    size_t column;
-    size_t offset;
-
-    NodeLOC(size_t line, size_t column, size_t offset)
-    {
-        this->line = line;
-        this->column = column;
-        this->offset = offset;
-    }
-};
-
-typedef void (*ParserASTNodeHandler)(Node*, NodeLOC start, NodeLOC end);
-
 class Parser : public gc {
 public:
     ::Escargot::Context* escargotContext;
@@ -2211,12 +2186,41 @@ public:
     Marker startMarker;
     Marker lastMarker;
 
-    Parser(::Escargot::Context* escargotContext, String* code, ParserASTNodeHandler delegate/*, options: any = {}, delegate*/)
+    Vector<ASTScopeContext*, gc_allocator_ignore_off_page<ASTScopeContext*>> scopeContexts;
+    bool trackUsingNames;
+
+    ASTScopeContext* popScopeContext()
+    {
+        auto ret = scopeContexts.back();
+        scopeContexts.pop_back();
+        return ret;
+    }
+
+    void extractNamesFromFunctionParams(const PatternNodeVector& vector)
+    {
+        for (size_t i = 0 ; i < vector.size(); i ++) {
+            ASSERT(vector[i]->isIdentifier());
+            IdentifierNode* id = (IdentifierNode*)vector[i];
+            scopeContexts.back()->insertName(id->name());
+        }
+    }
+
+    void pushScopeContext()
+    {
+        auto parentContext = scopeContexts.back();
+        scopeContexts.push_back(new ASTScopeContext(this->context->strict, scopeContexts.back()));
+        if (parentContext) {
+            parentContext->m_childScopes.push_back(scopeContexts.back());
+        }
+    }
+
+    Parser(::Escargot::Context* escargotContext, StringView code, ParserASTNodeHandler delegate/*, options: any = {}, delegate*/)
     {
         this->escargotContext = escargotContext;
+        trackUsingNames = true;
         config.range = false;
         config.loc = false;
-        config.source = String::emptyString;
+        // config.source = String::emptyString;
         config.tokens = false;
         config.comment = false;
         config.tolerant = false;
@@ -2322,7 +2326,7 @@ public:
 
         String* value;
         if (token) {
-            if (!message) {
+            if (!msg) {
                 msg = (token->type == Token::EOFToken) ? Messages::UnexpectedEOS :
                     (token->type == Token::IdentifierToken) ? Messages::UnexpectedIdentifier :
                         (token->type == Token::NumericLiteralToken) ? Messages::UnexpectedNumber :
@@ -2511,6 +2515,19 @@ public:
                 node.loc.source = this->config.source;
             }
         }*/
+        auto type = node->type();
+        if (type == CallExpression) {
+            CallExpressionNode* c = (CallExpressionNode*)node;
+            if (c->callee()->isIdentifier()) {
+                if (((IdentifierNode*)c->callee())->name().string()->equals("eval")){
+                    scopeContexts.back()->m_hasEval = true;
+                }
+            }
+        } else if (type == WithStatement) {
+            scopeContexts.back()->m_hasWith = true;
+        } else if (type == YieldExpression) {
+            scopeContexts.back()->m_hasYield = true;
+        }
 
         if (this->delegate) {
             this->delegate(node, NodeLOC(meta.line, meta.column, meta.index),
@@ -2693,16 +2710,19 @@ public:
         }
     }
 
-    IdentifierNode* finishIdentifier(ScannerResult* token)
+    IdentifierNode* finishIdentifier(ScannerResult* token, bool isScopeVariableName)
     {
         auto ret = new IdentifierNode(AtomicString(this->escargotContext, token->valueString));
         nodeExtraInfo.insert(std::make_pair(ret, token));
+        if (trackUsingNames)
+            scopeContexts.back()->insertUsingName(ret->name());
         return ret;
     }
 
 #define DEFINE_AS_NODE(TypeName) \
     TypeName##Node* as##TypeName##Node(Node* n) \
     { \
+        if (!n) return (TypeName##Node*)n; \
         ASSERT(n->is##TypeName##Node()); \
         return (TypeName##Node*)n; \
     } \
@@ -2725,7 +2745,7 @@ public:
                 if (this->sourceType == SourceType::Module && this->lookahead->valueKeywordKind == KeywordKind::Await) {
                     this->tolerateUnexpectedToken(this->lookahead);
                 }
-                expr = this->finalize(node, finishIdentifier(this->nextToken()));
+                expr = this->finalize(node, finishIdentifier(this->nextToken(), true));
                 break;
 
             case Token::NumericLiteralToken:
@@ -2805,7 +2825,7 @@ public:
                 if (!this->context->strict && this->context->allowYield && this->matchKeyword(KeywordKind::Yield)) {
                     expr = this->parseIdentifierName();
                 } else if (!this->context->strict && this->matchKeyword(KeywordKind::Let)) {
-                    expr = this->finalize(node, finishIdentifier(this->nextToken()));
+                    expr = this->finalize(node, finishIdentifier(this->nextToken(), true));
                 } else {
                     this->context->isAssignmentTarget = false;
                     this->context->isBindingElement = false;
@@ -2919,7 +2939,7 @@ public:
         ScannerResult* startToken = this->lookahead;
 
         Node* pattern = this->parsePattern(params, kind);
-        if (this->match(PunctuatorsKind::Equal)) {
+        if (this->match(PunctuatorsKind::Substitution)) {
             this->nextToken();
             const bool previousAllowYield = this->context->allowYield;
             this->context->allowYield = true;
@@ -2934,12 +2954,14 @@ public:
     bool parseFormalParameter(ParseParameterOptions& options)
     {
         Node* param;
+        trackUsingNames = false;
         std::vector<ScannerResult*, gc_malloc_ignore_off_page_allocator<ScannerResult*>> params;
         ScannerResult* token = this->lookahead;
         if (token->type == Token::PunctuatorToken && token->valuePunctuatorsKind == PunctuatorsKind::PeriodPeriodPeriod) {
             RestElementNode* param = this->parseRestElement(params);
             this->validateParam(options, params.back(), param->argument()->name());
             options.params.push_back(param);
+            trackUsingNames = true;
             return false;
         }
 
@@ -2950,7 +2972,7 @@ public:
             this->validateParam(options, params[i], as);
         }
         options.params.push_back(param);
-
+        trackUsingNames = true;
         return !this->match(PunctuatorsKind::RightParenthesis);
     }
 
@@ -3061,7 +3083,7 @@ public:
         Node* method = this->parsePropertyMethod(params);
         this->context->allowYield = previousAllowYield;
 
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method, isGenerator));
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method, popScopeContext(), isGenerator));
      }
 
      Node* parseObjectPropertyKey()
@@ -3092,7 +3114,7 @@ public:
              case Token::BooleanLiteralToken:
              case Token::NullLiteralToken:
              case Token::KeywordToken:
-                 key = this->finalize(node, finishIdentifier(token));
+                 key = this->finalize(node, finishIdentifier(token, false));
                  break;
 
              case Token::PunctuatorToken:
@@ -3157,7 +3179,7 @@ public:
 
          if (token->type == Token::IdentifierToken) {
              this->nextToken();
-             key = this->finalize(node, finishIdentifier(token));
+             key = this->finalize(node, finishIdentifier(token, true));
          } else if (this->match(PunctuatorsKind::Multiply)) {
              this->nextToken();
          } else {
@@ -3207,8 +3229,8 @@ public:
                  method = true;
 
              } else if (token->type == Token::IdentifierToken) {
-                 Node* id = this->finalize(node, finishIdentifier(token));
-                 if (this->match(Equal)) {
+                 Node* id = this->finalize(node, finishIdentifier(token, true));
+                 if (this->match(Substitution)) {
                      this->context->firstCoverInitializedNameError = this->lookahead;
                      this->nextToken();
                      shorthand = true;
@@ -3481,7 +3503,7 @@ public:
          if (!this->isIdentifierName(token)) {
              this->throwUnexpectedToken(token);
          }
-         return this->finalize(node, finishIdentifier(token));
+         return this->finalize(node, finishIdentifier(token, true));
      }
 
      Node* parseNewExpression()
@@ -3742,25 +3764,22 @@ public:
          return expr;
      }
 
-     ExpressionNode* parseExponentiationExpression()
+     Node* parseExponentiationExpression()
      {
+         ScannerResult* startToken = this->lookahead;
+         Node* expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
          // TODO
-         RELEASE_ASSERT_NOT_REACHED();
          /*
-         const startToken = this->lookahead;
-
-         let expr = this->inheritCoverGrammar(this->parseUnaryExpression);
-         if (expr.type !== Syntax.UnaryExpression && this->match('**')) {
+         if (expr->type != Syntax.UnaryExpression && this->match('**')) {
              this->nextToken();
              this->context->isAssignmentTarget = false;
              this->context->isBindingElement = false;
              const left = expr;
              const right = this->isolateCoverGrammar(this->parseExponentiationExpression);
              expr = this->finalize(this->startNode(startToken), new Node.BinaryExpression('**', left, right));
-         }
+         }*/
 
          return expr;
-         */
      }
 
      // ECMA-262 12.6 Exponentiation Operators
@@ -4191,7 +4210,7 @@ public:
                      }
                  }
 
-                 if (!this->match(Equal)) {
+                 if (!this->match(Substitution)) {
                      this->context->isAssignmentTarget = false;
                      this->context->isBindingElement = false;
                  } else {
@@ -4201,8 +4220,10 @@ public:
 
                  token = this->nextToken();
                  Node* right = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
-                 Node* expr;
-                 if (token->valuePunctuatorsKind == PlusEqual) {
+                 // Node* expr;
+                 if (token->valuePunctuatorsKind == Substitution) {
+                     expr = new AssignmentExpressionSimpleNode(expr, right);
+                 } else if (token->valuePunctuatorsKind == PlusEqual) {
                      expr = new AssignmentExpressionPlusNode(expr, right);
                  } else if (token->valuePunctuatorsKind == MinusEqual) {
                      expr = new AssignmentExpressionMinusNode(expr, right);
@@ -4551,7 +4572,7 @@ public:
             this->tolerateUnexpectedToken(token);
         }
 
-        return this->finalize(node, finishIdentifier(token));
+        return this->finalize(node, finishIdentifier(token, true));
     }
 
     struct DeclarationOptions {
@@ -4572,12 +4593,16 @@ public:
             }
         }
 
+        if (id->type() == Identifier) {
+            this->scopeContexts.back()->insertName(((IdentifierNode*)id)->name());
+        }
+
         Node* init = nullptr;
-        if (this->match(Equal)) {
+        if (this->match(Substitution)) {
             this->nextToken();
             init = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
         } else if (id->type() != Identifier && !options.inFor) {
-            this->expect(Equal);
+            this->expect(Substitution);
         }
 
         return this->finalize(node, new VariableDeclaratorNode(id, asExpressionNode(init)));
@@ -5296,10 +5321,11 @@ public:
 
     BlockStatementNode* parseFunctionSourceElements()
     {
-        MetaNode node = this->createNode();
+        MetaNode nodeStart = this->createNode();
 
         this->expect(LeftBrace);
         StatementNodeVector body = this->parseDirectivePrologues();
+        pushScopeContext();
 
         auto previousLabelSet = this->context->labelSet;
         bool previousInIteration = this->context->inIteration;
@@ -5318,6 +5344,7 @@ public:
             body.push_back(this->parseStatementListItem());
         }
 
+        MetaNode nodeEnd = this->createNode();
         this->expect(RightBrace);
 
         this->context->labelSet = previousLabelSet;
@@ -5325,7 +5352,15 @@ public:
         this->context->inSwitch = previousInSwitch;
         this->context->inFunctionBody = previousInFunctionBody;
 
-        return this->finalize(node, new BlockStatementNode(std::move(body)));
+        scopeContexts.back()->m_locStart.line = nodeStart.line;
+        scopeContexts.back()->m_locStart.column = nodeStart.column;
+        scopeContexts.back()->m_locStart.index = nodeStart.index;
+
+        scopeContexts.back()->m_locEnd.line = nodeEnd.line;
+        scopeContexts.back()->m_locEnd.column = nodeEnd.column;
+        scopeContexts.back()->m_locEnd.index = nodeEnd.index;
+
+        return this->finalize(nodeStart, new BlockStatementNode(std::move(body)));
     }
 
     FunctionDeclarationNode* parseFunctionDeclaration(bool identifierIsOptional = false)
@@ -5383,7 +5418,12 @@ public:
         this->context->strict = previousStrict;
         this->context->allowYield = previousAllowYield;
 
-        return this->finalize(node, new FunctionDeclarationNode(id->name(), std::move(params), body, isGenerator));
+        extractNamesFromFunctionParams(params);
+        FunctionDeclarationNode* fd = this->finalize(node, new FunctionDeclarationNode(id->name(), std::move(params), body, popScopeContext(), isGenerator));
+
+        scopeContexts.back()->insertName(id->name());
+
+        return fd;
     }
 
     FunctionExpressionNode* parseFunctionExpression()
@@ -5440,7 +5480,9 @@ public:
         this->context->strict = previousStrict;
         this->context->allowYield = previousAllowYield;
 
-        return this->finalize(node, new FunctionExpressionNode(id->name(), std::move(params), body, isGenerator));
+        extractNamesFromFunctionParams(params);
+
+        return this->finalize(node, new FunctionExpressionNode(id->name(), std::move(params), body, popScopeContext(), isGenerator));
     }
 
     // ECMA-262 14.1.1 Directive Prologues
@@ -5457,7 +5499,7 @@ public:
             isLiteral = true;
             size_t newStart = token->valueString.start() + 1;
             size_t newEnd = token->valueString.end() - 1;
-            if (newStart <= newEnd) {
+            if (newStart <= newEnd && newEnd < token->valueString.end()) {
                 directiveValue = StringView(token->valueString.string(), newStart, newEnd);
             }
         }
@@ -5520,7 +5562,8 @@ public:
         Node* method = this->parsePropertyMethod(params);
         this->context->allowYield = previousAllowYield;
 
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method, isGenerator));
+        extractNamesFromFunctionParams(params.params);
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method, popScopeContext(), isGenerator));
     }
 
     FunctionExpressionNode* parseSetterMethod()
@@ -5545,7 +5588,8 @@ public:
         Node* method = this->parsePropertyMethod(options2);
         this->context->allowYield = previousAllowYield;
 
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(options.params), method, isGenerator));
+        extractNamesFromFunctionParams(options.params);
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(options.params), method, popScopeContext(), isGenerator));
     }
 
     FunctionExpressionNode* parseGeneratorMethod()
@@ -5755,10 +5799,19 @@ public:
     {
         MetaNode node = this->createNode();
         StatementNodeVector body = this->parseDirectivePrologues();
+        scopeContexts.push_back(new ASTScopeContext(this->context->strict, nullptr));
         while (this->startMarker.index < this->scanner->length) {
             body.push_back(this->parseStatementListItem());
         }
-        return this->finalize(node, new ProgramNode(std::move(body)/*, this->sourceType*/));
+        scopeContexts.back()->m_locStart.line = node.line;
+        scopeContexts.back()->m_locStart.column = node.column;
+        scopeContexts.back()->m_locStart.index = node.index;
+
+        MetaNode endNode = this->createNode();
+        scopeContexts.back()->m_locEnd.line = endNode.line;
+        scopeContexts.back()->m_locEnd.column = endNode.column;
+        scopeContexts.back()->m_locEnd.index = endNode.index;
+        return this->finalize(node, new ProgramNode(std::move(body), scopeContexts.back()/*, this->sourceType*/));
     }
 
     // ECMA-262 15.2.2 Imports
@@ -5993,6 +6046,14 @@ public:
     }
     */
 };
+
+
+
+ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler handler)
+{
+    Parser parser(ctx, source, handler);
+    return parser.parseProgram();
+}
 
 
 }

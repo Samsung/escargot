@@ -24,23 +24,27 @@ namespace Escargot {
 
 class FunctionNode {
 public:
-    FunctionNode(const AtomicString& id, PatternNodeVector&& params, Node* body, bool isGenerator)
+    FunctionNode(const AtomicString& id, PatternNodeVector&& params, Node* body, ASTScopeContext* scopeContext, bool isGenerator, Node* node)
     {
         m_id = id;
         m_params = params;
         m_body = body;
         m_isGenerator = isGenerator;
+        m_scopeContext = scopeContext;
+        m_scopeContext->m_associateNode = node;
     }
 
     inline const PatternNodeVector& params() { return m_params; }
     inline Node* body() { return m_body; }
     inline const AtomicString& id() { return m_id; }
+    ASTScopeContext* scopeContext() { return m_scopeContext; }
 
 protected:
     bool m_isGenerator;
     AtomicString m_id; // id: Identifier;
     PatternNodeVector m_params; // params: [ Pattern ];
     Node* m_body;
+    ASTScopeContext* m_scopeContext;
 };
 
 }

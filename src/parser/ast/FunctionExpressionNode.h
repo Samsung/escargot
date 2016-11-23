@@ -24,8 +24,8 @@ namespace Escargot {
 class FunctionExpressionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    FunctionExpressionNode(const AtomicString& id, PatternNodeVector&& params, Node* body, bool isGenerator)
-        : m_function(id, std::move(params), body, isGenerator)
+    FunctionExpressionNode(const AtomicString& id, PatternNodeVector&& params, Node* body, ASTScopeContext* scopeContext, bool isGenerator)
+        : m_function(id, std::move(params), body, scopeContext, isGenerator, this)
     {
     }
 

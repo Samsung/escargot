@@ -22,10 +22,10 @@
 namespace Escargot {
 
 // interface Literal <: Node, Expression {
-class LiteralNode : public Node {
+class LiteralNode : public ExpressionNode {
 public:
     LiteralNode(Value value)
-        : Node()
+        : ExpressionNode()
     {
         m_value = value;
     }

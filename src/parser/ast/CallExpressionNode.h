@@ -33,6 +33,7 @@ public:
         m_arguments = arguments;
     }
 
+    Node* callee() { return m_callee; }
     virtual ASTNodeType type() { return ASTNodeType::CallExpression; }
 
 protected:

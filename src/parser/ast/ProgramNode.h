@@ -25,16 +25,20 @@ namespace Escargot {
 class ProgramNode : public Node {
 public:
     friend class ScriptParser;
-    ProgramNode(StatementNodeVector&& body)
+    ProgramNode(StatementNodeVector&& body, ASTScopeContext* scopeContext)
         : Node()
     {
         m_body = body;
+        m_scopeContext = scopeContext;
+        m_scopeContext->m_associateNode = this;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::Program; }
+    ASTScopeContext* scopeContext() { return m_scopeContext; }
 
 protected:
     StatementNodeVector m_body; // body: [ Statement ];
+    ASTScopeContext* m_scopeContext;
 };
 
 }

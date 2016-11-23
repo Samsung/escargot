@@ -46,6 +46,7 @@ enum ASTNodeType {
     RestElement,
     SwitchStatement,
     SwitchCase,
+    WithStatement,
     Declaration,
     VariableDeclaration,
     FunctionDeclaration,
@@ -107,6 +108,7 @@ enum ASTNodeType {
     SequenceExpression,
     NewExpression,
     MemberExpression,
+    YieldExpression,
     ConditionalExpression,
     CallExpression,
     VariableDeclarator,
@@ -160,6 +162,58 @@ protected:
 class Pattern {
 public:
 
+};
+
+struct NodeLOC {
+    size_t line;
+    size_t column;
+    size_t index;
+
+    NodeLOC(size_t line, size_t column, size_t index)
+    {
+        this->line = line;
+        this->column = column;
+        this->index = index;
+    }
+};
+
+
+struct ASTScopeContext : public gc {
+    bool m_isStrict;
+    bool m_hasEval;
+    bool m_hasWith;
+    bool m_hasYield;
+    ASTScopeContext* m_parentContext;
+    Node* m_associateNode;
+    AtomicStringVector m_names;
+    AtomicStringVector m_usingNames;
+    Vector<ASTScopeContext*, gc_malloc_ignore_off_page_allocator<ASTScopeContext*>> m_childScopes;
+    NodeLOC m_locStart;
+    NodeLOC m_locEnd;
+
+    void insertName(AtomicString name)
+    {
+        if (VectorUtil::findInVector(m_names, name) == VectorUtil::invalidIndex) {
+            m_names.push_back(name);
+        }
+    }
+
+    void insertUsingName(AtomicString name)
+    {
+        if (VectorUtil::findInVector(m_usingNames, name) == VectorUtil::invalidIndex) {
+            m_usingNames.push_back(name);
+        }
+    }
+
+    ASTScopeContext(bool isStrict, ASTScopeContext* parentContext)
+        : m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+        , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+    {
+        m_isStrict = isStrict;
+        m_hasYield = m_hasWith = m_hasEval = false;
+        m_parentContext = parentContext;
+        m_associateNode = nullptr;
+    }
 };
 
 typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>> NodeVector;
