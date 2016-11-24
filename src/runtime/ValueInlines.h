@@ -523,6 +523,12 @@ inline double Value::asNumber() const
     return isInt32() ? asInt32() : asDouble();
 }
 
+inline bool Value::isObject() const
+{
+    return isPointerValue() && asPointerValue()->isObject();
+}
+
+
 inline double Value::toNumber(ExecutionState& ec) const
 {
     // http://www.ecma-international.org/ecma-262/6.0/#sec-tonumber

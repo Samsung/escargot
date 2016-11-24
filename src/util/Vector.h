@@ -55,6 +55,16 @@ public:
         return *this;
     }
 
+    Vector(const Vector<T, Allocator>& other, const T& newItem)
+    {
+        m_size = other.size() + 1;
+        m_buffer = Allocator().allocate(m_size);
+        for (size_t i = 0; i < other.size(); i ++) {
+            m_buffer[i] = other[i];
+        }
+        m_buffer[other.size()] = newItem;
+    }
+
     ~Vector()
     {
         if (!m_buffer)
@@ -66,7 +76,7 @@ public:
         // TODO
     }
 
-    void push_back(const T& val)
+    void pushBack(const T& val)
     {
         T* newBuffer = Allocator().allocate(m_size + 1);
         for (size_t i = 0; i < m_size; i ++) {
@@ -77,6 +87,11 @@ public:
             Allocator().deallocate(m_buffer, m_size);
         m_buffer = newBuffer;
         m_size++;
+    }
+
+    void push_back(const T& val)
+    {
+        pushBack(val);
     }
 
     void insert(size_t pos, const T& val)
@@ -178,6 +193,27 @@ public:
         if (!m_buffer)
             Allocator().deallocate(m_buffer, m_size);
         m_buffer = nullptr;
+    }
+
+    void resizeWithUninitializedValues(size_t newSize)
+    {
+        if (newSize) {
+            T* newBuffer = Allocator().allocate(newSize);
+
+            for (size_t i = 0; i < m_size && i < newSize ; i ++) {
+                newBuffer[i] = m_buffer[i];
+            }
+
+            m_size = newSize;
+            if (!m_buffer)
+                Allocator().deallocate(m_buffer, m_size);
+            m_buffer = newBuffer;
+        } else {
+            m_size = newSize;
+            if (!m_buffer)
+                Allocator().deallocate(m_buffer, m_size);
+            m_buffer = nullptr;
+        }
     }
 
     void resize(size_t newSize, const T& val = T())

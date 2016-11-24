@@ -65,7 +65,7 @@ protected:
     bool m_hasEval;
     bool m_hasWith;
     bool m_hasYield;
-    bool m_canUseVectorStorage;
+    bool m_canUseIndexedVariableStorage;
     bool m_canAllocateEnvironmentOnStack;
     Context* m_context;
     StringView m_src;

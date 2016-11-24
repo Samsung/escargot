@@ -87,7 +87,7 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource)
                     (int)cb->m_locEnd.line,
                     (int)cb->m_locEnd.column,
                     cb->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap",
-                    cb->m_canUseVectorStorage ? "Vector" : "HashMap",
+                    cb->m_canUseIndexedVariableStorage ? "Indexed" : "Named",
                     (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasYield);
 
                 PRINT_TAB()

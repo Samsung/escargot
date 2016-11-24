@@ -19,6 +19,12 @@ public:
     {
         return m_context;
     }
+
+    bool inStrictMode()
+    {
+        // TODO
+        return false;
+    }
 protected:
     Context* m_context;
 };

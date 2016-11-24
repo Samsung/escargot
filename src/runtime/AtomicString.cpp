@@ -24,6 +24,18 @@ AtomicString::AtomicString(Context* c, const char* src, size_t len)
     init(&c->m_atomicStringMap, src, len);
 }
 
+AtomicString::AtomicString(ExecutionState& ec, String* name)
+{
+    if (name->isASCIIString()) {
+        init(&ec.context()->m_atomicStringMap, name->asASCIIString()->data(), name->asASCIIString()->length());
+    } else if (name->isUTF16String()) {
+        init(&ec.context()->m_atomicStringMap, name->asUTF16String()->data(), name->asUTF16String()->length());
+    } else {
+        UTF8StringData data = name->toUTF8StringData();
+        init(&ec.context()->m_atomicStringMap, data.data(), data.length());
+    }
+}
+
 AtomicString::AtomicString(Context* c, const StringView& sv)
 {
     UTF16StringData data = sv.toUTF16StringData();

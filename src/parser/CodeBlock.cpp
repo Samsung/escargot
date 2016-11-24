@@ -32,18 +32,19 @@ CodeBlock::CodeBlock(Context* ctx, StringView src, const AtomicStringVector& inn
         m_hasYield = false;
     }
 
-    m_canAllocateEnvironmentOnStack = true;
-    m_canUseVectorStorage = !m_hasEval && !m_hasWith && !m_hasYield && parentBlock != nullptr;
+    m_canUseIndexedVariableStorage = !m_hasEval && !m_hasWith && !m_hasYield && parentBlock != nullptr;
 
-    if (m_canUseVectorStorage) {
-        for (size_t i = 0; i < innerIdentifiers.size(); i ++) {
-            IdentifierInfo info;
-            info.m_name = innerIdentifiers[i];
-            info.m_needToAllocateOnStack = true;
-            m_identifierInfos.push_back(info);
-        }
+    if (m_canUseIndexedVariableStorage) {
+        m_canAllocateEnvironmentOnStack = true;
     } else {
         m_canAllocateEnvironmentOnStack = false;
+    }
+
+    for (size_t i = 0; i < innerIdentifiers.size(); i ++) {
+        IdentifierInfo info;
+        info.m_name = innerIdentifiers[i];
+        info.m_needToAllocateOnStack = m_canUseIndexedVariableStorage;
+        m_identifierInfos.push_back(info);
     }
 }
 
@@ -61,9 +62,8 @@ bool CodeBlock::tryCaptureIdentifiersFromChildCodeBlock(AtomicString name)
 
 void CodeBlock::notifySelfOrChildHasEvalWithYield()
 {
-    m_canAllocateEnvironmentOnStack = true;
-    m_canUseVectorStorage = false;
-    m_identifierInfos.clear();
+    m_canAllocateEnvironmentOnStack = false;
+    m_canUseIndexedVariableStorage = false;
 }
 
 }
