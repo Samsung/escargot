@@ -34,6 +34,17 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ExpressionStatement; }
 
     Node* expression() { return m_expression; }
+
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+#ifndef NDEBUG
+        size_t before = context->m_baseRegisterCount;
+#endif
+        m_expression->generateExpressionByteCode(codeBlock, context);
+        codeBlock->pushCode(StoreExecutionResult(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getLastRegisterIndex()), context, this);
+        context->giveUpRegister();
+        ASSERT(context->m_baseRegisterCount == before);
+    }
 protected:
     Node* m_expression; // expression: Expression;
 };

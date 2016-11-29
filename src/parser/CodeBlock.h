@@ -8,10 +8,12 @@
 namespace Escargot {
 
 class Node;
+class ByteCodeBlock;
 
 class CodeBlock : public gc {
 public:
     friend class ScriptParser;
+    friend class ByteCodeGenerator;
     enum CodeBlockInitFlag {
         CodeBlockInitDefault = 0,
         CodeBlockHasEval = 1,
@@ -44,6 +46,15 @@ public:
         return false;
     }
 
+    Node* cachedASTNode()
+    {
+        return m_cachedASTNode;
+    }
+
+    ByteCodeBlock* byteCodeBlock()
+    {
+        return m_byteCodeBlock;
+    }
 
 protected:
     CodeBlock(Context* ctx, StringView src, const AtomicStringVector& innerIdentifiers, CodeBlock* parentBlock, CodeBlockInitFlag initFlags);
@@ -80,6 +91,7 @@ protected:
     Vector<CodeBlock*, gc_malloc_ignore_off_page_allocator<CodeBlock*>> m_childBlocks;
 
     Node* m_cachedASTNode;
+    ByteCodeBlock* m_byteCodeBlock;
 
 #ifndef NDEBUG
     NodeLOC m_locStart;

@@ -67,6 +67,9 @@ public:
     }
 
     Value getOwnProperty(ExecutionState& state, String* P);
+    Value getOwnProperty(ExecutionState& state, const AtomicString& P);
+    size_t findProperty(ExecutionState& state, String* P);
+    size_t findProperty(ExecutionState& state, const AtomicString& P);
 
     class ObjectPropertyDescriptorForDefineOwnProperty {
     public:
@@ -96,7 +99,9 @@ public:
         ObjectPropertyDescriptor m_descriptor;
         Value m_value;
     };
+
     bool defineOwnProperty(ExecutionState& state, String* P, const ObjectPropertyDescriptorForDefineOwnProperty& desc);
+    bool defineOwnProperty(ExecutionState& state, const AtomicString& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc);
     void defineOwnPropertyThrowsException(ExecutionState& state, String* P, const ObjectPropertyDescriptorForDefineOwnProperty& desc)
     {
         if (!defineOwnProperty(state, P, desc)) {
@@ -113,11 +118,57 @@ public:
         }
     }
 
+
+    // 9.1.7 [[HasProperty]](P)
+
+    // http://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-get-p-receiver
+    struct ObjectGetResult {
+        bool m_hasValue;
+        Value m_value;
+        ObjectGetResult()
+            : m_hasValue(false)
+            , m_value(Value(Value::ForceUninitialized))
+        {
+
+        }
+
+        ObjectGetResult(const Value& v)
+            : m_hasValue(true)
+            , m_value(v)
+        {
+
+        }
+    };
+
+    ObjectGetResult get(ExecutionState& state, String* P)
+    {
+        return get(state, P, this);
+    }
+
+    ObjectGetResult get(ExecutionState& state, const AtomicString& P)
+    {
+        return get(state, P, this);
+    }
+
+    ObjectGetResult get(ExecutionState& state, String* P, Object* receiver);
+    ObjectGetResult get(ExecutionState& state, const AtomicString& P, Object* receiver);
+
+    bool set(ExecutionState& state, String* P, const Value& v)
+    {
+        return set(state, P, v, this);
+    }
+    bool set(ExecutionState& state, String* P, const Value& v, Object* receiver);
+    bool set(ExecutionState& state, const AtomicString& P, const Value& v)
+    {
+        return set(state, P, v, this);
+    }
+    bool set(ExecutionState& state, const AtomicString& P, const Value& v, Object* receiver);
 protected:
     ObjectStructure* m_structure;
     ObjectRareData* m_rareData;
     Vector<SmallValue, gc_allocator_ignore_off_page<SmallValue>> m_values;
 
+    bool checkPropertyAlreadyDefinedWithNonWritableInPrototype(ExecutionState& state, const AtomicString& P);
     void ensureObjectRareData()
     {
         if (m_rareData == nullptr) {
@@ -125,15 +176,50 @@ protected:
         }
     }
 
-    Value uncheckedGetOwnProperty(size_t idx)
+    Value uncheckedGetOwnPlainDataProperty(ExecutionState& state, size_t idx)
     {
+        ASSERT(m_structure->readProperty(state, idx).m_descriptor.isPlainDataProperty());
         return m_values[idx];
     }
 
-    void uncheckedSetOwnProperty(size_t idx, const Value& newValue)
+    void uncheckedSetOwnPlainDataProperty(ExecutionState& state, size_t idx, const Value& newValue)
     {
+        ASSERT(m_structure->readProperty(state, idx).m_descriptor.isPlainDataProperty());
         m_values[idx] = newValue;
     }
+
+    Value getOwnDataProperty(ExecutionState& state, size_t idx)
+    {
+        return getOwnDataProperty(state, idx, this);
+    }
+
+    Value getOwnDataProperty(ExecutionState& state, size_t idx, Object* receiver)
+    {
+        ASSERT(m_structure->readProperty(state, idx).m_descriptor.isDataProperty());
+        const ObjectStructureItem& item = m_structure->readProperty(state, idx);
+        if (LIKELY(item.m_descriptor.isPlainDataProperty())) {
+            return m_values[idx];
+        } else {
+            return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this);
+        }
+    }
+
+    void setOwnDataProperty(ExecutionState& state, size_t idx, const Value& newValue)
+    {
+        ASSERT(m_structure->readProperty(state, idx).m_descriptor.isDataProperty());
+        m_values[idx] = newValue;
+    }
+
+    Value getOwnProperty(ExecutionState& state, size_t idx, Object* receiver)
+    {
+        const ObjectStructureItem& item = m_structure->readProperty(state, idx);
+        if (item.m_descriptor.isDataProperty()) {
+            return getOwnDataProperty(state, idx, receiver);
+        } else {
+            RELEASE_ASSERT_NOT_REACHED();
+        }
+    }
+
 
     bool isPlainObject() const
     {
@@ -147,7 +233,7 @@ protected:
     bool isEverSetAsPrototypeObject() const
     {
         if (LIKELY(m_rareData == nullptr)) {
-            return true;
+            return false;
         } else {
             return m_rareData->m_isEverSetAsPrototypeObject;
         }

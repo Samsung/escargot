@@ -1,6 +1,7 @@
 #include "Escargot.h"
 #include "ScriptParser.h"
 #include "runtime/Context.h"
+#include "interpreter/ByteCode.h"
 #include "parser/esprima_cpp/esprima.h"
 #include "parser/ast/AST.h"
 #include "parser/CodeBlock.h"
@@ -68,10 +69,13 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource)
     try {
         ProgramNode* program = esprima::parseProgram(m_context, scriptSource, [](Escargot::Node* node, NodeLOC start, NodeLOC end) {
             // printf("nd type %d\n", node->type());
+            node->m_loc = start;
         });
 
         CodeBlock* topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, program);
+        topCodeBlock->m_cachedASTNode = program;
 
+        script = new Script(topCodeBlock);
         // dump Code Block
 #ifndef NDEBUG
         if (getenv("DUMP_CODEBLOCK_TREE") && strlen(getenv("DUMP_CODEBLOCK_TREE"))) {

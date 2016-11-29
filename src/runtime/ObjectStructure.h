@@ -57,6 +57,11 @@ public:
         return findProperty(name);
     }
 
+    size_t findProperty(ExecutionState& state, const AtomicString& name)
+    {
+        return findProperty(name);
+    }
+
     ObjectStructureItem readProperty(ExecutionState& state, String* propertyName)
     {
         return readProperty(state, findProperty(state, propertyName));
@@ -67,9 +72,8 @@ public:
         return m_properties[idx];
     }
 
-    ObjectStructure* addProperty(ExecutionState& state, String* propertyName, const ObjectPropertyDescriptor& desc)
+    ObjectStructure* addProperty(ExecutionState& state, const AtomicString& name, const ObjectPropertyDescriptor& desc)
     {
-        AtomicString name(state, propertyName);
         if (m_needsTransitionTable) {
             size_t r = searchTransitionTable(name, desc);
             if (r != SIZE_MAX) {
@@ -90,6 +94,12 @@ public:
         }
 
         return newObjectStructure;
+    }
+
+    ObjectStructure* addProperty(ExecutionState& state, String* propertyName, const ObjectPropertyDescriptor& desc)
+    {
+        AtomicString name(state, propertyName);
+        return addProperty(state, name, desc);
     }
 
     ObjectStructure* removeProperty(ExecutionState& state, String* propertyName)

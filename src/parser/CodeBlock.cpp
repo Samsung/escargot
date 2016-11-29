@@ -8,6 +8,7 @@ CodeBlock::CodeBlock(Context* ctx, StringView src, const AtomicStringVector& inn
     , m_src(src)
     , m_parentCodeBlock(parentBlock)
     , m_cachedASTNode(nullptr)
+    , m_byteCodeBlock(nullptr)
 #ifndef NDEBUG
     , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)

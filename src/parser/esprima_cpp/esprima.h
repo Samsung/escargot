@@ -2,9 +2,12 @@
 #define __EscargotEsprima__
 
 #include "runtime/String.h"
-#include "parser/ast/AST.h"
+#include "runtime/Context.h"
+#include "parser/ast/Node.h"
 
 namespace Escargot {
+
+class ProgramNode;
 
 namespace esprima {
 

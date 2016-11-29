@@ -33,6 +33,11 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::Literal; }
 
     const Value& value() { return m_value; }
+
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getRegister(), m_value), context, this);
+    }
 protected:
     Value m_value;
 };

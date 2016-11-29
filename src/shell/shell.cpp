@@ -120,7 +120,9 @@ void eval(Escargot::Context* context, Escargot::String* str)
         auto err = result.m_error->message->toUTF8StringData();
         puts(err.data());
     } else {
-
+        Escargot::Script::ScriptExecuteResult resultValue = result.m_script->execute(context);
+        Escargot::ExecutionState state(context);
+        puts(resultValue.result.toString(state)->toUTF8StringData().data());
     }
 }
 

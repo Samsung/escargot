@@ -43,6 +43,12 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionSimple; }
 
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        m_right->generateExpressionByteCode(codeBlock, context);
+        m_left->generateStoreByteCode(codeBlock, context);
+    }
+
 protected:
     Node* m_left; // left: Pattern;
     Node* m_right; // right: Expression;

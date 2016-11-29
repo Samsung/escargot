@@ -22,6 +22,9 @@
 
 namespace Escargot {
 
+class ByteCodeBlock;
+class ByteCodeGenerateContext;
+
 enum ASTNodeType {
     ASTNodeTypeError,
     Program,
@@ -123,10 +126,25 @@ enum ASTNodeType {
     ThrowStatement,
 };
 
+struct NodeLOC {
+    size_t line;
+    size_t column;
+    size_t index;
+
+    NodeLOC(size_t line, size_t column, size_t index)
+    {
+        this->line = line;
+        this->column = column;
+        this->index = index;
+    }
+};
+
+
 class Node : public gc {
     friend class ScriptParser;
 protected:
     Node()
+        : m_loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     {
     }
 public:
@@ -156,27 +174,37 @@ public:
     {
         return false;
     }
+
+    NodeLOC loc()
+    {
+        return m_loc;
+    }
+
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+        // TODO
+        // codeBlock->pushCode(ThrowStatic(ESErrorObject::Code::ReferenceError, ESString::create("Invalid assignment.")), context, this);
+    }
+
 protected:
+    NodeLOC m_loc;
 };
 
 class Pattern {
 public:
 
 };
-
-struct NodeLOC {
-    size_t line;
-    size_t column;
-    size_t index;
-
-    NodeLOC(size_t line, size_t column, size_t index)
-    {
-        this->line = line;
-        this->column = column;
-        this->index = index;
-    }
-};
-
 
 struct ASTScopeContext : public gc {
     bool m_isStrict;

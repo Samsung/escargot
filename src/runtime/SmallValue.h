@@ -150,18 +150,18 @@ public:
             } else if (from.isNumber()) {
                 m_data.payload = reinterpret_cast<intptr_t>(new DoubleInSmallValue(from.asNumber()));
             } else if (from.isUndefined()) {
-                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueUndefined);
+                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueUndefined->payload);
             } else if (from.isTrue()) {
-                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueTrue);
+                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueTrue->payload);
             } else if (from.isFalse()) {
-                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueFalse);
+                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueFalse->payload);
             } else if (from.isNull()) {
-                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueNull);
+                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueNull->payload);
             } else if (from.isEmpty()) {
-                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueEmpty);
+                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueEmpty->payload);
             } else {
                 ASSERT(from.isDeleted());
-                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueDeleted);
+                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueDeleted->payload);
             }
         }
     }
@@ -173,17 +173,17 @@ public:
             if (UNLIKELY(v->isDoubleInSmallValue())) {
                 return Value(v->asDoubleInSmallValue()->value());
             } else {
-                if (v == (PointerValue*)SmallValueImpl::smallValueUndefined) {
+                if (v == (PointerValue*)SmallValueImpl::smallValueUndefined->payload) {
                     return Value();
-                } else if (v == (PointerValue*)SmallValueImpl::smallValueNull) {
+                } else if (v == (PointerValue*)SmallValueImpl::smallValueNull->payload) {
                     return Value(Value::Null);
-                } else if (v == (PointerValue*)SmallValueImpl::smallValueTrue) {
+                } else if (v == (PointerValue*)SmallValueImpl::smallValueTrue->payload) {
                     return Value(Value::True);
-                } else if (v == (PointerValue*)SmallValueImpl::smallValueFalse) {
+                } else if (v == (PointerValue*)SmallValueImpl::smallValueFalse->payload) {
                     return Value(Value::False);
-                } else if (v == (PointerValue*)SmallValueImpl::smallValueEmpty) {
+                } else if (v == (PointerValue*)SmallValueImpl::smallValueEmpty->payload) {
                     return Value(Value::EmptyValue);
-                } else if (v == (PointerValue*)SmallValueImpl::smallValueDeleted) {
+                } else if (v == (PointerValue*)SmallValueImpl::smallValueDeleted->payload) {
                     return Value(Value::DeletedValue);
                 }
                 return Value(v);

@@ -155,21 +155,23 @@ public:
     bool isIterable() const;
 
     enum PrimitiveTypeHint { PreferString, PreferNumber };
-    inline Value toPrimitive(ExecutionState& ec, PrimitiveTypeHint = PreferNumber) const; // $7.1.1 ToPrimitive
-    Value toPrimitiveSlowCase(ExecutionState& ec, PrimitiveTypeHint = PreferNumber) const;
-    inline bool toBoolean(ExecutionState& ec) const; // $7.1.2 ToBoolean
-    inline double toNumber(ExecutionState& ec) const; // $7.1.3 ToNumber
-    inline double toInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
-    inline int32_t toInt32(ExecutionState& ec) const; // $7.1.5 ToInt32
-    inline int32_t toInt32SlowCase(ExecutionState& ec) const; // $7.1.5 ToInt32
-    inline uint32_t toUint32(ExecutionState& ec) const; // http://www.ecma-international.org/ecma-262/5.1/#sec-9.6
-    inline String* toString(ExecutionState& ec) const; // $7.1.12 ToString
-    String* toStringSlowCase(ExecutionState& ec) const; // $7.1.12 ToString
-    inline Object* toObject(ExecutionState& ec) const; // $7.1.13 ToObject
-    inline Object* toObjectSlowPath(ExecutionState& ec) const; // $7.1.13 ToObject
-    inline Object* toTransientObject(ExecutionState& ec) const; // ES5 $8.7.2 transient object
-    inline Object* toTransientObjectSlowPath(ExecutionState& ec) const; // ES5 $8.7.2 transient object
-    inline double toLength(ExecutionState& ec) const; // $7.1.15 ToLength
+    Value toPrimitive(ExecutionState& ec, PrimitiveTypeHint = PreferNumber) const; // $7.1.1 ToPrimitive
+    bool toBoolean(ExecutionState& ec) const; // $7.1.2 ToBoolean
+    double toNumber(ExecutionState& ec) const; // $7.1.3 ToNumber
+    double toInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
+    int32_t toInt32(ExecutionState& ec) const; // $7.1.5 ToInt32
+    uint32_t toUint32(ExecutionState& ec) const; // http://www.ecma-international.org/ecma-262/5.1/#sec-9.6
+    String* toString(ExecutionState& ec) const // $7.1.12 ToString
+    {
+        if (isString()) {
+            return asString();
+        }
+        return toStringSlowCase(ec);
+    }
+    Object* toObject(ExecutionState& ec) const; // $7.1.13 ToObject
+    Object* toTransientObject(ExecutionState& ec) const; // ES5 $8.7.2 transient object
+    Object* toTransientObjectSlowPath(ExecutionState& ec) const; // ES5 $8.7.2 transient object
+    double toLength(ExecutionState& ec) const; // $7.1.15 ToLength
 
     inline bool abstractEqualsTo(ExecutionState& ec, const Value& val);
     bool abstractEqualsToSlowCase(ExecutionState& ec, const Value& val);
@@ -216,6 +218,7 @@ private:
     ValueDescriptor u;
 
     inline double toNumberSlowCase(ExecutionState& ec) const; // $7.1.3 ToNumber
+    String* toStringSlowCase(ExecutionState& ec) const; // $7.1.12 ToString
 };
 
 }

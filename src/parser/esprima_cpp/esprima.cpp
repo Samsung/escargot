@@ -1,6 +1,8 @@
 #include "Escargot.h"
 #include "esprima.h"
+#include "interpreter/ByteCode.h"
 #include "parser/ast/AST.h"
+#include "parser/CodeBlock.h"
 #include "double-conversion.h"
 #include "ieee.h"
 
@@ -389,7 +391,6 @@ struct ScannerResult : public gc {
         this->lineStart = lineStart;
         this->start = start;
         this->end = this->index = end;
-        valuePunctuatorsKind = PunctuatorsKindEnd;
     }
 
     ScannerResult(Token type, StringView valueString, size_t lineNumber, size_t lineStart, size_t start, size_t end)
@@ -405,7 +406,6 @@ struct ScannerResult : public gc {
         this->lineStart = lineStart;
         this->start = start;
         this->end = this->index = end;
-        valuePunctuatorsKind = PunctuatorsKindEnd;
     }
 
     ScannerResult(Token type, double value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
@@ -422,7 +422,6 @@ struct ScannerResult : public gc {
         if (end != SIZE_MAX) {
             this->end = end;
         }
-        valuePunctuatorsKind = PunctuatorsKindEnd;
     }
 
     ScannerResult(Token type, ScanTemplteResult value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
@@ -441,7 +440,6 @@ struct ScannerResult : public gc {
         if (end != SIZE_MAX) {
             this->end = end;
         }
-        valuePunctuatorsKind = PunctuatorsKindEnd;
     }
 };
 
@@ -1482,16 +1480,13 @@ public:
             this->throwUnexpectedToken();
         }
 
-        double valueNumber;
         if (shouldUseDouble) {
             ASSERT(number == 0);
-            valueNumber = numberDouble;
+            return new ScannerResult(Token::NumericLiteralToken, numberDouble, this->lineNumber, this->lineStart, start, this->index);
         } else {
             ASSERT(numberDouble == 0.0);
-            valueNumber = number;
+            return new ScannerResult(Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index);
         }
-
-        return new ScannerResult(Token::NumericLiteralToken, valueNumber, this->lineNumber, this->lineStart, start, this->index);
     }
 
     ScannerResult* scanBinaryLiteral(size_t start)
@@ -2757,7 +2752,7 @@ public:
                 this->context->isBindingElement = false;
                 token = this->nextToken();
                 // raw = this->getTokenRaw(token);
-                if (this->lookahead->type == Token::NumericLiteralToken)
+                if (token->type == Token::NumericLiteralToken)
                     expr = this->finalize(node, new LiteralNode(Value(token->valueNumber)));
                 else
                     expr = this->finalize(node, new LiteralNode(Value(new StringView(token->valueString))));

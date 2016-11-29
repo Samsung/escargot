@@ -205,7 +205,6 @@ UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t& len)
     return UTF8StringData(std::move(str));
 }
 
-
 UTF16StringData ASCIIString::toUTF16StringData() const
 {
     UTF16StringData ret;
@@ -391,6 +390,11 @@ ASCIIStringData dtoa(double number)
         buf++;
     }
     return std::move(str);
+}
+
+String* String::fromDouble(double v)
+{
+    return new ASCIIString(std::move(dtoa(v)));
 }
 
 

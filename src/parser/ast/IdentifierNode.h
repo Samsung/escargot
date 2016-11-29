@@ -39,6 +39,16 @@ public:
     {
         return m_name;
     }
+
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getLastRegisterIndex(), m_name), context, this);
+    }
+
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getRegister(), m_name), context, this);
+    }
 protected:
     AtomicString m_name;
 };

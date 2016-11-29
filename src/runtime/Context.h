@@ -31,15 +31,21 @@ public:
     {
         return m_defaultStructureForObject;
     }
+
+    LexicalEnvironment* globalEnvironment()
+    {
+        return m_globalEnvironment;
+    }
+
 protected:
     VMInstance* m_instance;
     StaticStrings m_staticStrings;
     GlobalObject* m_globalObject;
     AtomicStringMap m_atomicStringMap;
     ScriptParser* m_scriptParser;
+    LexicalEnvironment* m_globalEnvironment;
 
     ObjectStructure* m_defaultStructureForObject;
-
     static Value object__proto__NativeGetter(ExecutionState& state, Object* self);
     static bool object__proto__NativeSetter(ExecutionState& state, Object* self, const Value& newData);
 };

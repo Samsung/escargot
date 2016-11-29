@@ -528,6 +528,10 @@ inline bool Value::isObject() const
     return isPointerValue() && asPointerValue()->isObject();
 }
 
+inline Object* Value::asObject() const
+{
+    return asPointerValue()->asObject();
+}
 
 inline double Value::toNumber(ExecutionState& ec) const
 {

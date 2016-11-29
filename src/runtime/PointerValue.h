@@ -17,6 +17,7 @@ public:
         FunctionObjectType,
         ArrayObjectType,
         DoubleInSmallValueType,
+        DummyInSmallValueType,
     };
     virtual Type type() = 0;
     virtual bool isString()
@@ -40,6 +41,11 @@ public:
     }
 
     virtual bool isDoubleInSmallValue()
+    {
+        return false;
+    }
+
+    virtual bool isDummyInSmallValueType()
     {
         return false;
     }

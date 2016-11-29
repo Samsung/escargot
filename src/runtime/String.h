@@ -51,6 +51,12 @@ public:
     }
 
     static String* fromCharCode(char32_t code);
+    static String* fromDouble(double v);
+    static String* fromInt32(int32_t v)
+    {
+        // TODO
+        return fromDouble(v);
+    }
 
     virtual size_t length() const = 0;
 
