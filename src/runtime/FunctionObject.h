@@ -26,6 +26,18 @@ public:
     {
         return m_isConstructor;
     }
+
+    virtual bool isFunctionObject()
+    {
+        return true;
+    }
+
+    CodeBlock* codeBlock()
+    {
+        return m_codeBlock;
+    }
+
+    Value call(ExecutionState& state, const Value& receiver, const size_t& argc, Value* argv);
 protected:
     Value getFunctionPrototypeSlowCase(ExecutionState& state);
     bool m_isConstructor;

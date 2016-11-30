@@ -8,6 +8,7 @@
 namespace Escargot {
 
 class ProgramNode;
+class CodeBlock;
 
 namespace esprima {
 
@@ -31,6 +32,7 @@ struct Error : public gc {
 };
 
 ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler astHandler);
+Node* parseSingleFunction(::Escargot::Context* ctx, CodeBlock* codeBlock);
 
 }
 

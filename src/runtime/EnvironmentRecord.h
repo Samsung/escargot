@@ -4,13 +4,24 @@
 #include "runtime/Value.h"
 #include "runtime/String.h"
 #include "runtime/AtomicString.h"
+#include "runtime/Object.h"
+#include "runtime/FunctionObject.h"
+#include "parser/CodeBlock.h"
 
 namespace Escargot {
 
 class GlobalEnvironmentRecord;
 class DeclarativeEnvironmentRecord;
+class FunctionEnvironmentRecord;
 class GlobalObject;
 class CodeBlock;
+
+struct IdentifierRecord {
+    AtomicString m_name;
+    Value m_value;
+};
+
+typedef Vector<IdentifierRecord, gc_malloc_ignore_off_page_allocator<IdentifierRecord>> IdentifierRecordVector;
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-environment-records
 class EnvironmentRecord : public gc {
@@ -53,10 +64,7 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
+    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
 
     struct GetBindingValueResult {
         bool m_hasBindingValue;
@@ -84,7 +92,7 @@ public:
     };
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        return GetBindingValueResult();
     }
 
     virtual Value getBindingValue(ExecutionState& state, const size_t& idx)
@@ -140,7 +148,7 @@ public:
         return reinterpret_cast<GlobalEnvironmentRecord*>(this);
     }
 
-    DeclarativeEnvironmentRecord* toDeclarativeEnvironmentRecord()
+    DeclarativeEnvironmentRecord* asDeclarativeEnvironmentRecord()
     {
         ASSERT(isDeclarativeEnvironmentRecord());
         return reinterpret_cast<DeclarativeEnvironmentRecord*>(this);
@@ -222,14 +230,28 @@ public:
     {
         return false;
     }
+
+    virtual bool isFunctionEnvironmentRecord()
+    {
+        return false;
+    }
+
+    FunctionEnvironmentRecord* asFunctionEnvironmentRecord()
+    {
+        ASSERT(isFunctionEnvironmentRecord());
+        return reinterpret_cast<FunctionEnvironmentRecord*>(this);
+    }
+
 };
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-function-environment-records
 class FunctionEnvironmentRecord : public DeclarativeEnvironmentRecord {
     friend class LexicalEnvironment;
 public:
-    FunctionEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock)
-        : DeclarativeEnvironmentRecord(state, codeBlock)
+    ALWAYS_INLINE FunctionEnvironmentRecord(ExecutionState& state, const Value& receiver, FunctionObject* function)
+        : DeclarativeEnvironmentRecord(state, function->codeBlock())
+        , m_thisValue(receiver)
+        , m_functionObject(function)
     {
     }
 
@@ -238,14 +260,110 @@ public:
         // we dont use arrow function now. so binding status is alwalys not lexical.
         return true;
     }
+
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-bindthisvalue
     // void bindThisValue(const ESValue& V);
     // ESValue getThisBinding();
 
+    virtual bool isFunctionEnvironmentRecord()
+    {
+        return true;
+    }
+
+    virtual bool isFunctionEnvironmentRecordOnStack()
+    {
+        return false;
+    }
+
+    virtual bool isFunctionEnvironmentRecordOnHeap()
+    {
+        return false;
+    }
+
+    virtual bool isFunctionEnvironmentRecordNotIndexed()
+    {
+        return false;
+    }
+
+    virtual void setHeapValueByIndex(const size_t& idx, const Value& v)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
 protected:
-    // ESValue m_thisValue;
-    // ESFunctionObject* m_functionObject; //TODO
+    Value m_thisValue;
+    FunctionObject* m_functionObject;
     // ESValue m_newTarget; //TODO
 };
+
+class FunctionEnvironmentRecordOnStack : public FunctionEnvironmentRecord {
+    friend class LexicalEnvironment;
+public:
+    ALWAYS_INLINE FunctionEnvironmentRecordOnStack(ExecutionState& state, const Value& receiver, FunctionObject* function)
+        : FunctionEnvironmentRecord(state, receiver, function)
+    {
+    }
+
+    virtual bool isFunctionEnvironmentRecordOnStack()
+    {
+        return true;
+    }
+};
+
+class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecord {
+    friend class LexicalEnvironment;
+    friend class ByteCodeIntrepreter;
+public:
+    ALWAYS_INLINE FunctionEnvironmentRecordOnHeap(ExecutionState& state, const Value& receiver, FunctionObject* function)
+        : FunctionEnvironmentRecord(state, receiver, function)
+        , m_heapStorage(function->codeBlock()->identifierOnHeapCount())
+    {
+    }
+
+    virtual bool isFunctionEnvironmentRecordOnHeap()
+    {
+        return true;
+    }
+
+    virtual void setHeapValueByIndex(const size_t& idx, const Value& v)
+    {
+        m_heapStorage[idx] = v;
+    }
+
+protected:
+    ValueVector m_heapStorage;
+};
+
+class FunctionEnvironmentRecordNotIndexed : public FunctionEnvironmentRecord {
+    friend class LexicalEnvironment;
+public:
+    ALWAYS_INLINE FunctionEnvironmentRecordNotIndexed(ExecutionState& state, const Value& receiver, FunctionObject* function)
+        : FunctionEnvironmentRecord(state, receiver, function)
+    {
+        const CodeBlock::IdentifierInfoVector& vec = function->codeBlock()->identifierInfos();
+        size_t len = vec.size();
+        for (size_t i = 0; i < len; i ++) {
+            createMutableBinding(state, vec[i].m_name, false);
+        }
+    }
+
+    virtual bool isFunctionEnvironmentRecordNotIndexed()
+    {
+        return true;
+    }
+
+    virtual void setHeapValueByIndex(const size_t& idx, const Value& v)
+    {
+        m_vector[idx].m_value = v;
+    }
+
+    virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false);
+    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
+    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
+
+protected:
+    IdentifierRecordVector m_vector;
+};
+
+
 }
 #endif

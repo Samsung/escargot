@@ -33,7 +33,7 @@ void ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node*
 
 #ifndef NDEBUG
     if (getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) {
-        printf("dumpBytecode...(%d:%d)>>>>>>>>>>>>>>>>>>>>>>\n", (int)ast->loc().line, (int)ast->loc().column);
+        printf("dumpBytecode %s (%d:%d)>>>>>>>>>>>>>>>>>>>>>>\n", codeBlock->m_functionName.string()->toUTF8StringData().data(), (int)ast->loc().line, (int)ast->loc().column);
         size_t idx = 0;
         size_t bytecodeCounter = 0;
         char* code = block->m_code.data();

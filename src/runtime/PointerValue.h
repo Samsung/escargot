@@ -62,6 +62,12 @@ public:
         return (Object*)this;
     }
 
+    FunctionObject* asFunctionObject()
+    {
+        ASSERT(isFunctionObject());
+        return (FunctionObject*)this;
+    }
+
     DoubleInSmallValue* asDoubleInSmallValue()
     {
         ASSERT(isDoubleInSmallValue());

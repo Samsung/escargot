@@ -18,9 +18,11 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
     CodeBlock* codeBlock;
     if (parentCodeBlock == nullptr) {
         // globalBlock
-        codeBlock = new CodeBlock(ctx, StringView(source, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index), 0, scopeCtx->m_names);
+        codeBlock = new CodeBlock(ctx, StringView(source, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index), scopeCtx->m_isStrict, 0, scopeCtx->m_names);
     } else {
-        codeBlock = new CodeBlock(ctx, StringView(source, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index), scopeCtx->m_nodeStartIndex,
+        codeBlock = new CodeBlock(ctx, StringView(source, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index),
+                scopeCtx->m_locStart,
+                scopeCtx->m_isStrict, scopeCtx->m_nodeStartIndex,
                 scopeCtx->m_functionName, scopeCtx->m_parameters, scopeCtx->m_names, parentCodeBlock,
                 (CodeBlock::CodeBlockInitFlag)
                 ((scopeCtx->m_hasEval ? CodeBlock::CodeBlockHasEval : 0) |
@@ -63,6 +65,10 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
         codeBlock->appendChildBlock(generateCodeBlockTreeFromASTWalker(ctx, source, scopeCtx->m_childScopes[i], codeBlock));
     }
 
+    if (parentCodeBlock) {
+        codeBlock->computeVariables();
+    }
+
     return codeBlock;
 }
 
@@ -77,10 +83,7 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource)
     Script* script = nullptr;
     ScriptParseError* error = nullptr;
     try {
-        ProgramNode* program = esprima::parseProgram(m_context, scriptSource, [](Escargot::Node* node, NodeLOC start, NodeLOC end) {
-            node->m_loc = start;
-        });
-
+        ProgramNode* program = esprima::parseProgram(m_context, scriptSource, nullptr);
 
         CodeBlock* topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, program);
         topCodeBlock->m_cachedASTNode = program;
@@ -95,7 +98,7 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource)
 #define PRINT_TAB() for (size_t i = 0; i < depth; i ++) { printf("  "); }
 
                 PRINT_TAB()
-                printf("CodeBlock %p (%d:%d -> %d:%d)(%s, %s) (E:%d, W:%d, Y:%d)\n", cb,
+                printf("CodeBlock %s (%d:%d -> %d:%d)(%s, %s) (E:%d, W:%d, Y:%d)\n", cb->m_functionName.string()->toUTF8StringData().data(),
                     (int)cb->m_locStart.line,
                     (int)cb->m_locStart.column,
                     (int)cb->m_locEnd.line,
@@ -107,8 +110,8 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource)
                 PRINT_TAB()
                 printf("Names: ");
                 for (size_t i = 0; i < cb->m_identifierInfos.size(); i ++) {
-                    printf("%s(%s), ", cb->m_identifierInfos[i].m_name.string()->toUTF8StringData().data(),
-                        cb->m_identifierInfos[i].m_needToAllocateOnStack ? "Stack" : "Heap");
+                    printf("%s(%s, %d), ", cb->m_identifierInfos[i].m_name.string()->toUTF8StringData().data(),
+                        cb->m_identifierInfos[i].m_needToAllocateOnStack ? "Stack" : "Heap", (int)cb->m_identifierInfos[i].m_indexForIndexedStorage);
                 }
                 puts("");
 
@@ -140,6 +143,17 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource)
 
     ScriptParser::ScriptParserResult result(script, error);
     return result;
+}
+
+Node* ScriptParser::parseFunction(CodeBlock* codeBlock)
+{
+    try {
+        Node* body = esprima::parseSingleFunction(m_context, codeBlock);
+        return body;
+    } catch(esprima::Error* orgError) {
+        //
+        RELEASE_ASSERT_NOT_REACHED();
+    }
 }
 
 }

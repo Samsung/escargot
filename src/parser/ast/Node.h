@@ -141,6 +141,7 @@ struct NodeLOC {
 
 class IdentifierNode;
 
+
 class Node : public gc {
     friend class ScriptParser;
 protected:
@@ -170,6 +171,11 @@ public:
     bool isLiteral()
     {
         return type() == ASTNodeType::Literal;
+    }
+
+    bool isMemberExpression()
+    {
+        return type() == ASTNodeType::MemberExpression;
     }
 
     virtual bool isExpressionNode()
@@ -204,7 +210,6 @@ public:
         // codeBlock->pushCode(ThrowStatic(ESErrorObject::Code::ReferenceError, ESString::create("Invalid assignment.")), context, this);
     }
 
-protected:
     NodeLOC m_loc;
 };
 

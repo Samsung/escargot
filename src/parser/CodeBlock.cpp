@@ -3,10 +3,13 @@
 
 namespace Escargot {
 
-CodeBlock::CodeBlock(Context* ctx, StringView src, size_t astNodeStartIndex, const AtomicStringVector& innerIdentifiers)
+CodeBlock::CodeBlock(Context* ctx, StringView src, bool isStrict, size_t astNodeStartIndex, const AtomicStringVector& innerIdentifiers)
     : m_context(ctx)
     , m_src(src)
+    , m_sourceElementStart(1, 0, 0)
     , m_astNodeStartIndex(astNodeStartIndex)
+    , m_identifierOnStackCount(0)
+    , m_identifierOnHeapCount(0)
     , m_parentCodeBlock(nullptr)
     , m_cachedASTNode(nullptr)
     , m_byteCodeBlock(nullptr)
@@ -16,25 +19,31 @@ CodeBlock::CodeBlock(Context* ctx, StringView src, size_t astNodeStartIndex, con
     , m_scopeContext(nullptr)
 #endif
 {
+    m_isStrict = isStrict;
     m_hasEval = false;
     m_hasWith = false;
     m_hasYield = false;
     m_canUseIndexedVariableStorage = false;
     m_canAllocateEnvironmentOnStack = false;
+    m_needsComplexParameterCopy = false;
 
     for (size_t i = 0; i < innerIdentifiers.size(); i ++) {
         IdentifierInfo info;
         info.m_name = innerIdentifiers[i];
-        info.m_needToAllocateOnStack = m_canUseIndexedVariableStorage;
+        info.m_needToAllocateOnStack = false;
+        info.m_indexForIndexedStorage = SIZE_MAX;
         m_identifierInfos.push_back(info);
     }
 }
 
-CodeBlock::CodeBlock(Context* ctx, StringView src, size_t astNodeStartIndex, AtomicString functionName, const AtomicStringVector& parameterNames, const AtomicStringVector& innerIdentifiers,
+CodeBlock::CodeBlock(Context* ctx, StringView src, NodeLOC sourceElementStart, bool isStrict, size_t astNodeStartIndex, AtomicString functionName, const AtomicStringVector& parameterNames, const AtomicStringVector& innerIdentifiers,
     CodeBlock* parentBlock, CodeBlockInitFlag initFlags)
     : m_context(ctx)
     , m_src(src)
+    , m_sourceElementStart(sourceElementStart)
     , m_astNodeStartIndex(astNodeStartIndex)
+    , m_identifierOnStackCount(0)
+    , m_identifierOnHeapCount(0)
     , m_functionName(functionName)
     , m_parameterNames(parameterNames)
     , m_parentCodeBlock(parentBlock)
@@ -46,6 +55,7 @@ CodeBlock::CodeBlock(Context* ctx, StringView src, size_t astNodeStartIndex, Ato
     , m_scopeContext(nullptr)
 #endif
 {
+    m_isStrict = isStrict;
     if (initFlags & CodeBlockInitFlag::CodeBlockHasEval) {
         m_hasEval = true;
     } else {
@@ -88,8 +98,11 @@ CodeBlock::CodeBlock(Context* ctx, StringView src, size_t astNodeStartIndex, Ato
         IdentifierInfo info;
         info.m_name = innerIdentifiers[i];
         info.m_needToAllocateOnStack = m_canUseIndexedVariableStorage;
+        info.m_indexForIndexedStorage = SIZE_MAX;
         m_identifierInfos.push_back(info);
     }
+
+    m_needsComplexParameterCopy = false;
 }
 
 bool CodeBlock::tryCaptureIdentifiersFromChildCodeBlock(AtomicString name)
@@ -108,6 +121,45 @@ void CodeBlock::notifySelfOrChildHasEvalWithYield()
 {
     m_canAllocateEnvironmentOnStack = false;
     m_canUseIndexedVariableStorage = false;
+}
+
+void CodeBlock::computeVariables()
+{
+    if (canUseIndexedVariableStorage()) {
+        size_t s = 0;
+        size_t h = 0;
+        for (size_t i = 0; i < m_identifierInfos.size(); i ++) {
+            if (m_identifierInfos[i].m_needToAllocateOnStack) {
+                m_identifierInfos[i].m_indexForIndexedStorage = s;
+                s++;
+            } else {
+                m_identifierInfos[i].m_indexForIndexedStorage = h;
+                h++;
+            }
+        }
+
+        m_identifierOnStackCount = s;
+        m_identifierOnHeapCount = h;
+    }
+
+    size_t siz = m_parameterNames.size();
+    m_parametersInfomation.resize(siz);
+    size_t heapCount = 0;
+    size_t stackCount = 0;
+    for (size_t i = 0; i < siz; i ++) {
+        bool isHeap = !m_identifierInfos[i].m_needToAllocateOnStack;
+        m_parametersInfomation[i].m_isHeapAllocated = isHeap;
+        if (isHeap) {
+            m_parametersInfomation[i].m_index = i - stackCount;
+            m_needsComplexParameterCopy = true;
+            heapCount++;
+        } else {
+            m_parametersInfomation[i].m_index = i - heapCount;
+            stackCount++;
+        }
+    }
+
+
 }
 
 }

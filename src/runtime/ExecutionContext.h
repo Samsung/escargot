@@ -6,11 +6,14 @@ namespace Escargot {
 class Context;
 class LexicalEnvironment;
 class EnvironmentRecord;
+class Value;
 
-class ExecutionContext {
+class ExecutionContext : public gc {
 public:
-    ExecutionContext(Context* context, LexicalEnvironment* lexicalEnvironment = nullptr)
-        : m_context(context)
+    ExecutionContext(Context* context, LexicalEnvironment* lexicalEnvironment = nullptr, bool inStrictMode = false)
+        : m_inStrictMode(inStrictMode)
+        , m_context(context)
+        , m_stackStorage(nullptr)
         , m_lexicalEnvironment(lexicalEnvironment)
     {
 
@@ -26,8 +29,26 @@ public:
         return m_lexicalEnvironment;
     }
 
+    bool inStrictMode()
+    {
+        return m_inStrictMode;
+    }
+
+    Value* stackStorage()
+    {
+        return m_stackStorage;
+    }
+
+    void giveStackStorage(Value* storage)
+    {
+        ASSERT(m_stackStorage == nullptr);
+        m_stackStorage = storage;
+    }
+
 private:
+    bool m_inStrictMode;
     Context* m_context;
+    Value* m_stackStorage;
     LexicalEnvironment* m_lexicalEnvironment;
 };
 

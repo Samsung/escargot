@@ -43,6 +43,7 @@ void ByteCodeIntrepreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         ExecutionContext* ec = state.executionContext();
         LexicalEnvironment* env = ec->lexicalEnvironment();
         Value* registerFile = ALLOCA(byteCodeBlock->m_requiredRegisterFileSizeInValueSize * sizeof(Value), Value, state);
+        Value* stackStorage = ec->stackStorage();
         char* codeBuffer = byteCodeBlock->m_code.data();
         size_t programCounter = (size_t)(&codeBuffer[0]);
         ByteCode* currentCode;
@@ -64,6 +65,61 @@ void ByteCodeIntrepreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
             NEXT_INSTRUCTION();
         }
 
+        LoadByStackIndexOpcodeLbl:
+        {
+            LoadByStackIndex* code = (LoadByStackIndex*)currentCode;
+            registerFile[code->m_registerIndex] = stackStorage[code->m_index];
+            executeNextCode<LoadByStackIndex>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        StoreByStackIndexOpcodeLbl:
+        {
+            StoreByStackIndex* code = (StoreByStackIndex*)currentCode;
+            stackStorage[code->m_index] = registerFile[code->m_registerIndex];
+            executeNextCode<StoreByStackIndex>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        LoadByHeapIndexOpcodeLbl:
+        {
+            LoadByHeapIndex* code = (LoadByHeapIndex*)currentCode;
+            LexicalEnvironment* upperEnv = env;
+            for (size_t i = 0; i < code->m_upperIndex; i ++) {
+                upperEnv = upperEnv->outerEnvironment();
+            }
+            FunctionEnvironmentRecord* record = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+            ASSERT(record->isFunctionEnvironmentRecordOnHeap());
+            registerFile[code->m_registerIndex] = ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[code->m_index];
+            executeNextCode<LoadByHeapIndex>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        StoreByHeapIndexOpcodeLbl:
+        {
+            StoreByHeapIndex* code = (StoreByHeapIndex*)currentCode;
+            LexicalEnvironment* upperEnv = env;
+            for (size_t i = 0; i < code->m_upperIndex; i ++) {
+                upperEnv = upperEnv->outerEnvironment();
+            }
+            FunctionEnvironmentRecord* record = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+            ASSERT(record->isFunctionEnvironmentRecordOnHeap());
+            ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[code->m_index] = registerFile[code->m_registerIndex];
+            executeNextCode<StoreByHeapIndex>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        BinaryPlusOpcodeLbl:
+        {
+            BinaryPlus* code = (BinaryPlus*)currentCode;
+            Value v0 = registerFile[code->m_srcIndex0];
+            Value v1 = registerFile[code->m_srcIndex1];
+            // TODO
+            registerFile[code->m_srcIndex0] = Value(v0.asNumber() + v1.asNumber());
+            executeNextCode<StoreByName>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
         LoadByNameOpcodeLbl:
         {
             LoadByName* code = (LoadByName*)currentCode;
@@ -76,17 +132,6 @@ void ByteCodeIntrepreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         {
             StoreByName* code = (StoreByName*)currentCode;
             env->record()->setMutableBinding(state, code->m_name, registerFile[code->m_registerIndex]);
-            executeNextCode<StoreByName>(programCounter);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryPlusOpcodeLbl:
-        {
-            BinaryPlus* code = (BinaryPlus*)currentCode;
-            Value v0 = registerFile[code->m_srcIndex0];
-            Value v1 = registerFile[code->m_srcIndex1];
-            // TODO
-            registerFile[code->m_srcIndex0] = Value(v0.asNumber() + v1.asNumber());
             executeNextCode<StoreByName>(programCounter);
             NEXT_INSTRUCTION();
         }
@@ -115,6 +160,33 @@ void ByteCodeIntrepreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
             NEXT_INSTRUCTION();
         }
 
+        CallFunctionOpcodeLbl:
+        {
+            CallFunction* code = (CallFunction*)currentCode;
+            const Value& callee = registerFile[code->m_registerIndex];
+            if (!callee.isFunction()) {
+                // TODO throw exception
+                RELEASE_ASSERT_NOT_REACHED();
+            }
+            registerFile[code->m_registerIndex] = callee.asFunction()->call(state, callee, code->m_argumentCount, &registerFile[code->m_registerIndex + 1]);
+            executeNextCode<CallFunction>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        CallFunctionWithReceiverOpcodeLbl:
+        {
+            CallFunctionWithReceiver* code = (CallFunctionWithReceiver*)currentCode;
+            const Value& callee = registerFile[code->m_registerIndex];
+            if (!callee.isFunction()) {
+                // TODO throw exception
+                RELEASE_ASSERT_NOT_REACHED();
+            }
+            const Value& receiver = registerFile[code->m_registerIndex + 1];
+            registerFile[code->m_registerIndex] = callee.asFunction()->call(state, receiver, code->m_argumentCount, &registerFile[code->m_registerIndex + 2]);
+            executeNextCode<CallFunction>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
         DeclareFunctionDeclarationOpcodeLbl:
         {
             DeclareFunctionDeclaration* code = (DeclareFunctionDeclaration*)currentCode;
@@ -123,8 +195,18 @@ void ByteCodeIntrepreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
             NEXT_INSTRUCTION();
         }
 
+        ReturnFunctionOpcodeLbl:
+        {
+            ReturnFunction* code = (ReturnFunction*)currentCode;
+            *state.exeuctionResult() = registerFile[code->m_registerIndex];
+            return;
+        }
+
         EndOpcodeLbl:
         {
+            if (!codeBlock->isGlobalScopeCodeBlock()) {
+                *state.exeuctionResult() = Value();
+            }
             return;
         }
     }

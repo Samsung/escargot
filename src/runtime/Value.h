@@ -135,8 +135,8 @@ public:
 
     // Querying the type.
     inline bool isEmpty() const;
-    bool isDeleted() const;
-    bool isFunction() const;
+    inline bool isDeleted() const;
+    inline bool isFunction() const;
     inline bool isUndefined() const;
     inline bool isNull() const;
     inline bool isUndefinedOrNull() const
@@ -227,4 +227,9 @@ private:
 #include "runtime/String.h"
 #include "runtime/Object.h"
 #include "runtime/ValueInlines.h"
+
+namespace Escargot {
+typedef Vector<Value, gc_malloc_ignore_off_page_allocator<Value>> ValueVector;
+}
+
 #endif

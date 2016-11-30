@@ -2,10 +2,17 @@
 #include "EnvironmentRecord.h"
 #include "runtime/Value.h"
 #include "runtime/SmallValue.h"
+#include "runtime/Context.h"
 #include "runtime/GlobalObject.h"
 #include "parser/CodeBlock.h"
 
 namespace Escargot {
+
+void EnvironmentRecord::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+{
+    // TODO strict mode
+    state.context()->globalObject()->set(state, name, V);
+}
 
 GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock, GlobalObject* global)
     : EnvironmentRecord(state, codeBlock)
@@ -42,5 +49,37 @@ void GlobalEnvironmentRecord::setMutableBinding(ExecutionState& state, const Ato
     // TODO strict mode
     m_globalObject->set(state, name, V);
 }
+
+void FunctionEnvironmentRecordNotIndexed::createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete)
+{
+    ASSERT(canDelete == false);
+    IdentifierRecord record;
+    record.m_name = name;
+    record.m_value = Value();
+    m_vector.pushBack(record);
+}
+EnvironmentRecord::GetBindingValueResult FunctionEnvironmentRecordNotIndexed::getBindingValue(ExecutionState& state, const AtomicString& name)
+{
+    size_t len = m_vector.size();
+    for (size_t i = 0; i < len; i ++) {
+        if (m_vector[i].m_name == name) {
+            return EnvironmentRecord::GetBindingValueResult(m_vector[i].m_value);
+        }
+    }
+    return GetBindingValueResult();
+}
+
+void FunctionEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+{
+    size_t len = m_vector.size();
+    for (size_t i = 0; i < len; i ++) {
+        if (m_vector[i].m_name == name) {
+            m_vector[i].m_value = V;
+            return;
+        }
+    }
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
 
 }

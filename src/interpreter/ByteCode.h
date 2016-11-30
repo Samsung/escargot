@@ -17,11 +17,18 @@ class Node;
     F(LoadLiteral, 1, 0) \
     F(LoadByName, 1, 0) \
     F(StoreByName, 0, 0) \
+    F(LoadByStackIndex, 1, 0) \
+    F(StoreByStackIndex, 0, 0) \
+    F(LoadByHeapIndex, 1, 0) \
+    F(StoreByHeapIndex, 0, 0) \
     F(DeclareVarVariable, 0, 0) \
     F(DeclareFunctionDeclaration, 1, 0) \
     F(DeclareFunctionExpression, 1, 0) \
     F(BinaryPlus, 1, 2) \
-    F(StoreExecutionResult, 1, 0) \
+    F(StoreExecutionResult, 0, 1) \
+    F(CallFunction, 1, 0) \
+    F(CallFunctionWithReceiver, 1, 0) \
+    F(ReturnFunction, 0, 0) \
     F(End, 0, 0) \
 
 enum Opcode {
@@ -127,9 +134,9 @@ public:
     Node* m_node;
     void dumpCode()
     {
-        printf("%s ", getByteCodeNameFromAddress(m_opcodeInAddress));
         dump();
-        printf(" (line: %d:%d)\n", (int)m_loc.line, (int)m_loc.column);
+        printf(" %s ", getByteCodeNameFromAddress(m_opcodeInAddress));
+        printf("(line: %d:%d)\n", (int)m_loc.line, (int)m_loc.column);
     }
 
     virtual void dump()
@@ -202,6 +209,86 @@ public:
     virtual void dump()
     {
         printf("store %s <- r%d", m_name.string()->toUTF8StringData().data(), (int)m_registerIndex);
+    }
+#endif
+};
+
+class LoadByStackIndex : public ByteCode {
+public:
+    LoadByStackIndex(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& index)
+        : ByteCode(Opcode::LoadByStackIndexOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_index(index)
+    {
+    }
+    size_t m_registerIndex;
+    size_t m_index;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("load r%d <- stack[%d]", (int)m_registerIndex, (int)m_index);
+    }
+#endif
+};
+
+class StoreByStackIndex : public ByteCode {
+public:
+    StoreByStackIndex(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& index)
+        : ByteCode(Opcode::StoreByStackIndexOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_index(index)
+    {
+    }
+    size_t m_registerIndex;
+    size_t m_index;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("store stack[%d] <- r%d", (int)m_index, (int)m_registerIndex);
+    }
+#endif
+};
+
+class LoadByHeapIndex : public ByteCode {
+public:
+    LoadByHeapIndex(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& upperIndex, const size_t& index)
+        : ByteCode(Opcode::LoadByHeapIndexOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_upperIndex(upperIndex)
+        , m_index(index)
+    {
+    }
+    size_t m_registerIndex;
+    size_t m_upperIndex;
+    size_t m_index;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("load r%d <- heap[%d][%d]", (int)m_registerIndex, (int)m_upperIndex, (int)m_index);
+    }
+#endif
+};
+
+class StoreByHeapIndex : public ByteCode {
+public:
+    StoreByHeapIndex(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& upperIndex, const size_t& index)
+        : ByteCode(Opcode::StoreByHeapIndexOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_upperIndex(upperIndex)
+        , m_index(index)
+    {
+    }
+    size_t m_registerIndex;
+    size_t m_upperIndex;
+    size_t m_index;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("store heap[%d][%d] <- r%d", (int)m_upperIndex, (int)m_index, (int)m_registerIndex);
     }
 #endif
 };
@@ -291,6 +378,69 @@ public:
     virtual void dump()
     {
         printf("store ExecutionResult <- r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class CallFunction : public ByteCode {
+public:
+    // register usage (before call)
+    // [callee, arg0, arg1,... arg<argument count-1> ]
+    // register usage (after call)
+    // [return value]
+    CallFunction(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& argumentCount)
+        : ByteCode(Opcode::CallFunctionOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_argumentCount(argumentCount)
+    {
+    }
+    size_t m_registerIndex;
+    size_t m_argumentCount;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("call r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class CallFunctionWithReceiver : public ByteCode {
+public:
+    // register usage (before call)
+    // [callee, receiver, arg0, arg1,... arg<argument count-1> ]
+    // register usage (after call)
+    // [return value]
+    CallFunctionWithReceiver(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& argumentCount)
+        : ByteCode(Opcode::CallFunctionWithReceiverOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_argumentCount(argumentCount)
+    {
+    }
+    size_t m_registerIndex;
+    size_t m_argumentCount;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("call(with receiver) r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class ReturnFunction : public ByteCode {
+public:
+    ReturnFunction(const ByteCodeLOC& loc, const size_t& registerIndex)
+        : ByteCode(Opcode::ReturnFunctionOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+    size_t m_registerIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("return r%d", (int)m_registerIndex);
     }
 #endif
 };

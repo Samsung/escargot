@@ -41,6 +41,7 @@ public:
         return parse(StringView(script, 0, script->length()));
     }
     ScriptParserResult parse(StringView script);
+    Node* parseFunction(CodeBlock* codeBlock);
 
 protected:
     CodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, ProgramNode* program);

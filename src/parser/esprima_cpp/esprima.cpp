@@ -531,16 +531,16 @@ public:
     size_t lineStart;
     std::vector<Curly> curlyStack;
 
-    Scanner(StringView code, ErrorHandler* handler)
+    Scanner(StringView code, ErrorHandler* handler, size_t startLine = 0, size_t startColumn = 0)
     {
         source = code;
         errorHandler = handler;
         // trackComment = false;
 
-        length = code.length();
+        length = code.end();
         index = 0;
-        lineNumber = (code.length() > 0) ? 1 : 0;
-        lineStart = 0;
+        lineNumber = ((length > 0) ? 1 : 0) + startLine;
+        lineStart = startColumn;
     }
 
     bool eof()
@@ -2121,6 +2121,7 @@ struct Config : public gc {
     bool tokens;
     bool comment;
     bool tolerant;
+    bool parseSingleFunction;
 };
 
 
@@ -2216,7 +2217,7 @@ public:
         }
     }
 
-    Parser(::Escargot::Context* escargotContext, StringView code, ParserASTNodeHandler delegate/*, options: any = {}, delegate*/)
+    Parser(::Escargot::Context* escargotContext, StringView code, ParserASTNodeHandler delegate, size_t startLine = 0, size_t startColumn = 0/*, options: any = {}, delegate*/)
     {
         this->escargotContext = escargotContext;
         trackUsingNames = true;
@@ -2226,7 +2227,7 @@ public:
         config.tokens = false;
         config.comment = false;
         config.tolerant = false;
-
+        config.parseSingleFunction = false;
         /*
         this->config = {
             range: (typeof options.range == 'boolean') && options.range,
@@ -2244,7 +2245,7 @@ public:
 
         this->errorHandler = new ErrorHandler();
 
-        this->scanner = new Scanner(code, this->errorHandler);
+        this->scanner = new Scanner(code, this->errorHandler, startLine, startColumn);
 
         // this->sourceType = (options && options.sourceType == 'module') ? 'module' : 'script';
         this->sourceType = Script;
@@ -2531,6 +2532,7 @@ public:
             scopeContexts.back()->m_hasYield = true;
         }
 
+        node->m_loc = NodeLOC(meta.line, meta.column, meta.index);
         if (this->delegate) {
             this->delegate(node, NodeLOC(meta.line, meta.column, meta.index),
                 NodeLOC(this->lastMarker.lineNumber, this->lastMarker.index - this->lastMarker.lineStart, this->lastMarker.index));
@@ -5347,8 +5349,8 @@ public:
             body.push_back(this->parseStatementListItem());
         }
 
-        MetaNode nodeEnd = this->createNode();
         this->expect(RightBrace);
+        MetaNode nodeEnd = this->createNode();
 
         this->context->labelSet = previousLabelSet;
         this->context->inIteration = previousInIteration;
@@ -5408,6 +5410,8 @@ public:
         if (formalParameters.message) {
             message = formalParameters.message;
         }
+
+        this->scopeContexts.back()->insertName(id->name());
 
         pushScopeContext(params, id->name());
         extractNamesFromFunctionParams(params);
@@ -6059,6 +6063,14 @@ ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserAST
 {
     Parser parser(ctx, source, handler);
     return parser.parseProgram();
+}
+
+Node* parseSingleFunction(::Escargot::Context* ctx, CodeBlock* codeBlock)
+{
+    Parser parser(ctx, codeBlock->src(), nullptr, codeBlock->sourceElementStart().line, codeBlock->sourceElementStart().column);
+    parser.config.parseSingleFunction = true;
+    parser.scopeContexts.pushBack(new ASTScopeContext(codeBlock->isStrict(), nullptr));
+    return parser.parseFunctionSourceElements();
 }
 
 

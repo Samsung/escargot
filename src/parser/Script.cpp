@@ -24,7 +24,7 @@ Script::ScriptExecuteResult Script::execute(Context* ctx)
     ExecutionState stateForInit(ctx);
     LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(stateForInit, m_topCodeBlock, ctx->globalObject()), nullptr);
 
-    ExecutionContext ec(ctx, globalEnvironment);
+    ExecutionContext ec(ctx, globalEnvironment, m_topCodeBlock->isStrict());
     Value resultValue;
     ExecutionState state(ctx, &ec, &resultValue);
     ByteCodeIntrepreter::interpret(state, m_topCodeBlock);

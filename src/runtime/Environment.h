@@ -48,9 +48,6 @@ public:
 
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-lexical-environment-operations
 
-    // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-newfunctionenvironment
-    LexicalEnvironment* newFunctionEnvironment(FunctionObject* fn, Value newTarget);
-
 protected:
     EnvironmentRecord* m_record;
     LexicalEnvironment* m_outerEnvironment;

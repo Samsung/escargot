@@ -533,6 +533,16 @@ inline Object* Value::asObject() const
     return asPointerValue()->asObject();
 }
 
+inline bool Value::isFunction() const
+{
+    return isPointerValue() && asPointerValue()->isFunctionObject();
+}
+
+inline FunctionObject* Value::asFunction() const
+{
+    return asPointerValue()->asFunctionObject();
+}
+
 inline double Value::toNumber(ExecutionState& ec) const
 {
     // http://www.ecma-international.org/ecma-262/6.0/#sec-tonumber

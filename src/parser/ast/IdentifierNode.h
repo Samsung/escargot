@@ -42,12 +42,30 @@ public:
 
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getLastRegisterIndex(), m_name), context, this);
+        CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
+        if (!info.m_isResultSaved) {
+            codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getLastRegisterIndex(), m_name), context, this);
+        } else {
+            if (info.m_isStackAllocated) {
+                codeBlock->pushCode(StoreByStackIndex(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getLastRegisterIndex(), info.m_index), context, this);
+            } else {
+                codeBlock->pushCode(StoreByHeapIndex(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getLastRegisterIndex(), info.m_upperIndex, info.m_index), context, this);
+            }
+        }
     }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getRegister(), m_name), context, this);
+        CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
+        if (!info.m_isResultSaved) {
+            codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getRegister(), m_name), context, this);
+        } else {
+            if (info.m_isStackAllocated) {
+                codeBlock->pushCode(LoadByStackIndex(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getRegister(), info.m_index), context, this);
+            } else {
+                codeBlock->pushCode(LoadByHeapIndex(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getRegister(), info.m_upperIndex, info.m_index), context, this);
+            }
+        }
     }
 protected:
     AtomicString m_name;

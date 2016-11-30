@@ -32,6 +32,15 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::ReturnStatement; }
 
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        if (m_argument) {
+            m_argument->generateExpressionByteCode(codeBlock, context);
+            codeBlock->pushCode(ReturnFunction(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getLastRegisterIndex()), context, this);
+        } else {
+            codeBlock->pushCode(End(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index)), context, this);
+        }
+    }
 protected:
     Node* m_argument;
 };

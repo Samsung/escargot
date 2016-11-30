@@ -35,10 +35,10 @@ public:
         return m_exeuctionResult;
     }
 
+
     bool inStrictMode()
     {
-        // TODO
-        return false;
+        return m_executionContext->inStrictMode();
     }
 protected:
     Context* m_context;

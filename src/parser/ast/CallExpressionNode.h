@@ -36,6 +36,31 @@ public:
     Node* callee() { return m_callee; }
     virtual ASTNodeType type() { return ASTNodeType::CallExpression; }
 
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
+            // TODO
+            // process eval
+            RELEASE_ASSERT_NOT_REACHED();
+        }
+
+        // TODO
+        RELEASE_ASSERT(!m_callee->isMemberExpression());
+
+        m_callee->generateExpressionByteCode(codeBlock, context);
+        size_t baseRegister = context->getLastRegisterIndex();
+
+        for (size_t i = 0; i < m_arguments.size(); i ++) {
+            m_arguments[i]->generateExpressionByteCode(codeBlock, context);
+        }
+
+        for (size_t i = 0; i < m_arguments.size(); i ++) {
+            context->giveUpRegister();
+        }
+
+        codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), baseRegister, m_arguments.size()), context, this);
+    }
+
 protected:
     Node* m_callee; // callee: Expression;
     ArgumentVector m_arguments; // arguments: [ Expression ];
