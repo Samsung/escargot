@@ -15,12 +15,21 @@ ScriptParser::ScriptParser(Context* c)
 
 CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, ASTScopeContext* scopeCtx, CodeBlock* parentCodeBlock)
 {
-    CodeBlock* codeBlock = new CodeBlock(ctx, StringView(source, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index), scopeCtx->m_names, parentCodeBlock,
-            (CodeBlock::CodeBlockInitFlag)
-            ((scopeCtx->m_hasEval ? CodeBlock::CodeBlockHasEval : 0) |
-            (scopeCtx->m_hasWith ? CodeBlock::CodeBlockHasWith : 0) |
-            (scopeCtx->m_hasYield ? CodeBlock::CodeBlockHasYield : 0))
-            );
+    CodeBlock* codeBlock;
+    if (parentCodeBlock == nullptr) {
+        // globalBlock
+        codeBlock = new CodeBlock(ctx, StringView(source, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index), 0, scopeCtx->m_names);
+    } else {
+        codeBlock = new CodeBlock(ctx, StringView(source, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index), scopeCtx->m_nodeStartIndex,
+                scopeCtx->m_functionName, scopeCtx->m_parameters, scopeCtx->m_names, parentCodeBlock,
+                (CodeBlock::CodeBlockInitFlag)
+                ((scopeCtx->m_hasEval ? CodeBlock::CodeBlockHasEval : 0) |
+                (scopeCtx->m_hasWith ? CodeBlock::CodeBlockHasWith : 0) |
+                (scopeCtx->m_hasYield ? CodeBlock::CodeBlockHasYield : 0) |
+                (scopeCtx->m_associateNode->type() == FunctionExpression ? CodeBlock::CodeBlockIsFunctionExpression : 0) |
+                (scopeCtx->m_associateNode->type() == FunctionDeclaration ? CodeBlock::CodeBlockIsFunctionDeclaration : 0)
+                ));
+    }
 
 #ifndef NDEBUG
     codeBlock->m_locStart = scopeCtx->m_locStart;
@@ -53,6 +62,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
     for (size_t i = 0 ; i < scopeCtx->m_childScopes.size(); i ++) {
         codeBlock->appendChildBlock(generateCodeBlockTreeFromASTWalker(ctx, source, scopeCtx->m_childScopes[i], codeBlock));
     }
+
     return codeBlock;
 }
 
@@ -68,9 +78,9 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource)
     ScriptParseError* error = nullptr;
     try {
         ProgramNode* program = esprima::parseProgram(m_context, scriptSource, [](Escargot::Node* node, NodeLOC start, NodeLOC end) {
-            // printf("nd type %d\n", node->type());
             node->m_loc = start;
         });
+
 
         CodeBlock* topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, program);
         topCodeBlock->m_cachedASTNode = program;

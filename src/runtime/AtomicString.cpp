@@ -45,7 +45,7 @@ AtomicString::AtomicString(Context* c, const StringView& sv)
 void AtomicString::init(AtomicStringMap* ec, const char* src, size_t len)
 {
     if (!len) {
-        m_string = nullptr;
+        m_string = String::emptyString;
         return;
     }
 
@@ -63,7 +63,7 @@ void AtomicString::init(AtomicStringMap* ec, const char* src, size_t len)
 void AtomicString::init(AtomicStringMap* ec, const char16_t* src, size_t len)
 {
     if (!len) {
-        m_string = nullptr;
+        m_string = String::emptyString;
         return;
     }
 

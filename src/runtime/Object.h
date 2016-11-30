@@ -68,8 +68,8 @@ public:
 
     Value getOwnProperty(ExecutionState& state, String* P);
     Value getOwnProperty(ExecutionState& state, const AtomicString& P);
-    size_t findProperty(ExecutionState& state, String* P);
-    size_t findProperty(ExecutionState& state, const AtomicString& P);
+    size_t findOwnProperty(ExecutionState& state, String* P);
+    size_t findOwnProperty(ExecutionState& state, const AtomicString& P);
 
     class ObjectPropertyDescriptorForDefineOwnProperty {
     public:
@@ -117,7 +117,6 @@ public:
             RELEASE_ASSERT_NOT_REACHED();
         }
     }
-
 
     // 9.1.7 [[HasProperty]](P)
 
@@ -220,7 +219,6 @@ protected:
         }
     }
 
-
     bool isPlainObject() const
     {
         if (LIKELY(m_rareData == nullptr)) {
@@ -244,6 +242,8 @@ protected:
         ensureObjectRareData();
         m_rareData->m_isEverSetAsPrototypeObject = true;
     }
+
+    void deleteOwnProperty(ExecutionState& state, size_t idx);
 
     Value getPrototypeSlowCase(ExecutionState& state);
     void setPrototypeSlowCase(ExecutionState& state, const Value& value);

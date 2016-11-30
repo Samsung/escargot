@@ -31,6 +31,11 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::FunctionDeclaration; }
 
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        // do nothing
+    }
+
 protected:
     FunctionNode m_function;
 };

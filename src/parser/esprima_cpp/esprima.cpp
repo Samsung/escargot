@@ -2184,9 +2184,10 @@ public:
     Vector<ASTScopeContext*, gc_allocator_ignore_off_page<ASTScopeContext*>> scopeContexts;
     bool trackUsingNames;
 
-    ASTScopeContext* popScopeContext()
+    ASTScopeContext* popScopeContext(const MetaNode& node)
     {
         auto ret = scopeContexts.back();
+        ret->m_nodeStartIndex = node.index;
         scopeContexts.pop_back();
         return ret;
     }
@@ -2200,10 +2201,16 @@ public:
         }
     }
 
-    void pushScopeContext()
+    void pushScopeContext(const PatternNodeVector& params, AtomicString functionName)
     {
         auto parentContext = scopeContexts.back();
         scopeContexts.push_back(new ASTScopeContext(this->context->strict, scopeContexts.back()));
+        scopeContexts.back()->m_functionName = functionName;
+        for (size_t i = 0 ; i < params.size(); i ++) {
+            ASSERT(params[i]->isIdentifier());
+            IdentifierNode* id = (IdentifierNode*)params[i];
+            scopeContexts.back()->m_parameters.pushBack(id->name());
+        }
         if (parentContext) {
             parentContext->m_childScopes.push_back(scopeContexts.back());
         }
@@ -3054,6 +3061,8 @@ public:
          this->context->isAssignmentTarget = false;
          this->context->isBindingElement = false;
 
+         pushScopeContext(params.params, AtomicString());
+         extractNamesFromFunctionParams(params.params);
          const bool previousStrict = this->context->strict;
          Node* body = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
          if (this->context->strict && params.firstRestricted) {
@@ -3078,7 +3087,7 @@ public:
         Node* method = this->parsePropertyMethod(params);
         this->context->allowYield = previousAllowYield;
 
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method, popScopeContext(), isGenerator));
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method, popScopeContext(node), isGenerator));
      }
 
      Node* parseObjectPropertyKey()
@@ -5320,7 +5329,6 @@ public:
 
         this->expect(LeftBrace);
         StatementNodeVector body = this->parseDirectivePrologues();
-        pushScopeContext();
 
         auto previousLabelSet = this->context->labelSet;
         bool previousInIteration = this->context->inIteration;
@@ -5401,6 +5409,10 @@ public:
             message = formalParameters.message;
         }
 
+        pushScopeContext(params, id->name());
+        extractNamesFromFunctionParams(params);
+        scopeContexts.back()->insertName(id->name());
+
         bool previousStrict = this->context->strict;
         BlockStatementNode* body = this->parseFunctionSourceElements();
         if (this->context->strict && firstRestricted) {
@@ -5413,10 +5425,7 @@ public:
         this->context->strict = previousStrict;
         this->context->allowYield = previousAllowYield;
 
-        extractNamesFromFunctionParams(params);
-        FunctionDeclarationNode* fd = this->finalize(node, new FunctionDeclarationNode(id->name(), std::move(params), body, popScopeContext(), isGenerator));
-
-        scopeContexts.back()->insertName(id->name());
+        FunctionDeclarationNode* fd = this->finalize(node, new FunctionDeclarationNode(id->name(), std::move(params), body, popScopeContext(node), isGenerator));
 
         return fd;
     }
@@ -5464,6 +5473,10 @@ public:
             message = formalParameters.message;
         }
 
+        pushScopeContext(params, id->name());
+        extractNamesFromFunctionParams(params);
+        scopeContexts.back()->insertName(id->name());
+
         bool previousStrict = this->context->strict;
         BlockStatementNode* body = this->parseFunctionSourceElements();
         if (this->context->strict && firstRestricted) {
@@ -5475,9 +5488,7 @@ public:
         this->context->strict = previousStrict;
         this->context->allowYield = previousAllowYield;
 
-        extractNamesFromFunctionParams(params);
-
-        return this->finalize(node, new FunctionExpressionNode(id->name(), std::move(params), body, popScopeContext(), isGenerator));
+        return this->finalize(node, new FunctionExpressionNode(id->name(), std::move(params), body, popScopeContext(node), isGenerator));
     }
 
     // ECMA-262 14.1.1 Directive Prologues
@@ -5558,7 +5569,7 @@ public:
         this->context->allowYield = previousAllowYield;
 
         extractNamesFromFunctionParams(params.params);
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method, popScopeContext(), isGenerator));
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method, popScopeContext(node), isGenerator));
     }
 
     FunctionExpressionNode* parseSetterMethod()
@@ -5584,7 +5595,7 @@ public:
         this->context->allowYield = previousAllowYield;
 
         extractNamesFromFunctionParams(options.params);
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(options.params), method, popScopeContext(), isGenerator));
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(options.params), method, popScopeContext(node), isGenerator));
     }
 
     FunctionExpressionNode* parseGeneratorMethod()

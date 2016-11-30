@@ -16,6 +16,7 @@ class ASCIIString;
 class UTF16String;
 
 class String : public PointerValue {
+    friend class AtomicString;
 public:
     virtual Type type()
     {
@@ -35,19 +36,6 @@ public:
     virtual bool isUTF16String()
     {
         return false;
-    }
-
-    ASCIIString* asASCIIString()
-    {
-        ASSERT(isASCIIString());
-        return (ASCIIString*)this;
-    }
-
-
-    UTF16String* asUTF16String()
-    {
-        ASSERT(isUTF16String());
-        return (UTF16String*)this;
     }
 
     static String* fromCharCode(char32_t code);
@@ -102,7 +90,24 @@ public:
     virtual UTF16StringData toUTF16StringData() const = 0;
     virtual UTF8StringData toUTF8StringData() const = 0;
     static String* emptyString;
+
+
 protected:
+    // NOTE
+    // don't use this function
+    ASCIIString* asASCIIString()
+    {
+        ASSERT(isASCIIString());
+        return (ASCIIString*)this;
+    }
+
+    // NOTE
+    // don't use this function
+    UTF16String* asUTF16String()
+    {
+        ASSERT(isUTF16String());
+        return (UTF16String*)this;
+    }
 };
 
 class ASCIIString : public String, public ASCIIStringData {

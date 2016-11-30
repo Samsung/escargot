@@ -3,6 +3,7 @@
 #include "ByteCodeInterpreter.h"
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
+#include "runtime/FunctionObject.h"
 
 namespace Escargot {
 
@@ -95,6 +96,30 @@ void ByteCodeIntrepreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
             StoreExecutionResult* code = (StoreExecutionResult*)currentCode;
             *state.exeuctionResult() = registerFile[code->m_registerIndex];
             executeNextCode<StoreExecutionResult>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        DeclareVarVariableOpcodeLbl:
+        {
+            DeclareVarVariable* code = (DeclareVarVariable*)currentCode;
+            env->record()->createMutableBinding(state, code->m_name, false);
+            executeNextCode<DeclareVarVariable>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        DeclareFunctionExpressionOpcodeLbl:
+        {
+            DeclareFunctionExpression* code = (DeclareFunctionExpression*)currentCode;
+            registerFile[code->m_registerIndex] = new FunctionObject(state, code->m_codeBlock);
+            executeNextCode<DeclareFunctionExpression>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        DeclareFunctionDeclarationOpcodeLbl:
+        {
+            DeclareFunctionDeclaration* code = (DeclareFunctionDeclaration*)currentCode;
+            registerFile[0] = new FunctionObject(state, code->m_codeBlock);
+            executeNextCode<DeclareFunctionDeclaration>(programCounter);
             NEXT_INSTRUCTION();
         }
 

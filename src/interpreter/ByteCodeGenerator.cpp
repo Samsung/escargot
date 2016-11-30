@@ -9,14 +9,31 @@ void ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node*
 {
     ByteCodeBlock* block = new ByteCodeBlock();
 
-    ASSERT(ast->type() == Program);
+    // TODO
+    // fill ParserContextInformation info
     ParserContextInformation info(false, true);
+
     ByteCodeGenerateContext ctx(codeBlock, block, info);
+
+    // generate init function decls first
+    size_t len = codeBlock->childBlocks().size();
+    for (size_t i = 0; i < len; i ++) {
+        CodeBlock* b = codeBlock->childBlocks()[i];
+        if (b->isFunctionDeclaration()) {
+            ctx.getRegister();
+            block->pushCode(DeclareFunctionDeclaration(b), &ctx, nullptr);
+            IdentifierNode idNode(b->m_functionName);
+            idNode.generateStoreByteCode(block, &ctx);
+            ctx.giveUpRegister();
+        }
+    }
+
+    // generate common codes
     ast->generateStatementByteCode(block, &ctx);
 
 #ifndef NDEBUG
     if (getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) {
-        printf("dumpBytecode...>>>>>>>>>>>>>>>>>>>>>>\n");
+        printf("dumpBytecode...(%d:%d)>>>>>>>>>>>>>>>>>>>>>>\n", (int)ast->loc().line, (int)ast->loc().column);
         size_t idx = 0;
         size_t bytecodeCounter = 0;
         char* code = block->m_code.data();

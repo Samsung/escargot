@@ -5,10 +5,9 @@
 #include "ObjectStructure.h"
 #include "Environment.h"
 #include "EnvironmentRecord.h"
+#include "parser/CodeBlock.h"
 
 namespace Escargot {
-
-static ObjectPropertyNativeGetterSetterData object__proto__NativeGetterSetterData;
 
 Value Context::object__proto__NativeGetter(ExecutionState& state, Object* self)
 {
@@ -23,6 +22,25 @@ bool Context::object__proto__NativeSetter(ExecutionState& state, Object* self, c
     return true;
 }
 
+static ObjectPropertyNativeGetterSetterData object__proto__NativeGetterSetterData(
+        true, true, true, &Context::object__proto__NativeGetter, &Context::object__proto__NativeSetter);
+
+Value Context::functionPrototypeNativeGetter(ExecutionState& state, Object* self)
+{
+    ASSERT(self->isFunctionObject() && self->isPlainObject());
+    return self->uncheckedGetOwnPlainDataProperty(state, 1);
+}
+
+bool Context::functionPrototypeNativeSetter(ExecutionState& state, Object* self, const Value& newData)
+{
+    ASSERT(self->isFunctionObject() && self->isPlainObject());
+    self->uncheckedSetOwnPlainDataProperty(state, 1, newData);
+    return true;
+}
+
+static ObjectPropertyNativeGetterSetterData functionPrototypeNativeGetterSetterData(
+        true, false, false, &Context::functionPrototypeNativeGetter, &Context::functionPrototypeNativeSetter);
+
 Context::Context(VMInstance* instance)
     : m_instance(instance)
     , m_scriptParser(new ScriptParser(this))
@@ -30,18 +48,26 @@ Context::Context(VMInstance* instance)
     m_staticStrings.initStaticStrings(&m_atomicStringMap);
     ExecutionState stateForInit(this);
 
-    object__proto__NativeGetterSetterData.m_isWritable = true;
-    object__proto__NativeGetterSetterData.m_isEnumerable = true;
-    object__proto__NativeGetterSetterData.m_isConfigurable = true;
-    object__proto__NativeGetterSetterData.m_getter = object__proto__NativeGetter;
-    object__proto__NativeGetterSetterData.m_setter = object__proto__NativeSetter;
-
     ObjectStructure defaultStructureForObject(stateForInit);
-    m_defaultStructureForObject = defaultStructureForObject.addProperty(stateForInit, m_staticStrings.__proto__.string(),
+    m_defaultStructureForObject = defaultStructureForObject.addProperty(stateForInit, m_staticStrings.__proto__,
         ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&object__proto__NativeGetterSetterData));
 
+    m_defaultStructureForFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.prototype,
+        ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&functionPrototypeNativeGetterSetterData));
+
+    m_defaultStructureForFunctionObject = m_defaultStructureForFunctionObject->addProperty(stateForInit, m_staticStrings.name,
+        ObjectPropertyDescriptor::createDataDescriptor(ObjectPropertyDescriptor::ConfigurablePresent));
+
+    m_defaultStructureForFunctionObject = m_defaultStructureForFunctionObject->addProperty(stateForInit, m_staticStrings.length,
+        ObjectPropertyDescriptor::createDataDescriptor(ObjectPropertyDescriptor::ConfigurablePresent));
+
+    m_defaultStructureForNotConstructorFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.name,
+        ObjectPropertyDescriptor::createDataDescriptor(ObjectPropertyDescriptor::ConfigurablePresent));
+
+    m_defaultStructureForNotConstructorFunctionObject = m_defaultStructureForNotConstructorFunctionObject->addProperty(stateForInit, m_staticStrings.length,
+        ObjectPropertyDescriptor::createDataDescriptor(ObjectPropertyDescriptor::ConfigurablePresent));
+
     m_globalObject = new GlobalObject(stateForInit);
-    m_globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(m_globalObject), nullptr);
 }
 
 }

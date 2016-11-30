@@ -27,7 +27,7 @@ namespace Escargot {
 class VariableDeclaratorNode : public Node {
 public:
     friend class ScriptParser;
-    VariableDeclaratorNode(Node* id, ExpressionNode* init = NULL)
+    VariableDeclaratorNode(Node* id, ExpressionNode* init = nullptr)
         : Node()
     {
         m_id = id;
@@ -37,6 +37,19 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::VariableDeclarator; }
     Node* id() { return m_id; }
     ExpressionNode* init() { return m_init; }
+
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        ASSERT(m_id->isIdentifier());
+        AtomicString name = m_id->asIdentifier()->name();
+        if (!context->m_codeBlock->hasName(name))
+            codeBlock->pushCode(DeclareVarVariable(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), name), context, this);
+        if (m_init) {
+            m_init->generateExpressionByteCode(codeBlock, context);
+            codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getLastRegisterIndex(), name), context, this);
+            context->giveUpRegister();
+        }
+    }
 
 protected:
     Node* m_id; // id: Pattern;

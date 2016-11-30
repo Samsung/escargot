@@ -5,6 +5,9 @@
 #include "interpreter/ByteCodeInterpreter.h"
 #include "parser/ast/Node.h"
 #include "runtime/Context.h"
+#include "runtime/Environment.h"
+#include "runtime/EnvironmentRecord.h"
+
 
 namespace Escargot {
 
@@ -18,7 +21,10 @@ Script::ScriptExecuteResult Script::execute(Context* ctx)
     ByteCodeGenerator g;
     g.generateByteCode(ctx, m_topCodeBlock, programNode);
 
-    ExecutionContext ec(ctx, ctx->globalEnvironment());
+    ExecutionState stateForInit(ctx);
+    LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(stateForInit, m_topCodeBlock, ctx->globalObject()), nullptr);
+
+    ExecutionContext ec(ctx, globalEnvironment);
     Value resultValue;
     ExecutionState state(ctx, &ec, &resultValue);
     ByteCodeIntrepreter::interpret(state, m_topCodeBlock);

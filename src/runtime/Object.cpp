@@ -51,12 +51,12 @@ Value Object::getOwnProperty(ExecutionState& state, const AtomicString& P)
     return Value();
 }
 
-size_t Object::findProperty(ExecutionState& state, String* P)
+size_t Object::findOwnProperty(ExecutionState& state, String* P)
 {
     return m_structure->findProperty(state, P);
 }
 
-size_t Object::findProperty(ExecutionState& state, const AtomicString& P)
+size_t Object::findOwnProperty(ExecutionState& state, const AtomicString& P)
 {
     return m_structure->findProperty(state, P);
 }
@@ -157,8 +157,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const AtomicString& proper
                 return false;
             }
 
-            m_structure = m_structure->removeProperty(state, idx);
-            m_values.erase(idx);
+            deleteOwnProperty(state, idx);
             defineOwnProperty(state, propertyName, desc);
             return true;
         }
@@ -197,7 +196,7 @@ Object::ObjectGetResult Object::get(ExecutionState& state, const AtomicString& p
 {
     Object* target = this;
     while (true) {
-        size_t idx = findProperty(state, propertyName);
+        size_t idx = findOwnProperty(state, propertyName);
         if (idx != SIZE_MAX) {
             return ObjectGetResult(target->getOwnProperty(state, idx, receiver));
         }
@@ -219,12 +218,12 @@ bool Object::set(ExecutionState& state, String* P, const Value& v, Object* recei
 // http://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-set-p-v-receiver
 bool Object::set(ExecutionState& state, const AtomicString& propertyName, const Value& v, Object* receiver)
 {
-    size_t idx = findProperty(state, propertyName);
+    size_t idx = findOwnProperty(state, propertyName);
     if (idx == SIZE_MAX) {
         Value target = this->getPrototype(state);
         while (target.isObject()) {
             Object* O = target.asObject();
-            size_t idx = O->findProperty(state, propertyName);
+            size_t idx = O->findOwnProperty(state, propertyName);
             if (idx != SIZE_MAX) {
                 return set(state, propertyName, v, receiver);
             }
@@ -268,6 +267,23 @@ bool Object::set(ExecutionState& state, const AtomicString& propertyName, const 
             RELEASE_ASSERT_NOT_REACHED();
         }
     }
+}
+
+void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
+{
+    if (isPlainObject()) {
+        const ObjectStructureItem& ownDesc = m_structure->readProperty(state, idx);
+        if (ownDesc.m_descriptor.isNativeAccessorProperty()) {
+            ensureObjectRareData();
+            // TODO
+            RELEASE_ASSERT_NOT_REACHED();
+            m_rareData->m_isPlainObject = false;
+        }
+    }
+
+    m_structure = m_structure->removeProperty(state, idx);
+    m_values.erase(idx);
+
 }
 
 }

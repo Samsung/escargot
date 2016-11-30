@@ -16,7 +16,7 @@ class AtomicString {
 public:
     inline AtomicString()
     {
-        m_string = NULL;
+        m_string = String::emptyString;
     }
 
     inline AtomicString(const AtomicString& src)

@@ -4,11 +4,16 @@
 #include "runtime/String.h"
 #include "runtime/AtomicString.h"
 #include "parser/ast/Node.h"
+#include "runtime/EnvironmentRecord.h"
 
 namespace Escargot {
 
 class Node;
 class ByteCodeBlock;
+class LexicalEnvironment;
+class CodeBlock;
+
+typedef Vector<CodeBlock*, gc_malloc_ignore_off_page_allocator<CodeBlock*>> CodeBlockVector;
 
 class CodeBlock : public gc {
 public:
@@ -19,7 +24,16 @@ public:
         CodeBlockHasEval = 1,
         CodeBlockHasWith = 1 << 1,
         CodeBlockHasYield = 1 << 2,
+        CodeBlockIsFunctionDeclaration = 1 << 3,
+        CodeBlockIsFunctionExpression = 1 << 4,
     };
+
+    struct IdentifierInfo {
+        bool m_needToAllocateOnStack;
+        AtomicString m_name;
+    };
+
+    typedef Vector<IdentifierInfo, gc_malloc_ignore_off_page_allocator<IdentifierInfo>> IdentifierInfoVector;
 
     bool isGlobalScopeCodeBlock()
     {
@@ -36,7 +50,12 @@ public:
         return m_parentCodeBlock;
     }
 
-    bool hasName(AtomicString name)
+    const CodeBlockVector& childBlocks()
+    {
+        return m_childBlocks;
+    }
+
+    bool hasName(const AtomicString& name)
     {
         for (size_t i = 0; i < m_identifierInfos.size(); i ++) {
             if (m_identifierInfos[i].m_name == name) {
@@ -51,13 +70,61 @@ public:
         return m_cachedASTNode;
     }
 
+    StringView src()
+    {
+        return m_src;
+    }
+
+    size_t astNodeStartIndex()
+    {
+        return m_astNodeStartIndex;
+    }
+
     ByteCodeBlock* byteCodeBlock()
     {
         return m_byteCodeBlock;
     }
 
+    bool canUseIndexedVariableStorage()
+    {
+        return m_canUseIndexedVariableStorage;
+    }
+
+    bool isFunctionDeclaration()
+    {
+        return m_isFunctionDeclaration;
+    }
+
+    bool isFunctionExpression()
+    {
+        return m_isFunctionExpression;
+    }
+
+    const IdentifierInfoVector& identifierInfos()
+    {
+        return m_identifierInfos;
+    }
+
+    AtomicString functionName()
+    {
+        // check function
+        ASSERT(m_parentCodeBlock);
+        return m_functionName;
+    }
+
+    const AtomicStringVector& functionParameters()
+    {
+        // check function
+        ASSERT(m_parentCodeBlock);
+        return m_parameterNames;
+    }
 protected:
-    CodeBlock(Context* ctx, StringView src, const AtomicStringVector& innerIdentifiers, CodeBlock* parentBlock, CodeBlockInitFlag initFlags);
+    // init global codeBlock
+    CodeBlock(Context* ctx, StringView src, size_t astNodeStartIndex, const AtomicStringVector& innerIdentifiers);
+
+    // init function codeBlock
+    CodeBlock(Context* ctx, StringView src, size_t astNodeStartIndex, AtomicString functionName, const AtomicStringVector& parameterNames, const AtomicStringVector& innerIdentifiers, CodeBlock* parentBlock, CodeBlockInitFlag initFlags);
+
     void appendChildBlock(CodeBlock* cb)
     {
         m_childBlocks.push_back(cb);
@@ -78,17 +145,21 @@ protected:
     bool m_hasYield;
     bool m_canUseIndexedVariableStorage;
     bool m_canAllocateEnvironmentOnStack;
-    Context* m_context;
-    StringView m_src;
+    bool m_isFunctionExpression;
+    bool m_isFunctionDeclaration;
 
-    struct IdentifierInfo {
-        bool m_needToAllocateOnStack;
-        AtomicString m_name;
-    };
+    Context* m_context;
+    StringView m_src; // function source elements src
+    size_t m_astNodeStartIndex;
+
     Vector<IdentifierInfo, gc_malloc_ignore_off_page_allocator<IdentifierInfo>> m_identifierInfos;
 
+    // function info
+    AtomicString m_functionName;
+    AtomicStringVector m_parameterNames;
+
     CodeBlock* m_parentCodeBlock;
-    Vector<CodeBlock*, gc_malloc_ignore_off_page_allocator<CodeBlock*>> m_childBlocks;
+    CodeBlockVector m_childBlocks;
 
     Node* m_cachedASTNode;
     ByteCodeBlock* m_byteCodeBlock;

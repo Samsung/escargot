@@ -32,10 +32,30 @@ public:
         return m_defaultStructureForObject;
     }
 
-    LexicalEnvironment* globalEnvironment()
+    ObjectStructure* defaultStructureForFunctionObject()
     {
-        return m_globalEnvironment;
+        return m_defaultStructureForFunctionObject;
     }
+
+    ObjectStructure* defaultStructureForNotConstructorFunctionObject()
+    {
+        return m_defaultStructureForNotConstructorFunctionObject;
+    }
+
+    GlobalObject* globalObject()
+    {
+        return m_globalObject;
+    }
+
+    // object
+    // [__proto__]
+    static Value object__proto__NativeGetter(ExecutionState& state, Object* self);
+    static bool object__proto__NativeSetter(ExecutionState& state, Object* self, const Value& newData);
+
+    // function
+    // [__proto__, name, length] or [__proto__, prototype, name, length]
+    static Value functionPrototypeNativeGetter(ExecutionState& state, Object* self);
+    static bool functionPrototypeNativeSetter(ExecutionState& state, Object* self, const Value& newData);
 
 protected:
     VMInstance* m_instance;
@@ -43,11 +63,10 @@ protected:
     GlobalObject* m_globalObject;
     AtomicStringMap m_atomicStringMap;
     ScriptParser* m_scriptParser;
-    LexicalEnvironment* m_globalEnvironment;
 
     ObjectStructure* m_defaultStructureForObject;
-    static Value object__proto__NativeGetter(ExecutionState& state, Object* self);
-    static bool object__proto__NativeSetter(ExecutionState& state, Object* self, const Value& newData);
+    ObjectStructure* m_defaultStructureForFunctionObject;
+    ObjectStructure* m_defaultStructureForNotConstructorFunctionObject;
 };
 
 }

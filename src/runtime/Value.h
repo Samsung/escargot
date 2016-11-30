@@ -223,8 +223,8 @@ private:
 
 }
 
-#include "PointerValue.h"
-#include "String.h"
-#include "Object.h"
-#include "ValueInlines.h"
+#include "runtime/PointerValue.h"
+#include "runtime/String.h"
+#include "runtime/Object.h"
+#include "runtime/ValueInlines.h"
 #endif

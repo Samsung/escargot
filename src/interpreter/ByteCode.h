@@ -17,6 +17,9 @@ class Node;
     F(LoadLiteral, 1, 0) \
     F(LoadByName, 1, 0) \
     F(StoreByName, 0, 0) \
+    F(DeclareVarVariable, 0, 0) \
+    F(DeclareFunctionDeclaration, 1, 0) \
+    F(DeclareFunctionExpression, 1, 0) \
     F(BinaryPlus, 1, 2) \
     F(StoreExecutionResult, 1, 0) \
     F(End, 0, 0) \
@@ -199,6 +202,59 @@ public:
     virtual void dump()
     {
         printf("store %s <- r%d", m_name.string()->toUTF8StringData().data(), (int)m_registerIndex);
+    }
+#endif
+};
+
+class DeclareVarVariable : public ByteCode {
+public:
+    DeclareVarVariable(const ByteCodeLOC& loc, const AtomicString& name)
+        : ByteCode(Opcode::DeclareVarVariableOpcode, loc)
+        , m_name(name)
+    {
+    }
+    AtomicString m_name;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("declare %s", m_name.string()->toUTF8StringData().data());
+    }
+#endif
+};
+
+class DeclareFunctionDeclaration : public ByteCode {
+public:
+    DeclareFunctionDeclaration(CodeBlock* cb)
+        : ByteCode(Opcode::DeclareFunctionDeclarationOpcode, ByteCodeLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX))
+        , m_codeBlock(cb)
+    {
+    }
+    CodeBlock* m_codeBlock;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("function declaration %s", m_codeBlock->functionName().string()->toUTF8StringData().data());
+    }
+#endif
+};
+
+class DeclareFunctionExpression : public ByteCode {
+public:
+    DeclareFunctionExpression(const ByteCodeLOC& loc, const size_t& registerIndex, CodeBlock* cb)
+        : ByteCode(Opcode::DeclareFunctionExpressionOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_codeBlock(cb)
+    {
+    }
+
+    size_t m_registerIndex;
+    CodeBlock* m_codeBlock;
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("function expression %s -> r%d", m_codeBlock->functionName().string()->toUTF8StringData().data(), (int)m_registerIndex);
     }
 #endif
 };

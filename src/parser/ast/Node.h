@@ -139,6 +139,7 @@ struct NodeLOC {
     }
 };
 
+class IdentifierNode;
 
 class Node : public gc {
     friend class ScriptParser;
@@ -158,6 +159,12 @@ public:
     bool isIdentifier()
     {
         return type() == ASTNodeType::Identifier;
+    }
+
+    IdentifierNode* asIdentifier()
+    {
+        ASSERT(isIdentifier());
+        return (IdentifierNode*)this;
     }
 
     bool isLiteral()
@@ -215,9 +222,12 @@ struct ASTScopeContext : public gc {
     Node* m_associateNode;
     AtomicStringVector m_names;
     AtomicStringVector m_usingNames;
+    AtomicStringVector m_parameters;
+    AtomicString m_functionName;
     Vector<ASTScopeContext*, gc_malloc_ignore_off_page_allocator<ASTScopeContext*>> m_childScopes;
     NodeLOC m_locStart;
     NodeLOC m_locEnd;
+    size_t m_nodeStartIndex;
 
     void insertName(AtomicString name)
     {
@@ -236,6 +246,7 @@ struct ASTScopeContext : public gc {
     ASTScopeContext(bool isStrict, ASTScopeContext* parentContext)
         : m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
         , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+        , m_nodeStartIndex(SIZE_MAX)
     {
         m_isStrict = isStrict;
         m_hasYield = m_hasWith = m_hasEval = false;

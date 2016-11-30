@@ -10,11 +10,12 @@ namespace Escargot {
 class GlobalEnvironmentRecord;
 class DeclarativeEnvironmentRecord;
 class GlobalObject;
+class CodeBlock;
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-environment-records
 class EnvironmentRecord : public gc {
 protected:
-    EnvironmentRecord()
+    EnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock)
     {
     }
 public:
@@ -145,13 +146,15 @@ public:
         return reinterpret_cast<DeclarativeEnvironmentRecord*>(this);
     }
 
+    inline void initInnerFunctionDeclarations(CodeBlock* codeBlock);
 protected:
 };
 
 class ObjectEnvironmentRecord : public EnvironmentRecord {
 public:
-    ObjectEnvironmentRecord(Object* O)
-        : m_bindingObject(O)
+    ObjectEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock, Object* O)
+        : EnvironmentRecord(state, codeBlock)
+        , m_bindingObject(O)
     {
     }
     ~ObjectEnvironmentRecord() { }
@@ -178,10 +181,7 @@ protected:
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-global-environment-records
 class GlobalEnvironmentRecord : public EnvironmentRecord {
 public:
-    GlobalEnvironmentRecord(GlobalObject* global)
-    {
-        m_globalObject = global;
-    }
+    GlobalEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock, GlobalObject* global);
     ~GlobalEnvironmentRecord() { }
 
     virtual bool isGlobalEnvironmentRecord()
@@ -194,6 +194,7 @@ public:
         return true;
     }
 
+    virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false);
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
 protected:
@@ -203,7 +204,8 @@ protected:
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-declarative-environment-records
 class DeclarativeEnvironmentRecord : public EnvironmentRecord {
 public:
-    DeclarativeEnvironmentRecord()
+    DeclarativeEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock)
+        : EnvironmentRecord(state, codeBlock)
     {
     }
 
@@ -226,8 +228,8 @@ public:
 class FunctionEnvironmentRecord : public DeclarativeEnvironmentRecord {
     friend class LexicalEnvironment;
 public:
-    FunctionEnvironmentRecord()
-        : DeclarativeEnvironmentRecord()
+    FunctionEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock)
+        : DeclarativeEnvironmentRecord(state, codeBlock)
     {
     }
 
