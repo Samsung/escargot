@@ -84,7 +84,7 @@ char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen)
 
 UTF16StringData utf8StringToUTF16String(const char* buf, const size_t& len)
 {
-    UTF16StringData str;
+    UTF16StringDataNonGCStd str;
     const char* source = buf;
     int charlen;
     bool valid;
@@ -108,16 +108,16 @@ UTF16StringData utf8StringToUTF16String(const char* buf, const size_t& len)
         }
     }
 
-    return UTF16StringData(std::move(str));
+    return UTF16StringData(str.data(), str.length());
 }
 
 ASCIIStringData utf16StringToASCIIString(const char16_t* buf, const size_t& len)
 {
     ASCIIStringData str;
-    str.reserve(len);
+    str.resizeWithUninitializedValues(len);
     for (unsigned i = 0 ; i < len ; i ++) {
         ASSERT(buf[i] < 128);
-        str += buf[i];
+        str[i] = buf[i];
     }
     return ASCIIStringData(std::move(str));
 }
@@ -187,7 +187,7 @@ size_t utf32ToUtf8(char32_t uc, char* UTF8)
 
 UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t& len)
 {
-    UTF8StringData str;
+    UTF8StringDataNonGCStd str;
     str.reserve(len);
     for (unsigned i = 0 ; i < len ;) {
         if (buf[i] < 128) {
@@ -202,35 +202,33 @@ UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t& len)
             str += buf;
         }
     }
-    return UTF8StringData(std::move(str));
+    return UTF8StringData(str.data(), str.length());
 }
 
 UTF16StringData ASCIIString::toUTF16StringData() const
 {
     UTF16StringData ret;
     size_t len = length();
-    ret.reserve(len);
-    ret.assign(ASCIIStringData::begin(), ASCIIStringData::end());
+    ret.resizeWithUninitializedValues(len);
+    for (size_t i = 0; i < len; i ++) {
+        ret[i] = charAt(i);
+    }
     return ret;
 }
 
 UTF8StringData ASCIIString::toUTF8StringData() const
 {
-    UTF8StringData ret;
-    size_t len = length();
-    ret.reserve(len);
-    ret.assign(ASCIIStringData::begin(), ASCIIStringData::end());
-    return ret;
+    return m_stringData;
 }
 
 UTF16StringData UTF16String::toUTF16StringData() const
 {
-    return *const_cast<UTF16String *>(this)->asUTF16String();
+    return m_stringData;
 }
 
 UTF8StringData UTF16String::toUTF8StringData() const
 {
-    return utf16StringToUTF8String(UTF16String::data(), length());
+    return utf16StringToUTF8String(m_stringData.data(), m_stringData.length());
 }
 
 enum Flags {
@@ -329,10 +327,8 @@ void CreateExponentialRepresentation(
 
 ASCIIStringData dtoa(double number)
 {
-    ASCIIStringData str;
     if (number == 0) {
-        str.append({'0'});
-        return std::move(str);
+        return ASCIIStringData("0", 1);
     }
     const int flags = UNIQUE_ZERO | EMIT_POSITIVE_EXPONENT_SIGN;
     bool sign = false;
@@ -382,6 +378,7 @@ ASCIIStringData dtoa(double number)
         CreateExponentialRepresentation(flags, decimal_rep, decimal_rep_length, exponent,
             &builder);
     }
+    ASCIIStringDataNonGCStd str;
     if (sign)
         str += '-';
     char* buf = builder.Finalize();
@@ -389,7 +386,7 @@ ASCIIStringData dtoa(double number)
         str += *buf;
         buf++;
     }
-    return std::move(str);
+    return ASCIIStringData(str.data(), str.length());
 }
 
 String* String::fromDouble(double v)

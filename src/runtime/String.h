@@ -3,13 +3,19 @@
 
 #include <string>
 #include "runtime/PointerValue.h"
+#include "util/BasicString.h"
 
 namespace Escargot {
 
-typedef std::basic_string<char, std::char_traits<char>, gc_malloc_atomic_ignore_off_page_allocator<char> > ASCIIStringData;
-typedef std::basic_string<char, std::char_traits<char>, gc_malloc_atomic_ignore_off_page_allocator<char> > UTF8StringData;
-typedef std::basic_string<char16_t, std::char_traits<char16_t>, gc_malloc_atomic_ignore_off_page_allocator<char16_t> > UTF16StringData;
-typedef std::basic_string<char32_t, std::char_traits<char32_t>, gc_malloc_atomic_ignore_off_page_allocator<char32_t> > UTF32StringData;
+typedef BasicString<char, gc_malloc_atomic_ignore_off_page_allocator<char> > ASCIIStringData;
+typedef BasicString<char, gc_malloc_atomic_ignore_off_page_allocator<char> > UTF8StringData;
+typedef BasicString<char16_t, gc_malloc_atomic_ignore_off_page_allocator<char16_t> > UTF16StringData;
+typedef BasicString<char32_t, gc_malloc_atomic_ignore_off_page_allocator<char32_t> > UTF32StringData;
+
+typedef std::basic_string<char, std::char_traits<char>> ASCIIStringDataNonGCStd;
+typedef std::basic_string<char, std::char_traits<char>> UTF8StringDataNonGCStd;
+typedef std::basic_string<char16_t, std::char_traits<char16_t>> UTF16StringDataNonGCStd;
+typedef std::basic_string<char32_t, std::char_traits<char32_t>> UTF32StringDataNonGCStd;
 
 class ASCIIString;
 class UTF16String;
@@ -92,28 +98,14 @@ public:
 
 
 protected:
-    // NOTE
-    // don't use this function
-    ASCIIString* asASCIIString()
-    {
-        ASSERT(isASCIIString());
-        return (ASCIIString*)this;
-    }
-
-    // NOTE
-    // don't use this function
-    UTF16String* asUTF16String()
-    {
-        ASSERT(isUTF16String());
-        return (UTF16String*)this;
-    }
+    // NOTE this for atomic string
+    // don't use this function anywhere
+    inline const char* asASCIIStringData();
+    inline const char16_t* asUTF16StringData();
 };
 
-class ASCIIString : public String, public ASCIIStringData {
-    void init()
-    {
-        m_bufferRoot = ASCIIStringData::data();
-    }
+class ASCIIString : public String {
+    friend class String;
 public:
     virtual bool isASCIIString()
     {
@@ -122,44 +114,34 @@ public:
 
     ASCIIString(ASCIIStringData&& src)
         : String()
-        , ASCIIStringData(std::move(src))
+        , m_stringData(std::move(src))
     {
-        init();
     }
 
     ASCIIString(const char* str)
         : String()
-        , ASCIIStringData(str)
     {
-        init();
     }
 
     virtual char16_t charAt(const size_t& idx) const
     {
-        return this->at(idx);
+        return m_stringData[idx];
     }
 
     virtual size_t length() const
     {
-        return ASCIIStringData::length();
+        return m_stringData.size();
     }
 
     virtual UTF16StringData toUTF16StringData() const;
     virtual UTF8StringData toUTF8StringData() const;
 
 protected:
-    // FIXME
-    // for protect string buffer
-    // gcc stores buffer of basic_string with special way
-    // so we should root buffer manually
-    const void* m_bufferRoot;
+    ASCIIStringData m_stringData;
 };
 
-class UTF16String : public String, public UTF16StringData {
-    void init()
-    {
-        m_bufferRoot = UTF16StringData::data();
-    }
+class UTF16String : public String {
+    friend class String;
 public:
     virtual bool isUTF16String()
     {
@@ -168,31 +150,45 @@ public:
 
     UTF16String(UTF16StringData&& src)
         : String()
-        , UTF16StringData(std::move(src))
+        , m_stringData(std::move(src))
     {
-        init();
+    }
+
+    UTF16String(const char16_t* str, size_t len)
+        : String()
+    {
+
+        m_stringData.append(str, len);
     }
 
     virtual char16_t charAt(const size_t& idx) const
     {
-        return this->at(idx);
+        return m_stringData[idx];
     }
 
     virtual size_t length() const
     {
-        return UTF16StringData::length();
+        return m_stringData.size();
     }
 
     virtual UTF16StringData toUTF16StringData() const;
     virtual UTF8StringData toUTF8StringData() const;
 
 protected:
-    // FIXME
-    // for protect string buffer
-    // gcc stores buffer of basic_string with special way
-    // so we should root buffer manually
-    const void* m_bufferRoot;
+    UTF16StringData m_stringData;
 };
+
+const char* String::asASCIIStringData()
+{
+    ASSERT(isASCIIString());
+    return ((ASCIIString*)this)->m_stringData.data();
+}
+
+const char16_t* String::asUTF16StringData()
+{
+    ASSERT(isUTF16String());
+    return ((UTF16String*)this)->m_stringData.data();
+}
 
 
 bool isAllASCII(const char* buf, const size_t& len);
@@ -215,7 +211,8 @@ inline String* fromCharCode(char32_t code)
         char16_t buf[3];
         buf[0] = (char16_t)(0xD800 + ((code - 0x10000) >> 10));
         buf[1] = (char16_t)(0xDC00 + ((code - 0x10000) & 1023));
-        return new UTF16String(buf);
+        buf[2] = 0;
+        return new UTF16String(buf, 2);
     }
 }
 

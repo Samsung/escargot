@@ -27,9 +27,9 @@ AtomicString::AtomicString(Context* c, const char* src, size_t len)
 AtomicString::AtomicString(ExecutionState& ec, String* name)
 {
     if (name->isASCIIString()) {
-        init(&ec.context()->m_atomicStringMap, name->asASCIIString()->data(), name->asASCIIString()->length());
+        init(&ec.context()->m_atomicStringMap, name->asASCIIStringData(), name->length());
     } else if (name->isUTF16String()) {
-        init(&ec.context()->m_atomicStringMap, name->asUTF16String()->data(), name->asUTF16String()->length());
+        init(&ec.context()->m_atomicStringMap, name->asUTF16StringData(), name->length());
     } else {
         UTF8StringData data = name->toUTF8StringData();
         init(&ec.context()->m_atomicStringMap, data.data(), data.length());
@@ -51,10 +51,10 @@ void AtomicString::init(AtomicStringMap* ec, const char* src, size_t len)
 
     auto iter = ec->find(std::make_pair(src, len));
     if (iter == ec->end()) {
-        ASCIIStringData s(src, &src[len]);
+        ASCIIStringData s(src, len);
         String* newData = new ASCIIString(std::move(s));
         m_string = newData;
-        ec->insert(std::make_pair(std::make_pair(newData->asASCIIString()->data(), len), newData));
+        ec->insert(std::make_pair(std::make_pair(newData->asASCIIStringData(), len), newData));
     } else {
         m_string = iter->second;
     }
@@ -78,7 +78,7 @@ void AtomicString::init(AtomicStringMap* ec, const char16_t* src, size_t len)
     UTF8StringData buf = utf16StringToUTF8String(src, len);
     auto iter = ec->find(std::make_pair(buf.data(), buf.size()));
     if (iter == ec->end()) {
-        UTF16StringData s(src, &src[len]);
+        UTF16StringData s(src, len);
         String* newData = new UTF16String(std::move(s));
         m_string = newData;
         char* ptr = gc_malloc_atomic_ignore_off_page_allocator<char>().allocate(buf.size());

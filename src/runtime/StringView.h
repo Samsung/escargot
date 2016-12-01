@@ -63,10 +63,10 @@ public:
     {
         UTF16StringData ret;
         size_t len = length();
-        ret.reserve(len);
+        ret.resizeWithUninitializedValues(len);
 
         for (size_t i = 0; i < len; i ++) {
-            ret += charAt(i);
+            ret[i] = charAt(i);
         }
 
         return ret;

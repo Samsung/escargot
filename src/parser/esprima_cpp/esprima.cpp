@@ -488,12 +488,14 @@ public:
 
     Error* createError(size_t index, size_t line, size_t col, String* description)
     {
-        UTF16StringData msg = u"Line ";
+        UTF16StringDataNonGCStd msg = u"Line ";
         std::string lineString = std::to_string(line);
-        msg += UTF16StringData(lineString.begin(), lineString.end());
+        msg += UTF16StringDataNonGCStd(lineString.begin(), lineString.end());
         msg += u": ";
-        msg += description->toUTF16StringData();
-        Error* error = constructError(new UTF16String(std::move(msg)), col);
+        if (description->length()) {
+            msg += UTF16StringDataNonGCStd(description->toUTF16StringData().data());
+        }
+        Error* error = constructError(new UTF16String(msg.data(), msg.length()), col);
         error->index = index;
         error->lineNumber = line;
         error->description = description;
@@ -1055,7 +1057,7 @@ public:
     {
         char32_t cp = this->codePointAt(this->index);
         ParserCharPiece piece = ParserCharPiece(cp);
-        UTF16StringData id(piece.data);
+        UTF16StringDataNonGCStd id(piece.data);
         this->index += id.length();
 
         // '\u' (U+005C, U+0075) denotes an escaped character.
@@ -1113,7 +1115,7 @@ public:
             }
         }
 
-        String* str = new UTF16String(std::move(id));
+        String* str = new UTF16String(id.data(), id.length());
         return StringView(str, 0, str->length());
     }
 
@@ -1661,12 +1663,13 @@ public:
 
         bool isPlainCase = true;
 
-        UTF16StringData stringUTF16;
+        UTF16StringDataNonGCStd stringUTF16;
         StringView str;
 
 #define CONVERT_UNPLAIN_CASE_IF_NEEDED() \
         if (isPlainCase) { \
-            stringUTF16 = str.toUTF16StringData(); \
+            auto temp = str.toUTF16StringData(); \
+            stringUTF16 = UTF16StringDataNonGCStd(temp.data(), temp.length()); \
             isPlainCase = false; \
         } \
 
@@ -1758,7 +1761,7 @@ public:
         if (isPlainCase) {
             ret = new ScannerResult(Token::StringLiteralToken, str, /*octal, */this->lineNumber, this->lineStart, start, this->index);
         } else {
-            String* newStr = new UTF16String(std::move(stringUTF16));
+            String* newStr = new UTF16String(stringUTF16.data(), stringUTF16.length());
             ret = new ScannerResult(Token::StringLiteralToken, StringView(newStr, 0, newStr->length()), /*octal, */this->lineNumber, this->lineStart, start, this->index);
         }
         ret->octal = octal;
@@ -1771,7 +1774,7 @@ public:
     ScannerResult* scanTemplate()
     {
         // TODO apply rope-string
-        UTF16StringData cooked;
+        UTF16StringDataNonGCStd cooked;
         bool terminated = false;
         size_t start = this->index;
 
@@ -1883,7 +1886,7 @@ public:
         result.tail = tail;
         // TODO when parsing global code, we should generate new string not string view of code
         result.raw = StringView(this->source, start + 1, this->index - rawOffset);
-        result.valueCooked = std::move(cooked);
+        result.valueCooked = UTF16StringData(cooked.data(), cooked.length());
 
         return new ScannerResult(Token::TemplateToken, result, this->lineNumber, this->lineStart, start, this->index);
     }
@@ -1952,7 +1955,7 @@ public:
 
         // TODO apply rope-string
         char16_t ch0 = this->source.charAt(this->index++);
-        UTF16StringData str(&ch0, 1);
+        UTF16StringDataNonGCStd str(&ch0, 1);
         bool classMarker = false;
         bool terminated = false;
 
@@ -1993,13 +1996,13 @@ public:
             value: body,
             literal: str
         };*/
-        return new UTF16String(std::move(str));
+        return new UTF16String(str.data(), str.length());
     }
 
     String* scanRegExpFlags()
     {
         // UTF16StringData str = '';
-        UTF16StringData flags;
+        UTF16StringDataNonGCStd flags;
         while (!this->eof()) {
             char16_t ch = this->source.charAt(this->index);
             if (!isIdentifierPart(ch)) {
@@ -2043,7 +2046,7 @@ public:
             literal: str
         };
         */
-        return new UTF16String(std::move(flags));
+        return new UTF16String(flags.data(), flags.length());
     }
 
     ScannerResult* scanRegExp()
@@ -2166,7 +2169,7 @@ public:
     Config config;
     ParserASTNodeHandler delegate;
     ErrorHandler* errorHandler;
-    Scanner* scanner;
+    std::unique_ptr<Scanner> scanner;
     std::unordered_map<IdentifierNode*, ScannerResult*,
         std::hash<IdentifierNode*>, std::equal_to<IdentifierNode*>, gc_malloc_ignore_off_page_allocator<std::pair<IdentifierNode*, ScannerResult*>>> nodeExtraInfo;
 
@@ -2245,7 +2248,7 @@ public:
 
         this->errorHandler = new ErrorHandler();
 
-        this->scanner = new Scanner(code, this->errorHandler, startLine, startColumn);
+        this->scanner = std::unique_ptr<Scanner>(new Scanner(code, this->errorHandler, startLine, startColumn));
 
         // this->sourceType = (options && options.sourceType == 'module') ? 'module' : 'script';
         this->sourceType = Script;
@@ -2279,18 +2282,20 @@ public:
 
     void throwError(const char* messageFormat, String* arg0 = String::emptyString, String* arg1 = String::emptyString)
     {
-        UTF16StringData msg;
+        UTF16StringDataNonGCStd msg;
         if (arg0->length() && arg1->length()) {
             char message[512];
             UTF8StringData d1 = arg0->toUTF8StringData();
             UTF8StringData d2 = arg1->toUTF8StringData();
             snprintf(message, 512, messageFormat, d1.data(), d2.data());
-            msg = utf8StringToUTF16String(message, strlen(message));
+            auto temp = utf8StringToUTF16String(message, strlen(message));
+            msg = UTF16StringDataNonGCStd(temp.data(), temp.length());
         } else if (arg0->length()) {
             char message[512];
             UTF8StringData d1 = arg0->toUTF8StringData();
             snprintf(message, 512, messageFormat, d1.data());
-            msg = utf8StringToUTF16String(message, strlen(message));
+            auto temp = utf8StringToUTF16String(message, strlen(message));
+            msg = UTF16StringDataNonGCStd(temp.data(), temp.length());
         } else {
             msg.assign(messageFormat, &messageFormat[strlen(messageFormat)]);
         }
@@ -2298,8 +2303,7 @@ public:
         size_t index = this->lastMarker.index;
         size_t line = this->lastMarker.lineNumber;
         size_t column = this->lastMarker.index - this->lastMarker.lineStart + 1;
-        throw this->errorHandler->createError(index, line, column, new UTF16String(std::move(msg)));
-
+        throw this->errorHandler->createError(index, line, column, new UTF16String(msg.data(), msg.length()));
     }
 
     void tolerateError(const char* messageFormat, String* arg0 = String::emptyString, String* arg1 = String::emptyString)
@@ -2307,7 +2311,7 @@ public:
         throwError(messageFormat, arg0, arg1);
     }
 
-    void replaceAll(UTF16StringData& str, const UTF16StringData& from, const UTF16StringData& to)
+    void replaceAll(UTF16StringDataNonGCStd& str, const UTF16StringDataNonGCStd& from, const UTF16StringDataNonGCStd& to)
     {
         if(from.empty())
             return;
@@ -2352,22 +2356,22 @@ public:
         }
 
         // msg = msg.replace('%0', value);
-        UTF16StringData msgData;
+        UTF16StringDataNonGCStd msgData;
         msgData.assign(msg, &msg[strlen(msg)]);
-        UTF16StringData valueData = value->toUTF16StringData();
-        replaceAll(msgData, u"%s", valueData);
+        UTF16StringDataNonGCStd valueData = UTF16StringDataNonGCStd(value->toUTF16StringData().data());
+        replaceAll(msgData, UTF16StringDataNonGCStd(u"%s"), valueData);
 
         // if (token && typeof token.lineNumber == 'number') {
         if (token) {
             const size_t index = token->start;
             const size_t line = token->lineNumber;
             const size_t column = token->start - this->lastMarker.lineStart + 1;
-            return this->errorHandler->createError(index, line, column, new UTF16String(std::move(msgData)));
+            return this->errorHandler->createError(index, line, column, new UTF16String(msgData.data(), msgData.length()));
         } else {
             const size_t index = this->lastMarker.index;
             const size_t line = this->lastMarker.lineNumber;
             const size_t column = index - this->lastMarker.lineStart + 1;
-            return this->errorHandler->createError(index, line, column, new UTF16String(std::move(msgData)));
+            return this->errorHandler->createError(index, line, column, new UTF16String(msgData.data(), msgData.length()));
         }
     }
 
