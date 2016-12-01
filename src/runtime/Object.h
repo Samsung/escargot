@@ -162,6 +162,20 @@ public:
         return set(state, P, v, this);
     }
     bool set(ExecutionState& state, const PropertyName& P, const Value& v, Object* receiver);
+
+    ObjectPropertyDescriptor readPropertyDescriptor(ExecutionState& state, String* propertyName)
+    {
+        return readPropertyDescriptor(state, PropertyName(state, propertyName));
+    }
+    ObjectPropertyDescriptor readPropertyDescriptor(ExecutionState& state, const PropertyName& name)
+    {
+        return readPropertyDescriptor(state, findOwnProperty(state, name));
+    }
+    ObjectPropertyDescriptor readPropertyDescriptor(ExecutionState& state, const size_t& idx)
+    {
+        return m_structure->readProperty(state, idx).m_descriptor;
+    }
+
 protected:
     ObjectStructure* m_structure;
     ObjectRareData* m_rareData;
@@ -203,10 +217,19 @@ protected:
         }
     }
 
-    void setOwnDataProperty(ExecutionState& state, size_t idx, const Value& newValue)
+    bool setOwnDataProperty(ExecutionState& state, size_t idx, const Value& newValue)
     {
-        ASSERT(m_structure->readProperty(state, idx).m_descriptor.isDataProperty());
-        m_values[idx] = newValue;
+        const ObjectStructureItem& item = m_structure->readProperty(state, idx);
+        if (LIKELY(item.m_descriptor.isWritable())) {
+            if (LIKELY(item.m_descriptor.isPlainDataProperty())) {
+                m_values[idx] = newValue;
+                return true;
+            } else {
+                return item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, newValue);
+            }
+        } else {
+            return false;
+        }
     }
 
     Value getOwnProperty(ExecutionState& state, size_t idx, Object* receiver)
@@ -214,6 +237,16 @@ protected:
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
         if (item.m_descriptor.isDataProperty()) {
             return getOwnDataProperty(state, idx, receiver);
+        } else {
+            RELEASE_ASSERT_NOT_REACHED();
+        }
+    }
+
+    bool setOwnProperty(ExecutionState& state, size_t idx, const Value& newValue)
+    {
+        const ObjectStructureItem& item = m_structure->readProperty(state, idx);
+        if (item.m_descriptor.isDataProperty()) {
+            return setOwnDataProperty(state, idx, newValue);
         } else {
             RELEASE_ASSERT_NOT_REACHED();
         }

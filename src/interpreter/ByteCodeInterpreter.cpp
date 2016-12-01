@@ -4,6 +4,8 @@
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/FunctionObject.h"
+#include "runtime/Context.h"
+#include "runtime/GlobalObject.h"
 
 namespace Escargot {
 
@@ -109,14 +111,38 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
             NEXT_INSTRUCTION();
         }
 
-        BinaryPlusOpcodeLbl:
+        LoadByGlobalNameOpcodeLbl:
         {
-            BinaryPlus* code = (BinaryPlus*)currentCode;
-            Value v0 = registerFile[code->m_srcIndex0];
-            Value v1 = registerFile[code->m_srcIndex1];
-            // TODO
-            registerFile[code->m_srcIndex0] = Value(v0.asNumber() + v1.asNumber());
-            executeNextCode<StoreByName>(programCounter);
+            LoadByGlobalName* code = (LoadByGlobalName*)currentCode;
+            GlobalObject* g = state.context()->globalObject();
+            // check cache
+            if (UNLIKELY(!g->hasPropertyOnIndex(state, code->m_name, code->m_cacheIndex))) {
+                // fill cache
+                code->m_cacheIndex = g->findPropertyIndex(state, code->m_name);
+                ASSERT(code->m_cacheIndex != SIZE_MAX);
+            }
+            registerFile[code->m_registerIndex] = g->getPropertyOnIndex(state, code->m_cacheIndex);
+            executeNextCode<LoadByGlobalName>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        StoreByGlobalNameOpcodeLbl:
+        {
+            StoreByGlobalName* code = (StoreByGlobalName*)currentCode;
+            GlobalObject* g = state.context()->globalObject();
+            // check cache
+            if (UNLIKELY(!g->hasPropertyOnIndex(state, code->m_name, code->m_cacheIndex))) {
+                // fill cache
+                code->m_cacheIndex = g->findPropertyIndex(state, code->m_name);
+                ASSERT(code->m_cacheIndex != SIZE_MAX);
+            }
+            if (UNLIKELY(!g->setPropertyOnIndex(state, code->m_cacheIndex, registerFile[code->m_registerIndex]))) {
+                if (state.inStrictMode()) {
+                    // TODO throw execption
+                    RELEASE_ASSERT_NOT_REACHED();
+                }
+            }
+            executeNextCode<StoreByGlobalName>(programCounter);
             NEXT_INSTRUCTION();
         }
 
@@ -157,6 +183,17 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
             DeclareFunctionExpression* code = (DeclareFunctionExpression*)currentCode;
             registerFile[code->m_registerIndex] = new FunctionObject(state, code->m_codeBlock);
             executeNextCode<DeclareFunctionExpression>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        BinaryPlusOpcodeLbl:
+        {
+            BinaryPlus* code = (BinaryPlus*)currentCode;
+            Value v0 = registerFile[code->m_srcIndex0];
+            Value v1 = registerFile[code->m_srcIndex1];
+            // TODO
+            registerFile[code->m_srcIndex0] = Value(v0.asNumber() + v1.asNumber());
+            executeNextCode<StoreByName>(programCounter);
             NEXT_INSTRUCTION();
         }
 

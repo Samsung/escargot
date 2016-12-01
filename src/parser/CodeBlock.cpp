@@ -1,5 +1,6 @@
 #include "Escargot.h"
 #include "CodeBlock.h"
+#include "runtime/Context.h"
 
 namespace Escargot {
 
@@ -123,6 +124,29 @@ void CodeBlock::notifySelfOrChildHasEvalWithYield()
     m_canUseIndexedVariableStorage = false;
 }
 
+bool CodeBlock::hasNonConfiguableNameOnGlobal(const AtomicString& name)
+{
+    ASSERT(canUseIndexedVariableStorage());
+    CodeBlock* top = this;
+    while (top->parentCodeBlock()) {
+        top = top->parentCodeBlock();
+    }
+
+    if (top->hasName(name)) {
+        return true;
+    }
+
+    ExecutionState state(m_context);
+    size_t idx = m_context->globalObject()->findOwnProperty(state, PropertyName(state, name));
+    if (idx != SIZE_MAX) {
+        ObjectPropertyDescriptor desc = m_context->globalObject()->readPropertyDescriptor(state, idx);
+        if (!desc.isConfigurable()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void CodeBlock::computeVariables()
 {
     if (canUseIndexedVariableStorage()) {
@@ -158,8 +182,6 @@ void CodeBlock::computeVariables()
             stackCount++;
         }
     }
-
-
 }
 
 }

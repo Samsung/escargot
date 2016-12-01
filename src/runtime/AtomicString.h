@@ -13,6 +13,11 @@ typedef std::unordered_map<std::pair<const char *, size_t>, String*,
 
 class AtomicString {
     friend class StaticStrings;
+    friend class PropertyName;
+    inline AtomicString(String* str)
+    {
+        m_string = str;
+    }
 public:
     inline AtomicString()
     {

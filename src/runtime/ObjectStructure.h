@@ -141,7 +141,10 @@ public:
         return new ObjectStructure(state, std::move(newItem), false);
     }
 
-
+    size_t propertyCount() const
+    {
+        return m_properties.size();
+    }
 private:
     bool m_needsTransitionTable;
     ObjectStructureItemVector m_properties;

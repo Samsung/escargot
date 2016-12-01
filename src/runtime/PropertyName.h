@@ -30,6 +30,15 @@ public:
         }
     }
 
+    AtomicString atomicString(ExecutionState& state)
+    {
+        if (hasAtomicString()) {
+            return AtomicString((String*)(m_data - 1));
+        } else {
+            return AtomicString(state, (String*)m_data);
+        }
+    }
+
     inline friend bool operator == (const PropertyName& a, const PropertyName& b);
     inline friend bool operator != (const PropertyName& a, const PropertyName& b);
 protected:

@@ -35,6 +35,11 @@ public:
 
     typedef Vector<IdentifierInfo, gc_malloc_ignore_off_page_allocator<IdentifierInfo>> IdentifierInfoVector;
 
+    Context* context()
+    {
+        return m_context;
+    }
+
     bool isGlobalScopeCodeBlock()
     {
         return m_parentCodeBlock == nullptr;
@@ -193,6 +198,8 @@ public:
                     info.m_index = blk->m_identifierInfos[index].m_indexForIndexedStorage;
                     return info;
                 }
+            } else {
+                break;
             }
             upperIndex++;
             blk = blk->parentCodeBlock();
@@ -201,6 +208,8 @@ public:
         info.m_isResultSaved = false;
         return info;
     }
+
+    bool hasNonConfiguableNameOnGlobal(const AtomicString& name);
 
 protected:
     // init global codeBlock

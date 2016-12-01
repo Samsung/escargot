@@ -44,7 +44,12 @@ public:
     {
         CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
         if (!info.m_isResultSaved) {
-            codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getLastRegisterIndex(), m_name), context, this);
+            if (context->m_codeBlock->canUseIndexedVariableStorage() && context->m_codeBlock->hasNonConfiguableNameOnGlobal(m_name)) {
+                ExecutionState state(context->m_codeBlock->context());
+                codeBlock->pushCode(StoreByGlobalName(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getLastRegisterIndex(), PropertyName(state, m_name)), context, this);
+            } else {
+                codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getLastRegisterIndex(), m_name), context, this);
+            }
         } else {
             if (info.m_isStackAllocated) {
                 codeBlock->pushCode(StoreByStackIndex(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getLastRegisterIndex(), info.m_index), context, this);
@@ -58,7 +63,12 @@ public:
     {
         CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
         if (!info.m_isResultSaved) {
-            codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getRegister(), m_name), context, this);
+            if (context->m_codeBlock->canUseIndexedVariableStorage() && context->m_codeBlock->hasNonConfiguableNameOnGlobal(m_name)) {
+                ExecutionState state(context->m_codeBlock->context());
+                codeBlock->pushCode(LoadByGlobalName(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getRegister(), PropertyName(state, m_name)), context, this);
+            } else {
+                codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getRegister(), m_name), context, this);
+            }
         } else {
             if (info.m_isStackAllocated) {
                 codeBlock->pushCode(LoadByStackIndex(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getRegister(), info.m_index), context, this);

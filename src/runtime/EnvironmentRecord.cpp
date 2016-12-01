@@ -10,8 +10,12 @@ namespace Escargot {
 
 void EnvironmentRecord::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
 {
-    // TODO strict mode
-    state.context()->globalObject()->set(state, name, V);
+    if (UNLIKELY(!state.context()->globalObject()->set(state, name, V))) {
+        if (state.inStrictMode()) {
+            // TODO strict mode
+            RELEASE_ASSERT_NOT_REACHED();
+        }
+    }
 }
 
 GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock, GlobalObject* global)
