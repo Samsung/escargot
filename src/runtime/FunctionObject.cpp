@@ -100,7 +100,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiver, const s
     }
 
     // run function
-    ByteCodeIntrepreter::interpret(newState, m_codeBlock);
+    ByteCodeInterpreter::interpret(newState, m_codeBlock);
 
     return resultValue;
 }

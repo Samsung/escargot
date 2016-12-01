@@ -1,5 +1,5 @@
-#ifndef __EscargotByteCodeIntrepreter__
-#define __EscargotByteCodeIntrepreter__
+#ifndef __EscargotByteCodeInterpreter__
+#define __EscargotByteCodeInterpreter__
 
 #include "runtime/Value.h"
 #include "runtime/String.h"
@@ -12,7 +12,7 @@ class Context;
 class ByteCodeBlock;
 class LexicalEnvironment;
 
-class ByteCodeIntrepreter {
+class ByteCodeInterpreter {
 public:
     static void interpret(ExecutionState& state, CodeBlock* codeBlock);
     static Value loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name);

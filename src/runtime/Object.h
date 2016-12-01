@@ -67,9 +67,9 @@ public:
     }
 
     Value getOwnProperty(ExecutionState& state, String* P);
-    Value getOwnProperty(ExecutionState& state, const AtomicString& P);
+    Value getOwnProperty(ExecutionState& state, const PropertyName& P);
     size_t findOwnProperty(ExecutionState& state, String* P);
-    size_t findOwnProperty(ExecutionState& state, const AtomicString& P);
+    size_t findOwnProperty(ExecutionState& state, const PropertyName& P);
 
     class ObjectPropertyDescriptorForDefineOwnProperty {
     public:
@@ -101,7 +101,7 @@ public:
     };
 
     bool defineOwnProperty(ExecutionState& state, String* P, const ObjectPropertyDescriptorForDefineOwnProperty& desc);
-    bool defineOwnProperty(ExecutionState& state, const AtomicString& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc);
+    bool defineOwnProperty(ExecutionState& state, const PropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc);
     void defineOwnPropertyThrowsException(ExecutionState& state, String* P, const ObjectPropertyDescriptorForDefineOwnProperty& desc)
     {
         if (!defineOwnProperty(state, P, desc)) {
@@ -144,30 +144,30 @@ public:
         return get(state, P, this);
     }
 
-    ObjectGetResult get(ExecutionState& state, const AtomicString& P)
+    ObjectGetResult get(ExecutionState& state, const PropertyName& P)
     {
         return get(state, P, this);
     }
 
     ObjectGetResult get(ExecutionState& state, String* P, Object* receiver);
-    ObjectGetResult get(ExecutionState& state, const AtomicString& P, Object* receiver);
+    ObjectGetResult get(ExecutionState& state, const PropertyName& P, Object* receiver);
 
     bool set(ExecutionState& state, String* P, const Value& v)
     {
         return set(state, P, v, this);
     }
     bool set(ExecutionState& state, String* P, const Value& v, Object* receiver);
-    bool set(ExecutionState& state, const AtomicString& P, const Value& v)
+    bool set(ExecutionState& state, const PropertyName& P, const Value& v)
     {
         return set(state, P, v, this);
     }
-    bool set(ExecutionState& state, const AtomicString& P, const Value& v, Object* receiver);
+    bool set(ExecutionState& state, const PropertyName& P, const Value& v, Object* receiver);
 protected:
     ObjectStructure* m_structure;
     ObjectRareData* m_rareData;
     Vector<SmallValue, gc_allocator_ignore_off_page<SmallValue>> m_values;
 
-    bool checkPropertyAlreadyDefinedWithNonWritableInPrototype(ExecutionState& state, const AtomicString& P);
+    bool checkPropertyAlreadyDefinedWithNonWritableInPrototype(ExecutionState& state, const PropertyName& P);
     void ensureObjectRareData()
     {
         if (m_rareData == nullptr) {

@@ -11,7 +11,6 @@ typedef std::basic_string<char, std::char_traits<char>, gc_malloc_atomic_ignore_
 typedef std::basic_string<char16_t, std::char_traits<char16_t>, gc_malloc_atomic_ignore_off_page_allocator<char16_t> > UTF16StringData;
 typedef std::basic_string<char32_t, std::char_traits<char32_t>, gc_malloc_atomic_ignore_off_page_allocator<char32_t> > UTF32StringData;
 
-
 class ASCIIString;
 class UTF16String;
 

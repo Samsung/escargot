@@ -27,7 +27,7 @@ Script::ScriptExecuteResult Script::execute(Context* ctx)
     ExecutionContext ec(ctx, globalEnvironment, m_topCodeBlock->isStrict());
     Value resultValue;
     ExecutionState state(ctx, &ec, &resultValue);
-    ByteCodeIntrepreter::interpret(state, m_topCodeBlock);
+    ByteCodeInterpreter::interpret(state, m_topCodeBlock);
     result.result = resultValue;
     return result;
 }

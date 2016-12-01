@@ -31,7 +31,7 @@ ALWAYS_INLINE void executeNextCode(size_t& programCounter)
     programCounter += sizeof(CodeType);
 }
 
-void ByteCodeIntrepreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
+void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
 {
     if (UNLIKELY(codeBlock == nullptr)) {
         goto FillOpcodeTable;
@@ -221,7 +221,7 @@ void ByteCodeIntrepreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
 }
 
 
-Value ByteCodeIntrepreter::loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name)
+Value ByteCodeInterpreter::loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name)
 {
     while (env) {
         EnvironmentRecord::GetBindingValueResult result = env->record()->getBindingValue(state, name);

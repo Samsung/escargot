@@ -24,12 +24,12 @@ void Object::setPrototypeSlowCase(ExecutionState& state, const Value& value)
 
 Value Object::getOwnProperty(ExecutionState& state, String* P)
 {
-    AtomicString propertyName(state, P);
+    PropertyName propertyName(state, P);
     return getOwnProperty(state, propertyName);
 }
 
 // http://www.ecma-international.org/ecma-262/6.0/#sec-ordinarygetownproperty
-Value Object::getOwnProperty(ExecutionState& state, const AtomicString& P)
+Value Object::getOwnProperty(ExecutionState& state, const PropertyName& P)
 {
     size_t idx = m_structure->findProperty(state, P);
     if (LIKELY(idx != SIZE_MAX)) {
@@ -56,12 +56,12 @@ size_t Object::findOwnProperty(ExecutionState& state, String* P)
     return m_structure->findProperty(state, P);
 }
 
-size_t Object::findOwnProperty(ExecutionState& state, const AtomicString& P)
+size_t Object::findOwnProperty(ExecutionState& state, const PropertyName& P)
 {
     return m_structure->findProperty(state, P);
 }
 
-bool Object::checkPropertyAlreadyDefinedWithNonWritableInPrototype(ExecutionState& state, const AtomicString& P)
+bool Object::checkPropertyAlreadyDefinedWithNonWritableInPrototype(ExecutionState& state, const PropertyName& P)
 {
     Value __proto__Value = getPrototype(state);
     while (true) {
@@ -122,7 +122,7 @@ bool Object::checkPropertyAlreadyDefinedWithNonWritableInPrototype(ExecutionStat
     return false;
 }
 
-bool Object::defineOwnProperty(ExecutionState& state, const AtomicString& propertyName, const ObjectPropertyDescriptorForDefineOwnProperty& desc)
+bool Object::defineOwnProperty(ExecutionState& state, const PropertyName& propertyName, const ObjectPropertyDescriptorForDefineOwnProperty& desc)
 {
     if (isEverSetAsPrototypeObject()) {
         // TODO
@@ -182,17 +182,17 @@ bool Object::defineOwnProperty(ExecutionState& state, const AtomicString& proper
 
 bool Object::defineOwnProperty(ExecutionState& state, String* P, const ObjectPropertyDescriptorForDefineOwnProperty& desc)
 {
-    AtomicString propertyName(state, P);
+    PropertyName propertyName(state, P);
     return defineOwnProperty(state, propertyName, desc);
 }
 
 Object::ObjectGetResult Object::get(ExecutionState& state, String* P, Object* receiver)
 {
-    AtomicString propertyName(state, P);
+    PropertyName propertyName(state, P);
     return get(state, propertyName, receiver);
 }
 
-Object::ObjectGetResult Object::get(ExecutionState& state, const AtomicString& propertyName, Object* receiver)
+Object::ObjectGetResult Object::get(ExecutionState& state, const PropertyName& propertyName, Object* receiver)
 {
     Object* target = this;
     while (true) {
@@ -211,12 +211,12 @@ Object::ObjectGetResult Object::get(ExecutionState& state, const AtomicString& p
 
 bool Object::set(ExecutionState& state, String* P, const Value& v, Object* receiver)
 {
-    AtomicString propertyName(state, P);
+    PropertyName propertyName(state, P);
     return set(state, propertyName, v, receiver);
 }
 
 // http://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-set-p-v-receiver
-bool Object::set(ExecutionState& state, const AtomicString& propertyName, const Value& v, Object* receiver)
+bool Object::set(ExecutionState& state, const PropertyName& propertyName, const Value& v, Object* receiver)
 {
     size_t idx = findOwnProperty(state, propertyName);
     if (idx == SIZE_MAX) {

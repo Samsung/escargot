@@ -35,11 +35,11 @@ public:
         return m_exeuctionResult;
     }
 
-
     bool inStrictMode()
     {
         return m_executionContext->inStrictMode();
     }
+
 protected:
     Context* m_context;
     ExecutionContext* m_executionContext;

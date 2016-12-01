@@ -60,18 +60,14 @@ public:
         return true;
     }
 
-    void clear()
-    {
-        m_string = NULL;
-    }
-
-
 
 protected:
     void init(AtomicStringMap* ec, const char* src, size_t len);
     void init(AtomicStringMap* ec, const char16_t* src, size_t len);
     String* m_string;
 };
+
+COMPILE_ASSERT(sizeof (AtomicString) == sizeof (size_t), "");
 
 inline bool operator == (const AtomicString& a, const AtomicString& b)
 {

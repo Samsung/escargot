@@ -311,7 +311,7 @@ public:
 
 class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
-    friend class ByteCodeIntrepreter;
+    friend class ByteCodeInterpreter;
 public:
     ALWAYS_INLINE FunctionEnvironmentRecordOnHeap(ExecutionState& state, const Value& receiver, FunctionObject* function)
         : FunctionEnvironmentRecord(state, receiver, function)

@@ -9,7 +9,7 @@ OpcodeTable g_opcodeTable;
 OpcodeTable::OpcodeTable()
 {
     ExecutionState state(nullptr, nullptr);
-    ByteCodeIntrepreter::interpret(state, nullptr);
+    ByteCodeInterpreter::interpret(state, nullptr);
 }
 
 }
