@@ -44,7 +44,7 @@ public:
     {
         CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
         if (!info.m_isResultSaved) {
-            if (context->m_codeBlock->canUseIndexedVariableStorage() && context->m_codeBlock->hasNonConfiguableNameOnGlobal(m_name)) {
+            if (!context->m_codeBlock->inEvalWithYieldScope() && context->m_codeBlock->hasNonConfiguableNameOnGlobal(m_name)) {
                 ExecutionState state(context->m_codeBlock->context());
                 codeBlock->pushCode(StoreByGlobalName(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getLastRegisterIndex(), PropertyName(state, m_name)), context, this);
             } else {
@@ -63,7 +63,7 @@ public:
     {
         CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
         if (!info.m_isResultSaved) {
-            if (context->m_codeBlock->canUseIndexedVariableStorage() && context->m_codeBlock->hasNonConfiguableNameOnGlobal(m_name)) {
+            if (!context->m_codeBlock->inEvalWithYieldScope() && context->m_codeBlock->hasNonConfiguableNameOnGlobal(m_name)) {
                 ExecutionState state(context->m_codeBlock->context());
                 codeBlock->pushCode(LoadByGlobalName(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getRegister(), PropertyName(state, m_name)), context, this);
             } else {

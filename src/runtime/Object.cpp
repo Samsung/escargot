@@ -5,11 +5,42 @@
 
 namespace Escargot {
 
-Object::Object(ExecutionState& state)
+Object::Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea)
     : m_structure(state.context()->defaultStructureForObject())
     , m_rareData(nullptr)
 {
-    m_values.pushBack(Value());
+    m_values.resizeWithUninitializedValues(defaultSpace);
+    if (initPlainArea) {
+        initPlainObject(state);
+    }
+}
+
+Object::Object(ExecutionState& state)
+    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, true)
+{
+}
+
+void Object::initPlainObject(ExecutionState& state)
+{
+    m_values[0] = Value(state.context()->globalObject()->objectPrototype());
+}
+
+Object* Object::createBuiltinObjectPrototype(ExecutionState& state)
+{
+    Object* obj = new Object(state, 1, false);
+    obj->m_structure = state.context()->defaultStructureForObject();
+    obj->m_values[0] = Value(Value::Null);
+    return obj;
+}
+
+Object* Object::createFunctionPrototypeObject(ExecutionState& state, FunctionObject* function)
+{
+    Object* obj = new Object(state, 2, false);
+    obj->m_structure = state.context()->defaultStructureForFunctionObject();
+    obj->m_values[0] = Value();
+    obj->m_values[1] = Value(function);
+
+    return obj;
 }
 
 Value Object::getPrototypeSlowCase(ExecutionState& state)
@@ -17,9 +48,9 @@ Value Object::getPrototypeSlowCase(ExecutionState& state)
     return getOwnProperty(state, state.context()->staticStrings().__proto__);
 }
 
-void Object::setPrototypeSlowCase(ExecutionState& state, const Value& value)
+bool Object::setPrototypeSlowCase(ExecutionState& state, const Value& value)
 {
-    defineOwnProperty(state, state.context()->staticStrings().__proto__, ObjectPropertyDescriptorForDefineOwnProperty(value));
+    return defineOwnProperty(state, state.context()->staticStrings().__proto__, ObjectPropertyDescriptorForDefineOwnProperty(value));
 }
 
 Value Object::getOwnProperty(ExecutionState& state, String* P)
@@ -196,7 +227,7 @@ Object::ObjectGetResult Object::get(ExecutionState& state, const PropertyName& p
 {
     Object* target = this;
     while (true) {
-        size_t idx = findOwnProperty(state, propertyName);
+        size_t idx = target->findOwnProperty(state, propertyName);
         if (idx != SIZE_MAX) {
             return ObjectGetResult(target->getOwnProperty(state, idx, receiver));
         }

@@ -219,6 +219,8 @@ private:
 
     inline double toNumberSlowCase(ExecutionState& ec) const; // $7.1.3 ToNumber
     String* toStringSlowCase(ExecutionState& ec) const; // $7.1.12 ToString
+    Object* toObjectSlowCase(ExecutionState& ec) const; // $7.1.13 ToObject
+    Value toPrimitiveSlowCase(ExecutionState& ec, PrimitiveTypeHint) const; // $7.1.1 ToPrimitive
 };
 
 }

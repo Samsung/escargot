@@ -9,6 +9,8 @@ class EnvironmentRecord;
 class Value;
 
 class ExecutionContext : public gc {
+    friend class FunctionObject;
+    friend class ByteCodeInterpreter;
 public:
     ExecutionContext(Context* context, LexicalEnvironment* lexicalEnvironment = nullptr, bool inStrictMode = false)
         : m_inStrictMode(inStrictMode)
@@ -34,6 +36,7 @@ public:
         return m_inStrictMode;
     }
 
+private:
     Value* stackStorage()
     {
         return m_stackStorage;
@@ -45,7 +48,6 @@ public:
         m_stackStorage = storage;
     }
 
-private:
     bool m_inStrictMode;
     Context* m_context;
     Value* m_stackStorage;

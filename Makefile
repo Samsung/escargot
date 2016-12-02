@@ -203,6 +203,7 @@ SRC += $(foreach dir, src/interpreter , $(wildcard $(dir)/*.cpp))
 SRC += $(foreach dir, src/util , $(wildcard $(dir)/*.cpp))
 ifeq ($(OUTPUT), bin)
   SRC += $(foreach dir, src/shell , $(wildcard $(dir)/*.cpp))
+  CXXFLAGS += -DESCARGOT_SHELL
 endif
 
 # SRC += $(foreach dir, third_party/yarr, $(wildcard $(dir)/*.cpp))

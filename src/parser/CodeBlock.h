@@ -4,6 +4,7 @@
 #include "runtime/String.h"
 #include "runtime/AtomicString.h"
 #include "parser/ast/Node.h"
+#include "runtime/ExecutionState.h"
 
 namespace Escargot {
 
@@ -14,10 +15,32 @@ class CodeBlock;
 
 typedef Vector<CodeBlock*, gc_malloc_ignore_off_page_allocator<CodeBlock*>> CodeBlockVector;
 
+// length of argv is same with NativeFunctionInfo.m_argumentCount
+typedef Value (*NativeFunctionPointer)(ExecutionState& state, Value thisValue, Value* argv, bool isNewExpression);
+
+struct NativeFunctionInfo {
+    bool m_isStrict;
+    AtomicString m_name;
+    NativeFunctionPointer m_nativeFunction;
+    size_t m_argumentCount;
+
+    NativeFunctionInfo(AtomicString name, NativeFunctionPointer fn, size_t argc, bool isStrict = true)
+        : m_isStrict(isStrict)
+        , m_name(name)
+        , m_nativeFunction(fn)
+        , m_argumentCount(argc)
+    {
+    }
+};
+
+
 class CodeBlock : public gc {
-public:
     friend class ScriptParser;
     friend class ByteCodeGenerator;
+public:
+    // init native CodeBlock
+    CodeBlock(Context* ctx, const NativeFunctionInfo& info);
+
     enum CodeBlockInitFlag {
         CodeBlockInitDefault = 0,
         CodeBlockHasEval = 1,
@@ -43,6 +66,18 @@ public:
     bool isGlobalScopeCodeBlock()
     {
         return m_parentCodeBlock == nullptr;
+    }
+
+    bool inEvalWithYieldScope()
+    {
+        CodeBlock* cb = this;
+        while (cb) {
+            if (hasEvalWithYield()) {
+                return true;
+            }
+            cb = cb->parentCodeBlock();
+        }
+        return false;
     }
 
     bool hasEvalWithYield()
@@ -149,14 +184,14 @@ public:
     AtomicString functionName()
     {
         // check function
-        ASSERT(m_parentCodeBlock);
+        ASSERT(m_parentCodeBlock || m_isNativeFunction);
         return m_functionName;
     }
 
     const AtomicStringVector& functionParameters()
     {
         // check function
-        ASSERT(m_parentCodeBlock);
+        ASSERT(m_parentCodeBlock || m_isNativeFunction);
         return m_parameterNames;
     }
 
@@ -234,6 +269,7 @@ protected:
         m_identifierInfos.push_back(info);
     }
 
+    bool m_isNativeFunction;
     bool m_isStrict;
     bool m_hasEval;
     bool m_hasWith;

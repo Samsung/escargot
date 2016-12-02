@@ -275,7 +275,6 @@ namespace Escargot {
 
 class StaticStrings {
 public:
-    AtomicString emptyString;
     AtomicString NegativeInfinity;
     AtomicString stringTrue;
     AtomicString stringFalse;

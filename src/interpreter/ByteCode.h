@@ -31,6 +31,7 @@ class Node;
     F(CallFunction, 1, 0) \
     F(CallFunctionWithReceiver, 1, 0) \
     F(ReturnFunction, 0, 0) \
+    F(CallNativeFunction, 0, 0) \
     F(End, 0, 0) \
 
 enum Opcode {
@@ -487,6 +488,17 @@ public:
         printf("return r%d", (int)m_registerIndex);
     }
 #endif
+};
+
+class CallNativeFunction : public ByteCode {
+public:
+    CallNativeFunction(NativeFunctionPointer fn)
+        : ByteCode(Opcode::CallNativeFunctionOpcode, ByteCodeLOC(-1, -1, -1))
+        , m_fn(fn)
+    {
+    }
+
+    NativeFunctionPointer m_fn;
 };
 
 class End : public ByteCode {

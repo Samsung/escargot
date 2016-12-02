@@ -5,11 +5,15 @@ namespace Escargot {
 
 template <typename T, typename Allocator>
 class BasicString : public gc {
+    void makeEmpty()
+    {
+        m_buffer = allocate(0);
+        m_size = 0;
+    }
 public:
     BasicString()
     {
-        m_buffer = nullptr;
-        m_size = 0;
+        makeEmpty();
     }
 
     BasicString(const T* src, size_t len)
@@ -23,8 +27,7 @@ public:
     {
         m_size = other.size();
         m_buffer = other.m_buffer;
-        other.m_buffer = nullptr;
-        other.m_size = 0;
+        other.makeEmpty();
     }
 
     BasicString(const BasicString<T, Allocator>& other)
@@ -34,8 +37,7 @@ public:
             m_buffer = allocate(m_size);
             memcpy(m_buffer, other.data(), sizeof(T) * m_size);
         } else {
-            m_buffer = nullptr;
-            m_size = 0;
+            makeEmpty();
         }
     }
 
@@ -183,6 +185,10 @@ public:
 
     T* data() const
     {
+        if (UNLIKELY(m_buffer == nullptr)) {
+            // FIXME
+            return allocate(0);
+        }
         return m_buffer;
     }
 
@@ -209,7 +215,7 @@ public:
 
 protected:
 
-    T* allocate(size_t siz)
+    T* allocate(size_t siz) const
     {
         T* ret = Allocator().allocate(siz + 1);
         ret[siz] = 0;

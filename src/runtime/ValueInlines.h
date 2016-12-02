@@ -523,6 +523,13 @@ inline double Value::asNumber() const
     return isInt32() ? asInt32() : asDouble();
 }
 
+inline bool Value::isPrimitive() const
+{
+    // return isUndefined() || isNull() || isNumber() || isESString() || isBoolean();
+    return !isPointerValue() || asPointerValue()->isString();
+}
+
+
 inline bool Value::isObject() const
 {
     return isPointerValue() && asPointerValue()->isObject();
@@ -571,6 +578,24 @@ inline double Value::toNumber(ExecutionState& ec) const
         // TODO
         RELEASE_ASSERT_NOT_REACHED();
         // return toNumberSlowCase();
+    }
+}
+
+inline Object* Value::toObject(ExecutionState& ec) const // $7.1.13 ToObject
+{
+    if (isObject()) {
+        return asObject();
+    } else {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+}
+
+inline Value Value::toPrimitive(ExecutionState& ec, PrimitiveTypeHint preferredType) const // $7.1.1 ToPrimitive
+{
+    if (UNLIKELY(!isPrimitive())) {
+        return toPrimitiveSlowCase(ec, preferredType);
+    } else {
+        return *this;
     }
 }
 

@@ -38,7 +38,7 @@ public:
         return false;
     }
 
-    virtual bool isUTF16String()
+    virtual bool hasASCIIContent()
     {
         return false;
     }
@@ -112,6 +112,11 @@ public:
         return true;
     }
 
+    virtual bool hasASCIIContent()
+    {
+        return true;
+    }
+
     ASCIIString(ASCIIStringData&& src)
         : String()
         , m_stringData(std::move(src))
@@ -121,6 +126,7 @@ public:
     ASCIIString(const char* str)
         : String()
     {
+        m_stringData.append(str, strlen(str));
     }
 
     virtual char16_t charAt(const size_t& idx) const
@@ -143,9 +149,9 @@ protected:
 class UTF16String : public String {
     friend class String;
 public:
-    virtual bool isUTF16String()
+    virtual bool hasASCIIContent()
     {
-        return true;
+        return false;
     }
 
     UTF16String(UTF16StringData&& src)
@@ -184,13 +190,6 @@ const char* String::asASCIIStringData()
     return ((ASCIIString*)this)->m_stringData.data();
 }
 
-const char16_t* String::asUTF16StringData()
-{
-    ASSERT(isUTF16String());
-    return ((UTF16String*)this)->m_stringData.data();
-}
-
-
 bool isAllASCII(const char* buf, const size_t& len);
 bool isAllASCII(const char16_t* buf, const size_t& len);
 char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen);
@@ -219,6 +218,6 @@ inline String* fromCharCode(char32_t code)
 }
 
 #include "runtime/StringView.h"
-
+#include "runtime/StringBuilder.h"
 #endif
 

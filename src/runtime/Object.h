@@ -8,6 +8,9 @@
 
 namespace Escargot {
 
+class FunctionObject;
+class ErrorObject;
+
 struct ObjectRareData {
     bool m_isExtensible;
     bool m_isPlainObject; // tells it has __proto__ at first index
@@ -20,11 +23,15 @@ struct ObjectRareData {
     }
 };
 
+#define ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER 1
+
 class Object : public PointerValue {
     friend class Context;
+    friend class GlobalObject;
+    static Object* createBuiltinObjectPrototype(ExecutionState& state);
 public:
     Object(ExecutionState& state);
-
+    static Object* createFunctionPrototypeObject(ExecutionState& state, FunctionObject* function);
     virtual Type type()
     {
         return ObjectType;
@@ -33,6 +40,17 @@ public:
     virtual bool isObject()
     {
         return true;
+    }
+
+    virtual bool isErrorObject()
+    {
+        return false;
+    }
+
+    ErrorObject* asErrorObject()
+    {
+        ASSERT(isErrorObject());
+        return (ErrorObject*)this;
     }
 
     Value getPrototype(ExecutionState& state)
@@ -70,6 +88,15 @@ public:
     Value getOwnProperty(ExecutionState& state, const PropertyName& P);
     size_t findOwnProperty(ExecutionState& state, String* P);
     size_t findOwnProperty(ExecutionState& state, const PropertyName& P);
+
+    size_t hasOwnProperty(ExecutionState& state, String* P)
+    {
+        return findOwnProperty(state, P) != SIZE_MAX;
+    }
+    size_t hasOwnProperty(ExecutionState& state, const PropertyName& P)
+    {
+        return findOwnProperty(state, P) != SIZE_MAX;
+    }
 
     class ObjectPropertyDescriptorForDefineOwnProperty {
     public:
@@ -126,7 +153,7 @@ public:
         Value m_value;
         ObjectGetResult()
             : m_hasValue(false)
-            , m_value(Value(Value::ForceUninitialized))
+            , m_value(Value())
         {
 
         }
@@ -176,7 +203,14 @@ public:
         return m_structure->readProperty(state, idx).m_descriptor;
     }
 
+    void markThisObjectDontNeedStructureTransitionTable(ExecutionState& state)
+    {
+        m_structure = m_structure->escapeTransitionMode(state);
+    }
+
 protected:
+    Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);
+    void initPlainObject(ExecutionState& state);
     ObjectStructure* m_structure;
     ObjectRareData* m_rareData;
     Vector<SmallValue, gc_allocator_ignore_off_page<SmallValue>> m_values;
@@ -279,7 +313,7 @@ protected:
     void deleteOwnProperty(ExecutionState& state, size_t idx);
 
     Value getPrototypeSlowCase(ExecutionState& state);
-    void setPrototypeSlowCase(ExecutionState& state, const Value& value);
+    bool setPrototypeSlowCase(ExecutionState& state, const Value& value);
 };
 
 }

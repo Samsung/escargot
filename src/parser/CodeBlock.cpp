@@ -1,8 +1,43 @@
 #include "Escargot.h"
 #include "CodeBlock.h"
 #include "runtime/Context.h"
+#include "interpreter/ByteCode.h"
 
 namespace Escargot {
+
+CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
+    : m_context(ctx)
+    , m_src()
+    , m_sourceElementStart(0, 0, 0)
+    , m_astNodeStartIndex(0)
+    , m_identifierOnStackCount(info.m_argumentCount)
+    , m_identifierOnHeapCount(0)
+    , m_parentCodeBlock(nullptr)
+    , m_cachedASTNode(nullptr)
+    , m_byteCodeBlock(nullptr)
+#ifndef NDEBUG
+    , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+    , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+    , m_scopeContext(nullptr)
+#endif
+{
+    m_isNativeFunction = true;
+    m_isStrict = info.m_isStrict;
+    m_hasEval = false;
+    m_hasWith = false;
+    m_hasYield = false;
+    m_canUseIndexedVariableStorage = true;
+    m_canAllocateEnvironmentOnStack = true;
+    m_needsComplexParameterCopy = false;
+
+    m_parametersInfomation.resize(info.m_argumentCount);
+
+    m_byteCodeBlock = new ByteCodeBlock();
+    CallNativeFunction code(info.m_nativeFunction);
+    code.assignOpcodeInAddress();
+    char* first = (char *)&code;
+    m_byteCodeBlock->m_code.insert(m_byteCodeBlock->m_code.end(), first, first + sizeof(CallNativeFunction));
+}
 
 CodeBlock::CodeBlock(Context* ctx, StringView src, bool isStrict, size_t astNodeStartIndex, const AtomicStringVector& innerIdentifiers)
     : m_context(ctx)
@@ -20,6 +55,7 @@ CodeBlock::CodeBlock(Context* ctx, StringView src, bool isStrict, size_t astNode
     , m_scopeContext(nullptr)
 #endif
 {
+    m_isNativeFunction = false;
     m_isStrict = isStrict;
     m_hasEval = false;
     m_hasWith = false;
@@ -56,6 +92,7 @@ CodeBlock::CodeBlock(Context* ctx, StringView src, NodeLOC sourceElementStart, b
     , m_scopeContext(nullptr)
 #endif
 {
+    m_isNativeFunction = false;
     m_isStrict = isStrict;
     if (initFlags & CodeBlockInitFlag::CodeBlockHasEval) {
         m_hasEval = true;
@@ -126,7 +163,7 @@ void CodeBlock::notifySelfOrChildHasEvalWithYield()
 
 bool CodeBlock::hasNonConfiguableNameOnGlobal(const AtomicString& name)
 {
-    ASSERT(canUseIndexedVariableStorage());
+    ASSERT(!inEvalWithYieldScope());
     CodeBlock* top = this;
     while (top->parentCodeBlock()) {
         top = top->parentCodeBlock();
@@ -167,7 +204,7 @@ void CodeBlock::computeVariables()
     }
 
     size_t siz = m_parameterNames.size();
-    m_parametersInfomation.resize(siz);
+    m_parametersInfomation.resizeWithUninitializedValues(siz);
     size_t heapCount = 0;
     size_t stackCount = 0;
     for (size_t i = 0; i < siz; i ++) {

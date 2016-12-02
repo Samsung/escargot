@@ -28,8 +28,6 @@ AtomicString::AtomicString(ExecutionState& ec, String* name)
 {
     if (name->isASCIIString()) {
         init(&ec.context()->m_atomicStringMap, name->asASCIIStringData(), name->length());
-    } else if (name->isUTF16String()) {
-        init(&ec.context()->m_atomicStringMap, name->asUTF16StringData(), name->length());
     } else {
         UTF8StringData data = name->toUTF8StringData();
         init(&ec.context()->m_atomicStringMap, data.data(), data.length());

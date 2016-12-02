@@ -94,6 +94,11 @@ public:
         return m_end;
     }
 
+    virtual bool hasASCIIContent()
+    {
+        return m_string->hasASCIIContent();
+    }
+
 protected:
     String* m_string;
     size_t m_start, m_end;

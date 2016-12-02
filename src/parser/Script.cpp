@@ -7,7 +7,7 @@
 #include "runtime/Context.h"
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
-
+#include "runtime/ErrorObject.h"
 
 namespace Escargot {
 
@@ -27,9 +27,14 @@ Script::ScriptExecuteResult Script::execute(Context* ctx)
     ExecutionContext ec(ctx, globalEnvironment, m_topCodeBlock->isStrict());
     Value resultValue;
     ExecutionState state(ctx, &ec, &resultValue);
-    ByteCodeInterpreter::interpret(state, m_topCodeBlock);
-    result.result = resultValue;
-    return result;
+    try {
+        ByteCodeInterpreter::interpret(state, m_topCodeBlock);
+        result.result = resultValue;
+        return result;
+    } catch(ErrorObject* err) {
+        result.result = Value(err).toString(state);
+        return result;
+    }
 }
 
 }

@@ -164,6 +164,7 @@ public:
                 m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueDeleted->payload);
             }
         }
+        ASSERT(m_data.payload);
     }
 
     operator Value()

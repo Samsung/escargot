@@ -248,8 +248,9 @@ public:
 class FunctionEnvironmentRecord : public DeclarativeEnvironmentRecord {
     friend class LexicalEnvironment;
 public:
-    ALWAYS_INLINE FunctionEnvironmentRecord(ExecutionState& state, const Value& receiver, FunctionObject* function)
+    ALWAYS_INLINE FunctionEnvironmentRecord(ExecutionState& state, const Value& receiver, FunctionObject* function, bool isNewExpression)
         : DeclarativeEnvironmentRecord(state, function->codeBlock())
+        , m_isNewExpression(isNewExpression)
         , m_thisValue(receiver)
         , m_functionObject(function)
     {
@@ -263,7 +264,6 @@ public:
 
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-bindthisvalue
     // void bindThisValue(const ESValue& V);
-    // ESValue getThisBinding();
 
     virtual bool isFunctionEnvironmentRecord()
     {
@@ -289,7 +289,18 @@ public:
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
+
+    virtual Value getThisBinding()
+    {
+        return m_thisValue;
+    }
+
+    bool isNewExpression()
+    {
+        return m_isNewExpression;
+    }
 protected:
+    bool m_isNewExpression;
     Value m_thisValue;
     FunctionObject* m_functionObject;
     // ESValue m_newTarget; //TODO
@@ -298,8 +309,8 @@ protected:
 class FunctionEnvironmentRecordOnStack : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
 public:
-    ALWAYS_INLINE FunctionEnvironmentRecordOnStack(ExecutionState& state, const Value& receiver, FunctionObject* function)
-        : FunctionEnvironmentRecord(state, receiver, function)
+    ALWAYS_INLINE FunctionEnvironmentRecordOnStack(ExecutionState& state, const Value& receiver, FunctionObject* function, bool isNewExpression)
+        : FunctionEnvironmentRecord(state, receiver, function, isNewExpression)
     {
     }
 
@@ -313,8 +324,8 @@ class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
     friend class ByteCodeInterpreter;
 public:
-    ALWAYS_INLINE FunctionEnvironmentRecordOnHeap(ExecutionState& state, const Value& receiver, FunctionObject* function)
-        : FunctionEnvironmentRecord(state, receiver, function)
+    ALWAYS_INLINE FunctionEnvironmentRecordOnHeap(ExecutionState& state, const Value& receiver, FunctionObject* function, bool isNewExpression)
+        : FunctionEnvironmentRecord(state, receiver, function, isNewExpression)
         , m_heapStorage(function->codeBlock()->identifierOnHeapCount())
     {
     }
@@ -336,8 +347,8 @@ protected:
 class FunctionEnvironmentRecordNotIndexed : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
 public:
-    ALWAYS_INLINE FunctionEnvironmentRecordNotIndexed(ExecutionState& state, const Value& receiver, FunctionObject* function)
-        : FunctionEnvironmentRecord(state, receiver, function)
+    ALWAYS_INLINE FunctionEnvironmentRecordNotIndexed(ExecutionState& state, const Value& receiver, FunctionObject* function, bool isNewExpression)
+        : FunctionEnvironmentRecord(state, receiver, function, isNewExpression)
     {
         const CodeBlock::IdentifierInfoVector& vec = function->codeBlock()->identifierInfos();
         size_t len = vec.size();

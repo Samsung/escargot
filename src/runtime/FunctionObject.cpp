@@ -8,24 +8,45 @@
 #include "interpreter/ByteCodeInterpreter.h"
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
+#include "runtime/ErrorObject.h"
+
 
 namespace Escargot {
 
-FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, bool isConstructor)
-    : Object(state)
-    , m_isConstructor(isConstructor)
-    , m_codeBlock(codeBlock)
+void FunctionObject::initFunctionObject(ExecutionState& state)
 {
     if (m_isConstructor) {
         m_structure = state.context()->defaultStructureForFunctionObject();
-        m_values.pushBack(Value(new Object(state)));
-        m_values.pushBack(Value(codeBlock->functionName().string()));
-        m_values.pushBack(Value(codeBlock->functionParameters().size()));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(Object::createFunctionPrototypeObject(state, this)));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionName().string()));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = (Value(m_codeBlock->functionParameters().size()));
     } else {
         m_structure = state.context()->defaultStructureForNotConstructorFunctionObject();
-        m_values.pushBack(Value(codeBlock->functionName().string()));
-        m_values.pushBack(Value(codeBlock->functionParameters().size()));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionParameters().size()));
     }
+}
+
+FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltin)
+    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2, false)
+    , m_isConstructor(false)
+    , m_codeBlock(codeBlock)
+{
+    initFunctionObject(state);
+}
+
+FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, bool isConstructor)
+    : FunctionObject(state, new CodeBlock(state.context(), info), isConstructor)
+{
+}
+
+FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, bool isConstructor)
+    : Object(state, isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
+    , m_isConstructor(isConstructor)
+    , m_codeBlock(codeBlock)
+{
+    initFunctionObject(state);
+    setPrototype(state, state.context()->globalObject()->functionPrototype());
 }
 
 Value FunctionObject::getFunctionPrototypeSlowCase(ExecutionState& state)
@@ -33,7 +54,12 @@ Value FunctionObject::getFunctionPrototypeSlowCase(ExecutionState& state)
     return getOwnProperty(state, state.context()->staticStrings().prototype);
 }
 
-Value FunctionObject::call(ExecutionState& state, const Value& receiver, const size_t& argc, Value* argv)
+bool FunctionObject::setFunctionPrototypeSlowCase(ExecutionState& state, const Value& v)
+{
+    return defineOwnProperty(state, state.context()->staticStrings().prototype, ObjectPropertyDescriptorForDefineOwnProperty(v));
+}
+
+Value FunctionObject::call(ExecutionState& state, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression)
 {
     Context* ctx = state.context();
 
@@ -58,16 +84,24 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiver, const s
     size_t stackStorageSize = m_codeBlock->identifierOnStackCount();
     if (m_codeBlock->canAllocateEnvironmentOnStack()) {
         // no capture, very simple case
-        record = new(alloca(sizeof(LexicalEnvironment))) FunctionEnvironmentRecordOnStack(state, receiver, this);
-        env = new(alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, state.executionContext()->lexicalEnvironment());
+        record = new(alloca(sizeof(LexicalEnvironment))) FunctionEnvironmentRecordOnStack(state, receiver, this, isNewExpression);
+        if (LIKELY(state.executionContext() != nullptr)) {
+            env = new(alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, state.executionContext()->lexicalEnvironment());
+        } else {
+            env = new(alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, nullptr);
+        }
         ec = new(alloca(sizeof(ExecutionContext))) ExecutionContext(ctx, env, isStrict);
     } else {
         if (m_codeBlock->canUseIndexedVariableStorage()) {
-            record = new FunctionEnvironmentRecordOnHeap(state, receiver, this);
+            record = new FunctionEnvironmentRecordOnHeap(state, receiver, this, isNewExpression);
         } else {
-            record = new FunctionEnvironmentRecordNotIndexed(state, receiver, this);
+            record = new FunctionEnvironmentRecordNotIndexed(state, receiver, this, isNewExpression);
         }
-        env = new LexicalEnvironment(record, state.executionContext()->lexicalEnvironment());
+        if (LIKELY(state.executionContext() != nullptr)) {
+            env = new LexicalEnvironment(record, state.executionContext()->lexicalEnvironment());
+        } else {
+            env = new LexicalEnvironment(record, nullptr);
+        }
         ec = new ExecutionContext(ctx, env, isStrict);
     }
 
@@ -103,6 +137,16 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiver, const s
     ByteCodeInterpreter::interpret(newState, m_codeBlock);
 
     return resultValue;
+}
+
+Value FunctionObject::call(const Value& callee, ExecutionState& state, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression)
+{
+    if (LIKELY(callee.isFunction())) {
+        return callee.asFunction()->call(state, receiver, argc, argv, isNewExpression);
+    } else {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
+        RELEASE_ASSERT_NOT_REACHED();
+    }
 }
 
 }

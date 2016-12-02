@@ -6,6 +6,7 @@
 #include "runtime/FunctionObject.h"
 #include "runtime/Context.h"
 #include "runtime/GlobalObject.h"
+#include "runtime/ErrorObject.h"
 
 namespace Escargot {
 
@@ -201,11 +202,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         {
             CallFunction* code = (CallFunction*)currentCode;
             const Value& callee = registerFile[code->m_registerIndex];
-            if (!callee.isFunction()) {
-                // TODO throw exception
-                RELEASE_ASSERT_NOT_REACHED();
-            }
-            registerFile[code->m_registerIndex] = callee.asFunction()->call(state, callee, code->m_argumentCount, &registerFile[code->m_registerIndex + 1]);
+            registerFile[code->m_registerIndex] = FunctionObject::call(callee, state, callee, code->m_argumentCount, &registerFile[code->m_registerIndex + 1]);
             executeNextCode<CallFunction>(programCounter);
             NEXT_INSTRUCTION();
         }
@@ -214,12 +211,8 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         {
             CallFunctionWithReceiver* code = (CallFunctionWithReceiver*)currentCode;
             const Value& callee = registerFile[code->m_registerIndex];
-            if (!callee.isFunction()) {
-                // TODO throw exception
-                RELEASE_ASSERT_NOT_REACHED();
-            }
             const Value& receiver = registerFile[code->m_registerIndex + 1];
-            registerFile[code->m_registerIndex] = callee.asFunction()->call(state, receiver, code->m_argumentCount, &registerFile[code->m_registerIndex + 2]);
+            registerFile[code->m_registerIndex] = FunctionObject::call(callee, state, receiver, code->m_argumentCount, &registerFile[code->m_registerIndex + 2]);
             executeNextCode<CallFunction>(programCounter);
             NEXT_INSTRUCTION();
         }
@@ -246,6 +239,13 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
             }
             return;
         }
+
+        CallNativeFunctionOpcodeLbl:
+        {
+            CallNativeFunction* code = (CallNativeFunction*)currentCode;
+            *state.exeuctionResult() = code->m_fn(state, env->record()->getThisBinding(), stackStorage, env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isNewExpression());
+            return;
+        }
     }
 
     FillOpcodeTable:
@@ -253,6 +253,8 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
 #define REGISTER_TABLE(opcode, pushCount, popCount) \
         registerOpcode(opcode##Opcode, &&opcode##OpcodeLbl);
         FOR_EACH_BYTECODE_OP(REGISTER_TABLE);
+
+#undef REGISTER_TABLE
     }
     return;
 }
@@ -267,7 +269,7 @@ Value ByteCodeInterpreter::loadByName(ExecutionState& state, LexicalEnvironment*
         }
         env = env->outerEnvironment();
     }
-    // TODO throw reference error
+    ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name, false, AtomicString(), errorMessage_IsNotDefined);
     RELEASE_ASSERT_NOT_REACHED();
 }
 

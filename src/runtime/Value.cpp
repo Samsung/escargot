@@ -20,7 +20,7 @@ String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
          int num = asInt32();
          if (num >= 0 && num < ESCARGOT_STRINGS_NUMBERS_MAX)
              return ec.context()->staticStrings().numbers[num].string();
-         RELEASE_ASSERT_NOT_REACHED();
+
          return String::fromInt32(num);
      } else if (isNumber()) {
          double d = asNumber();
@@ -47,10 +47,56 @@ String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
          else
              return ec.context()->staticStrings().stringFalse.string();
      } else {
-         // TODO
-         RELEASE_ASSERT_NOT_REACHED();
-         // return toPrimitive(PreferString).toString();
+         return toPrimitive(ec, PreferString).toString(ec);
      }
+}
+
+Object* Value::toObjectSlowCase(ExecutionState& ec) const // $7.1.13 ToObject
+{
+    // TODO
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint preferredType) const // $7.1.1 ToPrimitive
+{
+    ASSERT(!isPrimitive());
+    Object* obj = asObject();
+    if (preferredType == PrimitiveTypeHint::PreferString) {
+        Value toString = obj->get(state, PropertyName(state.context()->staticStrings().toString)).m_value;
+        if (toString.isFunction()) {
+            Value ret = toString.asFunction()->call(state, obj, 0, NULL);
+            if (ret.isPrimitive()) {
+                return ret;
+            }
+        }
+
+        Value valueOf = obj->get(state, PropertyName(state.context()->staticStrings().valueOf)).m_value;
+        if (valueOf.isFunction()) {
+            Value ret = valueOf.asFunction()->call(state, obj, 0, NULL);
+            if (ret.isPrimitive()) {
+                return ret;
+            }
+        }
+    } else { // preferNumber
+        Value valueOf = obj->get(state, PropertyName(state.context()->staticStrings().valueOf)).m_value;
+        if (valueOf.isFunction()) {
+            Value ret = valueOf.asFunction()->call(state, obj, 0, NULL);
+            if (ret.isPrimitive()) {
+                return ret;
+            }
+        }
+
+        Value toString = obj->get(state, PropertyName(state.context()->staticStrings().toString)).m_value;
+        if (toString.isFunction()) {
+            Value ret = toString.asFunction()->call(state, obj, 0, NULL);
+            if (ret.isPrimitive()) {
+                return ret;
+            }
+        }
+    }
+    // TODO
+    // ESVMInstance::currentInstance()->throwError(ESValue(TypeError::create(ESString::create(errorMessage_ObjectToPrimitiveValue))));
+    RELEASE_ASSERT_NOT_REACHED();
 }
 /*
 Object* toObject(ExecutionState& ec) const; // $7.1.13 ToObject

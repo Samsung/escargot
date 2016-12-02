@@ -42,6 +42,11 @@ public:
         return m_defaultStructureForNotConstructorFunctionObject;
     }
 
+    ObjectStructure* defaultStructureForFunctionPrototypeObject()
+    {
+        return m_defaultStructureForFunctionPrototypeObject;
+    }
+
     GlobalObject* globalObject()
     {
         return m_globalObject;
@@ -67,6 +72,7 @@ protected:
     ObjectStructure* m_defaultStructureForObject;
     ObjectStructure* m_defaultStructureForFunctionObject;
     ObjectStructure* m_defaultStructureForNotConstructorFunctionObject;
+    ObjectStructure* m_defaultStructureForFunctionPrototypeObject;
 };
 
 }
