@@ -37,8 +37,8 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionUnsignedRightShift; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        m_right->generateExpressionByteCode(codeBlock, context);
         m_left->generateExpressionByteCode(codeBlock, context);
+        m_right->generateExpressionByteCode(codeBlock, context);
         size_t src1 = context->getLastRegisterIndex();
         context->giveUpRegister();
         size_t src0 = context->getLastRegisterIndex();

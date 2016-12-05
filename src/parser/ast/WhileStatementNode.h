@@ -34,6 +34,26 @@ public:
 
 
     virtual ASTNodeType type() { return ASTNodeType::WhileStatement; }
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        ByteCodeGenerateContext newContext(*context);
+
+        size_t whileStart = codeBlock->currentCodeSize();
+        m_test->generateExpressionByteCode(codeBlock, &newContext);
+
+        codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex()), &newContext, this);
+        size_t testPos = codeBlock->lastCodePosition<JumpIfFalse>();
+
+        m_body->generateStatementByteCode(codeBlock, &newContext);
+
+        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), whileStart), &newContext, this);
+        newContext.consumeContinuePositions(codeBlock, whileStart);
+        size_t whileEnd = codeBlock->currentCodeSize();
+        newContext.consumeBreakPositions(codeBlock, whileEnd);
+        codeBlock->peekCode<JumpIfFalse>(testPos)->m_jumpPosition = whileEnd;
+        newContext.m_positionToContinue = context->m_positionToContinue;
+        newContext.propagateInformationTo(*context);
+    }
 
 protected:
     ExpressionNode *m_test;

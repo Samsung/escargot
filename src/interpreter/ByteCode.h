@@ -133,7 +133,7 @@ struct ByteCodeLOC {
 #endif
     size_t index;
 
-    ByteCodeLOC(size_t index)
+    explicit ByteCodeLOC(size_t index)
     {
         this->index = index;
 #ifndef NDEBUG
@@ -433,7 +433,7 @@ public:
 #define DEFINE_BINARY_OPERATION_DUMP(name) \
     virtual void dump() \
     { \
-        printf(name" r%d <- r%d + r%d", (int)m_srcIndex0, (int)m_srcIndex0, (int)m_srcIndex1); \
+        printf(name" r%d <- r%d , r%d", (int)m_srcIndex0, (int)m_srcIndex0, (int)m_srcIndex1); \
     }
 #endif
 
