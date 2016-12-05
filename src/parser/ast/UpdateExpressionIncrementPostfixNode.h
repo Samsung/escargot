@@ -33,6 +33,16 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::UpdateExpressionIncrementPostfix; }
 
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        m_argument->generateExpressionByteCode(codeBlock, context);
+        size_t resultRegisterIndex = context->getLastRegisterIndex();
+        size_t tempRegisterIndex = context->getRegister();
+        codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), resultRegisterIndex, tempRegisterIndex), context, this);
+        codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), tempRegisterIndex), context, this);
+        m_argument->generateStoreByteCode(codeBlock, context);
+        context->giveUpRegister();
+    }
 protected:
     ExpressionNode* m_argument;
 };

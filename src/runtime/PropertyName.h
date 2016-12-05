@@ -12,16 +12,19 @@ public:
     PropertyName()
     {
         m_data = ((size_t)AtomicString().string()) + 1;
+        ASSERT(m_data);
     }
 
     PropertyName(ExecutionState& state, const AtomicString& atomicString)
     {
         m_data = ((size_t)atomicString.string() + 1);
+        ASSERT(m_data);
     }
 
-    explicit PropertyName(const AtomicString& atomicString)
+    PropertyName(const AtomicString& atomicString)
     {
         m_data = ((size_t)atomicString.string() + 1);
+        ASSERT(m_data);
     }
 
     PropertyName(ExecutionState& state, String* string);

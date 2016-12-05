@@ -18,6 +18,7 @@ public:
     struct ScriptExecuteResult {
         MAKE_STACK_ALLOCATED();
         Value result;
+        Value error;
     };
     ScriptExecuteResult execute(Context* ctx);
 protected:

@@ -27,10 +27,35 @@ class Node;
     F(DeclareFunctionDeclaration, 1, 0) \
     F(DeclareFunctionExpression, 1, 0) \
     F(BinaryPlus, 1, 2) \
+    F(BinaryMinus, 1, 2) \
+    F(BinaryMultiply, 1, 2) \
+    F(BinaryDivision, 1, 2) \
+    F(BinaryMod, 1, 2) \
+    F(BinaryEqual, 1, 2) \
+    F(BinaryLessThan, 1, 2) \
+    F(BinaryLessThanOrEqual, 1, 2) \
+    F(BinaryGreaterThan, 1, 2) \
+    F(BinaryGreaterThanOrEqual, 1, 2) \
+    F(BinaryNotEqual, 1, 2) \
+    F(BinaryStrictEqual, 1, 2) \
+    F(BinaryNotStrictEqual, 1, 2) \
+    F(BinaryBitwiseAnd, 1, 2) \
+    F(BinaryBitwiseOr, 1, 2) \
+    F(BinaryBitwiseXor, 1, 2) \
+    F(BinaryLeftShift, 1, 2) \
+    F(BinarySignedRightShift, 1, 2) \
+    F(BinaryUnsignedRightShift, 1, 2) \
+    F(Move, 1, 0) \
+    F(Increment, 1, 1) \
+    F(Decrement, 1, 1) \
+    F(Jump, 0, 0) \
+    F(JumpComplexCase, 0, 0) \
+    F(JumpIfFalse, 0, 0) \
     F(StoreExecutionResult, 0, 1) \
     F(CallFunction, 1, 0) \
     F(CallFunctionWithReceiver, 1, 0) \
     F(ReturnFunction, 0, 0) \
+    F(ThrowOperation, 0, 0) \
     F(CallNativeFunction, 0, 0) \
     F(End, 0, 0) \
 
@@ -102,15 +127,19 @@ inline size_t getByteCodePopCount(Opcode code)
 }
 
 struct ByteCodeLOC {
+#ifndef NDEBUG
     size_t line;
     size_t column;
+#endif
     size_t index;
 
-    ByteCodeLOC(size_t line, size_t column, size_t index)
+    ByteCodeLOC(size_t index)
     {
-        this->line = line;
-        this->column = column;
         this->index = index;
+#ifndef NDEBUG
+        this->line = SIZE_MAX;
+        this->column = SIZE_MAX;
+#endif
     }
 };
 
@@ -122,12 +151,16 @@ public:
         , m_loc(loc)
 #ifndef NDEBUG
         , m_node(nullptr)
+        , m_orgOpcode(EndOpcode)
 #endif
     {
     }
 
     void assignOpcodeInAddress()
     {
+#ifndef NDEBUG
+        m_orgOpcode = (Opcode)(size_t)m_opcodeInAddress;
+#endif
         m_opcodeInAddress = g_opcodeTable.m_table[(Opcode)(size_t)m_opcodeInAddress];
     }
 
@@ -135,8 +168,11 @@ public:
     ByteCodeLOC m_loc;
 #ifndef NDEBUG
     Node* m_node;
-    void dumpCode()
+    Opcode m_orgOpcode;
+
+    void dumpCode(size_t pos)
     {
+        printf("%d\t\t", (int)pos);
         dump();
         printf(" %s ", getByteCodeNameFromAddress(m_opcodeInAddress));
         printf("(line: %d:%d)\n", (int)m_loc.line, (int)m_loc.column);
@@ -358,7 +394,7 @@ public:
 class DeclareFunctionDeclaration : public ByteCode {
 public:
     DeclareFunctionDeclaration(CodeBlock* cb)
-        : ByteCode(Opcode::DeclareFunctionDeclarationOpcode, ByteCodeLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX))
+        : ByteCode(Opcode::DeclareFunctionDeclarationOpcode, ByteCodeLOC(SIZE_MAX))
         , m_codeBlock(cb)
     {
     }
@@ -391,21 +427,160 @@ public:
 #endif
 };
 
-class BinaryPlus : public ByteCode {
+#ifdef NDEBUG
+#define DEFINE_BINARY_OPERATION_DUMP(name)
+#else
+#define DEFINE_BINARY_OPERATION_DUMP(name) \
+    virtual void dump() \
+    { \
+        printf(name" r%d <- r%d + r%d", (int)m_srcIndex0, (int)m_srcIndex0, (int)m_srcIndex1); \
+    }
+#endif
+
+#define DEFINE_BINARY_OPERATION(CodeName, HumanName) \
+class Binary##CodeName : public ByteCode { \
+public: \
+    Binary##CodeName(const ByteCodeLOC& loc, const size_t& registerIndex0, const size_t& registerIndex1) \
+        : ByteCode(Opcode::Binary##CodeName##Opcode, loc)  \
+        , m_srcIndex0(registerIndex0)  \
+        , m_srcIndex1(registerIndex1)  \
+    {  \
+    }  \
+    size_t m_srcIndex0; \
+    size_t m_srcIndex1; \
+    DEFINE_BINARY_OPERATION_DUMP(HumanName) \
+};
+
+DEFINE_BINARY_OPERATION(Plus, "plus");
+DEFINE_BINARY_OPERATION(Minus, "minus");
+DEFINE_BINARY_OPERATION(Multiply, "multiply");
+DEFINE_BINARY_OPERATION(Division, "division");
+DEFINE_BINARY_OPERATION(Mod, "mod");
+DEFINE_BINARY_OPERATION(Equal, "equal");
+DEFINE_BINARY_OPERATION(NotEqual, "notequal");
+DEFINE_BINARY_OPERATION(LessThan, "lessthan");
+DEFINE_BINARY_OPERATION(LessThanOrEqual, "lessthan or equal");
+DEFINE_BINARY_OPERATION(GreaterThan, "greaterthan");
+DEFINE_BINARY_OPERATION(GreaterThanOrEqual, "greaterthan or equal");
+DEFINE_BINARY_OPERATION(StrictEqual, "strict erqual");
+DEFINE_BINARY_OPERATION(NotStrictEqual, "not strict erqual");
+DEFINE_BINARY_OPERATION(BitwiseAnd, "bitwise and");
+DEFINE_BINARY_OPERATION(BitwiseOr, "bitwise or");
+DEFINE_BINARY_OPERATION(BitwiseXor, "bitwise Xor");
+DEFINE_BINARY_OPERATION(LeftShift, "left shift");
+DEFINE_BINARY_OPERATION(SignedRightShift, "signed right shift");
+DEFINE_BINARY_OPERATION(UnsignedRightShift, "unsigned right shift");
+
+class Move : public ByteCode {
 public:
-    BinaryPlus(const ByteCodeLOC& loc, const size_t& registerIndex0, const size_t& registerIndex1)
-        : ByteCode(Opcode::BinaryPlusOpcode, loc)
-        , m_srcIndex0(registerIndex0)
-        , m_srcIndex1(registerIndex1)
+    Move(const ByteCodeLOC& loc, const size_t& registerIndex0, const size_t& registerIndex1)
+        : ByteCode(Opcode::MoveOpcode, loc)
+        , m_registerIndex0(registerIndex0)
+        , m_registerIndex1(registerIndex1)
     {
     }
-    size_t m_srcIndex0; // src0 == dst0
-    size_t m_srcIndex1;
+
+    size_t m_registerIndex0;
+    size_t m_registerIndex1;
 
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("add r%d <- r%d + r%d", (int)m_srcIndex0, (int)m_srcIndex0, (int)m_srcIndex1);
+        printf("mov r%d <- r%d", (int)m_registerIndex1, (int)m_registerIndex0);
+    }
+#endif
+};
+
+class Increment : public ByteCode {
+public:
+    Increment(const ByteCodeLOC& loc, const size_t& registerIndex)
+        : ByteCode(Opcode::IncrementOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    size_t m_registerIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("increment r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class Decrement : public ByteCode {
+public:
+    Decrement(const ByteCodeLOC& loc, const size_t& registerIndex)
+        : ByteCode(Opcode::DecrementOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    size_t m_registerIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("decrement r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class Jump : public ByteCode {
+public:
+    Jump(const ByteCodeLOC& loc, size_t pos = SIZE_MAX)
+        : ByteCode(Opcode::JumpOpcode, loc)
+        , m_jumpPosition(pos)
+    {
+    }
+
+    size_t m_jumpPosition;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("jump %d", (int)m_jumpPosition);
+    }
+#endif
+};
+
+class JumpComplexCase : public ByteCode {
+public:
+    JumpComplexCase(Jump* j)
+        : ByteCode(Opcode::JumpComplexCaseOpcode, j->m_loc)
+        , m_jumpPosition(j->m_jumpPosition)
+    {
+        // TODO
+    }
+
+    size_t m_jumpPosition;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("jump complex %d", (int)m_jumpPosition);
+    }
+#endif
+};
+
+
+class JumpIfFalse : public ByteCode {
+public:
+    JumpIfFalse(const ByteCodeLOC& loc, const size_t& registerIndex)
+        : ByteCode(Opcode::JumpIfFalseOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_jumpPosition(SIZE_MAX)
+    {
+    }
+
+    size_t m_registerIndex;
+    size_t m_jumpPosition;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("jump if false r%d -> %d", (int)m_registerIndex, (int)m_jumpPosition);
     }
 #endif
 };
@@ -490,10 +665,27 @@ public:
 #endif
 };
 
+class ThrowOperation : public ByteCode {
+public:
+    ThrowOperation(const ByteCodeLOC& loc, const size_t& registerIndex)
+        : ByteCode(Opcode::ThrowOperationOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+    size_t m_registerIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("throw r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
 class CallNativeFunction : public ByteCode {
 public:
     CallNativeFunction(NativeFunctionPointer fn)
-        : ByteCode(Opcode::CallNativeFunctionOpcode, ByteCodeLOC(-1, -1, -1))
+        : ByteCode(Opcode::CallNativeFunctionOpcode, ByteCodeLOC(SIZE_MAX))
         , m_fn(fn)
     {
     }
@@ -507,6 +699,13 @@ public:
         : ByteCode(Opcode::EndOpcode, loc)
     {
     }
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("end");
+    }
+#endif
 };
 
 
@@ -525,6 +724,8 @@ public:
         {
             CodeType& t = const_cast<CodeType &>(code);
             t.m_node = node;
+            t.m_loc.line = computeNodeFromByteCode(&t, context->m_codeBlock).line;
+            t.m_loc.column = computeNodeFromByteCode(&t, context->m_codeBlock).column;
         }
     #endif
 
@@ -534,6 +735,27 @@ public:
 
         m_requiredRegisterFileSizeInValueSize = std::max(m_requiredRegisterFileSizeInValueSize, (size_t)context->m_baseRegisterCount);
     }
+    template <typename CodeType>
+    CodeType* peekCode(size_t position)
+    {
+        char* pos = m_code.data();
+        pos = &pos[position];
+        return (CodeType *)pos;
+    }
+
+    template <typename CodeType>
+    size_t lastCodePosition()
+    {
+        return m_code.size() - sizeof(CodeType);
+    }
+
+    size_t currentCodeSize()
+    {
+        return m_code.size();
+    }
+
+    NodeLOC computeNodeFromByteCode(ByteCode* code, CodeBlock* cb);
+
     ByteCodeBlockData m_code;
     size_t m_requiredRegisterFileSizeInValueSize;
 };

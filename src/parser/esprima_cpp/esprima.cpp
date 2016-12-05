@@ -769,18 +769,23 @@ public:
                 }
             } else if (ch == 0x3C) { // U+003C is '<'
                 // if (this->source.slice(this->index + 1, this->index + 4) == '!--') {
-                StringView sv(this->source, this->index + 1, this->index + 4);
-                if (sv == "!--") {
-                    this->index += 4; // `<!--`
-                    /*
-                    const comment = this->skipSingleLineComment(4);
-                    if (this->trackComment) {
-                        comments = comments.concat(comment);
-                    }*/
-                    this->skipSingleLineComment(4);
+                if (this->source.length() > this->index + 4) {
+                    StringView sv(this->source, this->index + 1, this->index + 4);
+                    if (sv == "!--") {
+                        this->index += 4; // `<!--`
+                        /*
+                        const comment = this->skipSingleLineComment(4);
+                        if (this->trackComment) {
+                            comments = comments.concat(comment);
+                        }*/
+                        this->skipSingleLineComment(4);
+                    } else {
+                        break;
+                    }
                 } else {
                     break;
                 }
+
             } else {
                 break;
             }
@@ -2802,9 +2807,7 @@ public:
                 switch (value) {
                     case LeftParenthesis:
                         this->context->isBindingElement = false;
-                        // TODO
-                        RELEASE_ASSERT_NOT_REACHED();
-                        // expr = this->inheritCoverGrammar(this->parseGroupExpression);
+                        expr = this->inheritCoverGrammar(&Parser::parseGroupExpression);
                         break;
                     case LeftSquareBracket:
                         expr = this->inheritCoverGrammar(&Parser::parseArrayInitializer);
@@ -3476,6 +3479,38 @@ public:
         return expr;
     }
 */
+     Node* parseGroupExpression()
+     {
+         Node* expr;
+
+         this->expect(LeftParenthesis);
+         if (this->match(RightParenthesis)) {
+             RELEASE_ASSERT_NOT_REACHED();
+         } else {
+             ScannerResult* startToken = this->lookahead;
+             this->context->isBindingElement = true;
+             expr = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
+
+             if (this->match(Comma)) {
+                 ExpressionNodeVector expressions;
+
+                 this->context->isAssignmentTarget = false;
+                 expressions.push_back(expr);
+                 while (this->startMarker.index < this->scanner->length) {
+                     if (!this->match(Comma)) {
+                         break;
+                     }
+                     this->nextToken();
+
+                     expressions.push_back(this->inheritCoverGrammar(&Parser::parseAssignmentExpression));
+                 }
+                 expr = this->finalize(this->startNode(startToken), new SequenceExpressionNode(std::move(expressions)));
+             }
+         }
+         this->expect(RightParenthesis);
+
+         return expr;
+     }
      // ECMA-262 12.3 Left-Hand-Side Expressions
 
      ArgumentVector parseArguments()
@@ -3695,6 +3730,7 @@ public:
                      }
                      this->context->isAssignmentTarget = false;
                      this->context->isBindingElement = false;
+                     this->nextToken();
                      if (isPlus) {
                          expr = this->finalize(this->startNode(startToken), new UpdateExpressionIncrementPostfixNode(expr));
                      } else {
@@ -4615,7 +4651,7 @@ public:
             this->expect(Substitution);
         }
 
-        return this->finalize(node, new VariableDeclaratorNode(id, asExpressionNode(init)));
+        return this->finalize(node, new VariableDeclaratorNode(id, init));
     }
 
     VariableDeclaratorVector parseVariableDeclarationList(DeclarationOptions& options)

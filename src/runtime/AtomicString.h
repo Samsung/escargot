@@ -46,11 +46,6 @@ public:
         return m_string;
     }
 
-    operator String*() const
-    {
-        return string();
-    }
-
     inline friend bool operator == (const AtomicString& a, const AtomicString& b);
     inline friend bool operator != (const AtomicString& a, const AtomicString& b);
 

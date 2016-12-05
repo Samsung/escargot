@@ -39,11 +39,11 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     m_byteCodeBlock->m_code.insert(m_byteCodeBlock->m_code.end(), first, first + sizeof(CallNativeFunction));
 }
 
-CodeBlock::CodeBlock(Context* ctx, StringView src, bool isStrict, size_t astNodeStartIndex, const AtomicStringVector& innerIdentifiers)
+CodeBlock::CodeBlock(Context* ctx, StringView src, bool isStrict, NodeLOC sourceElementStart, const AtomicStringVector& innerIdentifiers)
     : m_context(ctx)
     , m_src(src)
-    , m_sourceElementStart(1, 0, 0)
-    , m_astNodeStartIndex(astNodeStartIndex)
+    , m_sourceElementStart(NodeLOC(1, 0, 0))
+    , m_astNodeStartIndex(sourceElementStart.index)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
     , m_parentCodeBlock(nullptr)
@@ -55,6 +55,8 @@ CodeBlock::CodeBlock(Context* ctx, StringView src, bool isStrict, size_t astNode
     , m_scopeContext(nullptr)
 #endif
 {
+    m_isFunctionDeclaration = false;
+    m_isFunctionExpression = false;
     m_isNativeFunction = false;
     m_isStrict = isStrict;
     m_hasEval = false;

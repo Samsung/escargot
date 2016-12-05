@@ -21,6 +21,7 @@ PropertyName::PropertyName(ExecutionState& state, String* string)
     } else {
         m_data = ((size_t)AtomicString(state, string).string()) | 1;
     }
+    ASSERT(m_data);
 }
 
 }

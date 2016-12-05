@@ -41,7 +41,7 @@ public:
             }
         }
         ASSERT(blk);
-        codeBlock->pushCode(DeclareFunctionExpression(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getRegister(), blk), context, this);
+        codeBlock->pushCode(DeclareFunctionExpression(ByteCodeLOC(m_loc.index), context->getRegister(), blk), context, this);
     }
 protected:
     FunctionNode m_function;

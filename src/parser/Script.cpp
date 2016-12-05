@@ -29,10 +29,16 @@ Script::ScriptExecuteResult Script::execute(Context* ctx)
     ExecutionState state(ctx, &ec, &resultValue);
     try {
         ByteCodeInterpreter::interpret(state, m_topCodeBlock);
+        result.error = Value(Value::EmptyValue);
         result.result = resultValue;
         return result;
-    } catch(ErrorObject* err) {
-        result.result = Value(err).toString(state);
+    } catch(const Value& err) {
+        result.result = Value(Value::EmptyValue);
+        result.error = err;
+        return result;
+    } catch(PointerValue* err) {
+        result.result = Value(Value::EmptyValue);
+        result.error = err;
         return result;
     }
 }

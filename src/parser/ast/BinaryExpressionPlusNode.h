@@ -41,7 +41,7 @@ public:
         context->giveUpRegister();
         size_t src0 = context->getLastRegisterIndex();
 
-        codeBlock->pushCode(BinaryPlus(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), src0, src1), context, this);
+        codeBlock->pushCode(BinaryPlus(ByteCodeLOC(m_loc.index), src0, src1), context, this);
     }
 protected:
     ExpressionNode* m_left;

@@ -35,7 +35,42 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ForStatement; }
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        ByteCodeGenerateContext newContext(*context);
 
+        if (m_init) {
+            m_init->generateStatementByteCode(codeBlock, &newContext);
+        }
+
+        size_t forStart = codeBlock->currentCodeSize();
+
+        if (m_test) {
+            m_test->generateExpressionByteCode(codeBlock, &newContext);
+        } else {
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), newContext.getRegister(), Value(true)), &newContext, this);
+        }
+
+        codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex()), &newContext, this);
+        size_t testPos = codeBlock->lastCodePosition<JumpIfFalse>();
+
+        m_body->generateStatementByteCode(codeBlock, &newContext);
+
+        size_t updatePosition = codeBlock->currentCodeSize();
+        if (m_update) {
+            m_update->generateExpressionByteCode(codeBlock, &newContext);
+            newContext.giveUpRegister();
+        }
+        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), forStart), &newContext, this);
+
+        size_t forEnd = codeBlock->currentCodeSize();
+        codeBlock->peekCode<JumpIfFalse>(testPos)->m_jumpPosition = forEnd;
+
+        newContext.consumeBreakPositions(codeBlock, forEnd);
+        newContext.consumeContinuePositions(codeBlock, updatePosition);
+        newContext.m_positionToContinue = updatePosition;
+        newContext.propagateInformationTo(*context);
+    }
 protected:
     ExpressionNode *m_init;
     ExpressionNode *m_test;

@@ -550,7 +550,7 @@ inline FunctionObject* Value::asFunction() const
     return asPointerValue()->asFunctionObject();
 }
 
-inline double Value::toNumber(ExecutionState& ec) const
+inline double Value::toNumber(ExecutionState& state) const
 {
     // http://www.ecma-international.org/ecma-262/6.0/#sec-tonumber
 #ifdef ESCARGOT_64
@@ -575,9 +575,7 @@ inline double Value::toNumber(ExecutionState& ec) const
     else if (isBoolean())
         return asBoolean() ?  1 : 0;
     else {
-        // TODO
-        RELEASE_ASSERT_NOT_REACHED();
-        // return toNumberSlowCase();
+        return toNumberSlowCase(state);
     }
 }
 
@@ -597,6 +595,69 @@ inline Value Value::toPrimitive(ExecutionState& ec, PrimitiveTypeHint preferredT
     } else {
         return *this;
     }
+}
+
+inline bool Value::abstractEqualsTo(ExecutionState& state, const Value& val) const
+{
+    if (isInt32() && val.isInt32()) {
+#ifdef ESCARGOT_64
+        if (u.asInt64 == val.u.asInt64)
+#else
+        if (u.asBits.payload == val.u.asBits.payload)
+#endif
+            return true;
+        return false;
+    } else {
+        return abstractEqualsToSlowCase(state, val);
+    }
+}
+
+inline bool Value::toBoolean(ExecutionState& ec) const // $7.1.2 ToBoolean
+{
+#ifdef ESCARGOT_32
+    if (LIKELY(isBoolean()))
+        return payload();
+#else
+    if (*this == Value(true))
+        return true;
+
+    if (*this == Value(false))
+        return false;
+#endif
+
+    if (isInt32())
+        return asInt32();
+
+    if (isDouble()) {
+        double d = asDouble();
+        if (std::isnan(d))
+            return false;
+        if (d == 0.0)
+            return false;
+        return true;
+    }
+
+    if (isUndefinedOrNull())
+        return false;
+
+    ASSERT(isPointerValue());
+    if (asPointerValue()->isString())
+        return asString()->length();
+    return true;
+}
+
+inline int32_t Value::toInt32(ExecutionState& state) const // $7.1.5 ToInt3
+{
+    // consume fast case
+    if (LIKELY(isInt32()))
+        return asInt32();
+
+    return toInt32SlowCase(state);
+}
+
+inline uint32_t Value::toUint32(ExecutionState& state) const // http://www.ecma-international.org/ecma-262/5.1/#sec-9.6
+{
+    return toInt32(state);
 }
 
 }

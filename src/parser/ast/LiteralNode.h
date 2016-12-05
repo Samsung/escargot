@@ -36,7 +36,7 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getRegister(), m_value), context, this);
+        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), m_value), context, this);
     }
 protected:
     Value m_value;

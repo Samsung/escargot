@@ -58,7 +58,7 @@ public:
             context->giveUpRegister();
         }
 
-        codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), baseRegister, m_arguments.size()), context, this);
+        codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), baseRegister, m_arguments.size()), context, this);
     }
 
 protected:

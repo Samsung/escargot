@@ -18,7 +18,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
     CodeBlock* codeBlock;
     if (parentCodeBlock == nullptr) {
         // globalBlock
-        codeBlock = new CodeBlock(ctx, StringView(source, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index), scopeCtx->m_isStrict, 0, scopeCtx->m_names);
+        codeBlock = new CodeBlock(ctx, source, scopeCtx->m_isStrict, scopeCtx->m_locStart, scopeCtx->m_names);
     } else {
         codeBlock = new CodeBlock(ctx, StringView(source, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index),
                 scopeCtx->m_locStart,

@@ -36,7 +36,16 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionLeftShift; }
-
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        m_right->generateExpressionByteCode(codeBlock, context);
+        m_left->generateExpressionByteCode(codeBlock, context);
+        size_t src1 = context->getLastRegisterIndex();
+        context->giveUpRegister();
+        size_t src0 = context->getLastRegisterIndex();
+        codeBlock->pushCode(BinaryLeftShift(ByteCodeLOC(m_loc.index), src0, src1), context, this);
+        m_left->generateStoreByteCode(codeBlock, context);
+    }
 protected:
     Node* m_left; // left: Pattern;
     Node* m_right; // right: Expression;

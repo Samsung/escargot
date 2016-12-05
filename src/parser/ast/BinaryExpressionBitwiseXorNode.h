@@ -33,7 +33,17 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionBitwiseXor; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        m_left->generateExpressionByteCode(codeBlock, context);
+        m_right->generateExpressionByteCode(codeBlock, context);
 
+        size_t src1 = context->getLastRegisterIndex();
+        context->giveUpRegister();
+        size_t src0 = context->getLastRegisterIndex();
+
+        codeBlock->pushCode(BinaryBitwiseXor(ByteCodeLOC(m_loc.index), src0, src1), context, this);
+    }
 protected:
     ExpressionNode* m_left;
     ExpressionNode* m_right;

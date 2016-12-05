@@ -98,7 +98,7 @@ public:
 
     bool operator!=(const ObjectPropertyDescriptor& desc) const
     {
-        return operator ==(desc);
+        return !operator ==(desc);
     }
 
     ObjectPropertyNativeGetterSetterData* nativeGetterSetterData() const

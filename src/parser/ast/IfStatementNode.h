@@ -34,6 +34,41 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::IfStatement; }
 
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        if (!m_alternate) {
+            m_test->generateExpressionByteCode(codeBlock, context);
+            codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+            context->giveUpRegister();
+            size_t jPos = codeBlock->lastCodePosition<JumpIfFalse>();
+            m_consequente->generateStatementByteCode(codeBlock, context);
+            codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index)), context, this);
+            JumpIfFalse* j = codeBlock->peekCode<JumpIfFalse>(jPos);
+            size_t jPos2 = codeBlock->lastCodePosition<Jump>();
+            j->m_jumpPosition = codeBlock->currentCodeSize();
+
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value()), context, this);
+            codeBlock->pushCode(StoreExecutionResult(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+            context->giveUpRegister();
+            Jump* j2 = codeBlock->peekCode<Jump>(jPos2);
+            j2->m_jumpPosition = codeBlock->currentCodeSize();
+        } else {
+            m_test->generateExpressionByteCode(codeBlock, context);
+            codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+            context->giveUpRegister();
+            size_t jPos = codeBlock->lastCodePosition<JumpIfFalse>();
+            m_consequente->generateStatementByteCode(codeBlock, context);
+            codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index)), context, this);
+            JumpIfFalse* j = codeBlock->peekCode<JumpIfFalse>(jPos);
+            size_t jPos2 = codeBlock->lastCodePosition<Jump>();
+            j->m_jumpPosition = codeBlock->currentCodeSize();
+
+            m_alternate->generateStatementByteCode(codeBlock, context);
+            Jump* j2 = codeBlock->peekCode<Jump>(jPos2);
+            j2->m_jumpPosition = codeBlock->currentCodeSize();
+        }
+    }
+
 protected:
     ExpressionNode *m_test;
     StatementNode *m_consequente;

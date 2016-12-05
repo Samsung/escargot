@@ -40,6 +40,16 @@ public:
         return false;
     }
 
+    virtual bool isStringObject()
+    {
+        return false;
+    }
+
+    virtual bool isDateObject()
+    {
+        return false;
+    }
+
     virtual bool isDoubleInSmallValue()
     {
         return false;

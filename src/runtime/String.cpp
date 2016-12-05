@@ -394,5 +394,24 @@ String* String::fromDouble(double v)
     return new ASCIIString(std::move(dtoa(v)));
 }
 
+int String::stringCompare(size_t l1, size_t l2, const String* c1, const String* c2)
+{
+    size_t s = 0;
+    const unsigned lmin = l1 < l2 ? l1 : l2;
+    unsigned pos = 0;
+    while (pos < lmin && c1->charAt(s) == c2->charAt(s)) {
+        ++s;
+        ++pos;
+    }
+
+    if (pos < lmin)
+        return (c1->charAt(s) > c2->charAt(s)) ? 1 : -1;
+
+    if (l1 == l2)
+        return 0;
+
+    return (l1 > l2) ? 1 : -1;
+}
+
 
 }

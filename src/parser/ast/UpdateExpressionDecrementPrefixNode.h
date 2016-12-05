@@ -33,6 +33,12 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::UpdateExpressionDecrementPrefix; }
 
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        m_argument->generateExpressionByteCode(codeBlock, context);
+        codeBlock->pushCode(Decrement(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+        m_argument->generateStoreByteCode(codeBlock, context);
+    }
 protected:
     ExpressionNode* m_argument;
 };

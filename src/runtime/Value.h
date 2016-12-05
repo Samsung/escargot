@@ -156,7 +156,7 @@ public:
 
     enum PrimitiveTypeHint { PreferString, PreferNumber };
     Value toPrimitive(ExecutionState& ec, PrimitiveTypeHint = PreferNumber) const; // $7.1.1 ToPrimitive
-    bool toBoolean(ExecutionState& ec) const; // $7.1.2 ToBoolean
+    inline bool toBoolean(ExecutionState& ec) const; // $7.1.2 ToBoolean
     double toNumber(ExecutionState& ec) const; // $7.1.3 ToNumber
     double toInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
     int32_t toInt32(ExecutionState& ec) const; // $7.1.5 ToInt32
@@ -173,10 +173,10 @@ public:
     Object* toTransientObjectSlowPath(ExecutionState& ec) const; // ES5 $8.7.2 transient object
     double toLength(ExecutionState& ec) const; // $7.1.15 ToLength
 
-    inline bool abstractEqualsTo(ExecutionState& ec, const Value& val);
-    bool abstractEqualsToSlowCase(ExecutionState& ec, const Value& val);
-    inline bool equalsTo(ExecutionState& ec, const Value& val);
-    inline bool equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val);
+    inline bool abstractEqualsTo(ExecutionState& ec, const Value& val) const;
+    bool abstractEqualsToSlowCase(ExecutionState& ec, const Value& val) const;
+    bool equalsTo(ExecutionState& ec, const Value& val) const;
+    inline bool equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val) const;
 
 
 #ifdef ESCARGOT_32
@@ -217,10 +217,11 @@ public:
 private:
     ValueDescriptor u;
 
-    inline double toNumberSlowCase(ExecutionState& ec) const; // $7.1.3 ToNumber
+    double toNumberSlowCase(ExecutionState& ec) const; // $7.1.3 ToNumber
     String* toStringSlowCase(ExecutionState& ec) const; // $7.1.12 ToString
     Object* toObjectSlowCase(ExecutionState& ec) const; // $7.1.13 ToObject
     Value toPrimitiveSlowCase(ExecutionState& ec, PrimitiveTypeHint) const; // $7.1.1 ToPrimitive
+    int32_t toInt32SlowCase(ExecutionState& ec) const; // $7.1.5 ToInt32
 };
 
 }

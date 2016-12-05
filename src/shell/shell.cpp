@@ -112,7 +112,7 @@ void GC_free_hook(void* address)
 
 #endif
 
-void eval(Escargot::Context* context, Escargot::String* str)
+void eval(Escargot::Context* context, Escargot::String* str, bool shouldPrintScriptResult)
 {
     auto result = context->scriptParser().parse(str);
     if (result.m_error) {
@@ -122,7 +122,12 @@ void eval(Escargot::Context* context, Escargot::String* str)
     } else {
         Escargot::Script::ScriptExecuteResult resultValue = result.m_script->execute(context);
         Escargot::ExecutionState state(context);
-        puts(resultValue.result.toString(state)->toUTF8StringData().data());
+        if (!resultValue.result.isEmpty()) {
+            if (shouldPrintScriptResult)
+                puts(resultValue.result.toString(state)->toUTF8StringData().data());
+        } else {
+            puts(resultValue.error.toString(state)->toUTF8StringData().data());
+        }
     }
 }
 
@@ -187,7 +192,7 @@ int main(int argc, char* argv[])
             fclose(fp);
 
             Escargot::String* src = new Escargot::UTF16String(std::move(Escargot::utf8StringToUTF16String(str.data(), str.length())));
-            eval(context, src);
+            eval(context, src, false);
         }
     }
 
@@ -200,9 +205,17 @@ int main(int argc, char* argv[])
             return 3;
         }
         Escargot::String* str = new Escargot::UTF16String(std::move(Escargot::utf8StringToUTF16String(buf, strlen(buf))));
-        eval(context, str);
+        eval(context, str, true);
     }
 
+    delete context;
+    delete instance;
+    GC_gcollect_and_unmap();
+    GC_gcollect_and_unmap();
+    GC_gcollect_and_unmap();
+    GC_gcollect_and_unmap();
+    GC_gcollect_and_unmap();
+    GC_gcollect_and_unmap();
     return 0;
 }
 

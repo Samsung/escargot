@@ -153,13 +153,11 @@ struct ByteCodeGenerateContext {
         m_baseRegisterCount--;
     }
 
-    /*
     void consumeBreakPositions(ByteCodeBlock* cb, size_t position);
     void consumeLabeledBreakPositions(ByteCodeBlock* cb, size_t position, String* lbl);
     void consumeContinuePositions(ByteCodeBlock* cb, size_t position);
     void consumeLabeledContinuePositions(ByteCodeBlock* cb, size_t position, String* lbl);
     void morphJumpPositionIntoComplexCase(ByteCodeBlock* cb, size_t codePos);
-    */
 
     // NOTE this is counter! not index!!!!!!
     size_t m_baseRegisterCount;

@@ -124,6 +124,7 @@ public:
                 continue;
             newProperties[newIdx].m_propertyName = m_properties[i].m_propertyName;
             newProperties[newIdx].m_descriptor = m_properties[i].m_descriptor;
+            newIdx++;
         }
 
         return new ObjectStructure(state, std::move(newProperties), false);

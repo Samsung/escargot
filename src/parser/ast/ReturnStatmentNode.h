@@ -36,9 +36,10 @@ public:
     {
         if (m_argument) {
             m_argument->generateExpressionByteCode(codeBlock, context);
-            codeBlock->pushCode(ReturnFunction(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index), context->getLastRegisterIndex()), context, this);
+            codeBlock->pushCode(ReturnFunction(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+            context->giveUpRegister();
         } else {
-            codeBlock->pushCode(End(ByteCodeLOC(m_loc.line, m_loc.column, m_loc.index)), context, this);
+            codeBlock->pushCode(End(ByteCodeLOC(m_loc.index)), context, this);
         }
     }
 protected:

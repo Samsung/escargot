@@ -38,6 +38,11 @@ public:
         return false;
     }
 
+    virtual bool isRopeString()
+    {
+        return false;
+    }
+
     virtual bool hasASCIIContent()
     {
         return false;
@@ -52,14 +57,13 @@ public:
     }
 
     virtual size_t length() const = 0;
-
     virtual char16_t charAt(const size_t& idx) const = 0;
     char16_t operator[](const size_t& idx) const
     {
         return charAt(idx);
     }
 
-    bool equals(String* src)
+    bool equals(const String* src) const
     {
         size_t srcLen = src->length();
         if (srcLen != length()) {
@@ -75,7 +79,7 @@ public:
         return true;
     }
 
-    bool equals(const char* src)
+    bool equals(const char* src) const
     {
         size_t srcLen = strlen(src);
         if (srcLen != length()) {
@@ -91,6 +95,21 @@ public:
         return true;
     }
 
+    bool operator==(const String& src) const
+    {
+        return equals(&src);
+    }
+
+    bool operator!=(const String& src) const
+    {
+        return !operator ==(src);
+    }
+
+    ALWAYS_INLINE friend bool operator <(const String& a, const String& b);
+    ALWAYS_INLINE friend bool operator <= (const String& a, const String& b);
+    ALWAYS_INLINE friend bool operator >(const String& a, const String& b);
+    ALWAYS_INLINE friend bool operator >= (const String& a, const String& b);
+
     // NOTE these function generates new copy of string data
     virtual UTF16StringData toUTF16StringData() const = 0;
     virtual UTF8StringData toUTF8StringData() const = 0;
@@ -102,7 +121,29 @@ protected:
     // don't use this function anywhere
     inline const char* asASCIIStringData();
     inline const char16_t* asUTF16StringData();
+
+    static int stringCompare(size_t l1, size_t l2, const String* c1, const String* c2);
 };
+
+inline bool operator <(const String& a, const String& b)
+{
+    return String::stringCompare(a.length(), b.length(), &a, &b) < 0;
+}
+
+inline bool operator >(const String& a, const String& b)
+{
+    return String::stringCompare(a.length(), b.length(), &a, &b) > 0;
+}
+
+inline bool operator <= (const String& a, const String& b)
+{
+    return String::stringCompare(a.length(), b.length(), &a, &b) <= 0;
+}
+
+inline bool operator >= (const String& a, const String& b)
+{
+    return String::stringCompare(a.length(), b.length(), &a, &b) >= 0;
+}
 
 class ASCIIString : public String {
     friend class String;
@@ -218,6 +259,7 @@ inline String* fromCharCode(char32_t code)
 }
 
 #include "runtime/StringView.h"
+#include "runtime/RopeString.h"
 #include "runtime/StringBuilder.h"
 #endif
 
