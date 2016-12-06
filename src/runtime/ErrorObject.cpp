@@ -55,19 +55,19 @@ const char* errorMessage_GlobalObject_NotExistNewInTypedArrayConstructor = "%s: 
 const char* errorMessage_GlobalObject_NotExistNewInDataViewConstructor = "%s: Constructor DataView requires \'new\'";
 const char* errorMessage_GlobalObject_InvalidArrayLength = "%s: Invalid array length";
 
-void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, const AtomicString& objectName, bool prototoype, const AtomicString& functionName, const char* templateString)
+void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototoype, String* functionName, const char* templateString)
 {
     StringBuilder replacerBuilder;
-    if (objectName.string()->length()) {
-        replacerBuilder.appendString(objectName.string());
+    if (objectName->length()) {
+        replacerBuilder.appendString(objectName);
     }
     if (prototoype) {
         replacerBuilder.appendChar('.');
         replacerBuilder.appendString(state.context()->staticStrings().prototype.string());
     }
-    if (functionName.string()->length()) {
+    if (functionName->length()) {
         replacerBuilder.appendChar('.');
-        replacerBuilder.appendString(functionName.string());
+        replacerBuilder.appendString(functionName);
     }
 
     String* errorMessage;
@@ -86,19 +86,19 @@ void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, const Atom
     }
     errorMessage = new UTF16String(str.data(), str.length());
     if (code == ReferenceError)
-        throw new ReferenceErrorObject(state, errorMessage);
+        state.throwException(new ReferenceErrorObject(state, errorMessage));
     else if (code == TypeError)
-        throw new TypeErrorObject(state, errorMessage);
+        state.throwException(new TypeErrorObject(state, errorMessage));
     else if (code == SyntaxError)
-        throw new SyntaxErrorObject(state, errorMessage);
+        state.throwException(new SyntaxErrorObject(state, errorMessage));
     else if (code == RangeError)
-        throw new RangeErrorObject(state, errorMessage);
+        state.throwException(new RangeErrorObject(state, errorMessage));
     else if (code == URIError)
-        throw new URIErrorObject(state, errorMessage);
+        state.throwException(new URIErrorObject(state, errorMessage));
     else if (code == EvalError)
-        throw new EvalErrorObject(state, errorMessage);
+        state.throwException(new EvalErrorObject(state, errorMessage));
     else
-        throw new ErrorObject(state, errorMessage);
+        state.throwException(new ErrorObject(state, errorMessage));
 
 }
 
@@ -108,9 +108,6 @@ ErrorObject::ErrorObject(ExecutionState& state, String* errorMessage)
     if (errorMessage->length())
         set(state, PropertyName(state.context()->staticStrings().message), errorMessage);
     setPrototype(state, state.context()->globalObject()->errorPrototype());
-
-    // TODO
-    // collect backtrace
 }
 
 ReferenceErrorObject::ReferenceErrorObject(ExecutionState& state, String* errorMessage)

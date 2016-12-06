@@ -36,16 +36,16 @@ public:
         ScriptParseError* m_error;
     };
 
-    ScriptParserResult parse(String* script)
+    ScriptParserResult parse(String* script, String* fileName = String::emptyString)
     {
-        return parse(StringView(script, 0, script->length()));
+        return parse(StringView(script, 0, script->length()), fileName);
     }
-    ScriptParserResult parse(StringView script);
+    ScriptParserResult parse(StringView script, String* fileName = String::emptyString);
     Node* parseFunction(CodeBlock* codeBlock);
 
 protected:
-    CodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, ProgramNode* program);
-    CodeBlock* generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, ASTScopeContext* scopeCtx, CodeBlock* parentCodeBlock);
+    CodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program);
+    CodeBlock* generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, CodeBlock* parentCodeBlock);
 
     Context* m_context;
 };

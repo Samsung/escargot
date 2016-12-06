@@ -7,6 +7,7 @@ class String;
 class Object;
 class FunctionObject;
 class ArrayObject;
+class StringObject;
 class DoubleInSmallValue;
 
 class PointerValue : public gc {
@@ -19,6 +20,7 @@ public:
         DoubleInSmallValueType,
         DummyInSmallValueType,
     };
+
     virtual Type type() = 0;
     virtual bool isString()
     {
@@ -76,6 +78,12 @@ public:
     {
         ASSERT(isFunctionObject());
         return (FunctionObject*)this;
+    }
+
+    StringObject* asStringObject()
+    {
+        ASSERT(isStringObject());
+        return (StringObject*)this;
     }
 
     DoubleInSmallValue* asDoubleInSmallValue()

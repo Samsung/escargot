@@ -205,7 +205,13 @@ public:
     virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false);
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
+
+    CodeBlock* globalCodeBlock()
+    {
+        return m_globalCodeBlock;
+    }
 protected:
+    CodeBlock* m_globalCodeBlock;
     GlobalObject* m_globalObject;
 };
 
@@ -299,6 +305,12 @@ public:
     {
         return m_isNewExpression;
     }
+
+    FunctionObject* functionObject()
+    {
+        return m_functionObject;
+    }
+
 protected:
     bool m_isNewExpression;
     Value m_thisValue;

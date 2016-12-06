@@ -11,19 +11,26 @@ class Value;
 class ExecutionContext : public gc {
     friend class FunctionObject;
     friend class ByteCodeInterpreter;
+    friend class SandBox;
 public:
-    ExecutionContext(Context* context, LexicalEnvironment* lexicalEnvironment = nullptr, bool inStrictMode = false)
+    ExecutionContext(Context* context, ExecutionContext* parent = nullptr, LexicalEnvironment* lexicalEnvironment = nullptr, bool inStrictMode = false)
         : m_inStrictMode(inStrictMode)
+        , m_programCounter(0)
         , m_context(context)
+        , m_parent(parent)
         , m_stackStorage(nullptr)
         , m_lexicalEnvironment(lexicalEnvironment)
     {
-
     }
 
     Context* context()
     {
         return m_context;
+    }
+
+    ExecutionContext* parent()
+    {
+        return m_parent;
     }
 
     LexicalEnvironment* lexicalEnvironment()
@@ -48,8 +55,15 @@ private:
         m_stackStorage = storage;
     }
 
+    size_t& programCounter()
+    {
+        return m_programCounter;
+    }
+
     bool m_inStrictMode;
+    size_t m_programCounter;
     Context* m_context;
+    ExecutionContext* m_parent;
     Value* m_stackStorage;
     LexicalEnvironment* m_lexicalEnvironment;
 };

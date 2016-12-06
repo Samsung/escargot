@@ -20,9 +20,9 @@ class Node;
     F(LoadByStackIndex, 1, 0) \
     F(StoreByStackIndex, 0, 0) \
     F(LoadByHeapIndex, 1, 0) \
-    F(StoreByGlobalName, 0, 0) \
-    F(LoadByGlobalName, 1, 0) \
     F(StoreByHeapIndex, 0, 0) \
+    F(LoadByGlobalName, 1, 0) \
+    F(StoreByGlobalName, 0, 0) \
     F(DeclareVarVariable, 0, 0) \
     F(DeclareFunctionDeclaration, 1, 0) \
     F(DeclareFunctionExpression, 1, 0) \
@@ -45,15 +45,22 @@ class Node;
     F(BinaryLeftShift, 1, 2) \
     F(BinarySignedRightShift, 1, 2) \
     F(BinaryUnsignedRightShift, 1, 2) \
+    F(CreateObject, 1, 0) \
+    F(GetObject, 1, 2) \
+    F(SetObject, 0, 2) \
+    F(GetObjectPreComputedCase, 1, 1) \
+    F(SetObjectPreComputedCase, 0, 1) \
+    F(GetGlobalObject, 1, 1) \
+    F(SetGlobalObject, 0, 1) \
     F(Move, 1, 0) \
     F(Increment, 1, 1) \
     F(Decrement, 1, 1) \
     F(Jump, 0, 0) \
     F(JumpComplexCase, 0, 0) \
+    F(JumpIfTrue, 0, 0) \
     F(JumpIfFalse, 0, 0) \
     F(StoreExecutionResult, 0, 1) \
-    F(CallFunction, 1, 0) \
-    F(CallFunctionWithReceiver, 1, 0) \
+    F(CallFunction, -1, 0) \
     F(ReturnFunction, 0, 0) \
     F(ThrowOperation, 0, 0) \
     F(CallNativeFunction, 0, 0) \
@@ -206,9 +213,9 @@ public:
         if (v.isNumber()) {
             printf("%lf", v.asNumber());
         } else if (v.isString()) {
-            printf("%s", v.asString()->toUTF8StringData().data());
+            printf("\"%s\"", v.asString()->toUTF8StringData().data());
         } else {
-            printf("some value(?)");
+            printf("other value.. sorry");
         }
     }
 #endif
@@ -471,9 +478,152 @@ DEFINE_BINARY_OPERATION(LeftShift, "left shift");
 DEFINE_BINARY_OPERATION(SignedRightShift, "signed right shift");
 DEFINE_BINARY_OPERATION(UnsignedRightShift, "unsigned right shift");
 
+
+class CreateObject : public ByteCode {
+public:
+    CreateObject(const ByteCodeLOC& loc, const size_t& registerIndex)
+        : ByteCode(Opcode::CreateObjectOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    size_t m_registerIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("createobject -> r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class GetObject : public ByteCode {
+public:
+    // [object, property] -> [value]
+    GetObject(const ByteCodeLOC& loc, const size_t& objectRegisterIndex)
+        : ByteCode(Opcode::GetObjectOpcode, loc)
+        , m_objectRegisterIndex(objectRegisterIndex)
+    {
+    }
+
+    size_t m_objectRegisterIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("get object r%d <- r%d[r%d]", (int)m_objectRegisterIndex, (int)m_objectRegisterIndex, (int)m_objectRegisterIndex + 1);
+    }
+#endif
+};
+
+class SetObject : public ByteCode {
+public:
+    SetObject(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, const size_t& propertyRegisterIndex, const size_t& loadRegisterIndex)
+        : ByteCode(Opcode::SetObjectOpcode, loc)
+        , m_objectRegisterIndex(objectRegisterIndex)
+        , m_propertyRegisterIndex(propertyRegisterIndex)
+        , m_loadRegisterIndex(loadRegisterIndex)
+    {
+    }
+
+    size_t m_objectRegisterIndex;
+    size_t m_propertyRegisterIndex;
+    size_t m_loadRegisterIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("set object r%d[r%d] <- r%d", (int)m_objectRegisterIndex, (int)m_propertyRegisterIndex, (int)m_loadRegisterIndex);
+    }
+#endif
+};
+
+class GetObjectPreComputedCase : public ByteCode {
+public:
+    // [object] -> [value]
+    GetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, PropertyName propertyName)
+        : ByteCode(Opcode::GetObjectPreComputedCaseOpcode, loc)
+        , m_objectRegisterIndex(objectRegisterIndex)
+        , m_propertyName(propertyName)
+    {
+    }
+
+    size_t m_objectRegisterIndex;
+    PropertyName m_propertyName;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("get object r%d <- r%d.%s", (int)m_objectRegisterIndex, (int)m_objectRegisterIndex, m_propertyName.string()->toUTF8StringData().data());
+    }
+#endif
+};
+
+class SetObjectPreComputedCase : public ByteCode {
+public:
+    SetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, PropertyName propertyName, const size_t& loadRegisterIndex)
+        : ByteCode(Opcode::SetObjectPreComputedCaseOpcode, loc)
+        , m_objectRegisterIndex(objectRegisterIndex)
+        , m_propertyName(propertyName)
+        , m_loadRegisterIndex(loadRegisterIndex)
+    {
+    }
+
+    size_t m_objectRegisterIndex;
+    PropertyName m_propertyName;
+    size_t m_loadRegisterIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("set object r%d.%s <- r%d", (int)m_objectRegisterIndex, m_propertyName.string()->toUTF8StringData().data(), (int)m_loadRegisterIndex);
+    }
+#endif
+};
+
+class GetGlobalObject : public ByteCode {
+public:
+    GetGlobalObject(const ByteCodeLOC& loc, const size_t& registerIndex, PropertyName propertyName)
+        : ByteCode(Opcode::GetGlobalObjectOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_propertyName(propertyName)
+    {
+    }
+
+    size_t m_registerIndex;
+    PropertyName m_propertyName;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("get global object r%d <- global.%s", (int)m_registerIndex, m_propertyName.string()->toUTF8StringData().data());
+    }
+#endif
+};
+
+class SetGlobalObject : public ByteCode {
+public:
+    SetGlobalObject(const ByteCodeLOC& loc, const size_t& registerIndex, PropertyName propertyName)
+        : ByteCode(Opcode::SetGlobalObjectOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_propertyName(propertyName)
+    {
+    }
+
+    size_t m_registerIndex;
+    PropertyName m_propertyName;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("set global object global.%s <- r%d", m_propertyName.string()->toUTF8StringData().data(), (int)m_registerIndex);
+    }
+#endif
+};
+
 class Move : public ByteCode {
 public:
-    Move(const ByteCodeLOC& loc, const size_t& registerIndex0, const size_t& registerIndex1)
+    Move(const ByteCodeLOC& loc, const size_t& registerIndex0, const size_t& registerIndex1) // 1 <= 0
         : ByteCode(Opcode::MoveOpcode, loc)
         , m_registerIndex0(registerIndex0)
         , m_registerIndex1(registerIndex1)
@@ -564,6 +714,25 @@ public:
 #endif
 };
 
+class JumpIfTrue : public ByteCode {
+public:
+    JumpIfTrue(const ByteCodeLOC& loc, const size_t& registerIndex)
+        : ByteCode(Opcode::JumpIfTrueOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_jumpPosition(SIZE_MAX)
+    {
+    }
+
+    size_t m_registerIndex;
+    size_t m_jumpPosition;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("jump if true r%d -> %d", (int)m_registerIndex, (int)m_jumpPosition);
+    }
+#endif
+};
 
 class JumpIfFalse : public ByteCode {
 public:
@@ -605,7 +774,7 @@ public:
 class CallFunction : public ByteCode {
 public:
     // register usage (before call)
-    // [callee, arg0, arg1,... arg<argument count-1> ]
+    // [receiver, callee, arg0, arg1,... arg<argument count-1> ]
     // register usage (after call)
     // [return value]
     CallFunction(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& argumentCount)
@@ -620,30 +789,7 @@ public:
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("call r%d", (int)m_registerIndex);
-    }
-#endif
-};
-
-class CallFunctionWithReceiver : public ByteCode {
-public:
-    // register usage (before call)
-    // [callee, receiver, arg0, arg1,... arg<argument count-1> ]
-    // register usage (after call)
-    // [return value]
-    CallFunctionWithReceiver(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& argumentCount)
-        : ByteCode(Opcode::CallFunctionWithReceiverOpcode, loc)
-        , m_registerIndex(registerIndex)
-        , m_argumentCount(argumentCount)
-    {
-    }
-    size_t m_registerIndex;
-    size_t m_argumentCount;
-
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("call(with receiver) r%d", (int)m_registerIndex);
+        printf("call r%d <- r%d-r%d", (int)m_registerIndex, (int)m_registerIndex, (int)m_registerIndex + (int)m_argumentCount + 1);
     }
 #endif
 };
@@ -724,8 +870,8 @@ public:
         {
             CodeType& t = const_cast<CodeType &>(code);
             t.m_node = node;
-            t.m_loc.line = computeNodeFromByteCode(&t, context->m_codeBlock).line;
-            t.m_loc.column = computeNodeFromByteCode(&t, context->m_codeBlock).column;
+            t.m_loc.line = computeNodeLOCFromByteCode(&t, context->m_codeBlock).line;
+            t.m_loc.column = computeNodeLOCFromByteCode(&t, context->m_codeBlock).column;
         }
     #endif
 
@@ -754,7 +900,7 @@ public:
         return m_code.size();
     }
 
-    NodeLOC computeNodeFromByteCode(ByteCode* code, CodeBlock* cb);
+    NodeLOC computeNodeLOCFromByteCode(ByteCode* code, CodeBlock* cb);
 
     ByteCodeBlockData m_code;
     size_t m_requiredRegisterFileSizeInValueSize;

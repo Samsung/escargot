@@ -394,6 +394,15 @@ String* String::fromDouble(double v)
     return new ASCIIString(std::move(dtoa(v)));
 }
 
+String* String::fromUTF8(const char* src, size_t len)
+{
+    if (isAllASCII(src, len)) {
+        return new ASCIIString(src, len);
+    } else {
+        return new UTF16String(std::move(utf8StringToUTF16String(src, len)));
+    }
+}
+
 int String::stringCompare(size_t l1, size_t l2, const String* c1, const String* c2)
 {
     size_t s = 0;

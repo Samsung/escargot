@@ -34,6 +34,45 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::ObjectExpression; }
 
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        codeBlock->pushCode(CreateObject(ByteCodeLOC(m_loc.index), context->getRegister()), context, this);
+        size_t objIndex = context->getLastRegisterIndex();
+        for (unsigned i = 0; i < m_properties.size() ; i ++) {
+            PropertyNode* p = m_properties[i];
+            AtomicString propertyAtomicName;
+            if (p->key()->isIdentifier()) {
+                propertyAtomicName = p->key()->asIdentifier()->name();
+            } else {
+                p->key()->generateExpressionByteCode(codeBlock, context);
+            }
+            size_t propertyIndex = context->getLastRegisterIndex();
+
+            p->value()->generateExpressionByteCode(codeBlock, context);
+
+            size_t valueIndex = context->getLastRegisterIndex();
+
+            if (p->kind() == PropertyNode::Kind::Init) {
+                if (p->key()->isIdentifier()) {
+                    codeBlock->pushCode(SetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objIndex, propertyAtomicName, valueIndex), context, this);
+                } else {
+                    codeBlock->pushCode(SetObject(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex), context, this);
+
+                    // for drop property index
+                    context->giveUpRegister();
+                }
+            } else if (p->kind() == PropertyNode::Kind::Get) {
+                RELEASE_ASSERT_NOT_REACHED();
+            } else {
+                ASSERT(p->kind() == PropertyNode::Kind::Set);
+                RELEASE_ASSERT_NOT_REACHED();
+            }
+
+            // for drop value index
+            context->giveUpRegister();
+        }
+        ASSERT(objIndex == context->getLastRegisterIndex());
+    }
 protected:
     PropertiesNodeVector m_properties;
 };

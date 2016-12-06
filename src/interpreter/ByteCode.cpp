@@ -18,7 +18,7 @@ ALWAYS_INLINE bool isLineTerminator(char16_t ch)
     return (ch == 0x0A) || (ch == 0x0D) || (ch == 0x2028) || (ch == 0x2029);
 }
 
-NodeLOC ByteCodeBlock::computeNodeFromByteCode(ByteCode* code, CodeBlock* cb)
+NodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(ByteCode* code, CodeBlock* cb)
 {
     if (code->m_loc.index == SIZE_MAX) {
         return NodeLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX);

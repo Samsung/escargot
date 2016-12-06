@@ -19,6 +19,7 @@
 
 #include "ExpressionNode.h"
 #include "IdentifierNode.h"
+#include "runtime/Context.h"
 
 namespace Escargot {
 
@@ -36,12 +37,7 @@ public:
 
     bool isPreComputedCase()
     {
-        if (!m_computed) {
-            ASSERT(m_property->type() == ASTNodeType::Identifier);
-            return true;
-        } else {
-            return false;
-        }
+        return m_computed;
     }
 
     AtomicString propertyName()
@@ -49,6 +45,54 @@ public:
         ASSERT(isPreComputedCase());
         return ((IdentifierNode *)m_property)->name();
     }
+
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        if (context->m_codeBlock->context()->didSomePrototypeObjectDefineIndexedProperty()) {
+            // TODO implement bad time
+            RELEASE_ASSERT_NOT_REACHED();
+        }
+
+        bool prevHead = context->m_isHeadOfMemberExpression;
+        context->m_isHeadOfMemberExpression = false;
+        m_object->generateExpressionByteCode(codeBlock, context);
+
+        if (context->m_inCallingExpressionScope && prevHead) {
+            size_t r0 = context->getLastRegisterIndex();
+            size_t r1 = context->getRegister();
+            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r0, r1), context, this);
+        }
+        size_t objectIndex = context->getLastRegisterIndex();
+        if (isPreComputedCase()) {
+            ASSERT(m_property->isIdentifier());
+            codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name()), context, this);
+        } else {
+            m_property->generateExpressionByteCode(codeBlock, context);
+            codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex), context, this);
+            context->giveUpRegister();
+        }
+    }
+
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        if (isPreComputedCase()) {
+            size_t valueIndex = context->getLastRegisterIndex();
+            m_object->generateExpressionByteCode(codeBlock, context);
+            size_t objectIndex = context->getLastRegisterIndex();
+            codeBlock->pushCode(SetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name(), valueIndex), context, this);
+            context->giveUpRegister();
+        } else {
+            size_t valueIndex = context->getLastRegisterIndex();
+            m_object->generateExpressionByteCode(codeBlock, context);
+            size_t objectIndex = context->getLastRegisterIndex();
+            m_property->generateExpressionByteCode(codeBlock, context);
+            size_t propertyIndex = context->getLastRegisterIndex();
+            codeBlock->pushCode(SetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
+            context->giveUpRegister();
+            context->giveUpRegister();
+        }
+    }
+
 
 protected:
     Node* m_object; // object: Expression;

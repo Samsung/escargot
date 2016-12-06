@@ -20,6 +20,7 @@ void EnvironmentRecord::setMutableBinding(ExecutionState& state, const AtomicStr
 
 GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock, GlobalObject* global)
     : EnvironmentRecord(state, codeBlock)
+    , m_globalCodeBlock(codeBlock)
 {
     ASSERT(codeBlock->parentCodeBlock() == nullptr);
     m_globalObject = global;

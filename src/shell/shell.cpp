@@ -112,9 +112,9 @@ void GC_free_hook(void* address)
 
 #endif
 
-void eval(Escargot::Context* context, Escargot::String* str, bool shouldPrintScriptResult)
+void eval(Escargot::Context* context, Escargot::String* str, Escargot::String* fileName, bool shouldPrintScriptResult)
 {
-    auto result = context->scriptParser().parse(str);
+    auto result = context->scriptParser().parse(str, fileName);
     if (result.m_error) {
         char msg[10240];
         auto err = result.m_error->message->toUTF8StringData();
@@ -126,7 +126,10 @@ void eval(Escargot::Context* context, Escargot::String* str, bool shouldPrintScr
             if (shouldPrintScriptResult)
                 puts(resultValue.result.toString(state)->toUTF8StringData().data());
         } else {
-            puts(resultValue.error.toString(state)->toUTF8StringData().data());
+            puts(resultValue.error.errorValue.toString(state)->toUTF8StringData().data());
+            for (size_t i = 0; i < resultValue.error.stackTrace.size(); i ++) {
+                printf("%s (%d:%d)\n", resultValue.error.stackTrace[i].fileName->toUTF8StringData().data(), (int)resultValue.error.stackTrace[i].line, (int)resultValue.error.stackTrace[i].column);
+            }
         }
     }
 }
@@ -192,7 +195,10 @@ int main(int argc, char* argv[])
             fclose(fp);
 
             Escargot::String* src = new Escargot::UTF16String(std::move(Escargot::utf8StringToUTF16String(str.data(), str.length())));
-            eval(context, src, false);
+            eval(context, src, Escargot::String::fromUTF8(argv[i], strlen(argv[i])),false);
+        }
+        if (strcmp(argv[i], "--shell") == 0) {
+            runShell = true;
         }
     }
 
@@ -205,7 +211,7 @@ int main(int argc, char* argv[])
             return 3;
         }
         Escargot::String* str = new Escargot::UTF16String(std::move(Escargot::utf8StringToUTF16String(buf, strlen(buf))));
-        eval(context, str, true);
+        eval(context, str, Escargot::String::fromUTF8("from shell input", strlen("from shell input")),true);
     }
 
     delete context;

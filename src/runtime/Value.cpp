@@ -2,20 +2,17 @@
 #include "Value.h"
 #include "Context.h"
 #include "StaticStrings.h"
+#include "NumberObject.h"
+#include "StringObject.h"
+#include "BooleanObject.h"
+#include "ErrorObject.h"
 
+// dtoa
 #include "ieee.h"
 #include "double-conversion.h"
 
 namespace Escargot {
 
-/*
-Value toPrimitive(ExecutionState& ec, PrimitiveTypeHint = PreferNumber) const; // $7.1.1 ToPrimitive
-bool toBoolean(ExecutionState& ec) const; // $7.1.2 ToBoolean
-double toNumber(ExecutionState& ec) const; // $7.1.3 ToNumber
-double toInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
-int32_t toInt32(ExecutionState& ec) const; // $7.1.5 ToInt32
-uint32_t toUint32(ExecutionState& ec) const; // http://www.ecma-international.org/ecma-262/5.1/#sec-9.6
-*/
 String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
 {
     ASSERT(!isString());
@@ -54,10 +51,22 @@ String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
      }
 }
 
-Object* Value::toObjectSlowCase(ExecutionState& ec) const // $7.1.13 ToObject
+Object* Value::toObjectSlowCase(ExecutionState& state) const // $7.1.13 ToObject
 {
-    // TODO
-    RELEASE_ASSERT_NOT_REACHED();
+    Object* object = nullptr;
+    if (isNumber()) {
+        object = new NumberObject(state, toNumber(state));
+    } else if (isBoolean()) {
+        object = new BooleanObject(state, toBoolean(state));
+    } else if (isString()) {
+        object = new StringObject(state, toString(state));
+    } else if (isNull()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_NullToObject);
+    } else {
+        ASSERT(isUndefined());
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_UndefinedToObject);
+    }
+    return object;
 }
 
 Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint preferredType) const // $7.1.1 ToPrimitive
@@ -97,8 +106,8 @@ Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint prefer
             }
         }
     }
-    // TODO
-    // ESVMInstance::currentInstance()->throwError(ESValue(TypeError::create(ESString::create(errorMessage_ObjectToPrimitiveValue))));
+
+    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_ObjectToPrimitiveValue);
     RELEASE_ASSERT_NOT_REACHED();
 }
 
@@ -212,8 +221,8 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
         if (LIKELY(o->isString())) {
             data = o->asString();
         } else {
-            // TODO
-            RELEASE_ASSERT_NOT_REACHED();
+            ASSERT(o->isStringObject());
+            data = o->asStringObject()->primitiveValue();
         }
 
         // A StringNumericLiteral that is empty or contains only white space is converted to +0.
@@ -337,10 +346,4 @@ int32_t Value::toInt32SlowCase(ExecutionState& state) const // $7.1.5 ToInt32
     return bits < 0 ? -result : result;
 }
 
-/*
-Object* toObject(ExecutionState& ec) const; // $7.1.13 ToObject
-Object* toTransientObject(ExecutionState& ec) const; // ES5 $8.7.2 transient object
-Object* toTransientObjectSlowPath(ExecutionState& ec) const; // ES5 $8.7.2 transient object
-double toLength(ExecutionState& ec) const; // $7.1.15 ToLength
-*/
 }

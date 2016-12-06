@@ -55,6 +55,7 @@ public:
         // TODO
         return fromDouble(v);
     }
+    static String* fromUTF8(const char* src, size_t len);
 
     virtual size_t length() const = 0;
     virtual char16_t charAt(const size_t& idx) const = 0;
@@ -168,6 +169,12 @@ public:
         : String()
     {
         m_stringData.append(str, strlen(str));
+    }
+
+    ASCIIString(const char* str, size_t len)
+        : String()
+    {
+        m_stringData.append(str, len);
     }
 
     virtual char16_t charAt(const size_t& idx) const

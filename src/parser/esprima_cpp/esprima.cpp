@@ -1200,6 +1200,7 @@ public:
 
         PunctuatorsKind kind;
         // Check for most common single-character punctuators.
+        size_t start = this->index;
         char16_t ch0 = this->source.charAt(this->index);
         char ch1, ch2, ch3;
         switch (ch0) {
@@ -1447,6 +1448,7 @@ public:
 
         token->end = this->index;
         token->valuePunctuatorsKind = kind;
+        token->valueString = StringView(this->source, start, this->index);
         return token;
     }
 
@@ -3619,7 +3621,7 @@ public:
              } else if (this->match(LeftSquareBracket)) {
                  this->context->isBindingElement = false;
                  this->context->isAssignmentTarget = true;
-                 this->expect(RightSquareBracket);
+                 this->expect(LeftSquareBracket);
                  Node* property = this->isolateCoverGrammar(&Parser::parseExpression);
                  this->expect(RightSquareBracket);
                  expr = this->finalize(this->startNode(startToken), new MemberExpressionNode(expr, property, false));
@@ -5517,9 +5519,12 @@ public:
             message = formalParameters.message;
         }
 
-        pushScopeContext(params, id->name());
+        AtomicString fnName;
+        if (id)
+            fnName = id->name();
+        pushScopeContext(params, fnName);
         extractNamesFromFunctionParams(params);
-        scopeContexts.back()->insertName(id->name());
+        scopeContexts.back()->insertName(fnName);
 
         bool previousStrict = this->context->strict;
         BlockStatementNode* body = this->parseFunctionSourceElements();
@@ -5532,7 +5537,7 @@ public:
         this->context->strict = previousStrict;
         this->context->allowYield = previousAllowYield;
 
-        return this->finalize(node, new FunctionExpressionNode(id->name(), std::move(params), body, popScopeContext(node), isGenerator));
+        return this->finalize(node, new FunctionExpressionNode(fnName, std::move(params), body, popScopeContext(node), isGenerator));
     }
 
     // ECMA-262 14.1.1 Directive Prologues

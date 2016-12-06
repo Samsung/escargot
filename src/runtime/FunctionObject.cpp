@@ -90,7 +90,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiver, const s
         } else {
             env = new(alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, nullptr);
         }
-        ec = new(alloca(sizeof(ExecutionContext))) ExecutionContext(ctx, env, isStrict);
+        ec = new(alloca(sizeof(ExecutionContext))) ExecutionContext(ctx, state.executionContext(), env, isStrict);
     } else {
         if (m_codeBlock->canUseIndexedVariableStorage()) {
             record = new FunctionEnvironmentRecordOnHeap(state, receiver, this, isNewExpression);
@@ -102,7 +102,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiver, const s
         } else {
             env = new LexicalEnvironment(record, nullptr);
         }
-        ec = new ExecutionContext(ctx, env, isStrict);
+        ec = new ExecutionContext(ctx, state.executionContext(), env, isStrict);
     }
 
     ec->giveStackStorage(ALLOCA(stackStorageSize * sizeof(Value), Value, state));
@@ -113,8 +113,14 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiver, const s
     Value resultValue;
     ExecutionState newState(ctx, ec, &resultValue);
 
-    // TODO binding function name
-
+    // binding function name
+    if (m_codeBlock->m_functionNameIndex != SIZE_MAX) {
+        if (LIKELY(m_codeBlock->m_functionNameSaveInfo.m_isAllocatedOnStack)) {
+            stackStorage[m_codeBlock->m_functionNameSaveInfo.m_index] = this;
+        } else {
+            record->setHeapValueByIndex(m_codeBlock->m_functionNameSaveInfo.m_index, this);
+        }
+    }
     // prepare parameters
     const CodeBlock::FunctionParametersInfoVector& info = m_codeBlock->parametersInfomation();
     size_t parameterCopySize = std::min(argc, info.size());

@@ -44,21 +44,30 @@ public:
             RELEASE_ASSERT_NOT_REACHED();
         }
 
-        // TODO
-        RELEASE_ASSERT(!m_callee->isMemberExpression());
-
+        bool prevInCallingExpressionScope = context->m_inCallingExpressionScope;
+        if (m_callee->isMemberExpression()) {
+            context->m_inCallingExpressionScope = true;
+            context->m_isHeadOfMemberExpression = true;
+        }
+        if (!m_callee->isMemberExpression()) {
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value()), context, this);
+        }
         m_callee->generateExpressionByteCode(codeBlock, context);
-        size_t baseRegister = context->getLastRegisterIndex();
+        size_t baseRegister = context->getLastRegisterIndex() - 1;
+        context->m_inCallingExpressionScope = false;
 
         for (size_t i = 0; i < m_arguments.size(); i ++) {
             m_arguments[i]->generateExpressionByteCode(codeBlock, context);
         }
-
         for (size_t i = 0; i < m_arguments.size(); i ++) {
             context->giveUpRegister();
         }
 
+        context->m_inCallingExpressionScope = prevInCallingExpressionScope;
         codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), baseRegister, m_arguments.size()), context, this);
+
+        // drop callee index;
+        context->giveUpRegister();
     }
 
 protected:

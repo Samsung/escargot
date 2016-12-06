@@ -26,15 +26,20 @@ public:
         installFunction(state);
         installObject(state);
         installError(state);
+        installString(state);
+        installNumber(state);
+        installBoolean(state);
         installOthers(state);
     }
 
     void installFunction(ExecutionState& state);
     void installObject(ExecutionState& state);
     void installError(ExecutionState& state);
+    void installString(ExecutionState& state);
+    void installNumber(ExecutionState& state);
+    void installBoolean(ExecutionState& state);
     void installOthers(ExecutionState& state);
 
-    // object
     FunctionObject* object()
     {
         return m_object;
@@ -44,7 +49,6 @@ public:
         return m_objectPrototype;
     }
 
-    // function
     FunctionObject* function()
     {
         return m_function;
@@ -54,7 +58,6 @@ public:
         return m_functionPrototype;
     }
 
-    // errors
     FunctionObject* error()
     {
         return m_error;
@@ -112,6 +115,42 @@ public:
         return m_evalErrorPrototype;
     }
 
+    FunctionObject* string()
+    {
+        return m_string;
+    }
+    Object* stringPrototype()
+    {
+        return m_stringPrototype;
+    }
+
+    FunctionObject* number()
+    {
+        return m_number;
+    }
+    Object* numberPrototype()
+    {
+        return m_numberPrototype;
+    }
+
+    FunctionObject* array()
+    {
+        return m_array;
+    }
+    Object* arrayPrototype()
+    {
+        return m_arrayPrototype;
+    }
+
+    FunctionObject* boolean()
+    {
+        return m_boolean;
+    }
+    Object* booleanPrototype()
+    {
+        return m_booleanPrototype;
+    }
+
 protected:
     FunctionObject* m_object;
     Object* m_objectPrototype;
@@ -134,6 +173,17 @@ protected:
     FunctionObject* m_evalError;
     Object* m_evalErrorPrototype;
 
+    FunctionObject* m_string;
+    Object* m_stringPrototype;
+
+    FunctionObject* m_number;
+    Object* m_numberPrototype;
+
+    FunctionObject* m_array;
+    Object* m_arrayPrototype;
+
+    FunctionObject* m_boolean;
+    Object* m_booleanPrototype;
 
     bool hasPropertyOnIndex(ExecutionState& state, const PropertyName& name, size_t idx)
     {

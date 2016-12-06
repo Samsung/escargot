@@ -584,7 +584,7 @@ inline Object* Value::toObject(ExecutionState& ec) const // $7.1.13 ToObject
     if (isObject()) {
         return asObject();
     } else {
-        RELEASE_ASSERT_NOT_REACHED();
+        return toObjectSlowCase(ec);
     }
 }
 

@@ -28,7 +28,7 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, Val
 static Value builtinErrorToString(ExecutionState& state, Value thisValue, Value* argv, bool isNewExpression)
 {
     if (!thisValue.isObject())
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, state.context()->staticStrings().Error, true, state.context()->staticStrings().toString, errorMessage_GlobalObject_ThisNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, state.context()->staticStrings().Error.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotObject);
 
     Object* o = thisValue.toObject(state);
 

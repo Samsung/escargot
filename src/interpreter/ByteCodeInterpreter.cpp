@@ -5,6 +5,7 @@
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/FunctionObject.h"
 #include "runtime/Context.h"
+#include "runtime/SandBox.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/ErrorObject.h"
 #include "../third_party/checked_arithmetic/CheckedArithmetic.h"
@@ -46,7 +47,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
     if (UNLIKELY(codeBlock == nullptr)) {
         goto FillOpcodeTable;
     }
-
     {
         ASSERT(codeBlock->byteCodeBlock() != nullptr);
         ByteCodeBlock* byteCodeBlock = codeBlock->byteCodeBlock();
@@ -55,16 +55,17 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         Value* registerFile = ALLOCA(byteCodeBlock->m_requiredRegisterFileSizeInValueSize * sizeof(Value), Value, state);
         Value* stackStorage = ec->stackStorage();
         char* codeBuffer = byteCodeBlock->m_code.data();
-        size_t programCounter = (size_t)(&codeBuffer[0]);
+        size_t& programCounter = ec->programCounter();
+        programCounter = (size_t)(&codeBuffer[0]);
         ByteCode* currentCode;
 
 #define NEXT_INSTRUCTION() \
-        goto NextInstruction
+        currentCode = (ByteCode *)programCounter; \
+        ASSERT(((size_t)currentCode % sizeof(size_t)) == 0); \
+        goto *(currentCode->m_opcodeInAddress);
 
-        NextInstruction:
         currentCode = (ByteCode *)programCounter;
         ASSERT(((size_t)currentCode % sizeof(size_t)) == 0);
-
         goto *(currentCode->m_opcodeInAddress);
 
         LoadLiteralOpcodeLbl:
@@ -380,6 +381,159 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
             NEXT_INSTRUCTION();
         }
 
+        IncrementOpcodeLbl:
+        {
+            Increment* code = (Increment*)currentCode;
+            const Value& val = registerFile[code->m_registerIndex];
+            Value ret(Value::ForceUninitialized);
+            if (LIKELY(val.isInt32())) {
+                int32_t a = val.asInt32();
+                if (UNLIKELY(a == std::numeric_limits<int32_t>::max()))
+                    ret = Value(Value::EncodeAsDouble, ((double)a) + 1);
+                else
+                    ret = Value(a + 1);
+            } else {
+                ret = Value(val.toNumber(state) + 1);
+            }
+            registerFile[code->m_registerIndex] = ret;
+            executeNextCode<Increment>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        DecrementOpcodeLbl:
+        {
+            Decrement* code = (Decrement*)currentCode;
+            const Value& val = registerFile[code->m_registerIndex];
+            Value ret(Value::ForceUninitialized);
+            if (LIKELY(val.isInt32())) {
+                int32_t a = val.asInt32();
+                if (UNLIKELY(a == std::numeric_limits<int32_t>::min()))
+                    ret = Value(Value::EncodeAsDouble, ((double)a) - 1);
+                else
+                    ret = Value(a - 1);
+            } else {
+                ret = Value(val.toNumber(state) - 1);
+            }
+            registerFile[code->m_registerIndex] = ret;
+            executeNextCode<Decrement>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        GetObjectOpcodeLbl:
+        {
+            GetObject* code = (GetObject*)currentCode;
+            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+            const Value& property = registerFile[code->m_objectRegisterIndex + 1];
+            registerFile[code->m_objectRegisterIndex] = willBeObject.toObject(state)->get(state, property.toString(state)).m_value;
+            executeNextCode<GetObject>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        SetObjectOpcodeLbl:
+        {
+            SetObject* code = (SetObject*)currentCode;
+            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+            const Value& property = registerFile[code->m_propertyRegisterIndex];
+            willBeObject.toObject(state)->set(state, property.toString(state), registerFile[code->m_loadRegisterIndex]);
+            executeNextCode<SetObject>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        GetObjectPreComputedCaseOpcodeLbl:
+        {
+            GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)currentCode;
+            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+            registerFile[code->m_objectRegisterIndex] = willBeObject.toObject(state)->get(state, code->m_propertyName).m_value;
+            executeNextCode<GetObjectPreComputedCase>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        SetObjectPreComputedCaseOpcodeLbl:
+        {
+            SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)currentCode;
+            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+            willBeObject.toObject(state)->set(state, code->m_propertyName, registerFile[code->m_loadRegisterIndex]);
+            executeNextCode<SetObjectPreComputedCase>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        GetGlobalObjectOpcodeLbl:
+        {
+            GetGlobalObject* code = (GetGlobalObject*)currentCode;
+            auto result = state.context()->globalObject()->get(state, code->m_propertyName);
+            if (UNLIKELY(!result.m_hasValue)) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, code->m_propertyName.string(), false, String::emptyString, errorMessage_IsNotDefined);
+            }
+            registerFile[code->m_registerIndex] = result.m_value;
+            executeNextCode<GetGlobalObject>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        SetGlobalObjectOpcodeLbl:
+        {
+            SetGlobalObject* code = (SetGlobalObject*)currentCode;
+            state.context()->globalObject()->set(state, code->m_propertyName, registerFile[code->m_registerIndex]);
+            executeNextCode<SetGlobalObject>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        JumpOpcodeLbl:
+        {
+            Jump* code = (Jump *)currentCode;
+            ASSERT(code->m_jumpPosition != SIZE_MAX);
+            programCounter = jumpTo(codeBuffer, code->m_jumpPosition);
+            NEXT_INSTRUCTION();
+        }
+
+        JumpIfTrueOpcodeLbl:
+        {
+            JumpIfTrue* code = (JumpIfTrue*)currentCode;
+            ASSERT(code->m_jumpPosition != SIZE_MAX);
+            if (registerFile[code->m_registerIndex].toBoolean(state)) {
+                programCounter = jumpTo(codeBuffer, code->m_jumpPosition);
+            } else {
+                executeNextCode<JumpIfTrue>(programCounter);
+            }
+            NEXT_INSTRUCTION();
+        }
+
+        JumpIfFalseOpcodeLbl:
+        {
+            JumpIfFalse* code = (JumpIfFalse*)currentCode;
+            ASSERT(code->m_jumpPosition != SIZE_MAX);
+            if (!registerFile[code->m_registerIndex].toBoolean(state)) {
+                programCounter = jumpTo(codeBuffer, code->m_jumpPosition);
+            } else {
+                executeNextCode<JumpIfFalse>(programCounter);
+            }
+            NEXT_INSTRUCTION();
+        }
+
+        CallFunctionOpcodeLbl:
+        {
+            CallFunction* code = (CallFunction*)currentCode;
+            const Value& receiver = registerFile[code->m_registerIndex];
+            const Value& callee = registerFile[code->m_registerIndex + 1];
+            registerFile[code->m_registerIndex] = FunctionObject::call(callee, state, receiver, code->m_argumentCount, &registerFile[code->m_registerIndex + 2]);
+            executeNextCode<CallFunction>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        DeclareFunctionDeclarationOpcodeLbl:
+        {
+            DeclareFunctionDeclaration* code = (DeclareFunctionDeclaration*)currentCode;
+            registerFile[0] = new FunctionObject(state, code->m_codeBlock);
+            executeNextCode<DeclareFunctionDeclaration>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        ReturnFunctionOpcodeLbl:
+        {
+            ReturnFunction* code = (ReturnFunction*)currentCode;
+            *state.exeuctionResult() = registerFile[code->m_registerIndex];
+            return;
+        }
+
         BinaryBitwiseAndOpcodeLbl:
         {
             BinaryBitwiseAnd* code = (BinaryBitwiseAnd*)currentCode;
@@ -451,97 +605,28 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
             NEXT_INSTRUCTION();
         }
 
-
-        IncrementOpcodeLbl:
+        ThrowOperationOpcodeLbl:
         {
-            Increment* code = (Increment*)currentCode;
-            const Value& val = registerFile[code->m_registerIndex];
-            Value ret(Value::ForceUninitialized);
-            if (LIKELY(val.isInt32())) {
-                int32_t a = val.asInt32();
-                if (UNLIKELY(a == std::numeric_limits<int32_t>::max()))
-                    ret = Value(Value::EncodeAsDouble, ((double)a) + 1);
-                else
-                    ret = Value(a + 1);
-            } else {
-                ret = Value(val.toNumber(state) + 1);
-            }
-            registerFile[code->m_registerIndex] = ret;
-            executeNextCode<Increment>(programCounter);
-            NEXT_INSTRUCTION();
+            ThrowOperation* code = (ThrowOperation*)currentCode;
+            state.context()->throwException(state, registerFile[code->m_registerIndex]);
         }
 
-        DecrementOpcodeLbl:
+        JumpComplexCaseOpcodeLbl:
         {
-            Decrement* code = (Decrement*)currentCode;
-            const Value& val = registerFile[code->m_registerIndex];
-            Value ret(Value::ForceUninitialized);
-            if (LIKELY(val.isInt32())) {
-                int32_t a = val.asInt32();
-                if (UNLIKELY(a == std::numeric_limits<int32_t>::min()))
-                    ret = Value(Value::EncodeAsDouble, ((double)a) - 1);
-                else
-                    ret = Value(a - 1);
-            } else {
-                ret = Value(val.toNumber(state) - 1);
-            }
-            registerFile[code->m_registerIndex] = ret;
-            executeNextCode<Decrement>(programCounter);
-            NEXT_INSTRUCTION();
-        }
-
-        JumpOpcodeLbl:
-        {
-            Jump* code = (Jump *)currentCode;
+            JumpComplexCase* code = (JumpComplexCase*)currentCode;
             ASSERT(code->m_jumpPosition != SIZE_MAX);
             programCounter = jumpTo(codeBuffer, code->m_jumpPosition);
+            // TODO
+            RELEASE_ASSERT_NOT_REACHED();
             NEXT_INSTRUCTION();
         }
 
-        JumpIfFalseOpcodeLbl:
+        CreateObjectOpcodeLbl:
         {
-            JumpIfFalse* code = (JumpIfFalse *)currentCode;
-            ASSERT(code->m_jumpPosition != SIZE_MAX);
-            if (!registerFile[code->m_registerIndex].toBoolean(state)) {
-                programCounter = jumpTo(codeBuffer, code->m_jumpPosition);
-            } else {
-                executeNextCode<JumpIfFalse>(programCounter);
-            }
+            CreateObject* code = (CreateObject*)currentCode;
+            registerFile[code->m_registerIndex] = new Object(state);
+            executeNextCode<CreateObject>(programCounter);
             NEXT_INSTRUCTION();
-        }
-
-        CallFunctionOpcodeLbl:
-        {
-            CallFunction* code = (CallFunction*)currentCode;
-            const Value& callee = registerFile[code->m_registerIndex];
-            registerFile[code->m_registerIndex] = FunctionObject::call(callee, state, callee, code->m_argumentCount, &registerFile[code->m_registerIndex + 1]);
-            executeNextCode<CallFunction>(programCounter);
-            NEXT_INSTRUCTION();
-        }
-
-        CallFunctionWithReceiverOpcodeLbl:
-        {
-            CallFunctionWithReceiver* code = (CallFunctionWithReceiver*)currentCode;
-            const Value& callee = registerFile[code->m_registerIndex];
-            const Value& receiver = registerFile[code->m_registerIndex + 1];
-            registerFile[code->m_registerIndex] = FunctionObject::call(callee, state, receiver, code->m_argumentCount, &registerFile[code->m_registerIndex + 2]);
-            executeNextCode<CallFunction>(programCounter);
-            NEXT_INSTRUCTION();
-        }
-
-        DeclareFunctionDeclarationOpcodeLbl:
-        {
-            DeclareFunctionDeclaration* code = (DeclareFunctionDeclaration*)currentCode;
-            registerFile[0] = new FunctionObject(state, code->m_codeBlock);
-            executeNextCode<DeclareFunctionDeclaration>(programCounter);
-            NEXT_INSTRUCTION();
-        }
-
-        ReturnFunctionOpcodeLbl:
-        {
-            ReturnFunction* code = (ReturnFunction*)currentCode;
-            *state.exeuctionResult() = registerFile[code->m_registerIndex];
-            return;
         }
 
         EndOpcodeLbl:
@@ -557,21 +642,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
             CallNativeFunction* code = (CallNativeFunction*)currentCode;
             *state.exeuctionResult() = code->m_fn(state, env->record()->getThisBinding(), stackStorage, env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isNewExpression());
             return;
-        }
-
-        ThrowOperationOpcodeLbl:
-        {
-            ThrowOperation* code = (ThrowOperation*)currentCode;
-            throw registerFile[code->m_registerIndex];
-        }
-
-        JumpComplexCaseOpcodeLbl:
-        {
-            JumpComplexCase* code = (JumpComplexCase*)currentCode;
-            ASSERT(code->m_jumpPosition != SIZE_MAX);
-            programCounter = jumpTo(codeBuffer, code->m_jumpPosition);
-            RELEASE_ASSERT_NOT_REACHED();
-            NEXT_INSTRUCTION();
         }
     }
 
@@ -596,7 +666,7 @@ Value ByteCodeInterpreter::loadByName(ExecutionState& state, LexicalEnvironment*
         }
         env = env->outerEnvironment();
     }
-    ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name, false, AtomicString(), errorMessage_IsNotDefined);
+    ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
     RELEASE_ASSERT_NOT_REACHED();
 }
 
@@ -666,6 +736,34 @@ Value ByteCodeInterpreter::modOperation(ExecutionState& state, const Value& left
     }
 
     return ret;
+}
+
+inline bool ByteCodeInterpreter::abstractRelationalComparison(ExecutionState& state, const Value& left, const Value& right, bool leftFirst)
+{
+    // consume very fast case
+    if (LIKELY(left.isInt32() && right.isInt32())) {
+        return left.asInt32() < right.asInt32();
+    }
+
+    if (LIKELY(left.isNumber() && right.isNumber())) {
+        return left.asNumber() < right.asNumber();
+    }
+
+    return abstractRelationalComparisonSlowCase(state, left, right, leftFirst);
+}
+
+inline bool ByteCodeInterpreter::abstractRelationalComparisonOrEqual(ExecutionState& state, const Value& left, const Value& right, bool leftFirst)
+{
+    // consume very fast case
+    if (LIKELY(left.isInt32() && right.isInt32())) {
+        return left.asInt32() <= right.asInt32();
+    }
+
+    if (LIKELY(left.isNumber() && right.isNumber())) {
+        return left.asNumber() <= right.asNumber();
+    }
+
+    return abstractRelationalComparisonOrEqualSlowCase(state, left, right, leftFirst);
 }
 
 bool ByteCodeInterpreter::abstractRelationalComparisonSlowCase(ExecutionState& state, const Value& left, const Value& right, bool leftFirst)

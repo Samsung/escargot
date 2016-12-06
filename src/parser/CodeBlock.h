@@ -12,6 +12,7 @@ class Node;
 class ByteCodeBlock;
 class LexicalEnvironment;
 class CodeBlock;
+class Script;
 
 typedef Vector<CodeBlock*, gc_malloc_ignore_off_page_allocator<CodeBlock*>> CodeBlockVector;
 
@@ -37,6 +38,7 @@ struct NativeFunctionInfo {
 class CodeBlock : public gc {
     friend class ScriptParser;
     friend class ByteCodeGenerator;
+    friend class FunctionObject;
 public:
     // init native CodeBlock
     CodeBlock(Context* ctx, const NativeFunctionInfo& info);
@@ -61,6 +63,11 @@ public:
     Context* context()
     {
         return m_context;
+    }
+
+    Script* script()
+    {
+        return m_script;
     }
 
     bool isGlobalScopeCodeBlock()
@@ -165,7 +172,6 @@ public:
         return m_isFunctionExpression;
     }
 
-
     const IdentifierInfoVector& identifierInfos()
     {
         return m_identifierInfos;
@@ -248,10 +254,10 @@ public:
 
 protected:
     // init global codeBlock
-    CodeBlock(Context* ctx, StringView src, bool isStrict, NodeLOC sourceElementStart, const AtomicStringVector& innerIdentifiers);
+    CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, NodeLOC sourceElementStart, const AtomicStringVector& innerIdentifiers);
 
     // init function codeBlock
-    CodeBlock(Context* ctx, StringView src, NodeLOC sourceElementStart, bool isStrict, size_t astNodeStartIndex, AtomicString functionName, const AtomicStringVector& parameterNames, const AtomicStringVector& innerIdentifiers, CodeBlock* parentBlock, CodeBlockInitFlag initFlags);
+    CodeBlock(Context* ctx, Script* script, StringView src, NodeLOC sourceElementStart, bool isStrict, size_t astNodeStartIndex, AtomicString functionName, const AtomicStringVector& parameterNames, const AtomicStringVector& innerIdentifiers, CodeBlock* parentBlock, CodeBlockInitFlag initFlags);
 
     void computeVariables();
     void appendChildBlock(CodeBlock* cb)
@@ -281,12 +287,18 @@ protected:
     bool m_needsComplexParameterCopy;
 
     Context* m_context;
+    Script* m_script;
     StringView m_src; // function source elements src
     NodeLOC m_sourceElementStart;
     size_t m_astNodeStartIndex;
 
     size_t m_identifierOnStackCount;
     size_t m_identifierOnHeapCount;
+    size_t m_functionNameIndex;
+    struct FunctionNameSaveInfo{
+        bool m_isAllocatedOnStack;
+        size_t m_index;
+    } m_functionNameSaveInfo;
     Vector<IdentifierInfo, gc_malloc_ignore_off_page_allocator<IdentifierInfo>> m_identifierInfos;
 
     // function info

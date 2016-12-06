@@ -40,6 +40,8 @@ public:
         return m_executionContext->inStrictMode();
     }
 
+    void throwException(const Value& e);
+
 protected:
     Context* m_context;
     ExecutionContext* m_executionContext;

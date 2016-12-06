@@ -32,6 +32,16 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionLogicalAnd; }
 
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        m_left->generateExpressionByteCode(codeBlock, context);
+
+        codeBlock->pushCode<JumpIfFalse>(JumpIfFalse(ByteCodeLOC(m_loc.line), context->getLastRegisterIndex()), context, this);
+        size_t pos = codeBlock->lastCodePosition<JumpIfFalse>();
+        context->giveUpRegister();
+        m_right->generateExpressionByteCode(codeBlock, context);
+        codeBlock->peekCode<JumpIfFalse>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
+    }
 protected:
     ExpressionNode* m_left;
     ExpressionNode* m_right;

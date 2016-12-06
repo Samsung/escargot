@@ -70,9 +70,9 @@ public:
     };
     static void throwBuiltinError(ExecutionState& state, Code code, const char* templateString)
     {
-        throwBuiltinError(state, code, AtomicString(), false, AtomicString(), templateString);
+        throwBuiltinError(state, code, String::emptyString, false, String::emptyString, templateString);
     }
-    static void throwBuiltinError(ExecutionState& state, Code code, const AtomicString& objectName, bool prototoype, const AtomicString& functionName, const char* templateString);
+    static void throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototoype, String* functionName, const char* templateString);
     ErrorObject(ExecutionState& state, String* errorMessage);
     virtual bool isErrorObject()
     {

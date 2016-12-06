@@ -13,14 +13,14 @@ ScriptParser::ScriptParser(Context* c)
 {
 }
 
-CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, ASTScopeContext* scopeCtx, CodeBlock* parentCodeBlock)
+CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, CodeBlock* parentCodeBlock)
 {
     CodeBlock* codeBlock;
     if (parentCodeBlock == nullptr) {
         // globalBlock
-        codeBlock = new CodeBlock(ctx, source, scopeCtx->m_isStrict, scopeCtx->m_locStart, scopeCtx->m_names);
+        codeBlock = new CodeBlock(ctx, script, source, scopeCtx->m_isStrict, scopeCtx->m_locStart, scopeCtx->m_names);
     } else {
-        codeBlock = new CodeBlock(ctx, StringView(source, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index),
+        codeBlock = new CodeBlock(ctx, script, StringView(source, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index),
                 scopeCtx->m_locStart,
                 scopeCtx->m_isStrict, scopeCtx->m_nodeStartIndex,
                 scopeCtx->m_functionName, scopeCtx->m_parameters, scopeCtx->m_names, parentCodeBlock,
@@ -62,7 +62,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
     }
 
     for (size_t i = 0 ; i < scopeCtx->m_childScopes.size(); i ++) {
-        codeBlock->appendChildBlock(generateCodeBlockTreeFromASTWalker(ctx, source, scopeCtx->m_childScopes[i], codeBlock));
+        codeBlock->appendChildBlock(generateCodeBlockTreeFromASTWalker(ctx, source, script, scopeCtx->m_childScopes[i], codeBlock));
     }
 
     if (parentCodeBlock) {
@@ -73,22 +73,23 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
 }
 
 // generate code blocks from AST
-CodeBlock* ScriptParser::generateCodeBlockTreeFromAST(Context* ctx, StringView source, ProgramNode* program)
+CodeBlock* ScriptParser::generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program)
 {
-    return generateCodeBlockTreeFromASTWalker(ctx, source, program->scopeContext(), nullptr);
+    return generateCodeBlockTreeFromASTWalker(ctx, source, script, program->scopeContext(), nullptr);
 }
 
-ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource)
+ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, String* fileName)
 {
     Script* script = nullptr;
     ScriptParseError* error = nullptr;
     try {
         ProgramNode* program = esprima::parseProgram(m_context, scriptSource, nullptr);
 
-        CodeBlock* topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, program);
+        script = new Script(fileName);
+        CodeBlock* topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, program);
         topCodeBlock->m_cachedASTNode = program;
+        script->m_topCodeBlock = topCodeBlock;
 
-        script = new Script(topCodeBlock);
         // dump Code Block
 #ifndef NDEBUG
         if (getenv("DUMP_CODEBLOCK_TREE") && strlen(getenv("DUMP_CODEBLOCK_TREE"))) {
@@ -132,6 +133,7 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource)
 #endif
 
     } catch(esprima::Error* orgError) {
+        script = nullptr;
         error = new ScriptParseError();
         error->column = orgError->column;
         error->description = orgError->description;

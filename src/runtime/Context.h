@@ -12,9 +12,11 @@ namespace Escargot {
 class VMInstance;
 class ScriptParser;
 class ObjectStructure;
+class SandBox;
 
 class Context : public gc {
     friend class AtomicString;
+    friend class SandBox;
 public:
     Context(VMInstance* instance);
     const StaticStrings& staticStrings()
@@ -62,7 +64,15 @@ public:
     static Value functionPrototypeNativeGetter(ExecutionState& state, Object* self);
     static bool functionPrototypeNativeSetter(ExecutionState& state, Object* self, const Value& newData);
 
+    bool didSomePrototypeObjectDefineIndexedProperty()
+    {
+        return m_didSomePrototypeObjectDefineIndexedProperty;
+    }
+
+    void throwException(ExecutionState& state, const Value& exception);
+
 protected:
+    bool m_didSomePrototypeObjectDefineIndexedProperty;
     VMInstance* m_instance;
     StaticStrings m_staticStrings;
     GlobalObject* m_globalObject;
@@ -73,6 +83,8 @@ protected:
     ObjectStructure* m_defaultStructureForFunctionObject;
     ObjectStructure* m_defaultStructureForNotConstructorFunctionObject;
     ObjectStructure* m_defaultStructureForFunctionPrototypeObject;
+
+    Vector<SandBox*, gc_malloc_allocator<SandBox*>> m_sandBoxStack;
 };
 
 }

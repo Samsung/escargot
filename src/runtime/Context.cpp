@@ -6,6 +6,7 @@
 #include "Environment.h"
 #include "EnvironmentRecord.h"
 #include "parser/CodeBlock.h"
+#include "SandBox.h"
 
 namespace Escargot {
 
@@ -42,7 +43,8 @@ static ObjectPropertyNativeGetterSetterData functionPrototypeNativeGetterSetterD
         true, false, false, &Context::functionPrototypeNativeGetter, &Context::functionPrototypeNativeSetter);
 
 Context::Context(VMInstance* instance)
-    : m_instance(instance)
+    : m_didSomePrototypeObjectDefineIndexedProperty(false)
+    , m_instance(instance)
     , m_scriptParser(new ScriptParser(this))
 {
     m_staticStrings.initStaticStrings(&m_atomicStringMap);
@@ -72,6 +74,11 @@ Context::Context(VMInstance* instance)
 
     m_globalObject = new GlobalObject(stateForInit);
     m_globalObject->installBuiltins(stateForInit);
+}
+
+void Context::throwException(ExecutionState& state, const Value& exception)
+{
+    m_sandBoxStack.back()->throwException(state, exception);
 }
 
 }
