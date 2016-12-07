@@ -1056,22 +1056,21 @@ inline void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionStat
 
                 obj->setOwnPropertyThrowsExceptionWhenStrictMode(state, inlineCache.m_cachedIndex, value);
             } else {
-                bool s = obj->set(state, name, value, obj);
+                inlineCache.m_cachedhiddenClassChain.push_back(obj->structure());
+                Object* orgObject = obj;
+                Value proto = obj->getPrototype(state);
+                while (proto.isObject()) {
+                    obj = proto.asObject();
+                    inlineCache.m_cachedhiddenClassChain.push_back(obj->structure());
+                    proto = obj->getPrototype(state);
+                }
+                bool s = orgObject->set(state, name, value, obj);
                 if (UNLIKELY(!s)) {
                     if (state.inStrictMode())
                         obj->throwCannotWriteError(state, name);
 
                     inlineCache.invalidateCache();
                     return;
-                }
-                Object* orgObject = obj;
-                inlineCache.m_cachedhiddenClassChain.push_back(obj->structure());
-                Value proto = obj->getPrototype(state);
-                bool foundInPrototype = false; // for GetObjectPreComputedCase vector mode cache
-                while (proto.isObject()) {
-                    obj = proto.asObject();
-                    inlineCache.m_cachedhiddenClassChain.push_back(obj->structure());
-                    proto = obj->getPrototype(state);
                 }
                 inlineCache.m_hiddenClassWillBe = orgObject->structure();
             }
