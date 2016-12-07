@@ -31,7 +31,8 @@ GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBloc
 
 void GlobalEnvironmentRecord::createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete)
 {
-    if (m_globalObject->findOwnProperty(state, name) == SIZE_MAX) {
+    auto desc = m_globalObject->getOwnProperty(state, name);
+    if (!desc.hasValue()) {
         ObjectPropertyDescriptor::PresentAttribute attribute = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent);
         if (canDelete)
             attribute = (ObjectPropertyDescriptor::PresentAttribute)(attribute | ObjectPropertyDescriptor::ConfigurablePresent);
@@ -41,8 +42,11 @@ void GlobalEnvironmentRecord::createMutableBinding(ExecutionState& state, const 
 
 EnvironmentRecord::GetBindingValueResult GlobalEnvironmentRecord::getBindingValue(ExecutionState& state, const AtomicString& name)
 {
-    auto result = m_globalObject->get(state, name);
-    return EnvironmentRecord::GetBindingValueResult(result.m_hasValue, result.m_value);
+    auto result = m_globalObject->get(state, name, m_globalObject);
+    if (result.hasValue())
+        return EnvironmentRecord::GetBindingValueResult(true, result.value());
+    else
+        return EnvironmentRecord::GetBindingValueResult(false, Value());
 }
 
 void GlobalEnvironmentRecord::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)

@@ -39,14 +39,14 @@ static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t
         return ESValue(strings->emptyString.string());
     }*/
 
-    Value name = o->get(state, state.context()->staticStrings().name).m_value;
+    Value name = o->get(state, state.context()->staticStrings().name, o).value();
     String* nameStr;
     if (name.isUndefined()) {
         nameStr = state.context()->staticStrings().Error.string();
     } else {
         nameStr = name.toString(state);
     }
-    Value message = o->get(state, state.context()->staticStrings().message).m_value;
+    Value message = o->get(state, state.context()->staticStrings().message, o).value();
     String* messageStr;
     if (message.isUndefined()) {
         messageStr = String::emptyString;
@@ -98,7 +98,7 @@ void GlobalObject::installError(ExecutionState& state)
     m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().message, Object::ObjectPropertyDescriptorForDefineOwnProperty(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent))); \
     m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().name, Object::ObjectPropertyDescriptorForDefineOwnProperty(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent))); \
     m_##errorname##Error->setFunctionPrototype(state, m_##errorname##ErrorPrototype); \
-    defineOwnProperty(state, PropertyName(state.context()->staticStrings().bname##Error), \
+    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().bname##Error), \
         Object::ObjectPropertyDescriptorForDefineOwnProperty(m_function, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 
     DEFINE_ERROR(reference, Reference);
@@ -108,7 +108,7 @@ void GlobalObject::installError(ExecutionState& state)
     DEFINE_ERROR(uri, URI);
     DEFINE_ERROR(eval, Eval);
 
-    defineOwnProperty(state, PropertyName(state.context()->staticStrings().Error),
+    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Error),
         Object::ObjectPropertyDescriptorForDefineOwnProperty(m_function, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 
 }

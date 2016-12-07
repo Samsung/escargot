@@ -76,7 +76,7 @@ static Value builtinObjectHasOwnProperty(ExecutionState& state, Value thisValue,
 {
     String* keyString = argv[0].toPrimitive(state, Value::PrimitiveTypeHint::PreferString).toString(state);
     Object* obj = thisValue.toObject(state);
-    return Value(obj->hasOwnProperty(state, keyString));
+    return Value(obj->hasOwnProperty(state, ObjectPropertyName(state, keyString)));
 }
 
 
@@ -90,18 +90,18 @@ void GlobalObject::installObject(ExecutionState& state)
     m_object->setPrototype(state, emptyFunction);
     // TODO m_object->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
     m_object->setFunctionPrototype(state, m_objectPrototype);
-    m_objectPrototype->defineOwnProperty(state, PropertyName(state.context()->staticStrings().constructor),
+    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor),
         Object::ObjectPropertyDescriptorForDefineOwnProperty(m_object, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 
-    m_objectPrototype->defineOwnProperty(state, PropertyName(state.context()->staticStrings().toString),
+    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toString),
         Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinObjectToString, 0, nullptr, NativeFunctionInfo::Strict)),
             (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 
     // $19.1.3.2 Object.prototype.hasOwnProperty(V)
-    m_objectPrototype->defineOwnProperty(state, PropertyName(state.context()->staticStrings().hasOwnProperty),
+    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().hasOwnProperty),
         Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinObjectHasOwnProperty, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 
-    defineOwnProperty(state, PropertyName(state.context()->staticStrings().Object),
+    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Object),
         Object::ObjectPropertyDescriptorForDefineOwnProperty(m_object, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 }
 

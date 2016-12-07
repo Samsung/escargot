@@ -210,12 +210,12 @@ protected:
 
     Value getPropertyOnIndex(ExecutionState& state, size_t idx)
     {
-        return getOwnProperty(state, idx, this);
+        return getOwnPropertyUtilForObject(state, idx, this);
     }
 
     bool setPropertyOnIndex(ExecutionState& state, size_t idx, const Value& v)
     {
-        return setOwnProperty(state, idx, v);
+        return setOwnPropertyUtilForObject(state, idx, v);
     }
 
     size_t findPropertyIndex(ExecutionState& state, const PropertyName& name)

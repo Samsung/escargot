@@ -189,9 +189,8 @@ bool CodeBlock::hasNonConfiguableNameOnGlobal(const AtomicString& name)
     }
 
     ExecutionState state(m_context);
-    size_t idx = m_context->globalObject()->findOwnProperty(state, PropertyName(state, name));
-    if (idx != SIZE_MAX) {
-        ObjectPropertyDescriptor desc = m_context->globalObject()->readPropertyDescriptor(state, idx);
+    auto desc = m_context->globalObject()->getOwnProperty(state, ObjectPropertyName(state, name));
+    if (desc.hasValue()) {
         if (!desc.isConfigurable()) {
             return true;
         }

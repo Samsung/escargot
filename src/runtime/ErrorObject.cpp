@@ -107,7 +107,7 @@ ErrorObject::ErrorObject(ExecutionState& state, String* errorMessage)
     : Object(state)
 {
     if (errorMessage->length())
-        set(state, PropertyName(state.context()->staticStrings().message), errorMessage);
+        set(state, ObjectPropertyName(state.context()->staticStrings().message), errorMessage, this);
     setPrototype(state, state.context()->globalObject()->errorPrototype());
 }
 

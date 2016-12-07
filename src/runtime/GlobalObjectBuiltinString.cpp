@@ -25,7 +25,7 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_string->setFunctionPrototype(state, m_stringPrototype);
 
-    defineOwnProperty(state, PropertyName(state.context()->staticStrings().String),
+    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().String),
         Object::ObjectPropertyDescriptorForDefineOwnProperty(m_string, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 }
 

@@ -28,7 +28,6 @@ public:
     }
 
     PropertyName(ExecutionState& state, String* string);
-
     String* string() const
     {
         if (hasAtomicString()) {

@@ -25,7 +25,7 @@ void GlobalObject::installNumber(ExecutionState& state)
 
     m_number->setFunctionPrototype(state, m_numberPrototype);
 
-    defineOwnProperty(state, PropertyName(state.context()->staticStrings().Number),
+    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Number),
         Object::ObjectPropertyDescriptorForDefineOwnProperty(m_number, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 }
 

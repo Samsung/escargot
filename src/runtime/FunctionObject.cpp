@@ -51,7 +51,7 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, bool
 
 Value FunctionObject::getFunctionPrototypeSlowCase(ExecutionState& state)
 {
-    return getOwnProperty(state, state.context()->staticStrings().prototype);
+    return getOwnProperty(state, state.context()->staticStrings().prototype).value();
 }
 
 bool FunctionObject::setFunctionPrototypeSlowCase(ExecutionState& state, const Value& v)

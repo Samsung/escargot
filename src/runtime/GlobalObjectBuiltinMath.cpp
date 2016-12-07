@@ -49,10 +49,10 @@ void GlobalObject::installMath(ExecutionState& state)
     m_math->defineOwnPropertyThrowsException(state, strings->SQRT2, ObjectPropertyDescriptorForDefineOwnProperty(Value(1.4142135623730951), ObjectPropertyDescriptor::NotPresent));
 
     // initialize math object: $20.2.2.24 Math.max()
-    m_math->defineOwnPropertyThrowsException(state, PropertyName(state.context()->staticStrings().max),
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().max),
         Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().max, builtinMathMax, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 
-    defineOwnProperty(state, PropertyName(state.context()->staticStrings().Math),
+    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Math),
         Object::ObjectPropertyDescriptorForDefineOwnProperty(m_math, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 }
 

@@ -23,8 +23,72 @@ struct ObjectRareData {
     }
 };
 
-#define ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER 1
+class ObjectPropertyName {
+    MAKE_STACK_ALLOCATED()
+public:
+    ObjectPropertyName(ExecutionState& state, const Value& v)
+    {
+        if (v.isUInt32()) {
+            m_isUIntType = true;
+            m_value.m_uint = v.asUInt32();
+        } else {
+            m_isUIntType = false;
+            m_value.m_name = PropertyName(state, v.toString(state));
+        }
+    }
 
+    ObjectPropertyName(const AtomicString& v)
+    {
+        m_isUIntType = false;
+        m_value.m_name = v;
+    }
+
+    ObjectPropertyName(ExecutionState& state, const PropertyName& v)
+    {
+        m_isUIntType = false;
+        m_value.m_name = v;
+    }
+
+    bool isUIntType() const
+    {
+        return m_isUIntType;
+    }
+
+    const PropertyName& propertyName() const
+    {
+        ASSERT(!isUIntType());
+        return m_value.m_name;
+    }
+
+    const uint32_t& uintValue() const
+    {
+        ASSERT(isUIntType());
+        return m_value.m_uint;
+    }
+
+    PropertyName toPropertyName(ExecutionState& state) const
+    {
+        if (isUIntType()) {
+            return PropertyName(state, String::fromDouble(uintValue()));
+        }
+        return propertyName();
+    }
+
+    String* string(ExecutionState& state) const
+    {
+        return toPropertyName(state).string();
+    }
+protected:
+    bool m_isUIntType;
+    union ObjectPropertyNameData {
+        ObjectPropertyNameData() { m_uint = 0; }
+        PropertyName m_name;
+        uint32_t m_uint;
+    } m_value;
+};
+
+#define ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER 1
+#define ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 class Object : public PointerValue {
     friend class Context;
     friend class GlobalObject;
@@ -54,6 +118,19 @@ public:
         return (ErrorObject*)this;
     }
 
+    // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-isextensible
+    bool isExtensible()
+    {
+        return m_rareData == nullptr ? true : m_rareData->m_isExtensible;
+    }
+
+    // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-preventextensions
+    void preventExtensions()
+    {
+        ensureObjectRareData();
+        m_rareData->m_isExtensible = true;
+    }
+
     Value getPrototype(ExecutionState& state)
     {
         if (LIKELY(isPlainObject())) {
@@ -70,33 +147,6 @@ public:
         } else {
            setPrototypeSlowCase(state, value);
         }
-    }
-
-    // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-isextensible
-    bool isExtensible()
-    {
-        return m_rareData == nullptr ? true : m_rareData->m_isExtensible;
-    }
-
-    // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-preventextensions
-    void preventExtensions()
-    {
-        ensureObjectRareData();
-        m_rareData->m_isExtensible = true;
-    }
-
-    Value getOwnProperty(ExecutionState& state, String* P);
-    Value getOwnProperty(ExecutionState& state, const PropertyName& P);
-    size_t findOwnProperty(ExecutionState& state, String* P);
-    size_t findOwnProperty(ExecutionState& state, const PropertyName& P);
-
-    size_t hasOwnProperty(ExecutionState& state, String* P)
-    {
-        return findOwnProperty(state, P) != SIZE_MAX;
-    }
-    size_t hasOwnProperty(ExecutionState& state, const PropertyName& P)
-    {
-        return findOwnProperty(state, P) != SIZE_MAX;
     }
 
     class ObjectPropertyDescriptorForDefineOwnProperty {
@@ -128,75 +178,109 @@ public:
         Value m_value;
     };
 
-    void defineOwnPropertyThrowsException(ExecutionState& state, const PropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc)
-    {
-        if (!defineOwnProperty(state, P, desc)) {
-            throwCannotDefineError(state, P);
-        }
-    }
-
-    void defineOwnPropertyThrowsExceptionWhenStrictMode(ExecutionState& state, const PropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc)
-    {
-        if (!defineOwnProperty(state, P, desc) && state.inStrictMode()) {
-            throwCannotDefineError(state, P);
-        }
-    }
-
-    // 9.1.7 [[HasProperty]](P)
-
-    // http://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-get-p-receiver
-    struct ObjectGetResult {
-        bool m_hasValue;
-        Value m_value;
+    class ObjectGetResult {
+    public:
+        // TODO implement js getter case
         ObjectGetResult()
             : m_hasValue(false)
+            , m_isWritable(false)
+            , m_isEnumerable(false)
+            , m_isConfigurable(false)
+            , m_isDataProperty(false)
             , m_value(Value())
         {
-
         }
 
-        ObjectGetResult(const Value& v)
+        ObjectGetResult(const Value& v, bool isWritable, bool isEnumerable, bool isConfigurable)
             : m_hasValue(true)
+            , m_isWritable(isWritable)
+            , m_isEnumerable(isEnumerable)
+            , m_isConfigurable(isConfigurable)
+            , m_isDataProperty(true)
             , m_value(v)
         {
-
         }
+
+        Value value() const
+        {
+            return m_value;
+        }
+
+        bool hasValue() const
+        {
+            return m_hasValue;
+        }
+
+        bool isWritable() const
+        {
+            ASSERT(hasValue());
+            return m_isWritable;
+        }
+
+        bool isEnumerable() const
+        {
+            ASSERT(hasValue());
+            return m_isEnumerable;
+        }
+
+        bool isConfigurable() const
+        {
+            ASSERT(hasValue());
+            return m_isConfigurable;
+        }
+
+        bool isDataProperty() const
+        {
+            ASSERT(hasValue());
+            return m_isDataProperty;
+        }
+
+    protected:
+        bool m_hasValue : 1;
+        bool m_isWritable : 1;
+        bool m_isEnumerable : 1;
+        bool m_isConfigurable : 1;
+        bool m_isDataProperty : 1;
+        Value m_value;
     };
 
-    ObjectGetResult get(ExecutionState& state, String* P)
+    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
+    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
+    virtual void deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
+
+    bool hasOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
+    {
+        return getOwnProperty(state, propertyName).hasValue();
+    }
+
+    ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P, Object* receiver);
+    ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P)
     {
         return get(state, P, this);
     }
 
-    ObjectGetResult get(ExecutionState& state, const PropertyName& P)
+    void setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, Object* receiver);
+    void setThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const Value& v, Object* receiver);
+    void defineOwnPropertyThrowsException(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc)
     {
-        return get(state, P, this);
+        if (!defineOwnProperty(state, P, desc)) {
+            throwCannotDefineError(state, P.toPropertyName(state));
+        }
     }
 
-    ObjectGetResult get(ExecutionState& state, String* P, Object* receiver);
-    ObjectGetResult get(ExecutionState& state, const PropertyName& P, Object* receiver);
+    void defineOwnPropertyThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc)
+    {
+        if (!defineOwnProperty(state, P, desc) && state.inStrictMode()) {
+            throwCannotDefineError(state, P.toPropertyName(state));
+        }
+    }
 
-    void setThrowsException(ExecutionState& state, const PropertyName& P, const Value& v, Object* receiver);
-    void setThrowsExceptionWhenStrictMode(ExecutionState& state, const PropertyName& P, const Value& v, Object* receiver);
-
-    ObjectPropertyDescriptor readPropertyDescriptor(ExecutionState& state, String* propertyName)
-    {
-        return readPropertyDescriptor(state, PropertyName(state, propertyName));
-    }
-    ObjectPropertyDescriptor readPropertyDescriptor(ExecutionState& state, const PropertyName& name)
-    {
-        return readPropertyDescriptor(state, findOwnProperty(state, name));
-    }
-    ObjectPropertyDescriptor readPropertyDescriptor(ExecutionState& state, const size_t& idx)
-    {
-        return m_structure->readProperty(state, idx).m_descriptor;
-    }
 
     void markThisObjectDontNeedStructureTransitionTable(ExecutionState& state)
     {
+        ASSERT(structure()->inTransitionMode());
         m_structure = m_structure->escapeTransitionMode(state);
     }
-
 protected:
     Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);
     void initPlainObject(ExecutionState& state);
@@ -208,7 +292,7 @@ protected:
     {
         return m_structure;
     }
-    bool checkPropertyAlreadyDefinedWithNonWritableInPrototype(ExecutionState& state, const PropertyName& P);
+    bool checkPropertyAlreadyDefinedWithNonWritableInPrototype(ExecutionState& state, const ObjectPropertyName& P);
     void ensureObjectRareData()
     {
         if (m_rareData == nullptr) {
@@ -228,12 +312,12 @@ protected:
         m_values[idx] = newValue;
     }
 
-    Value getOwnDataProperty(ExecutionState& state, size_t idx)
+    Value getOwnDataPropertyUtilForObject(ExecutionState& state, size_t idx)
     {
-        return getOwnDataProperty(state, idx, this);
+        return getOwnDataPropertyUtilForObject(state, idx, this);
     }
 
-    Value getOwnDataProperty(ExecutionState& state, size_t idx, Object* receiver)
+    Value getOwnDataPropertyUtilForObject(ExecutionState& state, size_t idx, Object* receiver)
     {
         ASSERT(m_structure->readProperty(state, idx).m_descriptor.isDataProperty());
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
@@ -244,7 +328,7 @@ protected:
         }
     }
 
-    bool setOwnDataProperty(ExecutionState& state, size_t idx, const Value& newValue)
+    bool setOwnDataPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& newValue)
     {
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
         if (LIKELY(item.m_descriptor.isWritable())) {
@@ -259,21 +343,21 @@ protected:
         }
     }
 
-    Value getOwnProperty(ExecutionState& state, size_t idx, Object* receiver)
+    Value getOwnPropertyUtilForObject(ExecutionState& state, size_t idx, Object* receiver)
     {
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
         if (item.m_descriptor.isDataProperty()) {
-            return getOwnDataProperty(state, idx, receiver);
+            return getOwnDataPropertyUtilForObject(state, idx, receiver);
         } else {
             RELEASE_ASSERT_NOT_REACHED();
         }
     }
 
-    bool setOwnProperty(ExecutionState& state, size_t idx, const Value& newValue)
+    bool setOwnPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& newValue)
     {
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
         if (item.m_descriptor.isDataProperty()) {
-            return setOwnDataProperty(state, idx, newValue);
+            return setOwnDataPropertyUtilForObject(state, idx, newValue);
         } else {
             RELEASE_ASSERT_NOT_REACHED();
         }
@@ -281,7 +365,7 @@ protected:
 
     void setOwnPropertyThrowsExceptionWhenStrictMode(ExecutionState& state, size_t idx, const Value& newValue)
     {
-        if (UNLIKELY(!setOwnProperty(state, idx, newValue))) {
+        if (UNLIKELY(!setOwnPropertyUtilForObject(state, idx, newValue))) {
             throwCannotWriteError(state, m_structure->readProperty(state, idx).m_propertyName);
         }
     }
@@ -318,18 +402,7 @@ protected:
     Value getPrototypeSlowCase(ExecutionState& state);
     bool setPrototypeSlowCase(ExecutionState& state, const Value& value);
 
-    bool defineOwnProperty(ExecutionState& state, String* P, const ObjectPropertyDescriptorForDefineOwnProperty& desc);
-    bool defineOwnProperty(ExecutionState& state, const PropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc);
-    bool set(ExecutionState& state, String* P, const Value& v)
-    {
-        return set(state, P, v, this);
-    }
-    bool set(ExecutionState& state, String* P, const Value& v, Object* receiver);
-    bool set(ExecutionState& state, const PropertyName& P, const Value& v)
-    {
-        return set(state, P, v, this);
-    }
-    bool set(ExecutionState& state, const PropertyName& P, const Value& v, Object* receiver);
+    bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, Object* receiver);
 };
 
 }

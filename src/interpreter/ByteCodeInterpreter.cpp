@@ -462,7 +462,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
             GetObject* code = (GetObject*)currentCode;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_objectRegisterIndex + 1];
-            registerFile[code->m_objectRegisterIndex] = willBeObject.toObject(state)->get(state, property.toString(state)).m_value;
+            registerFile[code->m_objectRegisterIndex] = willBeObject.toObject(state)->get(state, ObjectPropertyName(state, property)).value();
             executeNextCode<GetObject>(programCounter);
             NEXT_INSTRUCTION();
         }
@@ -472,7 +472,8 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
             SetObject* code = (SetObject*)currentCode;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_propertyRegisterIndex];
-            willBeObject.toObject(state)->set(state, property.toString(state), registerFile[code->m_loadRegisterIndex]);
+            Object* obj = willBeObject.toObject(state);
+            obj->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, property), registerFile[code->m_loadRegisterIndex], obj);
             executeNextCode<SetObject>(programCounter);
             NEXT_INSTRUCTION();
         }
@@ -932,7 +933,7 @@ GetObjectPreComputedCaseInlineCacheOperation:
                 }
                 if (LIKELY((*cachedHiddenClassChain)[cSiz] == obj->structure())) {
                     if (cachedIndex != SIZE_MAX) {
-                        return std::make_pair(true, obj->getOwnProperty(state, cachedIndex, targetObj));
+                        return std::make_pair(true, obj->getOwnPropertyUtilForObject(state, cachedIndex, targetObj));
                     } else {
                         return std::make_pair(false, Value());
                     }
@@ -942,8 +943,8 @@ GetObjectPreComputedCaseInlineCacheOperation:
             // cache miss.
             inlineCache.m_executeCount++;
             if (inlineCache.m_executeCount <= 3/* || UNLIKELY(willBeObject->toObject()->hasPropertyInterceptor())*/) {
-                auto result = willBeObject.toObject(state)->get(state, name);
-                return std::make_pair(result.m_hasValue, result.m_value);
+                auto result = willBeObject.toObject(state)->get(state, ObjectPropertyName(state, name));
+                return std::make_pair(result.hasValue(), result.value());
             }
 
             obj = targetObj;
@@ -967,7 +968,7 @@ GetObjectPreComputedCaseInlineCacheOperation:
             }
 
             if (*cachedHiddenClassIndex != SIZE_MAX) {
-                return std::make_pair(true, obj->getOwnProperty(state, *cachedHiddenClassIndex, targetObj));
+                return std::make_pair(true, obj->getOwnPropertyUtilForObject(state, *cachedHiddenClassIndex, targetObj));
             } else {
                 return std::make_pair(false, Value());
             }
@@ -1064,7 +1065,7 @@ inline void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionStat
                     inlineCache.m_cachedhiddenClassChain.push_back(obj->structure());
                     proto = obj->getPrototype(state);
                 }
-                bool s = orgObject->set(state, name, value, obj);
+                bool s = orgObject->set(state, ObjectPropertyName(state, name), value, obj);
                 if (UNLIKELY(!s)) {
                     if (state.inStrictMode())
                         obj->throwCannotWriteError(state, name);
@@ -1078,7 +1079,7 @@ inline void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionStat
         }
     }
     Object* obj = willBeObject.toObject(state);
-    obj->setThrowsExceptionWhenStrictMode(state, name, value, obj);
+    obj->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, obj);
 }
 
 }

@@ -21,13 +21,13 @@ static Value builtinGc(ExecutionState& state, Value thisValue, size_t argc, Valu
 void GlobalObject::installOthers(ExecutionState& state)
 {
 #ifdef ESCARGOT_SHELL
-    defineOwnProperty(state, PropertyName(state.context()->staticStrings().print),
+    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().print),
         Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state,
             NativeFunctionInfo(state.context()->staticStrings().print, builtinPrint, 1, nullptr, NativeFunctionInfo::Strict), false),
             (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
 #endif
-    defineOwnProperty(state, PropertyName(state.context()->staticStrings().gc),
+    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().gc),
         Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state,
             NativeFunctionInfo(state.context()->staticStrings().gc, builtinGc, 0, nullptr, NativeFunctionInfo::Strict), false),
             (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
