@@ -28,6 +28,7 @@ struct ObjectRareData {
 class Object : public PointerValue {
     friend class Context;
     friend class GlobalObject;
+    friend class ByteCodeInterpreter;
     static Object* createBuiltinObjectPrototype(ExecutionState& state);
 public:
     Object(ExecutionState& state);
@@ -127,21 +128,17 @@ public:
         Value m_value;
     };
 
-    bool defineOwnProperty(ExecutionState& state, String* P, const ObjectPropertyDescriptorForDefineOwnProperty& desc);
-    bool defineOwnProperty(ExecutionState& state, const PropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc);
-    void defineOwnPropertyThrowsException(ExecutionState& state, String* P, const ObjectPropertyDescriptorForDefineOwnProperty& desc)
+    void defineOwnPropertyThrowsException(ExecutionState& state, const PropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc)
     {
         if (!defineOwnProperty(state, P, desc)) {
-            // TODO throw exception
-            RELEASE_ASSERT_NOT_REACHED();
+            throwCannotDefineError(state, P);
         }
     }
 
-    void defineOwnPropertyThrowsExceptionWhenStrictMode(ExecutionState& state, String* P, const ObjectPropertyDescriptorForDefineOwnProperty& desc)
+    void defineOwnPropertyThrowsExceptionWhenStrictMode(ExecutionState& state, const PropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc)
     {
         if (!defineOwnProperty(state, P, desc) && state.inStrictMode()) {
-            // TODO throw exception
-            RELEASE_ASSERT_NOT_REACHED();
+            throwCannotDefineError(state, P);
         }
     }
 
@@ -179,16 +176,8 @@ public:
     ObjectGetResult get(ExecutionState& state, String* P, Object* receiver);
     ObjectGetResult get(ExecutionState& state, const PropertyName& P, Object* receiver);
 
-    bool set(ExecutionState& state, String* P, const Value& v)
-    {
-        return set(state, P, v, this);
-    }
-    bool set(ExecutionState& state, String* P, const Value& v, Object* receiver);
-    bool set(ExecutionState& state, const PropertyName& P, const Value& v)
-    {
-        return set(state, P, v, this);
-    }
-    bool set(ExecutionState& state, const PropertyName& P, const Value& v, Object* receiver);
+    void setThrowsException(ExecutionState& state, const PropertyName& P, const Value& v, Object* receiver);
+    void setThrowsExceptionWhenStrictMode(ExecutionState& state, const PropertyName& P, const Value& v, Object* receiver);
 
     ObjectPropertyDescriptor readPropertyDescriptor(ExecutionState& state, String* propertyName)
     {
@@ -215,6 +204,10 @@ protected:
     ObjectRareData* m_rareData;
     Vector<SmallValue, gc_allocator_ignore_off_page<SmallValue>> m_values;
 
+    ObjectStructure* structure() const
+    {
+        return m_structure;
+    }
     bool checkPropertyAlreadyDefinedWithNonWritableInPrototype(ExecutionState& state, const PropertyName& P);
     void ensureObjectRareData()
     {
@@ -286,6 +279,16 @@ protected:
         }
     }
 
+    void setOwnPropertyThrowsExceptionWhenStrictMode(ExecutionState& state, size_t idx, const Value& newValue)
+    {
+        if (UNLIKELY(!setOwnProperty(state, idx, newValue))) {
+            throwCannotWriteError(state, m_structure->readProperty(state, idx).m_propertyName);
+        }
+    }
+
+    void throwCannotDefineError(ExecutionState& state, const PropertyName& P);
+    void throwCannotWriteError(ExecutionState& state, const PropertyName& P);
+
     bool isPlainObject() const
     {
         if (LIKELY(m_rareData == nullptr)) {
@@ -314,6 +317,19 @@ protected:
 
     Value getPrototypeSlowCase(ExecutionState& state);
     bool setPrototypeSlowCase(ExecutionState& state, const Value& value);
+
+    bool defineOwnProperty(ExecutionState& state, String* P, const ObjectPropertyDescriptorForDefineOwnProperty& desc);
+    bool defineOwnProperty(ExecutionState& state, const PropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc);
+    bool set(ExecutionState& state, String* P, const Value& v)
+    {
+        return set(state, P, v, this);
+    }
+    bool set(ExecutionState& state, String* P, const Value& v, Object* receiver);
+    bool set(ExecutionState& state, const PropertyName& P, const Value& v)
+    {
+        return set(state, P, v, this);
+    }
+    bool set(ExecutionState& state, const PropertyName& P, const Value& v, Object* receiver);
 };
 
 }

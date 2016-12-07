@@ -10,7 +10,7 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, Val
     if (isNewExpression) {
        Value message = argv[0];
        if (!message.isUndefined()) {
-           thisValue.toObject(state)->asErrorObject()->defineOwnProperty(state, state.context()->staticStrings().message,
+           thisValue.toObject(state)->asErrorObject()->defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,
                Object::ObjectPropertyDescriptorForDefineOwnProperty(message.toString(state), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
        }
        return Value();
@@ -18,7 +18,7 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, Val
        ErrorObject* obj = new ErrorObject(state, String::emptyString);
        Value message = argv[0];
        if (message.isUndefined()) {
-           obj->set(state, state.context()->staticStrings().message, message.toString(state));
+           obj->setThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message, message.toString(state), obj);
        }
        return obj;
     }
@@ -80,10 +80,10 @@ void GlobalObject::installError(ExecutionState& state)
     m_errorPrototype = new Object(state);
     m_error->setFunctionPrototype(state, m_errorPrototype);
     m_errorPrototype->markThisObjectDontNeedStructureTransitionTable(state);
-    m_errorPrototype->defineOwnProperty(state, state.context()->staticStrings().message, Object::ObjectPropertyDescriptorForDefineOwnProperty(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
-    m_errorPrototype->defineOwnProperty(state, state.context()->staticStrings().name, Object::ObjectPropertyDescriptorForDefineOwnProperty(state.context()->staticStrings().Error.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+    m_errorPrototype->defineOwnPropertyThrowsException(state, state.context()->staticStrings().message, Object::ObjectPropertyDescriptorForDefineOwnProperty(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+    m_errorPrototype->defineOwnPropertyThrowsException(state, state.context()->staticStrings().name, Object::ObjectPropertyDescriptorForDefineOwnProperty(state.context()->staticStrings().Error.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
     auto errorToStringFn = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinErrorToString, 0));
-    m_errorPrototype->defineOwnProperty(state, state.context()->staticStrings().toString, Object::ObjectPropertyDescriptorForDefineOwnProperty(errorToStringFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+    m_errorPrototype->defineOwnPropertyThrowsException(state, state.context()->staticStrings().toString, Object::ObjectPropertyDescriptorForDefineOwnProperty(errorToStringFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 
     // m_##name##Error->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
 #define DEFINE_ERROR(errorname, bname) \

@@ -10,12 +10,8 @@ namespace Escargot {
 
 void EnvironmentRecord::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
 {
-    if (UNLIKELY(!state.context()->globalObject()->set(state, name, V))) {
-        if (state.inStrictMode()) {
-            // TODO strict mode
-            RELEASE_ASSERT_NOT_REACHED();
-        }
-    }
+    GlobalObject* o = state.context()->globalObject();
+    o->setThrowsExceptionWhenStrictMode(state, name, V, o);
 }
 
 GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock, GlobalObject* global)
@@ -39,7 +35,7 @@ void GlobalEnvironmentRecord::createMutableBinding(ExecutionState& state, const 
         ObjectPropertyDescriptor::PresentAttribute attribute = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent);
         if (canDelete)
             attribute = (ObjectPropertyDescriptor::PresentAttribute)(attribute | ObjectPropertyDescriptor::ConfigurablePresent);
-        m_globalObject->defineOwnProperty(state, name, Object::ObjectPropertyDescriptorForDefineOwnProperty(Value(), attribute));
+        m_globalObject->defineOwnPropertyThrowsExceptionWhenStrictMode(state, name, Object::ObjectPropertyDescriptorForDefineOwnProperty(Value(), attribute));
     }
 }
 
@@ -51,8 +47,7 @@ EnvironmentRecord::GetBindingValueResult GlobalEnvironmentRecord::getBindingValu
 
 void GlobalEnvironmentRecord::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
 {
-    // TODO strict mode
-    m_globalObject->set(state, name, V);
+    m_globalObject->setThrowsExceptionWhenStrictMode(state, name, V, m_globalObject);
 }
 
 void FunctionEnvironmentRecordNotIndexed::createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete)

@@ -9,7 +9,7 @@
 #include "interpreter/ByteCodeGenerator.h"
 
 namespace Escargot {
-
+class ObjectStructure;
 class Node;
 
 // <OpcodeName, PushCount, PopCount>
@@ -538,6 +538,27 @@ public:
 #endif
 };
 
+
+typedef Vector<ObjectStructure*, gc_malloc_ignore_off_page_allocator<ObjectStructure*> > ObjectStructureChain;
+
+struct GetObjectInlineCacheData {
+    GetObjectInlineCacheData()
+    {
+        m_cachedIndex = SIZE_MAX;
+    }
+    ObjectStructureChain m_cachedhiddenClassChain;
+    size_t m_cachedIndex;
+};
+
+struct GetObjectInlineCache {
+    Vector<GetObjectInlineCacheData, gc_malloc_ignore_off_page_allocator<GetObjectInlineCacheData> > m_cache;
+    size_t m_executeCount;
+    GetObjectInlineCache()
+    {
+        m_executeCount = 0;
+    }
+};
+
 class GetObjectPreComputedCase : public ByteCode {
 public:
     // [object] -> [value]
@@ -550,13 +571,31 @@ public:
 
     size_t m_objectRegisterIndex;
     PropertyName m_propertyName;
-
+    GetObjectInlineCache m_inlineCache;
 #ifndef NDEBUG
     virtual void dump()
     {
         printf("get object r%d <- r%d.%s", (int)m_objectRegisterIndex, (int)m_objectRegisterIndex, m_propertyName.string()->toUTF8StringData().data());
     }
 #endif
+};
+
+struct SetObjectInlineCache {
+    ObjectStructureChain m_cachedhiddenClassChain;
+    size_t m_cachedIndex;
+    ObjectStructure* m_hiddenClassWillBe;
+    SetObjectInlineCache()
+    {
+        m_cachedIndex = SIZE_MAX;
+        m_hiddenClassWillBe = nullptr;
+    }
+
+    void invalidateCache()
+    {
+        m_cachedIndex = SIZE_MAX;
+        m_hiddenClassWillBe = nullptr;
+        m_cachedhiddenClassChain.clear();
+    }
 };
 
 class SetObjectPreComputedCase : public ByteCode {
@@ -572,7 +611,7 @@ public:
     size_t m_objectRegisterIndex;
     PropertyName m_propertyName;
     size_t m_loadRegisterIndex;
-
+    SetObjectInlineCache m_inlineCache;
 #ifndef NDEBUG
     virtual void dump()
     {
@@ -592,7 +631,7 @@ public:
 
     size_t m_registerIndex;
     PropertyName m_propertyName;
-
+    GetObjectInlineCache m_inlineCache;
 #ifndef NDEBUG
     virtual void dump()
     {
@@ -612,7 +651,7 @@ public:
 
     size_t m_registerIndex;
     PropertyName m_propertyName;
-
+    SetObjectInlineCache m_inlineCache;
 #ifndef NDEBUG
     virtual void dump()
     {

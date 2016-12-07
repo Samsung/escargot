@@ -2,6 +2,7 @@
 #include "Object.h"
 #include "ExecutionContext.h"
 #include "Context.h"
+#include "ErrorObject.h"
 
 namespace Escargot {
 
@@ -298,6 +299,30 @@ bool Object::set(ExecutionState& state, const PropertyName& propertyName, const 
             RELEASE_ASSERT_NOT_REACHED();
         }
     }
+}
+
+void Object::setThrowsException(ExecutionState& state, const PropertyName& P, const Value& v, Object* receiver)
+{
+    if (UNLIKELY(!set(state, P, v, receiver))) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.string(), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
+    }
+}
+
+void Object::setThrowsExceptionWhenStrictMode(ExecutionState& state, const PropertyName& P, const Value& v, Object* receiver)
+{
+    if (UNLIKELY(!set(state, P, v, receiver)) && state.inStrictMode()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.string(), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
+    }
+}
+
+void Object::throwCannotDefineError(ExecutionState& state, const PropertyName& P)
+{
+    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.string(), false, String::emptyString, errorMessage_DefineProperty_RedefineNotConfigurable);
+}
+
+void Object::throwCannotWriteError(ExecutionState& state, const PropertyName& P)
+{
+    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.string(), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
 }
 
 void Object::deleteOwnProperty(ExecutionState& state, size_t idx)

@@ -96,7 +96,7 @@ public:
 
     void insert(size_t pos, const T& val)
     {
-        ASSERT(pos < m_size);
+        ASSERT(pos <= m_size);
         T* newBuffer = Allocator().allocate(m_size + 1);
         for (size_t i = 0; i < pos; i ++) {
             newBuffer[i] = m_buffer[i];
