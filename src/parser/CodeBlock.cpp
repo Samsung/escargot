@@ -17,6 +17,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_parentCodeBlock(nullptr)
     , m_cachedASTNode(nullptr)
     , m_byteCodeBlock(nullptr)
+    , m_nativeFunctionConstructor(info.m_nativeFunctionConstructor)
 #ifndef NDEBUG
     , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
@@ -57,6 +58,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
     , m_parentCodeBlock(nullptr)
     , m_cachedASTNode(nullptr)
     , m_byteCodeBlock(nullptr)
+    , m_nativeFunctionConstructor(nullptr)
 #ifndef NDEBUG
     , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
@@ -98,6 +100,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, NodeLOC sourc
     , m_parentCodeBlock(parentBlock)
     , m_cachedASTNode(nullptr)
     , m_byteCodeBlock(nullptr)
+    , m_nativeFunctionConstructor(nullptr)
 #ifndef NDEBUG
     , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)

@@ -41,7 +41,7 @@ public:
         size_t before = context->m_baseRegisterCount;
 #endif
         m_expression->generateExpressionByteCode(codeBlock, context);
-        codeBlock->pushCode(StoreExecutionResult(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+        // codeBlock->pushCode(StoreExecutionResult(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
         context->giveUpRegister();
         ASSERT(context->m_baseRegisterCount == before);
     }

@@ -34,6 +34,7 @@ class ObjectPropertyDescriptor {
 
 public:
     enum PresentAttribute {
+        NotPresent = 0,
         WritablePresent         = 1 << 1, // property can be only read, not written
         EnumerablePresent       = 1 << 2, // property doesn't appear in (for .. in ..)
         ConfigurablePresent     = 1 << 3, // property can't be deleted

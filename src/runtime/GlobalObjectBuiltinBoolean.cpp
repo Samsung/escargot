@@ -5,7 +5,7 @@
 
 namespace Escargot {
 
-static Value builtinBooleanConstructor(ExecutionState& state, Value thisValue, Value* argv, bool isNewExpression)
+static Value builtinBooleanConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // TODO
     RELEASE_ASSERT_NOT_REACHED();
@@ -13,7 +13,9 @@ static Value builtinBooleanConstructor(ExecutionState& state, Value thisValue, V
 
 void GlobalObject::installBoolean(ExecutionState& state)
 {
-    m_boolean = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Boolean, builtinBooleanConstructor, 1)));
+    m_boolean = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Boolean, builtinBooleanConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+        return new BooleanObject(state);
+    })));
     m_boolean->markThisObjectDontNeedStructureTransitionTable(state);
     m_boolean->setPrototype(state, m_functionPrototype);
     // TODO m_boolean->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);

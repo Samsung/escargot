@@ -48,7 +48,6 @@ public:
             j->m_jumpPosition = codeBlock->currentCodeSize();
 
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value()), context, this);
-            codeBlock->pushCode(StoreExecutionResult(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
             context->giveUpRegister();
             Jump* j2 = codeBlock->peekCode<Jump>(jPos2);
             j2->m_jumpPosition = codeBlock->currentCodeSize();

@@ -7,7 +7,7 @@ namespace Escargot {
 
 class NumberObject : public Object {
 public:
-    NumberObject(ExecutionState& state, double value);
+    NumberObject(ExecutionState& state, double value = 0);
 
     double primitiveValue()
     {

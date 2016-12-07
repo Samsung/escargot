@@ -27,7 +27,10 @@ public:
         : ExpressionNode() { }
 
     virtual ASTNodeType type() { return ASTNodeType::ThisExpression; }
-
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        codeBlock->pushCode(GetThis(ByteCodeLOC(m_loc.index), context->getRegister()), context, this);
+    }
 protected:
 };
 

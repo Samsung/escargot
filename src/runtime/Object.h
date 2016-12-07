@@ -216,15 +216,15 @@ protected:
         }
     }
 
-    Value uncheckedGetOwnPlainDataProperty(ExecutionState& state, size_t idx)
+    Value uncheckedGetOwnDataProperty(ExecutionState& state, size_t idx)
     {
-        ASSERT(m_structure->readProperty(state, idx).m_descriptor.isPlainDataProperty());
+        ASSERT(m_structure->readProperty(state, idx).m_descriptor.isDataProperty());
         return m_values[idx];
     }
 
-    void uncheckedSetOwnPlainDataProperty(ExecutionState& state, size_t idx, const Value& newValue)
+    void uncheckedSetOwnDataProperty(ExecutionState& state, size_t idx, const Value& newValue)
     {
-        ASSERT(m_structure->readProperty(state, idx).m_descriptor.isPlainDataProperty());
+        ASSERT(m_structure->readProperty(state, idx).m_descriptor.isDataProperty());
         m_values[idx] = newValue;
     }
 

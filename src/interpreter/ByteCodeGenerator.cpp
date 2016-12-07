@@ -94,7 +94,10 @@ void ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node*
 
     // generate common codes
     ast->generateStatementByteCode(block, &ctx);
-    block->pushCode(End(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
+    if (codeBlock->isGlobalScopeCodeBlock())
+        block->pushCode(End(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
+    else
+        block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX), SIZE_MAX), &ctx, nullptr);
 
 #ifndef NDEBUG
     if (getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) {

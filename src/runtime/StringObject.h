@@ -7,7 +7,7 @@ namespace Escargot {
 
 class StringObject : public Object {
 public:
-    StringObject(ExecutionState& state, String* value);
+    StringObject(ExecutionState& state, String* value = String::emptyString);
 
     String* primitiveValue()
     {

@@ -39,7 +39,7 @@ public:
             codeBlock->pushCode(ReturnFunction(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
             context->giveUpRegister();
         } else {
-            codeBlock->pushCode(End(ByteCodeLOC(m_loc.index)), context, this);
+            codeBlock->pushCode(ReturnFunction(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this);
         }
     }
 protected:

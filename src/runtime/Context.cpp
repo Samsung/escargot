@@ -12,13 +12,13 @@ namespace Escargot {
 
 Value Context::object__proto__NativeGetter(ExecutionState& state, Object* self)
 {
-    return self->uncheckedGetOwnPlainDataProperty(state, 0);
+    return self->uncheckedGetOwnDataProperty(state, 0);
 }
 
 bool Context::object__proto__NativeSetter(ExecutionState& state, Object* self, const Value& newData)
 {
     if (newData.isObject() || newData.isUndefinedOrNull()) {
-        self->uncheckedSetOwnPlainDataProperty(state, 0, newData);
+        self->uncheckedSetOwnDataProperty(state, 0, newData);
     }
     return true;
 }
@@ -29,13 +29,13 @@ static ObjectPropertyNativeGetterSetterData object__proto__NativeGetterSetterDat
 Value Context::functionPrototypeNativeGetter(ExecutionState& state, Object* self)
 {
     ASSERT(self->isFunctionObject() && self->isPlainObject());
-    return self->uncheckedGetOwnPlainDataProperty(state, 1);
+    return self->uncheckedGetOwnDataProperty(state, 1);
 }
 
 bool Context::functionPrototypeNativeSetter(ExecutionState& state, Object* self, const Value& newData)
 {
     ASSERT(self->isFunctionObject() && self->isPlainObject());
-    self->uncheckedSetOwnPlainDataProperty(state, 1, newData);
+    self->uncheckedSetOwnDataProperty(state, 1, newData);
     return true;
 }
 

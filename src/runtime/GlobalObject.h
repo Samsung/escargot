@@ -29,6 +29,7 @@ public:
         installString(state);
         installNumber(state);
         installBoolean(state);
+        installMath(state);
         installOthers(state);
     }
 
@@ -38,6 +39,7 @@ public:
     void installString(ExecutionState& state);
     void installNumber(ExecutionState& state);
     void installBoolean(ExecutionState& state);
+    void installMath(ExecutionState& state);
     void installOthers(ExecutionState& state);
 
     FunctionObject* object()
@@ -151,6 +153,11 @@ public:
         return m_booleanPrototype;
     }
 
+    Object* math()
+    {
+        return m_math;
+    }
+
 protected:
     FunctionObject* m_object;
     Object* m_objectPrototype;
@@ -184,6 +191,8 @@ protected:
 
     FunctionObject* m_boolean;
     Object* m_booleanPrototype;
+
+    Object* m_math;
 
     bool hasPropertyOnIndex(ExecutionState& state, const PropertyName& name, size_t idx)
     {

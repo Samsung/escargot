@@ -59,8 +59,9 @@ bool FunctionObject::setFunctionPrototypeSlowCase(ExecutionState& state, const V
     return defineOwnProperty(state, state.context()->staticStrings().prototype, ObjectPropertyDescriptorForDefineOwnProperty(v));
 }
 
-Value FunctionObject::call(ExecutionState& state, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression)
+Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, const size_t& argc, Value* argv, bool isNewExpression)
 {
+    Value receiver = receiverOrg;
     Context* ctx = state.context();
 
     // prepare ByteCodeBlock if needed
@@ -78,13 +79,21 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiver, const s
 
     // prepare env, ec
     bool isStrict = m_codeBlock->isStrict();
+
+    if (!isStrict) {
+        if (receiver.isUndefinedOrNull()) {
+            receiver = ctx->globalObject();
+        } else {
+            receiver = receiver.toObject(state);
+        }
+    }
     FunctionEnvironmentRecord* record;
     LexicalEnvironment* env;
     ExecutionContext* ec;
     size_t stackStorageSize = m_codeBlock->identifierOnStackCount();
     if (m_codeBlock->canAllocateEnvironmentOnStack()) {
         // no capture, very simple case
-        record = new(alloca(sizeof(LexicalEnvironment))) FunctionEnvironmentRecordOnStack(state, receiver, this, isNewExpression);
+        record = new(alloca(sizeof(LexicalEnvironment))) FunctionEnvironmentRecordOnStack(state, receiver, this, argc, argv, isNewExpression);
         if (LIKELY(state.executionContext() != nullptr)) {
             env = new(alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, state.executionContext()->lexicalEnvironment());
         } else {
@@ -93,9 +102,9 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiver, const s
         ec = new(alloca(sizeof(ExecutionContext))) ExecutionContext(ctx, state.executionContext(), env, isStrict);
     } else {
         if (m_codeBlock->canUseIndexedVariableStorage()) {
-            record = new FunctionEnvironmentRecordOnHeap(state, receiver, this, isNewExpression);
+            record = new FunctionEnvironmentRecordOnHeap(state, receiver, this, argc, argv, isNewExpression);
         } else {
-            record = new FunctionEnvironmentRecordNotIndexed(state, receiver, this, isNewExpression);
+            record = new FunctionEnvironmentRecordNotIndexed(state, receiver, this, argc, argv, isNewExpression);
         }
         if (LIKELY(state.executionContext() != nullptr)) {
             env = new LexicalEnvironment(record, state.executionContext()->lexicalEnvironment());

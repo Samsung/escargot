@@ -32,7 +32,21 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::NewExpression; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        m_callee->generateExpressionByteCode(codeBlock, context);
+        size_t base = context->getLastRegisterIndex();
 
+        for (size_t i = 0; i < m_arguments.size(); i ++) {
+            m_arguments[i]->generateExpressionByteCode(codeBlock, context);
+        }
+
+        codeBlock->pushCode(NewOperation(ByteCodeLOC(m_loc.index), base, m_arguments.size()), context, this);
+
+        for (size_t i = 0; i < m_arguments.size(); i ++) {
+            context->giveUpRegister();
+        }
+    }
 protected:
     Node* m_callee;
     ArgumentVector m_arguments;

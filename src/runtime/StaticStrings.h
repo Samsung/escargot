@@ -271,7 +271,8 @@ namespace Escargot {
     F(race) \
     F(reject) \
     F(resolve) \
-    F(then)
+    F(then) \
+    F(gc)
 
 class StaticStrings {
 public:

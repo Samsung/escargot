@@ -22,6 +22,8 @@ Script::ScriptExecuteResult Script::execute(Context* ctx)
     ByteCodeGenerator g;
     g.generateByteCode(ctx, m_topCodeBlock, programNode);
 
+    m_topCodeBlock->m_cachedASTNode = nullptr;
+
     LexicalEnvironment* globalEnvironment;
     {
         ExecutionState stateForInit(ctx);

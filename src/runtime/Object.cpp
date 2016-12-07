@@ -37,7 +37,7 @@ Object* Object::createBuiltinObjectPrototype(ExecutionState& state)
 Object* Object::createFunctionPrototypeObject(ExecutionState& state, FunctionObject* function)
 {
     Object* obj = new Object(state, 2, false);
-    obj->m_structure = state.context()->defaultStructureForFunctionObject();
+    obj->m_structure = state.context()->defaultStructureForFunctionPrototypeObject();
     obj->m_values[0] = Value();
     obj->m_values[1] = Value(function);
 

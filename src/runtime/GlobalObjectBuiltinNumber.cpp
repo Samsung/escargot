@@ -5,7 +5,7 @@
 
 namespace Escargot {
 
-static Value builtinNumberConstructor(ExecutionState& state, Value thisValue, Value* argv, bool isNewExpression)
+static Value builtinNumberConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // TODO
     RELEASE_ASSERT_NOT_REACHED();
@@ -13,7 +13,9 @@ static Value builtinNumberConstructor(ExecutionState& state, Value thisValue, Va
 
 void GlobalObject::installNumber(ExecutionState& state)
 {
-    m_number = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Number, builtinNumberConstructor, 1)));
+    m_number = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Number, builtinNumberConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+        return new NumberObject(state);
+    })));
     m_number->markThisObjectDontNeedStructureTransitionTable(state);
     m_number->setPrototype(state, m_functionPrototype);
     // TODO m_number->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);

@@ -17,25 +17,40 @@ class Script;
 typedef Vector<CodeBlock*, gc_malloc_ignore_off_page_allocator<CodeBlock*>> CodeBlockVector;
 
 // length of argv is same with NativeFunctionInfo.m_argumentCount
-typedef Value (*NativeFunctionPointer)(ExecutionState& state, Value thisValue, Value* argv, bool isNewExpression);
+typedef Value (*NativeFunctionPointer)(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
+typedef Object* (*NativeFunctionConstructor)(ExecutionState& state, size_t argc, Value* argv);
 
 struct NativeFunctionInfo {
+    enum Flags {
+        Strict = 1,
+        Consturctor = 1 << 1,
+    };
     bool m_isStrict;
+    bool m_isConsturctor;
     AtomicString m_name;
     NativeFunctionPointer m_nativeFunction;
+    NativeFunctionConstructor m_nativeFunctionConstructor;
     size_t m_argumentCount;
 
-    NativeFunctionInfo(AtomicString name, NativeFunctionPointer fn, size_t argc, bool isStrict = true)
-        : m_isStrict(isStrict)
+    NativeFunctionInfo(AtomicString name, NativeFunctionPointer fn, size_t argc, NativeFunctionConstructor ctor = nullptr, int flags = Flags::Strict | Flags::Consturctor)
+        : m_isStrict(flags & Strict)
+        , m_isConsturctor(flags & Consturctor)
         , m_name(name)
         , m_nativeFunction(fn)
+        , m_nativeFunctionConstructor(ctor)
         , m_argumentCount(argc)
     {
+        if (!m_isConsturctor) {
+            ASSERT(ctor == nullptr);
+        } else {
+            ASSERT(ctor);
+        }
     }
 };
 
 
 class CodeBlock : public gc {
+    friend class Script;
     friend class ScriptParser;
     friend class ByteCodeGenerator;
     friend class FunctionObject;
@@ -147,6 +162,11 @@ public:
         return m_byteCodeBlock;
     }
 
+    NativeFunctionConstructor nativeFunctionConstructor()
+    {
+        return m_nativeFunctionConstructor;
+    }
+
     bool isStrict()
     {
         return m_isStrict;
@@ -170,6 +190,11 @@ public:
     bool isFunctionExpression()
     {
         return m_isFunctionExpression;
+    }
+
+    bool isNativeFunction()
+    {
+        return m_isNativeFunction;
     }
 
     const IdentifierInfoVector& identifierInfos()
@@ -311,6 +336,7 @@ protected:
 
     Node* m_cachedASTNode;
     ByteCodeBlock* m_byteCodeBlock;
+    NativeFunctionConstructor m_nativeFunctionConstructor;
 
 #ifndef NDEBUG
     NodeLOC m_locStart;

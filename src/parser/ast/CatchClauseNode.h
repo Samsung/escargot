@@ -44,7 +44,7 @@ protected:
     BlockStatementNode* m_body;
 };
 
-typedef std::vector<Node *, gc_malloc_ignore_off_page_allocator<CatchClauseNode *>> CatchClauseNodeVector;
+typedef Vector<Node *, gc_malloc_ignore_off_page_allocator<Node *>> CatchClauseNodeVector;
 
 }
 

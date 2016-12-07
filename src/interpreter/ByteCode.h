@@ -26,6 +26,8 @@ class Node;
     F(DeclareVarVariable, 0, 0) \
     F(DeclareFunctionDeclaration, 1, 0) \
     F(DeclareFunctionExpression, 1, 0) \
+    F(GetThis, 1, 0) \
+    F(NewOperation, 1, 0) \
     F(BinaryPlus, 1, 2) \
     F(BinaryMinus, 1, 2) \
     F(BinaryMultiply, 1, 2) \
@@ -55,11 +57,12 @@ class Node;
     F(Move, 1, 0) \
     F(Increment, 1, 1) \
     F(Decrement, 1, 1) \
+    F(UnaryMinus, 1, 1) \
+    F(UnaryPlus, 1, 1) \
     F(Jump, 0, 0) \
     F(JumpComplexCase, 0, 0) \
     F(JumpIfTrue, 0, 0) \
     F(JumpIfFalse, 0, 0) \
-    F(StoreExecutionResult, 0, 1) \
     F(CallFunction, -1, 0) \
     F(ReturnFunction, 0, 0) \
     F(ThrowOperation, 0, 0) \
@@ -434,6 +437,42 @@ public:
 #endif
 };
 
+class GetThis : public ByteCode {
+public:
+    GetThis(const ByteCodeLOC& loc, const size_t& registerIndex)
+        : ByteCode(Opcode::GetThisOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    size_t m_registerIndex;
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("this -> r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class NewOperation : public ByteCode {
+public:
+    NewOperation(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& argc)
+        : ByteCode(Opcode::NewOperationOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_argumentCount(argc)
+    {
+    }
+
+    size_t m_registerIndex;
+    size_t m_argumentCount;
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("new -> r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
 #ifdef NDEBUG
 #define DEFINE_BINARY_OPERATION_DUMP(name)
 #else
@@ -716,6 +755,42 @@ public:
 #endif
 };
 
+class UnaryMinus : public ByteCode {
+public:
+    UnaryMinus(const ByteCodeLOC& loc, const size_t& registerIndex)
+        : ByteCode(Opcode::UnaryMinusOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    size_t m_registerIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("unary minus r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class UnaryPlus : public ByteCode {
+public:
+    UnaryPlus(const ByteCodeLOC& loc, const size_t& registerIndex)
+        : ByteCode(Opcode::UnaryPlusOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    size_t m_registerIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("unary plus r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
 class Jump : public ByteCode {
 public:
     Jump(const ByteCodeLOC& loc, size_t pos = SIZE_MAX)
@@ -789,23 +864,6 @@ public:
     virtual void dump()
     {
         printf("jump if false r%d -> %d", (int)m_registerIndex, (int)m_jumpPosition);
-    }
-#endif
-};
-
-class StoreExecutionResult : public ByteCode {
-public:
-    StoreExecutionResult(const ByteCodeLOC& loc, const size_t& registerIndex)
-        : ByteCode(Opcode::StoreExecutionResultOpcode, loc)
-        , m_registerIndex(registerIndex)
-    {
-    }
-    size_t m_registerIndex;
-
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("store ExecutionResult <- r%d", (int)m_registerIndex);
     }
 #endif
 };
@@ -899,7 +957,7 @@ class ByteCodeBlock : public gc {
 public:
     ByteCodeBlock()
     {
-        m_requiredRegisterFileSizeInValueSize = 0;
+        m_requiredRegisterFileSizeInValueSize = 1;
     }
 
     template <typename CodeType>

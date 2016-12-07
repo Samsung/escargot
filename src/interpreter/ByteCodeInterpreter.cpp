@@ -65,6 +65,8 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         ByteCodeBlock* byteCodeBlock = codeBlock->byteCodeBlock();
         ExecutionContext* ec = state.executionContext();
         LexicalEnvironment* env = ec->lexicalEnvironment();
+        EnvironmentRecord* record = env->record();
+        Value thisValue(Value::EmptyValue);
         Value* registerFile = ALLOCA(byteCodeBlock->m_requiredRegisterFileSizeInValueSize * sizeof(Value), Value, state);
         Value* stackStorage = ec->stackStorage();
         char* codeBuffer = byteCodeBlock->m_code.data();
@@ -189,23 +191,15 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         StoreByNameOpcodeLbl:
         {
             StoreByName* code = (StoreByName*)currentCode;
-            env->record()->setMutableBinding(state, code->m_name, registerFile[code->m_registerIndex]);
+            record->setMutableBinding(state, code->m_name, registerFile[code->m_registerIndex]);
             executeNextCode<StoreByName>(programCounter);
-            NEXT_INSTRUCTION();
-        }
-
-        StoreExecutionResultOpcodeLbl:
-        {
-            StoreExecutionResult* code = (StoreExecutionResult*)currentCode;
-            *state.exeuctionResult() = registerFile[code->m_registerIndex];
-            executeNextCode<StoreExecutionResult>(programCounter);
             NEXT_INSTRUCTION();
         }
 
         DeclareVarVariableOpcodeLbl:
         {
             DeclareVarVariable* code = (DeclareVarVariable*)currentCode;
-            env->record()->createMutableBinding(state, code->m_name, false);
+            record->createMutableBinding(state, code->m_name, false);
             executeNextCode<DeclareVarVariable>(programCounter);
             NEXT_INSTRUCTION();
         }
@@ -215,6 +209,17 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
             DeclareFunctionExpression* code = (DeclareFunctionExpression*)currentCode;
             registerFile[code->m_registerIndex] = new FunctionObject(state, code->m_codeBlock);
             executeNextCode<DeclareFunctionExpression>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        GetThisOpcodeLbl:
+        {
+            GetThis* code = (GetThis*)currentCode;
+            if (UNLIKELY(thisValue.isEmpty())) {
+                thisValue = record->getThisBinding();
+            }
+            registerFile[code->m_registerIndex] = thisValue;
+            executeNextCode<GetThis>(programCounter);
             NEXT_INSTRUCTION();
         }
 
@@ -434,6 +439,24 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
             NEXT_INSTRUCTION();
         }
 
+        UnaryMinusOpcodeLbl:
+        {
+            UnaryMinus* code = (UnaryMinus*)currentCode;
+            const Value& val = registerFile[code->m_registerIndex];
+            registerFile[code->m_registerIndex] = Value(-val.toNumber(state));
+            executeNextCode<UnaryMinus>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        UnaryPlusOpcodeLbl:
+        {
+            UnaryPlus* code = (UnaryPlus*)currentCode;
+            const Value& val = registerFile[code->m_registerIndex];
+            registerFile[code->m_registerIndex] = Value(val.toNumber(state));
+            executeNextCode<UnaryPlus>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
         GetObjectOpcodeLbl:
         {
             GetObject* code = (GetObject*)currentCode;
@@ -545,7 +568,10 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         ReturnFunctionOpcodeLbl:
         {
             ReturnFunction* code = (ReturnFunction*)currentCode;
-            *state.exeuctionResult() = registerFile[code->m_registerIndex];
+            if (code->m_registerIndex != SIZE_MAX)
+                *state.exeuctionResult() = registerFile[code->m_registerIndex];
+            else
+                *state.exeuctionResult() = Value();
             return;
         }
 
@@ -644,18 +670,39 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
             NEXT_INSTRUCTION();
         }
 
+        NewOperationOpcodeLbl:
+        {
+            NewOperation* code = (NewOperation*)currentCode;
+            registerFile[code->m_registerIndex] = newOperation(state, registerFile[code->m_registerIndex], code->m_argumentCount, &registerFile[code->m_registerIndex + 1]);
+            executeNextCode<NewOperation>(programCounter);
+            NEXT_INSTRUCTION();
+        }
+
         EndOpcodeLbl:
         {
-            if (!codeBlock->isGlobalScopeCodeBlock()) {
-                *state.exeuctionResult() = Value();
-            }
+            ASSERT(codeBlock->isGlobalScopeCodeBlock());
+            *state.exeuctionResult() = registerFile[0];
             return;
         }
 
         CallNativeFunctionOpcodeLbl:
         {
             CallNativeFunction* code = (CallNativeFunction*)currentCode;
-            *state.exeuctionResult() = code->m_fn(state, env->record()->getThisBinding(), stackStorage, env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isNewExpression());
+            Value* argv = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->argv();
+            size_t argc = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->argc();
+            if (argc < record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->parametersInfomation().size()) {
+                size_t len = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->parametersInfomation().size();
+                Value* newArgv = ALLOCA(sizeof(Value)*len, Value, state);
+                for (size_t i = 0; i < argc; i ++) {
+                    newArgv[i] = argv[i];
+                }
+                for (size_t i = argc; i < len; i ++) {
+                    newArgv[i] = Value();
+                }
+                argv = newArgv;
+                argc = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->parametersInfomation().size();
+            }
+            *state.exeuctionResult() = code->m_fn(state, record->getThisBinding(), argc, argv, record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isNewExpression());
             return;
         }
     }
@@ -751,6 +798,35 @@ Value ByteCodeInterpreter::modOperation(ExecutionState& state, const Value& left
     }
 
     return ret;
+}
+
+Value ByteCodeInterpreter::newOperation(ExecutionState& state, const Value& callee, size_t argc, Value* argv)
+{
+    if (!callee.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
+    }
+    FunctionObject* function = callee.asFunction();
+    if (!function->isConstructor()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, function->codeBlock()->functionName().string(), false, String::emptyString, errorMessage_New_NotConstructor);
+    }
+    Object* receiver;
+    CodeBlock* cb = function->codeBlock();
+    if (cb->isNativeFunction()) {
+        receiver = cb->nativeFunctionConstructor()(state, argc, argv);
+    } else {
+        receiver = new Object(state);
+    }
+
+    if (function->getFunctionPrototype(state).isObject())
+        receiver->setPrototype(state, function->getFunctionPrototype(state));
+    else
+        receiver->setPrototype(state, new Object(state));
+
+    Value res = function->call(state, receiver, argc, argv, true);
+    if (res.isObject())
+        return res;
+    else
+        return receiver;
 }
 
 inline bool ByteCodeInterpreter::abstractRelationalComparison(ExecutionState& state, const Value& left, const Value& right, bool leftFirst)
