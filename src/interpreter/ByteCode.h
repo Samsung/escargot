@@ -1,79 +1,79 @@
 #ifndef __EscargotByteCode__
 #define __EscargotByteCode__
 
-#include "runtime/Value.h"
-#include "runtime/String.h"
+#include "interpreter/ByteCodeGenerator.h"
 #include "parser/CodeBlock.h"
 #include "parser/ast/Node.h"
 #include "runtime/SmallValue.h"
-#include "interpreter/ByteCodeGenerator.h"
+#include "runtime/String.h"
+#include "runtime/Value.h"
 
 namespace Escargot {
 class ObjectStructure;
 class Node;
 
 // <OpcodeName, PushCount, PopCount>
-#define FOR_EACH_BYTECODE_OP(F) \
-    F(LoadLiteral, 1, 0) \
-    F(LoadByName, 1, 0) \
-    F(StoreByName, 0, 0) \
-    F(LoadByStackIndex, 1, 0) \
-    F(StoreByStackIndex, 0, 0) \
-    F(LoadByHeapIndex, 1, 0) \
-    F(StoreByHeapIndex, 0, 0) \
-    F(LoadByGlobalName, 1, 0) \
-    F(StoreByGlobalName, 0, 0) \
-    F(DeclareVarVariable, 0, 0) \
+#define FOR_EACH_BYTECODE_OP(F)         \
+    F(LoadLiteral, 1, 0)                \
+    F(LoadByName, 1, 0)                 \
+    F(StoreByName, 0, 0)                \
+    F(LoadByStackIndex, 1, 0)           \
+    F(StoreByStackIndex, 0, 0)          \
+    F(LoadByHeapIndex, 1, 0)            \
+    F(StoreByHeapIndex, 0, 0)           \
+    F(LoadByGlobalName, 1, 0)           \
+    F(StoreByGlobalName, 0, 0)          \
+    F(DeclareVarVariable, 0, 0)         \
     F(DeclareFunctionDeclaration, 1, 0) \
-    F(DeclareFunctionExpression, 1, 0) \
-    F(GetThis, 1, 0) \
-    F(NewOperation, 1, 0) \
-    F(BinaryPlus, 1, 2) \
-    F(BinaryMinus, 1, 2) \
-    F(BinaryMultiply, 1, 2) \
-    F(BinaryDivision, 1, 2) \
-    F(BinaryMod, 1, 2) \
-    F(BinaryEqual, 1, 2) \
-    F(BinaryLessThan, 1, 2) \
-    F(BinaryLessThanOrEqual, 1, 2) \
-    F(BinaryGreaterThan, 1, 2) \
-    F(BinaryGreaterThanOrEqual, 1, 2) \
-    F(BinaryNotEqual, 1, 2) \
-    F(BinaryStrictEqual, 1, 2) \
-    F(BinaryNotStrictEqual, 1, 2) \
-    F(BinaryBitwiseAnd, 1, 2) \
-    F(BinaryBitwiseOr, 1, 2) \
-    F(BinaryBitwiseXor, 1, 2) \
-    F(BinaryLeftShift, 1, 2) \
-    F(BinarySignedRightShift, 1, 2) \
-    F(BinaryUnsignedRightShift, 1, 2) \
-    F(CreateObject, 1, 0) \
-    F(GetObject, 1, 2) \
-    F(SetObject, 0, 2) \
-    F(GetObjectPreComputedCase, 1, 1) \
-    F(SetObjectPreComputedCase, 0, 1) \
-    F(GetGlobalObject, 1, 1) \
-    F(SetGlobalObject, 0, 1) \
-    F(Move, 1, 0) \
-    F(Increment, 1, 1) \
-    F(Decrement, 1, 1) \
-    F(UnaryMinus, 1, 1) \
-    F(UnaryPlus, 1, 1) \
-    F(Jump, 0, 0) \
-    F(JumpComplexCase, 0, 0) \
-    F(JumpIfTrue, 0, 0) \
-    F(JumpIfFalse, 0, 0) \
-    F(CallFunction, -1, 0) \
-    F(ReturnFunction, 0, 0) \
-    F(ThrowOperation, 0, 0) \
-    F(CallNativeFunction, 0, 0) \
-    F(End, 0, 0) \
+    F(DeclareFunctionExpression, 1, 0)  \
+    F(GetThis, 1, 0)                    \
+    F(NewOperation, 1, 0)               \
+    F(BinaryPlus, 1, 2)                 \
+    F(BinaryMinus, 1, 2)                \
+    F(BinaryMultiply, 1, 2)             \
+    F(BinaryDivision, 1, 2)             \
+    F(BinaryMod, 1, 2)                  \
+    F(BinaryEqual, 1, 2)                \
+    F(BinaryLessThan, 1, 2)             \
+    F(BinaryLessThanOrEqual, 1, 2)      \
+    F(BinaryGreaterThan, 1, 2)          \
+    F(BinaryGreaterThanOrEqual, 1, 2)   \
+    F(BinaryNotEqual, 1, 2)             \
+    F(BinaryStrictEqual, 1, 2)          \
+    F(BinaryNotStrictEqual, 1, 2)       \
+    F(BinaryBitwiseAnd, 1, 2)           \
+    F(BinaryBitwiseOr, 1, 2)            \
+    F(BinaryBitwiseXor, 1, 2)           \
+    F(BinaryLeftShift, 1, 2)            \
+    F(BinarySignedRightShift, 1, 2)     \
+    F(BinaryUnsignedRightShift, 1, 2)   \
+    F(CreateObject, 1, 0)               \
+    F(GetObject, 1, 2)                  \
+    F(SetObject, 0, 2)                  \
+    F(GetObjectPreComputedCase, 1, 1)   \
+    F(SetObjectPreComputedCase, 0, 1)   \
+    F(GetGlobalObject, 1, 1)            \
+    F(SetGlobalObject, 0, 1)            \
+    F(Move, 1, 0)                       \
+    F(Increment, 1, 1)                  \
+    F(Decrement, 1, 1)                  \
+    F(UnaryMinus, 1, 1)                 \
+    F(UnaryPlus, 1, 1)                  \
+    F(Jump, 0, 0)                       \
+    F(JumpComplexCase, 0, 0)            \
+    F(JumpIfTrue, 0, 0)                 \
+    F(JumpIfFalse, 0, 0)                \
+    F(CallFunction, -1, 0)              \
+    F(ReturnFunction, 0, 0)             \
+    F(ThrowOperation, 0, 0)             \
+    F(CallNativeFunction, 0, 0)         \
+    F(End, 0, 0)
 
 enum Opcode {
 #define DECLARE_BYTECODE(name, pushCount, popCount) name##Opcode,
     FOR_EACH_BYTECODE_OP(DECLARE_BYTECODE)
 #undef DECLARE_BYTECODE
-    OpcodeKindEnd
+        OpcodeKindEnd
 } __attribute__((packed));
 
 struct OpcodeTable {
@@ -89,10 +89,10 @@ inline const char* getByteCodeName(Opcode opcode)
 {
     switch (opcode) {
 #define RETURN_BYTECODE_NAME(name, pushCount, popCount) \
-    case name##Opcode: \
+    case name##Opcode:                                  \
         return #name;
         FOR_EACH_BYTECODE_OP(RETURN_BYTECODE_NAME)
-#undef  RETURN_BYTECODE_NAME
+#undef RETURN_BYTECODE_NAME
     default:
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -102,7 +102,7 @@ inline const char* getByteCodeName(Opcode opcode)
 #ifndef NDEBUG
 inline const char* getByteCodeNameFromAddress(void* opcodeInAddress)
 {
-    for (size_t i = 0; i < OpcodeKindEnd; i ++) {
+    for (size_t i = 0; i < OpcodeKindEnd; i++) {
         if (g_opcodeTable.m_reverseTable[i].first == opcodeInAddress)
             return getByteCodeName(g_opcodeTable.m_reverseTable[i].second);
     }
@@ -114,10 +114,10 @@ inline size_t getByteCodePushCount(Opcode code)
 {
     switch (code) {
 #define RETURN_BYTECODE_CNT(name, pushCount, popCount) \
-    case name##Opcode: \
+    case name##Opcode:                                 \
         return pushCount;
         FOR_EACH_BYTECODE_OP(RETURN_BYTECODE_CNT)
-#undef  RETURN_BYTECODE_CNT
+#undef RETURN_BYTECODE_CNT
     default:
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -127,10 +127,10 @@ inline size_t getByteCodePopCount(Opcode code)
 {
     switch (code) {
 #define RETURN_BYTECODE_CNT(name, pushCount, popCount) \
-    case name##Opcode: \
+    case name##Opcode:                                 \
         return popCount;
         FOR_EACH_BYTECODE_OP(RETURN_BYTECODE_CNT)
-#undef  RETURN_BYTECODE_CNT
+#undef RETURN_BYTECODE_CNT
     default:
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -190,7 +190,6 @@ public:
 
     virtual void dump()
     {
-
     }
 
 #endif
@@ -203,7 +202,6 @@ public:
         , m_registerIndex(registerIndex)
         , m_value(v)
     {
-
     }
     size_t m_registerIndex;
     SmallValue m_value;
@@ -476,26 +474,26 @@ public:
 #ifdef NDEBUG
 #define DEFINE_BINARY_OPERATION_DUMP(name)
 #else
-#define DEFINE_BINARY_OPERATION_DUMP(name) \
-    virtual void dump() \
-    { \
-        printf(name" r%d <- r%d , r%d", (int)m_srcIndex0, (int)m_srcIndex0, (int)m_srcIndex1); \
+#define DEFINE_BINARY_OPERATION_DUMP(name)                                                      \
+    virtual void dump()                                                                         \
+    {                                                                                           \
+        printf(name " r%d <- r%d , r%d", (int)m_srcIndex0, (int)m_srcIndex0, (int)m_srcIndex1); \
     }
 #endif
 
-#define DEFINE_BINARY_OPERATION(CodeName, HumanName) \
-class Binary##CodeName : public ByteCode { \
-public: \
-    Binary##CodeName(const ByteCodeLOC& loc, const size_t& registerIndex0, const size_t& registerIndex1) \
-        : ByteCode(Opcode::Binary##CodeName##Opcode, loc)  \
-        , m_srcIndex0(registerIndex0)  \
-        , m_srcIndex1(registerIndex1)  \
-    {  \
-    }  \
-    size_t m_srcIndex0; \
-    size_t m_srcIndex1; \
-    DEFINE_BINARY_OPERATION_DUMP(HumanName) \
-};
+#define DEFINE_BINARY_OPERATION(CodeName, HumanName)                                                         \
+    class Binary##CodeName : public ByteCode {                                                               \
+    public:                                                                                                  \
+        Binary##CodeName(const ByteCodeLOC& loc, const size_t& registerIndex0, const size_t& registerIndex1) \
+            : ByteCode(Opcode::Binary##CodeName##Opcode, loc)                                                \
+            , m_srcIndex0(registerIndex0)                                                                    \
+            , m_srcIndex1(registerIndex1)                                                                    \
+        {                                                                                                    \
+        }                                                                                                    \
+        size_t m_srcIndex0;                                                                                  \
+        size_t m_srcIndex1;                                                                                  \
+        DEFINE_BINARY_OPERATION_DUMP(HumanName)                                                              \
+    };
 
 DEFINE_BINARY_OPERATION(Plus, "plus");
 DEFINE_BINARY_OPERATION(Minus, "minus");
@@ -578,7 +576,7 @@ public:
 };
 
 
-typedef Vector<ObjectStructure*, gc_malloc_ignore_off_page_allocator<ObjectStructure*> > ObjectStructureChain;
+typedef Vector<ObjectStructure*, gc_malloc_ignore_off_page_allocator<ObjectStructure*>> ObjectStructureChain;
 
 struct GetObjectInlineCacheData {
     GetObjectInlineCacheData()
@@ -590,7 +588,7 @@ struct GetObjectInlineCacheData {
 };
 
 struct GetObjectInlineCache {
-    Vector<GetObjectInlineCacheData, gc_malloc_ignore_off_page_allocator<GetObjectInlineCacheData> > m_cache;
+    Vector<GetObjectInlineCacheData, gc_malloc_ignore_off_page_allocator<GetObjectInlineCacheData>> m_cache;
     size_t m_executeCount;
     GetObjectInlineCache()
     {
@@ -702,9 +700,9 @@ public:
 class Move : public ByteCode {
 public:
     Move(const ByteCodeLOC& loc, const size_t& registerIndex0, const size_t& registerIndex1) // 1 <= 0
-        : ByteCode(Opcode::MoveOpcode, loc)
-        , m_registerIndex0(registerIndex0)
-        , m_registerIndex1(registerIndex1)
+        : ByteCode(Opcode::MoveOpcode, loc),
+          m_registerIndex0(registerIndex0),
+          m_registerIndex1(registerIndex1)
     {
     }
 
@@ -963,17 +961,17 @@ public:
     template <typename CodeType>
     void pushCode(const CodeType& code, ByteCodeGenerateContext* context, Node* node)
     {
-    #ifndef NDEBUG
+#ifndef NDEBUG
         {
-            CodeType& t = const_cast<CodeType &>(code);
+            CodeType& t = const_cast<CodeType&>(code);
             t.m_node = node;
             t.m_loc.line = computeNodeLOCFromByteCode(&t, context->m_codeBlock).line;
             t.m_loc.column = computeNodeLOCFromByteCode(&t, context->m_codeBlock).column;
         }
-    #endif
+#endif
 
-        const_cast<CodeType &>(code).assignOpcodeInAddress();
-        char* first = (char *)&code;
+        const_cast<CodeType&>(code).assignOpcodeInAddress();
+        char* first = (char*)&code;
         m_code.insert(m_code.end(), first, first + sizeof(CodeType));
 
         m_requiredRegisterFileSizeInValueSize = std::max(m_requiredRegisterFileSizeInValueSize, (size_t)context->m_baseRegisterCount);
@@ -983,7 +981,7 @@ public:
     {
         char* pos = m_code.data();
         pos = &pos[position];
-        return (CodeType *)pos;
+        return (CodeType*)pos;
     }
 
     template <typename CodeType>
@@ -1002,7 +1000,6 @@ public:
     ByteCodeBlockData m_code;
     size_t m_requiredRegisterFileSizeInValueSize;
 };
-
 }
 
 #endif

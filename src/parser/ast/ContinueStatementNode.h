@@ -30,9 +30,7 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ContinueStatement; }
-
 };
-
 }
 
 #endif

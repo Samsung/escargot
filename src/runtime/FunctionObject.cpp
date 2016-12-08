@@ -93,13 +93,13 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     size_t stackStorageSize = m_codeBlock->identifierOnStackCount();
     if (m_codeBlock->canAllocateEnvironmentOnStack()) {
         // no capture, very simple case
-        record = new(alloca(sizeof(LexicalEnvironment))) FunctionEnvironmentRecordOnStack(state, receiver, this, argc, argv, isNewExpression);
+        record = new (alloca(sizeof(LexicalEnvironment))) FunctionEnvironmentRecordOnStack(state, receiver, this, argc, argv, isNewExpression);
         if (LIKELY(state.executionContext() != nullptr)) {
-            env = new(alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, state.executionContext()->lexicalEnvironment());
+            env = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, state.executionContext()->lexicalEnvironment());
         } else {
-            env = new(alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, nullptr);
+            env = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, nullptr);
         }
-        ec = new(alloca(sizeof(ExecutionContext))) ExecutionContext(ctx, state.executionContext(), env, isStrict);
+        ec = new (alloca(sizeof(ExecutionContext))) ExecutionContext(ctx, state.executionContext(), env, isStrict);
     } else {
         if (m_codeBlock->canUseIndexedVariableStorage()) {
             record = new FunctionEnvironmentRecordOnHeap(state, receiver, this, argc, argv, isNewExpression);
@@ -116,7 +116,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
 
     ec->giveStackStorage(ALLOCA(stackStorageSize * sizeof(Value), Value, state));
     Value* stackStorage = ec->stackStorage();
-    for (size_t i = 0; i < stackStorageSize; i ++) {
+    for (size_t i = 0; i < stackStorageSize; i++) {
         stackStorage[i] = Value();
     }
     Value resultValue;
@@ -135,7 +135,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     size_t parameterCopySize = std::min(argc, info.size());
 
     if (UNLIKELY(m_codeBlock->needsComplexParameterCopy())) {
-        for (size_t i = 0; i < parameterCopySize; i ++) {
+        for (size_t i = 0; i < parameterCopySize; i++) {
             if (info[i].m_isHeapAllocated) {
                 record->setHeapValueByIndex(info[i].m_index, argv[i]);
             } else {
@@ -143,7 +143,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
             }
         }
     } else {
-        for (size_t i = 0; i < parameterCopySize; i ++) {
+        for (size_t i = 0; i < parameterCopySize; i++) {
             stackStorage[i] = argv[i];
         }
     }
@@ -163,5 +163,4 @@ Value FunctionObject::call(const Value& callee, ExecutionState& state, const Val
         RELEASE_ASSERT_NOT_REACHED();
     }
 }
-
 }

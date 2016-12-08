@@ -1,13 +1,14 @@
 #ifndef __EscargotSandBox__
 #define __EscargotSandBox__
 
-#include "runtime/Context.h"
 #include "parser/ast/Node.h"
+#include "runtime/Context.h"
 
 namespace Escargot {
 
 class SandBox {
     MAKE_STACK_ALLOCATED();
+
 public:
     SandBox(Context* s)
     {
@@ -28,7 +29,6 @@ public:
             : fileName(String::emptyString)
             , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
         {
-
         }
     };
 
@@ -45,11 +45,11 @@ public:
 
     SandBoxResult run(const std::function<Value()>& scriptRunner); // for capsule script executing with try-catch
     void throwException(ExecutionState& state, Value exception);
+
 protected:
     Context* m_context;
     Vector<std::pair<ExecutionContext*, StackTraceData>, gc_malloc_allocator<std::pair<ExecutionContext*, StackTraceData>>> m_stackTraceData;
 };
-
 }
 
 #endif

@@ -17,8 +17,8 @@
 #ifndef ForInStatementNode_h
 #define ForInStatementNode_h
 
-#include "StatementNode.h"
 #include "ExpressionNode.h"
+#include "StatementNode.h"
 
 namespace Escargot {
 
@@ -28,21 +28,19 @@ public:
     ForInStatementNode(Node *left, Node *right, Node *body, bool each)
         : StatementNode()
     {
-        m_left = (ExpressionNode*) left;
-        m_right = (ExpressionNode*) right;
-        m_body = (StatementNode*) body;
+        m_left = (ExpressionNode *)left;
+        m_right = (ExpressionNode *)right;
+        m_body = (StatementNode *)body;
         m_each = each;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ForInStatement; }
-
 protected:
     ExpressionNode *m_left;
     ExpressionNode *m_right;
     StatementNode *m_body;
     bool m_each;
 };
-
 }
 
 #endif

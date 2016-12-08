@@ -1,9 +1,9 @@
 #ifndef __Escargot_Environment_h
 #define __Escargot_Environment_h
 
-#include "runtime/Value.h"
-#include "runtime/String.h"
 #include "runtime/AtomicString.h"
+#include "runtime/String.h"
+#include "runtime/Value.h"
 
 namespace Escargot {
 
@@ -11,11 +11,14 @@ class GlobalObject;
 
 struct IdentifierInfo {
     AtomicString m_name;
-    enum Origin { Parameter, FunctionDeclaration, FunctionExpression, VariableDeclarator };
+    enum Origin { Parameter,
+                  FunctionDeclaration,
+                  FunctionExpression,
+                  VariableDeclarator };
     struct {
-        bool m_isHeapAllocated:1;
-        bool m_bindingIsImmutable:1;
-        Origin m_origin:2;
+        bool m_isHeapAllocated : 1;
+        bool m_bindingIsImmutable : 1;
+        Origin m_origin : 2;
     } m_flags;
 
     IdentifierInfo(AtomicString name, Origin origin)
@@ -34,7 +37,6 @@ public:
         : m_record(record)
         , m_outerEnvironment(outerEnvironment)
     {
-
     }
     EnvironmentRecord* record()
     {
@@ -52,6 +54,5 @@ protected:
     EnvironmentRecord* m_record;
     LexicalEnvironment* m_outerEnvironment;
 };
-
 }
 #endif

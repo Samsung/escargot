@@ -25,7 +25,7 @@ class BinaryExpressionGreaterThanOrEqualNode : public ExpressionNode {
 public:
     friend class ScriptParser;
 
-    BinaryExpressionGreaterThanOrEqualNode(Node *left, Node* right)
+    BinaryExpressionGreaterThanOrEqualNode(Node* left, Node* right)
         : ExpressionNode()
     {
         m_left = (ExpressionNode*)left;
@@ -44,11 +44,11 @@ public:
 
         codeBlock->pushCode(BinaryGreaterThanOrEqual(ByteCodeLOC(m_loc.index), src0, src1), context, this);
     }
+
 protected:
     ExpressionNode* m_left;
     ExpressionNode* m_right;
 };
-
 }
 
 #endif

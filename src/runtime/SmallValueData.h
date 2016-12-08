@@ -7,7 +7,6 @@ union SmallValueData {
     intptr_t payload;
     SmallValueData()
     {
-
     }
 
     SmallValueData(void* ptr)
@@ -15,7 +14,6 @@ union SmallValueData {
         payload = (intptr_t)ptr;
     }
 };
-
 }
 
 

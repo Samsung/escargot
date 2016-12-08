@@ -1,15 +1,16 @@
 #ifndef __EscargotAtomicString__
 #define __EscargotAtomicString__
 
-#include "runtime/String.h"
 #include "runtime/ExecutionState.h"
+#include "runtime/String.h"
 #include "util/Vector.h"
 
 namespace Escargot {
 
-typedef std::unordered_map<std::pair<const char *, size_t>, String*,
-    std::hash<std::pair<const char *, size_t> >, std::equal_to<std::pair<const char *, size_t> >,
-    gc_allocator<std::pair<const std::pair<const char *, size_t>, String*> > > AtomicStringMap;
+typedef std::unordered_map<std::pair<const char*, size_t>, String*,
+                           std::hash<std::pair<const char*, size_t> >, std::equal_to<std::pair<const char*, size_t> >,
+                           gc_allocator<std::pair<const std::pair<const char*, size_t>, String*> > >
+    AtomicStringMap;
 
 class AtomicString {
     friend class StaticStrings;
@@ -18,6 +19,7 @@ class AtomicString {
     {
         m_string = str;
     }
+
 public:
     inline AtomicString()
     {
@@ -35,7 +37,6 @@ public:
     AtomicString(ExecutionState& ec, const char* src)
         : AtomicString(ec, src, strlen(src))
     {
-
     }
     AtomicString(Context* c, const char16_t* src, size_t len);
     AtomicString(Context* c, const char* src, size_t len);
@@ -47,17 +48,17 @@ public:
         return m_string;
     }
 
-    inline friend bool operator == (const AtomicString& a, const AtomicString& b);
-    inline friend bool operator != (const AtomicString& a, const AtomicString& b);
+    inline friend bool operator==(const AtomicString& a, const AtomicString& b);
+    inline friend bool operator!=(const AtomicString& a, const AtomicString& b);
 
-    bool operator== (const char* src) const
+    bool operator==(const char* src) const
     {
         size_t srcLen = strlen(src);
         if (srcLen != m_string->length()) {
             return false;
         }
 
-        for (size_t i = 0; i < srcLen; i ++) {
+        for (size_t i = 0; i < srcLen; i++) {
             if (src[i] != m_string->charAt(i)) {
                 return false;
             }
@@ -73,14 +74,14 @@ protected:
     String* m_string;
 };
 
-COMPILE_ASSERT(sizeof (AtomicString) == sizeof (size_t), "");
+COMPILE_ASSERT(sizeof(AtomicString) == sizeof(size_t), "");
 
-inline bool operator == (const AtomicString& a, const AtomicString& b)
+inline bool operator==(const AtomicString& a, const AtomicString& b)
 {
     return a.string() == b.string();
 }
 
-inline bool operator != (const AtomicString& a, const AtomicString& b)
+inline bool operator!=(const AtomicString& a, const AtomicString& b)
 {
     return !operator==(a, b);
 }
@@ -94,19 +95,20 @@ inline size_t stringHash(const char* src, size_t length)
 }
 
 typedef Vector<AtomicString, gc_allocator_ignore_off_page<AtomicString> > AtomicStringVector;
-
 }
 
 namespace std {
-template<> struct hash<std::pair<const char *, size_t> > {
-    size_t operator()(std::pair<const char *, size_t> const &x) const
+template <>
+struct hash<std::pair<const char*, size_t> > {
+    size_t operator()(std::pair<const char*, size_t> const& x) const
     {
         return Escargot::stringHash(x.first, x.second);
     }
 };
 
-template<> struct equal_to<std::pair<const char *, size_t> > {
-    bool operator()(std::pair<const char *, size_t> const &a, std::pair<const char *, size_t> const &b) const
+template <>
+struct equal_to<std::pair<const char*, size_t> > {
+    bool operator()(std::pair<const char*, size_t> const& a, std::pair<const char*, size_t> const& b) const
     {
         if (a.second == b.second) {
             return memcmp(a.first, b.first, sizeof(char) * a.second) == 0;
@@ -114,7 +116,6 @@ template<> struct equal_to<std::pair<const char *, size_t> > {
         return false;
     }
 };
-
 }
 
 #endif

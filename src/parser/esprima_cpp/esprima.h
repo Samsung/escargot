@@ -1,9 +1,9 @@
 #ifndef __EscargotEsprima__
 #define __EscargotEsprima__
 
-#include "runtime/String.h"
-#include "runtime/Context.h"
 #include "parser/ast/Node.h"
+#include "runtime/Context.h"
+#include "runtime/String.h"
 
 namespace Escargot {
 
@@ -12,7 +12,7 @@ class CodeBlock;
 
 namespace esprima {
 
-typedef std::function<void (::Escargot::Node*, NodeLOC start, NodeLOC end)> ParserASTNodeHandler;
+typedef std::function<void(::Escargot::Node*, NodeLOC start, NodeLOC end)> ParserASTNodeHandler;
 
 struct Error : public gc {
     String* name;
@@ -33,10 +33,7 @@ struct Error : public gc {
 
 ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler astHandler);
 Node* parseSingleFunction(::Escargot::Context* ctx, CodeBlock* codeBlock);
-
 }
-
-
 }
 
 #endif

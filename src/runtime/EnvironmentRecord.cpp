@@ -23,7 +23,7 @@ GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBloc
 
     const CodeBlock::IdentifierInfoVector& vec = codeBlock->identifierInfos();
     size_t len = vec.size();
-    for (size_t i = 0; i < len; i ++) {
+    for (size_t i = 0; i < len; i++) {
         ASSERT(vec[i].m_needToAllocateOnStack == false);
         createMutableBinding(state, vec[i].m_name, false);
     }
@@ -65,7 +65,7 @@ void FunctionEnvironmentRecordNotIndexed::createMutableBinding(ExecutionState& s
 EnvironmentRecord::GetBindingValueResult FunctionEnvironmentRecordNotIndexed::getBindingValue(ExecutionState& state, const AtomicString& name)
 {
     size_t len = m_vector.size();
-    for (size_t i = 0; i < len; i ++) {
+    for (size_t i = 0; i < len; i++) {
         if (m_vector[i].m_name == name) {
             return EnvironmentRecord::GetBindingValueResult(m_vector[i].m_value);
         }
@@ -76,7 +76,7 @@ EnvironmentRecord::GetBindingValueResult FunctionEnvironmentRecordNotIndexed::ge
 void FunctionEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
 {
     size_t len = m_vector.size();
-    for (size_t i = 0; i < len; i ++) {
+    for (size_t i = 0; i < len; i++) {
         if (m_vector[i].m_name == name) {
             m_vector[i].m_value = V;
             return;
@@ -84,6 +84,4 @@ void FunctionEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& stat
     }
     RELEASE_ASSERT_NOT_REACHED();
 }
-
-
 }

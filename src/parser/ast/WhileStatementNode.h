@@ -17,8 +17,8 @@
 #ifndef WhileStatementNode_h
 #define WhileStatementNode_h
 
-#include "StatementNode.h"
 #include "ExpressionNode.h"
+#include "StatementNode.h"
 
 namespace Escargot {
 
@@ -28,13 +28,13 @@ public:
     WhileStatementNode(Node *test, Node *body)
         : StatementNode()
     {
-        m_test = (ExpressionNode*) test;
-        m_body = (StatementNode*) body;
+        m_test = (ExpressionNode *)test;
+        m_body = (StatementNode *)body;
     }
 
 
     virtual ASTNodeType type() { return ASTNodeType::WhileStatement; }
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
     {
         ByteCodeGenerateContext newContext(*context);
 
@@ -59,7 +59,6 @@ protected:
     ExpressionNode *m_test;
     StatementNode *m_body;
 };
-
 }
 
 #endif

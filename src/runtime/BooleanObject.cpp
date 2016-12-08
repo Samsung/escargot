@@ -10,5 +10,4 @@ BooleanObject::BooleanObject(ExecutionState& state, bool value)
 {
     setPrototype(state, state.context()->globalObject()->booleanPrototype());
 }
-
 }

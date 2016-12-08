@@ -30,10 +30,8 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::EmptyStatement; }
-
 protected:
 };
-
 }
 
 #endif

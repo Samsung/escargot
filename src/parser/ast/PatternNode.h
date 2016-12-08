@@ -27,9 +27,9 @@ public:
         : Node()
     {
     }
+
 protected:
 };
-
 }
 
 #endif

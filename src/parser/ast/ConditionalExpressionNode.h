@@ -24,22 +24,20 @@ namespace Escargot {
 class ConditionalExpressionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    ConditionalExpressionNode(Node *test, Node *consequente, Node *alternate)
+    ConditionalExpressionNode(Node* test, Node* consequente, Node* alternate)
         : ExpressionNode()
     {
-        m_test = (ExpressionNode*) test;
-        m_consequente = (ExpressionNode*) consequente;
-        m_alternate = (ExpressionNode*) alternate;
+        m_test = (ExpressionNode*)test;
+        m_consequente = (ExpressionNode*)consequente;
+        m_alternate = (ExpressionNode*)alternate;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ConditionalExpression; }
-
 protected:
     ExpressionNode* m_test;
     ExpressionNode* m_consequente;
     ExpressionNode* m_alternate;
 };
-
 }
 
 #endif

@@ -35,7 +35,6 @@ public:
 
 protected:
 };
-
 }
 
 #endif

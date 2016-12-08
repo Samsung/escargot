@@ -8,7 +8,7 @@ const char* errorMessage_DefineProperty_Default = "Cannot define property '%s'";
 const char* errorMessage_DefineProperty_LengthNotWritable = "Cannot modify property '%s': 'length' is not writable";
 const char* errorMessage_DefineProperty_NotWritable = "Cannot modify non-writable property '%s'";
 const char* errorMessage_DefineProperty_RedefineNotConfigurable = "Cannot redefine non-configurable property '%s'";
-const char* errorMessage_DefineProperty_NotExtensible ="Cannot define property '%s': object is not extensible";
+const char* errorMessage_DefineProperty_NotExtensible = "Cannot define property '%s': object is not extensible";
 const char* errorMessage_ObjectToPrimitiveValue = "Cannot convert object to primitive value";
 const char* errorMessage_NullToObject = "cannot convert null into object";
 const char* errorMessage_UndefinedToObject = "cannot convert undefined into object";
@@ -100,7 +100,6 @@ void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, String* ob
         state.throwException(new EvalErrorObject(state, errorMessage));
     else
         state.throwException(new ErrorObject(state, errorMessage));
-
 }
 
 ErrorObject::ErrorObject(ExecutionState& state, String* errorMessage)
@@ -146,5 +145,4 @@ EvalErrorObject::EvalErrorObject(ExecutionState& state, String* errorMessage)
 {
     setPrototype(state, state.context()->globalObject()->evalErrorPrototype());
 }
-
 }

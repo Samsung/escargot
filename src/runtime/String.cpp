@@ -6,11 +6,11 @@
 
 namespace Escargot {
 
-String* String::emptyString = new(malloc(sizeof (String))) ASCIIString("");
+String* String::emptyString = new (malloc(sizeof(String))) ASCIIString("");
 
 bool isAllASCII(const char* buf, const size_t& len)
 {
-    for (unsigned i = 0; i < len ; i ++) {
+    for (unsigned i = 0; i < len; i++) {
         if ((buf[i] & 0x80) != 0) {
             return false;
         }
@@ -20,7 +20,7 @@ bool isAllASCII(const char* buf, const size_t& len)
 
 bool isAllASCII(const char16_t* buf, const size_t& len)
 {
-    for (unsigned i = 0; i < len ; i ++) {
+    for (unsigned i = 0; i < len; i++) {
         if (buf[i] >= 128) {
             return false;
         }
@@ -93,15 +93,15 @@ UTF16StringData utf8StringToUTF16String(const char* buf, const size_t& len)
         if (!valid) { // Invalid sequence
             str += 0xFFFD;
         } else if (((uint32_t)(ch) <= 0xffff)) { // BMP
-            if ((((ch) & 0xfffff800) == 0xd800)) { // SURROGATE
+            if ((((ch)&0xfffff800) == 0xd800)) { // SURROGATE
                 str += 0xFFFD;
                 source -= (charlen - 1);
             } else {
                 str += ch; // normal case
             }
-        } else if (((uint32_t)((ch) - 0x10000) <= 0xfffff)) { // SUPPLEMENTARY
+        } else if (((uint32_t)((ch)-0x10000) <= 0xfffff)) { // SUPPLEMENTARY
             str += (char16_t)(((ch) >> 10) + 0xd7c0); // LEAD
-            str += (char16_t)(((ch) & 0x3ff) | 0xdc00); // TRAIL
+            str += (char16_t)(((ch)&0x3ff) | 0xdc00); // TRAIL
         } else {
             str += 0xFFFD;
             source -= (charlen - 1);
@@ -115,7 +115,7 @@ ASCIIStringData utf16StringToASCIIString(const char16_t* buf, const size_t& len)
 {
     ASCIIStringData str;
     str.resizeWithUninitializedValues(len);
-    for (unsigned i = 0 ; i < len ; i ++) {
+    for (unsigned i = 0; i < len; i++) {
         ASSERT(buf[i] < 128);
         str[i] = buf[i];
     }
@@ -149,32 +149,32 @@ size_t utf32ToUtf8(char32_t uc, char* UTF8)
         tRequiredSize = 3;
     } else if (uc <= 0x1fffff) {
         if (NULL != UTF8) {
-            UTF8[0] = (char)(0xf0 + uc / (0x01 <<18));
-            UTF8[1] = (char)(0x80 + uc / (0x01 <<12) % (0x01 <<12));
+            UTF8[0] = (char)(0xf0 + uc / (0x01 << 18));
+            UTF8[1] = (char)(0x80 + uc / (0x01 << 12) % (0x01 << 12));
             UTF8[2] = (char)(0x80 + uc / (0x01 << 6) % (0x01 << 6));
             UTF8[3] = (char)(0x80 + uc % (0x01 << 6));
-            UTF8[4] = (char) '\0';
+            UTF8[4] = (char)'\0';
         }
         tRequiredSize = 4;
     } else if (uc <= 0x3ffffff) {
         if (NULL != UTF8) {
-            UTF8[0] = (char)(0xf8 + uc / (0x01 <<24));
-            UTF8[1] = (char)(0x80 + uc / (0x01 <<18) % (0x01 <<18));
-            UTF8[2] = (char)(0x80 + uc / (0x01 <<12) % (0x01 <<12));
+            UTF8[0] = (char)(0xf8 + uc / (0x01 << 24));
+            UTF8[1] = (char)(0x80 + uc / (0x01 << 18) % (0x01 << 18));
+            UTF8[2] = (char)(0x80 + uc / (0x01 << 12) % (0x01 << 12));
             UTF8[3] = (char)(0x80 + uc / (0x01 << 6) % (0x01 << 6));
             UTF8[4] = (char)(0x80 + uc % (0x01 << 6));
-            UTF8[5] = (char) '\0';
+            UTF8[5] = (char)'\0';
         }
         tRequiredSize = 5;
     } else if (uc <= 0x7fffffff) {
         if (NULL != UTF8) {
-            UTF8[0] = (char)(0xfc + uc / (0x01 <<30));
-            UTF8[1] = (char)(0x80 + uc / (0x01 <<24) % (0x01 <<24));
-            UTF8[2] = (char)(0x80 + uc / (0x01 <<18) % (0x01 <<18));
-            UTF8[3] = (char)(0x80 + uc / (0x01 <<12) % (0x01 <<12));
+            UTF8[0] = (char)(0xfc + uc / (0x01 << 30));
+            UTF8[1] = (char)(0x80 + uc / (0x01 << 24) % (0x01 << 24));
+            UTF8[2] = (char)(0x80 + uc / (0x01 << 18) % (0x01 << 18));
+            UTF8[3] = (char)(0x80 + uc / (0x01 << 12) % (0x01 << 12));
             UTF8[4] = (char)(0x80 + uc / (0x01 << 6) % (0x01 << 6));
             UTF8[5] = (char)(0x80 + uc % (0x01 << 6));
-            UTF8[6] = (char) '\0';
+            UTF8[6] = (char)'\0';
         }
         tRequiredSize = 6;
     } else {
@@ -189,10 +189,10 @@ UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t& len)
 {
     UTF8StringDataNonGCStd str;
     str.reserve(len);
-    for (unsigned i = 0 ; i < len ;) {
+    for (unsigned i = 0; i < len;) {
         if (buf[i] < 128) {
             str += buf[i];
-            i ++;
+            i++;
         } else {
             char32_t c;
             U16_NEXT(buf, i, len, c);
@@ -210,7 +210,7 @@ UTF16StringData ASCIIString::toUTF16StringData() const
     UTF16StringData ret;
     size_t len = length();
     ret.resizeWithUninitializedValues(len);
-    for (size_t i = 0; i < len; i ++) {
+    for (size_t i = 0; i < len; i++) {
         ret[i] = charAt(i);
     }
     return ret;
@@ -245,7 +245,8 @@ void CreateDecimalRepresentation(
     int length,
     int decimal_point,
     int digits_after_point,
-    double_conversion::StringBuilder* result_builder) {
+    double_conversion::StringBuilder* result_builder)
+{
     // Create a representation that is padded with zeros if needed.
     if (decimal_point <= 0) {
         // "0.00000decimal_rep".
@@ -273,7 +274,7 @@ void CreateDecimalRepresentation(
         result_builder->AddCharacter('.');
         ASSERT(length - decimal_point <= digits_after_point);
         result_builder->AddSubstring(&decimal_digits[decimal_point],
-        length - decimal_point);
+                                     length - decimal_point);
         int remaining_digits = digits_after_point - (length - decimal_point);
         result_builder->AddPadding('0', remaining_digits);
     }
@@ -292,12 +293,13 @@ void CreateExponentialRepresentation(
     const char* decimal_digits,
     int length,
     int exponent,
-    double_conversion::StringBuilder* result_builder) {
+    double_conversion::StringBuilder* result_builder)
+{
     ASSERT(length != 0);
     result_builder->AddCharacter(decimal_digits[0]);
     if (length != 1) {
         result_builder->AddCharacter('.');
-        result_builder->AddSubstring(&decimal_digits[1], length-1);
+        result_builder->AddSubstring(&decimal_digits[1], length - 1);
     }
     result_builder->AddCharacter('e');
     if (exponent < 0) {
@@ -322,7 +324,7 @@ void CreateExponentialRepresentation(
         exponent /= 10;
     }
     result_builder->AddSubstring(&buffer[first_char_pos],
-    kMaxExponentLength - first_char_pos);
+                                 kMaxExponentLength - first_char_pos);
 }
 
 ASCIIStringData dtoa(double number)
@@ -370,13 +372,13 @@ ASCIIStringData dtoa(double number)
     const int decimal_in_shortest_high_ = 21;
     if ((decimal_in_shortest_low_ <= exponent)
         && (exponent < decimal_in_shortest_high_)) {
-            CreateDecimalRepresentation(flags, decimal_rep, decimal_rep_length,
-                decimal_point,
-                double_conversion::Max(0, decimal_rep_length - decimal_point),
-                &builder);
+        CreateDecimalRepresentation(flags, decimal_rep, decimal_rep_length,
+                                    decimal_point,
+                                    double_conversion::Max(0, decimal_rep_length - decimal_point),
+                                    &builder);
     } else {
         CreateExponentialRepresentation(flags, decimal_rep, decimal_rep_length, exponent,
-            &builder);
+                                        &builder);
     }
     ASCIIStringDataNonGCStd str;
     if (sign)
@@ -421,6 +423,4 @@ int String::stringCompare(size_t l1, size_t l2, const String* c1, const String* 
 
     return (l1 > l2) ? 1 : -1;
 }
-
-
 }

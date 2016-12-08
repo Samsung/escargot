@@ -32,7 +32,7 @@ public:
         if (other.size()) {
             m_size = other.size();
             m_buffer = Allocator().allocate(m_size);
-            for (size_t i = 0; i < m_size; i ++) {
+            for (size_t i = 0; i < m_size; i++) {
                 m_buffer[i] = other[i];
             }
         } else {
@@ -46,7 +46,7 @@ public:
         if (other.size()) {
             m_size = other.size();
             m_buffer = Allocator().allocate(m_size);
-            for (size_t i = 0; i < m_size; i ++) {
+            for (size_t i = 0; i < m_size; i++) {
                 m_buffer[i] = other[i];
             }
         } else {
@@ -59,7 +59,7 @@ public:
     {
         m_size = other.size() + 1;
         m_buffer = Allocator().allocate(m_size);
-        for (size_t i = 0; i < other.size(); i ++) {
+        for (size_t i = 0; i < other.size(); i++) {
             m_buffer[i] = other[i];
         }
         m_buffer[other.size()] = newItem;
@@ -79,7 +79,7 @@ public:
     void pushBack(const T& val)
     {
         T* newBuffer = Allocator().allocate(m_size + 1);
-        for (size_t i = 0; i < m_size; i ++) {
+        for (size_t i = 0; i < m_size; i++) {
             newBuffer[i] = m_buffer[i];
         }
         newBuffer[m_size] = val;
@@ -98,11 +98,11 @@ public:
     {
         ASSERT(pos <= m_size);
         T* newBuffer = Allocator().allocate(m_size + 1);
-        for (size_t i = 0; i < pos; i ++) {
+        for (size_t i = 0; i < pos; i++) {
             newBuffer[i] = m_buffer[i];
         }
         newBuffer[pos] = val;
-        for (size_t i = pos; i < m_size; i ++) {
+        for (size_t i = pos; i < m_size; i++) {
             newBuffer[i + 1] = m_buffer[i];
         }
         if (!m_buffer)
@@ -125,11 +125,11 @@ public:
         size_t c = end - start;
         if (m_size - c) {
             T* newBuffer = Allocator().allocate(m_size - c);
-            for (size_t i = 0; i < start; i ++) {
+            for (size_t i = 0; i < start; i++) {
                 newBuffer[i] = m_buffer[i];
             }
 
-            for (size_t i = end + c; i < m_size; i ++) {
+            for (size_t i = end + c; i < m_size; i++) {
                 newBuffer[i - c] = m_buffer[i];
             }
 
@@ -162,7 +162,7 @@ public:
 
     void pop_back()
     {
-        erase(m_size  - 1);
+        erase(m_size - 1);
     }
 
     T& operator[](const size_t& idx)
@@ -200,7 +200,7 @@ public:
         if (newSize) {
             T* newBuffer = Allocator().allocate(newSize);
 
-            for (size_t i = 0; i < m_size && i < newSize ; i ++) {
+            for (size_t i = 0; i < m_size && i < newSize; i++) {
                 newBuffer[i] = m_buffer[i];
             }
 
@@ -221,11 +221,11 @@ public:
         if (newSize) {
             T* newBuffer = Allocator().allocate(newSize);
 
-            for (size_t i = 0; i < m_size && i < newSize ; i ++) {
+            for (size_t i = 0; i < m_size && i < newSize; i++) {
                 newBuffer[i] = m_buffer[i];
             }
 
-            for (size_t i = m_size; i < newSize ; i ++) {
+            for (size_t i = m_size; i < newSize; i++) {
                 newBuffer[i] = val;
             }
 
@@ -255,7 +255,7 @@ public:
     static size_t findInVector(const Vector<T, Allocator>& vector, const T& target)
     {
         size_t len = vector.size();
-        for (size_t i = 0; i < len; i ++) {
+        for (size_t i = 0; i < len; i++) {
             if (vector[i] == target) {
                 return i;
             }
@@ -263,9 +263,7 @@ public:
 
         return invalidIndex;
     }
-
 };
-
 }
 
 #endif

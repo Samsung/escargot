@@ -46,7 +46,7 @@ union ValueDescriptor {
     } asBits;
 };
 
-template<typename ToType, typename FromType>
+template <typename ToType, typename FromType>
 inline ToType bitwise_cast(FromType from)
 {
     ASSERT(sizeof(FromType) == sizeof(ToType));
@@ -67,14 +67,14 @@ inline ToType bitwise_cast(FromType from)
 class Value {
 public:
 #ifdef ESCARGOT_32
-    enum { Int32Tag =        0xffffffff };
-    enum { BooleanTag =      0xfffffffe };
-    enum { NullTag =         0xfffffffd };
-    enum { UndefinedTag =    0xfffffffc };
-    enum { PointerTag =      0xfffffffb };
-    enum { EmptyValueTag =   0xfffffffa };
+    enum { Int32Tag = 0xffffffff };
+    enum { BooleanTag = 0xfffffffe };
+    enum { NullTag = 0xfffffffd };
+    enum { UndefinedTag = 0xfffffffc };
+    enum { PointerTag = 0xfffffffb };
+    enum { EmptyValueTag = 0xfffffffa };
     enum { DeletedValueTag = 0xfffffff9 };
-    enum { LowestTag =  DeletedValueTag };
+    enum { LowestTag = DeletedValueTag };
 #endif
 
     enum NullInitTag { Null };
@@ -154,7 +154,8 @@ public:
     bool isObject() const;
     bool isIterable() const;
 
-    enum PrimitiveTypeHint { PreferString, PreferNumber };
+    enum PrimitiveTypeHint { PreferString,
+                             PreferNumber };
     Value toPrimitive(ExecutionState& ec, PrimitiveTypeHint = PreferNumber) const; // $7.1.1 ToPrimitive
     inline bool toBoolean(ExecutionState& ec) const; // $7.1.2 ToBoolean
     double toNumber(ExecutionState& ec) const; // $7.1.3 ToNumber
@@ -183,34 +184,34 @@ public:
     uint32_t tag() const;
     int32_t payload() const;
 #elif ESCARGOT_64
-    // These values are #defines since using static const integers here is a ~1% regression!
+// These values are #defines since using static const integers here is a ~1% regression!
 
-    // This value is 2^48, used to encode doubles such that the encoded value will begin
-    // with a 16-bit pattern within the range 0x0001..0xFFFE.
+// This value is 2^48, used to encode doubles such that the encoded value will begin
+// with a 16-bit pattern within the range 0x0001..0xFFFE.
 #define DoubleEncodeOffset 0x1000000000000ll
-    // If all bits in the mask are set, this indicates an integer number,
-    // if any but not all are set this value is a double precision number.
+// If all bits in the mask are set, this indicates an integer number,
+// if any but not all are set this value is a double precision number.
 #define TagTypeNumber 0xffff000000000000ll
 
-    // All non-numeric (bool, null, undefined) immediates have bit 2 set.
+// All non-numeric (bool, null, undefined) immediates have bit 2 set.
 #define TagBitTypeOther 0x2ll
-#define TagBitBool      0x4ll
+#define TagBitBool 0x4ll
 #define TagBitUndefined 0x8ll
-    // Combined integer value for non-numeric immediates.
-#define ValueFalse     (TagBitTypeOther | TagBitBool | false)
-#define ValueTrue      (TagBitTypeOther | TagBitBool | true)
+// Combined integer value for non-numeric immediates.
+#define ValueFalse (TagBitTypeOther | TagBitBool | false)
+#define ValueTrue (TagBitTypeOther | TagBitBool | true)
 #define ValueUndefined (TagBitTypeOther | TagBitUndefined)
-#define ValueNull      (TagBitTypeOther)
+#define ValueNull (TagBitTypeOther)
 
-    // TagMask is used to check for all types of immediate values (either number or 'other').
+// TagMask is used to check for all types of immediate values (either number or 'other').
 #define TagMask (TagTypeNumber | TagBitTypeOther)
 
-    // These special values are never visible to JavaScript code; Empty is used to represent
-    // Array holes, and for uninitialized ESValues. Deleted is used in hash table code.
-    // These values would map to cell types in the ESValue encoding, but not valid GC cell
-    // pointer should have either of these values (Empty is null, deleted is at an invalid
-    // alignment for a GC cell, and in the zero page).
-#define ValueEmpty   0x0ll
+// These special values are never visible to JavaScript code; Empty is used to represent
+// Array holes, and for uninitialized ESValues. Deleted is used in hash table code.
+// These values would map to cell types in the ESValue encoding, but not valid GC cell
+// pointer should have either of these values (Empty is null, deleted is at an invalid
+// alignment for a GC cell, and in the zero page).
+#define ValueEmpty 0x0ll
 #define ValueDeleted 0x4ll
 #endif
 
@@ -223,12 +224,11 @@ private:
     Value toPrimitiveSlowCase(ExecutionState& ec, PrimitiveTypeHint) const; // $7.1.1 ToPrimitive
     int32_t toInt32SlowCase(ExecutionState& ec) const; // $7.1.5 ToInt32
 };
-
 }
 
+#include "runtime/Object.h"
 #include "runtime/PointerValue.h"
 #include "runtime/String.h"
-#include "runtime/Object.h"
 #include "runtime/ValueInlines.h"
 
 namespace Escargot {

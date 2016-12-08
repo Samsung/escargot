@@ -36,10 +36,10 @@ public:
         m_argument->generateExpressionByteCode(codeBlock, context);
         codeBlock->pushCode(UnaryMinus(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
     }
+
 protected:
     Node* m_argument;
 };
-
 }
 
 #endif

@@ -1,16 +1,16 @@
 #ifndef __EscargotString__
 #define __EscargotString__
 
-#include <string>
 #include "runtime/PointerValue.h"
 #include "util/BasicString.h"
+#include <string>
 
 namespace Escargot {
 
-typedef BasicString<char, gc_malloc_atomic_ignore_off_page_allocator<char> > ASCIIStringData;
-typedef BasicString<char, gc_malloc_atomic_ignore_off_page_allocator<char> > UTF8StringData;
-typedef BasicString<char16_t, gc_malloc_atomic_ignore_off_page_allocator<char16_t> > UTF16StringData;
-typedef BasicString<char32_t, gc_malloc_atomic_ignore_off_page_allocator<char32_t> > UTF32StringData;
+typedef BasicString<char, gc_malloc_atomic_ignore_off_page_allocator<char>> ASCIIStringData;
+typedef BasicString<char, gc_malloc_atomic_ignore_off_page_allocator<char>> UTF8StringData;
+typedef BasicString<char16_t, gc_malloc_atomic_ignore_off_page_allocator<char16_t>> UTF16StringData;
+typedef BasicString<char32_t, gc_malloc_atomic_ignore_off_page_allocator<char32_t>> UTF32StringData;
 
 typedef std::basic_string<char, std::char_traits<char>> ASCIIStringDataNonGCStd;
 typedef std::basic_string<char, std::char_traits<char>> UTF8StringDataNonGCStd;
@@ -22,6 +22,7 @@ class UTF16String;
 
 class String : public PointerValue {
     friend class AtomicString;
+
 public:
     virtual Type type()
     {
@@ -71,7 +72,7 @@ public:
             return false;
         }
 
-        for (size_t i = 0; i < srcLen; i ++) {
+        for (size_t i = 0; i < srcLen; i++) {
             if (src->charAt(i) != charAt(i)) {
                 return false;
             }
@@ -87,7 +88,7 @@ public:
             return false;
         }
 
-        for (size_t i = 0; i < srcLen; i ++) {
+        for (size_t i = 0; i < srcLen; i++) {
             if (src[i] != charAt(i)) {
                 return false;
             }
@@ -103,13 +104,13 @@ public:
 
     bool operator!=(const String& src) const
     {
-        return !operator ==(src);
+        return !operator==(src);
     }
 
-    ALWAYS_INLINE friend bool operator <(const String& a, const String& b);
-    ALWAYS_INLINE friend bool operator <= (const String& a, const String& b);
-    ALWAYS_INLINE friend bool operator >(const String& a, const String& b);
-    ALWAYS_INLINE friend bool operator >= (const String& a, const String& b);
+    ALWAYS_INLINE friend bool operator<(const String& a, const String& b);
+    ALWAYS_INLINE friend bool operator<=(const String& a, const String& b);
+    ALWAYS_INLINE friend bool operator>(const String& a, const String& b);
+    ALWAYS_INLINE friend bool operator>=(const String& a, const String& b);
 
     // NOTE these function generates new copy of string data
     virtual UTF16StringData toUTF16StringData() const = 0;
@@ -126,28 +127,29 @@ protected:
     static int stringCompare(size_t l1, size_t l2, const String* c1, const String* c2);
 };
 
-inline bool operator <(const String& a, const String& b)
+inline bool operator<(const String& a, const String& b)
 {
     return String::stringCompare(a.length(), b.length(), &a, &b) < 0;
 }
 
-inline bool operator >(const String& a, const String& b)
+inline bool operator>(const String& a, const String& b)
 {
     return String::stringCompare(a.length(), b.length(), &a, &b) > 0;
 }
 
-inline bool operator <= (const String& a, const String& b)
+inline bool operator<=(const String& a, const String& b)
 {
     return String::stringCompare(a.length(), b.length(), &a, &b) <= 0;
 }
 
-inline bool operator >= (const String& a, const String& b)
+inline bool operator>=(const String& a, const String& b)
 {
     return String::stringCompare(a.length(), b.length(), &a, &b) >= 0;
 }
 
 class ASCIIString : public String {
     friend class String;
+
 public:
     virtual bool isASCIIString()
     {
@@ -196,6 +198,7 @@ protected:
 
 class UTF16String : public String {
     friend class String;
+
 public:
     virtual bool hasASCIIContent()
     {
@@ -211,7 +214,6 @@ public:
     UTF16String(const char16_t* str, size_t len)
         : String()
     {
-
         m_stringData.append(str, len);
     }
 
@@ -262,11 +264,9 @@ inline String* fromCharCode(char32_t code)
         return new UTF16String(buf, 2);
     }
 }
-
 }
 
-#include "runtime/StringView.h"
 #include "runtime/RopeString.h"
 #include "runtime/StringBuilder.h"
+#include "runtime/StringView.h"
 #endif
-

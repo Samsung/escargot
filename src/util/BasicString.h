@@ -10,6 +10,7 @@ class BasicString : public gc {
         m_buffer = allocate(0);
         m_size = 0;
     }
+
 public:
     BasicString()
     {
@@ -91,11 +92,11 @@ public:
     {
         ASSERT(pos < m_size);
         T* newBuffer = allocate(m_size + 1);
-        for (size_t i = 0; i < pos; i ++) {
+        for (size_t i = 0; i < pos; i++) {
             newBuffer[i] = m_buffer[i];
         }
         newBuffer[pos] = val;
-        for (size_t i = pos; i < m_size; i ++) {
+        for (size_t i = pos; i < m_size; i++) {
             newBuffer[i + 1] = m_buffer[i];
         }
         if (!m_buffer)
@@ -118,11 +119,11 @@ public:
         size_t c = end - start;
         if (m_size - c) {
             T* newBuffer = allocate(m_size - c);
-            for (size_t i = 0; i < start; i ++) {
+            for (size_t i = 0; i < start; i++) {
                 newBuffer[i] = m_buffer[i];
             }
 
-            for (size_t i = end + c; i < m_size; i ++) {
+            for (size_t i = end + c; i < m_size; i++) {
                 newBuffer[i - c] = m_buffer[i];
             }
 
@@ -160,7 +161,7 @@ public:
 
     void pop_back()
     {
-        erase(m_size  - 1);
+        erase(m_size - 1);
     }
 
     T& operator[](const size_t& idx)
@@ -197,7 +198,7 @@ public:
         if (newSize) {
             T* newBuffer = allocate(newSize);
 
-            for (size_t i = 0; i < m_size && i < newSize ; i ++) {
+            for (size_t i = 0; i < m_size && i < newSize; i++) {
                 newBuffer[i] = m_buffer[i];
             }
 
@@ -214,7 +215,6 @@ public:
     }
 
 protected:
-
     T* allocate(size_t siz) const
     {
         T* ret = Allocator().allocate(siz + 1);
@@ -230,8 +230,6 @@ protected:
     T* m_buffer;
     size_t m_size;
 };
-
-
 }
 
 #endif

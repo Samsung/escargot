@@ -1,8 +1,8 @@
 #ifndef __EscargotObjectGlobalObject__
 #define __EscargotObjectGlobalObject__
 
-#include "runtime/Object.h"
 #include "runtime/FunctionObject.h"
+#include "runtime/Object.h"
 
 namespace Escargot {
 
@@ -223,7 +223,6 @@ protected:
         return m_structure->findProperty(state, name);
     }
 };
-
 }
 
 #endif

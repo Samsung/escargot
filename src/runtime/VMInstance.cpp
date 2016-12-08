@@ -6,6 +6,4 @@ namespace Escargot {
 VMInstance::VMInstance()
 {
 }
-
-
 }

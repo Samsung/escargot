@@ -1,8 +1,8 @@
 #ifndef __EscargotScriptParser__
 #define __EscargotScriptParser__
 
-#include "runtime/String.h"
 #include "parser/Script.h"
+#include "runtime/String.h"
 
 namespace Escargot {
 
@@ -49,7 +49,6 @@ protected:
 
     Context* m_context;
 };
-
 }
 
 #endif

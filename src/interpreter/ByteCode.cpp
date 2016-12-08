@@ -25,7 +25,7 @@ NodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(ByteCode* code, CodeBlock* cb)
     }
     size_t line = cb->sourceElementStart().line;
     size_t column = cb->sourceElementStart().column;
-    for(size_t i = 0; i < code->m_loc.index; i ++) {
+    for (size_t i = 0; i < code->m_loc.index; i++) {
         char16_t c = cb->src().charAt(i);
         if (isLineTerminator(c)) {
             line++;
@@ -34,5 +34,4 @@ NodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(ByteCode* code, CodeBlock* cb)
     }
     return NodeLOC(line, column, code->m_loc.index);
 }
-
 }

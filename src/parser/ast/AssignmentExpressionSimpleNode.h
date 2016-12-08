@@ -18,8 +18,8 @@
 #define AssignmentExpressionSimpleNode_h
 
 #include "ExpressionNode.h"
-#include "PatternNode.h"
 #include "IdentifierNode.h"
+#include "PatternNode.h"
 // #include "MemberExpressionNode.h"
 
 namespace Escargot {
@@ -42,7 +42,6 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionSimple; }
-
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         m_right->generateExpressionByteCode(codeBlock, context);
@@ -53,7 +52,6 @@ protected:
     Node* m_left; // left: Pattern;
     Node* m_right; // right: Expression;
 };
-
 }
 
 #endif

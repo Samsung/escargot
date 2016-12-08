@@ -1,9 +1,9 @@
 #ifndef __EscargotPropertyName__
 #define __EscargotPropertyName__
 
+#include "runtime/AtomicString.h"
 #include "runtime/ExecutionState.h"
 #include "runtime/String.h"
-#include "runtime/AtomicString.h"
 
 namespace Escargot {
 
@@ -46,10 +46,10 @@ public:
         }
     }
 
-    inline friend bool operator == (const PropertyName& a, const PropertyName& b);
-    inline friend bool operator != (const PropertyName& a, const PropertyName& b);
-protected:
+    inline friend bool operator==(const PropertyName& a, const PropertyName& b);
+    inline friend bool operator!=(const PropertyName& a, const PropertyName& b);
 
+protected:
     bool hasAtomicString() const
     {
         return m_data & 1;
@@ -60,7 +60,7 @@ protected:
     // String* <- saves pointer
 };
 
-inline bool operator == (const PropertyName& a, const PropertyName& b)
+inline bool operator==(const PropertyName& a, const PropertyName& b)
 {
     if (LIKELY(a.hasAtomicString()) == LIKELY(b.hasAtomicString())) {
         return a.m_data == b.m_data;
@@ -69,11 +69,10 @@ inline bool operator == (const PropertyName& a, const PropertyName& b)
     }
 }
 
-inline bool operator != (const PropertyName& a, const PropertyName& b)
+inline bool operator!=(const PropertyName& a, const PropertyName& b)
 {
     return !operator==(a, b);
 }
-
 }
 
 #endif

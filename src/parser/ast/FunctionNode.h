@@ -17,8 +17,8 @@
 #ifndef FunctionNode_h
 #define FunctionNode_h
 
-#include "StatementNode.h"
 #include "ExpressionNode.h"
+#include "StatementNode.h"
 
 namespace Escargot {
 
@@ -38,7 +38,6 @@ public:
     inline Node* body() { return m_body; }
     inline const AtomicString& id() { return m_id; }
     ASTScopeContext* scopeContext() { return m_scopeContext; }
-
 protected:
     bool m_isGenerator;
     AtomicString m_id; // id: Identifier;
@@ -46,7 +45,6 @@ protected:
     Node* m_body;
     ASTScopeContext* m_scopeContext;
 };
-
 }
 
 #endif

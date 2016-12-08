@@ -31,11 +31,9 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionVoid; }
-
 protected:
     Node* m_argument;
 };
-
 }
 
 #endif

@@ -59,23 +59,23 @@ const int kSmiTag = 1;
 const int kSmiTagSize = 1;
 const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
 
-template <size_t ptr_size> struct SmiTagging;
+template <size_t ptr_size>
+struct SmiTagging;
 
-template<int kSmiShiftSize>
+template <int kSmiShiftSize>
 inline int32_t IntToSmiT(int value)
 {
     int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
-    uintptr_t tagged_value =
-        (static_cast<uintptr_t>(value) << smi_shift_bits) | kSmiTag;
+    uintptr_t tagged_value = (static_cast<uintptr_t>(value) << smi_shift_bits) | kSmiTag;
     return (int32_t)(tagged_value);
 }
 
 // Smi constants for 32-bit systems.
-template<> struct SmiTagging<4>
-{
-    enum
-    {
-        kSmiShiftSize = 0, kSmiValueSize = 31
+template <>
+struct SmiTagging<4> {
+    enum {
+        kSmiShiftSize = 0,
+        kSmiValueSize = 31
     };
     static int SmiShiftSize()
     {
@@ -129,7 +129,6 @@ extern SmallValueData* smallValueTrue;
 extern SmallValueData* smallValueFalse;
 extern SmallValueData* smallValueEmpty;
 extern SmallValueData* smallValueDeleted;
-
 }
 
 class SmallValue {
@@ -190,17 +189,15 @@ public:
                 return Value(v);
             }
         } else {
-            int32_t value =  SmallValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
+            int32_t value = SmallValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
             return Value(value);
         }
         return Value();
     }
+
 protected:
     SmallValueData m_data;
 };
-
-
-
 }
 
 

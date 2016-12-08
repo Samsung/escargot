@@ -11,13 +11,13 @@ class Value;
 
 class ExecutionState : public gc {
     MAKE_STACK_ALLOCATED();
+
 public:
     ExecutionState(Context* context, ExecutionContext* executionContext = nullptr, Value* exeuctionResult = nullptr)
         : m_context(context)
         , m_executionContext(executionContext)
         , m_exeuctionResult(exeuctionResult)
     {
-
     }
 
     Context* context()
@@ -47,7 +47,6 @@ protected:
     ExecutionContext* m_executionContext;
     Value* m_exeuctionResult;
 };
-
 }
 
 #endif

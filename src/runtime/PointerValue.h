@@ -92,7 +92,6 @@ public:
         return (DoubleInSmallValue*)this;
     }
 };
-
 }
 
 #endif

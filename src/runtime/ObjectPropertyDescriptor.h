@@ -1,8 +1,8 @@
 #ifndef __EscargotObjectPropertyDescriptor__
 #define __EscargotObjectPropertyDescriptor__
 
-#include "runtime/Value.h"
 #include "runtime/ExecutionState.h"
+#include "runtime/Value.h"
 
 namespace Escargot {
 
@@ -19,7 +19,7 @@ struct ObjectPropertyNativeGetterSetterData {
     ObjectPropertyNativeSetter m_setter;
 
     ObjectPropertyNativeGetterSetterData(bool isWritable, bool isEnumerable, bool isConfigurable,
-        ObjectPropertyNativeGetter getter, ObjectPropertyNativeSetter setter)
+                                         ObjectPropertyNativeGetter getter, ObjectPropertyNativeSetter setter)
         : m_isWritable(isWritable)
         , m_isEnumerable(isEnumerable)
         , m_isConfigurable(isConfigurable)
@@ -35,9 +35,9 @@ class ObjectPropertyDescriptor {
 public:
     enum PresentAttribute {
         NotPresent = 0,
-        WritablePresent         = 1 << 1, // property can be only read, not written
-        EnumerablePresent       = 1 << 2, // property doesn't appear in (for .. in ..)
-        ConfigurablePresent     = 1 << 3, // property can't be deleted
+        WritablePresent = 1 << 1, // property can be only read, not written
+        EnumerablePresent = 1 << 2, // property doesn't appear in (for .. in ..)
+        ConfigurablePresent = 1 << 3, // property can't be deleted
         AllPresent = WritablePresent | EnumerablePresent | ConfigurablePresent
     };
 
@@ -99,7 +99,7 @@ public:
 
     bool operator!=(const ObjectPropertyDescriptor& desc) const
     {
-        return !operator ==(desc);
+        return !operator==(desc);
     }
 
     ObjectPropertyNativeGetterSetterData* nativeGetterSetterData() const
@@ -191,8 +191,7 @@ protected:
     }
 };
 
-COMPILE_ASSERT(sizeof (ObjectPropertyDescriptor) <= sizeof (size_t), "");
-
+COMPILE_ASSERT(sizeof(ObjectPropertyDescriptor) <= sizeof(size_t), "");
 }
 
 #endif

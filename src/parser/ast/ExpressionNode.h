@@ -35,9 +35,9 @@ public:
     {
         return true;
     }
+
 protected:
 };
-
 }
 
 #endif

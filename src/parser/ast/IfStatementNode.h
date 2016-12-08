@@ -24,16 +24,15 @@ namespace Escargot {
 class IfStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    IfStatementNode(Node *test, Node *consequente, Node *alternate)
+    IfStatementNode(Node* test, Node* consequente, Node* alternate)
         : StatementNode()
     {
-        m_test = (ExpressionNode*) test;
-        m_consequente = (StatementNode*) consequente;
-        m_alternate = (StatementNode*) alternate;
+        m_test = (ExpressionNode*)test;
+        m_consequente = (StatementNode*)consequente;
+        m_alternate = (StatementNode*)alternate;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::IfStatement; }
-
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         if (!m_alternate) {
@@ -69,11 +68,10 @@ public:
     }
 
 protected:
-    ExpressionNode *m_test;
-    StatementNode *m_consequente;
-    StatementNode *m_alternate;
+    ExpressionNode* m_test;
+    StatementNode* m_consequente;
+    StatementNode* m_alternate;
 };
-
 }
 
 #endif

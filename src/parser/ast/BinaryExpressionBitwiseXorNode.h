@@ -21,11 +21,11 @@
 
 namespace Escargot {
 
-class BinaryExpressionBitwiseXorNode: public ExpressionNode {
+class BinaryExpressionBitwiseXorNode : public ExpressionNode {
 public:
     friend class ScriptParser;
 
-    BinaryExpressionBitwiseXorNode(Node *left, Node* right)
+    BinaryExpressionBitwiseXorNode(Node* left, Node* right)
         : ExpressionNode()
     {
         m_left = (ExpressionNode*)left;
@@ -44,11 +44,11 @@ public:
 
         codeBlock->pushCode(BinaryBitwiseXor(ByteCodeLOC(m_loc.index), src0, src1), context, this);
     }
+
 protected:
     ExpressionNode* m_left;
     ExpressionNode* m_right;
 };
-
 }
 
 #endif

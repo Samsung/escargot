@@ -22,15 +22,14 @@ void GlobalObject::installOthers(ExecutionState& state)
 {
 #ifdef ESCARGOT_SHELL
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().print),
-        Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state,
-            NativeFunctionInfo(state.context()->staticStrings().print, builtinPrint, 1, nullptr, NativeFunctionInfo::Strict), false),
-            (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+                      Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state,
+                                                                                              NativeFunctionInfo(state.context()->staticStrings().print, builtinPrint, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                                                           (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
 #endif
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().gc),
-        Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state,
-            NativeFunctionInfo(state.context()->staticStrings().gc, builtinGc, 0, nullptr, NativeFunctionInfo::Strict), false),
-            (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+                      Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state,
+                                                                                              NativeFunctionInfo(state.context()->staticStrings().gc, builtinGc, 0, nullptr, NativeFunctionInfo::Strict), false),
+                                                                           (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 }
-
 }

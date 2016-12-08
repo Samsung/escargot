@@ -17,8 +17,8 @@
 #ifndef SwitchCaseNode_h
 #define SwitchCaseNode_h
 
-#include "StatementNode.h"
 #include "ExpressionNode.h"
+#include "StatementNode.h"
 
 namespace Escargot {
 
@@ -29,12 +29,11 @@ public:
     SwitchCaseNode(Node* test, StatementNodeVector&& consequent)
         : StatementNode()
     {
-        m_test = (ExpressionNode*) test;
+        m_test = (ExpressionNode*)test;
         m_consequent = consequent;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::SwitchCase; }
-
     bool isDefaultNode()
     {
         return !m_test;
@@ -44,7 +43,6 @@ protected:
     ExpressionNode* m_test;
     StatementNodeVector m_consequent;
 };
-
 }
 
 #endif

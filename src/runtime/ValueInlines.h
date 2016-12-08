@@ -30,7 +30,6 @@ inline double FastI2D(int x)
 
 inline Value::Value(ForceUninitializedTag)
 {
-
 }
 
 inline Value::Value()
@@ -327,7 +326,7 @@ inline bool Value::isInt32() const
 {
 #ifdef CARGOT_LITTLE_ENDIAN
     ASSERT(sizeof(short) == 2);
-    unsigned short* firstByte = (unsigned short *)&u.asInt64;
+    unsigned short* firstByte = (unsigned short*)&u.asInt64;
     return firstByte[3] == 0xffff;
 #else
     return (u.asInt64 & TagTypeNumber) == TagTypeNumber;
@@ -371,7 +370,7 @@ inline bool Value::isNumber() const
 {
 #ifdef CARGOT_LITTLE_ENDIAN
     ASSERT(sizeof(short) == 2);
-    unsigned short* firstByte = (unsigned short *)&u.asInt64;
+    unsigned short* firstByte = (unsigned short*)&u.asInt64;
     return firstByte[3];
 #else
     return u.asInt64 & TagTypeNumber;
@@ -552,7 +551,7 @@ inline FunctionObject* Value::asFunction() const
 
 inline double Value::toNumber(ExecutionState& state) const
 {
-    // http://www.ecma-international.org/ecma-262/6.0/#sec-tonumber
+// http://www.ecma-international.org/ecma-262/6.0/#sec-tonumber
 #ifdef ESCARGOT_64
     auto n = u.asInt64 & TagTypeNumber;
     if (LIKELY(n)) {
@@ -573,7 +572,7 @@ inline double Value::toNumber(ExecutionState& state) const
     else if (isNull())
         return 0;
     else if (isBoolean())
-        return asBoolean() ?  1 : 0;
+        return asBoolean() ? 1 : 0;
     else {
         return toNumberSlowCase(state);
     }
@@ -659,7 +658,6 @@ inline uint32_t Value::toUint32(ExecutionState& state) const // http://www.ecma-
 {
     return toInt32(state);
 }
-
 }
 
 #endif

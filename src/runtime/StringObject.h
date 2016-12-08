@@ -18,10 +18,10 @@ public:
     {
         return true;
     }
+
 protected:
     String* m_primitiveValue;
 };
-
 }
 
 #endif

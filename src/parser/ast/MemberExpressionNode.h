@@ -34,7 +34,6 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::MemberExpression; }
-
     bool isPreComputedCase()
     {
         return m_computed;
@@ -43,7 +42,7 @@ public:
     AtomicString propertyName()
     {
         ASSERT(isPreComputedCase());
-        return ((IdentifierNode *)m_property)->name();
+        return ((IdentifierNode*)m_property)->name();
     }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
@@ -100,7 +99,6 @@ protected:
 
     bool m_computed;
 };
-
 }
 
 #endif

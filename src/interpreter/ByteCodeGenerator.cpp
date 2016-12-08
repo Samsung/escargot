@@ -7,7 +7,7 @@ namespace Escargot {
 
 void ByteCodeGenerateContext::consumeLabeledContinuePositions(ByteCodeBlock* cb, size_t position, String* lbl)
 {
-    for (size_t i = 0; i < m_labeledContinueStatmentPositions.size(); i ++) {
+    for (size_t i = 0; i < m_labeledContinueStatmentPositions.size(); i++) {
         if (*m_labeledContinueStatmentPositions[i].first == *lbl) {
             Jump* shouldBeJump = cb->peekCode<Jump>(m_labeledContinueStatmentPositions[i].second);
             ASSERT(shouldBeJump->m_orgOpcode == JumpOpcode);
@@ -21,7 +21,7 @@ void ByteCodeGenerateContext::consumeLabeledContinuePositions(ByteCodeBlock* cb,
 
 void ByteCodeGenerateContext::consumeBreakPositions(ByteCodeBlock* cb, size_t position)
 {
-    for (size_t i = 0; i < m_breakStatementPositions.size(); i ++) {
+    for (size_t i = 0; i < m_breakStatementPositions.size(); i++) {
         Jump* shouldBeJump = cb->peekCode<Jump>(m_breakStatementPositions[i]);
         ASSERT(shouldBeJump->m_orgOpcode == JumpOpcode);
         shouldBeJump->m_jumpPosition = position;
@@ -33,7 +33,7 @@ void ByteCodeGenerateContext::consumeBreakPositions(ByteCodeBlock* cb, size_t po
 
 void ByteCodeGenerateContext::consumeLabeledBreakPositions(ByteCodeBlock* cb, size_t position, String* lbl)
 {
-    for (size_t i = 0; i < m_labeledBreakStatmentPositions.size(); i ++) {
+    for (size_t i = 0; i < m_labeledBreakStatmentPositions.size(); i++) {
         if (*m_labeledBreakStatmentPositions[i].first == *lbl) {
             Jump* shouldBeJump = cb->peekCode<Jump>(m_labeledBreakStatmentPositions[i].second);
             ASSERT(shouldBeJump->m_orgOpcode == JumpOpcode);
@@ -47,7 +47,7 @@ void ByteCodeGenerateContext::consumeLabeledBreakPositions(ByteCodeBlock* cb, si
 
 void ByteCodeGenerateContext::consumeContinuePositions(ByteCodeBlock* cb, size_t position)
 {
-    for (size_t i = 0; i < m_continueStatementPositions.size(); i ++) {
+    for (size_t i = 0; i < m_continueStatementPositions.size(); i++) {
         Jump* shouldBeJump = cb->peekCode<Jump>(m_continueStatementPositions[i]);
         ASSERT(shouldBeJump->m_orgOpcode == JumpOpcode);
         shouldBeJump->m_jumpPosition = position;
@@ -81,7 +81,7 @@ void ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node*
 
     // generate init function decls first
     size_t len = codeBlock->childBlocks().size();
-    for (size_t i = 0; i < len; i ++) {
+    for (size_t i = 0; i < len; i++) {
         CodeBlock* b = codeBlock->childBlocks()[i];
         if (b->isFunctionDeclaration()) {
             ctx.getRegister();
@@ -107,10 +107,10 @@ void ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node*
         char* code = block->m_code.data();
         char* end = &block->m_code.data()[block->m_code.size()];
         while (&code[idx] < end) {
-            ByteCode* currentCode = (ByteCode *)(&code[idx]);
+            ByteCode* currentCode = (ByteCode*)(&code[idx]);
 
             Opcode opcode = EndOpcode;
-            for (size_t i = 0; i < OpcodeKindEnd; i ++) {
+            for (size_t i = 0; i < OpcodeKindEnd; i++) {
                 if (g_opcodeTable.m_reverseTable[i].first == currentCode->m_opcodeInAddress) {
                     opcode = g_opcodeTable.m_reverseTable[i].second;
                     break;
@@ -119,14 +119,14 @@ void ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node*
 
             switch (opcode) {
 #define DUMP_BYTE_CODE(code, pushCount, popCount) \
-            case code##Opcode:\
-                currentCode->dumpCode(idx); \
-                idx += sizeof(code); \
-                continue;
+    case code##Opcode:                            \
+        currentCode->dumpCode(idx);               \
+        idx += sizeof(code);                      \
+        continue;
 
-            FOR_EACH_BYTECODE_OP(DUMP_BYTE_CODE)
+                FOR_EACH_BYTECODE_OP(DUMP_BYTE_CODE)
 
-#undef  DUMP_BYTE_CODE
+#undef DUMP_BYTE_CODE
             default:
                 RELEASE_ASSERT_NOT_REACHED();
                 break;
@@ -138,5 +138,4 @@ void ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node*
 
     codeBlock->m_byteCodeBlock = block;
 }
-
 }

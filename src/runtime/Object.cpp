@@ -305,5 +305,4 @@ void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
     m_structure = m_structure->removeProperty(state, idx);
     m_values.erase(idx);
 }
-
 }

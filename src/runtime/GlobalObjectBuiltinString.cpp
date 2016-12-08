@@ -14,8 +14,8 @@ static Value builtinStringConstructor(ExecutionState& state, Value thisValue, si
 void GlobalObject::installString(ExecutionState& state)
 {
     m_string = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().String, builtinStringConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
-        return new StringObject(state);
-    })));
+                                                           return new StringObject(state);
+                                                       })));
     m_string->markThisObjectDontNeedStructureTransitionTable(state);
     m_string->setPrototype(state, m_functionPrototype);
     // TODO m_string->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
@@ -26,7 +26,6 @@ void GlobalObject::installString(ExecutionState& state)
     m_string->setFunctionPrototype(state, m_stringPrototype);
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().String),
-        Object::ObjectPropertyDescriptorForDefineOwnProperty(m_string, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+                      Object::ObjectPropertyDescriptorForDefineOwnProperty(m_string, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 }
-
 }

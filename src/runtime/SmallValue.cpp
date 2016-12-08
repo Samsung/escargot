@@ -33,5 +33,4 @@ SmallValueData* smallValueFalse = new SmallValueData(&dummyInSmallValueFalse);
 SmallValueData* smallValueEmpty = new SmallValueData(&dummyInSmallValueEmpty);
 SmallValueData* smallValueDeleted = new SmallValueData(&dummyInSmallValueDelete);
 }
-
 }

@@ -10,7 +10,7 @@ static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc,
     if (argc == 0) {
         double n_inf = -1 * std::numeric_limits<double>::infinity();
         return Value(n_inf);
-    } else  {
+    } else {
         double maxValue = argv[0].toNumber(state);
         for (unsigned i = 1; i < argc; i++) {
             double value = argv[i].toNumber(state);
@@ -50,10 +50,9 @@ void GlobalObject::installMath(ExecutionState& state)
 
     // initialize math object: $20.2.2.24 Math.max()
     m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().max),
-        Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().max, builtinMathMax, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+                                             Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().max, builtinMathMax, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Math),
-        Object::ObjectPropertyDescriptorForDefineOwnProperty(m_math, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+                      Object::ObjectPropertyDescriptorForDefineOwnProperty(m_math, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 }
-
 }

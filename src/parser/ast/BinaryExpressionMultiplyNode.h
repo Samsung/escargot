@@ -23,7 +23,7 @@ namespace Escargot {
 
 class BinaryExpressionMultiplyNode : public ExpressionNode {
 public:
-    BinaryExpressionMultiplyNode(Node *left, Node* right)
+    BinaryExpressionMultiplyNode(Node* left, Node* right)
         : ExpressionNode()
     {
         m_left = (ExpressionNode*)left;
@@ -31,7 +31,6 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionMultiply; }
-
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         m_left->generateExpressionByteCode(codeBlock, context);
@@ -43,11 +42,11 @@ public:
 
         codeBlock->pushCode(BinaryMultiply(ByteCodeLOC(m_loc.index), src0, src1), context, this);
     }
+
 protected:
     ExpressionNode* m_left;
     ExpressionNode* m_right;
 };
-
 }
 
 #endif

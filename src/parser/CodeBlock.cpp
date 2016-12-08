@@ -42,7 +42,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     m_byteCodeBlock = new ByteCodeBlock();
     CallNativeFunction code(info.m_nativeFunction);
     code.assignOpcodeInAddress();
-    char* first = (char *)&code;
+    char* first = (char*)&code;
     m_byteCodeBlock->m_code.insert(m_byteCodeBlock->m_code.end(), first, first + sizeof(CallNativeFunction));
 }
 
@@ -76,7 +76,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
     m_canAllocateEnvironmentOnStack = false;
     m_needsComplexParameterCopy = false;
 
-    for (size_t i = 0; i < innerIdentifiers.size(); i ++) {
+    for (size_t i = 0; i < innerIdentifiers.size(); i++) {
         IdentifierInfo info;
         info.m_name = innerIdentifiers[i];
         info.m_needToAllocateOnStack = false;
@@ -86,7 +86,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
 }
 
 CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, NodeLOC sourceElementStart, bool isStrict, size_t astNodeStartIndex, AtomicString functionName, const AtomicStringVector& parameterNames, const AtomicStringVector& innerIdentifiers,
-    CodeBlock* parentBlock, CodeBlockInitFlag initFlags)
+                     CodeBlock* parentBlock, CodeBlockInitFlag initFlags)
     : m_context(ctx)
     , m_script(script)
     , m_src(src)
@@ -147,7 +147,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, NodeLOC sourc
         m_canAllocateEnvironmentOnStack = false;
     }
 
-    for (size_t i = 0; i < innerIdentifiers.size(); i ++) {
+    for (size_t i = 0; i < innerIdentifiers.size(); i++) {
         IdentifierInfo info;
         info.m_name = innerIdentifiers[i];
         info.m_needToAllocateOnStack = m_canUseIndexedVariableStorage;
@@ -160,7 +160,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, NodeLOC sourc
 
 bool CodeBlock::tryCaptureIdentifiersFromChildCodeBlock(AtomicString name)
 {
-    for (size_t i = 0; i < m_identifierInfos.size(); i ++) {
+    for (size_t i = 0; i < m_identifierInfos.size(); i++) {
         if (m_identifierInfos[i].m_name == name) {
             m_canAllocateEnvironmentOnStack = false;
             m_identifierInfos[i].m_needToAllocateOnStack = false;
@@ -201,7 +201,7 @@ bool CodeBlock::hasNonConfiguableNameOnGlobal(const AtomicString& name)
 void CodeBlock::computeVariables()
 {
     if (m_functionName.string()->length()) {
-        for (size_t i = 0; i < m_identifierInfos.size(); i ++) {
+        for (size_t i = 0; i < m_identifierInfos.size(); i++) {
             if (m_identifierInfos[i].m_name == m_functionName) {
                 m_functionNameIndex = i;
                 break;
@@ -212,7 +212,7 @@ void CodeBlock::computeVariables()
     if (canUseIndexedVariableStorage()) {
         size_t s = 0;
         size_t h = 0;
-        for (size_t i = 0; i < m_identifierInfos.size(); i ++) {
+        for (size_t i = 0; i < m_identifierInfos.size(); i++) {
             if (m_identifierInfos[i].m_name == m_functionName) {
                 m_functionNameSaveInfo.m_isAllocatedOnStack = m_identifierInfos[i].m_needToAllocateOnStack;
                 if (m_identifierInfos[i].m_needToAllocateOnStack) {
@@ -238,7 +238,7 @@ void CodeBlock::computeVariables()
     m_parametersInfomation.resizeWithUninitializedValues(siz);
     size_t heapCount = 0;
     size_t stackCount = 0;
-    for (size_t i = 0; i < siz; i ++) {
+    for (size_t i = 0; i < siz; i++) {
         bool isHeap = !m_identifierInfos[i].m_needToAllocateOnStack;
         m_parametersInfomation[i].m_isHeapAllocated = isHeap;
         if (isHeap) {
@@ -251,5 +251,4 @@ void CodeBlock::computeVariables()
         }
     }
 }
-
 }

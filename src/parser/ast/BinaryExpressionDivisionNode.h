@@ -25,7 +25,7 @@ class BinaryExpressionDivisionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
 
-    BinaryExpressionDivisionNode(Node *left, Node* right)
+    BinaryExpressionDivisionNode(Node* left, Node* right)
         : ExpressionNode()
     {
         m_left = (ExpressionNode*)left;
@@ -33,7 +33,6 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionDivison; }
-
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         m_left->generateExpressionByteCode(codeBlock, context);
@@ -45,11 +44,11 @@ public:
 
         codeBlock->pushCode(BinaryDivision(ByteCodeLOC(m_loc.index), src0, src1), context, this);
     }
+
 protected:
     ExpressionNode* m_left;
     ExpressionNode* m_right;
 };
-
 }
 
 #endif

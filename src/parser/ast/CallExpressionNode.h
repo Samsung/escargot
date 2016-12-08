@@ -18,8 +18,8 @@
 #define CallExpressionNode_h
 
 #include "ExpressionNode.h"
-#include "PatternNode.h"
 #include "MemberExpressionNode.h"
+#include "PatternNode.h"
 
 namespace Escargot {
 
@@ -35,7 +35,6 @@ public:
 
     Node* callee() { return m_callee; }
     virtual ASTNodeType type() { return ASTNodeType::CallExpression; }
-
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
@@ -56,10 +55,10 @@ public:
         size_t baseRegister = context->getLastRegisterIndex() - 1;
         context->m_inCallingExpressionScope = false;
 
-        for (size_t i = 0; i < m_arguments.size(); i ++) {
+        for (size_t i = 0; i < m_arguments.size(); i++) {
             m_arguments[i]->generateExpressionByteCode(codeBlock, context);
         }
-        for (size_t i = 0; i < m_arguments.size(); i ++) {
+        for (size_t i = 0; i < m_arguments.size(); i++) {
             context->giveUpRegister();
         }
 
@@ -74,7 +73,6 @@ protected:
     Node* m_callee; // callee: Expression;
     ArgumentVector m_arguments; // arguments: [ Expression ];
 };
-
 }
 
 #endif

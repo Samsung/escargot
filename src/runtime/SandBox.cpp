@@ -14,9 +14,9 @@ SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner)
     SandBox::SandBoxResult result;
     try {
         result.result = scriptRunner();
-    } catch(const Value& err) {
+    } catch (const Value& err) {
         result.error = err;
-        for (size_t i = 0; i < m_stackTraceData.size(); i ++) {
+        for (size_t i = 0; i < m_stackTraceData.size(); i++) {
             result.stackTraceData.pushBack(m_stackTraceData[i].second);
         }
     }
@@ -62,5 +62,4 @@ void SandBox::throwException(ExecutionState& state, Value exception)
     }
     throw exception;
 }
-
 }

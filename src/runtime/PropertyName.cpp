@@ -23,5 +23,4 @@ PropertyName::PropertyName(ExecutionState& state, String* string)
     }
     ASSERT(m_data);
 }
-
 }

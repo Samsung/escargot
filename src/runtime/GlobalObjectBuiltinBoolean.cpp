@@ -14,8 +14,8 @@ static Value builtinBooleanConstructor(ExecutionState& state, Value thisValue, s
 void GlobalObject::installBoolean(ExecutionState& state)
 {
     m_boolean = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Boolean, builtinBooleanConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
-        return new BooleanObject(state);
-    })));
+                                                            return new BooleanObject(state);
+                                                        })));
     m_boolean->markThisObjectDontNeedStructureTransitionTable(state);
     m_boolean->setPrototype(state, m_functionPrototype);
     // TODO m_boolean->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
@@ -26,7 +26,6 @@ void GlobalObject::installBoolean(ExecutionState& state)
     m_boolean->setFunctionPrototype(state, m_booleanPrototype);
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Boolean),
-        Object::ObjectPropertyDescriptorForDefineOwnProperty(m_boolean, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+                      Object::ObjectPropertyDescriptorForDefineOwnProperty(m_boolean, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 }
-
 }

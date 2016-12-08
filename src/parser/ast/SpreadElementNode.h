@@ -33,10 +33,10 @@ public:
     {
         return SpreadElement;
     }
+
 protected:
     Node* m_arg;
 };
-
 }
 
 #endif

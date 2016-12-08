@@ -8,9 +8,9 @@ namespace Escargot {
 class VMInstance : public gc {
 public:
     VMInstance();
+
 protected:
 };
-
 }
 
 #endif

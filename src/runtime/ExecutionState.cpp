@@ -9,5 +9,4 @@ void ExecutionState::throwException(const Value& e)
 {
     context()->throwException(*this, e);
 }
-
 }

@@ -17,10 +17,10 @@
 #ifndef CatchClauseNode_h
 #define CatchClauseNode_h
 
-#include "Node.h"
+#include "BlockStatementNode.h"
 #include "ExpressionNode.h"
 #include "IdentifierNode.h"
-#include "BlockStatementNode.h"
+#include "Node.h"
 
 namespace Escargot {
 
@@ -31,21 +31,19 @@ public:
     CatchClauseNode(Node *param, Node *guard, Node *body)
         : Node()
     {
-        m_param = (IdentifierNode*) param;
-        m_guard = (ExpressionNode*) guard;
-        m_body = (BlockStatementNode*) body;
+        m_param = (IdentifierNode *)param;
+        m_guard = (ExpressionNode *)guard;
+        m_body = (BlockStatementNode *)body;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::CatchClause; }
-
 protected:
-    IdentifierNode* m_param;
-    ExpressionNode* m_guard;
-    BlockStatementNode* m_body;
+    IdentifierNode *m_param;
+    ExpressionNode *m_guard;
+    BlockStatementNode *m_body;
 };
 
 typedef Vector<Node *, gc_malloc_ignore_off_page_allocator<Node *>> CatchClauseNodeVector;
-
 }
 
 #endif

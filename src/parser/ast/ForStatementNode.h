@@ -17,8 +17,8 @@
 #ifndef ForStatementNode_h
 #define ForStatementNode_h
 
-#include "StatementNode.h"
 #include "ExpressionNode.h"
+#include "StatementNode.h"
 
 namespace Escargot {
 
@@ -28,14 +28,14 @@ public:
     ForStatementNode(Node *init, Node *test, Node *update, Node *body)
         : StatementNode()
     {
-        m_init = (ExpressionNode*) init;
-        m_test = (ExpressionNode*) test;
-        m_update = (ExpressionNode*) update;
-        m_body = (StatementNode*) body;
+        m_init = (ExpressionNode *)init;
+        m_test = (ExpressionNode *)test;
+        m_update = (ExpressionNode *)update;
+        m_body = (StatementNode *)body;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ForStatement; }
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
     {
         ByteCodeGenerateContext newContext(*context);
 
@@ -71,13 +71,13 @@ public:
         newContext.m_positionToContinue = updatePosition;
         newContext.propagateInformationTo(*context);
     }
+
 protected:
     ExpressionNode *m_init;
     ExpressionNode *m_test;
     ExpressionNode *m_update;
     StatementNode *m_body;
 };
-
 }
 
 #endif

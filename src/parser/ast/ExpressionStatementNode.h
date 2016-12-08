@@ -32,9 +32,7 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ExpressionStatement; }
-
     Node* expression() { return m_expression; }
-
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
 #ifndef NDEBUG
@@ -45,10 +43,10 @@ public:
         context->giveUpRegister();
         ASSERT(context->m_baseRegisterCount == before);
     }
+
 protected:
     Node* m_expression; // expression: Expression;
 };
-
 }
 
 #endif

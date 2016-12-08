@@ -17,8 +17,8 @@
 #ifndef IdentifierNode_h
 #define IdentifierNode_h
 
-#include "Node.h"
 #include "ExpressionNode.h"
+#include "Node.h"
 #include "PatternNode.h"
 
 namespace Escargot {
@@ -34,7 +34,6 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::Identifier; }
-
     AtomicString name()
     {
         return m_name;
@@ -83,10 +82,10 @@ public:
             }
         }
     }
+
 protected:
     AtomicString m_name;
 };
-
 }
 
 #endif

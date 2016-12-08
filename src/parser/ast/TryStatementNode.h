@@ -17,33 +17,31 @@
 #ifndef TryStatementNode_h
 #define TryStatementNode_h
 
+#include "CatchClauseNode.h"
 #include "StatementNode.h"
 #include "runtime/ExecutionContext.h"
-#include "CatchClauseNode.h"
 
 namespace Escargot {
 
 class TryStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    TryStatementNode(Node *block, Node *handler, CatchClauseNodeVector&& guardedHandlers,  Node *finalizer)
+    TryStatementNode(Node *block, Node *handler, CatchClauseNodeVector &&guardedHandlers, Node *finalizer)
         : StatementNode()
     {
-        m_block = (BlockStatementNode*) block;
-        m_handler = (CatchClauseNode*) handler;
+        m_block = (BlockStatementNode *)block;
+        m_handler = (CatchClauseNode *)handler;
         m_guardedHandlers = guardedHandlers;
-        m_finalizer = (BlockStatementNode*) finalizer;
+        m_finalizer = (BlockStatementNode *)finalizer;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::TryStatement; }
-
 protected:
     BlockStatementNode *m_block;
     CatchClauseNode *m_handler;
     CatchClauseNodeVector m_guardedHandlers;
     BlockStatementNode *m_finalizer;
 };
-
 }
 
 #endif

@@ -23,7 +23,7 @@ namespace Escargot {
 
 class BinaryExpressionModNode : public ExpressionNode {
 public:
-    BinaryExpressionModNode(Node *left, Node* right)
+    BinaryExpressionModNode(Node* left, Node* right)
         : ExpressionNode()
     {
         m_left = (ExpressionNode*)left;
@@ -42,11 +42,11 @@ public:
 
         codeBlock->pushCode(BinaryMod(ByteCodeLOC(m_loc.index), src0, src1), context, this);
     }
+
 protected:
     ExpressionNode* m_left;
     ExpressionNode* m_right;
 };
-
 }
 
 #endif

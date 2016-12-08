@@ -2,5 +2,4 @@
 #include "BasicString.h"
 
 namespace Escargot {
-
 }

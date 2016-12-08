@@ -16,14 +16,14 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     stringCatch.init(atomicStringMap, "catch", strlen("catch"));
     defaultRegExpString.init(atomicStringMap, "(?:)", strlen("(?:)"));
 
-    for (unsigned i = 0; i < ESCARGOT_ASCII_TABLE_MAX ; i ++) {
+    for (unsigned i = 0; i < ESCARGOT_ASCII_TABLE_MAX; i++) {
         char buf[2];
         buf[0] = i;
         buf[1] = 0;
         asciiTable[i].init(atomicStringMap, buf, 1);
     }
 
-    for (unsigned i = 0; i < ESCARGOT_STRINGS_NUMBERS_MAX ; i ++) {
+    for (unsigned i = 0; i < ESCARGOT_STRINGS_NUMBERS_MAX; i++) {
         ASCIIStringData s = dtoa(i);
         numbers[i].init(atomicStringMap, s.data(), s.size());
     }
@@ -32,5 +32,4 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     FOR_EACH_STATIC_STRING(INIT_STATIC_STRING)
 #undef INIT_STATIC_STRING
 }
-
 }

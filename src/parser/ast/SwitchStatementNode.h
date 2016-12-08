@@ -17,8 +17,8 @@
 #ifndef SwitchStatementNode_h
 #define SwitchStatementNode_h
 
-#include "StatementNode.h"
 #include "ExpressionNode.h"
+#include "StatementNode.h"
 #include "SwitchCaseNode.h"
 
 namespace Escargot {
@@ -29,15 +29,14 @@ public:
     SwitchStatementNode(Node* discriminant, StatementNodeVector&& casesA, Node* deflt, StatementNodeVector&& casesB, bool lexical)
         : StatementNode()
     {
-        m_discriminant = (ExpressionNode*) discriminant;
+        m_discriminant = (ExpressionNode*)discriminant;
         m_casesA = casesA;
-        m_default = (StatementNode*) deflt;
+        m_default = (StatementNode*)deflt;
         m_casesB = casesB;
         m_lexical = lexical;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::SwitchStatement; }
-
 protected:
     ExpressionNode* m_discriminant;
     StatementNodeVector m_casesA;
@@ -45,7 +44,6 @@ protected:
     StatementNodeVector m_casesB;
     bool m_lexical;
 };
-
 }
 
 #endif

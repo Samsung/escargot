@@ -25,7 +25,7 @@
 void __attribute__((optimize("O0"))) fillStack(size_t siz)
 {
     volatile char a[siz];
-    for (unsigned i = 0 ; i < siz  ; i ++) {
+    for (unsigned i = 0; i < siz; i++) {
         a[i] = 0x00;
     }
 }
@@ -33,7 +33,7 @@ void __attribute__((optimize("O0"))) fillStack(size_t siz)
 
 #ifdef PROFILE_MASSIF
 std::unordered_map<void*, void*> g_addressTable;
-std::vector<void *> g_freeList;
+std::vector<void*> g_freeList;
 
 void unregisterGCAddress(void* address)
 {
@@ -127,7 +127,7 @@ void eval(Escargot::Context* context, Escargot::String* str, Escargot::String* f
                 puts(resultValue.result.toString(state)->toUTF8StringData().data());
         } else {
             puts(resultValue.error.errorValue.toString(state)->toUTF8StringData().data());
-            for (size_t i = 0; i < resultValue.error.stackTrace.size(); i ++) {
+            for (size_t i = 0; i < resultValue.error.stackTrace.size(); i++) {
                 printf("%s (%d:%d)\n", resultValue.error.stackTrace[i].fileName->toUTF8StringData().data(), (int)resultValue.error.stackTrace[i].line, (int)resultValue.error.stackTrace[i].column);
             }
         }
@@ -150,11 +150,10 @@ int main(int argc, char* argv[])
     */
     GC_set_free_space_divisor(24);
     GC_set_force_unmap_on_gcollect(1);
-    // GC_set_full_freq(1);
-    // GC_set_time_limit(GC_TIME_UNLIMITED);
+// GC_set_full_freq(1);
+// GC_set_time_limit(GC_TIME_UNLIMITED);
 #ifdef PROFILE_MASSIF
-    GC_is_valid_displacement_print_proc = [](void* ptr)
-    {
+    GC_is_valid_displacement_print_proc = [](void* ptr) {
         g_freeList.push_back(ptr);
     };
     GC_set_on_collection_event([](GC_EventType evtType) {
@@ -165,7 +164,7 @@ int main(int argc, char* argv[])
                 iter++;
             }
 
-            for (unsigned i = 0; i < g_freeList.size(); i ++) {
+            for (unsigned i = 0; i < g_freeList.size(); i++) {
                 unregisterGCAddress(g_freeList[i]);
             }
 
@@ -183,7 +182,7 @@ int main(int argc, char* argv[])
 
     bool runShell = true;
 
-    for (int i = 1; i < argc; i ++) {
+    for (int i = 1; i < argc; i++) {
         FILE* fp = fopen(argv[i], "r");
         if (fp) {
             runShell = false;
@@ -195,7 +194,7 @@ int main(int argc, char* argv[])
             fclose(fp);
 
             Escargot::String* src = new Escargot::UTF16String(std::move(Escargot::utf8StringToUTF16String(str.data(), str.length())));
-            eval(context, src, Escargot::String::fromUTF8(argv[i], strlen(argv[i])),false);
+            eval(context, src, Escargot::String::fromUTF8(argv[i], strlen(argv[i])), false);
         }
         if (strcmp(argv[i], "--shell") == 0) {
             runShell = true;
@@ -211,7 +210,7 @@ int main(int argc, char* argv[])
             return 3;
         }
         Escargot::String* str = new Escargot::UTF16String(std::move(Escargot::utf8StringToUTF16String(buf, strlen(buf))));
-        eval(context, str, Escargot::String::fromUTF8("from shell input", strlen("from shell input")),true);
+        eval(context, str, Escargot::String::fromUTF8("from shell input", strlen("from shell input")), true);
     }
 
     delete context;

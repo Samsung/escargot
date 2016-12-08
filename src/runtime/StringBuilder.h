@@ -14,6 +14,7 @@ class StringBuilder {
     };
 
     void appendPiece(String* str, size_t s, size_t e);
+
 public:
     StringBuilder()
     {
@@ -23,7 +24,6 @@ public:
     }
 
     size_t contentLength() { return m_contentLength; }
-
     void appendString(const char* str)
     {
         appendPiece(new ASCIIString(str), 0, strlen(str));
@@ -46,6 +46,7 @@ public:
     }
 
     String* finalize();
+
 protected:
     bool m_hasASCIIContent;
     size_t m_piecesInlineStorageUsage;
@@ -53,8 +54,6 @@ protected:
     StringBuilderPiece m_piecesInlineStorage[ESCARGOT_STRING_BUILDER_INLINE_STORAGE_MAX];
     std::vector<StringBuilderPiece, gc_allocator_ignore_off_page<StringBuilderPiece>> m_pieces;
 };
-
 }
 
 #endif
-

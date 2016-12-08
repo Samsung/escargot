@@ -1,10 +1,10 @@
 #ifndef __EscargotCodeBlock__
 #define __EscargotCodeBlock__
 
-#include "runtime/String.h"
-#include "runtime/AtomicString.h"
 #include "parser/ast/Node.h"
+#include "runtime/AtomicString.h"
 #include "runtime/ExecutionState.h"
+#include "runtime/String.h"
 
 namespace Escargot {
 
@@ -54,6 +54,7 @@ class CodeBlock : public gc {
     friend class ScriptParser;
     friend class ByteCodeGenerator;
     friend class FunctionObject;
+
 public:
     // init native CodeBlock
     CodeBlock(Context* ctx, const NativeFunctionInfo& info);
@@ -119,7 +120,7 @@ public:
 
     bool hasName(const AtomicString& name)
     {
-        for (size_t i = 0; i < m_identifierInfos.size(); i ++) {
+        for (size_t i = 0; i < m_identifierInfos.size(); i++) {
             if (m_identifierInfos[i].m_name == name) {
                 return true;
             }
@@ -129,7 +130,7 @@ public:
 
     size_t findName(const AtomicString& name)
     {
-        for (size_t i = 0; i < m_identifierInfos.size(); i ++) {
+        for (size_t i = 0; i < m_identifierInfos.size(); i++) {
             if (m_identifierInfos[i].m_name == name) {
                 return i;
             }
@@ -320,7 +321,7 @@ protected:
     size_t m_identifierOnStackCount;
     size_t m_identifierOnHeapCount;
     size_t m_functionNameIndex;
-    struct FunctionNameSaveInfo{
+    struct FunctionNameSaveInfo {
         bool m_isAllocatedOnStack;
         size_t m_index;
     } m_functionNameSaveInfo;
@@ -344,7 +345,6 @@ protected:
     ASTScopeContext* m_scopeContext;
 #endif
 };
-
 }
 
 #endif

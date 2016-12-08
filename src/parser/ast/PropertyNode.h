@@ -26,7 +26,9 @@ class PropertyNode : public Node {
 public:
     friend class ScriptParser;
     enum Kind {
-        Init, Get, Set
+        Init,
+        Get,
+        Set
     };
 
     PropertyNode(Node* key, Node* value, Kind kind)
@@ -38,7 +40,6 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::Property; }
-
     Node* key()
     {
         return m_key;
@@ -64,7 +65,6 @@ protected:
     Node* m_key; // key: Literal | Identifier;
     Node* m_value; // value: Expression;
 };
-
 }
 
 #endif

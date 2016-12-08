@@ -167,10 +167,10 @@ ALWAYS_INLINE uint8_t toHexNumericValue(char16_t ch)
 ALWAYS_INLINE bool isWhiteSpace(char16_t ch)
 {
     return (ch == 0x20) || (ch == 0x09) || (ch == 0x0B) || (ch == 0x0C) || (ch == 0xA0)
-        || (ch >= 0x1680 && (ch == 0x1680 || ch == 0x180E  || ch == 0x2000 || ch == 0x2001
-        || ch == 0x2002 || ch == 0x2003 || ch == 0x2004 || ch == 0x2005 || ch == 0x2006
-        || ch == 0x2007 || ch == 0x2008 || ch == 0x2009 || ch == 0x200A || ch == 0x202F
-        || ch == 0x205F || ch == 0x3000 || ch == 0xFEFF));
+        || (ch >= 0x1680 && (ch == 0x1680 || ch == 0x180E || ch == 0x2000 || ch == 0x2001
+                             || ch == 0x2002 || ch == 0x2003 || ch == 0x2004 || ch == 0x2005 || ch == 0x2006
+                             || ch == 0x2007 || ch == 0x2008 || ch == 0x2009 || ch == 0x200A || ch == 0x202F
+                             || ch == 0x205F || ch == 0x3000 || ch == 0xFEFF));
 }
 
 // ECMA-262 11.3 Line Terminators
@@ -255,7 +255,7 @@ ALWAYS_INLINE bool isIdentifierStart(char32_t ch)
 
 struct Curly {
     char m_curly[4];
-    Curly() { }
+    Curly() {}
     Curly(const char curly[4])
     {
         m_curly[0] = curly[0];
@@ -448,7 +448,8 @@ public:
     // errors: Error[];
     // tolerant: boolean;
 
-    ErrorHandler() {
+    ErrorHandler()
+    {
         // this->errors = [];
         // this->tolerant = false;
     }
@@ -476,7 +477,7 @@ public:
         // try {
         //     throw error;
         // } catch (base) {
-            /* istanbul ignore else */
+        /* istanbul ignore else */
         //     if (Object.create && Object.defineProperty) {
         //         error = Object.create(base);
         //         Object.defineProperty(error, 'column', { value: column });
@@ -550,11 +551,11 @@ public:
         return index >= length;
     }
 
-    void throwUnexpectedToken(const char *message = Messages::UnexpectedTokenIllegal)
+    void throwUnexpectedToken(const char* message = Messages::UnexpectedTokenIllegal)
     {
         this->errorHandler->throwError(this->index, this->lineNumber, this->index - this->lineStart + 1, new ASCIIString(message));
     }
-/*
+    /*
     tolerateUnexpectedToken() {
         this->errorHandler.tolerateError(this->index, this->lineNumber,
             this->index - this->lineStart + 1, Messages.UnexpectedTokenIllegal);
@@ -742,7 +743,7 @@ public:
                     */
                     this->skipSingleLineComment(2);
                     start = true;
-                } else if (ch == 0x2A) {  // U+002A is '*'
+                } else if (ch == 0x2A) { // U+002A is '*'
                     this->index += 2;
                     /*
                     const comment = this->skipMultiLineComment();
@@ -1508,7 +1509,7 @@ public:
             if (ch != '0' && ch != '1') {
                 break;
             }
-            number = (number << 1) +  ch - '0';
+            number = (number << 1) + ch - '0';
             this->index++;
             scanned = true;
         }
@@ -1577,7 +1578,7 @@ public:
         const size_t start = this->index;
         char16_t ch = this->source.charAt(start);
         ASSERT(isDecimalDigit(ch) || (ch == '.'));
-            // 'Numeric literal must start with a decimal digit or a decimal point');
+        // 'Numeric literal must start with a decimal digit or a decimal point');
 
         std::string number;
         number.reserve(32);
@@ -1647,9 +1648,10 @@ public:
         int length = number.length();
         int length_dummy;
         double_conversion::StringToDoubleConverter converter(double_conversion::StringToDoubleConverter::ALLOW_HEX
-            | double_conversion::StringToDoubleConverter::ALLOW_LEADING_SPACES
-            | double_conversion::StringToDoubleConverter::ALLOW_TRAILING_SPACES, 0.0, double_conversion::Double::NaN(),
-            "Infinity", "NaN");
+                                                                 | double_conversion::StringToDoubleConverter::ALLOW_LEADING_SPACES
+                                                                 | double_conversion::StringToDoubleConverter::ALLOW_TRAILING_SPACES,
+                                                             0.0, double_conversion::Double::NaN(),
+                                                             "Infinity", "NaN");
         double ll = converter.StringToDouble(number.data(), length, &length_dummy);
 
         return new ScannerResult(Token::NumericLiteralToken, ll, this->lineNumber, this->lineStart, start, this->index);
@@ -1663,7 +1665,7 @@ public:
         const size_t start = this->index;
         char16_t quote = this->source.charAt(start);
         ASSERT((quote == '\'' || quote == '"'));
-            // 'String literal must starts with a quote');
+        // 'String literal must starts with a quote');
 
         ++this->index;
         bool octal = false;
@@ -1673,12 +1675,12 @@ public:
         UTF16StringDataNonGCStd stringUTF16;
         StringView str;
 
-#define CONVERT_UNPLAIN_CASE_IF_NEEDED() \
-        if (isPlainCase) { \
-            auto temp = str.toUTF16StringData(); \
-            stringUTF16 = UTF16StringDataNonGCStd(temp.data(), temp.length()); \
-            isPlainCase = false; \
-        } \
+#define CONVERT_UNPLAIN_CASE_IF_NEEDED()                                   \
+    if (isPlainCase) {                                                     \
+        auto temp = str.toUTF16StringData();                               \
+        stringUTF16 = UTF16StringDataNonGCStd(temp.data(), temp.length()); \
+        isPlainCase = false;                                               \
+    }
 
         while (!this->eof()) {
             char16_t ch = this->source.charAt(this->index++);
@@ -1691,55 +1693,55 @@ public:
                 if (!ch || !isLineTerminator(ch)) {
                     CONVERT_UNPLAIN_CASE_IF_NEEDED()
                     switch (ch) {
-                        case 'u':
-                        case 'x':
-                            if (this->source.charAt(this->index) == '{') {
-                                ++this->index;
-                                ParserCharPiece piece(this->scanUnicodeCodePointEscape());
-                                stringUTF16 += piece.data;
-                            } else {
-                                const char32_t unescaped = this->scanHexEscape(ch);
-                                if (!unescaped) {
-                                    this->throwUnexpectedToken();
-                                }
-                                ParserCharPiece piece(unescaped);
-                                stringUTF16 += piece.data;
+                    case 'u':
+                    case 'x':
+                        if (this->source.charAt(this->index) == '{') {
+                            ++this->index;
+                            ParserCharPiece piece(this->scanUnicodeCodePointEscape());
+                            stringUTF16 += piece.data;
+                        } else {
+                            const char32_t unescaped = this->scanHexEscape(ch);
+                            if (!unescaped) {
+                                this->throwUnexpectedToken();
                             }
-                            break;
-                        case 'n':
-                            stringUTF16 += '\n';
-                            break;
-                        case 'r':
-                            stringUTF16 += '\r';
-                            break;
-                        case 't':
-                            stringUTF16 += '\t';
-                            break;
-                        case 'b':
-                            stringUTF16 += '\b';
-                            break;
-                        case 'f':
-                            stringUTF16 += '\f';
-                            break;
-                        case 'v':
-                            stringUTF16 += '\x0B';
-                            break;
-                        case '8':
-                        case '9':
+                            ParserCharPiece piece(unescaped);
+                            stringUTF16 += piece.data;
+                        }
+                        break;
+                    case 'n':
+                        stringUTF16 += '\n';
+                        break;
+                    case 'r':
+                        stringUTF16 += '\r';
+                        break;
+                    case 't':
+                        stringUTF16 += '\t';
+                        break;
+                    case 'b':
+                        stringUTF16 += '\b';
+                        break;
+                    case 'f':
+                        stringUTF16 += '\f';
+                        break;
+                    case 'v':
+                        stringUTF16 += '\x0B';
+                        break;
+                    case '8':
+                    case '9':
+                        stringUTF16 += ch;
+                        this->tolerateUnexpectedToken();
+                        break;
+
+                    default:
+                        if (ch && isOctalDigit(ch)) {
+                            OctalToDecimalResult octToDec = this->octalToDecimal(ch);
+
+                            octal = octToDec.octal || octal;
+                            stringUTF16 += octToDec.code;
+                        } else {
                             stringUTF16 += ch;
-                            this->tolerateUnexpectedToken();
-                            break;
-
-                        default:
-                            if (ch && isOctalDigit(ch)) {
-                                OctalToDecimalResult octToDec = this->octalToDecimal(ch);
-
-                                octal = octToDec.octal || octal;
-                                stringUTF16 += octToDec.code;
-                            } else {
-                                stringUTF16 += ch;
-                            }
-                            break;
+                        }
+                        break;
                     }
                 } else {
                     ++this->lineNumber;
@@ -1766,10 +1768,10 @@ public:
 
         ScannerResult* ret;
         if (isPlainCase) {
-            ret = new ScannerResult(Token::StringLiteralToken, str, /*octal, */this->lineNumber, this->lineStart, start, this->index);
+            ret = new ScannerResult(Token::StringLiteralToken, str, /*octal, */ this->lineNumber, this->lineStart, start, this->index);
         } else {
             String* newStr = new UTF16String(stringUTF16.data(), stringUTF16.length());
-            ret = new ScannerResult(Token::StringLiteralToken, StringView(newStr, 0, newStr->length()), /*octal, */this->lineNumber, this->lineStart, start, this->index);
+            ret = new ScannerResult(Token::StringLiteralToken, StringView(newStr, 0, newStr->length()), /*octal, */ this->lineNumber, this->lineStart, start, this->index);
         }
         ret->octal = octal;
 
@@ -1810,56 +1812,56 @@ public:
                 ch = this->source.charAt(this->index++);
                 if (!isLineTerminator(ch)) {
                     switch (ch) {
-                        case 'n':
-                            cooked += '\n';
-                            break;
-                        case 'r':
-                            cooked += '\r';
-                            break;
-                        case 't':
-                            cooked += '\t';
-                            break;
-                        case 'u':
-                        case 'x':
-                            if (this->source.charAt(this->index) == '{') {
-                                ++this->index;
-                                cooked += this->scanUnicodeCodePointEscape();
+                    case 'n':
+                        cooked += '\n';
+                        break;
+                    case 'r':
+                        cooked += '\r';
+                        break;
+                    case 't':
+                        cooked += '\t';
+                        break;
+                    case 'u':
+                    case 'x':
+                        if (this->source.charAt(this->index) == '{') {
+                            ++this->index;
+                            cooked += this->scanUnicodeCodePointEscape();
+                        } else {
+                            const size_t restore = this->index;
+                            const char32_t unescaped = this->scanHexEscape(ch);
+                            if (unescaped) {
+                                ParserCharPiece piece(unescaped);
+                                cooked += piece.data;
                             } else {
-                                const size_t restore = this->index;
-                                const char32_t unescaped = this->scanHexEscape(ch);
-                                if (unescaped) {
-                                    ParserCharPiece piece(unescaped);
-                                    cooked += piece.data;
-                                } else {
-                                    this->index = restore;
-                                    cooked += ch;
-                                }
-                            }
-                            break;
-                        case 'b':
-                            cooked += '\b';
-                            break;
-                        case 'f':
-                            cooked += '\f';
-                            break;
-                        case 'v':
-                            cooked += '\v';
-                            break;
-
-                        default:
-                            if (ch == '0') {
-                                if (isDecimalDigit(this->source.charAt(this->index))) {
-                                    // Illegal: \01 \02 and so on
-                                    this->throwUnexpectedToken(Messages::TemplateOctalLiteral);
-                                }
-                                cooked += (char16_t)'\0';
-                            } else if (isOctalDigit(ch)) {
-                                // Illegal: \1 \2
-                                this->throwUnexpectedToken(Messages::TemplateOctalLiteral);
-                            } else {
+                                this->index = restore;
                                 cooked += ch;
                             }
-                            break;
+                        }
+                        break;
+                    case 'b':
+                        cooked += '\b';
+                        break;
+                    case 'f':
+                        cooked += '\f';
+                        break;
+                    case 'v':
+                        cooked += '\v';
+                        break;
+
+                    default:
+                        if (ch == '0') {
+                            if (isDecimalDigit(this->source.charAt(this->index))) {
+                                // Illegal: \01 \02 and so on
+                                this->throwUnexpectedToken(Messages::TemplateOctalLiteral);
+                            }
+                            cooked += (char16_t)'\0';
+                        } else if (isOctalDigit(ch)) {
+                            // Illegal: \1 \2
+                            this->throwUnexpectedToken(Messages::TemplateOctalLiteral);
+                        } else {
+                            cooked += ch;
+                        }
+                        break;
                     }
                 } else {
                     ++this->lineNumber;
@@ -1899,7 +1901,7 @@ public:
     }
 
     // ECMA-262 11.8.5 Regular Expression Literals
-/*
+    /*
     testRegExp(pattern: string, flags: string) {
         // The BMP character to use as a replacement for astral symbols when
         // translating an ES6 "u"-flagged pattern to an ES5-compatible
@@ -2121,7 +2123,6 @@ public:
         }
         return this->scanPunctuator();
     }
-
 };
 
 struct Config : public gc {
@@ -2178,10 +2179,12 @@ public:
     ErrorHandler* errorHandler;
     std::unique_ptr<Scanner> scanner;
     std::unordered_map<IdentifierNode*, ScannerResult*,
-        std::hash<IdentifierNode*>, std::equal_to<IdentifierNode*>, gc_malloc_ignore_off_page_allocator<std::pair<IdentifierNode*, ScannerResult*>>> nodeExtraInfo;
+                       std::hash<IdentifierNode*>, std::equal_to<IdentifierNode*>, gc_malloc_ignore_off_page_allocator<std::pair<IdentifierNode*, ScannerResult*>>>
+        nodeExtraInfo;
 
     enum SourceType {
-        Script, Module
+        Script,
+        Module
     };
     SourceType sourceType;
     ScannerResult* lookahead;
@@ -2205,7 +2208,7 @@ public:
 
     void extractNamesFromFunctionParams(const PatternNodeVector& vector)
     {
-        for (size_t i = 0 ; i < vector.size(); i ++) {
+        for (size_t i = 0; i < vector.size(); i++) {
             ASSERT(vector[i]->isIdentifier());
             IdentifierNode* id = (IdentifierNode*)vector[i];
             scopeContexts.back()->insertName(id->name());
@@ -2217,7 +2220,7 @@ public:
         auto parentContext = scopeContexts.back();
         scopeContexts.push_back(new ASTScopeContext(this->context->strict, scopeContexts.back()));
         scopeContexts.back()->m_functionName = functionName;
-        for (size_t i = 0 ; i < params.size(); i ++) {
+        for (size_t i = 0; i < params.size(); i++) {
             ASSERT(params[i]->isIdentifier());
             IdentifierNode* id = (IdentifierNode*)params[i];
             scopeContexts.back()->m_parameters.pushBack(id->name());
@@ -2227,7 +2230,7 @@ public:
         }
     }
 
-    Parser(::Escargot::Context* escargotContext, StringView code, ParserASTNodeHandler delegate, size_t startLine = 0, size_t startColumn = 0/*, options: any = {}, delegate*/)
+    Parser(::Escargot::Context* escargotContext, StringView code, ParserASTNodeHandler delegate, size_t startLine = 0, size_t startColumn = 0 /*, options: any = {}, delegate*/)
     {
         this->escargotContext = escargotContext;
         trackUsingNames = true;
@@ -2320,10 +2323,10 @@ public:
 
     void replaceAll(UTF16StringDataNonGCStd& str, const UTF16StringDataNonGCStd& from, const UTF16StringDataNonGCStd& to)
     {
-        if(from.empty())
+        if (from.empty())
             return;
         size_t start_pos = 0;
-        while((start_pos = str.find(from, start_pos)) != std::string::npos) {
+        while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
             str.replace(start_pos, from.length(), to);
             start_pos += to.length();
         }
@@ -2341,12 +2344,7 @@ public:
         String* value;
         if (token) {
             if (!msg) {
-                msg = (token->type == Token::EOFToken) ? Messages::UnexpectedEOS :
-                    (token->type == Token::IdentifierToken) ? Messages::UnexpectedIdentifier :
-                        (token->type == Token::NumericLiteralToken) ? Messages::UnexpectedNumber :
-                            (token->type == Token::StringLiteralToken) ? Messages::UnexpectedString :
-                                (token->type == Token::TemplateToken) ? Messages::UnexpectedTemplate :
-                                    Messages::UnexpectedToken;
+                msg = (token->type == Token::EOFToken) ? Messages::UnexpectedEOS : (token->type == Token::IdentifierToken) ? Messages::UnexpectedIdentifier : (token->type == Token::NumericLiteralToken) ? Messages::UnexpectedNumber : (token->type == Token::StringLiteralToken) ? Messages::UnexpectedString : (token->type == Token::TemplateToken) ? Messages::UnexpectedTemplate : Messages::UnexpectedToken;
 
                 if (token->type == Token::KeywordToken) {
                     if (this->scanner->isFutureReservedWord(token->valueString)) {
@@ -2533,7 +2531,7 @@ public:
         if (type == CallExpression) {
             CallExpressionNode* c = (CallExpressionNode*)node;
             if (c->callee()->isIdentifier()) {
-                if (((IdentifierNode*)c->callee())->name().string()->equals("eval")){
+                if (((IdentifierNode*)c->callee())->name().string()->equals("eval")) {
                     scopeContexts.back()->m_hasEval = true;
                 }
             }
@@ -2546,7 +2544,7 @@ public:
         node->m_loc = NodeLOC(meta.line, meta.column, meta.index);
         if (this->delegate) {
             this->delegate(node, NodeLOC(meta.line, meta.column, meta.index),
-                NodeLOC(this->lastMarker.lineNumber, this->lastMarker.index - this->lastMarker.lineStart, this->lastMarker.index));
+                           NodeLOC(this->lastMarker.lineNumber, this->lastMarker.index - this->lastMarker.lineStart, this->lastMarker.index));
         }
 
         return node;
@@ -2734,13 +2732,14 @@ public:
         return ret;
     }
 
-#define DEFINE_AS_NODE(TypeName) \
+#define DEFINE_AS_NODE(TypeName)                \
     TypeName##Node* as##TypeName##Node(Node* n) \
-    { \
-        if (!n) return (TypeName##Node*)n; \
-        ASSERT(n->is##TypeName##Node()); \
-        return (TypeName##Node*)n; \
-    } \
+    {                                           \
+        if (!n)                                 \
+            return (TypeName##Node*)n;          \
+        ASSERT(n->is##TypeName##Node());        \
+        return (TypeName##Node*)n;              \
+    }
 
     DEFINE_AS_NODE(Expression);
     DEFINE_AS_NODE(Statement);
@@ -2756,109 +2755,108 @@ public:
         ScannerResult* token;
 
         switch (this->lookahead->type) {
-            case Token::IdentifierToken:
-                if (this->sourceType == SourceType::Module && this->lookahead->valueKeywordKind == KeywordKind::Await) {
-                    this->tolerateUnexpectedToken(this->lookahead);
-                }
-                expr = this->finalize(node, finishIdentifier(this->nextToken(), true));
-                break;
-
-            case Token::NumericLiteralToken:
-            case Token::StringLiteralToken:
-                if (this->context->strict && this->lookahead->octal) {
-                    this->tolerateUnexpectedToken(this->lookahead, Messages::StrictOctalLiteral);
-                }
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-                token = this->nextToken();
-                // raw = this->getTokenRaw(token);
-                if (token->type == Token::NumericLiteralToken)
-                    expr = this->finalize(node, new LiteralNode(Value(token->valueNumber)));
-                else
-                    expr = this->finalize(node, new LiteralNode(Value(new StringView(token->valueString))));
-                break;
-
-            case Token::BooleanLiteralToken:
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-                token = this->nextToken();
-                // token.value = (token.value === 'true');
-                // raw = this->getTokenRaw(token);
-                {
-                    bool value = token->valueString == "true";
-                    expr = this->finalize(node, new LiteralNode(Value(value)));
-                }
-                break;
-
-            case Token::NullLiteralToken:
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-                token = this->nextToken();
-                // token.value = null;
-                // raw = this->getTokenRaw(token);
-                expr = this->finalize(node, new LiteralNode(Value(Value::Null)));
-                break;
-
-            case Token::TemplateToken:
-                expr = this->parseTemplateLiteral();
-                break;
-
-            case Token::PunctuatorToken:
-            {
-                PunctuatorsKind value = this->lookahead->valuePunctuatorsKind;
-                switch (value) {
-                    case LeftParenthesis:
-                        this->context->isBindingElement = false;
-                        expr = this->inheritCoverGrammar(&Parser::parseGroupExpression);
-                        break;
-                    case LeftSquareBracket:
-                        expr = this->inheritCoverGrammar(&Parser::parseArrayInitializer);
-                        break;
-                    case LeftBrace:
-                        expr = this->inheritCoverGrammar(&Parser::parseObjectInitializer);
-                        break;
-                    case Divide:
-                    case DivideEqual:
-                        this->context->isAssignmentTarget = false;
-                        this->context->isBindingElement = false;
-                        this->scanner->index = this->startMarker.index;
-                        token = this->nextRegexToken();
-                        // raw = this->getTokenRaw(token);
-                        // TODO
-                        RELEASE_ASSERT_NOT_REACHED();
-                        // expr = this->finalize(node, new Node.RegexLiteral(token.value, raw, token.regex));
-                        break;
-                    default:
-                        this->throwUnexpectedToken(this->nextToken());
-                }
-                break;
+        case Token::IdentifierToken:
+            if (this->sourceType == SourceType::Module && this->lookahead->valueKeywordKind == KeywordKind::Await) {
+                this->tolerateUnexpectedToken(this->lookahead);
             }
+            expr = this->finalize(node, finishIdentifier(this->nextToken(), true));
+            break;
 
-            case Token::KeywordToken:
-                if (!this->context->strict && this->context->allowYield && this->matchKeyword(KeywordKind::Yield)) {
-                    expr = this->parseIdentifierName();
-                } else if (!this->context->strict && this->matchKeyword(KeywordKind::Let)) {
-                    expr = this->finalize(node, finishIdentifier(this->nextToken(), true));
-                } else {
-                    this->context->isAssignmentTarget = false;
-                    this->context->isBindingElement = false;
-                    if (this->matchKeyword(KeywordKind::Function)) {
-                        expr = this->parseFunctionExpression();
-                    } else if (this->matchKeyword(KeywordKind::This)) {
-                        this->nextToken();
-                        expr = this->finalize(node, new ThisExpressionNode());
-                    } else if (this->matchKeyword(KeywordKind::Class)) {
-                        // TODO
-                        RELEASE_ASSERT_NOT_REACHED();
-                        // expr = this->parseClassExpression();
-                    } else {
-                        this->throwUnexpectedToken(this->nextToken());
-                    }
-                }
+        case Token::NumericLiteralToken:
+        case Token::StringLiteralToken:
+            if (this->context->strict && this->lookahead->octal) {
+                this->tolerateUnexpectedToken(this->lookahead, Messages::StrictOctalLiteral);
+            }
+            this->context->isAssignmentTarget = false;
+            this->context->isBindingElement = false;
+            token = this->nextToken();
+            // raw = this->getTokenRaw(token);
+            if (token->type == Token::NumericLiteralToken)
+                expr = this->finalize(node, new LiteralNode(Value(token->valueNumber)));
+            else
+                expr = this->finalize(node, new LiteralNode(Value(new StringView(token->valueString))));
+            break;
+
+        case Token::BooleanLiteralToken:
+            this->context->isAssignmentTarget = false;
+            this->context->isBindingElement = false;
+            token = this->nextToken();
+            // token.value = (token.value === 'true');
+            // raw = this->getTokenRaw(token);
+            {
+                bool value = token->valueString == "true";
+                expr = this->finalize(node, new LiteralNode(Value(value)));
+            }
+            break;
+
+        case Token::NullLiteralToken:
+            this->context->isAssignmentTarget = false;
+            this->context->isBindingElement = false;
+            token = this->nextToken();
+            // token.value = null;
+            // raw = this->getTokenRaw(token);
+            expr = this->finalize(node, new LiteralNode(Value(Value::Null)));
+            break;
+
+        case Token::TemplateToken:
+            expr = this->parseTemplateLiteral();
+            break;
+
+        case Token::PunctuatorToken: {
+            PunctuatorsKind value = this->lookahead->valuePunctuatorsKind;
+            switch (value) {
+            case LeftParenthesis:
+                this->context->isBindingElement = false;
+                expr = this->inheritCoverGrammar(&Parser::parseGroupExpression);
                 break;
-
+            case LeftSquareBracket:
+                expr = this->inheritCoverGrammar(&Parser::parseArrayInitializer);
+                break;
+            case LeftBrace:
+                expr = this->inheritCoverGrammar(&Parser::parseObjectInitializer);
+                break;
+            case Divide:
+            case DivideEqual:
+                this->context->isAssignmentTarget = false;
+                this->context->isBindingElement = false;
+                this->scanner->index = this->startMarker.index;
+                token = this->nextRegexToken();
+                // raw = this->getTokenRaw(token);
+                // TODO
+                RELEASE_ASSERT_NOT_REACHED();
+                // expr = this->finalize(node, new Node.RegexLiteral(token.value, raw, token.regex));
+                break;
             default:
                 this->throwUnexpectedToken(this->nextToken());
+            }
+            break;
+        }
+
+        case Token::KeywordToken:
+            if (!this->context->strict && this->context->allowYield && this->matchKeyword(KeywordKind::Yield)) {
+                expr = this->parseIdentifierName();
+            } else if (!this->context->strict && this->matchKeyword(KeywordKind::Let)) {
+                expr = this->finalize(node, finishIdentifier(this->nextToken(), true));
+            } else {
+                this->context->isAssignmentTarget = false;
+                this->context->isBindingElement = false;
+                if (this->matchKeyword(KeywordKind::Function)) {
+                    expr = this->parseFunctionExpression();
+                } else if (this->matchKeyword(KeywordKind::This)) {
+                    this->nextToken();
+                    expr = this->finalize(node, new ThisExpressionNode());
+                } else if (this->matchKeyword(KeywordKind::Class)) {
+                    // TODO
+                    RELEASE_ASSERT_NOT_REACHED();
+                    // expr = this->parseClassExpression();
+                } else {
+                    this->throwUnexpectedToken(this->nextToken());
+                }
+            }
+            break;
+
+        default:
+            this->throwUnexpectedToken(this->nextToken());
         }
 
         return expr;
@@ -3067,28 +3065,28 @@ public:
 
     // ECMA-262 12.2.6 Object Initializer
 
-     Node* parsePropertyMethod(ParseFormalParametersResult& params)
-     {
-         this->context->isAssignmentTarget = false;
-         this->context->isBindingElement = false;
+    Node* parsePropertyMethod(ParseFormalParametersResult& params)
+    {
+        this->context->isAssignmentTarget = false;
+        this->context->isBindingElement = false;
 
-         pushScopeContext(params.params, AtomicString());
-         extractNamesFromFunctionParams(params.params);
-         const bool previousStrict = this->context->strict;
-         Node* body = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
-         if (this->context->strict && params.firstRestricted) {
-             this->tolerateUnexpectedToken(params.firstRestricted, params.message);
-         }
-         if (this->context->strict && params.stricted) {
-             this->tolerateUnexpectedToken(params.stricted, params.message);
-         }
-         this->context->strict = previousStrict;
+        pushScopeContext(params.params, AtomicString());
+        extractNamesFromFunctionParams(params.params);
+        const bool previousStrict = this->context->strict;
+        Node* body = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
+        if (this->context->strict && params.firstRestricted) {
+            this->tolerateUnexpectedToken(params.firstRestricted, params.message);
+        }
+        if (this->context->strict && params.stricted) {
+            this->tolerateUnexpectedToken(params.stricted, params.message);
+        }
+        this->context->strict = previousStrict;
 
-         return body;
-     }
+        return body;
+    }
 
-     FunctionExpressionNode* parsePropertyMethodFunction()
-     {
+    FunctionExpressionNode* parsePropertyMethodFunction()
+    {
         const bool isGenerator = false;
         MetaNode node = this->createNode();
 
@@ -3099,195 +3097,195 @@ public:
         this->context->allowYield = previousAllowYield;
 
         return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method, popScopeContext(node), isGenerator));
-     }
+    }
 
-     Node* parseObjectPropertyKey()
-     {
-         MetaNode node = this->createNode();
-         ScannerResult* token = this->nextToken();
+    Node* parseObjectPropertyKey()
+    {
+        MetaNode node = this->createNode();
+        ScannerResult* token = this->nextToken();
 
-         Node* key = nullptr;
-         switch (token->type) {
-             case Token::NumericLiteralToken:
-             case Token::StringLiteralToken:
-                 if (this->context->strict && token->octal) {
-                     this->tolerateUnexpectedToken(token, Messages::StrictOctalLiteral);
-                 }
-                 // const raw = this->getTokenRaw(token);
-                 {
-                     Value v;
-                     if (token->type == Token::NumericLiteralToken) {
-                         v = Value(token->valueNumber);
-                     } else {
-                         v = Value(new StringView(token->valueString));
-                     }
-                     key = this->finalize(node, new LiteralNode(v));
-                 }
-                 break;
+        Node* key = nullptr;
+        switch (token->type) {
+        case Token::NumericLiteralToken:
+        case Token::StringLiteralToken:
+            if (this->context->strict && token->octal) {
+                this->tolerateUnexpectedToken(token, Messages::StrictOctalLiteral);
+            }
+            // const raw = this->getTokenRaw(token);
+            {
+                Value v;
+                if (token->type == Token::NumericLiteralToken) {
+                    v = Value(token->valueNumber);
+                } else {
+                    v = Value(new StringView(token->valueString));
+                }
+                key = this->finalize(node, new LiteralNode(v));
+            }
+            break;
 
-             case Token::IdentifierToken:
-             case Token::BooleanLiteralToken:
-             case Token::NullLiteralToken:
-             case Token::KeywordToken:
-                 key = this->finalize(node, finishIdentifier(token, false));
-                 break;
+        case Token::IdentifierToken:
+        case Token::BooleanLiteralToken:
+        case Token::NullLiteralToken:
+        case Token::KeywordToken:
+            key = this->finalize(node, finishIdentifier(token, false));
+            break;
 
-             case Token::PunctuatorToken:
-                 if (token->valuePunctuatorsKind == LeftSquareBracket) {
-                     key = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
-                     this->expect(RightSquareBracket);
-                 } else {
-                     this->throwUnexpectedToken(token);
-                 }
-                 break;
+        case Token::PunctuatorToken:
+            if (token->valuePunctuatorsKind == LeftSquareBracket) {
+                key = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+                this->expect(RightSquareBracket);
+            } else {
+                this->throwUnexpectedToken(token);
+            }
+            break;
 
-             default:
-                 this->throwUnexpectedToken(token);
-         }
+        default:
+            this->throwUnexpectedToken(token);
+        }
 
-         return key;
-     }
+        return key;
+    }
 
-     bool qualifiedPropertyName(ScannerResult* token)
-     {
-         switch (token->type) {
-             case Token::IdentifierToken:
-             case Token::StringLiteralToken:
-             case Token::BooleanLiteralToken:
-             case Token::NullLiteralToken:
-             case Token::NumericLiteralToken:
-             case Token::KeywordToken:
-                 return true;
-             case Token::PunctuatorToken:
-                 return token->valuePunctuatorsKind == LeftSquareBracket;
-             default:
-                 return false;
-         }
-     }
+    bool qualifiedPropertyName(ScannerResult* token)
+    {
+        switch (token->type) {
+        case Token::IdentifierToken:
+        case Token::StringLiteralToken:
+        case Token::BooleanLiteralToken:
+        case Token::NullLiteralToken:
+        case Token::NumericLiteralToken:
+        case Token::KeywordToken:
+            return true;
+        case Token::PunctuatorToken:
+            return token->valuePunctuatorsKind == LeftSquareBracket;
+        default:
+            return false;
+        }
+    }
 
 
-     bool isPropertyKey(Node* key, const char* value)
-     {
-         if (key->type() == Identifier) {
-             return ((IdentifierNode*)key)->name() == value;
-         } else if (key->type() == Literal) {
-             if (((LiteralNode*)key)->value().isString()) {
-                 return ((LiteralNode*)key)->value().asString()->equals(value);
-             }
-         }
+    bool isPropertyKey(Node* key, const char* value)
+    {
+        if (key->type() == Identifier) {
+            return ((IdentifierNode*)key)->name() == value;
+        } else if (key->type() == Literal) {
+            if (((LiteralNode*)key)->value().isString()) {
+                return ((LiteralNode*)key)->value().asString()->equals(value);
+            }
+        }
 
-         return false;
-     }
+        return false;
+    }
 
-     PropertyNode* parseObjectProperty(bool& hasProto)//: Node.Property
-     {
-         MetaNode node = this->createNode();
-         ScannerResult* token = this->lookahead;
+    PropertyNode* parseObjectProperty(bool& hasProto) //: Node.Property
+    {
+        MetaNode node = this->createNode();
+        ScannerResult* token = this->lookahead;
 
-         PropertyNode::Kind kind;
-         Node* key; //'': Node.PropertyKey;
-         Node* value; //: Node.PropertyValue;
+        PropertyNode::Kind kind;
+        Node* key; //'': Node.PropertyKey;
+        Node* value; //: Node.PropertyValue;
 
-         bool computed = false;
-         bool method = false;
-         bool shorthand = false;
+        bool computed = false;
+        bool method = false;
+        bool shorthand = false;
 
-         if (token->type == Token::IdentifierToken) {
-             this->nextToken();
-             key = this->finalize(node, finishIdentifier(token, true));
-         } else if (this->match(PunctuatorsKind::Multiply)) {
-             this->nextToken();
-         } else {
-             computed = this->match(LeftSquareBracket);
-             key = this->parseObjectPropertyKey();
-         }
+        if (token->type == Token::IdentifierToken) {
+            this->nextToken();
+            key = this->finalize(node, finishIdentifier(token, true));
+        } else if (this->match(PunctuatorsKind::Multiply)) {
+            this->nextToken();
+        } else {
+            computed = this->match(LeftSquareBracket);
+            key = this->parseObjectPropertyKey();
+        }
 
-         bool lookaheadPropertyKey = this->qualifiedPropertyName(this->lookahead);
-         if (token->type == Token::IdentifierToken && token->valueString == "get" && lookaheadPropertyKey) {
-             kind = PropertyNode::Kind::Get;
-             computed = this->match(LeftSquareBracket);
-             key = this->parseObjectPropertyKey();
-             this->context->allowYield = false;
-             value = this->parseGetterMethod();
+        bool lookaheadPropertyKey = this->qualifiedPropertyName(this->lookahead);
+        if (token->type == Token::IdentifierToken && token->valueString == "get" && lookaheadPropertyKey) {
+            kind = PropertyNode::Kind::Get;
+            computed = this->match(LeftSquareBracket);
+            key = this->parseObjectPropertyKey();
+            this->context->allowYield = false;
+            value = this->parseGetterMethod();
 
-         } else if (token->type == Token::IdentifierToken && token->valueString == "set" && lookaheadPropertyKey) {
-             kind = PropertyNode::Kind::Set;
-             computed = this->match(LeftSquareBracket);
-             key = this->parseObjectPropertyKey();
-             value = this->parseSetterMethod();
+        } else if (token->type == Token::IdentifierToken && token->valueString == "set" && lookaheadPropertyKey) {
+            kind = PropertyNode::Kind::Set;
+            computed = this->match(LeftSquareBracket);
+            key = this->parseObjectPropertyKey();
+            value = this->parseSetterMethod();
 
-         } else if (token->type == Token::PunctuatorToken && token->valueString == "*" && lookaheadPropertyKey) {
-             kind = PropertyNode::Kind::Init;
-             computed = this->match(LeftSquareBracket);
-             key = this->parseObjectPropertyKey();
-             value = this->parseGeneratorMethod();
-             method = true;
+        } else if (token->type == Token::PunctuatorToken && token->valueString == "*" && lookaheadPropertyKey) {
+            kind = PropertyNode::Kind::Init;
+            computed = this->match(LeftSquareBracket);
+            key = this->parseObjectPropertyKey();
+            value = this->parseGeneratorMethod();
+            method = true;
 
-         } else {
-             if (!key) {
-                 this->throwUnexpectedToken(this->lookahead);
-             }
+        } else {
+            if (!key) {
+                this->throwUnexpectedToken(this->lookahead);
+            }
 
-             kind = PropertyNode::Kind::Init;
-             if (this->match(PunctuatorsKind::Colon)) {
-                 if (!computed && this->isPropertyKey(key, "__proto__")) {
-                     if (hasProto) {
-                         this->tolerateError(Messages::DuplicateProtoProperty);
-                     }
-                     hasProto = true;
-                 }
-                 this->nextToken();
-                 value = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
+            kind = PropertyNode::Kind::Init;
+            if (this->match(PunctuatorsKind::Colon)) {
+                if (!computed && this->isPropertyKey(key, "__proto__")) {
+                    if (hasProto) {
+                        this->tolerateError(Messages::DuplicateProtoProperty);
+                    }
+                    hasProto = true;
+                }
+                this->nextToken();
+                value = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
 
-             } else if (this->match(LeftParenthesis)) {
-                 value = this->parsePropertyMethodFunction();
-                 method = true;
+            } else if (this->match(LeftParenthesis)) {
+                value = this->parsePropertyMethodFunction();
+                method = true;
 
-             } else if (token->type == Token::IdentifierToken) {
-                 Node* id = this->finalize(node, finishIdentifier(token, true));
-                 if (this->match(Substitution)) {
-                     this->context->firstCoverInitializedNameError = this->lookahead;
-                     this->nextToken();
-                     shorthand = true;
-                     Node* init = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
-                     value = this->finalize(node, new AssignmentExpressionSimpleNode(id, init));
-                 } else {
-                     shorthand = true;
-                     value = id;
-                 }
-             } else {
-                 this->throwUnexpectedToken(this->nextToken());
-             }
-         }
+            } else if (token->type == Token::IdentifierToken) {
+                Node* id = this->finalize(node, finishIdentifier(token, true));
+                if (this->match(Substitution)) {
+                    this->context->firstCoverInitializedNameError = this->lookahead;
+                    this->nextToken();
+                    shorthand = true;
+                    Node* init = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+                    value = this->finalize(node, new AssignmentExpressionSimpleNode(id, init));
+                } else {
+                    shorthand = true;
+                    value = id;
+                }
+            } else {
+                this->throwUnexpectedToken(this->nextToken());
+            }
+        }
 
-         // return this->finalize(node, new PropertyNode(kind, key, computed, value, method, shorthand));
-         return this->finalize(node, new PropertyNode(key, value, kind));
-     }
+        // return this->finalize(node, new PropertyNode(kind, key, computed, value, method, shorthand));
+        return this->finalize(node, new PropertyNode(key, value, kind));
+    }
 
-     Node* parseObjectInitializer()
-     {
-         MetaNode node = this->createNode();
+    Node* parseObjectInitializer()
+    {
+        MetaNode node = this->createNode();
 
-         this->expect(LeftBrace);
-         PropertiesNodeVector properties;
-         bool hasProto = false;
-         while (!this->match(RightBrace)) {
-             properties.push_back(this->parseObjectProperty(hasProto));
-             if (!this->match(RightBrace)) {
-                 this->expectCommaSeparator();
-             }
-         }
-         this->expect(RightBrace);
+        this->expect(LeftBrace);
+        PropertiesNodeVector properties;
+        bool hasProto = false;
+        while (!this->match(RightBrace)) {
+            properties.push_back(this->parseObjectProperty(hasProto));
+            if (!this->match(RightBrace)) {
+                this->expectCommaSeparator();
+            }
+        }
+        this->expect(RightBrace);
 
-         return this->finalize(node, new ObjectExpressionNode(std::move(properties)));
-     }
+        return this->finalize(node, new ObjectExpressionNode(std::move(properties)));
+    }
 
-     // ECMA-262 12.2.9 Template Literals
-     Node* parseTemplateLiteral()
-     {
-         RELEASE_ASSERT_NOT_REACHED();
-     }
-/*
+    // ECMA-262 12.2.9 Template Literals
+    Node* parseTemplateLiteral()
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    /*
      parseTemplateHead(): Node.TemplateElement {
          assert(this->lookahead.head, 'Template literal must start with a template head');
 
@@ -3481,343 +3479,338 @@ public:
         return expr;
     }
 */
-     Node* parseGroupExpression()
-     {
-         Node* expr;
+    Node* parseGroupExpression()
+    {
+        Node* expr;
 
-         this->expect(LeftParenthesis);
-         if (this->match(RightParenthesis)) {
-             RELEASE_ASSERT_NOT_REACHED();
-         } else {
-             ScannerResult* startToken = this->lookahead;
-             this->context->isBindingElement = true;
-             expr = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
+        this->expect(LeftParenthesis);
+        if (this->match(RightParenthesis)) {
+            RELEASE_ASSERT_NOT_REACHED();
+        } else {
+            ScannerResult* startToken = this->lookahead;
+            this->context->isBindingElement = true;
+            expr = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
 
-             if (this->match(Comma)) {
-                 ExpressionNodeVector expressions;
+            if (this->match(Comma)) {
+                ExpressionNodeVector expressions;
 
-                 this->context->isAssignmentTarget = false;
-                 expressions.push_back(expr);
-                 while (this->startMarker.index < this->scanner->length) {
-                     if (!this->match(Comma)) {
-                         break;
-                     }
-                     this->nextToken();
+                this->context->isAssignmentTarget = false;
+                expressions.push_back(expr);
+                while (this->startMarker.index < this->scanner->length) {
+                    if (!this->match(Comma)) {
+                        break;
+                    }
+                    this->nextToken();
 
-                     expressions.push_back(this->inheritCoverGrammar(&Parser::parseAssignmentExpression));
-                 }
-                 expr = this->finalize(this->startNode(startToken), new SequenceExpressionNode(std::move(expressions)));
-             }
-         }
-         this->expect(RightParenthesis);
+                    expressions.push_back(this->inheritCoverGrammar(&Parser::parseAssignmentExpression));
+                }
+                expr = this->finalize(this->startNode(startToken), new SequenceExpressionNode(std::move(expressions)));
+            }
+        }
+        this->expect(RightParenthesis);
 
-         return expr;
-     }
-     // ECMA-262 12.3 Left-Hand-Side Expressions
+        return expr;
+    }
+    // ECMA-262 12.3 Left-Hand-Side Expressions
 
-     ArgumentVector parseArguments()
-     {
-         this->expect(LeftParenthesis);
-         ArgumentVector args;
-         if (!this->match(RightParenthesis)) {
-             while (true) {
-                 Node* expr = this->match(PeriodPeriodPeriod) ? this->parseSpreadElement() :
-                     this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
-                 args.push_back(expr);
-                 if (this->match(RightParenthesis)) {
-                     break;
-                 }
-                 this->expectCommaSeparator();
-             }
-         }
-         this->expect(RightParenthesis);
+    ArgumentVector parseArguments()
+    {
+        this->expect(LeftParenthesis);
+        ArgumentVector args;
+        if (!this->match(RightParenthesis)) {
+            while (true) {
+                Node* expr = this->match(PeriodPeriodPeriod) ? this->parseSpreadElement() : this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+                args.push_back(expr);
+                if (this->match(RightParenthesis)) {
+                    break;
+                }
+                this->expectCommaSeparator();
+            }
+        }
+        this->expect(RightParenthesis);
 
-         return args;
-     }
+        return args;
+    }
 
-     bool isIdentifierName(ScannerResult* token)
-     {
-         return token->type == Token::IdentifierToken ||
-             token->type == Token::KeywordToken ||
-             token->type == Token::BooleanLiteralToken ||
-             token->type == Token::NullLiteralToken;
-     }
+    bool isIdentifierName(ScannerResult* token)
+    {
+        return token->type == Token::IdentifierToken || token->type == Token::KeywordToken || token->type == Token::BooleanLiteralToken || token->type == Token::NullLiteralToken;
+    }
 
-     IdentifierNode* parseIdentifierName()
-     {
-         MetaNode node = this->createNode();
-         ScannerResult* token = this->nextToken();
-         if (!this->isIdentifierName(token)) {
-             this->throwUnexpectedToken(token);
-         }
-         return this->finalize(node, finishIdentifier(token, true));
-     }
+    IdentifierNode* parseIdentifierName()
+    {
+        MetaNode node = this->createNode();
+        ScannerResult* token = this->nextToken();
+        if (!this->isIdentifierName(token)) {
+            this->throwUnexpectedToken(token);
+        }
+        return this->finalize(node, finishIdentifier(token, true));
+    }
 
-     Node* parseNewExpression()
-     {
-         MetaNode node = this->createNode();
+    Node* parseNewExpression()
+    {
+        MetaNode node = this->createNode();
 
-         IdentifierNode* id = this->parseIdentifierName();
-         // assert(id.name === 'new', 'New expression must start with `new`');
+        IdentifierNode* id = this->parseIdentifierName();
+        // assert(id.name === 'new', 'New expression must start with `new`');
 
-         Node* expr;
-         if (this->match(Period)) {
-             this->nextToken();
-             if (this->lookahead->type == Token::IdentifierToken && this->context->inFunctionBody && this->lookahead->valueString == "target") {
-                 // TODO
-                 IdentifierNode* property = this->parseIdentifierName();
-                 RELEASE_ASSERT_NOT_REACHED();
-                 // expr = new Node.MetaProperty(id, property);
-             } else {
-                 this->throwUnexpectedToken(this->lookahead);
-             }
-         } else {
-             Node* callee = this->isolateCoverGrammar(&Parser::parseLeftHandSideExpression);
-             ArgumentVector args;
-             if (this->match(LeftParenthesis))
-                 args = this->parseArguments();
-             expr = new NewExpressionNode(callee, std::move(args));
-             this->context->isAssignmentTarget = false;
-             this->context->isBindingElement = false;
-         }
+        Node* expr;
+        if (this->match(Period)) {
+            this->nextToken();
+            if (this->lookahead->type == Token::IdentifierToken && this->context->inFunctionBody && this->lookahead->valueString == "target") {
+                // TODO
+                IdentifierNode* property = this->parseIdentifierName();
+                RELEASE_ASSERT_NOT_REACHED();
+                // expr = new Node.MetaProperty(id, property);
+            } else {
+                this->throwUnexpectedToken(this->lookahead);
+            }
+        } else {
+            Node* callee = this->isolateCoverGrammar(&Parser::parseLeftHandSideExpression);
+            ArgumentVector args;
+            if (this->match(LeftParenthesis))
+                args = this->parseArguments();
+            expr = new NewExpressionNode(callee, std::move(args));
+            this->context->isAssignmentTarget = false;
+            this->context->isBindingElement = false;
+        }
 
-         return this->finalize(node, expr);
-     }
+        return this->finalize(node, expr);
+    }
 
-     Node* parseLeftHandSideExpressionAllowCall()
-     {
-         ScannerResult* startToken = this->lookahead;
-         bool previousAllowIn = this->context->allowIn;
-         this->context->allowIn = true;
+    Node* parseLeftHandSideExpressionAllowCall()
+    {
+        ScannerResult* startToken = this->lookahead;
+        bool previousAllowIn = this->context->allowIn;
+        this->context->allowIn = true;
 
-         Node* expr;
-         if (this->matchKeyword(Super) && this->context->inFunctionBody) {
-             MetaNode node = this->createNode();
-             this->nextToken();
-             // TODO
-             RELEASE_ASSERT_NOT_REACHED();
-             // expr = this->finalize(node, new Node.Super());
-             if (!this->match(LeftParenthesis) && !this->match(Period) && !this->match(LeftSquareBracket)) {
-                 this->throwUnexpectedToken(this->lookahead);
-             }
-         } else {
-             expr = this->inheritCoverGrammar(this->matchKeyword(New) ? &Parser::parseNewExpression : &Parser::parsePrimaryExpression);
-         }
+        Node* expr;
+        if (this->matchKeyword(Super) && this->context->inFunctionBody) {
+            MetaNode node = this->createNode();
+            this->nextToken();
+            // TODO
+            RELEASE_ASSERT_NOT_REACHED();
+            // expr = this->finalize(node, new Node.Super());
+            if (!this->match(LeftParenthesis) && !this->match(Period) && !this->match(LeftSquareBracket)) {
+                this->throwUnexpectedToken(this->lookahead);
+            }
+        } else {
+            expr = this->inheritCoverGrammar(this->matchKeyword(New) ? &Parser::parseNewExpression : &Parser::parsePrimaryExpression);
+        }
 
-         while (true) {
-             if (this->match(Period)) {
-                 this->context->isBindingElement = false;
-                 this->context->isAssignmentTarget = true;
-                 this->expect(Period);
-                 IdentifierNode* property = this->parseIdentifierName();
-                 expr = this->finalize(this->startNode(startToken), new MemberExpressionNode(expr, property, true));
+        while (true) {
+            if (this->match(Period)) {
+                this->context->isBindingElement = false;
+                this->context->isAssignmentTarget = true;
+                this->expect(Period);
+                IdentifierNode* property = this->parseIdentifierName();
+                expr = this->finalize(this->startNode(startToken), new MemberExpressionNode(expr, property, true));
 
-             } else if (this->match(LeftParenthesis)) {
-                 this->context->isBindingElement = false;
-                 this->context->isAssignmentTarget = false;
-                 ArgumentVector args = this->parseArguments();
-                 expr = this->finalize(this->startNode(startToken), new CallExpressionNode(expr, std::move(args)));
+            } else if (this->match(LeftParenthesis)) {
+                this->context->isBindingElement = false;
+                this->context->isAssignmentTarget = false;
+                ArgumentVector args = this->parseArguments();
+                expr = this->finalize(this->startNode(startToken), new CallExpressionNode(expr, std::move(args)));
 
-             } else if (this->match(LeftSquareBracket)) {
-                 this->context->isBindingElement = false;
-                 this->context->isAssignmentTarget = true;
-                 this->expect(LeftSquareBracket);
-                 Node* property = this->isolateCoverGrammar(&Parser::parseExpression);
-                 this->expect(RightSquareBracket);
-                 expr = this->finalize(this->startNode(startToken), new MemberExpressionNode(expr, property, false));
+            } else if (this->match(LeftSquareBracket)) {
+                this->context->isBindingElement = false;
+                this->context->isAssignmentTarget = true;
+                this->expect(LeftSquareBracket);
+                Node* property = this->isolateCoverGrammar(&Parser::parseExpression);
+                this->expect(RightSquareBracket);
+                expr = this->finalize(this->startNode(startToken), new MemberExpressionNode(expr, property, false));
 
-             } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->head) {
-                 Node* quasi = this->parseTemplateLiteral();
-                 // expr = this->finalize(this->startNode(startToken), new Node.TaggedTemplateExpression(expr, quasi));
-                 RELEASE_ASSERT_NOT_REACHED();
-             } else {
-                 break;
-             }
-         }
-         this->context->allowIn = previousAllowIn;
+            } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->head) {
+                Node* quasi = this->parseTemplateLiteral();
+                // expr = this->finalize(this->startNode(startToken), new Node.TaggedTemplateExpression(expr, quasi));
+                RELEASE_ASSERT_NOT_REACHED();
+            } else {
+                break;
+            }
+        }
+        this->context->allowIn = previousAllowIn;
 
-         return expr;
-     }
+        return expr;
+    }
 
-     Node* parseSuper()
-     {
-         MetaNode node = this->createNode();
+    Node* parseSuper()
+    {
+        MetaNode node = this->createNode();
 
-         this->expectKeyword(Super);
-         if (!this->match(LeftSquareBracket) && !this->match(Period)) {
-             this->throwUnexpectedToken(this->lookahead);
-         }
+        this->expectKeyword(Super);
+        if (!this->match(LeftSquareBracket) && !this->match(Period)) {
+            this->throwUnexpectedToken(this->lookahead);
+        }
 
-         // TODO
-         RELEASE_ASSERT_NOT_REACHED();
-         // return this->finalize(node, new Node.Super());
-         return nullptr;
-     }
+        // TODO
+        RELEASE_ASSERT_NOT_REACHED();
+        // return this->finalize(node, new Node.Super());
+        return nullptr;
+    }
 
-     Node* parseLeftHandSideExpression()
-     {
-         // assert(this->context->allowIn, 'callee of new expression always allow in keyword.');
-         ASSERT(this->context->allowIn);
+    Node* parseLeftHandSideExpression()
+    {
+        // assert(this->context->allowIn, 'callee of new expression always allow in keyword.');
+        ASSERT(this->context->allowIn);
 
-         MetaNode node = this->startNode(this->lookahead);
-         Node* expr = (this->matchKeyword(Super) && this->context->inFunctionBody) ? this->parseSuper() :
-             this->inheritCoverGrammar(this->matchKeyword(New) ? &Parser::parseNewExpression : &Parser::parsePrimaryExpression);
+        MetaNode node = this->startNode(this->lookahead);
+        Node* expr = (this->matchKeyword(Super) && this->context->inFunctionBody) ? this->parseSuper() : this->inheritCoverGrammar(this->matchKeyword(New) ? &Parser::parseNewExpression : &Parser::parsePrimaryExpression);
 
-         while (true) {
-             if (this->match(LeftSquareBracket)) {
-                 this->context->isBindingElement = false;
-                 this->context->isAssignmentTarget = true;
-                 this->expect(LeftSquareBracket);
-                 Node* property = this->isolateCoverGrammar(&Parser::parseExpression);
-                 this->expect(RightSquareBracket);
-                 expr = this->finalize(node, new MemberExpressionNode(expr, property, false));
+        while (true) {
+            if (this->match(LeftSquareBracket)) {
+                this->context->isBindingElement = false;
+                this->context->isAssignmentTarget = true;
+                this->expect(LeftSquareBracket);
+                Node* property = this->isolateCoverGrammar(&Parser::parseExpression);
+                this->expect(RightSquareBracket);
+                expr = this->finalize(node, new MemberExpressionNode(expr, property, false));
 
-             } else if (this->match(Period)) {
-                 this->context->isBindingElement = false;
-                 this->context->isAssignmentTarget = true;
-                 this->expect(Period);
-                 IdentifierNode* property = this->parseIdentifierName();
-                 expr = this->finalize(node, new MemberExpressionNode(expr, property, true));
+            } else if (this->match(Period)) {
+                this->context->isBindingElement = false;
+                this->context->isAssignmentTarget = true;
+                this->expect(Period);
+                IdentifierNode* property = this->parseIdentifierName();
+                expr = this->finalize(node, new MemberExpressionNode(expr, property, true));
 
-             } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->head) {
-                 Node* quasi = this->parseTemplateLiteral();
-                 // TODO
-                 // expr = this->finalize(node, new Node.TaggedTemplateExpression(expr, quasi));
-                 RELEASE_ASSERT_NOT_REACHED();
-             } else {
-                 break;
-             }
-         }
+            } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->head) {
+                Node* quasi = this->parseTemplateLiteral();
+                // TODO
+                // expr = this->finalize(node, new Node.TaggedTemplateExpression(expr, quasi));
+                RELEASE_ASSERT_NOT_REACHED();
+            } else {
+                break;
+            }
+        }
 
-         return expr;
-     }
+        return expr;
+    }
 
-     // ECMA-262 12.4 Update Expressions
+    // ECMA-262 12.4 Update Expressions
 
-     Node* parseUpdateExpression()
-     {
-         Node* expr;
-         ScannerResult* startToken = this->lookahead;
+    Node* parseUpdateExpression()
+    {
+        Node* expr;
+        ScannerResult* startToken = this->lookahead;
 
-         if (this->match(PlusPlus) || this->match(MinusMinus)) {
-             bool isPlus = this->match(PlusPlus);
-             MetaNode node = this->startNode(startToken);
-             ScannerResult* token = this->nextToken();
-             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-             if (this->context->strict && expr->type() == Identifier && this->scanner->isRestrictedWord(((IdentifierNode*)expr)->name())) {
-                 this->tolerateError(Messages::StrictLHSPrefix);
-             }
-             if (!this->context->isAssignmentTarget) {
-                 this->tolerateError(Messages::InvalidLHSInAssignment);
-             }
-             bool prefix = true;
+        if (this->match(PlusPlus) || this->match(MinusMinus)) {
+            bool isPlus = this->match(PlusPlus);
+            MetaNode node = this->startNode(startToken);
+            ScannerResult* token = this->nextToken();
+            expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+            if (this->context->strict && expr->type() == Identifier && this->scanner->isRestrictedWord(((IdentifierNode*)expr)->name())) {
+                this->tolerateError(Messages::StrictLHSPrefix);
+            }
+            if (!this->context->isAssignmentTarget) {
+                this->tolerateError(Messages::InvalidLHSInAssignment);
+            }
+            bool prefix = true;
 
-             if (isPlus) {
-                 expr = this->finalize(node, new UpdateExpressionIncrementPrefixNode(expr));
-             } else {
-                 expr = this->finalize(node, new UpdateExpressionDecrementPrefixNode(expr));
-             }
-             this->context->isAssignmentTarget = false;
-             this->context->isBindingElement = false;
-         } else {
-             expr = this->inheritCoverGrammar(&Parser::parseLeftHandSideExpressionAllowCall);
-             if (!this->hasLineTerminator && this->lookahead->type == Token::PunctuatorToken) {
-                 if (this->match(PlusPlus) || this->match(MinusMinus)) {
-                     bool isPlus = this->match(PlusPlus);
-                     if (this->context->strict && expr->isIdentifier() && this->scanner->isRestrictedWord(((IdentifierNode*)expr)->name())) {
-                         this->tolerateError(Messages::StrictLHSPostfix);
-                     }
-                     if (!this->context->isAssignmentTarget) {
-                         this->tolerateError(Messages::InvalidLHSInAssignment);
-                     }
-                     this->context->isAssignmentTarget = false;
-                     this->context->isBindingElement = false;
-                     this->nextToken();
-                     if (isPlus) {
-                         expr = this->finalize(this->startNode(startToken), new UpdateExpressionIncrementPostfixNode(expr));
-                     } else {
-                         expr = this->finalize(this->startNode(startToken), new UpdateExpressionDecrementPostfixNode(expr));
-                     }
-                 }
-             }
-         }
+            if (isPlus) {
+                expr = this->finalize(node, new UpdateExpressionIncrementPrefixNode(expr));
+            } else {
+                expr = this->finalize(node, new UpdateExpressionDecrementPrefixNode(expr));
+            }
+            this->context->isAssignmentTarget = false;
+            this->context->isBindingElement = false;
+        } else {
+            expr = this->inheritCoverGrammar(&Parser::parseLeftHandSideExpressionAllowCall);
+            if (!this->hasLineTerminator && this->lookahead->type == Token::PunctuatorToken) {
+                if (this->match(PlusPlus) || this->match(MinusMinus)) {
+                    bool isPlus = this->match(PlusPlus);
+                    if (this->context->strict && expr->isIdentifier() && this->scanner->isRestrictedWord(((IdentifierNode*)expr)->name())) {
+                        this->tolerateError(Messages::StrictLHSPostfix);
+                    }
+                    if (!this->context->isAssignmentTarget) {
+                        this->tolerateError(Messages::InvalidLHSInAssignment);
+                    }
+                    this->context->isAssignmentTarget = false;
+                    this->context->isBindingElement = false;
+                    this->nextToken();
+                    if (isPlus) {
+                        expr = this->finalize(this->startNode(startToken), new UpdateExpressionIncrementPostfixNode(expr));
+                    } else {
+                        expr = this->finalize(this->startNode(startToken), new UpdateExpressionDecrementPostfixNode(expr));
+                    }
+                }
+            }
+        }
 
-         return expr;
-     }
+        return expr;
+    }
 
-     // ECMA-262 12.5 Unary Operators
+    // ECMA-262 12.5 Unary Operators
 
-     Node* parseUnaryExpression()
-     {
-         Node* expr;
+    Node* parseUnaryExpression()
+    {
+        Node* expr;
 
-         if (this->match(Plus)) {
-             MetaNode node = this->startNode(this->lookahead);
-             ScannerResult* token = this->nextToken();
-             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-             expr = this->finalize(node, new UnaryExpressionPlusNode(expr));
-             this->context->isAssignmentTarget = false;
-             this->context->isBindingElement = false;
-         } else if (this->match(Minus)) {
-             MetaNode node = this->startNode(this->lookahead);
-             ScannerResult* token = this->nextToken();
-             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-             expr = this->finalize(node, new UnaryExpressionMinusNode(expr));
-             this->context->isAssignmentTarget = false;
-             this->context->isBindingElement = false;
-         } else if (this->match(Wave)) {
-             MetaNode node = this->startNode(this->lookahead);
-             ScannerResult* token = this->nextToken();
-             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-             expr = this->finalize(node, new UnaryExpressionBitwiseNotNode(expr));
-             this->context->isAssignmentTarget = false;
-             this->context->isBindingElement = false;
-         } else if (this->match(ExclamationMark)) {
-             MetaNode node = this->startNode(this->lookahead);
-             ScannerResult* token = this->nextToken();
-             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-             expr = this->finalize(node, new UnaryExpressionLogicalNotNode(expr));
-             this->context->isAssignmentTarget = false;
-             this->context->isBindingElement = false;
-         } else if (this->matchKeyword(Delete)) {
-             MetaNode node = this->startNode(this->lookahead);
-             ScannerResult* token = this->nextToken();
-             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-             Node* exprOld = expr;
-             expr = this->finalize(node, new UnaryExpressionDeleteNode(expr));
-             this->context->isAssignmentTarget = false;
-             this->context->isBindingElement = false;
+        if (this->match(Plus)) {
+            MetaNode node = this->startNode(this->lookahead);
+            ScannerResult* token = this->nextToken();
+            expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+            expr = this->finalize(node, new UnaryExpressionPlusNode(expr));
+            this->context->isAssignmentTarget = false;
+            this->context->isBindingElement = false;
+        } else if (this->match(Minus)) {
+            MetaNode node = this->startNode(this->lookahead);
+            ScannerResult* token = this->nextToken();
+            expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+            expr = this->finalize(node, new UnaryExpressionMinusNode(expr));
+            this->context->isAssignmentTarget = false;
+            this->context->isBindingElement = false;
+        } else if (this->match(Wave)) {
+            MetaNode node = this->startNode(this->lookahead);
+            ScannerResult* token = this->nextToken();
+            expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+            expr = this->finalize(node, new UnaryExpressionBitwiseNotNode(expr));
+            this->context->isAssignmentTarget = false;
+            this->context->isBindingElement = false;
+        } else if (this->match(ExclamationMark)) {
+            MetaNode node = this->startNode(this->lookahead);
+            ScannerResult* token = this->nextToken();
+            expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+            expr = this->finalize(node, new UnaryExpressionLogicalNotNode(expr));
+            this->context->isAssignmentTarget = false;
+            this->context->isBindingElement = false;
+        } else if (this->matchKeyword(Delete)) {
+            MetaNode node = this->startNode(this->lookahead);
+            ScannerResult* token = this->nextToken();
+            expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+            Node* exprOld = expr;
+            expr = this->finalize(node, new UnaryExpressionDeleteNode(expr));
+            this->context->isAssignmentTarget = false;
+            this->context->isBindingElement = false;
 
-             if (exprOld->isIdentifier()) {
-                 this->tolerateError(Messages::StrictDelete);
-             }
-         } else if (this->matchKeyword(Void)) {
-             MetaNode node = this->startNode(this->lookahead);
-             ScannerResult* token = this->nextToken();
-             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-             expr = this->finalize(node, new UnaryExpressionVoidNode(expr));
-             this->context->isAssignmentTarget = false;
-             this->context->isBindingElement = false;
-         } else if (this->matchKeyword(Typeof)) {
-             MetaNode node = this->startNode(this->lookahead);
-             ScannerResult* token = this->nextToken();
-             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-             expr = this->finalize(node, new UnaryExpressionTypeOfNode(expr));
-             this->context->isAssignmentTarget = false;
-             this->context->isBindingElement = false;
-         } else {
-             expr = this->parseUpdateExpression();
-         }
+            if (exprOld->isIdentifier()) {
+                this->tolerateError(Messages::StrictDelete);
+            }
+        } else if (this->matchKeyword(Void)) {
+            MetaNode node = this->startNode(this->lookahead);
+            ScannerResult* token = this->nextToken();
+            expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+            expr = this->finalize(node, new UnaryExpressionVoidNode(expr));
+            this->context->isAssignmentTarget = false;
+            this->context->isBindingElement = false;
+        } else if (this->matchKeyword(Typeof)) {
+            MetaNode node = this->startNode(this->lookahead);
+            ScannerResult* token = this->nextToken();
+            expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+            expr = this->finalize(node, new UnaryExpressionTypeOfNode(expr));
+            this->context->isAssignmentTarget = false;
+            this->context->isBindingElement = false;
+        } else {
+            expr = this->parseUpdateExpression();
+        }
 
-         return expr;
-     }
+        return expr;
+    }
 
-     Node* parseExponentiationExpression()
-     {
-         ScannerResult* startToken = this->lookahead;
-         Node* expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-         // TODO
-         /*
+    Node* parseExponentiationExpression()
+    {
+        ScannerResult* startToken = this->lookahead;
+        Node* expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+        // TODO
+        /*
          if (expr->type != Syntax.UnaryExpression && this->match('**')) {
              this->nextToken();
              this->context->isAssignmentTarget = false;
@@ -3827,270 +3820,270 @@ public:
              expr = this->finalize(this->startNode(startToken), new Node.BinaryExpression('**', left, right));
          }*/
 
-         return expr;
-     }
+        return expr;
+    }
 
-     // ECMA-262 12.6 Exponentiation Operators
-     // ECMA-262 12.7 Multiplicative Operators
-     // ECMA-262 12.8 Additive Operators
-     // ECMA-262 12.9 Bitwise Shift Operators
-     // ECMA-262 12.10 Relational Operators
-     // ECMA-262 12.11 Equality Operators
-     // ECMA-262 12.12 Binary Bitwise Operators
-     // ECMA-262 12.13 Binary Logical Operators
+    // ECMA-262 12.6 Exponentiation Operators
+    // ECMA-262 12.7 Multiplicative Operators
+    // ECMA-262 12.8 Additive Operators
+    // ECMA-262 12.9 Bitwise Shift Operators
+    // ECMA-262 12.10 Relational Operators
+    // ECMA-262 12.11 Equality Operators
+    // ECMA-262 12.12 Binary Bitwise Operators
+    // ECMA-262 12.13 Binary Logical Operators
 
-     int binaryPrecedence(ScannerResult* token)
-     {
-         if (token->type == Token::PunctuatorToken) {
-             if (token->valuePunctuatorsKind == Substitution) {
-                 return 0;
-             } else if (token->valuePunctuatorsKind == LogicalOr) {
-                 return 1;
-             } else if (token->valuePunctuatorsKind == LogicalAnd) {
-                 return 2;
-             } else if (token->valuePunctuatorsKind == BitwiseOr) {
-                 return 3;
-             } else if (token->valuePunctuatorsKind == BitwiseXor) {
-                 return 4;
-             } else if (token->valuePunctuatorsKind == BitwiseAnd) {
-                 return 5;
-             } else if (token->valuePunctuatorsKind == Equal) {
-                 return 6;
-             } else if (token->valuePunctuatorsKind == NotEqual) {
-                 return 6;
-             } else if (token->valuePunctuatorsKind == StrictEqual) {
-                 return 6;
-             } else if (token->valuePunctuatorsKind == NotStrictEqual) {
-                 return 6;
-             } else if (token->valuePunctuatorsKind == RightInequality) {
-                 return 7;
-             } else if (token->valuePunctuatorsKind == LeftInequality) {
-                 return 7;
-             } else if (token->valuePunctuatorsKind == RightInequalityEqual) {
-                 return 7;
-             } else if (token->valuePunctuatorsKind == LeftInequalityEqual) {
-                 return 7;
-             } else if (token->valuePunctuatorsKind == LeftShift) {
-                 return 8;
-             } else if (token->valuePunctuatorsKind == RightShift) {
-                 return 8;
-             } else if (token->valuePunctuatorsKind == UnsignedRightShift) {
-                 return 8;
-             } else if (token->valuePunctuatorsKind == Plus) {
-                 return 9;
-             } else if (token->valuePunctuatorsKind == Minus) {
-                 return 9;
-             } else if (token->valuePunctuatorsKind == Multiply) {
-                 return 11;
-             } else if (token->valuePunctuatorsKind == Divide) {
-                 return 11;
-             } else if (token->valuePunctuatorsKind == Mod) {
-                 return 11;
-             }
-             return 0;
-         } else if (token->type == Token::KeywordToken) {
-             if (token->valueKeywordKind == In) {
-                 return this->context->allowIn ? 7 : 0;
-             } else if (token->valueKeywordKind == InstanceofKeyword) {
-                 return 7;
-             }
-         } else {
-             return 0;
-         }
-         return 0;
-     }
+    int binaryPrecedence(ScannerResult* token)
+    {
+        if (token->type == Token::PunctuatorToken) {
+            if (token->valuePunctuatorsKind == Substitution) {
+                return 0;
+            } else if (token->valuePunctuatorsKind == LogicalOr) {
+                return 1;
+            } else if (token->valuePunctuatorsKind == LogicalAnd) {
+                return 2;
+            } else if (token->valuePunctuatorsKind == BitwiseOr) {
+                return 3;
+            } else if (token->valuePunctuatorsKind == BitwiseXor) {
+                return 4;
+            } else if (token->valuePunctuatorsKind == BitwiseAnd) {
+                return 5;
+            } else if (token->valuePunctuatorsKind == Equal) {
+                return 6;
+            } else if (token->valuePunctuatorsKind == NotEqual) {
+                return 6;
+            } else if (token->valuePunctuatorsKind == StrictEqual) {
+                return 6;
+            } else if (token->valuePunctuatorsKind == NotStrictEqual) {
+                return 6;
+            } else if (token->valuePunctuatorsKind == RightInequality) {
+                return 7;
+            } else if (token->valuePunctuatorsKind == LeftInequality) {
+                return 7;
+            } else if (token->valuePunctuatorsKind == RightInequalityEqual) {
+                return 7;
+            } else if (token->valuePunctuatorsKind == LeftInequalityEqual) {
+                return 7;
+            } else if (token->valuePunctuatorsKind == LeftShift) {
+                return 8;
+            } else if (token->valuePunctuatorsKind == RightShift) {
+                return 8;
+            } else if (token->valuePunctuatorsKind == UnsignedRightShift) {
+                return 8;
+            } else if (token->valuePunctuatorsKind == Plus) {
+                return 9;
+            } else if (token->valuePunctuatorsKind == Minus) {
+                return 9;
+            } else if (token->valuePunctuatorsKind == Multiply) {
+                return 11;
+            } else if (token->valuePunctuatorsKind == Divide) {
+                return 11;
+            } else if (token->valuePunctuatorsKind == Mod) {
+                return 11;
+            }
+            return 0;
+        } else if (token->type == Token::KeywordToken) {
+            if (token->valueKeywordKind == In) {
+                return this->context->allowIn ? 7 : 0;
+            } else if (token->valueKeywordKind == InstanceofKeyword) {
+                return 7;
+            }
+        } else {
+            return 0;
+        }
+        return 0;
+    }
 
-     Node* parseBinaryExpression()
-     {
-         ScannerResult* startToken = this->lookahead;
+    Node* parseBinaryExpression()
+    {
+        ScannerResult* startToken = this->lookahead;
 
-         Node* expr = this->inheritCoverGrammar(&Parser::parseExponentiationExpression);
+        Node* expr = this->inheritCoverGrammar(&Parser::parseExponentiationExpression);
 
-         ScannerResult* token = this->lookahead;
-         int prec = this->binaryPrecedence(token);
-         if (prec > 0) {
-             this->nextToken();
+        ScannerResult* token = this->lookahead;
+        int prec = this->binaryPrecedence(token);
+        if (prec > 0) {
+            this->nextToken();
 
-             token->prec = prec;
-             this->context->isAssignmentTarget = false;
-             this->context->isBindingElement = false;
+            token->prec = prec;
+            this->context->isAssignmentTarget = false;
+            this->context->isBindingElement = false;
 
-             std::vector<ScannerResult*, gc_malloc_ignore_off_page_allocator<ScannerResult*>> markers;
-             markers.push_back(startToken);
-             markers.push_back(this->lookahead);
-             Node* left = expr;
-             Node* right = this->isolateCoverGrammar(&Parser::parseExponentiationExpression);
+            std::vector<ScannerResult*, gc_malloc_ignore_off_page_allocator<ScannerResult*>> markers;
+            markers.push_back(startToken);
+            markers.push_back(this->lookahead);
+            Node* left = expr;
+            Node* right = this->isolateCoverGrammar(&Parser::parseExponentiationExpression);
 
-             std::vector<void*, gc_malloc_ignore_off_page_allocator<void*>> stack;
-             stack.push_back(left);
-             stack.push_back(token);
-             stack.push_back(right);
+            std::vector<void*, gc_malloc_ignore_off_page_allocator<void*>> stack;
+            stack.push_back(left);
+            stack.push_back(token);
+            stack.push_back(right);
 
-             while (true) {
-                 prec = this->binaryPrecedence(this->lookahead);
-                 if (prec <= 0) {
-                     break;
-                 }
+            while (true) {
+                prec = this->binaryPrecedence(this->lookahead);
+                if (prec <= 0) {
+                    break;
+                }
 
-                 // Reduce: make a binary expression from the three topmost entries.
-                 while ((stack.size() > 2) && (prec <= ((ScannerResult*)stack[stack.size() - 2])->prec)) {
-                     right = (Node*)stack.back();
-                     stack.pop_back();
-                     PunctuatorsKind operator_ = ((ScannerResult*)stack.back())->valuePunctuatorsKind;
-                     stack.pop_back();
-                     left = (Node*)stack.back();
-                     stack.pop_back();
-                     markers.pop_back();
-                     MetaNode node = this->startNode(markers.back());
-                     stack.push_back(this->finalize(node, finishBinaryExpression(left, right, operator_)));
-                 }
+                // Reduce: make a binary expression from the three topmost entries.
+                while ((stack.size() > 2) && (prec <= ((ScannerResult*)stack[stack.size() - 2])->prec)) {
+                    right = (Node*)stack.back();
+                    stack.pop_back();
+                    PunctuatorsKind operator_ = ((ScannerResult*)stack.back())->valuePunctuatorsKind;
+                    stack.pop_back();
+                    left = (Node*)stack.back();
+                    stack.pop_back();
+                    markers.pop_back();
+                    MetaNode node = this->startNode(markers.back());
+                    stack.push_back(this->finalize(node, finishBinaryExpression(left, right, operator_)));
+                }
 
-                 // Shift.
-                 token = this->nextToken();
-                 token->prec = prec;
-                 stack.push_back(token);
-                 markers.push_back(this->lookahead);
-                 stack.push_back(this->isolateCoverGrammar(&Parser::parseExponentiationExpression));
-             }
+                // Shift.
+                token = this->nextToken();
+                token->prec = prec;
+                stack.push_back(token);
+                markers.push_back(this->lookahead);
+                stack.push_back(this->isolateCoverGrammar(&Parser::parseExponentiationExpression));
+            }
 
-             // Final reduce to clean-up the stack.
-             size_t i = stack.size() - 1;
-             expr = (Node*)stack[i];
-             markers.pop_back();
-             while (i > 1) {
-                 MetaNode node = this->startNode(markers.back());
-                 expr = this->finalize(node, finishBinaryExpression((Node*)stack[i - 2], expr, ((ScannerResult*)stack[i - 1])->valuePunctuatorsKind));
-                 i -= 2;
-             }
-         }
+            // Final reduce to clean-up the stack.
+            size_t i = stack.size() - 1;
+            expr = (Node*)stack[i];
+            markers.pop_back();
+            while (i > 1) {
+                MetaNode node = this->startNode(markers.back());
+                expr = this->finalize(node, finishBinaryExpression((Node*)stack[i - 2], expr, ((ScannerResult*)stack[i - 1])->valuePunctuatorsKind));
+                i -= 2;
+            }
+        }
 
-         return expr;
-     }
+        return expr;
+    }
 
-     Node* finishBinaryExpression(Node* left, Node* right, PunctuatorsKind oper)
-     {
-         // Additive Operators
-         Node* nd;
-         if (oper == Plus)
-             nd = new BinaryExpressionPlusNode(left, right);
-         else if (oper == Minus)
-             nd = new BinaryExpressionMinusNode(left, right);
+    Node* finishBinaryExpression(Node* left, Node* right, PunctuatorsKind oper)
+    {
+        // Additive Operators
+        Node* nd;
+        if (oper == Plus)
+            nd = new BinaryExpressionPlusNode(left, right);
+        else if (oper == Minus)
+            nd = new BinaryExpressionMinusNode(left, right);
 
-         // Bitwise Shift Operators
-         else if (oper == LeftShift)
-             nd = new BinaryExpressionLeftShiftNode(left, right);
-         else if (oper == RightShift)
-             nd = new BinaryExpressionSignedRightShiftNode(left, right);
-         else if (oper == UnsignedRightShift)
-             nd = new BinaryExpressionUnsignedRightShiftNode(left, right);
+        // Bitwise Shift Operators
+        else if (oper == LeftShift)
+            nd = new BinaryExpressionLeftShiftNode(left, right);
+        else if (oper == RightShift)
+            nd = new BinaryExpressionSignedRightShiftNode(left, right);
+        else if (oper == UnsignedRightShift)
+            nd = new BinaryExpressionUnsignedRightShiftNode(left, right);
 
-         // Multiplicative Operators
-         else if (oper == Multiply)
-             nd = new BinaryExpressionMultiplyNode(left, right);
-         else if (oper == Divide)
-             nd = new BinaryExpressionDivisionNode(left, right);
-         else if (oper == Mod)
-             nd = new BinaryExpressionModNode(left, right);
+        // Multiplicative Operators
+        else if (oper == Multiply)
+            nd = new BinaryExpressionMultiplyNode(left, right);
+        else if (oper == Divide)
+            nd = new BinaryExpressionDivisionNode(left, right);
+        else if (oper == Mod)
+            nd = new BinaryExpressionModNode(left, right);
 
-         // Relational Operators
-         else if (oper == LeftInequality)
-             nd = new BinaryExpressionLessThanNode(left, right);
-         else if (oper == RightInequality)
-             nd = new BinaryExpressionGreaterThanNode(left, right);
-         else if (oper == LeftInequalityEqual)
-             nd = new BinaryExpressionLessThanOrEqualNode(left, right);
-         else if (oper == RightInequalityEqual)
-             nd = new BinaryExpressionGreaterThanOrEqualNode(left, right);
+        // Relational Operators
+        else if (oper == LeftInequality)
+            nd = new BinaryExpressionLessThanNode(left, right);
+        else if (oper == RightInequality)
+            nd = new BinaryExpressionGreaterThanNode(left, right);
+        else if (oper == LeftInequalityEqual)
+            nd = new BinaryExpressionLessThanOrEqualNode(left, right);
+        else if (oper == RightInequalityEqual)
+            nd = new BinaryExpressionGreaterThanOrEqualNode(left, right);
 
-         // Equality Operators
-         else if (oper == Equal)
-             nd = new BinaryExpressionEqualNode(left, right);
-         else if (oper == NotEqual)
-             nd = new BinaryExpressionNotEqualNode(left, right);
-         else if (oper == StrictEqual)
-             nd = new BinaryExpressionStrictEqualNode(left, right);
-         else if (oper == NotStrictEqual)
-             nd = new BinaryExpressionNotStrictEqualNode(left, right);
+        // Equality Operators
+        else if (oper == Equal)
+            nd = new BinaryExpressionEqualNode(left, right);
+        else if (oper == NotEqual)
+            nd = new BinaryExpressionNotEqualNode(left, right);
+        else if (oper == StrictEqual)
+            nd = new BinaryExpressionStrictEqualNode(left, right);
+        else if (oper == NotStrictEqual)
+            nd = new BinaryExpressionNotStrictEqualNode(left, right);
 
-         // Binary Bitwise Operator
-         else if (oper == BitwiseAnd)
-             nd = new BinaryExpressionBitwiseAndNode(left, right);
-         else if (oper == BitwiseXor)
-             nd = new BinaryExpressionBitwiseXorNode(left, right);
-         else if (oper == BitwiseOr)
-             nd = new BinaryExpressionBitwiseOrNode(left, right);
-         else if (oper == LogicalOr)
-             nd = new BinaryExpressionLogicalOrNode(left, right);
-         else if (oper == LogicalAnd)
-             nd = new BinaryExpressionLogicalAndNode(left, right);
-         else if (oper == InPunctuator)
-             nd = new BinaryExpressionInNode(left, right);
-         else if (oper == InstanceOfPunctuator)
-             nd = new BinaryExpressionInstanceOfNode(left, right);
-         // TODO
-         else
-             RELEASE_ASSERT_NOT_REACHED();
+        // Binary Bitwise Operator
+        else if (oper == BitwiseAnd)
+            nd = new BinaryExpressionBitwiseAndNode(left, right);
+        else if (oper == BitwiseXor)
+            nd = new BinaryExpressionBitwiseXorNode(left, right);
+        else if (oper == BitwiseOr)
+            nd = new BinaryExpressionBitwiseOrNode(left, right);
+        else if (oper == LogicalOr)
+            nd = new BinaryExpressionLogicalOrNode(left, right);
+        else if (oper == LogicalAnd)
+            nd = new BinaryExpressionLogicalAndNode(left, right);
+        else if (oper == InPunctuator)
+            nd = new BinaryExpressionInNode(left, right);
+        else if (oper == InstanceOfPunctuator)
+            nd = new BinaryExpressionInstanceOfNode(left, right);
+        // TODO
+        else
+            RELEASE_ASSERT_NOT_REACHED();
 
-         return nd;
-     }
+        return nd;
+    }
 
-     // ECMA-262 12.14 Conditional Operator
+    // ECMA-262 12.14 Conditional Operator
 
-     Node* parseConditionalExpression()
-     {
-         ScannerResult* startToken = this->lookahead;
+    Node* parseConditionalExpression()
+    {
+        ScannerResult* startToken = this->lookahead;
 
-         Node* expr = this->inheritCoverGrammar(&Parser::parseBinaryExpression);
-         if (this->match(GuessMark)) {
-             this->nextToken();
+        Node* expr = this->inheritCoverGrammar(&Parser::parseBinaryExpression);
+        if (this->match(GuessMark)) {
+            this->nextToken();
 
-             bool previousAllowIn = this->context->allowIn;
-             this->context->allowIn = true;
-             Node* consequent = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
-             this->context->allowIn = previousAllowIn;
+            bool previousAllowIn = this->context->allowIn;
+            this->context->allowIn = true;
+            Node* consequent = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+            this->context->allowIn = previousAllowIn;
 
-             this->expect(Colon);
-             Node* alternate = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+            this->expect(Colon);
+            Node* alternate = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
 
-             expr = this->finalize(this->startNode(startToken), new ConditionalExpressionNode(expr, consequent, alternate));
-             this->context->isAssignmentTarget = false;
-             this->context->isBindingElement = false;
-         }
+            expr = this->finalize(this->startNode(startToken), new ConditionalExpressionNode(expr, consequent, alternate));
+            this->context->isAssignmentTarget = false;
+            this->context->isBindingElement = false;
+        }
 
-         return expr;
-     }
+        return expr;
+    }
 
-     // ECMA-262 12.15 Assignment Operators
+    // ECMA-262 12.15 Assignment Operators
 
-     void checkPatternParam(ParseParameterOptions options, Node* param)
-     {
-         switch (param->type()) {
-             case Identifier:
-                 this->validateParam(options, nodeExtraInfo.find(((IdentifierNode*)param))->second, ((IdentifierNode*)param)->name());
-                 break;
-             case RestElement:
-                 this->checkPatternParam(options, ((RestElementNode*)param)->argument());
-                 break;
-             // case AssignmentPattern:
-             case AssignmentExpression:
-             case AssignmentExpressionBitwiseAnd:
-             case AssignmentExpressionBitwiseOr:
-             case AssignmentExpressionBitwiseXor:
-             case AssignmentExpressionDivision:
-             case AssignmentExpressionLeftShift:
-             case AssignmentExpressionMinus:
-             case AssignmentExpressionMod:
-             case AssignmentExpressionMultiply:
-             case AssignmentExpressionPlus:
-             case AssignmentExpressionSignedRightShift:
-             case AssignmentExpressionUnsignedRightShift:
-             case AssignmentExpressionSimple:
-                 this->checkPatternParam(options, ((AssignmentExpressionSimpleNode*)param)->left());
-                 break;
-             default:
-                 RELEASE_ASSERT_NOT_REACHED();
-                 // TODO
-                 /*
+    void checkPatternParam(ParseParameterOptions options, Node* param)
+    {
+        switch (param->type()) {
+        case Identifier:
+            this->validateParam(options, nodeExtraInfo.find(((IdentifierNode*)param))->second, ((IdentifierNode*)param)->name());
+            break;
+        case RestElement:
+            this->checkPatternParam(options, ((RestElementNode*)param)->argument());
+            break;
+        // case AssignmentPattern:
+        case AssignmentExpression:
+        case AssignmentExpressionBitwiseAnd:
+        case AssignmentExpressionBitwiseOr:
+        case AssignmentExpressionBitwiseXor:
+        case AssignmentExpressionDivision:
+        case AssignmentExpressionLeftShift:
+        case AssignmentExpressionMinus:
+        case AssignmentExpressionMod:
+        case AssignmentExpressionMultiply:
+        case AssignmentExpressionPlus:
+        case AssignmentExpressionSignedRightShift:
+        case AssignmentExpressionUnsignedRightShift:
+        case AssignmentExpressionSimple:
+            this->checkPatternParam(options, ((AssignmentExpressionSimpleNode*)param)->left());
+            break;
+        default:
+            RELEASE_ASSERT_NOT_REACHED();
+            // TODO
+            /*
              case Syntax.ArrayPattern:
                  for (let i = 0; i < param.elements.length; i++) {
                      if (param.elements[i] !== null) {
@@ -4108,9 +4101,9 @@ public:
                  }
                  break;
                  */
-         }
-     }
-/*
+        }
+    }
+    /*
      reinterpretAsCoverFormalsList(expr) {
          let params = [expr];
          let options;
@@ -4168,17 +4161,17 @@ public:
          };
      }
 */
-     Node* parseAssignmentExpression()
-     {
-         Node* expr;
+    Node* parseAssignmentExpression()
+    {
+        Node* expr;
 
-         if (!this->context->allowYield && this->matchKeyword(Yield)) {
-             expr = this->parseYieldExpression();
-         } else {
-             ScannerResult* startToken = this->lookahead;
-             ScannerResult* token = startToken;
-             expr = this->parseConditionalExpression();
-             /*
+        if (!this->context->allowYield && this->matchKeyword(Yield)) {
+            expr = this->parseYieldExpression();
+        } else {
+            ScannerResult* startToken = this->lookahead;
+            ScannerResult* token = startToken;
+            expr = this->parseConditionalExpression();
+            /*
              if (expr->type() == ArrowParameterPlaceHolder || this->match('=>')) {
                  RELEASE_ASSERT_NOT_REACHED();
                  // ECMA-262 14.2 Arrow Function Definitions
@@ -4243,111 +4236,111 @@ public:
                      this->context->firstCoverInitializedNameError = null;
                  }
              }*/
-             if (this->matchAssign()) {
-                 if (!this->context->isAssignmentTarget) {
-                     this->tolerateError(Messages::InvalidLHSInAssignment);
-                 }
+            if (this->matchAssign()) {
+                if (!this->context->isAssignmentTarget) {
+                    this->tolerateError(Messages::InvalidLHSInAssignment);
+                }
 
-                 if (this->context->strict && expr->type() == Identifier) {
-                     IdentifierNode* id = (IdentifierNode*)(expr);
-                     if (this->scanner->isRestrictedWord(id->name())) {
-                         this->tolerateUnexpectedToken(token, Messages::StrictLHSAssignment);
-                     }
-                     if (this->scanner->isStrictModeReservedWord(id->name())) {
-                         this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
-                     }
-                 }
+                if (this->context->strict && expr->type() == Identifier) {
+                    IdentifierNode* id = (IdentifierNode*)(expr);
+                    if (this->scanner->isRestrictedWord(id->name())) {
+                        this->tolerateUnexpectedToken(token, Messages::StrictLHSAssignment);
+                    }
+                    if (this->scanner->isStrictModeReservedWord(id->name())) {
+                        this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
+                    }
+                }
 
-                 if (!this->match(Substitution)) {
-                     this->context->isAssignmentTarget = false;
-                     this->context->isBindingElement = false;
-                 } else {
-                     // TODO
-                     // this->reinterpretExpressionAsPattern(expr);
-                 }
+                if (!this->match(Substitution)) {
+                    this->context->isAssignmentTarget = false;
+                    this->context->isBindingElement = false;
+                } else {
+                    // TODO
+                    // this->reinterpretExpressionAsPattern(expr);
+                }
 
-                 token = this->nextToken();
-                 Node* right = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
-                 // Node* expr;
-                 if (token->valuePunctuatorsKind == Substitution) {
-                     expr = new AssignmentExpressionSimpleNode(expr, right);
-                 } else if (token->valuePunctuatorsKind == PlusEqual) {
-                     expr = new AssignmentExpressionPlusNode(expr, right);
-                 } else if (token->valuePunctuatorsKind == MinusEqual) {
-                     expr = new AssignmentExpressionMinusNode(expr, right);
-                 } else if (token->valuePunctuatorsKind == MultiplyEqual) {
-                     expr = new AssignmentExpressionMultiplyNode(expr, right);
-                 } else if (token->valuePunctuatorsKind == DivideEqual) {
-                     expr = new AssignmentExpressionDivisionNode(expr, right);
-                 } else if (token->valuePunctuatorsKind == ModEqual) {
-                     expr = new AssignmentExpressionModNode(expr, right);
-                 } else if (token->valuePunctuatorsKind == LeftShiftEqual) {
-                     expr = new AssignmentExpressionLeftShiftNode(expr, right);
-                 } else if (token->valuePunctuatorsKind == RightShiftEqual) {
-                     expr = new AssignmentExpressionSignedRightShiftNode(expr, right);
-                 } else if (token->valuePunctuatorsKind == UnsignedRightShiftEqual) {
-                     expr = new AssignmentExpressionUnsignedShiftNode(expr, right);
-                 } else if (token->valuePunctuatorsKind == BitwiseXorEqual) {
-                     expr = new AssignmentExpressionBitwiseXorNode(expr, right);
-                 } else if (token->valuePunctuatorsKind == BitwiseAndEqual) {
-                     expr = new AssignmentExpressionBitwiseAndNode(expr, right);
-                 } else if (token->valuePunctuatorsKind == BitwiseOrEqual) {
-                     expr = new AssignmentExpressionBitwiseOrNode(expr, right);
-                 } else {
-                     RELEASE_ASSERT_NOT_REACHED();
-                 }
-                 expr = this->finalize(this->startNode(startToken), expr);
-                 this->context->firstCoverInitializedNameError = nullptr;
-             }
-         }
+                token = this->nextToken();
+                Node* right = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+                // Node* expr;
+                if (token->valuePunctuatorsKind == Substitution) {
+                    expr = new AssignmentExpressionSimpleNode(expr, right);
+                } else if (token->valuePunctuatorsKind == PlusEqual) {
+                    expr = new AssignmentExpressionPlusNode(expr, right);
+                } else if (token->valuePunctuatorsKind == MinusEqual) {
+                    expr = new AssignmentExpressionMinusNode(expr, right);
+                } else if (token->valuePunctuatorsKind == MultiplyEqual) {
+                    expr = new AssignmentExpressionMultiplyNode(expr, right);
+                } else if (token->valuePunctuatorsKind == DivideEqual) {
+                    expr = new AssignmentExpressionDivisionNode(expr, right);
+                } else if (token->valuePunctuatorsKind == ModEqual) {
+                    expr = new AssignmentExpressionModNode(expr, right);
+                } else if (token->valuePunctuatorsKind == LeftShiftEqual) {
+                    expr = new AssignmentExpressionLeftShiftNode(expr, right);
+                } else if (token->valuePunctuatorsKind == RightShiftEqual) {
+                    expr = new AssignmentExpressionSignedRightShiftNode(expr, right);
+                } else if (token->valuePunctuatorsKind == UnsignedRightShiftEqual) {
+                    expr = new AssignmentExpressionUnsignedShiftNode(expr, right);
+                } else if (token->valuePunctuatorsKind == BitwiseXorEqual) {
+                    expr = new AssignmentExpressionBitwiseXorNode(expr, right);
+                } else if (token->valuePunctuatorsKind == BitwiseAndEqual) {
+                    expr = new AssignmentExpressionBitwiseAndNode(expr, right);
+                } else if (token->valuePunctuatorsKind == BitwiseOrEqual) {
+                    expr = new AssignmentExpressionBitwiseOrNode(expr, right);
+                } else {
+                    RELEASE_ASSERT_NOT_REACHED();
+                }
+                expr = this->finalize(this->startNode(startToken), expr);
+                this->context->firstCoverInitializedNameError = nullptr;
+            }
+        }
 
-         return expr;
-     }
+        return expr;
+    }
 
-     // ECMA-262 12.16 Comma Operator
+    // ECMA-262 12.16 Comma Operator
 
-     Node* parseExpression()
-     {
-         ScannerResult* startToken = this->lookahead;
-         Node* expr = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+    Node* parseExpression()
+    {
+        ScannerResult* startToken = this->lookahead;
+        Node* expr = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
 
-         if (this->match(Comma)) {
-             ExpressionNodeVector expressions;
-             expressions.push_back(expr);
-             while (this->startMarker.index < this->scanner->length) {
-                 if (!this->match(Comma)) {
-                     break;
-                 }
-                 this->nextToken();
-                 expressions.push_back(this->isolateCoverGrammar(&Parser::parseAssignmentExpression));
-             }
+        if (this->match(Comma)) {
+            ExpressionNodeVector expressions;
+            expressions.push_back(expr);
+            while (this->startMarker.index < this->scanner->length) {
+                if (!this->match(Comma)) {
+                    break;
+                }
+                this->nextToken();
+                expressions.push_back(this->isolateCoverGrammar(&Parser::parseAssignmentExpression));
+            }
 
-             expr = this->finalize(this->startNode(startToken), new SequenceExpressionNode(std::move(expressions)));
-         }
+            expr = this->finalize(this->startNode(startToken), new SequenceExpressionNode(std::move(expressions)));
+        }
 
-         return expr;
-     }
+        return expr;
+    }
 
-     // ECMA-262 13.2 Block
+    // ECMA-262 13.2 Block
 
-     StatementNode* parseStatementListItem()
-     {
-         StatementNode* statement = nullptr;
-         this->context->isAssignmentTarget = true;
-         this->context->isBindingElement = true;
-         if (this->lookahead->type == KeywordToken) {
-             switch (this->lookahead->valueKeywordKind) {
-                 case Function:
-                     statement = this->parseFunctionDeclaration();
-                     break;
-                 default:
-                     statement = this->parseStatement();
-                     break;
-             }
-         } else {
-             statement = this->parseStatement();
-         }
-         /*
+    StatementNode* parseStatementListItem()
+    {
+        StatementNode* statement = nullptr;
+        this->context->isAssignmentTarget = true;
+        this->context->isBindingElement = true;
+        if (this->lookahead->type == KeywordToken) {
+            switch (this->lookahead->valueKeywordKind) {
+            case Function:
+                statement = this->parseFunctionDeclaration();
+                break;
+            default:
+                statement = this->parseStatement();
+                break;
+            }
+        } else {
+            statement = this->parseStatement();
+        }
+        /*
          if (this->lookahead.type === Token.Keyword) {
              switch (this->lookahead.value) {
                  case 'export':
@@ -4382,26 +4375,26 @@ public:
              statement = this->parseStatement();
          }*/
 
-         return statement;
-     }
+        return statement;
+    }
 
-     BlockStatementNode* parseBlock()
-     {
-         MetaNode node = this->createNode();
+    BlockStatementNode* parseBlock()
+    {
+        MetaNode node = this->createNode();
 
-         this->expect(LeftBrace);
-         StatementNodeVector block;
-         while (true) {
-             if (this->match(RightBrace)) {
-                 break;
-             }
-             block.push_back(this->parseStatementListItem());
-         }
-         this->expect(RightBrace);
+        this->expect(LeftBrace);
+        StatementNodeVector block;
+        while (true) {
+            if (this->match(RightBrace)) {
+                break;
+            }
+            block.push_back(this->parseStatementListItem());
+        }
+        this->expect(RightBrace);
 
-         return this->finalize(node, new BlockStatementNode(std::move(block)));
-     }
-/*
+        return this->finalize(node, new BlockStatementNode(std::move(block)));
+    }
+    /*
          // ECMA-262 13.3.1 Let and Const Declarations
 
     parseLexicalBinding(kind: string, options): Node.VariableDeclarator {
@@ -4596,7 +4589,7 @@ public:
     }
     */
 
-     // ECMA-262 13.3.2 Variable Statement
+    // ECMA-262 13.3.2 Variable Statement
     IdentifierNode* parseVariableIdentifier(String* kind = String::emptyString)
     {
         MetaNode node = this->createNode();
@@ -4605,7 +4598,8 @@ public:
         if (token->type == Token::KeywordToken && token->valueKeywordKind == Yield) {
             if (this->context->strict) {
                 this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
-            }if (!this->context->allowYield) {
+            }
+            if (!this->context->allowYield) {
                 this->throwUnexpectedToken(token);
             }
         } else if (token->type != Token::IdentifierToken) {
@@ -4680,7 +4674,7 @@ public:
         VariableDeclaratorVector declarations = this->parseVariableDeclarationList(opt);
         this->consumeSemicolon();
 
-        return this->finalize(node, new VariableDeclarationNode(std::move(declarations)/*, 'var'*/));
+        return this->finalize(node, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
     }
 
     // ECMA-262 13.4 Empty Statement
@@ -4817,20 +4811,20 @@ public:
                     if (decl->init() && (decl->id()->type() == ArrayExpression || decl->id()->type() == ObjectExpression || this->context->strict)) {
                         this->tolerateError(Messages::ForInOfLoopInitializer, new ASCIIString("for-in"));
                     }
-                    init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations)/*, 'var'*/));
+                    init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
                     this->nextToken();
                     left = init;
                     right = this->parseExpression();
                     init = nullptr;
                 } else if (declarations.size() == 1 && declarations[0]->init() == nullptr && this->matchContextualKeyword(Of)) {
-                    init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations)/*, 'var'*/));
+                    init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
                     this->nextToken();
                     left = init;
                     right = this->parseAssignmentExpression();
                     init = nullptr;
                     forIn = false;
                 } else {
-                    init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations)/*, 'var'*/));
+                    init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
                     this->expect(SemiColon);
                 }
             } else if (this->matchKeyword(Const) || this->matchKeyword(Let)) {
@@ -4951,7 +4945,7 @@ public:
                 // return this->finalize(node, new Node.ForOfStatement(left, right, body));
             }
         }
-/*
+        /*
         return (typeof left === 'undefined') ?
             this->finalize(node, new Node.ForStatement(init, test, update, body)) :
             forIn ? this->finalize(node, new Node.ForInStatement(left, right, body)) :
@@ -4962,7 +4956,7 @@ public:
 
     void removeLabel(String* label)
     {
-        for (size_t i = 0; i < this->context->labelSet.size(); i ++) {
+        for (size_t i = 0; i < this->context->labelSet.size(); i++) {
             if (this->context->labelSet[i].first->equals(label)) {
                 this->context->labelSet.erase(this->context->labelSet.begin() + i);
                 return;
@@ -4973,7 +4967,7 @@ public:
 
     bool hasLabel(String* label)
     {
-        for (size_t i = 0; i < this->context->labelSet.size(); i ++) {
+        for (size_t i = 0; i < this->context->labelSet.size(); i++) {
             if (this->context->labelSet[i].first->equals(label)) {
                 return true;
             }
@@ -5021,7 +5015,6 @@ public:
             if (!hasLabel(label->name().string())) {
                 this->throwError(Messages::UnknownLabel, label->name().string());
             }
-
         }
 
         this->consumeSemicolon();
@@ -5046,8 +5039,7 @@ public:
         MetaNode node = this->createNode();
         this->expectKeyword(Return);
 
-        bool hasArgument = !this->match(SemiColon) && !this->match(RightBrace) &&
-            !this->hasLineTerminator && this->lookahead->type != EOFToken;
+        bool hasArgument = !this->match(SemiColon) && !this->match(RightBrace) && !this->hasLineTerminator && this->lookahead->type != EOFToken;
         Node* argument = nullptr;
         if (hasArgument) {
             argument = this->parseExpression();
@@ -5211,10 +5203,9 @@ public:
         Node* param = this->parsePattern(params);
 
         std::vector<String*, gc_malloc_ignore_off_page_allocator<String*>> paramMap;
-        for (size_t i = 0; i < params.size(); i ++) {
-
+        for (size_t i = 0; i < params.size(); i++) {
             bool has = false;
-            for (size_t j = 0; j < paramMap.size(); j ++) {
+            for (size_t j = 0; j < paramMap.size(); j++) {
                 if (paramMap[j]->equals(&params[i]->valueString)) {
                     has = true;
                 }
@@ -5281,85 +5272,84 @@ public:
     {
         StatementNode* statement = nullptr;
         switch (this->lookahead->type) {
-            case Token::BooleanLiteralToken:
-            case Token::NullLiteralToken:
-            case Token::NumericLiteralToken:
-            case Token::StringLiteralToken:
-            case Token::TemplateToken:
-            case Token::RegularExpressionToken:
-                statement = this->parseExpressionStatement();
-                break;
+        case Token::BooleanLiteralToken:
+        case Token::NullLiteralToken:
+        case Token::NumericLiteralToken:
+        case Token::StringLiteralToken:
+        case Token::TemplateToken:
+        case Token::RegularExpressionToken:
+            statement = this->parseExpressionStatement();
+            break;
 
-            case Token::PunctuatorToken:
-            {
-                PunctuatorsKind value = this->lookahead->valuePunctuatorsKind;
-                if (value == LeftBrace) {
-                    statement = this->parseBlock();
-                } else if (value == LeftParenthesis) {
-                    statement = this->parseExpressionStatement();
-                } else if (value == SemiColon) {
-                    statement = this->parseEmptyStatement();
-                } else {
-                    statement = this->parseExpressionStatement();
-                }
+        case Token::PunctuatorToken: {
+            PunctuatorsKind value = this->lookahead->valuePunctuatorsKind;
+            if (value == LeftBrace) {
+                statement = this->parseBlock();
+            } else if (value == LeftParenthesis) {
+                statement = this->parseExpressionStatement();
+            } else if (value == SemiColon) {
+                statement = this->parseEmptyStatement();
+            } else {
+                statement = this->parseExpressionStatement();
+            }
+            break;
+        }
+        case Token::IdentifierToken:
+            statement = asStatementNode(this->parseLabelledStatement());
+            break;
+
+        case Token::KeywordToken:
+            switch (this->lookahead->valueKeywordKind) {
+            case Break:
+                statement = asStatementNode(this->parseBreakStatement());
+                break;
+            case Continue:
+                statement = asStatementNode(this->parseContinueStatement());
+                break;
+            case Debugger:
+                statement = asStatementNode(this->parseDebuggerStatement());
+                break;
+            case Do:
+                statement = asStatementNode(this->parseDoWhileStatement());
+                break;
+            case For:
+                statement = asStatementNode(this->parseForStatement());
+                break;
+            case Function:
+                statement = asStatementNode(this->parseFunctionDeclaration());
+                break;
+            case If:
+                statement = asStatementNode(this->parseIfStatement());
+                break;
+            case Return:
+                statement = asStatementNode(this->parseReturnStatement());
+                break;
+            case Switch:
+                statement = asStatementNode(this->parseSwitchStatement());
+                break;
+            case Throw:
+                statement = asStatementNode(this->parseThrowStatement());
+                break;
+            case Try:
+                statement = asStatementNode(this->parseTryStatement());
+                break;
+            case Var:
+                statement = asStatementNode(this->parseVariableStatement());
+                break;
+            case While:
+                statement = asStatementNode(this->parseWhileStatement());
+                break;
+            case With:
+                statement = asStatementNode(this->parseWithStatement());
+                break;
+            default:
+                statement = asStatementNode(this->parseExpressionStatement());
                 break;
             }
-            case Token::IdentifierToken:
-                statement = asStatementNode(this->parseLabelledStatement());
-                break;
+            break;
 
-            case Token::KeywordToken:
-                switch (this->lookahead->valueKeywordKind) {
-                    case Break:
-                        statement = asStatementNode(this->parseBreakStatement());
-                        break;
-                    case Continue:
-                        statement = asStatementNode(this->parseContinueStatement());
-                        break;
-                    case Debugger:
-                        statement = asStatementNode(this->parseDebuggerStatement());
-                        break;
-                    case Do:
-                        statement = asStatementNode(this->parseDoWhileStatement());
-                        break;
-                    case For:
-                        statement = asStatementNode(this->parseForStatement());
-                        break;
-                    case Function:
-                        statement = asStatementNode(this->parseFunctionDeclaration());
-                        break;
-                    case If:
-                        statement = asStatementNode(this->parseIfStatement());
-                        break;
-                    case Return:
-                        statement = asStatementNode(this->parseReturnStatement());
-                        break;
-                    case Switch:
-                        statement = asStatementNode(this->parseSwitchStatement());
-                        break;
-                    case Throw:
-                        statement = asStatementNode(this->parseThrowStatement());
-                        break;
-                    case Try:
-                        statement = asStatementNode(this->parseTryStatement());
-                        break;
-                    case Var:
-                        statement = asStatementNode(this->parseVariableStatement());
-                        break;
-                    case While:
-                        statement = asStatementNode(this->parseWhileStatement());
-                        break;
-                    case With:
-                        statement = asStatementNode(this->parseWithStatement());
-                        break;
-                    default:
-                        statement = asStatementNode(this->parseExpressionStatement());
-                        break;
-                }
-                break;
-
-            default:
-                this->throwUnexpectedToken(this->lookahead);
+        default:
+            this->throwUnexpectedToken(this->lookahead);
         }
 
         return statement;
@@ -5866,7 +5856,7 @@ public:
         scopeContexts.back()->m_locEnd.line = endNode.line;
         scopeContexts.back()->m_locEnd.column = endNode.column;
         scopeContexts.back()->m_locEnd.index = endNode.index;
-        return this->finalize(node, new ProgramNode(std::move(body), scopeContexts.back()/*, this->sourceType*/));
+        return this->finalize(node, new ProgramNode(std::move(body), scopeContexts.back() /*, this->sourceType*/));
     }
 
     // ECMA-262 15.2.2 Imports
@@ -6103,7 +6093,6 @@ public:
 };
 
 
-
 ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler handler)
 {
     Parser parser(ctx, source, handler);
@@ -6117,8 +6106,5 @@ Node* parseSingleFunction(::Escargot::Context* ctx, CodeBlock* codeBlock)
     parser.scopeContexts.pushBack(new ASTScopeContext(codeBlock->isStrict(), nullptr));
     return parser.parseFunctionSourceElements();
 }
-
-
 }
-
 }

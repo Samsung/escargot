@@ -15,6 +15,7 @@ class Script : public gc {
         , m_topCodeBlock(nullptr)
     {
     }
+
 public:
     struct ScriptExecuteResult {
         MAKE_STACK_ALLOCATED();
@@ -34,11 +35,11 @@ public:
     {
         return m_fileName;
     }
+
 protected:
     String* m_fileName;
     CodeBlock* m_topCodeBlock;
 };
-
 }
 
 #endif

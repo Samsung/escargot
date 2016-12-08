@@ -1,11 +1,11 @@
 #ifndef __EscargotContext__
 #define __EscargotContext__
 
-#include "runtime/Context.h"
-#include "runtime/String.h"
 #include "runtime/AtomicString.h"
-#include "runtime/StaticStrings.h"
+#include "runtime/Context.h"
 #include "runtime/GlobalObject.h"
+#include "runtime/StaticStrings.h"
+#include "runtime/String.h"
 
 namespace Escargot {
 
@@ -17,6 +17,7 @@ class SandBox;
 class Context : public gc {
     friend class AtomicString;
     friend class SandBox;
+
 public:
     Context(VMInstance* instance);
     const StaticStrings& staticStrings()
@@ -86,7 +87,6 @@ protected:
 
     Vector<SandBox*, gc_malloc_allocator<SandBox*>> m_sandBoxStack;
 };
-
 }
 
 #endif

@@ -1,12 +1,12 @@
 #ifndef __Escargot_EnvironmentRecord_h
 #define __Escargot_EnvironmentRecord_h
 
-#include "runtime/Value.h"
-#include "runtime/String.h"
-#include "runtime/AtomicString.h"
-#include "runtime/Object.h"
-#include "runtime/FunctionObject.h"
 #include "parser/CodeBlock.h"
+#include "runtime/AtomicString.h"
+#include "runtime/FunctionObject.h"
+#include "runtime/Object.h"
+#include "runtime/String.h"
+#include "runtime/Value.h"
 
 namespace Escargot {
 
@@ -29,6 +29,7 @@ protected:
     EnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock)
     {
     }
+
 public:
     struct BindingSlot {
         MAKE_STACK_ALLOCATED();
@@ -38,12 +39,10 @@ public:
             : m_record(record)
             , m_index(idx)
         {
-
         }
     };
 
-    virtual ~EnvironmentRecord() { }
-
+    virtual ~EnvironmentRecord() {}
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName)
     {
         RELEASE_ASSERT_NOT_REACHED();
@@ -73,21 +72,18 @@ public:
             : m_hasBindingValue(false)
             , m_value(Value(Value::ForceUninitialized))
         {
-
         }
 
         GetBindingValueResult(const Value& v)
             : m_hasBindingValue(true)
             , m_value(v)
         {
-
         }
 
         GetBindingValueResult(bool has, const Value& v)
             : m_hasBindingValue(has)
             , m_value(v)
         {
-
         }
     };
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name)
@@ -155,6 +151,7 @@ public:
     }
 
     inline void initInnerFunctionDeclarations(CodeBlock* codeBlock);
+
 protected:
 };
 
@@ -165,8 +162,7 @@ public:
         , m_bindingObject(O)
     {
     }
-    ~ObjectEnvironmentRecord() { }
-
+    ~ObjectEnvironmentRecord() {}
     Object* bindingObject()
     {
         return m_bindingObject;
@@ -190,8 +186,7 @@ protected:
 class GlobalEnvironmentRecord : public EnvironmentRecord {
 public:
     GlobalEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock, GlobalObject* global);
-    ~GlobalEnvironmentRecord() { }
-
+    ~GlobalEnvironmentRecord() {}
     virtual bool isGlobalEnvironmentRecord()
     {
         return true;
@@ -210,6 +205,7 @@ public:
     {
         return m_globalCodeBlock;
     }
+
 protected:
     CodeBlock* m_globalCodeBlock;
     GlobalObject* m_globalObject;
@@ -247,12 +243,12 @@ public:
         ASSERT(isFunctionEnvironmentRecord());
         return reinterpret_cast<FunctionEnvironmentRecord*>(this);
     }
-
 };
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-function-environment-records
 class FunctionEnvironmentRecord : public DeclarativeEnvironmentRecord {
     friend class LexicalEnvironment;
+
 public:
     ALWAYS_INLINE FunctionEnvironmentRecord(ExecutionState& state, const Value& receiver, FunctionObject* function, size_t argc, Value* argv, bool isNewExpression)
         : DeclarativeEnvironmentRecord(state, function->codeBlock())
@@ -334,6 +330,7 @@ protected:
 
 class FunctionEnvironmentRecordOnStack : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
+
 public:
     ALWAYS_INLINE FunctionEnvironmentRecordOnStack(ExecutionState& state, const Value& receiver, FunctionObject* function, size_t argc, Value* argv, bool isNewExpression)
         : FunctionEnvironmentRecord(state, receiver, function, argc, argv, isNewExpression)
@@ -349,6 +346,7 @@ public:
 class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
     friend class ByteCodeInterpreter;
+
 public:
     ALWAYS_INLINE FunctionEnvironmentRecordOnHeap(ExecutionState& state, const Value& receiver, FunctionObject* function, size_t argc, Value* argv, bool isNewExpression)
         : FunctionEnvironmentRecord(state, receiver, function, argc, argv, isNewExpression)
@@ -372,13 +370,14 @@ protected:
 
 class FunctionEnvironmentRecordNotIndexed : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
+
 public:
     ALWAYS_INLINE FunctionEnvironmentRecordNotIndexed(ExecutionState& state, const Value& receiver, FunctionObject* function, size_t argc, Value* argv, bool isNewExpression)
         : FunctionEnvironmentRecord(state, receiver, function, argc, argv, isNewExpression)
     {
         const CodeBlock::IdentifierInfoVector& vec = function->codeBlock()->identifierInfos();
         size_t len = vec.size();
-        for (size_t i = 0; i < len; i ++) {
+        for (size_t i = 0; i < len; i++) {
             createMutableBinding(state, vec[i].m_name, false);
         }
     }
@@ -400,7 +399,5 @@ public:
 protected:
     IdentifierRecordVector m_vector;
 };
-
-
 }
 #endif

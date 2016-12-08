@@ -17,10 +17,10 @@
 #ifndef VariableDeclaratorNode_h
 #define VariableDeclaratorNode_h
 
-#include "Node.h"
-#include "PatternNode.h"
 #include "ExpressionNode.h"
 #include "IdentifierNode.h"
+#include "Node.h"
+#include "PatternNode.h"
 
 namespace Escargot {
 
@@ -37,7 +37,6 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::VariableDeclarator; }
     Node* id() { return m_id; }
     Node* init() { return m_init; }
-
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         ASSERT(m_id->isIdentifier());
@@ -55,8 +54,6 @@ protected:
     Node* m_id; // id: Pattern;
     Node* m_init; // init: Expression | null;
 };
-
-
 }
 
 #endif

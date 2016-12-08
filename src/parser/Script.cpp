@@ -42,7 +42,7 @@ Script::ScriptExecuteResult Script::execute(Context* ctx)
     result.result = sandBoxResult.result;
     result.error.errorValue = sandBoxResult.error;
     if (!sandBoxResult.error.isEmpty()) {
-        for (size_t i = 0; i < sandBoxResult.stackTraceData.size(); i ++) {
+        for (size_t i = 0; i < sandBoxResult.stackTraceData.size(); i++) {
             ScriptExecuteResult::Error::StackTrace t;
             t.fileName = sandBoxResult.stackTraceData[i].fileName;
             t.line = sandBoxResult.stackTraceData[i].loc.line;
@@ -52,5 +52,4 @@ Script::ScriptExecuteResult Script::execute(Context* ctx)
     }
     return result;
 }
-
 }

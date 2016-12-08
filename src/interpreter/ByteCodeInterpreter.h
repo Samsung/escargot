@@ -1,10 +1,10 @@
 #ifndef __EscargotByteCodeInterpreter__
 #define __EscargotByteCodeInterpreter__
 
-#include "runtime/Value.h"
-#include "runtime/String.h"
-#include "runtime/ExecutionState.h"
 #include "parser/CodeBlock.h"
+#include "runtime/ExecutionState.h"
+#include "runtime/String.h"
+#include "runtime/Value.h"
 
 namespace Escargot {
 
@@ -29,7 +29,6 @@ public:
     static inline std::pair<bool, Value> getObjectPrecomputedCaseOperation(ExecutionState& state, const Value& willBeObject, const PropertyName& name, GetObjectInlineCache& inlineCache);
     static inline void setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache);
 };
-
 }
 
 #endif

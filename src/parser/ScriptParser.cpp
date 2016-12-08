@@ -21,16 +21,10 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
         codeBlock = new CodeBlock(ctx, script, source, scopeCtx->m_isStrict, scopeCtx->m_locStart, scopeCtx->m_names);
     } else {
         codeBlock = new CodeBlock(ctx, script, StringView(source, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index),
-                scopeCtx->m_locStart,
-                scopeCtx->m_isStrict, scopeCtx->m_nodeStartIndex,
-                scopeCtx->m_functionName, scopeCtx->m_parameters, scopeCtx->m_names, parentCodeBlock,
-                (CodeBlock::CodeBlockInitFlag)
-                ((scopeCtx->m_hasEval ? CodeBlock::CodeBlockHasEval : 0) |
-                (scopeCtx->m_hasWith ? CodeBlock::CodeBlockHasWith : 0) |
-                (scopeCtx->m_hasYield ? CodeBlock::CodeBlockHasYield : 0) |
-                (scopeCtx->m_associateNode->type() == FunctionExpression ? CodeBlock::CodeBlockIsFunctionExpression : 0) |
-                (scopeCtx->m_associateNode->type() == FunctionDeclaration ? CodeBlock::CodeBlockIsFunctionDeclaration : 0)
-                ));
+                                  scopeCtx->m_locStart,
+                                  scopeCtx->m_isStrict, scopeCtx->m_nodeStartIndex,
+                                  scopeCtx->m_functionName, scopeCtx->m_parameters, scopeCtx->m_names, parentCodeBlock,
+                                  (CodeBlock::CodeBlockInitFlag)((scopeCtx->m_hasEval ? CodeBlock::CodeBlockHasEval : 0) | (scopeCtx->m_hasWith ? CodeBlock::CodeBlockHasWith : 0) | (scopeCtx->m_hasYield ? CodeBlock::CodeBlockHasYield : 0) | (scopeCtx->m_associateNode->type() == FunctionExpression ? CodeBlock::CodeBlockIsFunctionExpression : 0) | (scopeCtx->m_associateNode->type() == FunctionDeclaration ? CodeBlock::CodeBlockIsFunctionDeclaration : 0)));
     }
 
 #ifndef NDEBUG
@@ -48,7 +42,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
             }
         }
 
-        for (size_t i = 0; i < scopeCtx->m_usingNames.size(); i ++) {
+        for (size_t i = 0; i < scopeCtx->m_usingNames.size(); i++) {
             AtomicString uname = scopeCtx->m_usingNames[i];
             if (!codeBlock->hasName(uname)) {
                 CodeBlock* c = codeBlock->parentCodeBlock();
@@ -61,7 +55,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
         }
     }
 
-    for (size_t i = 0 ; i < scopeCtx->m_childScopes.size(); i ++) {
+    for (size_t i = 0; i < scopeCtx->m_childScopes.size(); i++) {
         codeBlock->appendChildBlock(generateCodeBlockTreeFromASTWalker(ctx, source, script, scopeCtx->m_childScopes[i], codeBlock));
     }
 
@@ -90,40 +84,42 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
         topCodeBlock->m_cachedASTNode = program;
         script->m_topCodeBlock = topCodeBlock;
 
-        // dump Code Block
+// dump Code Block
 #ifndef NDEBUG
         if (getenv("DUMP_CODEBLOCK_TREE") && strlen(getenv("DUMP_CODEBLOCK_TREE"))) {
+            std::function<void(CodeBlock*, size_t depth)> fn = [&](CodeBlock* cb, size_t depth) {
 
-            std::function<void (CodeBlock*, size_t depth)> fn = [&](CodeBlock* cb, size_t depth) {
-
-#define PRINT_TAB() for (size_t i = 0; i < depth; i ++) { printf("  "); }
+#define PRINT_TAB()                      \
+    for (size_t i = 0; i < depth; i++) { \
+        printf("  ");                    \
+    }
 
                 PRINT_TAB()
                 printf("CodeBlock %s (%d:%d -> %d:%d)(%s, %s) (E:%d, W:%d, Y:%d)\n", cb->m_functionName.string()->toUTF8StringData().data(),
-                    (int)cb->m_locStart.line,
-                    (int)cb->m_locStart.column,
-                    (int)cb->m_locEnd.line,
-                    (int)cb->m_locEnd.column,
-                    cb->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap",
-                    cb->m_canUseIndexedVariableStorage ? "Indexed" : "Named",
-                    (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasYield);
+                       (int)cb->m_locStart.line,
+                       (int)cb->m_locStart.column,
+                       (int)cb->m_locEnd.line,
+                       (int)cb->m_locEnd.column,
+                       cb->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap",
+                       cb->m_canUseIndexedVariableStorage ? "Indexed" : "Named",
+                       (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasYield);
 
                 PRINT_TAB()
                 printf("Names: ");
-                for (size_t i = 0; i < cb->m_identifierInfos.size(); i ++) {
+                for (size_t i = 0; i < cb->m_identifierInfos.size(); i++) {
                     printf("%s(%s, %d), ", cb->m_identifierInfos[i].m_name.string()->toUTF8StringData().data(),
-                        cb->m_identifierInfos[i].m_needToAllocateOnStack ? "Stack" : "Heap", (int)cb->m_identifierInfos[i].m_indexForIndexedStorage);
+                           cb->m_identifierInfos[i].m_needToAllocateOnStack ? "Stack" : "Heap", (int)cb->m_identifierInfos[i].m_indexForIndexedStorage);
                 }
                 puts("");
 
                 PRINT_TAB()
                 printf("Using Names: ");
-                for (size_t i = 0; i < cb->m_scopeContext->m_usingNames.size(); i ++) {
+                for (size_t i = 0; i < cb->m_scopeContext->m_usingNames.size(); i++) {
                     printf("%s, ", cb->m_scopeContext->m_usingNames[i].string()->toUTF8StringData().data());
                 }
                 puts("");
 
-                for (size_t i = 0; i < cb->m_childBlocks.size(); i ++) {
+                for (size_t i = 0; i < cb->m_childBlocks.size(); i++) {
                     fn(cb->m_childBlocks[i], depth + 1);
                 }
 
@@ -132,7 +128,7 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
         }
 #endif
 
-    } catch(esprima::Error* orgError) {
+    } catch (esprima::Error* orgError) {
         script = nullptr;
         error = new ScriptParseError();
         error->column = orgError->column;
@@ -152,10 +148,9 @@ Node* ScriptParser::parseFunction(CodeBlock* codeBlock)
     try {
         Node* body = esprima::parseSingleFunction(m_context, codeBlock);
         return body;
-    } catch(esprima::Error* orgError) {
+    } catch (esprima::Error* orgError) {
         //
         RELEASE_ASSERT_NOT_REACHED();
     }
 }
-
 }

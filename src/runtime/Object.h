@@ -1,10 +1,10 @@
 #ifndef __EscargotObject__
 #define __EscargotObject__
 
-#include "runtime/PointerValue.h"
-#include "util/Vector.h"
-#include "runtime/SmallValue.h"
 #include "runtime/ObjectStructure.h"
+#include "runtime/PointerValue.h"
+#include "runtime/SmallValue.h"
+#include "util/Vector.h"
 
 namespace Escargot {
 
@@ -78,6 +78,7 @@ public:
     {
         return toPropertyName(state).string();
     }
+
 protected:
     bool m_isUIntType;
     union ObjectPropertyNameData {
@@ -94,6 +95,7 @@ class Object : public PointerValue {
     friend class GlobalObject;
     friend class ByteCodeInterpreter;
     static Object* createBuiltinObjectPrototype(ExecutionState& state);
+
 public:
     Object(ExecutionState& state);
     static Object* createFunctionPrototypeObject(ExecutionState& state, FunctionObject* function);
@@ -145,7 +147,7 @@ public:
         if (LIKELY(isPlainObject())) {
             m_values[0] = value;
         } else {
-           setPrototypeSlowCase(state, value);
+            setPrototypeSlowCase(state, value);
         }
     }
 
@@ -172,6 +174,7 @@ public:
         {
             return m_descriptor;
         }
+
     protected:
         MAKE_STACK_ALLOCATED();
         ObjectPropertyDescriptor m_descriptor;
@@ -281,6 +284,7 @@ public:
         ASSERT(structure()->inTransitionMode());
         m_structure = m_structure->escapeTransitionMode(state);
     }
+
 protected:
     Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);
     void initPlainObject(ExecutionState& state);
@@ -404,7 +408,6 @@ protected:
 
     bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, Object* receiver);
 };
-
 }
 
 #endif

@@ -17,8 +17,8 @@
 #ifndef Node_h
 #define Node_h
 
-#include "runtime/Value.h"
 #include "runtime/AtomicString.h"
+#include "runtime/Value.h"
 
 namespace Escargot {
 
@@ -144,15 +144,16 @@ class IdentifierNode;
 
 class Node : public gc {
     friend class ScriptParser;
+
 protected:
     Node()
         : m_loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     {
     }
+
 public:
     virtual ~Node()
     {
-
     }
 
     virtual ASTNodeType type() = 0;
@@ -162,10 +163,10 @@ public:
         return type() == ASTNodeType::Identifier;
     }
 
-    IdentifierNode* asIdentifier()
+    IdentifierNode *asIdentifier()
     {
         ASSERT(isIdentifier());
-        return (IdentifierNode*)this;
+        return (IdentifierNode *)this;
     }
 
     bool isLiteral()
@@ -193,17 +194,17 @@ public:
         return m_loc;
     }
 
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateExpressionByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateStoreByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
     {
         RELEASE_ASSERT_NOT_REACHED();
         // TODO
@@ -215,7 +216,6 @@ public:
 
 class Pattern {
 public:
-
 };
 
 struct ASTScopeContext : public gc {
@@ -223,13 +223,13 @@ struct ASTScopeContext : public gc {
     bool m_hasEval;
     bool m_hasWith;
     bool m_hasYield;
-    ASTScopeContext* m_parentContext;
-    Node* m_associateNode;
+    ASTScopeContext *m_parentContext;
+    Node *m_associateNode;
     AtomicStringVector m_names;
     AtomicStringVector m_usingNames;
     AtomicStringVector m_parameters;
     AtomicString m_functionName;
-    Vector<ASTScopeContext*, gc_malloc_ignore_off_page_allocator<ASTScopeContext*>> m_childScopes;
+    Vector<ASTScopeContext *, gc_malloc_ignore_off_page_allocator<ASTScopeContext *>> m_childScopes;
     NodeLOC m_locStart;
     NodeLOC m_locEnd;
     size_t m_nodeStartIndex;
@@ -248,7 +248,7 @@ struct ASTScopeContext : public gc {
         }
     }
 
-    ASTScopeContext(bool isStrict, ASTScopeContext* parentContext)
+    ASTScopeContext(bool isStrict, ASTScopeContext *parentContext)
         : m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
         , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
         , m_nodeStartIndex(SIZE_MAX)

@@ -23,7 +23,7 @@ namespace Escargot {
 
 class BinaryExpressionSignedRightShiftNode : public ExpressionNode {
 public:
-    BinaryExpressionSignedRightShiftNode(Node *left, Node* right)
+    BinaryExpressionSignedRightShiftNode(Node* left, Node* right)
         : ExpressionNode()
     {
         m_left = (ExpressionNode*)left;
@@ -42,11 +42,11 @@ public:
 
         codeBlock->pushCode(BinarySignedRightShift(ByteCodeLOC(m_loc.index), src0, src1), context, this);
     }
+
 protected:
     ExpressionNode* m_left;
     ExpressionNode* m_right;
 };
-
 }
 
 #endif

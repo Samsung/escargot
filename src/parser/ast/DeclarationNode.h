@@ -28,9 +28,9 @@ public:
         : StatementNode()
     {
     }
+
 protected:
 };
-
 }
 
 

@@ -12,6 +12,7 @@ class ExecutionContext : public gc {
     friend class FunctionObject;
     friend class ByteCodeInterpreter;
     friend class SandBox;
+
 public:
     ExecutionContext(Context* context, ExecutionContext* parent = nullptr, LexicalEnvironment* lexicalEnvironment = nullptr, bool inStrictMode = false)
         : m_inStrictMode(inStrictMode)
@@ -70,7 +71,6 @@ private:
     Value* m_stackStorage;
     LexicalEnvironment* m_lexicalEnvironment;
 };
-
 }
 
 #endif

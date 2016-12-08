@@ -1,28 +1,28 @@
 #ifndef __Escargot__
 #define __Escargot__
 
-#include <cstdlib>
-#include <cstdio>
-#include <vector>
-#include <list>
-#include <set>
-#include <map>
-#include <unordered_map>
-#include <unordered_set>
-#include <memory>
-#include <string>
-#include <cstring>
-#include <sstream>
-#include <cassert>
-#include <functional>
 #include <algorithm>
+#include <cassert>
+#include <climits>
+#include <clocale>
 #include <cmath>
 #include <csetjmp>
-#include <limits>
-#include <locale>
-#include <clocale>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <cwchar>
-#include <climits>
+#include <functional>
+#include <limits>
+#include <list>
+#include <locale>
+#include <map>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 #include <unicode/locid.h>
 #include <unicode/uchar.h>
@@ -31,8 +31,8 @@
 
 #ifndef PROFILE_MASSIF
 
-#include <gc_cpp.h>
 #include <gc_allocator.h>
+#include <gc_cpp.h>
 
 #else
 
@@ -55,8 +55,8 @@ void GC_free_hook(void* address);
 #define GC_REGISTER_FINALIZER_NO_ORDER(p, f, d, of, od) GC_register_finalizer_no_order(p, f, d, of, od)
 
 
-#include <gc_cpp.h>
 #include <gc_allocator.h>
+#include <gc_cpp.h>
 
 #endif
 
@@ -66,57 +66,56 @@ namespace Escargot {
 template <class GC_Tp>
 class gc_malloc_allocator {
 public:
-    typedef size_t     size_type;
-    typedef ptrdiff_t  difference_type;
-    typedef GC_Tp*       pointer;
+    typedef size_t size_type;
+    typedef ptrdiff_t difference_type;
+    typedef GC_Tp* pointer;
     typedef const GC_Tp* const_pointer;
-    typedef GC_Tp&       reference;
+    typedef GC_Tp& reference;
     typedef const GC_Tp& const_reference;
-    typedef GC_Tp        value_type;
+    typedef GC_Tp value_type;
 
-    template <class GC_Tp1> struct rebind {
+    template <class GC_Tp1>
+    struct rebind {
         typedef gc_malloc_allocator<GC_Tp1> other;
     };
 
-    gc_malloc_allocator() throw() { }
-    gc_malloc_allocator(const gc_malloc_allocator&) throw() { }
-# if !(GC_NO_MEMBER_TEMPLATES || 0 < _MSC_VER && _MSC_VER <= 1200)
+    gc_malloc_allocator() throw() {}
+    gc_malloc_allocator(const gc_malloc_allocator&) throw() {}
+#if !(GC_NO_MEMBER_TEMPLATES || 0 < _MSC_VER && _MSC_VER <= 1200)
     // MSVC++ 6.0 do not support member templates
-    template <class GC_Tp1> gc_malloc_allocator
-    (const gc_malloc_allocator<GC_Tp1>&) throw() { }
-# endif
-    ~gc_malloc_allocator() throw() { }
+    template <class GC_Tp1>
+    gc_malloc_allocator(const gc_malloc_allocator<GC_Tp1>&) throw() {}
+#endif
+    ~gc_malloc_allocator() throw()
+    {
+    }
 
     pointer address(reference GC_x) const { return &GC_x; }
     const_pointer address(const_reference GC_x) const { return &GC_x; }
-
     // GC_n is permitted to be 0. The C++ standard says nothing about what
     // the return value is when GC_n == 0.
     GC_Tp* allocate(size_type GC_n, const void* = 0)
     {
-        return (GC_Tp *)GC_MALLOC(sizeof(GC_Tp) * GC_n);
+        return (GC_Tp*)GC_MALLOC(sizeof(GC_Tp) * GC_n);
     }
 
     // __p is not permitted to be a null pointer.
-    void deallocate(pointer __p, size_type GC_ATTR_UNUSED GC_n)
-    { GC_FREE(__p); }
-
-    size_type max_size() const throw()
-    { return size_t(-1) / sizeof(GC_Tp); }
-
-    void construct(pointer __p, const GC_Tp& __val) { new(__p) GC_Tp(__val); }
+    void deallocate(pointer __p, size_type GC_ATTR_UNUSED GC_n) { GC_FREE(__p); }
+    size_type max_size() const throw() { return size_t(-1) / sizeof(GC_Tp); }
+    void construct(pointer __p, const GC_Tp& __val) { new (__p) GC_Tp(__val); }
     void destroy(pointer __p) { __p->~GC_Tp(); }
 };
 
-template<>
+template <>
 class gc_malloc_allocator<void> {
-    typedef size_t      size_type;
-    typedef ptrdiff_t   difference_type;
-    typedef void*       pointer;
+    typedef size_t size_type;
+    typedef ptrdiff_t difference_type;
+    typedef void* pointer;
     typedef const void* const_pointer;
-    typedef void        value_type;
+    typedef void value_type;
 
-    template <class GC_Tp1> struct rebind {
+    template <class GC_Tp1>
+    struct rebind {
         typedef gc_malloc_allocator<GC_Tp1> other;
     };
 };
@@ -137,57 +136,56 @@ inline bool operator!=(const gc_malloc_allocator<GC_T1>&, const gc_malloc_alloca
 template <class GC_Tp>
 class gc_malloc_pointer_free_allocator {
 public:
-    typedef size_t     size_type;
-    typedef ptrdiff_t  difference_type;
-    typedef GC_Tp*       pointer;
+    typedef size_t size_type;
+    typedef ptrdiff_t difference_type;
+    typedef GC_Tp* pointer;
     typedef const GC_Tp* const_pointer;
-    typedef GC_Tp&       reference;
+    typedef GC_Tp& reference;
     typedef const GC_Tp& const_reference;
-    typedef GC_Tp        value_type;
+    typedef GC_Tp value_type;
 
-    template <class GC_Tp1> struct rebind {
+    template <class GC_Tp1>
+    struct rebind {
         typedef gc_malloc_pointer_free_allocator<GC_Tp1> other;
     };
 
-    gc_malloc_pointer_free_allocator() throw() { }
-    gc_malloc_pointer_free_allocator(const gc_malloc_pointer_free_allocator&) throw() { }
-# if !(GC_NO_MEMBER_TEMPLATES || 0 < _MSC_VER && _MSC_VER <= 1200)
+    gc_malloc_pointer_free_allocator() throw() {}
+    gc_malloc_pointer_free_allocator(const gc_malloc_pointer_free_allocator&) throw() {}
+#if !(GC_NO_MEMBER_TEMPLATES || 0 < _MSC_VER && _MSC_VER <= 1200)
     // MSVC++ 6.0 do not support member templates
-    template <class GC_Tp1> gc_malloc_pointer_free_allocator
-    (const gc_malloc_pointer_free_allocator<GC_Tp1>&) throw() { }
-# endif
-    ~gc_malloc_pointer_free_allocator() throw() { }
+    template <class GC_Tp1>
+    gc_malloc_pointer_free_allocator(const gc_malloc_pointer_free_allocator<GC_Tp1>&) throw() {}
+#endif
+    ~gc_malloc_pointer_free_allocator() throw()
+    {
+    }
 
     pointer address(reference GC_x) const { return &GC_x; }
     const_pointer address(const_reference GC_x) const { return &GC_x; }
-
     // GC_n is permitted to be 0. The C++ standard says nothing about what
     // the return value is when GC_n == 0.
     GC_Tp* allocate(size_type GC_n, const void* = 0)
     {
-        return (GC_Tp *)GC_MALLOC_ATOMIC(sizeof(GC_Tp) * GC_n);
+        return (GC_Tp*)GC_MALLOC_ATOMIC(sizeof(GC_Tp) * GC_n);
     }
 
     // __p is not permitted to be a null pointer.
-    void deallocate(pointer __p, size_type GC_ATTR_UNUSED GC_n)
-    { GC_FREE(__p); }
-
-    size_type max_size() const throw()
-    { return size_t(-1) / sizeof(GC_Tp); }
-
-    void construct(pointer __p, const GC_Tp& __val) { new(__p) GC_Tp(__val); }
+    void deallocate(pointer __p, size_type GC_ATTR_UNUSED GC_n) { GC_FREE(__p); }
+    size_type max_size() const throw() { return size_t(-1) / sizeof(GC_Tp); }
+    void construct(pointer __p, const GC_Tp& __val) { new (__p) GC_Tp(__val); }
     void destroy(pointer __p) { __p->~GC_Tp(); }
 };
 
-template<>
+template <>
 class gc_malloc_pointer_free_allocator<void> {
-    typedef size_t      size_type;
-    typedef ptrdiff_t   difference_type;
-    typedef void*       pointer;
+    typedef size_t size_type;
+    typedef ptrdiff_t difference_type;
+    typedef void* pointer;
     typedef const void* const_pointer;
-    typedef void        value_type;
+    typedef void value_type;
 
-    template <class GC_Tp1> struct rebind {
+    template <class GC_Tp1>
+    struct rebind {
         typedef gc_malloc_pointer_free_allocator<GC_Tp1> other;
     };
 };
@@ -209,61 +207,60 @@ inline bool operator!=(const gc_malloc_pointer_free_allocator<GC_T1>&, const gc_
 template <class GC_Tp>
 class gc_malloc_ignore_off_page_allocator {
 public:
-    typedef size_t     size_type;
-    typedef ptrdiff_t  difference_type;
-    typedef GC_Tp*       pointer;
+    typedef size_t size_type;
+    typedef ptrdiff_t difference_type;
+    typedef GC_Tp* pointer;
     typedef const GC_Tp* const_pointer;
-    typedef GC_Tp&       reference;
+    typedef GC_Tp& reference;
     typedef const GC_Tp& const_reference;
-    typedef GC_Tp        value_type;
+    typedef GC_Tp value_type;
 
-    template <class GC_Tp1> struct rebind {
+    template <class GC_Tp1>
+    struct rebind {
         typedef gc_malloc_ignore_off_page_allocator<GC_Tp1> other;
     };
 
-    gc_malloc_ignore_off_page_allocator() throw() { }
-    gc_malloc_ignore_off_page_allocator(const gc_malloc_ignore_off_page_allocator&) throw() { }
-# if !(GC_NO_MEMBER_TEMPLATES || 0 < _MSC_VER && _MSC_VER <= 1200)
+    gc_malloc_ignore_off_page_allocator() throw() {}
+    gc_malloc_ignore_off_page_allocator(const gc_malloc_ignore_off_page_allocator&) throw() {}
+#if !(GC_NO_MEMBER_TEMPLATES || 0 < _MSC_VER && _MSC_VER <= 1200)
     // MSVC++ 6.0 do not support member templates
-    template <class GC_Tp1> gc_malloc_ignore_off_page_allocator
-    (const gc_malloc_ignore_off_page_allocator<GC_Tp1>&) throw() { }
-# endif
-    ~gc_malloc_ignore_off_page_allocator() throw() { }
+    template <class GC_Tp1>
+    gc_malloc_ignore_off_page_allocator(const gc_malloc_ignore_off_page_allocator<GC_Tp1>&) throw() {}
+#endif
+    ~gc_malloc_ignore_off_page_allocator() throw()
+    {
+    }
 
     pointer address(reference GC_x) const { return &GC_x; }
     const_pointer address(const_reference GC_x) const { return &GC_x; }
-
     // GC_n is permitted to be 0. The C++ standard says nothing about what
     // the return value is when GC_n == 0.
     GC_Tp* allocate(size_type GC_n, const void* = 0)
     {
         if (sizeof(GC_Tp) * GC_n > 1024) {
-            return (GC_Tp *)GC_MALLOC_IGNORE_OFF_PAGE(sizeof(GC_Tp) * GC_n);
+            return (GC_Tp*)GC_MALLOC_IGNORE_OFF_PAGE(sizeof(GC_Tp) * GC_n);
         } else {
-            return (GC_Tp *)GC_MALLOC(sizeof(GC_Tp) * GC_n);
+            return (GC_Tp*)GC_MALLOC(sizeof(GC_Tp) * GC_n);
         }
     }
 
     // __p is not permitted to be a null pointer.
-    void deallocate(pointer __p, size_type GC_ATTR_UNUSED GC_n)
-    { GC_FREE(__p); }
-
-    size_type max_size() const throw()
-    { return size_t(-1) / sizeof(GC_Tp); }
-
-    void construct(pointer __p, const GC_Tp& __val) { new(__p) GC_Tp(__val); }
+    void deallocate(pointer __p, size_type GC_ATTR_UNUSED GC_n) { GC_FREE(__p); }
+    size_type max_size() const throw() { return size_t(-1) / sizeof(GC_Tp); }
+    void construct(pointer __p, const GC_Tp& __val) { new (__p) GC_Tp(__val); }
     void destroy(pointer __p) { __p->~GC_Tp(); }
 };
 
-template<>
+template <>
 class gc_malloc_ignore_off_page_allocator<void> {
-    typedef size_t      size_type;
-    typedef ptrdiff_t   difference_type;
-    typedef void*       pointer;
+    typedef size_t size_type;
+    typedef ptrdiff_t difference_type;
+    typedef void* pointer;
     typedef const void* const_pointer;
-    typedef void        value_type;
+    typedef void value_type;
 
-    template <class GC_Tp1> struct rebind {
+    template <class GC_Tp1>
+    struct rebind {
         typedef gc_malloc_ignore_off_page_allocator<GC_Tp1> other;
     };
 };
@@ -284,61 +281,60 @@ inline bool operator!=(const gc_malloc_ignore_off_page_allocator<GC_T1>&, const 
 template <class GC_Tp>
 class gc_malloc_atomic_ignore_off_page_allocator {
 public:
-    typedef size_t     size_type;
-    typedef ptrdiff_t  difference_type;
-    typedef GC_Tp*       pointer;
+    typedef size_t size_type;
+    typedef ptrdiff_t difference_type;
+    typedef GC_Tp* pointer;
     typedef const GC_Tp* const_pointer;
-    typedef GC_Tp&       reference;
+    typedef GC_Tp& reference;
     typedef const GC_Tp& const_reference;
-    typedef GC_Tp        value_type;
+    typedef GC_Tp value_type;
 
-    template <class GC_Tp1> struct rebind {
+    template <class GC_Tp1>
+    struct rebind {
         typedef gc_malloc_atomic_ignore_off_page_allocator<GC_Tp1> other;
     };
 
-    gc_malloc_atomic_ignore_off_page_allocator() throw() { }
-    gc_malloc_atomic_ignore_off_page_allocator(const gc_malloc_atomic_ignore_off_page_allocator&) throw() { }
-# if !(GC_NO_MEMBER_TEMPLATES || 0 < _MSC_VER && _MSC_VER <= 1200)
+    gc_malloc_atomic_ignore_off_page_allocator() throw() {}
+    gc_malloc_atomic_ignore_off_page_allocator(const gc_malloc_atomic_ignore_off_page_allocator&) throw() {}
+#if !(GC_NO_MEMBER_TEMPLATES || 0 < _MSC_VER && _MSC_VER <= 1200)
     // MSVC++ 6.0 do not support member templates
-    template <class GC_Tp1> gc_malloc_atomic_ignore_off_page_allocator
-    (const gc_malloc_atomic_ignore_off_page_allocator<GC_Tp1>&) throw() { }
-# endif
-    ~gc_malloc_atomic_ignore_off_page_allocator() throw() { }
+    template <class GC_Tp1>
+    gc_malloc_atomic_ignore_off_page_allocator(const gc_malloc_atomic_ignore_off_page_allocator<GC_Tp1>&) throw() {}
+#endif
+    ~gc_malloc_atomic_ignore_off_page_allocator() throw()
+    {
+    }
 
     pointer address(reference GC_x) const { return &GC_x; }
     const_pointer address(const_reference GC_x) const { return &GC_x; }
-
     // GC_n is permitted to be 0. The C++ standard says nothing about what
     // the return value is when GC_n == 0.
     GC_Tp* allocate(size_type GC_n, const void* = 0)
     {
         if (sizeof(GC_Tp) * GC_n > 1024) {
-            return (GC_Tp *)GC_MALLOC_ATOMIC_IGNORE_OFF_PAGE(sizeof(GC_Tp) * GC_n);
+            return (GC_Tp*)GC_MALLOC_ATOMIC_IGNORE_OFF_PAGE(sizeof(GC_Tp) * GC_n);
         } else {
-            return (GC_Tp *)GC_MALLOC_ATOMIC(sizeof(GC_Tp) * GC_n);
+            return (GC_Tp*)GC_MALLOC_ATOMIC(sizeof(GC_Tp) * GC_n);
         }
     }
 
     // __p is not permitted to be a null pointer.
-    void deallocate(pointer __p, size_type GC_ATTR_UNUSED GC_n)
-    { GC_FREE(__p); }
-
-    size_type max_size() const throw()
-    { return size_t(-1) / sizeof(GC_Tp); }
-
-    void construct(pointer __p, const GC_Tp& __val) { new(__p) GC_Tp(__val); }
+    void deallocate(pointer __p, size_type GC_ATTR_UNUSED GC_n) { GC_FREE(__p); }
+    size_type max_size() const throw() { return size_t(-1) / sizeof(GC_Tp); }
+    void construct(pointer __p, const GC_Tp& __val) { new (__p) GC_Tp(__val); }
     void destroy(pointer __p) { __p->~GC_Tp(); }
 };
 
-template<>
+template <>
 class gc_malloc_atomic_ignore_off_page_allocator<void> {
-    typedef size_t      size_type;
-    typedef ptrdiff_t   difference_type;
-    typedef void*       pointer;
+    typedef size_t size_type;
+    typedef ptrdiff_t difference_type;
+    typedef void* pointer;
     typedef const void* const_pointer;
-    typedef void        value_type;
+    typedef void value_type;
 
-    template <class GC_Tp1> struct rebind {
+    template <class GC_Tp1>
+    struct rebind {
         typedef gc_malloc_atomic_ignore_off_page_allocator<GC_Tp1> other;
     };
 };
@@ -355,12 +351,11 @@ inline bool operator!=(const gc_malloc_atomic_ignore_off_page_allocator<GC_T1>&,
 {
     return false;
 }
-
 }
 
 
 /* COMPILER() - the compiler being used to build the project */
-#define COMPILER(FEATURE) (defined COMPILER_##FEATURE  && COMPILER_##FEATURE)
+#define COMPILER(FEATURE) (defined COMPILER_##FEATURE && COMPILER_##FEATURE)
 
 
 /* COMPILER(MSVC) - Microsoft Visual C++ */
@@ -468,7 +463,7 @@ inline bool operator!=(const gc_malloc_atomic_ignore_off_page_allocator<GC_T1>&,
 #include <dlog/dlog.h>
 #undef ESCARGOT_LOG_INFO
 #undef ESCARGOT_LOG_ERROR
-#define ESCARGOT_LOG_INFO(...)  dlog_print(DLOG_INFO, "Escargot", __VA_ARGS__);
+#define ESCARGOT_LOG_INFO(...) dlog_print(DLOG_INFO, "Escargot", __VA_ARGS__);
 #define ESCARGOT_LOG_ERROR(...) dlog_print(DLOG_ERROR, "Escargot", __VA_ARGS__);
 #endif
 
@@ -482,7 +477,10 @@ inline bool operator!=(const gc_malloc_atomic_ignore_off_page_allocator<GC_T1>&,
 #define ASSERT_STATIC(assertion, reason)
 #else
 #define ASSERT(assertion) assert(assertion);
-#define ASSERT_NOT_REACHED() do { assert(false); } while (0)
+#define ASSERT_NOT_REACHED() \
+    do {                     \
+        assert(false);       \
+    } while (0)
 #define ASSERT_STATIC(assertion, reason) static_assert(assertion, reason)
 #endif
 
@@ -491,8 +489,18 @@ inline bool operator!=(const gc_malloc_atomic_ignore_off_page_allocator<GC_T1>&,
 #define COMPILE_ASSERT(exp, name) static_assert((exp), #name)
 #endif
 
-#define RELEASE_ASSERT(assertion) do { if (!(assertion)) { ESCARGOT_LOG_ERROR("RELEASE_ASSERT at %s (%d)\n", __FILE__, __LINE__); abort(); } } while (0);
-#define RELEASE_ASSERT_NOT_REACHED() do { ESCARGOT_LOG_ERROR("RELEASE_ASSERT_NOT_REACHED at %s (%d)\n", __FILE__, __LINE__); abort(); } while (0)
+#define RELEASE_ASSERT(assertion)                                                  \
+    do {                                                                           \
+        if (!(assertion)) {                                                        \
+            ESCARGOT_LOG_ERROR("RELEASE_ASSERT at %s (%d)\n", __FILE__, __LINE__); \
+            abort();                                                               \
+        }                                                                          \
+    } while (0);
+#define RELEASE_ASSERT_NOT_REACHED()                                                       \
+    do {                                                                                   \
+        ESCARGOT_LOG_ERROR("RELEASE_ASSERT_NOT_REACHED at %s (%d)\n", __FILE__, __LINE__); \
+        abort();                                                                           \
+    } while (0)
 
 #if !defined(WARN_UNUSED_RETURN) && COMPILER(GCC)
 #define WARN_UNUSED_RETURN __attribute__((__warn_unused_result__))
@@ -502,36 +510,21 @@ inline bool operator!=(const gc_malloc_atomic_ignore_off_page_allocator<GC_T1>&,
 #define WARN_UNUSED_RETURN
 #endif
 
-#if defined(__BYTE_ORDER__) && __BYTE_ORDER == __BIG_ENDIAN || \
-    defined(__BIG_ENDIAN__) || \
-    defined(__ARMEB__) || \
-    defined(__THUMBEB__) || \
-    defined(__AARCH64EB__) || \
-    defined(_MIBSEB) || defined(__MIBSEB) || defined(__MIBSEB__)
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER == __BIG_ENDIAN || defined(__BIG_ENDIAN__) || defined(__ARMEB__) || defined(__THUMBEB__) || defined(__AARCH64EB__) || defined(_MIBSEB) || defined(__MIBSEB) || defined(__MIBSEB__)
 #define ESCARGOT_BIG_ENDIAN
 // #pragma message "big endian"
-#elif defined(__BYTE_ORDER__) && __BYTE_ORDER == __LITTLE_ENDIAN || \
-    defined(__LITTLE_ENDIAN__) || \
-    defined(__i386) || \
-    defined(_M_IX86) || \
-    defined(__ia64) || \
-    defined(__ia64__) || \
-    defined(_M_IA64) || \
-    defined(__ARMEL__) || \
-    defined(__THUMBEL__) || \
-    defined(__AARCH64EL__) || \
-    defined(_MIPSEL) || defined(__MIPSEL) || defined(__MIPSEL__)
+#elif defined(__BYTE_ORDER__) && __BYTE_ORDER == __LITTLE_ENDIAN || defined(__LITTLE_ENDIAN__) || defined(__i386) || defined(_M_IX86) || defined(__ia64) || defined(__ia64__) || defined(_M_IA64) || defined(__ARMEL__) || defined(__THUMBEL__) || defined(__AARCH64EL__) || defined(_MIPSEL) || defined(__MIPSEL) || defined(__MIPSEL__)
 #define ESCARGOT_LITTLE_ENDIAN
 // #pragma message "little endian"
 #else
 #error "I don't know what architecture this is!"
 #endif
 
-#define MAKE_STACK_ALLOCATED() \
-    static void *operator new     (size_t) = delete; \
-    static void *operator new[]   (size_t) = delete; \
-    static void  operator delete  (void*)  = delete; \
-    static void  operator delete[](void*)  = delete;
+#define MAKE_STACK_ALLOCATED()                    \
+    static void* operator new(size_t) = delete;   \
+    static void* operator new[](size_t) = delete; \
+    static void operator delete(void*) = delete;  \
+    static void operator delete[](void*) = delete;
 
 #define ALLOCA(bytes, typenameWithoutPointer, ec) (typenameWithoutPointer*)alloca(bytes)
 

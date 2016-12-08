@@ -17,8 +17,8 @@
 #ifndef DirectiveNode_h
 #define DirectiveNode_h
 
-#include "Node.h"
 #include "ExpressionNode.h"
+#include "Node.h"
 
 namespace Escargot {
 
@@ -37,7 +37,6 @@ protected:
     ExpressionNode* m_expr;
     StringView m_value;
 };
-
 }
 
 #endif

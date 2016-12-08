@@ -10,5 +10,4 @@ StringObject::StringObject(ExecutionState& state, String* value)
 {
     setPrototype(state, state.context()->globalObject()->stringPrototype());
 }
-
 }

@@ -29,10 +29,8 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::Empty; }
-
 protected:
 };
-
 }
 
 #endif

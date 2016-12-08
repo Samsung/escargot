@@ -79,6 +79,7 @@ public:
     {
         return true;
     }
+
 protected:
 };
 
@@ -111,8 +112,6 @@ class EvalErrorObject : public ErrorObject {
 public:
     EvalErrorObject(ExecutionState& state, String* errorMessage);
 };
-
-
 }
 
 #endif

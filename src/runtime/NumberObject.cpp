@@ -10,5 +10,4 @@ NumberObject::NumberObject(ExecutionState& state, double value)
 {
     setPrototype(state, state.context()->globalObject()->numberPrototype());
 }
-
 }

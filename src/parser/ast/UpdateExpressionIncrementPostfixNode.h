@@ -25,14 +25,13 @@ class UpdateExpressionIncrementPostfixNode : public ExpressionNode {
 public:
     friend class ScriptParser;
 
-    UpdateExpressionIncrementPostfixNode(Node *argument)
+    UpdateExpressionIncrementPostfixNode(Node* argument)
         : ExpressionNode()
     {
         m_argument = (ExpressionNode*)argument;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::UpdateExpressionIncrementPostfix; }
-
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         m_argument->generateExpressionByteCode(codeBlock, context);
@@ -43,10 +42,10 @@ public:
         m_argument->generateStoreByteCode(codeBlock, context);
         context->giveUpRegister();
     }
+
 protected:
     ExpressionNode* m_argument;
 };
-
 }
 
 #endif

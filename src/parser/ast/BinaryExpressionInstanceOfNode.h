@@ -23,7 +23,7 @@ namespace Escargot {
 
 class BinaryExpressionInstanceOfNode : public ExpressionNode {
 public:
-    BinaryExpressionInstanceOfNode(Node *left, Node* right)
+    BinaryExpressionInstanceOfNode(Node* left, Node* right)
         : ExpressionNode()
     {
         m_left = (ExpressionNode*)left;
@@ -31,12 +31,10 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionInstanceOf; }
-
 protected:
     ExpressionNode* m_left;
     ExpressionNode* m_right;
 };
-
 }
 
 #endif

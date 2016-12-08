@@ -18,8 +18,8 @@
 #define AssignmentExpressionMultiplyNode_h
 
 #include "ExpressionNode.h"
-#include "PatternNode.h"
 #include "IdentifierNode.h"
+#include "PatternNode.h"
 
 namespace Escargot {
 
@@ -51,7 +51,6 @@ protected:
     Node* m_left; // left: Pattern;
     Node* m_right; // right: Expression;
 };
-
 }
 
 #endif

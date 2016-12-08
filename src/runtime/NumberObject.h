@@ -13,10 +13,10 @@ public:
     {
         return m_primitiveValue;
     }
+
 protected:
     double m_primitiveValue;
 };
-
 }
 
 #endif

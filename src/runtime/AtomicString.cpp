@@ -77,7 +77,7 @@ void AtomicString::init(AtomicStringMap* ec, const char16_t* src, size_t len)
 
     if (isAllASCII(src, len)) {
         char* abuf = ALLOCA(len, char, ec);
-        for (unsigned i = 0 ; i < len ; i ++) {
+        for (unsigned i = 0; i < len; i++) {
             abuf[i] = src[i];
         }
         init(ec, abuf, len);
@@ -96,5 +96,4 @@ void AtomicString::init(AtomicStringMap* ec, const char16_t* src, size_t len)
         m_string = iter->second;
     }
 }
-
 }

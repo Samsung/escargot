@@ -27,15 +27,13 @@ public:
     UnaryExpressionDeleteNode(Node* argument)
         : ExpressionNode()
     {
-        m_argument = (ExpressionNode*) argument;
+        m_argument = (ExpressionNode*)argument;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionDelete; }
-
 protected:
     ExpressionNode* m_argument;
 };
-
 }
 
 #endif

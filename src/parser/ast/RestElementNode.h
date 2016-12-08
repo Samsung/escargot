@@ -17,8 +17,8 @@
 #ifndef RestElementNode_h
 #define RestElementNode_h
 
-#include "Node.h"
 #include "IdentifierNode.h"
+#include "Node.h"
 
 namespace Escargot {
 
@@ -31,7 +31,6 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::RestElement; }
-
     IdentifierNode* argument()
     {
         return m_argument;
@@ -40,7 +39,6 @@ public:
 protected:
     IdentifierNode* m_argument;
 };
-
 }
 
 #endif

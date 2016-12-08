@@ -33,12 +33,11 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ObjectExpression; }
-
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         codeBlock->pushCode(CreateObject(ByteCodeLOC(m_loc.index), context->getRegister()), context, this);
         size_t objIndex = context->getLastRegisterIndex();
-        for (unsigned i = 0; i < m_properties.size() ; i ++) {
+        for (unsigned i = 0; i < m_properties.size(); i++) {
             PropertyNode* p = m_properties[i];
             AtomicString propertyAtomicName;
             if (p->key()->isIdentifier()) {
@@ -73,10 +72,10 @@ public:
         }
         ASSERT(objIndex == context->getLastRegisterIndex());
     }
+
 protected:
     PropertiesNodeVector m_properties;
 };
-
 }
 
 #endif

@@ -34,7 +34,6 @@ public:
 protected:
     ExpressionNodeVector m_elements;
 };
-
 }
 
 #endif

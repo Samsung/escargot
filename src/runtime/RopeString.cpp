@@ -27,12 +27,12 @@ String* RopeString::createRopeString(String* lstr, String* rstr)
     rope->m_hasASCIIContent = lstr->hasASCIIContent() | rstr->hasASCIIContent();
     return rope;
 }
-template<typename A, typename B>
+template <typename A, typename B>
 void RopeString::flattenRopeStringWorker()
 {
     A result;
     result.resizeWithUninitializedValues(m_contentLength);
-    std::vector<String *, gc_malloc_atomic_ignore_off_page_allocator<String *>> queue;
+    std::vector<String*, gc_malloc_atomic_ignore_off_page_allocator<String*>> queue;
     queue.push_back(m_left);
     queue.push_back(m_right);
     size_t pos = m_contentLength;
@@ -50,12 +50,12 @@ void RopeString::flattenRopeStringWorker()
                 continue;
             }
         }
-            String* sub = cur;
-            pos -= sub->length();
-            size_t subLength = sub->length();
-            for (size_t i = 0 ; i < subLength; i ++) {
-                result[i + pos] = sub->charAt(i);
-            }
+        String* sub = cur;
+        pos -= sub->length();
+        size_t subLength = sub->length();
+        for (size_t i = 0; i < subLength; i++) {
+            result[i + pos] = sub->charAt(i);
+        }
     }
     m_left = new B(std::move(result));
     m_right = nullptr;
@@ -70,6 +70,4 @@ void RopeString::flattenRopeString()
         flattenRopeStringWorker<UTF16StringData, UTF16String>();
     }
 }
-
 }
-

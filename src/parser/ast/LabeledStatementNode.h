@@ -32,12 +32,10 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::LabeledStatement; }
-
 protected:
     StatementNode* m_statementNode;
     String* m_label;
 };
-
 }
 
 #endif

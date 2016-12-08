@@ -18,8 +18,8 @@
 #define AssignmentExpressionUnsignedRightShiftNode_h
 
 #include "ExpressionNode.h"
-#include "PatternNode.h"
 #include "IdentifierNode.h"
+#include "PatternNode.h"
 
 namespace Escargot {
 
@@ -45,11 +45,11 @@ public:
         codeBlock->pushCode(BinaryUnsignedRightShift(ByteCodeLOC(m_loc.index), src0, src1), context, this);
         m_left->generateStoreByteCode(codeBlock, context);
     }
+
 protected:
     Node* m_left; // left: Pattern;
     Node* m_right; // right: Expression;
 };
-
 }
 
 #endif

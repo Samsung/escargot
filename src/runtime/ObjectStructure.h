@@ -1,9 +1,9 @@
 #ifndef __EscargotObjectStructure__
 #define __EscargotObjectStructure__
 
-#include "runtime/ObjectPropertyDescriptor.h"
-#include "runtime/ExecutionState.h"
 #include "runtime/AtomicString.h"
+#include "runtime/ExecutionState.h"
+#include "runtime/ObjectPropertyDescriptor.h"
 #include "runtime/PropertyName.h"
 
 namespace Escargot {
@@ -15,7 +15,6 @@ struct ObjectStructureItem : public gc {
         : m_propertyName(as)
         , m_descriptor(desc)
     {
-
     }
 
     PropertyName m_propertyName;
@@ -32,7 +31,6 @@ struct ObjectStructureTransitionItem : public gc {
         , m_descriptor(desc)
         , m_structure(structure)
     {
-
     }
 };
 
@@ -40,6 +38,7 @@ typedef Vector<ObjectStructureItem, gc_malloc_atomic_ignore_off_page_allocator<O
 typedef Vector<ObjectStructureTransitionItem, gc_malloc_ignore_off_page_allocator<ObjectStructureTransitionItem>> ObjectStructureTransitionTableVector;
 class ObjectStructure : public gc {
     friend class Object;
+
 public:
     ObjectStructure(ExecutionState& state, bool needsTransitionTable = true)
     {
@@ -119,7 +118,7 @@ public:
         newProperties.resizeWithUninitializedValues(m_properties.size() - 1);
 
         size_t newIdx = 0;
-        for (size_t i = 0; i < m_properties.size(); i ++) {
+        for (size_t i = 0; i < m_properties.size(); i++) {
             if (i == pIndex)
                 continue;
             newProperties[newIdx].m_propertyName = m_properties[i].m_propertyName;
@@ -146,6 +145,7 @@ public:
     {
         return m_properties.size();
     }
+
 private:
     bool m_needsTransitionTable;
     ObjectStructureItemVector m_properties;
@@ -154,7 +154,7 @@ private:
     size_t searchTransitionTable(const PropertyName& s, const ObjectPropertyDescriptor& desc)
     {
         ASSERT(m_needsTransitionTable);
-        for (size_t i = 0; i < m_transitionTable.size(); i ++) {
+        for (size_t i = 0; i < m_transitionTable.size(); i++) {
             if (m_transitionTable[i].m_descriptor == desc && m_transitionTable[i].m_propertyName == s) {
                 return i;
             }
@@ -165,16 +165,14 @@ private:
 
     size_t findProperty(PropertyName s)
     {
-        for (size_t i = 0; i < m_properties.size(); i ++) {
+        for (size_t i = 0; i < m_properties.size(); i++) {
             if (m_properties[i].m_propertyName == s)
                 return i;
         }
 
         return SIZE_MAX;
     }
-
 };
-
 }
 
 #endif

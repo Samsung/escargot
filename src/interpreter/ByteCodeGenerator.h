@@ -1,9 +1,9 @@
 #ifndef __EscargotByteCodeGenerator__
 #define __EscargotByteCodeGenerator__
 
-#include "runtime/Value.h"
-#include "runtime/String.h"
 #include "parser/CodeBlock.h"
+#include "runtime/String.h"
+#include "runtime/Value.h"
 
 namespace Escargot {
 
@@ -59,7 +59,6 @@ struct ByteCodeGenerateContext {
 
     ~ByteCodeGenerateContext()
     {
-
     }
 
     void propagateInformationTo(ByteCodeGenerateContext& ctx)
@@ -102,38 +101,37 @@ struct ByteCodeGenerateContext {
     void registerJumpPositionsToComplexCase(size_t frontlimit)
     {
         ASSERT(m_tryStatementScopeCount);
-        for (unsigned i = 0 ; i < m_breakStatementPositions.size() ; i ++) {
-            if (m_breakStatementPositions[i] > (unsigned long) frontlimit) {
+        for (unsigned i = 0; i < m_breakStatementPositions.size(); i++) {
+            if (m_breakStatementPositions[i] > (unsigned long)frontlimit) {
                 if (m_complexCaseStatementPositions.find(m_breakStatementPositions[i]) == m_complexCaseStatementPositions.end()) {
                     m_complexCaseStatementPositions.insert(std::make_pair(m_breakStatementPositions[i], m_tryStatementScopeCount));
                 }
             }
         }
 
-        for (unsigned i = 0 ; i < m_continueStatementPositions.size() ; i ++) {
-            if (m_continueStatementPositions[i] > (unsigned long) frontlimit) {
+        for (unsigned i = 0; i < m_continueStatementPositions.size(); i++) {
+            if (m_continueStatementPositions[i] > (unsigned long)frontlimit) {
                 if (m_complexCaseStatementPositions.find(m_continueStatementPositions[i]) == m_complexCaseStatementPositions.end()) {
                     m_complexCaseStatementPositions.insert(std::make_pair(m_continueStatementPositions[i], m_tryStatementScopeCount));
                 }
             }
         }
 
-        for (unsigned i = 0 ; i < m_labeledBreakStatmentPositions.size() ; i ++) {
-            if (m_labeledBreakStatmentPositions[i].second > (unsigned long) frontlimit) {
+        for (unsigned i = 0; i < m_labeledBreakStatmentPositions.size(); i++) {
+            if (m_labeledBreakStatmentPositions[i].second > (unsigned long)frontlimit) {
                 if (m_complexCaseStatementPositions.find(m_labeledBreakStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
                     m_complexCaseStatementPositions.insert(std::make_pair(m_labeledBreakStatmentPositions[i].second, m_tryStatementScopeCount));
                 }
             }
         }
 
-        for (unsigned i = 0 ; i < m_labeledContinueStatmentPositions.size() ; i ++) {
-            if (m_labeledContinueStatmentPositions[i].second > (unsigned long) frontlimit) {
+        for (unsigned i = 0; i < m_labeledContinueStatmentPositions.size(); i++) {
+            if (m_labeledContinueStatmentPositions[i].second > (unsigned long)frontlimit) {
                 if (m_complexCaseStatementPositions.find(m_labeledContinueStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
                     m_complexCaseStatementPositions.insert(std::make_pair(m_labeledContinueStatmentPositions[i].second, m_tryStatementScopeCount));
                 }
             }
         }
-
     }
 
     size_t getLastRegisterIndex()
@@ -188,6 +186,7 @@ struct ByteCodeGenerateContext {
 
 class ByteCodeGenerator {
     MAKE_STACK_ALLOCATED();
+
 public:
     ByteCodeGenerator()
     {
@@ -195,7 +194,6 @@ public:
 
     void generateByteCode(Context* c, CodeBlock* codeBlock, Node* ast);
 };
-
 }
 
 #endif

@@ -17,8 +17,8 @@
 #ifndef DoWhileStatementNode_h
 #define DoWhileStatementNode_h
 
-#include "StatementNode.h"
 #include "ExpressionNode.h"
+#include "StatementNode.h"
 
 namespace Escargot {
 
@@ -28,17 +28,15 @@ public:
     DoWhileStatementNode(Node *test, Node *body)
         : StatementNode()
     {
-        m_test = (ExpressionNode*) test;
-        m_body = (StatementNode*) body;
+        m_test = (ExpressionNode *)test;
+        m_body = (StatementNode *)body;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::DoWhileStatement; }
-
 protected:
     ExpressionNode *m_test;
     StatementNode *m_body;
 };
-
 }
 
 #endif

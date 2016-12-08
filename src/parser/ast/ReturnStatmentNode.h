@@ -31,7 +31,6 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ReturnStatement; }
-
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         if (m_argument) {
@@ -42,10 +41,10 @@ public:
             codeBlock->pushCode(ReturnFunction(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this);
         }
     }
+
 protected:
     Node* m_argument;
 };
-
 }
 
 #endif

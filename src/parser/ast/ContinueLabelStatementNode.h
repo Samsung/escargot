@@ -31,11 +31,9 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ContinueLabelStatement; }
-
 protected:
     String* m_label;
 };
-
 }
 
 #endif

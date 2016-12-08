@@ -41,7 +41,6 @@ protected:
     Escargot::ESRegExpObject::Option m_flag;
 };
 */
-
 }
 
 #endif

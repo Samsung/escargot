@@ -23,7 +23,7 @@ namespace Escargot {
 
 class BinaryExpressionLogicalOrNode : public ExpressionNode {
 public:
-    BinaryExpressionLogicalOrNode(Node *left, Node* right)
+    BinaryExpressionLogicalOrNode(Node* left, Node* right)
         : ExpressionNode()
     {
         m_left = (ExpressionNode*)left;
@@ -31,7 +31,6 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionLogicalOr; }
-
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         m_left->generateExpressionByteCode(codeBlock, context);
@@ -41,11 +40,11 @@ public:
         m_right->generateExpressionByteCode(codeBlock, context);
         codeBlock->peekCode<JumpIfTrue>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
     }
+
 protected:
     ExpressionNode* m_left;
     ExpressionNode* m_right;
 };
-
 }
 
 #endif

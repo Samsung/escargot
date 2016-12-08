@@ -38,14 +38,14 @@ public:
         return m_end - m_start;
     }
 
-    bool operator== (const char* src) const
+    bool operator==(const char* src) const
     {
         size_t srcLen = strlen(src);
         if (srcLen != length()) {
             return false;
         }
 
-        for (size_t i = 0; i < srcLen; i ++) {
+        for (size_t i = 0; i < srcLen; i++) {
             if (src[i] != charAt(i)) {
                 return false;
             }
@@ -54,9 +54,9 @@ public:
         return true;
     }
 
-    bool operator!= (const char* src) const
+    bool operator!=(const char* src) const
     {
-        return !operator ==(src);
+        return !operator==(src);
     }
 
     virtual UTF16StringData toUTF16StringData() const
@@ -65,7 +65,7 @@ public:
         size_t len = length();
         ret.resizeWithUninitializedValues(len);
 
-        for (size_t i = 0; i < len; i ++) {
+        for (size_t i = 0; i < len; i++) {
             ret[i] = charAt(i);
         }
 
@@ -103,9 +103,6 @@ protected:
     String* m_string;
     size_t m_start, m_end;
 };
-
-
 }
 
 #endif
-

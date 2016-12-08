@@ -31,11 +31,9 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionBitwiseNot; }
-
 protected:
     Node* m_argument;
 };
-
 }
 
 #endif

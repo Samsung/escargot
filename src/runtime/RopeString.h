@@ -17,6 +17,7 @@ protected:
         m_left = nullptr;
         m_right = nullptr;
     }
+
 public:
     // this function not always create RopeString.
     // if (l+r).length() < ESCARGOT_ROPE_STRING_MIN_LENGTH
@@ -53,7 +54,7 @@ protected:
         const_cast<RopeString*>(this)->flattenRopeString();
         return m_left;
     }
-    template<typename A, typename B>
+    template <typename A, typename B>
     void flattenRopeStringWorker();
     void flattenRopeString();
 
@@ -62,8 +63,6 @@ protected:
     String* m_right;
     size_t m_contentLength;
 };
-
 }
 
 #endif
-

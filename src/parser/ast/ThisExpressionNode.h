@@ -24,16 +24,18 @@ namespace Escargot {
 class ThisExpressionNode : public ExpressionNode {
 public:
     ThisExpressionNode()
-        : ExpressionNode() { }
+        : ExpressionNode()
+    {
+    }
 
     virtual ASTNodeType type() { return ASTNodeType::ThisExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         codeBlock->pushCode(GetThis(ByteCodeLOC(m_loc.index), context->getRegister()), context, this);
     }
+
 protected:
 };
-
 }
 
 #endif

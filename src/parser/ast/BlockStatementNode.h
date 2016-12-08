@@ -33,11 +33,10 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::BlockStatement; }
     size_t size() { return m_body.size(); }
-
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         size_t len = m_body.size();
-        for (size_t i = 0; i < len; i ++) {
+        for (size_t i = 0; i < len; i++) {
             m_body[i]->generateStatementByteCode(codeBlock, context);
         }
     }
@@ -45,8 +44,6 @@ public:
 protected:
     StatementNodeVector m_body; // body: [ Statement ];
 };
-
-
 }
 
 #endif

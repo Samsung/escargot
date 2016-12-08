@@ -16,39 +16,39 @@ namespace Escargot {
 String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
 {
     ASSERT(!isString());
-     if (isInt32()) {
-         int num = asInt32();
-         if (num >= 0 && num < ESCARGOT_STRINGS_NUMBERS_MAX)
-             return ec.context()->staticStrings().numbers[num].string();
+    if (isInt32()) {
+        int num = asInt32();
+        if (num >= 0 && num < ESCARGOT_STRINGS_NUMBERS_MAX)
+            return ec.context()->staticStrings().numbers[num].string();
 
-         return String::fromInt32(num);
-     } else if (isNumber()) {
-         double d = asNumber();
-         if (std::isnan(d))
-             return ec.context()->staticStrings().NaN.string();
-         if (std::isinf(d)) {
-             if (std::signbit(d))
-                 return ec.context()->staticStrings().NegativeInfinity.string();
-             else
-                 return ec.context()->staticStrings().Infinity.string();
-         }
-         // convert -0.0 into 0.0
-         // in c++, d = -0.0, d == 0.0 is true
-         if (d == 0.0)
-             d = 0;
-         return String::fromDouble(d);
-     } else if (isUndefined()) {
-         return ec.context()->staticStrings().undefined.string();
-     } else if (isNull()) {
-         return ec.context()->staticStrings().null.string();
-     } else if (isBoolean()) {
-         if (asBoolean())
-             return ec.context()->staticStrings().stringTrue.string();
-         else
-             return ec.context()->staticStrings().stringFalse.string();
-     } else {
-         return toPrimitive(ec, PreferString).toString(ec);
-     }
+        return String::fromInt32(num);
+    } else if (isNumber()) {
+        double d = asNumber();
+        if (std::isnan(d))
+            return ec.context()->staticStrings().NaN.string();
+        if (std::isinf(d)) {
+            if (std::signbit(d))
+                return ec.context()->staticStrings().NegativeInfinity.string();
+            else
+                return ec.context()->staticStrings().Infinity.string();
+        }
+        // convert -0.0 into 0.0
+        // in c++, d = -0.0, d == 0.0 is true
+        if (d == 0.0)
+            d = 0;
+        return String::fromDouble(d);
+    } else if (isUndefined()) {
+        return ec.context()->staticStrings().undefined.string();
+    } else if (isNull()) {
+        return ec.context()->staticStrings().null.string();
+    } else if (isBoolean()) {
+        if (asBoolean())
+            return ec.context()->staticStrings().stringTrue.string();
+        else
+            return ec.context()->staticStrings().stringFalse.string();
+    } else {
+        return toPrimitive(ec, PreferString).toString(ec);
+    }
 }
 
 Object* Value::toObjectSlowCase(ExecutionState& state) const // $7.1.13 ToObject
@@ -233,7 +233,7 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
         char* buf;
         buf = ALLOCA(data->length() + 1, char, state);
         const size_t len = data->length();
-        for (unsigned i = 0; i < len ; i ++) {
+        for (unsigned i = 0; i < len; i++) {
             char16_t c = data->charAt(i);
             if (c >= 128)
                 c = 0;
@@ -245,20 +245,40 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
             return val;
         }
         double_conversion::StringToDoubleConverter converter(double_conversion::StringToDoubleConverter::ALLOW_HEX
-            | double_conversion::StringToDoubleConverter::ALLOW_LEADING_SPACES
-            | double_conversion::StringToDoubleConverter::ALLOW_TRAILING_SPACES, 0.0, double_conversion::Double::NaN(),
-            "Infinity", "NaN");
+                                                                 | double_conversion::StringToDoubleConverter::ALLOW_LEADING_SPACES
+                                                                 | double_conversion::StringToDoubleConverter::ALLOW_TRAILING_SPACES,
+                                                             0.0, double_conversion::Double::NaN(),
+                                                             "Infinity", "NaN");
         val = converter.StringToDouble(buf, len, &end);
         if (static_cast<size_t>(end) != len) {
-            auto isSpace = [] (char16_t c) -> bool {
+            auto isSpace = [](char16_t c) -> bool {
                 switch (c) {
-                case 0x0009: case 0x000A: case 0x000B: case 0x000C:
-                case 0x000D: case 0x0020: case 0x00A0: case 0x1680:
-                case 0x180E: case 0x2000: case 0x2001: case 0x2002:
-                case 0x2003: case 0x2004: case 0x2005: case 0x2006:
-                case 0x2007: case 0x2008: case 0x2009: case 0x200A:
-                case 0x2028: case 0x2029: case 0x202F: case 0x205F:
-                case 0x3000: case 0xFEFF:
+                case 0x0009:
+                case 0x000A:
+                case 0x000B:
+                case 0x000C:
+                case 0x000D:
+                case 0x0020:
+                case 0x00A0:
+                case 0x1680:
+                case 0x180E:
+                case 0x2000:
+                case 0x2001:
+                case 0x2002:
+                case 0x2003:
+                case 0x2004:
+                case 0x2005:
+                case 0x2006:
+                case 0x2007:
+                case 0x2008:
+                case 0x2009:
+                case 0x200A:
+                case 0x2028:
+                case 0x2029:
+                case 0x202F:
+                case 0x205F:
+                case 0x3000:
+                case 0xFEFF:
                     return true;
                 default:
                     return false;
@@ -266,9 +286,12 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
             };
 
             unsigned ptr = 0;
-            enum State { Initial, ReadingNumber, DoneReadingNumber, Invalid };
+            enum State { Initial,
+                         ReadingNumber,
+                         DoneReadingNumber,
+                         Invalid };
             State state = State::Initial;
-            for (unsigned i = 0; i < len; i ++) {
+            for (unsigned i = 0; i < len; i++) {
                 switch (state) {
                 case Initial:
                     if (isSpace(data->charAt(i)))
@@ -345,5 +368,4 @@ int32_t Value::toInt32SlowCase(ExecutionState& state) const // $7.1.5 ToInt32
     // but testing 'bits' is likely faster) invert the result appropriately.
     return bits < 0 ? -result : result;
 }
-
 }
