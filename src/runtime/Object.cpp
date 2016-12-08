@@ -3,6 +3,7 @@
 #include "ExecutionContext.h"
 #include "Context.h"
 #include "ErrorObject.h"
+#include "ArrayObject.h"
 
 namespace Escargot {
 
@@ -141,6 +142,17 @@ void Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& 
     ASSERT(getOwnProperty(state, P).hasValue());
     ASSERT(getOwnProperty(state, P).isConfigurable());
     deleteOwnProperty(state, m_structure->findProperty(state, P.toPropertyName(state)));
+}
+
+void Object::enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectPropertyDescriptor& desc)> fn) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+{
+    size_t cnt = m_structure->propertyCount();
+    for (size_t i = 0; i < cnt; i++) {
+        const ObjectStructureItem& item = m_structure->readProperty(state, i);
+        if (!fn(ObjectPropertyName(state, item.m_propertyName), item.m_descriptor)) {
+            break;
+        }
+    }
 }
 
 Object::ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& propertyName, Object* receiver)
@@ -304,5 +316,58 @@ void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
 
     m_structure = m_structure->removeProperty(state, idx);
     m_values.erase(idx);
+}
+
+uint32_t Object::length(ExecutionState& state)
+{
+    return get(state, state.context()->staticStrings().length, this).value().toUint32(state);
+}
+
+double Object::nextIndexForward(ExecutionState& state, Object* obj, const double cur, const double end, const bool skipUndefined)
+{
+    Value ptr = obj;
+    double ret = end;
+    while (ptr.isObject()) {
+        ptr.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectPropertyDescriptor& desc) {
+            uint32_t index = Value::InvalidArrayIndexValue;
+            Value key = name.toValue(state);
+            if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
+                if (skipUndefined && ptr.asObject()->get(state, name).value().isUndefined()) {
+                    return true;
+                }
+                if (index > cur) {
+                    ret = index;
+                    return false;
+                }
+            }
+            return true;
+        });
+        ptr = ptr.asObject()->getPrototype(state);
+    }
+    return ret;
+}
+
+double Object::nextIndexBackward(ExecutionState& state, Object* obj, const double cur, const double end, const bool skipUndefined)
+{
+    Value ptr = obj;
+    double ret = end;
+    while (ptr.isObject()) {
+        ptr.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectPropertyDescriptor& desc) {
+            uint32_t index = Value::InvalidArrayIndexValue;
+            Value key = name.toValue(state);
+            if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
+                if (skipUndefined && ptr.asObject()->get(state, name).value().isUndefined()) {
+                    return true;
+                }
+                if (index < cur) {
+                    ret = index;
+                    return false;
+                }
+            }
+            return true;
+        });
+        ptr = ptr.asObject()->getPrototype(state);
+    }
+    return ret;
 }
 }

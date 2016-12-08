@@ -920,7 +920,7 @@ inline std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOpera
             obj = targetObj;
             inlineCache.m_cache.insert(0, GetObjectInlineCacheData());
             currentCacheIndex = 0;
-            ASSERT(&inlineCache.m_cache.back() == &inlineCache.m_cache[currentCacheIndex]);
+            ASSERT(&inlineCache.m_cache[0] == &inlineCache.m_cache[currentCacheIndex]);
             ObjectStructureChain* cachedHiddenClassChain = &inlineCache.m_cache[currentCacheIndex].m_cachedhiddenClassChain;
             size_t* cachedHiddenClassIndex = &inlineCache.m_cache[currentCacheIndex].m_cachedIndex;
             while (true) {

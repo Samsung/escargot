@@ -62,7 +62,7 @@ protected:
 
 inline bool operator==(const PropertyName& a, const PropertyName& b)
 {
-    if (LIKELY(a.hasAtomicString()) == LIKELY(b.hasAtomicString())) {
+    if (LIKELY(a.hasAtomicString()) && LIKELY(b.hasAtomicString())) {
         return a.m_data == b.m_data;
     } else {
         return a.string()->equals(b.string());

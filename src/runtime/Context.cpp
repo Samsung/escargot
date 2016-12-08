@@ -92,6 +92,7 @@ Context::Context(VMInstance* instance)
     m_defaultStructureForArrayObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length,
                                                                                 ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&arrayLengthGetterSetterData));
 
+    m_defaultStructureForStringObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length, ObjectPropertyDescriptor::createDataDescriptor(ObjectPropertyDescriptor::NotPresent));
     m_globalObject = new GlobalObject(stateForInit);
     m_globalObject->installBuiltins(stateForInit);
 }

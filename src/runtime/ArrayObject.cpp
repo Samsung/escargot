@@ -5,10 +5,10 @@
 namespace Escargot {
 
 ArrayObject::ArrayObject(ExecutionState& state)
-    : Object(state, 2, true)
+    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1, true)
 {
     m_structure = state.context()->defaultStructureForArrayObject();
-    m_values[1] = Value(0);
+    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(0);
     setPrototype(state, state.context()->globalObject()->arrayPrototype());
 }
 
@@ -29,7 +29,7 @@ Object::ObjectGetResult ArrayObject::getOwnProperty(ExecutionState& state, const
         if (LIKELY(P.isUIntType())) {
             idx = P.uintValue();
         } else {
-            uint32_t idx = P.string(state)->tryToUseAsIndex();
+            idx = P.string(state)->tryToUseAsArrayIndex();
         }
         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
             ASSERT(m_fastModeData.size() == getLength(state));
@@ -52,7 +52,7 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
         if (LIKELY(P.isUIntType())) {
             idx = P.uintValue();
         } else {
-            idx = P.string(state)->tryToUseAsIndex();
+            idx = P.string(state)->tryToUseAsArrayIndex();
         }
         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
             if (UNLIKELY(!desc.descriptor().isPlainDataWritableEnumerableConfigurable())) {
@@ -81,7 +81,7 @@ void ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
         if (LIKELY(P.isUIntType())) {
             idx = P.uintValue();
         } else {
-            idx = P.string(state)->tryToUseAsIndex();
+            idx = P.string(state)->tryToUseAsArrayIndex();
         }
         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
             uint32_t len = m_fastModeData.size();
@@ -93,5 +93,20 @@ void ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
         }
     }
     return Object::deleteOwnProperty(state, P);
+}
+
+void ArrayObject::enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectPropertyDescriptor& desc)> callback) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+{
+    if (LIKELY(isFastModeArray())) {
+        size_t len = m_fastModeData.size();
+        for (size_t i = 0; i < len; i++) {
+            if (m_fastModeData[i].isEmpty())
+                continue;
+            if (!callback(ObjectPropertyName(state, Value(i)), ObjectPropertyDescriptor::createDataDescriptor(ObjectPropertyDescriptor::AllPresent))) {
+                return;
+            }
+        }
+    }
+    Object::enumeration(state, callback);
 }
 }

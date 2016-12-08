@@ -33,15 +33,21 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         CodeBlock* blk = nullptr;
+        size_t cnt = 0;
         for (size_t i = 0; i < context->m_codeBlock->childBlocks().size(); i++) {
             CodeBlock* c = context->m_codeBlock->childBlocks()[i];
-            if (c->isFunctionExpression() && c->astNodeStartIndex() == m_loc.index) {
-                blk = c;
-                break;
+            if (c->isFunctionExpression()) {
+                if (cnt == context->m_feCounter) {
+                    blk = c;
+                    break;
+                }
+                cnt++;
             }
         }
         ASSERT(blk);
         codeBlock->pushCode(DeclareFunctionExpression(ByteCodeLOC(m_loc.index), context->getRegister(), blk), context, this);
+
+        context->m_feCounter++;
     }
 
 protected:

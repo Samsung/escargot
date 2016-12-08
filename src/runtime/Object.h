@@ -81,6 +81,15 @@ public:
         return toPropertyName(state).string();
     }
 
+    Value toValue(ExecutionState& state) const
+    {
+        if (isUIntType()) {
+            return Value(uintValue());
+        } else {
+            return Value(string(state));
+        }
+    }
+
 protected:
     bool m_isUIntType;
     union ObjectPropertyNameData {
@@ -260,6 +269,10 @@ public:
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual void deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
+    // enumeration every property!
+    // callback function should skip un-Enumerable property if needs
+    virtual void enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectPropertyDescriptor& desc)> callback) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
+    virtual uint32_t length(ExecutionState& state);
 
     bool hasOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
     {
@@ -294,6 +307,9 @@ public:
         ASSERT(structure()->inTransitionMode());
         m_structure = m_structure->escapeTransitionMode(state);
     }
+
+    static double nextIndexForward(ExecutionState& state, Object* obj, const double cur, const double len, const bool skipUndefined);
+    static double nextIndexBackward(ExecutionState& state, Object* obj, const double cur, const double end, const bool skipUndefined);
 
 protected:
     Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);

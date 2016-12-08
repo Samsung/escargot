@@ -19,6 +19,7 @@ public:
         return true;
     }
 
+
     uint32_t getLength(ExecutionState& state)
     {
         if (LIKELY(isPlainObject())) {
@@ -41,6 +42,11 @@ public:
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual void deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
+    virtual void enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectPropertyDescriptor& desc)> callback) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
+    virtual uint32_t length(ExecutionState& state)
+    {
+        return getLength(state);
+    }
 
 protected:
     Value getLengthSlowCase(ExecutionState& state);
@@ -62,7 +68,7 @@ protected:
         }
 
         if (UNLIKELY(newLength > ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE)) {
-            if (!isFastModeArray()) {
+            if (isFastModeArray()) {
                 uint32_t orgLength = getLength(state);
                 if (newLength > orgLength) {
                     if (newLength - orgLength > ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP) {

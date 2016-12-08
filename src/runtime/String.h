@@ -117,7 +117,8 @@ public:
     virtual UTF8StringData toUTF8StringData() const = 0;
     static String* emptyString;
 
-    uint32_t tryToUseAsIndex() const;
+    uint64_t tryToUseAsIndex() const;
+    uint32_t tryToUseAsArrayIndex() const;
 
 protected:
     // NOTE this for atomic string
@@ -249,7 +250,7 @@ UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t& len);
 ASCIIStringData utf16StringToASCIIString(const char16_t* buf, const size_t& len);
 ASCIIStringData dtoa(double number);
 
-inline String* fromCharCode(char32_t code)
+inline String* String::fromCharCode(char32_t code)
 {
     if (code < 128) {
         char c = (char)code;

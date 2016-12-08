@@ -30,6 +30,10 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::EmptyStatement; }
+    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
+    {
+    }
+
 protected:
 };
 }

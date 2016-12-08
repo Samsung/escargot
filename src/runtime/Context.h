@@ -55,6 +55,11 @@ public:
         return m_defaultStructureForArrayObject;
     }
 
+    ObjectStructure* defaultStructureForStringObject()
+    {
+        return m_defaultStructureForStringObject;
+    }
+
     GlobalObject* globalObject()
     {
         return m_globalObject;
@@ -95,6 +100,7 @@ protected:
     ObjectStructure* m_defaultStructureForNotConstructorFunctionObject;
     ObjectStructure* m_defaultStructureForFunctionPrototypeObject;
     ObjectStructure* m_defaultStructureForArrayObject;
+    ObjectStructure* m_defaultStructureForStringObject;
 
     Vector<SandBox*, gc_malloc_allocator<SandBox*>> m_sandBoxStack;
 };

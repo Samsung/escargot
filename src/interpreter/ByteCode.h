@@ -207,7 +207,7 @@ public:
     {
     }
     size_t m_registerIndex;
-    SmallValue m_value;
+    Value m_value;
 
 #ifndef NDEBUG
     virtual void dump()

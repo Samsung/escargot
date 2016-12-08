@@ -7,6 +7,11 @@
 
 namespace Escargot {
 
+static Value builtinMathAbs(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    return Value(std::abs(argv[0].toNumber(state)));
+}
+
 static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (argc == 0) {
@@ -25,6 +30,64 @@ static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc,
         return Value(maxValue);
     }
     return Value();
+}
+
+static Value builtinMathMin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (argc == 0) {
+        return Value(std::numeric_limits<double>::infinity());
+    } else {
+        double minValue = argv[0].toNumber(state);
+        for (unsigned i = 1; i < argc; i++) {
+            double value = argv[i].toNumber(state);
+            double qnan = std::numeric_limits<double>::quiet_NaN();
+            if (std::isnan(value))
+                return Value(qnan);
+            if (value < minValue || (!value && !minValue && std::signbit(value)))
+                minValue = value;
+        }
+        return Value(minValue);
+    }
+    return Value();
+}
+
+static Value builtinMathRound(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    double x = argv[0].toNumber(state);
+    if (x == -0.5)
+        return Value(-0.0);
+    else if (x > -0.5)
+        return Value(round(x));
+    else
+        return Value(floor(x + 0.5));
+}
+
+static Value builtinMathSin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    Value x = argv[0];
+    return Value(sin(x.toNumber(state)));
+}
+
+static Value builtinMathCos(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    Value x = argv[0];
+    return Value(cos(x.toNumber(state)));
+}
+
+static Value builtinMathTan(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    double x = argv[0].toNumber(state);
+    if (std::isnan(x))
+        return Value(std::numeric_limits<double>::quiet_NaN());
+    else if (x == 0.0) {
+        if (std::signbit(x)) {
+            return Value(Value::EncodeAsDouble, -0.0);
+        } else {
+            return Value(0);
+        }
+    } else if (std::isinf(x))
+        return Value(std::numeric_limits<double>::quiet_NaN());
+    return Value(tan(x));
 }
 
 static Value builtinMathSqrt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -56,13 +119,30 @@ void GlobalObject::installMath(ExecutionState& state)
     // http://www.ecma-international.org/ecma-262/5.1/#sec-15.8.1.8
     m_math->defineOwnPropertyThrowsException(state, strings->SQRT2, ObjectPropertyDescriptorForDefineOwnProperty(Value(1.4142135623730951), ObjectPropertyDescriptor::NotPresent));
 
+    // initialize math object: $20.2.2.12 Math.cos()
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().cos),
+                                             Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().cos, builtinMathCos, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+    // initialize math object: $20.2.2.24 Math.abs()
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().abs),
+                                             Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().abs, builtinMathAbs, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
     // initialize math object: $20.2.2.24 Math.max()
     m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().max),
                                              Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().max, builtinMathMax, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
-
+    // initialize math object: $20.2.2.25 Math.min()
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().min),
+                                             Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().min, builtinMathMin, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+    // initialize math object: $20.2.2.28 Math.round()
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().round),
+                                             Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().round, builtinMathRound, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+    // initialize math object: $20.2.2.30 Math.sin()
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().sin),
+                                             Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().sin, builtinMathSin, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
     // initialize math object: $20.2.2.32 Math.sqrt()
     m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().sqrt),
                                              Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().sqrt, builtinMathSqrt, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+    // initialize math object: $20.2.2.33 Math.tan()
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().tan),
+                                             Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().tan, builtinMathTan, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Math),
                       Object::ObjectPropertyDescriptorForDefineOwnProperty(m_math, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));

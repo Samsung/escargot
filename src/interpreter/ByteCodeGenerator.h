@@ -34,6 +34,7 @@ struct ByteCodeGenerateContext {
         , m_offsetToBasePointer(0)
         , m_positionToContinue(0)
         , m_tryStatementScopeCount(0)
+        , m_feCounter(0)
     {
         m_inCallingExpressionScope = false;
         m_isHeadOfMemberExpression = false;
@@ -52,6 +53,7 @@ struct ByteCodeGenerateContext {
         , m_offsetToBasePointer(contextBefore.m_offsetToBasePointer)
         , m_positionToContinue(contextBefore.m_positionToContinue)
         , m_tryStatementScopeCount(contextBefore.m_tryStatementScopeCount)
+        , m_feCounter(contextBefore.m_feCounter)
     {
         m_isHeadOfMemberExpression = false;
     }
@@ -70,6 +72,7 @@ struct ByteCodeGenerateContext {
         ctx.m_complexCaseStatementPositions.insert(m_complexCaseStatementPositions.begin(), m_complexCaseStatementPositions.end());
         ctx.m_offsetToBasePointer = m_offsetToBasePointer;
         ctx.m_positionToContinue = m_positionToContinue;
+        ctx.m_feCounter = m_feCounter;
 
         m_breakStatementPositions.clear();
         m_continueStatementPositions.clear();
@@ -181,6 +184,7 @@ struct ByteCodeGenerateContext {
     size_t m_positionToContinue;
     // code position, tryStatement count
     int m_tryStatementScopeCount;
+    size_t m_feCounter;
     std::map<size_t, size_t> m_complexCaseStatementPositions;
 };
 

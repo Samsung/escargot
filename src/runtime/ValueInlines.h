@@ -659,6 +659,17 @@ inline uint32_t Value::toUint32(ExecutionState& state) const // http://www.ecma-
     return toInt32(state);
 }
 
+inline Value::ValueIndex Value::toIndex(ExecutionState& state) const // $7.1.15 ToLength
+{
+    int32_t i;
+    if (LIKELY(isInt32()) && LIKELY((i = asInt32()) >= 0)) {
+        return i;
+    } else {
+        String* key = toString(state);
+        return key->tryToUseAsIndex();
+    }
+}
+
 inline uint32_t Value::toArrayIndex(ExecutionState& state) const
 {
     int32_t i;

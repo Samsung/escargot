@@ -39,7 +39,7 @@ public:
             if (m_elements[i]) {
                 m_elements[i]->generateExpressionByteCode(codeBlock, context);
             } else {
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(Value::EmptyValue)), context, this);
+                continue;
             }
             size_t valueIndex = context->getLastRegisterIndex();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(i)), context, this);

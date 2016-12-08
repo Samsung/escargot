@@ -425,7 +425,7 @@ int String::stringCompare(size_t l1, size_t l2, const String* c1, const String* 
     return (l1 > l2) ? 1 : -1;
 }
 
-uint32_t String::tryToUseAsIndex() const
+uint32_t String::tryToUseAsArrayIndex() const
 {
     bool allOfCharIsDigit = true;
     uint32_t number = 0;
@@ -457,5 +457,39 @@ uint32_t String::tryToUseAsIndex() const
         return number;
     }
     return Value::InvalidArrayIndexValue;
+}
+
+uint64_t String::tryToUseAsIndex() const
+{
+    bool allOfCharIsDigit = true;
+    uint32_t number = 0;
+    size_t len = length();
+
+    if (UNLIKELY(len == 0)) {
+        return Value::InvalidIndexValue;
+    }
+
+    if (len > 1) {
+        if (charAt(0) == '0') {
+            return Value::InvalidIndexValue;
+        }
+    }
+
+    for (unsigned i = 0; i < len; i++) {
+        char16_t c = charAt(0);
+        if (c < '0' || c > '9') {
+            allOfCharIsDigit = false;
+            break;
+        } else {
+            uint32_t cnum = c - '0';
+            if (number > (Value::InvalidIndexValue - cnum) / 10)
+                return Value::InvalidIndexValue;
+            number = number * 10 + cnum;
+        }
+    }
+    if (LIKELY(allOfCharIsDigit)) {
+        return number;
+    }
+    return Value::InvalidIndexValue;
 }
 }
