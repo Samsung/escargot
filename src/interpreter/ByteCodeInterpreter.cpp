@@ -8,6 +8,7 @@
 #include "runtime/SandBox.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/ErrorObject.h"
+#include "runtime/ArrayObject.h"
 #include "../third_party/checked_arithmetic/CheckedArithmetic.h"
 
 namespace Escargot {
@@ -77,11 +78,14 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         programCounter = (size_t)(&codeBuffer[0]);
         ByteCode* currentCode;
 
-#define NEXT_INSTRUCTION()                               \
-    currentCode = (ByteCode*)programCounter;             \
-    ASSERT(((size_t)currentCode % sizeof(size_t)) == 0); \
-    goto*(currentCode->m_opcodeInAddress);
-
+#define NEXT_INSTRUCTION() \
+    goto NextInstrucution;
+    /*
+        currentCode = (ByteCode *)programCounter; \
+        ASSERT(((size_t)currentCode % sizeof(size_t)) == 0); \
+        goto *(currentCode->m_opcodeInAddress);
+*/
+    NextInstrucution:
         currentCode = (ByteCode*)programCounter;
         ASSERT(((size_t)currentCode % sizeof(size_t)) == 0);
         goto*(currentCode->m_opcodeInAddress);
@@ -428,6 +432,22 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         NEXT_INSTRUCTION();
     }
 
+    UnaryNotOpcodeLbl : {
+        UnaryNot* code = (UnaryNot*)currentCode;
+        const Value& val = registerFile[code->m_registerIndex];
+        registerFile[code->m_registerIndex] = Value(!val.toBoolean(state));
+        executeNextCode<UnaryNot>(programCounter);
+        NEXT_INSTRUCTION();
+    }
+
+    UnaryBitwiseNotOpcodeLbl : {
+        UnaryBitwiseNot* code = (UnaryBitwiseNot*)currentCode;
+        const Value& val = registerFile[code->m_registerIndex];
+        registerFile[code->m_registerIndex] = Value(~val.toInt32(state));
+        executeNextCode<UnaryBitwiseNot>(programCounter);
+        NEXT_INSTRUCTION();
+    }
+
     GetObjectOpcodeLbl : {
         GetObject* code = (GetObject*)currentCode;
         const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
@@ -436,7 +456,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         executeNextCode<GetObject>(programCounter);
         NEXT_INSTRUCTION();
     }
-
     SetObjectOpcodeLbl : {
         SetObject* code = (SetObject*)currentCode;
         const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
@@ -446,7 +465,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         executeNextCode<SetObject>(programCounter);
         NEXT_INSTRUCTION();
     }
-
     GetObjectPreComputedCaseOpcodeLbl : {
         GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)currentCode;
         const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
@@ -621,6 +639,13 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         NEXT_INSTRUCTION();
     }
 
+    CreateArrayOpcodeLbl : {
+        CreateArray* code = (CreateArray*)currentCode;
+        registerFile[code->m_registerIndex] = new ArrayObject(state);
+        executeNextCode<CreateArray>(programCounter);
+        NEXT_INSTRUCTION();
+    }
+
     NewOperationOpcodeLbl : {
         NewOperation* code = (NewOperation*)currentCode;
         registerFile[code->m_registerIndex] = newOperation(state, registerFile[code->m_registerIndex], code->m_argumentCount, &registerFile[code->m_registerIndex + 1]);
@@ -648,13 +673,12 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
                 newArgv[i] = Value();
             }
             argv = newArgv;
-            argc = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->parametersInfomation().size();
+            // argc = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->parametersInfomation().size();
         }
         *state.exeuctionResult() = code->m_fn(state, record->getThisBinding(), argc, argv, record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isNewExpression());
         return;
     }
     }
-
 FillOpcodeTable : {
 #define REGISTER_TABLE(opcode, pushCount, popCount) \
     registerOpcode(opcode##Opcode, &&opcode##OpcodeLbl);
@@ -662,9 +686,7 @@ FillOpcodeTable : {
 
 #undef REGISTER_TABLE
 }
-    return;
 }
-
 
 Value ByteCodeInterpreter::loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name)
 {

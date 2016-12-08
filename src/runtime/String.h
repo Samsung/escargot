@@ -117,6 +117,7 @@ public:
     virtual UTF8StringData toUTF8StringData() const = 0;
     static String* emptyString;
 
+    uint32_t tryToUseAsIndex() const;
 
 protected:
     // NOTE this for atomic string

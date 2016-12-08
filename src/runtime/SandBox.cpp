@@ -42,7 +42,12 @@ void SandBox::throwException(ExecutionState& state, Value exception)
                             // consider native function
                             StackTraceData data;
                             data.loc = loc;
-                            data.fileName = cb->script()->fileName();
+                            if (cb->script())
+                                data.fileName = cb->script()->fileName();
+                            else {
+                                const char* str = "[native function]";
+                                data.fileName = String::fromUTF8(str, strlen(str));
+                            }
                             m_stackTraceData.pushBack(std::make_pair(ec, data));
                         }
                     }

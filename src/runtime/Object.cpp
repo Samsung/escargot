@@ -38,7 +38,7 @@ Object* Object::createFunctionPrototypeObject(ExecutionState& state, FunctionObj
 {
     Object* obj = new Object(state, 2, false);
     obj->m_structure = state.context()->defaultStructureForFunctionPrototypeObject();
-    obj->m_values[0] = Value();
+    obj->m_values[0] = Value(state.context()->globalObject()->objectPrototype());
     obj->m_values[1] = Value(function);
 
     return obj;
@@ -296,7 +296,7 @@ void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
         const ObjectStructureItem& ownDesc = m_structure->readProperty(state, idx);
         if (ownDesc.m_descriptor.isNativeAccessorProperty()) {
             ensureObjectRareData();
-            // TODO
+            // TODO modify every native accessor!
             RELEASE_ASSERT_NOT_REACHED();
             m_rareData->m_isPlainObject = false;
         }

@@ -29,6 +29,7 @@ public:
         installString(state);
         installNumber(state);
         installBoolean(state);
+        installArray(state);
         installMath(state);
         installOthers(state);
     }
@@ -39,6 +40,7 @@ public:
     void installString(ExecutionState& state);
     void installNumber(ExecutionState& state);
     void installBoolean(ExecutionState& state);
+    void installArray(ExecutionState& state);
     void installMath(ExecutionState& state);
     void installOthers(ExecutionState& state);
 

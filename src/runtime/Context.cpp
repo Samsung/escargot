@@ -7,6 +7,7 @@
 #include "EnvironmentRecord.h"
 #include "parser/CodeBlock.h"
 #include "SandBox.h"
+#include "ArrayObject.h"
 
 namespace Escargot {
 
@@ -42,6 +43,22 @@ bool Context::functionPrototypeNativeSetter(ExecutionState& state, Object* self,
 static ObjectPropertyNativeGetterSetterData functionPrototypeNativeGetterSetterData(
     true, false, false, &Context::functionPrototypeNativeGetter, &Context::functionPrototypeNativeSetter);
 
+Value Context::arrayLengthNativeGetter(ExecutionState& state, Object* self)
+{
+    ASSERT(self->isArrayObject() && self->isPlainObject());
+    return self->uncheckedGetOwnDataProperty(state, 1);
+}
+
+bool Context::arrayLengthNativeSetter(ExecutionState& state, Object* self, const Value& newData)
+{
+    ASSERT(self->isArrayObject() && self->isPlainObject());
+    self->asArrayObject()->setLength(state, newData.toArrayIndex(state));
+    return true;
+}
+
+static ObjectPropertyNativeGetterSetterData arrayLengthGetterSetterData(
+    true, false, false, &Context::arrayLengthNativeGetter, &Context::arrayLengthNativeSetter);
+
 Context::Context(VMInstance* instance)
     : m_didSomePrototypeObjectDefineIndexedProperty(false)
     , m_instance(instance)
@@ -71,6 +88,9 @@ Context::Context(VMInstance* instance)
 
     m_defaultStructureForFunctionPrototypeObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.prototype,
                                                                                             ObjectPropertyDescriptor::createDataDescriptor((ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+
+    m_defaultStructureForArrayObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length,
+                                                                                ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&arrayLengthGetterSetterData));
 
     m_globalObject = new GlobalObject(stateForInit);
     m_globalObject->installBuiltins(stateForInit);

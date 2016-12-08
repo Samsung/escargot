@@ -48,6 +48,7 @@ class Node;
     F(BinarySignedRightShift, 1, 2)     \
     F(BinaryUnsignedRightShift, 1, 2)   \
     F(CreateObject, 1, 0)               \
+    F(CreateArray, 1, 0)                \
     F(GetObject, 1, 2)                  \
     F(SetObject, 0, 2)                  \
     F(GetObjectPreComputedCase, 1, 1)   \
@@ -59,6 +60,8 @@ class Node;
     F(Decrement, 1, 1)                  \
     F(UnaryMinus, 1, 1)                 \
     F(UnaryPlus, 1, 1)                  \
+    F(UnaryNot, 1, 1)                   \
+    F(UnaryBitwiseNot, 1, 1)            \
     F(Jump, 0, 0)                       \
     F(JumpComplexCase, 0, 0)            \
     F(JumpIfTrue, 0, 0)                 \
@@ -534,6 +537,24 @@ public:
 #endif
 };
 
+class CreateArray : public ByteCode {
+public:
+    CreateArray(const ByteCodeLOC& loc, const size_t& registerIndex)
+        : ByteCode(Opcode::CreateArrayOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    size_t m_registerIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("createarray -> r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
 class GetObject : public ByteCode {
 public:
     // [object, property] -> [value]
@@ -785,6 +806,42 @@ public:
     virtual void dump()
     {
         printf("unary plus r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class UnaryNot : public ByteCode {
+public:
+    UnaryNot(const ByteCodeLOC& loc, const size_t& registerIndex)
+        : ByteCode(Opcode::UnaryNotOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    size_t m_registerIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("unary not r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class UnaryBitwiseNot : public ByteCode {
+public:
+    UnaryBitwiseNot(const ByteCodeLOC& loc, const size_t& registerIndex)
+        : ByteCode(Opcode::UnaryBitwiseNotOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    size_t m_registerIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("unary bitwise not r%d", (int)m_registerIndex);
     }
 #endif
 };

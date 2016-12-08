@@ -3,6 +3,8 @@
 #include "Context.h"
 #include "StringObject.h"
 
+#include <math.h>
+
 namespace Escargot {
 
 static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -23,6 +25,12 @@ static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc,
         return Value(maxValue);
     }
     return Value();
+}
+
+static Value builtinMathSqrt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    Value x = argv[0];
+    return Value(sqrt(x.toNumber(state)));
 }
 
 void GlobalObject::installMath(ExecutionState& state)
@@ -51,6 +59,10 @@ void GlobalObject::installMath(ExecutionState& state)
     // initialize math object: $20.2.2.24 Math.max()
     m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().max),
                                              Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().max, builtinMathMax, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+
+    // initialize math object: $20.2.2.32 Math.sqrt()
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().sqrt),
+                                             Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().sqrt, builtinMathSqrt, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Math),
                       Object::ObjectPropertyDescriptorForDefineOwnProperty(m_math, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));

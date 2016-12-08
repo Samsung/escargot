@@ -136,6 +136,7 @@ void eval(Escargot::Context* context, Escargot::String* str, Escargot::String* f
 
 int main(int argc, char* argv[])
 {
+    // GC_disable();
     /*
     GC_set_force_unmap_on_gcollect(1);
     for (size_t i = 0; i < 96; i ++) {

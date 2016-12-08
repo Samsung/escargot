@@ -36,6 +36,12 @@ public:
         return true;
     }
 
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        generateExpressionByteCode(codeBlock, context);
+        context->giveUpRegister();
+    }
+
 protected:
 };
 }

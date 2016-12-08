@@ -367,8 +367,14 @@ check:
 	cat out/octane_result
 	make tidy
 
+tidy-install:
+	apt-get install clang-format-3.8
+
 tidy:
-	./tools/check-webkit-style `find src/ -name "*.cpp" -o -name "*.h"`> error_report 2>& 1
+	python tools/check_tidy.py
+
+tidy-update:
+	python tools/check_tidy.py update
 
 # Targets : benchmarks
 

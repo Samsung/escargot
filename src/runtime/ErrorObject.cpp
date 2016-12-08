@@ -54,7 +54,7 @@ const char* errorMessage_GlobalObject_InvalidArrayBufferOffset = "%s: ArrayBuffe
 const char* errorMessage_GlobalObject_NotExistNewInArrayBufferConstructor = "%s: Constructor ArrayBuffer requires \'new\'";
 const char* errorMessage_GlobalObject_NotExistNewInTypedArrayConstructor = "%s: Constructor TypedArray requires \'new\'";
 const char* errorMessage_GlobalObject_NotExistNewInDataViewConstructor = "%s: Constructor DataView requires \'new\'";
-const char* errorMessage_GlobalObject_InvalidArrayLength = "%s: Invalid array length";
+const char* errorMessage_GlobalObject_InvalidArrayLength = "Invalid array length";
 
 void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototoype, String* functionName, const char* templateString)
 {

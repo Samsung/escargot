@@ -174,11 +174,13 @@ public:
     Object* toTransientObjectSlowPath(ExecutionState& ec) const; // ES5 $8.7.2 transient object
     double toLength(ExecutionState& ec) const; // $7.1.15 ToLength
 
+    enum { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() };
+    inline uint32_t toArrayIndex(ExecutionState& ec) const;
+
     inline bool abstractEqualsTo(ExecutionState& ec, const Value& val) const;
     bool abstractEqualsToSlowCase(ExecutionState& ec, const Value& val) const;
     bool equalsTo(ExecutionState& ec, const Value& val) const;
     inline bool equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val) const;
-
 
 #ifdef ESCARGOT_32
     uint32_t tag() const;

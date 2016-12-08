@@ -56,6 +56,11 @@ public:
         return ObjectPropertyDescriptor(nativeGetterSetterData);
     }
 
+    bool isPlainDataWritableEnumerableConfigurable() const
+    {
+        return isPlainDataProperty() && m_descriptorData.presentAttributes() == AllPresent;
+    }
+
     bool isWritable() const
     {
         return m_descriptorData.presentAttributes() & WritablePresent;

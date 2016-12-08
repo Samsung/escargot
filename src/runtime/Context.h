@@ -50,6 +50,11 @@ public:
         return m_defaultStructureForFunctionPrototypeObject;
     }
 
+    ObjectStructure* defaultStructureForArrayObject()
+    {
+        return m_defaultStructureForArrayObject;
+    }
+
     GlobalObject* globalObject()
     {
         return m_globalObject;
@@ -64,6 +69,11 @@ public:
     // [__proto__, name, length] or [__proto__, prototype, name, length]
     static Value functionPrototypeNativeGetter(ExecutionState& state, Object* self);
     static bool functionPrototypeNativeSetter(ExecutionState& state, Object* self, const Value& newData);
+
+    // array
+    // [__proto__, length]
+    static Value arrayLengthNativeGetter(ExecutionState& state, Object* self);
+    static bool arrayLengthNativeSetter(ExecutionState& state, Object* self, const Value& newData);
 
     bool didSomePrototypeObjectDefineIndexedProperty()
     {
@@ -84,6 +94,7 @@ protected:
     ObjectStructure* m_defaultStructureForFunctionObject;
     ObjectStructure* m_defaultStructureForNotConstructorFunctionObject;
     ObjectStructure* m_defaultStructureForFunctionPrototypeObject;
+    ObjectStructure* m_defaultStructureForArrayObject;
 
     Vector<SandBox*, gc_malloc_allocator<SandBox*>> m_sandBoxStack;
 };

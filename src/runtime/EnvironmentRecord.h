@@ -197,6 +197,11 @@ public:
         return true;
     }
 
+    virtual Value getThisBinding()
+    {
+        return Value(m_globalObject);
+    }
+
     virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false);
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);

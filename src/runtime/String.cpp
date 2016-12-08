@@ -1,5 +1,6 @@
 #include "Escargot.h"
 #include "String.h"
+#include "Value.h"
 
 #include "fast-dtoa.h"
 #include "bignum-dtoa.h"
@@ -422,5 +423,39 @@ int String::stringCompare(size_t l1, size_t l2, const String* c1, const String* 
         return 0;
 
     return (l1 > l2) ? 1 : -1;
+}
+
+uint32_t String::tryToUseAsIndex() const
+{
+    bool allOfCharIsDigit = true;
+    uint32_t number = 0;
+    size_t len = length();
+
+    if (UNLIKELY(len == 0)) {
+        return Value::InvalidArrayIndexValue;
+    }
+
+    if (len > 1) {
+        if (charAt(0) == '0') {
+            return Value::InvalidArrayIndexValue;
+        }
+    }
+
+    for (unsigned i = 0; i < len; i++) {
+        char16_t c = charAt(0);
+        if (c < '0' || c > '9') {
+            allOfCharIsDigit = false;
+            break;
+        } else {
+            uint32_t cnum = c - '0';
+            if (number > (std::numeric_limits<uint32_t>::max() - cnum) / 10)
+                return Value::InvalidArrayIndexValue;
+            number = number * 10 + cnum;
+        }
+    }
+    if (LIKELY(allOfCharIsDigit)) {
+        return number;
+    }
+    return Value::InvalidArrayIndexValue;
 }
 }

@@ -15,11 +15,13 @@ struct ObjectRareData {
     bool m_isExtensible;
     bool m_isPlainObject; // tells it has __proto__ at first index
     bool m_isEverSetAsPrototypeObject;
+    bool m_isFastModeArrayObject;
     ObjectRareData()
     {
         m_isExtensible = true;
         m_isPlainObject = true;
         m_isEverSetAsPrototypeObject = false;
+        m_isFastModeArrayObject = true;
     }
 };
 
@@ -120,6 +122,12 @@ public:
         return (ErrorObject*)this;
     }
 
+    ArrayObject* asArrayObject()
+    {
+        ASSERT(isArrayObject());
+        return (ArrayObject*)this;
+    }
+
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-isextensible
     bool isExtensible()
     {
@@ -189,7 +197,7 @@ public:
             , m_isWritable(false)
             , m_isEnumerable(false)
             , m_isConfigurable(false)
-            , m_isDataProperty(false)
+            , m_isDataProperty(true)
             , m_value(Value())
         {
         }
@@ -206,7 +214,9 @@ public:
 
         Value value() const
         {
-            return m_value;
+            if (LIKELY(m_isDataProperty))
+                return m_value;
+            RELEASE_ASSERT_NOT_REACHED();
         }
 
         bool hasValue() const
@@ -290,7 +300,7 @@ protected:
     void initPlainObject(ExecutionState& state);
     ObjectStructure* m_structure;
     ObjectRareData* m_rareData;
-    Vector<SmallValue, gc_allocator_ignore_off_page<SmallValue>> m_values;
+    Vector<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> m_values;
 
     ObjectStructure* structure() const
     {
