@@ -96,6 +96,85 @@ static Value builtinMathSqrt(ExecutionState& state, Value thisValue, size_t argc
     return Value(sqrt(x.toNumber(state)));
 }
 
+static Value builtinMathPow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    double x = argv[0].toNumber(state);
+    double y = argv[1].toNumber(state);
+    if (UNLIKELY(std::isnan(y)))
+        return Value(std::numeric_limits<double>::quiet_NaN());
+    if (UNLIKELY(std::abs(x) == 1 && std::isinf(y)))
+        return Value(std::numeric_limits<double>::quiet_NaN());
+
+    int y_int = static_cast<int>(y);
+
+    if (y == y_int) {
+        unsigned n = (y < 0) ? -y : y;
+        double m = x;
+        double p = 1;
+        while (true) {
+            if ((n & 1) != 0)
+                p *= m;
+            n >>= 1;
+            if (n == 0) {
+                if (y < 0) {
+                    // Unfortunately, we have to be careful when p has reached
+                    // infinity in the computation, because sometimes the higher
+                    // internal precision in the pow() implementation would have
+                    // given us a finite p. This happens very rarely.
+
+                    double result = 1.0 / p;
+                    return (result == 0 && std::isinf(p)) ? Value(pow(x, static_cast<double>(y))) // Avoid pow(double, int).
+                                                          : Value(result);
+                }
+
+                return Value(p);
+            }
+            m *= m;
+        }
+    }
+
+    if (std::isinf(x)) {
+        if (x > 0) {
+            if (y > 0) {
+                return Value(std::numeric_limits<double>::infinity());
+            } else {
+                return Value(0.0);
+            }
+        } else {
+            if (y > 0) {
+                if (y == y_int && y_int % 2) { // odd
+                    return Value(-std::numeric_limits<double>::infinity());
+                } else {
+                    return Value(std::numeric_limits<double>::infinity());
+                }
+            } else {
+                if (y == y_int && y_int % 2) {
+                    return Value(-0.0);
+                } else {
+                    return Value(0.0);
+                }
+            }
+        }
+    }
+    // x == -0
+    if (1 / x == -std::numeric_limits<double>::infinity()) {
+        // y cannot be an odd integer because the case is filtered by "if (y_int == y)" above
+        if (y > 0) {
+            return Value(0);
+        } else if (y < 0) {
+            return Value(std::numeric_limits<double>::infinity());
+        }
+    }
+
+    if (y == 0.5) {
+        return Value(sqrt(x));
+    } else if (y == -0.5) {
+        return Value(1.0 / sqrt(x));
+    }
+
+    return Value(pow(x, y));
+}
+
 void GlobalObject::installMath(ExecutionState& state)
 {
     m_math = new Object(state);
@@ -131,6 +210,9 @@ void GlobalObject::installMath(ExecutionState& state)
     // initialize math object: $20.2.2.25 Math.min()
     m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().min),
                                              Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().min, builtinMathMin, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+    // initialize math object: $20.2.2.26 Math.pow()
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().pow),
+                                             Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().pow, builtinMathPow, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
     // initialize math object: $20.2.2.28 Math.round()
     m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().round),
                                              Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().round, builtinMathRound, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));

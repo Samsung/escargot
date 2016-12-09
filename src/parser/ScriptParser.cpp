@@ -47,9 +47,6 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
             if (!codeBlock->hasName(uname)) {
                 CodeBlock* c = codeBlock->parentCodeBlock();
                 while (c) {
-                    if (uname.string()->equals("green")) {
-                        puts("sadf");
-                    }
                     if (c->tryCaptureIdentifiersFromChildCodeBlock(uname))
                         break;
                     c = c->parentCodeBlock();
