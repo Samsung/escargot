@@ -8,6 +8,7 @@ class Object;
 class FunctionObject;
 class ArrayObject;
 class StringObject;
+class DateObject;
 class DoubleInSmallValue;
 
 class PointerValue : public gc {
@@ -84,6 +85,12 @@ public:
     {
         ASSERT(isStringObject());
         return (StringObject*)this;
+    }
+
+    DateObject* asDateObject()
+    {
+        ASSERT(isDateObject());
+        return (DateObject*)this;
     }
 
     DoubleInSmallValue* asDoubleInSmallValue()

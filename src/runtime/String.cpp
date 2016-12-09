@@ -29,6 +29,18 @@ bool isAllASCII(const char16_t* buf, const size_t& len)
     return true;
 }
 
+bool isIndexString(String* str)
+{
+    size_t len = str->length();
+    for (unsigned i = 0; i < len; i++) {
+        char16_t c = str->charAt(i);
+        if (c < '0' || c > '9') {
+            return false;
+        }
+    }
+    return true;
+}
+
 static const char32_t offsetsFromUTF8[6] = { 0x00000000UL, 0x00003080UL, 0x000E2080UL, 0x03C82080UL, static_cast<char32_t>(0xFA082080UL), static_cast<char32_t>(0x82082080UL) };
 
 char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen)

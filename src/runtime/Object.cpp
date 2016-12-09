@@ -58,6 +58,10 @@ bool Object::setPrototypeSlowCase(ExecutionState& state, const Value& value)
 // http://www.ecma-international.org/ecma-262/6.0/#sec-ordinarygetownproperty
 Object::ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
+    if (propertyName.isUIntType() && !m_structure->hasIndexPropertyName()) {
+        return Object::ObjectGetResult();
+    }
+
     PropertyName P = propertyName.toPropertyName(state);
     size_t idx = m_structure->findProperty(state, P);
     if (LIKELY(idx != SIZE_MAX)) {

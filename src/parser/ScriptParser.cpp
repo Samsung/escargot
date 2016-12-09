@@ -47,6 +47,9 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
             if (!codeBlock->hasName(uname)) {
                 CodeBlock* c = codeBlock->parentCodeBlock();
                 while (c) {
+                    if (uname.string()->equals("green")) {
+                        puts("sadf");
+                    }
                     if (c->tryCaptureIdentifiersFromChildCodeBlock(uname))
                         break;
                     c = c->parentCodeBlock();
@@ -87,7 +90,7 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
 // dump Code Block
 #ifndef NDEBUG
         if (getenv("DUMP_CODEBLOCK_TREE") && strlen(getenv("DUMP_CODEBLOCK_TREE"))) {
-            std::function<void(CodeBlock*, size_t depth)> fn = [&](CodeBlock* cb, size_t depth) {
+            std::function<void(CodeBlock*, size_t depth)> fn = [&fn](CodeBlock* cb, size_t depth) {
 
 #define PRINT_TAB()                      \
     for (size_t i = 0; i < depth; i++) { \

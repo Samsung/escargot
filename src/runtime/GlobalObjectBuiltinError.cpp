@@ -71,9 +71,9 @@ static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t
 
 void GlobalObject::installError(ExecutionState& state)
 {
-    m_error = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Error, builtinErrorConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
-                                                          return new ErrorObject(state, String::emptyString);
-                                                      })));
+    m_error = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Error, builtinErrorConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+                                     return new ErrorObject(state, String::emptyString);
+                                 }));
     m_error->markThisObjectDontNeedStructureTransitionTable(state);
 
     m_error->setPrototype(state, m_functionPrototype);
@@ -89,9 +89,9 @@ void GlobalObject::installError(ExecutionState& state)
 
 // m_##name##Error->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
 #define DEFINE_ERROR(errorname, bname)                                                                                                                                                                                                                                                                                        \
-    m_##errorname##Error = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().bname##Error, builtinErrorConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {                                                                            \
-                                                                       return new bname##ErrorObject(state, String::emptyString);                                                                                                                                                                                             \
-                                                                   })));                                                                                                                                                                                                                                                      \
+    m_##errorname##Error = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bname##Error, builtinErrorConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {                                                                                                           \
+                                                  return new bname##ErrorObject(state, String::emptyString);                                                                                                                                                                                                                  \
+                                              }));                                                                                                                                                                                                                                                                            \
     m_##errorname##Error->setPrototype(state, m_functionPrototype);                                                                                                                                                                                                                                                           \
     m_##errorname##ErrorPrototype = new ErrorObject(state, String::emptyString);                                                                                                                                                                                                                                              \
     m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().constructor, Object::ObjectPropertyDescriptorForDefineOwnProperty(m_##errorname##Error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent))); \

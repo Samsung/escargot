@@ -5,6 +5,7 @@
 #include "runtime/PointerValue.h"
 #include "runtime/SmallValue.h"
 #include "util/Vector.h"
+#include "util/TightVector.h"
 
 namespace Escargot {
 
@@ -316,7 +317,7 @@ protected:
     void initPlainObject(ExecutionState& state);
     ObjectStructure* m_structure;
     ObjectRareData* m_rareData;
-    Vector<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> m_values;
+    TightVector<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> m_values;
 
     ObjectStructure* structure() const
     {

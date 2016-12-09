@@ -31,19 +31,21 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForB
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2, false)
     , m_isConstructor(false)
     , m_codeBlock(codeBlock)
+    , m_outerEnvironment(nullptr)
 {
     initFunctionObject(state);
 }
 
 FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, bool isConstructor)
-    : FunctionObject(state, new CodeBlock(state.context(), info), isConstructor)
+    : FunctionObject(state, new CodeBlock(state.context(), info), nullptr, isConstructor)
 {
 }
 
-FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, bool isConstructor)
+FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnv, bool isConstructor)
     : Object(state, isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
     , m_isConstructor(isConstructor)
     , m_codeBlock(codeBlock)
+    , m_outerEnvironment(outerEnv)
 {
     initFunctionObject(state);
     setPrototype(state, state.context()->globalObject()->functionPrototype());
@@ -94,11 +96,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     if (m_codeBlock->canAllocateEnvironmentOnStack()) {
         // no capture, very simple case
         record = new (alloca(sizeof(LexicalEnvironment))) FunctionEnvironmentRecordOnStack(state, receiver, this, argc, argv, isNewExpression);
-        if (LIKELY(state.executionContext() != nullptr)) {
-            env = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, state.executionContext()->lexicalEnvironment());
-        } else {
-            env = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, nullptr);
-        }
+        env = new LexicalEnvironment(record, outerEnvironment());
         ec = new (alloca(sizeof(ExecutionContext))) ExecutionContext(ctx, state.executionContext(), env, isStrict);
     } else {
         if (m_codeBlock->canUseIndexedVariableStorage()) {
@@ -106,11 +104,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
         } else {
             record = new FunctionEnvironmentRecordNotIndexed(state, receiver, this, argc, argv, isNewExpression);
         }
-        if (LIKELY(state.executionContext() != nullptr)) {
-            env = new LexicalEnvironment(record, state.executionContext()->lexicalEnvironment());
-        } else {
-            env = new LexicalEnvironment(record, nullptr);
-        }
+        env = new LexicalEnvironment(record, outerEnvironment());
         ec = new ExecutionContext(ctx, state.executionContext(), env, isStrict);
     }
 

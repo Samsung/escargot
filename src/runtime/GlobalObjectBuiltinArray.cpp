@@ -124,9 +124,9 @@ static Value builtinArrayToString(ExecutionState& state, Value thisValue, size_t
 
 void GlobalObject::installArray(ExecutionState& state)
 {
-    m_array = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Array, builtinArrayConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
-                                                          return new ArrayObject(state);
-                                                      })));
+    m_array = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Array, builtinArrayConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+                                     return new ArrayObject(state);
+                                 }));
     m_array->markThisObjectDontNeedStructureTransitionTable(state);
     m_array->setPrototype(state, m_functionPrototype);
     // TODO m_array->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);

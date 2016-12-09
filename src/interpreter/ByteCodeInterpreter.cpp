@@ -200,7 +200,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
 
     DeclareFunctionExpressionOpcodeLbl : {
         DeclareFunctionExpression* code = (DeclareFunctionExpression*)currentCode;
-        registerFile[code->m_registerIndex] = new FunctionObject(state, code->m_codeBlock);
+        registerFile[code->m_registerIndex] = new FunctionObject(state, code->m_codeBlock, env);
         executeNextCode<DeclareFunctionExpression>(programCounter);
         NEXT_INSTRUCTION();
     }
@@ -539,7 +539,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
 
     DeclareFunctionDeclarationOpcodeLbl : {
         DeclareFunctionDeclaration* code = (DeclareFunctionDeclaration*)currentCode;
-        registerFile[0] = new FunctionObject(state, code->m_codeBlock);
+        registerFile[0] = new FunctionObject(state, code->m_codeBlock, env);
         executeNextCode<DeclareFunctionDeclaration>(programCounter);
         NEXT_INSTRUCTION();
     }
@@ -712,13 +712,13 @@ Value ByteCodeInterpreter::plusSlowCase(ExecutionState& state, const Value& left
     // All native ECMAScript objects except Date objects handle the absence of a hint as if the hint Number were given;
     // Date objects handle the absence of a hint as if the hint String were given.
     // Host objects may handle the absence of a hint in some other manner.
-    if (left.isPointerValue() && left.asPointerValue()->isDateObject()) {
+    if (UNLIKELY(left.isPointerValue() && left.asPointerValue()->isDateObject())) {
         lval = left.toPrimitive(state, Value::PreferString);
     } else {
         lval = left.toPrimitive(state);
     }
 
-    if (right.isPointerValue() && right.asPointerValue()->isDateObject()) {
+    if (UNLIKELY(right.isPointerValue() && right.asPointerValue()->isDateObject())) {
         rval = right.toPrimitive(state, Value::PreferString);
     } else {
         rval = right.toPrimitive(state);

@@ -83,9 +83,9 @@ static Value builtinObjectHasOwnProperty(ExecutionState& state, Value thisValue,
 void GlobalObject::installObject(ExecutionState& state)
 {
     FunctionObject* emptyFunction = m_functionPrototype;
-    m_object = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Object, builtinObjectConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
-                                                           return new Object(state);
-                                                       })));
+    m_object = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Object, builtinObjectConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+                                      return new Object(state);
+                                  }));
     m_object->markThisObjectDontNeedStructureTransitionTable(state);
     m_object->setPrototype(state, emptyFunction);
     // TODO m_object->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);

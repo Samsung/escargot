@@ -5843,8 +5843,8 @@ public:
     ProgramNode* parseProgram()
     {
         MetaNode node = this->createNode();
-        StatementNodeVector body = this->parseDirectivePrologues();
         scopeContexts.push_back(new ASTScopeContext(this->context->strict, nullptr));
+        StatementNodeVector body = this->parseDirectivePrologues();
         while (this->startMarker.index < this->scanner->length) {
             body.push_back(this->parseStatementListItem());
         }

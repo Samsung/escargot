@@ -43,12 +43,14 @@ public:
     ObjectStructure(ExecutionState& state, bool needsTransitionTable = true)
     {
         m_needsTransitionTable = needsTransitionTable;
+        m_hasIndexPropertyName = false;
     }
 
-    ObjectStructure(ExecutionState& state, ObjectStructureItemVector&& properties, bool needsTransitionTable = true)
+    ObjectStructure(ExecutionState& state, ObjectStructureItemVector&& properties, bool needsTransitionTable, bool hasIndexPropertyName)
         : m_properties(properties)
     {
         m_needsTransitionTable = needsTransitionTable;
+        m_hasIndexPropertyName = hasIndexPropertyName;
     }
 
     size_t findProperty(ExecutionState& state, String* propertyName)
@@ -85,8 +87,7 @@ public:
 
         ObjectStructureItem newItem(name, desc);
         ObjectStructureItemVector newProperties(m_properties, newItem);
-        ObjectStructure* newObjectStructure = new ObjectStructure(state, std::move(newProperties), m_needsTransitionTable);
-
+        ObjectStructure* newObjectStructure = new ObjectStructure(state, std::move(newProperties), m_needsTransitionTable, m_hasIndexPropertyName | isIndexString(name.string()));
 
         if (m_needsTransitionTable) {
             ObjectStructureTransitionItem newTransitionItem(name, desc, newObjectStructure);
@@ -118,15 +119,17 @@ public:
         newProperties.resizeWithUninitializedValues(m_properties.size() - 1);
 
         size_t newIdx = 0;
+        bool hasIndexString = false;
         for (size_t i = 0; i < m_properties.size(); i++) {
             if (i == pIndex)
                 continue;
+            hasIndexString = hasIndexString | isIndexString(m_properties[i].m_propertyName.string());
             newProperties[newIdx].m_propertyName = m_properties[i].m_propertyName;
             newProperties[newIdx].m_descriptor = m_properties[i].m_descriptor;
             newIdx++;
         }
 
-        return new ObjectStructure(state, std::move(newProperties), false);
+        return new ObjectStructure(state, std::move(newProperties), false, hasIndexString);
     }
 
     bool inTransitionMode()
@@ -134,11 +137,16 @@ public:
         return m_needsTransitionTable;
     }
 
+    bool hasIndexPropertyName()
+    {
+        return m_hasIndexPropertyName;
+    }
+
     ObjectStructure* escapeTransitionMode(ExecutionState& state)
     {
         ASSERT(inTransitionMode());
         ObjectStructureItemVector newItem(m_properties);
-        return new ObjectStructure(state, std::move(newItem), false);
+        return new ObjectStructure(state, std::move(newItem), false, m_hasIndexPropertyName);
     }
 
     size_t propertyCount() const
@@ -148,6 +156,7 @@ public:
 
 private:
     bool m_needsTransitionTable;
+    bool m_hasIndexPropertyName;
     ObjectStructureItemVector m_properties;
     ObjectStructureTransitionTableVector m_transitionTable;
 

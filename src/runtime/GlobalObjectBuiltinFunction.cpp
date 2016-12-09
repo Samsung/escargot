@@ -28,10 +28,10 @@ void GlobalObject::installFunction(ExecutionState& state)
     // TODO convert into defineOwnProperty
     // m_functionPrototype->setFunctionPrototype(state, emptyFunction);
 
-    m_function = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
-                                                             // TODO
-                                                             RELEASE_ASSERT_NOT_REACHED();
-                                                         })));
+    m_function = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+                                        // TODO
+                                        RELEASE_ASSERT_NOT_REACHED();
+                                    }));
     m_function->markThisObjectDontNeedStructureTransitionTable(state);
     // TODO m_function->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
 

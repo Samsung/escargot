@@ -45,6 +45,7 @@ public:
         installBoolean(state);
         installArray(state);
         installMath(state);
+        installDate(state);
         installOthers(state);
     }
 
@@ -56,6 +57,7 @@ public:
     void installBoolean(ExecutionState& state);
     void installArray(ExecutionState& state);
     void installMath(ExecutionState& state);
+    void installDate(ExecutionState& state);
     void installOthers(ExecutionState& state);
 
     FunctionObject* object()
@@ -173,6 +175,15 @@ public:
         return m_booleanPrototype;
     }
 
+    FunctionObject* date()
+    {
+        return m_date;
+    }
+    Object* datePrototype()
+    {
+        return m_datePrototype;
+    }
+
     Object* math()
     {
         return m_math;
@@ -212,6 +223,9 @@ protected:
 
     FunctionObject* m_boolean;
     Object* m_booleanPrototype;
+
+    FunctionObject* m_date;
+    Object* m_datePrototype;
 
     Object* m_math;
 

@@ -14,7 +14,7 @@ class FunctionObject : public Object {
 
 public:
     FunctionObject(ExecutionState& state, NativeFunctionInfo info, bool isConstructor = true);
-    FunctionObject(ExecutionState& state, CodeBlock* codeBlock, bool isConstructor = true);
+    FunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, bool isConstructor = true);
 
     Value getFunctionPrototype(ExecutionState& state)
     {
@@ -52,6 +52,11 @@ public:
         return m_codeBlock;
     }
 
+    LexicalEnvironment* outerEnvironment()
+    {
+        return m_outerEnvironment;
+    }
+
     Value call(ExecutionState& state, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression = false);
     static Value call(const Value& callee, ExecutionState& state, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression = false);
 
@@ -60,6 +65,7 @@ protected:
     bool setFunctionPrototypeSlowCase(ExecutionState& state, const Value& v);
     bool m_isConstructor;
     CodeBlock* m_codeBlock;
+    LexicalEnvironment* m_outerEnvironment;
 };
 }
 

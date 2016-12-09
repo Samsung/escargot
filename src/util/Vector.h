@@ -10,12 +10,14 @@ public:
     {
         m_buffer = nullptr;
         m_size = 0;
+        m_capacity = 0;
     }
 
     Vector(size_t siz)
     {
         m_buffer = nullptr;
         m_size = 0;
+        m_capacity = 0;
         resize(siz);
     }
 
@@ -23,21 +25,25 @@ public:
     {
         m_size = other.size();
         m_buffer = other.m_buffer;
+        m_capacity = other.m_capacity;
         other.m_buffer = nullptr;
         other.m_size = 0;
+        other.m_capacity = 0;
     }
 
     Vector(const Vector<T, Allocator>& other)
     {
         if (other.size()) {
             m_size = other.size();
-            m_buffer = Allocator().allocate(m_size);
+            m_capacity = other.m_capacity;
+            m_buffer = Allocator().allocate(m_capacity);
             for (size_t i = 0; i < m_size; i++) {
                 m_buffer[i] = other[i];
             }
         } else {
             m_buffer = nullptr;
             m_size = 0;
+            m_capacity = 0;
         }
     }
 
@@ -45,7 +51,8 @@ public:
     {
         if (other.size()) {
             m_size = other.size();
-            m_buffer = Allocator().allocate(m_size);
+            m_capacity = other.m_capacity;
+            m_buffer = Allocator().allocate(m_capacity);
             for (size_t i = 0; i < m_size; i++) {
                 m_buffer[i] = other[i];
             }
@@ -58,6 +65,7 @@ public:
     Vector(const Vector<T, Allocator>& other, const T& newItem)
     {
         m_size = other.size() + 1;
+        m_capacity = other.m_capacity + 1;
         m_buffer = Allocator().allocate(m_size);
         for (size_t i = 0; i < other.size(); i++) {
             m_buffer[i] = other[i];
@@ -67,25 +75,23 @@ public:
 
     ~Vector()
     {
-        if (!m_buffer)
+        if (m_buffer)
             Allocator().deallocate(m_buffer, m_size);
-    }
-
-    void reserve(size_t unused)
-    {
-        // TODO
     }
 
     void pushBack(const T& val)
     {
-        T* newBuffer = Allocator().allocate(m_size + 1);
-        for (size_t i = 0; i < m_size; i++) {
-            newBuffer[i] = m_buffer[i];
+        if (m_capacity <= (m_size + 1)) {
+            m_capacity = computeAllocateSize(m_size + 1);
+            T* newBuffer = Allocator().allocate(m_capacity);
+            for (size_t i = 0; i < m_size; i++) {
+                newBuffer[i] = m_buffer[i];
+            }
+            if (m_buffer)
+                Allocator().deallocate(m_buffer, m_size);
+            m_buffer = newBuffer;
         }
-        newBuffer[m_size] = val;
-        if (!m_buffer)
-            Allocator().deallocate(m_buffer, m_size);
-        m_buffer = newBuffer;
+        m_buffer[m_size] = val;
         m_size++;
     }
 
@@ -97,17 +103,26 @@ public:
     void insert(size_t pos, const T& val)
     {
         ASSERT(pos <= m_size);
-        T* newBuffer = Allocator().allocate(m_size + 1);
-        for (size_t i = 0; i < pos; i++) {
-            newBuffer[i] = m_buffer[i];
+        if (m_capacity <= (m_size + 1)) {
+            m_capacity = computeAllocateSize(m_size + 1);
+            T* newBuffer = Allocator().allocate(m_capacity);
+            for (size_t i = 0; i < pos; i++) {
+                newBuffer[i] = m_buffer[i];
+            }
+            newBuffer[pos] = val;
+            for (size_t i = pos; i < m_size; i++) {
+                newBuffer[i + 1] = m_buffer[i];
+            }
+            if (m_buffer)
+                Allocator().deallocate(m_buffer, m_size);
+            m_buffer = newBuffer;
+        } else {
+            for (size_t i = pos; i < m_size; i++) {
+                m_buffer[i + 1] = m_buffer[i];
+            }
+            m_buffer[pos] = val;
         }
-        newBuffer[pos] = val;
-        for (size_t i = pos; i < m_size; i++) {
-            newBuffer[i + 1] = m_buffer[i];
-        }
-        if (!m_buffer)
-            Allocator().deallocate(m_buffer, m_size);
-        m_buffer = newBuffer;
+
         m_size++;
     }
 
@@ -133,15 +148,13 @@ public:
                 newBuffer[i - c] = m_buffer[i];
             }
 
-            if (!m_buffer)
+            if (m_buffer)
                 Allocator().deallocate(m_buffer, m_size);
             m_buffer = newBuffer;
             m_size = m_size - c;
+            m_capacity = m_size - c;
         } else {
-            m_size = 0;
-            if (!m_buffer)
-                Allocator().deallocate(m_buffer, m_size);
-            m_buffer = nullptr;
+            clear();
         }
     }
 
@@ -189,10 +202,12 @@ public:
 
     void clear()
     {
-        m_size = 0;
-        if (!m_buffer)
+        if (m_buffer) {
             Allocator().deallocate(m_buffer, m_size);
+        }
         m_buffer = nullptr;
+        m_size = 0;
+        m_capacity = 0;
     }
 
     void resizeWithUninitializedValues(size_t newSize)
@@ -203,46 +218,60 @@ public:
             for (size_t i = 0; i < m_size && i < newSize; i++) {
                 newBuffer[i] = m_buffer[i];
             }
-
+            m_capacity = newSize;
             m_size = newSize;
-            if (!m_buffer)
+            if (m_buffer)
                 Allocator().deallocate(m_buffer, m_size);
             m_buffer = newBuffer;
         } else {
-            m_size = newSize;
-            if (!m_buffer)
-                Allocator().deallocate(m_buffer, m_size);
-            m_buffer = nullptr;
+            clear();
         }
     }
 
     void resize(size_t newSize, const T& val = T())
     {
         if (newSize) {
-            T* newBuffer = Allocator().allocate(newSize);
-
-            for (size_t i = 0; i < m_size && i < newSize; i++) {
-                newBuffer[i] = m_buffer[i];
+            if (newSize > m_capacity) {
+                size_t newCapacity = computeAllocateSize(newSize);
+                T* newBuffer = Allocator().allocate(newCapacity);
+                for (size_t i = 0; i < m_size && i < newSize; i++) {
+                    newBuffer[i] = m_buffer[i];
+                }
+                for (size_t i = m_size; i < newSize; i++) {
+                    newBuffer[i] = val;
+                }
+                m_size = newSize;
+                m_capacity = newCapacity;
+                if (m_buffer)
+                    Allocator().deallocate(m_buffer, m_size);
+                m_buffer = newBuffer;
+            } else {
+                for (size_t i = m_size; i < newSize; i++) {
+                    m_buffer[i] = val;
+                }
+                m_size = newSize;
             }
-
-            for (size_t i = m_size; i < newSize; i++) {
-                newBuffer[i] = val;
-            }
-
-            m_size = newSize;
-            if (!m_buffer)
-                Allocator().deallocate(m_buffer, m_size);
-            m_buffer = newBuffer;
         } else {
-            m_size = newSize;
-            if (!m_buffer)
-                Allocator().deallocate(m_buffer, m_size);
-            m_buffer = nullptr;
+            clear();
         }
     }
 
 protected:
+    size_t computeAllocateSize(size_t newSize)
+    {
+        const float glowFactor = 1.2f;
+        const size_t maxGap = 1024;
+        size_t n = newSize * glowFactor;
+        if (n == newSize)
+            n++;
+        if ((n - newSize) > maxGap) {
+            n = newSize + maxGap;
+        }
+        return n;
+    }
+
     T* m_buffer;
+    size_t m_capacity;
     size_t m_size;
 };
 

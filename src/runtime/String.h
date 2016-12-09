@@ -244,6 +244,7 @@ const char* String::asASCIIStringData()
 
 bool isAllASCII(const char* buf, const size_t& len);
 bool isAllASCII(const char16_t* buf, const size_t& len);
+bool isIndexString(String* str);
 char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen);
 UTF16StringData utf8StringToUTF16String(const char* buf, const size_t& len);
 UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t& len);

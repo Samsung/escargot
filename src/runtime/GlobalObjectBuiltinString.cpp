@@ -42,9 +42,9 @@ static Value builtinStringToString(ExecutionState& state, Value thisValue, size_
 
 void GlobalObject::installString(ExecutionState& state)
 {
-    m_string = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().String, builtinStringConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
-                                                           return new StringObject(state);
-                                                       })));
+    m_string = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().String, builtinStringConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+                                      return new StringObject(state);
+                                  }));
     m_string->markThisObjectDontNeedStructureTransitionTable(state);
     m_string->setPrototype(state, m_functionPrototype);
     // TODO m_string->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
