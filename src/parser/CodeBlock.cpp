@@ -29,6 +29,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
         m_functionNameSaveInfo.m_index = m_functionNameIndex;
     }
     m_isNativeFunction = true;
+    m_functionName = info.m_name;
     m_isStrict = info.m_isStrict;
     m_hasEval = false;
     m_hasWith = false;

@@ -120,7 +120,7 @@ void eval(Escargot::Context* context, Escargot::String* str, Escargot::String* f
         auto err = result.m_error->message->toUTF8StringData();
         puts(err.data());
     } else {
-        Escargot::Script::ScriptExecuteResult resultValue = result.m_script->execute(context);
+        Escargot::Script::ScriptSandboxExecuteResult resultValue = result.m_script->sandboxExecute(context);
         Escargot::ExecutionState state(context);
         if (!resultValue.result.isEmpty()) {
             if (shouldPrintScriptResult)

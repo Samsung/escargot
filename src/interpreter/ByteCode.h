@@ -70,6 +70,7 @@ class Node;
     F(ReturnFunction, 0, 0)             \
     F(ThrowOperation, 0, 0)             \
     F(CallNativeFunction, 0, 0)         \
+    F(CallEvalFunction, 0, 0)           \
     F(End, 0, 0)
 
 enum Opcode {
@@ -942,6 +943,29 @@ public:
     virtual void dump()
     {
         printf("call r%d <- r%d-r%d", (int)m_registerIndex, (int)m_registerIndex, (int)m_registerIndex + (int)m_argumentCount + 1);
+    }
+#endif
+};
+
+class CallEvalFunction : public ByteCode {
+public:
+    // register usage (before call)
+    // [arg0, arg1,... arg<argument count-1> ]
+    // register usage (after call)
+    // [return value]
+    CallEvalFunction(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& argumentCount)
+        : ByteCode(Opcode::CallEvalFunctionOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_argumentCount(argumentCount)
+    {
+    }
+    size_t m_registerIndex;
+    size_t m_argumentCount;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("call eval r%d <- r%d-r%d", (int)m_registerIndex, (int)m_registerIndex, (int)m_registerIndex + (int)m_argumentCount);
     }
 #endif
 };

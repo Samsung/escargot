@@ -37,10 +37,17 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::CallExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
-            // TODO
-            // process eval
-            RELEASE_ASSERT_NOT_REACHED();
+        if (!context->m_codeBlock->isGlobalScopeCodeBlock() && m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
+            bool prevInCallingExpressionScope = context->m_inCallingExpressionScope;
+            for (size_t i = 0; i < m_arguments.size(); i++) {
+                m_arguments[i]->generateExpressionByteCode(codeBlock, context);
+            }
+            for (size_t i = 0; i < m_arguments.size(); i++) {
+                context->giveUpRegister();
+            }
+            size_t baseRegister = context->getRegister();
+            codeBlock->pushCode(CallEvalFunction(ByteCodeLOC(m_loc.index), baseRegister, m_arguments.size()), context, this);
+            return;
         }
 
         bool prevInCallingExpressionScope = context->m_inCallingExpressionScope;

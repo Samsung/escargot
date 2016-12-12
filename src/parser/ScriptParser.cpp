@@ -72,7 +72,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromAST(Context* ctx, StringView s
     return generateCodeBlockTreeFromASTWalker(ctx, source, script, program->scopeContext(), nullptr);
 }
 
-ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, String* fileName)
+ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, String* fileName, CodeBlock* parentCodeBlock)
 {
     Script* script = nullptr;
     ScriptParseError* error = nullptr;
@@ -80,7 +80,15 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
         ProgramNode* program = esprima::parseProgram(m_context, scriptSource, nullptr);
 
         script = new Script(fileName);
-        CodeBlock* topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, program);
+        CodeBlock* topCodeBlock;
+        if (parentCodeBlock) {
+            program->scopeContext()->m_hasEval = parentCodeBlock->hasEvalWithYield();
+            program->scopeContext()->m_hasWith = parentCodeBlock->hasEvalWithYield();
+            program->scopeContext()->m_hasYield = parentCodeBlock->hasEvalWithYield();
+            topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, scriptSource, script, program->scopeContext(), parentCodeBlock);
+        } else {
+            topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, program);
+        }
         topCodeBlock->m_cachedASTNode = program;
         script->m_topCodeBlock = topCodeBlock;
 

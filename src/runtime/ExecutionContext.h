@@ -12,6 +12,7 @@ class ExecutionContext : public gc {
     friend class FunctionObject;
     friend class ByteCodeInterpreter;
     friend class SandBox;
+    friend class Script;
 
 public:
     ExecutionContext(Context* context, ExecutionContext* parent = nullptr, LexicalEnvironment* lexicalEnvironment = nullptr, bool inStrictMode = false)

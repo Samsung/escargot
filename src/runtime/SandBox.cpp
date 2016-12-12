@@ -38,15 +38,18 @@ void SandBox::throwException(ExecutionState& state, Value exception)
                         ByteCode* code = b->peekCode<ByteCode>((size_t)ec->programCounter() - (size_t)b->m_code.data());
                         NodeLOC loc = b->computeNodeLOCFromByteCode(code, cb);
                         if (m_stackTraceData.size() == 0 || m_stackTraceData.back().first != ec) {
-                            // TODO
-                            // consider native function
                             StackTraceData data;
                             data.loc = loc;
                             if (cb->script())
                                 data.fileName = cb->script()->fileName();
                             else {
-                                const char* str = "[native function]";
-                                data.fileName = String::fromUTF8(str, strlen(str));
+                                StringBuilder builder;
+                                builder.appendString("function ");
+                                builder.appendString(cb->functionName().string());
+                                builder.appendString("() { ");
+                                builder.appendString("[native function]");
+                                builder.appendString(" } ");
+                                data.fileName = builder.finalize();
                             }
                             m_stackTraceData.pushBack(std::make_pair(ec, data));
                         }

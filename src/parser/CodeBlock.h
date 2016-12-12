@@ -95,7 +95,7 @@ public:
     {
         CodeBlock* cb = this;
         while (cb) {
-            if (hasEvalWithYield()) {
+            if (cb->hasEvalWithYield()) {
                 return true;
             }
             cb = cb->parentCodeBlock();

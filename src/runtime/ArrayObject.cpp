@@ -24,25 +24,12 @@ bool ArrayObject::setLengthSlowCase(ExecutionState& state, const Value& value)
 
 Object::ObjectGetResult ArrayObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
-    if (LIKELY(isFastModeArray())) {
-        uint32_t idx;
-        if (LIKELY(P.isUIntType())) {
-            idx = P.uintValue();
-        } else {
-            idx = P.string(state)->tryToUseAsArrayIndex();
-        }
-        if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-            ASSERT(m_fastModeData.size() == getLength(state));
-            if (LIKELY(idx < m_fastModeData.size())) {
-                Value v = m_fastModeData[idx];
-                if (LIKELY(!v.isEmpty())) {
-                    return Object::ObjectGetResult(v, true, true, true);
-                }
-                return Object::ObjectGetResult();
-            }
-        }
+    Object::ObjectGetResult v = getFastModeValue(state, P);
+    if (LIKELY(v.hasValue())) {
+        return v;
+    } else {
+        return Object::getOwnProperty(state, P);
     }
-    return Object::getOwnProperty(state, P);
 }
 
 bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE

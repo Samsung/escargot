@@ -40,7 +40,7 @@ public:
     {
         return parse(StringView(script, 0, script->length()), fileName);
     }
-    ScriptParserResult parse(StringView script, String* fileName = String::emptyString);
+    ScriptParserResult parse(StringView script, String* fileName = String::emptyString, CodeBlock* parentCodeBlock = nullptr);
     Node* parseFunction(CodeBlock* codeBlock);
 
 protected:

@@ -11,6 +11,7 @@ namespace Escargot {
 
 class ArrayObject : public Object {
     friend class Context;
+    friend class ByteCodeInterpreter;
 
 public:
     ArrayObject(ExecutionState& state);
@@ -92,6 +93,57 @@ protected:
     {
         // TODO
         RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    ALWAYS_INLINE Object::ObjectGetResult getFastModeValue(ExecutionState& state, const ObjectPropertyName& P)
+    {
+        if (LIKELY(isFastModeArray())) {
+            uint32_t idx;
+            if (LIKELY(P.isUIntType())) {
+                idx = P.uintValue();
+            } else {
+                idx = P.string(state)->tryToUseAsArrayIndex();
+            }
+            if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
+                ASSERT(m_fastModeData.size() == getLength(state));
+                if (LIKELY(idx < m_fastModeData.size())) {
+                    Value v = m_fastModeData[idx];
+                    if (LIKELY(!v.isEmpty())) {
+                        return Object::ObjectGetResult(v, true, true, true);
+                    }
+                    return Object::ObjectGetResult();
+                }
+            }
+        }
+        return Object::ObjectGetResult();
+    }
+
+    ALWAYS_INLINE bool setFastModeValue(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc)
+    {
+        if (LIKELY(isFastModeArray())) {
+            uint32_t idx;
+            if (LIKELY(P.isUIntType())) {
+                idx = P.uintValue();
+            } else {
+                idx = P.string(state)->tryToUseAsArrayIndex();
+            }
+            if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
+                if (UNLIKELY(!desc.descriptor().isPlainDataWritableEnumerableConfigurable())) {
+                    convertIntoNonFastMode();
+                    return false;
+                }
+                uint32_t len = m_fastModeData.size();
+                if (UNLIKELY(len <= idx)) {
+                    if (UNLIKELY(!setArrayLength(state, idx + 1))) {
+                        return false;
+                    }
+                }
+                ASSERT(m_fastModeData.size() == getLength(state));
+                m_fastModeData[idx] = desc.value();
+                return true;
+            }
+        }
+        return false;
     }
 
     Vector<Value, gc_malloc_ignore_off_page_allocator<Value>> m_fastModeData;

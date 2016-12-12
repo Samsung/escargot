@@ -12,10 +12,8 @@
 
 namespace Escargot {
 
-Script::ScriptExecuteResult Script::execute(Context* ctx)
+Value Script::execute(Context* ctx)
 {
-    ScriptExecuteResult result;
-
     Node* programNode = m_topCodeBlock->cachedASTNode();
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
 
@@ -34,16 +32,23 @@ Script::ScriptExecuteResult Script::execute(Context* ctx)
     Value resultValue;
     ExecutionState state(ctx, &ec, &resultValue);
 
+    ByteCodeInterpreter::interpret(state, m_topCodeBlock);
+
+    return resultValue;
+}
+
+Script::ScriptSandboxExecuteResult Script::sandboxExecute(Context* ctx)
+{
+    ScriptSandboxExecuteResult result;
     SandBox sb(ctx);
     auto sandBoxResult = sb.run([&]() -> Value {
-        ByteCodeInterpreter::interpret(state, m_topCodeBlock);
-        return resultValue;
+        return execute(ctx);
     });
     result.result = sandBoxResult.result;
     result.error.errorValue = sandBoxResult.error;
     if (!sandBoxResult.error.isEmpty()) {
         for (size_t i = 0; i < sandBoxResult.stackTraceData.size(); i++) {
-            ScriptExecuteResult::Error::StackTrace t;
+            ScriptSandboxExecuteResult::Error::StackTrace t;
             t.fileName = sandBoxResult.stackTraceData[i].fileName;
             t.line = sandBoxResult.stackTraceData[i].loc.line;
             t.column = sandBoxResult.stackTraceData[i].loc.column;
@@ -51,5 +56,41 @@ Script::ScriptExecuteResult Script::execute(Context* ctx)
         }
     }
     return result;
+}
+
+Value Script::executeLocal(ExecutionState& state)
+{
+    Node* programNode = m_topCodeBlock->cachedASTNode();
+    ASSERT(programNode && programNode->type() == ASTNodeType::Program);
+
+    ByteCodeGenerator g;
+    g.generateByteCode(state.context(), m_topCodeBlock, programNode);
+
+    m_topCodeBlock->m_cachedASTNode = nullptr;
+
+    EnvironmentRecord* oldRecord = state.executionContext()->lexicalEnvironment()->record();
+    const CodeBlock::IdentifierInfoVector& vec = m_topCodeBlock->identifierInfos();
+    size_t len = vec.size();
+    for (size_t i = 0; i < len; i++) {
+        if (oldRecord->hasBinding(state, vec[i].m_name).m_index == SIZE_MAX) {
+            oldRecord->createMutableBinding(state, vec[i].m_name, false);
+        }
+    }
+    LexicalEnvironment* newEnvironment = new LexicalEnvironment(oldRecord, state.executionContext()->lexicalEnvironment());
+
+    ExecutionContext ec(state.context(), state.executionContext(), newEnvironment, m_topCodeBlock->isStrict());
+    Value resultValue;
+    ExecutionState newState(state.context(), &ec, &resultValue);
+
+    size_t stackStorageSize = m_topCodeBlock->identifierOnStackCount();
+    ec.giveStackStorage(ALLOCA(stackStorageSize * sizeof(Value), Value, state));
+    Value* stackStorage = ec.stackStorage();
+    for (size_t i = 0; i < stackStorageSize; i++) {
+        stackStorage[i] = Value();
+    }
+
+    ByteCodeInterpreter::interpret(newState, m_topCodeBlock);
+
+    return resultValue;
 }
 }

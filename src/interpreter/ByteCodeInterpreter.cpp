@@ -9,6 +9,7 @@
 #include "runtime/GlobalObject.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/ArrayObject.h"
+#include "parser/ScriptParser.h"
 #include "../third_party/checked_arithmetic/CheckedArithmetic.h"
 
 namespace Escargot {
@@ -84,7 +85,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         currentCode = (ByteCode *)programCounter; \
         ASSERT(((size_t)currentCode % sizeof(size_t)) == 0); \
         goto *(currentCode->m_opcodeInAddress);
-*/
+    */
     NextInstrucution:
         currentCode = (ByteCode*)programCounter;
         ASSERT(((size_t)currentCode % sizeof(size_t)) == 0);
@@ -452,19 +453,37 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         GetObject* code = (GetObject*)currentCode;
         const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
         const Value& property = registerFile[code->m_objectRegisterIndex + 1];
+        if (LIKELY(willBeObject.isPointerValue() && willBeObject.asObject()->isArrayObject())) {
+            ArrayObject* arr = willBeObject.asObject()->asArrayObject();
+            auto result = arr->getFastModeValue(state, ObjectPropertyName(state, property));
+            if (LIKELY(result.hasValue())) {
+                registerFile[code->m_objectRegisterIndex] = result.value();
+                executeNextCode<GetObject>(programCounter);
+                NEXT_INSTRUCTION();
+            }
+        }
         registerFile[code->m_objectRegisterIndex] = willBeObject.toObject(state)->get(state, ObjectPropertyName(state, property)).value();
         executeNextCode<GetObject>(programCounter);
         NEXT_INSTRUCTION();
     }
+
     SetObjectOpcodeLbl : {
         SetObject* code = (SetObject*)currentCode;
         const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
         const Value& property = registerFile[code->m_propertyRegisterIndex];
+        if (LIKELY(willBeObject.isPointerValue() && willBeObject.asObject()->isArrayObject())) {
+            ArrayObject* arr = willBeObject.asObject()->asArrayObject();
+            if (LIKELY(arr->setFastModeValue(state, ObjectPropertyName(state, property), registerFile[code->m_loadRegisterIndex]))) {
+                executeNextCode<SetObject>(programCounter);
+                NEXT_INSTRUCTION();
+            }
+        }
         Object* obj = willBeObject.toObject(state);
         obj->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, property), registerFile[code->m_loadRegisterIndex], obj);
         executeNextCode<SetObject>(programCounter);
         NEXT_INSTRUCTION();
     }
+
     GetObjectPreComputedCaseOpcodeLbl : {
         GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)currentCode;
         const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
@@ -677,6 +696,23 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         }
         *state.exeuctionResult() = code->m_fn(state, record->getThisBinding(), argc, argv, record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isNewExpression());
         return;
+    }
+
+    CallEvalFunctionOpcodeLbl : {
+        CallEvalFunction* code = (CallEvalFunction*)currentCode;
+        Value eval = loadByName(state, env, state.context()->staticStrings().eval);
+        if (eval.equalsTo(state, state.context()->globalObject()->eval())) {
+            // do eval
+            Value arg;
+            if (code->m_argumentCount) {
+                arg = registerFile[code->m_registerIndex];
+            }
+            state.context()->globalObject()->eval(state, arg, codeBlock);
+        } else {
+            registerFile[code->m_registerIndex] = FunctionObject::call(eval, state, Value(), code->m_argumentCount, &registerFile[code->m_registerIndex]);
+        }
+        executeNextCode<CallEvalFunction>(programCounter);
+        NEXT_INSTRUCTION();
     }
     }
 FillOpcodeTable : {

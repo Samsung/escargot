@@ -60,6 +60,8 @@ public:
     void installDate(ExecutionState& state);
     void installOthers(ExecutionState& state);
 
+    Value eval(ExecutionState& state, const Value& arg, CodeBlock* parentCodeBlock);
+
     FunctionObject* object()
     {
         return m_object;
@@ -189,6 +191,11 @@ public:
         return m_math;
     }
 
+    FunctionObject* eval()
+    {
+        return m_eval;
+    }
+
 protected:
     FunctionObject* m_object;
     Object* m_objectPrototype;
@@ -228,6 +235,8 @@ protected:
     Object* m_datePrototype;
 
     Object* m_math;
+
+    FunctionObject* m_eval;
 
     bool hasPropertyOnIndex(ExecutionState& state, const PropertyName& name, size_t idx)
     {

@@ -116,8 +116,6 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    // WithBaseObject ()
-
     virtual bool isGlobalEnvironmentRecord()
     {
         return false;
@@ -133,11 +131,6 @@ public:
         return false;
     }
 
-    virtual bool isDeclarativeEnvironmentRecordForCatchClause()
-    {
-        return false;
-    }
-
     GlobalEnvironmentRecord* asGlobalEnvironmentRecord()
     {
         ASSERT(isGlobalEnvironmentRecord());
@@ -149,8 +142,6 @@ public:
         ASSERT(isDeclarativeEnvironmentRecord());
         return reinterpret_cast<DeclarativeEnvironmentRecord*>(this);
     }
-
-    inline void initInnerFunctionDeclarations(CodeBlock* codeBlock);
 
 protected:
 };
@@ -395,6 +386,16 @@ public:
     virtual void setHeapValueByIndex(const size_t& idx, const Value& v)
     {
         m_vector[idx].m_value = v;
+    }
+
+    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName)
+    {
+        for (size_t i = 0; i < m_vector.size(); i++) {
+            if (m_vector[i].m_name == atomicName) {
+                return BindingSlot(this, i);
+            }
+        }
+        return BindingSlot(this, SIZE_MAX);
     }
 
     virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false);

@@ -1,6 +1,8 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "ErrorObject.h"
+#include "parser/ScriptParser.h"
 
 namespace Escargot {
 
@@ -18,8 +20,36 @@ static Value builtinGc(ExecutionState& state, Value thisValue, size_t argc, Valu
     return Value();
 }
 
+static Value builtinEval(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    return state.context()->globalObject()->eval(state, argv[0], nullptr);
+}
+
+Value GlobalObject::eval(ExecutionState& state, const Value& arg, CodeBlock* parentCodeBlock)
+{
+    if (arg.isString()) {
+        ScriptParser parser(state.context());
+        const char* s = "eval input";
+        ScriptParser::ScriptParserResult parserResult = parser.parse(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), parentCodeBlock);
+        if (parserResult.m_error) {
+            TypeErrorObject* err = new TypeErrorObject(state, parserResult.m_error->message);
+            state.throwException(err);
+        }
+        if (!parentCodeBlock) {
+            return parserResult.m_script->execute(state.context());
+        } else {
+            return parserResult.m_script->executeLocal(state);
+        }
+    }
+    return arg;
+}
+
 void GlobalObject::installOthers(ExecutionState& state)
 {
+    m_eval = new FunctionObject(state,
+                                NativeFunctionInfo(state.context()->staticStrings().eval, builtinEval, 1, nullptr, NativeFunctionInfo::Strict), false);
+    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().eval),
+                      Object::ObjectPropertyDescriptorForDefineOwnProperty(m_eval, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 #ifdef ESCARGOT_SHELL
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().print),
                       Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state,
