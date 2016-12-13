@@ -876,6 +876,13 @@ YarrPattern::YarrPattern(const String& pattern, bool ignoreCase, bool multiline,
     , nonwordcharCached(0)
 {
     *error = compile(pattern);
+
+#ifdef ESCARGOT
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [] (void* obj, void* cd) {
+        YarrPattern* pattern = (YarrPattern*)obj;
+        pattern->reset();
+    }, NULL, NULL, NULL);
+#endif
 }
 
 } }

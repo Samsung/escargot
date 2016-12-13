@@ -4,8 +4,13 @@
 #include "runtime/AtomicString.h"
 #include "runtime/Context.h"
 #include "runtime/GlobalObject.h"
+#include "runtime/RegExpObject.h"
 #include "runtime/StaticStrings.h"
 #include "runtime/String.h"
+
+namespace WTF {
+class BumpPointerAllocator;
+}
 
 namespace Escargot {
 
@@ -30,6 +35,16 @@ public:
     ScriptParser& scriptParser()
     {
         return *m_scriptParser;
+    }
+
+    RegExpCacheMap* regexpCache()
+    {
+        return &m_regexpCache;
+    }
+
+    WTF::BumpPointerAllocator* bumpPointerAllocator()
+    {
+        return m_bumpPointerAllocator;
     }
 
     ObjectStructure* defaultStructureForObject()
@@ -62,6 +77,11 @@ public:
         return m_defaultStructureForStringObject;
     }
 
+    ObjectStructure* defaultStructureForRegExpObject()
+    {
+        return m_defaultStructureForRegExpObject;
+    }
+
     GlobalObject* globalObject()
     {
         return m_globalObject;
@@ -82,6 +102,15 @@ public:
     static Value arrayLengthNativeGetter(ExecutionState& state, Object* self);
     static bool arrayLengthNativeSetter(ExecutionState& state, Object* self, const Value& newData);
 
+    // regexp
+    // [__proto__, lastIndex, source, global, ignoreCase, multiline
+    static bool regexpLastIndexNativeSetter(ExecutionState& state, Object* self, const Value& newData);
+    static Value regexpLastIndexNativeGetter(ExecutionState& state, Object* self);
+    static Value regexpSourceNativeGetter(ExecutionState& state, Object* self);
+    static Value regexpGlobalNativeGetter(ExecutionState& state, Object* self);
+    static Value regexpIgnoreCaseNativeGetter(ExecutionState& state, Object* self);
+    static Value regexpMultilineNativeGetter(ExecutionState& state, Object* self);
+
     bool didSomePrototypeObjectDefineIndexedProperty()
     {
         return m_didSomePrototypeObjectDefineIndexedProperty;
@@ -97,12 +126,17 @@ protected:
     AtomicStringMap m_atomicStringMap;
     ScriptParser* m_scriptParser;
 
+    // To support Yarr
+    WTF::BumpPointerAllocator* m_bumpPointerAllocator;
+    RegExpCacheMap m_regexpCache;
+
     ObjectStructure* m_defaultStructureForObject;
     ObjectStructure* m_defaultStructureForFunctionObject;
     ObjectStructure* m_defaultStructureForNotConstructorFunctionObject;
     ObjectStructure* m_defaultStructureForFunctionPrototypeObject;
     ObjectStructure* m_defaultStructureForArrayObject;
     ObjectStructure* m_defaultStructureForStringObject;
+    ObjectStructure* m_defaultStructureForRegExpObject;
 
     Vector<SandBox*, gc_malloc_allocator<SandBox*>> m_sandBoxStack;
 };

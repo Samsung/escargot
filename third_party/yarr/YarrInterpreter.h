@@ -340,7 +340,7 @@ public:
     unsigned m_frameSize;
 };
 
-struct BytecodePattern : public gc_cleanup {
+struct BytecodePattern : public gc {
     WTF_MAKE_FAST_ALLOCATED;
 public:
 #ifndef ESCARGOT
@@ -365,13 +365,24 @@ public:
         // array, so that it won't delete them on destruction.  We'll
         // take responsibility for that.
         pattern.m_userCharacterClasses.clear();
+#else
+        GC_REGISTER_FINALIZER_NO_ORDER(this, [] (void* obj, void* cd) {
+            BytecodePattern* pattern = (BytecodePattern*)obj;
+            pattern->clear();
+        }, NULL, NULL, NULL);
 #endif
     }
 
     ~BytecodePattern()
     {
+        clear();
+    }
+
+    void clear()
+    {
         deleteAllValues(m_allParenthesesInfo);
         deleteAllValues(m_userCharacterClasses);
+        m_body.release();
     }
 
     OwnPtr<ByteDisjunction> m_body;

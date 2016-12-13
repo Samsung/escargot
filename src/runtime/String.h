@@ -99,6 +99,13 @@ public:
 
     size_t find(String* str, size_t pos = 0);
     String* subString(size_t pos, size_t len);
+    size_t hashValue() const
+    {
+        size_t hash = static_cast<size_t>(0xc70f6907UL);
+        for (size_t idx = 0; idx < length(); idx++)
+            hash = (hash * 131) + charAt(idx);
+        return hash;
+    }
 
     bool operator==(const String& src) const
     {
@@ -122,6 +129,24 @@ public:
 
     uint64_t tryToUseAsIndex() const;
     uint32_t tryToUseAsArrayIndex() const;
+
+    // for yarr String
+    bool is8Bit() const
+    {
+        return const_cast<String*>(this)->isASCIIString();
+    }
+
+    const char* characters8() const
+    {
+        ASSERT(is8Bit());
+        return toUTF8StringData().data();
+    }
+
+    const char16_t* characters16() const
+    {
+        ASSERT(!is8Bit());
+        return toUTF16StringData().data();
+    }
 
 protected:
     // NOTE this for atomic string

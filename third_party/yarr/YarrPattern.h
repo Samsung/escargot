@@ -334,7 +334,7 @@ struct TermChain {
     Vector<TermChain> hotTerms;
 };
 
-struct YarrPattern : public gc_cleanup {
+struct YarrPattern : public gc {
     JS_EXPORT_PRIVATE YarrPattern(const String& pattern, bool ignoreCase, bool multiline, const char** error);
 
     ~YarrPattern()

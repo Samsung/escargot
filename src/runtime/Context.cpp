@@ -8,6 +8,7 @@
 #include "parser/CodeBlock.h"
 #include "SandBox.h"
 #include "ArrayObject.h"
+#include "BumpPointerAllocator.h"
 
 namespace Escargot {
 
@@ -59,6 +60,56 @@ bool Context::arrayLengthNativeSetter(ExecutionState& state, Object* self, const
 static ObjectPropertyNativeGetterSetterData arrayLengthGetterSetterData(
     true, false, false, &Context::arrayLengthNativeGetter, &Context::arrayLengthNativeSetter);
 
+Value Context::regexpSourceNativeGetter(ExecutionState& state, Object* self)
+{
+    ASSERT(self->isRegExpObject() && self->isPlainObject());
+    return Value(self->asRegExpObject()->source());
+}
+static ObjectPropertyNativeGetterSetterData regexpSourceGetterData(
+    false, false, false, &Context::regexpSourceNativeGetter, nullptr);
+
+Value Context::regexpGlobalNativeGetter(ExecutionState& state, Object* self)
+{
+    ASSERT(self->isRegExpObject() && self->isPlainObject());
+    return Value((bool)(self->asRegExpObject()->option() & RegExpObject::Option::Global));
+}
+
+static ObjectPropertyNativeGetterSetterData regexpGlobalGetterData(
+    false, false, false, &Context::regexpGlobalNativeGetter, nullptr);
+
+Value Context::regexpIgnoreCaseNativeGetter(ExecutionState& state, Object* self)
+{
+    ASSERT(self->isRegExpObject() && self->isPlainObject());
+    return Value((bool)(self->asRegExpObject()->option() & RegExpObject::Option::IgnoreCase));
+}
+
+static ObjectPropertyNativeGetterSetterData regexpIgnoreCaseGetterData(
+    false, false, false, &Context::regexpIgnoreCaseNativeGetter, nullptr);
+
+Value Context::regexpMultilineNativeGetter(ExecutionState& state, Object* self)
+{
+    ASSERT(self->isRegExpObject() && self->isPlainObject());
+    return Value((bool)(self->asRegExpObject()->option() & RegExpObject::Option::MultiLine));
+}
+
+static ObjectPropertyNativeGetterSetterData regexpMultilineGetterData(
+    false, false, false, &Context::regexpMultilineNativeGetter, nullptr);
+
+Value Context::regexpLastIndexNativeGetter(ExecutionState& state, Object* self)
+{
+    ASSERT(self->isRegExpObject() && self->isPlainObject());
+    return self->asRegExpObject()->lastIndex();
+}
+
+bool Context::regexpLastIndexNativeSetter(ExecutionState& state, Object* self, const Value& newData)
+{
+    ASSERT(self->isRegExpObject() && self->isPlainObject());
+    self->asRegExpObject()->setLastIndex(newData);
+    return true;
+}
+static ObjectPropertyNativeGetterSetterData regexpLastIndexGetterSetterData(
+    true, false, false, &Context::regexpLastIndexNativeGetter, &Context::regexpLastIndexNativeSetter);
+
 Context::Context(VMInstance* instance)
     : m_didSomePrototypeObjectDefineIndexedProperty(false)
     , m_instance(instance)
@@ -93,8 +144,23 @@ Context::Context(VMInstance* instance)
                                                                                 ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&arrayLengthGetterSetterData));
 
     m_defaultStructureForStringObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length, ObjectPropertyDescriptor::createDataDescriptor(ObjectPropertyDescriptor::NotPresent));
+
+    m_defaultStructureForRegExpObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.lastIndex,
+                                                                                ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpLastIndexGetterSetterData));
+    // TODO(ES6): Below RegExp data properties is changed to accessor properties of RegExp.prototype in ES6.
+    m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.source,
+                                                                                ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpSourceGetterData));
+    m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.global,
+                                                                                ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpGlobalGetterData));
+    m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.ignoreCase,
+                                                                                ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpIgnoreCaseGetterData));
+    m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.multiline,
+                                                                                ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpMultilineGetterData));
     m_globalObject = new GlobalObject(stateForInit);
     m_globalObject->installBuiltins(stateForInit);
+
+    // TODO call destructor
+    m_bumpPointerAllocator = new (GC) WTF::BumpPointerAllocator();
 }
 
 void Context::throwException(ExecutionState& state, const Value& exception)

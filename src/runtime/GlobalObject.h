@@ -44,6 +44,7 @@ public:
         installArray(state);
         installMath(state);
         installDate(state);
+        installRegExp(state);
         installOthers(state);
     }
 
@@ -56,6 +57,7 @@ public:
     void installArray(ExecutionState& state);
     void installMath(ExecutionState& state);
     void installDate(ExecutionState& state);
+    void installRegExp(ExecutionState& state);
     void installOthers(ExecutionState& state);
 
     Value eval(ExecutionState& state, const Value& arg, CodeBlock* parentCodeBlock);
@@ -189,6 +191,16 @@ public:
         return m_math;
     }
 
+    FunctionObject* regexp()
+    {
+        return m_regexp;
+    }
+
+    Object* regexpPrototype()
+    {
+        return m_regexpPrototype;
+    }
+
     FunctionObject* eval()
     {
         return m_eval;
@@ -231,6 +243,9 @@ protected:
 
     FunctionObject* m_date;
     Object* m_datePrototype;
+
+    FunctionObject* m_regexp;
+    Object* m_regexpPrototype;
 
     Object* m_math;
 

@@ -10,6 +10,7 @@
 namespace Escargot {
 
 class FunctionObject;
+class RegExpObject;
 class ErrorObject;
 
 struct ObjectRareData {
@@ -136,6 +137,12 @@ public:
     {
         ASSERT(isArrayObject());
         return (ArrayObject*)this;
+    }
+
+    RegExpObject* asRegExpObject()
+    {
+        ASSERT(isRegExpObject());
+        return (RegExpObject*)this;
     }
 
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-isextensible

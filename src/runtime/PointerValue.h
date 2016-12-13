@@ -53,6 +53,11 @@ public:
         return false;
     }
 
+    virtual bool isRegExpObject()
+    {
+        return false;
+    }
+
     virtual bool isDoubleInSmallValue()
     {
         return false;

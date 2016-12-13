@@ -528,4 +528,7 @@ inline bool operator!=(const gc_malloc_atomic_ignore_off_page_allocator<GC_T1>&,
 
 #define ALLOCA(bytes, typenameWithoutPointer, ec) (typenameWithoutPointer*)alloca(bytes)
 
+#include "CheckedArithmetic.h"
+#include "runtime/String.h"
+
 #endif

@@ -18,7 +18,7 @@ struct AlignmentTestStruct
 #define JS_ALIGNMENT_OF(t_) \
   (sizeof(AlignmentTestStruct<t_>) - sizeof(t_))
 
-typedef escargot::ESString String;
+typedef Escargot::String String;
 //typedef char16_t UChar;
 typedef char LChar;
 
@@ -921,7 +921,7 @@ enum HashTableDeletedValueType { HashTableDeletedValue };
 template<typename T, size_t N = 0>
 class Vector {
   public:
-    std::vector<T, escargot::ESNativeHeapUsageCounter<T> > impl;
+    std::vector<T> impl;
   public:
     Vector() {}
 
@@ -976,7 +976,7 @@ class Vector {
     }
 
     void clear() {
-        return impl.clear();
+        std::vector<T>().swap(impl);
     }
 
     void shrink(size_t newLength) {
@@ -986,7 +986,7 @@ class Vector {
 
     void shrinkToFit()
     {
-
+        impl.shrink_to_fit();
     }
 
     void swap(Vector &other) {
@@ -999,7 +999,7 @@ class Vector {
             delete *iter;
             iter++;
         }
-        //clear();
+        clear();
     }
 
     void reserve(size_t capacity) {
