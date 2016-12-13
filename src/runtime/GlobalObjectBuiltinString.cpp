@@ -64,6 +64,34 @@ static Value builtinStringIndexOf(ExecutionState& state, Value thisValue, size_t
         return Value(result);
 }
 
+static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, indexOf);
+    if (argc == 0) {
+        return str;
+    } else {
+        int len = str->length();
+        double doubleStart = argv[0].toNumber(state);
+        Value end = argv[1];
+        double doubleEnd = (argc < 2 || end.isUndefined()) ? len : end.toNumber(state);
+        doubleStart = (std::isnan(doubleStart)) ? 0 : doubleStart;
+        doubleEnd = (std::isnan(doubleEnd)) ? 0 : doubleEnd;
+
+        double finalStart = (int)trunc(std::min(std::max(doubleStart, 0.0), (double)len));
+        double finalEnd = (int)trunc(std::min(std::max(doubleEnd, 0.0), (double)len));
+        size_t from = std::min(finalStart, finalEnd);
+        size_t to = std::max(finalStart, finalEnd);
+        ASSERT(from <= to);
+        if (to - from == 1) {
+            char16_t c = str->charAt(from);
+            if (c < ESCARGOT_ASCII_TABLE_MAX) {
+                return state.context()->staticStrings().asciiTable[c].string();
+            }
+        }
+        return str->subString(from, to - from);
+    }
+}
+
 
 void GlobalObject::installString(ExecutionState& state)
 {
@@ -82,6 +110,10 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().indexOf),
                                                         Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().indexOf, builtinStringIndexOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().substring),
+                                                        Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().indexOf, builtinStringSubstring, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+
 
     m_string->setFunctionPrototype(state, m_stringPrototype);
 

@@ -191,7 +191,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
 
     StoreByNameOpcodeLbl : {
         StoreByName* code = (StoreByName*)currentCode;
-        record->setMutableBinding(state, code->m_name, registerFile[code->m_registerIndex]);
+        storeByName(state, env, code->m_name, registerFile[code->m_registerIndex]);
         executeNextCode<StoreByName>(programCounter);
         NEXT_INSTRUCTION();
     }
@@ -710,6 +710,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         try {
             size_t newPc = programCounter + sizeof(TryOperation);
             interpret(state, codeBlock, resolveProgramCounter(codeBuffer, newPc));
+            ec->m_programCounter = &programCounter;
             programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
         } catch (const Value& val) {
             state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
@@ -773,6 +774,22 @@ Value ByteCodeInterpreter::loadByName(ExecutionState& state, LexicalEnvironment*
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
     RELEASE_ASSERT_NOT_REACHED();
+}
+
+void ByteCodeInterpreter::storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value)
+{
+    while (env) {
+        auto result = env->record()->hasBinding(state, name);
+        if (result.m_index != SIZE_MAX) {
+            return env->record()->asDeclarativeEnvironmentRecord()->setMutableBindingByIndex(result.m_index, value);
+        }
+        env = env->outerEnvironment();
+    }
+    if (state.inStrictMode()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
+    }
+    GlobalObject* o = state.context()->globalObject();
+    o->setThrowsExceptionWhenStrictMode(state, name, value, o);
 }
 
 Value ByteCodeInterpreter::plusSlowCase(ExecutionState& state, const Value& left, const Value& right)

@@ -98,6 +98,7 @@ public:
     }
 
     size_t find(String* str, size_t pos = 0);
+    String* subString(size_t pos, size_t len);
 
     bool operator==(const String& src) const
     {

@@ -531,4 +531,11 @@ size_t String::find(String* str, size_t pos)
     }
     return SIZE_MAX;
 }
+
+String* String::subString(size_t pos, size_t len)
+{
+    StringBuilder builder;
+    builder.appendSubString(this, pos, pos + len);
+    return builder.finalize();
+}
 }

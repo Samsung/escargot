@@ -33,6 +33,10 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::Directive; }
     StringView value() { return m_value; }
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+    }
+
 protected:
     ExpressionNode* m_expr;
     StringView m_value;

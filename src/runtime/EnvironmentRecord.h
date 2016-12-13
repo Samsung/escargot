@@ -45,7 +45,7 @@ public:
     virtual ~EnvironmentRecord() {}
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        return BindingSlot(this, SIZE_MAX);
     }
 
     virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false)
@@ -240,6 +240,16 @@ public:
         ASSERT(isFunctionEnvironmentRecord());
         return reinterpret_cast<FunctionEnvironmentRecord*>(this);
     }
+
+    virtual void setMutableBindingByIndex(const size_t& idx, const Value& v)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    virtual void setHeapValueByIndex(const size_t& idx, const Value& v)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
 };
 
 // NOTE
@@ -321,11 +331,6 @@ public:
     virtual bool isFunctionEnvironmentRecordNotIndexed()
     {
         return false;
-    }
-
-    virtual void setHeapValueByIndex(const size_t& idx, const Value& v)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
     }
 
     virtual Value getThisBinding()
@@ -421,6 +426,11 @@ public:
         return true;
     }
 
+    virtual void setMutableBindingByIndex(const size_t& idx, const Value& v)
+    {
+        m_vector[idx].m_value = v;
+    }
+
     virtual void setHeapValueByIndex(const size_t& idx, const Value& v)
     {
         m_vector[idx].m_value = v;
@@ -435,6 +445,7 @@ public:
         }
         return BindingSlot(this, SIZE_MAX);
     }
+
 
     virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false);
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
