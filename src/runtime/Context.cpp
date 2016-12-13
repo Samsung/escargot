@@ -146,16 +146,16 @@ Context::Context(VMInstance* instance)
     m_defaultStructureForStringObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length, ObjectPropertyDescriptor::createDataDescriptor(ObjectPropertyDescriptor::NotPresent));
 
     m_defaultStructureForRegExpObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.lastIndex,
-                                                                                ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpLastIndexGetterSetterData));
+                                                                                 ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpLastIndexGetterSetterData));
     // TODO(ES6): Below RegExp data properties is changed to accessor properties of RegExp.prototype in ES6.
     m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.source,
-                                                                                ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpSourceGetterData));
+                                                                                       ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpSourceGetterData));
     m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.global,
-                                                                                ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpGlobalGetterData));
+                                                                                       ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpGlobalGetterData));
     m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.ignoreCase,
-                                                                                ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpIgnoreCaseGetterData));
+                                                                                       ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpIgnoreCaseGetterData));
     m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.multiline,
-                                                                                ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpMultilineGetterData));
+                                                                                       ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpMultilineGetterData));
     m_globalObject = new GlobalObject(stateForInit);
     m_globalObject->installBuiltins(stateForInit);
 

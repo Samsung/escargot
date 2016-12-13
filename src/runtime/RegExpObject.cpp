@@ -84,17 +84,17 @@ RegExpObject::Option RegExpObject::parseOption(ExecutionState& state, String* op
         case 'g':
             if (option & Option::Global)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'g' flags");
-            option = (RegExpObject::Option) (option | Option::Global);
+            option = (RegExpObject::Option)(option | Option::Global);
             break;
         case 'i':
             if (option & RegExpObject::Option::IgnoreCase)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'i' flags");
-            option = (RegExpObject::Option) (option | RegExpObject::Option::IgnoreCase);
+            option = (RegExpObject::Option)(option | RegExpObject::Option::IgnoreCase);
             break;
         case 'm':
             if (option & RegExpObject::Option::MultiLine)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'm' flags");
-            option = (RegExpObject::Option) (option | RegExpObject::Option::MultiLine);
+            option = (RegExpObject::Option)(option | RegExpObject::Option::MultiLine);
             break;
         /*
         case 'y':
@@ -119,8 +119,7 @@ void RegExpObject::setOption(ExecutionState& state, String* optionStr)
 void RegExpObject::setOption(const Option& option)
 {
     if (((m_option & Option::MultiLine) != (option & Option::MultiLine))
-        || ((m_option & Option::IgnoreCase) != (option & Option::IgnoreCase))
-        ) {
+        || ((m_option & Option::IgnoreCase) != (option & Option::IgnoreCase))) {
         ASSERT(!m_yarrPattern);
         m_bytecodePattern = NULL;
     }
@@ -144,7 +143,7 @@ RegExpObject::RegExpCacheEntry& RegExpObject::getCacheEntryAndCompileIfNeeded(Ex
         }
 
         const char* yarrError = nullptr;
-        auto yarrPattern = new(PointerFreeGC) JSC::Yarr::YarrPattern(*source, option & Option::IgnoreCase, option & Option::MultiLine, &yarrError);
+        auto yarrPattern = new (PointerFreeGC) JSC::Yarr::YarrPattern(*source, option & Option::IgnoreCase, option & Option::MultiLine, &yarrError);
         return cache->insert(std::make_pair(RegExpCacheKey(source, option), RegExpCacheEntry(yarrError, yarrPattern))).first->second;
     }
 }
@@ -152,7 +151,7 @@ RegExpObject::RegExpCacheEntry& RegExpObject::getCacheEntryAndCompileIfNeeded(Ex
 bool RegExpObject::matchNonGlobally(ExecutionState& state, String* str, RegexMatchResult& matchResult, bool testOnly, size_t startIndex)
 {
     Option prevOption = option();
-    setOption((Option) (prevOption & ~Option::Global));
+    setOption((Option)(prevOption & ~Option::Global));
     bool ret = match(state, str, matchResult, testOnly, startIndex);
     setOption(prevOption);
     return ret;
@@ -173,7 +172,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
         if (entry.m_bytecodePattern) {
             m_bytecodePattern = entry.m_bytecodePattern;
         } else {
-            WTF::BumpPointerAllocator *bumpAlloc = state.context()->bumpPointerAllocator();
+            WTF::BumpPointerAllocator* bumpAlloc = state.context()->bumpPointerAllocator();
             JSC::Yarr::OwnPtr<JSC::Yarr::BytecodePattern> ownedBytecode = JSC::Yarr::byteCompile(*m_yarrPattern, bumpAlloc);
             m_bytecodePattern = ownedBytecode.leakPtr();
             entry.m_bytecodePattern = m_bytecodePattern;
@@ -181,13 +180,13 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     }
 
     unsigned subPatternNum = m_bytecodePattern->m_body->m_numSubpatterns;
-    matchResult.m_subPatternNum = (int) subPatternNum;
+    matchResult.m_subPatternNum = (int)subPatternNum;
     size_t length = str->length();
     size_t start = startIndex;
     unsigned result = 0;
     bool isGlobal = option() & RegExpObject::Option::Global;
     unsigned* outputBuf;
-    outputBuf = (unsigned int*) GC_MALLOC_ATOMIC(sizeof(unsigned) * 2 * (subPatternNum + 1));
+    outputBuf = (unsigned int*)GC_MALLOC_ATOMIC(sizeof(unsigned) * 2 * (subPatternNum + 1));
     // TODO
     //    ALLOCA_WRAPPER(ESVMInstance::currentInstance(), outputBuf, unsigned int*, sizeof(unsigned) * 2 * (subPatternNum + 1), true);
     outputBuf[1] = start;
@@ -197,25 +196,25 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
         if (start > length)
             break;
         if (str->isASCIIString())
-            result = JSC::Yarr::interpret(m_bytecodePattern, (const char *)str->toUTF8StringData().data(), length, start, outputBuf);
+            result = JSC::Yarr::interpret(m_bytecodePattern, (const char*)str->toUTF8StringData().data(), length, start, outputBuf);
         else
-            result = JSC::Yarr::interpret(m_bytecodePattern, (const UChar *)str->toUTF16StringData().data(), length, start, outputBuf);
+            result = JSC::Yarr::interpret(m_bytecodePattern, (const UChar*)str->toUTF16StringData().data(), length, start, outputBuf);
         if (result != JSC::Yarr::offsetNoMatch) {
             if (UNLIKELY(testOnly)) {
                 // outputBuf[1] should be set to lastIndex
                 if (isGlobal) {
                     setLastIndex(Value(outputBuf[1]));
-//                   set(strings->lastIndex, Value(outputBuf[1]), true);
+                    //                   set(strings->lastIndex, Value(outputBuf[1]), true);
                 }
                 return true;
             }
             std::vector<RegexMatchResult::RegexMatchResultPiece, gc_malloc_pointer_free_allocator<RegexMatchResult::RegexMatchResultPiece> > piece;
             piece.reserve(subPatternNum + 1);
 
-            for (unsigned i = 0; i < subPatternNum + 1; i ++) {
+            for (unsigned i = 0; i < subPatternNum + 1; i++) {
                 RegexMatchResult::RegexMatchResultPiece p;
-                p.m_start = outputBuf[i*2];
-                p.m_end = outputBuf[i*2 + 1];
+                p.m_start = outputBuf[i * 2];
+                p.m_end = outputBuf[i * 2 + 1];
                 piece.push_back(p);
             }
             matchResult.m_matchResults.push_back(std::move(piece));
@@ -233,9 +232,8 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     } while (result != JSC::Yarr::offsetNoMatch);
     if (UNLIKELY(testOnly)) {
         setLastIndex(Value(0));
-//        set(strings->lastIndex, ESValue(0), true);
+        //        set(strings->lastIndex, ESValue(0), true);
     }
     return matchResult.m_matchResults.size();
 }
-
 }
