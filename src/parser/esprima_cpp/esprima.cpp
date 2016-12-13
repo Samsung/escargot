@@ -5227,6 +5227,8 @@ public:
         this->expect(RightParenthesis);
         Node* body = this->parseBlock();
 
+        scopeContexts.back()->m_hasCatch = true;
+
         return this->finalize(node, new CatchClauseNode(param, nullptr, body));
     }
 

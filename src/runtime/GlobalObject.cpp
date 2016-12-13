@@ -12,6 +12,31 @@ static Value builtinPrint(ExecutionState& state, Value thisValue, size_t argc, V
     puts(argv[0].toString(state)->toUTF8StringData().data());
     return Value();
 }
+
+static Value builtinLoad(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    auto f = argv[0].toString(state)->toUTF8StringData();
+    const char* fileName = f.data();
+    FILE* fp = fopen(fileName, "r");
+    String* src = String::emptyString;
+    if (fp) {
+        std::string str;
+        char buf[512];
+        while (fgets(buf, sizeof buf, fp) != NULL) {
+            str += buf;
+        }
+        fclose(fp);
+
+        src = new UTF16String(std::move(utf8StringToUTF16String(str.data(), str.length())));
+    }
+
+    Context* context = state.context();
+    auto result = context->scriptParser().parse(src, argv[0].toString(state));
+    if (!result.m_error) {
+        result.m_script->execute(context);
+    }
+    return Value();
+}
 #endif
 
 static Value builtinGc(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -55,7 +80,10 @@ void GlobalObject::installOthers(ExecutionState& state)
                       Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state,
                                                                                               NativeFunctionInfo(state.context()->staticStrings().print, builtinPrint, 1, nullptr, NativeFunctionInfo::Strict), false),
                                                                            (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
-
+    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().load),
+                      Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state,
+                                                                                              NativeFunctionInfo(state.context()->staticStrings().load, builtinLoad, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                                                           (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 #endif
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().gc),
                       Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state,

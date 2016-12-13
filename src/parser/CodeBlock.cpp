@@ -33,6 +33,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     m_isStrict = info.m_isStrict;
     m_hasEval = false;
     m_hasWith = false;
+    m_hasCatch = false;
     m_hasYield = false;
     m_canUseIndexedVariableStorage = true;
     m_canAllocateEnvironmentOnStack = true;
@@ -72,6 +73,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
     m_isStrict = isStrict;
     m_hasEval = false;
     m_hasWith = false;
+    m_hasCatch = false;
     m_hasYield = false;
     m_canUseIndexedVariableStorage = false;
     m_canAllocateEnvironmentOnStack = false;
@@ -120,6 +122,12 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, NodeLOC sourc
         m_hasWith = true;
     } else {
         m_hasWith = false;
+    }
+
+    if (initFlags & CodeBlockInitFlag::CodeBlockHasCatch) {
+        m_hasCatch = true;
+    } else {
+        m_hasCatch = false;
     }
 
     if (initFlags & CodeBlockInitFlag::CodeBlockHasYield) {
@@ -171,7 +179,7 @@ bool CodeBlock::tryCaptureIdentifiersFromChildCodeBlock(AtomicString name)
     return false;
 }
 
-void CodeBlock::notifySelfOrChildHasEvalWithYield()
+void CodeBlock::notifySelfOrChildHasEvalWithCatchYield()
 {
     m_canAllocateEnvironmentOnStack = false;
     m_canUseIndexedVariableStorage = false;
@@ -179,7 +187,7 @@ void CodeBlock::notifySelfOrChildHasEvalWithYield()
 
 bool CodeBlock::hasNonConfiguableNameOnGlobal(const AtomicString& name)
 {
-    ASSERT(!inEvalWithYieldScope());
+    ASSERT(!inEvalWithCatchYieldScope());
     CodeBlock* top = this;
     while (top->parentCodeBlock()) {
         top = top->parentCodeBlock();

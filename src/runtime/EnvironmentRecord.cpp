@@ -29,6 +29,11 @@ GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBloc
     }
 }
 
+Value GlobalEnvironmentRecord::getThisBinding()
+{
+    return m_globalObject;
+}
+
 void GlobalEnvironmentRecord::createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete)
 {
     auto desc = m_globalObject->getOwnProperty(state, name);
@@ -54,9 +59,44 @@ void GlobalEnvironmentRecord::setMutableBinding(ExecutionState& state, const Ato
     m_globalObject->setThrowsExceptionWhenStrictMode(state, name, V, m_globalObject);
 }
 
+void DeclarativeEnvironmentRecordNotIndexded::createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete)
+{
+    ASSERT(canDelete == false);
+    ASSERT(hasBinding(state, name).m_index == SIZE_MAX);
+    IdentifierRecord record;
+    record.m_name = name;
+    record.m_value = Value();
+    m_vector.pushBack(record);
+}
+
+EnvironmentRecord::GetBindingValueResult DeclarativeEnvironmentRecordNotIndexded::getBindingValue(ExecutionState& state, const AtomicString& name)
+{
+    size_t len = m_vector.size();
+    for (size_t i = 0; i < len; i++) {
+        if (m_vector[i].m_name == name) {
+            return EnvironmentRecord::GetBindingValueResult(m_vector[i].m_value);
+        }
+    }
+    return GetBindingValueResult();
+}
+
+void DeclarativeEnvironmentRecordNotIndexded::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+{
+    size_t len = m_vector.size();
+    for (size_t i = 0; i < len; i++) {
+        if (m_vector[i].m_name == name) {
+            m_vector[i].m_value = V;
+            return;
+        }
+    }
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+
 void FunctionEnvironmentRecordNotIndexed::createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete)
 {
     ASSERT(canDelete == false);
+    ASSERT(hasBinding(state, name).m_index == SIZE_MAX);
     IdentifierRecord record;
     record.m_name = name;
     record.m_value = Value();

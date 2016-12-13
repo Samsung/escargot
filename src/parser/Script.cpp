@@ -32,7 +32,7 @@ Value Script::execute(Context* ctx)
     Value resultValue;
     ExecutionState state(ctx, &ec, &resultValue);
 
-    ByteCodeInterpreter::interpret(state, m_topCodeBlock);
+    ByteCodeInterpreter::interpret(state, m_topCodeBlock, 0);
 
     return resultValue;
 }
@@ -89,7 +89,7 @@ Value Script::executeLocal(ExecutionState& state)
         stackStorage[i] = Value();
     }
 
-    ByteCodeInterpreter::interpret(newState, m_topCodeBlock);
+    ByteCodeInterpreter::interpret(newState, m_topCodeBlock, 0);
 
     return resultValue;
 }

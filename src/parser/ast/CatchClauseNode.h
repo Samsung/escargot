@@ -36,6 +36,16 @@ public:
         m_body = (BlockStatementNode *)body;
     }
 
+    IdentifierNode *param()
+    {
+        return m_param;
+    }
+
+    BlockStatementNode *body()
+    {
+        return m_body;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::CatchClause; }
 protected:
     IdentifierNode *m_param;

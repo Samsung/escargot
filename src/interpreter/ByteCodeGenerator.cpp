@@ -61,7 +61,7 @@ void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb
 {
     auto iter = m_complexCaseStatementPositions.find(codePos);
     if (iter != m_complexCaseStatementPositions.end()) {
-        JumpComplexCase j(cb->peekCode<Jump>(codePos));
+        JumpComplexCase j(cb->peekCode<Jump>(codePos), iter->second);
         j.m_jumpPosition = iter->second;
         j.assignOpcodeInAddress();
         memcpy(cb->m_code.data() + codePos, &j, sizeof(JumpComplexCase));

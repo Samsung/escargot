@@ -188,11 +188,7 @@ public:
         return true;
     }
 
-    virtual Value getThisBinding()
-    {
-        return Value(m_globalObject);
-    }
-
+    virtual Value getThisBinding();
     virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false);
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
@@ -234,11 +230,53 @@ public:
         return false;
     }
 
+    virtual bool isDeclarativeEnvironmentRecordNotIndexded()
+    {
+        return false;
+    }
+
     FunctionEnvironmentRecord* asFunctionEnvironmentRecord()
     {
         ASSERT(isFunctionEnvironmentRecord());
         return reinterpret_cast<FunctionEnvironmentRecord*>(this);
     }
+};
+
+// NOTE
+// DeclarativeEnvironmentRecordNotIndexded record does not create binding self likes FunctionEnvironmentRecord
+// this record is for catch statement now
+class DeclarativeEnvironmentRecordNotIndexded : public DeclarativeEnvironmentRecord {
+public:
+    DeclarativeEnvironmentRecordNotIndexded(ExecutionState& state)
+        : DeclarativeEnvironmentRecord(state, nullptr)
+    {
+    }
+
+    ~DeclarativeEnvironmentRecordNotIndexded()
+    {
+    }
+
+    virtual bool isDeclarativeEnvironmentRecordNotIndexded()
+    {
+        return true;
+    }
+
+    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName)
+    {
+        for (size_t i = 0; i < m_vector.size(); i++) {
+            if (m_vector[i].m_name == atomicName) {
+                return BindingSlot(this, i);
+            }
+        }
+        return BindingSlot(this, SIZE_MAX);
+    }
+
+    virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false);
+    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
+    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
+
+protected:
+    IdentifierRecordVector m_vector;
 };
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-function-environment-records

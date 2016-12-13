@@ -35,6 +35,35 @@ public:
         m_finalizer = (BlockStatementNode *)finalizer;
     }
 
+    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
+    {
+        context->m_tryStatementScopeCount++;
+        codeBlock->pushCode(TryOperation(ByteCodeLOC(m_loc.index)), context, this);
+        size_t pos = codeBlock->lastCodePosition<TryOperation>();
+        m_block->generateStatementByteCode(codeBlock, context);
+        codeBlock->pushCode(TryCatchBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
+        size_t tryCatchBodyPos = codeBlock->lastCodePosition<TryCatchBodyEnd>();
+        if (m_handler) {
+            codeBlock->peekCode<TryOperation>(pos)->m_catchPosition = codeBlock->currentCodeSize();
+            m_handler->body()->generateStatementByteCode(codeBlock, context);
+            codeBlock->peekCode<TryOperation>(pos)->m_hasCatch = true;
+            codeBlock->peekCode<TryOperation>(pos)->m_catchVariableName = m_handler->param()->name();
+            codeBlock->pushCode(TryCatchBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
+        }
+
+        context->registerJumpPositionsToComplexCase(pos);
+
+        codeBlock->peekCode<TryOperation>(pos)->m_tryCatchEndPosition = codeBlock->currentCodeSize();
+        if (m_finalizer) {
+            RELEASE_ASSERT_NOT_REACHED();
+            codeBlock->peekCode<TryCatchBodyEnd>(tryCatchBodyPos)->m_finalizerPosition = codeBlock->currentCodeSize();
+            m_finalizer->generateStatementByteCode(codeBlock, context);
+        }
+        codeBlock->pushCode(FinallyEnd(ByteCodeLOC(m_loc.index)), context, this);
+        codeBlock->peekCode<FinallyEnd>(codeBlock->lastCodePosition<FinallyEnd>())->m_tryDupCount = context->m_tryStatementScopeCount;
+        context->m_tryStatementScopeCount--;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::TryStatement; }
 protected:
     BlockStatementNode *m_block;

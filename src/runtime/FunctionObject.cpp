@@ -143,7 +143,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     }
 
     // run function
-    ByteCodeInterpreter::interpret(newState, m_codeBlock);
+    ByteCodeInterpreter::interpret(newState, m_codeBlock, 0);
 
     return resultValue;
 }

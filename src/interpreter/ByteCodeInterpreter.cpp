@@ -43,6 +43,11 @@ ALWAYS_INLINE size_t jumpTo(char* codeBuffer, const size_t& jumpPosition)
     return (size_t)&codeBuffer[jumpPosition];
 }
 
+ALWAYS_INLINE size_t resolveProgramCounter(char* codeBuffer, const size_t& programCounter)
+{
+    return programCounter - (size_t)codeBuffer;
+}
+
 class ECResetter {
 public:
     ECResetter(size_t** addr)
@@ -58,7 +63,7 @@ protected:
     size_t** m_addr;
 };
 
-void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
+void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock, size_t programCounter)
 {
     if (UNLIKELY(codeBlock == nullptr)) {
         goto FillOpcodeTable;
@@ -73,10 +78,9 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         Value* registerFile = ALLOCA(byteCodeBlock->m_requiredRegisterFileSizeInValueSize * sizeof(Value), Value, state);
         Value* stackStorage = ec->stackStorage();
         char* codeBuffer = byteCodeBlock->m_code.data();
-        size_t programCounter = 0;
         ec->m_programCounter = &programCounter;
         ECResetter resetPC(&ec->m_programCounter);
-        programCounter = (size_t)(&codeBuffer[0]);
+        programCounter = (size_t)(&codeBuffer[programCounter]);
         ByteCode* currentCode;
 
 #define NEXT_INSTRUCTION() \
@@ -209,7 +213,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
     GetThisOpcodeLbl : {
         GetThis* code = (GetThis*)currentCode;
         if (UNLIKELY(thisValue.isEmpty())) {
-            thisValue = record->getThisBinding();
+            thisValue = env->getThisBinding();
         }
         registerFile[code->m_registerIndex] = thisValue;
         executeNextCode<GetThis>(programCounter);
@@ -637,20 +641,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
         NEXT_INSTRUCTION();
     }
 
-    ThrowOperationOpcodeLbl : {
-        ThrowOperation* code = (ThrowOperation*)currentCode;
-        state.context()->throwException(state, registerFile[code->m_registerIndex]);
-    }
-
-    JumpComplexCaseOpcodeLbl : {
-        JumpComplexCase* code = (JumpComplexCase*)currentCode;
-        ASSERT(code->m_jumpPosition != SIZE_MAX);
-        programCounter = jumpTo(codeBuffer, code->m_jumpPosition);
-        // TODO
-        RELEASE_ASSERT_NOT_REACHED();
-        NEXT_INSTRUCTION();
-    }
-
     CreateObjectOpcodeLbl : {
         CreateObject* code = (CreateObject*)currentCode;
         registerFile[code->m_registerIndex] = new Object(state);
@@ -694,7 +684,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
             argv = newArgv;
             // argc = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->parametersInfomation().size();
         }
-        *state.exeuctionResult() = code->m_fn(state, record->getThisBinding(), argc, argv, record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isNewExpression());
+        *state.exeuctionResult() = code->m_fn(state, env->getThisBinding(), argc, argv, record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isNewExpression());
         return;
     }
 
@@ -712,6 +702,54 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock)
             registerFile[code->m_registerIndex] = FunctionObject::call(eval, state, Value(), code->m_argumentCount, &registerFile[code->m_registerIndex]);
         }
         executeNextCode<CallEvalFunction>(programCounter);
+        NEXT_INSTRUCTION();
+    }
+
+    TryOperationOpcodeLbl : {
+        TryOperation* code = (TryOperation*)currentCode;
+        try {
+            size_t newPc = programCounter + sizeof(TryOperation);
+            interpret(state, codeBlock, resolveProgramCounter(codeBuffer, newPc));
+            programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
+        } catch (const Value& val) {
+            state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
+            if (code->m_hasCatch == false) {
+                throw val;
+            } else {
+                // setup new env
+                EnvironmentRecord* newRecord = new DeclarativeEnvironmentRecordNotIndexded(state);
+                newRecord->createMutableBinding(state, code->m_catchVariableName);
+                newRecord->setMutableBinding(state, code->m_catchVariableName, val);
+                LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
+                ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
+                newEc->giveStackStorage(stackStorage);
+                ExecutionState newState(state.context(), newEc, state.exeuctionResult());
+                interpret(newState, codeBlock, code->m_catchPosition);
+                programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
+            }
+        }
+        NEXT_INSTRUCTION();
+    }
+
+    TryCatchBodyEndOpcodeLbl : {
+        return;
+    }
+
+    FinallyEndOpcodeLbl : {
+        FinallyEnd* code = (FinallyEnd*)currentCode;
+        executeNextCode<FinallyEnd>(programCounter);
+        NEXT_INSTRUCTION();
+    }
+
+    ThrowOperationOpcodeLbl : {
+        ThrowOperation* code = (ThrowOperation*)currentCode;
+        state.context()->throwException(state, registerFile[code->m_registerIndex]);
+    }
+
+    JumpComplexCaseOpcodeLbl : {
+        JumpComplexCase* code = (JumpComplexCase*)currentCode;
+        ASSERT(code->m_jumpPosition != SIZE_MAX);
+        programCounter = jumpTo(codeBuffer, code->m_jumpPosition);
         NEXT_INSTRUCTION();
     }
     }

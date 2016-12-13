@@ -24,7 +24,12 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
                                   scopeCtx->m_locStart,
                                   scopeCtx->m_isStrict, scopeCtx->m_nodeStartIndex,
                                   scopeCtx->m_functionName, scopeCtx->m_parameters, scopeCtx->m_names, parentCodeBlock,
-                                  (CodeBlock::CodeBlockInitFlag)((scopeCtx->m_hasEval ? CodeBlock::CodeBlockHasEval : 0) | (scopeCtx->m_hasWith ? CodeBlock::CodeBlockHasWith : 0) | (scopeCtx->m_hasYield ? CodeBlock::CodeBlockHasYield : 0) | (scopeCtx->m_associateNode->type() == FunctionExpression ? CodeBlock::CodeBlockIsFunctionExpression : 0) | (scopeCtx->m_associateNode->type() == FunctionDeclaration ? CodeBlock::CodeBlockIsFunctionDeclaration : 0)));
+                                  (CodeBlock::CodeBlockInitFlag)((scopeCtx->m_hasEval ? CodeBlock::CodeBlockHasEval : 0)
+                                                                 | (scopeCtx->m_hasWith ? CodeBlock::CodeBlockHasWith : 0)
+                                                                 | (scopeCtx->m_hasCatch ? CodeBlock::CodeBlockHasCatch : 0)
+                                                                 | (scopeCtx->m_hasYield ? CodeBlock::CodeBlockHasYield : 0)
+                                                                 | (scopeCtx->m_associateNode->type() == FunctionExpression ? CodeBlock::CodeBlockIsFunctionExpression : 0)
+                                                                 | (scopeCtx->m_associateNode->type() == FunctionDeclaration ? CodeBlock::CodeBlockIsFunctionDeclaration : 0)));
     }
 
 #ifndef NDEBUG
@@ -34,10 +39,10 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
 #endif
 
     if (parentCodeBlock) {
-        if (codeBlock->hasEvalWithYield()) {
+        if (codeBlock->hasEvalWithCatchYield()) {
             CodeBlock* c = codeBlock;
             while (c) {
-                c->notifySelfOrChildHasEvalWithYield();
+                c->notifySelfOrChildHasEvalWithCatchYield();
                 c = c->parentCodeBlock();
             }
         }
@@ -82,9 +87,10 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
         script = new Script(fileName);
         CodeBlock* topCodeBlock;
         if (parentCodeBlock) {
-            program->scopeContext()->m_hasEval = parentCodeBlock->hasEvalWithYield();
-            program->scopeContext()->m_hasWith = parentCodeBlock->hasEvalWithYield();
-            program->scopeContext()->m_hasYield = parentCodeBlock->hasEvalWithYield();
+            program->scopeContext()->m_hasEval = parentCodeBlock->hasEval();
+            program->scopeContext()->m_hasWith = parentCodeBlock->hasWith();
+            program->scopeContext()->m_hasCatch = parentCodeBlock->hasCatch();
+            program->scopeContext()->m_hasYield = parentCodeBlock->hasYield();
             topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, scriptSource, script, program->scopeContext(), parentCodeBlock);
         } else {
             topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, program);
@@ -103,14 +109,14 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
     }
 
                 PRINT_TAB()
-                printf("CodeBlock %s (%d:%d -> %d:%d)(%s, %s) (E:%d, W:%d, Y:%d)\n", cb->m_functionName.string()->toUTF8StringData().data(),
+                printf("CodeBlock %s (%d:%d -> %d:%d)(%s, %s) (E:%d, W:%d, C:%d, Y:%d)\n", cb->m_functionName.string()->toUTF8StringData().data(),
                        (int)cb->m_locStart.line,
                        (int)cb->m_locStart.column,
                        (int)cb->m_locEnd.line,
                        (int)cb->m_locEnd.column,
                        cb->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap",
                        cb->m_canUseIndexedVariableStorage ? "Indexed" : "Named",
-                       (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasYield);
+                       (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasCatch, (int)cb->m_hasYield);
 
                 PRINT_TAB()
                 printf("Names: ");

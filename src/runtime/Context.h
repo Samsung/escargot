@@ -12,11 +12,13 @@ namespace Escargot {
 class VMInstance;
 class ScriptParser;
 class ObjectStructure;
+class ControlFlowRecord;
 class SandBox;
 
 class Context : public gc {
     friend class AtomicString;
     friend class SandBox;
+    friend class ByteCodeInterpreter;
 
 public:
     Context(VMInstance* instance);

@@ -63,9 +63,10 @@ public:
         CodeBlockInitDefault = 0,
         CodeBlockHasEval = 1,
         CodeBlockHasWith = 1 << 1,
-        CodeBlockHasYield = 1 << 2,
-        CodeBlockIsFunctionDeclaration = 1 << 3,
-        CodeBlockIsFunctionExpression = 1 << 4,
+        CodeBlockHasCatch = 1 << 2,
+        CodeBlockHasYield = 1 << 3,
+        CodeBlockIsFunctionDeclaration = 1 << 4,
+        CodeBlockIsFunctionExpression = 1 << 5,
     };
 
     struct IdentifierInfo {
@@ -91,11 +92,11 @@ public:
         return m_parentCodeBlock == nullptr;
     }
 
-    bool inEvalWithYieldScope()
+    bool inEvalWithCatchYieldScope()
     {
         CodeBlock* cb = this;
         while (cb) {
-            if (cb->hasEvalWithYield()) {
+            if (cb->hasEvalWithCatchYield()) {
                 return true;
             }
             cb = cb->parentCodeBlock();
@@ -103,9 +104,29 @@ public:
         return false;
     }
 
-    bool hasEvalWithYield()
+    bool hasEval()
     {
-        return m_hasEval || m_hasWith || m_hasYield;
+        return m_hasEval;
+    }
+
+    bool hasWith()
+    {
+        return m_hasWith;
+    }
+
+    bool hasCatch()
+    {
+        return m_hasCatch;
+    }
+
+    bool hasYield()
+    {
+        return m_hasYield;
+    }
+
+    bool hasEvalWithCatchYield()
+    {
+        return m_hasEval || m_hasWith || m_hasCatch || m_hasYield;
     }
 
     CodeBlock* parentCodeBlock()
@@ -291,7 +312,7 @@ protected:
         m_childBlocks.push_back(cb);
     }
     bool tryCaptureIdentifiersFromChildCodeBlock(AtomicString name);
-    void notifySelfOrChildHasEvalWithYield();
+    void notifySelfOrChildHasEvalWithCatchYield();
     void appendIdentifier(AtomicString name, bool onStack = false)
     {
         ASSERT(!hasName(name));
@@ -305,6 +326,7 @@ protected:
     bool m_isStrict;
     bool m_hasEval;
     bool m_hasWith;
+    bool m_hasCatch;
     bool m_hasYield;
     bool m_canUseIndexedVariableStorage;
     bool m_canAllocateEnvironmentOnStack;

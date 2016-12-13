@@ -272,7 +272,9 @@ namespace Escargot {
     F(reject)                     \
     F(resolve)                    \
     F(then)                       \
-    F(gc)
+    F(gc)                         \
+    F(load)
+
 
 class StaticStrings {
 public:

@@ -8,6 +8,7 @@ namespace Escargot {
 
 class SandBox {
     MAKE_STACK_ALLOCATED();
+    friend class ByteCodeInterpreter;
 
 public:
     SandBox(Context* s)

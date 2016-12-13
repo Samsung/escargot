@@ -222,6 +222,7 @@ struct ASTScopeContext : public gc {
     bool m_isStrict;
     bool m_hasEval;
     bool m_hasWith;
+    bool m_hasCatch;
     bool m_hasYield;
     ASTScopeContext *m_parentContext;
     Node *m_associateNode;
@@ -254,7 +255,7 @@ struct ASTScopeContext : public gc {
         , m_nodeStartIndex(SIZE_MAX)
     {
         m_isStrict = isStrict;
-        m_hasYield = m_hasWith = m_hasEval = false;
+        m_hasYield = m_hasCatch = m_hasWith = m_hasEval = false;
         m_parentContext = parentContext;
         m_associateNode = nullptr;
     }
