@@ -97,6 +97,8 @@ public:
         return true;
     }
 
+    size_t find(String* str, size_t pos = 0);
+
     bool operator==(const String& src) const
     {
         return equals(&src);

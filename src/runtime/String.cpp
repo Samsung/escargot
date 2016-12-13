@@ -504,4 +504,31 @@ uint64_t String::tryToUseAsIndex() const
     }
     return Value::InvalidIndexValue;
 }
+
+size_t String::find(String* str, size_t pos)
+{
+    const size_t srcStrLen = str->length();
+    const size_t size = length();
+
+    if (srcStrLen == 0)
+        return pos <= size ? pos : SIZE_MAX;
+
+    if (srcStrLen <= size) {
+        char32_t src0 = str->charAt(0);
+        for (; pos <= size - srcStrLen; ++pos) {
+            if (charAt(pos) == src0) {
+                bool same = true;
+                for (size_t k = 1; k < srcStrLen; k++) {
+                    if (charAt(pos + k) != str->charAt(k)) {
+                        same = false;
+                        break;
+                    }
+                }
+                if (same)
+                    return pos;
+            }
+        }
+    }
+    return SIZE_MAX;
+}
 }

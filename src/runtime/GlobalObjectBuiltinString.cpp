@@ -39,6 +39,31 @@ static Value builtinStringToString(ExecutionState& state, Value thisValue, size_
     RELEASE_ASSERT_NOT_REACHED();
 }
 
+static Value builtinStringIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, indexOf);
+    String* searchStr = argv[0].toString(state);
+
+    Value val;
+    if (argc > 1) {
+        val = argv[1];
+    }
+    size_t pos;
+    if (val.isUndefined()) {
+        pos = 0;
+    } else {
+        pos = val.toInteger(state);
+    }
+
+    size_t len = str->length();
+    size_t start = std::min(std::max(pos, (size_t)0), len);
+    size_t result = str->find(searchStr, start);
+    if (result == SIZE_MAX)
+        return Value(-1);
+    else
+        return Value(result);
+}
+
 
 void GlobalObject::installString(ExecutionState& state)
 {
@@ -51,8 +76,13 @@ void GlobalObject::installString(ExecutionState& state)
     m_stringPrototype = m_objectPrototype;
     m_stringPrototype = new StringObject(state, String::emptyString);
     m_stringPrototype->setPrototype(state, m_objectPrototype);
+
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toString),
                                                         Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinStringToString, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().indexOf),
+                                                        Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().indexOf, builtinStringIndexOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+
     m_string->setFunctionPrototype(state, m_stringPrototype);
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().String),

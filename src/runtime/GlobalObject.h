@@ -13,14 +13,12 @@ class FunctionObject;
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), errorMessage_GlobalObject_ThisUndefinedOrNull); \
     }                                                                                                                                                                                                                                 \
     Object* NAME = thisValue.toObject(state);
-/*
-#define RESOLVE_THIS_BINDING_TO_STRING(NAME, OBJ, BUILT_IN_METHOD) \
-    ESValue thisVal = instance->currentExecutionContext()->resolveThisBinding(); \
-    if (thisVal.isUndefinedOrNull()) { \
-        throwBuiltinError(instance, ErrorCode::TypeError, strings->OBJ, true, strings->BUILT_IN_METHOD, errorMessage_GlobalObject_ThisUndefinedOrNull); \
-    } \
-    escargot::ESString* NAME = thisVal.toString();
-*/
+
+#define RESOLVE_THIS_BINDING_TO_STRING(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                    \
+    if (thisValue.isUndefinedOrNull()) {                                                                                                                                                                                              \
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), errorMessage_GlobalObject_ThisUndefinedOrNull); \
+    }                                                                                                                                                                                                                                 \
+    String* NAME = thisValue.toString(state);
 
 class GlobalObject : public Object {
 public:

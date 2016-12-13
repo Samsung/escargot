@@ -680,6 +680,18 @@ inline uint32_t Value::toArrayIndex(ExecutionState& state) const
         return key->tryToUseAsIndex();
     }
 }
+
+inline double Value::toInteger(ExecutionState& state) const
+{
+    if (isInt32())
+        return asInt32();
+    double d = toNumber(state);
+    if (std::isnan(d))
+        return 0;
+    if (d == 0 || d == std::numeric_limits<double>::infinity() || d == -std::numeric_limits<double>::infinity())
+        return d;
+    return (d < 0 ? -1 : 1) * std::floor(std::abs(d));
+}
 }
 
 #endif

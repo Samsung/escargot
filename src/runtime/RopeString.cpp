@@ -63,11 +63,12 @@ void RopeString::flattenRopeStringWorker()
 
 void RopeString::flattenRopeString()
 {
-    ASSERT(m_right);
-    if (m_hasASCIIContent) {
-        flattenRopeStringWorker<ASCIIStringData, ASCIIString>();
-    } else {
-        flattenRopeStringWorker<UTF16StringData, UTF16String>();
+    if (m_right) {
+        if (m_hasASCIIContent) {
+            flattenRopeStringWorker<ASCIIStringData, ASCIIString>();
+        } else {
+            flattenRopeStringWorker<UTF16StringData, UTF16String>();
+        }
     }
 }
 }
