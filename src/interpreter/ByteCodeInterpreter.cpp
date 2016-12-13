@@ -753,6 +753,54 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         programCounter = jumpTo(codeBuffer, code->m_jumpPosition);
         NEXT_INSTRUCTION();
     }
+
+    EnumerateObjectOpcodeLbl : {
+        EnumerateObject* code = (EnumerateObject*)currentCode;
+        auto data = executeEnumerateObject(state, registerFile[code->m_objectRegisterIndex].toObject(state));
+        registerFile[code->m_dataRegisterIndex] = Value((PointerValue*)data);
+        executeNextCode<EnumerateObject>(programCounter);
+        NEXT_INSTRUCTION();
+    }
+
+    CheckIfKeyIsLastOpcodeLbl : {
+        CheckIfKeyIsLast* code = (CheckIfKeyIsLast*)currentCode;
+        EnumerateObjectData* data = (EnumerateObjectData*)registerFile[code->m_registerIndex].asPointerValue();
+        bool shouldUpdateEnumerateObjectData = false;
+        Object* obj = data->m_object;
+        for (size_t i = 0; i < data->m_hiddenClassChain.size(); i++) {
+            ObjectStructure* hc = data->m_hiddenClassChain[i];
+            if (hc != obj->structure()) {
+                shouldUpdateEnumerateObjectData = true;
+                break;
+            }
+            Value val = obj->getPrototype(state);
+            if (val.isObject()) {
+                obj = val.asObject();
+            } else {
+                break;
+            }
+        }
+
+        if (shouldUpdateEnumerateObjectData) {
+            registerFile[code->m_registerIndex] = Value((PointerValue*)updateEnumerateObjectData(state, data));
+        }
+
+        if (data->m_keys.size() == data->m_idx) {
+            programCounter = jumpTo(codeBuffer, code->m_forInEndPosition);
+        } else {
+            executeNextCode<CheckIfKeyIsLast>(programCounter);
+        }
+        NEXT_INSTRUCTION();
+    }
+
+    EnumerateObjectKeyOpcodeLbl : {
+        EnumerateObjectKey* code = (EnumerateObjectKey*)currentCode;
+        EnumerateObjectData* data = (EnumerateObjectData*)registerFile[code->m_dataRegisterIndex].asPointerValue();
+        data->m_idx++;
+        registerFile[code->m_registerIndex] = data->m_keys[data->m_idx - 1];
+        executeNextCode<EnumerateObjectKey>(programCounter);
+        NEXT_INSTRUCTION();
+    }
     }
 FillOpcodeTable : {
 #define REGISTER_TABLE(opcode, pushCount, popCount) \
@@ -1141,5 +1189,99 @@ inline void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionStat
     }
     Object* obj = willBeObject.toObject(state);
     obj->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, obj);
+}
+
+EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(ExecutionState& state, Object* obj)
+{
+    EnumerateObjectData* data = new EnumerateObjectData();
+    data->m_object = obj;
+
+    Value target = data->m_object;
+
+    size_t ownKeyCount = 0;
+    bool shouldSearchProto = false;
+
+    target.asObject()->enumeration(state, [&](const ObjectPropertyName&, const ObjectPropertyDescriptor& desc) -> bool {
+        if (desc.isEnumerable()) {
+            ownKeyCount++;
+        }
+        return true;
+    });
+    data->m_hiddenClassChain.push_back(target.asObject()->structure());
+
+    std::unordered_set<String*, std::hash<String*>, std::equal_to<String*>, gc_malloc_ignore_off_page_allocator<String*>> keyStringSet;
+
+    target = target.asObject()->getPrototype(state);
+    while (target.isObject()) {
+        if (!shouldSearchProto) {
+            target.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectPropertyDescriptor& desc) -> bool {
+                if (desc.isEnumerable()) {
+                    shouldSearchProto = true;
+                    return false;
+                }
+                return true;
+            });
+        }
+        data->m_hiddenClassChain.push_back(target.asObject()->structure());
+        target = target.asObject()->getPrototype(state);
+    }
+
+    target = obj;
+    if (shouldSearchProto) {
+        while (target.isObject()) {
+            target.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectPropertyDescriptor& desc) -> bool {
+                if (desc.isEnumerable()) {
+                    String* key = name.toValue(state).toString(state);
+                    auto iter = keyStringSet.find(key);
+                    if (iter == keyStringSet.end()) {
+                        keyStringSet.insert(key);
+                        data->m_keys.pushBack(name.toValue(state));
+                    }
+                }
+                return true;
+            });
+            target = target.asObject()->getPrototype(state);
+        }
+    } else {
+        size_t idx = 0;
+        data->m_keys.resizeWithUninitializedValues(ownKeyCount);
+        target.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectPropertyDescriptor& desc) -> bool {
+            if (desc.isEnumerable()) {
+                data->m_keys[idx++] = name.toValue(state);
+            }
+            return true;
+        });
+        ASSERT(ownKeyCount == idx);
+    }
+
+    return data;
+}
+
+EnumerateObjectData* ByteCodeInterpreter::updateEnumerateObjectData(ExecutionState& state, EnumerateObjectData* data)
+{
+    EnumerateObjectData* newData = executeEnumerateObject(state, data->m_object);
+    std::vector<Value, gc_malloc_ignore_off_page_allocator<Value>> oldKeys;
+    if (data->m_keys.size()) {
+        oldKeys.insert(oldKeys.end(), &data->m_keys[0], &data->m_keys[data->m_keys.size() - 1] + 1);
+    }
+    std::vector<Value, gc_malloc_ignore_off_page_allocator<Value>> differenceKeys;
+    for (size_t i = 0; i < newData->m_keys.size(); i++) {
+        const Value& key = newData->m_keys[i];
+        if (std::find(oldKeys.begin(), oldKeys.begin() + data->m_idx, key) == oldKeys.begin() + data->m_idx) {
+            // If a property that has not yet been visited during enumeration is deleted, then it will not be visited.
+            if (std::find(oldKeys.begin() + data->m_idx, oldKeys.end(), key) != oldKeys.end()) {
+                // If new properties are added to the object being enumerated during enumeration,
+                // the newly added properties are not guaranteed to be visited in the active enumeration.
+                differenceKeys.push_back(key);
+            }
+        }
+    }
+    data = newData;
+    data->m_keys.clear();
+    data->m_keys.resizeWithUninitializedValues(differenceKeys.size());
+    for (size_t i = 0; i < differenceKeys.size(); i++) {
+        data->m_keys[i] = differenceKeys[i];
+    }
+    return data;
 }
 }

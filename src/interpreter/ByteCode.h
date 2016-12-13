@@ -72,6 +72,9 @@ class Node;
     F(TryCatchBodyEnd, 0, 0)            \
     F(FinallyEnd, 0, 0)                 \
     F(ThrowOperation, 0, 0)             \
+    F(EnumerateObject, 1, 0)            \
+    F(EnumerateObjectKey, 1, 0)         \
+    F(CheckIfKeyIsLast, 0, 0)           \
     F(CallNativeFunction, 0, 0)         \
     F(CallEvalFunction, 0, 0)           \
     F(End, 0, 0)
@@ -1133,6 +1136,72 @@ public:
     virtual void dump()
     {
         printf("throw r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+struct EnumerateObjectData : public gc {
+    EnumerateObjectData()
+    {
+        m_idx = 0;
+    }
+
+    ObjectStructureChain m_hiddenClassChain;
+    Object* m_object;
+    size_t m_idx;
+    Vector<Value, gc_malloc_ignore_off_page_allocator<Value>> m_keys;
+};
+
+
+class EnumerateObject : public ByteCode {
+public:
+    EnumerateObject(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::EnumerateObjectOpcode, loc)
+    {
+        m_objectRegisterIndex = m_dataRegisterIndex = SIZE_MAX;
+    }
+    size_t m_objectRegisterIndex;
+    size_t m_dataRegisterIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("enumerate object r%d, r%d", (int)m_objectRegisterIndex, (int)m_dataRegisterIndex);
+    }
+#endif
+};
+
+class EnumerateObjectKey : public ByteCode {
+public:
+    EnumerateObjectKey(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::EnumerateObjectKeyOpcode, loc)
+    {
+        m_dataRegisterIndex = m_registerIndex = SIZE_MAX;
+    }
+    size_t m_registerIndex;
+    size_t m_dataRegisterIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("enumerate object key r%d r%d", (int)m_registerIndex, (int)m_dataRegisterIndex);
+    }
+#endif
+};
+
+class CheckIfKeyIsLast : public ByteCode {
+public:
+    CheckIfKeyIsLast(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::CheckIfKeyIsLastOpcode, loc)
+    {
+        m_forInEndPosition = m_registerIndex = SIZE_MAX;
+    }
+    size_t m_registerIndex;
+    size_t m_forInEndPosition;
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("check if key is last r%d", (int)m_registerIndex);
     }
 #endif
 };

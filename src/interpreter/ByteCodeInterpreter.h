@@ -29,6 +29,9 @@ public:
 
     static inline std::pair<bool, Value> getObjectPrecomputedCaseOperation(ExecutionState& state, const Value& willBeObject, const PropertyName& name, GetObjectInlineCache& inlineCache);
     static inline void setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache);
+
+    static EnumerateObjectData* executeEnumerateObject(ExecutionState& state, Object* obj);
+    static EnumerateObjectData* updateEnumerateObjectData(ExecutionState& state, EnumerateObjectData* data);
 };
 }
 

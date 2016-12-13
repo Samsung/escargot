@@ -26,7 +26,7 @@ bool Context::object__proto__NativeSetter(ExecutionState& state, Object* self, c
 }
 
 static ObjectPropertyNativeGetterSetterData object__proto__NativeGetterSetterData(
-    true, true, true, &Context::object__proto__NativeGetter, &Context::object__proto__NativeSetter);
+    true, false, true, &Context::object__proto__NativeGetter, &Context::object__proto__NativeSetter);
 
 Value Context::functionPrototypeNativeGetter(ExecutionState& state, Object* self)
 {

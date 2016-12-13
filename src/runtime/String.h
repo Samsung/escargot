@@ -297,6 +297,24 @@ inline String* String::fromCharCode(char32_t code)
 }
 }
 
+namespace std {
+template <>
+struct hash<Escargot::String*> {
+    size_t operator()(Escargot::String* const& x) const
+    {
+        return x->hashValue();
+    }
+};
+
+template <>
+struct equal_to<Escargot::String> {
+    bool operator()(Escargot::String* const& a, Escargot::String* const& b) const
+    {
+        return a->equals(b);
+    }
+};
+}
+
 #include "runtime/RopeString.h"
 #include "runtime/StringBuilder.h"
 #include "runtime/StringView.h"

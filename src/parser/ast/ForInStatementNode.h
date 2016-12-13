@@ -35,6 +35,74 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ForInStatement; }
+    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
+    {
+        ByteCodeGenerateContext newContext(*context);
+
+        m_right->generateExpressionByteCode(codeBlock, &newContext);
+        size_t rightIdx = newContext.getLastRegisterIndex();
+        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), newContext.getRegister(), Value()), &newContext, this);
+        size_t literalIdx = newContext.getLastRegisterIndex();
+        codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), literalIdx, rightIdx), &newContext, this);
+        codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), literalIdx), &newContext, this);
+        size_t exit1Pos = codeBlock->lastCodePosition<JumpIfTrue>();
+
+        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), literalIdx, Value(Value::Null)), &newContext, this);
+        codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), literalIdx, rightIdx), &newContext, this);
+        codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), literalIdx), &newContext, this);
+        size_t exit2Pos = codeBlock->lastCodePosition<JumpIfTrue>();
+        // drop literalIdx
+        newContext.giveUpRegister();
+
+        size_t ePosition = codeBlock->currentCodeSize();
+        codeBlock->pushCode(EnumerateObject(ByteCodeLOC(m_loc.index)), &newContext, this);
+        codeBlock->peekCode<EnumerateObject>(ePosition)->m_objectRegisterIndex = rightIdx;
+        // drop rightIdx
+        newContext.giveUpRegister();
+
+        ASSERT(newContext.m_baseRegisterCount == 0);
+        size_t continuePosition = codeBlock->currentCodeSize();
+        codeBlock->pushCode(CheckIfKeyIsLast(ByteCodeLOC(m_loc.index)), &newContext, this);
+
+        size_t exit3Pos = codeBlock->lastCodePosition<CheckIfKeyIsLast>();
+        codeBlock->pushCode(EnumerateObjectKey(ByteCodeLOC(m_loc.index)), &newContext, this);
+        size_t checkIfKeyIsLastPos = codeBlock->lastCodePosition<CheckIfKeyIsLast>();
+
+        codeBlock->peekCode<EnumerateObjectKey>(checkIfKeyIsLastPos)->m_registerIndex = newContext.getRegister();
+        size_t pushPos = codeBlock->currentCodeSize();
+        m_left->generateStoreByteCode(codeBlock, &newContext);
+        newContext.giveUpRegister();
+
+        ASSERT(newContext.m_baseRegisterCount == 0);
+        m_body->generateStatementByteCode(codeBlock, &newContext);
+        size_t forInIndex = codeBlock->m_requiredRegisterFileSizeInValueSize;
+        codeBlock->m_requiredRegisterFileSizeInValueSize++;
+
+        codeBlock->peekCode<EnumerateObject>(ePosition)->m_dataRegisterIndex = forInIndex;
+        codeBlock->peekCode<CheckIfKeyIsLast>(exit3Pos)->m_registerIndex = forInIndex;
+        codeBlock->peekCode<EnumerateObjectKey>(checkIfKeyIsLastPos)->m_dataRegisterIndex = forInIndex;
+
+        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), continuePosition), &newContext, this);
+        size_t forInEnd = codeBlock->currentCodeSize();
+        ASSERT(codeBlock->peekCode<CheckIfKeyIsLast>(continuePosition)->m_orgOpcode == CheckIfKeyIsLastOpcode);
+
+        newContext.consumeBreakPositions(codeBlock, forInEnd);
+        newContext.consumeContinuePositions(codeBlock, continuePosition);
+        newContext.m_positionToContinue = continuePosition;
+
+        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index)), &newContext, this);
+        size_t jPos = codeBlock->lastCodePosition<Jump>();
+
+        size_t exitPos = codeBlock->currentCodeSize();
+        codeBlock->peekCode<JumpIfTrue>(exit1Pos)->m_jumpPosition = exitPos;
+        codeBlock->peekCode<JumpIfTrue>(exit2Pos)->m_jumpPosition = exitPos;
+        codeBlock->peekCode<CheckIfKeyIsLast>(exit3Pos)->m_forInEndPosition = exitPos;
+
+        codeBlock->peekCode<Jump>(jPos)->m_jumpPosition = codeBlock->currentCodeSize();
+
+        newContext.propagateInformationTo(*context);
+    }
+
 protected:
     ExpressionNode *m_left;
     ExpressionNode *m_right;

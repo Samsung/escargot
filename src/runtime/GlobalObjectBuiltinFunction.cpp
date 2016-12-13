@@ -38,9 +38,9 @@ void GlobalObject::installFunction(ExecutionState& state)
     m_function->setPrototype(state, emptyFunction);
     m_function->setFunctionPrototype(state, emptyFunction);
     m_functionPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor),
-                                           Object::ObjectPropertyDescriptorForDefineOwnProperty(m_function, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+                                           Object::ObjectPropertyDescriptorForDefineOwnProperty(m_function, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Function),
-                      Object::ObjectPropertyDescriptorForDefineOwnProperty(m_function, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+                      Object::ObjectPropertyDescriptorForDefineOwnProperty(m_function, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 }

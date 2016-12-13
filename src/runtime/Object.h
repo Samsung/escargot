@@ -28,7 +28,6 @@ struct ObjectRareData {
 };
 
 class ObjectPropertyName {
-    MAKE_STACK_ALLOCATED()
 public:
     ObjectPropertyName(ExecutionState& state, const Value& v)
     {
