@@ -8,6 +8,7 @@ class Object;
 class FunctionObject;
 class ArrayObject;
 class StringObject;
+class NumberObject;
 class RegExpObject;
 class DateObject;
 class DoubleInSmallValue;
@@ -45,6 +46,11 @@ public:
     }
 
     virtual bool isStringObject()
+    {
+        return false;
+    }
+
+    virtual bool isNumberObject()
     {
         return false;
     }
@@ -91,6 +97,12 @@ public:
     {
         ASSERT(isStringObject());
         return (StringObject*)this;
+    }
+
+    NumberObject* asNumberObject()
+    {
+        ASSERT(isNumberObject());
+        return (NumberObject*)this;
     }
 
     RegExpObject* asRegExpObject()

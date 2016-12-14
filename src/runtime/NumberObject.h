@@ -14,6 +14,11 @@ public:
         return m_primitiveValue;
     }
 
+    virtual bool isNumberObject()
+    {
+        return true;
+    }
+
 protected:
     double m_primitiveValue;
 };
