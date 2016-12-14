@@ -286,6 +286,36 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
     RELEASE_ASSERT_NOT_REACHED();
 }
 
+static Value builtinStringCharCodeAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, indexOf);
+    int position = argv[0].toInteger(state);
+    Value ret;
+    if (position < 0 || position >= (int)str->length())
+        ret = Value(std::numeric_limits<double>::quiet_NaN());
+    else
+        ret = Value(str->charAt(position));
+    return ret;
+}
+
+static Value builtinStringFromCharCode(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (argc == 1) {
+        char16_t c = argv[0].toUint32(state) & 0xFFFF;
+        if (c < ESCARGOT_ASCII_TABLE_MAX)
+            return state.context()->staticStrings().asciiTable[c].string();
+        return String::fromCharCode(c);
+    } else {
+        StringBuilder builder;
+        for (size_t i = 0; i < argc; i++) {
+            builder.appendChar((char16_t)argv[i].toInteger(state));
+        }
+        return builder.finalize();
+    }
+    return Value();
+}
+
+
 void GlobalObject::installString(ExecutionState& state)
 {
     m_string = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().String, builtinStringConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
@@ -312,6 +342,12 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().replace),
                                                         ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().replace, builtinStringReplace, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().charCodeAt),
+                                                        ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().charCodeAt, builtinStringCharCodeAt, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
+
+    m_string->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().fromCharCode),
+                                               ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().fromCharCode, builtinStringFromCharCode, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
 
     m_string->setFunctionPrototype(state, m_stringPrototype);
 
