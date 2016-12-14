@@ -19,7 +19,7 @@ struct RegexMatchResult {
     };
     COMPILE_ASSERT((sizeof(RegexMatchResultPiece)) == (sizeof(unsigned) * 2), sizeof_RegexMatchResultPiece_wrong);
     int m_subPatternNum;
-    std::vector<std::vector<RegexMatchResultPiece, gc_malloc_pointer_free_allocator<RegexMatchResultPiece>>, gc_allocator_ignore_off_page<std::vector<RegexMatchResultPiece, gc_malloc_pointer_free_allocator<RegexMatchResultPiece>>>> m_matchResults;
+    Vector<Vector<RegexMatchResultPiece, gc_malloc_pointer_free_allocator<RegexMatchResultPiece>>, gc_allocator_ignore_off_page<Vector<RegexMatchResultPiece, gc_malloc_pointer_free_allocator<RegexMatchResultPiece>>>> m_matchResults;
 };
 
 class RegExpObject : public Object {
@@ -84,7 +84,6 @@ public:
     void setSource(ExecutionState& state, String* src);
     void setOption(ExecutionState& state, String* optionStr);
     void setOption(const Option& option);
-    void setLastIndex(const Value& lastIndex);
 
     const String* source()
     {
@@ -106,15 +105,24 @@ public:
         return m_bytecodePattern;
     }
 
-    Value& lastIndex()
+    Value lastIndex()
     {
         return m_lastIndex;
+    }
+
+    void setLastIndex(const Value& v)
+    {
+        m_lastIndex = v;
     }
 
     virtual bool isRegExpObject()
     {
         return true;
     }
+
+    void createRegexMatchResult(ExecutionState& state, String* str, RegexMatchResult& result);
+    ArrayObject* createMatchedArray(ExecutionState& state, String* str, RegexMatchResult& result);
+    ArrayObject* createRegExpMatchedArray(ExecutionState& state, const RegexMatchResult& result, String* input);
 
 private:
     void setBytecodePattern(JSC::Yarr::BytecodePattern* pattern)

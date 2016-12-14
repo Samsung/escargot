@@ -99,6 +99,8 @@ public:
 
     bool operator==(const ObjectPropertyDescriptor& desc) const
     {
+        // TODO compare getter, setter, prop
+        ASSERT(isDataProperty());
         return m_descriptorData.m_data == desc.m_descriptorData.m_data;
     }
 

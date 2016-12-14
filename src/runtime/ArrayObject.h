@@ -95,7 +95,7 @@ protected:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    ALWAYS_INLINE Object::ObjectGetResult getFastModeValue(ExecutionState& state, const ObjectPropertyName& P)
+    ALWAYS_INLINE ObjectGetResult getFastModeValue(ExecutionState& state, const ObjectPropertyName& P)
     {
         if (LIKELY(isFastModeArray())) {
             uint32_t idx;
@@ -109,13 +109,13 @@ protected:
                 if (LIKELY(idx < m_fastModeData.size())) {
                     Value v = m_fastModeData[idx];
                     if (LIKELY(!v.isEmpty())) {
-                        return Object::ObjectGetResult(v, true, true, true);
+                        return ObjectGetResult(v, true, true, true);
                     }
-                    return Object::ObjectGetResult();
+                    return ObjectGetResult();
                 }
             }
         }
-        return Object::ObjectGetResult();
+        return ObjectGetResult();
     }
 
     ALWAYS_INLINE bool setFastModeValue(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc)
@@ -128,7 +128,7 @@ protected:
                 idx = P.string(state)->tryToUseAsArrayIndex();
             }
             if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-                if (UNLIKELY(!desc.descriptor().isPlainDataWritableEnumerableConfigurable())) {
+                if (UNLIKELY(!desc.isDataWritableEnumerableConfigurable())) {
                     convertIntoNonFastMode();
                     return false;
                 }

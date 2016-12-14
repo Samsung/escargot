@@ -56,10 +56,10 @@ bool Object::setPrototypeSlowCase(ExecutionState& state, const Value& value)
 }
 
 // http://www.ecma-international.org/ecma-262/6.0/#sec-ordinarygetownproperty
-Object::ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     if (propertyName.isUIntType() && !m_structure->hasIndexPropertyName()) {
-        return Object::ObjectGetResult();
+        return ObjectGetResult();
     }
 
     PropertyName P = propertyName.toPropertyName(state);
@@ -68,10 +68,10 @@ Object::ObjectGetResult Object::getOwnProperty(ExecutionState& state, const Obje
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
         if (item.m_descriptor.isDataProperty()) {
             if (LIKELY(!item.m_descriptor.isNativeAccessorProperty())) {
-                return Object::ObjectGetResult(m_values[idx], item.m_descriptor.isWritable(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
+                return ObjectGetResult(m_values[idx], item.m_descriptor.isWritable(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
             } else {
                 ObjectPropertyNativeGetterSetterData* data = item.m_descriptor.nativeGetterSetterData();
-                return Object::ObjectGetResult(data->m_getter(state, this), item.m_descriptor.isWritable(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
+                return ObjectGetResult(data->m_getter(state, this), item.m_descriptor.isWritable(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
             }
         } else {
             // TODO
@@ -79,16 +79,21 @@ Object::ObjectGetResult Object::getOwnProperty(ExecutionState& state, const Obje
             RELEASE_ASSERT_NOT_REACHED();
         }
     }
-    return Object::ObjectGetResult();
+    return ObjectGetResult();
 }
 
 bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     if (isEverSetAsPrototypeObject()) {
-        // TODO
-        // implement bad time
-        RELEASE_ASSERT_NOT_REACHED();
+        if (P.toValue(state).toIndex(state) != Value::InvalidIndexValue) {
+            // TODO
+            // implement bad time
+            RELEASE_ASSERT_NOT_REACHED();
+        }
     }
+
+    // TODO Return true, if every field in Desc is absent.
+    // TODO Return true, if every field in Desc also occurs in current and the value of every field in Desc is the same value as the corresponding field in current when compared using the SameValue algorithm (9.12).
 
     PropertyName propertyName = P.toPropertyName(state);
     size_t oldIdx = m_structure->findProperty(state, propertyName);
@@ -97,44 +102,110 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
             return false;
         }
 
+        // 3. If current is undefined and extensible is false, then Reject.
         if (UNLIKELY(!isExtensible()))
             return false;
 
-        m_structure = m_structure->addProperty(state, propertyName, desc.descriptor());
-
         // TODO implement JS getter setter
-        RELEASE_ASSERT(desc.descriptor().isDataProperty());
+        RELEASE_ASSERT(desc.isDataProperty());
+
+        m_structure = m_structure->addProperty(state, propertyName, desc.toObjectPropertyDescriptor());
 
         m_values.pushBack(desc.value());
         return true;
     } else {
         size_t idx = oldIdx;
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
-        if (!item.m_descriptor.isWritable())
-            return false;
 
-        if (item.m_descriptor != desc.descriptor()) {
+        // If the [[Configurable]] field of current is false then
+        if (!item.m_descriptor.isConfigurable()) {
+            // Reject, if the [[Configurable]] field of Desc is true.
+            if (desc.isConfigurable()) {
+                return false;
+            }
+            // Reject, if the [[Enumerable]] field of Desc is present and the [[Enumerable]] fields of current and Desc are the Boolean negation of each other.
+            if (desc.isEnumerablePresent() && desc.isEnumerable() != item.m_descriptor.isEnumerable()) {
+                return false;
+            }
+        }
+
+        // TODO If IsGenericDescriptor(Desc) is true, then no further validation is required.
+        // if IsDataDescriptor(current) and IsDataDescriptor(Desc) have different results, then
+        if (item.m_descriptor.isDataProperty() != desc.isDataProperty()) {
+            // Reject, if the [[Configurable]] field of current is false.
             if (!item.m_descriptor.isConfigurable()) {
                 return false;
             }
+            RELEASE_ASSERT_NOT_REACHED();
+            // TODO
+            // If IsDataDescriptor(current) is true, then
+            // Convert the property named P of object O from a data property to an accessor property. Preserve the existing values of the converted property’s [[Configurable]] and [[Enumerable]] attributes and set the rest of the property’s attributes to their default values.
+            // Else,
+            // Convert the property named P of object O from an accessor property to a data property. Preserve the existing values of the converted property’s [[Configurable]] and [[Enumerable]] attributes and set the rest of the property’s attributes to their default values.
+        }
+        // Else, if IsDataDescriptor(current) and IsDataDescriptor(Desc) are both true, then
+        else if (item.m_descriptor.isDataProperty() && desc.isDataProperty()) {
+            // If the [[Configurable]] field of current is false, then
+            if (!item.m_descriptor.isConfigurable()) {
+                // Reject, if the [[Writable]] field of current is false and the [[Writable]] field of Desc is true.
+                if (item.m_descriptor.isConfigurable() && !desc.isWritable()) {
+                    return false;
+                }
+                // If the [[Writable]] field of current is false, then
+                if (!item.m_descriptor.isWritable()) {
+                    // Reject, if the [[Value]] field of Desc is present and SameValue(Desc.[[Value]], current.[[Value]]) is false.
+                    if (!desc.value().equalsTo(state, getOwnDataPropertyUtilForObject(state, idx, this))) {
+                        return false;
+                    }
+                }
+            }
+            // else, the [[Configurable]] field of current is true, so any change is acceptable.
+        } else {
+            RELEASE_ASSERT_NOT_REACHED();
+            // TODO
+            // Else, IsAccessorDescriptor(current) and IsAccessorDescriptor(Desc) are both true so,
+            // If the [[Configurable]] field of current is false, then
+            // Reject, if the [[Set]] field of Desc is present and SameValue(Desc.[[Set]], current.[[Set]]) is false.
+            // Reject, if the [[Get]] field of Desc is present and SameValue(Desc.[[Get]], current.[[Get]]) is false.
+        }
+        // For each attribute field of Desc that is present, set the correspondingly named attribute of the property named P of object O to the value of the field.
+        bool shouldDelete = false;
 
-            deleteOwnProperty(state, P);
-            defineOwnProperty(state, P, desc);
-            return true;
+        if (desc.isWritablePresent()) {
+            if (desc.isWritable() != item.m_descriptor.isWritable()) {
+                shouldDelete = true;
+            }
         }
 
-        if (item.m_descriptor.isDataProperty()) {
-            if (LIKELY(!item.m_descriptor.isNativeAccessorProperty())) {
-                m_values[idx] = desc.value();
-                return true;
+        if (!shouldDelete && desc.isEnumerablePresent()) {
+            if (desc.isEnumerable() != item.m_descriptor.isEnumerable()) {
+                shouldDelete = true;
+            }
+        }
+
+        if (!shouldDelete && desc.isConfigurablePresent()) {
+            if (desc.isConfigurable() != item.m_descriptor.isConfigurable()) {
+                shouldDelete = true;
+            }
+        }
+
+        if (!shouldDelete) {
+            if (item.m_descriptor.isDataProperty()) {
+                if (LIKELY(!item.m_descriptor.isNativeAccessorProperty())) {
+                    m_values[idx] = desc.value();
+                    return true;
+                } else {
+                    ObjectPropertyNativeGetterSetterData* data = item.m_descriptor.nativeGetterSetterData();
+                    return data->m_setter(state, this, desc.value());
+                }
             } else {
-                ObjectPropertyNativeGetterSetterData* data = item.m_descriptor.nativeGetterSetterData();
-                return data->m_setter(state, this, desc.value());
+                // TODO
+                // implement js getter, setter
+                RELEASE_ASSERT_NOT_REACHED();
             }
         } else {
-            // TODO
-            // implement js getter, setter
-            RELEASE_ASSERT_NOT_REACHED();
+            deleteOwnProperty(state, P);
+            defineOwnProperty(state, P, desc);
         }
 
         return true;
@@ -159,7 +230,7 @@ void Object::enumeration(ExecutionState& state, std::function<bool(const ObjectP
     }
 }
 
-Object::ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& propertyName, Object* receiver)
+ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& propertyName, Object* receiver)
 {
     Object* target = this;
     while (true) {
@@ -171,7 +242,7 @@ Object::ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyN
         if (__proto__.isObject()) {
             target = __proto__.asObject();
         } else {
-            return Object::ObjectGetResult();
+            return ObjectGetResult();
         }
     }
 }
@@ -190,7 +261,7 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
             }
             target = O->getPrototype(state);
         }
-        ObjectPropertyDescriptorForDefineOwnProperty desc(v);
+        ObjectPropertyDescriptorForDefineOwnProperty desc(v, ObjectPropertyDescriptorForDefineOwnProperty::AllPresent);
         return defineOwnProperty(state, propertyName, desc);
     } else {
         // If IsDataDescriptor(ownDesc) is true, then

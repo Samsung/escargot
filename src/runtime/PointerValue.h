@@ -8,6 +8,7 @@ class Object;
 class FunctionObject;
 class ArrayObject;
 class StringObject;
+class RegExpObject;
 class DateObject;
 class DoubleInSmallValue;
 
@@ -90,6 +91,12 @@ public:
     {
         ASSERT(isStringObject());
         return (StringObject*)this;
+    }
+
+    RegExpObject* asRegExpObject()
+    {
+        ASSERT(isRegExpObject());
+        return (RegExpObject*)this;
     }
 
     DateObject* asDateObject()

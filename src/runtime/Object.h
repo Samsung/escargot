@@ -100,6 +100,198 @@ protected:
     } m_value;
 };
 
+class ObjectPropertyDescriptorForDefineOwnProperty {
+public:
+    enum PresentAttribute {
+        NotPresent = 0,
+        WritablePresent = 1 << 1,
+        EnumerablePresent = 1 << 2,
+        ConfigurablePresent = 1 << 3,
+        NonWritablePresent = 1 << 4,
+        NonEnumerablePresent = 1 << 5,
+        NonConfigurablePresent = 1 << 6,
+        AllPresent = WritablePresent | EnumerablePresent | ConfigurablePresent
+    };
+
+    // for plain data property
+    explicit ObjectPropertyDescriptorForDefineOwnProperty(const Value& value, PresentAttribute attribute = ObjectPropertyDescriptorForDefineOwnProperty::NotPresent)
+        : m_isDataProperty(true)
+        , m_property(attribute)
+        , m_value(value)
+    {
+        checkProperty();
+    }
+
+    // TODO
+    // for native acc. data property
+    // for js acc. property
+
+    const Value& value() const
+    {
+        ASSERT(isDataProperty());
+        return m_value;
+    }
+
+    bool isDataProperty() const
+    {
+        return m_isDataProperty;
+    }
+
+    const PresentAttribute& property() const
+    {
+        return m_property;
+    }
+
+    bool isWritablePresent() const
+    {
+        return (m_property & WritablePresent) | (m_property & NonWritablePresent);
+    }
+
+    bool isEnumerablePresent() const
+    {
+        return (m_property & EnumerablePresent) | (m_property & NonEnumerablePresent);
+    }
+
+    bool isConfigurablePresent() const
+    {
+        return (m_property & ConfigurablePresent) | (m_property & NonConfigurablePresent);
+    }
+
+    bool isWritable() const
+    {
+        return (m_property & WritablePresent);
+    }
+
+    bool isEnumerable() const
+    {
+        return (m_property & EnumerablePresent);
+    }
+
+    bool isConfigurable() const
+    {
+        return (m_property & ConfigurablePresent);
+    }
+
+    bool isDataWritableEnumerableConfigurable() const
+    {
+        return isDataProperty() && isWritable() && isEnumerable() && isConfigurable();
+    }
+
+    ObjectPropertyDescriptor toObjectPropertyDescriptor() const
+    {
+        ASSERT(isDataProperty());
+        int f = 0;
+
+        if (isWritable()) {
+            f = ObjectPropertyDescriptor::WritablePresent;
+        }
+
+        if (isConfigurable()) {
+            f |= ObjectPropertyDescriptor::ConfigurablePresent;
+        }
+
+        if (isEnumerable()) {
+            f |= ObjectPropertyDescriptor::EnumerablePresent;
+        }
+
+        return ObjectPropertyDescriptor::createDataDescriptor((ObjectPropertyDescriptor::PresentAttribute)f);
+    }
+
+protected:
+    void checkProperty()
+    {
+        if ((m_property & WritablePresent)) {
+            if ((m_property & NonWritablePresent)) {
+                ASSERT_NOT_REACHED();
+            }
+        }
+
+        if ((m_property & EnumerablePresent)) {
+            if ((m_property & NonEnumerablePresent)) {
+                ASSERT_NOT_REACHED();
+            }
+        }
+
+        if ((m_property & ConfigurablePresent)) {
+            if ((m_property & NonConfigurablePresent)) {
+                ASSERT_NOT_REACHED();
+            }
+        }
+    }
+    MAKE_STACK_ALLOCATED();
+    bool m_isDataProperty : 1;
+    PresentAttribute m_property;
+    Value m_value;
+};
+
+class ObjectGetResult {
+public:
+    // TODO implement js getter case
+    ObjectGetResult()
+        : m_hasValue(false)
+        , m_isWritable(false)
+        , m_isEnumerable(false)
+        , m_isConfigurable(false)
+        , m_isDataProperty(true)
+        , m_value(Value())
+    {
+    }
+
+    ObjectGetResult(const Value& v, bool isWritable, bool isEnumerable, bool isConfigurable)
+        : m_hasValue(true)
+        , m_isWritable(isWritable)
+        , m_isEnumerable(isEnumerable)
+        , m_isConfigurable(isConfigurable)
+        , m_isDataProperty(true)
+        , m_value(v)
+    {
+    }
+
+    Value value() const
+    {
+        if (LIKELY(m_isDataProperty))
+            return m_value;
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    bool hasValue() const
+    {
+        return m_hasValue;
+    }
+
+    bool isWritable() const
+    {
+        ASSERT(hasValue());
+        return m_isWritable;
+    }
+
+    bool isEnumerable() const
+    {
+        ASSERT(hasValue());
+        return m_isEnumerable;
+    }
+
+    bool isConfigurable() const
+    {
+        ASSERT(hasValue());
+        return m_isConfigurable;
+    }
+
+    bool isDataProperty() const
+    {
+        ASSERT(hasValue());
+        return m_isDataProperty;
+    }
+
+protected:
+    bool m_hasValue : 1;
+    bool m_isWritable : 1;
+    bool m_isEnumerable : 1;
+    bool m_isConfigurable : 1;
+    bool m_isDataProperty : 1;
+    Value m_value;
+};
+
 #define ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER 1
 #define ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 class Object : public PointerValue {
@@ -174,104 +366,6 @@ public:
             setPrototypeSlowCase(state, value);
         }
     }
-
-    class ObjectPropertyDescriptorForDefineOwnProperty {
-    public:
-        // for plain data property
-        ObjectPropertyDescriptorForDefineOwnProperty(const Value& value, ObjectPropertyDescriptor::PresentAttribute attribute = ObjectPropertyDescriptor::AllPresent)
-            : m_descriptor(ObjectPropertyDescriptor::createDataDescriptor(attribute))
-            , m_value(value)
-        {
-        }
-
-        // TODO
-        // for native acc. data property
-        // for js acc. property
-
-        const Value& value() const
-        {
-            ASSERT(m_descriptor.isDataProperty());
-            return m_value;
-        }
-
-        const ObjectPropertyDescriptor& descriptor() const
-        {
-            return m_descriptor;
-        }
-
-    protected:
-        MAKE_STACK_ALLOCATED();
-        ObjectPropertyDescriptor m_descriptor;
-        Value m_value;
-    };
-
-    class ObjectGetResult {
-    public:
-        // TODO implement js getter case
-        ObjectGetResult()
-            : m_hasValue(false)
-            , m_isWritable(false)
-            , m_isEnumerable(false)
-            , m_isConfigurable(false)
-            , m_isDataProperty(true)
-            , m_value(Value())
-        {
-        }
-
-        ObjectGetResult(const Value& v, bool isWritable, bool isEnumerable, bool isConfigurable)
-            : m_hasValue(true)
-            , m_isWritable(isWritable)
-            , m_isEnumerable(isEnumerable)
-            , m_isConfigurable(isConfigurable)
-            , m_isDataProperty(true)
-            , m_value(v)
-        {
-        }
-
-        Value value() const
-        {
-            if (LIKELY(m_isDataProperty))
-                return m_value;
-            RELEASE_ASSERT_NOT_REACHED();
-        }
-
-        bool hasValue() const
-        {
-            return m_hasValue;
-        }
-
-        bool isWritable() const
-        {
-            ASSERT(hasValue());
-            return m_isWritable;
-        }
-
-        bool isEnumerable() const
-        {
-            ASSERT(hasValue());
-            return m_isEnumerable;
-        }
-
-        bool isConfigurable() const
-        {
-            ASSERT(hasValue());
-            return m_isConfigurable;
-        }
-
-        bool isDataProperty() const
-        {
-            ASSERT(hasValue());
-            return m_isDataProperty;
-        }
-
-    protected:
-        bool m_hasValue : 1;
-        bool m_isWritable : 1;
-        bool m_isEnumerable : 1;
-        bool m_isConfigurable : 1;
-        bool m_isDataProperty : 1;
-        Value m_value;
-    };
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;

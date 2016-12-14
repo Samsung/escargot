@@ -1,6 +1,8 @@
 #include "Escargot.h"
 #include "RegExpObject.h"
 #include "Context.h"
+#include "ArrayObject.h"
+
 #include "Yarr.h"
 
 namespace Escargot {
@@ -125,11 +127,6 @@ void RegExpObject::setOption(const Option& option)
     m_option = option;
 }
 
-void RegExpObject::setLastIndex(const Value& lastIndex)
-{
-    m_lastIndex = lastIndex;
-}
-
 RegExpObject::RegExpCacheEntry& RegExpObject::getCacheEntryAndCompileIfNeeded(ExecutionState& state, String* source, const Option& option)
 {
     auto cache = state.context()->regexpCache();
@@ -200,20 +197,20 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
                 // outputBuf[1] should be set to lastIndex
                 if (isGlobal) {
                     setLastIndex(Value(outputBuf[1]));
-                    //                   set(strings->lastIndex, Value(outputBuf[1]), true);
                 }
                 return true;
             }
-            std::vector<RegexMatchResult::RegexMatchResultPiece, gc_malloc_pointer_free_allocator<RegexMatchResult::RegexMatchResultPiece> > piece;
-            piece.reserve(subPatternNum + 1);
+            Vector<RegexMatchResult::RegexMatchResultPiece, gc_malloc_pointer_free_allocator<RegexMatchResult::RegexMatchResultPiece>> piece;
+            piece.resizeWithUninitializedValues(subPatternNum + 1);
 
             for (unsigned i = 0; i < subPatternNum + 1; i++) {
                 RegexMatchResult::RegexMatchResultPiece p;
                 p.m_start = outputBuf[i * 2];
                 p.m_end = outputBuf[i * 2 + 1];
-                piece.push_back(p);
+                piece[i] = p;
             }
-            matchResult.m_matchResults.push_back(std::move(piece));
+
+            matchResult.m_matchResults.pushBack(Vector<RegexMatchResult::RegexMatchResultPiece, gc_malloc_pointer_free_allocator<RegexMatchResult::RegexMatchResultPiece>>(std::move(piece)));
             if (!isGlobal)
                 break;
             if (start == outputBuf[1]) {
@@ -228,8 +225,72 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     } while (result != JSC::Yarr::offsetNoMatch);
     if (UNLIKELY(testOnly)) {
         setLastIndex(Value(0));
-        //        set(strings->lastIndex, ESValue(0), true);
     }
     return matchResult.m_matchResults.size();
+}
+
+void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, RegexMatchResult& result)
+{
+    size_t len = 0, previousLastIndex = 0;
+    bool testResult;
+    RegexMatchResult temp;
+    temp.m_matchResults.push_back(result.m_matchResults[0]);
+    result.m_matchResults.clear();
+    do {
+        const size_t maximumReasonableMatchSize = 1000000000;
+        if (len > maximumReasonableMatchSize) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::RangeError, "Maximum Reasonable match size exceeded.");
+        }
+
+        if (lastIndex().toIndex(state) == previousLastIndex) {
+            setLastIndex(Value(previousLastIndex++));
+        } else {
+            previousLastIndex = lastIndex().toIndex(state);
+        }
+
+        size_t end = temp.m_matchResults[0][0].m_end;
+        size_t length = end - temp.m_matchResults[0][0].m_start;
+        if (!length) {
+            ++end;
+        }
+        for (size_t i = 0; i < temp.m_matchResults.size(); i++) {
+            result.m_matchResults.pushBack(temp.m_matchResults[i]);
+        }
+        len++;
+        temp.m_matchResults.clear();
+        testResult = matchNonGlobally(state, str, temp, false, end);
+    } while (testResult);
+}
+
+ArrayObject* RegExpObject::createMatchedArray(ExecutionState& state, String* str, RegexMatchResult& result)
+{
+    ArrayObject* ret = new ArrayObject(state);
+    createRegexMatchResult(state, str, result);
+    size_t len = result.m_matchResults.size();
+    ret->setThrowsException(state, state.context()->staticStrings().length, Value(len), ret);
+    for (size_t idx = 0; idx < len; idx++) {
+        ret->defineOwnProperty(state, ObjectPropertyName(state, Value(idx)), ObjectPropertyDescriptorForDefineOwnProperty(Value(new StringView(str, result.m_matchResults[idx][0].m_start, result.m_matchResults[idx][0].m_end)), ObjectPropertyDescriptorForDefineOwnProperty::AllPresent));
+    }
+    return ret;
+}
+
+ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const RegexMatchResult& result, String* input)
+{
+    ArrayObject* arr = new ArrayObject(state);
+
+    arr->defineOwnPropertyThrowsException(state, state.context()->staticStrings().index, ObjectPropertyDescriptorForDefineOwnProperty(Value(result.m_matchResults[0][0].m_start)));
+    arr->defineOwnPropertyThrowsException(state, state.context()->staticStrings().input, ObjectPropertyDescriptorForDefineOwnProperty(Value(input)));
+
+    size_t idx = 0;
+    for (unsigned i = 0; i < result.m_matchResults.size(); i++) {
+        for (unsigned j = 0; j < result.m_matchResults[i].size(); j++) {
+            if (result.m_matchResults[i][j].m_start == std::numeric_limits<unsigned>::max()) {
+                arr->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(idx++)), ObjectPropertyDescriptorForDefineOwnProperty(Value(), ObjectPropertyDescriptorForDefineOwnProperty::AllPresent));
+            } else {
+                arr->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(idx++)), ObjectPropertyDescriptorForDefineOwnProperty(Value(new StringView(input, result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end)), ObjectPropertyDescriptorForDefineOwnProperty::AllPresent));
+            }
+        }
+    }
+    return arr;
 }
 }

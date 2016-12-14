@@ -38,10 +38,10 @@ void GlobalEnvironmentRecord::createMutableBinding(ExecutionState& state, const 
 {
     auto desc = m_globalObject->getOwnProperty(state, name);
     if (!desc.hasValue()) {
-        ObjectPropertyDescriptor::PresentAttribute attribute = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent);
+        ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute attribute = (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent);
         if (canDelete)
-            attribute = (ObjectPropertyDescriptor::PresentAttribute)(attribute | ObjectPropertyDescriptor::ConfigurablePresent);
-        m_globalObject->defineOwnPropertyThrowsExceptionWhenStrictMode(state, name, Object::ObjectPropertyDescriptorForDefineOwnProperty(Value(), attribute));
+            attribute = (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(attribute | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent);
+        m_globalObject->defineOwnPropertyThrowsExceptionWhenStrictMode(state, name, ObjectPropertyDescriptorForDefineOwnProperty(Value(), attribute));
     }
 }
 

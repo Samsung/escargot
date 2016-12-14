@@ -22,9 +22,9 @@ bool ArrayObject::setLengthSlowCase(ExecutionState& state, const Value& value)
     return defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().length), ObjectPropertyDescriptorForDefineOwnProperty(value));
 }
 
-Object::ObjectGetResult ArrayObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+ObjectGetResult ArrayObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
-    Object::ObjectGetResult v = getFastModeValue(state, P);
+    ObjectGetResult v = getFastModeValue(state, P);
     if (LIKELY(v.hasValue())) {
         return v;
     } else {
@@ -34,30 +34,9 @@ Object::ObjectGetResult ArrayObject::getOwnProperty(ExecutionState& state, const
 
 bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
-    if (LIKELY(isFastModeArray())) {
-        uint32_t idx;
-        if (LIKELY(P.isUIntType())) {
-            idx = P.uintValue();
-        } else {
-            idx = P.string(state)->tryToUseAsArrayIndex();
-        }
-        if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-            if (UNLIKELY(!desc.descriptor().isPlainDataWritableEnumerableConfigurable())) {
-                convertIntoNonFastMode();
-                goto NonFastMode;
-            }
-            uint32_t len = m_fastModeData.size();
-            if (UNLIKELY(len <= idx)) {
-                if (UNLIKELY(!setArrayLength(state, idx + 1))) {
-                    goto NonFastMode;
-                }
-            }
-            ASSERT(m_fastModeData.size() == getLength(state));
-            m_fastModeData[idx] = desc.value();
-            return true;
-        }
+    if (LIKELY(setFastModeValue(state, P, desc))) {
+        return true;
     }
-NonFastMode:
     return Object::defineOwnProperty(state, P, desc);
 }
 
