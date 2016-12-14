@@ -20,11 +20,11 @@
 #include "Node.h"
 
 namespace Escargot {
-/*
+
 // interface RegExpLiteral <: Node, Expression {
 class RegExpLiteralNode : public Node {
 public:
-    RegExpLiteralNode(String* body, Escargot::ESRegExpObject::Option flag)
+    RegExpLiteralNode(String* body, String* flag)
         : Node()
     {
         m_body = body;
@@ -32,15 +32,17 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::RegExpLiteral; }
-
-    ESString* body() { return m_body; }
-    Escargot::ESRegExpObject::Option flag() { return m_flag; }
+    String* body() { return m_body; }
+    String* flag() { return m_flag; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        codeBlock->pushCode(LoadRegexp(ByteCodeLOC(m_loc.index), context->getRegister(), m_body, m_flag), context, this);
+    }
 
 protected:
-    ESString* m_body;
-    Escargot::ESRegExpObject::Option m_flag;
+    String* m_body;
+    String* m_flag;
 };
-*/
 }
 
 #endif

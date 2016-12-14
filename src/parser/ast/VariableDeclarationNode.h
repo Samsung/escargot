@@ -41,6 +41,16 @@ public:
         }
     }
 
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        ASSERT(m_declarations.size() == 1);
+        if (m_declarations[0]->init()) {
+            m_declarations[0]->init()->generateExpressionByteCode(codeBlock, context);
+            context->giveUpRegister();
+        }
+        m_declarations[0]->id()->generateStoreByteCode(codeBlock, context);
+    }
+
 protected:
     VariableDeclaratorVector m_declarations; // declarations: [ VariableDeclarator ];
     // kind: "var" | "let" | "const";

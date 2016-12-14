@@ -2822,9 +2822,7 @@ public:
                 this->scanner->index = this->startMarker.index;
                 token = this->nextRegexToken();
                 // raw = this->getTokenRaw(token);
-                // TODO
-                RELEASE_ASSERT_NOT_REACHED();
-                // expr = this->finalize(node, new Node.RegexLiteral(token.value, raw, token.regex));
+                expr = this->finalize(node, new RegExpLiteralNode(token->valueRegexp.body, token->valueRegexp.flags));
                 break;
             default:
                 this->throwUnexpectedToken(this->nextToken());

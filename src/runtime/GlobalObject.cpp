@@ -71,6 +71,10 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg, CodeBlock* par
 
 void GlobalObject::installOthers(ExecutionState& state)
 {
+    defineOwnProperty(state, state.context()->staticStrings().Infinity, Object::ObjectPropertyDescriptorForDefineOwnProperty(Value(std::numeric_limits<double>::infinity()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
+    defineOwnProperty(state, state.context()->staticStrings().NaN, Object::ObjectPropertyDescriptorForDefineOwnProperty(Value(std::numeric_limits<double>::quiet_NaN()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
+    defineOwnProperty(state, state.context()->staticStrings().undefined, Object::ObjectPropertyDescriptorForDefineOwnProperty(Value(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
+
     m_eval = new FunctionObject(state,
                                 NativeFunctionInfo(state.context()->staticStrings().eval, builtinEval, 1, nullptr, NativeFunctionInfo::Strict), false);
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().eval),

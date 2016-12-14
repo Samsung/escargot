@@ -801,6 +801,14 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         executeNextCode<EnumerateObjectKey>(programCounter);
         NEXT_INSTRUCTION();
     }
+
+    LoadRegexpOpcodeLbl : {
+        LoadRegexp* code = (LoadRegexp*)currentCode;
+        auto reg = new RegExpObject(state, code->m_body, code->m_option);
+        registerFile[code->m_registerIndex] = reg;
+        executeNextCode<LoadRegexp>(programCounter);
+        NEXT_INSTRUCTION();
+    }
     }
 FillOpcodeTable : {
 #define REGISTER_TABLE(opcode, pushCount, popCount) \

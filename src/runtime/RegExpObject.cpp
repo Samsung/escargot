@@ -5,10 +5,10 @@
 
 namespace Escargot {
 
-RegExpObject::RegExpObject(ExecutionState& state, String* source, const Option& option)
+RegExpObject::RegExpObject(ExecutionState& state, String* source, String* optionString)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5, true)
     , m_source(source)
-    , m_option(option)
+    , m_option(parseOption(state, optionString))
     , m_yarrPattern(NULL)
     , m_bytecodePattern(NULL)
     , m_lastIndex(Value(0))
@@ -20,7 +20,7 @@ RegExpObject::RegExpObject(ExecutionState& state, String* source, const Option& 
 }
 
 RegExpObject::RegExpObject(ExecutionState& state)
-    : RegExpObject(state, NULL, Option::None)
+    : RegExpObject(state, String::emptyString, String::emptyString)
 {
 }
 

@@ -75,6 +75,7 @@ class Node;
     F(EnumerateObject, 1, 0)            \
     F(EnumerateObjectKey, 1, 0)         \
     F(CheckIfKeyIsLast, 0, 0)           \
+    F(LoadRegexp, 1, 0)                 \
     F(CallNativeFunction, 0, 0)         \
     F(CallEvalFunction, 0, 0)           \
     F(End, 0, 0)
@@ -1202,6 +1203,27 @@ public:
     virtual void dump()
     {
         printf("check if key is last r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class LoadRegexp : public ByteCode {
+public:
+    LoadRegexp(const ByteCodeLOC& loc, const size_t& registerIndex, String* body, String* opt)
+        : ByteCode(Opcode::LoadRegexpOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_body(body)
+        , m_option(opt)
+    {
+    }
+
+    size_t m_registerIndex;
+    String* m_body;
+    String* m_option;
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("load regexp %s -> r%d", m_body->toUTF8StringData().data(), (int)m_registerIndex);
     }
 #endif
 };

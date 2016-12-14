@@ -63,7 +63,7 @@ public:
     };
 
     RegExpObject(ExecutionState& state);
-    RegExpObject(ExecutionState& state, String* source, const Option& option);
+    RegExpObject(ExecutionState& state, String* source, String* option);
 
     static RegExpCacheEntry& getCacheEntryAndCompileIfNeeded(ExecutionState& state, String* source, const Option& option);
     static Option parseOption(ExecutionState& state, String* optionStr);
