@@ -68,6 +68,13 @@ public:
     static RegExpCacheEntry& getCacheEntryAndCompileIfNeeded(ExecutionState& state, String* source, const Option& option);
     static Option parseOption(ExecutionState& state, String* optionStr);
 
+    double computedLastIndex(ExecutionState& state)
+    {
+        if ((!option()) & Option::Global)
+            return 0;
+        return lastIndex().toInteger(state);
+    }
+
     bool match(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);
     bool matchNonGlobally(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);
 

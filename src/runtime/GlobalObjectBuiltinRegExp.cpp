@@ -33,10 +33,48 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
     return regexp;
 }
 
+static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, RegExp, test);
+    if (!thisObject->isRegExpObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().exec.string(), errorMessage_GlobalObject_ThisNotRegExpObject);
+    }
+    RegExpObject* regexp = thisObject->asRegExpObject();
+    String* str = (argc < 1) ? Value().toString(state) : argv[0].toString(state);
+    double lastIndex = regexp->computedLastIndex(state);
+    if (lastIndex < 0 || lastIndex > str->length()) {
+        regexp->setLastIndex(Value(0));
+        return Value(Value::Null);
+    }
+    RegexMatchResult result;
+    if (regexp->matchNonGlobally(state, str, result, false, lastIndex)) {
+        // TODO(ES6): consider Sticky
+        if (regexp->option() & RegExpObject::Option::Global)
+            regexp->setLastIndex(Value(result.m_matchResults[0][0].m_end));
+        // TODO
+        // return regexp->createRegExpMatchedArray(result, str);
+    }
+
+    regexp->setLastIndex(Value(0));
+    return Value(Value::Null);
+}
+
 static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // TODO
-    return Value();
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, RegExp, test);
+    if (!thisObject->isRegExpObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().test.string(), errorMessage_GlobalObject_ThisNotRegExpObject);
+    }
+    RegExpObject* regexp = thisObject->asRegExpObject();
+    String* str = (argc < 1) ? Value().toString(state) : argv[0].toString(state);
+    double lastIndex = regexp->computedLastIndex(state);
+    if (lastIndex < 0 || lastIndex > str->length()) {
+        regexp->setLastIndex(Value(0));
+        return Value(false);
+    }
+    RegexMatchResult result;
+    bool testResult = regexp->match(state, str, result, true, lastIndex);
+    return Value(testResult);
 }
 
 void GlobalObject::installRegExp(ExecutionState& state)
@@ -56,9 +94,11 @@ void GlobalObject::installRegExp(ExecutionState& state)
 
     const StaticStrings* strings = &state.context()->staticStrings();
     // $21.2.5.2 RegExp.prototype.exec
+    m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->exec),
+                                                        Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(strings->exec, builtinRegExpExec, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
     // $21.2.5.13 RegExp.prototype.test
-    m_regexp->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->test),
-                                               Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(strings->test, builtinRegExpTest, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
+    m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->test),
+                                                        Object::ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(strings->test, builtinRegExpTest, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 
     // $21.2.5.14 RegExp.prototype.toString
     // $B.2.5.1 RegExp.prototype.compile

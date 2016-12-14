@@ -133,7 +133,7 @@ public:
     // for yarr String
     bool is8Bit() const
     {
-        return const_cast<String*>(this)->isASCIIString();
+        return const_cast<String*>(this)->hasASCIIContent();
     }
 
     const char* characters8() const

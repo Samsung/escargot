@@ -38,12 +38,8 @@ String* escapeSlashInPattern(String* patternStr)
             if (UNLIKELY(patternStr->charAt(start + i) == '/' && (i == 0 || patternStr->charAt(start + i - 1) != '\\'))) {
                 slashFlag = true;
                 builder.appendSubString(patternStr, start, i);
-                if (patternStr->isASCIIString()) {
-                    builder.appendString("\\/");
-                } else {
-                    builder.appendChar('\\');
-                    builder.appendChar('/');
-                }
+                builder.appendChar('\\');
+                builder.appendChar('/');
 
                 start = start + i + 1;
                 i = 0;
@@ -185,17 +181,14 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     size_t start = startIndex;
     unsigned result = 0;
     bool isGlobal = option() & RegExpObject::Option::Global;
-    unsigned* outputBuf;
-    outputBuf = (unsigned int*)GC_MALLOC_ATOMIC(sizeof(unsigned) * 2 * (subPatternNum + 1));
-    // TODO
-    //    ALLOCA_WRAPPER(ESVMInstance::currentInstance(), outputBuf, unsigned int*, sizeof(unsigned) * 2 * (subPatternNum + 1), true);
+    unsigned* outputBuf = ALLOCA(sizeof(unsigned) * 2 * (subPatternNum + 1), unsigned int, state);
     outputBuf[1] = start;
     do {
         start = outputBuf[1];
         memset(outputBuf, -1, sizeof(unsigned) * 2 * (subPatternNum + 1));
         if (start > length)
             break;
-        if (str->isASCIIString())
+        if (str->hasASCIIContent())
             result = JSC::Yarr::interpret(m_bytecodePattern, (const char*)str->toUTF8StringData().data(), length, start, outputBuf);
         else
             result = JSC::Yarr::interpret(m_bytecodePattern, (const UChar*)str->toUTF16StringData().data(), length, start, outputBuf);

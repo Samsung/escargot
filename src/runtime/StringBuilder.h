@@ -35,6 +35,12 @@ public:
         appendString(new UTF16String(&s, 1));
     }
 
+    void appendChar(char ch)
+    {
+        char s = ch;
+        appendString(new ASCIIString(&s, 1));
+    }
+
     void appendString(String* str)
     {
         appendPiece(str, 0, str->length());
