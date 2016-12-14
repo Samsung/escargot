@@ -3,6 +3,7 @@
 #include "Context.h"
 #include "ErrorObject.h"
 #include "parser/ScriptParser.h"
+#include "parser/esprima_cpp/esprima.h"
 
 namespace Escargot {
 
@@ -69,6 +70,106 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg, CodeBlock* par
     return arg;
 }
 
+static int parseDigit(char16_t c, int radix)
+{
+    int digit = -1;
+
+    if (c >= '0' && c <= '9')
+        digit = c - '0';
+    else if (c >= 'A' && c <= 'Z')
+        digit = c - 'A' + 10;
+    else if (c >= 'a' && c <= 'z')
+        digit = c - 'a' + 10;
+
+    if (digit >= radix)
+        return -1;
+
+    return digit;
+}
+
+static Value builtinParseInt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    Value ret;
+
+    // 1. Let inputString be ToString(string).
+    Value input = argv[0];
+    String* s = input.toString(state);
+
+    // 2. Let S be a newly created substring of inputString consisting of the first character that is not a StrWhiteSpaceChar
+    //    and all characters following that character. (In other words, remove leading white space.)
+    unsigned p = 0;
+    unsigned strLen = s->length();
+
+    for (; p < strLen; p++) {
+        char16_t c = s->charAt(p);
+        if (!(esprima::isWhiteSpace(c) || esprima::isLineTerminator(c)))
+            break;
+    }
+
+    // 3. Let sign be 1.
+    // 4. If S is not empty and the first character of S is a minus sign -, let sign be −1.
+    // 5. If S is not empty and the first character of S is a plus sign + or a minus sign -, then remove the first character from S.
+    double sign = 1;
+    if (p < strLen) {
+        if (s->charAt(p) == '+')
+            p++;
+        else if (s->charAt(p) == '-') {
+            sign = -1;
+            p++;
+        }
+    }
+
+    // 6. Let R = ToInt32(radix).
+    // 7. Let stripPrefix be true.
+    // 8. If R ≠ 0, then
+    //    b. If R 16, let stripPrefix be false.
+    // 9. Else, R = 0
+    //    a. Let R = 10.
+    // 10. If stripPrefix is true, then
+    //     a. If the length of S is at least 2 and the first two characters of S are either “0x” or “0X”, then remove the first two characters from S and let R = 16.
+    // 11. If S contains any character that is not a radix-R digit, then let Z be the substring of S consisting of all characters
+    //     before the first such character; otherwise, let Z be S.
+    int radix = 0;
+    if (argc >= 2) {
+        radix = argv[1].toInt32(state);
+    }
+    if ((radix == 0 || radix == 16) && strLen - p >= 2 && s->charAt(p) == '0' && (s->charAt(p + 1) == 'x' || s->charAt(p + 1) == 'X')) {
+        radix = 16;
+        p += 2;
+    }
+    if (radix == 0)
+        radix = 10;
+
+    // 8.a If R < 2 or R > 36, then return NaN.
+    if (radix < 2 || radix > 36)
+        return Value(std::numeric_limits<double>::quiet_NaN());
+
+    // 13. Let mathInt be the mathematical integer value that is represented by Z in radix-R notation,
+    //     using the letters AZ and az for digits with values 10 through 35. (However, if R is 10 and Z contains more than 20 significant digits,
+    //     every significant digit after the 20th may be replaced by a 0 digit, at the option of the implementation;
+    //     and if R is not 2, 4, 8, 10, 16, or 32, then mathInt may be an implementation-dependent approximation to the mathematical integer value
+    //     that is represented by Z in radix-R notation.)
+    // 14. Let number be the Number value for mathInt.
+    bool sawDigit = false;
+    double number = 0.0;
+    while (p < strLen) {
+        int digit = parseDigit(s->charAt(p), radix);
+        if (digit == -1)
+            break;
+        sawDigit = true;
+        number *= radix;
+        number += digit;
+        p++;
+    }
+
+    // 12. If Z is empty, return NaN.
+    if (!sawDigit)
+        return Value(std::numeric_limits<double>::quiet_NaN());
+
+    // 15. Return sign × number.
+    return Value(sign * number);
+}
+
 void GlobalObject::installOthers(ExecutionState& state)
 {
     defineOwnProperty(state, state.context()->staticStrings().Infinity, ObjectPropertyDescriptorForDefineOwnProperty(Value(std::numeric_limits<double>::infinity()), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::NotPresent)));
@@ -78,7 +179,12 @@ void GlobalObject::installOthers(ExecutionState& state)
     m_eval = new FunctionObject(state,
                                 NativeFunctionInfo(state.context()->staticStrings().eval, builtinEval, 1, nullptr, NativeFunctionInfo::Strict), false);
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().eval),
-                      ObjectPropertyDescriptorForDefineOwnProperty(m_eval, (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::EnumerablePresent)));
+                      ObjectPropertyDescriptorForDefineOwnProperty(m_eval, (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
+
+    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().parseInt),
+                      ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state,
+                                                                                      NativeFunctionInfo(state.context()->staticStrings().parseInt, builtinParseInt, 2, nullptr, NativeFunctionInfo::Strict), false),
+                                                                   (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
 #ifdef ESCARGOT_SHELL
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().print),
                       ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state,

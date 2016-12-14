@@ -293,4 +293,22 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
     }
     return arr;
 }
+
+void RegExpObject::pushBackToRegExpMatchedArray(ExecutionState& state, ArrayObject* array, size_t& index, const size_t limit, const RegexMatchResult& result, String* str)
+{
+    for (unsigned i = 0; i < result.m_matchResults.size(); i++) {
+        for (unsigned j = 0; j < result.m_matchResults[i].size(); j++) {
+            if (i == 0 && j == 0)
+                continue;
+
+            if (std::numeric_limits<unsigned>::max() == result.m_matchResults[i][j].m_start) {
+                array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(index++)), ObjectPropertyDescriptorForDefineOwnProperty(Value(), ObjectPropertyDescriptorForDefineOwnProperty::AllPresent));
+            } else {
+                array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(index++)), ObjectPropertyDescriptorForDefineOwnProperty(str->subString(result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end), ObjectPropertyDescriptorForDefineOwnProperty::AllPresent));
+            }
+            if (index == limit)
+                return;
+        }
+    }
+}
 }

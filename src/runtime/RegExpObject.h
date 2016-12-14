@@ -123,6 +123,7 @@ public:
     void createRegexMatchResult(ExecutionState& state, String* str, RegexMatchResult& result);
     ArrayObject* createMatchedArray(ExecutionState& state, String* str, RegexMatchResult& result);
     ArrayObject* createRegExpMatchedArray(ExecutionState& state, const RegexMatchResult& result, String* input);
+    void pushBackToRegExpMatchedArray(ExecutionState& state, ArrayObject* array, size_t& index, const size_t limit, const RegexMatchResult& result, String* str);
 
 private:
     void setBytecodePattern(JSC::Yarr::BytecodePattern* pattern)

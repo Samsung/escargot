@@ -172,7 +172,7 @@ public:
     Object* toObject(ExecutionState& ec) const; // $7.1.13 ToObject
     Object* toTransientObject(ExecutionState& ec) const; // ES5 $8.7.2 transient object
     Object* toTransientObjectSlowPath(ExecutionState& ec) const; // ES5 $8.7.2 transient object
-    enum { InvalidIndexValue = 1LL << 53 };
+    enum { InvalidIndexValue = std::numeric_limits<uint32_t>::max() };
     typedef uint64_t ValueIndex;
     ValueIndex toIndex(ExecutionState& ec) const;
 

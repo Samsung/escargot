@@ -90,7 +90,7 @@ static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size
                 return state.context()->staticStrings().asciiTable[c].string();
             }
         }
-        return str->subString(from, to - from);
+        return str->subString(from, to);
     }
 }
 
@@ -286,6 +286,132 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
     RELEASE_ASSERT_NOT_REACHED();
 }
 
+static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // 1, 2, 3
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, split);
+    ArrayObject* A = new ArrayObject(state);
+
+    // 4, 5
+    size_t lengthA = 0;
+    size_t lim;
+    if (argv[1].isUndefined()) {
+        lim = Value::InvalidIndexValue - 1;
+    } else {
+        lim = argv[1].toUint32(state);
+    }
+
+    // 6, 7
+    size_t s = S->length(), p = 0;
+
+    // 8
+    Value separator = argv[0];
+    PointerValue* P;
+    if (separator.isPointerValue() && separator.asPointerValue()->isRegExpObject()) {
+        P = separator.asPointerValue()->asRegExpObject();
+    } else {
+        P = separator.toString(state);
+    }
+
+    // 9
+    if (lim == 0)
+        return A;
+
+    // 10
+    if (separator.isUndefined()) {
+        A->defineOwnProperty(state, ObjectPropertyName(state, Value(0)), ObjectPropertyDescriptorForDefineOwnProperty(S, ObjectPropertyDescriptorForDefineOwnProperty::AllPresent));
+        return A;
+    }
+
+    std::function<Value(String*, int, String*)> splitMatchUsingStr;
+    splitMatchUsingStr = [](String* S, int q, String* R) -> Value {
+        int s = S->length();
+        int r = R->length();
+        if (q + r > s)
+            return Value(false);
+        for (int i = 0; i < r; i++)
+            if (S->charAt(q + i) != R->charAt(i))
+                return Value(false);
+        return Value(q + r);
+    };
+    // 11
+    if (s == 0) {
+        bool ret = true;
+        if (P->isRegExpObject()) {
+            RegexMatchResult result;
+            ret = P->asRegExpObject()->matchNonGlobally(state, S, result, false, 0);
+        } else {
+            Value z = splitMatchUsingStr(S, 0, P->asString());
+            if (z.isBoolean()) {
+                ret = z.asBoolean();
+            }
+        }
+        if (ret)
+            return A;
+        A->defineOwnProperty(state, ObjectPropertyName(state, Value(0)), ObjectPropertyDescriptorForDefineOwnProperty(S, ObjectPropertyDescriptorForDefineOwnProperty::AllPresent));
+        return A;
+    }
+
+    // 12
+    size_t q = p;
+
+    // 13
+    if (P->isRegExpObject()) {
+        RegExpObject* R = P->asRegExpObject();
+        while (q != s) {
+            RegexMatchResult result;
+            bool ret = R->matchNonGlobally(state, S, result, false, (size_t)q);
+            if (!ret) {
+                break;
+            }
+
+            if ((size_t)result.m_matchResults[0][0].m_end == p) {
+                q++;
+            } else {
+                if (result.m_matchResults[0][0].m_start >= S->length())
+                    break;
+
+                String* T = S->subString(p, result.m_matchResults[0][0].m_start);
+                A->defineOwnProperty(state, ObjectPropertyName(state, Value(lengthA++)), ObjectPropertyDescriptorForDefineOwnProperty(T, ObjectPropertyDescriptorForDefineOwnProperty::AllPresent));
+                if (lengthA == lim)
+                    return A;
+                p = result.m_matchResults[0][0].m_end;
+                R->pushBackToRegExpMatchedArray(state, A, lengthA, lim, result, S);
+                if (lengthA == lim)
+                    return A;
+                q = p;
+            }
+        }
+    } else {
+        String* R = P->asString();
+        while (q != s) {
+            Value e = splitMatchUsingStr(S, q, R);
+            if (e == Value(false))
+                q++;
+            else {
+                if ((size_t)e.asInt32() == p)
+                    q++;
+                else {
+                    if (q >= S->length())
+                        break;
+
+                    String* T = S->subString(p, q);
+                    A->defineOwnProperty(state, ObjectPropertyName(state, Value(lengthA++)), ObjectPropertyDescriptorForDefineOwnProperty(T, ObjectPropertyDescriptorForDefineOwnProperty::AllPresent));
+                    if (lengthA == lim)
+                        return A;
+                    p = e.asInt32();
+                    q = p;
+                }
+            }
+        }
+    }
+
+    // 14, 15, 16
+    String* T = S->subString(p, s);
+    A->defineOwnProperty(state, ObjectPropertyName(state, Value(lengthA)), ObjectPropertyDescriptorForDefineOwnProperty(T, ObjectPropertyDescriptorForDefineOwnProperty::AllPresent));
+    return A;
+}
+
 static Value builtinStringCharCodeAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, indexOf);
@@ -398,6 +524,9 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().replace),
                                                         ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().replace, builtinStringReplace, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().split),
+                                                        ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().split, builtinStringSplit, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().charCodeAt),
                                                         ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().charCodeAt, builtinStringCharCodeAt, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));

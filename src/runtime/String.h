@@ -98,7 +98,7 @@ public:
     }
 
     size_t find(String* str, size_t pos = 0);
-    String* subString(size_t pos, size_t len);
+    String* subString(size_t from, size_t to);
     size_t hashValue() const
     {
         size_t hash = static_cast<size_t>(0xc70f6907UL);
