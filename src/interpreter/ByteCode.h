@@ -225,7 +225,7 @@ public:
         if (v.isNumber()) {
             printf("%lf", v.asNumber());
         } else if (v.isString()) {
-            printf("\"%s\"", v.asString()->toUTF8StringData().data());
+            printf("\"%.32s\"", v.asString()->toUTF8StringData().data());
         } else {
             printf("other value.. sorry");
         }
