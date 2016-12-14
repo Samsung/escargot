@@ -52,8 +52,7 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
         // TODO(ES6): consider Sticky and Unicode
         if (regexp->option() & RegExpObject::Option::Global)
             regexp->setLastIndex(Value(result.m_matchResults[0][0].m_end));
-        // TODO
-        // return regexp->createRegExpMatchedArray(result, str);
+        return regexp->createRegExpMatchedArray(state, result, str);
     }
 
     regexp->setLastIndex(Value(0));
