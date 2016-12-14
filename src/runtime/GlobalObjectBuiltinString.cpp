@@ -317,12 +317,24 @@ static Value builtinStringFromCharCode(ExecutionState& state, Value thisValue, s
 
 static Value builtinStringConcat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, indexOf);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, concat);
     for (size_t i = 0; i < argc; i++) {
         String* appendStr = argv[i].toString(state);
         str = RopeString::createRopeString(str, appendStr);
     }
     return Value(str);
+}
+
+static Value builtinStringSlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, slice);
+    size_t len = str->length();
+    double start = argv[0].toInteger(state);
+    double end = (argv[1].isUndefined()) ? len : argv[1].toInteger(state);
+    int from = (start < 0) ? std::max(len + start, 0.0) : std::min(start, (double)len);
+    int to = (end < 0) ? std::max(len + end, 0.0) : std::min(end, (double)len);
+    int span = std::max(to - from, 0);
+    return str->subString(from, span);
 }
 
 void GlobalObject::installString(ExecutionState& state)
@@ -347,6 +359,10 @@ void GlobalObject::installString(ExecutionState& state)
     // $21.1.3.8 String.prototype.indexOf
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().indexOf),
                                                         ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().indexOf, builtinStringIndexOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
+
+    // $21.1.3.16 String.prototype.slice
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().slice),
+                                                        ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().slice, builtinStringSlice, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
 
     // $21.1.3.19 String.prototype.substring
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().substring),
