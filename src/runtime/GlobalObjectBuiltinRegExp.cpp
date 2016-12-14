@@ -7,13 +7,13 @@ namespace Escargot {
 
 static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    bool patternIsRegExp = argc >= 1 && argv[0].isObject() && argv[0].asObject()->isRegExpObject();
+    bool patternIsRegExp = argv[0].isObject() && argv[0].asObject()->isRegExpObject();
     RegExpObject* regexp;
     if (isNewExpression && thisValue.isObject() && thisValue.asObject()->isRegExpObject()) {
         regexp = thisValue.asPointerValue()->asObject()->asRegExpObject();
     } else {
         if (patternIsRegExp) {
-            if (argc == 1 || (argc >= 2 && argv[1].isUndefined()))
+            if (argv[1].isUndefined())
                 return argv[0];
 #ifndef USE_ES6_MODE
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot supply flags when constructing one RegExp from another");
@@ -23,11 +23,11 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
     }
     // TODO(ES6): consider the case that patternIsRegExp is true
     const StaticStrings* strings = &state.context()->staticStrings();
-    String* patternStr = (argc < 1 || argv[0].isUndefined()) ? strings->defaultRegExpString.string() : argv[0].toString(state);
+    String* patternStr = (argv[0].isUndefined()) ? strings->defaultRegExpString.string() : argv[0].toString(state);
     if (patternStr->length() == 0)
         patternStr = strings->defaultRegExpString.string();
 
-    String* optionStr = (argc < 2 || argv[1].isUndefined()) ? String::emptyString : argv[1].toString(state);
+    String* optionStr = (argv[1].isUndefined()) ? String::emptyString : argv[1].toString(state);
     regexp->setSource(state, patternStr);
     regexp->setOption(state, optionStr);
     return regexp;
@@ -40,7 +40,7 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().exec.string(), errorMessage_GlobalObject_ThisNotRegExpObject);
     }
     RegExpObject* regexp = thisObject->asRegExpObject();
-    String* str = (argc < 1) ? Value().toString(state) : argv[0].toString(state);
+    String* str = argv[0].toString(state);
     double lastIndex = regexp->computedLastIndex(state);
     if (lastIndex < 0 || lastIndex > str->length()) {
         regexp->setLastIndex(Value(0));
@@ -48,7 +48,7 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
     }
     RegexMatchResult result;
     if (regexp->matchNonGlobally(state, str, result, false, lastIndex)) {
-        // TODO(ES6): consider Sticky
+        // TODO(ES6): consider Sticky and Unicode
         if (regexp->option() & RegExpObject::Option::Global)
             regexp->setLastIndex(Value(result.m_matchResults[0][0].m_end));
         // TODO
@@ -66,7 +66,7 @@ static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t ar
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().test.string(), errorMessage_GlobalObject_ThisNotRegExpObject);
     }
     RegExpObject* regexp = thisObject->asRegExpObject();
-    String* str = (argc < 1) ? Value().toString(state) : argv[0].toString(state);
+    String* str = argv[0].toString(state);
     double lastIndex = regexp->computedLastIndex(state);
     if (lastIndex < 0 || lastIndex > str->length()) {
         regexp->setLastIndex(Value(0));

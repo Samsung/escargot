@@ -29,7 +29,9 @@ public:
         Global = 1 << 1,
         IgnoreCase = 1 << 2,
         MultiLine = 1 << 3,
+        // NOTE(ES6): Sticky and Unicode option is added in ES6
         Sticky = 1 << 4,
+        Unicode = 1 << 5,
     };
 
     struct RegExpCacheKey {
@@ -70,7 +72,8 @@ public:
 
     double computedLastIndex(ExecutionState& state)
     {
-        if ((!option()) & Option::Global)
+        // NOTE(ES6): if global is false and sticy is false, let lastIndex be 0
+        if (!(option() & (Option::Global | Option::Sticky)))
             return 0;
         return lastIndex().toInteger(state);
     }

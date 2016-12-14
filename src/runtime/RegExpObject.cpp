@@ -80,25 +80,28 @@ RegExpObject::Option RegExpObject::parseOption(ExecutionState& state, String* op
         case 'g':
             if (option & Option::Global)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'g' flags");
-            option = (RegExpObject::Option)(option | Option::Global);
+            option = (Option)(option | Option::Global);
             break;
         case 'i':
-            if (option & RegExpObject::Option::IgnoreCase)
+            if (option & Option::IgnoreCase)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'i' flags");
-            option = (RegExpObject::Option)(option | RegExpObject::Option::IgnoreCase);
+            option = (Option)(option | Option::IgnoreCase);
             break;
         case 'm':
-            if (option & RegExpObject::Option::MultiLine)
+            if (option & Option::MultiLine)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'm' flags");
-            option = (RegExpObject::Option)(option | RegExpObject::Option::MultiLine);
+            option = (Option)(option | Option::MultiLine);
             break;
-        /*
         case 'y':
-            if (option & ESRegExpObject::Option::Sticky)
+            if (option & Option::Sticky)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'y' flags");
-            option = (ESRegExpObject::Option) (option | RegExpObject::Option::Sticky);
+            option = (Option)(option | Option::Sticky);
             break;
-        */
+        case 'u':
+            if (option & Option::Unicode)
+                ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'u' flags");
+            option = (Option)(option | Option::Unicode);
+            break;
         default:
             ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has invalid flag");
         }
