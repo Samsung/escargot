@@ -475,7 +475,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         SetObject* code = (SetObject*)currentCode;
         const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
         const Value& property = registerFile[code->m_propertyRegisterIndex];
-        if (LIKELY(willBeObject.isPointerValue() && willBeObject.asObject()->isArrayObject())) {
+        if (LIKELY(willBeObject.isPointerValue() && willBeObject.asPointerValue()->isArrayObject())) {
             ArrayObject* arr = willBeObject.asObject()->asArrayObject();
             if (LIKELY(arr->setFastModeValue(state, ObjectPropertyName(state, property), ObjectPropertyDescriptorForDefineOwnProperty(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptorForDefineOwnProperty::AllPresent)))) {
                 executeNextCode<SetObject>(programCounter);

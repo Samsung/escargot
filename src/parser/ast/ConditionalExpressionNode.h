@@ -33,6 +33,25 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ConditionalExpression; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        m_test->generateExpressionByteCode(codeBlock, context);
+        codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+        context->giveUpRegister();
+        size_t jumpPosForTestIsFalse = codeBlock->lastCodePosition<JumpIfFalse>();
+        m_consequente->generateExpressionByteCode(codeBlock, context);
+        context->giveUpRegister();
+        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this);
+        JumpIfFalse* jumpForTestIsFalse = codeBlock->peekCode<JumpIfFalse>(jumpPosForTestIsFalse);
+        size_t jumpPosForEndOfConsequence = codeBlock->lastCodePosition<Jump>();
+
+        jumpForTestIsFalse->m_jumpPosition = codeBlock->currentCodeSize();
+        m_alternate->generateExpressionByteCode(codeBlock, context);
+
+        Jump* jumpForEndOfConsequence = codeBlock->peekCode<Jump>(jumpPosForEndOfConsequence);
+        jumpForEndOfConsequence->m_jumpPosition = codeBlock->currentCodeSize();
+    }
+
 protected:
     ExpressionNode* m_test;
     ExpressionNode* m_consequente;
