@@ -429,27 +429,11 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         NEXT_INSTRUCTION();
     }
 
-    UnaryPlusOpcodeLbl : {
-        UnaryPlus* code = (UnaryPlus*)currentCode;
-        const Value& val = registerFile[code->m_registerIndex];
-        registerFile[code->m_registerIndex] = Value(val.toNumber(state));
-        executeNextCode<UnaryPlus>(programCounter);
-        NEXT_INSTRUCTION();
-    }
-
     UnaryNotOpcodeLbl : {
         UnaryNot* code = (UnaryNot*)currentCode;
         const Value& val = registerFile[code->m_registerIndex];
         registerFile[code->m_registerIndex] = Value(!val.toBoolean(state));
         executeNextCode<UnaryNot>(programCounter);
-        NEXT_INSTRUCTION();
-    }
-
-    UnaryBitwiseNotOpcodeLbl : {
-        UnaryBitwiseNot* code = (UnaryBitwiseNot*)currentCode;
-        const Value& val = registerFile[code->m_registerIndex];
-        registerFile[code->m_registerIndex] = Value(~val.toInt32(state));
-        executeNextCode<UnaryBitwiseNot>(programCounter);
         NEXT_INSTRUCTION();
     }
 
@@ -663,7 +647,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
     }
 
     EndOpcodeLbl : {
-        ASSERT(codeBlock->isGlobalScopeCodeBlock());
         *state.exeuctionResult() = registerFile[0];
         return;
     }
@@ -697,7 +680,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             if (code->m_argumentCount) {
                 arg = registerFile[code->m_registerIndex];
             }
-            state.context()->globalObject()->eval(state, arg, codeBlock);
+            registerFile[code->m_registerIndex] = state.context()->globalObject()->eval(state, arg, codeBlock);
         } else {
             registerFile[code->m_registerIndex] = FunctionObject::call(eval, state, Value(), code->m_argumentCount, &registerFile[code->m_registerIndex]);
         }
@@ -745,6 +728,55 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
     ThrowOperationOpcodeLbl : {
         ThrowOperation* code = (ThrowOperation*)currentCode;
         state.context()->throwException(state, registerFile[code->m_registerIndex]);
+    }
+
+    UnaryPlusOpcodeLbl : {
+        UnaryPlus* code = (UnaryPlus*)currentCode;
+        const Value& val = registerFile[code->m_registerIndex];
+        registerFile[code->m_registerIndex] = Value(val.toNumber(state));
+        executeNextCode<UnaryPlus>(programCounter);
+        NEXT_INSTRUCTION();
+    }
+
+    UnaryBitwiseNotOpcodeLbl : {
+        UnaryBitwiseNot* code = (UnaryBitwiseNot*)currentCode;
+        const Value& val = registerFile[code->m_registerIndex];
+        registerFile[code->m_registerIndex] = Value(~val.toInt32(state));
+        executeNextCode<UnaryBitwiseNot>(programCounter);
+        NEXT_INSTRUCTION();
+    }
+
+    UnaryTypeofOpcodeLbl : {
+        UnaryTypeof* code = (UnaryTypeof*)currentCode;
+        Value val;
+        if (code->m_id.string()->length()) {
+            val = loadByName(state, env, code->m_id, false);
+        } else {
+            val = registerFile[code->m_registerIndex];
+        }
+        if (val.isUndefined())
+            val = state.context()->staticStrings().undefined.string();
+        else if (val.isNull())
+            val = state.context()->staticStrings().object.string();
+        else if (val.isBoolean())
+            val = state.context()->staticStrings().boolean.string();
+        else if (val.isNumber())
+            val = state.context()->staticStrings().number.string();
+        else if (val.isString())
+            val = state.context()->staticStrings().string.string();
+        else {
+            ASSERT(val.isPointerValue());
+            PointerValue* p = val.asPointerValue();
+            if (p->isFunctionObject()) {
+                val = state.context()->staticStrings().function.string();
+            } else {
+                val = state.context()->staticStrings().object.string();
+            }
+        }
+
+        registerFile[code->m_registerIndex] = val;
+        executeNextCode<UnaryTypeof>(programCounter);
+        NEXT_INSTRUCTION();
     }
 
     JumpComplexCaseOpcodeLbl : {
@@ -819,7 +851,7 @@ FillOpcodeTable : {
 }
 }
 
-Value ByteCodeInterpreter::loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name)
+Value ByteCodeInterpreter::loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool throwException)
 {
     while (env) {
         EnvironmentRecord::GetBindingValueResult result = env->record()->getBindingValue(state, name);
@@ -828,8 +860,11 @@ Value ByteCodeInterpreter::loadByName(ExecutionState& state, LexicalEnvironment*
         }
         env = env->outerEnvironment();
     }
-    ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
-    RELEASE_ASSERT_NOT_REACHED();
+
+    if (throwException)
+        ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
+
+    return Value();
 }
 
 void ByteCodeInterpreter::storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value)

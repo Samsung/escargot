@@ -48,6 +48,7 @@ public:
     {
         return getLength(state);
     }
+    virtual void sort(ExecutionState& state, std::function<bool(const Value& a, const Value& b)> comp);
 
 protected:
     Value getLengthSlowCase(ExecutionState& state);

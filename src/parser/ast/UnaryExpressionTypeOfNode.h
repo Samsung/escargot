@@ -30,6 +30,29 @@ public:
         m_argument = argument;
     }
 
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        if (m_argument->isIdentifier()) {
+            AtomicString name = m_argument->asIdentifier()->name();
+            bool nameCase = false;
+            if (!context->m_codeBlock->canUseIndexedVariableStorage()) {
+                nameCase = true;
+            } else {
+                CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(name);
+                if (!info.m_isResultSaved) {
+                    nameCase = true;
+                }
+            }
+            if (nameCase) {
+                codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), context->getRegister(), name), context, this);
+                return;
+            }
+        }
+
+        m_argument->generateExpressionByteCode(codeBlock, context);
+        codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), AtomicString()), context, this);
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionTypeOf; }
 protected:
     Node* m_argument;

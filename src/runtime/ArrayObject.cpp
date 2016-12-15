@@ -75,4 +75,19 @@ void ArrayObject::enumeration(ExecutionState& state, std::function<bool(const Ob
     }
     Object::enumeration(state, callback);
 }
+
+void ArrayObject::sort(ExecutionState& state, std::function<bool(const Value& a, const Value& b)> comp)
+{
+    if (isFastModeArray()) {
+        if (m_fastModeData.size()) {
+            std::vector<Value, gc_malloc_ignore_off_page_allocator<Value>> values(&m_fastModeData[0], m_fastModeData.data() + m_fastModeData.size());
+            std::sort(values.begin(), values.end(), comp);
+            for (size_t i = 0; i < values.size(); i++) {
+                m_fastModeData[i] = values[i];
+            }
+        }
+        return;
+    }
+    Object::sort(state, comp);
+}
 }

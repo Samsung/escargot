@@ -94,9 +94,19 @@ public:
         return m_end;
     }
 
-    virtual bool hasASCIIContent()
+    virtual bool hasASCIIContent() const
     {
         return m_string->hasASCIIContent();
+    }
+
+    virtual const char* characters8() const
+    {
+        return m_string->characters8() + m_start;
+    }
+
+    virtual const char16_t* characters16() const
+    {
+        return m_string->characters16() + m_start;
     }
 
 protected:

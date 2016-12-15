@@ -412,6 +412,8 @@ public:
     static double nextIndexForward(ExecutionState& state, Object* obj, const double cur, const double len, const bool skipUndefined);
     static double nextIndexBackward(ExecutionState& state, Object* obj, const double cur, const double end, const bool skipUndefined);
 
+    virtual void sort(ExecutionState& state, std::function<bool(const Value& a, const Value& b)> comp);
+
 protected:
     Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);
     void initPlainObject(ExecutionState& state);

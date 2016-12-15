@@ -488,6 +488,72 @@ static Value builtinStringSlice(ExecutionState& state, Value thisValue, size_t a
     return str->subString(from, span);
 }
 
+static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, toLowerCase);
+    if (str->hasASCIIContent()) {
+        ASCIIStringData newStr;
+        size_t len = str->length();
+        newStr.resizeWithUninitializedValues(len);
+        const char* buf = str->characters8();
+        for (size_t i = 0; i < str->length(); i++) {
+            newStr[i] = u_tolower(buf[i]);
+        }
+        return new ASCIIString(std::move(newStr));
+    } else {
+        size_t len = str->length();
+        UTF16StringData newStr(str->characters16(), len);
+        char16_t* buf = newStr.data();
+        for (size_t i = 0; i < len;) {
+            char32_t c;
+            size_t iBefore = i;
+            U16_NEXT(buf, i, len, c);
+            c = u_tolower(c);
+            if (c <= 0x10000) {
+                char16_t c2 = (char16_t)c;
+                buf[iBefore] = c2;
+            } else {
+                buf[iBefore] = (char16_t)(0xD800 + ((c - 0x10000) >> 10));
+                buf[iBefore + 1] = (char16_t)(0xDC00 + ((c - 0x10000) & 1023));
+            }
+        }
+        return new UTF16String(std::move(newStr));
+    }
+}
+
+static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, toUpperCase);
+    if (str->hasASCIIContent()) {
+        ASCIIStringData newStr;
+        size_t len = str->length();
+        newStr.resizeWithUninitializedValues(len);
+        const char* buf = str->characters8();
+        for (size_t i = 0; i < str->length(); i++) {
+            newStr[i] = u_toupper(buf[i]);
+        }
+        return new ASCIIString(std::move(newStr));
+    } else {
+        size_t len = str->length();
+        UTF16StringData newStr(str->characters16(), len);
+        char16_t* buf = newStr.data();
+        for (size_t i = 0; i < len;) {
+            char32_t c;
+            size_t iBefore = i;
+            U16_NEXT(buf, i, len, c);
+            c = u_toupper(c);
+            if (c <= 0x10000) {
+                char16_t c2 = (char16_t)c;
+                buf[iBefore] = c2;
+            } else {
+                buf[iBefore] = (char16_t)(0xD800 + ((c - 0x10000) >> 10));
+                buf[iBefore + 1] = (char16_t)(0xDC00 + ((c - 0x10000) & 1023));
+            }
+        }
+        return new UTF16String(std::move(newStr));
+    }
+}
+
 void GlobalObject::installString(ExecutionState& state)
 {
     m_string = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().String, builtinStringConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
@@ -533,6 +599,12 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().charAt),
                                                         ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().charAt, builtinStringCharAt, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toLowerCase),
+                                                        ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toLowerCase, builtinStringToLowerCase, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toUpperCase),
+                                                        ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toUpperCase, builtinStringToUpperCase, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
 
 
     m_string->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().fromCharCode),

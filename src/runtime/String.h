@@ -44,7 +44,7 @@ public:
         return false;
     }
 
-    virtual bool hasASCIIContent()
+    virtual bool hasASCIIContent() const
     {
         return false;
     }
@@ -130,22 +130,18 @@ public:
     uint64_t tryToUseAsIndex() const;
     uint32_t tryToUseAsArrayIndex() const;
 
-    // for yarr String
     bool is8Bit() const
     {
-        return const_cast<String*>(this)->hasASCIIContent();
+        return hasASCIIContent();
     }
 
-    const char* characters8() const
+    virtual const char* characters8() const
     {
-        ASSERT(is8Bit());
-        return toUTF8StringData().data();
+        RELEASE_ASSERT_NOT_REACHED();
     }
-
-    const char16_t* characters16() const
+    virtual const char16_t* characters16() const
     {
-        ASSERT(!is8Bit());
-        return toUTF16StringData().data();
+        RELEASE_ASSERT_NOT_REACHED();
     }
 
 protected:
@@ -186,7 +182,7 @@ public:
         return true;
     }
 
-    virtual bool hasASCIIContent()
+    virtual bool hasASCIIContent() const
     {
         return true;
     }
@@ -219,6 +215,11 @@ public:
         return m_stringData.size();
     }
 
+    virtual const char* characters8() const
+    {
+        return m_stringData.data();
+    }
+
     virtual UTF16StringData toUTF16StringData() const;
     virtual UTF8StringData toUTF8StringData() const;
 
@@ -230,7 +231,7 @@ class UTF16String : public String {
     friend class String;
 
 public:
-    virtual bool hasASCIIContent()
+    virtual bool hasASCIIContent() const
     {
         return false;
     }
@@ -255,6 +256,11 @@ public:
     virtual size_t length() const
     {
         return m_stringData.size();
+    }
+
+    virtual const char16_t* characters16() const
+    {
+        return m_stringData.data();
     }
 
     virtual UTF16StringData toUTF16StringData() const;

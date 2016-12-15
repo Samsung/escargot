@@ -43,9 +43,20 @@ public:
     {
         return m_hasASCIIContent;
     }
+
     virtual bool isRopeString()
     {
         return true;
+    }
+
+    virtual const char* characters8() const
+    {
+        return normalString()->characters8();
+    }
+
+    virtual const char16_t* characters16() const
+    {
+        return normalString()->characters16();
     }
 
 protected:

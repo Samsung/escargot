@@ -112,6 +112,39 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
     return builder.finalize();
 }
 
+static Value builtinArraySort(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, sort);
+    Value cmpfn = argv[0];
+    if (!cmpfn.isUndefined()) {
+        if (!cmpfn.isFunction()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().sort.string(), errorMessage_GlobalObject_FirstArgumentNotCallable);
+        }
+    }
+    bool defaultSort = (argc == 0) || cmpfn.isUndefined();
+
+    thisObject->sort(state, [defaultSort, &cmpfn, &state, &thisObject](const Value& a, const Value& b) -> bool {
+        if (a.isEmpty() && b.isUndefined())
+            return false;
+        if (a.isUndefined() && b.isEmpty())
+            return true;
+        if (a.isEmpty() || a.isUndefined())
+            return false;
+        if (b.isEmpty() || b.isUndefined())
+            return true;
+        Value arg[2] = { a, b };
+        if (defaultSort) {
+            String* vala = a.toString(state);
+            String* valb = b.toString(state);
+            return *vala < *valb;
+        } else {
+            Value ret = FunctionObject::call(cmpfn, state, Value(), 2, arg);
+            return (ret.toNumber(state) < 0);
+        } });
+    return thisObject;
+}
+
+
 static Value builtinArrayToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, toString);
@@ -136,6 +169,8 @@ void GlobalObject::installArray(ExecutionState& state)
 
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().join),
                                                        ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().join, builtinArrayJoin, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().sort),
+                                                       ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().sort, builtinArraySort, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toString),
                                                        ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinArrayToString, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
 

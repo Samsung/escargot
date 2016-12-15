@@ -148,7 +148,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, NodeLOC sourc
         m_isFunctionExpression = false;
     }
 
-    m_canUseIndexedVariableStorage = !m_hasEval && !m_hasWith && !m_hasYield && parentBlock != nullptr;
+    m_canUseIndexedVariableStorage = !hasEvalWithCatchYield();
 
     if (m_canUseIndexedVariableStorage) {
         m_canAllocateEnvironmentOnStack = true;
@@ -183,6 +183,14 @@ void CodeBlock::notifySelfOrChildHasEvalWithCatchYield()
 {
     m_canAllocateEnvironmentOnStack = false;
     m_canUseIndexedVariableStorage = false;
+    for (size_t i = 0; i < m_parametersInfomation.size(); i++) {
+        m_parametersInfomation[i].m_isHeapAllocated = true;
+    }
+
+    for (size_t i = 0; i < m_identifierInfos.size(); i++) {
+        m_identifierInfos[i].m_indexForIndexedStorage = SIZE_MAX;
+        m_identifierInfos[i].m_needToAllocateOnStack = false;
+    }
 }
 
 bool CodeBlock::hasNonConfiguableNameOnGlobal(const AtomicString& name)
@@ -209,16 +217,17 @@ bool CodeBlock::hasNonConfiguableNameOnGlobal(const AtomicString& name)
 
 void CodeBlock::computeVariables()
 {
-    if (m_functionName.string()->length()) {
-        for (size_t i = 0; i < m_identifierInfos.size(); i++) {
-            if (m_identifierInfos[i].m_name == m_functionName) {
-                m_functionNameIndex = i;
-                break;
-            }
-        }
-        ASSERT(m_functionNameIndex != SIZE_MAX);
-    }
     if (canUseIndexedVariableStorage()) {
+        if (m_functionName.string()->length()) {
+            for (size_t i = 0; i < m_identifierInfos.size(); i++) {
+                if (m_identifierInfos[i].m_name == m_functionName) {
+                    m_functionNameIndex = i;
+                    break;
+                }
+            }
+            ASSERT(m_functionNameIndex != SIZE_MAX);
+        }
+
         size_t s = 0;
         size_t h = 0;
         for (size_t i = 0; i < m_identifierInfos.size(); i++) {
@@ -241,23 +250,25 @@ void CodeBlock::computeVariables()
 
         m_identifierOnStackCount = s;
         m_identifierOnHeapCount = h;
-    }
 
-    size_t siz = m_parameterNames.size();
-    m_parametersInfomation.resizeWithUninitializedValues(siz);
-    size_t heapCount = 0;
-    size_t stackCount = 0;
-    for (size_t i = 0; i < siz; i++) {
-        bool isHeap = !m_identifierInfos[i].m_needToAllocateOnStack;
-        m_parametersInfomation[i].m_isHeapAllocated = isHeap;
-        if (isHeap) {
-            m_parametersInfomation[i].m_index = i - stackCount;
-            m_needsComplexParameterCopy = true;
-            heapCount++;
-        } else {
-            m_parametersInfomation[i].m_index = i - heapCount;
-            stackCount++;
+        size_t siz = m_parameterNames.size();
+        m_parametersInfomation.resizeWithUninitializedValues(siz);
+        size_t heapCount = 0;
+        size_t stackCount = 0;
+        for (size_t i = 0; i < siz; i++) {
+            bool isHeap = !m_identifierInfos[i].m_needToAllocateOnStack;
+            m_parametersInfomation[i].m_isHeapAllocated = isHeap;
+            if (isHeap) {
+                m_parametersInfomation[i].m_index = i - stackCount;
+                m_needsComplexParameterCopy = true;
+                heapCount++;
+            } else {
+                m_parametersInfomation[i].m_index = i - heapCount;
+                stackCount++;
+            }
         }
+    } else {
+        m_needsComplexParameterCopy = true;
     }
 }
 }

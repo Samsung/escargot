@@ -257,7 +257,7 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
             Object* O = target.asObject();
             auto desc = O->getOwnProperty(state, propertyName);
             if (desc.hasValue()) {
-                return set(state, propertyName, v, receiver);
+                return O->set(state, propertyName, v, receiver);
             }
             target = O->getPrototype(state);
         }
@@ -444,5 +444,42 @@ double Object::nextIndexBackward(ExecutionState& state, Object* obj, const doubl
         ptr = ptr.asObject()->getPrototype(state);
     }
     return ret;
+}
+
+void Object::sort(ExecutionState& state, std::function<bool(const Value& a, const Value& b)> comp)
+{
+    std::vector<Value, gc_malloc_ignore_off_page_allocator<Value>> selected;
+
+    uint32_t len = length(state);
+    uint32_t n = 0;
+    uint32_t k = 0;
+
+    while (k < len) {
+        Value idx = Value(k);
+        if (hasOwnProperty(state, ObjectPropertyName(state, idx))) {
+            selected.push_back(getOwnProperty(state, ObjectPropertyName(state, idx)).value());
+            n++;
+            k++;
+        } else {
+            k = nextIndexForward(state, this, k, len, false);
+        }
+    }
+
+    std::sort(selected.begin(), selected.end(), comp);
+
+    uint32_t i;
+    for (i = 0; i < n; i++) {
+        setThrowsException(state, ObjectPropertyName(state, Value(i)), selected[i], this);
+    }
+
+    while (i < len) {
+        Value idx = Value(i);
+        if (hasOwnProperty(state, ObjectPropertyName(state, idx))) {
+            deleteOwnProperty(state, ObjectPropertyName(state, Value(i)));
+            i++;
+        } else {
+            i = nextIndexForward(state, this, i, len, false);
+        }
+    }
 }
 }

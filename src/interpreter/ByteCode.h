@@ -62,6 +62,7 @@ class Node;
     F(UnaryPlus, 1, 1)                  \
     F(UnaryNot, 1, 1)                   \
     F(UnaryBitwiseNot, 1, 1)            \
+    F(UnaryTypeof, 1, 1)                \
     F(Jump, 0, 0)                       \
     F(JumpComplexCase, 0, 0)            \
     F(JumpIfTrue, 0, 0)                 \
@@ -854,6 +855,26 @@ public:
 #endif
 };
 
+class UnaryTypeof : public ByteCode {
+public:
+    UnaryTypeof(const ByteCodeLOC& loc, const size_t& registerIndex, AtomicString name)
+        : ByteCode(Opcode::UnaryTypeofOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_id(name)
+    {
+    }
+
+    size_t m_registerIndex;
+    AtomicString m_id;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("unary typeof r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
 class Jump : public ByteCode {
 public:
     Jump(const ByteCodeLOC& loc, size_t pos = SIZE_MAX)
@@ -1270,8 +1291,15 @@ public:
         {
             CodeType& t = const_cast<CodeType&>(code);
             t.m_node = node;
-            t.m_loc.line = computeNodeLOCFromByteCode(&t, context->m_codeBlock).line;
-            t.m_loc.column = computeNodeLOCFromByteCode(&t, context->m_codeBlock).column;
+            if (node) {
+                t.m_loc.line = node->m_loc.line;
+                t.m_loc.column = node->m_loc.column;
+            } else {
+                t.m_loc.line = -1;
+                t.m_loc.column = -1;
+            }
+            // t.m_loc.line = computeNodeLOCFromByteCode(&t, context->m_codeBlock).line;
+            // t.m_loc.column = computeNodeLOCFromByteCode(&t, context->m_codeBlock).column;
         }
 #endif
 

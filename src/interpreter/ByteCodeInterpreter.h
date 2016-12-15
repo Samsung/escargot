@@ -15,7 +15,7 @@ class LexicalEnvironment;
 class ByteCodeInterpreter {
 public:
     static void interpret(ExecutionState& state, CodeBlock* codeBlock, size_t programCounter);
-    static Value loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name);
+    static Value loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool throwException = true);
     static void storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value);
     static Value plusSlowCase(ExecutionState& state, const Value& a, const Value& b);
     static Value modOperation(ExecutionState& state, const Value& left, const Value& right);

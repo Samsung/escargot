@@ -42,6 +42,8 @@ public:
         for (size_t i = 0; i < len; i++) {
             m_body[i]->generateStatementByteCode(codeBlock, context);
         }
+
+        codeBlock->pushCode(End(ByteCodeLOC(SIZE_MAX)), context, this);
     }
 
 protected:

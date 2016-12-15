@@ -119,21 +119,33 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     // binding function name
     if (m_codeBlock->m_functionNameIndex != SIZE_MAX) {
         if (LIKELY(m_codeBlock->m_functionNameSaveInfo.m_isAllocatedOnStack)) {
+            ASSERT(m_codeBlock->canUseIndexedVariableStorage());
             stackStorage[m_codeBlock->m_functionNameSaveInfo.m_index] = this;
         } else {
-            record->setHeapValueByIndex(m_codeBlock->m_functionNameSaveInfo.m_index, this);
+            if (m_codeBlock->canUseIndexedVariableStorage()) {
+                record->setHeapValueByIndex(m_codeBlock->m_functionNameSaveInfo.m_index, this);
+            } else {
+                record->setMutableBinding(state, m_codeBlock->functionName(), this);
+            }
         }
     }
     // prepare parameters
     const CodeBlock::FunctionParametersInfoVector& info = m_codeBlock->parametersInfomation();
-    size_t parameterCopySize = std::min(argc, info.size());
+    size_t parameterCopySize = std::min(argc, m_codeBlock->functionParameters().size());
 
     if (UNLIKELY(m_codeBlock->needsComplexParameterCopy())) {
-        for (size_t i = 0; i < parameterCopySize; i++) {
-            if (info[i].m_isHeapAllocated) {
-                record->setHeapValueByIndex(info[i].m_index, argv[i]);
-            } else {
-                stackStorage[info[i].m_index] = argv[i];
+        if (!m_codeBlock->canUseIndexedVariableStorage()) {
+            for (size_t i = 0; i < parameterCopySize; i++) {
+                env->record()->setMutableBinding(state, m_codeBlock->functionParameters()[i], argv[i]);
+            }
+
+        } else {
+            for (size_t i = 0; i < parameterCopySize; i++) {
+                if (info[i].m_isHeapAllocated) {
+                    record->setHeapValueByIndex(info[i].m_index, argv[i]);
+                } else {
+                    stackStorage[info[i].m_index] = argv[i];
+                }
             }
         }
     } else {

@@ -189,9 +189,10 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
         if (start > length)
             break;
         if (str->hasASCIIContent())
-            result = JSC::Yarr::interpret(m_bytecodePattern, (const char*)str->toUTF8StringData().data(), length, start, outputBuf);
+            result = JSC::Yarr::interpret(m_bytecodePattern, str->characters8(), length, start, outputBuf);
         else
-            result = JSC::Yarr::interpret(m_bytecodePattern, (const UChar*)str->toUTF16StringData().data(), length, start, outputBuf);
+            result = JSC::Yarr::interpret(m_bytecodePattern, (const UChar*)str->characters16(), length, start, outputBuf);
+
         if (result != JSC::Yarr::offsetNoMatch) {
             if (UNLIKELY(testOnly)) {
                 // outputBuf[1] should be set to lastIndex
