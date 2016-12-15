@@ -313,11 +313,6 @@ public:
         return true;
     }
 
-    virtual bool isErrorObject()
-    {
-        return false;
-    }
-
     ErrorObject* asErrorObject()
     {
         ASSERT(isErrorObject());

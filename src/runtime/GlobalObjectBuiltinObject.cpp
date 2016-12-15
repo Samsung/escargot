@@ -22,53 +22,52 @@ static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_
         return new ASCIIString("[object Null]");
     }
 
-    thisValue = thisValue.toObject(state);
-    if (thisValue.isFunction()) {
+    Object* thisObject = thisValue.toObject(state);
+    if (thisObject->isFunctionObject()) {
         return AtomicString(state, "[object Function]").string();
-    }
-    /*
-    if (thisVal->isESArrayObject()) {
-        return ESString::createAtomicString("[object Array]");
-    } else if (thisVal->isESStringObject()) {
-        return ESString::createAtomicString("[object String]");
-    } else if (thisVal->isESFunctionObject()) {
-        return ESString::createAtomicString("[object Function]");
-    } else if (thisVal->isESErrorObject()) {
-        return ESString::createAtomicString("[object Error]");
-    } else if (thisVal->isESBooleanObject()) {
-        return ESString::createAtomicString("[object Boolean]");
-    } else if (thisVal->isESNumberObject()) {
-        return ESString::createAtomicString("[object Number]");
-    } else if (thisVal->isESDateObject()) {
-        return ESString::createAtomicString("[object Date]");
-    } else if (thisVal->isESRegExpObject()) {
-        return ESString::createAtomicString("[object RegExp]");
-    } else if (thisVal->isESMathObject()) {
-        return ESString::createAtomicString("[object Math]");
-    } else if (thisVal->isESJSONObject()) {
-        return ESString::createAtomicString("[object JSON]");
+    } else if (thisObject->isArrayObject()) {
+        return AtomicString(state, "[object Array]").string();
+    } else if (thisObject->isStringObject()) {
+        return AtomicString(state, "[object String]").string();
+    } else if (thisObject->isFunctionObject()) {
+        return AtomicString(state, "[object Function]").string();
+    } else if (thisObject->isErrorObject()) {
+        return AtomicString(state, "[object Error]").string();
+    } /*else if (thisObject->isBooleanObject()) {
+        return AtomicString(state, "[object Boolean]").string();
+    } */ else if (thisObject->isNumberObject()) {
+        return AtomicString(state, "[object Number]").string();
+    } else if (thisObject->isDateObject()) {
+        return AtomicString(state, "[object Date]").string();
+    } else if (thisObject->isRegExpObject()) {
+        return AtomicString(state, "[object RegExp]").string();
+
+    } /*else if (thisObject->isESMathObject()) {
+        return AtomicString(state, "[object Math]").string();
+    } else if (thisObject->isESJSONObject()) {
+        return AtomicString(state, "[object JSON]").string();
 #ifdef USE_ES6_FEATURE
-    } else if (thisVal->isESTypedArrayObject()) {
+    } else if (thisObject->isESTypedArrayObject()) {
         ASCIIString ret = "[object ";
-        ESValue ta_constructor = thisVal->get(strings->constructor.string());
+        ESValue ta_constructor = thisObject->get(strings->constructor.string()).string();
         // ALWAYS created from new expression
-        ASSERT(ta_constructor.isESPointer() && ta_constructor.asESPointer()->isESObject());
-        ESValue ta_name = ta_constructor.asESPointer()->asESObject()->get(strings->name.string());
-        ret.append(ta_name.toString()->asciiData());
-        ret.append("]");
-        return ESString::createAtomicString(ret.data());
-    } else if (thisVal->isESArrayBufferObject()) {
-        return ESString::createAtomicString("[object ArrayBuffer]");
-    } else if (thisVal->isESDataViewObject()) {
-        return ESString::createAtomicString("[object DataView]");
-    } else if (thisVal->isESPromiseObject()) {
-        return ESString::createAtomicString("[object Promise]");
+        ASSERT(ta_constructor.isESPointer() && ta_constructor.asESPointer()->isESObject()).string();
+        ESValue ta_name = ta_constructor.asESPointer()->asESObject()->get(strings->name.string()).string();
+        ret.append(ta_name.toString()->asciiData()).string();
+        ret.append("]").string();
+        return AtomicString(state, ret.data()).string();
+    } else if (thisObject->isESArrayBufferObject()) {
+        return AtomicString(state, "[object ArrayBuffer]").string();
+    } else if (thisObject->isESDataViewObject()) {
+        return AtomicString(state, "[object DataView]").string();
+    } else if (thisObject->isESPromiseObject()) {
+        return AtomicString(state, "[object Promise]").string();
 #endif
-    } else if (thisVal->isESArgumentsObject()) {
-        return ESString::createAtomicString("[object Arguments]");
-    } else if (thisVal->isGlobalObject()) {
-        return ESString::createAtomicString("[object global]");
-    }*/
+    } else if (thisObject->isESArgumentsObject()) {
+        return AtomicString(state, "[object Arguments]").string();
+    }*/ else if (thisObject->isGlobalObject()) {
+        return AtomicString(state, "[object global]").string();
+    }
     return AtomicString(state, "[object Object]").string();
 }
 

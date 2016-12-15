@@ -96,6 +96,52 @@ static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t
     return Value();
 }
 
+static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    double number = 0.0;
+
+    if (thisValue.isNumber()) {
+        number = thisValue.asNumber();
+    } else if (thisValue.isPointerValue() && thisValue.asPointerValue()->isNumberObject()) {
+        number = thisValue.asPointerValue()->asNumberObject()->primitiveValue();
+    } else {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotNumber);
+    }
+
+    if (std::isnan(number) || std::isinf(number)) {
+        return (Value(number).toString(state));
+    }
+    double radix = 10;
+    if (argc > 0 && !argv[0].isUndefined()) {
+        radix = argv[0].toInteger(state);
+        if (radix < 2 || radix > 36)
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_RadixInvalidRange);
+    }
+    if (radix == 10)
+        return (Value(number).toString(state));
+    else {
+        bool isInteger = (static_cast<int64_t>(number) == number);
+        if (isInteger) {
+            bool minusFlag = (number < 0) ? 1 : 0;
+            number = (number < 0) ? (-1 * number) : number;
+            char buffer[256];
+            if (minusFlag) {
+                buffer[0] = '-';
+                itoa(static_cast<int64_t>(number), &buffer[1], radix);
+            } else {
+                itoa(static_cast<int64_t>(number), buffer, radix);
+            }
+            return (new ASCIIString(buffer));
+        } else {
+            ASSERT(Value(number).isDouble());
+            NumberObject::RadixBuffer s;
+            const char* str = NumberObject::toStringWithRadix(state, s, number, radix);
+            return new ASCIIString(str);
+        }
+    }
+    return Value();
+}
+
 void GlobalObject::installNumber(ExecutionState& state)
 {
     m_number = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Number, builtinNumberConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
@@ -107,6 +153,9 @@ void GlobalObject::installNumber(ExecutionState& state)
     m_numberPrototype = m_objectPrototype;
     m_numberPrototype = new NumberObject(state, 0);
     m_numberPrototype->setPrototype(state, m_objectPrototype);
+
+    m_numberPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toString),
+                                                        ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinNumberToString, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
 
     m_numberPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toFixed),
                                                         ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toFixed, builtinNumberToFixed, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));

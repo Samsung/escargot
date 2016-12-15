@@ -33,6 +33,11 @@ public:
         markThisObjectDontNeedStructureTransitionTable(state);
     }
 
+    virtual bool isGlobalObject()
+    {
+        return true;
+    }
+
     void installBuiltins(ExecutionState& state)
     {
         installFunction(state);

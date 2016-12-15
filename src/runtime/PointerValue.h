@@ -65,6 +65,16 @@ public:
         return false;
     }
 
+    virtual bool isErrorObject()
+    {
+        return false;
+    }
+
+    virtual bool isGlobalObject()
+    {
+        return false;
+    }
+
     virtual bool isDoubleInSmallValue()
     {
         return false;
