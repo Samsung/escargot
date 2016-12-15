@@ -161,7 +161,7 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
     ArrayObject* array = new ArrayObject(state);
     uint32_t n = 0;
     for (size_t i = 0; i < argc + 1; i++) {
-        Value argi = (i == 0) ? thisObject : argv[i + 1];
+        Value argi = (i == 0) ? thisObject : argv[i - 1];
         if (argi.isObject() && argi.asObject()->isArrayObject()) {
             ArrayObject* arr = argi.asObject()->asArrayObject();
             uint32_t len = arr->length(state);
@@ -169,7 +169,7 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
                 ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_RangeError);
             }
 
-            double curIndex = 0;
+            uint32_t curIndex = 0;
             while (curIndex < len) {
                 ObjectGetResult exists = arr->get(state, ObjectPropertyName(state, Value(curIndex)));
                 if (exists.hasValue()) {
