@@ -41,7 +41,7 @@ public:
 
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        if (context->m_codeBlock->canUseIndexedVariableStorage()) {
+        if (context->m_codeBlock->canUseIndexedVariableStorage() || context->m_codeBlock->isGlobalScopeCodeBlock()) {
             CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {
                 if (!context->m_codeBlock->inEvalWithCatchYieldScope() && context->m_codeBlock->hasNonConfiguableNameOnGlobal(m_name)) {
@@ -67,7 +67,7 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        if (context->m_codeBlock->canUseIndexedVariableStorage()) {
+        if (context->m_codeBlock->canUseIndexedVariableStorage() || context->m_codeBlock->isGlobalScopeCodeBlock()) {
             CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {
                 if (!context->m_codeBlock->inEvalWithCatchYieldScope() && context->m_codeBlock->hasNonConfiguableNameOnGlobal(m_name)) {

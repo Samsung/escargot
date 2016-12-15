@@ -14,6 +14,11 @@ public:
         return m_primitiveValue;
     }
 
+    virtual bool isBooleanObject()
+    {
+        return true;
+    }
+
 protected:
     bool m_primitiveValue;
 };

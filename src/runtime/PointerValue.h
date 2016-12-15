@@ -55,6 +55,11 @@ public:
         return false;
     }
 
+    virtual bool isBooleanObject()
+    {
+        return false;
+    }
+
     virtual bool isDateObject()
     {
         return false;

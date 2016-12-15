@@ -33,15 +33,14 @@ static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_
         return AtomicString(state, "[object Function]").string();
     } else if (thisObject->isErrorObject()) {
         return AtomicString(state, "[object Error]").string();
-    } /*else if (thisObject->isBooleanObject()) {
+    } else if (thisObject->isBooleanObject()) {
         return AtomicString(state, "[object Boolean]").string();
-    } */ else if (thisObject->isNumberObject()) {
+    } else if (thisObject->isNumberObject()) {
         return AtomicString(state, "[object Number]").string();
     } else if (thisObject->isDateObject()) {
         return AtomicString(state, "[object Date]").string();
     } else if (thisObject->isRegExpObject()) {
         return AtomicString(state, "[object RegExp]").string();
-
     } /*else if (thisObject->isESMathObject()) {
         return AtomicString(state, "[object Math]").string();
     } else if (thisObject->isESJSONObject()) {
