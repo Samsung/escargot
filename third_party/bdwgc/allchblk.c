@@ -582,6 +582,17 @@ GC_allochblk(size_t sz, int kind, unsigned flags/* IGNORE_OFF_PAGE or 0 */)
     int split_limit; /* Highest index of free list whose blocks we      */
                      /* split.                                          */
 
+#ifdef ESCARGOT
+    if (GC_get_bytes_since_gc() > 10 * 1024 * 1024) {
+        /*
+         * To reduce fragmentation overhead,
+         * collect occasionally before allocating new block
+         * if many objects have been allocated without GC.
+         */
+        GC_gcollect_inner();
+    }
+#endif
+
     GC_ASSERT((sz & (GRANULE_BYTES - 1)) == 0);
     blocks = OBJ_SZ_TO_BLOCKS(sz);
     if ((signed_word)(blocks * HBLKSIZE) < 0) {

@@ -112,6 +112,11 @@ void GC_free_hook(void* address)
 
 #endif
 
+#ifdef PROFILE_BDWGC
+const char* bdwgc_log_filename = "bdwgc_log";
+const char* bdwgc_log_phase = "initial phase";
+#endif
+
 void eval(Escargot::Context* context, Escargot::String* str, Escargot::String* fileName, bool shouldPrintScriptResult)
 {
     auto result = context->scriptParser().parse(str, fileName);
@@ -170,6 +175,19 @@ int main(int argc, char* argv[])
             }
 
             g_freeList.clear();
+        }
+    });
+#endif
+#ifdef PROFILE_BDWGC
+    remove(bdwgc_log_filename);
+    FILE* fp = fopen(bdwgc_log_filename, "a");
+    if (fp) {
+        fprintf(fp, "GC_no    PeakRSS   TotalHeap    Marked  # Phase\n");
+        fclose(fp);
+    }
+    GC_set_on_collection_event([](GC_EventType evtType) {
+        if (GC_EVENT_RECLAIM_START == evtType) {
+            GC_dump_for_graph(bdwgc_log_filename, bdwgc_log_phase);
         }
     });
 #endif

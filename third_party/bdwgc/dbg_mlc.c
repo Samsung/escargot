@@ -187,6 +187,9 @@
     GC_ref_kind source;
     size_t offset;
     void *base;
+#ifdef ESCARGOT
+    ptr_t object_start;
+#endif
 
     GC_print_heap_obj(GC_base(current));
 
@@ -203,7 +206,12 @@
       GC_err_printf("Reachable via %d levels of pointers from ", i);
       switch(source) {
         case GC_REFD_FROM_ROOT:
+#ifndef ESCARGOT
           GC_err_printf("root at %p\n\n", base);
+#else
+          /* Print more detailed information in backtrace */
+          GC_err_printf("root at %p (=> points %p)\n\n", base, *((void**)base));
+#endif
           goto out;
         case GC_REFD_FROM_REG:
           GC_err_printf("root in register\n\n");
@@ -212,7 +220,18 @@
           GC_err_printf("list of finalizable objects\n\n");
           goto out;
         case GC_REFD_FROM_HEAP:
+#ifndef ESCARGOT
           GC_err_printf("offset %ld in object:\n", (long)offset);
+#else
+          /* Print more detailed information in backtrace */
+          object_start = GC_base(base) + sizeof(oh);
+          GC_bool interior = ((*((void**)(object_start + offset))) != current);
+          GC_err_printf("offset %ld in object %p (=> points %p%s):\n",
+                        (long)offset,
+                        object_start,
+                        *((void**)(object_start + offset)),
+                        interior?", interior":"");
+#endif
           /* Take GC_base(base) to get real base, i.e. header. */
           GC_print_heap_obj(GC_base(base));
           break;

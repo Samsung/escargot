@@ -1504,6 +1504,13 @@ GC_API void * GC_CALL GC_is_valid_displacement(void * /* p */);
 /* Defined only if the library has been compiled without NO_DEBUGGING.  */
 GC_API void GC_CALL GC_dump(void);
 
+#ifdef ESCARGOT
+/* This function appends the GC status log to give file                 */
+/* which can be interpreted by gnuplot (and MS Excel of course).        */
+GC_API void GC_CALL GC_dump_for_graph(const char* /* log_file_name */,
+                                      const char* /* phase_name */);
+#endif
+
 /* Safer, but slow, pointer addition.  Probably useful mainly with      */
 /* a preprocessor.  Useful only for heap pointers.                      */
 /* Only the macros without trailing digits are meant to be used         */

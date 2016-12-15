@@ -13,6 +13,9 @@ ESCARGOT_CXXFLAGS_COMMON += -Wno-unused-but-set-variable -Wno-unused-but-set-par
 ESCARGOT_CXXFLAGS_COMMON += -Wno-type-limits -Wno-unused-result -Wno-unused-variable # TODO: enable these warnings
 ESCARGOT_CXXFLAGS_COMMON += -Wno-deprecated-declarations
 
+#ESCARGOT_CXXFLAGS_COMMON += -DPROFILE_MASSIF
+#ESCARGOT_CXXFLAGS_COMMON += -DPROFILE_BDWGC
+
 ESCARGOT_LDFLAGS_COMMON += -lpthread
 ESCARGOT_LDFLAGS_COMMON += -lrt
 

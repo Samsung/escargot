@@ -1310,6 +1310,10 @@ GC_API void GC_CALL GC_init(void)
         GC_init_dyld();
 #   endif
     RESTORE_CANCEL(cancel_state);
+#ifdef ESCARGOT
+    GC_heapsize = 0;
+    GC_unmapped_bytes = 0;
+#endif
 }
 
 GC_API void GC_CALL GC_enable_incremental(void)
