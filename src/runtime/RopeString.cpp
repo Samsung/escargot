@@ -24,7 +24,7 @@ String* RopeString::createRopeString(String* lstr, String* rstr)
     rope->m_left = lstr;
     rope->m_right = rstr;
 
-    rope->m_hasASCIIContent = lstr->hasASCIIContent() | rstr->hasASCIIContent();
+    rope->m_hasASCIIContent = lstr->hasASCIIContent() & rstr->hasASCIIContent();
     return rope;
 }
 template <typename A, typename B>

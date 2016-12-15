@@ -485,7 +485,7 @@ static Value builtinStringSlice(ExecutionState& state, Value thisValue, size_t a
     int from = (start < 0) ? std::max(len + start, 0.0) : std::min(start, (double)len);
     int to = (end < 0) ? std::max(len + end, 0.0) : std::min(end, (double)len);
     int span = std::max(to - from, 0);
-    return str->subString(from, span);
+    return str->subString(from, from + span);
 }
 
 static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
