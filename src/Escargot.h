@@ -34,6 +34,9 @@
 #include <gc_allocator.h>
 #include <gc_cpp.h>
 
+#include <unicode/locid.h>
+#include <unicode/datefmt.h>
+
 #else
 
 #include <gc.h>

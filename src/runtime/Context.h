@@ -27,6 +27,12 @@ class Context : public gc {
 
 public:
     Context(VMInstance* instance);
+
+    VMInstance* vmInstance()
+    {
+        return m_instance;
+    }
+
     const StaticStrings& staticStrings()
     {
         return m_staticStrings;

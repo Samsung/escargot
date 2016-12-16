@@ -73,7 +73,7 @@ protected:
             if (isFastModeArray()) {
                 uint32_t orgLength = getLength(state);
                 if (newLength > orgLength) {
-                    if (newLength - orgLength > ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP) {
+                    if ((newLength - orgLength > ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP) && (m_fastModeData.size() != 0)) {
                         convertIntoNonFastMode();
                     }
                 }

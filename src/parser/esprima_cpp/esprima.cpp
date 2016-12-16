@@ -524,7 +524,7 @@ public:
         errorHandler = handler;
         // trackComment = false;
 
-        length = code.end();
+        length = code.length();
         index = 0;
         lineNumber = ((length > 0) ? 1 : 0) + startLine;
         lineStart = startColumn;

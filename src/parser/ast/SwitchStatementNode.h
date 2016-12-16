@@ -36,6 +36,63 @@ public:
         m_lexical = lexical;
     }
 
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        ByteCodeGenerateContext newContext(*context);
+
+        m_discriminant->generateExpressionByteCode(codeBlock, &newContext);
+        size_t rIndex0 = newContext.getLastRegisterIndex();
+
+        std::vector<size_t> jumpCodePerCaseNodePosition;
+        for (unsigned i = 0; i < m_casesB.size(); i++) {
+            SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesB[i];
+            caseNode->m_test->generateExpressionByteCode(codeBlock, &newContext);
+            codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex(), rIndex0), &newContext, this);
+            jumpCodePerCaseNodePosition.push_back(codeBlock->currentCodeSize());
+            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex()), &newContext, this);
+            newContext.giveUpRegister();
+        }
+
+        ASSERT(rIndex0 == newContext.getLastRegisterIndex());
+
+        for (unsigned i = 0; i < m_casesA.size(); i++) {
+            SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesA[i];
+            caseNode->m_test->generateExpressionByteCode(codeBlock, &newContext);
+            codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex(), rIndex0), &newContext, this);
+            jumpCodePerCaseNodePosition.push_back(codeBlock->currentCodeSize());
+            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex()), &newContext, this);
+            newContext.giveUpRegister();
+        }
+
+        newContext.giveUpRegister();
+
+        size_t jmpToDefault = SIZE_MAX;
+        jmpToDefault = codeBlock->currentCodeSize();
+        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), &newContext, this);
+        size_t caseIdx = 0;
+        for (unsigned i = 0; i < m_casesB.size(); i++) {
+            SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesB[i];
+            codeBlock->peekCode<JumpIfTrue>(jumpCodePerCaseNodePosition[caseIdx++])->m_jumpPosition = codeBlock->currentCodeSize();
+            caseNode->generateStatementByteCode(codeBlock, &newContext);
+        }
+        if (m_default) {
+            codeBlock->peekCode<Jump>(jmpToDefault)->m_jumpPosition = codeBlock->currentCodeSize();
+            m_default->generateStatementByteCode(codeBlock, &newContext);
+        }
+        for (unsigned i = 0; i < m_casesA.size(); i++) {
+            SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesA[i];
+            codeBlock->peekCode<JumpIfTrue>(jumpCodePerCaseNodePosition[caseIdx++])->m_jumpPosition = codeBlock->currentCodeSize();
+            caseNode->generateStatementByteCode(codeBlock, &newContext);
+        }
+        size_t breakPos = codeBlock->currentCodeSize();
+        newContext.consumeBreakPositions(codeBlock, breakPos);
+        newContext.m_positionToContinue = context->m_positionToContinue;
+        newContext.propagateInformationTo(*context);
+        if (!m_default) {
+            codeBlock->peekCode<Jump>(jmpToDefault)->m_jumpPosition = codeBlock->currentCodeSize();
+        }
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::SwitchStatement; }
 protected:
     ExpressionNode* m_discriminant;

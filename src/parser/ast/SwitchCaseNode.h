@@ -39,6 +39,14 @@ public:
         return !m_test;
     }
 
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        size_t len = m_consequent.size();
+        for (size_t i = 0; i < len; i++) {
+            m_consequent[i]->generateStatementByteCode(codeBlock, context);
+        }
+    }
+
 protected:
     ExpressionNode* m_test;
     StatementNodeVector m_consequent;
