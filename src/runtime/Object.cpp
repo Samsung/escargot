@@ -110,8 +110,8 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
         RELEASE_ASSERT(desc.isDataProperty());
 
         m_structure = m_structure->addProperty(state, propertyName, desc.toObjectPropertyDescriptor());
-
         m_values.pushBack(desc.value());
+        ASSERT(m_values.size() == m_structure->propertyCount());
         return true;
     } else {
         size_t idx = oldIdx;
@@ -391,6 +391,8 @@ void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
 
     m_structure = m_structure->removeProperty(state, idx);
     m_values.erase(idx);
+
+    ASSERT(m_values.size() == m_structure->propertyCount());
 }
 
 uint32_t Object::length(ExecutionState& state)

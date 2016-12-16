@@ -800,8 +800,8 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         bool shouldUpdateEnumerateObjectData = false;
         Object* obj = data->m_object;
         for (size_t i = 0; i < data->m_hiddenClassChain.size(); i++) {
-            ObjectStructure* hc = data->m_hiddenClassChain[i];
-            if (hc != obj->structure()) {
+            auto hc = data->m_hiddenClassChain[i];
+            if (hc.first != obj->structure() && hc.second == obj->structure()->version()) {
                 shouldUpdateEnumerateObjectData = true;
                 break;
             }
@@ -1066,7 +1066,7 @@ inline std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOpera
         const size_t& cachedIndex = data.m_cachedIndex;
         const size_t cSiz = cachedHiddenClassChain->size() - 1;
         for (size_t i = 0; i < cSiz; i++) {
-            if (UNLIKELY((*cachedHiddenClassChain)[i] != obj->structure())) {
+            if (UNLIKELY((*cachedHiddenClassChain)[i].first != obj->structure() || (*cachedHiddenClassChain)[i].second != obj->structure()->version())) {
                 goto GetObjecPreComputedCacheMiss;
             }
             const Value& proto = obj->getPrototype(state);
@@ -1076,7 +1076,7 @@ inline std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOpera
                 goto GetObjecPreComputedCacheMiss;
             }
         }
-        if (LIKELY((*cachedHiddenClassChain)[cSiz] == obj->structure())) {
+        if (UNLIKELY((*cachedHiddenClassChain)[cSiz].first == obj->structure() && (*cachedHiddenClassChain)[cSiz].second == obj->structure()->version())) {
             if (cachedIndex != SIZE_MAX) {
                 return std::make_pair(true, obj->getOwnPropertyUtilForObject(state, cachedIndex, targetObj));
             } else {
@@ -1101,7 +1101,7 @@ inline std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOpera
     ObjectStructureChain* cachedHiddenClassChain = &inlineCache.m_cache[currentCacheIndex].m_cachedhiddenClassChain;
     size_t* cachedHiddenClassIndex = &inlineCache.m_cache[currentCacheIndex].m_cachedIndex;
     while (true) {
-        cachedHiddenClassChain->push_back(obj->structure());
+        cachedHiddenClassChain->push_back(std::make_pair(obj->structure(), obj->structure()->version()));
         size_t idx = obj->structure()->findProperty(state, name);
         if (idx != SIZE_MAX) {
             *cachedHiddenClassIndex = idx;
@@ -1124,7 +1124,7 @@ inline std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOpera
 inline void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache)
 {
     Object* originalObject = obj;
-    if (inlineCache.m_cachedIndex != SIZE_MAX && inlineCache.m_cachedhiddenClassChain[0] == obj->structure()) {
+    if (inlineCache.m_cachedIndex != SIZE_MAX && inlineCache.m_cachedhiddenClassChain[0].first == obj->structure() && inlineCache.m_cachedhiddenClassChain[0].second == obj->structure()->version()) {
         ASSERT(inlineCache.m_cachedhiddenClassChain.size() == 1);
         // cache hit!
         obj->setOwnPropertyThrowsExceptionWhenStrictMode(state, inlineCache.m_cachedIndex, value);
@@ -1133,7 +1133,7 @@ inline void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionStat
         int cSiz = inlineCache.m_cachedhiddenClassChain.size();
         bool miss = false;
         for (int i = 0; i < cSiz - 1; i++) {
-            if (inlineCache.m_cachedhiddenClassChain[i] != obj->structure()) {
+            if (inlineCache.m_cachedhiddenClassChain[i].first != obj->structure()) {
                 miss = true;
                 break;
             } else {
@@ -1146,9 +1146,10 @@ inline void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionStat
             }
         }
         if (!miss) {
-            if (inlineCache.m_cachedhiddenClassChain[cSiz - 1] == obj->structure()) {
+            if (inlineCache.m_cachedhiddenClassChain[cSiz - 1].first == obj->structure()) {
                 // cache hit!
                 obj = originalObject;
+                ASSERT(!obj->structure()->isStructureWithFastAccess());
                 obj->m_values.push_back(value);
                 obj->m_structure = inlineCache.m_hiddenClassWillBe;
                 return;
@@ -1165,16 +1166,25 @@ inline void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionStat
     if (idx != SIZE_MAX) {
         // own property
         inlineCache.m_cachedIndex = idx;
-        inlineCache.m_cachedhiddenClassChain.push_back(obj->structure());
-
+        inlineCache.m_cachedhiddenClassChain.push_back(std::make_pair(obj->structure(), obj->structure()->version()));
         obj->setOwnPropertyThrowsExceptionWhenStrictMode(state, inlineCache.m_cachedIndex, value);
     } else {
-        inlineCache.m_cachedhiddenClassChain.push_back(obj->structure());
         Object* orgObject = obj;
+        if (UNLIKELY(obj->structure()->isStructureWithFastAccess())) {
+            inlineCache.invalidateCache();
+            orgObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, orgObject);
+            return;
+        }
+        inlineCache.m_cachedhiddenClassChain.push_back(std::make_pair(obj->structure(), obj->structure()->version()));
         Value proto = obj->getPrototype(state);
         while (proto.isObject()) {
             obj = proto.asObject();
-            inlineCache.m_cachedhiddenClassChain.push_back(obj->structure());
+            if (UNLIKELY(obj->structure()->isStructureWithFastAccess())) {
+                inlineCache.invalidateCache();
+                orgObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, orgObject);
+                return;
+            }
+            inlineCache.m_cachedhiddenClassChain.push_back(std::make_pair(obj->structure(), obj->structure()->version()));
             proto = obj->getPrototype(state);
         }
         bool s = orgObject->set(state, ObjectPropertyName(state, name), value, obj);
@@ -1185,6 +1195,11 @@ inline void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionStat
             inlineCache.invalidateCache();
             return;
         }
+        if (orgObject->structure()->isStructureWithFastAccess()) {
+            inlineCache.invalidateCache();
+            return;
+        }
+
         inlineCache.m_hiddenClassWillBe = orgObject->structure();
     }
 }
@@ -1205,7 +1220,7 @@ EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(ExecutionState&
         }
         return true;
     });
-    data->m_hiddenClassChain.push_back(target.asObject()->structure());
+    data->m_hiddenClassChain.push_back(std::make_pair(target.asObject()->structure(), target.asObject()->structure()->version()));
 
     std::unordered_set<String*, std::hash<String*>, std::equal_to<String*>, gc_malloc_ignore_off_page_allocator<String*>> keyStringSet;
 
@@ -1220,7 +1235,7 @@ EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(ExecutionState&
                 return true;
             });
         }
-        data->m_hiddenClassChain.push_back(target.asObject()->structure());
+        data->m_hiddenClassChain.push_back(std::make_pair(target.asObject()->structure(), target.asObject()->structure()->version()));
         target = target.asObject()->getPrototype(state);
     }
 

@@ -78,6 +78,26 @@ ALWAYS_INLINE bool operator!=(const PropertyName& a, const PropertyName& b)
 {
     return !operator==(a, b);
 }
+
+typedef std::unordered_map<PropertyName, size_t, std::hash<PropertyName>, std::equal_to<PropertyName>, gc_allocator<std::pair<PropertyName, size_t>>> PropertyNameMap;
+}
+
+namespace std {
+template <>
+struct hash<Escargot::PropertyName> {
+    size_t operator()(Escargot::PropertyName const& x) const
+    {
+        return x.string()->hashValue();
+    }
+};
+
+template <>
+struct equal_to<Escargot::PropertyName> {
+    bool operator()(Escargot::PropertyName const& a, Escargot::PropertyName const& b) const
+    {
+        return a == b;
+    }
+};
 }
 
 #endif

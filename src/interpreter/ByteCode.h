@@ -606,7 +606,7 @@ public:
 };
 
 
-typedef Vector<ObjectStructure*, gc_malloc_ignore_off_page_allocator<ObjectStructure*>> ObjectStructureChain;
+typedef Vector<std::pair<ObjectStructure*, size_t>, gc_malloc_ignore_off_page_allocator<std::pair<ObjectStructure*, size_t>>> ObjectStructureChain;
 
 struct GetObjectInlineCacheData {
     GetObjectInlineCacheData()

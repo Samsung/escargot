@@ -425,6 +425,7 @@ protected:
     {
         return m_structure;
     }
+
     bool checkPropertyAlreadyDefinedWithNonWritableInPrototype(ExecutionState& state, const ObjectPropertyName& P);
     void ensureObjectRareData()
     {

@@ -102,8 +102,19 @@ public:
     size_t hashValue() const
     {
         size_t hash = static_cast<size_t>(0xc70f6907UL);
-        for (size_t idx = 0; idx < length(); idx++)
-            hash = (hash * 131) + charAt(idx);
+
+        size_t len = length();
+        if (hasASCIIContent()) {
+            auto ptr = characters8();
+            for (size_t i = 0; i < len; i++) {
+                hash = (hash * 131) + ptr[i];
+            }
+        } else {
+            auto ptr = characters16();
+            for (size_t i = 0; i < len; i++) {
+                hash = (hash * 131) + ptr[i];
+            }
+        }
         return hash;
     }
 

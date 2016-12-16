@@ -30,7 +30,7 @@ public:
         m_objectPrototype = Object::createBuiltinObjectPrototype(state);
         setPrototype(state, m_objectPrototype);
 
-        markThisObjectDontNeedStructureTransitionTable(state);
+        m_structure = m_structure->convertToWithFastAccess(state);
     }
 
     virtual bool isGlobalObject()

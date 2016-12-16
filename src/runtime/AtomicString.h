@@ -12,7 +12,7 @@ typedef std::unordered_map<std::pair<const char*, size_t>, String*,
                            gc_allocator<std::pair<const std::pair<const char*, size_t>, String*> > >
     AtomicStringMap;
 
-class AtomicString {
+class AtomicString : public gc {
     friend class StaticStrings;
     friend class PropertyName;
     inline AtomicString(String* str)
