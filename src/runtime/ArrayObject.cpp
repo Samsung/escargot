@@ -53,7 +53,7 @@ void ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
             uint32_t len = m_fastModeData.size();
             ASSERT(len == getLength(state));
             if (idx < len) {
-                m_fastModeData[len] = Value(Value::EmptyValue);
+                m_fastModeData[idx] = Value(Value::EmptyValue);
                 return;
             }
         }

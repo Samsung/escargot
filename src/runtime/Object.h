@@ -177,6 +177,11 @@ public:
         return isDataProperty() && isWritable() && isEnumerable() && isConfigurable();
     }
 
+    bool isNotPresent() const
+    {
+        return (m_property == NotPresent);
+    }
+
     ObjectPropertyDescriptor toObjectPropertyDescriptor() const
     {
         ASSERT(isDataProperty());

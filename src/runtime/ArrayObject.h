@@ -129,11 +129,20 @@ protected:
                 idx = P.string(state)->tryToUseAsArrayIndex();
             }
             if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-                if (UNLIKELY(!desc.isDataWritableEnumerableConfigurable())) {
+                uint32_t len = m_fastModeData.size();
+                if (len > idx && hasOwnProperty(state, P)) {
+                    // Non-empty slot of fast-mode array always has {writable:true, enumerable:true, configurable:true}.
+                    // So, when new desciptor is not present, keep {w:true, e:true, c:true}
+                    if (!desc.isNotPresent() && !desc.isDataWritableEnumerableConfigurable()) {
+                        convertIntoNonFastMode();
+                        return false;
+                    }
+                } else if (UNLIKELY(!desc.isDataWritableEnumerableConfigurable())) {
+                    // In case of empty slot property or over-lengthed property,
+                    // when new desciptor is not present, keep {w:false, e:false, c:false}
                     convertIntoNonFastMode();
                     return false;
                 }
-                uint32_t len = m_fastModeData.size();
                 if (UNLIKELY(len <= idx)) {
                     if (UNLIKELY(!setArrayLength(state, idx + 1))) {
                         return false;

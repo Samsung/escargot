@@ -144,6 +144,72 @@ static Value builtinArraySort(ExecutionState& state, Value thisValue, size_t arg
     return thisObject;
 }
 
+static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, splice);
+    uint32_t len = thisObject->length(state);
+    double relativeStart = argv[0].toInteger(state);
+    uint32_t actualStart = (relativeStart < 0)? std::max(len + relativeStart, 0.0) : std::min(relativeStart, (double) len);
+    // TODO(ES6): the number of actual arguments is used.
+    // e.g. var arr = [1, 2, 3, 4, 5];
+    //      Different: arr.splice(2) vs. arr.splice(2, undefined)
+
+    uint32_t insertCnt = (argc >= 2)? argc - 2 : 0;
+    uint32_t deleteCnt = std::min(std::max(argv[1].toInteger(state), 0.0), (double) len - actualStart);
+    double finalCnt = (double) len - deleteCnt + insertCnt;
+    if (finalCnt > Value::InvalidArrayIndexValue) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_RangeError);
+    }
+
+    uint32_t k = 0;
+    ArrayObject* array = new ArrayObject(state);
+    while (k < deleteCnt) {
+        ObjectGetResult fromValue = thisObject->get(state, ObjectPropertyName(state, Value(actualStart + k)));
+        if (fromValue.hasValue()) {
+            array->defineOwnProperty(state, ObjectPropertyName(state, Value(k)),
+                                     ObjectPropertyDescriptorForDefineOwnProperty(fromValue.value(), ObjectPropertyDescriptorForDefineOwnProperty::AllPresent));
+            k++;
+        } else {
+            k = Object::nextIndexForward(state, thisObject, k, len, false);
+        }
+    }
+
+    if (insertCnt < deleteCnt) {
+        k = actualStart;
+        // move [actualStart + deleteCnt, len) to [actualStart + insertCnt, len - deleteCnt + insertCnt)
+        while (k < len - deleteCnt) {
+            // TODO: thisObject->relocateIndexesForward((double)start + deleteCnt, len, insertCnt - deleteCnt);
+            uint32_t from = k + deleteCnt;
+            uint32_t to = k + insertCnt;
+            ObjectGetResult fromValue = thisObject->get(state, ObjectPropertyName(state, Value(from)));
+            if (fromValue.hasValue()) {
+                thisObject->setThrowsException(state, ObjectPropertyName(state, Value(to)), fromValue.value(), thisObject);
+            } else {
+                thisObject->deleteOwnProperty(state, ObjectPropertyName(state, Value(to)));
+            }
+            k++;
+        }
+        // delete [len - deleteCnt + insertCnt, len)
+        k = len;
+        while (k > len - deleteCnt + insertCnt) {
+            thisObject->deleteOwnProperty(state, ObjectPropertyName(state, Value(k - 1)));
+            k--;
+        }
+    } else if (insertCnt > deleteCnt) {
+        // TODO
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    k = actualStart;
+    if (insertCnt > 0) {
+        // TODO: insert items
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    thisObject->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(finalCnt), thisObject);
+    return array;
+}
+
 
 static Value builtinArrayToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
@@ -237,6 +303,8 @@ void GlobalObject::installArray(ExecutionState& state)
                                                        ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().join, builtinArrayJoin, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().sort),
                                                        ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().sort, builtinArraySort, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().splice),
+                                                       ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().splice, builtinArraySplice, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().slice),
                                                        ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().slice, builtinArraySlice, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toString),
