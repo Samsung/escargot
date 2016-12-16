@@ -1311,8 +1311,10 @@ GC_API void GC_CALL GC_init(void)
 #   endif
     RESTORE_CANCEL(cancel_state);
 #ifdef ESCARGOT
+    /* These variables are not initialized properly */
     GC_heapsize = 0;
     GC_unmapped_bytes = 0;
+    GC_debug_header_size = 0;
 #endif
 }
 

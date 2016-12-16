@@ -698,15 +698,15 @@ GC_API void GC_CALL GC_dump_for_graph(const char* log_file_name,
     getrusage(RUSAGE_SELF, &ru);
     size_t peak_rss = ru.ru_maxrss;
 
-    GC_printf("[%d] %s : PeakRSS %zu KB, TotalHeap %lu KB, MarkedHeap %lu KB\n",
-              GC_get_gc_no(), phase_name, peak_rss,
+    GC_printf("[%lu] %s : PeakRSS %zu KB, TotalHeap %lu KB, MarkedHeap %lu KB\n",
+              (unsigned long) GC_get_gc_no(), phase_name, peak_rss,
               (unsigned long) pstats.total_bytes / 1024,
               (unsigned long) pstats.marked_bytes / 1024);
 
     FILE* fp = fopen(log_file_name, "a");
     if (fp) {
-        fprintf(fp, "%5d %9lu %9lu %9zu     # %s\n",
-                GC_get_gc_no(),
+        fprintf(fp, "%5lu %9zu %9lu %9lu     # %s\n",
+                (unsigned long) GC_get_gc_no(),
                 peak_rss,
                 (unsigned long) pstats.total_bytes / 1024,
                 (unsigned long) pstats.marked_bytes / 1024,

@@ -1147,7 +1147,7 @@ struct EnumerateObjectData : public gc {
     ObjectStructureChain m_hiddenClassChain;
     Object* m_object;
     size_t m_idx;
-    Vector<Value, gc_malloc_ignore_off_page_allocator<Value>> m_keys;
+    ValueVector m_keys;
 };
 
 

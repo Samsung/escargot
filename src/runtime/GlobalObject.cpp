@@ -6,6 +6,7 @@
 #include "NumberObject.h"
 #include "parser/ScriptParser.h"
 #include "parser/esprima_cpp/esprima.h"
+#include "heap/HeapProfiler.h"
 
 namespace Escargot {
 
@@ -201,6 +202,24 @@ void GlobalObject::installOthers(ExecutionState& state)
                       ObjectPropertyDescriptor(new FunctionObject(state,
                                                                                       NativeFunctionInfo(state.context()->staticStrings().gc, builtinGc, 0, nullptr, NativeFunctionInfo::Strict), false),
                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+
+#ifdef PROFILE_BDWGC
+    AtomicString dumpBackTrace(state, "dumpBackTrace");
+    defineOwnProperty(state, ObjectPropertyName(dumpBackTrace),
+                      ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                                      NativeFunctionInfo(dumpBackTrace, builtinDumpBackTrace, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+    AtomicString registerLeakCheck(state, "registerLeakCheck");
+    defineOwnProperty(state, ObjectPropertyName(registerLeakCheck),
+                      ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                                      NativeFunctionInfo(registerLeakCheck, builtinRegisterLeakCheck, 2, nullptr, NativeFunctionInfo::Strict), false),
+                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+    AtomicString setPhaseName(state, "setPhaseName");
+    defineOwnProperty(state, ObjectPropertyName(setPhaseName),
+                      ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                                      NativeFunctionInfo(setPhaseName, builtinSetGCPhaseName, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+#endif
 
     m_stringProxyObject = new StringObject(state);
     m_numberProxyObject = new NumberObject(state);

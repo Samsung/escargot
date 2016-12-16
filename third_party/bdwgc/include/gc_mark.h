@@ -204,6 +204,32 @@ GC_API GC_ATTR_MALLOC GC_ATTR_ALLOC_SIZE(1) void * GC_CALL
                                 /* first page of the resulting object   */
                                 /* are ignored.                         */
 
+#ifdef ESCARGOT // To expose API
+GC_API GC_ATTR_MALLOC GC_ATTR_ALLOC_SIZE(1) void * GC_CALL
+                                         GC_debug_generic_malloc(
+                                            size_t /* lb */,
+                                            int /* knd */,
+                                            GC_EXTRA_PARAMS);
+GC_API GC_ATTR_MALLOC GC_ATTR_ALLOC_SIZE(1) void * GC_CALL
+                                        GC_debug_generic_malloc_ignore_off_page(
+                                            size_t /* lb */, int /* knd */,
+                                            GC_EXTRA_PARAMS);
+
+#ifndef GC_GENERIC_MALLOC
+#ifdef GC_DEBUG
+# define GC_GENERIC_MALLOC(sz, knd) \
+                GC_debug_generic_malloc(sz, knd, GC_EXTRAS)
+# define GC_GENERIC_MALLOC_IGNORE_OFF_PAGE(sz, knd) \
+                GC_debug_generic_malloc_ignore_off_page(sz, knd, GC_EXTRAS)
+#else /* GC_DEBUG */
+# define GC_GENERIC_MALLOC(sz, knd) \
+                GC_generic_malloc(sz, knd)
+# define GC_GENERIC_MALLOC_IGNORE_OFF_PAGE(sz, knd) \
+                GC_generic_malloc_ignore_off_page(sz, knd)
+#endif /* GC_DEBUG */
+#endif
+#endif
+
 /* Same as above but primary for allocating an object of the same kind  */
 /* as an existing one (kind obtained by GC_get_kind_and_size).          */
 /* Not suitable for GCJ and typed-malloc kinds.                         */
@@ -271,6 +297,19 @@ GC_API GC_start_callback_proc GC_CALL GC_get_start_callback(void);
 GC_API int GC_CALL GC_is_marked(const void *) GC_ATTR_NONNULL(1);
 GC_API void GC_CALL GC_clear_mark_bit(const void *) GC_ATTR_NONNULL(1);
 GC_API void GC_CALL GC_set_mark_bit(const void *) GC_ATTR_NONNULL(1);
+
+#ifdef ESCARGOT
+/* To use mark function, we should choose between:
+ * 1. include private header or 2. do some work inside bdwgc
+ * Currently second choice is adopted,
+ * but it can be changed in future for better performance.
+ */
+typedef GC_word* (GC_get_next_pointer_proc)(GC_word** iterator);
+GC_API struct GC_ms_entry* GC_mark_and_push_custom(GC_word* addr,
+                                                   struct GC_ms_entry *mark_stack_ptr,
+                                                   struct GC_ms_entry *mark_stack_limit,
+                                                   const GC_get_next_pointer_proc proc);
+#endif
 
 /* Push everything in the given range onto the mark stack.              */
 /* (GC_push_conditional pushes either all or only dirty pages depending */

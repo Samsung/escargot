@@ -17,7 +17,7 @@
 import subprocess
 import os
 
-BDWGC_LOGFILE="bdwgc_log"
+BDWGC_LOGFILE="bdwgcUsage.dat"
 GNUPLOT_DISPLAY_STYLE="lines"
 
 def make_plot_subcmd(col, name):
@@ -26,7 +26,7 @@ def make_plot_subcmd(col, name):
 def draw_bdwgc_plot():
     if not os.path.exists(BDWGC_LOGFILE):
         print 'Cannot draw plot! No input file %s' % BDWGC_LOGFILE
-        print 'Re-build escargot with `-DPROFILE_BDWGC`'
+        print 'Please re-build escargot with `-DPROFILE_BDWGC` and run again.'
         exit(1)
 
     plot_cmd = 'plot '

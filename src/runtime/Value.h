@@ -236,7 +236,7 @@ private:
 #include "runtime/ValueInlines.h"
 
 namespace Escargot {
-typedef Vector<Value, gc_malloc_ignore_off_page_allocator<Value>> ValueVector;
+typedef Vector<Value, CustomAllocator<Value>> ValueVector;
 }
 
 #endif

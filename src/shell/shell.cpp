@@ -31,92 +31,6 @@ void __attribute__((optimize("O0"))) fillStack(size_t siz)
 }
 #endif
 
-#ifdef PROFILE_MASSIF
-std::unordered_map<void*, void*> g_addressTable;
-std::vector<void*> g_freeList;
-
-void unregisterGCAddress(void* address)
-{
-    // ASSERT(g_addressTable.find(address) != g_addressTable.end());
-    if (g_addressTable.find(address) != g_addressTable.end()) {
-        auto iter = g_addressTable.find(address);
-        free(iter->second);
-        g_addressTable.erase(iter);
-    }
-}
-
-void registerGCAddress(void* address, size_t siz)
-{
-    if (g_addressTable.find(address) != g_addressTable.end()) {
-        unregisterGCAddress(address);
-    }
-    g_addressTable[address] = malloc(siz);
-}
-
-void* GC_malloc_hook(size_t siz)
-{
-    void* ptr;
-#ifdef NDEBUG
-    ptr = GC_malloc(siz);
-#else
-    ptr = GC_malloc(siz);
-#endif
-    registerGCAddress(ptr, siz);
-    return ptr;
-}
-void* GC_malloc_atomic_hook(size_t siz)
-{
-    void* ptr;
-#ifdef NDEBUG
-    ptr = GC_malloc_atomic(siz);
-#else
-    ptr = GC_malloc_atomic(siz);
-#endif
-    registerGCAddress(ptr, siz);
-    return ptr;
-}
-
-void* GC_malloc_ignore_off_page_hook(size_t siz)
-{
-    void* ptr;
-#ifdef NDEBUG
-    ptr = GC_malloc_ignore_off_page(siz);
-#else
-    ptr = GC_malloc_ignore_off_page(siz);
-#endif
-    registerGCAddress(ptr, siz);
-    return ptr;
-}
-
-void* GC_malloc_atomic_ignore_off_page_hook(size_t siz)
-{
-    void* ptr;
-#ifdef NDEBUG
-    ptr = GC_malloc_atomic_ignore_off_page_hook(siz);
-#else
-    ptr = GC_malloc_atomic_ignore_off_page_hook(siz);
-#endif
-    registerGCAddress(ptr, siz);
-    return ptr;
-}
-
-void GC_free_hook(void* address)
-{
-#ifdef NDEBUG
-    GC_free(address);
-#else
-    GC_free(address);
-#endif
-    unregisterGCAddress(address);
-}
-
-#endif
-
-#ifdef PROFILE_BDWGC
-const char* bdwgc_log_filename = "bdwgc_log";
-const char* bdwgc_log_phase = "initial phase";
-#endif
-
 void eval(Escargot::Context* context, Escargot::String* str, Escargot::String* fileName, bool shouldPrintScriptResult)
 {
     auto result = context->scriptParser().parse(str, fileName);
@@ -154,43 +68,9 @@ int main(int argc, char* argv[])
     GC_gcollect();
     GC_gcollect();
     */
-    GC_set_free_space_divisor(24);
-    GC_set_force_unmap_on_gcollect(1);
-// GC_set_full_freq(1);
-// GC_set_time_limit(GC_TIME_UNLIMITED);
-#ifdef PROFILE_MASSIF
-    GC_is_valid_displacement_print_proc = [](void* ptr) {
-        g_freeList.push_back(ptr);
-    };
-    GC_set_on_collection_event([](GC_EventType evtType) {
-        if (GC_EVENT_PRE_START_WORLD == evtType) {
-            auto iter = g_addressTable.begin();
-            while (iter != g_addressTable.end()) {
-                GC_is_valid_displacement(iter->first);
-                iter++;
-            }
 
-            for (unsigned i = 0; i < g_freeList.size(); i++) {
-                unregisterGCAddress(g_freeList[i]);
-            }
+    Escargot::Heap::initialize();
 
-            g_freeList.clear();
-        }
-    });
-#endif
-#ifdef PROFILE_BDWGC
-    remove(bdwgc_log_filename);
-    FILE* fp = fopen(bdwgc_log_filename, "a");
-    if (fp) {
-        fprintf(fp, "GC_no    PeakRSS   TotalHeap    Marked  # Phase\n");
-        fclose(fp);
-    }
-    GC_set_on_collection_event([](GC_EventType evtType) {
-        if (GC_EVENT_RECLAIM_START == evtType) {
-            GC_dump_for_graph(bdwgc_log_filename, bdwgc_log_phase);
-        }
-    });
-#endif
 #ifndef NDEBUG
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
@@ -234,12 +114,9 @@ int main(int argc, char* argv[])
 
     delete context;
     delete instance;
-    GC_gcollect_and_unmap();
-    GC_gcollect_and_unmap();
-    GC_gcollect_and_unmap();
-    GC_gcollect_and_unmap();
-    GC_gcollect_and_unmap();
-    GC_gcollect_and_unmap();
+
+    Escargot::Heap::finalize();
+
     return 0;
 }
 
@@ -279,3 +156,19 @@ int main(int argc, char* argv[])
         }
     }
  */
+
+/* Custom allocator & Array iterator test
+
+#include "runtime/ArrayObject.h"
+
+    size_t counter = 0;
+    Escargot::HeapObjectIteratorCallback callback =
+        [&counter](Escargot::ExecutionState& state, void* obj) {
+            Escargot::ArrayObject* arr = (Escargot::ArrayObject*) obj;
+            printf("ArrayObject %p with length %zu\n", obj, arr->getLength(state));
+            counter++;
+        };
+    Escargot::ExecutionState state(context);
+    Escargot::ArrayObject::iterateArrays(state, callback);
+    printf("Array total count %zu\n", counter);
+*/

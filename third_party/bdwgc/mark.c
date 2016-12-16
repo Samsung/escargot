@@ -869,6 +869,29 @@ GC_INNER mse * GC_mark_from(mse *mark_stack_top, mse *mark_stack,
   return mark_stack_top;
 }
 
+#ifdef ESCARGOT
+GC_API mse * GC_mark_and_push_custom(GC_word *addr, mse *mark_stack_ptr, mse *mark_stack_limit,
+                                     const GC_get_next_pointer_proc proc) {
+    DECLARE_HDR_CACHE;
+
+    INIT_HDR_CACHE;
+
+    const char* start = GC_USR_PTR_FROM_BASE(addr);
+    const char* end = ((char*)addr) + GC_size(addr) - 8;
+
+    GC_word* iterator = (GC_word*)start;
+    while (TRUE) {
+        GC_word* points = proc(&iterator);
+        if (points) {
+            PUSH_CONTENTS((ptr_t)points, mark_stack_ptr, mark_stack_limit, iterator, exit);
+        }
+        if (iterator >= (GC_word*)end)
+            break;
+    }
+    return (mark_stack_ptr);
+}
+#endif
+
 #ifdef PARALLEL_MARK
 
 STATIC GC_bool GC_help_wanted = FALSE;  /* Protected by mark lock       */

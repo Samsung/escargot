@@ -90,4 +90,15 @@ void ArrayObject::sort(ExecutionState& state, std::function<bool(const Value& a,
     }
     Object::sort(state, comp);
 }
+
+void* ArrayObject::operator new(size_t size)
+{
+    return CustomAllocator<ArrayObject>().allocate(1);
+}
+
+void ArrayObject::iterateArrays(ExecutionState& state, HeapObjectIteratorCallback callback)
+{
+    iterateSpecificKindOfObject(state, HeapObjectKind::ArrayObjectKind, callback);
+}
+
 }

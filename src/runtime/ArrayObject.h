@@ -20,7 +20,6 @@ public:
         return true;
     }
 
-
     uint32_t getLength(ExecutionState& state)
     {
         if (LIKELY(isPlainObject())) {
@@ -49,6 +48,12 @@ public:
         return getLength(state);
     }
     virtual void sort(ExecutionState& state, std::function<bool(const Value& a, const Value& b)> comp);
+
+    // Use custom allocator for Array object (for Badtime)
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+    static void iterateArrays(ExecutionState& state, HeapObjectIteratorCallback callback);
 
 protected:
     Value getLengthSlowCase(ExecutionState& state);
@@ -156,7 +161,7 @@ protected:
         return false;
     }
 
-    Vector<Value, gc_malloc_ignore_off_page_allocator<Value>> m_fastModeData;
+    ValueVector m_fastModeData;
 };
 }
 

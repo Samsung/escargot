@@ -7,6 +7,11 @@ if [ ! -f /proc/cpuinfo ]; then
 fi
 NUMPROC=$(grep 'processor' /proc/cpuinfo | wc -l)
 
+INCREMENTAL=false
+if [[ $1 == incremental ]]; then
+    INCREMENTAL=true
+fi
+
 #LTO=true
 LTO=false
 #COMPILER_VERSION_MAJOR=4.9
@@ -18,10 +23,12 @@ COMPILER_VERSION_MINOR=4.6.4
 # GC build
 ###########################################################
 cd third_party/bdwgc/
-autoreconf -vif
-automake --add-missing
-#./autogen.sh
-#make distclean
+if [[ $INCREMENTAL == false ]]; then
+    autoreconf -vif
+    automake --add-missing
+    #./autogen.sh
+    #make distclean
+fi
 
 # Common flags --------------------------------------------
 
@@ -70,10 +77,20 @@ function build_gc_for_linux() {
     for mode in debug release; do
     for libtype in shared static; do
         echo =========================================================================
-        echo Building bdwgc for $host $arch $mode $libtype
+
+        if ([ "$ARCH" != "" ] && [ "$ARCH" != $arch ]) ||
+           ([ "$MODE" != "" ] && [ "$MODE" != $mode ]) ||
+           ([ "$LIBTYPE" != "" ] && [ "$LIBTYPE" != $libtype ]); then
+            echo Skipping bdwgc build for $host $arch $mode $libtype
+            continue
+        else
+            echo Building bdwgc for $host $arch $mode $libtype
+        fi
 
         BUILDDIR=out/$host/$arch/$mode.$libtype
-        rm -rf $BUILDDIR
+        if [[ $INCREMENTAL == false ]]; then
+            rm -rf $BUILDDIR
+        fi
         mkdir -p $BUILDDIR
         cd $BUILDDIR
 
@@ -86,7 +103,9 @@ function build_gc_for_linux() {
         CFLAGS="$CFLAGS_COMMON ${!CFLAGS_HOST} ${!CFLAGS_ARCH} ${!CFLAGS_MODE} ${!CFLAGS_LIBTYPE}"
         LDFLAGS="$LDFLAGS_COMMON ${!LDFLAGS_HOST} ${!LDFLAGS_ARCH} ${!LDFLAGS_MODE} ${!LDFLAGS_LIBTYPE}"
 
-        ../../../../configure $GCCONFFLAGS CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS $CFLAGS" > /dev/null
+        if [[ $INCREMENTAL == false ]]; then
+            ../../../../configure $GCCONFFLAGS CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS $CFLAGS" > /dev/null
+        fi
         make -j$NUMPROC > /dev/null
 
         echo Building bdwgc for $host $arch $mode $libtype done
@@ -215,6 +234,7 @@ if [[ $1 == tizen_obs_arm ]]; then
     build_gc_for_tizen_obs arm $2
 elif [[ $1 == tizen_obs_i386 ]]; then
     build_gc_for_tizen_obs i386 $2
+
 else # full build
 
 build_gc_for_linux
