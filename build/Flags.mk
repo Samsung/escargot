@@ -57,7 +57,7 @@ ESCARGOT_CXXFLAGS_JIT += -Wno-invalid-offsetof
 # flags for $(MODE) : debug/release
 #######################################################
 ESCARGOT_CXXFLAGS_DEBUG += -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -Werror
-ESCARGOT_CXXFLAGS_RELEASE += -O2 -DNDEBUG -fno-stack-protector -funswitch-loops
+ESCARGOT_CXXFLAGS_RELEASE += -O2 -DNDEBUG -fno-stack-protector
 
 ifneq (,$(findstring tizen,$(HOST)))
   ESCARGOT_CXXFLAGS_RELEASE += -Os -finline-limit=64

@@ -17,7 +17,6 @@ class ExecutionContext : public gc {
 public:
     ExecutionContext(Context* context, ExecutionContext* parent = nullptr, LexicalEnvironment* lexicalEnvironment = nullptr, bool inStrictMode = false)
         : m_inStrictMode(inStrictMode)
-        , m_programCounter(nullptr)
         , m_context(context)
         , m_parent(parent)
         , m_stackStorage(nullptr)
@@ -57,16 +56,7 @@ private:
         m_stackStorage = storage;
     }
 
-    size_t programCounter()
-    {
-        if (m_programCounter)
-            return *m_programCounter;
-        else
-            return 0;
-    }
-
     bool m_inStrictMode;
-    size_t* m_programCounter;
     Context* m_context;
     ExecutionContext* m_parent;
     Value* m_stackStorage;

@@ -53,8 +53,17 @@ void RopeString::flattenRopeStringWorker()
         String* sub = cur;
         pos -= sub->length();
         size_t subLength = sub->length();
-        for (size_t i = 0; i < subLength; i++) {
-            result[i + pos] = sub->charAt(i);
+
+        if (sub->hasASCIIContent()) {
+            auto ptr = sub->characters8();
+            for (size_t i = 0; i < subLength; i++) {
+                result[i + pos] = ptr[i];
+            }
+        } else {
+            auto ptr = sub->characters16();
+            for (size_t i = 0; i < subLength; i++) {
+                result[i + pos] = ptr[i];
+            }
         }
     }
     m_left = new B(std::move(result));

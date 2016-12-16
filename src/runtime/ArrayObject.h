@@ -130,10 +130,10 @@ protected:
             }
             if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
                 uint32_t len = m_fastModeData.size();
-                if (len > idx && hasOwnProperty(state, P)) {
+                if (len > idx && !m_fastModeData[idx].isEmpty()) {
                     // Non-empty slot of fast-mode array always has {writable:true, enumerable:true, configurable:true}.
                     // So, when new desciptor is not present, keep {w:true, e:true, c:true}
-                    if (!desc.isNotPresent() && !desc.isDataWritableEnumerableConfigurable()) {
+                    if (UNLIKELY(!desc.isNotPresent() && !desc.isDataWritableEnumerableConfigurable())) {
                         convertIntoNonFastMode();
                         return false;
                     }

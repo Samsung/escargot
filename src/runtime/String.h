@@ -104,7 +104,7 @@ public:
         size_t hash = static_cast<size_t>(0xc70f6907UL);
 
         size_t len = length();
-        if (hasASCIIContent()) {
+        if (LIKELY(hasASCIIContent())) {
             auto ptr = characters8();
             for (size_t i = 0; i < len; i++) {
                 hash = (hash * 131) + ptr[i];

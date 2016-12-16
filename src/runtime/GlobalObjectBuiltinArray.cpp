@@ -149,14 +149,14 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, splice);
     uint32_t len = thisObject->length(state);
     double relativeStart = argv[0].toInteger(state);
-    uint32_t actualStart = (relativeStart < 0)? std::max(len + relativeStart, 0.0) : std::min(relativeStart, (double) len);
+    uint32_t actualStart = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, (double)len);
     // TODO(ES6): the number of actual arguments is used.
     // e.g. var arr = [1, 2, 3, 4, 5];
     //      Different: arr.splice(2) vs. arr.splice(2, undefined)
 
-    uint32_t insertCnt = (argc >= 2)? argc - 2 : 0;
-    uint32_t deleteCnt = std::min(std::max(argv[1].toInteger(state), 0.0), (double) len - actualStart);
-    double finalCnt = (double) len - deleteCnt + insertCnt;
+    uint32_t insertCnt = (argc >= 2) ? argc - 2 : 0;
+    uint32_t deleteCnt = std::min(std::max(argv[1].toInteger(state), 0.0), (double)len - actualStart);
+    double finalCnt = (double)len - deleteCnt + insertCnt;
     if (finalCnt > Value::InvalidArrayIndexValue) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_RangeError);
     }

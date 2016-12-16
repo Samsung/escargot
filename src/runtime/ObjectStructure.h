@@ -37,7 +37,7 @@ struct ObjectStructureTransitionItem : public gc {
 typedef Vector<ObjectStructureItem, gc_malloc_atomic_ignore_off_page_allocator<ObjectStructureItem>> ObjectStructureItemVector;
 typedef Vector<ObjectStructureTransitionItem, gc_malloc_ignore_off_page_allocator<ObjectStructureTransitionItem>> ObjectStructureTransitionTableVector;
 
-#define ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE 32
+#define ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE 96
 
 class ObjectStructure : public gc {
     friend class Object;
@@ -153,16 +153,9 @@ protected:
 
     size_t findPropertyWithMap(const PropertyName& s)
     {
-        PropertyNameMap& map = propertyNameMap();
+        const PropertyNameMap& map = propertyNameMap();
         auto iter = map.find(s);
         if (map.end() == iter) {
-            size_t siz = m_properties.size();
-            for (size_t i = 0; i < siz; i++) {
-                if (m_properties[i].m_propertyName == s) {
-                    map.insert(std::make_pair(s, i));
-                    return i;
-                }
-            }
             return SIZE_MAX;
         } else {
             return iter->second;
@@ -180,12 +173,23 @@ public:
         : ObjectStructure(state, false)
     {
         m_isStructureWithFastAccess = true;
+        buildPropertyNameMap();
     }
 
     ObjectStructureWithFastAccess(ExecutionState& state, ObjectStructureItemVector&& properties, bool hasIndexPropertyName)
         : ObjectStructure(state, std::move(properties), false, hasIndexPropertyName)
     {
         m_isStructureWithFastAccess = true;
+        buildPropertyNameMap();
+    }
+
+    void buildPropertyNameMap()
+    {
+        m_propertyNameMap.clear();
+        size_t len = m_properties.size();
+        for (size_t i = 0; i < len; i++) {
+            m_propertyNameMap.insert(std::make_pair(m_properties[i].m_propertyName, i));
+        }
     }
 
     PropertyNameMap m_propertyNameMap;
@@ -204,6 +208,7 @@ inline ObjectStructure* ObjectStructure::addProperty(ExecutionState& state, cons
     if (m_isStructureWithFastAccess) {
         m_properties.pushBack(newItem);
         m_hasIndexPropertyName = m_hasIndexPropertyName | isIndexString(name.string());
+        propertyNameMap().insert(std::make_pair(name, m_properties.size() - 1));
         ObjectStructureWithFastAccess* self = (ObjectStructureWithFastAccess*)this;
         self->m_version++;
         if (UNLIKELY(self->m_version == SIZE_MAX))
@@ -229,7 +234,7 @@ inline ObjectStructure* ObjectStructure::addProperty(ExecutionState& state, cons
     else
         newObjectStructure = new ObjectStructure(state, std::move(newProperties), m_needsTransitionTable, m_hasIndexPropertyName | isIndexString(name.string()));
 
-    if (m_needsTransitionTable && newObjectStructure->m_needsTransitionTable) {
+    if (m_needsTransitionTable && !newObjectStructure->isStructureWithFastAccess()) {
         ObjectStructureTransitionItem newTransitionItem(name, desc, newObjectStructure);
         m_transitionTable.pushBack(newTransitionItem);
     }
@@ -243,6 +248,7 @@ inline ObjectStructure* ObjectStructure::removeProperty(ExecutionState& state, s
         m_properties.erase(pIndex);
         propertyNameMap().clear();
         ObjectStructureWithFastAccess* self = (ObjectStructureWithFastAccess*)this;
+        self->buildPropertyNameMap();
         self->m_version++;
         if (UNLIKELY(self->m_version == SIZE_MAX))
             self->m_version = 0;

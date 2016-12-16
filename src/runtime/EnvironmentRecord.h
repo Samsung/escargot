@@ -285,6 +285,11 @@ public:
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
 
+    virtual void setMutableBindingByIndex(const size_t& idx, const Value& v)
+    {
+        m_vector[idx].m_value = v;
+    }
+
 protected:
     IdentifierRecordVector m_vector;
 };
