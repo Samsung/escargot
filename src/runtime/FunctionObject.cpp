@@ -95,8 +95,8 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     size_t stackStorageSize = m_codeBlock->identifierOnStackCount();
     if (m_codeBlock->canAllocateEnvironmentOnStack()) {
         // no capture, very simple case
-        record = new (alloca(sizeof(LexicalEnvironment))) FunctionEnvironmentRecordOnStack(state, receiver, this, argc, argv, isNewExpression);
-        env = new LexicalEnvironment(record, outerEnvironment());
+        record = new (alloca(sizeof(FunctionEnvironmentRecordOnStack))) FunctionEnvironmentRecordOnStack(state, receiver, this, argc, argv, isNewExpression);
+        env = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, outerEnvironment());
         ec = new (alloca(sizeof(ExecutionContext))) ExecutionContext(ctx, state.executionContext(), env, isStrict);
     } else {
         if (m_codeBlock->canUseIndexedVariableStorage()) {

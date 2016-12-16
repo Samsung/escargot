@@ -27,8 +27,8 @@ public:
     static bool abstractRelationalComparisonOrEqualSlowCase(ExecutionState& state, const Value& left, const Value& right, bool leftFirst);
     static inline bool abstractRelationalComparisonOrEqual(ExecutionState& state, const Value& left, const Value& right, bool leftFirst);
 
-    static inline std::pair<bool, Value> getObjectPrecomputedCaseOperation(ExecutionState& state, const Value& willBeObject, const PropertyName& name, GetObjectInlineCache& inlineCache);
-    static inline void setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache);
+    static inline std::pair<bool, Value> getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, GetObjectInlineCache& inlineCache);
+    static inline void setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache);
 
     static EnumerateObjectData* executeEnumerateObject(ExecutionState& state, Object* obj);
     static EnumerateObjectData* updateEnumerateObjectData(ExecutionState& state, EnumerateObjectData* data);

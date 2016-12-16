@@ -39,6 +39,7 @@ public:
     {
         return normalString()->toUTF8StringData();
     }
+
     virtual bool hasASCIIContent() const
     {
         return m_hasASCIIContent;

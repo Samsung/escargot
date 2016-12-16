@@ -12,7 +12,7 @@ PropertyName::PropertyName(ExecutionState& state, String* string)
     }
     bool needsRemainNormalString = false;
     char16_t c = string->charAt(0);
-    if (c == '.' || (c >= '0' && c <= '9')) {
+    if ((c == '.' || (c >= '0' && c <= '9')) && string->length() > 16) {
         needsRemainNormalString = true;
     }
 

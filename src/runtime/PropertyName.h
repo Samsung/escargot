@@ -46,13 +46,18 @@ public:
         }
     }
 
-    inline friend bool operator==(const PropertyName& a, const PropertyName& b);
-    inline friend bool operator!=(const PropertyName& a, const PropertyName& b);
+    ALWAYS_INLINE friend bool operator==(const PropertyName& a, const PropertyName& b);
+    ALWAYS_INLINE friend bool operator!=(const PropertyName& a, const PropertyName& b);
+
+    size_t rawData() const
+    {
+        return m_data;
+    }
 
 protected:
-    bool hasAtomicString() const
+    ALWAYS_INLINE bool hasAtomicString() const
     {
-        return m_data & 1;
+        return LIKELY(m_data & 1);
     }
 
     size_t m_data;
@@ -60,16 +65,16 @@ protected:
     // String* <- saves pointer
 };
 
-inline bool operator==(const PropertyName& a, const PropertyName& b)
+ALWAYS_INLINE bool operator==(const PropertyName& a, const PropertyName& b)
 {
-    if (LIKELY(a.hasAtomicString()) && LIKELY(b.hasAtomicString())) {
+    if (LIKELY(LIKELY(a.hasAtomicString()) && LIKELY(b.hasAtomicString()))) {
         return a.m_data == b.m_data;
     } else {
         return a.string()->equals(b.string());
     }
 }
 
-inline bool operator!=(const PropertyName& a, const PropertyName& b)
+ALWAYS_INLINE bool operator!=(const PropertyName& a, const PropertyName& b)
 {
     return !operator==(a, b);
 }

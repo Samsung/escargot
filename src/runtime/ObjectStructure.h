@@ -36,6 +36,7 @@ struct ObjectStructureTransitionItem : public gc {
 
 typedef Vector<ObjectStructureItem, gc_malloc_atomic_ignore_off_page_allocator<ObjectStructureItem>> ObjectStructureItemVector;
 typedef Vector<ObjectStructureTransitionItem, gc_malloc_ignore_off_page_allocator<ObjectStructureTransitionItem>> ObjectStructureTransitionTableVector;
+
 class ObjectStructure : public gc {
     friend class Object;
 
@@ -76,6 +77,7 @@ public:
 
     ObjectStructure* addProperty(ExecutionState& state, const PropertyName& name, const ObjectPropertyDescriptor& desc)
     {
+        ASSERT(name.string()->length());
         if (m_needsTransitionTable) {
             size_t r = searchTransitionTable(name, desc);
             if (r != SIZE_MAX) {
@@ -174,11 +176,12 @@ private:
 
     size_t findProperty(PropertyName s)
     {
-        for (size_t i = 0; i < m_properties.size(); i++) {
-            if (m_properties[i].m_propertyName == s)
+        size_t siz = m_properties.size();
+        for (size_t i = 0; i < siz; i++) {
+            if (m_properties[i].m_propertyName == s) {
                 return i;
+            }
         }
-
         return SIZE_MAX;
     }
 };

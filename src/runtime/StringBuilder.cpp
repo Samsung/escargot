@@ -25,6 +25,10 @@ void StringBuilder::appendPiece(String* str, size_t s, size_t e)
 
 String* StringBuilder::finalize()
 {
+    if (!m_contentLength) {
+        return String::emptyString;
+    }
+
     if (m_hasASCIIContent) {
         ASCIIStringData ret;
         ret.resizeWithUninitializedValues(m_contentLength);
@@ -34,18 +38,18 @@ String* StringBuilder::finalize()
             String* data = m_piecesInlineStorage[i].m_string;
             size_t s = m_piecesInlineStorage[i].m_start;
             size_t e = m_piecesInlineStorage[i].m_end;
-            for (size_t j = s; j < e; j++) {
-                ret[currentLength++] = data->charAt(j);
-            }
+            size_t l = e - s;
+            memcpy(&ret[currentLength], data->characters8() + s, l);
+            currentLength += l;
         }
 
         for (size_t i = 0; i < m_pieces.size(); i++) {
             String* data = m_pieces[i].m_string;
             size_t s = m_pieces[i].m_start;
             size_t e = m_pieces[i].m_end;
-            for (size_t j = s; j < e; j++) {
-                ret[currentLength++] = data->charAt(j);
-            }
+            size_t l = e - s;
+            memcpy(&ret[currentLength], data->characters8() + s, l);
+            currentLength += l;
         }
 
         return new ASCIIString(std::move(ret));
@@ -58,8 +62,19 @@ String* StringBuilder::finalize()
             String* data = m_piecesInlineStorage[i].m_string;
             size_t s = m_piecesInlineStorage[i].m_start;
             size_t e = m_piecesInlineStorage[i].m_end;
-            for (size_t j = s; j < e; j++) {
-                ret[currentLength++] = data->charAt(j);
+            size_t l = e - s;
+            if (data->hasASCIIContent()) {
+                auto ptr = data->characters8();
+                ptr += s;
+                for (size_t j = 0; j < l; j++) {
+                    ret[currentLength++] = ptr[j];
+                }
+            } else {
+                auto ptr = data->characters16();
+                ptr += s;
+                for (size_t j = 0; j < l; j++) {
+                    ret[currentLength++] = ptr[j];
+                }
             }
         }
 
@@ -67,8 +82,19 @@ String* StringBuilder::finalize()
             String* data = m_pieces[i].m_string;
             size_t s = m_pieces[i].m_start;
             size_t e = m_pieces[i].m_end;
-            for (size_t j = s; j < e; j++) {
-                ret[currentLength++] = data->charAt(j);
+            size_t l = e - s;
+            if (data->hasASCIIContent()) {
+                auto ptr = data->characters8();
+                ptr += s;
+                for (size_t j = 0; j < l; j++) {
+                    ret[currentLength++] = ptr[j];
+                }
+            } else {
+                auto ptr = data->characters16();
+                ptr += s;
+                for (size_t j = 0; j < l; j++) {
+                    ret[currentLength++] = ptr[j];
+                }
             }
         }
 
