@@ -19,7 +19,7 @@ Value ArrayObject::getLengthSlowCase(ExecutionState& state)
 
 bool ArrayObject::setLengthSlowCase(ExecutionState& state, const Value& value)
 {
-    return defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().length), ObjectPropertyDescriptorForDefineOwnProperty(value));
+    return defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().length), ObjectPropertyDescriptor(value));
 }
 
 ObjectGetResult ArrayObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
@@ -32,7 +32,7 @@ ObjectGetResult ArrayObject::getOwnProperty(ExecutionState& state, const ObjectP
     }
 }
 
-bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     if (LIKELY(setFastModeValue(state, P, desc))) {
         return true;
@@ -61,14 +61,14 @@ void ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
     return Object::deleteOwnProperty(state, P);
 }
 
-void ArrayObject::enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectPropertyDescriptor& desc)> callback) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+void ArrayObject::enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc)> callback) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     if (LIKELY(isFastModeArray())) {
         size_t len = m_fastModeData.size();
         for (size_t i = 0; i < len; i++) {
             if (m_fastModeData[i].isEmpty())
                 continue;
-            if (!callback(ObjectPropertyName(state, Value(i)), ObjectPropertyDescriptor::createDataDescriptor(ObjectPropertyDescriptor::AllPresent))) {
+            if (!callback(ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent))) {
                 return;
             }
         }

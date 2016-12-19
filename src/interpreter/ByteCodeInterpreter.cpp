@@ -413,7 +413,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             const Value& property = registerFile[code->m_propertyRegisterIndex];
             if (LIKELY(willBeObject.isPointerValue() && willBeObject.asPointerValue()->isArrayObject())) {
                 ArrayObject* arr = willBeObject.asObject()->asArrayObject();
-                if (LIKELY(arr->setFastModeValue(state, ObjectPropertyName(state, property), ObjectPropertyDescriptorForDefineOwnProperty(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptorForDefineOwnProperty::AllPresent)))) {
+                if (LIKELY(arr->setFastModeValue(state, ObjectPropertyName(state, property), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptor::AllPresent)))) {
                     ADD_PROGRAM_COUNTER(SetObject);
                     NEXT_INSTRUCTION();
                 }
@@ -1279,7 +1279,7 @@ EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(ExecutionState&
     size_t ownKeyCount = 0;
     bool shouldSearchProto = false;
 
-    target.asObject()->enumeration(state, [&](const ObjectPropertyName&, const ObjectPropertyDescriptor& desc) -> bool {
+    target.asObject()->enumeration(state, [&](const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc) -> bool {
         if (desc.isEnumerable()) {
             ownKeyCount++;
         }
@@ -1292,7 +1292,7 @@ EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(ExecutionState&
     target = target.asObject()->getPrototype(state);
     while (target.isObject()) {
         if (!shouldSearchProto) {
-            target.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectPropertyDescriptor& desc) -> bool {
+            target.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc) -> bool {
                 if (desc.isEnumerable()) {
                     shouldSearchProto = true;
                     return false;
@@ -1307,7 +1307,7 @@ EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(ExecutionState&
     target = obj;
     if (shouldSearchProto) {
         while (target.isObject()) {
-            target.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectPropertyDescriptor& desc) -> bool {
+            target.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc) -> bool {
                 if (desc.isEnumerable()) {
                     String* key = name.toValue(state).toString(state);
                     auto iter = keyStringSet.find(key);
@@ -1323,7 +1323,7 @@ EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(ExecutionState&
     } else {
         size_t idx = 0;
         data->m_keys.resizeWithUninitializedValues(ownKeyCount);
-        target.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectPropertyDescriptor& desc) -> bool {
+        target.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc) -> bool {
             if (desc.isEnumerable()) {
                 data->m_keys[idx++] = name.toValue(state);
             }

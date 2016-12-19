@@ -1,5 +1,5 @@
-#ifndef __EscargotObjectPropertyDescriptor__
-#define __EscargotObjectPropertyDescriptor__
+#ifndef __EscargotObjectStructurePropertyDescriptor__
+#define __EscargotObjectStructurePropertyDescriptor__
 
 #include "runtime/ExecutionState.h"
 #include "runtime/Value.h"
@@ -29,7 +29,7 @@ struct ObjectPropertyNativeGetterSetterData {
     }
 };
 
-class ObjectPropertyDescriptor {
+class ObjectStructurePropertyDescriptor {
     MAKE_STACK_ALLOCATED();
 
 public:
@@ -41,19 +41,19 @@ public:
         AllPresent = WritablePresent | EnumerablePresent | ConfigurablePresent
     };
 
-    static ObjectPropertyDescriptor createDataDescriptor(PresentAttribute attribute = (PresentAttribute)(WritablePresent | EnumerablePresent | ConfigurablePresent))
+    static ObjectStructurePropertyDescriptor createDataDescriptor(PresentAttribute attribute = (PresentAttribute)(WritablePresent | EnumerablePresent | ConfigurablePresent))
     {
-        return ObjectPropertyDescriptor(attribute);
+        return ObjectStructurePropertyDescriptor(attribute);
     }
 
-    static ObjectPropertyDescriptor createAccessorDescriptor(PresentAttribute attribute = (PresentAttribute)(WritablePresent | EnumerablePresent | ConfigurablePresent))
+    static ObjectStructurePropertyDescriptor createAccessorDescriptor(PresentAttribute attribute = (PresentAttribute)(WritablePresent | EnumerablePresent | ConfigurablePresent))
     {
-        return ObjectPropertyDescriptor(attribute, HasJSGetterSetter);
+        return ObjectStructurePropertyDescriptor(attribute, HasJSGetterSetter);
     }
 
-    static ObjectPropertyDescriptor createDataButHasNativeGetterSetterDescriptor(ObjectPropertyNativeGetterSetterData* nativeGetterSetterData)
+    static ObjectStructurePropertyDescriptor createDataButHasNativeGetterSetterDescriptor(ObjectPropertyNativeGetterSetterData* nativeGetterSetterData)
     {
-        return ObjectPropertyDescriptor(nativeGetterSetterData);
+        return ObjectStructurePropertyDescriptor(nativeGetterSetterData);
     }
 
     bool isPlainDataWritableEnumerableConfigurable() const
@@ -97,14 +97,14 @@ public:
         return m_descriptorData.mode() == HasJSGetterSetter;
     }
 
-    bool operator==(const ObjectPropertyDescriptor& desc) const
+    bool operator==(const ObjectStructurePropertyDescriptor& desc) const
     {
         // TODO compare getter, setter, prop
         ASSERT(isDataProperty());
         return m_descriptorData.m_data == desc.m_descriptorData.m_data;
     }
 
-    bool operator!=(const ObjectPropertyDescriptor& desc) const
+    bool operator!=(const ObjectStructurePropertyDescriptor& desc) const
     {
         return !operator==(desc);
     }
@@ -116,19 +116,19 @@ public:
     }
 
 protected:
-    enum ObjectPropertyDescriptorMode {
+    enum ObjectStructurePropertyDescriptorMode {
         PlainDataMode,
         HasDataButHasNativeGetterSetter,
         HasJSGetterSetter,
     };
 
-    struct ObjectPropertyDescriptorData {
+    struct ObjectStructurePropertyDescriptorData {
         union {
             size_t m_data;
             ObjectPropertyNativeGetterSetterData* m_nativeGetterSetterData;
         };
 
-        ObjectPropertyDescriptorData(PresentAttribute attribute, ObjectPropertyDescriptorMode mode)
+        ObjectStructurePropertyDescriptorData(PresentAttribute attribute, ObjectStructurePropertyDescriptorMode mode)
         {
             m_data = 1;
             m_data |= (attribute & PresentAttribute::WritablePresent) ? 2 : 0; // 2
@@ -137,7 +137,7 @@ protected:
             m_data |= (mode << 4); // after
         }
 
-        ObjectPropertyDescriptorData(ObjectPropertyNativeGetterSetterData* nativeGetterSetterData)
+        ObjectStructurePropertyDescriptorData(ObjectPropertyNativeGetterSetterData* nativeGetterSetterData)
         {
             m_nativeGetterSetterData = nativeGetterSetterData;
         }
@@ -174,31 +174,31 @@ protected:
             }
         }
 
-        ObjectPropertyDescriptorMode mode() const
+        ObjectStructurePropertyDescriptorMode mode() const
         {
             if (m_data & 1) {
                 size_t mode = m_data >> 4;
-                return (ObjectPropertyDescriptorMode)mode;
+                return (ObjectStructurePropertyDescriptorMode)mode;
             } else {
                 return HasDataButHasNativeGetterSetter;
             }
         }
     };
 
-    ObjectPropertyDescriptorData m_descriptorData;
+    ObjectStructurePropertyDescriptorData m_descriptorData;
 
-    ObjectPropertyDescriptor(PresentAttribute attribute = (PresentAttribute)(WritablePresent | EnumerablePresent | ConfigurablePresent), ObjectPropertyDescriptorMode mode = PlainDataMode)
+    ObjectStructurePropertyDescriptor(PresentAttribute attribute = (PresentAttribute)(WritablePresent | EnumerablePresent | ConfigurablePresent), ObjectStructurePropertyDescriptorMode mode = PlainDataMode)
         : m_descriptorData(attribute, mode)
     {
     }
 
-    ObjectPropertyDescriptor(ObjectPropertyNativeGetterSetterData* nativeGetterSetterData)
+    ObjectStructurePropertyDescriptor(ObjectPropertyNativeGetterSetterData* nativeGetterSetterData)
         : m_descriptorData(nativeGetterSetterData)
     {
     }
 };
 
-COMPILE_ASSERT(sizeof(ObjectPropertyDescriptor) <= sizeof(size_t), "");
+COMPILE_ASSERT(sizeof(ObjectStructurePropertyDescriptor) <= sizeof(size_t), "");
 }
 
 #endif

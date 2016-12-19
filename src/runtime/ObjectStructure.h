@@ -4,29 +4,29 @@
 #include "runtime/AtomicString.h"
 #include "runtime/ExecutionState.h"
 #include "runtime/PropertyName.h"
-#include "runtime/ObjectPropertyDescriptor.h"
+#include "runtime/ObjectStructurePropertyDescriptor.h"
 
 namespace Escargot {
 
 class ObjectStructure;
 
 struct ObjectStructureItem : public gc {
-    ObjectStructureItem(const PropertyName& as, const ObjectPropertyDescriptor& desc)
+    ObjectStructureItem(const PropertyName& as, const ObjectStructurePropertyDescriptor& desc)
         : m_propertyName(as)
         , m_descriptor(desc)
     {
     }
 
     PropertyName m_propertyName;
-    ObjectPropertyDescriptor m_descriptor;
+    ObjectStructurePropertyDescriptor m_descriptor;
 };
 
 struct ObjectStructureTransitionItem : public gc {
     PropertyName m_propertyName;
-    ObjectPropertyDescriptor m_descriptor;
+    ObjectStructurePropertyDescriptor m_descriptor;
     ObjectStructure* m_structure;
 
-    ObjectStructureTransitionItem(const PropertyName& as, const ObjectPropertyDescriptor& desc, ObjectStructure* structure)
+    ObjectStructureTransitionItem(const PropertyName& as, const ObjectStructurePropertyDescriptor& desc, ObjectStructure* structure)
         : m_propertyName(as)
         , m_descriptor(desc)
         , m_structure(structure)
@@ -81,13 +81,13 @@ public:
         return m_properties[idx];
     }
 
-    ObjectStructure* addProperty(ExecutionState& state, String* propertyName, const ObjectPropertyDescriptor& desc)
+    ObjectStructure* addProperty(ExecutionState& state, String* propertyName, const ObjectStructurePropertyDescriptor& desc)
     {
         PropertyName name(state, propertyName);
         return addProperty(state, name, desc);
     }
 
-    ObjectStructure* addProperty(ExecutionState& state, const PropertyName& name, const ObjectPropertyDescriptor& desc);
+    ObjectStructure* addProperty(ExecutionState& state, const PropertyName& name, const ObjectStructurePropertyDescriptor& desc);
     ObjectStructure* removeProperty(ExecutionState& state, size_t pIndex);
     ObjectStructure* escapeTransitionMode(ExecutionState& state);
     ObjectStructure* convertToWithFastAccess(ExecutionState& state);
@@ -125,7 +125,7 @@ protected:
     ObjectStructureItemVector m_properties;
     ObjectStructureTransitionTableVector m_transitionTable;
 
-    size_t searchTransitionTable(const PropertyName& s, const ObjectPropertyDescriptor& desc)
+    size_t searchTransitionTable(const PropertyName& s, const ObjectStructurePropertyDescriptor& desc)
     {
         ASSERT(m_needsTransitionTable);
         for (size_t i = 0; i < m_transitionTable.size(); i++) {
@@ -202,7 +202,7 @@ inline PropertyNameMap& ObjectStructure::propertyNameMap()
     return self->m_propertyNameMap;
 }
 
-inline ObjectStructure* ObjectStructure::addProperty(ExecutionState& state, const PropertyName& name, const ObjectPropertyDescriptor& desc)
+inline ObjectStructure* ObjectStructure::addProperty(ExecutionState& state, const PropertyName& name, const ObjectStructurePropertyDescriptor& desc)
 {
     ObjectStructureItem newItem(name, desc);
     if (m_isStructureWithFastAccess) {

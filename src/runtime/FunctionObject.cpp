@@ -58,7 +58,7 @@ Value FunctionObject::getFunctionPrototypeSlowCase(ExecutionState& state)
 
 bool FunctionObject::setFunctionPrototypeSlowCase(ExecutionState& state, const Value& v)
 {
-    return defineOwnProperty(state, state.context()->staticStrings().prototype, ObjectPropertyDescriptorForDefineOwnProperty(v));
+    return defineOwnProperty(state, state.context()->staticStrings().prototype, ObjectPropertyDescriptor(v));
 }
 
 Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, const size_t& argc, Value* argv, bool isNewExpression)

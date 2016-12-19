@@ -95,15 +95,15 @@ void GlobalObject::installRegExp(ExecutionState& state)
     const StaticStrings* strings = &state.context()->staticStrings();
     // $21.2.5.2 RegExp.prototype.exec
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->exec),
-                                                        ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(strings->exec, builtinRegExpExec, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::EnumerablePresent)));
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->exec, builtinRegExpExec, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
     // $21.2.5.13 RegExp.prototype.test
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->test),
-                                                        ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state, NativeFunctionInfo(strings->test, builtinRegExpTest, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::EnumerablePresent)));
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->test, builtinRegExpTest, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 
     // $21.2.5.14 RegExp.prototype.toString
     // $B.2.5.1 RegExp.prototype.compile
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().RegExp),
-                      ObjectPropertyDescriptorForDefineOwnProperty(m_regexp, (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::EnumerablePresent)));
+                      ObjectPropertyDescriptor(m_regexp, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent)));
 }
 }

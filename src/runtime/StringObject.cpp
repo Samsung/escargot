@@ -31,7 +31,7 @@ ObjectGetResult StringObject::getOwnProperty(ExecutionState& state, const Object
     return Object::getOwnProperty(state, P);
 }
 
-bool StringObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+bool StringObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     auto r = getOwnProperty(state, P);
     if (r.hasValue() && !r.isConfigurable())
@@ -47,11 +47,11 @@ void StringObject::deleteOwnProperty(ExecutionState& state, const ObjectProperty
     return Object::deleteOwnProperty(state, P);
 }
 
-void StringObject::enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectPropertyDescriptor& desc)> callback) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+void StringObject::enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc)> callback) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     size_t len = m_primitiveValue->length();
     for (size_t i = 0; i < len; i++) {
-        if (!callback(ObjectPropertyName(state, Value(i)), ObjectPropertyDescriptor::createDataDescriptor(ObjectPropertyDescriptor::EnumerablePresent))) {
+        if (!callback(ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::EnumerablePresent))) {
             return;
         }
     }

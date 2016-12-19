@@ -26,6 +26,6 @@ void GlobalObject::installBoolean(ExecutionState& state)
     m_boolean->setFunctionPrototype(state, m_booleanPrototype);
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Boolean),
-                      ObjectPropertyDescriptorForDefineOwnProperty(m_boolean, (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
+                      ObjectPropertyDescriptor(m_boolean, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 }

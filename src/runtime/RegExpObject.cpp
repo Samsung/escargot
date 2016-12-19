@@ -270,7 +270,7 @@ ArrayObject* RegExpObject::createMatchedArray(ExecutionState& state, String* str
     size_t len = result.m_matchResults.size();
     ret->setThrowsException(state, state.context()->staticStrings().length, Value(len), ret);
     for (size_t idx = 0; idx < len; idx++) {
-        ret->defineOwnProperty(state, ObjectPropertyName(state, Value(idx)), ObjectPropertyDescriptorForDefineOwnProperty(Value(new StringView(str, result.m_matchResults[idx][0].m_start, result.m_matchResults[idx][0].m_end)), ObjectPropertyDescriptorForDefineOwnProperty::AllPresent));
+        ret->defineOwnProperty(state, ObjectPropertyName(state, Value(idx)), ObjectPropertyDescriptor(Value(new StringView(str, result.m_matchResults[idx][0].m_start, result.m_matchResults[idx][0].m_end)), ObjectPropertyDescriptor::AllPresent));
     }
     return ret;
 }
@@ -279,16 +279,16 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
 {
     ArrayObject* arr = new ArrayObject(state);
 
-    arr->defineOwnPropertyThrowsException(state, state.context()->staticStrings().index, ObjectPropertyDescriptorForDefineOwnProperty(Value(result.m_matchResults[0][0].m_start)));
-    arr->defineOwnPropertyThrowsException(state, state.context()->staticStrings().input, ObjectPropertyDescriptorForDefineOwnProperty(Value(input)));
+    arr->defineOwnPropertyThrowsException(state, state.context()->staticStrings().index, ObjectPropertyDescriptor(Value(result.m_matchResults[0][0].m_start)));
+    arr->defineOwnPropertyThrowsException(state, state.context()->staticStrings().input, ObjectPropertyDescriptor(Value(input)));
 
     size_t idx = 0;
     for (unsigned i = 0; i < result.m_matchResults.size(); i++) {
         for (unsigned j = 0; j < result.m_matchResults[i].size(); j++) {
             if (result.m_matchResults[i][j].m_start == std::numeric_limits<unsigned>::max()) {
-                arr->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(idx++)), ObjectPropertyDescriptorForDefineOwnProperty(Value(), ObjectPropertyDescriptorForDefineOwnProperty::AllPresent));
+                arr->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(idx++)), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
             } else {
-                arr->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(idx++)), ObjectPropertyDescriptorForDefineOwnProperty(Value(new StringView(input, result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end)), ObjectPropertyDescriptorForDefineOwnProperty::AllPresent));
+                arr->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(idx++)), ObjectPropertyDescriptor(Value(new StringView(input, result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end)), ObjectPropertyDescriptor::AllPresent));
             }
         }
     }
@@ -303,9 +303,9 @@ void RegExpObject::pushBackToRegExpMatchedArray(ExecutionState& state, ArrayObje
                 continue;
 
             if (std::numeric_limits<unsigned>::max() == result.m_matchResults[i][j].m_start) {
-                array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(index++)), ObjectPropertyDescriptorForDefineOwnProperty(Value(), ObjectPropertyDescriptorForDefineOwnProperty::AllPresent));
+                array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(index++)), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
             } else {
-                array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(index++)), ObjectPropertyDescriptorForDefineOwnProperty(str->subString(result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end), ObjectPropertyDescriptorForDefineOwnProperty::AllPresent));
+                array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(index++)), ObjectPropertyDescriptor(str->subString(result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end), ObjectPropertyDescriptor::AllPresent));
             }
             if (index == limit)
                 return;

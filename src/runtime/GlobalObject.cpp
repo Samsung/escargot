@@ -174,33 +174,33 @@ static Value builtinParseInt(ExecutionState& state, Value thisValue, size_t argc
 
 void GlobalObject::installOthers(ExecutionState& state)
 {
-    defineOwnProperty(state, state.context()->staticStrings().Infinity, ObjectPropertyDescriptorForDefineOwnProperty(Value(std::numeric_limits<double>::infinity()), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::NotPresent)));
-    defineOwnProperty(state, state.context()->staticStrings().NaN, ObjectPropertyDescriptorForDefineOwnProperty(Value(std::numeric_limits<double>::quiet_NaN()), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::NotPresent)));
-    defineOwnProperty(state, state.context()->staticStrings().undefined, ObjectPropertyDescriptorForDefineOwnProperty(Value(), (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::NotPresent)));
+    defineOwnProperty(state, state.context()->staticStrings().Infinity, ObjectPropertyDescriptor(Value(std::numeric_limits<double>::infinity()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
+    defineOwnProperty(state, state.context()->staticStrings().NaN, ObjectPropertyDescriptor(Value(std::numeric_limits<double>::quiet_NaN()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
+    defineOwnProperty(state, state.context()->staticStrings().undefined, ObjectPropertyDescriptor(Value(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
 
     m_eval = new FunctionObject(state,
                                 NativeFunctionInfo(state.context()->staticStrings().eval, builtinEval, 1, nullptr, NativeFunctionInfo::Strict), false);
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().eval),
-                      ObjectPropertyDescriptorForDefineOwnProperty(m_eval, (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
+                      ObjectPropertyDescriptor(m_eval, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().parseInt),
-                      ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state,
+                      ObjectPropertyDescriptor(new FunctionObject(state,
                                                                                       NativeFunctionInfo(state.context()->staticStrings().parseInt, builtinParseInt, 2, nullptr, NativeFunctionInfo::Strict), false),
-                                                                   (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::WritablePresent | ObjectPropertyDescriptorForDefineOwnProperty::ConfigurablePresent)));
+                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 #ifdef ESCARGOT_SHELL
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().print),
-                      ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state,
+                      ObjectPropertyDescriptor(new FunctionObject(state,
                                                                                       NativeFunctionInfo(state.context()->staticStrings().print, builtinPrint, 1, nullptr, NativeFunctionInfo::Strict), false),
-                                                                   (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::AllPresent)));
+                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().load),
-                      ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state,
+                      ObjectPropertyDescriptor(new FunctionObject(state,
                                                                                       NativeFunctionInfo(state.context()->staticStrings().load, builtinLoad, 1, nullptr, NativeFunctionInfo::Strict), false),
-                                                                   (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::AllPresent)));
+                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 #endif
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().gc),
-                      ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state,
+                      ObjectPropertyDescriptor(new FunctionObject(state,
                                                                                       NativeFunctionInfo(state.context()->staticStrings().gc, builtinGc, 0, nullptr, NativeFunctionInfo::Strict), false),
-                                                                   (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::AllPresent)));
+                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
     m_stringProxyObject = new StringObject(state);
     m_numberProxyObject = new NumberObject(state);

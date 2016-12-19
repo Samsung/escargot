@@ -100,7 +100,7 @@ protected:
     } m_value;
 };
 
-class ObjectPropertyDescriptorForDefineOwnProperty {
+class ObjectPropertyDescriptor {
 public:
     enum PresentAttribute {
         NotPresent = 0,
@@ -114,7 +114,7 @@ public:
     };
 
     // for plain data property
-    explicit ObjectPropertyDescriptorForDefineOwnProperty(const Value& value, PresentAttribute attribute = ObjectPropertyDescriptorForDefineOwnProperty::NotPresent)
+    explicit ObjectPropertyDescriptor(const Value& value, PresentAttribute attribute = ObjectPropertyDescriptor::NotPresent)
         : m_isDataProperty(true)
         , m_property(attribute)
         , m_value(value)
@@ -182,24 +182,24 @@ public:
         return (m_property == NotPresent);
     }
 
-    ObjectPropertyDescriptor toObjectPropertyDescriptor() const
+    ObjectStructurePropertyDescriptor toObjectStructurePropertyDescriptor() const
     {
         ASSERT(isDataProperty());
         int f = 0;
 
         if (isWritable()) {
-            f = ObjectPropertyDescriptor::WritablePresent;
+            f = ObjectStructurePropertyDescriptor::WritablePresent;
         }
 
         if (isConfigurable()) {
-            f |= ObjectPropertyDescriptor::ConfigurablePresent;
+            f |= ObjectStructurePropertyDescriptor::ConfigurablePresent;
         }
 
         if (isEnumerable()) {
-            f |= ObjectPropertyDescriptor::EnumerablePresent;
+            f |= ObjectStructurePropertyDescriptor::EnumerablePresent;
         }
 
-        return ObjectPropertyDescriptor::createDataDescriptor((ObjectPropertyDescriptor::PresentAttribute)f);
+        return ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)f);
     }
 
 protected:
@@ -368,11 +368,11 @@ public:
     }
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
+    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual void deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     // enumeration every property!
     // callback function should skip un-Enumerable property if needs
-    virtual void enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectPropertyDescriptor& desc)> callback) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
+    virtual void enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc)> callback) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual uint32_t length(ExecutionState& state);
 
     bool hasOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
@@ -388,14 +388,14 @@ public:
 
     void setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, Object* receiver);
     void setThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const Value& v, Object* receiver);
-    void defineOwnPropertyThrowsException(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc)
+    void defineOwnPropertyThrowsException(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
     {
         if (!defineOwnProperty(state, P, desc)) {
             throwCannotDefineError(state, P.toPropertyName(state));
         }
     }
 
-    void defineOwnPropertyThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc)
+    void defineOwnPropertyThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
     {
         if (!defineOwnProperty(state, P, desc) && state.inStrictMode()) {
             throwCannotDefineError(state, P.toPropertyName(state));

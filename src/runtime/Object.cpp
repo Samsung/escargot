@@ -52,7 +52,7 @@ Value Object::getPrototypeSlowCase(ExecutionState& state)
 
 bool Object::setPrototypeSlowCase(ExecutionState& state, const Value& value)
 {
-    return defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().__proto__), ObjectPropertyDescriptorForDefineOwnProperty(value));
+    return defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().__proto__), ObjectPropertyDescriptor(value));
 }
 
 // http://www.ecma-international.org/ecma-262/6.0/#sec-ordinarygetownproperty
@@ -82,7 +82,7 @@ ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectProper
     return ObjectGetResult();
 }
 
-bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     if (isEverSetAsPrototypeObject()) {
         if (P.toValue(state).toIndex(state) != Value::InvalidIndexValue) {
@@ -109,7 +109,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
         // TODO implement JS getter setter
         RELEASE_ASSERT(desc.isDataProperty());
 
-        m_structure = m_structure->addProperty(state, propertyName, desc.toObjectPropertyDescriptor());
+        m_structure = m_structure->addProperty(state, propertyName, desc.toObjectStructurePropertyDescriptor());
         m_values.pushBack(desc.value());
         ASSERT(m_values.size() == m_structure->propertyCount());
         return true;
@@ -219,7 +219,7 @@ void Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& 
     deleteOwnProperty(state, m_structure->findProperty(state, P.toPropertyName(state)));
 }
 
-void Object::enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectPropertyDescriptor& desc)> fn) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+void Object::enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc)> fn) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     size_t cnt = m_structure->propertyCount();
     for (size_t i = 0; i < cnt; i++) {
@@ -261,7 +261,7 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
             }
             target = O->getPrototype(state);
         }
-        ObjectPropertyDescriptorForDefineOwnProperty desc(v, ObjectPropertyDescriptorForDefineOwnProperty::AllPresent);
+        ObjectPropertyDescriptor desc(v, ObjectPropertyDescriptor::AllPresent);
         return defineOwnProperty(state, propertyName, desc);
     } else {
         // If IsDataDescriptor(ownDesc) is true, then
@@ -284,12 +284,12 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
                     return false;
                 }
                 // Let valueDesc be the PropertyDescriptor{[[Value]]: V}.
-                ObjectPropertyDescriptorForDefineOwnProperty desc(v);
+                ObjectPropertyDescriptor desc(v);
                 return receiver->defineOwnProperty(state, propertyName, desc);
             } else {
                 // Else Receiver does not currently have a property P,
                 // Return CreateDataProperty(Receiver, P, V).
-                ObjectPropertyDescriptorForDefineOwnProperty desc(v);
+                ObjectPropertyDescriptor desc(v);
                 return defineOwnProperty(state, propertyName, desc);
             }
         } else {
@@ -405,7 +405,7 @@ double Object::nextIndexForward(ExecutionState& state, Object* obj, const double
     Value ptr = obj;
     double ret = end;
     while (ptr.isObject()) {
-        ptr.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectPropertyDescriptor& desc) {
+        ptr.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc) {
             uint32_t index = Value::InvalidArrayIndexValue;
             Value key = name.toValue(state);
             if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
@@ -429,7 +429,7 @@ double Object::nextIndexBackward(ExecutionState& state, Object* obj, const doubl
     Value ptr = obj;
     double ret = end;
     while (ptr.isObject()) {
-        ptr.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectPropertyDescriptor& desc) {
+        ptr.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc) {
             uint32_t index = Value::InvalidArrayIndexValue;
             Value key = name.toValue(state);
             if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
