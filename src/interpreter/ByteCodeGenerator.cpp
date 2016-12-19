@@ -97,6 +97,8 @@ void ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node*
     if (!codeBlock->isGlobalScopeCodeBlock())
         block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX), SIZE_MAX), &ctx, nullptr);
 
+    block->m_code.shrinkToFit();
+
 #ifndef NDEBUG
     if (getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) {
         printf("dumpBytecode %s (%d:%d)>>>>>>>>>>>>>>>>>>>>>>\n", codeBlock->m_functionName.string()->toUTF8StringData().data(), (int)ast->loc().line, (int)ast->loc().column);

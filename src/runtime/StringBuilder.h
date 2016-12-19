@@ -2,6 +2,7 @@
 #define __EscargotStringBuilder__
 
 #include "runtime/String.h"
+#include "util/Vector.h"
 
 namespace Escargot {
 
@@ -58,7 +59,7 @@ protected:
     size_t m_piecesInlineStorageUsage;
     size_t m_contentLength;
     StringBuilderPiece m_piecesInlineStorage[ESCARGOT_STRING_BUILDER_INLINE_STORAGE_MAX];
-    std::vector<StringBuilderPiece, gc_allocator_ignore_off_page<StringBuilderPiece>> m_pieces;
+    Vector<StringBuilderPiece, gc_allocator_ignore_off_page<StringBuilderPiece>> m_pieces;
 };
 }
 

@@ -3,7 +3,7 @@
 
 namespace Escargot {
 
-template <typename T, typename Allocator>
+template <typename T, typename Allocator, int const glowFactor = 120>
 class Vector : public gc {
 public:
     Vector()
@@ -21,7 +21,7 @@ public:
         resize(siz);
     }
 
-    Vector(Vector<T, Allocator>&& other)
+    Vector(Vector<T, Allocator, glowFactor>&& other)
     {
         m_size = other.size();
         m_buffer = other.m_buffer;
@@ -31,7 +31,7 @@ public:
         other.m_capacity = 0;
     }
 
-    Vector(const Vector<T, Allocator>& other)
+    Vector(const Vector<T, Allocator, glowFactor>& other)
     {
         if (other.size()) {
             m_size = other.size();
@@ -47,7 +47,7 @@ public:
         }
     }
 
-    const Vector<T, Allocator>& operator=(const Vector<T, Allocator>& other)
+    const Vector<T, Allocator>& operator=(const Vector<T, Allocator, glowFactor>& other)
     {
         if (other.size()) {
             m_size = other.size();
@@ -210,6 +210,20 @@ public:
         m_capacity = 0;
     }
 
+    void shrinkToFit()
+    {
+        if (m_size != m_capacity) {
+            T* newBuffer = Allocator().allocate(m_size);
+            for (size_t i = 0; i < m_size; i++) {
+                newBuffer[i] = m_buffer[i];
+            }
+            m_capacity = m_size;
+            if (m_buffer)
+                Allocator().deallocate(m_buffer, m_size);
+            m_buffer = newBuffer;
+        }
+    }
+
     void resizeWithUninitializedValues(size_t newSize)
     {
         if (newSize) {
@@ -259,14 +273,9 @@ public:
 protected:
     size_t computeAllocateSize(size_t newSize)
     {
-        const float glowFactor = 1.2f;
-        const size_t maxGap = 1024;
-        size_t n = newSize * glowFactor;
+        size_t n = newSize * glowFactor / 100.f;
         if (n == newSize)
             n++;
-        if ((n - newSize) > maxGap) {
-            n = newSize + maxGap;
-        }
         return n;
     }
 

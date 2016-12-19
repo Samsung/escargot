@@ -1276,7 +1276,7 @@ public:
 };
 
 
-typedef std::vector<char, gc_malloc_ignore_off_page_allocator<char>> ByteCodeBlockData;
+typedef Vector<char, gc_malloc_ignore_off_page_allocator<char>, 200> ByteCodeBlockData;
 class ByteCodeBlock : public gc {
 public:
     ByteCodeBlock()
@@ -1305,7 +1305,12 @@ public:
 
         const_cast<CodeType&>(code).assignOpcodeInAddress();
         char* first = (char*)&code;
-        m_code.insert(m_code.end(), first, first + sizeof(CodeType));
+        size_t start = m_code.size();
+        m_code.resize(m_code.size() + sizeof(CodeType));
+        for (size_t i = 0; i < sizeof(CodeType); i++) {
+            m_code[start++] = *first;
+            first++;
+        }
 
         m_requiredRegisterFileSizeInValueSize = std::max(m_requiredRegisterFileSizeInValueSize, (size_t)context->m_baseRegisterCount);
     }

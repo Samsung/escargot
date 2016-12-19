@@ -45,7 +45,12 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     CallNativeFunction code(info.m_nativeFunction);
     code.assignOpcodeInAddress();
     char* first = (char*)&code;
-    m_byteCodeBlock->m_code.insert(m_byteCodeBlock->m_code.end(), first, first + sizeof(CallNativeFunction));
+    size_t start = m_byteCodeBlock->m_code.size();
+    m_byteCodeBlock->m_code.resize(m_byteCodeBlock->m_code.size() + sizeof(CallNativeFunction));
+    for (size_t i = 0; i < sizeof(CallNativeFunction); i++) {
+        m_byteCodeBlock->m_code[start++] = *first;
+        first++;
+    }
 }
 
 CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, NodeLOC sourceElementStart, const AtomicStringVector& innerIdentifiers)

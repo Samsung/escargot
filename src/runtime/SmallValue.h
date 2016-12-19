@@ -157,7 +157,7 @@ public:
     {
         if (HAS_OBJECT_TAG(m_data.payload)) {
             PointerValue* v = (PointerValue*)m_data.payload;
-            if (UNLIKELY(v->isDoubleInSmallValue())) {
+            if (v->isDoubleInSmallValue()) {
                 return Value(v->asDoubleInSmallValue()->value());
             } else {
                 if (v == (PointerValue*)SmallValueImpl::smallValueUndefined->payload) {
