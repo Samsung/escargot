@@ -108,8 +108,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
         ec = new ExecutionContext(ctx, state.executionContext(), env, isStrict);
     }
 
-    ec->giveStackStorage(ALLOCA(stackStorageSize * sizeof(Value), Value, state));
-    Value* stackStorage = ec->stackStorage();
+    Value* stackStorage = ALLOCA(stackStorageSize * sizeof(Value), Value, state);
     for (size_t i = 0; i < stackStorageSize; i++) {
         stackStorage[i] = Value();
     }
@@ -155,7 +154,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     }
 
     // run function
-    ByteCodeInterpreter::interpret(newState, m_codeBlock, 0);
+    ByteCodeInterpreter::interpret(newState, m_codeBlock, 0, stackStorage);
 
     return resultValue;
 }

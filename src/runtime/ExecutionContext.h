@@ -7,6 +7,11 @@ class Context;
 class LexicalEnvironment;
 class EnvironmentRecord;
 class Value;
+class ControlFlowRecord;
+
+struct ExecutionContextRareData : public gc {
+    Vector<ControlFlowRecord*, gc_malloc_ignore_off_page_allocator<ExecutionContextRareData*>> m_controlFlowRecord;
+};
 
 class ExecutionContext : public gc {
     friend class FunctionObject;
@@ -19,7 +24,6 @@ public:
         : m_inStrictMode(inStrictMode)
         , m_context(context)
         , m_parent(parent)
-        , m_stackStorage(nullptr)
         , m_lexicalEnvironment(lexicalEnvironment)
     {
     }
@@ -45,22 +49,11 @@ public:
     }
 
 private:
-    Value* stackStorage()
-    {
-        return m_stackStorage;
-    }
-
-    void giveStackStorage(Value* storage)
-    {
-        ASSERT(m_stackStorage == nullptr);
-        m_stackStorage = storage;
-    }
-
     bool m_inStrictMode;
     Context* m_context;
     ExecutionContext* m_parent;
-    Value* m_stackStorage;
     LexicalEnvironment* m_lexicalEnvironment;
+    ExecutionContextRareData* m_rareData;
 };
 }
 

@@ -32,7 +32,7 @@ Value Script::execute(Context* ctx)
     Value resultValue;
     ExecutionState state(ctx, &ec, &resultValue);
 
-    ByteCodeInterpreter::interpret(state, m_topCodeBlock, 0);
+    ByteCodeInterpreter::interpret(state, m_topCodeBlock, 0, nullptr);
 
     return resultValue;
 }
@@ -83,13 +83,12 @@ Value Script::executeLocal(ExecutionState& state)
     ExecutionState newState(state.context(), &ec, &resultValue);
 
     size_t stackStorageSize = m_topCodeBlock->identifierOnStackCount();
-    ec.giveStackStorage(ALLOCA(stackStorageSize * sizeof(Value), Value, state));
-    Value* stackStorage = ec.stackStorage();
+    Value* stackStorage = ALLOCA(stackStorageSize * sizeof(Value), Value, state);
     for (size_t i = 0; i < stackStorageSize; i++) {
         stackStorage[i] = Value();
     }
 
-    ByteCodeInterpreter::interpret(newState, m_topCodeBlock, 0);
+    ByteCodeInterpreter::interpret(newState, m_topCodeBlock, 0, stackStorage);
 
     return resultValue;
 }

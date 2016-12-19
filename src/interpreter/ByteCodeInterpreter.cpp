@@ -46,7 +46,7 @@ ALWAYS_INLINE size_t resolveProgramCounter(char* codeBuffer, const size_t progra
     return programCounter - (size_t)codeBuffer;
 }
 
-void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock, size_t programCounter)
+void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock, size_t programCounter, Value* stackStorage)
 {
     if (UNLIKELY(codeBlock == nullptr)) {
         goto FillOpcodeTable;
@@ -59,7 +59,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         EnvironmentRecord* record = env->record();
         Value thisValue(Value::EmptyValue);
         Value* registerFile = ALLOCA(byteCodeBlock->m_requiredRegisterFileSizeInValueSize * sizeof(Value), Value, state);
-        Value* stackStorage = ec->stackStorage();
         char* codeBuffer = byteCodeBlock->m_code.data();
         programCounter = (size_t)(&codeBuffer[programCounter]);
         ByteCode* currentCode;
@@ -641,7 +640,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             TryOperation* code = (TryOperation*)currentCode;
             try {
                 size_t newPc = programCounter + sizeof(TryOperation);
-                interpret(state, codeBlock, resolveProgramCounter(codeBuffer, newPc));
+                interpret(state, codeBlock, resolveProgramCounter(codeBuffer, newPc), stackStorage);
                 programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
             } catch (const Value& val) {
                 state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
@@ -654,9 +653,8 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                     newRecord->setMutableBinding(state, code->m_catchVariableName, val);
                     LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
                     ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
-                    newEc->giveStackStorage(stackStorage);
                     ExecutionState newState(state.context(), newEc, state.exeuctionResult());
-                    interpret(newState, codeBlock, code->m_catchPosition);
+                    interpret(newState, codeBlock, code->m_catchPosition, stackStorage);
                     programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
                 }
             }
