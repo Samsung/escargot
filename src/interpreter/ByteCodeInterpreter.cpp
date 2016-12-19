@@ -1077,7 +1077,7 @@ bool ByteCodeInterpreter::abstractRelationalComparisonOrEqualSlowCase(ExecutionS
     }
 }
 
-inline std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, GetObjectInlineCache& inlineCache)
+ALWAYS_INLINE std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, GetObjectInlineCache& inlineCache)
 {
     Object* targetObj = obj;
     unsigned currentCacheIndex = 0;
@@ -1089,13 +1089,13 @@ inline std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOpera
         const size_t cSiz = cachedHiddenClassChain->size() - 1;
         for (size_t i = 0; i < cSiz; i++) {
             if (UNLIKELY((*cachedHiddenClassChain)[i].first != obj->structure() || (*cachedHiddenClassChain)[i].second != obj->structure()->version())) {
-                goto GetObjecPreComputedCacheMiss;
+                return getObjectPrecomputedCaseOperationCacheMiss(state, targetObj, name, inlineCache);
             }
             const Value& proto = obj->getPrototype(state);
             if (LIKELY(proto.isObject())) {
                 obj = proto.asObject();
             } else {
-                goto GetObjecPreComputedCacheMiss;
+                return getObjectPrecomputedCaseOperationCacheMiss(state, targetObj, name, inlineCache);
             }
         }
         if (LIKELY((*cachedHiddenClassChain)[cSiz].first == obj->structure() && (*cachedHiddenClassChain)[cSiz].second == obj->structure()->version())) {
@@ -1105,10 +1105,14 @@ inline std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOpera
                 return std::make_pair(false, Value());
             }
         }
-    GetObjecPreComputedCacheMiss : {
-    }
     }
 
+    return getObjectPrecomputedCaseOperationCacheMiss(state, targetObj, name, inlineCache);
+}
+
+std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMiss(ExecutionState& state, Object* targetObj, const PropertyName& name, GetObjectInlineCache& inlineCache)
+{
+    Object* obj = targetObj;
     // cache miss.
     inlineCache.m_executeCount++;
     if (inlineCache.m_executeCount <= 3) {
@@ -1116,7 +1120,6 @@ inline std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOpera
         return std::make_pair(result.hasValue(), result.value());
     }
 
-    obj = targetObj;
     inlineCache.m_cache.insert(0, GetObjectInlineCacheData());
     if (inlineCache.m_cache.size() > 5) {
         inlineCache.m_cache.erase(4);
@@ -1145,7 +1148,7 @@ inline std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOpera
     }
 }
 
-inline void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache)
+ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache)
 {
     Object* originalObject = obj;
     if (inlineCache.m_cachedIndex != SIZE_MAX && inlineCache.m_cachedhiddenClassChain[0].first == obj->structure() && inlineCache.m_cachedhiddenClassChain[0].second == obj->structure()->version()) {
@@ -1181,10 +1184,15 @@ inline void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionStat
         }
     }
 
+    setObjectPreComputedCaseOperationCacheMiss(state, originalObject, name, value, inlineCache);
+}
+
+void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* originalObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache)
+{
     // cache miss
     inlineCache.invalidateCache();
 
-    obj = originalObject;
+    Object* obj = originalObject;
 
     size_t idx = obj->structure()->findProperty(state, name);
     if (idx != SIZE_MAX) {

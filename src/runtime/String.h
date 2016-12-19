@@ -65,22 +65,7 @@ public:
         return charAt(idx);
     }
 
-    bool equals(const String* src) const
-    {
-        size_t srcLen = src->length();
-        if (srcLen != length()) {
-            return false;
-        }
-
-        for (size_t i = 0; i < srcLen; i++) {
-            if (src->charAt(i) != charAt(i)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
+    bool equals(const String* src) const;
     bool equals(const char* src) const
     {
         size_t srcLen = strlen(src);
@@ -162,6 +147,22 @@ protected:
     inline const char16_t* asUTF16StringData();
 
     static int stringCompare(size_t l1, size_t l2, const String* c1, const String* c2);
+
+    template <typename T>
+    static ALWAYS_INLINE bool stringEqual(const T* s, const T* s1, const size_t& len)
+    {
+        return memcmp(s, s1, sizeof(T) * len) == 0;
+    }
+
+    static ALWAYS_INLINE bool stringEqual(const char16_t* s, const char* s1, const size_t& len)
+    {
+        for (size_t i = 0; i < len; i++) {
+            if (s[i] != s1[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
 };
 
 inline bool operator<(const String& a, const String& b)

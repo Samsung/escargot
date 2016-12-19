@@ -437,6 +437,27 @@ int String::stringCompare(size_t l1, size_t l2, const String* c1, const String* 
     return (l1 > l2) ? 1 : -1;
 }
 
+bool String::equals(const String* src) const
+{
+    size_t srcLen = src->length();
+    if (srcLen != length()) {
+        return false;
+    }
+
+    bool myIsASCII = hasASCIIContent();
+    bool srcIsASCII = src->hasASCIIContent();
+
+    if (myIsASCII && srcIsASCII) {
+        return stringEqual(characters8(), src->characters8(), srcLen);
+    } else if (myIsASCII && !srcIsASCII) {
+        return stringEqual(src->characters16(), characters8(), srcLen);
+    } else if (!myIsASCII && srcIsASCII) {
+        return stringEqual(characters16(), src->characters8(), srcLen);
+    } else {
+        return stringEqual(characters16(), src->characters16(), srcLen);
+    }
+}
+
 uint32_t String::tryToUseAsArrayIndex() const
 {
     bool allOfCharIsDigit = true;
