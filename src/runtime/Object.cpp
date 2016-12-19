@@ -7,6 +7,53 @@
 
 namespace Escargot {
 
+ObjectPropertyDescriptor::ObjectPropertyDescriptor(ExecutionState& state, Object* obj)
+    : m_isDataProperty(true)
+{
+    m_property = NotPresent;
+    const StaticStrings* strings = &state.context()->staticStrings();
+    auto desc = obj->get(state, ObjectPropertyName(strings->enumerable));
+    if (desc.hasValue())
+        setEnumerable(desc.value().toBoolean(state));
+    desc = obj->get(state, ObjectPropertyName(strings->configurable));
+    if (desc.hasValue())
+        setConfigurable(desc.value().toBoolean(state));
+    desc = obj->get(state, ObjectPropertyName(strings->writable));
+    if (desc.hasValue())
+        setWritable(desc.value().toBoolean(state));
+
+    desc = obj->get(state, ObjectPropertyName(strings->value));
+    if (desc.hasValue())
+        m_value = desc.value();
+
+    // TODO : getter, setter
+    checkProperty();
+}
+
+void ObjectPropertyDescriptor::setEnumerable(bool enumerable)
+{
+    if (enumerable)
+        m_property = (PresentAttribute) (m_property | EnumerablePresent);
+    else
+        m_property = (PresentAttribute) (m_property | NonEnumerablePresent);
+}
+
+void ObjectPropertyDescriptor::setConfigurable(bool configurable)
+{
+    if (configurable)
+        m_property = (PresentAttribute) (m_property | ConfigurablePresent);
+    else
+        m_property = (PresentAttribute) (m_property | NonConfigurablePresent);
+}
+
+void ObjectPropertyDescriptor::setWritable(bool writable)
+{
+    if (writable)
+        m_property = (PresentAttribute) (m_property | WritablePresent);
+    else
+        m_property = (PresentAttribute) (m_property | NonWritablePresent);
+}
+
 Object::Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea)
     : m_structure(state.context()->defaultStructureForObject())
     , m_rareData(nullptr)

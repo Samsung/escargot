@@ -45,6 +45,7 @@ Script::ScriptSandboxExecuteResult Script::sandboxExecute(Context* ctx)
         return execute(ctx);
     });
     result.result = sandBoxResult.result;
+    result.msgStr = sandBoxResult.msgStr;
     result.error.errorValue = sandBoxResult.error;
     if (!sandBoxResult.error.isEmpty()) {
         for (size_t i = 0; i < sandBoxResult.stackTraceData.size(); i++) {

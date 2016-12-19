@@ -77,6 +77,44 @@ static Value builtinObjectHasOwnProperty(ExecutionState& state, Value thisValue,
     return Value(obj->hasOwnProperty(state, ObjectPropertyName(state, keyString)));
 }
 
+inline Value objectDefineProperties(ExecutionState& state, Value object, Value properties)
+{
+    const StaticStrings* strings = &state.context()->staticStrings();
+    if (!object.isObject())
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Object.string(), false, strings->defineProperty.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+    Object* props = properties.toObject(state);
+    std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor> > descriptors;
+    props->enumeration(state, [&](const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc) -> bool {
+        auto propDesc = props->getOwnProperty(state, name);
+        if (propDesc.hasValue() && !propDesc.value().isUndefined() && desc.isEnumerable()) {
+            Value propVal = propDesc.value();
+            if (!propVal.isObject())
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Object.string(), false, strings->defineProperty.string(), errorMessage_GlobalObject_DescriptorNotObject);
+            descriptors.push_back(std::make_pair(name, ObjectPropertyDescriptor(state, propVal.toObject(state))));
+        }
+        return true;
+    });
+    for (auto it : descriptors) {
+        object.asObject()->defineOwnPropertyThrowsException(state, it.first, it.second);
+    }
+    return object;
+}
+
+static Value builtinObjectCreate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (!argv[0].isObject() && !argv[0].isNull())
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().create.string(), errorMessage_GlobalObject_FirstArgumentNotObjectAndNotNull);
+    Object* obj = new Object(state);
+    if (argv[0].isNull())
+        obj->setPrototype(state, Value(Value::Null));
+    else
+        obj->setPrototype(state, argv[0]);
+
+    if (!argv[1].isUndefined())
+        return objectDefineProperties(state, obj, argv[1]);
+    return obj;
+}
+
 
 void GlobalObject::installObject(ExecutionState& state)
 {
@@ -88,6 +126,10 @@ void GlobalObject::installObject(ExecutionState& state)
     m_object->setPrototype(state, emptyFunction);
     // TODO m_object->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
     m_object->setFunctionPrototype(state, m_objectPrototype);
+    // $19.1.2.2 Object.create (O [,Properties])
+    m_object->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().create),
+        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().create, builtinObjectCreate, 2, nullptr, NativeFunctionInfo::Strict)),
+                                             (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor),
                                          ObjectPropertyDescriptor(m_object, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

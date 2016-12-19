@@ -36,10 +36,12 @@ public:
     struct SandBoxResult {
         Value result;
         Value error;
+        String* msgStr;
         Vector<StackTraceData, gc_malloc_allocator<StackTraceData>> stackTraceData;
         SandBoxResult()
             : result(Value::EmptyValue)
             , error(Value::EmptyValue)
+            , msgStr(String::emptyString)
         {
         }
     };

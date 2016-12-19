@@ -43,9 +43,9 @@ void eval(Escargot::Context* context, Escargot::String* str, Escargot::String* f
         Escargot::ExecutionState state(context);
         if (!resultValue.result.isEmpty()) {
             if (shouldPrintScriptResult)
-                puts(resultValue.result.toString(state)->toUTF8StringData().data());
+                puts(resultValue.msgStr->toUTF8StringData().data());
         } else {
-            puts(resultValue.error.errorValue.toString(state)->toUTF8StringData().data());
+            puts(resultValue.msgStr->toUTF8StringData().data());
             for (size_t i = 0; i < resultValue.error.stackTrace.size(); i++) {
                 printf("%s (%d:%d)\n", resultValue.error.stackTrace[i].fileName->toUTF8StringData().data(), (int)resultValue.error.stackTrace[i].line, (int)resultValue.error.stackTrace[i].column);
             }

@@ -12,10 +12,13 @@ namespace Escargot {
 SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner)
 {
     SandBox::SandBoxResult result;
+    ExecutionState state(m_context);
     try {
         result.result = scriptRunner();
+        result.msgStr = result.result.toString(state);
     } catch (const Value& err) {
         result.error = err;
+        result.msgStr = result.error.toString(state);
         for (size_t i = 0; i < m_stackTraceData.size(); i++) {
             result.stackTraceData.pushBack(m_stackTraceData[i].second);
         }

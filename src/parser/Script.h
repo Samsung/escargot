@@ -21,6 +21,7 @@ public:
     struct ScriptSandboxExecuteResult {
         MAKE_STACK_ALLOCATED();
         Value result;
+        String* msgStr;
         struct Error {
             Value errorValue;
             struct StackTrace {

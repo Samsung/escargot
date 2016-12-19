@@ -122,6 +122,8 @@ public:
         checkProperty();
     }
 
+    ObjectPropertyDescriptor(ExecutionState& state, Object* obj);
+
     // TODO
     // for native acc. data property
     // for js acc. property
@@ -181,6 +183,10 @@ public:
     {
         return (m_property == NotPresent);
     }
+
+    void setEnumerable(bool enumerable);
+    void setConfigurable(bool configurable);
+    void setWritable(bool writable);
 
     ObjectStructurePropertyDescriptor toObjectStructurePropertyDescriptor() const
     {
