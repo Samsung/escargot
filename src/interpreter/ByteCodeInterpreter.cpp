@@ -478,15 +478,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             NEXT_INSTRUCTION();
         }
 
-        ReturnFunctionOpcodeLbl : {
-            ReturnFunction* code = (ReturnFunction*)currentCode;
-            if (code->m_registerIndex != SIZE_MAX)
-                *state.exeuctionResult() = registerFile[code->m_registerIndex];
-            else
-                *state.exeuctionResult() = Value();
-            return;
-        }
-
         BinaryBitwiseAndOpcodeLbl : {
             BinaryBitwiseAnd* code = (BinaryBitwiseAnd*)currentCode;
             const Value& left = registerFile[code->m_srcIndex0];
@@ -587,95 +578,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             NEXT_INSTRUCTION();
         }
 
-        EndOpcodeLbl : {
-            *state.exeuctionResult() = registerFile[0];
-            return;
-        }
-
-        DeclareFunctionDeclarationOpcodeLbl : {
-            DeclareFunctionDeclaration* code = (DeclareFunctionDeclaration*)currentCode;
-            registerFile[0] = new FunctionObject(state, code->m_codeBlock, env);
-            ADD_PROGRAM_COUNTER(DeclareFunctionDeclaration);
-            NEXT_INSTRUCTION();
-        }
-
-        CallNativeFunctionOpcodeLbl : {
-            CallNativeFunction* code = (CallNativeFunction*)currentCode;
-            Value* argv = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->argv();
-            size_t argc = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->argc();
-            if (argc < record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->parametersInfomation().size()) {
-                size_t len = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->parametersInfomation().size();
-                Value* newArgv = ALLOCA(sizeof(Value) * len, Value, state);
-                for (size_t i = 0; i < argc; i++) {
-                    newArgv[i] = argv[i];
-                }
-                for (size_t i = argc; i < len; i++) {
-                    newArgv[i] = Value();
-                }
-                argv = newArgv;
-                // argc = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->parametersInfomation().size();
-            }
-            *state.exeuctionResult() = code->m_fn(state, env->getThisBinding(), argc, argv, record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isNewExpression());
-            return;
-        }
-
-        CallEvalFunctionOpcodeLbl : {
-            CallEvalFunction* code = (CallEvalFunction*)currentCode;
-            Value eval = loadByName(state, env, state.context()->staticStrings().eval);
-            if (eval.equalsTo(state, state.context()->globalObject()->eval())) {
-                // do eval
-                Value arg;
-                if (code->m_argumentCount) {
-                    arg = registerFile[code->m_registerIndex];
-                }
-                registerFile[code->m_registerIndex] = state.context()->globalObject()->eval(state, arg, codeBlock);
-            } else {
-                registerFile[code->m_registerIndex] = FunctionObject::call(eval, state, Value(), code->m_argumentCount, &registerFile[code->m_registerIndex]);
-            }
-            ADD_PROGRAM_COUNTER(CallEvalFunction);
-            NEXT_INSTRUCTION();
-        }
-
-        TryOperationOpcodeLbl : {
-            TryOperation* code = (TryOperation*)currentCode;
-            try {
-                size_t newPc = programCounter + sizeof(TryOperation);
-                interpret(state, codeBlock, resolveProgramCounter(codeBuffer, newPc), stackStorage);
-                programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
-            } catch (const Value& val) {
-                state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
-                if (code->m_hasCatch == false) {
-                    throw val;
-                } else {
-                    // setup new env
-                    EnvironmentRecord* newRecord = new DeclarativeEnvironmentRecordNotIndexded(state);
-                    newRecord->createMutableBinding(state, code->m_catchVariableName);
-                    newRecord->setMutableBinding(state, code->m_catchVariableName, val);
-                    LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
-                    ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
-                    ExecutionState newState(state.context(), newEc, state.exeuctionResult());
-                    interpret(newState, codeBlock, code->m_catchPosition, stackStorage);
-                    programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
-                }
-            }
-            NEXT_INSTRUCTION();
-        }
-
-        TryCatchBodyEndOpcodeLbl : {
-            return;
-        }
-
-        FinallyEndOpcodeLbl : {
-            FinallyEnd* code = (FinallyEnd*)currentCode;
-            ADD_PROGRAM_COUNTER(FinallyEnd);
-            NEXT_INSTRUCTION();
-        }
-
-        ThrowOperationOpcodeLbl : {
-            ThrowOperation* code = (ThrowOperation*)currentCode;
-            state.context()->throwException(state, registerFile[code->m_registerIndex]);
-        }
-
         UnaryPlusOpcodeLbl : {
             UnaryPlus* code = (UnaryPlus*)currentCode;
             const Value& val = registerFile[code->m_registerIndex];
@@ -725,11 +627,144 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             NEXT_INSTRUCTION();
         }
 
+        EndOpcodeLbl : {
+            *state.exeuctionResult() = registerFile[0];
+            return;
+        }
+
+        ReturnFunctionOpcodeLbl : {
+            ReturnFunction* code = (ReturnFunction*)currentCode;
+            if (code->m_registerIndex != SIZE_MAX)
+                *state.exeuctionResult() = registerFile[code->m_registerIndex];
+            else
+                *state.exeuctionResult() = Value();
+            if (UNLIKELY(state.rareData() != nullptr)) {
+                if (state.rareData()->m_controlFlowRecord && state.rareData()->m_controlFlowRecord->size()) {
+                    state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, Value(), state.rareData()->m_controlFlowRecord->size());
+                }
+            }
+            return;
+        }
+
+        DeclareFunctionDeclarationOpcodeLbl : {
+            DeclareFunctionDeclaration* code = (DeclareFunctionDeclaration*)currentCode;
+            registerFile[0] = new FunctionObject(state, code->m_codeBlock, env);
+            ADD_PROGRAM_COUNTER(DeclareFunctionDeclaration);
+            NEXT_INSTRUCTION();
+        }
+
+
+        CallNativeFunctionOpcodeLbl : {
+            CallNativeFunction* code = (CallNativeFunction*)currentCode;
+            Value* argv = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->argv();
+            size_t argc = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->argc();
+            if (argc < record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->parametersInfomation().size()) {
+                size_t len = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->parametersInfomation().size();
+                Value* newArgv = ALLOCA(sizeof(Value) * len, Value, state);
+                for (size_t i = 0; i < argc; i++) {
+                    newArgv[i] = argv[i];
+                }
+                for (size_t i = argc; i < len; i++) {
+                    newArgv[i] = Value();
+                }
+                argv = newArgv;
+                // argc = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->parametersInfomation().size();
+            }
+            *state.exeuctionResult() = code->m_fn(state, env->getThisBinding(), argc, argv, record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isNewExpression());
+            return;
+        }
+
+        CallEvalFunctionOpcodeLbl : {
+            CallEvalFunction* code = (CallEvalFunction*)currentCode;
+            Value eval = loadByName(state, env, state.context()->staticStrings().eval);
+            if (eval.equalsTo(state, state.context()->globalObject()->eval())) {
+                // do eval
+                Value arg;
+                if (code->m_argumentCount) {
+                    arg = registerFile[code->m_registerIndex];
+                }
+                registerFile[code->m_registerIndex] = state.context()->globalObject()->eval(state, arg, codeBlock);
+            } else {
+                registerFile[code->m_registerIndex] = FunctionObject::call(eval, state, Value(), code->m_argumentCount, &registerFile[code->m_registerIndex]);
+            }
+            ADD_PROGRAM_COUNTER(CallEvalFunction);
+            NEXT_INSTRUCTION();
+        }
+
+        TryOperationOpcodeLbl : {
+            TryOperation* code = (TryOperation*)currentCode;
+            try {
+                if (!state.ensureRareData()->m_controlFlowRecord) {
+                    state.ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
+                }
+                state.ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
+                size_t newPc = programCounter + sizeof(TryOperation);
+                interpret(state, codeBlock, resolveProgramCounter(codeBuffer, newPc), stackStorage);
+                programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
+            } catch (const Value& val) {
+                state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
+                if (code->m_hasCatch == false) {
+                    ASSERT(state.rareData()->m_controlFlowRecord->back() == nullptr);
+                    state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
+                    programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
+                } else {
+                    // setup new env
+                    EnvironmentRecord* newRecord = new DeclarativeEnvironmentRecordNotIndexded(state);
+                    newRecord->createMutableBinding(state, code->m_catchVariableName);
+                    newRecord->setMutableBinding(state, code->m_catchVariableName, val);
+                    LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
+                    ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
+
+                    ExecutionState newState(state.context(), newEc, state.exeuctionResult());
+                    newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
+                    interpret(newState, codeBlock, code->m_catchPosition, stackStorage);
+                    programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
+                }
+            }
+            NEXT_INSTRUCTION();
+        }
+
+        TryCatchBodyEndOpcodeLbl : {
+            return;
+        }
+
+        FinallyEndOpcodeLbl : {
+            FinallyEnd* code = (FinallyEnd*)currentCode;
+            ControlFlowRecord* record = state.rareData()->m_controlFlowRecord->back();
+            state.rareData()->m_controlFlowRecord->erase(state.rareData()->m_controlFlowRecord->size() - 1);
+            if (record) {
+                if (record->reason() == ControlFlowRecord::NeedsJump) {
+                    size_t pos = (size_t)record->value().asPointerValue();
+                    record->m_count--;
+                    if (record->count()) {
+                        state.rareData()->m_controlFlowRecord->back() = record;
+                        return;
+                    } else
+                        programCounter = jumpTo(codeBuffer, pos);
+                } else if (record->reason() == ControlFlowRecord::NeedsThrow) {
+                    throw record->value();
+                } else if (record->reason() == ControlFlowRecord::NeedsReturn) {
+                    record->m_count--;
+                    if (record->count()) {
+                        state.rareData()->m_controlFlowRecord->back() = record;
+                    }
+                    return;
+                }
+            } else {
+                ADD_PROGRAM_COUNTER(FinallyEnd);
+            }
+            NEXT_INSTRUCTION();
+        }
+
+        ThrowOperationOpcodeLbl : {
+            ThrowOperation* code = (ThrowOperation*)currentCode;
+            state.context()->throwException(state, registerFile[code->m_registerIndex]);
+        }
+
         JumpComplexCaseOpcodeLbl : {
             JumpComplexCase* code = (JumpComplexCase*)currentCode;
-            ASSERT(code->m_jumpPosition != SIZE_MAX);
-            programCounter = jumpTo(codeBuffer, code->m_jumpPosition);
-            NEXT_INSTRUCTION();
+            state.ensureRareData()->m_controlFlowRecord->back() = code->m_controlFlowRecord->clone();
+            return;
         }
 
         EnumerateObjectOpcodeLbl : {

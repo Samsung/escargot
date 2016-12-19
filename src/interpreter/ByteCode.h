@@ -894,6 +894,8 @@ public:
 };
 
 class ControlFlowRecord : public gc {
+    friend class ByteCodeInterpreter;
+
 public:
     enum ControlFlowReason {
         NeedsReturn,
@@ -901,34 +903,11 @@ public:
         NeedsThrow,
     };
 
-protected:
-    ControlFlowRecord(const ControlFlowReason& reason, const Value& value)
+    ControlFlowRecord(const ControlFlowReason& reason, const Value& value, size_t count = 0)
     {
         m_reason = reason;
         m_value = value;
-    }
-
-    ControlFlowRecord(const ControlFlowReason& reason, const Value& value, const Value& tryDupCount)
-    {
-        m_reason = reason;
-        m_value = value;
-        m_tryDupCount = tryDupCount;
-    }
-
-public:
-    ControlFlowRecord* clone()
-    {
-        return new ControlFlowRecord(*this);
-    }
-
-    static ControlFlowRecord* create(const ControlFlowReason& reason, const Value& value)
-    {
-        return new ControlFlowRecord(reason, value);
-    }
-
-    static ControlFlowRecord* create(const ControlFlowReason& reason, const Value& value, const Value& tryDupCount)
-    {
-        return new ControlFlowRecord(reason, value, tryDupCount);
+        m_count = count;
     }
 
     const ControlFlowReason& reason()
@@ -941,50 +920,49 @@ public:
         return m_value;
     }
 
-    const Value& tryDupCount()
-    {
-        return m_tryDupCount;
-    }
-
     void setValue(const Value& value)
     {
         m_value = value;
     }
 
-    void setTryDupCount(const Value& tryDupCount)
+    size_t count()
     {
-        m_tryDupCount = tryDupCount;
+        return m_count;
+    }
+
+    ControlFlowRecord* clone()
+    {
+        return new ControlFlowRecord(m_reason, m_value, m_count);
     }
 
 protected:
     ControlFlowReason m_reason;
     Value m_value;
-    Value m_tryDupCount;
+    size_t m_count;
 };
 
 class JumpComplexCase : public ByteCode {
 public:
     JumpComplexCase(Jump* jmp, size_t tryDupCount)
         : ByteCode(Opcode::JumpComplexCaseOpcode, jmp->m_loc)
-        , m_jumpPosition(jmp->m_jumpPosition)
     {
-        m_controlFlowRecord = ControlFlowRecord::create(ControlFlowRecord::ControlFlowReason::NeedsJump,
-                                                        Value((size_t)jmp->m_jumpPosition), Value((int32_t)tryDupCount));
+        m_controlFlowRecord = new ControlFlowRecord(ControlFlowRecord::ControlFlowReason::NeedsJump, Value((PointerValue*)jmp->m_jumpPosition), tryDupCount);
 #ifndef NDEBUG
         m_node = jmp->m_node;
 #endif
     }
 
     ControlFlowRecord* m_controlFlowRecord;
-    size_t m_jumpPosition;
 
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("jump complex %d", (int)m_jumpPosition);
+        printf("jump complex");
     }
 #endif
 };
+
+COMPILE_ASSERT(sizeof(Jump) == sizeof(JumpComplexCase), "");
 
 class JumpIfTrue : public ByteCode {
 public:
@@ -1115,10 +1093,8 @@ public:
     TryCatchBodyEnd(const ByteCodeLOC& loc)
         : ByteCode(Opcode::TryCatchBodyEndOpcode, loc)
     {
-        m_finalizerPosition = SIZE_MAX;
     }
 
-    size_t m_finalizerPosition;
 #ifndef NDEBUG
     virtual void dump()
     {

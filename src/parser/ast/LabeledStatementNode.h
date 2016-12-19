@@ -32,6 +32,16 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::LabeledStatement; }
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        size_t start = codeBlock->currentCodeSize();
+        context->m_positionToContinue = start;
+        m_statementNode->generateStatementByteCode(codeBlock, context);
+        size_t end = codeBlock->currentCodeSize();
+        context->consumeLabeledBreakPositions(codeBlock, end, m_label);
+        context->consumeLabeledContinuePositions(codeBlock, context->m_positionToContinue, m_label);
+    }
+
 protected:
     StatementNode* m_statementNode;
     String* m_label;

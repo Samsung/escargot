@@ -31,6 +31,12 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ContinueLabelStatement; }
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this);
+        context->pushLabeledContinuePositions(codeBlock->lastCodePosition<Jump>(), m_label);
+    }
+
 protected:
     String* m_label;
 };

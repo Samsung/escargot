@@ -9,7 +9,21 @@ class VMInstance;
 class ExecutionContext;
 class Value;
 
+class ControlFlowRecord;
+
+typedef Vector<ControlFlowRecord*, gc_malloc_ignore_off_page_allocator<ControlFlowRecord*>> ControlFlowRecordVector;
+
+struct ExecutionStateRareData : public gc {
+    Vector<ControlFlowRecord*, gc_malloc_ignore_off_page_allocator<ControlFlowRecord*>>* m_controlFlowRecord;
+
+    ExecutionStateRareData()
+    {
+        m_controlFlowRecord = nullptr;
+    }
+};
+
 class ExecutionState : public gc {
+    friend class ByteCodeInterpreter;
     MAKE_STACK_ALLOCATED();
 
 public:
@@ -17,6 +31,7 @@ public:
         : m_context(context)
         , m_executionContext(executionContext)
         , m_exeuctionResult(exeuctionResult)
+        , m_rareData(nullptr)
     {
     }
 
@@ -42,10 +57,23 @@ public:
 
     void throwException(const Value& e);
 
+    ExecutionStateRareData* ensureRareData()
+    {
+        if (m_rareData == nullptr)
+            m_rareData = new ExecutionStateRareData();
+        return m_rareData;
+    }
+
+    ExecutionStateRareData* rareData()
+    {
+        return m_rareData;
+    }
+
 protected:
     Context* m_context;
     ExecutionContext* m_executionContext;
     Value* m_exeuctionResult;
+    ExecutionStateRareData* m_rareData;
 };
 }
 

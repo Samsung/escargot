@@ -55,8 +55,6 @@ public:
 
         codeBlock->peekCode<TryOperation>(pos)->m_tryCatchEndPosition = codeBlock->currentCodeSize();
         if (m_finalizer) {
-            RELEASE_ASSERT_NOT_REACHED();
-            codeBlock->peekCode<TryCatchBodyEnd>(tryCatchBodyPos)->m_finalizerPosition = codeBlock->currentCodeSize();
             m_finalizer->generateStatementByteCode(codeBlock, context);
         }
         codeBlock->pushCode(FinallyEnd(ByteCodeLOC(m_loc.index)), context, this);

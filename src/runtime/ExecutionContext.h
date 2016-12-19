@@ -7,11 +7,6 @@ class Context;
 class LexicalEnvironment;
 class EnvironmentRecord;
 class Value;
-class ControlFlowRecord;
-
-struct ExecutionContextRareData : public gc {
-    Vector<ControlFlowRecord*, gc_malloc_ignore_off_page_allocator<ExecutionContextRareData*>> m_controlFlowRecord;
-};
 
 class ExecutionContext : public gc {
     friend class FunctionObject;
@@ -53,7 +48,6 @@ private:
     Context* m_context;
     ExecutionContext* m_parent;
     LexicalEnvironment* m_lexicalEnvironment;
-    ExecutionContextRareData* m_rareData;
 };
 }
 
