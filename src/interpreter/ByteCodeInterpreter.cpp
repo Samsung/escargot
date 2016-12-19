@@ -7,6 +7,8 @@
 #include "runtime/Context.h"
 #include "runtime/SandBox.h"
 #include "runtime/GlobalObject.h"
+#include "runtime/StringObject.h"
+#include "runtime/NumberObject.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/ArrayObject.h"
 #include "parser/ScriptParser.h"
@@ -426,7 +428,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         GetObjectPreComputedCaseOpcodeLbl : {
             GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)currentCode;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            registerFile[code->m_objectRegisterIndex] = getObjectPrecomputedCaseOperation(state, willBeObject.toObject(state), code->m_propertyName, code->m_inlineCache).second;
+            registerFile[code->m_objectRegisterIndex] = getObjectPrecomputedCaseOperation(state, fastToObject(state, willBeObject), code->m_propertyName, code->m_inlineCache).second;
             ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
             NEXT_INSTRUCTION();
         }
@@ -434,7 +436,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         SetObjectPreComputedCaseOpcodeLbl : {
             SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)currentCode;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            setObjectPreComputedCaseOperation(state, willBeObject.toObject(state), code->m_propertyName, registerFile[code->m_loadRegisterIndex], code->m_inlineCache);
+            setObjectPreComputedCaseOperation(state, fastToObject(state, willBeObject), code->m_propertyName, registerFile[code->m_loadRegisterIndex], code->m_inlineCache);
             ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
             NEXT_INSTRUCTION();
         }
@@ -1318,5 +1320,21 @@ EnumerateObjectData* ByteCodeInterpreter::updateEnumerateObjectData(ExecutionSta
         data->m_keys[i] = differenceKeys[i];
     }
     return data;
+}
+
+ALWAYS_INLINE Object* ByteCodeInterpreter::fastToObject(ExecutionState& state, const Value& obj)
+{
+    if (LIKELY(obj.isObject())) {
+        return obj.asObject();
+    } else if (obj.isString()) {
+        StringObject* o = state.context()->globalObject()->stringProxyObject();
+        o->setPrimitiveValue(state, obj.asString());
+        return o;
+    } else if (obj.isNumber()) {
+        NumberObject* o = state.context()->globalObject()->numberProxyObject();
+        o->setPrimitiveValue(state, obj.asNumber());
+        return o;
+    }
+    return obj.toObject(state);
 }
 }

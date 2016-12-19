@@ -14,9 +14,9 @@ static Value builtinStringConstructor(ExecutionState& state, Value thisValue, si
         Object* thisObject = thisValue.toObject(state);
         StringObject* stringObject = thisObject->asStringObject();
         if (argc == 0) {
-            stringObject->setStringData(state, String::emptyString);
+            stringObject->setPrimitiveValue(state, String::emptyString);
         } else {
-            stringObject->setStringData(state, argv[0].toString(state));
+            stringObject->setPrimitiveValue(state, argv[0].toString(state));
         }
         return stringObject;
     } else {

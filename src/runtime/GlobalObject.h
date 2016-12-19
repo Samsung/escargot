@@ -211,6 +211,16 @@ public:
         return m_eval;
     }
 
+    StringObject* stringProxyObject()
+    {
+        return m_stringProxyObject;
+    }
+
+    NumberObject* numberProxyObject()
+    {
+        return m_numberProxyObject;
+    }
+
 protected:
     FunctionObject* m_object;
     Object* m_objectPrototype;
@@ -255,6 +265,9 @@ protected:
     Object* m_math;
 
     FunctionObject* m_eval;
+
+    StringObject* m_stringProxyObject;
+    NumberObject* m_numberProxyObject;
 
     bool hasPropertyOnIndex(ExecutionState& state, const PropertyName& name, size_t idx)
     {

@@ -9,6 +9,7 @@ namespace Escargot {
 #define ESCARGOT_STRING_BUILDER_INLINE_STORAGE_MAX 12
 
 class StringBuilder {
+    MAKE_STACK_ALLOCATED();
     struct StringBuilderPiece {
         String* m_string;
         size_t m_start, m_end;

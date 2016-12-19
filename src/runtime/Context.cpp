@@ -1,6 +1,7 @@
 #include "Escargot.h"
 #include "Context.h"
 #include "GlobalObject.h"
+#include "StringObject.h"
 #include "parser/ScriptParser.h"
 #include "ObjectStructure.h"
 #include "Environment.h"
@@ -60,6 +61,20 @@ bool Context::arrayLengthNativeSetter(ExecutionState& state, Object* self, const
 static ObjectPropertyNativeGetterSetterData arrayLengthGetterSetterData(
     true, false, false, &Context::arrayLengthNativeGetter, &Context::arrayLengthNativeSetter);
 
+Value Context::stringLengthNativeGetter(ExecutionState& state, Object* self)
+{
+    ASSERT(self->isStringObject());
+    return Value(self->asStringObject()->primitiveValue()->length());
+}
+
+bool Context::stringLengthNativeSetter(ExecutionState& state, Object* self, const Value& newData)
+{
+    return false;
+}
+
+static ObjectPropertyNativeGetterSetterData stringLengthGetterSetterData(
+    false, false, false, &Context::stringLengthNativeGetter, &Context::stringLengthNativeSetter);
+
 Value Context::regexpSourceNativeGetter(ExecutionState& state, Object* self)
 {
     ASSERT(self->isRegExpObject() && self->isPlainObject());
@@ -107,6 +122,7 @@ bool Context::regexpLastIndexNativeSetter(ExecutionState& state, Object* self, c
     self->asRegExpObject()->setLastIndex(newData);
     return true;
 }
+
 static ObjectPropertyNativeGetterSetterData regexpLastIndexGetterSetterData(
     true, false, false, &Context::regexpLastIndexNativeGetter, &Context::regexpLastIndexNativeSetter);
 
@@ -143,7 +159,7 @@ Context::Context(VMInstance* instance)
     m_defaultStructureForArrayObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length,
                                                                                 ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&arrayLengthGetterSetterData));
 
-    m_defaultStructureForStringObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length, ObjectPropertyDescriptor::createDataDescriptor(ObjectPropertyDescriptor::NotPresent));
+    m_defaultStructureForStringObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length, ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&stringLengthGetterSetterData));
 
     m_defaultStructureForRegExpObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.lastIndex,
                                                                                  ObjectPropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpLastIndexGetterSetterData));

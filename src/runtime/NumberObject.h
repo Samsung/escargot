@@ -14,6 +14,11 @@ public:
         return m_primitiveValue;
     }
 
+    void setPrimitiveValue(ExecutionState& state, double data)
+    {
+        m_primitiveValue = data;
+    }
+
     virtual bool isNumberObject()
     {
         return true;

@@ -508,7 +508,7 @@ public:
 
 class Scanner {
 public:
-    StringView source;
+    BufferedStringView source;
     ErrorHandler* errorHandler;
     // trackComment: boolean;
 
@@ -518,7 +518,7 @@ public:
     size_t lineStart;
     std::vector<Curly> curlyStack;
 
-    Scanner(StringView code, ErrorHandler* handler, size_t startLine = 0, size_t startColumn = 0)
+    Scanner(BufferedStringView code, ErrorHandler* handler, size_t startLine = 0, size_t startColumn = 0)
     {
         source = code;
         errorHandler = handler;
@@ -571,7 +571,7 @@ public:
         }*/
 
         while (!this->eof()) {
-            char16_t ch = this->source.charAt(this->index);
+            char16_t ch = this->source.bufferedCharAt(this->index);
             ++this->index;
             if (isLineTerminator(ch)) {
                 /*
@@ -588,7 +588,7 @@ public:
                     };
                     comments.push(entry);
                 }*/
-                if (ch == 13 && this->source.charAt(this->index) == 10) {
+                if (ch == 13 && this->source.bufferedCharAt(this->index) == 10) {
                     ++this->index;
                 }
                 ++this->lineNumber;
@@ -636,9 +636,9 @@ public:
         }
          */
         while (!this->eof()) {
-            char16_t ch = this->source.charAt(this->index);
+            char16_t ch = this->source.bufferedCharAt(this->index);
             if (isLineTerminator(ch)) {
-                if (ch == 0x0D && this->source.charAt(this->index + 1) == 0x0A) {
+                if (ch == 0x0D && this->source.bufferedCharAt(this->index + 1) == 0x0A) {
                     ++this->index;
                 }
                 ++this->lineNumber;
@@ -646,7 +646,7 @@ public:
                 this->lineStart = this->index;
             } else if (ch == 0x2A) {
                 // Block comment ends with '*/'.
-                if (this->source.charAt(this->index + 1) == 0x2F) {
+                if (this->source.bufferedCharAt(this->index + 1) == 0x2F) {
                     this->index += 2;
                     /*
                     if (this->trackComment) {
@@ -703,20 +703,20 @@ public:
 
         bool start = (this->index == 0);
         while (!this->eof()) {
-            char16_t ch = this->source.charAt(this->index);
+            char16_t ch = this->source.bufferedCharAt(this->index);
 
             if (isWhiteSpace(ch)) {
                 ++this->index;
             } else if (isLineTerminator(ch)) {
                 ++this->index;
-                if (ch == 0x0D && this->source.charAt(this->index) == 0x0A) {
+                if (ch == 0x0D && this->source.bufferedCharAt(this->index) == 0x0A) {
                     ++this->index;
                 }
                 ++this->lineNumber;
                 this->lineStart = this->index;
                 start = true;
             } else if (ch == 0x2F) { // U+002F is '/'
-                ch = this->source.charAt(this->index + 1);
+                ch = this->source.bufferedCharAt(this->index + 1);
                 if (ch == 0x2F) {
                     this->index += 2;
                     /*
@@ -740,7 +740,7 @@ public:
                 }
             } else if (start && ch == 0x2D) { // U+002D is '-'
                 // U+003E is '>'
-                if ((this->source.charAt(this->index + 1) == 0x2D) && (this->source.charAt(this->index + 2) == 0x3E)) {
+                if ((this->source.bufferedCharAt(this->index + 1) == 0x2D) && (this->source.bufferedCharAt(this->index + 2) == 0x3E)) {
                     // '-->' is a single-line comment
                     this->index += 3;
                     /*
@@ -755,7 +755,7 @@ public:
             } else if (ch == 0x3C) { // U+003C is '<'
                 // if (this->source.slice(this->index + 1, this->index + 4) == '!--') {
                 if (this->source.length() > this->index + 4) {
-                    StringView sv(this->source, this->index + 1, this->index + 4);
+                    StringView sv(this->source.src(), this->index + 1, this->index + 4);
                     if (sv == "!--") {
                         this->index += 4; // `<!--`
                         /*
@@ -951,9 +951,9 @@ public:
     char32_t codePointAt(size_t i)
     {
         char32_t cp, first, second;
-        cp = this->source.charAt(i);
+        cp = this->source.bufferedCharAt(i);
         if (cp >= 0xD800 && cp <= 0xDBFF) {
-            second = this->source.charAt(i + 1);
+            second = this->source.bufferedCharAt(i + 1);
             if (second >= 0xDC00 && second <= 0xDFFF) {
                 first = cp;
                 cp = (first - 0xD800) * 0x400 + second - 0xDC00 + 0x10000;
@@ -984,8 +984,8 @@ public:
         char32_t code = 0;
 
         for (size_t i = 0; i < len; ++i) {
-            if (!this->eof() && isHexDigit(this->source.charAt(this->index))) {
-                code = code * 16 + hexValue(this->source.charAt(this->index++));
+            if (!this->eof() && isHexDigit(this->source.bufferedCharAt(this->index))) {
+                code = code * 16 + hexValue(this->source.bufferedCharAt(this->index++));
             } else {
                 return 0;
             }
@@ -996,7 +996,7 @@ public:
 
     char32_t scanUnicodeCodePointEscape()
     {
-        char16_t ch = this->source.charAt(this->index);
+        char16_t ch = this->source.bufferedCharAt(this->index);
         char32_t code = 0;
 
         // At least, one hex digit is required.
@@ -1005,7 +1005,7 @@ public:
         }
 
         while (!this->eof()) {
-            ch = this->source.charAt(this->index++);
+            ch = this->source.bufferedCharAt(this->index++);
             if (!isHexDigit(ch)) {
                 break;
             }
@@ -1023,7 +1023,7 @@ public:
     {
         const size_t start = this->index++;
         while (!this->eof()) {
-            const char16_t ch = this->source.charAt(this->index);
+            const char16_t ch = this->source.bufferedCharAt(this->index);
             if (ch == 0x5C) {
                 // Blackslash (U+005C) marks Unicode escape sequence.
                 this->index = start;
@@ -1040,7 +1040,7 @@ public:
             }
         }
 
-        return StringView(this->source, start, this->index);
+        return StringView(this->source.src(), start, this->index);
     }
 
     StringView getComplexIdentifier()
@@ -1053,11 +1053,11 @@ public:
         // '\u' (U+005C, U+0075) denotes an escaped character.
         char32_t ch;
         if (cp == 0x5C) {
-            if (this->source.charAt(this->index) != 0x75) {
+            if (this->source.bufferedCharAt(this->index) != 0x75) {
                 this->throwUnexpectedToken();
             }
             ++this->index;
-            if (this->source.charAt(this->index) == '{') {
+            if (this->source.bufferedCharAt(this->index) == '{') {
                 ++this->index;
                 ch = this->scanUnicodeCodePointEscape();
             } else {
@@ -1086,11 +1086,11 @@ public:
                 // id = id.substr(0, id.length - 1);
                 id.pop_back();
 
-                if (this->source.charAt(this->index) != 0x75) {
+                if (this->source.bufferedCharAt(this->index) != 0x75) {
                     this->throwUnexpectedToken();
                 }
                 ++this->index;
-                if (this->source.charAt(this->index) == '{') {
+                if (this->source.bufferedCharAt(this->index) == '{') {
                     ++this->index;
                     ch = this->scanUnicodeCodePointEscape();
                 } else {
@@ -1125,15 +1125,15 @@ public:
         bool octal = (ch != '0');
         char16_t code = octalValue(ch);
 
-        if (!this->eof() && isOctalDigit(this->source.charAt(this->index))) {
+        if (!this->eof() && isOctalDigit(this->source.bufferedCharAt(this->index))) {
             octal = true;
-            code = code * 8 + octalValue(this->source.charAt(this->index++));
+            code = code * 8 + octalValue(this->source.bufferedCharAt(this->index++));
 
             // 3 digits are only allowed when string starts
             // with 0, 1, 2, 3
             // if ('0123'.indexOf(ch) >= 0 && !this->eof() && Character.isOctalDigit(this->source.charCodeAt(this->index))) {
-            if ((ch >= '0' && ch <= '3') && !this->eof() && isOctalDigit(this->source.charAt(this->index))) {
-                code = code * 8 + octalValue(this->source.charAt(this->index++));
+            if ((ch >= '0' && ch <= '3') && !this->eof() && isOctalDigit(this->source.bufferedCharAt(this->index))) {
+                code = code * 8 + octalValue(this->source.bufferedCharAt(this->index++));
             }
         }
 
@@ -1149,7 +1149,7 @@ public:
 
         // Backslash (U+005C) starts an escaped character.
         StringView id;
-        if (this->source.charAt(start) == 0x5C)
+        if (this->source.bufferedCharAt(start) == 0x5C)
             id = this->getComplexIdentifier();
         else
             id = this->getIdentifier();
@@ -1186,7 +1186,7 @@ public:
         PunctuatorsKind kind;
         // Check for most common single-character punctuators.
         size_t start = this->index;
-        char16_t ch0 = this->source.charAt(this->index);
+        char16_t ch0 = this->source.bufferedCharAt(this->index);
         char ch1, ch2, ch3;
         switch (ch0) {
         case '(':
@@ -1203,7 +1203,7 @@ public:
         case '.':
             ++this->index;
             kind = Period;
-            if (this->source.charAt(this->index) == '.' && this->source.charAt(this->index + 1) == '.') {
+            if (this->source.bufferedCharAt(this->index) == '.' && this->source.bufferedCharAt(this->index + 1) == '.') {
                 // Spread operator: ...
                 this->index += 2;
                 // resultStr = "...";
@@ -1250,11 +1250,11 @@ public:
             break;
 
         case '>':
-            ch1 = this->source.charAt(this->index + 1);
+            ch1 = this->source.bufferedCharAt(this->index + 1);
             if (ch1 == '>') {
-                ch2 = this->source.charAt(this->index + 2);
+                ch2 = this->source.bufferedCharAt(this->index + 2);
                 if (ch2 == '>') {
-                    ch3 = this->source.charAt(this->index + 3);
+                    ch3 = this->source.bufferedCharAt(this->index + 3);
                     if (ch3 == '=') {
                         this->index += 4;
                         kind = UnsignedRightShiftEqual;
@@ -1278,9 +1278,9 @@ public:
             }
             break;
         case '<':
-            ch1 = this->source.charAt(this->index + 1);
+            ch1 = this->source.bufferedCharAt(this->index + 1);
             if (ch1 == '<') {
-                ch2 = this->source.charAt(this->index + 2);
+                ch2 = this->source.bufferedCharAt(this->index + 2);
                 if (ch2 == '=') {
                     kind = LeftShiftEqual;
                     this->index += 3;
@@ -1297,9 +1297,9 @@ public:
             }
             break;
         case '=':
-            ch1 = this->source.charAt(this->index + 1);
+            ch1 = this->source.bufferedCharAt(this->index + 1);
             if (ch1 == '=') {
-                ch2 = this->source.charAt(this->index + 2);
+                ch2 = this->source.bufferedCharAt(this->index + 2);
                 if (ch2 == '=') {
                     kind = StrictEqual;
                     this->index += 3;
@@ -1316,9 +1316,9 @@ public:
             }
             break;
         case '!':
-            ch1 = this->source.charAt(this->index + 1);
+            ch1 = this->source.bufferedCharAt(this->index + 1);
             if (ch1 == '=') {
-                ch2 = this->source.charAt(this->index + 2);
+                ch2 = this->source.bufferedCharAt(this->index + 2);
                 if (ch2 == '=') {
                     kind = NotStrictEqual;
                     this->index += 3;
@@ -1332,7 +1332,7 @@ public:
             }
             break;
         case '&':
-            ch1 = this->source.charAt(this->index + 1);
+            ch1 = this->source.bufferedCharAt(this->index + 1);
             if (ch1 == '&') {
                 kind = LogicalAnd;
                 this->index += 2;
@@ -1345,7 +1345,7 @@ public:
             }
             break;
         case '|':
-            ch1 = this->source.charAt(this->index + 1);
+            ch1 = this->source.bufferedCharAt(this->index + 1);
             if (ch1 == '|') {
                 kind = LogicalOr;
                 this->index += 2;
@@ -1358,7 +1358,7 @@ public:
             }
             break;
         case '^':
-            ch1 = this->source.charAt(this->index + 1);
+            ch1 = this->source.bufferedCharAt(this->index + 1);
             if (ch1 == '=') {
                 kind = BitwiseXorEqual;
                 this->index += 2;
@@ -1368,7 +1368,7 @@ public:
             }
             break;
         case '+':
-            ch1 = this->source.charAt(this->index + 1);
+            ch1 = this->source.bufferedCharAt(this->index + 1);
             if (ch1 == '+') {
                 kind = PlusPlus;
                 this->index += 2;
@@ -1381,7 +1381,7 @@ public:
             }
             break;
         case '-':
-            ch1 = this->source.charAt(this->index + 1);
+            ch1 = this->source.bufferedCharAt(this->index + 1);
             if (ch1 == '-') {
                 kind = MinusMinus;
                 this->index += 2;
@@ -1394,7 +1394,7 @@ public:
             }
             break;
         case '*':
-            ch1 = this->source.charAt(this->index + 1);
+            ch1 = this->source.bufferedCharAt(this->index + 1);
             if (ch1 == '=') {
                 kind = MultiplyEqual;
                 this->index += 2;
@@ -1404,7 +1404,7 @@ public:
             }
             break;
         case '/':
-            ch1 = this->source.charAt(this->index + 1);
+            ch1 = this->source.bufferedCharAt(this->index + 1);
             if (ch1 == '=') {
                 kind = DivideEqual;
                 this->index += 2;
@@ -1414,7 +1414,7 @@ public:
             }
             break;
         case '%':
-            ch1 = this->source.charAt(this->index + 1);
+            ch1 = this->source.bufferedCharAt(this->index + 1);
             if (ch1 == '=') {
                 kind = ModEqual;
                 this->index += 2;
@@ -1433,7 +1433,7 @@ public:
 
         token->end = this->index;
         token->valuePunctuatorsKind = kind;
-        token->valueString = StringView(this->source, start, this->index);
+        token->valueString = StringView(this->source.src(), start, this->index);
         return token;
     }
 
@@ -1448,7 +1448,7 @@ public:
 
         size_t shiftCount = 0;
         while (!this->eof()) {
-            char16_t ch = this->source.charAt(this->index);
+            char16_t ch = this->source.bufferedCharAt(this->index);
             if (!isHexDigit(ch)) {
                 break;
             }
@@ -1470,7 +1470,7 @@ public:
             this->throwUnexpectedToken();
         }
 
-        if (isIdentifierStart(this->source.charAt(this->index))) {
+        if (isIdentifierStart(this->source.bufferedCharAt(this->index))) {
             this->throwUnexpectedToken();
         }
 
@@ -1489,7 +1489,7 @@ public:
         bool scanned = false;
 
         while (!this->eof()) {
-            char16_t ch = this->source.charAt(this->index);
+            char16_t ch = this->source.bufferedCharAt(this->index);
             if (ch != '0' && ch != '1') {
                 break;
             }
@@ -1504,7 +1504,7 @@ public:
         }
 
         if (!this->eof()) {
-            char16_t ch = this->source.charAt(this->index);
+            char16_t ch = this->source.bufferedCharAt(this->index);
             /* istanbul ignore else */
             if (isIdentifierStart(ch) || isDecimalDigit(ch)) {
                 this->throwUnexpectedToken();
@@ -1521,7 +1521,7 @@ public:
         bool octal = isOctalDigit(prefix);
 
         while (!this->eof()) {
-            char16_t ch = this->source.charAt(this->index);
+            char16_t ch = this->source.bufferedCharAt(this->index);
             if (!isOctalDigit(ch)) {
                 break;
             }
@@ -1535,7 +1535,7 @@ public:
             throwUnexpectedToken();
         }
 
-        if (isIdentifierStart(this->source.charAt(this->index)) || isDecimalDigit(this->source.charAt(this->index))) {
+        if (isIdentifierStart(this->source.bufferedCharAt(this->index)) || isDecimalDigit(this->source.bufferedCharAt(this->index))) {
             throwUnexpectedToken();
         }
         return new ScannerResult(Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index);
@@ -1546,7 +1546,7 @@ public:
         // Implicit octal, unless there is a non-octal digit.
         // (Annex B.1.1 on Numeric Literals)
         for (size_t i = this->index + 1; i < this->length; ++i) {
-            const char16_t ch = this->source.charAt(i);
+            const char16_t ch = this->source.bufferedCharAt(i);
             if (ch == '8' || ch == '9') {
                 return false;
             }
@@ -1560,7 +1560,7 @@ public:
     ScannerResult* scanNumericLiteral()
     {
         const size_t start = this->index;
-        char16_t ch = this->source.charAt(start);
+        char16_t ch = this->source.bufferedCharAt(start);
         ASSERT(isDecimalDigit(ch) || (ch == '.'));
         // 'Numeric literal must start with a decimal digit or a decimal point');
 
@@ -1568,8 +1568,8 @@ public:
         number.reserve(32);
 
         if (ch != '.') {
-            number = this->source.charAt(this->index++);
-            ch = this->source.charAt(this->index);
+            number = this->source.bufferedCharAt(this->index++);
+            ch = this->source.bufferedCharAt(this->index);
 
             // Hex number starts with '0x'.
             // Octal number starts with '0'.
@@ -1595,37 +1595,37 @@ public:
                 }
             }
 
-            while (isDecimalDigit(this->source.charAt(this->index))) {
-                number += this->source.charAt(this->index++);
+            while (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
+                number += this->source.bufferedCharAt(this->index++);
             }
-            ch = this->source.charAt(this->index);
+            ch = this->source.bufferedCharAt(this->index);
         }
 
         if (ch == '.') {
-            number += this->source.charAt(this->index++);
-            while (isDecimalDigit(this->source.charAt(this->index))) {
-                number += this->source.charAt(this->index++);
+            number += this->source.bufferedCharAt(this->index++);
+            while (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
+                number += this->source.bufferedCharAt(this->index++);
             }
-            ch = this->source.charAt(this->index);
+            ch = this->source.bufferedCharAt(this->index);
         }
 
         if (ch == 'e' || ch == 'E') {
-            number += this->source.charAt(this->index++);
+            number += this->source.bufferedCharAt(this->index++);
 
-            ch = this->source.charAt(this->index);
+            ch = this->source.bufferedCharAt(this->index);
             if (ch == '+' || ch == '-') {
-                number += this->source.charAt(this->index++);
+                number += this->source.bufferedCharAt(this->index++);
             }
-            if (isDecimalDigit(this->source.charAt(this->index))) {
-                while (isDecimalDigit(this->source.charAt(this->index))) {
-                    number += this->source.charAt(this->index++);
+            if (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
+                while (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
+                    number += this->source.bufferedCharAt(this->index++);
                 }
             } else {
                 this->throwUnexpectedToken();
             }
         }
 
-        if (isIdentifierStart(this->source.charAt(this->index))) {
+        if (isIdentifierStart(this->source.bufferedCharAt(this->index))) {
             this->throwUnexpectedToken();
         }
 
@@ -1647,7 +1647,7 @@ public:
     {
         // TODO apply rope-string
         const size_t start = this->index;
-        char16_t quote = this->source.charAt(start);
+        char16_t quote = this->source.bufferedCharAt(start);
         ASSERT((quote == '\'' || quote == '"'));
         // 'String literal must starts with a quote');
 
@@ -1667,19 +1667,19 @@ public:
     }
 
         while (!this->eof()) {
-            char16_t ch = this->source.charAt(this->index++);
+            char16_t ch = this->source.bufferedCharAt(this->index++);
 
             if (ch == quote) {
                 quote = '\0';
                 break;
             } else if (ch == '\\') {
-                ch = this->source.charAt(this->index++);
+                ch = this->source.bufferedCharAt(this->index++);
                 if (!ch || !isLineTerminator(ch)) {
                     CONVERT_UNPLAIN_CASE_IF_NEEDED()
                     switch (ch) {
                     case 'u':
                     case 'x':
-                        if (this->source.charAt(this->index) == '{') {
+                        if (this->source.bufferedCharAt(this->index) == '{') {
                             ++this->index;
                             ParserCharPiece piece(this->scanUnicodeCodePointEscape());
                             stringUTF16 += piece.data;
@@ -1729,7 +1729,7 @@ public:
                     }
                 } else {
                     ++this->lineNumber;
-                    if (ch == '\r' && this->source.charAt(this->index) == '\n') {
+                    if (ch == '\r' && this->source.bufferedCharAt(this->index) == '\n') {
                         ++this->index;
                     }
                     this->lineStart = this->index;
@@ -1738,7 +1738,7 @@ public:
                 break;
             } else {
                 if (isPlainCase) {
-                    str = StringView(this->source, start + 1, start + 1 + str.length() + 1);
+                    str = StringView(this->source.src(), start + 1, start + 1 + str.length() + 1);
                 } else {
                     stringUTF16 += ch;
                 }
@@ -1771,21 +1771,21 @@ public:
         bool terminated = false;
         size_t start = this->index;
 
-        bool head = (this->source.charAt(start) == '`');
+        bool head = (this->source.bufferedCharAt(start) == '`');
         bool tail = false;
         size_t rawOffset = 2;
 
         ++this->index;
 
         while (!this->eof()) {
-            char16_t ch = this->source.charAt(this->index++);
+            char16_t ch = this->source.bufferedCharAt(this->index++);
             if (ch == '`') {
                 rawOffset = 1;
                 tail = true;
                 terminated = true;
                 break;
             } else if (ch == '$') {
-                if (this->source.charAt(this->index) == '{') {
+                if (this->source.bufferedCharAt(this->index) == '{') {
                     this->curlyStack.push_back(Curly("${\0"));
                     ++this->index;
                     terminated = true;
@@ -1793,7 +1793,7 @@ public:
                 }
                 cooked += ch;
             } else if (ch == '\\') {
-                ch = this->source.charAt(this->index++);
+                ch = this->source.bufferedCharAt(this->index++);
                 if (!isLineTerminator(ch)) {
                     switch (ch) {
                     case 'n':
@@ -1807,7 +1807,7 @@ public:
                         break;
                     case 'u':
                     case 'x':
-                        if (this->source.charAt(this->index) == '{') {
+                        if (this->source.bufferedCharAt(this->index) == '{') {
                             ++this->index;
                             cooked += this->scanUnicodeCodePointEscape();
                         } else {
@@ -1834,7 +1834,7 @@ public:
 
                     default:
                         if (ch == '0') {
-                            if (isDecimalDigit(this->source.charAt(this->index))) {
+                            if (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
                                 // Illegal: \01 \02 and so on
                                 this->throwUnexpectedToken(Messages::TemplateOctalLiteral);
                             }
@@ -1849,14 +1849,14 @@ public:
                     }
                 } else {
                     ++this->lineNumber;
-                    if (ch == '\r' && this->source.charAt(this->index) == '\n') {
+                    if (ch == '\r' && this->source.bufferedCharAt(this->index) == '\n') {
                         ++this->index;
                     }
                     this->lineStart = this->index;
                 }
             } else if (isLineTerminator(ch)) {
                 ++this->lineNumber;
-                if (ch == '\r' && this->source.charAt(this->index) == '\n') {
+                if (ch == '\r' && this->source.bufferedCharAt(this->index) == '\n') {
                     ++this->index;
                 }
                 this->lineStart = this->index;
@@ -1878,7 +1878,7 @@ public:
         result.head = head;
         result.tail = tail;
         // TODO when parsing global code, we should generate new string not string view of code
-        result.raw = StringView(this->source, start + 1, this->index - rawOffset);
+        result.raw = StringView(this->source.src(), start + 1, this->index - rawOffset);
         result.valueCooked = UTF16StringData(cooked.data(), cooked.length());
 
         return new ScannerResult(Token::TemplateToken, result, this->lineNumber, this->lineStart, start, this->index);
@@ -1942,21 +1942,21 @@ public:
 
     String* scanRegExpBody()
     {
-        char16_t ch = this->source.charAt(this->index);
+        char16_t ch = this->source.bufferedCharAt(this->index);
         ASSERT(ch == '/');
         // assert(ch == '/', 'Regular expression literal must start with a slash');
 
         // TODO apply rope-string
-        char16_t ch0 = this->source.charAt(this->index++);
+        char16_t ch0 = this->source.bufferedCharAt(this->index++);
         UTF16StringDataNonGCStd str(&ch0, 1);
         bool classMarker = false;
         bool terminated = false;
 
         while (!this->eof()) {
-            ch = this->source.charAt(this->index++);
+            ch = this->source.bufferedCharAt(this->index++);
             str += ch;
             if (ch == '\\') {
-                ch = this->source.charAt(this->index++);
+                ch = this->source.bufferedCharAt(this->index++);
                 // ECMA-262 7.8.5
                 if (isLineTerminator(ch)) {
                     this->throwUnexpectedToken(Messages::UnterminatedRegExp);
@@ -1997,14 +1997,14 @@ public:
         // UTF16StringData str = '';
         UTF16StringDataNonGCStd flags;
         while (!this->eof()) {
-            char16_t ch = this->source.charAt(this->index);
+            char16_t ch = this->source.bufferedCharAt(this->index);
             if (!isIdentifierPart(ch)) {
                 break;
             }
 
             ++this->index;
             if (ch == '\\' && !this->eof()) {
-                ch = this->source.charAt(this->index);
+                ch = this->source.bufferedCharAt(this->index);
                 if (ch == 'u') {
                     ++this->index;
                     const size_t restore = this->index;
@@ -2064,7 +2064,7 @@ public:
             return new ScannerResult(Token::EOFToken, this->lineNumber, this->lineStart, this->index, this->index);
         }
 
-        const char16_t cp = this->source.charAt(this->index);
+        const char16_t cp = this->source.bufferedCharAt(this->index);
 
         if (isIdentifierStart(cp)) {
             return this->scanIdentifier();
@@ -2083,7 +2083,7 @@ public:
         // Dot (.) U+002E can also start a floating-point number, hence the need
         // to check the next character.
         if (cp == 0x2E) {
-            if (isDecimalDigit(this->source.charAt(this->index + 1))) {
+            if (isDecimalDigit(this->source.bufferedCharAt(this->index + 1))) {
                 return this->scanNumericLiteral();
             }
             return this->scanPunctuator();

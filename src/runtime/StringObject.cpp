@@ -9,15 +9,10 @@ StringObject::StringObject(ExecutionState& state, String* value)
     , m_primitiveValue(value)
 {
     m_structure = state.context()->defaultStructureForStringObject();
-    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(m_primitiveValue->length());
+    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value();
     setPrototype(state, state.context()->globalObject()->stringPrototype());
 }
 
-void StringObject::setStringData(ExecutionState& state, String* data)
-{
-    m_primitiveValue = data;
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().length), ObjectPropertyDescriptorForDefineOwnProperty(Value(data->length()), ObjectPropertyDescriptorForDefineOwnProperty::NotPresent));
-}
 
 ObjectGetResult StringObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {

@@ -113,6 +113,91 @@ protected:
     String* m_string;
     size_t m_start, m_end;
 };
+
+class BufferedStringView : public String {
+    MAKE_STACK_ALLOCATED();
+
+public:
+    BufferedStringView()
+        : BufferedStringView(StringView())
+    {
+    }
+
+    BufferedStringView(StringView src)
+        : m_src(src)
+    {
+        m_hasASCIIContent = src.hasASCIIContent();
+        if (m_hasASCIIContent) {
+            m_buffer = src.characters8();
+        } else {
+            m_buffer = src.characters16();
+        }
+    }
+
+    char16_t bufferedCharAt(const size_t& idx) const
+    {
+        if (LIKELY(m_hasASCIIContent)) {
+            return ((const char*)m_buffer)[idx];
+        } else {
+            return ((const char16_t*)m_buffer)[idx];
+        }
+    }
+
+    virtual char16_t charAt(const size_t& idx) const
+    {
+        return m_src.charAt(idx);
+    }
+
+    virtual size_t length() const
+    {
+        return m_src.length();
+    }
+
+    virtual UTF16StringData toUTF16StringData() const
+    {
+        UTF16StringData ret;
+        size_t len = length();
+        ret.resizeWithUninitializedValues(len);
+
+        for (size_t i = 0; i < len; i++) {
+            ret[i] = charAt(i);
+        }
+
+        return ret;
+    }
+
+    virtual UTF8StringData toUTF8StringData() const
+    {
+        // FIXME optimze this function
+        UTF16StringData s = toUTF16StringData();
+        return utf16StringToUTF8String(s.data(), s.length());
+    }
+
+    virtual bool hasASCIIContent() const
+    {
+        return m_hasASCIIContent;
+    }
+
+    virtual const char* characters8() const
+    {
+        return m_src.characters8();
+    }
+
+    virtual const char16_t* characters16() const
+    {
+        return m_src.characters16();
+    }
+
+    StringView src()
+    {
+        return m_src;
+    }
+
+protected:
+    bool m_hasASCIIContent;
+    const void* m_buffer;
+    StringView m_src;
+};
 }
 
 #endif

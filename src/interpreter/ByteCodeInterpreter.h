@@ -32,6 +32,8 @@ public:
 
     static EnumerateObjectData* executeEnumerateObject(ExecutionState& state, Object* obj);
     static EnumerateObjectData* updateEnumerateObjectData(ExecutionState& state, EnumerateObjectData* data);
+
+    static inline Object* fastToObject(ExecutionState& state, const Value& obj);
 };
 }
 

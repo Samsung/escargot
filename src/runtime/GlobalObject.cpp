@@ -2,6 +2,8 @@
 #include "GlobalObject.h"
 #include "Context.h"
 #include "ErrorObject.h"
+#include "StringObject.h"
+#include "NumberObject.h"
 #include "parser/ScriptParser.h"
 #include "parser/esprima_cpp/esprima.h"
 
@@ -199,5 +201,8 @@ void GlobalObject::installOthers(ExecutionState& state)
                       ObjectPropertyDescriptorForDefineOwnProperty(new FunctionObject(state,
                                                                                       NativeFunctionInfo(state.context()->staticStrings().gc, builtinGc, 0, nullptr, NativeFunctionInfo::Strict), false),
                                                                    (ObjectPropertyDescriptorForDefineOwnProperty::PresentAttribute)(ObjectPropertyDescriptorForDefineOwnProperty::AllPresent)));
+
+    m_stringProxyObject = new StringObject(state);
+    m_numberProxyObject = new NumberObject(state);
 }
 }

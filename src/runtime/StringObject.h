@@ -19,7 +19,10 @@ public:
         return true;
     }
 
-    void setStringData(ExecutionState& state, String* data);
+    void setPrimitiveValue(ExecutionState& state, String* data)
+    {
+        m_primitiveValue = data;
+    }
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptorForDefineOwnProperty& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;

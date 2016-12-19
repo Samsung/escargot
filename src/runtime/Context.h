@@ -108,6 +108,11 @@ public:
     static Value arrayLengthNativeGetter(ExecutionState& state, Object* self);
     static bool arrayLengthNativeSetter(ExecutionState& state, Object* self, const Value& newData);
 
+    // string
+    // [__proto__, length]
+    static Value stringLengthNativeGetter(ExecutionState& state, Object* self);
+    static bool stringLengthNativeSetter(ExecutionState& state, Object* self, const Value& newData);
+
     // regexp
     // [__proto__, lastIndex, source, global, ignoreCase, multiline
     static bool regexpLastIndexNativeSetter(ExecutionState& state, Object* self, const Value& newData);
