@@ -73,13 +73,14 @@ class Node;
     F(CallFunction, -1, 0)              \
     F(ReturnFunction, 0, 0)             \
     F(TryOperation, 0, 0)               \
-    F(TryCatchBodyEnd, 0, 0)            \
+    F(TryCatchWithBodyEnd, 0, 0)        \
     F(FinallyEnd, 0, 0)                 \
     F(ThrowOperation, 0, 0)             \
     F(EnumerateObject, 1, 0)            \
     F(EnumerateObjectKey, 1, 0)         \
     F(CheckIfKeyIsLast, 0, 0)           \
     F(LoadRegexp, 1, 0)                 \
+    F(WithOperation, 0, 0)              \
     F(CallNativeFunction, 0, 0)         \
     F(CallEvalFunction, 0, 0)           \
     F(ResetExecuteResult, 0, 0)         \
@@ -985,10 +986,10 @@ protected:
 
 class JumpComplexCase : public ByteCode {
 public:
-    JumpComplexCase(Jump* jmp, size_t tryDupCount)
+    JumpComplexCase(Jump* jmp, size_t count)
         : ByteCode(Opcode::JumpComplexCaseOpcode, jmp->m_loc)
     {
-        m_controlFlowRecord = new ControlFlowRecord(ControlFlowRecord::ControlFlowReason::NeedsJump, Value((PointerValue*)jmp->m_jumpPosition), tryDupCount);
+        m_controlFlowRecord = new ControlFlowRecord(ControlFlowRecord::ControlFlowReason::NeedsJump, Value((PointerValue*)jmp->m_jumpPosition), count);
 #ifndef NDEBUG
         m_node = jmp->m_node;
 #endif
@@ -1130,17 +1131,17 @@ public:
 #endif
 };
 
-class TryCatchBodyEnd : public ByteCode {
+class TryCatchWithBodyEnd : public ByteCode {
 public:
-    TryCatchBodyEnd(const ByteCodeLOC& loc)
-        : ByteCode(Opcode::TryCatchBodyEndOpcode, loc)
+    TryCatchWithBodyEnd(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::TryCatchWithBodyEndOpcode, loc)
     {
     }
 
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("try-catch end");
+        printf("try-catch-with end");
     }
 #endif
 };
@@ -1263,6 +1264,25 @@ public:
     virtual void dump()
     {
         printf("load regexp %s -> r%d", m_body->toUTF8StringData().data(), (int)m_registerIndex);
+    }
+#endif
+};
+
+class WithOperation : public ByteCode {
+public:
+    WithOperation(const ByteCodeLOC& loc, size_t registerIndex)
+        : ByteCode(Opcode::WithOperationOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+        m_withEndPostion = SIZE_MAX;
+    }
+
+    size_t m_registerIndex;
+    size_t m_withEndPostion;
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("with r%d", (int)m_registerIndex);
     }
 #endif
 };

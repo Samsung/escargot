@@ -724,7 +724,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             NEXT_INSTRUCTION();
         }
 
-        TryCatchBodyEndOpcodeLbl : {
+        TryCatchWithBodyEndOpcodeLbl : {
             return;
         }
 
@@ -759,6 +759,49 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         ThrowOperationOpcodeLbl : {
             ThrowOperation* code = (ThrowOperation*)currentCode;
             state.context()->throwException(state, registerFile[code->m_registerIndex]);
+        }
+
+        WithOperationOpcodeLbl : {
+            WithOperation* code = (WithOperation*)currentCode;
+            if (!state.ensureRareData()->m_controlFlowRecord) {
+                state.ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
+            }
+            state.ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
+            size_t newPc = programCounter + sizeof(WithOperation);
+
+            // setup new env
+            EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(state, registerFile[code->m_registerIndex].toObject(state));
+            LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
+            ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
+            ExecutionState newState(state.context(), newEc, state.exeuctionResult());
+            newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
+
+            interpret(newState, codeBlock, resolveProgramCounter(codeBuffer, newPc), stackStorage);
+
+            ControlFlowRecord* record = state.rareData()->m_controlFlowRecord->back();
+            state.rareData()->m_controlFlowRecord->erase(state.rareData()->m_controlFlowRecord->size() - 1);
+
+            if (record) {
+                if (record->reason() == ControlFlowRecord::NeedsJump) {
+                    size_t pos = (size_t)record->value().asPointerValue();
+                    record->m_count--;
+                    if (record->count()) {
+                        state.rareData()->m_controlFlowRecord->back() = record;
+                        return;
+                    } else
+                        programCounter = jumpTo(codeBuffer, pos);
+                } else {
+                    ASSERT(record->reason() == ControlFlowRecord::NeedsReturn);
+                    record->m_count--;
+                    if (record->count()) {
+                        state.rareData()->m_controlFlowRecord->back() = record;
+                    }
+                    return;
+                }
+            } else {
+                programCounter = jumpTo(codeBuffer, code->m_withEndPostion);
+            }
+            NEXT_INSTRUCTION();
         }
 
         JumpComplexCaseOpcodeLbl : {
@@ -964,7 +1007,8 @@ void ByteCodeInterpreter::storeByName(ExecutionState& state, LexicalEnvironment*
     while (env) {
         auto result = env->record()->hasBinding(state, name);
         if (result.m_index != SIZE_MAX) {
-            return env->record()->asDeclarativeEnvironmentRecord()->setMutableBindingByIndex(result.m_index, value);
+            env->record()->setMutableBindingByIndex(state, result.m_index, name, value);
+            return;
         }
         env = env->outerEnvironment();
     }

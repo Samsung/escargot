@@ -63,7 +63,14 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
+    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
 
     struct GetBindingValueResult {
         bool m_hasBindingValue;
@@ -148,8 +155,8 @@ protected:
 
 class ObjectEnvironmentRecord : public EnvironmentRecord {
 public:
-    ObjectEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock, Object* O)
-        : EnvironmentRecord(state, codeBlock)
+    ObjectEnvironmentRecord(ExecutionState& state, Object* O)
+        : EnvironmentRecord(state, nullptr)
         , m_bindingObject(O)
     {
     }
@@ -167,6 +174,41 @@ public:
     virtual bool hasThisBinding()
     {
         return false;
+    }
+
+    virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name)
+    {
+        auto result = m_bindingObject->get(state, ObjectPropertyName(name));
+        if (result.hasValue()) {
+            return GetBindingValueResult(result.value());
+        } else {
+            return GetBindingValueResult();
+        }
+    }
+
+    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName)
+    {
+        auto result = m_bindingObject->get(state, ObjectPropertyName(atomicName));
+        if (result.hasValue()) {
+            return BindingSlot(this, SIZE_MAX - 1);
+        } else {
+            return BindingSlot(this, SIZE_MAX);
+        }
+    }
+
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
+    {
+        m_bindingObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(name), v, m_bindingObject);
+    }
+
+    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+    {
+        m_bindingObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(name), V, m_bindingObject);
     }
 
     virtual bool deleteBinding(ExecutionState& state, const AtomicString& name)
@@ -248,11 +290,6 @@ public:
         return reinterpret_cast<FunctionEnvironmentRecord*>(this);
     }
 
-    virtual void setMutableBindingByIndex(const size_t& idx, const Value& v)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-
     virtual void setHeapValueByIndex(const size_t& idx, const Value& v)
     {
         RELEASE_ASSERT_NOT_REACHED();
@@ -292,7 +329,7 @@ public:
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
 
-    virtual void setMutableBindingByIndex(const size_t& idx, const Value& v)
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
     {
         m_vector[idx].m_value = v;
     }
@@ -438,7 +475,7 @@ public:
         return true;
     }
 
-    virtual void setMutableBindingByIndex(const size_t& idx, const Value& v)
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
     {
         m_vector[idx].m_value = v;
     }

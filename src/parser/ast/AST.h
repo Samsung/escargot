@@ -108,5 +108,6 @@
 #include "VariableDeclarationNode.h"
 #include "VariableDeclaratorNode.h"
 #include "WhileStatementNode.h"
+#include "WithStatementNode.h"
 
 #endif

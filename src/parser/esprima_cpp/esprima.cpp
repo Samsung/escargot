@@ -1213,6 +1213,9 @@ public:
 
         case '}':
             ++this->index;
+            if (!this->curlyStack.size()) {
+                this->throwUnexpectedToken();
+            }
             this->curlyStack.pop_back();
             kind = RightBrace;
             break;
@@ -2095,7 +2098,7 @@ public:
 
         // Template literals start with ` (U+0060) for template head
         // or } (U+007D) for template middle or template tail.
-        if (cp == 0x60 || (cp == 0x7D && (strcmp(this->curlyStack.back().m_curly, "${") == 0))) {
+        if (cp == 0x60 || (cp == 0x7D && (this->curlyStack.size() && strcmp(this->curlyStack.back().m_curly, "${") == 0))) {
             return this->scanTemplate();
         }
 
@@ -5039,22 +5042,18 @@ public:
 
     Node* parseWithStatement()
     {
-        // TODO
-        RELEASE_ASSERT_NOT_REACHED();
-        /*
         if (this->context->strict) {
             this->tolerateError(Messages::StrictModeWith);
         }
 
-        const node = this->createNode();
-        this->expectKeyword('with');
-        this->expect('(');
-        const object = this->parseExpression();
-        this->expect(')');
-        const body = this->parseStatement();
+        MetaNode node = this->createNode();
+        this->expectKeyword(With);
+        this->expect(LeftParenthesis);
+        Node* object = this->parseExpression();
+        this->expect(RightParenthesis);
+        StatementNode* body = this->parseStatement();
 
-        return this->finalize(node, new Node.WithStatement(object, body));
-        */
+        return this->finalize(node, new WithStatementNode(object, body));
     }
 
     // ECMA-262 13.12 The switch statement

@@ -8,12 +8,6 @@
 
 namespace Escargot {
 
-void EnvironmentRecord::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
-{
-    GlobalObject* o = state.context()->globalObject();
-    o->setThrowsExceptionWhenStrictMode(state, name, V, o);
-}
-
 GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock, GlobalObject* global)
     : EnvironmentRecord(state, codeBlock)
     , m_globalCodeBlock(codeBlock)

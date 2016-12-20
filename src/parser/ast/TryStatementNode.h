@@ -41,14 +41,14 @@ public:
         codeBlock->pushCode(TryOperation(ByteCodeLOC(m_loc.index)), context, this);
         size_t pos = codeBlock->lastCodePosition<TryOperation>();
         m_block->generateStatementByteCode(codeBlock, context);
-        codeBlock->pushCode(TryCatchBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
-        size_t tryCatchBodyPos = codeBlock->lastCodePosition<TryCatchBodyEnd>();
+        codeBlock->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
+        size_t tryCatchBodyPos = codeBlock->lastCodePosition<TryCatchWithBodyEnd>();
         if (m_handler) {
             codeBlock->peekCode<TryOperation>(pos)->m_catchPosition = codeBlock->currentCodeSize();
             m_handler->body()->generateStatementByteCode(codeBlock, context);
             codeBlock->peekCode<TryOperation>(pos)->m_hasCatch = true;
             codeBlock->peekCode<TryOperation>(pos)->m_catchVariableName = m_handler->param()->name();
-            codeBlock->pushCode(TryCatchBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
+            codeBlock->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
         }
 
         context->registerJumpPositionsToComplexCase(pos);
