@@ -186,22 +186,22 @@ void GlobalObject::installOthers(ExecutionState& state)
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().parseInt),
                       ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                      NativeFunctionInfo(state.context()->staticStrings().parseInt, builtinParseInt, 2, nullptr, NativeFunctionInfo::Strict), false),
-                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                                  NativeFunctionInfo(state.context()->staticStrings().parseInt, builtinParseInt, 2, nullptr, NativeFunctionInfo::Strict), false),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 #ifdef ESCARGOT_SHELL
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().print),
                       ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                      NativeFunctionInfo(state.context()->staticStrings().print, builtinPrint, 1, nullptr, NativeFunctionInfo::Strict), false),
-                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+                                                                  NativeFunctionInfo(state.context()->staticStrings().print, builtinPrint, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().load),
                       ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                      NativeFunctionInfo(state.context()->staticStrings().load, builtinLoad, 1, nullptr, NativeFunctionInfo::Strict), false),
-                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+                                                                  NativeFunctionInfo(state.context()->staticStrings().load, builtinLoad, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 #endif
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().gc),
                       ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                      NativeFunctionInfo(state.context()->staticStrings().gc, builtinGc, 0, nullptr, NativeFunctionInfo::Strict), false),
-                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+                                                                  NativeFunctionInfo(state.context()->staticStrings().gc, builtinGc, 0, nullptr, NativeFunctionInfo::Strict), false),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
 #ifdef PROFILE_BDWGC
     AtomicString dumpBackTrace(state, "dumpBackTrace");

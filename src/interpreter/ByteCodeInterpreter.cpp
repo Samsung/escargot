@@ -782,7 +782,10 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             Object* obj = data->m_object;
             for (size_t i = 0; i < data->m_hiddenClassChain.size(); i++) {
                 auto hc = data->m_hiddenClassChain[i];
-                if (hc.first != obj->structure() && hc.second == obj->structure()->version()) {
+                ObjectStructureChainItem testItem;
+                testItem.m_objectStructure = obj->structure();
+                testItem.m_version = obj->structure()->version();
+                if (hc != testItem) {
                     shouldUpdateEnumerateObjectData = true;
                     break;
                 }
@@ -823,6 +826,34 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             NEXT_INSTRUCTION();
         }
 
+        UnaryDeleteOpcodeLbl : {
+            UnaryDelete* code = (UnaryDelete*)currentCode;
+            if (code->m_id.string()->length()) {
+                registerFile[code->m_registerIndex0] = Value(env->deleteBinding(state, code->m_id));
+            } else {
+                const Value& o = registerFile[code->m_registerIndex0];
+                const Value& p = registerFile[code->m_registerIndex1];
+                registerFile[code->m_registerIndex0] = Value(o.toObject(state)->deleteOwnProperty(state, ObjectPropertyName(state, p)));
+            }
+            ADD_PROGRAM_COUNTER(UnaryDelete);
+            NEXT_INSTRUCTION();
+        }
+
+        BinaryInOperationOpcodeLbl : {
+            BinaryInOperation* code = (BinaryInOperation*)currentCode;
+            auto result = registerFile[code->m_srcIndex1].toObject(state)->get(state, ObjectPropertyName(state, registerFile[code->m_srcIndex0]));
+            registerFile[code->m_srcIndex0] = Value(result.hasValue());
+            ADD_PROGRAM_COUNTER(BinaryInOperation);
+            NEXT_INSTRUCTION();
+        }
+
+        BinaryInstanceOfOperationOpcodeLbl : {
+            BinaryInstanceOfOperation* code = (BinaryInstanceOfOperation*)currentCode;
+            registerFile[code->m_srcIndex0] = instanceOfOperation(state, registerFile[code->m_srcIndex0], registerFile[code->m_srcIndex1]);
+            ADD_PROGRAM_COUNTER(BinaryInstanceOfOperation);
+            NEXT_INSTRUCTION();
+        }
+
         LoadByGlobalNameOpcodeLbl : {
             LoadByGlobalName* code = (LoadByGlobalName*)currentCode;
             GlobalObject* g = state.context()->globalObject();
@@ -853,6 +884,12 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                 }
             }
             ADD_PROGRAM_COUNTER(StoreByGlobalName);
+            NEXT_INSTRUCTION();
+        }
+
+        ResetExecuteResultOpcodeLbl : {
+            registerFile[0] = Value();
+            ADD_PROGRAM_COUNTER(ResetExecuteResult);
             NEXT_INSTRUCTION();
         }
 
@@ -1035,6 +1072,31 @@ Value ByteCodeInterpreter::newOperation(ExecutionState& state, const Value& call
         return receiver;
 }
 
+Value ByteCodeInterpreter::instanceOfOperation(ExecutionState& state, const Value& left, const Value& right)
+{
+    if (!right.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
+    }
+    if (left.isObject()) {
+        FunctionObject* C = right.asFunction();
+        // while (C->isBoundFunc())
+        //     C = C->codeBlock()->peekCode<CallBoundFunction>(0)->m_boundTargetFunction;
+        Value P = C->getFunctionPrototype(state);
+        Value O = left.asObject()->getPrototype(state);
+        if (P.isObject()) {
+            while (!O.isUndefinedOrNull()) {
+                if (P == O) {
+                    return Value(true);
+                }
+                O = O.asObject()->getPrototype(state);
+            }
+        } else {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_InvalidPrototypeProperty);
+        }
+    }
+    return Value(false);
+}
+
 inline bool ByteCodeInterpreter::abstractRelationalComparison(ExecutionState& state, const Value& left, const Value& right, bool leftFirst)
 {
     // consume very fast case
@@ -1114,6 +1176,9 @@ ALWAYS_INLINE std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCa
 {
     Object* targetObj = obj;
     unsigned currentCacheIndex = 0;
+    ObjectStructureChainItem testItem;
+    testItem.m_objectStructure = obj->structure();
+    testItem.m_version = obj->structure()->version();
     const size_t cacheFillCount = inlineCache.m_cache.size();
     for (; currentCacheIndex < cacheFillCount; currentCacheIndex++) {
         const GetObjectInlineCacheData& data = inlineCache.m_cache[currentCacheIndex];
@@ -1121,7 +1186,9 @@ ALWAYS_INLINE std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCa
         const size_t& cachedIndex = data.m_cachedIndex;
         const size_t cSiz = cachedHiddenClassChain->size() - 1;
         for (size_t i = 0; i < cSiz; i++) {
-            if (UNLIKELY((*cachedHiddenClassChain)[i].first != obj->structure() || (*cachedHiddenClassChain)[i].second != obj->structure()->version())) {
+            testItem.m_objectStructure = obj->structure();
+            testItem.m_version = obj->structure()->version();
+            if (UNLIKELY((*cachedHiddenClassChain)[i] != testItem)) {
                 return getObjectPrecomputedCaseOperationCacheMiss(state, targetObj, name, inlineCache);
             }
             const Value& proto = obj->getPrototype(state);
@@ -1131,7 +1198,10 @@ ALWAYS_INLINE std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCa
                 return getObjectPrecomputedCaseOperationCacheMiss(state, targetObj, name, inlineCache);
             }
         }
-        if (LIKELY((*cachedHiddenClassChain)[cSiz].first == obj->structure() && (*cachedHiddenClassChain)[cSiz].second == obj->structure()->version())) {
+
+        testItem.m_objectStructure = obj->structure();
+        testItem.m_version = obj->structure()->version();
+        if (LIKELY((*cachedHiddenClassChain)[cSiz] == testItem)) {
             if (LIKELY(cachedIndex != SIZE_MAX)) {
                 return std::make_pair(true, obj->getOwnPropertyUtilForObject(state, cachedIndex, targetObj));
             } else {
@@ -1160,8 +1230,13 @@ std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOperationCac
     ASSERT(&inlineCache.m_cache[0] == &inlineCache.m_cache[0]);
     ObjectStructureChain* cachedHiddenClassChain = &inlineCache.m_cache[0].m_cachedhiddenClassChain;
     size_t* cachedHiddenClassIndex = &inlineCache.m_cache[0].m_cachedIndex;
+
+    ObjectStructureChainItem newItem;
     while (true) {
-        cachedHiddenClassChain->push_back(std::make_pair(obj->structure(), obj->structure()->version()));
+        newItem.m_objectStructure = obj->structure();
+        newItem.m_version = obj->structure()->version();
+
+        cachedHiddenClassChain->push_back(newItem);
         size_t idx = obj->structure()->findProperty(state, name);
         if (idx != SIZE_MAX) {
             *cachedHiddenClassIndex = idx;
@@ -1184,7 +1259,12 @@ std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOperationCac
 ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache)
 {
     Object* originalObject = obj;
-    if (inlineCache.m_cachedIndex != SIZE_MAX && inlineCache.m_cachedhiddenClassChain[0].first == obj->structure() && inlineCache.m_cachedhiddenClassChain[0].second == obj->structure()->version()) {
+
+    ObjectStructureChainItem testItem;
+    testItem.m_objectStructure = obj->structure();
+    testItem.m_version = obj->structure()->version();
+
+    if (inlineCache.m_cachedIndex != SIZE_MAX && inlineCache.m_cachedhiddenClassChain[0] == testItem) {
         ASSERT(inlineCache.m_cachedhiddenClassChain.size() == 1);
         // cache hit!
         obj->setOwnPropertyThrowsExceptionWhenStrictMode(state, inlineCache.m_cachedIndex, value);
@@ -1193,7 +1273,7 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
         int cSiz = inlineCache.m_cachedhiddenClassChain.size();
         bool miss = false;
         for (int i = 0; i < cSiz - 1; i++) {
-            if (inlineCache.m_cachedhiddenClassChain[i].first != obj->structure()) {
+            if (inlineCache.m_cachedhiddenClassChain[i].m_objectStructure != obj->structure()) {
                 miss = true;
                 break;
             } else {
@@ -1206,7 +1286,7 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
             }
         }
         if (!miss) {
-            if (inlineCache.m_cachedhiddenClassChain[cSiz - 1].first == obj->structure()) {
+            if (inlineCache.m_cachedhiddenClassChain[cSiz - 1].m_objectStructure == obj->structure()) {
                 // cache hit!
                 obj = originalObject;
                 ASSERT(!obj->structure()->isStructureWithFastAccess());
@@ -1230,8 +1310,13 @@ void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionSt
     size_t idx = obj->structure()->findProperty(state, name);
     if (idx != SIZE_MAX) {
         // own property
+        ObjectStructureChainItem newItem;
+        newItem.m_objectStructure = obj->structure();
+        newItem.m_version = obj->structure()->version();
+
         inlineCache.m_cachedIndex = idx;
-        inlineCache.m_cachedhiddenClassChain.push_back(std::make_pair(obj->structure(), obj->structure()->version()));
+        inlineCache.m_cachedhiddenClassChain.push_back(newItem);
+
         obj->setOwnPropertyThrowsExceptionWhenStrictMode(state, inlineCache.m_cachedIndex, value);
     } else {
         Object* orgObject = obj;
@@ -1240,7 +1325,11 @@ void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionSt
             orgObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, orgObject);
             return;
         }
-        inlineCache.m_cachedhiddenClassChain.push_back(std::make_pair(obj->structure(), obj->structure()->version()));
+        ASSERT(obj->structure()->version() == 0);
+        ObjectStructureChainItem newItem;
+        newItem.m_objectStructure = obj->structure();
+        newItem.m_version = obj->structure()->version();
+        inlineCache.m_cachedhiddenClassChain.push_back(newItem);
         Value proto = obj->getPrototype(state);
         while (proto.isObject()) {
             obj = proto.asObject();
@@ -1249,7 +1338,9 @@ void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionSt
                 orgObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, orgObject);
                 return;
             }
-            inlineCache.m_cachedhiddenClassChain.push_back(std::make_pair(obj->structure(), obj->structure()->version()));
+            newItem.m_objectStructure = obj->structure();
+            newItem.m_version = obj->structure()->version();
+            inlineCache.m_cachedhiddenClassChain.push_back(newItem);
             proto = obj->getPrototype(state);
         }
         bool s = orgObject->set(state, ObjectPropertyName(state, name), value, obj);
@@ -1285,7 +1376,11 @@ EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(ExecutionState&
         }
         return true;
     });
-    data->m_hiddenClassChain.push_back(std::make_pair(target.asObject()->structure(), target.asObject()->structure()->version()));
+    ObjectStructureChainItem newItem;
+    newItem.m_objectStructure = target.asObject()->structure();
+    newItem.m_version = target.asObject()->structure()->version();
+
+    data->m_hiddenClassChain.push_back(newItem);
 
     std::unordered_set<String*, std::hash<String*>, std::equal_to<String*>, gc_malloc_ignore_off_page_allocator<String*>> keyStringSet;
 
@@ -1300,7 +1395,9 @@ EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(ExecutionState&
                 return true;
             });
         }
-        data->m_hiddenClassChain.push_back(std::make_pair(target.asObject()->structure(), target.asObject()->structure()->version()));
+        newItem.m_objectStructure = target.asObject()->structure();
+        newItem.m_version = target.asObject()->structure()->version();
+        data->m_hiddenClassChain.push_back(newItem);
         target = target.asObject()->getPrototype(state);
     }
 

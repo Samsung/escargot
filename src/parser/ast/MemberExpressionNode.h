@@ -33,6 +33,16 @@ public:
         m_computed = computed;
     }
 
+    Node* object()
+    {
+        return m_object;
+    }
+
+    Node* property()
+    {
+        return m_property;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::MemberExpression; }
     bool isPreComputedCase()
     {

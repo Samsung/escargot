@@ -39,11 +39,11 @@ bool StringObject::defineOwnProperty(ExecutionState& state, const ObjectProperty
     return Object::defineOwnProperty(state, P, desc);
 }
 
-void StringObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+bool StringObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     auto r = getOwnProperty(state, P);
     if (r.hasValue() && !r.isConfigurable())
-        return;
+        return false;
     return Object::deleteOwnProperty(state, P);
 }
 

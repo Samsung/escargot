@@ -59,6 +59,16 @@ void GlobalEnvironmentRecord::setMutableBinding(ExecutionState& state, const Ato
     m_globalObject->setThrowsExceptionWhenStrictMode(state, name, V, m_globalObject);
 }
 
+bool GlobalEnvironmentRecord::deleteBinding(ExecutionState& state, const AtomicString& name)
+{
+    return m_globalObject->deleteOwnProperty(state, name);
+}
+
+EnvironmentRecord::BindingSlot GlobalEnvironmentRecord::hasBinding(ExecutionState& state, const AtomicString& atomicName)
+{
+    return EnvironmentRecord::BindingSlot(this, m_globalObject->findPropertyIndex(state, atomicName));
+}
+
 void DeclarativeEnvironmentRecordNotIndexded::createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete)
 {
     ASSERT(canDelete == false);

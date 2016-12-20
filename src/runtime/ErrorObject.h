@@ -20,6 +20,8 @@ extern const char* errorMessage_Get_FromNull;
 extern const char* errorMessage_Set_ToUndefined;
 extern const char* errorMessage_Set_ToNull;
 extern const char* errorMessage_New_NotConstructor;
+extern const char* errorMessage_InstanceOf_NotFunction;
+extern const char* errorMessage_InstanceOf_InvalidPrototypeProperty;
 extern const char* errorMessage_ArgumentsOrCaller_InStrictMode;
 extern const char* errorMessage_GlobalObject_ThisUndefinedOrNull;
 extern const char* errorMessage_GlobalObject_ThisNotObject;

@@ -40,6 +40,18 @@ public:
         }
     }
 
+    bool deleteBinding(ExecutionState& state, const AtomicString& name)
+    {
+        LexicalEnvironment* env = this;
+        while (env) {
+            if (LIKELY(env->record()->hasBinding(state, name).m_index != SIZE_MAX)) {
+                return env->record()->deleteBinding(state, name);
+            }
+            env = env->outerEnvironment();
+        }
+        return true;
+    }
+
 protected:
     EnvironmentRecord* m_record;
     LexicalEnvironment* m_outerEnvironment;

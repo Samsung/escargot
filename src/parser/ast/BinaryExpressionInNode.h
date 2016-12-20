@@ -30,6 +30,18 @@ public:
         m_right = (ExpressionNode*)right;
     }
 
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        m_left->generateExpressionByteCode(codeBlock, context);
+        m_right->generateExpressionByteCode(codeBlock, context);
+
+        size_t src1 = context->getLastRegisterIndex();
+        context->giveUpRegister();
+        size_t src0 = context->getLastRegisterIndex();
+
+        codeBlock->pushCode(BinaryInOperation(ByteCodeLOC(m_loc.index), src0, src1), context, this);
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionIn; }
 protected:
     ExpressionNode* m_left;

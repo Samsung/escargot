@@ -169,6 +169,11 @@ public:
         return false;
     }
 
+    virtual bool deleteBinding(ExecutionState& state, const AtomicString& name)
+    {
+        return m_bindingObject->deleteOwnProperty(state, name);
+    }
+
 protected:
     Object* m_bindingObject;
 };
@@ -192,6 +197,8 @@ public:
     virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false);
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
+    virtual bool deleteBinding(ExecutionState& state, const AtomicString& name);
+    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName);
 
     CodeBlock* globalCodeBlock()
     {

@@ -259,11 +259,14 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
     }
 }
 
-void Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
-    ASSERT(getOwnProperty(state, P).hasValue());
-    ASSERT(getOwnProperty(state, P).isConfigurable());
-    deleteOwnProperty(state, m_structure->findProperty(state, P.toPropertyName(state)));
+    auto result = getOwnProperty(state, P);
+    if (result.hasValue() && result.isConfigurable()) {
+        deleteOwnProperty(state, m_structure->findProperty(state, P.toPropertyName(state)));
+        return true;
+    }
+    return false;
 }
 
 void Object::enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc)> fn) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE

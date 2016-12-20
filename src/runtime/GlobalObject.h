@@ -23,6 +23,7 @@ class FunctionObject;
 class GlobalObject : public Object {
 public:
     friend class ByteCodeInterpreter;
+    friend class GlobalEnvironmentRecord;
 
     GlobalObject(ExecutionState& state)
         : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, false)

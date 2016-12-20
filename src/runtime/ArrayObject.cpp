@@ -40,7 +40,7 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
     return Object::defineOwnProperty(state, P, desc);
 }
 
-void ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+bool ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     if (LIKELY(isFastModeArray())) {
         uint32_t idx;
@@ -54,7 +54,7 @@ void ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
             ASSERT(len == getLength(state));
             if (idx < len) {
                 m_fastModeData[idx] = Value(Value::EmptyValue);
-                return;
+                return true;
             }
         }
     }

@@ -47,6 +47,8 @@ class Node;
     F(BinaryLeftShift, 1, 2)            \
     F(BinarySignedRightShift, 1, 2)     \
     F(BinaryUnsignedRightShift, 1, 2)   \
+    F(BinaryInOperation, 1, 2)          \
+    F(BinaryInstanceOfOperation, 1, 2)  \
     F(CreateObject, 1, 0)               \
     F(CreateArray, 1, 0)                \
     F(GetObject, 1, 2)                  \
@@ -63,6 +65,7 @@ class Node;
     F(UnaryNot, 1, 1)                   \
     F(UnaryBitwiseNot, 1, 1)            \
     F(UnaryTypeof, 1, 1)                \
+    F(UnaryDelete, 1, 1)                \
     F(Jump, 0, 0)                       \
     F(JumpComplexCase, 0, 0)            \
     F(JumpIfTrue, 0, 0)                 \
@@ -79,6 +82,7 @@ class Node;
     F(LoadRegexp, 1, 0)                 \
     F(CallNativeFunction, 0, 0)         \
     F(CallEvalFunction, 0, 0)           \
+    F(ResetExecuteResult, 0, 0)         \
     F(End, 0, 0)
 
 enum Opcode {
@@ -526,6 +530,8 @@ DEFINE_BINARY_OPERATION(BitwiseXor, "bitwise Xor");
 DEFINE_BINARY_OPERATION(LeftShift, "left shift");
 DEFINE_BINARY_OPERATION(SignedRightShift, "signed right shift");
 DEFINE_BINARY_OPERATION(UnsignedRightShift, "unsigned right shift");
+DEFINE_BINARY_OPERATION(InOperation, "in operation");
+DEFINE_BINARY_OPERATION(InstanceOfOperation, "instance of");
 
 
 class CreateObject : public ByteCode {
@@ -606,7 +612,21 @@ public:
 };
 
 
-typedef Vector<std::pair<ObjectStructure*, size_t>, gc_malloc_ignore_off_page_allocator<std::pair<ObjectStructure*, size_t>>> ObjectStructureChain;
+struct ObjectStructureChainItem : public gc {
+    ObjectStructure* m_objectStructure;
+    size_t m_version;
+    bool operator==(const ObjectStructureChainItem& item) const
+    {
+        return m_objectStructure == item.m_objectStructure && m_version == item.m_version;
+    }
+
+    bool operator!=(const ObjectStructureChainItem& item) const
+    {
+        return !operator==(item);
+    }
+};
+
+typedef Vector<ObjectStructureChainItem, gc_malloc_ignore_off_page_allocator<ObjectStructureChainItem>> ObjectStructureChain;
 
 struct GetObjectInlineCacheData {
     GetObjectInlineCacheData()
@@ -871,6 +891,28 @@ public:
     virtual void dump()
     {
         printf("unary typeof r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class UnaryDelete : public ByteCode {
+public:
+    UnaryDelete(const ByteCodeLOC& loc, const size_t& registerIndex0, const size_t& registerIndex1, AtomicString name)
+        : ByteCode(Opcode::UnaryDeleteOpcode, loc)
+        , m_registerIndex0(registerIndex0)
+        , m_registerIndex1(registerIndex1)
+        , m_id(name)
+    {
+    }
+
+    size_t m_registerIndex0;
+    size_t m_registerIndex1;
+    AtomicString m_id;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("unary delete r%d r%d %s", (int)m_registerIndex0, (int)m_registerIndex1, m_id.string()->toUTF8StringData().data());
     }
 #endif
 };
@@ -1234,6 +1276,21 @@ public:
     }
 
     NativeFunctionPointer m_fn;
+};
+
+class ResetExecuteResult : public ByteCode {
+public:
+    ResetExecuteResult(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::ResetExecuteResultOpcode, loc)
+    {
+    }
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("reset execute result");
+    }
+#endif
 };
 
 class End : public ByteCode {

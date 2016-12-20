@@ -44,8 +44,10 @@ public:
         if (!context->m_codeBlock->hasName(name))
             codeBlock->pushCode(DeclareVarVariable(ByteCodeLOC(m_loc.index), name), context, this);
         if (m_init) {
+            context->getRegister();
             m_init->generateExpressionByteCode(codeBlock, context);
             m_id->generateStoreByteCode(codeBlock, context);
+            context->giveUpRegister();
             context->giveUpRegister();
         }
     }

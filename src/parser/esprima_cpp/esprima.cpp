@@ -3763,7 +3763,7 @@ public:
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
 
-            if (exprOld->isIdentifier()) {
+            if (this->context->strict && exprOld->isIdentifier()) {
                 this->tolerateError(Messages::StrictDelete);
             }
         } else if (this->matchKeyword(Void)) {
@@ -3911,7 +3911,7 @@ public:
                 while ((stack.size() > 2) && (prec <= ((ScannerResult*)stack[stack.size() - 2])->prec)) {
                     right = (Node*)stack.back();
                     stack.pop_back();
-                    PunctuatorsKind operator_ = ((ScannerResult*)stack.back())->valuePunctuatorsKind;
+                    ScannerResult* operator_ = ((ScannerResult*)stack.back());
                     stack.pop_back();
                     left = (Node*)stack.back();
                     stack.pop_back();
@@ -3934,7 +3934,7 @@ public:
             markers.pop_back();
             while (i > 1) {
                 MetaNode node = this->startNode(markers.back());
-                expr = this->finalize(node, finishBinaryExpression((Node*)stack[i - 2], expr, ((ScannerResult*)stack[i - 1])->valuePunctuatorsKind));
+                expr = this->finalize(node, finishBinaryExpression((Node*)stack[i - 2], expr, ((ScannerResult*)stack[i - 1])));
                 i -= 2;
             }
         }
@@ -3942,70 +3942,74 @@ public:
         return expr;
     }
 
-    Node* finishBinaryExpression(Node* left, Node* right, PunctuatorsKind oper)
+    Node* finishBinaryExpression(Node* left, Node* right, ScannerResult* token)
     {
-        // Additive Operators
         Node* nd;
-        if (oper == Plus)
-            nd = new BinaryExpressionPlusNode(left, right);
-        else if (oper == Minus)
-            nd = new BinaryExpressionMinusNode(left, right);
+        if (token->type == Token::PunctuatorToken) {
+            PunctuatorsKind oper = token->valuePunctuatorsKind;
+            // Additive Operators
+            if (oper == Plus)
+                nd = new BinaryExpressionPlusNode(left, right);
+            else if (oper == Minus)
+                nd = new BinaryExpressionMinusNode(left, right);
 
-        // Bitwise Shift Operators
-        else if (oper == LeftShift)
-            nd = new BinaryExpressionLeftShiftNode(left, right);
-        else if (oper == RightShift)
-            nd = new BinaryExpressionSignedRightShiftNode(left, right);
-        else if (oper == UnsignedRightShift)
-            nd = new BinaryExpressionUnsignedRightShiftNode(left, right);
+            // Bitwise Shift Operators
+            else if (oper == LeftShift)
+                nd = new BinaryExpressionLeftShiftNode(left, right);
+            else if (oper == RightShift)
+                nd = new BinaryExpressionSignedRightShiftNode(left, right);
+            else if (oper == UnsignedRightShift)
+                nd = new BinaryExpressionUnsignedRightShiftNode(left, right);
 
-        // Multiplicative Operators
-        else if (oper == Multiply)
-            nd = new BinaryExpressionMultiplyNode(left, right);
-        else if (oper == Divide)
-            nd = new BinaryExpressionDivisionNode(left, right);
-        else if (oper == Mod)
-            nd = new BinaryExpressionModNode(left, right);
+            // Multiplicative Operators
+            else if (oper == Multiply)
+                nd = new BinaryExpressionMultiplyNode(left, right);
+            else if (oper == Divide)
+                nd = new BinaryExpressionDivisionNode(left, right);
+            else if (oper == Mod)
+                nd = new BinaryExpressionModNode(left, right);
 
-        // Relational Operators
-        else if (oper == LeftInequality)
-            nd = new BinaryExpressionLessThanNode(left, right);
-        else if (oper == RightInequality)
-            nd = new BinaryExpressionGreaterThanNode(left, right);
-        else if (oper == LeftInequalityEqual)
-            nd = new BinaryExpressionLessThanOrEqualNode(left, right);
-        else if (oper == RightInequalityEqual)
-            nd = new BinaryExpressionGreaterThanOrEqualNode(left, right);
+            // Relational Operators
+            else if (oper == LeftInequality)
+                nd = new BinaryExpressionLessThanNode(left, right);
+            else if (oper == RightInequality)
+                nd = new BinaryExpressionGreaterThanNode(left, right);
+            else if (oper == LeftInequalityEqual)
+                nd = new BinaryExpressionLessThanOrEqualNode(left, right);
+            else if (oper == RightInequalityEqual)
+                nd = new BinaryExpressionGreaterThanOrEqualNode(left, right);
 
-        // Equality Operators
-        else if (oper == Equal)
-            nd = new BinaryExpressionEqualNode(left, right);
-        else if (oper == NotEqual)
-            nd = new BinaryExpressionNotEqualNode(left, right);
-        else if (oper == StrictEqual)
-            nd = new BinaryExpressionStrictEqualNode(left, right);
-        else if (oper == NotStrictEqual)
-            nd = new BinaryExpressionNotStrictEqualNode(left, right);
+            // Equality Operators
+            else if (oper == Equal)
+                nd = new BinaryExpressionEqualNode(left, right);
+            else if (oper == NotEqual)
+                nd = new BinaryExpressionNotEqualNode(left, right);
+            else if (oper == StrictEqual)
+                nd = new BinaryExpressionStrictEqualNode(left, right);
+            else if (oper == NotStrictEqual)
+                nd = new BinaryExpressionNotStrictEqualNode(left, right);
 
-        // Binary Bitwise Operator
-        else if (oper == BitwiseAnd)
-            nd = new BinaryExpressionBitwiseAndNode(left, right);
-        else if (oper == BitwiseXor)
-            nd = new BinaryExpressionBitwiseXorNode(left, right);
-        else if (oper == BitwiseOr)
-            nd = new BinaryExpressionBitwiseOrNode(left, right);
-        else if (oper == LogicalOr)
-            nd = new BinaryExpressionLogicalOrNode(left, right);
-        else if (oper == LogicalAnd)
-            nd = new BinaryExpressionLogicalAndNode(left, right);
-        else if (oper == InPunctuator)
-            nd = new BinaryExpressionInNode(left, right);
-        else if (oper == InstanceOfPunctuator)
-            nd = new BinaryExpressionInstanceOfNode(left, right);
-        // TODO
-        else
-            RELEASE_ASSERT_NOT_REACHED();
-
+            // Binary Bitwise Operator
+            else if (oper == BitwiseAnd)
+                nd = new BinaryExpressionBitwiseAndNode(left, right);
+            else if (oper == BitwiseXor)
+                nd = new BinaryExpressionBitwiseXorNode(left, right);
+            else if (oper == BitwiseOr)
+                nd = new BinaryExpressionBitwiseOrNode(left, right);
+            else if (oper == LogicalOr)
+                nd = new BinaryExpressionLogicalOrNode(left, right);
+            else if (oper == LogicalAnd)
+                nd = new BinaryExpressionLogicalAndNode(left, right);
+            else
+                RELEASE_ASSERT_NOT_REACHED();
+        } else {
+            if (token->valueKeywordKind == KeywordKind::In)
+                nd = new BinaryExpressionInNode(left, right);
+            else if (token->valueKeywordKind == KeywordKind::InstanceofKeyword)
+                nd = new BinaryExpressionInstanceOfNode(left, right);
+            else
+                RELEASE_ASSERT_NOT_REACHED();
+        }
         return nd;
     }
 
