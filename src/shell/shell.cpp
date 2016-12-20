@@ -31,13 +31,14 @@ void __attribute__((optimize("O0"))) fillStack(size_t siz)
 }
 #endif
 
-void eval(Escargot::Context* context, Escargot::String* str, Escargot::String* fileName, bool shouldPrintScriptResult)
+bool eval(Escargot::Context* context, Escargot::String* str, Escargot::String* fileName, bool shouldPrintScriptResult)
 {
     auto result = context->scriptParser().parse(str, fileName);
     if (result.m_error) {
         char msg[10240];
         auto err = result.m_error->message->toUTF8StringData();
         puts(err.data());
+        return false;
     } else {
         Escargot::Script::ScriptSandboxExecuteResult resultValue = result.m_script->sandboxExecute(context);
         Escargot::ExecutionState state(context);
@@ -49,8 +50,10 @@ void eval(Escargot::Context* context, Escargot::String* str, Escargot::String* f
             for (size_t i = 0; i < resultValue.error.stackTrace.size(); i++) {
                 printf("%s (%d:%d)\n", resultValue.error.stackTrace[i].fileName->toUTF8StringData().data(), (int)resultValue.error.stackTrace[i].line, (int)resultValue.error.stackTrace[i].column);
             }
+            return false;
         }
     }
+    return true;
 }
 
 int main(int argc, char* argv[])
@@ -93,7 +96,8 @@ int main(int argc, char* argv[])
             fclose(fp);
 
             Escargot::String* src = new Escargot::UTF16String(std::move(Escargot::utf8StringToUTF16String(str.data(), str.length())));
-            eval(context, src, Escargot::String::fromUTF8(argv[i], strlen(argv[i])), false);
+            if (!eval(context, src, Escargot::String::fromUTF8(argv[i], strlen(argv[i])), false))
+                return 3;
         }
         if (strcmp(argv[i], "--shell") == 0) {
             runShell = true;

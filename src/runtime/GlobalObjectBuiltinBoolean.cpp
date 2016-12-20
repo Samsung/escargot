@@ -7,8 +7,18 @@ namespace Escargot {
 
 static Value builtinBooleanConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // TODO
-    RELEASE_ASSERT_NOT_REACHED();
+    BooleanObject* boolObj;
+    if (isNewExpression)
+        boolObj = thisValue.asPointerValue()->asObject()->asBooleanObject();
+    else
+        boolObj = new BooleanObject(state);
+
+    if (argv[0].isUndefined())
+        boolObj->setPrimitiveValue(state, false);
+    else
+        boolObj->setPrimitiveValue(state, argv[0].toBoolean(state));
+
+    return boolObj;
 }
 
 void GlobalObject::installBoolean(ExecutionState& state)

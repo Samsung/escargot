@@ -9,6 +9,7 @@ class FunctionObject;
 class ArrayObject;
 class StringObject;
 class NumberObject;
+class BooleanObject;
 class RegExpObject;
 class DateObject;
 class DoubleInSmallValue;
@@ -118,6 +119,12 @@ public:
     {
         ASSERT(isNumberObject());
         return (NumberObject*)this;
+    }
+
+    BooleanObject* asBooleanObject()
+    {
+        ASSERT(isBooleanObject());
+        return (BooleanObject*)this;
     }
 
     RegExpObject* asRegExpObject()

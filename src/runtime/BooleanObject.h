@@ -14,6 +14,11 @@ public:
         return m_primitiveValue;
     }
 
+    void setPrimitiveValue(ExecutionState& state, bool val)
+    {
+        m_primitiveValue = val;
+    }
+
     virtual bool isBooleanObject()
     {
         return true;
