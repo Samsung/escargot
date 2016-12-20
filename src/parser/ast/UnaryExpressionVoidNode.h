@@ -36,6 +36,7 @@ public:
         m_argument->generateExpressionByteCode(codeBlock, context);
         codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), Value()), context, this);
     }
+
 protected:
     Node* m_argument;
 };
