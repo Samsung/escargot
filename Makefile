@@ -388,7 +388,6 @@ run-octane:
 	../../escargot run.js
 
 run-test262:
-	ln -sf excludelist.orig.xml test/test262/test/config/excludelist.xml
 	cd test/test262/; \
 	python tools/packaging/test262.py --command ../../escargot $(OPT) --full-summary
 
