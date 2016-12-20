@@ -13,6 +13,7 @@ class ExecutionState;
 class HeapUsageVisualizer {
 public:
     static void initialize();
+
 private:
     static std::string m_outputFile;
 };
@@ -37,7 +38,6 @@ private:
 Value builtinRegisterLeakCheck(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
 Value builtinDumpBackTrace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
 Value builtinSetGCPhaseName(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
-
 }
 
 #endif // PROFILE_BDWGC

@@ -119,15 +119,17 @@ namespace Escargot {
 
 static int s_gcKinds[HeapObjectKind::NumberOfKind];
 
-template<GC_get_next_pointer_proc proc>
+template <GC_get_next_pointer_proc proc>
 static struct GC_ms_entry* markAndPushCustom(GC_word* addr,
-                                             struct GC_ms_entry *mark_stack_ptr,
-                                             struct GC_ms_entry *mark_stack_limit,
-                                             GC_word env) {
+                                             struct GC_ms_entry* mark_stack_ptr,
+                                             struct GC_ms_entry* mark_stack_limit,
+                                             GC_word env)
+{
     return GC_mark_and_push_custom(addr, mark_stack_ptr, mark_stack_limit, proc);
 }
 
-static GC_word* getNextValidValue(GC_word** iterator) {
+static GC_word* getNextValidValue(GC_word** iterator)
+{
     Value* current = (*(Value**)iterator)++;
     if (*current && current->isPointerValue())
         return (GC_word*)current->asPointerValue();
@@ -135,18 +137,17 @@ static GC_word* getNextValidValue(GC_word** iterator) {
         return NULL;
 }
 
-void initializeCustomAllocators() {
-    s_gcKinds[HeapObjectKind::ValueVectorKind] =
-        GC_new_kind(GC_new_free_list(),
-                    GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getNextValidValue>), 0),
-                    FALSE,
-                    TRUE);
+void initializeCustomAllocators()
+{
+    s_gcKinds[HeapObjectKind::ValueVectorKind] = GC_new_kind(GC_new_free_list(),
+                                                             GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getNextValidValue>), 0),
+                                                             FALSE,
+                                                             TRUE);
 
-    s_gcKinds[HeapObjectKind::ArrayObjectKind] =
-        GC_new_kind(GC_new_free_list(),
-                    0 | GC_DS_LENGTH,
-                    TRUE,
-                    TRUE);
+    s_gcKinds[HeapObjectKind::ArrayObjectKind] = GC_new_kind(GC_new_free_list(),
+                                                             0 | GC_DS_LENGTH,
+                                                             TRUE,
+                                                             TRUE);
 
 #ifdef PROFILE_MASSIF
     GC_is_valid_displacement_print_proc = [](void* ptr) {
@@ -170,15 +171,15 @@ void initializeCustomAllocators() {
 #endif
 }
 
-void iterateSpecificKindOfObject(ExecutionState& state, HeapObjectKind kind, HeapObjectIteratorCallback callback) {
-
+void iterateSpecificKindOfObject(ExecutionState& state, HeapObjectKind kind, HeapObjectIteratorCallback callback)
+{
     struct HeapObjectIteratorData {
         int kind;
         ExecutionState& state;
         HeapObjectIteratorCallback callback;
     };
 
-    HeapObjectIteratorData data { s_gcKinds[kind], state, callback };
+    HeapObjectIteratorData data{ s_gcKinds[kind], state, callback };
 
     GC_gcollect(); // Update mark status
     GC_enumerate_reachable_objects_inner([](void* obj, size_t bytes, void* cd) {
@@ -186,15 +187,17 @@ void iterateSpecificKindOfObject(ExecutionState& state, HeapObjectKind kind, Hea
         int kind = GC_get_kind_and_size(obj, &size);
         ASSERT(size == bytes);
 
-        HeapObjectIteratorData* data = (HeapObjectIteratorData*) cd;
+        HeapObjectIteratorData* data = (HeapObjectIteratorData*)cd;
         if (kind == data->kind) {
             data->callback(data->state, obj);
         }
-    }, (void*)(&data));
+    },
+                                         (void*)(&data));
 }
 
 template <>
-Value* CustomAllocator<Value>::allocate(size_type GC_n, const void*) {
+Value* CustomAllocator<Value>::allocate(size_type GC_n, const void*)
+{
     // Un-comment this to use default allocator
     // return (Value*)GC_MALLOC_IGNORE_OFF_PAGE(sizeof(Value) * GC_n);
     int kind = s_gcKinds[HeapObjectKind::ValueVectorKind];
@@ -202,12 +205,12 @@ Value* CustomAllocator<Value>::allocate(size_type GC_n, const void*) {
 }
 
 template <>
-ArrayObject* CustomAllocator<ArrayObject>::allocate(size_type GC_n, const void*) {
+ArrayObject* CustomAllocator<ArrayObject>::allocate(size_type GC_n, const void*)
+{
     // Un-comment this to use default allocator
     // return (ArrayObject*)GC_MALLOC(sizeof(ArrayObject));
     ASSERT(GC_n == 1);
     int kind = s_gcKinds[HeapObjectKind::ArrayObjectKind];
     return (ArrayObject*)GC_GENERIC_MALLOC(sizeof(ArrayObject), kind);
 }
-
 }

@@ -35,14 +35,15 @@ void HeapUsageVisualizer::initialize()
 void GCLeakChecker::registerAddress(void* ptr, std::string description)
 {
     RELEASE_ASSERT(ptr);
-    m_leakCheckedAddrs.push_back(LeakCheckedAddr { ptr, description, false });
+    m_leakCheckedAddrs.push_back(LeakCheckedAddr{ ptr, description, false });
 
     printf("GCLeakChecker::registerAddress %p (%zu - %zu = %zu)\n", ptr,
-            m_leakCheckedAddrs.size(), m_totalFreed, m_leakCheckedAddrs.size() - m_totalFreed);
+           m_leakCheckedAddrs.size(), m_totalFreed, m_leakCheckedAddrs.size() - m_totalFreed);
 
-    GC_REGISTER_FINALIZER_NO_ORDER(ptr, [] (void* obj, void* cd) {
+    GC_REGISTER_FINALIZER_NO_ORDER(ptr, [](void* obj, void* cd) {
         GCLeakChecker::unregisterAddress(obj);
-    }, NULL, NULL, NULL);
+    },
+                                   NULL, NULL, NULL);
 }
 
 void GCLeakChecker::unregisterAddress(void* ptr)
@@ -51,9 +52,9 @@ void GCLeakChecker::unregisterAddress(void* ptr)
     m_totalFreed++;
 
     printf("GCLeakChecker::unregisterAddress %p (%zu - %zu = %zu)\n", ptr,
-            m_leakCheckedAddrs.size(), m_totalFreed, m_leakCheckedAddrs.size() - m_totalFreed);
+           m_leakCheckedAddrs.size(), m_totalFreed, m_leakCheckedAddrs.size() - m_totalFreed);
 
-    for (auto& it: m_leakCheckedAddrs) {
+    for (auto& it : m_leakCheckedAddrs) {
         if (it.ptr == ptr) {
             it.deallocated = true;
             return;
@@ -70,7 +71,7 @@ void GCLeakChecker::dumpBackTrace(ExecutionState& state, const char* phase)
 #ifdef GC_DEBUG
     auto stream = stderr;
     fprintf(stderr, "GCLeakChecker::dumpBackTrace %s start >>>>>>>>>>\n", s_gcLogPhaseName.c_str());
-    for (const auto& it: m_leakCheckedAddrs) {
+    for (const auto& it : m_leakCheckedAddrs) {
         if (it.deallocated) {
             fprintf(stderr, "%s (%p) deallocated\n", it.description.c_str(), it.ptr);
         } else {
@@ -116,6 +117,4 @@ Value builtinSetGCPhaseName(ExecutionState& state, Value thisValue, size_t argc,
 }
 
 #endif // PROFILE_BDWGC
-
 }
-

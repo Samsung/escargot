@@ -100,5 +100,4 @@ void ArrayObject::iterateArrays(ExecutionState& state, HeapObjectIteratorCallbac
 {
     iterateSpecificKindOfObject(state, HeapObjectKind::ArrayObjectKind, callback);
 }
-
 }

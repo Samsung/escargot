@@ -9,7 +9,6 @@ public:
     static void initialize();
     static void finalize();
 };
-
 }
 
 

@@ -33,25 +33,25 @@ ObjectPropertyDescriptor::ObjectPropertyDescriptor(ExecutionState& state, Object
 void ObjectPropertyDescriptor::setEnumerable(bool enumerable)
 {
     if (enumerable)
-        m_property = (PresentAttribute) (m_property | EnumerablePresent);
+        m_property = (PresentAttribute)(m_property | EnumerablePresent);
     else
-        m_property = (PresentAttribute) (m_property | NonEnumerablePresent);
+        m_property = (PresentAttribute)(m_property | NonEnumerablePresent);
 }
 
 void ObjectPropertyDescriptor::setConfigurable(bool configurable)
 {
     if (configurable)
-        m_property = (PresentAttribute) (m_property | ConfigurablePresent);
+        m_property = (PresentAttribute)(m_property | ConfigurablePresent);
     else
-        m_property = (PresentAttribute) (m_property | NonConfigurablePresent);
+        m_property = (PresentAttribute)(m_property | NonConfigurablePresent);
 }
 
 void ObjectPropertyDescriptor::setWritable(bool writable)
 {
     if (writable)
-        m_property = (PresentAttribute) (m_property | WritablePresent);
+        m_property = (PresentAttribute)(m_property | WritablePresent);
     else
-        m_property = (PresentAttribute) (m_property | NonWritablePresent);
+        m_property = (PresentAttribute)(m_property | NonWritablePresent);
 }
 
 Object::Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea)

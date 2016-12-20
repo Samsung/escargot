@@ -128,8 +128,8 @@ void GlobalObject::installObject(ExecutionState& state)
     m_object->setFunctionPrototype(state, m_objectPrototype);
     // $19.1.2.2 Object.create (O [,Properties])
     m_object->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().create),
-        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().create, builtinObjectCreate, 2, nullptr, NativeFunctionInfo::Strict)),
-                                             (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().create, builtinObjectCreate, 2, nullptr, NativeFunctionInfo::Strict)),
+                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor),
                                          ObjectPropertyDescriptor(m_object, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

@@ -207,18 +207,18 @@ void GlobalObject::installOthers(ExecutionState& state)
     AtomicString dumpBackTrace(state, "dumpBackTrace");
     defineOwnProperty(state, ObjectPropertyName(dumpBackTrace),
                       ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                      NativeFunctionInfo(dumpBackTrace, builtinDumpBackTrace, 1, nullptr, NativeFunctionInfo::Strict), false),
-                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+                                                                  NativeFunctionInfo(dumpBackTrace, builtinDumpBackTrace, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
     AtomicString registerLeakCheck(state, "registerLeakCheck");
     defineOwnProperty(state, ObjectPropertyName(registerLeakCheck),
                       ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                      NativeFunctionInfo(registerLeakCheck, builtinRegisterLeakCheck, 2, nullptr, NativeFunctionInfo::Strict), false),
-                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+                                                                  NativeFunctionInfo(registerLeakCheck, builtinRegisterLeakCheck, 2, nullptr, NativeFunctionInfo::Strict), false),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
     AtomicString setPhaseName(state, "setPhaseName");
     defineOwnProperty(state, ObjectPropertyName(setPhaseName),
                       ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                      NativeFunctionInfo(setPhaseName, builtinSetGCPhaseName, 1, nullptr, NativeFunctionInfo::Strict), false),
-                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+                                                                  NativeFunctionInfo(setPhaseName, builtinSetGCPhaseName, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 #endif
 
     m_stringProxyObject = new StringObject(state);
