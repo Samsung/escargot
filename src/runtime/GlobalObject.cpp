@@ -61,7 +61,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg, CodeBlock* par
         const char* s = "eval input";
         ScriptParser::ScriptParserResult parserResult = parser.parse(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), parentCodeBlock);
         if (parserResult.m_error) {
-            TypeErrorObject* err = new TypeErrorObject(state, parserResult.m_error->message);
+            SyntaxErrorObject* err = new SyntaxErrorObject(state, parserResult.m_error->message);
             state.throwException(err);
         }
         if (!parentCodeBlock) {

@@ -1,6 +1,9 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "parser/ScriptParser.h"
+#include "runtime/Environment.h"
+#include "runtime/EnvironmentRecord.h"
 
 namespace Escargot {
 
@@ -11,9 +14,35 @@ static Value builtinFunctionEmptyFunction(ExecutionState& state, Value thisValue
 
 static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // TODO
-    RELEASE_ASSERT_NOT_REACHED();
-    return Value();
+    StringBuilder src;
+    src.appendString("function anonymous(");
+
+    for (size_t i = 1; i < argc; i++) {
+        src.appendString(argv[i].toString(state));
+        if (i != argc - 1) {
+            src.appendChar(',');
+        }
+    }
+
+    src.appendString("){\n");
+    if (argc > 0) {
+        src.appendString(argv[0].toString(state));
+    }
+    src.appendString("\n}");
+
+    // TODO user should get line - 1
+    ScriptParser parser(state.context());
+    auto parserResult = parser.parse(src.finalize(), new ASCIIString("Function Constructor input"));
+
+    if (parserResult.m_error) {
+        SyntaxErrorObject* err = new SyntaxErrorObject(state, parserResult.m_error->message);
+        state.throwException(err);
+    }
+
+    CodeBlock* cb = parserResult.m_script->topCodeBlock()->childBlocks()[0];
+
+    LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, parserResult.m_script->topCodeBlock(), state.context()->globalObject()), nullptr);
+    return new FunctionObject(state, cb, globalEnvironment);
 }
 
 static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -47,10 +76,7 @@ static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t
 
 void GlobalObject::installFunction(ExecutionState& state)
 {
-    FunctionObject* emptyFunction = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionEmptyFunction, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
-                                                                                // TODO
-                                                                                RELEASE_ASSERT_NOT_REACHED();
-                                                                            })),
+    FunctionObject* emptyFunction = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionEmptyFunction, 1, nullptr, 0)),
                                                        FunctionObject::__ForBuiltin__);
     m_functionPrototype = emptyFunction;
     m_functionPrototype->setPrototype(state, m_objectPrototype);
@@ -58,8 +84,9 @@ void GlobalObject::installFunction(ExecutionState& state)
     // m_functionPrototype->setFunctionPrototype(state, emptyFunction);
 
     m_function = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
-                                        // TODO
-                                        RELEASE_ASSERT_NOT_REACHED();
+                                        // create dummy object.
+                                        // this object is replaced in function ctor
+                                        return new FunctionObject(state, NativeFunctionInfo(AtomicString(), builtinFunctionConstructor, 0, nullptr, 0));
                                     }));
     m_function->markThisObjectDontNeedStructureTransitionTable(state);
     // TODO m_function->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);

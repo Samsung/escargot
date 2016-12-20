@@ -39,6 +39,11 @@ public:
         return m_fileName;
     }
 
+    CodeBlock* topCodeBlock()
+    {
+        return m_topCodeBlock;
+    }
+
 protected:
     Value executeLocal(ExecutionState& state);
     String* m_fileName;
