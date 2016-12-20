@@ -199,18 +199,18 @@ template <>
 Value* CustomAllocator<Value>::allocate(size_type GC_n, const void*)
 {
     // Un-comment this to use default allocator
-    return (Value*)GC_MALLOC_IGNORE_OFF_PAGE(sizeof(Value) * GC_n);
-    // int kind = s_gcKinds[HeapObjectKind::ValueVectorKind];
-    // return (Value*)GC_GENERIC_MALLOC_IGNORE_OFF_PAGE(sizeof(Value) * GC_n, kind);
+    // return (Value*)GC_MALLOC_IGNORE_OFF_PAGE(sizeof(Value) * GC_n);
+    int kind = s_gcKinds[HeapObjectKind::ValueVectorKind];
+    return (Value*)GC_GENERIC_MALLOC_IGNORE_OFF_PAGE(sizeof(Value) * GC_n, kind);
 }
 
 template <>
 ArrayObject* CustomAllocator<ArrayObject>::allocate(size_type GC_n, const void*)
 {
     // Un-comment this to use default allocator
-    return (ArrayObject*)GC_MALLOC(sizeof(ArrayObject));
+    // return (ArrayObject*)GC_MALLOC(sizeof(ArrayObject));
     ASSERT(GC_n == 1);
-    // int kind = s_gcKinds[HeapObjectKind::ArrayObjectKind];
-    // return (ArrayObject*)GC_GENERIC_MALLOC(sizeof(ArrayObject), kind);
+    int kind = s_gcKinds[HeapObjectKind::ArrayObjectKind];
+    return (ArrayObject*)GC_GENERIC_MALLOC(sizeof(ArrayObject), kind);
 }
 }

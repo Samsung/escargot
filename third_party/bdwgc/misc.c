@@ -1314,7 +1314,9 @@ GC_API void GC_CALL GC_init(void)
     /* These variables are not initialized properly */
     GC_heapsize = 0;
     GC_unmapped_bytes = 0;
+#ifdef NO_DEBUGGING
     GC_debug_header_size = 0;
+#endif
 #endif
 }
 
