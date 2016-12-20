@@ -44,8 +44,18 @@ static int itoa(int64_t value, char* sp, int radix)
 
 static Value builtinNumberConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // TODO
-    RELEASE_ASSERT_NOT_REACHED();
+    NumberObject* numObj;
+    if (isNewExpression)
+        numObj = thisValue.asPointerValue()->asObject()->asNumberObject();
+    else
+        numObj = new NumberObject(state);
+
+    if (argv[0].isUndefined())
+        numObj->setPrimitiveValue(state, 0);
+    else
+        numObj->setPrimitiveValue(state, argv[0].toNumber(state));
+
+    return numObj;
 }
 
 static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -162,6 +172,25 @@ void GlobalObject::installNumber(ExecutionState& state)
 
 
     m_number->setFunctionPrototype(state, m_numberPrototype);
+
+    ObjectPropertyDescriptor::PresentAttribute allFalsePresent = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent
+                                                                                                              | ObjectPropertyDescriptor::NonEnumerablePresent
+                                                                                                              | ObjectPropertyDescriptor::NonConfigurablePresent);
+    const StaticStrings* strings = &state.context()->staticStrings();
+    // $20.1.2.6 Number.MAX_SAFE_INTEGER
+    m_number->defineOwnPropertyThrowsException(state, strings->MAX_SAFE_INTEGER, ObjectPropertyDescriptor(Value(9007199254740991.0), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
+    // $20.1.2.7 Number.MAX_VALUE
+    m_number->defineOwnPropertyThrowsException(state, strings->MAX_VALUE, ObjectPropertyDescriptor(Value(1.7976931348623157E+308), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
+    // $20.1.2.8 Number.MIN_SAFE_INTEGER
+    m_number->defineOwnPropertyThrowsException(state, strings->MIN_SAFE_INTEGER, ObjectPropertyDescriptor(Value(-9007199254740991.0), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
+    // $20.1.2.9 Number.MIN_VALUE
+    m_number->defineOwnPropertyThrowsException(state, strings->MIN_VALUE, ObjectPropertyDescriptor(Value(5E-324), allFalsePresent));
+    // $20.1.2.10 Number.NaN
+    m_number->defineOwnPropertyThrowsException(state, strings->NaN, ObjectPropertyDescriptor(Value(std::numeric_limits<double>::quiet_NaN()), allFalsePresent));
+    // $20.1.2.11 Number.NEGATIVE_INFINITY
+    m_number->defineOwnPropertyThrowsException(state, strings->NEGATIVE_INFINITY, ObjectPropertyDescriptor(Value(-std::numeric_limits<double>::infinity()), allFalsePresent));
+    // $20.1.2.14 Number.POSITIVE_INFINITY
+    m_number->defineOwnPropertyThrowsException(state, strings->POSITIVE_INFINITY, ObjectPropertyDescriptor(Value(std::numeric_limits<double>::infinity()), allFalsePresent));
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Number),
                       ObjectPropertyDescriptor(m_number, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

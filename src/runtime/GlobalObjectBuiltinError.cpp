@@ -109,6 +109,6 @@ void GlobalObject::installError(ExecutionState& state)
     DEFINE_ERROR(eval, Eval);
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Error),
-                      ObjectPropertyDescriptor(m_function, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                      ObjectPropertyDescriptor(m_error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 }
