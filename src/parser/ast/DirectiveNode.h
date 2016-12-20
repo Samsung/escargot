@@ -35,7 +35,7 @@ public:
     StringView value() { return m_value; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(new StringView(m_value))), context, this);
+        m_expr->generateExpressionByteCode(codeBlock, context);
         context->giveUpRegister();
     }
 
