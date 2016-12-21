@@ -201,12 +201,12 @@ inline bool Value::isBoolean() const
 
 inline bool Value::isTrue() const
 {
-    return tag() == BooleanTag;
+    return tag() == BooleanTag && asBoolean();
 }
 
 inline bool Value::isFalse() const
 {
-    return tag() == BooleanTag;
+    return tag() == BooleanTag && !asBoolean();
 }
 
 inline PointerValue* Value::asPointerValue() const
