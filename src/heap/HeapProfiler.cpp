@@ -71,6 +71,7 @@ void GCLeakChecker::dumpBackTrace(ExecutionState& state, const char* phase)
 #ifdef GC_DEBUG
     auto stream = stderr;
     fprintf(stderr, "GCLeakChecker::dumpBackTrace %s start >>>>>>>>>>\n", s_gcLogPhaseName.c_str());
+    GC_gcollect();
     for (const auto& it : m_leakCheckedAddrs) {
         if (it.deallocated) {
             fprintf(stderr, "%s (%p) deallocated\n", it.description.c_str(), it.ptr);
