@@ -173,34 +173,61 @@ static Value builtinParseInt(ExecutionState& state, Value thisValue, size_t argc
     return Value(sign * number);
 }
 
+static Value builtinIsFinite(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    double num = argv[0].toNumber(state);
+    if (std::isnan(num) || num == std::numeric_limits<double>::infinity() || num == -std::numeric_limits<double>::infinity())
+        return Value(Value::False);
+    else
+        return Value(Value::True);
+}
+
+static Value builtinIsNaN(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    double num = argv[0].toNumber(state);
+    return Value(std::isnan(num));
+}
+
 void GlobalObject::installOthers(ExecutionState& state)
 {
-    defineOwnProperty(state, state.context()->staticStrings().Infinity, ObjectPropertyDescriptor(Value(std::numeric_limits<double>::infinity()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
-    defineOwnProperty(state, state.context()->staticStrings().NaN, ObjectPropertyDescriptor(Value(std::numeric_limits<double>::quiet_NaN()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
-    defineOwnProperty(state, state.context()->staticStrings().undefined, ObjectPropertyDescriptor(Value(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
+    const StaticStrings* strings = &state.context()->staticStrings();
+    defineOwnProperty(state, strings->Infinity, ObjectPropertyDescriptor(Value(std::numeric_limits<double>::infinity()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
+    defineOwnProperty(state, strings->NaN, ObjectPropertyDescriptor(Value(std::numeric_limits<double>::quiet_NaN()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
+    defineOwnProperty(state, strings->undefined, ObjectPropertyDescriptor(Value(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
 
+    // $18.2.1 eval (x)
     m_eval = new FunctionObject(state,
-                                NativeFunctionInfo(state.context()->staticStrings().eval, builtinEval, 1, nullptr, NativeFunctionInfo::Strict), false);
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().eval),
+                                NativeFunctionInfo(strings->eval, builtinEval, 1, nullptr, NativeFunctionInfo::Strict), false);
+    defineOwnProperty(state, ObjectPropertyName(strings->eval),
                       ObjectPropertyDescriptor(m_eval, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().parseInt),
+    // $18.2.2 isFinite(number)
+    defineOwnProperty(state, ObjectPropertyName(strings->isFinite),
                       ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(state.context()->staticStrings().parseInt, builtinParseInt, 2, nullptr, NativeFunctionInfo::Strict), false),
+                                                                  NativeFunctionInfo(strings->isFinite, builtinIsFinite, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // $18.2.3 isNaN(number)
+    defineOwnProperty(state, ObjectPropertyName(strings->isNaN),
+                      ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                  NativeFunctionInfo(strings->isNaN, builtinIsNaN, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    defineOwnProperty(state, ObjectPropertyName(strings->parseInt),
+                      ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                  NativeFunctionInfo(strings->parseInt, builtinParseInt, 2, nullptr, NativeFunctionInfo::Strict), false),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 #ifdef ESCARGOT_SHELL
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().print),
+    defineOwnProperty(state, ObjectPropertyName(strings->print),
                       ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(state.context()->staticStrings().print, builtinPrint, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                                                  NativeFunctionInfo(strings->print, builtinPrint, 1, nullptr, NativeFunctionInfo::Strict), false),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().load),
+    defineOwnProperty(state, ObjectPropertyName(strings->load),
                       ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(state.context()->staticStrings().load, builtinLoad, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                                                  NativeFunctionInfo(strings->load, builtinLoad, 1, nullptr, NativeFunctionInfo::Strict), false),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 #endif
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().gc),
+    defineOwnProperty(state, ObjectPropertyName(strings->gc),
                       ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(state.context()->staticStrings().gc, builtinGc, 0, nullptr, NativeFunctionInfo::Strict), false),
+                                                                  NativeFunctionInfo(strings->gc, builtinGc, 0, nullptr, NativeFunctionInfo::Strict), false),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
 #ifdef PROFILE_BDWGC
