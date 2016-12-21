@@ -86,8 +86,8 @@ inline Value objectDefineProperties(ExecutionState& state, Value object, Value p
     std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor> > descriptors;
     props->enumeration(state, [&](const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc) -> bool {
         auto propDesc = props->getOwnProperty(state, name);
-        if (propDesc.hasValue() && !propDesc.value().isUndefined() && desc.isEnumerable()) {
-            Value propVal = propDesc.value();
+        if (propDesc.hasValue() && !propDesc.value(state).isUndefined() && desc.isEnumerable()) {
+            Value propVal = propDesc.value(state);
             if (!propVal.isObject())
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Object.string(), false, strings->defineProperty.string(), errorMessage_GlobalObject_DescriptorNotObject);
             descriptors.push_back(std::make_pair(name, ObjectPropertyDescriptor(state, propVal.toObject(state))));

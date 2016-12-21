@@ -38,7 +38,10 @@ public:
         WritablePresent = 1 << 1, // property can be only read, not written
         EnumerablePresent = 1 << 2, // property doesn't appear in (for .. in ..)
         ConfigurablePresent = 1 << 3, // property can't be deleted
-        AllPresent = WritablePresent | EnumerablePresent | ConfigurablePresent
+        HasJSGetter = 1 << 4,
+        HasJSSetter = 1 << 5,
+        AllPresent = WritablePresent | EnumerablePresent | ConfigurablePresent,
+        AccessorAllPresent = EnumerablePresent | ConfigurablePresent | HasJSGetter | HasJSSetter
     };
 
     static ObjectStructurePropertyDescriptor createDataDescriptor(PresentAttribute attribute = (PresentAttribute)(WritablePresent | EnumerablePresent | ConfigurablePresent))
@@ -46,7 +49,7 @@ public:
         return ObjectStructurePropertyDescriptor(attribute);
     }
 
-    static ObjectStructurePropertyDescriptor createAccessorDescriptor(PresentAttribute attribute = (PresentAttribute)(WritablePresent | EnumerablePresent | ConfigurablePresent))
+    static ObjectStructurePropertyDescriptor createAccessorDescriptor(PresentAttribute attribute)
     {
         return ObjectStructurePropertyDescriptor(attribute, HasJSGetterSetter);
     }
@@ -81,6 +84,23 @@ public:
         return m_descriptorData.mode() <= HasDataButHasNativeGetterSetter;
     }
 
+    bool isAccessorProperty() const
+    {
+        return !isDataProperty();
+    }
+
+    bool hasJSGetter() const
+    {
+        ASSERT(isAccessorProperty());
+        return m_descriptorData.presentAttributes() & HasJSGetter;
+    }
+
+    bool hasJSSetter() const
+    {
+        ASSERT(isAccessorProperty());
+        return m_descriptorData.presentAttributes() & HasJSSetter;
+    }
+
     bool isPlainDataProperty() const
     {
         return m_descriptorData.mode() == PlainDataMode;
@@ -92,15 +112,8 @@ public:
         return m_descriptorData.mode() == HasDataButHasNativeGetterSetter;
     }
 
-    bool isAccessorProperty() const
-    {
-        return m_descriptorData.mode() == HasJSGetterSetter;
-    }
-
     bool operator==(const ObjectStructurePropertyDescriptor& desc) const
     {
-        // TODO compare getter, setter, prop
-        ASSERT(isDataProperty());
         return m_descriptorData.m_data == desc.m_descriptorData.m_data;
     }
 
@@ -134,7 +147,9 @@ protected:
             m_data |= (attribute & PresentAttribute::WritablePresent) ? 2 : 0; // 2
             m_data |= (attribute & PresentAttribute::EnumerablePresent) ? 4 : 0; // 4
             m_data |= (attribute & PresentAttribute::ConfigurablePresent) ? 8 : 0; // 8
-            m_data |= (mode << 4); // after
+            m_data |= (attribute & PresentAttribute::HasJSGetter) ? 16 : 0; // 16
+            m_data |= (attribute & PresentAttribute::HasJSSetter) ? 32 : 0; // 32
+            m_data |= (mode << 6); // after
         }
 
         ObjectStructurePropertyDescriptorData(ObjectPropertyNativeGetterSetterData* nativeGetterSetterData)
@@ -150,7 +165,7 @@ protected:
 
         PresentAttribute presentAttributes() const
         {
-            if (m_data & 1) {
+            if (LIKELY(m_data & 1)) {
                 size_t a = 0;
                 if (m_data & 2) {
                     a |= PresentAttribute::WritablePresent;
@@ -160,6 +175,12 @@ protected:
                 }
                 if (m_data & 8) {
                     a |= PresentAttribute::ConfigurablePresent;
+                }
+                if (m_data & 16) {
+                    a |= PresentAttribute::HasJSGetter;
+                }
+                if (m_data & 32) {
+                    a |= PresentAttribute::HasJSSetter;
                 }
                 return (PresentAttribute)a;
             } else {
@@ -176,8 +197,8 @@ protected:
 
         ObjectStructurePropertyDescriptorMode mode() const
         {
-            if (m_data & 1) {
-                size_t mode = m_data >> 4;
+            if (LIKELY(m_data & 1)) {
+                size_t mode = m_data >> 6;
                 return (ObjectStructurePropertyDescriptorMode)mode;
             } else {
                 return HasDataButHasNativeGetterSetter;
@@ -190,6 +211,16 @@ protected:
     ObjectStructurePropertyDescriptor(PresentAttribute attribute = (PresentAttribute)(WritablePresent | EnumerablePresent | ConfigurablePresent), ObjectStructurePropertyDescriptorMode mode = PlainDataMode)
         : m_descriptorData(attribute, mode)
     {
+        if (m_descriptorData.mode() == HasJSGetterSetter) {
+            ASSERT(!(attribute & WritablePresent));
+        }
+
+        if (m_descriptorData.mode() == HasJSGetterSetter) {
+            if (attribute & PresentAttribute::HasJSSetter) {
+                // set writable flag for checking fast
+                m_descriptorData = ObjectStructurePropertyDescriptorData((PresentAttribute)(WritablePresent | attribute), mode);
+            }
+        }
     }
 
     ObjectStructurePropertyDescriptor(ObjectPropertyNativeGetterSetterData* nativeGetterSetterData)

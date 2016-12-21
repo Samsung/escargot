@@ -13,6 +13,7 @@ class BooleanObject;
 class RegExpObject;
 class DateObject;
 class DoubleInSmallValue;
+class JSGetterSetter;
 
 class PointerValue : public gc {
 public:
@@ -23,6 +24,7 @@ public:
         ArrayObjectType,
         DoubleInSmallValueType,
         DummyInSmallValueType,
+        JSGetterSetterType
     };
 
     virtual Type type() = 0;
@@ -91,6 +93,11 @@ public:
         return false;
     }
 
+    virtual bool isJSGetterSetter()
+    {
+        return false;
+    }
+
     String* asString()
     {
         ASSERT(isString());
@@ -143,6 +150,12 @@ public:
     {
         ASSERT(isDoubleInSmallValue());
         return (DoubleInSmallValue*)this;
+    }
+
+    JSGetterSetter* asJSGetterSetter()
+    {
+        ASSERT(isJSGetterSetter());
+        return (JSGetterSetter*)this;
     }
 };
 }

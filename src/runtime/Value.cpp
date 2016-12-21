@@ -74,7 +74,7 @@ Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint prefer
     ASSERT(!isPrimitive());
     Object* obj = asObject();
     if (preferredType == PrimitiveTypeHint::PreferString) {
-        Value toString = obj->get(state, ObjectPropertyName(state.context()->staticStrings().toString)).value();
+        Value toString = obj->get(state, ObjectPropertyName(state.context()->staticStrings().toString)).value(state);
         if (toString.isFunction()) {
             Value ret = toString.asFunction()->call(state, obj, 0, NULL);
             if (ret.isPrimitive()) {
@@ -82,7 +82,7 @@ Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint prefer
             }
         }
 
-        Value valueOf = obj->get(state, ObjectPropertyName(state.context()->staticStrings().valueOf)).value();
+        Value valueOf = obj->get(state, ObjectPropertyName(state.context()->staticStrings().valueOf)).value(state);
         if (valueOf.isFunction()) {
             Value ret = valueOf.asFunction()->call(state, obj, 0, NULL);
             if (ret.isPrimitive()) {
@@ -90,7 +90,7 @@ Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint prefer
             }
         }
     } else { // preferNumber
-        Value valueOf = obj->get(state, ObjectPropertyName(state.context()->staticStrings().valueOf)).value();
+        Value valueOf = obj->get(state, ObjectPropertyName(state.context()->staticStrings().valueOf)).value(state);
         if (valueOf.isFunction()) {
             Value ret = valueOf.asFunction()->call(state, obj, 0, NULL);
             if (ret.isPrimitive()) {
@@ -98,7 +98,7 @@ Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint prefer
             }
         }
 
-        Value toString = obj->get(state, ObjectPropertyName(state.context()->staticStrings().toString)).value();
+        Value toString = obj->get(state, ObjectPropertyName(state.context()->staticStrings().toString)).value(state);
         if (toString.isFunction()) {
             Value ret = toString.asFunction()->call(state, obj, 0, NULL);
             if (ret.isPrimitive()) {

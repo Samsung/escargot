@@ -39,14 +39,14 @@ static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t
         return ESValue(strings->emptyString.string());
     }*/
 
-    Value name = o->get(state, state.context()->staticStrings().name, o).value();
+    Value name = o->get(state, state.context()->staticStrings().name, o).value(state);
     String* nameStr;
     if (name.isUndefined()) {
         nameStr = state.context()->staticStrings().Error.string();
     } else {
         nameStr = name.toString(state);
     }
-    Value message = o->get(state, state.context()->staticStrings().message, o).value();
+    Value message = o->get(state, state.context()->staticStrings().message, o).value(state);
     String* messageStr;
     if (message.isUndefined()) {
         messageStr = String::emptyString;

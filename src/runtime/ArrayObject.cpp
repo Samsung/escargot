@@ -14,7 +14,7 @@ ArrayObject::ArrayObject(ExecutionState& state)
 
 Value ArrayObject::getLengthSlowCase(ExecutionState& state)
 {
-    return getOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().length)).value();
+    return getOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().length)).value(state);
 }
 
 bool ArrayObject::setLengthSlowCase(ExecutionState& state, const Value& value)

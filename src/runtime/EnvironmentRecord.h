@@ -185,7 +185,7 @@ public:
     {
         auto result = m_bindingObject->get(state, ObjectPropertyName(name));
         if (result.hasValue()) {
-            return GetBindingValueResult(result.value());
+            return GetBindingValueResult(result.value(state));
         } else {
             return GetBindingValueResult();
         }

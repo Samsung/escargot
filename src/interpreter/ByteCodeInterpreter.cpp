@@ -397,12 +397,12 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                 ArrayObject* arr = willBeObject.asObject()->asArrayObject();
                 auto result = arr->getFastModeValue(state, ObjectPropertyName(state, property));
                 if (LIKELY(result.hasValue())) {
-                    registerFile[code->m_objectRegisterIndex] = result.value();
+                    registerFile[code->m_objectRegisterIndex] = result.value(state);
                     ADD_PROGRAM_COUNTER(GetObject);
                     NEXT_INSTRUCTION();
                 }
             }
-            registerFile[code->m_objectRegisterIndex] = willBeObject.toObject(state)->get(state, ObjectPropertyName(state, property)).value();
+            registerFile[code->m_objectRegisterIndex] = willBeObject.toObject(state)->get(state, ObjectPropertyName(state, property)).value(state);
             ADD_PROGRAM_COUNTER(GetObject);
             NEXT_INSTRUCTION();
         }
@@ -1264,7 +1264,7 @@ std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOperationCac
     inlineCache.m_executeCount++;
     if (inlineCache.m_executeCount <= 3) {
         auto result = obj->get(state, ObjectPropertyName(state, name));
-        return std::make_pair(result.hasValue(), result.value());
+        return std::make_pair(result.hasValue(), result.value(state));
     }
 
     inlineCache.m_cache.insert(0, GetObjectInlineCacheData());

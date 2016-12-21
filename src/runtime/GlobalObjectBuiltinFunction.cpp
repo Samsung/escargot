@@ -65,7 +65,7 @@ static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t
         for (size_t i = 0; i < arrlen; i++) {
             auto re = obj->get(state, ObjectPropertyName(state, Value(i)), obj);
             if (re.hasValue())
-                arguments[i] = re.value();
+                arguments[i] = re.value(state);
         }
     } else {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_SecondArgumentNotObject);

@@ -9,6 +9,7 @@
 
 namespace Escargot {
 
+class Object;
 class FunctionObject;
 class RegExpObject;
 class ErrorObject;
@@ -100,6 +101,41 @@ protected:
     } m_value;
 };
 
+class JSGetterSetter : public PointerValue {
+    friend class ObjectPropertyDescriptor;
+
+public:
+    JSGetterSetter(FunctionObject* getter, FunctionObject* setter)
+        : m_getter(getter)
+        , m_setter(setter)
+    {
+    }
+
+    virtual Type type()
+    {
+        return JSGetterSetterType;
+    }
+
+    virtual bool isJSGetterSetter()
+    {
+        return true;
+    }
+
+    FunctionObject* getter() const
+    {
+        return m_getter;
+    }
+
+    FunctionObject* setter() const
+    {
+        return m_setter;
+    }
+
+protected:
+    FunctionObject* m_getter;
+    FunctionObject* m_setter;
+};
+
 class ObjectPropertyDescriptor {
 public:
     enum PresentAttribute {
@@ -122,11 +158,30 @@ public:
         checkProperty();
     }
 
-    ObjectPropertyDescriptor(ExecutionState& state, Object* obj);
+    explicit ObjectPropertyDescriptor(const JSGetterSetter& jsGetterSetter, PresentAttribute attribute)
+        : m_isDataProperty(false)
+        , m_property(attribute)
+        , m_getterSetter(jsGetterSetter)
+    {
+        checkProperty();
+    }
+
+    explicit ObjectPropertyDescriptor(ExecutionState& state, Object* obj);
+
+    ObjectPropertyDescriptor(const ObjectPropertyDescriptor& desc)
+    {
+        m_property = desc.m_property;
+        if (desc.isDataProperty()) {
+            m_isDataProperty = true;
+            m_value = desc.m_value;
+        } else {
+            m_isDataProperty = false;
+            m_getterSetter = desc.m_getterSetter;
+        }
+    }
 
     // TODO
     // for native acc. data property
-    // for js acc. property
 
     const Value& value() const
     {
@@ -181,32 +236,32 @@ public:
 
     bool isNotPresent() const
     {
+        ASSERT(isDataProperty());
         return (m_property == NotPresent);
+    }
+
+    bool hasJSGetter() const
+    {
+        ASSERT(!isDataProperty());
+        return m_getterSetter.m_getter;
+    }
+
+    bool hasJSSetter() const
+    {
+        ASSERT(!isDataProperty());
+        return m_getterSetter.m_setter;
+    }
+
+    const JSGetterSetter& getterSetter() const
+    {
+        return m_getterSetter;
     }
 
     void setEnumerable(bool enumerable);
     void setConfigurable(bool configurable);
     void setWritable(bool writable);
 
-    ObjectStructurePropertyDescriptor toObjectStructurePropertyDescriptor() const
-    {
-        ASSERT(isDataProperty());
-        int f = 0;
-
-        if (isWritable()) {
-            f = ObjectStructurePropertyDescriptor::WritablePresent;
-        }
-
-        if (isConfigurable()) {
-            f |= ObjectStructurePropertyDescriptor::ConfigurablePresent;
-        }
-
-        if (isEnumerable()) {
-            f |= ObjectStructurePropertyDescriptor::EnumerablePresent;
-        }
-
-        return ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)f);
-    }
+    ObjectStructurePropertyDescriptor toObjectStructurePropertyDescriptor() const;
 
 protected:
     void checkProperty()
@@ -228,16 +283,24 @@ protected:
                 ASSERT_NOT_REACHED();
             }
         }
+
+        if (!m_isDataProperty) {
+            if ((m_property & WritablePresent) | (m_property & NonWritablePresent)) {
+                ASSERT_NOT_REACHED();
+            }
+        }
     }
     MAKE_STACK_ALLOCATED();
     bool m_isDataProperty : 1;
     PresentAttribute m_property;
-    Value m_value;
+    union {
+        Value m_value;
+        JSGetterSetter m_getterSetter;
+    };
 };
 
 class ObjectGetResult {
 public:
-    // TODO implement js getter case
     ObjectGetResult()
         : m_hasValue(false)
         , m_isWritable(false)
@@ -258,11 +321,28 @@ public:
     {
     }
 
-    Value value() const
+    ObjectGetResult(Object* self, JSGetterSetter* getterSetter, bool isEnumerable, bool isConfigurable)
+        : m_hasValue(true)
+        , m_isWritable(false)
+        , m_isEnumerable(isEnumerable)
+        , m_isConfigurable(isConfigurable)
+        , m_isDataProperty(false)
+    {
+        m_accessorData.m_jsGetterSetter = getterSetter;
+        m_accessorData.m_self = self;
+    }
+
+    Value value(ExecutionState& state) const
     {
         if (LIKELY(m_isDataProperty))
             return m_value;
-        RELEASE_ASSERT_NOT_REACHED();
+        return valueSlowCase(state);
+    }
+
+    JSGetterSetter* jsGetterSetter()
+    {
+        ASSERT(!m_isDataProperty);
+        return m_accessorData.m_jsGetterSetter;
     }
 
     bool hasValue() const
@@ -273,6 +353,7 @@ public:
     bool isWritable() const
     {
         ASSERT(hasValue());
+        ASSERT(isDataProperty());
         return m_isWritable;
     }
 
@@ -300,7 +381,14 @@ protected:
     bool m_isEnumerable : 1;
     bool m_isConfigurable : 1;
     bool m_isDataProperty : 1;
-    Value m_value;
+    union {
+        Value m_value;
+        struct {
+            Object* m_self;
+            JSGetterSetter* m_jsGetterSetter;
+        } m_accessorData;
+    };
+    Value valueSlowCase(ExecutionState& state) const;
 };
 
 #define ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER 1
@@ -432,7 +520,6 @@ protected:
         return m_structure;
     }
 
-    bool checkPropertyAlreadyDefinedWithNonWritableInPrototype(ExecutionState& state, const ObjectPropertyName& P);
     void ensureObjectRareData()
     {
         if (m_rareData == nullptr) {
