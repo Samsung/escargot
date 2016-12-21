@@ -51,16 +51,6 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Lexi
     setPrototype(state, state.context()->globalObject()->functionPrototype());
 }
 
-Value FunctionObject::getFunctionPrototypeSlowCase(ExecutionState& state)
-{
-    return getOwnProperty(state, state.context()->staticStrings().prototype).value(state);
-}
-
-bool FunctionObject::setFunctionPrototypeSlowCase(ExecutionState& state, const Value& v)
-{
-    return defineOwnProperty(state, state.context()->staticStrings().prototype, ObjectPropertyDescriptor(v));
-}
-
 Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, const size_t& argc, Value* argv, bool isNewExpression)
 {
     Value receiver = receiverOrg;

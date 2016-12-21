@@ -41,6 +41,7 @@ typedef Vector<ObjectStructureTransitionItem, gc_malloc_ignore_off_page_allocato
 
 class ObjectStructure : public gc {
     friend class Object;
+    friend class ArrayObject;
 
 public:
     ObjectStructure(ExecutionState& state, bool needsTransitionTable = true)

@@ -94,27 +94,25 @@ public:
     }
 
     // object
-    // [__proto__]
-    static Value object__proto__NativeGetter(ExecutionState& state, Object* self);
-    static bool object__proto__NativeSetter(ExecutionState& state, Object* self, const Value& newData);
+    // []
 
     // function
-    // [__proto__, name, length] or [__proto__, prototype, name, length]
+    // [name, length] or [prototype, name, length]
     static Value functionPrototypeNativeGetter(ExecutionState& state, Object* self);
     static bool functionPrototypeNativeSetter(ExecutionState& state, Object* self, const Value& newData);
 
     // array
-    // [__proto__, length]
+    // [length]
     static Value arrayLengthNativeGetter(ExecutionState& state, Object* self);
     static bool arrayLengthNativeSetter(ExecutionState& state, Object* self, const Value& newData);
 
     // string
-    // [__proto__, length]
+    // [length]
     static Value stringLengthNativeGetter(ExecutionState& state, Object* self);
     static bool stringLengthNativeSetter(ExecutionState& state, Object* self, const Value& newData);
 
     // regexp
-    // [__proto__, lastIndex, source, global, ignoreCase, multiline
+    // [lastIndex, source, global, ignoreCase, multiline]
     static bool regexpLastIndexNativeSetter(ExecutionState& state, Object* self, const Value& newData);
     static Value regexpLastIndexNativeGetter(ExecutionState& state, Object* self);
     static Value regexpSourceNativeGetter(ExecutionState& state, Object* self);
@@ -127,6 +125,7 @@ public:
         return m_didSomePrototypeObjectDefineIndexedProperty;
     }
 
+    void somePrototypeObjectDefineIndexedProperty();
     void throwException(ExecutionState& state, const Value& exception);
 
 protected:

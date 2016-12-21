@@ -86,7 +86,7 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
                 builder.appendString(sep);
             }
         }
-        Value elem = thisBinded->get(state, ObjectPropertyName(state, Value(curIndex))).value(state);
+        Value elem = thisBinded->get(state, ObjectPropertyName(state, Value(curIndex))).value(state, thisBinded);
 
         if (!elem.isUndefinedOrNull()) {
             builder.appendString(elem.toString(state));
@@ -167,7 +167,7 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
         ObjectGetResult fromValue = thisObject->get(state, ObjectPropertyName(state, Value(actualStart + k)));
         if (fromValue.hasValue()) {
             array->defineOwnProperty(state, ObjectPropertyName(state, Value(k)),
-                                     ObjectPropertyDescriptor(fromValue.value(state), ObjectPropertyDescriptor::AllPresent));
+                                     ObjectPropertyDescriptor(fromValue.value(state, thisObject), ObjectPropertyDescriptor::AllPresent));
             k++;
         } else {
             k = Object::nextIndexForward(state, thisObject, k, len, false);
@@ -183,7 +183,7 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
             uint32_t to = k + insertCnt;
             ObjectGetResult fromValue = thisObject->get(state, ObjectPropertyName(state, Value(from)));
             if (fromValue.hasValue()) {
-                thisObject->setThrowsException(state, ObjectPropertyName(state, Value(to)), fromValue.value(state), thisObject);
+                thisObject->setThrowsException(state, ObjectPropertyName(state, Value(to)), fromValue.value(state, thisObject), thisObject);
             } else {
                 thisObject->deleteOwnProperty(state, ObjectPropertyName(state, Value(to)));
             }
@@ -214,7 +214,7 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
 static Value builtinArrayToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, toString);
-    Value toString = thisObject->get(state, state.context()->staticStrings().join).value(state);
+    Value toString = thisObject->get(state, state.context()->staticStrings().join).value(state, thisObject);
     if (!toString.isFunction()) {
         toString = state.context()->globalObject()->objectPrototypeToString();
     }
@@ -239,7 +239,7 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
             while (curIndex < len) {
                 ObjectGetResult exists = arr->get(state, ObjectPropertyName(state, Value(curIndex)));
                 if (exists.hasValue()) {
-                    array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n + curIndex)), ObjectPropertyDescriptor(exists.value(state), ObjectPropertyDescriptor::AllPresent));
+                    array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n + curIndex)), ObjectPropertyDescriptor(exists.value(state, arr), ObjectPropertyDescriptor::AllPresent));
                     curIndex++;
                 } else {
                     curIndex = Object::nextIndexForward(state, arr, curIndex, len, false);
@@ -272,7 +272,7 @@ static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t ar
         ObjectGetResult exists = thisObject->get(state, ObjectPropertyName(state, Value(k)));
         if (exists.hasValue()) {
             array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n)),
-                                                    ObjectPropertyDescriptor(exists.value(state), ObjectPropertyDescriptor::AllPresent));
+                                                    ObjectPropertyDescriptor(exists.value(state, thisObject), ObjectPropertyDescriptor::AllPresent));
             k++;
             n++;
         } else {
@@ -302,7 +302,7 @@ static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t 
         Value Pk = Value(k);
         auto res = thisObject->get(state, ObjectPropertyName(state, Pk));
         if (res.hasValue()) {
-            Value kValue = res.value(state);
+            Value kValue = res.value(state, thisObject);
             Value args[3] = { kValue, Pk, thisObject };
             callbackfn.asFunction()->call(state, thisArg, 3, args, false);
             k++;

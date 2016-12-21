@@ -4,6 +4,17 @@
 
 namespace Escargot {
 
+static Value builtinObject__proto__Getter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    return thisValue.asObject()->getPrototype(state);
+}
+
+static Value builtinObject__proto__Setter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    thisValue.asObject()->setPrototype(state, argv[0]);
+    return Value();
+}
+
 static Value builtinObjectConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     Value value = argv[0];
@@ -86,8 +97,8 @@ inline Value objectDefineProperties(ExecutionState& state, Value object, Value p
     std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor> > descriptors;
     props->enumeration(state, [&](const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc) -> bool {
         auto propDesc = props->getOwnProperty(state, name);
-        if (propDesc.hasValue() && !propDesc.value(state).isUndefined() && desc.isEnumerable()) {
-            Value propVal = propDesc.value(state);
+        Value propVal;
+        if (propDesc.hasValue() && !(propVal = propDesc.value(state, props)).isUndefined() && desc.isEnumerable()) {
             if (!propVal.isObject())
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Object.string(), false, strings->defineProperty.string(), errorMessage_GlobalObject_DescriptorNotObject);
             descriptors.push_back(std::make_pair(name, ObjectPropertyDescriptor(state, propVal.toObject(state))));
@@ -136,11 +147,15 @@ void GlobalObject::installObject(ExecutionState& state)
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toString),
                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinObjectToString, 0, nullptr, NativeFunctionInfo::Strict)),
                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
     // $19.1.3.2 Object.prototype.hasOwnProperty(V)
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().hasOwnProperty),
                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinObjectHasOwnProperty, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    JSGetterSetter gs(
+        new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().__proto__, builtinObject__proto__Getter, 0, nullptr, NativeFunctionInfo::Strict)),
+        new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().__proto__, builtinObject__proto__Setter, 1, nullptr, NativeFunctionInfo::Strict)));
+    ObjectPropertyDescriptor __proto__desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().__proto__), __proto__desc);
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Object),
                       ObjectPropertyDescriptor(m_object, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }

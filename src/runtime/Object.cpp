@@ -8,11 +8,17 @@
 
 namespace Escargot {
 
-Value ObjectGetResult::valueSlowCase(ExecutionState& state) const
+ObjectRareData::ObjectRareData()
 {
-    if (m_accessorData.m_jsGetterSetter->getter()) {
-        ASSERT(m_accessorData.m_self);
-        return m_accessorData.m_jsGetterSetter->getter()->call(state, m_accessorData.m_self, 0, nullptr);
+    m_isExtensible = true;
+    m_isEverSetAsPrototypeObject = false;
+    m_isFastModeArrayObject = true;
+}
+
+Value ObjectGetResult::valueSlowCase(ExecutionState& state, Object* receiver) const
+{
+    if (m_jsGetterSetter->getter()) {
+        return m_jsGetterSetter->getter()->call(state, receiver, 0, nullptr);
     }
     return Value();
 }
@@ -24,28 +30,28 @@ ObjectPropertyDescriptor::ObjectPropertyDescriptor(ExecutionState& state, Object
     const StaticStrings* strings = &state.context()->staticStrings();
     auto desc = obj->get(state, ObjectPropertyName(strings->enumerable));
     if (desc.hasValue())
-        setEnumerable(desc.value(state).toBoolean(state));
+        setEnumerable(desc.value(state, obj).toBoolean(state));
     desc = obj->get(state, ObjectPropertyName(strings->configurable));
     if (desc.hasValue())
-        setConfigurable(desc.value(state).toBoolean(state));
+        setConfigurable(desc.value(state, obj).toBoolean(state));
 
     bool hasWritable = false;
     desc = obj->get(state, ObjectPropertyName(strings->writable));
     if (desc.hasValue()) {
-        setWritable(desc.value(state).toBoolean(state));
+        setWritable(desc.value(state, obj).toBoolean(state));
         hasWritable = true;
     }
 
     bool hasValue = false;
     desc = obj->get(state, ObjectPropertyName(strings->value));
     if (desc.hasValue()) {
-        m_value = desc.value(state);
+        m_value = desc.value(state, obj);
         hasValue = true;
     }
 
     desc = obj->get(state, ObjectPropertyName(strings->get));
     if (desc.hasValue()) {
-        Value v = desc.value(state);
+        Value v = desc.value(state, obj);
         if (!v.isFunction()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Getter must be a function");
         } else {
@@ -56,7 +62,7 @@ ObjectPropertyDescriptor::ObjectPropertyDescriptor(ExecutionState& state, Object
 
     desc = obj->get(state, ObjectPropertyName(strings->set));
     if (desc.hasValue()) {
-        Value v = desc.value(state);
+        Value v = desc.value(state, obj);
         if (!v.isFunction()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Setter must be a function");
         } else {
@@ -160,35 +166,54 @@ Object::Object(ExecutionState& state)
 
 void Object::initPlainObject(ExecutionState& state)
 {
-    m_values[0] = Value(state.context()->globalObject()->objectPrototype());
+    m_prototype = state.context()->globalObject()->objectPrototype()->asObject();
 }
 
 Object* Object::createBuiltinObjectPrototype(ExecutionState& state)
 {
-    Object* obj = new Object(state, 1, false);
+    Object* obj = new Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, false);
     obj->m_structure = state.context()->defaultStructureForObject();
-    obj->m_values[0] = Value(Value::Null);
+    obj->m_prototype = nullptr;
     return obj;
 }
 
 Object* Object::createFunctionPrototypeObject(ExecutionState& state, FunctionObject* function)
 {
-    Object* obj = new Object(state, 2, false);
+    Object* obj = new Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1, false);
     obj->m_structure = state.context()->defaultStructureForFunctionPrototypeObject();
-    obj->m_values[0] = Value(state.context()->globalObject()->objectPrototype());
-    obj->m_values[1] = Value(function);
+    obj->m_prototype = state.context()->globalObject()->objectPrototype()->asObject();
+    obj->m_values[0] = Value(function);
 
     return obj;
 }
 
-Value Object::getPrototypeSlowCase(ExecutionState& state)
+void Object::setPrototype(ExecutionState& state, const Value& value)
 {
-    return getOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().__proto__)).value(state);
+    if (!isExtensible() && (value.isObject() || value.isUndefinedOrNull())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't set prototype of this object");
+    }
+
+    if (value.isObject()) {
+        m_prototype = value.asObject();
+        m_prototype->markAsPrototypeObject(state);
+    } else if (value.isNull()) {
+        m_prototype = nullptr;
+    } else if (value.isUndefined()) {
+        m_prototype = (Object*)1;
+    } else {
+    }
 }
 
-bool Object::setPrototypeSlowCase(ExecutionState& state, const Value& value)
+void Object::markAsPrototypeObject(ExecutionState& state)
 {
-    return defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().__proto__), ObjectPropertyDescriptor(value));
+    ensureObjectRareData();
+    m_rareData->m_isEverSetAsPrototypeObject = true;
+
+    if (!state.context()->didSomePrototypeObjectDefineIndexedProperty()) {
+        if (structure()->hasIndexPropertyName()) {
+            state.context()->somePrototypeObjectDefineIndexedProperty();
+        }
+    }
 }
 
 // http://www.ecma-international.org/ecma-262/6.0/#sec-ordinarygetownproperty
@@ -207,12 +232,13 @@ ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectProper
                 return ObjectGetResult(m_values[idx], item.m_descriptor.isWritable(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
             } else {
                 ObjectPropertyNativeGetterSetterData* data = item.m_descriptor.nativeGetterSetterData();
-                return ObjectGetResult(data->m_getter(state, this), item.m_descriptor.isWritable(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
+                Value ret = data->m_getter(state, this);
+                return ObjectGetResult(ret, item.m_descriptor.isWritable(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
             }
         } else {
             Value v = m_values[idx];
             ASSERT(v.isPointerValue() && v.asPointerValue()->isJSGetterSetter());
-            return ObjectGetResult(this, v.asPointerValue()->asJSGetterSetter(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
+            return ObjectGetResult(v.asPointerValue()->asJSGetterSetter(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
         }
     }
     return ObjectGetResult();
@@ -221,10 +247,8 @@ ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectProper
 bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     if (isEverSetAsPrototypeObject()) {
-        if (P.toValue(state).toIndex(state) != Value::InvalidIndexValue) {
-            // TODO
-            // implement bad time
-            RELEASE_ASSERT_NOT_REACHED();
+        if (!state.context()->didSomePrototypeObjectDefineIndexedProperty() && isIndexString(P.string(state))) {
+            state.context()->somePrototypeObjectDefineIndexedProperty();
         }
     }
 
@@ -521,16 +545,6 @@ void Object::throwCannotWriteError(ExecutionState& state, const PropertyName& P)
 
 void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
 {
-    if (isPlainObject()) {
-        const ObjectStructureItem& ownDesc = m_structure->readProperty(state, idx);
-        if (ownDesc.m_descriptor.isNativeAccessorProperty()) {
-            ensureObjectRareData();
-            // TODO modify every native accessor!
-            RELEASE_ASSERT_NOT_REACHED();
-            m_rareData->m_isPlainObject = false;
-        }
-    }
-
     m_structure = m_structure->removeProperty(state, idx);
     m_values.erase(idx);
 
@@ -539,7 +553,7 @@ void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
 
 uint32_t Object::length(ExecutionState& state)
 {
-    return get(state, state.context()->staticStrings().length, this).value(state).toUint32(state);
+    return get(state, state.context()->staticStrings().length, this).value(state, this).toUint32(state);
 }
 
 double Object::nextIndexForward(ExecutionState& state, Object* obj, const double cur, const double end, const bool skipUndefined)
@@ -551,7 +565,7 @@ double Object::nextIndexForward(ExecutionState& state, Object* obj, const double
             uint32_t index = Value::InvalidArrayIndexValue;
             Value key = name.toValue(state);
             if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
-                if (skipUndefined && ptr.asObject()->get(state, name).value(state).isUndefined()) {
+                if (skipUndefined && ptr.asObject()->get(state, name).value(state, ptr.asObject()).isUndefined()) {
                     return true;
                 }
                 if (index > cur) {
@@ -575,7 +589,7 @@ double Object::nextIndexBackward(ExecutionState& state, Object* obj, const doubl
             uint32_t index = Value::InvalidArrayIndexValue;
             Value key = name.toValue(state);
             if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
-                if (skipUndefined && ptr.asObject()->get(state, name).value(state).isUndefined()) {
+                if (skipUndefined && ptr.asObject()->get(state, name).value(state, ptr.asObject()).isUndefined()) {
                     return true;
                 }
                 if (index < cur) {
@@ -601,7 +615,7 @@ void Object::sort(ExecutionState& state, std::function<bool(const Value& a, cons
     while (k < len) {
         Value idx = Value(k);
         if (hasOwnProperty(state, ObjectPropertyName(state, idx))) {
-            selected.push_back(getOwnProperty(state, ObjectPropertyName(state, idx)).value(state));
+            selected.push_back(getOwnProperty(state, ObjectPropertyName(state, idx)).value(state, this));
             n++;
             k++;
         } else {

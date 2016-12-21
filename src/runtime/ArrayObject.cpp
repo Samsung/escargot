@@ -12,16 +12,6 @@ ArrayObject::ArrayObject(ExecutionState& state)
     setPrototype(state, state.context()->globalObject()->arrayPrototype());
 }
 
-Value ArrayObject::getLengthSlowCase(ExecutionState& state)
-{
-    return getOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().length)).value(state);
-}
-
-bool ArrayObject::setLengthSlowCase(ExecutionState& state, const Value& value)
-{
-    return defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().length), ObjectPropertyDescriptor(value));
-}
-
 ObjectGetResult ArrayObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     ObjectGetResult v = getFastModeValue(state, P);

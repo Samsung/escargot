@@ -19,22 +19,14 @@ public:
     Value getFunctionPrototype(ExecutionState& state)
     {
         ASSERT(m_isConstructor);
-        if (LIKELY(isPlainObject())) {
-            return m_values[1];
-        } else {
-            return getFunctionPrototypeSlowCase(state);
-        }
+        return m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER];
     }
 
     bool setFunctionPrototype(ExecutionState& state, const Value& v)
     {
         ASSERT(m_isConstructor);
-        if (LIKELY(isPlainObject())) {
-            m_values[1] = v;
-            return true;
-        } else {
-            return setFunctionPrototypeSlowCase(state, v);
-        }
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = v;
+        return true;
     }
 
     bool isConstructor()
@@ -61,8 +53,6 @@ public:
     static Value call(const Value& callee, ExecutionState& state, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression = false);
 
 protected:
-    Value getFunctionPrototypeSlowCase(ExecutionState& state);
-    bool setFunctionPrototypeSlowCase(ExecutionState& state, const Value& v);
     bool m_isConstructor;
     CodeBlock* m_codeBlock;
     LexicalEnvironment* m_outerEnvironment;

@@ -397,12 +397,13 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                 ArrayObject* arr = willBeObject.asObject()->asArrayObject();
                 auto result = arr->getFastModeValue(state, ObjectPropertyName(state, property));
                 if (LIKELY(result.hasValue())) {
-                    registerFile[code->m_objectRegisterIndex] = result.value(state);
+                    registerFile[code->m_objectRegisterIndex] = result.value(state, arr);
                     ADD_PROGRAM_COUNTER(GetObject);
                     NEXT_INSTRUCTION();
                 }
             }
-            registerFile[code->m_objectRegisterIndex] = willBeObject.toObject(state)->get(state, ObjectPropertyName(state, property)).value(state);
+            Object* obj = fastToObject(state, willBeObject);
+            registerFile[code->m_objectRegisterIndex] = obj->get(state, ObjectPropertyName(state, property)).value(state, obj);
             ADD_PROGRAM_COUNTER(GetObject);
             NEXT_INSTRUCTION();
         }
@@ -418,7 +419,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                     NEXT_INSTRUCTION();
                 }
             }
-            Object* obj = willBeObject.toObject(state);
+            Object* obj = fastToObject(state, willBeObject);
             obj->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, property), registerFile[code->m_loadRegisterIndex], obj);
             ADD_PROGRAM_COUNTER(SetObject);
             NEXT_INSTRUCTION();
@@ -1282,7 +1283,7 @@ std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOperationCac
     inlineCache.m_executeCount++;
     if (inlineCache.m_executeCount <= 3) {
         auto result = obj->get(state, ObjectPropertyName(state, name));
-        return std::make_pair(result.hasValue(), result.value(state));
+        return std::make_pair(result.hasValue(), result.value(state, targetObj));
     }
 
     inlineCache.m_cache.insert(0, GetObjectInlineCacheData());

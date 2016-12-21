@@ -43,7 +43,7 @@ EnvironmentRecord::GetBindingValueResult GlobalEnvironmentRecord::getBindingValu
 {
     auto result = m_globalObject->get(state, name, m_globalObject);
     if (result.hasValue())
-        return EnvironmentRecord::GetBindingValueResult(true, result.value(state));
+        return EnvironmentRecord::GetBindingValueResult(true, result.value(state, m_globalObject));
     else
         return EnvironmentRecord::GetBindingValueResult(false, Value());
 }

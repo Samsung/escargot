@@ -14,18 +14,11 @@ class FunctionObject;
 class RegExpObject;
 class ErrorObject;
 
-struct ObjectRareData {
+struct ObjectRareData : public gc {
     bool m_isExtensible;
-    bool m_isPlainObject; // tells it has __proto__ at first index
     bool m_isEverSetAsPrototypeObject;
     bool m_isFastModeArrayObject;
-    ObjectRareData()
-    {
-        m_isExtensible = true;
-        m_isPlainObject = true;
-        m_isEverSetAsPrototypeObject = false;
-        m_isFastModeArrayObject = true;
-    }
+    ObjectRareData();
 };
 
 class ObjectPropertyName {
@@ -324,28 +317,27 @@ public:
     {
     }
 
-    ObjectGetResult(Object* self, JSGetterSetter* getterSetter, bool isEnumerable, bool isConfigurable)
+    ObjectGetResult(JSGetterSetter* getterSetter, bool isEnumerable, bool isConfigurable)
         : m_hasValue(true)
         , m_isWritable(false)
         , m_isEnumerable(isEnumerable)
         , m_isConfigurable(isConfigurable)
         , m_isDataProperty(false)
     {
-        m_accessorData.m_jsGetterSetter = getterSetter;
-        m_accessorData.m_self = self;
+        m_jsGetterSetter = getterSetter;
     }
 
-    Value value(ExecutionState& state) const
+    Value value(ExecutionState& state, Object* receiver) const
     {
         if (LIKELY(m_isDataProperty))
             return m_value;
-        return valueSlowCase(state);
+        return valueSlowCase(state, receiver);
     }
 
     JSGetterSetter* jsGetterSetter()
     {
         ASSERT(!m_isDataProperty);
-        return m_accessorData.m_jsGetterSetter;
+        return m_jsGetterSetter;
     }
 
     bool hasValue() const
@@ -386,16 +378,14 @@ protected:
     bool m_isDataProperty : 1;
     union {
         Value m_value;
-        struct {
-            Object* m_self;
-            JSGetterSetter* m_jsGetterSetter;
-        } m_accessorData;
+        JSGetterSetter* m_jsGetterSetter;
     };
-    Value valueSlowCase(ExecutionState& state) const;
+    Value valueSlowCase(ExecutionState& state, Object* receiver) const;
 };
 
-#define ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER 1
+#define ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER 0
 #define ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+
 class Object : public PointerValue {
     friend class Context;
     friend class GlobalObject;
@@ -448,21 +438,17 @@ public:
 
     Value getPrototype(ExecutionState& state)
     {
-        if (LIKELY(isPlainObject())) {
-            return m_values[0];
+        if (LIKELY((size_t)m_prototype > 2)) {
+            return m_prototype;
+        } else if (m_prototype == nullptr) {
+            return Value(Value::Null);
         } else {
-            return getPrototypeSlowCase(state);
+            ASSERT((size_t)m_prototype == 1);
+            return Value();
         }
     }
 
-    void setPrototype(ExecutionState& state, const Value& value)
-    {
-        if (LIKELY(isPlainObject())) {
-            m_values[0] = value;
-        } else {
-            setPrototypeSlowCase(state, value);
-        }
-    }
+    void setPrototype(ExecutionState& state, const Value& value);
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
@@ -511,10 +497,28 @@ public:
 
     virtual void sort(ExecutionState& state, std::function<bool(const Value& a, const Value& b)> comp);
 
+    ObjectRareData* ensureObjectRareData()
+    {
+        if (m_rareData == nullptr) {
+            m_rareData = new ObjectRareData();
+        }
+        return m_rareData;
+    }
+
+    bool isEverSetAsPrototypeObject() const
+    {
+        if (LIKELY(m_rareData == nullptr)) {
+            return false;
+        } else {
+            return m_rareData->m_isEverSetAsPrototypeObject;
+        }
+    }
+
 protected:
     Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);
     void initPlainObject(ExecutionState& state);
     ObjectStructure* m_structure;
+    Object* m_prototype;
     ObjectRareData* m_rareData;
     TightVector<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> m_values;
 
@@ -523,12 +527,6 @@ protected:
         return m_structure;
     }
 
-    void ensureObjectRareData()
-    {
-        if (m_rareData == nullptr) {
-            m_rareData = new ObjectRareData();
-        }
-    }
 
     Value uncheckedGetOwnDataProperty(ExecutionState& state, size_t idx)
     {
@@ -605,34 +603,8 @@ protected:
     void throwCannotDefineError(ExecutionState& state, const PropertyName& P);
     void throwCannotWriteError(ExecutionState& state, const PropertyName& P);
 
-    bool isPlainObject() const
-    {
-        if (LIKELY(m_rareData == nullptr)) {
-            return true;
-        } else {
-            return m_rareData->m_isPlainObject;
-        }
-    }
-
-    bool isEverSetAsPrototypeObject() const
-    {
-        if (LIKELY(m_rareData == nullptr)) {
-            return false;
-        } else {
-            return m_rareData->m_isEverSetAsPrototypeObject;
-        }
-    }
-
-    void markAsPrototypeObject()
-    {
-        ensureObjectRareData();
-        m_rareData->m_isEverSetAsPrototypeObject = true;
-    }
-
+    void markAsPrototypeObject(ExecutionState& state);
     void deleteOwnProperty(ExecutionState& state, size_t idx);
-
-    Value getPrototypeSlowCase(ExecutionState& state);
-    bool setPrototypeSlowCase(ExecutionState& state, const Value& value);
 
     bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, Object* receiver);
 };

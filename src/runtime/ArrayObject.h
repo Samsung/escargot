@@ -9,6 +9,7 @@ namespace Escargot {
 #define ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE 65536 * 2
 #define ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP 1024
 
+
 class ArrayObject : public Object {
     friend class Context;
     friend class ByteCodeInterpreter;
@@ -22,21 +23,13 @@ public:
 
     uint32_t getLength(ExecutionState& state)
     {
-        if (LIKELY(isPlainObject())) {
-            return m_values[1].toUint32(state);
-        } else {
-            return getLengthSlowCase(state);
-        }
+        return m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER].toUint32(state);
     }
 
     void setLength(ExecutionState& state, const uint32_t& value)
     {
         setArrayLength(state, value);
-        if (LIKELY(isPlainObject())) {
-            m_values[1] = SmallValue(value);
-        } else {
-            setLengthSlowCase(state, Value(value));
-        }
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = SmallValue(value);
     }
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
@@ -54,11 +47,10 @@ public:
     void* operator new[](size_t size) = delete;
 
     static void iterateArrays(ExecutionState& state, HeapObjectIteratorCallback callback);
+    static Value arrayLengthNativeGetter(ExecutionState& state, Object* self);
+    static bool arrayLengthNativeSetter(ExecutionState& state, Object* self, const Value& newData);
 
 protected:
-    Value getLengthSlowCase(ExecutionState& state);
-    bool setLengthSlowCase(ExecutionState& state, const Value& value);
-
     bool isFastModeArray()
     {
         if (LIKELY(m_rareData == nullptr)) {
@@ -85,8 +77,9 @@ protected:
             }
         }
 
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = SmallValue(newLength);
+
         if (LIKELY(isFastModeArray())) {
-            m_values[1] = Value(newLength);
             m_fastModeData.resize(newLength, Value(Value::EmptyValue));
             return true;
         } else {
