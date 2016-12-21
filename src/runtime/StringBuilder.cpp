@@ -9,18 +9,20 @@ void StringBuilder::appendPiece(String* str, size_t s, size_t e)
     // if (static_cast<int64_t>(m_contentLength) > static_cast<int64_t>(ESString::maxLength() - (e - s)))
     //     ESVMInstance::currentInstance()->throwOOMError();
 
-    StringBuilderPiece piece;
-    piece.m_string = str;
-    piece.m_start = s;
-    piece.m_end = e;
-    if (!str->hasASCIIContent()) {
-        m_hasASCIIContent = false;
+    if (e - s > 0) {
+        StringBuilderPiece piece;
+        piece.m_string = str;
+        piece.m_start = s;
+        piece.m_end = e;
+        if (!str->hasASCIIContent()) {
+            m_hasASCIIContent = false;
+        }
+        m_contentLength += e - s;
+        if (m_piecesInlineStorageUsage < ESCARGOT_STRING_BUILDER_INLINE_STORAGE_MAX) {
+            m_piecesInlineStorage[m_piecesInlineStorageUsage++] = piece;
+        } else
+            m_pieces.push_back(piece);
     }
-    m_contentLength += e - s;
-    if (m_piecesInlineStorageUsage < ESCARGOT_STRING_BUILDER_INLINE_STORAGE_MAX) {
-        m_piecesInlineStorage[m_piecesInlineStorageUsage++] = piece;
-    } else
-        m_pieces.push_back(piece);
 }
 
 String* StringBuilder::finalize()
