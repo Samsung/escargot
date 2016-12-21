@@ -169,7 +169,7 @@ int main(int argc, char* argv[])
     Escargot::HeapObjectIteratorCallback callback =
         [&counter](Escargot::ExecutionState& state, void* obj) {
             Escargot::ArrayObject* arr = (Escargot::ArrayObject*) obj;
-            printf("ArrayObject %p with length %zu\n", obj, arr->getLength(state));
+            printf("ArrayObject %p with length %u\n", obj, arr->getLength(state));
             counter++;
         };
     Escargot::ExecutionState state(context);

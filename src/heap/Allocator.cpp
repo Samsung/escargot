@@ -189,7 +189,7 @@ void iterateSpecificKindOfObject(ExecutionState& state, HeapObjectKind kind, Hea
 
         HeapObjectIteratorData* data = (HeapObjectIteratorData*)cd;
         if (kind == data->kind) {
-            data->callback(data->state, obj);
+            data->callback(data->state, GC_USR_PTR_FROM_BASE(obj));
         }
     },
                                          (void*)(&data));
