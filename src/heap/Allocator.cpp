@@ -66,13 +66,25 @@ void* GC_malloc_atomic_hook(size_t siz)
     return ptr;
 }
 
-void* GC_generic_malloc_ignore_off_page_hook(size_t siz, int kind)
+void* GC_generic_malloc_hook(size_t siz, int kind)
 {
     void* ptr;
 #ifdef NDEBUG
     ptr = GC_generic_malloc(siz, kind);
 #else
     ptr = GC_generic_malloc(siz, kind);
+#endif
+    registerGCAddress(ptr, siz);
+    return ptr;
+}
+
+void* GC_generic_malloc_ignore_off_page_hook(size_t siz, int kind)
+{
+    void* ptr;
+#ifdef NDEBUG
+    ptr = GC_generic_malloc_ignore_off_page(siz, kind);
+#else
+    ptr = GC_generic_malloc_ignore_off_page(siz, kind);
 #endif
     registerGCAddress(ptr, siz);
     return ptr;
@@ -201,7 +213,11 @@ Value* CustomAllocator<Value>::allocate(size_type GC_n, const void*)
     // Un-comment this to use default allocator
     // return (Value*)GC_MALLOC_IGNORE_OFF_PAGE(sizeof(Value) * GC_n);
     int kind = s_gcKinds[HeapObjectKind::ValueVectorKind];
-    return (Value*)GC_GENERIC_MALLOC_IGNORE_OFF_PAGE(sizeof(Value) * GC_n, kind);
+    size_t size = sizeof(Value) * GC_n;
+    if (size > 1024)
+        return (Value*)GC_GENERIC_MALLOC_IGNORE_OFF_PAGE(size, kind);
+    else
+        return (Value*)GC_GENERIC_MALLOC(size, kind);
 }
 
 template <>

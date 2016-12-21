@@ -23,6 +23,7 @@ public:
 
 void* GC_malloc_hook(size_t siz);
 void* GC_malloc_atomic_hook(size_t siz);
+void* GC_generic_malloc_hook(size_t siz, int kind);
 void* GC_generic_malloc_ignore_off_page_hook(size_t siz, int kind);
 void GC_free_hook(void* address);
 
@@ -31,6 +32,9 @@ void GC_free_hook(void* address);
 
 #undef GC_MALLOC_ATOMIC
 #define GC_MALLOC_ATOMIC(X) GC_malloc_atomic_hook(X)
+
+#undef GC_GENERIC_MALLOC
+#define GC_GENERIC_MALLOC(siz, kind) GC_generic_malloc_hook(siz, kind)
 
 #undef GC_GENERIC_MALLOC_IGNORE_OFF_PAGE
 #define GC_GENERIC_MALLOC_IGNORE_OFF_PAGE(siz, kind) GC_generic_malloc_ignore_off_page_hook(siz, kind)
