@@ -897,6 +897,24 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             NEXT_INSTRUCTION();
         }
 
+        ObjectDefineGetterOpcodeLbl : {
+            ObjectDefineGetter* code = (ObjectDefineGetter*)currentCode;
+            JSGetterSetter gs(registerFile[code->m_objectPropertyValueRegisterIndex].asFunction(), nullptr);
+            ObjectPropertyDescriptor desc(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent));
+            registerFile[code->m_objectRegisterIndex].toObject(state)->defineOwnPropertyThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, registerFile[code->m_objectPropertyNameRegisterIndex]), desc);
+            ADD_PROGRAM_COUNTER(ObjectDefineGetter);
+            NEXT_INSTRUCTION();
+        }
+
+        ObjectDefineSetterOpcodeLbl : {
+            ObjectDefineSetter* code = (ObjectDefineSetter*)currentCode;
+            JSGetterSetter gs(nullptr, registerFile[code->m_objectPropertyValueRegisterIndex].asFunction());
+            ObjectPropertyDescriptor desc(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent));
+            registerFile[code->m_objectRegisterIndex].toObject(state)->defineOwnPropertyThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, registerFile[code->m_objectPropertyNameRegisterIndex]), desc);
+            ADD_PROGRAM_COUNTER(ObjectDefineGetter);
+            NEXT_INSTRUCTION();
+        }
+
         LoadByGlobalNameOpcodeLbl : {
             LoadByGlobalName* code = (LoadByGlobalName*)currentCode;
             GlobalObject* g = state.context()->globalObject();
@@ -1369,6 +1387,7 @@ void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionSt
             orgObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, orgObject);
             return;
         }
+
         ASSERT(obj->structure()->version() == 0);
         ObjectStructureChainItem newItem;
         newItem.m_objectStructure = obj->structure();
@@ -1396,6 +1415,12 @@ void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionSt
             return;
         }
         if (orgObject->structure()->isStructureWithFastAccess()) {
+            inlineCache.invalidateCache();
+            return;
+        }
+
+        auto result = orgObject->get(state, ObjectPropertyName(state, name), orgObject);
+        if (!result.isDataProperty()) {
             inlineCache.invalidateCache();
             return;
         }

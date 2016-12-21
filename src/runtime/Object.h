@@ -103,6 +103,7 @@ protected:
 
 class JSGetterSetter : public PointerValue {
     friend class ObjectPropertyDescriptor;
+    friend class Object;
 
 public:
     JSGetterSetter(FunctionObject* getter, FunctionObject* setter)
@@ -137,6 +138,8 @@ protected:
 };
 
 class ObjectPropertyDescriptor {
+    friend class Object;
+
 public:
     enum PresentAttribute {
         NotPresent = 0,
@@ -570,23 +573,25 @@ protected:
         }
     }
 
+    Value getOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, Object* receiver);
     Value getOwnPropertyUtilForObject(ExecutionState& state, size_t idx, Object* receiver)
     {
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
-        if (item.m_descriptor.isDataProperty()) {
+        if (LIKELY(item.m_descriptor.isDataProperty())) {
             return getOwnDataPropertyUtilForObject(state, idx, receiver);
         } else {
-            RELEASE_ASSERT_NOT_REACHED();
+            return getOwnPropertyUtilForObjectAccCase(state, idx, receiver);
         }
     }
 
+    bool setOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, const Value& newValue);
     bool setOwnPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& newValue)
     {
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
-        if (item.m_descriptor.isDataProperty()) {
+        if (LIKELY(item.m_descriptor.isDataProperty())) {
             return setOwnDataPropertyUtilForObject(state, idx, newValue);
         } else {
-            RELEASE_ASSERT_NOT_REACHED();
+            return setOwnPropertyUtilForObjectAccCase(state, idx, newValue);
         }
     }
 

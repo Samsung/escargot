@@ -81,6 +81,8 @@ class Node;
     F(CheckIfKeyIsLast, 0, 0)           \
     F(LoadRegexp, 1, 0)                 \
     F(WithOperation, 0, 0)              \
+    F(ObjectDefineGetter, 0, 0)         \
+    F(ObjectDefineSetter, 0, 0)         \
     F(CallNativeFunction, 0, 0)         \
     F(CallEvalFunction, 0, 0)           \
     F(ResetExecuteResult, 0, 0)         \
@@ -1283,6 +1285,48 @@ public:
     virtual void dump()
     {
         printf("with r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class ObjectDefineGetter : public ByteCode {
+public:
+    ObjectDefineGetter(const ByteCodeLOC& loc, size_t objectRegisterIndex, size_t objectPropertyNameRegisterIndex, size_t objectPropertyValueRegisterIndex)
+        : ByteCode(Opcode::ObjectDefineGetterOpcode, loc)
+        , m_objectRegisterIndex(objectRegisterIndex)
+        , m_objectPropertyNameRegisterIndex(objectPropertyNameRegisterIndex)
+        , m_objectPropertyValueRegisterIndex(objectPropertyValueRegisterIndex)
+    {
+    }
+
+    size_t m_objectRegisterIndex;
+    size_t m_objectPropertyNameRegisterIndex;
+    size_t m_objectPropertyValueRegisterIndex;
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("object define getter r%d[r%d] = r%d", (int)m_objectRegisterIndex, (int)m_objectPropertyNameRegisterIndex, (int)m_objectPropertyValueRegisterIndex);
+    }
+#endif
+};
+
+class ObjectDefineSetter : public ByteCode {
+public:
+    ObjectDefineSetter(const ByteCodeLOC& loc, size_t objectRegisterIndex, size_t objectPropertyNameRegisterIndex, size_t objectPropertyValueRegisterIndex)
+        : ByteCode(Opcode::ObjectDefineSetterOpcode, loc)
+        , m_objectRegisterIndex(objectRegisterIndex)
+        , m_objectPropertyNameRegisterIndex(objectPropertyNameRegisterIndex)
+        , m_objectPropertyValueRegisterIndex(objectPropertyValueRegisterIndex)
+    {
+    }
+
+    size_t m_objectRegisterIndex;
+    size_t m_objectPropertyNameRegisterIndex;
+    size_t m_objectPropertyValueRegisterIndex;
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("object define setter r%d[r%d] = r%d", (int)m_objectRegisterIndex, (int)m_objectPropertyNameRegisterIndex, (int)m_objectPropertyValueRegisterIndex);
     }
 #endif
 };

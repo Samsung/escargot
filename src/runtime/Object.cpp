@@ -212,7 +212,7 @@ ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectProper
         } else {
             Value v = m_values[idx];
             ASSERT(v.isPointerValue() && v.asPointerValue()->isJSGetterSetter());
-            return ObjectGetResult(this, v, item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
+            return ObjectGetResult(this, v.asPointerValue()->asJSGetterSetter(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
         }
     }
     return ObjectGetResult();
@@ -263,6 +263,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
             }
         }
 
+        ObjectPropertyDescriptor newDesc(desc);
         // TODO If IsGenericDescriptor(Desc) is true, then no further validation is required.
         // if IsDataDescriptor(current) and IsDataDescriptor(Desc) have different results, then
         if (item.m_descriptor.isDataProperty() != desc.isDataProperty()) {
@@ -330,23 +331,34 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
             if (!item.m_descriptor.isConfigurable()) {
                 Value c = m_values[idx];
 
-                // Reject, if the [[Set]] field of Desc is present and SameValue(Desc.[[Set]], current.[[Set]]) is false.
-                if (c.asPointerValue()->asJSGetterSetter()->getter() != desc.getterSetter().getter()) {
+                // Reject, if the [[Get]] field of Desc is present and SameValue(Desc.[[Get]], current.[[Get]]) is false.
+                if (c.asPointerValue()->asJSGetterSetter()->getter() && c.asPointerValue()->asJSGetterSetter()->getter() != desc.getterSetter().getter()) {
                     return false;
                 }
 
-                // Reject, if the [[Get]] field of Desc is present and SameValue(Desc.[[Get]], current.[[Get]]) is false.
-                if (c.asPointerValue()->asJSGetterSetter()->setter() != desc.getterSetter().setter()) {
+                // Reject, if the [[Set]] field of Desc is present and SameValue(Desc.[[Set]], current.[[Set]]) is false.
+                if (c.asPointerValue()->asJSGetterSetter()->setter() && c.asPointerValue()->asJSGetterSetter()->setter() != desc.getterSetter().setter()) {
                     return false;
                 }
+            }
+
+            Value v = m_values[idx];
+            JSGetterSetter* acc = v.asPointerValue()->asJSGetterSetter();
+            if (acc->getter()) {
+                newDesc.m_getterSetter.m_getter = acc->getter();
+            }
+            if (acc->setter()) {
+                newDesc.m_getterSetter.m_setter = acc->setter();
             }
         }
         // For each attribute field of Desc that is present, set the correspondingly named attribute of the property named P of object O to the value of the field.
         bool shouldDelete = false;
 
-        if (desc.isWritablePresent()) {
-            if (desc.isWritable() != item.m_descriptor.isWritable()) {
-                shouldDelete = true;
+        if (desc.isDataProperty()) {
+            if (desc.isWritablePresent()) {
+                if (desc.isWritable() != item.m_descriptor.isWritable()) {
+                    shouldDelete = true;
+                }
             }
         }
 
@@ -365,18 +377,18 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
         if (!shouldDelete) {
             if (item.m_descriptor.isDataProperty()) {
                 if (LIKELY(!item.m_descriptor.isNativeAccessorProperty())) {
-                    m_values[idx] = desc.value();
+                    m_values[idx] = newDesc.value();
                     return true;
                 } else {
                     ObjectPropertyNativeGetterSetterData* data = item.m_descriptor.nativeGetterSetterData();
-                    return data->m_setter(state, this, desc.value());
+                    return data->m_setter(state, this, newDesc.value());
                 }
             } else {
-                m_values[idx] = Value(new JSGetterSetter(desc.getterSetter()));
+                m_values[idx] = Value(new JSGetterSetter(newDesc.getterSetter()));
             }
         } else {
             deleteOwnProperty(state, P);
-            defineOwnProperty(state, P, desc);
+            defineOwnProperty(state, P, newDesc);
         }
 
         return true;
@@ -613,5 +625,27 @@ void Object::sort(ExecutionState& state, std::function<bool(const Value& a, cons
             i = nextIndexForward(state, this, i, len, false);
         }
     }
+}
+
+Value Object::getOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, Object* receiver)
+{
+    Value v = m_values[idx];
+    auto gs = v.asPointerValue()->asJSGetterSetter();
+    if (gs->getter()) {
+        gs->getter()->call(state, receiver, 0, nullptr);
+    }
+    return Value();
+}
+
+bool Object::setOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, const Value& newValue)
+{
+    Value v = m_values[idx];
+    auto gs = v.asPointerValue()->asJSGetterSetter();
+    if (gs->setter()) {
+        Value arg = newValue;
+        gs->setter()->call(state, this, 1, &arg);
+        return true;
+    }
+    return false;
 }
 }

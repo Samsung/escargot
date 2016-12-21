@@ -42,6 +42,9 @@ public:
             AtomicString propertyAtomicName;
             if (p->key()->isIdentifier()) {
                 propertyAtomicName = p->key()->asIdentifier()->name();
+                if (p->kind() != PropertyNode::Kind::Init) {
+                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(p->key()->asIdentifier()->name().string())), context, this);
+                }
             } else {
                 p->key()->generateExpressionByteCode(codeBlock, context);
             }
@@ -61,10 +64,14 @@ public:
                     context->giveUpRegister();
                 }
             } else if (p->kind() == PropertyNode::Kind::Get) {
-                RELEASE_ASSERT_NOT_REACHED();
+                codeBlock->pushCode(ObjectDefineGetter(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex), context, this);
+                // for drop property index
+                context->giveUpRegister();
             } else {
                 ASSERT(p->kind() == PropertyNode::Kind::Set);
-                RELEASE_ASSERT_NOT_REACHED();
+                codeBlock->pushCode(ObjectDefineSetter(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex), context, this);
+                // for drop property index
+                context->giveUpRegister();
             }
 
             // for drop value index

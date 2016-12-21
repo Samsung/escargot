@@ -5587,7 +5587,6 @@ public:
         this->expect(RightParenthesis);
 
         bool isGenerator = false;
-        // std::vector<Node*, gc_allocator<Node*>> params, ScannerResult* stricted, ScannerResult* firstRestricted, const char* message
         ParseFormalParametersResult params(PatternNodeVector(), nullptr, nullptr, nullptr);
         bool previousAllowYield = this->context->allowYield;
         this->context->allowYield = false;
