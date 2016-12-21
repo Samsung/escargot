@@ -359,14 +359,10 @@ clean:
 	rm -rf out
 
 check:
+	make tidy-update
 	make x64.interpreter.release -j$(NPROCS)
 	make run-sunspider | tee out/sunspider_result
-	make run-octane | tee out/octane_result
-	make x64.interpreter.debug -j$(NPROCS)
-	make run-sunspider
-	cat out/sunspider_result
-	cat out/octane_result
-	make tidy
+	make run-test262 OPT=ch07/7.2
 
 tidy-install:
 	apt-get install clang-format-3.8
