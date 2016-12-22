@@ -595,7 +595,7 @@ protected:
 
     void setOwnPropertyThrowsExceptionWhenStrictMode(ExecutionState& state, size_t idx, const Value& newValue)
     {
-        if (UNLIKELY(!setOwnPropertyUtilForObject(state, idx, newValue))) {
+        if (UNLIKELY(!setOwnPropertyUtilForObject(state, idx, newValue) && state.inStrictMode())) {
             throwCannotWriteError(state, m_structure->readProperty(state, idx).m_propertyName);
         }
     }

@@ -8,17 +8,13 @@ namespace Escargot {
 static Value builtinBooleanConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     BooleanObject* boolObj;
-    if (isNewExpression)
+    bool primitiveVal = (argv[0].isUndefined()) ? false : argv[0].toBoolean(state);
+    if (isNewExpression && thisValue.isObject() && thisValue.asObject()->isBooleanObject()) {
         boolObj = thisValue.asPointerValue()->asObject()->asBooleanObject();
-    else
-        boolObj = new BooleanObject(state);
-
-    if (argv[0].isUndefined())
-        boolObj->setPrimitiveValue(state, false);
-    else
-        boolObj->setPrimitiveValue(state, argv[0].toBoolean(state));
-
-    return boolObj;
+        boolObj->setPrimitiveValue(state, primitiveVal);
+        return boolObj;
+    } else
+        return Value(primitiveVal);
 }
 
 void GlobalObject::installBoolean(ExecutionState& state)
