@@ -978,7 +978,18 @@ public:
         return c;
     }
 
-    char32_t scanHexEscape(char prefix)
+    struct CharOrEmptyResult {
+        char32_t code;
+        bool isEmpty;
+
+        CharOrEmptyResult(char32_t code, bool isEmpty)
+        {
+            this->code = code;
+            this->isEmpty = isEmpty;
+        }
+    };
+
+    CharOrEmptyResult scanHexEscape(char prefix)
     {
         size_t len = (prefix == 'u') ? 4 : 2;
         char32_t code = 0;
@@ -987,11 +998,11 @@ public:
             if (!this->eof() && isHexDigit(this->source.bufferedCharAt(this->index))) {
                 code = code * 16 + hexValue(this->source.bufferedCharAt(this->index++));
             } else {
-                return 0;
+                return CharOrEmptyResult(0, true);
             }
         }
 
-        return code;
+        return CharOrEmptyResult(code, false);
     }
 
     char32_t scanUnicodeCodePointEscape()
@@ -1061,9 +1072,10 @@ public:
                 ++this->index;
                 ch = this->scanUnicodeCodePointEscape();
             } else {
-                ch = this->scanHexEscape('u');
+                CharOrEmptyResult res = this->scanHexEscape('u');
+                ch = res.code;
                 cp = ch;
-                if (!ch || ch == '\\' || !isIdentifierStart(cp)) {
+                if (res.isEmpty || ch == '\\' || !isIdentifierStart(cp)) {
                     this->throwUnexpectedToken();
                 }
             }
@@ -1094,9 +1106,10 @@ public:
                     ++this->index;
                     ch = this->scanUnicodeCodePointEscape();
                 } else {
-                    ch = this->scanHexEscape('u');
+                    CharOrEmptyResult res = this->scanHexEscape('u');
+                    ch = res.code;
                     cp = ch;
-                    if (!ch || ch == '\\' || !isIdentifierPart(cp)) {
+                    if (res.isEmpty || ch == '\\' || !isIdentifierPart(cp)) {
                         this->throwUnexpectedToken();
                     }
                 }
@@ -1687,10 +1700,11 @@ public:
                             ParserCharPiece piece(this->scanUnicodeCodePointEscape());
                             stringUTF16 += piece.data;
                         } else {
-                            const char32_t unescaped = this->scanHexEscape(ch);
-                            if (!unescaped) {
+                            CharOrEmptyResult res = this->scanHexEscape(ch);
+                            if (res.isEmpty) {
                                 this->throwUnexpectedToken();
                             }
+                            const char32_t unescaped = res.code;
                             ParserCharPiece piece(unescaped);
                             stringUTF16 += piece.data;
                         }
@@ -1815,8 +1829,9 @@ public:
                             cooked += this->scanUnicodeCodePointEscape();
                         } else {
                             const size_t restore = this->index;
-                            const char32_t unescaped = this->scanHexEscape(ch);
-                            if (unescaped) {
+                            CharOrEmptyResult res = this->scanHexEscape(ch);
+                            const char32_t unescaped = res.code;
+                            if (!res.isEmpty) {
                                 ParserCharPiece piece(unescaped);
                                 cooked += piece.data;
                             } else {
@@ -2012,8 +2027,9 @@ public:
                     ++this->index;
                     const size_t restore = this->index;
                     char32_t ch32;
-                    ch32 = this->scanHexEscape('u');
-                    if (ch32) {
+                    CharOrEmptyResult res = this->scanHexEscape('u');
+                    ch32 = res.code;
+                    if (!res.isEmpty) {
                         ParserCharPiece piece(ch32);
                         flags += piece.data;
                         /*
