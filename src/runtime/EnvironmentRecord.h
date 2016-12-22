@@ -241,6 +241,7 @@ public:
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
     virtual bool deleteBinding(ExecutionState& state, const AtomicString& name);
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName);
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v);
 
     CodeBlock* globalCodeBlock()
     {

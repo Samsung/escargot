@@ -53,7 +53,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     }
 }
 
-CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, NodeLOC sourceElementStart, const AtomicStringVector& innerIdentifiers)
+CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, NodeLOC sourceElementStart, const AtomicStringVector& innerIdentifiers, CodeBlockInitFlag initFlags)
     : m_context(ctx)
     , m_script(script)
     , m_src(src)
@@ -77,9 +77,29 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
     m_isNativeFunction = false;
     m_isStrict = isStrict;
     m_hasEval = false;
-    m_hasWith = false;
-    m_hasCatch = false;
-    m_hasYield = false;
+    if (initFlags & CodeBlockInitFlag::CodeBlockHasEval) {
+        m_hasEval = true;
+    } else {
+        m_hasEval = false;
+    }
+
+    if (initFlags & CodeBlockInitFlag::CodeBlockHasWith) {
+        m_hasWith = true;
+    } else {
+        m_hasWith = false;
+    }
+
+    if (initFlags & CodeBlockInitFlag::CodeBlockHasCatch) {
+        m_hasCatch = true;
+    } else {
+        m_hasCatch = false;
+    }
+
+    if (initFlags & CodeBlockInitFlag::CodeBlockHasYield) {
+        m_hasYield = true;
+    } else {
+        m_hasYield = false;
+    }
     m_canUseIndexedVariableStorage = false;
     m_canAllocateEnvironmentOnStack = false;
     m_needsComplexParameterCopy = false;
