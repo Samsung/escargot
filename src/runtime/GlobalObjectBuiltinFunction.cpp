@@ -80,16 +80,14 @@ void GlobalObject::installFunction(ExecutionState& state)
                                                        FunctionObject::__ForBuiltin__);
     m_functionPrototype = emptyFunction;
     m_functionPrototype->setPrototype(state, m_objectPrototype);
-    // TODO convert into defineOwnProperty
-    // m_functionPrototype->setFunctionPrototype(state, emptyFunction);
 
     m_function = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
                                         // create dummy object.
                                         // this object is replaced in function ctor
                                         return new FunctionObject(state, NativeFunctionInfo(AtomicString(), builtinFunctionConstructor, 0, nullptr, 0));
-                                    }));
+                                    }),
+                                    FunctionObject::__ForBuiltin__);
     m_function->markThisObjectDontNeedStructureTransitionTable(state);
-    // TODO m_function->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
 
     m_function->setPrototype(state, emptyFunction);
     m_function->setFunctionPrototype(state, emptyFunction);

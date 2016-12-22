@@ -132,10 +132,10 @@ void GlobalObject::installObject(ExecutionState& state)
     FunctionObject* emptyFunction = m_functionPrototype;
     m_object = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Object, builtinObjectConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
                                       return new Object(state);
-                                  }));
+                                  }),
+                                  FunctionObject::__ForBuiltin__);
     m_object->markThisObjectDontNeedStructureTransitionTable(state);
     m_object->setPrototype(state, emptyFunction);
-    // TODO m_object->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
     m_object->setFunctionPrototype(state, m_objectPrototype);
     // $19.1.2.2 Object.create (O [,Properties])
     m_object->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().create),

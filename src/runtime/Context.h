@@ -63,6 +63,11 @@ public:
         return m_defaultStructureForFunctionObject;
     }
 
+    ObjectStructure* defaultStructureForBuiltinFunctionObject()
+    {
+        return m_defaultStructureForBuiltinFunctionObject;
+    }
+
     ObjectStructure* defaultStructureForNotConstructorFunctionObject()
     {
         return m_defaultStructureForNotConstructorFunctionObject;
@@ -142,6 +147,7 @@ protected:
 
     ObjectStructure* m_defaultStructureForObject;
     ObjectStructure* m_defaultStructureForFunctionObject;
+    ObjectStructure* m_defaultStructureForBuiltinFunctionObject;
     ObjectStructure* m_defaultStructureForNotConstructorFunctionObject;
     ObjectStructure* m_defaultStructureForFunctionPrototypeObject;
     ObjectStructure* m_defaultStructureForArrayObject;

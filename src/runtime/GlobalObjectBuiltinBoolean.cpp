@@ -21,10 +21,10 @@ void GlobalObject::installBoolean(ExecutionState& state)
 {
     m_boolean = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Boolean, builtinBooleanConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
                                        return new BooleanObject(state);
-                                   }));
+                                   }),
+                                   FunctionObject::__ForBuiltin__);
     m_boolean->markThisObjectDontNeedStructureTransitionTable(state);
     m_boolean->setPrototype(state, m_functionPrototype);
-    // TODO m_boolean->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
     m_booleanPrototype = m_objectPrototype;
     m_booleanPrototype = new BooleanObject(state, false);
     m_booleanPrototype->setPrototype(state, m_objectPrototype);

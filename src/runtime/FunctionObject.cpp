@@ -41,6 +41,12 @@ FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, b
 {
 }
 
+FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltin)
+    : FunctionObject(state, new CodeBlock(state.context(), info), nullptr, true)
+{
+    m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
+}
+
 FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnv, bool isConstructor)
     : Object(state, isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
     , m_isConstructor(isConstructor)

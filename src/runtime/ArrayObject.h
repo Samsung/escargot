@@ -13,17 +13,13 @@ namespace Escargot {
 class ArrayObject : public Object {
     friend class Context;
     friend class ByteCodeInterpreter;
+    friend Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
 
 public:
     ArrayObject(ExecutionState& state);
     virtual bool isArrayObject()
     {
         return true;
-    }
-
-    uint32_t getLength(ExecutionState& state)
-    {
-        return m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER].toUint32(state);
     }
 
     void setLength(ExecutionState& state, const uint32_t& value)
@@ -59,8 +55,13 @@ protected:
         return m_rareData->m_isFastModeArrayObject;
     }
 
+    uint32_t getLength(ExecutionState& state)
+    {
+        return m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER].toUint32(state);
+    }
+
     // return values means state of isFastMode
-    bool setArrayLength(ExecutionState& state, const uint32_t& newLength)
+    bool setArrayLength(ExecutionState& state, const uint32_t& newLength, bool isCalledFromCtor = false)
     {
         if (UNLIKELY(newLength == Value::InvalidArrayIndexValue)) {
             ErrorObject::throwBuiltinError(state, ErrorObject::Code::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
@@ -70,7 +71,7 @@ protected:
             if (isFastModeArray()) {
                 uint32_t orgLength = getLength(state);
                 if (newLength > orgLength) {
-                    if ((newLength - orgLength > ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP) && (m_fastModeData.size() != 0)) {
+                    if ((newLength - orgLength > ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP) && !isCalledFromCtor) {
                         convertIntoNonFastMode();
                     }
                 }

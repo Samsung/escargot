@@ -73,11 +73,11 @@ void GlobalObject::installError(ExecutionState& state)
 {
     m_error = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Error, builtinErrorConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
                                      return new ErrorObject(state, String::emptyString);
-                                 }));
+                                 }),
+                                 FunctionObject::__ForBuiltin__);
     m_error->markThisObjectDontNeedStructureTransitionTable(state);
 
     m_error->setPrototype(state, m_functionPrototype);
-    // m_error->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
 
     m_errorPrototype = new Object(state);
     m_error->setFunctionPrototype(state, m_errorPrototype);

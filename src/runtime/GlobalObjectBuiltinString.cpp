@@ -558,10 +558,10 @@ void GlobalObject::installString(ExecutionState& state)
 {
     m_string = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().String, builtinStringConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
                                       return new StringObject(state);
-                                  }));
+                                  }),
+                                  FunctionObject::__ForBuiltin__);
     m_string->markThisObjectDontNeedStructureTransitionTable(state);
     m_string->setPrototype(state, m_functionPrototype);
-    // TODO m_string->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
     m_stringPrototype = m_objectPrototype;
     m_stringPrototype = new StringObject(state, String::emptyString);
     m_stringPrototype->setPrototype(state, m_objectPrototype);

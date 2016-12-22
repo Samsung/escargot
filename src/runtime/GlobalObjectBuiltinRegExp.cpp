@@ -81,10 +81,10 @@ void GlobalObject::installRegExp(ExecutionState& state)
 {
     m_regexp = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().RegExp, builtinRegExpConstructor, 2, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
                                       return new RegExpObject(state, String::emptyString, String::emptyString);
-                                  }));
+                                  }),
+                                  FunctionObject::__ForBuiltin__);
     m_regexp->markThisObjectDontNeedStructureTransitionTable(state);
     m_regexp->setPrototype(state, m_functionPrototype);
-    // TODO m_regexp->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
 
     m_regexpPrototype = m_objectPrototype;
     m_regexpPrototype = new Object(state);

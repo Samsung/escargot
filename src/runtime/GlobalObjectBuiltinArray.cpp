@@ -5,7 +5,7 @@
 
 namespace Escargot {
 
-static Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     bool interpretArgumentsAsElements = false;
     size_t size = 0;
@@ -32,7 +32,7 @@ static Value builtinArrayConstructor(ExecutionState& state, Value thisValue, siz
         array = new ArrayObject(state);
     }
 
-    array->setLength(state, size);
+    array->setArrayLength(state, size, true);
     if (interpretArgumentsAsElements) {
         Value val = argv[0];
         if (argc > 1 || !val.isInt32()) {
@@ -317,10 +317,10 @@ void GlobalObject::installArray(ExecutionState& state)
 {
     m_array = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Array, builtinArrayConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
                                      return new ArrayObject(state);
-                                 }));
+                                 }),
+                                 FunctionObject::__ForBuiltin__);
     m_array->markThisObjectDontNeedStructureTransitionTable(state);
     m_array->setPrototype(state, m_functionPrototype);
-    // TODO m_array->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
     m_arrayPrototype = m_objectPrototype;
     m_arrayPrototype = new ArrayObject(state);
     m_arrayPrototype->setPrototype(state, m_objectPrototype);

@@ -199,10 +199,10 @@ void GlobalObject::installDate(ExecutionState& state)
 {
     m_date = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Date, builtinDateConstructor, 7, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
                                     return new DateObject(state);
-                                }));
+                                }),
+                                FunctionObject::__ForBuiltin__);
     m_date->markThisObjectDontNeedStructureTransitionTable(state);
     m_date->setPrototype(state, m_functionPrototype);
-    // TODO m_date->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
     m_datePrototype = m_objectPrototype;
     m_datePrototype = new Object(state);
     m_datePrototype->setPrototype(state, m_objectPrototype);

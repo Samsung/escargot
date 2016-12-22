@@ -11,6 +11,7 @@ class FunctionObject : public Object {
     enum ForBuiltin { __ForBuiltin__ };
     FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltin);
     void initFunctionObject(ExecutionState& state);
+    FunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltin);
 
 public:
     FunctionObject(ExecutionState& state, NativeFunctionInfo info, bool isConstructor = true);
