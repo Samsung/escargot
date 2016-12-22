@@ -193,7 +193,9 @@ void iterateSpecificKindOfObject(ExecutionState& state, HeapObjectKind kind, Hea
 
     HeapObjectIteratorData data{ s_gcKinds[kind], state, callback };
 
-    GC_gcollect(); // Update mark status
+    ASSERT(!GC_is_disabled());
+    GC_gcollect(); // Update mark status. See comments of iterateSpecificKindOfObject in src/heap/Allocator.h
+    GC_disable();
     GC_enumerate_reachable_objects_inner([](void* obj, size_t bytes, void* cd) {
         size_t size;
         int kind = GC_get_kind_and_size(obj, &size);
@@ -205,6 +207,7 @@ void iterateSpecificKindOfObject(ExecutionState& state, HeapObjectKind kind, Hea
         }
     },
                                          (void*)(&data));
+    GC_enable();
 }
 
 template <>

@@ -181,7 +181,6 @@ void Context::throwException(ExecutionState& state, const Value& exception)
 
 void Context::somePrototypeObjectDefineIndexedProperty(ExecutionState& state)
 {
-    GC_disable();
     std::vector<ArrayObject*> allOfArray;
     Escargot::HeapObjectIteratorCallback callback =
         [&allOfArray](Escargot::ExecutionState& state, void* obj) {
@@ -189,7 +188,6 @@ void Context::somePrototypeObjectDefineIndexedProperty(ExecutionState& state)
             allOfArray.push_back(arr);
         };
     Escargot::ArrayObject::iterateArrays(state, callback);
-    GC_enable();
 
     for (size_t i = 0; i < allOfArray.size(); i++) {
         allOfArray[i]->convertIntoNonFastMode(state);
