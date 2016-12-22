@@ -1407,10 +1407,10 @@ void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionSt
             inlineCache.m_cachedhiddenClassChain.push_back(newItem);
             proto = obj->getPrototype(state);
         }
-        bool s = orgObject->set(state, ObjectPropertyName(state, name), value, obj);
+        bool s = orgObject->set(state, ObjectPropertyName(state, name), value, orgObject);
         if (UNLIKELY(!s)) {
             if (state.inStrictMode())
-                obj->throwCannotWriteError(state, name);
+                orgObject->throwCannotWriteError(state, name);
 
             inlineCache.invalidateCache();
             return;
@@ -1421,7 +1421,7 @@ void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionSt
         }
 
         auto result = orgObject->get(state, ObjectPropertyName(state, name), orgObject);
-        if (!result.isDataProperty()) {
+        if (!result.hasValue() || !result.isDataProperty()) {
             inlineCache.invalidateCache();
             return;
         }
