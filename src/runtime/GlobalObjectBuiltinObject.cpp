@@ -126,6 +126,28 @@ static Value builtinObjectCreate(ExecutionState& state, Value thisValue, size_t 
     return obj;
 }
 
+static Value builtinObjectDefineProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Object.defineProperty ( O, P, Attributes )
+    // If Type(O) is not Object, throw a TypeError exception.
+    if (!argv[0].isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().defineProperty.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+    }
+    Object* O = argv[0].asObject();
+
+    // Let key be ToPropertyKey(P).
+    ObjectPropertyName key = ObjectPropertyName(state, argv[1]);
+
+    // Let desc be ToPropertyDescriptor(Attributes).
+    if (!argv[2].isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Property description must be an object");
+    }
+
+    ObjectPropertyDescriptor desc(state, argv[2].asObject());
+
+    O->defineOwnPropertyThrowsException(state, key, desc);
+    return O;
+}
 
 void GlobalObject::installObject(ExecutionState& state)
 {
@@ -141,6 +163,12 @@ void GlobalObject::installObject(ExecutionState& state)
     m_object->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().create),
                                 ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().create, builtinObjectCreate, 2, nullptr, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_object->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().defineProperty),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().defineProperty, builtinObjectDefineProperty, 3, nullptr, NativeFunctionInfo::Strict)),
+                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor),
                                          ObjectPropertyDescriptor(m_object, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
@@ -150,6 +178,7 @@ void GlobalObject::installObject(ExecutionState& state)
     // $19.1.3.2 Object.prototype.hasOwnProperty(V)
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().hasOwnProperty),
                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinObjectHasOwnProperty, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
 
     JSGetterSetter gs(
         new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().__proto__, builtinObject__proto__Getter, 0, nullptr, NativeFunctionInfo::Strict)),

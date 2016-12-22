@@ -5529,11 +5529,7 @@ public:
         Node* expr = this->parseExpression();
         if (expr->type() == Literal) {
             isLiteral = true;
-            size_t newStart = token->valueString.start() + 1;
-            size_t newEnd = token->valueString.end() - 1;
-            if (newStart <= newEnd && newEnd < token->valueString.end()) {
-                directiveValue = StringView(token->valueString.string(), newStart, newEnd);
-            }
+            directiveValue = token->valueString;
         }
         this->consumeSemicolon();
 
@@ -5564,7 +5560,7 @@ public:
 
             DirectiveNode* directive = (DirectiveNode*)statement;
             if (directive->value().equals("use strict")) {
-                this->context->strict = true;
+                this->scopeContexts.back()->m_isStrict = this->context->strict = true;
                 if (firstRestricted) {
                     this->tolerateUnexpectedToken(firstRestricted, Messages::StrictOctalLiteral);
                 }
