@@ -370,6 +370,9 @@ public:
         return m_isDataProperty;
     }
 
+    // http://www.ecma-international.org/ecma-262/5.1/#sec-8.10.4
+    Value toPropertyDescriptor(ExecutionState& state, Object* receiver);
+
 protected:
     bool m_hasValue : 1;
     bool m_isWritable : 1;

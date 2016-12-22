@@ -363,6 +363,55 @@ static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t ar
     return Value(true);
 }
 
+static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be the result of calling ToObject passing the this value as the argument.
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, reduce);
+    uint32_t len = O->length(state); // 2-3
+    Value callbackfn = argv[0];
+    Value initialValue = Value(Value::EmptyValue);
+    if (argc > 1) {
+        initialValue = argv[1];
+    }
+
+    if (!callbackfn.isFunction()) // 4
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().reduce.string(), errorMessage_GlobalObject_CallbackNotCallable);
+
+    if (len == 0 && (initialValue.isUndefined() || initialValue.isEmpty())) // 5
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().reduce.string(), errorMessage_GlobalObject_ReduceError);
+
+    size_t k = 0; // 6
+    Value accumulator;
+    if (!initialValue.isEmpty()) { // 7
+        accumulator = initialValue;
+    } else { // 8
+        bool kPresent = false; // 8.a
+        while (kPresent == false && k < len) { // 8.b
+            Value Pk = Value(k); // 8.b.i
+            kPresent = O->hasProperty(state, ObjectPropertyName(state, Pk)); // 8.b.ii
+            if (kPresent)
+                accumulator = O->get(state, ObjectPropertyName(state, Pk)).value(state, O); // 8.b.iii.1
+            k++; // 8.b.iv
+        }
+        if (kPresent == false)
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().reduce.string(), errorMessage_GlobalObject_ReduceError);
+    }
+    while (k < len) { // 9
+        Value Pk = Value(k); // 9.a
+        bool kPresent = O->hasProperty(state, ObjectPropertyName(state, Pk)); // 9.b
+        if (kPresent) { // 9.c
+            Value kValue = O->get(state, ObjectPropertyName(state, Pk)).value(state, O); // 9.c.i
+            const int fnargc = 4;
+            Value fnargs[] = { accumulator, kValue, Value(k), O };
+            accumulator = FunctionObject::call(callbackfn, state, Value(), fnargc, fnargs);
+            k++;
+        } else {
+            k = Object::nextIndexForward(state, O, k, len, false);
+        }
+    }
+    return accumulator;
+}
+
 void GlobalObject::installArray(ExecutionState& state)
 {
     m_array = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Array, builtinArrayConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
@@ -389,6 +438,8 @@ void GlobalObject::installArray(ExecutionState& state)
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().slice, builtinArraySlice, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().every),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().every, builtinArrayEvery, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().reduce),
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().reduce, builtinArrayReduce, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toString),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinArrayToString, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

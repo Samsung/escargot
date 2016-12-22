@@ -175,6 +175,25 @@ static Value builtinObjectIsPrototypeOf(ExecutionState& state, Value thisValue, 
     }
 }
 
+static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Object.getOwnPropertyDescriptor ( O, P )
+    // If Type(O) is not Object throw a TypeError exception.
+    if (!argv[0].isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().getOwnPropertyDescriptor.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+    }
+    Object* O = argv[0].asObject();
+
+    // Let name be ToString(P).
+    Value name = argv[1].toString(state);
+
+    // Let desc be the result of calling the [[GetOwnProperty]] internal method of O with argument name.
+    ObjectGetResult desc = O->getOwnProperty(state, ObjectPropertyName(state, name));
+
+    // Return the result of calling FromPropertyDescriptor(desc) (8.10.4).
+    return desc.toPropertyDescriptor(state, O);
+}
+
 void GlobalObject::installObject(ExecutionState& state)
 {
     FunctionObject* emptyFunction = m_functionPrototype;
@@ -194,6 +213,9 @@ void GlobalObject::installObject(ExecutionState& state)
                                 ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().defineProperty, builtinObjectDefineProperty, 3, nullptr, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    m_object->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getOwnPropertyDescriptor),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getOwnPropertyDescriptor, builtinObjectGetOwnPropertyDescriptor, 2, nullptr, NativeFunctionInfo::Strict)),
+                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor),
                                          ObjectPropertyDescriptor(m_object, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

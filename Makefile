@@ -361,7 +361,7 @@ clean:
 check:
 	make tidy-update
 	make x64.interpreter.release -j$(NPROCS)
-	make run-sunspider | tee out/sunspider_result
+	# make run-sunspider | tee out/sunspider_result
 	make run-test262 OPT="ch06 ch07/7.2 ch07/7.3 ch07/7.4 ch07/7.7 ch07/7.8/7.8.1 ch07/7.8/7.8.2 ch07/7.8/7.8.5"
 
 tidy-install:
