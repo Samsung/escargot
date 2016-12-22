@@ -1058,7 +1058,7 @@ public:
     {
         char32_t cp = this->codePointAt(this->index);
         ParserCharPiece piece = ParserCharPiece(cp);
-        UTF16StringDataNonGCStd id(piece.data);
+        UTF16StringDataNonGCStd id(piece.data, piece.length);
         this->index += id.length();
 
         // '\u' (U+005C, U+0075) denotes an escaped character.
@@ -1090,7 +1090,7 @@ public:
             // ch = Character.fromCodePoint(cp);
             ch = cp;
             piece = ParserCharPiece(ch);
-            id += piece.data;
+            id += UTF16StringDataNonGCStd(piece.data, piece.length);
             this->index += piece.length;
 
             // '\u' (U+005C, U+0075) denotes an escaped character.
@@ -1114,7 +1114,7 @@ public:
                     }
                 }
                 piece = ParserCharPiece(ch);
-                id += piece.data;
+                id += UTF16StringDataNonGCStd(piece.data, piece.length);
             }
         }
 
@@ -1698,7 +1698,7 @@ public:
                         if (this->source.bufferedCharAt(this->index) == '{') {
                             ++this->index;
                             ParserCharPiece piece(this->scanUnicodeCodePointEscape());
-                            stringUTF16 += piece.data;
+                            stringUTF16 += UTF16StringDataNonGCStd(piece.data, piece.length);
                         } else {
                             CharOrEmptyResult res = this->scanHexEscape(ch);
                             if (res.isEmpty) {
@@ -1706,7 +1706,7 @@ public:
                             }
                             const char32_t unescaped = res.code;
                             ParserCharPiece piece(unescaped);
-                            stringUTF16 += piece.data;
+                            stringUTF16 += UTF16StringDataNonGCStd(piece.data, piece.length);
                         }
                         break;
                     case 'n':
@@ -1833,7 +1833,7 @@ public:
                             const char32_t unescaped = res.code;
                             if (!res.isEmpty) {
                                 ParserCharPiece piece(unescaped);
-                                cooked += piece.data;
+                                cooked += UTF16StringDataNonGCStd(piece.data, piece.length);
                             } else {
                                 this->index = restore;
                                 cooked += ch;
@@ -2031,7 +2031,7 @@ public:
                     ch32 = res.code;
                     if (!res.isEmpty) {
                         ParserCharPiece piece(ch32);
-                        flags += piece.data;
+                        flags += UTF16StringDataNonGCStd(piece.data, piece.length);
                         /*
                         for (str += '\\u'; restore < this->index; ++restore) {
                             str += this->source[restore];
