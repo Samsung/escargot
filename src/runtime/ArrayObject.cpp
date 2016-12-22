@@ -10,6 +10,11 @@ ArrayObject::ArrayObject(ExecutionState& state)
     m_structure = state.context()->defaultStructureForArrayObject();
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(0);
     setPrototype(state, state.context()->globalObject()->arrayPrototype());
+
+    if (UNLIKELY(state.context()->didSomePrototypeObjectDefineIndexedProperty())) {
+        ensureObjectRareData()->m_isFastModeArrayObject = false;
+        ASSERT(m_fastModeData.size() == 0);
+    }
 }
 
 ObjectGetResult ArrayObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE

@@ -130,7 +130,7 @@ public:
         return m_didSomePrototypeObjectDefineIndexedProperty;
     }
 
-    void somePrototypeObjectDefineIndexedProperty();
+    void somePrototypeObjectDefineIndexedProperty(ExecutionState& state);
     void throwException(ExecutionState& state, const Value& exception);
 
 protected:

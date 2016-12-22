@@ -211,7 +211,7 @@ void Object::markAsPrototypeObject(ExecutionState& state)
 
     if (!state.context()->didSomePrototypeObjectDefineIndexedProperty()) {
         if (structure()->hasIndexPropertyName()) {
-            state.context()->somePrototypeObjectDefineIndexedProperty();
+            state.context()->somePrototypeObjectDefineIndexedProperty(state);
         }
     }
 }
@@ -248,7 +248,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
 {
     if (isEverSetAsPrototypeObject()) {
         if (!state.context()->didSomePrototypeObjectDefineIndexedProperty() && isIndexString(P.string(state))) {
-            state.context()->somePrototypeObjectDefineIndexedProperty();
+            state.context()->somePrototypeObjectDefineIndexedProperty(state);
         }
     }
 
