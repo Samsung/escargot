@@ -149,6 +149,32 @@ static Value builtinObjectDefineProperty(ExecutionState& state, Value thisValue,
     return O;
 }
 
+static Value builtinObjectIsPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Object.prototype.isPrototypeOf (V)
+    // If V is not an object, return false.
+    if (!argv[0].isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().isPrototypeOf.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+    }
+    Value V = argv[0];
+
+    // Let O be the result of calling ToObject passing the this value as the argument.
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Object, isPrototypeOf);
+
+    // Repeat
+    while (true) {
+        // Let V be the value of the [[Prototype]] internal property of V.
+        V = V.toObject(state)->getPrototype(state);
+        // if V is null, return false
+        if (!V.isObject())
+            return Value(false);
+        // If O and V refer to the same object, return true.
+        if (V.asObject() == O) {
+            return Value(true);
+        }
+    }
+}
+
 void GlobalObject::installObject(ExecutionState& state)
 {
     FunctionObject* emptyFunction = m_functionPrototype;
@@ -179,6 +205,8 @@ void GlobalObject::installObject(ExecutionState& state)
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().hasOwnProperty),
                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinObjectHasOwnProperty, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().isPrototypeOf),
+                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isPrototypeOf, builtinObjectIsPrototypeOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     JSGetterSetter gs(
         new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().__proto__, builtinObject__proto__Getter, 0, nullptr, NativeFunctionInfo::Strict)),

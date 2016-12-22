@@ -5465,7 +5465,7 @@ public:
 
         const char* message;
         IdentifierNode* id = nullptr;
-        ScannerResult* firstRestricted;
+        ScannerResult* firstRestricted = nullptr;
 
         bool previousAllowYield = this->context->allowYield;
         this->context->allowYield = !isGenerator;
