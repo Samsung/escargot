@@ -25,7 +25,6 @@ public:
     void setLength(ExecutionState& state, const uint32_t& value)
     {
         setArrayLength(state, value);
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = SmallValue(value);
     }
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
@@ -34,7 +33,7 @@ public:
     virtual void enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc)> callback) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual uint32_t length(ExecutionState& state)
     {
-        return getLength(state);
+        return getArrayLength(state);
     }
     virtual void sort(ExecutionState& state, std::function<bool(const Value& a, const Value& b)> comp);
 
@@ -55,7 +54,7 @@ protected:
         return m_rareData->m_isFastModeArrayObject;
     }
 
-    uint32_t getLength(ExecutionState& state)
+    uint32_t getArrayLength(ExecutionState& state)
     {
         return m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER].toUint32(state);
     }
@@ -67,33 +66,26 @@ protected:
             ErrorObject::throwBuiltinError(state, ErrorObject::Code::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
         }
 
-        if (UNLIKELY(newLength > ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE)) {
-            if (isFastModeArray()) {
-                uint32_t orgLength = getLength(state);
-                if (newLength > orgLength) {
-                    if ((newLength - orgLength > ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP) && !isCalledFromCtor) {
-                        convertIntoNonFastMode();
-                    }
+        if (UNLIKELY(isFastModeArray() && (newLength > ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE))) {
+            uint32_t orgLength = getArrayLength(state);
+            if (newLength > orgLength) {
+                if ((newLength - orgLength > ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP) && !isCalledFromCtor) {
+                    convertIntoNonFastMode(state);
                 }
             }
         }
 
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = SmallValue(newLength);
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(newLength);
 
         if (LIKELY(isFastModeArray())) {
             m_fastModeData.resize(newLength, Value(Value::EmptyValue));
             return true;
         } else {
-            RELEASE_ASSERT_NOT_REACHED();
             return false;
         }
     }
 
-    void convertIntoNonFastMode()
-    {
-        // TODO
-        RELEASE_ASSERT_NOT_REACHED();
-    }
+    void convertIntoNonFastMode(ExecutionState& state);
 
     ALWAYS_INLINE ObjectGetResult getFastModeValue(ExecutionState& state, const ObjectPropertyName& P)
     {
@@ -105,7 +97,7 @@ protected:
                 idx = P.string(state)->tryToUseAsArrayIndex();
             }
             if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-                ASSERT(m_fastModeData.size() == getLength(state));
+                ASSERT(m_fastModeData.size() == getArrayLength(state));
                 if (LIKELY(idx < m_fastModeData.size())) {
                     Value v = m_fastModeData[idx];
                     if (LIKELY(!v.isEmpty())) {
@@ -133,13 +125,13 @@ protected:
                     // Non-empty slot of fast-mode array always has {writable:true, enumerable:true, configurable:true}.
                     // So, when new desciptor is not present, keep {w:true, e:true, c:true}
                     if (UNLIKELY(!desc.isNotPresent() && !desc.isDataWritableEnumerableConfigurable())) {
-                        convertIntoNonFastMode();
+                        convertIntoNonFastMode(state);
                         return false;
                     }
                 } else if (UNLIKELY(!desc.isDataWritableEnumerableConfigurable())) {
                     // In case of empty slot property or over-lengthed property,
                     // when new desciptor is not present, keep {w:false, e:false, c:false}
-                    convertIntoNonFastMode();
+                    convertIntoNonFastMode(state);
                     return false;
                 }
                 if (UNLIKELY(len <= idx)) {
@@ -147,7 +139,7 @@ protected:
                         return false;
                     }
                 }
-                ASSERT(m_fastModeData.size() == getLength(state));
+                ASSERT(m_fastModeData.size() == getArrayLength(state));
                 m_fastModeData[idx] = desc.value();
                 return true;
             }

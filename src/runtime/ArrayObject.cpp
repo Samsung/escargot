@@ -27,6 +27,12 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
     if (LIKELY(setFastModeValue(state, P, desc))) {
         return true;
     }
+
+    uint32_t idx = P.toValue(state).toArrayIndex(state);
+    if (idx != Value::InvalidArrayIndexValue) {
+        setArrayLength(state, idx);
+    }
+
     return Object::defineOwnProperty(state, P, desc);
 }
 
@@ -41,7 +47,7 @@ bool ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
         }
         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
             uint32_t len = m_fastModeData.size();
-            ASSERT(len == getLength(state));
+            ASSERT(len == getArrayLength(state));
             if (idx < len) {
                 m_fastModeData[idx] = Value(Value::EmptyValue);
                 return true;
@@ -89,5 +95,22 @@ void* ArrayObject::operator new(size_t size)
 void ArrayObject::iterateArrays(ExecutionState& state, HeapObjectIteratorCallback callback)
 {
     iterateSpecificKindOfObject(state, HeapObjectKind::ArrayObjectKind, callback);
+}
+
+void ArrayObject::convertIntoNonFastMode(ExecutionState& state)
+{
+    if (!structure()->isStructureWithFastAccess()) {
+        m_structure = structure()->convertToWithFastAccess(state);
+    }
+
+    ensureObjectRareData()->m_isFastModeArrayObject = false;
+
+    for (size_t i = 0; i < m_fastModeData.size(); i++) {
+        if (!m_fastModeData[i].isEmpty()) {
+            defineOwnPropertyThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, Value(i)), ObjectPropertyDescriptor(m_fastModeData[i], ObjectPropertyDescriptor::AllPresent));
+        }
+    }
+
+    m_fastModeData.clear();
 }
 }
