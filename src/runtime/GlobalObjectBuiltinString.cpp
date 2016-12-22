@@ -565,6 +565,8 @@ void GlobalObject::installString(ExecutionState& state)
     m_stringPrototype = m_objectPrototype;
     m_stringPrototype = new StringObject(state, String::emptyString);
     m_stringPrototype->setPrototype(state, m_objectPrototype);
+    m_string->setFunctionPrototype(state, m_stringPrototype);
+    m_stringPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_string));
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toString),
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinStringToString, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

@@ -45,17 +45,19 @@ static int itoa(int64_t value, char* sp, int radix)
 static Value builtinNumberConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     NumberObject* numObj;
-    if (isNewExpression)
+    if (isNewExpression) {
         numObj = thisValue.asPointerValue()->asObject()->asNumberObject();
-    else
-        numObj = new NumberObject(state);
-
-    if (argv[0].isUndefined())
-        numObj->setPrimitiveValue(state, 0);
-    else
-        numObj->setPrimitiveValue(state, argv[0].toNumber(state));
-
-    return numObj;
+        if (argv[0].isUndefined())
+            numObj->setPrimitiveValue(state, 0);
+        else
+            numObj->setPrimitiveValue(state, argv[0].toNumber(state));
+        return numObj;
+    } else {
+        if (argc == 0)
+            return Value(0);
+        else
+            return Value(argv[0].toNumber(state));
+    }
 }
 
 static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -163,6 +165,8 @@ void GlobalObject::installNumber(ExecutionState& state)
     m_numberPrototype = m_objectPrototype;
     m_numberPrototype = new NumberObject(state, 0);
     m_numberPrototype->setPrototype(state, m_objectPrototype);
+    m_number->setFunctionPrototype(state, m_numberPrototype);
+    m_numberPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_number));
 
     m_numberPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toString),
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinNumberToString, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

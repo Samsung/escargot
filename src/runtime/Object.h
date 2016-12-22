@@ -436,7 +436,7 @@ public:
     void preventExtensions()
     {
         ensureObjectRareData();
-        m_rareData->m_isExtensible = true;
+        m_rareData->m_isExtensible = false;
     }
 
     Value getPrototype(ExecutionState& state)

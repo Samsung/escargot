@@ -363,7 +363,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
                 // Convert the property named P of object O from a data property to an accessor property.
                 // Preserve the existing values of the converted property’s [[Configurable]] and [[Enumerable]] attributes
                 // and set the rest of the property’s attributes to their default values.
-                if (current.isWritable()) {
+                if (current.isWritable() || newDesc.isWritable()) {
                     f = f | ObjectPropertyDescriptor::WritablePresent;
                 } else {
                     f = f | ObjectPropertyDescriptor::NonWritablePresent;
@@ -465,8 +465,10 @@ bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& 
     if (result.hasValue() && result.isConfigurable()) {
         deleteOwnProperty(state, m_structure->findProperty(state, P.toPropertyName(state)));
         return true;
+    } else if (result.hasValue() && !result.isConfigurable()) {
+        return false;
     }
-    return false;
+    return true;
 }
 
 void Object::enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc)> fn) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
@@ -539,8 +541,8 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
             } else {
                 // Else Receiver does not currently have a property P,
                 // Return CreateDataProperty(Receiver, P, V).
-                ObjectPropertyDescriptor desc(v);
-                return defineOwnProperty(state, propertyName, desc);
+                ObjectPropertyDescriptor newDesc(v, ObjectPropertyDescriptor::AllPresent);
+                return receiver->defineOwnProperty(state, propertyName, newDesc);
             }
         } else {
             // Let setter be ownDesc.[[Set]].
