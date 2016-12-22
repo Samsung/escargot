@@ -30,8 +30,8 @@ public:
 
     static inline std::pair<bool, Value> getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, GetObjectInlineCache& inlineCache);
     static std::pair<bool, Value> getObjectPrecomputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const PropertyName& name, GetObjectInlineCache& inlineCache);
-    static inline void setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache);
-    static void setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache);
+    static inline void setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, bool fromGlobalObject);
+    static void setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, bool fromGlobalObject);
 
     static EnumerateObjectData* executeEnumerateObject(ExecutionState& state, Object* obj);
     static EnumerateObjectData* updateEnumerateObjectData(ExecutionState& state, EnumerateObjectData* data);

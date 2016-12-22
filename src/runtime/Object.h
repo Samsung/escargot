@@ -176,6 +176,18 @@ public:
         }
     }
 
+    void operator=(const ObjectPropertyDescriptor& desc)
+    {
+        m_property = desc.m_property;
+        if (desc.isDataProperty()) {
+            m_isDataProperty = true;
+            m_value = desc.m_value;
+        } else {
+            m_isDataProperty = false;
+            m_getterSetter = desc.m_getterSetter;
+        }
+    }
+
     // TODO
     // for native acc. data property
 

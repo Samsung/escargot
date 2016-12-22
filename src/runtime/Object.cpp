@@ -327,6 +327,8 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
             }
         }
 
+        bool shouldDelete = false;
+
         ObjectPropertyDescriptor newDesc(desc);
         // TODO If IsGenericDescriptor(Desc) is true, then no further validation is required.
         // if IsDataDescriptor(current) and IsDataDescriptor(Desc) have different results, then
@@ -337,7 +339,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
             }
 
             auto current = item.m_descriptor;
-            deleteOwnProperty(state, P);
+            shouldDelete = true;
 
             int f = 0;
             if (current.isConfigurable()) {
@@ -357,7 +359,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
                 // Convert the property named P of object O from a data property to an accessor property.
                 // Preserve the existing values of the converted property’s [[Configurable]] and [[Enumerable]] attributes
                 // and set the rest of the property’s attributes to their default values.
-                return defineOwnProperty(state, P, ObjectPropertyDescriptor(desc.getterSetter(), (ObjectPropertyDescriptor::PresentAttribute)f));
+                newDesc = ObjectPropertyDescriptor(desc.getterSetter(), (ObjectPropertyDescriptor::PresentAttribute)f);
             } else {
                 // Else,
                 // Convert the property named P of object O from a data property to an accessor property.
@@ -368,7 +370,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
                 } else {
                     f = f | ObjectPropertyDescriptor::NonWritablePresent;
                 }
-                return defineOwnProperty(state, P, ObjectPropertyDescriptor(desc.value(), (ObjectPropertyDescriptor::PresentAttribute)f));
+                newDesc = ObjectPropertyDescriptor(desc.value(), (ObjectPropertyDescriptor::PresentAttribute)f);
             }
         }
         // Else, if IsDataDescriptor(current) and IsDataDescriptor(Desc) are both true, then
@@ -415,9 +417,8 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
                 newDesc.m_getterSetter.m_setter = acc->setter();
             }
         }
-        // For each attribute field of Desc that is present, set the correspondingly named attribute of the property named P of object O to the value of the field.
-        bool shouldDelete = false;
 
+        // For each attribute field of Desc that is present, set the correspondingly named attribute of the property named P of object O to the value of the field.
         if (desc.isDataProperty()) {
             if (desc.isWritablePresent()) {
                 if (desc.isWritable() != item.m_descriptor.isWritable()) {
@@ -444,15 +445,22 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
                     m_values[idx] = newDesc.value();
                     return true;
                 } else {
-                    ObjectPropertyNativeGetterSetterData* data = item.m_descriptor.nativeGetterSetterData();
-                    return data->m_setter(state, this, newDesc.value());
+                    return true;
                 }
             } else {
                 m_values[idx] = Value(new JSGetterSetter(newDesc.getterSetter()));
             }
         } else {
-            deleteOwnProperty(state, P);
-            defineOwnProperty(state, P, newDesc);
+            if (!structure()->isStructureWithFastAccess())
+                m_structure = structure()->convertToWithFastAccess(state);
+
+            m_structure->m_properties[idx].m_descriptor = newDesc.toObjectStructurePropertyDescriptor();
+
+            if (newDesc.isDataProperty()) {
+                m_values[idx] = newDesc.value();
+            } else {
+                m_values[idx] = Value(new JSGetterSetter(newDesc.getterSetter()));
+            }
         }
 
         return true;

@@ -157,7 +157,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
 
         SetGlobalObjectOpcodeLbl : {
             SetGlobalObject* code = (SetGlobalObject*)currentCode;
-            setObjectPreComputedCaseOperation(state, state.context()->globalObject(), code->m_propertyName, registerFile[code->m_registerIndex], code->m_inlineCache);
+            setObjectPreComputedCaseOperation(state, state.context()->globalObject(), code->m_propertyName, registerFile[code->m_registerIndex], code->m_inlineCache, true);
             ADD_PROGRAM_COUNTER(SetGlobalObject);
             NEXT_INSTRUCTION();
         }
@@ -436,7 +436,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         SetObjectPreComputedCaseOpcodeLbl : {
             SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)currentCode;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            setObjectPreComputedCaseOperation(state, fastToObject(state, willBeObject), code->m_propertyName, registerFile[code->m_loadRegisterIndex], code->m_inlineCache);
+            setObjectPreComputedCaseOperation(state, fastToObject(state, willBeObject), code->m_propertyName, registerFile[code->m_loadRegisterIndex], code->m_inlineCache, false);
             ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
             NEXT_INSTRUCTION();
         }
@@ -1319,7 +1319,7 @@ std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOperationCac
     }
 }
 
-ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache)
+ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, bool fromGlobalObject)
 {
     Object* originalObject = obj;
 
@@ -1360,10 +1360,10 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
         }
     }
 
-    setObjectPreComputedCaseOperationCacheMiss(state, originalObject, name, value, inlineCache);
+    setObjectPreComputedCaseOperationCacheMiss(state, originalObject, name, value, inlineCache, fromGlobalObject);
 }
 
-void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* originalObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache)
+void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* originalObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, bool fromGlobalObject)
 {
     // cache miss
     inlineCache.invalidateCache();
@@ -1382,6 +1382,9 @@ void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionSt
 
         obj->setOwnPropertyThrowsExceptionWhenStrictMode(state, inlineCache.m_cachedIndex, value);
     } else {
+        if (UNLIKELY(fromGlobalObject && state.inStrictMode())) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
+        }
         Object* orgObject = obj;
         if (UNLIKELY(obj->structure()->isStructureWithFastAccess())) {
             inlineCache.invalidateCache();
