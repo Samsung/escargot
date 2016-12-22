@@ -463,6 +463,11 @@ public:
         return getOwnProperty(state, propertyName).hasValue();
     }
 
+    bool hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
+    {
+        return get(state, propertyName, this).hasValue();
+    }
+
     ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P, Object* receiver);
     ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P)
     {

@@ -313,6 +313,56 @@ static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t 
     return Value();
 }
 
+static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, forEach);
+    // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
+    // Let len be ToUint32(lenValue).
+    uint32_t len = O->length(state);
+
+    // If IsCallable(callbackfn) is false, throw a TypeError exception.
+    Value callbackfn = argv[0];
+    if (!callbackfn.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true,
+                                       state.context()->staticStrings().every.string(), errorMessage_GlobalObject_CallbackNotCallable);
+    }
+
+    // If thisArg was supplied, let T be thisArg; else let T be undefined.
+    Value T;
+    if (argc > 1)
+        T = argv[1];
+
+    // Let k be 0.
+    uint32_t k = 0;
+
+    while (k < len) {
+        // Let Pk be ToString(k).
+        Value pk(k);
+
+        // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument Pk.
+        bool kPresent = O->hasProperty(state, ObjectPropertyName(state, pk));
+
+        // If kPresent is true, then
+        if (kPresent) {
+            // Let kValue be the result of calling the [[Get]] internal method of O with argument Pk.
+            Value kValue = O->get(state, ObjectPropertyName(state, pk), O).value(state, O);
+            // Let testResult be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
+            Value args[] = { kValue, Value(k), O };
+            Value testResult = callbackfn.asFunction()->call(state, T, 3, args);
+
+            if (!testResult.toBoolean(state)) {
+                return Value(false);
+            }
+
+            // Increae k by 1.
+            k++;
+        } else {
+            k = Object::nextIndexForward(state, O, k, len, false);
+        }
+    }
+    return Value(true);
+}
+
 void GlobalObject::installArray(ExecutionState& state)
 {
     m_array = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Array, builtinArrayConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
@@ -337,6 +387,8 @@ void GlobalObject::installArray(ExecutionState& state)
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().splice, builtinArraySplice, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().slice),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().slice, builtinArraySlice, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().every),
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().every, builtinArrayEvery, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toString),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinArrayToString, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

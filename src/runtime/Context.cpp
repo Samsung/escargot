@@ -185,13 +185,13 @@ void Context::somePrototypeObjectDefineIndexedProperty(ExecutionState& state)
     std::vector<ArrayObject*> allOfArray;
     Escargot::HeapObjectIteratorCallback callback =
         [&allOfArray](Escargot::ExecutionState& state, void* obj) {
-            Escargot::ArrayObject* arr = (Escargot::ArrayObject*) obj;
+            Escargot::ArrayObject* arr = (Escargot::ArrayObject*)obj;
             allOfArray.push_back(arr);
         };
     Escargot::ArrayObject::iterateArrays(state, callback);
     GC_enable();
 
-    for (size_t i = 0; i < allOfArray.size(); i ++) {
+    for (size_t i = 0; i < allOfArray.size(); i++) {
         allOfArray[i]->convertIntoNonFastMode(state);
     }
 }
