@@ -35,6 +35,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     m_hasWith = false;
     m_hasCatch = false;
     m_hasYield = false;
+    m_usesArgumentsObject = false;
     m_canUseIndexedVariableStorage = true;
     m_canAllocateEnvironmentOnStack = true;
     m_needsComplexParameterCopy = false;
@@ -100,6 +101,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
     } else {
         m_hasYield = false;
     }
+    m_usesArgumentsObject = false;
     m_canUseIndexedVariableStorage = false;
     m_canAllocateEnvironmentOnStack = false;
     m_needsComplexParameterCopy = false;
@@ -161,6 +163,8 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, NodeLOC sourc
         m_hasYield = false;
     }
 
+    m_usesArgumentsObject = false;
+
     if (initFlags & CodeBlockInitFlag::CodeBlockIsFunctionDeclaration) {
         m_isFunctionDeclaration = true;
     } else {
@@ -208,9 +212,6 @@ void CodeBlock::notifySelfOrChildHasEvalWithCatchYield()
 {
     m_canAllocateEnvironmentOnStack = false;
     m_canUseIndexedVariableStorage = false;
-    for (size_t i = 0; i < m_parametersInfomation.size(); i++) {
-        m_parametersInfomation[i].m_isHeapAllocated = true;
-    }
 
     for (size_t i = 0; i < m_identifierInfos.size(); i++) {
         m_identifierInfos[i].m_indexForIndexedStorage = SIZE_MAX;
@@ -242,6 +243,11 @@ bool CodeBlock::hasNonConfiguableNameOnGlobal(const AtomicString& name)
 
 void CodeBlock::computeVariables()
 {
+    if (m_usesArgumentsObject) {
+        m_canUseIndexedVariableStorage = false;
+        m_canAllocateEnvironmentOnStack = false;
+    }
+
     if (canUseIndexedVariableStorage()) {
         if (m_functionName.string()->length()) {
             for (size_t i = 0; i < m_identifierInfos.size(); i++) {
@@ -275,25 +281,73 @@ void CodeBlock::computeVariables()
 
         m_identifierOnStackCount = s;
         m_identifierOnHeapCount = h;
+    } else {
+        m_needsComplexParameterCopy = true;
+
+        size_t h = 0;
+        for (size_t i = 0; i < m_identifierInfos.size(); i++) {
+            m_identifierInfos[i].m_needToAllocateOnStack = false;
+
+            if (m_identifierInfos[i].m_name == m_functionName) {
+                m_functionNameSaveInfo.m_isAllocatedOnStack = false;
+                m_functionNameSaveInfo.m_index = h;
+            }
+
+            m_identifierInfos[i].m_indexForIndexedStorage = h;
+            h++;
+        }
 
         size_t siz = m_parameterNames.size();
         m_parametersInfomation.resizeWithUninitializedValues(siz);
-        size_t heapCount = 0;
-        size_t stackCount = 0;
         for (size_t i = 0; i < siz; i++) {
-            bool isHeap = !m_identifierInfos[i].m_needToAllocateOnStack;
-            m_parametersInfomation[i].m_isHeapAllocated = isHeap;
+            m_parametersInfomation[i].m_isHeapAllocated = true;
+            m_parametersInfomation[i].m_name = m_parameterNames[i];
+            m_parametersInfomation[i].m_index = SIZE_MAX;
+        }
+
+        m_identifierOnStackCount = 0;
+        m_identifierOnHeapCount = h;
+    }
+
+    size_t siz = m_parameterNames.size();
+    m_parametersInfomation.resizeWithUninitializedValues(siz);
+    size_t heapCount = 0;
+    size_t stackCount = 0;
+
+    std::vector<std::pair<AtomicString, size_t>> computedNameIndex;
+
+    for (size_t i = 0; i < siz; i++) {
+        AtomicString name = m_parameterNames[i];
+        bool isHeap = !m_identifierInfos[findName(name)].m_needToAllocateOnStack;
+        m_parametersInfomation[i].m_isHeapAllocated = isHeap;
+        m_parametersInfomation[i].m_name = name;
+
+        bool computed = false;
+        size_t computedIndex = SIZE_MAX;
+        for (size_t j = 0; j < computedNameIndex.size(); j++) {
+            if (computedNameIndex[j].first == name) {
+                // found dup parameter name!
+                m_needsComplexParameterCopy = true;
+                computed = true;
+                computedIndex = computedNameIndex[j].second;
+                break;
+            }
+        }
+
+        if (!computed) {
             if (isHeap) {
                 m_parametersInfomation[i].m_index = i - stackCount;
                 m_needsComplexParameterCopy = true;
+                computedNameIndex.push_back(std::make_pair(name, i - stackCount));
                 heapCount++;
             } else {
                 m_parametersInfomation[i].m_index = i - heapCount;
+                computedNameIndex.push_back(std::make_pair(name, i - heapCount));
                 stackCount++;
             }
+        } else {
+            m_parametersInfomation[i].m_index = computedNameIndex[computedIndex].second;
         }
-    } else {
-        m_needsComplexParameterCopy = true;
     }
 }
 }

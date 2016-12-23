@@ -51,8 +51,15 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
             }
         }
 
+        AtomicString arguments = ctx->staticStrings().arguments;
         for (size_t i = 0; i < scopeCtx->m_usingNames.size(); i++) {
             AtomicString uname = scopeCtx->m_usingNames[i];
+            if (uname == arguments) {
+                if (!codeBlock->hasName(arguments)) {
+                    codeBlock->m_usesArgumentsObject = true;
+                    continue;
+                }
+            }
             if (!codeBlock->hasName(uname)) {
                 CodeBlock* c = codeBlock->parentCodeBlock();
                 while (c) {

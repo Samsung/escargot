@@ -219,6 +219,12 @@ public:
         return m_isNativeFunction;
     }
 
+    bool usesArgumentsObject()
+    {
+        ASSERT(!isGlobalScopeCodeBlock());
+        return m_usesArgumentsObject;
+    }
+
     const IdentifierInfoVector& identifierInfos()
     {
         return m_identifierInfos;
@@ -256,6 +262,7 @@ public:
     struct FunctionParametersInfo {
         bool m_isHeapAllocated;
         size_t m_index;
+        AtomicString m_name;
     };
     typedef Vector<FunctionParametersInfo, gc_malloc_atomic_ignore_off_page_allocator<FunctionParametersInfo>> FunctionParametersInfoVector;
     const FunctionParametersInfoVector& parametersInfomation()
@@ -328,6 +335,7 @@ protected:
     bool m_hasWith;
     bool m_hasCatch;
     bool m_hasYield;
+    bool m_usesArgumentsObject;
     bool m_canUseIndexedVariableStorage;
     bool m_canAllocateEnvironmentOnStack;
     bool m_isFunctionExpression;

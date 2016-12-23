@@ -212,6 +212,13 @@ public:
         return m_eval;
     }
 
+    // http://www.ecma-international.org/ecma-262/5.1/#sec-13.2.3
+    // 13.2.3 The [[ThrowTypeError]] Function Object
+    FunctionObject* throwTypeError()
+    {
+        return m_throwTypeError;
+    }
+
     StringObject* stringProxyObject()
     {
         return m_stringProxyObject;
@@ -272,6 +279,8 @@ protected:
     Object* m_math;
 
     FunctionObject* m_eval;
+
+    FunctionObject* m_throwTypeError;
 
     StringObject* m_stringProxyObject;
     NumberObject* m_numberProxyObject;

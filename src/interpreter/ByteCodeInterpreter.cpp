@@ -916,6 +916,28 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             NEXT_INSTRUCTION();
         }
 
+        LoadArgumentsObjectOpcodeLbl : {
+            LoadArgumentsObject* code = (LoadArgumentsObject*)currentCode;
+            ExecutionContext* e = ec;
+            while (!(e->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord())) {
+                e = e->parent();
+            }
+            registerFile[code->m_registerIndex] = e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->arguments(state, e);
+            ADD_PROGRAM_COUNTER(LoadArgumentsObject);
+            NEXT_INSTRUCTION();
+        }
+
+        StoreArgumentsObjectOpcodeLbl : {
+            StoreArgumentsObject* code = (StoreArgumentsObject*)currentCode;
+            ExecutionContext* e = ec;
+            while (!(e->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord())) {
+                e = e->parent();
+            }
+            e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->setArguments(registerFile[code->m_registerIndex]);
+            ADD_PROGRAM_COUNTER(LoadArgumentsObject);
+            NEXT_INSTRUCTION();
+        }
+
         LoadByGlobalNameOpcodeLbl : {
             LoadByGlobalName* code = (LoadByGlobalName*)currentCode;
             GlobalObject* g = state.context()->globalObject();

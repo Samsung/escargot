@@ -19,6 +19,7 @@ struct ObjectRareData : public gc {
     bool m_isEverSetAsPrototypeObject;
     bool m_isFastModeArrayObject;
     const char* m_internalClassName;
+    void* m_extraData;
     ObjectRareData();
 };
 
@@ -547,6 +548,20 @@ public:
     {
         ensureObjectRareData()->m_internalClassName = name;
     }
+
+    void* extraData()
+    {
+        if (m_rareData) {
+            return m_rareData->m_extraData;
+        }
+        return nullptr;
+    }
+
+    void setExtraData(void* e)
+    {
+        ensureObjectRareData()->m_extraData = e;
+    }
+
 
 protected:
     Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);

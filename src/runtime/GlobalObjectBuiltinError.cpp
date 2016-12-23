@@ -25,6 +25,12 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
     return Value();
 }
 
+static Value builtinErrorThrowTypeError(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new TypeErrorObject(state, String::fromUTF8("", 0)));
+    return Value();
+}
+
 static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (!thisValue.isObject())
@@ -86,6 +92,12 @@ void GlobalObject::installError(ExecutionState& state)
     m_errorPrototype->defineOwnPropertyThrowsException(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(state.context()->staticStrings().Error.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     auto errorToStringFn = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinErrorToString, 0, nullptr, NativeFunctionInfo::Strict));
     m_errorPrototype->defineOwnPropertyThrowsException(state, state.context()->staticStrings().toString, ObjectPropertyDescriptor(errorToStringFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+
+    // http://www.ecma-international.org/ecma-262/5.1/#sec-13.2.3
+    // 13.2.3 The [[ThrowTypeError]] Function Object
+    m_throwTypeError = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().ThrowTypeError, builtinErrorThrowTypeError, 0, nullptr, NativeFunctionInfo::Strict));
+
 
 // m_##name##Error->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
 #define DEFINE_ERROR(errorname, bname)                                                                                                                                                                                                                                                                     \

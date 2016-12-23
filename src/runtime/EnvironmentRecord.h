@@ -5,6 +5,7 @@
 #include "runtime/AtomicString.h"
 #include "runtime/FunctionObject.h"
 #include "runtime/Object.h"
+#include "runtime/ArgumentsObject.h"
 #include "runtime/String.h"
 #include "runtime/Value.h"
 
@@ -15,6 +16,7 @@ class DeclarativeEnvironmentRecord;
 class FunctionEnvironmentRecord;
 class GlobalObject;
 class CodeBlock;
+class ArgumentsObject;
 
 struct IdentifierRecord {
     AtomicString m_name;
@@ -67,6 +69,7 @@ public:
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
+
     virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
     {
         RELEASE_ASSERT_NOT_REACHED();
@@ -347,10 +350,12 @@ public:
     ALWAYS_INLINE FunctionEnvironmentRecord(ExecutionState& state, const Value& receiver, FunctionObject* function, size_t argc, Value* argv, bool isNewExpression)
         : DeclarativeEnvironmentRecord(state, function->codeBlock())
         , m_isNewExpression(isNewExpression)
+        , m_isArgumentObjectCreated(false)
         , m_thisValue(receiver)
         , m_functionObject(function)
         , m_argc(argc)
         , m_argv(argv)
+        , m_arguments(Value::ForceUninitialized)
     {
     }
 
@@ -393,6 +398,11 @@ public:
         return m_isNewExpression;
     }
 
+    virtual Value getHeapValueByIndex(const size_t& idx)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
     FunctionObject* functionObject()
     {
         return m_functionObject;
@@ -408,13 +418,30 @@ public:
         return m_argv;
     }
 
+    Value arguments(ExecutionState& state, ExecutionContext* ec)
+    {
+        if (UNLIKELY(!m_isArgumentObjectCreated)) {
+            m_isArgumentObjectCreated = true;
+            m_arguments = new ArgumentsObject(state, this, ec);
+        }
+        return m_arguments;
+    }
+
+    void setArguments(const Value& v)
+    {
+        m_isArgumentObjectCreated = true;
+        m_arguments = v;
+    }
+
+
 protected:
     bool m_isNewExpression;
+    bool m_isArgumentObjectCreated;
     Value m_thisValue;
     FunctionObject* m_functionObject;
     size_t m_argc;
     Value* m_argv;
-    // ESValue m_newTarget; //TODO
+    Value m_arguments;
 };
 
 class FunctionEnvironmentRecordOnStack : public FunctionEnvironmentRecord {
@@ -453,6 +480,11 @@ public:
         m_heapStorage[idx] = v;
     }
 
+    virtual Value getHeapValueByIndex(const size_t& idx)
+    {
+        return m_heapStorage[idx];
+    }
+
 protected:
     ValueVector m_heapStorage;
 };
@@ -484,6 +516,11 @@ public:
     virtual void setHeapValueByIndex(const size_t& idx, const Value& v)
     {
         m_vector[idx].m_value = v;
+    }
+
+    virtual Value getHeapValueByIndex(const size_t& idx)
+    {
+        return m_vector[idx].m_value;
     }
 
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName)

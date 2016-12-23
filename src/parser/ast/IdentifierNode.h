@@ -41,6 +41,11 @@ public:
 
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
+        if (m_name.string()->equals("arguments") && !context->m_codeBlock->isGlobalScopeCodeBlock() && context->m_codeBlock->usesArgumentsObject()) {
+            codeBlock->pushCode(StoreArgumentsObject(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+            return;
+        }
+
         if (context->m_codeBlock->canUseIndexedVariableStorage() || context->m_codeBlock->isGlobalScopeCodeBlock()) {
             CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {
@@ -67,6 +72,11 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
+        if (m_name.string()->equals("arguments") && !context->m_codeBlock->isGlobalScopeCodeBlock() && context->m_codeBlock->usesArgumentsObject()) {
+            codeBlock->pushCode(LoadArgumentsObject(ByteCodeLOC(m_loc.index), context->getRegister()), context, this);
+            return;
+        }
+
         if (context->m_codeBlock->canUseIndexedVariableStorage() || context->m_codeBlock->isGlobalScopeCodeBlock()) {
             CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {

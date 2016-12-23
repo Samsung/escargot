@@ -83,6 +83,8 @@ class Node;
     F(WithOperation, 0, 0)              \
     F(ObjectDefineGetter, 0, 0)         \
     F(ObjectDefineSetter, 0, 0)         \
+    F(LoadArgumentsObject, 0, 0)        \
+    F(StoreArgumentsObject, 0, 0)       \
     F(CallNativeFunction, 0, 0)         \
     F(CallEvalFunction, 0, 0)           \
     F(ResetExecuteResult, 0, 0)         \
@@ -1334,6 +1336,40 @@ public:
     virtual void dump()
     {
         printf("object define setter r%d[r%d] = r%d", (int)m_objectRegisterIndex, (int)m_objectPropertyNameRegisterIndex, (int)m_objectPropertyValueRegisterIndex);
+    }
+#endif
+};
+
+class LoadArgumentsObject : public ByteCode {
+public:
+    LoadArgumentsObject(const ByteCodeLOC& loc, size_t registerIndex)
+        : ByteCode(Opcode::LoadArgumentsObjectOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    size_t m_registerIndex;
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("load arguments r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class StoreArgumentsObject : public ByteCode {
+public:
+    StoreArgumentsObject(const ByteCodeLOC& loc, size_t registerIndex)
+        : ByteCode(Opcode::StoreArgumentsObjectOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    size_t m_registerIndex;
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("store arguments r%d", (int)m_registerIndex);
     }
 #endif
 };
