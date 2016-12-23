@@ -33,6 +33,26 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::DoWhileStatement; }
+    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
+    {
+        ByteCodeGenerateContext newContext(*context);
+
+        size_t doStart = codeBlock->currentCodeSize();
+        m_body->generateStatementByteCode(codeBlock, &newContext);
+
+        size_t testPos = codeBlock->currentCodeSize();
+        m_test->generateExpressionByteCode(codeBlock, &newContext);
+        codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex(), doStart), &newContext, this);
+
+        newContext.giveUpRegister();
+
+        size_t doEnd = codeBlock->currentCodeSize();
+        newContext.consumeContinuePositions(codeBlock, testPos);
+        newContext.consumeBreakPositions(codeBlock, doEnd);
+        newContext.m_positionToContinue = testPos;
+        newContext.propagateInformationTo(*context);
+    }
+
 protected:
     ExpressionNode *m_test;
     StatementNode *m_body;

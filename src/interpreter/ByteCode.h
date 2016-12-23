@@ -1018,6 +1018,13 @@ public:
     {
     }
 
+    JumpIfTrue(const ByteCodeLOC& loc, const size_t& registerIndex, size_t pos)
+        : ByteCode(Opcode::JumpIfTrueOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_jumpPosition(pos)
+    {
+    }
+
     size_t m_registerIndex;
     size_t m_jumpPosition;
 
