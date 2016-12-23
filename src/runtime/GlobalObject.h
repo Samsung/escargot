@@ -222,6 +222,12 @@ public:
         return m_numberProxyObject;
     }
 
+    // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
+    virtual const char* internalClassProperty()
+    {
+        return "global";
+    }
+
 protected:
     FunctionObject* m_object;
     Object* m_objectPrototype;

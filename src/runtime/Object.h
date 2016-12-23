@@ -18,6 +18,7 @@ struct ObjectRareData : public gc {
     bool m_isExtensible;
     bool m_isEverSetAsPrototypeObject;
     bool m_isFastModeArrayObject;
+    const char* m_internalClassName;
     ObjectRareData();
 };
 
@@ -532,6 +533,19 @@ public:
         } else {
             return m_rareData->m_isEverSetAsPrototypeObject;
         }
+    }
+
+    // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
+    virtual const char* internalClassProperty()
+    {
+        if (LIKELY(m_rareData == nullptr) || LIKELY(m_rareData->m_internalClassName == nullptr))
+            return "Object";
+        return m_rareData->m_internalClassName;
+    }
+
+    void giveInternalClassProperty(const char* name)
+    {
+        ensureObjectRareData()->m_internalClassName = name;
     }
 
 protected:

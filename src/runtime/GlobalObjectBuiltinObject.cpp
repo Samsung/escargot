@@ -47,51 +47,11 @@ static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_
     }
 
     Object* thisObject = thisValue.toObject(state);
-    if (thisObject->isFunctionObject()) {
-        return AtomicString(state, "[object Function]").string();
-    } else if (thisObject->isArrayObject()) {
-        return AtomicString(state, "[object Array]").string();
-    } else if (thisObject->isStringObject()) {
-        return AtomicString(state, "[object String]").string();
-    } else if (thisObject->isFunctionObject()) {
-        return AtomicString(state, "[object Function]").string();
-    } else if (thisObject->isErrorObject()) {
-        return AtomicString(state, "[object Error]").string();
-    } else if (thisObject->isBooleanObject()) {
-        return AtomicString(state, "[object Boolean]").string();
-    } else if (thisObject->isNumberObject()) {
-        return AtomicString(state, "[object Number]").string();
-    } else if (thisObject->isDateObject()) {
-        return AtomicString(state, "[object Date]").string();
-    } else if (thisObject->isRegExpObject()) {
-        return AtomicString(state, "[object RegExp]").string();
-    } /*else if (thisObject->isESMathObject()) {
-        return AtomicString(state, "[object Math]").string();
-    } else if (thisObject->isESJSONObject()) {
-        return AtomicString(state, "[object JSON]").string();
-#ifdef USE_ES6_FEATURE
-    } else if (thisObject->isESTypedArrayObject()) {
-        ASCIIString ret = "[object ";
-        ESValue ta_constructor = thisObject->get(strings->constructor.string()).string();
-        // ALWAYS created from new expression
-        ASSERT(ta_constructor.isESPointer() && ta_constructor.asESPointer()->isESObject()).string();
-        ESValue ta_name = ta_constructor.asESPointer()->asESObject()->get(strings->name.string()).string();
-        ret.append(ta_name.toString()->asciiData()).string();
-        ret.append("]").string();
-        return AtomicString(state, ret.data()).string();
-    } else if (thisObject->isESArrayBufferObject()) {
-        return AtomicString(state, "[object ArrayBuffer]").string();
-    } else if (thisObject->isESDataViewObject()) {
-        return AtomicString(state, "[object DataView]").string();
-    } else if (thisObject->isESPromiseObject()) {
-        return AtomicString(state, "[object Promise]").string();
-#endif
-    } else if (thisObject->isESArgumentsObject()) {
-        return AtomicString(state, "[object Arguments]").string();
-    }*/ else if (thisObject->isGlobalObject()) {
-        return AtomicString(state, "[object global]").string();
-    }
-    return AtomicString(state, "[object Object]").string();
+    StringBuilder builder;
+    builder.appendString("[object ");
+    builder.appendString(thisObject->internalClassProperty());
+    builder.appendString("]");
+    return AtomicString(state, builder.finalize()).string();
 }
 
 static Value builtinObjectHasOwnProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

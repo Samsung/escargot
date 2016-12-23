@@ -53,6 +53,12 @@ public:
     Value call(ExecutionState& state, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression = false);
     static Value call(const Value& callee, ExecutionState& state, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression = false);
 
+    // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
+    virtual const char* internalClassProperty()
+    {
+        return "Function";
+    }
+
 protected:
     bool m_isConstructor;
     CodeBlock* m_codeBlock;

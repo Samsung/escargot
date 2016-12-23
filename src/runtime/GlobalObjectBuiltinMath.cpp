@@ -202,6 +202,7 @@ static Value builtinMathRandom(ExecutionState& state, Value thisValue, size_t ar
 void GlobalObject::installMath(ExecutionState& state)
 {
     m_math = new Object(state);
+    m_math->giveInternalClassProperty("Math");
     m_math->markThisObjectDontNeedStructureTransitionTable(state);
 
     // initialize math object: $20.2.1.6 Math.PI

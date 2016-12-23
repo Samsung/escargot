@@ -13,6 +13,7 @@ ObjectRareData::ObjectRareData()
     m_isExtensible = true;
     m_isEverSetAsPrototypeObject = false;
     m_isFastModeArrayObject = true;
+    m_internalClassName = nullptr;
 }
 
 Value ObjectGetResult::valueSlowCase(ExecutionState& state, Object* receiver) const

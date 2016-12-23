@@ -37,6 +37,12 @@ public:
     typedef char RadixBuffer[2180];
     static char* toStringWithRadix(ExecutionState& state, RadixBuffer& buffer, double number, unsigned radix);
 
+    // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
+    virtual const char* internalClassProperty()
+    {
+        return "Number";
+    }
+
 protected:
     double m_primitiveValue;
 };

@@ -86,6 +86,12 @@ public:
     }
     void setTime(time64IncludingNaN t);
 
+    // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
+    virtual const char* internalClassProperty()
+    {
+        return "Date";
+    }
+
 private:
     struct tm m_cachedTM; // it stores time disregarding timezone
     int64_t m_primitiveValue; // it stores timevalue regarding timezone
