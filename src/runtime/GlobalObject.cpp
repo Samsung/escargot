@@ -104,6 +104,22 @@ static int parseDigit(char16_t c, int radix)
     return digit;
 }
 
+static const int SizeOfInfinity = 8;
+
+static bool isInfinity(String* str, unsigned p, unsigned length)
+{
+    return (length - p) >= SizeOfInfinity
+        && str->charAt(p) == 'I'
+        && str->charAt(p + 1) == 'n'
+        && str->charAt(p + 2) == 'f'
+        && str->charAt(p + 3) == 'i'
+        && str->charAt(p + 4) == 'n'
+        && str->charAt(p + 5) == 'i'
+        && str->charAt(p + 6) == 't'
+        && str->charAt(p + 7) == 'y';
+}
+
+
 static Value builtinParseInt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     Value ret;
@@ -187,6 +203,70 @@ static Value builtinParseInt(ExecutionState& state, Value thisValue, size_t argc
     return Value(sign * number);
 }
 
+static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // 1. Let inputString be ToString(string).
+    Value input = argv[0];
+    String* s = input.toString(state);
+    size_t strLen = s->length();
+
+    if (strLen == 1) {
+        if (isdigit(s->charAt(0)))
+            return Value(s->charAt(0) - '0');
+        return Value(std::numeric_limits<double>::quiet_NaN());
+    }
+
+    // 2, Let trimmedString be a substring of inputString consisting of the leftmost character
+    //    that is not a StrWhiteSpaceChar and all characters to the right of that character.
+    //    (In other words, remove leading white space.)
+    unsigned p = 0;
+    unsigned len = s->length();
+
+    for (; p < len; p++) {
+        char16_t c = s->charAt(p);
+        if (!(esprima::isWhiteSpace(c) || esprima::isLineTerminator(c)))
+            break;
+    }
+
+    // empty string
+    if (p == len)
+        return Value(std::numeric_limits<double>::quiet_NaN());
+
+    char16_t ch = s->charAt(p);
+    // HexIntegerLiteral
+    if (len - p > 1 && ch == '0' && toupper(s->charAt(p + 1)) == 'X')
+        return Value(0);
+
+    // 3. If neither trimmedString nor any prefix of trimmedString satisfies the syntax of
+    //    a StrDecimalLiteral (see 9.3.1), return NaN.
+    // 4. Let numberString be the longest prefix of trimmedString, which might be trimmedString itself,
+    //    that satisfies the syntax of a StrDecimalLiteral.
+    // Check the syntax of StrDecimalLiteral
+    switch (ch) {
+    case 'I':
+        if (isInfinity(s, p, len))
+            return Value(std::numeric_limits<double>::infinity());
+        break;
+    case '+':
+        if (isInfinity(s, p + 1, len))
+            return Value(std::numeric_limits<double>::infinity());
+        break;
+    case '-':
+        if (isInfinity(s, p + 1, len))
+            return Value(-std::numeric_limits<double>::infinity());
+        break;
+    }
+    auto u8Str = s->subString(p, p + len)->toUTF8StringData();
+    double number = atof(u8Str.data());
+    if (number == 0.0 && !std::signbit(number) && !isdigit(ch) && !(len - p >= 1 && ch == '.' && isdigit(s->charAt(p + 1))))
+        return Value(std::numeric_limits<double>::quiet_NaN());
+    if (number == std::numeric_limits<double>::infinity())
+        return Value(std::numeric_limits<double>::quiet_NaN());
+
+    // 5. Return the Number value for the MV of numberString.
+    return Value(number);
+}
+
 static Value builtinIsFinite(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     double num = argv[0].toNumber(state);
@@ -229,6 +309,12 @@ void GlobalObject::installOthers(ExecutionState& state)
                       ObjectPropertyDescriptor(new FunctionObject(state,
                                                                   NativeFunctionInfo(strings->parseInt, builtinParseInt, 2, nullptr, NativeFunctionInfo::Strict), false),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    defineOwnProperty(state, ObjectPropertyName(strings->parseFloat),
+                      ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                  NativeFunctionInfo(strings->parseFloat, builtinParseFloat, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
 #ifdef ESCARGOT_SHELL
     defineOwnProperty(state, ObjectPropertyName(strings->print),
                       ObjectPropertyDescriptor(new FunctionObject(state,

@@ -9,6 +9,7 @@ const char* errorMessage_DefineProperty_LengthNotWritable = "Cannot modify prope
 const char* errorMessage_DefineProperty_NotWritable = "Cannot modify non-writable property '%s'";
 const char* errorMessage_DefineProperty_RedefineNotConfigurable = "Cannot redefine non-configurable property '%s'";
 const char* errorMessage_DefineProperty_NotExtensible = "Cannot define property '%s': object is not extensible";
+const char* errorMessage_DefineProperty_NotConfigurable = "Cannot delete property '%s': property is not configurable";
 const char* errorMessage_ObjectToPrimitiveValue = "Cannot convert object to primitive value";
 const char* errorMessage_NullToObject = "cannot convert null into object";
 const char* errorMessage_UndefinedToObject = "cannot convert undefined into object";

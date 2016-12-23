@@ -83,6 +83,7 @@ public:
     }
 
     size_t find(String* str, size_t pos = 0);
+    size_t rfind(String* str, size_t pos);
     String* subString(size_t from, size_t to);
     size_t hashValue() const
     {

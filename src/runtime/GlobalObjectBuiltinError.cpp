@@ -25,6 +25,34 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
     return Value();
 }
 
+#define DEFINE_ERROR_CTOR(errorname)                                                                                                                                                                                                                                                          \
+    static Value builtin##errorname##ErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)                                                                                                                                                 \
+    {                                                                                                                                                                                                                                                                                         \
+        if (isNewExpression) {                                                                                                                                                                                                                                                                \
+            Value message = argv[0];                                                                                                                                                                                                                                                          \
+            if (!message.isUndefined()) {                                                                                                                                                                                                                                                     \
+                thisValue.toObject(state)->defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,                                                                                                                                                    \
+                                                                                          ObjectPropertyDescriptor(message.toString(state), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent))); \
+            }                                                                                                                                                                                                                                                                                 \
+            return Value();                                                                                                                                                                                                                                                                   \
+        } else {                                                                                                                                                                                                                                                                              \
+            ErrorObject* obj = new errorname##ErrorObject(state, String::emptyString);                                                                                                                                                                                                        \
+            Value message = argv[0];                                                                                                                                                                                                                                                          \
+            if (message.isUndefined()) {                                                                                                                                                                                                                                                      \
+                obj->setThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message, message.toString(state), obj);                                                                                                                                                         \
+            }                                                                                                                                                                                                                                                                                 \
+            return obj;                                                                                                                                                                                                                                                                       \
+        }                                                                                                                                                                                                                                                                                     \
+        return Value();                                                                                                                                                                                                                                                                       \
+    }
+
+DEFINE_ERROR_CTOR(Reference);
+DEFINE_ERROR_CTOR(Type);
+DEFINE_ERROR_CTOR(Syntax);
+DEFINE_ERROR_CTOR(Range);
+DEFINE_ERROR_CTOR(URI);
+DEFINE_ERROR_CTOR(Eval);
+
 static Value builtinErrorThrowTypeError(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     state.throwException(new TypeErrorObject(state, String::fromUTF8("", 0)));
@@ -99,11 +127,11 @@ void GlobalObject::installError(ExecutionState& state)
     m_throwTypeError = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().ThrowTypeError, builtinErrorThrowTypeError, 0, nullptr, NativeFunctionInfo::Strict));
 
 
-// m_##name##Error->defineAccessorProperty(strings->prototype.string(), ESVMInstance::currentInstance()->functionPrototypeAccessorData(), false, false, false);
 #define DEFINE_ERROR(errorname, bname)                                                                                                                                                                                                                                                                     \
-    m_##errorname##Error = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bname##Error, builtinErrorConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {                                                                                        \
+    m_##errorname##Error = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bname##Error, builtin##bname##ErrorConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {                                                                               \
                                                   return new bname##ErrorObject(state, String::emptyString);                                                                                                                                                                                               \
-                                              }));                                                                                                                                                                                                                                                         \
+                                              }),                                                                                                                                                                                                                                                          \
+                                              FunctionObject::__ForBuiltin__);                                                                                                                                                                                                                             \
     m_##errorname##Error->setPrototype(state, m_functionPrototype);                                                                                                                                                                                                                                        \
     m_##errorname##ErrorPrototype = new ErrorObject(state, String::emptyString);                                                                                                                                                                                                                           \
     m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().constructor, ObjectPropertyDescriptor(m_##errorname##Error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent))); \

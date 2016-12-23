@@ -11,6 +11,7 @@ extern const char* errorMessage_DefineProperty_LengthNotWritable;
 extern const char* errorMessage_DefineProperty_NotWritable;
 extern const char* errorMessage_DefineProperty_RedefineNotConfigurable;
 extern const char* errorMessage_DefineProperty_NotExtensible;
+extern const char* errorMessage_DefineProperty_NotConfigurable;
 extern const char* errorMessage_ObjectToPrimitiveValue;
 extern const char* errorMessage_NullToObject;
 extern const char* errorMessage_UndefinedToObject;

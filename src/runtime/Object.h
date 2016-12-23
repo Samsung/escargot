@@ -507,6 +507,13 @@ public:
         }
     }
 
+    void deleteOwnPropertyThrowsException(ExecutionState& state, const ObjectPropertyName& P)
+    {
+        if (!deleteOwnProperty(state, P)) {
+            throwCannotDefineError(state, P.toPropertyName(state));
+        }
+    }
+
 
     void markThisObjectDontNeedStructureTransitionTable(ExecutionState& state)
     {
@@ -562,6 +569,9 @@ public:
         ensureObjectRareData()->m_extraData = e;
     }
 
+    static void throwCannotDefineError(ExecutionState& state, const PropertyName& P);
+    static void throwCannotWriteError(ExecutionState& state, const PropertyName& P);
+    static void throwCannotDeleteError(ExecutionState& state, const PropertyName& P);
 
 protected:
     Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);
@@ -648,9 +658,6 @@ protected:
             throwCannotWriteError(state, m_structure->readProperty(state, idx).m_propertyName);
         }
     }
-
-    void throwCannotDefineError(ExecutionState& state, const PropertyName& P);
-    void throwCannotWriteError(ExecutionState& state, const PropertyName& P);
 
     void markAsPrototypeObject(ExecutionState& state);
     void deleteOwnProperty(ExecutionState& state, size_t idx);

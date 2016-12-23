@@ -888,7 +888,11 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             } else {
                 const Value& o = registerFile[code->m_registerIndex0];
                 const Value& p = registerFile[code->m_registerIndex1];
-                registerFile[code->m_registerIndex0] = Value(o.toObject(state)->deleteOwnProperty(state, ObjectPropertyName(state, p)));
+                Object* obj = o.toObject(state);
+                bool result = obj->deleteOwnProperty(state, ObjectPropertyName(state, p));
+                if (!result && state.inStrictMode())
+                    Object::throwCannotDeleteError(state, ObjectPropertyName(state, p).toPropertyName(state));
+                registerFile[code->m_registerIndex0] = Value(result);
             }
             ADD_PROGRAM_COUNTER(UnaryDelete);
             NEXT_INSTRUCTION();
@@ -896,6 +900,8 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
 
         BinaryInOperationOpcodeLbl : {
             BinaryInOperation* code = (BinaryInOperation*)currentCode;
+            if (!registerFile[code->m_srcIndex1].isObject())
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "type of rvalue is not Object");
             auto result = registerFile[code->m_srcIndex1].toObject(state)->get(state, ObjectPropertyName(state, registerFile[code->m_srcIndex0]));
             registerFile[code->m_srcIndex0] = Value(result.hasValue());
             ADD_PROGRAM_COUNTER(BinaryInOperation);

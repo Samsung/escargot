@@ -599,6 +599,11 @@ void Object::throwCannotWriteError(ExecutionState& state, const PropertyName& P)
     ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.string(), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
 }
 
+void Object::throwCannotDeleteError(ExecutionState& state, const PropertyName& P)
+{
+    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.string(), false, String::emptyString, errorMessage_DefineProperty_NotConfigurable);
+}
+
 void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
 {
     m_structure = m_structure->removeProperty(state, idx);

@@ -553,6 +553,28 @@ size_t String::find(String* str, size_t pos)
     return SIZE_MAX;
 }
 
+size_t String::rfind(String* str, size_t pos)
+{
+    const size_t srcStrLen = str->length();
+    const size_t size = length();
+    if (srcStrLen == 0)
+        return pos <= size ? pos : -1;
+    if (srcStrLen <= size) {
+        do {
+            bool same = true;
+            for (size_t k = 0; k < srcStrLen; k++) {
+                if (charAt(pos + k) != str->charAt(k)) {
+                    same = false;
+                    break;
+                }
+            }
+            if (same)
+                return pos;
+        } while (pos-- > 0);
+    }
+    return SIZE_MAX;
+}
+
 String* String::subString(size_t from, size_t to)
 {
     StringBuilder builder;

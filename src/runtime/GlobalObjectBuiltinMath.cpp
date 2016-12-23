@@ -74,6 +74,31 @@ static Value builtinMathCos(ExecutionState& state, Value thisValue, size_t argc,
     return Value(cos(x.toNumber(state)));
 }
 
+static Value builtinMathAcos(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    double x = argv[0].toNumber(state);
+    return Value(acos(x));
+}
+
+static Value builtinMathAsin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    double x = argv[0].toNumber(state);
+    return Value(asin(x));
+}
+
+static Value builtinMathAtan(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    double x = argv[0].toNumber(state);
+    return Value(atan(x));
+}
+
+static Value builtinMathAtan2(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    double x = argv[0].toNumber(state);
+    double y = argv[1].toNumber(state);
+    return Value(atan2(x, y));
+}
+
 static Value builtinMathTan(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     double x = argv[0].toNumber(state);
@@ -199,6 +224,12 @@ static Value builtinMathRandom(ExecutionState& state, Value thisValue, size_t ar
     return Value(rand);
 }
 
+static Value builtinMathExp(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    double x = argv[0].toNumber(state);
+    return Value(exp(x));
+}
+
 void GlobalObject::installMath(ExecutionState& state)
 {
     m_math = new Object(state);
@@ -262,6 +293,17 @@ void GlobalObject::installMath(ExecutionState& state)
     // initialize math object: $20.2.2.33 Math.tan()
     m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().tan),
                                              ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().tan, builtinMathTan, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().acos),
+                                             ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().acos, builtinMathAcos, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().asin),
+                                             ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().asin, builtinMathAsin, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().atan),
+                                             ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().atan, builtinMathAtan, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().atan2),
+                                             ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().atan2, builtinMathAtan2, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().exp),
+                                             ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().exp, builtinMathExp, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Math),
                       ObjectPropertyDescriptor(m_math, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

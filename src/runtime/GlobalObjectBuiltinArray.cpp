@@ -112,6 +112,58 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
     return builder.finalize();
 }
 
+static Value builtinArrayReverse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, reverse);
+    unsigned len = O->length(state);
+    unsigned middle = std::floor(len / 2);
+    unsigned lower = 0;
+    while (middle > lower) {
+        unsigned upper = len - lower - 1;
+        ObjectPropertyName upperP = ObjectPropertyName(state, Value(upper));
+        ObjectPropertyName lowerP = ObjectPropertyName(state, Value(lower));
+
+        bool lowerExists = O->hasProperty(state, lowerP);
+        Value lowerValue;
+        if (lowerExists) {
+            lowerValue = O->get(state, lowerP, O).value(state, O);
+        }
+        bool upperExists = O->hasProperty(state, upperP);
+        Value upperValue;
+        if (upperExists) {
+            upperValue = O->get(state, upperP, O).value(state, O);
+        }
+        if (lowerExists && upperExists) {
+            O->setThrowsException(state, lowerP, upperValue, O);
+            O->setThrowsException(state, upperP, lowerValue, O);
+        } else if (!lowerExists && upperExists) {
+            O->setThrowsException(state, lowerP, upperValue, O);
+            O->deleteOwnPropertyThrowsException(state, upperP);
+        } else if (lowerExists && !upperExists) {
+            O->deleteOwnPropertyThrowsException(state, lowerP);
+            O->setThrowsException(state, upperP, lowerValue, O);
+        } else {
+            unsigned nextLower = Object::nextIndexForward(state, O, lower, middle, false);
+            unsigned nextUpper = Object::nextIndexBackward(state, O, upper, middle, false);
+            unsigned x = middle - nextLower;
+            unsigned y = nextUpper - middle;
+            unsigned lowerCandidate;
+            if (x > y) {
+                lowerCandidate = nextLower;
+            } else {
+                lowerCandidate = len - nextUpper - 1;
+            }
+            if (lower == lowerCandidate)
+                break;
+            lower = lowerCandidate;
+            continue;
+        }
+        lower++;
+    }
+
+    return O;
+}
+
 static Value builtinArraySort(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, sort);
@@ -468,6 +520,8 @@ void GlobalObject::installArray(ExecutionState& state)
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().reduce, builtinArrayReduce, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().push),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().push, builtinArrayPush, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().reverse),
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().reverse, builtinArrayReverse, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toString),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinArrayToString, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

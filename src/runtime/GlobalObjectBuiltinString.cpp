@@ -66,6 +66,35 @@ static Value builtinStringIndexOf(ExecutionState& state, Value thisValue, size_t
         return Value(result);
 }
 
+static Value builtinStringLastIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let S be ToString(O).
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, indexOf);
+    String* searchStr = argv[0].toString(state);
+
+    double numPos;
+    if (argc > 0) {
+        numPos = argv[1].toNumber(state);
+    } else {
+        numPos = Value().toNumber(state);
+    }
+
+    double pos;
+    // If numPos is NaN, let pos be +∞; otherwise, let pos be ToInteger(numPos).
+    if (std::isnan(numPos))
+        pos = std::numeric_limits<double>::infinity();
+    else
+        pos = numPos;
+
+    double len = S->length();
+    double start = std::min(std::max(pos, 0.0), len);
+    size_t result = S->rfind(searchStr, start);
+    if (result == SIZE_MAX) {
+        return Value(-1);
+    }
+    return Value(result);
+}
+
 static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, indexOf);
@@ -591,6 +620,9 @@ void GlobalObject::installString(ExecutionState& state)
     // $21.1.3.8 String.prototype.indexOf
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->indexOf),
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->indexOf, builtinStringIndexOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->lastIndexOf),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->lastIndexOf, builtinStringLastIndexOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $21.1.3.16 String.prototype.slice
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->slice),
