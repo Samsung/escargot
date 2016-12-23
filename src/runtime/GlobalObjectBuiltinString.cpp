@@ -554,9 +554,22 @@ static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, si
     }
 }
 
+static Value builtinStringValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (thisValue.isString()) {
+        return Value(thisValue);
+    } else if (thisValue.isObject() && thisValue.asObject()->isStringObject()) {
+        return Value(thisValue.asPointerValue()->asStringObject()->primitiveValue());
+    }
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ThisNotString);
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+
 void GlobalObject::installString(ExecutionState& state)
 {
-    m_string = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().String, builtinStringConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+    const StaticStrings* strings = &state.context()->staticStrings();
+    m_string = new FunctionObject(state, NativeFunctionInfo(strings->String, builtinStringConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
                                       return new StringObject(state);
                                   }),
                                   FunctionObject::__ForBuiltin__);
@@ -566,55 +579,59 @@ void GlobalObject::installString(ExecutionState& state)
     m_stringPrototype = new StringObject(state, String::emptyString);
     m_stringPrototype->setPrototype(state, m_objectPrototype);
     m_string->setFunctionPrototype(state, m_stringPrototype);
-    m_stringPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_string));
+    m_stringPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_string));
 
-    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toString),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinStringToString, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toString),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toString, builtinStringToString, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $21.1.3.4 String.prototype.concat
-    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().concat),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().concat, builtinStringConcat, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->concat),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->concat, builtinStringConcat, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $21.1.3.8 String.prototype.indexOf
-    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().indexOf),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().indexOf, builtinStringIndexOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->indexOf),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->indexOf, builtinStringIndexOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $21.1.3.16 String.prototype.slice
-    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().slice),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().slice, builtinStringSlice, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->slice),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->slice, builtinStringSlice, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $21.1.3.19 String.prototype.substring
-    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().substring),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().indexOf, builtinStringSubstring, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->substring),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->indexOf, builtinStringSubstring, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().match),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().match, builtinStringMatch, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->match),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->match, builtinStringMatch, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().replace),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().replace, builtinStringReplace, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->replace),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->replace, builtinStringReplace, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().split),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().split, builtinStringSplit, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->split),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->split, builtinStringSplit, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().charCodeAt),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().charCodeAt, builtinStringCharCodeAt, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->charCodeAt),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->charCodeAt, builtinStringCharCodeAt, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().charAt),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().charAt, builtinStringCharAt, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->charAt),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->charAt, builtinStringCharAt, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toLowerCase),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toLowerCase, builtinStringToLowerCase, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toLowerCase),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toLowerCase, builtinStringToLowerCase, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toUpperCase),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toUpperCase, builtinStringToUpperCase, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toUpperCase),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toUpperCase, builtinStringToUpperCase, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    // $21.1.3.26 String.prototype.valueOf
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->valueOf),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->valueOf, builtinStringValueOf, 0, nullptr, NativeFunctionInfo::Strict)),
+                                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_string->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().fromCharCode),
-                                               ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().fromCharCode, builtinStringFromCharCode, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_string->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->fromCharCode),
+                                               ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->fromCharCode, builtinStringFromCharCode, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_string->setFunctionPrototype(state, m_stringPrototype);
 
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().String),
+    defineOwnProperty(state, ObjectPropertyName(strings->String),
                       ObjectPropertyDescriptor(m_string, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 }

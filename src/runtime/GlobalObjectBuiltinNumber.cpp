@@ -154,9 +154,21 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
     return Value();
 }
 
+static Value builtinNumberValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (thisValue.isBoolean()) {
+        return Value(thisValue);
+    } else if (thisValue.isObject() && thisValue.asObject()->isNumberObject()) {
+        return Value(thisValue.asPointerValue()->asNumberObject()->primitiveValue());
+    }
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ThisNotNumber);
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
 void GlobalObject::installNumber(ExecutionState& state)
 {
-    m_number = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Number, builtinNumberConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+    const StaticStrings* strings = &state.context()->staticStrings();
+    m_number = new FunctionObject(state, NativeFunctionInfo(strings->Number, builtinNumberConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
                                       return new NumberObject(state);
                                   }),
                                   FunctionObject::__ForBuiltin__);
@@ -166,13 +178,18 @@ void GlobalObject::installNumber(ExecutionState& state)
     m_numberPrototype = new NumberObject(state, 0);
     m_numberPrototype->setPrototype(state, m_objectPrototype);
     m_number->setFunctionPrototype(state, m_numberPrototype);
-    m_numberPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_number));
+    m_numberPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_number));
 
-    m_numberPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toString),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinNumberToString, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_numberPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toString),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toString, builtinNumberToString, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_numberPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toFixed),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toFixed, builtinNumberToFixed, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_numberPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toFixed),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toFixed, builtinNumberToFixed, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // $20.1.3.26 Number.prototype.valueOf
+    m_numberPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->valueOf),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->valueOf, builtinNumberValueOf, 0, nullptr, NativeFunctionInfo::Strict)),
+                                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
     m_number->setFunctionPrototype(state, m_numberPrototype);
@@ -180,7 +197,6 @@ void GlobalObject::installNumber(ExecutionState& state)
     ObjectPropertyDescriptor::PresentAttribute allFalsePresent = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent
                                                                                                               | ObjectPropertyDescriptor::NonEnumerablePresent
                                                                                                               | ObjectPropertyDescriptor::NonConfigurablePresent);
-    const StaticStrings* strings = &state.context()->staticStrings();
     // $20.1.2.6 Number.MAX_SAFE_INTEGER
     m_number->defineOwnPropertyThrowsException(state, strings->MAX_SAFE_INTEGER, ObjectPropertyDescriptor(Value(9007199254740991.0), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
     // $20.1.2.7 Number.MAX_VALUE

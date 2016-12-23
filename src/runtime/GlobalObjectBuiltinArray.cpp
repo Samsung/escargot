@@ -448,6 +448,7 @@ void GlobalObject::installArray(ExecutionState& state)
     m_arrayPrototype = m_objectPrototype;
     m_arrayPrototype = new ArrayObject(state);
     m_arrayPrototype->setPrototype(state, m_objectPrototype);
+    m_arrayPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_array));
 
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().concat),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().concat, builtinArrayConcat, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

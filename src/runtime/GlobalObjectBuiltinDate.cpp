@@ -66,7 +66,7 @@ static Value builtinDateValueOf(ExecutionState& state, Value thisValue, size_t a
     if (!thisObject->isDateObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().valueOf.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
-    uint64_t val = thisObject->asDateObject()->primitiveValue();
+    double val = thisObject->asDateObject()->primitiveValue();
     return Value(val);
 }
 

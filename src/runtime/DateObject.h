@@ -77,6 +77,7 @@ public:
     void setTimeValue(ExecutionState& state, const Value& str);
     void setTimeValue(ExecutionState& state, time64IncludingNaN t)
     {
+        m_hasValidDate = true;
         setPrimitiveValue(t);
     }
     void setTimeValue(ExecutionState& state, int year, int month, int date, int hour, int minute, int64_t second, int64_t millisecond, bool convertToUTC = true);
