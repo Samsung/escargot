@@ -181,6 +181,7 @@ void Context::throwException(ExecutionState& state, const Value& exception)
 
 void Context::somePrototypeObjectDefineIndexedProperty(ExecutionState& state)
 {
+    m_didSomePrototypeObjectDefineIndexedProperty = true;
     std::vector<ArrayObject*> allOfArray;
     Escargot::HeapObjectIteratorCallback callback =
         [&allOfArray](Escargot::ExecutionState& state, void* obj) {

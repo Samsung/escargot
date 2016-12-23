@@ -42,9 +42,7 @@ public:
             AtomicString propertyAtomicName;
             if (p->key()->isIdentifier()) {
                 propertyAtomicName = p->key()->asIdentifier()->name();
-                if (p->kind() != PropertyNode::Kind::Init) {
-                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(p->key()->asIdentifier()->name().string())), context, this);
-                }
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(p->key()->asIdentifier()->name().string())), context, this);
             } else {
                 p->key()->generateExpressionByteCode(codeBlock, context);
             }
@@ -55,14 +53,10 @@ public:
             size_t valueIndex = context->getLastRegisterIndex();
 
             if (p->kind() == PropertyNode::Kind::Init) {
-                if (p->key()->isIdentifier()) {
-                    codeBlock->pushCode(SetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objIndex, propertyAtomicName, valueIndex), context, this);
-                } else {
-                    codeBlock->pushCode(SetObject(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex), context, this);
+                codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex), context, this);
 
-                    // for drop property index
-                    context->giveUpRegister();
-                }
+                // for drop property index
+                context->giveUpRegister();
             } else if (p->kind() == PropertyNode::Kind::Get) {
                 codeBlock->pushCode(ObjectDefineGetter(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex), context, this);
                 // for drop property index

@@ -35,7 +35,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     auto parserResult = parser.parse(src.finalize(), new ASCIIString("Function Constructor input"));
 
     if (parserResult.m_error) {
-        SyntaxErrorObject* err = new SyntaxErrorObject(state, parserResult.m_error->message);
+        ErrorObject* err = ErrorObject::createError(state, parserResult.m_error->errorCode, parserResult.m_error->message);
         state.throwException(err);
     }
 

@@ -33,9 +33,12 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ArrayExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
+        size_t arrayIndex = codeBlock->currentCodeSize();
+        size_t arrLen = 0;
         codeBlock->pushCode(CreateArray(ByteCodeLOC(m_loc.index), context->getRegister()), context, this);
         size_t objIndex = context->getLastRegisterIndex();
         for (unsigned i = 0; i < m_elements.size(); i++) {
+            arrLen = i + 1;
             if (m_elements[i]) {
                 m_elements[i]->generateExpressionByteCode(codeBlock, context);
             } else {
@@ -44,11 +47,12 @@ public:
             size_t valueIndex = context->getLastRegisterIndex();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(i)), context, this);
             size_t property = context->getLastRegisterIndex();
-            codeBlock->pushCode(SetObject(ByteCodeLOC(m_loc.index), objIndex, property, valueIndex), context, this);
+            codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, property, valueIndex), context, this);
             // drop property, value register
             context->giveUpRegister();
             context->giveUpRegister();
         }
+        codeBlock->peekCode<CreateArray>(arrayIndex)->m_length = arrLen;
         ASSERT(objIndex == context->getLastRegisterIndex());
     }
 

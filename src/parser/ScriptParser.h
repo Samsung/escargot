@@ -3,6 +3,7 @@
 
 #include "parser/Script.h"
 #include "runtime/String.h"
+#include "runtime/ErrorObject.h"
 
 namespace Escargot {
 
@@ -11,7 +12,6 @@ class CodeBlock;
 class Context;
 class ProgramNode;
 class Node;
-
 
 class ScriptParser : public gc {
 public:
@@ -24,6 +24,7 @@ public:
         size_t lineNumber;
         size_t column;
         String* description;
+        ErrorObject::Code errorCode;
     };
     struct ScriptParserResult : public gc {
         ScriptParserResult(Script* script, ScriptParseError* error)

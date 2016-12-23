@@ -7,6 +7,8 @@
 #include "parser/ScriptParser.h"
 #include "parser/esprima_cpp/esprima.h"
 #include "heap/HeapProfiler.h"
+#include "EnvironmentRecord.h"
+#include "Environment.h"
 
 namespace Escargot {
 
@@ -59,10 +61,21 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg, CodeBlock* par
     if (arg.isString()) {
         ScriptParser parser(state.context());
         const char* s = "eval input";
-        bool strictFromOutside = state.inStrictMode();
+        ExecutionContext* pec = state.executionContext()->parent();
+        bool strictFromOutside = false;
+        while (pec) {
+            if (pec->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && pec->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+                strictFromOutside = pec->inStrictMode();
+                break;
+            } else if (pec->lexicalEnvironment()->record()->isGlobalEnvironmentRecord()) {
+                strictFromOutside = pec->inStrictMode();
+                break;
+            }
+            pec = pec->parent();
+        }
         ScriptParser::ScriptParserResult parserResult = parser.parse(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), parentCodeBlock, strictFromOutside);
         if (parserResult.m_error) {
-            SyntaxErrorObject* err = new SyntaxErrorObject(state, parserResult.m_error->message);
+            ErrorObject* err = ErrorObject::createError(state, parserResult.m_error->errorCode, parserResult.m_error->message);
             state.throwException(err);
         }
         if (!parentCodeBlock) {

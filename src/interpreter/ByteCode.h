@@ -13,81 +13,82 @@ class ObjectStructure;
 class Node;
 
 // <OpcodeName, PushCount, PopCount>
-#define FOR_EACH_BYTECODE_OP(F)         \
-    F(LoadLiteral, 1, 0)                \
-    F(LoadByName, 1, 0)                 \
-    F(StoreByName, 0, 0)                \
-    F(LoadByStackIndex, 1, 0)           \
-    F(StoreByStackIndex, 0, 0)          \
-    F(LoadByHeapIndex, 1, 0)            \
-    F(StoreByHeapIndex, 0, 0)           \
-    F(LoadByGlobalName, 1, 0)           \
-    F(StoreByGlobalName, 0, 0)          \
-    F(DeclareVarVariable, 0, 0)         \
-    F(DeclareFunctionDeclaration, 1, 0) \
-    F(DeclareFunctionExpression, 1, 0)  \
-    F(GetThis, 1, 0)                    \
-    F(NewOperation, 1, 0)               \
-    F(BinaryPlus, 1, 2)                 \
-    F(BinaryMinus, 1, 2)                \
-    F(BinaryMultiply, 1, 2)             \
-    F(BinaryDivision, 1, 2)             \
-    F(BinaryMod, 1, 2)                  \
-    F(BinaryEqual, 1, 2)                \
-    F(BinaryLessThan, 1, 2)             \
-    F(BinaryLessThanOrEqual, 1, 2)      \
-    F(BinaryGreaterThan, 1, 2)          \
-    F(BinaryGreaterThanOrEqual, 1, 2)   \
-    F(BinaryNotEqual, 1, 2)             \
-    F(BinaryStrictEqual, 1, 2)          \
-    F(BinaryNotStrictEqual, 1, 2)       \
-    F(BinaryBitwiseAnd, 1, 2)           \
-    F(BinaryBitwiseOr, 1, 2)            \
-    F(BinaryBitwiseXor, 1, 2)           \
-    F(BinaryLeftShift, 1, 2)            \
-    F(BinarySignedRightShift, 1, 2)     \
-    F(BinaryUnsignedRightShift, 1, 2)   \
-    F(BinaryInOperation, 1, 2)          \
-    F(BinaryInstanceOfOperation, 1, 2)  \
-    F(CreateObject, 1, 0)               \
-    F(CreateArray, 1, 0)                \
-    F(GetObject, 1, 2)                  \
-    F(SetObject, 0, 2)                  \
-    F(GetObjectPreComputedCase, 1, 1)   \
-    F(SetObjectPreComputedCase, 0, 1)   \
-    F(GetGlobalObject, 1, 1)            \
-    F(SetGlobalObject, 0, 1)            \
-    F(Move, 1, 0)                       \
-    F(Increment, 1, 1)                  \
-    F(Decrement, 1, 1)                  \
-    F(UnaryMinus, 1, 1)                 \
-    F(UnaryPlus, 1, 1)                  \
-    F(UnaryNot, 1, 1)                   \
-    F(UnaryBitwiseNot, 1, 1)            \
-    F(UnaryTypeof, 1, 1)                \
-    F(UnaryDelete, 1, 1)                \
-    F(Jump, 0, 0)                       \
-    F(JumpComplexCase, 0, 0)            \
-    F(JumpIfTrue, 0, 0)                 \
-    F(JumpIfFalse, 0, 0)                \
-    F(CallFunction, -1, 0)              \
-    F(ReturnFunction, 0, 0)             \
-    F(TryOperation, 0, 0)               \
-    F(TryCatchWithBodyEnd, 0, 0)        \
-    F(FinallyEnd, 0, 0)                 \
-    F(ThrowOperation, 0, 0)             \
-    F(EnumerateObject, 1, 0)            \
-    F(EnumerateObjectKey, 1, 0)         \
-    F(CheckIfKeyIsLast, 0, 0)           \
-    F(LoadRegexp, 1, 0)                 \
-    F(WithOperation, 0, 0)              \
-    F(ObjectDefineGetter, 0, 0)         \
-    F(ObjectDefineSetter, 0, 0)         \
-    F(LoadArgumentsObject, 0, 0)        \
-    F(StoreArgumentsObject, 0, 0)       \
-    F(CallNativeFunction, 0, 0)         \
-    F(CallEvalFunction, 0, 0)           \
-    F(ResetExecuteResult, 0, 0)         \
+#define FOR_EACH_BYTECODE_OP(F)               \
+    F(LoadLiteral, 1, 0)                      \
+    F(LoadByName, 1, 0)                       \
+    F(StoreByName, 0, 0)                      \
+    F(LoadByStackIndex, 1, 0)                 \
+    F(StoreByStackIndex, 0, 0)                \
+    F(LoadByHeapIndex, 1, 0)                  \
+    F(StoreByHeapIndex, 0, 0)                 \
+    F(LoadByGlobalName, 1, 0)                 \
+    F(StoreByGlobalName, 0, 0)                \
+    F(DeclareVarVariable, 0, 0)               \
+    F(DeclareFunctionDeclaration, 1, 0)       \
+    F(DeclareFunctionExpression, 1, 0)        \
+    F(GetThis, 1, 0)                          \
+    F(NewOperation, 1, 0)                     \
+    F(BinaryPlus, 1, 2)                       \
+    F(BinaryMinus, 1, 2)                      \
+    F(BinaryMultiply, 1, 2)                   \
+    F(BinaryDivision, 1, 2)                   \
+    F(BinaryMod, 1, 2)                        \
+    F(BinaryEqual, 1, 2)                      \
+    F(BinaryLessThan, 1, 2)                   \
+    F(BinaryLessThanOrEqual, 1, 2)            \
+    F(BinaryGreaterThan, 1, 2)                \
+    F(BinaryGreaterThanOrEqual, 1, 2)         \
+    F(BinaryNotEqual, 1, 2)                   \
+    F(BinaryStrictEqual, 1, 2)                \
+    F(BinaryNotStrictEqual, 1, 2)             \
+    F(BinaryBitwiseAnd, 1, 2)                 \
+    F(BinaryBitwiseOr, 1, 2)                  \
+    F(BinaryBitwiseXor, 1, 2)                 \
+    F(BinaryLeftShift, 1, 2)                  \
+    F(BinarySignedRightShift, 1, 2)           \
+    F(BinaryUnsignedRightShift, 1, 2)         \
+    F(BinaryInOperation, 1, 2)                \
+    F(BinaryInstanceOfOperation, 1, 2)        \
+    F(CreateObject, 1, 0)                     \
+    F(CreateArray, 1, 0)                      \
+    F(ObjectDefineOwnPropertyOperation, 0, 0) \
+    F(GetObject, 1, 2)                        \
+    F(SetObject, 0, 2)                        \
+    F(GetObjectPreComputedCase, 1, 1)         \
+    F(SetObjectPreComputedCase, 0, 1)         \
+    F(GetGlobalObject, 1, 1)                  \
+    F(SetGlobalObject, 0, 1)                  \
+    F(Move, 1, 0)                             \
+    F(Increment, 1, 1)                        \
+    F(Decrement, 1, 1)                        \
+    F(UnaryMinus, 1, 1)                       \
+    F(UnaryPlus, 1, 1)                        \
+    F(UnaryNot, 1, 1)                         \
+    F(UnaryBitwiseNot, 1, 1)                  \
+    F(UnaryTypeof, 1, 1)                      \
+    F(UnaryDelete, 1, 1)                      \
+    F(Jump, 0, 0)                             \
+    F(JumpComplexCase, 0, 0)                  \
+    F(JumpIfTrue, 0, 0)                       \
+    F(JumpIfFalse, 0, 0)                      \
+    F(CallFunction, -1, 0)                    \
+    F(ReturnFunction, 0, 0)                   \
+    F(TryOperation, 0, 0)                     \
+    F(TryCatchWithBodyEnd, 0, 0)              \
+    F(FinallyEnd, 0, 0)                       \
+    F(ThrowOperation, 0, 0)                   \
+    F(EnumerateObject, 1, 0)                  \
+    F(EnumerateObjectKey, 1, 0)               \
+    F(CheckIfKeyIsLast, 0, 0)                 \
+    F(LoadRegexp, 1, 0)                       \
+    F(WithOperation, 0, 0)                    \
+    F(ObjectDefineGetter, 0, 0)               \
+    F(ObjectDefineSetter, 0, 0)               \
+    F(LoadArgumentsObject, 0, 0)              \
+    F(StoreArgumentsObject, 0, 0)             \
+    F(CallNativeFunction, 0, 0)               \
+    F(CallEvalFunction, 0, 0)                 \
+    F(ResetExecuteResult, 0, 0)               \
     F(End, 0, 0)
 
 enum Opcode {
@@ -563,9 +564,11 @@ public:
         : ByteCode(Opcode::CreateArrayOpcode, loc)
         , m_registerIndex(registerIndex)
     {
+        m_length = 0;
     }
 
     size_t m_registerIndex;
+    size_t m_length;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -612,6 +615,28 @@ public:
     virtual void dump()
     {
         printf("set object r%d[r%d] <- r%d", (int)m_objectRegisterIndex, (int)m_propertyRegisterIndex, (int)m_loadRegisterIndex);
+    }
+#endif
+};
+
+class ObjectDefineOwnPropertyOperation : public ByteCode {
+public:
+    ObjectDefineOwnPropertyOperation(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, const size_t& propertyRegisterIndex, const size_t& loadRegisterIndex)
+        : ByteCode(Opcode::ObjectDefineOwnPropertyOperationOpcode, loc)
+        , m_objectRegisterIndex(objectRegisterIndex)
+        , m_propertyRegisterIndex(propertyRegisterIndex)
+        , m_loadRegisterIndex(loadRegisterIndex)
+    {
+    }
+
+    size_t m_objectRegisterIndex;
+    size_t m_propertyRegisterIndex;
+    size_t m_loadRegisterIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("object define own property r%d[r%d] <- r%d", (int)m_objectRegisterIndex, (int)m_propertyRegisterIndex, (int)m_loadRegisterIndex);
     }
 #endif
 };

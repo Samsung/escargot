@@ -471,7 +471,7 @@ public:
         // }
     }
 
-    Error* createError(size_t index, size_t line, size_t col, String* description)
+    Error* createError(size_t index, size_t line, size_t col, String* description, ErrorObject::Code code)
     {
         UTF16StringDataNonGCStd msg = u"Line ";
         std::string lineString = std::to_string(line);
@@ -484,17 +484,18 @@ public:
         error->index = index;
         error->lineNumber = line;
         error->description = description;
+        error->errorCode = code;
         return error;
     };
 
-    void throwError(size_t index, size_t line, size_t col, String* description)
+    void throwError(size_t index, size_t line, size_t col, String* description, ErrorObject::Code code)
     {
-        throw this->createError(index, line, col, description);
+        throw this->createError(index, line, col, description, code);
     }
 
-    void tolerateError(size_t index, size_t line, size_t col, String* description)
+    void tolerateError(size_t index, size_t line, size_t col, String* description, ErrorObject::Code code)
     {
-        Error* error = this->createError(index, line, col, description);
+        Error* error = this->createError(index, line, col, description, code);
         /*
         if (this->tolerant) {
             this->recordError(error);
@@ -537,7 +538,7 @@ public:
 
     void throwUnexpectedToken(const char* message = Messages::UnexpectedTokenIllegal)
     {
-        this->errorHandler->throwError(this->index, this->lineNumber, this->index - this->lineStart + 1, new ASCIIString(message));
+        this->errorHandler->throwError(this->index, this->lineNumber, this->index - this->lineStart + 1, new ASCIIString(message), ErrorObject::SyntaxError);
     }
     /*
     tolerateUnexpectedToken() {
@@ -2296,7 +2297,7 @@ public:
         this->lastMarker.lineStart = this->scanner->lineStart;
     }
 
-    void throwError(const char* messageFormat, String* arg0 = String::emptyString, String* arg1 = String::emptyString)
+    void throwError(const char* messageFormat, String* arg0 = String::emptyString, String* arg1 = String::emptyString, ErrorObject::Code code = ErrorObject::SyntaxError)
     {
         UTF16StringDataNonGCStd msg;
         if (arg0->length() && arg1->length()) {
@@ -2319,12 +2320,12 @@ public:
         size_t index = this->lastMarker.index;
         size_t line = this->lastMarker.lineNumber;
         size_t column = this->lastMarker.index - this->lastMarker.lineStart + 1;
-        throw this->errorHandler->createError(index, line, column, new UTF16String(msg.data(), msg.length()));
+        throw this->errorHandler->createError(index, line, column, new UTF16String(msg.data(), msg.length()), code);
     }
 
-    void tolerateError(const char* messageFormat, String* arg0 = String::emptyString, String* arg1 = String::emptyString)
+    void tolerateError(const char* messageFormat, String* arg0 = String::emptyString, String* arg1 = String::emptyString, ErrorObject::Code code = ErrorObject::SyntaxError)
     {
-        throwError(messageFormat, arg0, arg1);
+        throwError(messageFormat, arg0, arg1, code);
     }
 
     void replaceAll(UTF16StringDataNonGCStd& str, const UTF16StringDataNonGCStd& from, const UTF16StringDataNonGCStd& to)
@@ -2377,12 +2378,12 @@ public:
             const size_t index = token->start;
             const size_t line = token->lineNumber;
             const size_t column = token->start - this->lastMarker.lineStart + 1;
-            return this->errorHandler->createError(index, line, column, new UTF16String(msgData.data(), msgData.length()));
+            return this->errorHandler->createError(index, line, column, new UTF16String(msgData.data(), msgData.length()), ErrorObject::SyntaxError);
         } else {
             const size_t index = this->lastMarker.index;
             const size_t line = this->lastMarker.lineNumber;
             const size_t column = index - this->lastMarker.lineStart + 1;
-            return this->errorHandler->createError(index, line, column, new UTF16String(msgData.data(), msgData.length()));
+            return this->errorHandler->createError(index, line, column, new UTF16String(msgData.data(), msgData.length()), ErrorObject::SyntaxError);
         }
     }
 
@@ -3181,7 +3182,7 @@ public:
         return false;
     }
 
-    PropertyNode* parseObjectProperty(bool& hasProto) //: Node.Property
+    PropertyNode* parseObjectProperty(bool& hasProto, std::vector<std::pair<AtomicString, size_t>>& usedNames) //: Node.Property
     {
         MetaNode node = this->createNode();
         ScannerResult* token = this->lookahead;
@@ -3262,6 +3263,40 @@ public:
             }
         }
 
+        if (key->isIdentifier()) {
+            AtomicString as = key->asIdentifier()->name();
+            bool seenInit = kind == PropertyNode::Kind::Init;
+            bool seenGet = kind == PropertyNode::Kind::Get;
+            bool seenSet = kind == PropertyNode::Kind::Set;
+            for (size_t i = 0; i < usedNames.size(); i++) {
+                if (usedNames[i].first == as) {
+                    if (usedNames[i].second == PropertyNode::Kind::Init) {
+                        if (this->context->strict) {
+                            if (seenInit || seenGet || seenSet) {
+                                this->throwError("invalid object literal");
+                            }
+                        } else {
+                            if (seenGet || seenSet) {
+                                this->throwError("invalid object literal");
+                            }
+                        }
+                        seenInit = true;
+                    } else if (usedNames[i].second == PropertyNode::Kind::Get) {
+                        if (seenInit || seenGet) {
+                            this->throwError("invalid object literal");
+                        }
+                        seenGet = true;
+                    } else if (usedNames[i].second == PropertyNode::Kind::Set) {
+                        if (seenInit || seenSet) {
+                            this->throwError("invalid object literal");
+                        }
+                        seenSet = true;
+                    }
+                }
+            }
+            usedNames.push_back(std::make_pair(as, kind));
+        }
+
         // return this->finalize(node, new PropertyNode(kind, key, computed, value, method, shorthand));
         return this->finalize(node, new PropertyNode(key, value, kind));
     }
@@ -3273,8 +3308,9 @@ public:
         this->expect(LeftBrace);
         PropertiesNodeVector properties;
         bool hasProto = false;
+        std::vector<std::pair<AtomicString, size_t>> usedNames;
         while (!this->match(RightBrace)) {
-            properties.push_back(this->parseObjectProperty(hasProto));
+            properties.push_back(this->parseObjectProperty(hasProto, usedNames));
             if (!this->match(RightBrace)) {
                 this->expectCommaSeparator();
             }
@@ -4246,7 +4282,7 @@ public:
              }*/
             if (this->matchAssign()) {
                 if (!this->context->isAssignmentTarget) {
-                    this->tolerateError(Messages::InvalidLHSInAssignment);
+                    this->tolerateError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
                 }
 
                 if (this->context->strict && expr->type() == Identifier) {

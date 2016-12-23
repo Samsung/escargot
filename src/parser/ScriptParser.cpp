@@ -162,6 +162,7 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
         error->lineNumber = orgError->lineNumber;
         error->message = orgError->message;
         error->name = orgError->name;
+        error->errorCode = orgError->errorCode;
     }
 
     ScriptParser::ScriptParserResult result(script, error);

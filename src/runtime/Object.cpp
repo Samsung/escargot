@@ -94,25 +94,29 @@ ObjectPropertyDescriptor::ObjectPropertyDescriptor(ExecutionState& state, Object
     desc = obj->get(state, ObjectPropertyName(strings->get));
     if (desc.hasValue()) {
         Value v = desc.value(state, obj);
-        if (!v.isFunction()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Getter must be a function");
-        } else {
-            m_isDataProperty = false;
-            m_getterSetter = JSGetterSetter(v.asFunction(), nullptr);
+        if (!v.isUndefined()) {
+            if (!v.isFunction()) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Getter must be a function");
+            } else {
+                m_isDataProperty = false;
+                m_getterSetter = JSGetterSetter(v.asFunction(), nullptr);
+            }
         }
     }
 
     desc = obj->get(state, ObjectPropertyName(strings->set));
     if (desc.hasValue()) {
         Value v = desc.value(state, obj);
-        if (!v.isFunction()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Setter must be a function");
-        } else {
-            if (m_isDataProperty) {
-                m_isDataProperty = false;
-                m_getterSetter = JSGetterSetter(v.asFunction(), nullptr);
+        if (!v.isUndefined()) {
+            if (!v.isFunction()) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Setter must be a function");
             } else {
-                m_getterSetter.m_setter = v.asFunction();
+                if (m_isDataProperty) {
+                    m_isDataProperty = false;
+                    m_getterSetter = JSGetterSetter(v.asFunction(), nullptr);
+                } else {
+                    m_getterSetter.m_setter = v.asFunction();
+                }
             }
         }
     }

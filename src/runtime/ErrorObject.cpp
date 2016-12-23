@@ -112,6 +112,24 @@ ErrorObject::ErrorObject(ExecutionState& state, String* errorMessage)
     setPrototype(state, state.context()->globalObject()->errorPrototype());
 }
 
+ErrorObject* ErrorObject::createError(ExecutionState& state, ErrorObject::Code code, String* errorMessage)
+{
+    if (code == ReferenceError)
+        return new ReferenceErrorObject(state, errorMessage);
+    else if (code == TypeError)
+        return new TypeErrorObject(state, errorMessage);
+    else if (code == SyntaxError)
+        return new SyntaxErrorObject(state, errorMessage);
+    else if (code == RangeError)
+        return new RangeErrorObject(state, errorMessage);
+    else if (code == URIError)
+        return new URIErrorObject(state, errorMessage);
+    else if (code == EvalError)
+        return new EvalErrorObject(state, errorMessage);
+    else
+        return new ErrorObject(state, errorMessage);
+}
+
 ReferenceErrorObject::ReferenceErrorObject(ExecutionState& state, String* errorMessage)
     : ErrorObject(state, errorMessage)
 {

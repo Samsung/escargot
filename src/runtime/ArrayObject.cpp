@@ -35,7 +35,7 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
 
     uint32_t idx = P.toValue(state).toArrayIndex(state);
     if (idx != Value::InvalidArrayIndexValue) {
-        setArrayLength(state, idx);
+        setArrayLength(state, idx + 1);
     }
 
     return Object::defineOwnProperty(state, P, desc);
@@ -104,6 +104,9 @@ void ArrayObject::iterateArrays(ExecutionState& state, HeapObjectIteratorCallbac
 
 void ArrayObject::convertIntoNonFastMode(ExecutionState& state)
 {
+    if (!isFastModeArray())
+        return;
+
     if (!structure()->isStructureWithFastAccess()) {
         m_structure = structure()->convertToWithFastAccess(state);
     }

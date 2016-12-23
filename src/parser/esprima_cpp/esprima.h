@@ -4,6 +4,7 @@
 #include "parser/ast/Node.h"
 #include "runtime/Context.h"
 #include "runtime/String.h"
+#include "runtime/ErrorObject.h"
 
 namespace Escargot {
 
@@ -37,6 +38,7 @@ struct Error : public gc {
     size_t lineNumber;
     size_t column;
     String* description;
+    ErrorObject::Code errorCode;
 
     Error(String* message)
     {
@@ -44,6 +46,7 @@ struct Error : public gc {
         this->message = message;
         this->column = this->lineNumber = this->index = 0;
         this->description = String::emptyString;
+        this->errorCode = ErrorObject::Code::SyntaxError;
     }
 };
 

@@ -31,6 +31,15 @@ public:
         m_expressions = expressions;
     }
 
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        for (size_t i = 0; i < m_expressions.size(); i++) {
+            m_expressions[i]->generateExpressionByteCode(codeBlock, context);
+            if (i < m_expressions.size() - 1)
+                context->giveUpRegister();
+        }
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::SequenceExpression; }
     const ExpressionNodeVector& expressions() { return m_expressions; }
 protected:

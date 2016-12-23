@@ -57,11 +57,6 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        if (context->m_codeBlock->context()->didSomePrototypeObjectDefineIndexedProperty()) {
-            // TODO implement bad time
-            RELEASE_ASSERT_NOT_REACHED();
-        }
-
         bool prevHead = context->m_isHeadOfMemberExpression;
         context->m_isHeadOfMemberExpression = false;
         m_object->generateExpressionByteCode(codeBlock, context);

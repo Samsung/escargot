@@ -553,8 +553,19 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
 
         CreateArrayOpcodeLbl : {
             CreateArray* code = (CreateArray*)currentCode;
-            registerFile[code->m_registerIndex] = new ArrayObject(state);
+            ArrayObject* arr = new ArrayObject(state);
+            arr->setLength(state, code->m_length);
+            registerFile[code->m_registerIndex] = arr;
             ADD_PROGRAM_COUNTER(CreateArray);
+            NEXT_INSTRUCTION();
+        }
+
+        ObjectDefineOwnPropertyOperationOpcodeLbl : {
+            ObjectDefineOwnPropertyOperation* code = (ObjectDefineOwnPropertyOperation*)currentCode;
+            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+            const Value& property = registerFile[code->m_propertyRegisterIndex];
+            willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(state, property), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptor::AllPresent));
+            ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyOperation);
             NEXT_INSTRUCTION();
         }
 
