@@ -17,9 +17,21 @@ static Value builtinBooleanConstructor(ExecutionState& state, Value thisValue, s
         return Value(primitiveVal);
 }
 
+static Value builtinBooleanValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (thisValue.isBoolean()) {
+        return Value(thisValue);
+    } else if (thisValue.isObject() && thisValue.asObject()->isBooleanObject()) {
+        return Value(thisValue.asPointerValue()->asBooleanObject()->primitiveValue());
+    }
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ThisNotBoolean);
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
 void GlobalObject::installBoolean(ExecutionState& state)
 {
-    m_boolean = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Boolean, builtinBooleanConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+    const StaticStrings* strings = &state.context()->staticStrings();
+    m_boolean = new FunctionObject(state, NativeFunctionInfo(strings->Boolean, builtinBooleanConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
                                        return new BooleanObject(state);
                                    }),
                                    FunctionObject::__ForBuiltin__);
@@ -29,9 +41,14 @@ void GlobalObject::installBoolean(ExecutionState& state)
     m_booleanPrototype = new BooleanObject(state, false);
     m_booleanPrototype->setPrototype(state, m_objectPrototype);
 
+    // $19.3.3.3
+    m_booleanPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->valueOf),
+                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->valueOf, builtinBooleanValueOf, 0, nullptr, NativeFunctionInfo::Strict)),
+                                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_boolean->setFunctionPrototype(state, m_booleanPrototype);
 
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Boolean),
+    defineOwnProperty(state, ObjectPropertyName(strings->Boolean),
                       ObjectPropertyDescriptor(m_boolean, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 }
