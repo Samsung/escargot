@@ -668,8 +668,6 @@ dnl in the startup code.
 AC_DEFINE([NO_EXECUTE_PERMISSION], [1],
           [Define to make the collector not allocate executable memory
            by default.])
-AC_DEFINE([ALL_INTERIOR_POINTERS], [1],
-          [Define to recognise all pointers to the interior of objects.])
 
 
 dnl Interface Selection

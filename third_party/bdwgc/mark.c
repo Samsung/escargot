@@ -877,7 +877,7 @@ GC_API mse * GC_mark_and_push_custom(GC_word *addr, mse *mark_stack_ptr, mse *ma
     INIT_HDR_CACHE;
 
     const char* start = GC_USR_PTR_FROM_BASE(addr);
-    const char* end = ((char*)addr) + GC_size(addr) - 8;
+    const char* end = ((char*)addr) + GC_size(addr);
 
     GC_word* iterator = (GC_word*)start;
     while (TRUE) {

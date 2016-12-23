@@ -1,5 +1,5 @@
-#ifndef __LeakChecker__
-#define __LeakChecker__
+#ifndef __EscargotLeakChecker__
+#define __EscargotLeakChecker__
 
 //#define PROFILE_BDWGC
 #ifdef PROFILE_BDWGC

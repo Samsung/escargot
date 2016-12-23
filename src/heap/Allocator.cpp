@@ -45,47 +45,41 @@ void registerGCAddress(void* address, size_t siz)
 
 void* GC_malloc_hook(size_t siz)
 {
-    void* ptr;
-    ptr = GC_malloc(siz);
+    void* ptr = GC_malloc(siz);
     registerGCAddress(ptr, siz);
     return ptr;
 }
 void* GC_malloc_atomic_hook(size_t siz)
 {
-    void* ptr;
-    ptr = GC_malloc_atomic(siz);
+    void* ptr = GC_malloc_atomic(siz);
     registerGCAddress(ptr, siz);
     return ptr;
 }
 
 void* GC_generic_malloc_hook(size_t siz, int kind)
 {
-    void* ptr;
-    ptr = GC_generic_malloc(siz, kind);
+    void* ptr = GC_generic_malloc(siz, kind);
     registerGCAddress(ptr, siz);
     return ptr;
 }
 
 void* GC_generic_malloc_ignore_off_page_hook(size_t siz, int kind)
 {
-    void* ptr;
-    ptr = GC_generic_malloc_ignore_off_page(siz, kind);
+    void* ptr = GC_generic_malloc_ignore_off_page(siz, kind);
     registerGCAddress(ptr, siz);
     return ptr;
 }
 
 void* GC_malloc_ignore_off_page_hook(size_t siz)
 {
-    void* ptr;
-    ptr = GC_malloc_ignore_off_page(siz);
+    void* ptr = GC_malloc_ignore_off_page(siz);
     registerGCAddress(ptr, siz);
     return ptr;
 }
 
 void* GC_malloc_atomic_ignore_off_page_hook(size_t siz)
 {
-    void* ptr;
-    ptr = GC_malloc_atomic_ignore_off_page_hook(siz);
+    void* ptr = GC_malloc_atomic_ignore_off_page(siz);
     registerGCAddress(ptr, siz);
     return ptr;
 }

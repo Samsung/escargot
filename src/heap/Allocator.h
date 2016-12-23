@@ -14,8 +14,8 @@
  *    limitations under the License.
  */
 
-#ifndef __Allocator__
-#define __Allocator__
+#ifndef __EscargotAllocator__
+#define __EscargotAllocator__
 
 namespace Escargot {
 
