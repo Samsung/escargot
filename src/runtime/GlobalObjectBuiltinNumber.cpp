@@ -47,7 +47,7 @@ static Value builtinNumberConstructor(ExecutionState& state, Value thisValue, si
     NumberObject* numObj;
     if (isNewExpression) {
         numObj = thisValue.asPointerValue()->asObject()->asNumberObject();
-        if (argv[0].isUndefined())
+        if (argc == 0)
             numObj->setPrimitiveValue(state, 0);
         else
             numObj->setPrimitiveValue(state, argv[0].toNumber(state));

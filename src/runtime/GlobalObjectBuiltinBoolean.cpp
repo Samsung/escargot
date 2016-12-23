@@ -28,6 +28,17 @@ static Value builtinBooleanValueOf(ExecutionState& state, Value thisValue, size_
     RELEASE_ASSERT_NOT_REACHED();
 }
 
+static Value builtinBooleanToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (thisValue.isBoolean()) {
+        return Value(thisValue.toString(state));
+    } else if (thisValue.isObject() && thisValue.asObject()->isBooleanObject()) {
+        return Value(thisValue.asPointerValue()->asBooleanObject()->primitiveValue()).toString(state);
+    }
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ThisNotBoolean);
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
 void GlobalObject::installBoolean(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
@@ -41,7 +52,11 @@ void GlobalObject::installBoolean(ExecutionState& state)
     m_booleanPrototype = new BooleanObject(state, false);
     m_booleanPrototype->setPrototype(state, m_objectPrototype);
 
-    // $19.3.3.3
+    // $19.3.3.2 Boolean.prototype.toString
+    m_booleanPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toString),
+                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toString, builtinBooleanToString, 0, nullptr, NativeFunctionInfo::Strict)),
+                                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // $19.3.3.3 Boolean.prototype.valueOf
     m_booleanPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->valueOf),
                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->valueOf, builtinBooleanValueOf, 0, nullptr, NativeFunctionInfo::Strict)),
                                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
