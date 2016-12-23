@@ -36,11 +36,11 @@ public:
         ScriptParseError* m_error;
     };
 
-    ScriptParserResult parse(String* script, String* fileName = String::emptyString)
+    ScriptParserResult parse(String* script, String* fileName = String::emptyString, bool strictFromOutside = false)
     {
-        return parse(StringView(script, 0, script->length()), fileName);
+        return parse(StringView(script, 0, script->length()), fileName, nullptr, strictFromOutside);
     }
-    ScriptParserResult parse(StringView script, String* fileName = String::emptyString, CodeBlock* parentCodeBlock = nullptr);
+    ScriptParserResult parse(StringView script, String* fileName = String::emptyString, CodeBlock* parentCodeBlock = nullptr, bool strictFromOutside = false);
     Node* parseFunction(CodeBlock* codeBlock);
 
 protected:

@@ -59,7 +59,8 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg, CodeBlock* par
     if (arg.isString()) {
         ScriptParser parser(state.context());
         const char* s = "eval input";
-        ScriptParser::ScriptParserResult parserResult = parser.parse(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), parentCodeBlock);
+        bool strictFromOutside = state.inStrictMode();
+        ScriptParser::ScriptParserResult parserResult = parser.parse(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), parentCodeBlock, strictFromOutside);
         if (parserResult.m_error) {
             SyntaxErrorObject* err = new SyntaxErrorObject(state, parserResult.m_error->message);
             state.throwException(err);

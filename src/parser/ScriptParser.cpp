@@ -81,12 +81,12 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromAST(Context* ctx, StringView s
     return generateCodeBlockTreeFromASTWalker(ctx, source, script, program->scopeContext(), nullptr);
 }
 
-ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, String* fileName, CodeBlock* parentCodeBlock)
+ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, String* fileName, CodeBlock* parentCodeBlock, bool strictFromOutside)
 {
     Script* script = nullptr;
     ScriptParseError* error = nullptr;
     try {
-        ProgramNode* program = esprima::parseProgram(m_context, scriptSource, nullptr);
+        ProgramNode* program = esprima::parseProgram(m_context, scriptSource, nullptr, strictFromOutside);
 
         script = new Script(fileName);
         CodeBlock* topCodeBlock;

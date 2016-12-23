@@ -1554,7 +1554,10 @@ public:
         if (isIdentifierStart(this->source.bufferedCharAt(this->index)) || isDecimalDigit(this->source.bufferedCharAt(this->index))) {
             throwUnexpectedToken();
         }
-        return new ScannerResult(Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index);
+        ScannerResult* ret = new ScannerResult(Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index);
+        ret->octal = octal;
+
+        return ret;
     }
 
     bool isImplicitOctalLiteral()
@@ -2385,7 +2388,7 @@ public:
 
     void throwUnexpectedToken(ScannerResult* token, const char* message = nullptr)
     {
-        throw this->unexpectedTokenError(token, message = nullptr);
+        throw this->unexpectedTokenError(token, message);
     }
 
     void tolerateUnexpectedToken(ScannerResult* token, const char* message = nullptr)
@@ -6091,9 +6094,10 @@ public:
 };
 
 
-ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler handler)
+ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler handler, bool strictFromOutside)
 {
     Parser parser(ctx, source, handler);
+    parser.context->strict = strictFromOutside;
     return parser.parseProgram();
 }
 

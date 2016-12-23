@@ -47,7 +47,7 @@ struct Error : public gc {
     }
 };
 
-ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler astHandler);
+ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler astHandler, bool strictFromOutside);
 Node* parseSingleFunction(::Escargot::Context* ctx, CodeBlock* codeBlock);
 }
 }
