@@ -884,7 +884,13 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         UnaryDeleteOpcodeLbl : {
             UnaryDelete* code = (UnaryDelete*)currentCode;
             if (code->m_id.string()->length()) {
-                registerFile[code->m_registerIndex0] = Value(env->deleteBinding(state, code->m_id));
+                bool result;
+                if (UNLIKELY(code->m_id == state.context()->staticStrings().arguments && !env->record()->isGlobalEnvironmentRecord())) {
+                    result = false;
+                } else {
+                    result = env->deleteBinding(state, code->m_id);
+                }
+                registerFile[code->m_registerIndex0] = Value(result);
             } else {
                 const Value& o = registerFile[code->m_registerIndex0];
                 const Value& p = registerFile[code->m_registerIndex1];
