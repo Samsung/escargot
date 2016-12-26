@@ -144,7 +144,7 @@ public:
                 newBuffer[i] = m_buffer[i];
             }
 
-            for (size_t i = end + c; i < m_size; i++) {
+            for (size_t i = end; i < m_size; i++) {
                 newBuffer[i - c] = m_buffer[i];
             }
 
@@ -152,7 +152,7 @@ public:
                 Allocator().deallocate(m_buffer, m_size);
             m_buffer = newBuffer;
             m_size = m_size - c;
-            m_capacity = m_size - c;
+            m_capacity = m_size;
         } else {
             clear();
         }

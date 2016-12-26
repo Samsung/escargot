@@ -124,7 +124,7 @@ public:
                 newBuffer[i] = m_buffer[i];
             }
 
-            for (size_t i = end + c; i < m_size; i++) {
+            for (size_t i = end; i < m_size; i++) {
                 newBuffer[i - c] = m_buffer[i];
             }
 
