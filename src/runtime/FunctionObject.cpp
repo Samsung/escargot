@@ -135,11 +135,17 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
             }
 
         } else {
-            for (size_t i = 0; i < parameterCopySize; i++) {
+            for (size_t i = 0; i < info.size(); i++) {
+                Value val;
+                // NOTE: consider the special case with duplicated parameter names (**test262: S10.2.1_A3)
+                if (i < argc)
+                    val = argv[i];
+                else if (info[i].m_index >= argc)
+                    continue;
                 if (info[i].m_isHeapAllocated) {
-                    record->setHeapValueByIndex(info[i].m_index, argv[i]);
+                    record->setHeapValueByIndex(info[i].m_index, val);
                 } else {
-                    stackStorage[info[i].m_index] = argv[i];
+                    stackStorage[info[i].m_index] = val;
                 }
             }
         }
