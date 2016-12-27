@@ -37,7 +37,7 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::CallExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        if (!context->m_codeBlock->isGlobalScopeCodeBlock() && m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
+        if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
             bool prevInCallingExpressionScope = context->m_inCallingExpressionScope;
             for (size_t i = 0; i < m_arguments.size(); i++) {
                 m_arguments[i]->generateExpressionByteCode(codeBlock, context);

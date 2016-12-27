@@ -61,7 +61,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg, CodeBlock* par
     if (arg.isString()) {
         ScriptParser parser(state.context());
         const char* s = "eval input";
-        ExecutionContext* pec = state.executionContext()->parent();
+        ExecutionContext* pec = state.executionContext();
         bool strictFromOutside = false;
         while (pec) {
             if (pec->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && pec->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {

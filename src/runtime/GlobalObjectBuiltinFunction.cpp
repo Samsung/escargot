@@ -18,7 +18,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     src.appendString("function anonymous(");
 
     for (size_t i = 1; i < argc; i++) {
-        src.appendString(argv[i].toString(state));
+        src.appendString(argv[i - 1].toString(state));
         if (i != argc - 1) {
             src.appendChar(',');
         }
@@ -26,7 +26,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
 
     src.appendString("){\n");
     if (argc > 0) {
-        src.appendString(argv[0].toString(state));
+        src.appendString(argv[argc - 1].toString(state));
     }
     src.appendString("\n}");
 
