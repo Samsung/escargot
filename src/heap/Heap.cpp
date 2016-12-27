@@ -1,7 +1,7 @@
 #include "Escargot.h"
 
 #include "Heap.h"
-#include "HeapProfiler.h"
+#include "LeakChecker.h"
 
 namespace Escargot {
 

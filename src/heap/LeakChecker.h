@@ -1,5 +1,5 @@
-#ifndef __HeapProfiler__
-#define __HeapProfiler__
+#ifndef __LeakChecker__
+#define __LeakChecker__
 
 //#define PROFILE_BDWGC
 #ifdef PROFILE_BDWGC
@@ -42,4 +42,4 @@ Value builtinSetGCPhaseName(ExecutionState& state, Value thisValue, size_t argc,
 
 #endif // PROFILE_BDWGC
 
-#endif // __HeapProfiler__
+#endif // __LeakChecker__

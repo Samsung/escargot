@@ -6,7 +6,7 @@
 #include "NumberObject.h"
 #include "parser/ScriptParser.h"
 #include "parser/esprima_cpp/esprima.h"
-#include "heap/HeapProfiler.h"
+#include "heap/LeakChecker.h"
 #include "EnvironmentRecord.h"
 #include "Environment.h"
 

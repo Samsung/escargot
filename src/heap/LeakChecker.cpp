@@ -1,6 +1,6 @@
 #include "Escargot.h"
 
-#include "HeapProfiler.h"
+#include "LeakChecker.h"
 #include "heap/Allocator.h"
 #include "runtime/ErrorObject.h"
 
