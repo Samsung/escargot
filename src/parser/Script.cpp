@@ -12,7 +12,7 @@
 
 namespace Escargot {
 
-Value Script::execute(Context* ctx)
+Value Script::execute(Context* ctx, bool needNewEnv)
 {
     Node* programNode = m_topCodeBlock->cachedASTNode();
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
@@ -22,13 +22,23 @@ Value Script::execute(Context* ctx)
 
     m_topCodeBlock->m_cachedASTNode = nullptr;
 
-    LexicalEnvironment* globalEnvironment;
+    LexicalEnvironment* env;
+    ExecutionContext* prevEc;
     {
         ExecutionState stateForInit(ctx);
-        globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(stateForInit, m_topCodeBlock, ctx->globalObject()), nullptr);
+        LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(stateForInit, m_topCodeBlock, ctx->globalObject()), nullptr);
+        if (UNLIKELY(needNewEnv)) {
+            prevEc = new ExecutionContext(ctx, nullptr, globalEnvironment, m_topCodeBlock->isStrict());
+            FunctionObject* tmpFunc = new FunctionObject(stateForInit, m_topCodeBlock, nullptr, false);
+            EnvironmentRecord* record = new FunctionEnvironmentRecordNotIndexed(stateForInit, Value(), tmpFunc, 0, nullptr, false);
+            env = new LexicalEnvironment(record, globalEnvironment);
+        } else {
+            env = globalEnvironment;
+            prevEc = nullptr;
+        }
     }
 
-    ExecutionContext ec(ctx, nullptr, globalEnvironment, m_topCodeBlock->isStrict());
+    ExecutionContext ec(ctx, prevEc, env, m_topCodeBlock->isStrict());
     Value resultValue;
     ExecutionState state(ctx, &ec, &resultValue);
 
@@ -59,7 +69,8 @@ Script::ScriptSandboxExecuteResult Script::sandboxExecute(Context* ctx)
     return result;
 }
 
-Value Script::executeLocal(ExecutionState& state)
+// NOTE: eval by direct call
+Value Script::executeLocal(ExecutionState& state, bool needNewRecord)
 {
     Node* programNode = m_topCodeBlock->cachedASTNode();
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
@@ -69,15 +80,22 @@ Value Script::executeLocal(ExecutionState& state)
 
     m_topCodeBlock->m_cachedASTNode = nullptr;
 
-    EnvironmentRecord* oldRecord = state.executionContext()->lexicalEnvironment()->record();
+    EnvironmentRecord* record;
+    if (UNLIKELY(needNewRecord)) {
+        // NOTE: ES5 10.4.2.1 eval in strict mode
+        FunctionObject* tmpFunc = new FunctionObject(state, m_topCodeBlock, nullptr, false);
+        record = new FunctionEnvironmentRecordNotIndexed(state, Value(), tmpFunc, 0, nullptr, false);
+    } else {
+        record = state.executionContext()->lexicalEnvironment()->record();
+    }
     const CodeBlock::IdentifierInfoVector& vec = m_topCodeBlock->identifierInfos();
     size_t len = vec.size();
     for (size_t i = 0; i < len; i++) {
-        if (oldRecord->hasBinding(state, vec[i].m_name).m_index == SIZE_MAX) {
-            oldRecord->createMutableBinding(state, vec[i].m_name, false);
+        if (record->hasBinding(state, vec[i].m_name).m_index == SIZE_MAX) {
+            record->createMutableBinding(state, vec[i].m_name, false);
         }
     }
-    LexicalEnvironment* newEnvironment = new LexicalEnvironment(oldRecord, state.executionContext()->lexicalEnvironment());
+    LexicalEnvironment* newEnvironment = new LexicalEnvironment(record, state.executionContext()->lexicalEnvironment());
 
     ExecutionContext ec(state.context(), state.executionContext(), newEnvironment, m_topCodeBlock->isStrict());
     Value resultValue;

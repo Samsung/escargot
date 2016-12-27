@@ -78,10 +78,11 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg, CodeBlock* par
             ErrorObject* err = ErrorObject::createError(state, parserResult.m_error->errorCode, parserResult.m_error->message);
             state.throwException(err);
         }
+        bool needNewEnv = parserResult.m_script->topCodeBlock()->isStrict();
         if (!parentCodeBlock) {
-            return parserResult.m_script->execute(state.context());
+            return parserResult.m_script->execute(state.context(), needNewEnv);
         } else {
-            return parserResult.m_script->executeLocal(state);
+            return parserResult.m_script->executeLocal(state, needNewEnv);
         }
     }
     return arg;
