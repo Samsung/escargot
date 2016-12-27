@@ -1694,8 +1694,8 @@ public:
                 break;
             } else if (ch == '\\') {
                 ch = this->source.bufferedCharAt(this->index++);
+                CONVERT_UNPLAIN_CASE_IF_NEEDED()
                 if (!ch || !isLineTerminator(ch)) {
-                    CONVERT_UNPLAIN_CASE_IF_NEEDED()
                     switch (ch) {
                     case 'u':
                     case 'x':
