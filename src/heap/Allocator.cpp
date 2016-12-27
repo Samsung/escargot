@@ -46,22 +46,14 @@ void registerGCAddress(void* address, size_t siz)
 void* GC_malloc_hook(size_t siz)
 {
     void* ptr;
-#ifdef NDEBUG
     ptr = GC_malloc(siz);
-#else
-    ptr = GC_malloc(siz);
-#endif
     registerGCAddress(ptr, siz);
     return ptr;
 }
 void* GC_malloc_atomic_hook(size_t siz)
 {
     void* ptr;
-#ifdef NDEBUG
     ptr = GC_malloc_atomic(siz);
-#else
-    ptr = GC_malloc_atomic(siz);
-#endif
     registerGCAddress(ptr, siz);
     return ptr;
 }
@@ -69,11 +61,7 @@ void* GC_malloc_atomic_hook(size_t siz)
 void* GC_generic_malloc_hook(size_t siz, int kind)
 {
     void* ptr;
-#ifdef NDEBUG
     ptr = GC_generic_malloc(siz, kind);
-#else
-    ptr = GC_generic_malloc(siz, kind);
-#endif
     registerGCAddress(ptr, siz);
     return ptr;
 }
@@ -81,11 +69,7 @@ void* GC_generic_malloc_hook(size_t siz, int kind)
 void* GC_generic_malloc_ignore_off_page_hook(size_t siz, int kind)
 {
     void* ptr;
-#ifdef NDEBUG
     ptr = GC_generic_malloc_ignore_off_page(siz, kind);
-#else
-    ptr = GC_generic_malloc_ignore_off_page(siz, kind);
-#endif
     registerGCAddress(ptr, siz);
     return ptr;
 }
@@ -93,11 +77,7 @@ void* GC_generic_malloc_ignore_off_page_hook(size_t siz, int kind)
 void* GC_malloc_ignore_off_page_hook(size_t siz)
 {
     void* ptr;
-#ifdef NDEBUG
     ptr = GC_malloc_ignore_off_page(siz);
-#else
-    ptr = GC_malloc_ignore_off_page(siz);
-#endif
     registerGCAddress(ptr, siz);
     return ptr;
 }
@@ -105,22 +85,14 @@ void* GC_malloc_ignore_off_page_hook(size_t siz)
 void* GC_malloc_atomic_ignore_off_page_hook(size_t siz)
 {
     void* ptr;
-#ifdef NDEBUG
     ptr = GC_malloc_atomic_ignore_off_page_hook(siz);
-#else
-    ptr = GC_malloc_atomic_ignore_off_page_hook(siz);
-#endif
     registerGCAddress(ptr, siz);
     return ptr;
 }
 
 void GC_free_hook(void* address)
 {
-#ifdef NDEBUG
     GC_free(address);
-#else
-    GC_free(address);
-#endif
     unregisterGCAddress(address);
 }
 
