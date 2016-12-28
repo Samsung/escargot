@@ -12,13 +12,13 @@
 
 namespace Escargot {
 
-Value Script::execute(Context* ctx, bool needNewEnv)
+Value Script::execute(Context* ctx, bool isEvalMode, bool needNewEnv)
 {
     Node* programNode = m_topCodeBlock->cachedASTNode();
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
 
     ByteCodeGenerator g;
-    g.generateByteCode(ctx, m_topCodeBlock, programNode);
+    g.generateByteCode(ctx, m_topCodeBlock, programNode, isEvalMode);
 
     m_topCodeBlock->m_cachedASTNode = nullptr;
 
@@ -26,8 +26,10 @@ Value Script::execute(Context* ctx, bool needNewEnv)
     ExecutionContext* prevEc;
     {
         ExecutionState stateForInit(ctx);
-        LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(stateForInit, m_topCodeBlock, ctx->globalObject()), nullptr);
+        CodeBlock* globalCodeBlock = (needNewEnv) ? nullptr : m_topCodeBlock;
+        LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(stateForInit, globalCodeBlock, ctx->globalObject()), nullptr);
         if (UNLIKELY(needNewEnv)) {
+            // NOTE: ES5 10.4.2.1 eval in strict mode
             prevEc = new ExecutionContext(ctx, nullptr, globalEnvironment, m_topCodeBlock->isStrict());
             FunctionObject* tmpFunc = new FunctionObject(stateForInit, m_topCodeBlock, nullptr, false);
             EnvironmentRecord* record = new FunctionEnvironmentRecordNotIndexed(stateForInit, Value(), tmpFunc, 0, nullptr, false);
@@ -70,13 +72,13 @@ Script::ScriptSandboxExecuteResult Script::sandboxExecute(Context* ctx)
 }
 
 // NOTE: eval by direct call
-Value Script::executeLocal(ExecutionState& state, bool needNewRecord)
+Value Script::executeLocal(ExecutionState& state, bool isEvalMode, bool needNewRecord)
 {
     Node* programNode = m_topCodeBlock->cachedASTNode();
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
 
     ByteCodeGenerator g;
-    g.generateByteCode(state.context(), m_topCodeBlock, programNode);
+    g.generateByteCode(state.context(), m_topCodeBlock, programNode, isEvalMode);
 
     m_topCodeBlock->m_cachedASTNode = nullptr;
 

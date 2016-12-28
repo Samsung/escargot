@@ -80,9 +80,10 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg, CodeBlock* par
         }
         bool needNewEnv = parserResult.m_script->topCodeBlock()->isStrict();
         if (!parentCodeBlock) {
-            return parserResult.m_script->execute(state.context(), needNewEnv);
+            // In case of indirect call, use global execution context
+            return parserResult.m_script->execute(state.context(), true, needNewEnv);
         } else {
-            return parserResult.m_script->executeLocal(state, needNewEnv);
+            return parserResult.m_script->executeLocal(state, true, needNewEnv);
         }
     }
     return arg;

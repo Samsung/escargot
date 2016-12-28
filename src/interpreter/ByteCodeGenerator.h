@@ -13,10 +13,13 @@ class ByteCodeBlock;
 class Node;
 
 struct ParserContextInformation {
-    ParserContextInformation(bool isEvalCode = false, bool isForGlobalScope = false)
+    ParserContextInformation(bool isEvalCode = false, bool isForGlobalScope = false, bool isStrict = false)
         : m_isEvalCode(isEvalCode)
         , m_isForGlobalScope(isForGlobalScope)
     {
+        // NOTE: ES5 10.4.2.1
+        if (isEvalCode && isStrict)
+            m_isForGlobalScope = false;
     }
 
     bool m_isEvalCode : 1;
@@ -159,6 +162,10 @@ struct ByteCodeGenerateContext {
     void consumeContinuePositions(ByteCodeBlock* cb, size_t position);
     void consumeLabeledContinuePositions(ByteCodeBlock* cb, size_t position, String* lbl);
     void morphJumpPositionIntoComplexCase(ByteCodeBlock* cb, size_t codePos);
+    bool isGlobalScope()
+    {
+        return m_isGlobalScope;
+    }
 
     // NOTE this is counter! not index!!!!!!
     size_t m_baseRegisterCount;
@@ -196,7 +203,7 @@ public:
     {
     }
 
-    void generateByteCode(Context* c, CodeBlock* codeBlock, Node* ast);
+    void generateByteCode(Context* c, CodeBlock* codeBlock, Node* ast, bool isEvalMode = false);
 };
 }
 

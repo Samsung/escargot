@@ -243,14 +243,16 @@ public:
     AtomicString functionName()
     {
         // check function
-        ASSERT(m_parentCodeBlock || m_isNativeFunction);
+        // FIXME(ASSERT): also possible in strict & indirect eval
+        // ASSERT(m_parentCodeBlock || m_isNativeFunction);
         return m_functionName;
     }
 
     const AtomicStringVector& functionParameters()
     {
         // check function
-        ASSERT(m_parentCodeBlock || m_isNativeFunction);
+        // FIXME(ASSERT): also possible in strict & indirect eval
+        // ASSERT(m_parentCodeBlock || m_isNativeFunction);
         return m_parameterNames;
     }
 

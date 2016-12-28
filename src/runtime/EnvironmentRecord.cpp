@@ -12,9 +12,11 @@ GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBloc
     : EnvironmentRecord(state, codeBlock)
     , m_globalCodeBlock(codeBlock)
 {
-    ASSERT(codeBlock->parentCodeBlock() == nullptr);
+    ASSERT(codeBlock == nullptr || codeBlock->parentCodeBlock() == nullptr);
     m_globalObject = global;
 
+    if (!codeBlock)
+        return;
     const CodeBlock::IdentifierInfoVector& vec = codeBlock->identifierInfos();
     size_t len = vec.size();
     for (size_t i = 0; i < len; i++) {
