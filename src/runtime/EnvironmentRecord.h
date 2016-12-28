@@ -338,6 +338,12 @@ public:
         m_vector[idx].m_value = v;
     }
 
+    virtual bool deleteBinding(ExecutionState& state, const AtomicString& name)
+    {
+        // Currently 'canDelete' is always false in DeclarativeEnvironmentRecordNotIndexded::createMutableBinding
+        return false;
+    }
+
 protected:
     IdentifierRecordVector m_vector;
 };
