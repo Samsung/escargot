@@ -74,6 +74,21 @@ static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t
     return thisVal->call(state, thisArg, arrlen, arguments);
 }
 
+static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (!thisValue.isFunction())
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
+    FunctionObject* thisVal = thisValue.asFunction();
+    Value thisArg = argv[0];
+    size_t arrlen = argc > 0 ? argc - 1 : 0;
+    Value* arguments = ALLOCA(sizeof(Value) * arrlen, Value, state);
+    for (size_t i = 0; i < arrlen; i++) {
+        arguments[i] = argv[i + 1];
+    }
+
+    return thisVal->call(state, thisArg, arrlen, arguments);
+}
+
 void GlobalObject::installFunction(ExecutionState& state)
 {
     FunctionObject* emptyFunction = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionEmptyFunction, 1, nullptr, 0)),
@@ -96,6 +111,9 @@ void GlobalObject::installFunction(ExecutionState& state)
 
     m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().apply),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().apply, builtinFunctionApply, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().call),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().call, builtinFunctionCall, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Function),
                       ObjectPropertyDescriptor(m_function, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

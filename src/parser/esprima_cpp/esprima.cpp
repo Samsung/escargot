@@ -344,6 +344,7 @@ struct ScanRegExpResult {
 struct ScannerResult : public gc {
     Token type;
     bool octal;
+    bool plain;
     bool head;
 
     int prec;
@@ -366,10 +367,10 @@ struct ScannerResult : public gc {
     {
         this->type = type;
         this->octal = false;
+        this->plain = false;
         this->head = false;
         this->prec = -1;
         this->valueKeywordKind = NotKeyword;
-        this->valueString = valueString;
         this->lineNumber = lineNumber;
         this->valueNumber = 0;
         this->lineStart = lineStart;
@@ -381,6 +382,7 @@ struct ScannerResult : public gc {
     {
         this->type = type;
         this->octal = false;
+        this->plain = false;
         this->head = false;
         this->prec = -1;
         this->valueKeywordKind = NotKeyword;
@@ -396,6 +398,7 @@ struct ScannerResult : public gc {
     {
         this->type = type;
         this->octal = false;
+        this->plain = false;
         this->head = false;
         this->valueKeywordKind = NotKeyword;
         this->valueNumber = value;
@@ -412,6 +415,7 @@ struct ScannerResult : public gc {
     {
         this->type = type;
         this->octal = false;
+        this->plain = false;
         this->head = false;
         this->prec = -1;
         this->valueKeywordKind = NotKeyword;
@@ -1779,6 +1783,7 @@ public:
             ret = new ScannerResult(Token::StringLiteralToken, StringView(newStr, 0, newStr->length()), /*octal, */ this->lineNumber, this->lineStart, start, this->index);
         }
         ret->octal = octal;
+        ret->plain = isPlainCase;
 
         return ret;
     }
@@ -5614,7 +5619,7 @@ public:
             }
 
             DirectiveNode* directive = (DirectiveNode*)statement;
-            if (directive->value().equals("use strict")) {
+            if (token->plain && directive->value().equals("use strict")) {
                 this->scopeContexts.back()->m_isStrict = this->context->strict = true;
                 if (firstRestricted) {
                     this->tolerateUnexpectedToken(firstRestricted, Messages::StrictOctalLiteral);
