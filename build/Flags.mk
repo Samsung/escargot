@@ -7,7 +7,7 @@ ESCARGOT_CXXFLAGS_COMMON += -fno-rtti -fno-math-errno -I$(ESCARGOT_ROOT)/src/
 ESCARGOT_CXXFLAGS_COMMON += -fdata-sections -ffunction-sections
 ESCARGOT_CXXFLAGS_COMMON += -frounding-math -fsignaling-nans
 ESCARGOT_CXXFLAGS_COMMON += -fno-omit-frame-pointer
-ESCARGOT_CXXFLAGS_COMMON += -DUSE_ES6_FEATURE
+#ESCARGOT_CXXFLAGS_COMMON += -DUSE_ES6_FEATURE
 
 ESCARGOT_CXXFLAGS_COMMON += -Wno-unused-but-set-variable -Wno-unused-but-set-parameter -Wno-unused-parameter
 ESCARGOT_CXXFLAGS_COMMON += -Wno-type-limits -Wno-unused-result -Wno-unused-variable # TODO: enable these warnings

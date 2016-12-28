@@ -1530,6 +1530,12 @@ EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(ExecutionState&
                         keyStringSet.insert(key);
                         data->m_keys.pushBack(name.toValue(state));
                     }
+                } else if (target == obj) {
+                    // 12.6.4 The values of [[Enumerable]] attributes are not considered
+                    // when determining if a property of a prototype object is shadowed by a previous object on the prototype chain.
+                    String* key = name.toValue(state).toString(state);
+                    ASSERT(keyStringSet.find(key) == keyStringSet.end());
+                    keyStringSet.insert(key);
                 }
                 return true;
             });

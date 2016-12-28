@@ -2283,7 +2283,7 @@ public:
         this->context->firstCoverInitializedNameError = nullptr;
         this->context->isAssignmentTarget = true;
         this->context->isBindingElement = true;
-        this->context->inFunctionBody = true;
+        this->context->inFunctionBody = false;
         this->context->inIteration = true;
         this->context->inSwitch = true;
         this->context->strict = this->sourceType == Module;
@@ -3247,6 +3247,7 @@ public:
                 this->nextToken();
                 value = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
 
+#if USE_ES6_FEATURE
             } else if (this->match(LeftParenthesis)) {
                 value = this->parsePropertyMethodFunction();
                 method = true;
@@ -3263,6 +3264,7 @@ public:
                     shorthand = true;
                     value = id;
                 }
+#endif
             } else {
                 this->throwUnexpectedToken(this->nextToken());
             }
