@@ -113,7 +113,7 @@ ObjectPropertyDescriptor::ObjectPropertyDescriptor(ExecutionState& state, Object
             } else {
                 if (m_isDataProperty) {
                     m_isDataProperty = false;
-                    m_getterSetter = JSGetterSetter(v.asFunction(), nullptr);
+                    m_getterSetter = JSGetterSetter(nullptr, v.asFunction());
                 } else {
                     m_getterSetter.m_setter = v.asFunction();
                 }
