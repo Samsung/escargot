@@ -40,10 +40,12 @@ public:
         size_t doStart = codeBlock->currentCodeSize();
         m_body->generateStatementByteCode(codeBlock, &newContext);
 
+        newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by m_test
         size_t testPos = codeBlock->currentCodeSize();
         m_test->generateExpressionByteCode(codeBlock, &newContext);
         codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex(), doStart), &newContext, this);
 
+        newContext.giveUpRegister();
         newContext.giveUpRegister();
 
         size_t doEnd = codeBlock->currentCodeSize();

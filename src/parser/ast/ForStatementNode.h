@@ -39,6 +39,8 @@ public:
     {
         ByteCodeGenerateContext newContext(*context);
 
+        newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by m_test
+
         if (m_init) {
             m_init->generateStatementByteCode(codeBlock, &newContext);
         }
@@ -54,6 +56,7 @@ public:
         codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex()), &newContext, this);
         size_t testPos = codeBlock->lastCodePosition<JumpIfFalse>();
 
+        newContext.giveUpRegister();
         newContext.giveUpRegister();
 
         m_body->generateStatementByteCode(codeBlock, &newContext);

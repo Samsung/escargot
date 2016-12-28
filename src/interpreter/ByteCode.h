@@ -206,7 +206,7 @@ public:
     {
         printf("%d\t\t", (int)pos);
         dump();
-        printf(" %s ", getByteCodeNameFromAddress(m_opcodeInAddress));
+        printf(" | %s ", getByteCodeNameFromAddress(m_opcodeInAddress));
         printf("(line: %d:%d)\n", (int)m_loc.line, (int)m_loc.column);
     }
 
@@ -237,6 +237,12 @@ public:
             printf("%lf", v.asNumber());
         } else if (v.isString()) {
             printf("\"%.32s\"", v.asString()->toUTF8StringData().data());
+        } else if (v.isUndefined()) {
+            printf("undefined");
+        } else if (v.isNull()) {
+            printf("null");
+        } else if (v.isBoolean()) {
+            printf("%s", v.asBoolean() ? "true" : "false");
         } else {
             printf("other value.. sorry");
         }
@@ -528,8 +534,8 @@ DEFINE_BINARY_OPERATION(LessThan, "lessthan");
 DEFINE_BINARY_OPERATION(LessThanOrEqual, "lessthan or equal");
 DEFINE_BINARY_OPERATION(GreaterThan, "greaterthan");
 DEFINE_BINARY_OPERATION(GreaterThanOrEqual, "greaterthan or equal");
-DEFINE_BINARY_OPERATION(StrictEqual, "strict erqual");
-DEFINE_BINARY_OPERATION(NotStrictEqual, "not strict erqual");
+DEFINE_BINARY_OPERATION(StrictEqual, "strict equal");
+DEFINE_BINARY_OPERATION(NotStrictEqual, "not strict equal");
 DEFINE_BINARY_OPERATION(BitwiseAnd, "bitwise and");
 DEFINE_BINARY_OPERATION(BitwiseOr, "bitwise or");
 DEFINE_BINARY_OPERATION(BitwiseXor, "bitwise Xor");
