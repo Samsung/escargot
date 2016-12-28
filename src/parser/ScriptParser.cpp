@@ -51,6 +51,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
             }
         }
 
+        bool hasCapturedIdentifier = false;
         AtomicString arguments = ctx->staticStrings().arguments;
         for (size_t i = 0; i < scopeCtx->m_usingNames.size(); i++) {
             AtomicString uname = scopeCtx->m_usingNames[i];
@@ -63,10 +64,20 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
             if (!codeBlock->hasName(uname)) {
                 CodeBlock* c = codeBlock->parentCodeBlock();
                 while (c) {
-                    if (c->tryCaptureIdentifiersFromChildCodeBlock(uname))
+                    if (c->tryCaptureIdentifiersFromChildCodeBlock(uname)) {
+                        hasCapturedIdentifier = true;
                         break;
+                    }
                     c = c->parentCodeBlock();
                 }
+            }
+        }
+        // FIXME: modify efficiently if possible. consider 10.4.3-1-102-s
+        if (hasCapturedIdentifier) {
+            CodeBlock* c = codeBlock->parentCodeBlock();
+            while (c && c->m_canAllocateEnvironmentOnStack) {
+                c->m_canAllocateEnvironmentOnStack = false;
+                c = c->parentCodeBlock();
             }
         }
     }
