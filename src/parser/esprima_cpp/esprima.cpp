@@ -5525,7 +5525,7 @@ public:
             this->nextToken();
         }
 
-        const char* message;
+        const char* message = nullptr;
         IdentifierNode* id = nullptr;
         ScannerResult* firstRestricted = nullptr;
 
