@@ -10,6 +10,8 @@ AM_CPPFLAGS = \
         -I$(top_builddir)/src -I$(top_srcdir)/src \
         -I$(top_builddir)/tests -I$(top_srcdir)/tests
 
+CFLAGS += $(CFLAGS_EXTRA)
+
 if HAVE_PTHREAD_H
 TESTS=test_atomic test_atomic_pthreads test_stack test_malloc
 test_atomic_pthreads_SOURCES=$(test_atomic_SOURCES)
@@ -44,6 +46,7 @@ test_atomic_include.h: test_atomic_include.template
 	sed -e s:XX:_full:g $? >> $@
 	sed -e s:XX:_release_write:g $? >> $@
 	sed -e s:XX:_acquire_read:g $? >> $@
+	sed -e s:XX:_dd_acquire_read:g $? >> $@
 
 list_atomic.c: list_atomic.template
 	mkdir -p `dirname $@`

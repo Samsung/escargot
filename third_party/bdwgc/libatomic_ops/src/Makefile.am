@@ -1,6 +1,8 @@
 AM_CFLAGS=@PICFLAG@
 AM_CPPFLAGS = -I$(top_builddir)/src -I$(top_srcdir)/src
 
+CFLAGS += $(CFLAGS_EXTRA)
+
 include_HEADERS = atomic_ops.h atomic_ops_stack.h atomic_ops_malloc.h
 lib_LTLIBRARIES = libatomic_ops.la libatomic_ops_gpl.la
 if NEED_ASM
@@ -79,10 +81,12 @@ nobase_private_HEADERS = atomic_ops/ao_version.h \
           atomic_ops/sysdeps/gcc/ia64.h \
           atomic_ops/sysdeps/gcc/m68k.h \
           atomic_ops/sysdeps/gcc/mips.h \
+          atomic_ops/sysdeps/gcc/nios2.h \
           atomic_ops/sysdeps/gcc/powerpc.h \
           atomic_ops/sysdeps/gcc/s390.h \
           atomic_ops/sysdeps/gcc/sh.h \
           atomic_ops/sysdeps/gcc/sparc.h \
+          atomic_ops/sysdeps/gcc/tile.h \
           atomic_ops/sysdeps/gcc/x86.h \
         \
           atomic_ops/sysdeps/hpc/hppa.h \
