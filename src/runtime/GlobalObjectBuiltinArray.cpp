@@ -45,6 +45,11 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
     return array;
 }
 
+static Value builtinArrayIsArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
 
 static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
@@ -365,6 +370,18 @@ static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t 
     return Value();
 }
 
+static Value builtinArrayIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
 static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, forEach);
@@ -413,6 +430,36 @@ static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t ar
         }
     }
     return Value(true);
+}
+
+static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+static Value builtinArraySome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+static Value builtinArrayUnShift(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
 }
 
 static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -464,6 +511,18 @@ static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t a
     return accumulator;
 }
 
+static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+static Value builtinArrayPop(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
 static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Array.prototype.push ( [ item1 [ , item2 [ , … ] ] ] )
@@ -489,6 +548,12 @@ static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t arg
     return Value(n);
 }
 
+static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
 void GlobalObject::installArray(ExecutionState& state)
 {
     m_array = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Array, builtinArrayConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
@@ -500,12 +565,19 @@ void GlobalObject::installArray(ExecutionState& state)
     m_arrayPrototype = m_objectPrototype;
     m_arrayPrototype = new ArrayObject(state);
     m_arrayPrototype->setPrototype(state, m_objectPrototype);
-    m_arrayPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_array));
+    m_arrayPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_array, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().isArray),
+                                              ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isArray, builtinArrayIsArray, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().concat),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().concat, builtinArrayConcat, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().forEach),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().forEach, builtinArrayForEach, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().indexOf),
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().indexOf, builtinArrayIndexOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lastIndexOf),
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().lastIndexOf, builtinArrayLastIndexOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().join),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().join, builtinArrayJoin, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().sort),
@@ -516,14 +588,30 @@ void GlobalObject::installArray(ExecutionState& state)
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().slice, builtinArraySlice, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().every),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().every, builtinArrayEvery, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().filter),
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().filter, builtinArrayFilter, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().reduce),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().reduce, builtinArrayReduce, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().reduceRight),
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().reduceRight, builtinArrayReduceRight, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().pop),
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().pop, builtinArrayPop, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().push),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().push, builtinArrayPush, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().shift),
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().shift, builtinArrayShift, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().reverse),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().reverse, builtinArrayReverse, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toString),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinArrayToString, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().map),
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().map, builtinArrayMap, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().some),
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().some, builtinArraySome, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toLocaleString),
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toLocaleString, builtinArrayToLocaleString, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().unshift),
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().unshift, builtinArrayUnShift, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_array->setFunctionPrototype(state, m_arrayPrototype);
 

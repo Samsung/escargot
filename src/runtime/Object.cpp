@@ -89,6 +89,8 @@ ObjectPropertyDescriptor::ObjectPropertyDescriptor(ExecutionState& state, Object
     if (desc.hasValue()) {
         m_value = desc.value(state, obj);
         hasValue = true;
+    } else {
+        m_value = Value();
     }
 
     desc = obj->get(state, ObjectPropertyName(strings->get));

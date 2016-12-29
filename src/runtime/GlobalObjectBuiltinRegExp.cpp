@@ -77,6 +77,40 @@ static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t ar
     return Value(testResult);
 }
 
+static Value builtinRegExpToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, RegExp, toString);
+
+    if (!thisObject->isRegExpObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotRegExpObject);
+    }
+    RegExpObject* regexp = thisObject->asRegExpObject();
+
+    StringBuilder builder;
+    builder.appendString("/");
+    builder.appendString(regexp->get(state, ObjectPropertyName(state.context()->staticStrings().source)).value(state, thisObject).toString(state));
+    builder.appendString("/");
+
+    RegExpObject::Option option = regexp->option();
+
+    char flags[5] = { 0 };
+    int flags_idx = 0;
+    if (option & RegExpObject::Option::Global) {
+        flags[flags_idx++] = 'g';
+    }
+    if (option & RegExpObject::Option::IgnoreCase) {
+        flags[flags_idx++] = 'i';
+    }
+    if (option & RegExpObject::Option::MultiLine) {
+        flags[flags_idx++] = 'm';
+    }
+    if (option & RegExpObject::Option::Sticky) {
+        flags[flags_idx++] = 'y';
+    }
+    builder.appendString(flags);
+    return builder.finalize();
+}
+
 void GlobalObject::installRegExp(ExecutionState& state)
 {
     m_regexp = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().RegExp, builtinRegExpConstructor, 2, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
@@ -87,8 +121,10 @@ void GlobalObject::installRegExp(ExecutionState& state)
     m_regexp->setPrototype(state, m_functionPrototype);
 
     m_regexpPrototype = m_objectPrototype;
-    m_regexpPrototype = new Object(state);
+    m_regexpPrototype = new RegExpObject(state);
     m_regexpPrototype->setPrototype(state, m_objectPrototype);
+
+    m_regexpPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_regexp, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_regexp->setFunctionPrototype(state, m_regexpPrototype);
 
@@ -101,6 +137,8 @@ void GlobalObject::installRegExp(ExecutionState& state)
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->test, builtinRegExpTest, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $21.2.5.14 RegExp.prototype.toString
+    m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toString),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toString, builtinRegExpToString, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $B.2.5.1 RegExp.prototype.compile
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().RegExp),

@@ -270,6 +270,30 @@ static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t ar
     return Value(number);
 }
 
+static Value builtinEncodeURI(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+static Value builtinDecodeURI(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+static Value builtinEncodeURIComponent(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+static Value builtinDecodeURIComponent(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
 static Value builtinIsFinite(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     double num = argv[0].toNumber(state);
@@ -318,6 +342,25 @@ void GlobalObject::installOthers(ExecutionState& state)
                                                                   NativeFunctionInfo(strings->parseFloat, builtinParseFloat, 1, nullptr, NativeFunctionInfo::Strict), false),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    defineOwnProperty(state, ObjectPropertyName(strings->encodeURI),
+                      ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                  NativeFunctionInfo(strings->encodeURI, builtinEncodeURI, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    defineOwnProperty(state, ObjectPropertyName(strings->decodeURI),
+                      ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                  NativeFunctionInfo(strings->decodeURI, builtinDecodeURI, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    defineOwnProperty(state, ObjectPropertyName(strings->encodeURIComponent),
+                      ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                  NativeFunctionInfo(strings->encodeURIComponent, builtinEncodeURIComponent, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    defineOwnProperty(state, ObjectPropertyName(strings->decodeURIComponent),
+                      ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                  NativeFunctionInfo(strings->decodeURIComponent, builtinDecodeURIComponent, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 #ifdef ESCARGOT_SHELL
     defineOwnProperty(state, ObjectPropertyName(strings->print),
                       ObjectPropertyDescriptor(new FunctionObject(state,

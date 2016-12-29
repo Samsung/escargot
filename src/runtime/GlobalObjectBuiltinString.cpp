@@ -95,6 +95,12 @@ static Value builtinStringLastIndexOf(ExecutionState& state, Value thisValue, si
     return Value(result);
 }
 
+static Value builtinStringLocaleCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
 static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, indexOf);
@@ -312,6 +318,12 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
         }
         return builder.finalize();
     }
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
     RELEASE_ASSERT_NOT_REACHED();
 }
 
@@ -583,6 +595,24 @@ static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, si
     }
 }
 
+static Value builtinStringToLocaleLowerCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+static Value builtinStringToLocaleUpperCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+static Value builtinStringTrim(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
 static Value builtinStringValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (thisValue.isString()) {
@@ -608,7 +638,7 @@ void GlobalObject::installString(ExecutionState& state)
     m_stringPrototype = new StringObject(state, String::emptyString);
     m_stringPrototype->setPrototype(state, m_objectPrototype);
     m_string->setFunctionPrototype(state, m_stringPrototype);
-    m_stringPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_string));
+    m_stringPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_string, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toString),
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toString, builtinStringToString, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -624,6 +654,9 @@ void GlobalObject::installString(ExecutionState& state)
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->lastIndexOf),
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->lastIndexOf, builtinStringLastIndexOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->localeCompare),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->localeCompare, builtinStringLocaleCompare, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     // $21.1.3.16 String.prototype.slice
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->slice),
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->slice, builtinStringSlice, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -637,6 +670,9 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->replace),
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->replace, builtinStringReplace, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->search),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->search, builtinStringSearch, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->split),
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->split, builtinStringSplit, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -652,6 +688,15 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toUpperCase),
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toUpperCase, builtinStringToUpperCase, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toLocaleLowerCase),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toLocaleLowerCase, builtinStringToLocaleLowerCase, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toLocaleUpperCase),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toLocaleUpperCase, builtinStringToLocaleUpperCase, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->trim),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->trim, builtinStringTrim, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $21.1.3.26 String.prototype.valueOf
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->valueOf),

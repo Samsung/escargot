@@ -51,6 +51,7 @@ public:
         installMath(state);
         installDate(state);
         installRegExp(state);
+        installJSON(state);
         installOthers(state);
     }
 
@@ -64,6 +65,7 @@ public:
     void installMath(ExecutionState& state);
     void installDate(ExecutionState& state);
     void installRegExp(ExecutionState& state);
+    void installJSON(ExecutionState& state);
     void installOthers(ExecutionState& state);
 
     Value eval(ExecutionState& state, const Value& arg, CodeBlock* parentCodeBlock);
@@ -207,6 +209,11 @@ public:
         return m_regexpPrototype;
     }
 
+    Object* json()
+    {
+        return m_json;
+    }
+
     FunctionObject* eval()
     {
         return m_eval;
@@ -284,6 +291,8 @@ protected:
 
     StringObject* m_stringProxyObject;
     NumberObject* m_numberProxyObject;
+
+    Object* m_json;
 
     bool hasPropertyOnIndex(ExecutionState& state, const PropertyName& name, size_t idx)
     {

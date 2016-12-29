@@ -51,7 +51,7 @@ void GlobalObject::installBoolean(ExecutionState& state)
     m_booleanPrototype = m_objectPrototype;
     m_booleanPrototype = new BooleanObject(state, false);
     m_booleanPrototype->setPrototype(state, m_objectPrototype);
-    m_booleanPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_boolean));
+    m_booleanPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_boolean, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $19.3.3.2 Boolean.prototype.toString
     m_booleanPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toString),

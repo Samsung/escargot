@@ -45,6 +45,23 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     return new FunctionObject(state, cb, globalEnvironment);
 }
 
+static Value builtinFunctionToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (!thisValue.isFunction())
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
+
+    FunctionObject* fn = thisValue.asFunction();
+    StringBuilder builder;
+    builder.appendString("function ");
+    builder.appendString(fn->codeBlock()->functionName().string());
+    builder.appendString("() {");
+    if (fn->codeBlock()->isNativeFunction())
+        builder.appendString(" [native code] ");
+    builder.appendString("}");
+
+    return builder.finalize();
+}
+
 static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (!thisValue.isFunction())
@@ -125,6 +142,9 @@ void GlobalObject::installFunction(ExecutionState& state)
     m_function->setFunctionPrototype(state, emptyFunction);
     m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().constructor),
                                                           ObjectPropertyDescriptor(m_function, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toString),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinFunctionToString, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().apply),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().apply, builtinFunctionApply, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
