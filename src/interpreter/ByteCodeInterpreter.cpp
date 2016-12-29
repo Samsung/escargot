@@ -727,16 +727,22 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                     LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
                     ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
 
-                    ExecutionState newState(state.context(), newEc, state.exeuctionResult());
-                    newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
-                    interpret(newState, codeBlock, code->m_catchPosition, stackStorage);
-                    programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
+                    try {
+                        ExecutionState newState(state.context(), newEc, state.exeuctionResult());
+                        newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
+                        interpret(newState, codeBlock, code->m_catchPosition, stackStorage);
+                        programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
+                    } catch (const Value& val) {
+                        state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
+                        programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
+                    }
                 }
             }
             NEXT_INSTRUCTION();
         }
 
         TryCatchWithBodyEndOpcodeLbl : {
+            (*(state.rareData()->m_controlFlowRecord))[state.rareData()->m_controlFlowRecord->size() - 1] = nullptr;
             return;
         }
 
