@@ -148,6 +148,25 @@ static Value builtinObjectIsPrototypeOf(ExecutionState& state, Value thisValue, 
     }
 }
 
+static Value builtinObjectPropertyIsEnumerable(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let P be ToString(V).
+    Value P = argv[0].toString(state);
+
+    // Let O be the result of calling ToObject passing the this value as the argument.
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Object, propertyIsEnumerable);
+
+    // Let desc be the result of calling the [[GetOwnProperty]] internal method of O with argument name.
+    ObjectGetResult desc = O->getOwnProperty(state, ObjectPropertyName(state, P));
+
+    // If desc is undefined, return false.
+    if (!desc.hasValue())
+        return Value(false);
+
+    // Return the value of desc.[[Enumerable]].
+    return Value(desc.isEnumerable());
+}
+
 static Value builtinObjectGetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Object.getPrototypeOf ( O )
@@ -225,8 +244,13 @@ void GlobalObject::installObject(ExecutionState& state)
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().hasOwnProperty),
                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinObjectHasOwnProperty, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    // $19.1.3.4 Object.prototype.isPrototypeOf(V)
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().isPrototypeOf),
                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isPrototypeOf, builtinObjectIsPrototypeOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // $19.1.3.4 Object.prototype.propertyIsEnumerable(V)
+    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().propertyIsEnumerable),
+                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().propertyIsEnumerable, builtinObjectPropertyIsEnumerable, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     JSGetterSetter gs(
         new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().__proto__, builtinObject__proto__Getter, 0, nullptr, NativeFunctionInfo::Strict)),

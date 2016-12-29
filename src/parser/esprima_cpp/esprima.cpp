@@ -2284,8 +2284,8 @@ public:
         this->context->isAssignmentTarget = true;
         this->context->isBindingElement = true;
         this->context->inFunctionBody = false;
-        this->context->inIteration = true;
-        this->context->inSwitch = true;
+        this->context->inIteration = false;
+        this->context->inSwitch = false;
         this->context->strict = this->sourceType == Module;
 
         this->startMarker.index = 0;

@@ -40,6 +40,8 @@ public:
     {
         ByteCodeGenerateContext newContext(*context);
 
+        newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by caseNode->m_test
+
         m_discriminant->generateExpressionByteCode(codeBlock, &newContext);
         size_t rIndex0 = newContext.getLastRegisterIndex();
 
@@ -64,6 +66,7 @@ public:
             newContext.giveUpRegister();
         }
 
+        newContext.giveUpRegister();
         newContext.giveUpRegister();
 
         size_t jmpToDefault = SIZE_MAX;
