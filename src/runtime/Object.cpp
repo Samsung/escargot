@@ -96,29 +96,27 @@ ObjectPropertyDescriptor::ObjectPropertyDescriptor(ExecutionState& state, Object
     desc = obj->get(state, ObjectPropertyName(strings->get));
     if (desc.hasValue()) {
         Value v = desc.value(state, obj);
-        if (!v.isUndefined()) {
-            if (!v.isFunction()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Getter must be a function");
-            } else {
-                m_isDataProperty = false;
-                m_getterSetter = JSGetterSetter(v.asFunction(), nullptr);
-            }
+        if (!v.isFunction() && !v.isUndefined()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Getter must be a function or undefined");
+        } else {
+            m_isDataProperty = false;
+            FunctionObject* getter = v.isFunction() ? v.asFunction() : nullptr;
+            m_getterSetter = JSGetterSetter(getter, nullptr);
         }
     }
 
     desc = obj->get(state, ObjectPropertyName(strings->set));
     if (desc.hasValue()) {
         Value v = desc.value(state, obj);
-        if (!v.isUndefined()) {
-            if (!v.isFunction()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Setter must be a function");
+        if (!v.isFunction() && !v.isUndefined()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Setter must be a function or undefined");
+        } else {
+            FunctionObject* setter = v.isFunction() ? v.asFunction() : nullptr;
+            if (m_isDataProperty) {
+                m_isDataProperty = false;
+                m_getterSetter = JSGetterSetter(nullptr, setter);
             } else {
-                if (m_isDataProperty) {
-                    m_isDataProperty = false;
-                    m_getterSetter = JSGetterSetter(nullptr, v.asFunction());
-                } else {
-                    m_getterSetter.m_setter = v.asFunction();
-                }
+                m_getterSetter.m_setter = setter;
             }
         }
     }
@@ -386,7 +384,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
             // If the [[Configurable]] field of current is false, then
             if (!item.m_descriptor.isConfigurable()) {
                 // Reject, if the [[Writable]] field of current is false and the [[Writable]] field of Desc is true.
-                if (item.m_descriptor.isConfigurable() && !desc.isWritable()) {
+                if (!item.m_descriptor.isWritable() && desc.isWritable()) {
                     return false;
                 }
                 // If the [[Writable]] field of current is false, then
@@ -400,6 +398,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
             // else, the [[Configurable]] field of current is true, so any change is acceptable.
         } else {
             // Else, IsAccessorDescriptor(current) and IsAccessorDescriptor(Desc) are both true so,
+            ASSERT(!item.m_descriptor.isDataProperty() && !desc.isDataProperty());
 
             // If the [[Configurable]] field of current is false, then
             if (!item.m_descriptor.isConfigurable()) {

@@ -102,8 +102,7 @@ static Value builtinObjectCreate(ExecutionState& state, Value thisValue, size_t 
 
 static Value builtinObjectDefineProperties(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    return objectDefineProperties(state, argv[0], argv[1]);
 }
 
 static Value builtinObjectDefineProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
