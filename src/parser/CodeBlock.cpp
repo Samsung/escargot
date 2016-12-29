@@ -230,6 +230,8 @@ CodeBlock::CodeBlock(Context* ctx)
 
 void CodeBlock::initializeCodeBlockForCallBound(FunctionObject* boundTarget, Value& boundThis, size_t boundArgc, Value* boundArgv)
 {
+    m_isStrict = boundTarget->codeBlock()->isStrict();
+
     m_byteCodeBlock = new ByteCodeBlock();
     CallBoundFunction code(ByteCodeLOC(0));
     code.m_boundTargetFunction = boundTarget;

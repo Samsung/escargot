@@ -1150,7 +1150,7 @@ public:
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("call bound (bound args: %d)", m_boundArgumentsCount);
+        printf("call bound (bound args: %zu)", m_boundArgumentsCount);
     }
 #endif
 };

@@ -174,4 +174,5 @@
   <test id="Sbp_A4_T2"><reason>bestPractice</reason></test>
   <test id="Sbp_A5_T1"><reason>bestPractice</reason></test>
   <test id="Sbp_A5_T2"><reason>bestPractice</reason></test>
+  <test id="S13_A15_T4"><reason>temporary</reason></test>
 </excludeList>
