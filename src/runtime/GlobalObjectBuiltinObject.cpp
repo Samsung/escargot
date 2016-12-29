@@ -1,6 +1,7 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "ArrayObject.h"
 
 namespace Escargot {
 
@@ -70,8 +71,8 @@ inline Value objectDefineProperties(ExecutionState& state, Value object, Value p
     std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor> > descriptors;
     props->enumeration(state, [&](const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc) -> bool {
         auto propDesc = props->getOwnProperty(state, name);
-        Value propVal;
-        if (propDesc.hasValue() && !(propVal = propDesc.value(state, props)).isUndefined() && desc.isEnumerable()) {
+        if (propDesc.hasValue() && desc.isEnumerable()) {
+            Value propVal = propDesc.value(state, props);
             if (!propVal.isObject())
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Object.string(), false, strings->defineProperty.string(), errorMessage_GlobalObject_DescriptorNotObject);
             descriptors.push_back(std::make_pair(name, ObjectPropertyDescriptor(state, propVal.toObject(state))));
@@ -226,8 +227,30 @@ static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value 
 
 static Value builtinObjectGetOwnPropertyNames(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    // If Type(O) is not Object throw a TypeError exception.
+    if (!argv[0].isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().getOwnPropertyNames.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+    }
+    Object* O = argv[0].asObject();
+
+    // Let array be the result of creating a new object as if by the expression new Array () where Array is the standard built-in constructor with that name.
+    ArrayObject* array = new ArrayObject(state);
+
+    // Let n be 0.
+    size_t n = 0;
+    // For each named own property P of O
+    O->enumeration(state, [&](const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc) -> bool {
+        // Let name be the String value that is the name of P.
+        Value name = P.string(state);
+        // Call the [[DefineOwnProperty]] internal method of array with arguments ToString(n), the PropertyDescriptor {[[Value]]: name, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
+        array->defineOwnProperty(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(name, ObjectPropertyDescriptor::AllPresent));
+        // Increment n by 1.
+        n++;
+        return true;
+    });
+
+    // Return array.
+    return array;
 }
 
 static Value builtinObjectIsExtensible(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

@@ -47,8 +47,12 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
 
 static Value builtinArrayIsArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    if (!argv[0].isObject())
+        return Value(false);
+    if (argv[0].asObject()->isArrayObject())
+        return Value(true);
+    else
+        return Value(false);
 }
 
 static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
