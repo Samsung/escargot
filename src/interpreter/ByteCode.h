@@ -88,6 +88,7 @@ class Node;
     F(StoreArgumentsObject, 0, 0)             \
     F(CallNativeFunction, 0, 0)               \
     F(CallEvalFunction, 0, 0)                 \
+    F(CallBoundFunction, 0, 0)                \
     F(ResetExecuteResult, 0, 0)               \
     F(End, 0, 0)
 
@@ -1131,6 +1132,25 @@ public:
     virtual void dump()
     {
         printf("call eval r%d <- r%d-r%d", (int)m_registerIndex, (int)m_registerIndex, (int)m_registerIndex + (int)m_argumentCount);
+    }
+#endif
+};
+
+class CallBoundFunction : public ByteCode {
+public:
+    CallBoundFunction(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::CallBoundFunctionOpcode, loc)
+    {
+    }
+    FunctionObject* m_boundTargetFunction;
+    Value m_boundThis;
+    Value* m_boundArguments;
+    size_t m_boundArgumentsCount;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("call bound (bound args: %d)", m_boundArgumentsCount);
     }
 #endif
 };

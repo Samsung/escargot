@@ -703,6 +703,25 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             NEXT_INSTRUCTION();
         }
 
+        CallBoundFunctionOpcodeLbl : {
+            CallBoundFunction* code = (CallBoundFunction*)currentCode;
+            // Collect arguments info when current function is called.
+            size_t calledArgc = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->argc();
+            Value* calledArgv = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->argv();
+
+            int mergedArgc = code->m_boundArgumentsCount + calledArgc;
+            Value* mergedArgv = ALLOCA(mergedArgc * sizeof(Value), Value, state);
+            if (code->m_boundArgumentsCount)
+                memcpy(mergedArgv, code->m_boundArguments, sizeof(Value) * code->m_boundArgumentsCount);
+            if (calledArgc)
+                memcpy(mergedArgv + code->m_boundArgumentsCount, calledArgv, sizeof(Value) * calledArgc);
+
+            // FIXME: consider new
+            Value result = FunctionObject::call(code->m_boundTargetFunction, state, code->m_boundThis, mergedArgc, mergedArgv);
+            *state.exeuctionResult() = result;
+            return;
+        }
+
         TryOperationOpcodeLbl : {
             TryOperation* code = (TryOperation*)currentCode;
             try {

@@ -89,6 +89,23 @@ static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t 
     return thisVal->call(state, thisArg, arrlen, arguments);
 }
 
+static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (!thisValue.isFunction())
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().bind.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
+
+    FunctionObject* target = thisValue.asFunction();
+    Value boundThis = argv[0];
+
+    CodeBlock* simpleCb = new CodeBlock(state.context());
+    size_t boundArgc = (argc >= 1) ? argc - 1 : argc;
+    Value* boundArgv = (boundArgc == 0) ? nullptr : argv + 1;
+    simpleCb->initializeCodeBlockForCallBound(target, boundThis, boundArgc, boundArgv);
+
+    FunctionObject* fn = new FunctionObject(state, simpleCb, nullptr);
+    return fn;
+}
+
 void GlobalObject::installFunction(ExecutionState& state)
 {
     FunctionObject* emptyFunction = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionEmptyFunction, 1, nullptr, 0)),
@@ -114,6 +131,9 @@ void GlobalObject::installFunction(ExecutionState& state)
 
     m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().call),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().call, builtinFunctionCall, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().bind),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bind, builtinFunctionBind, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Function),
                       ObjectPropertyDescriptor(m_function, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

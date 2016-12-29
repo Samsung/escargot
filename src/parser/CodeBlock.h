@@ -308,6 +308,10 @@ public:
 
     bool hasNonConfiguableNameOnGlobal(const AtomicString& name);
 
+    // empty CodeBlock
+    CodeBlock(Context* ctx);
+    void initializeCodeBlockForCallBound(FunctionObject* boundTarget, Value& boundThis, size_t boundArgc, Value* boundArgv);
+
 protected:
     // init global codeBlock
     CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, NodeLOC sourceElementStart, const AtomicStringVector& innerIdentifiers, CodeBlockInitFlag initFlags);
