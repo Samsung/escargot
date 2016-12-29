@@ -62,8 +62,9 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg, CodeBlock* par
         ScriptParser parser(state.context());
         const char* s = "eval input";
         ExecutionContext* pec = state.executionContext();
+        bool isDirectCall = !!parentCodeBlock;
         bool strictFromOutside = false;
-        while (pec) {
+        while (isDirectCall && pec) {
             if (pec->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && pec->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
                 strictFromOutside = pec->inStrictMode();
                 break;
@@ -79,7 +80,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg, CodeBlock* par
             state.throwException(err);
         }
         bool needNewEnv = parserResult.m_script->topCodeBlock()->isStrict();
-        if (!parentCodeBlock) {
+        if (!isDirectCall) {
             // In case of indirect call, use global execution context
             return parserResult.m_script->execute(state.context(), true, needNewEnv);
         } else {

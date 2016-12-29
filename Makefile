@@ -362,7 +362,7 @@ check:
 	make tidy-update
 	make x64.interpreter.release -j$(NPROCS)
 	# make run-sunspider | tee out/sunspider_result
-	make run-test262 OPT="ch06 ch07 ch08 ch09 ch10/10.1 ch10/10.4.1 ch10/10.4.2 ch10/10.5 ch11/11.1 ch11/11.10 ch11/11.11 ch11/11.12 ch11/11.13 ch11/11.14 ch11/11.5 ch11/11.6 ch11/11.7 ch11/11.8 ch11/11.9 ch12/12.1/ ch12/12.3 ch12/12.4 ch12/12.5 ch12/12.6 ch12/12.7 ch12/12.8 ch12/12.9 ch12/12.10 ch12/12.11 ch12/12.12 ch12/12.13 ch14"
+	make run-test262 OPT="ch06 ch07 ch08 ch09 ch10/10.1 ch10/10.4.1 ch10/10.4.2 ch10/10.5 ch11/11.1 ch11/11.10 ch11/11.11 ch11/11.12 ch11/11.13 ch11/11.14 ch11/11.5 ch11/11.6 ch11/11.7 ch11/11.8 ch11/11.9 ch12 ch14"
 
 tidy-install:
 	apt-get install clang-format-3.8
