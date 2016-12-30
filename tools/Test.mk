@@ -1,10 +1,12 @@
+OPT_CH10=ch10/10.1 ch10/10.2 ch10/10.4.1 ch10/10.4.2 ch10/10.5
 OPT_CH15=ch15/15.1/15.1.1 ch15/15.1/15.1.2 ch15/15.2/15.2.1 ch15/15.2/15.2.2 ch15/15.2/15.2.3/15.2.3.1/ ch15/15.2/15.2.3/15.2.3.2 ch15/15.2/15.2.3/15.2.3.3 ch15/15.2/15.2.3/15.2.3.4 ch15/15.2/15.2.3/15.2.3.5 ch15/15.2/15.2.3/15.2.3.8 ch15/15.2/15.2.3/15.2.3.9 ch15/15.2/15.2.3/15.2.3.10 ch15/15.2/15.2.3/15.2.3.11 ch15/15.2/15.2.3/15.2.3.12 ch15/15.2/15.2.3/15.2.3.13 ch15/15.2/15.2.3/15.2.3.14
+#ch15/15.1/15.1.3(take too long)
 
 check:
 	make tidy-update
 	make x64.interpreter.release -j$(NPROCS)
 	# make run-sunspider | tee out/sunspider_result
-	make run-test262 OPT="ch06 ch07 ch08 ch09 ch10/10.1 ch10/10.4.1 ch10/10.4.2 ch10/10.5 ch11/11.1 ch11/11.10 ch11/11.11 ch11/11.12 ch11/11.13 ch11/11.14 ch11/11.5 ch11/11.6 ch11/11.7 ch11/11.8 ch11/11.9 ch12 ch13 ch14 $(OPT_CH15)"
+	make run-test262 OPT="ch06 ch07 ch08 ch09 $(OPT_CH10) ch11/11.1 ch11/11.10 ch11/11.11 ch11/11.12 ch11/11.13 ch11/11.14 ch11/11.5 ch11/11.6 ch11/11.7 ch11/11.8 ch11/11.9 ch12 ch13 ch14 $(OPT_CH15)"
 
 tidy-install:
 	apt-get install clang-format-3.8

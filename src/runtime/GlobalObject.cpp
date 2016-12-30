@@ -270,30 +270,6 @@ static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t ar
     return Value(number);
 }
 
-static Value builtinEncodeURI(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
-}
-
-static Value builtinDecodeURI(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
-}
-
-static Value builtinEncodeURIComponent(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
-}
-
-static Value builtinDecodeURIComponent(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
-}
-
 static Value builtinIsFinite(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     double num = argv[0].toNumber(state);
@@ -307,6 +283,231 @@ static Value builtinIsNaN(ExecutionState& state, Value thisValue, size_t argc, V
 {
     double num = argv[0].toNumber(state);
     return Value(std::isnan(num));
+}
+
+/* ES5 15.1.3 URI Handling Functions */
+
+// [uriReserved] ; / ? : @ & = + $ ,
+inline static bool isURIReservedOrSharp(char16_t ch)
+{
+    return ch == ';' || ch == '/' || ch == '?' || ch == ':' || ch == '@' || ch == '&'
+        || ch == '=' || ch == '+' || ch == '$' || ch == ',' || ch == '#';
+}
+
+inline static bool isURIAlpha(char16_t ch)
+{
+    return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z');
+}
+
+inline static bool isURIMark(char16_t ch)
+{
+    return (ch == '-' || ch == '_' || ch == '.' || ch == '!' || ch == '~' || ch == '*'
+            || ch == '\'' || ch == '(' || ch == ')');
+}
+
+inline static bool isDecimalDigit(char16_t ch)
+{
+    return ('0' <= ch && ch <= '9');
+}
+
+inline static bool isHexadecimalDigit(char16_t ch)
+{
+    return isDecimalDigit(ch) || ('A' <= ch && ch <= 'F') || ('a' <= ch && ch <= 'f');
+}
+
+inline static bool twocharToHexaDecimal(char16_t ch1, char16_t ch2, unsigned char* res)
+{
+    if (!isHexadecimalDigit(ch1) || !isHexadecimalDigit(ch2))
+        return false;
+    *res = (((ch1 & 0x10) ? (ch1 & 0xf) : ((ch1 & 0xf) + 9)) << 4)
+        | ((ch2 & 0x10) ? (ch2 & 0xf) : ((ch2 & 0xf) + 9));
+    return true;
+}
+
+inline static bool codeUnitToHexaDecimal(String* str, size_t start, unsigned char* res)
+{
+    ASSERT(str && str->length() > start + 2);
+    if (str->charAt(start) != '%')
+        return false;
+    bool succeed = twocharToHexaDecimal(str->charAt(start + 1), str->charAt(start + 2), res);
+    // The two most significant bits of res should be 10.
+    return succeed && (*res & 0xC0) == 0x80;
+}
+
+static Value decode(ExecutionState& state, String* uriString, bool noComponent, String* funcName)
+{
+    String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
+    StringBuilder unescaped;
+    size_t strLen = uriString->length();
+
+    for (size_t i = 0; i < strLen; i++) {
+        char16_t t = uriString->charAt(i);
+        if (t != '%') {
+            unescaped.appendChar(t);
+        } else {
+            size_t start = i;
+            if (i + 2 >= strLen)
+                ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+            char16_t next = uriString->charAt(i + 1);
+            char16_t nextnext = uriString->charAt(i + 2);
+
+            // char to hex
+            unsigned char b;
+            if (!twocharToHexaDecimal(next, nextnext, &b))
+                ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+            i += 2;
+
+            // most significant bit in b is 0
+            if (!(b & 0x80)) {
+                // let C be the character with code unit value B.
+                // if C is not in reservedSet, then let S be the String containing only the character C.
+                // else, C is in reservedSet, Let S be the substring of string from position start to position k included.
+                const char16_t c = b & 0x7f;
+                if (noComponent && isURIReservedOrSharp(c)) {
+                    unescaped.appendSubString(uriString, start, start + 3);
+                } else {
+                    unescaped.appendChar(c);
+                }
+            } else { // most significant bit in b is 1
+                unsigned char b_tmp = b;
+                int n = 1;
+                while (n < 5) {
+                    b_tmp <<= 1;
+                    if ((b_tmp & 0x80) == 0) {
+                        break;
+                    }
+                    n++;
+                }
+                if (n == 1 || n == 5 || (i + (3 * (n - 1)) >= strLen)) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+                }
+                unsigned char octets[4];
+                octets[0] = b;
+
+                int j = 1;
+                while (j < n) {
+                    if (!codeUnitToHexaDecimal(uriString, ++i, &b)) // "%XY" type
+                        ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+                    i += 2;
+                    octets[j] = b;
+                    j++;
+                }
+                ASSERT(n == 2 || n == 3 || n == 4);
+                unsigned int v = 0;
+                if (n == 2) {
+                    v = (octets[0] & 0x1F) << 6 | (octets[1] & 0x3F);
+                    if ((octets[0] == 0xC0) || (octets[0] == 0xC1)) {
+                        ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+                    }
+                } else if (n == 3) {
+                    v = (octets[0] & 0x0F) << 12 | (octets[1] & 0x3F) << 6 | (octets[2] & 0x3F);
+                    if ((0xD800 <= v && v <= 0xDFFF) || ((octets[0] == 0xE0) && ((octets[1] < 0xA0) || (octets[1] > 0xBF)))) {
+                        ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+                    }
+                } else if (n == 4) {
+                    v = (octets[0] & 0x07) << 18 | (octets[1] & 0x3F) << 12 | (octets[2] & 0x3F) << 6 | (octets[3] & 0x3F);
+                    if ((octets[0] == 0xF0) && ((octets[1] < 0x90) || (octets[1] > 0xBF))) {
+                        ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+                    }
+                }
+                if (v >= 0x10000) {
+                    const char16_t l = (((v - 0x10000) & 0x3ff) + 0xdc00);
+                    const char16_t h = ((((v - 0x10000) >> 10) & 0x3ff) + 0xd800);
+                    unescaped.appendChar(h);
+                    unescaped.appendChar(l);
+                } else {
+                    const char16_t l = v & 0xFFFF;
+                    unescaped.appendChar(l);
+                }
+            }
+        }
+    }
+    return unescaped.finalize();
+}
+
+static Value builtinDecodeURI(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (argc == 0)
+        return Value();
+    return decode(state, argv[0].toString(state), true, state.context()->staticStrings().decodeURI.string());
+}
+
+static Value builtinDecodeURIComponent(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (argc == 0)
+        return Value();
+    return decode(state, argv[0].toString(state), false, state.context()->staticStrings().decodeURIComponent.string());
+}
+
+// make three code unit "%XY" and append to string builder
+static inline bool convertAndAppendCodeUnit(StringBuilder* builder, char16_t ch)
+{
+    unsigned char dig1 = (ch & 0xF0) >> 4;
+    unsigned char dig2 = (ch & 0x0F);
+    if (dig1 > 15 || dig2 > 15)
+        return false;
+    char ch1 = (dig1 <= 9) ? dig1 + '0' : dig1 - 10 + 'A';
+    char ch2 = (dig2 <= 9) ? dig2 + '0' : dig2 - 10 + 'A';
+
+    builder->appendChar('%');
+    builder->appendChar(ch1);
+    builder->appendChar(ch2);
+    return true;
+}
+
+static Value encode(ExecutionState& state, String* uriString, bool noComponent, String* funcName)
+{
+    String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
+    int strLen = uriString->length();
+
+    StringBuilder escaped;
+    for (int i = 0; i < strLen; i++) {
+        char16_t t = uriString->charAt(i);
+        if (isDecimalDigit(t) || isURIAlpha(t) || isURIMark(t)
+            || (noComponent && isURIReservedOrSharp(t))) {
+            escaped.appendChar(uriString->charAt(i));
+        } else if (t <= 0x007F) {
+            convertAndAppendCodeUnit(&escaped, t);
+        } else if (0x0080 <= t && t <= 0x07FF) {
+            convertAndAppendCodeUnit(&escaped, 0x00C0 + (t & 0x07C0) / 0x0040);
+            convertAndAppendCodeUnit(&escaped, 0x0080 + (t & 0x003F));
+        } else if ((0x0800 <= t && t <= 0xD7FF)
+                   || (0xE000 <= t /* && t <= 0xFFFF*/)) {
+            convertAndAppendCodeUnit(&escaped, 0x00E0 + (t & 0xF000) / 0x1000);
+            convertAndAppendCodeUnit(&escaped, 0x0080 + (t & 0x0FC0) / 0x0040);
+            convertAndAppendCodeUnit(&escaped, 0x0080 + (t & 0x003F));
+        } else if (0xD800 <= t && t <= 0xDBFF) {
+            if (i + 1 < strLen && 0xDC00 <= uriString->charAt(i + 1) && uriString->charAt(i + 1) <= 0xDFFF) {
+                int index = (t - 0xD800) * 0x400 + (uriString->charAt(i + 1) - 0xDC00) + 0x10000;
+                convertAndAppendCodeUnit(&escaped, 0x00F0 + (index & 0x1C0000) / 0x40000);
+                convertAndAppendCodeUnit(&escaped, 0x0080 + (index & 0x3F000) / 0x1000);
+                convertAndAppendCodeUnit(&escaped, 0x0080 + (index & 0x0FC0) / 0x0040);
+                convertAndAppendCodeUnit(&escaped, 0x0080 + (index & 0x003F));
+                i++;
+            } else {
+                ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+            }
+        } else if (0xDC00 <= t && t <= 0xDFFF) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+        } else {
+            RELEASE_ASSERT_NOT_REACHED();
+        }
+    }
+    return escaped.finalize();
+}
+
+static Value builtinEncodeURI(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (argc == 0)
+        return Value();
+    return encode(state, argv[0].toString(state), true, state.context()->staticStrings().encodeURI.string());
+}
+
+static Value builtinEncodeURIComponent(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (argc == 0)
+        return Value();
+    return encode(state, argv[0].toString(state), false, state.context()->staticStrings().encodeURIComponent.string());
 }
 
 void GlobalObject::installOthers(ExecutionState& state)
