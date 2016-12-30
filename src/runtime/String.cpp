@@ -475,7 +475,7 @@ uint32_t String::tryToUseAsArrayIndex() const
     }
 
     for (unsigned i = 0; i < len; i++) {
-        char16_t c = charAt(0);
+        char16_t c = charAt(i);
         if (c < '0' || c > '9') {
             allOfCharIsDigit = false;
             break;

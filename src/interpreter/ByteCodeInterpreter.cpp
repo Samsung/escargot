@@ -893,7 +893,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             EnumerateObjectKey* code = (EnumerateObjectKey*)currentCode;
             EnumerateObjectData* data = (EnumerateObjectData*)registerFile[code->m_dataRegisterIndex].asPointerValue();
             data->m_idx++;
-            registerFile[code->m_registerIndex] = data->m_keys[data->m_idx - 1];
+            registerFile[code->m_registerIndex] = data->m_keys[data->m_idx - 1].toString(state);
             ADD_PROGRAM_COUNTER(EnumerateObjectKey);
             NEXT_INSTRUCTION();
         }

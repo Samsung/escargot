@@ -369,6 +369,32 @@ static Value builtinObjectIsSealed(ExecutionState& state, Value thisValue, size_
 
 static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+    // If Type(O) is not Object throw a TypeError exception.
+    if (!argv[0].isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().getOwnPropertyNames.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+    }
+    Object* O = argv[0].asObject();
+
+    // Let array be the result of creating a new object as if by the expression new Array(n) where Array is the standard built-in constructor with that name.
+    ArrayObject* array = new ArrayObject(state);
+
+    // Let index be 0.
+    size_t index = 0;
+
+    // For each own enumerable property of O whose name String is P
+    O->enumeration(state, [&](const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc) -> bool {
+        if (desc.isEnumerable()) {
+            // Call the [[DefineOwnProperty]] internal method of array with arguments ToString(index), the PropertyDescriptor {[[Value]]: P, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
+            array->defineOwnProperty(state, ObjectPropertyName(state, Value(index)), ObjectPropertyDescriptor(Value(P.string(state)), ObjectPropertyDescriptor::AllPresent));
+            // Increment index by 1.
+            index++;
+        }
+        return true;
+    });
+
+    // Return array.
+    return array;
+
     state.throwException(new ASCIIString(errorMessage_NotImplemented));
     RELEASE_ASSERT_NOT_REACHED();
 }
