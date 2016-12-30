@@ -324,7 +324,7 @@ inline bool Value::operator!=(const Value& other) const
 
 inline bool Value::isInt32() const
 {
-#ifdef CARGOT_LITTLE_ENDIAN
+#ifdef ESCARGOT_LITTLE_ENDIAN
     ASSERT(sizeof(short) == 2);
     unsigned short* firstByte = (unsigned short*)&u.asInt64;
     return firstByte[3] == 0xffff;
@@ -368,7 +368,7 @@ inline bool Value::isDeleted() const
 
 inline bool Value::isNumber() const
 {
-#ifdef CARGOT_LITTLE_ENDIAN
+#ifdef ESCARGOT_LITTLE_ENDIAN
     ASSERT(sizeof(short) == 2);
     unsigned short* firstByte = (unsigned short*)&u.asInt64;
     return firstByte[3];

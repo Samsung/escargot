@@ -68,6 +68,8 @@ protected:
     // return values means state of isFastMode
     bool setArrayLength(ExecutionState& state, const uint32_t& newLength, bool isCalledFromCtor = false)
     {
+        ASSERT(isExtensible() || newLength <= getArrayLength(state));
+
         if (UNLIKELY(newLength == Value::InvalidArrayIndexValue)) {
             ErrorObject::throwBuiltinError(state, ErrorObject::Code::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
         }
@@ -141,6 +143,9 @@ protected:
                     return false;
                 }
                 if (UNLIKELY(len <= idx)) {
+                    if (UNLIKELY(!isExtensible())) {
+                        return false;
+                    }
                     if (UNLIKELY(!setArrayLength(state, idx + 1))) {
                         return false;
                     }

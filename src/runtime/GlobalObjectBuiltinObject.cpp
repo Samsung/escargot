@@ -34,7 +34,11 @@ static Value builtinObjectValueOf(ExecutionState& state, Value thisValue, size_t
 
 static Value builtinObjectPreventExtensions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    Object* o = argv[0].toObject(state);
+    // If Type(O) is not Object, throw a TypeError exception.
+    if (!argv[0].isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().defineProperty.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+    }
+    Object* o = argv[0].asObject();
     o->preventExtensions();
     return o;
 }
@@ -201,8 +205,51 @@ static Value builtinObjectGetPrototypeOf(ExecutionState& state, Value thisValue,
 
 static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    // If Type(O) is not Object throw a TypeError exception.
+    if (!argv[0].isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().seal.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+    }
+    Object* O = argv[0].asObject();
+    //O->markThisObjectDontNeedStructureTransitionTable(state);
+
+    // For each named own property name P of O,
+    std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor> > descriptors;
+    O->enumeration(state, [&](const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc) -> bool {
+        descriptors.push_back(std::make_pair(P, desc));
+        return true;
+    });
+    for (const auto& it : descriptors) {
+        const ObjectPropertyName& P = it.first;
+        const ObjectStructurePropertyDescriptor& desc = it.second;
+
+        // Let desc be the result of calling the [[GetOwnProperty]] internal method of O with P.
+        Object* newDesc = nullptr;
+
+        // If IsDataDescriptor(desc) is true, then
+        if (desc.isDataProperty()) {
+            // If desc.[[Writable]] is true, set desc.[[Writable]] to false.
+            if (desc.isWritable()) {
+                newDesc = O->getOwnProperty(state, P).toPropertyDescriptor(state, O).asObject();
+                newDesc->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().writable), Value(false), newDesc);
+            }
+        }
+        // If desc.[[Configurable]] is true, set desc.[[Configurable]] to false.
+        if (desc.isConfigurable()) {
+            if (!newDesc) {
+                newDesc = O->getOwnProperty(state, P).toPropertyDescriptor(state, O).asObject();
+            }
+            newDesc->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().configurable), Value(false), newDesc);
+        }
+        // Call the [[DefineOwnProperty]] internal method of O with P, desc, and true as arguments.
+        if (newDesc) {
+            O->defineOwnProperty(state, P, ObjectPropertyDescriptor(state, newDesc));
+        }
+    }
+
+    // Set the [[Extensible]] internal property of O to false.
+    O->preventExtensions();
+    // Return O.
+    return O;
 }
 
 static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -254,20 +301,70 @@ static Value builtinObjectGetOwnPropertyNames(ExecutionState& state, Value thisV
 
 static Value builtinObjectIsExtensible(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    // If Type(O) is not Object throw a TypeError exception.
+    if (!argv[0].isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().seal.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+    }
+    // Return the Boolean value of the [[Extensible]] internal property of O.
+    return Value(argv[0].asObject()->isExtensible());
 }
 
 static Value builtinObjectIsFrozen(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    // If Type(O) is not Object throw a TypeError exception.
+    if (!argv[0].isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().seal.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+    }
+    Object* O = argv[0].asObject();
+
+    bool hasNonFrozenProperty = false;
+    // For each named own property name P of O,
+    O->enumeration(state, [&](const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc) -> bool {
+        if ((desc.isDataProperty() && desc.isWritable()) || desc.isConfigurable()) {
+            hasNonFrozenProperty = true;
+            return false;
+        }
+        return true;
+    });
+    if (hasNonFrozenProperty)
+        return Value(false);
+
+    // If the [[Extensible]] internal property of O is false, then return true.
+    if (!O->isExtensible())
+        return Value(true);
+
+    // Otherwise, return false.
+    return Value(false);
 }
 
 static Value builtinObjectIsSealed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    // If Type(O) is not Object throw a TypeError exception.
+    if (!argv[0].isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().seal.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+    }
+    Object* O = argv[0].asObject();
+
+    bool hasNonSealedProperty = false;
+    // For each named own property name P of O,
+    O->enumeration(state, [&](const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc) -> bool {
+        // Let desc be the result of calling the [[GetOwnProperty]] internal method of O with P.
+        // If desc.[[Configurable]] is true, then return false.
+        if (desc.isConfigurable()) {
+            hasNonSealedProperty = true;
+            return false;
+        }
+        return true;
+    });
+    if (hasNonSealedProperty)
+        return Value(false);
+
+    // If the [[Extensible]] internal property of O is false, then return true.
+    if (!O->isExtensible())
+        return Value(true);
+
+    // Otherwise, return false.
+    return Value(false);
 }
 
 static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -278,8 +375,36 @@ static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t ar
 
 static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    // If Type(O) is not Object throw a TypeError exception.
+    if (!argv[0].isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().seal.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+    }
+    Object* O = argv[0].asObject();
+
+    // For each named own property name P of O,
+    std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor> > descriptors;
+    O->enumeration(state, [&](const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc) -> bool {
+        descriptors.push_back(std::make_pair(P, desc));
+        return true;
+    });
+    for (const auto& it : descriptors) {
+        const ObjectPropertyName& P = it.first;
+        const ObjectStructurePropertyDescriptor& desc = it.second;
+
+        // Let desc be the result of calling the [[GetOwnProperty]] internal method of O with P.
+        // If desc.[[Configurable]] is true, set desc.[[Configurable]] to false.
+        // Call the [[DefineOwnProperty]] internal method of O with P, desc, and true as arguments.
+        if (desc.isConfigurable()) {
+            Object* newDesc = O->getOwnProperty(state, P).toPropertyDescriptor(state, O).asObject();
+            newDesc->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().configurable), Value(false), newDesc);
+            O->defineOwnProperty(state, P, ObjectPropertyDescriptor(state, newDesc));
+        }
+    }
+
+    // Set the [[Extensible]] internal property of O to false.
+    O->preventExtensions();
+    // Return O.
+    return O;
 }
 
 void GlobalObject::installObject(ExecutionState& state)

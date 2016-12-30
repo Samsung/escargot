@@ -67,6 +67,7 @@ void ArrayObject::enumeration(ExecutionState& state, std::function<bool(const Ob
     if (LIKELY(isFastModeArray())) {
         size_t len = m_fastModeData.size();
         for (size_t i = 0; i < len; i++) {
+            ASSERT(isFastModeArray());
             if (m_fastModeData[i].isEmpty())
                 continue;
             if (!callback(ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent))) {
