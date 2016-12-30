@@ -524,7 +524,7 @@ void GlobalObject::installObject(ExecutionState& state)
 
     // $19.1.3.2 Object.prototype.hasOwnProperty(V)
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.hasOwnProperty),
-                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.toString, builtinObjectHasOwnProperty, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.hasOwnProperty, builtinObjectHasOwnProperty, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $19.1.3.4 Object.prototype.isPrototypeOf(V)
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.isPrototypeOf),

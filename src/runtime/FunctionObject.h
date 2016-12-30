@@ -14,7 +14,7 @@ class FunctionObject : public Object {
     FunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltin);
 
 public:
-    FunctionObject(ExecutionState& state, NativeFunctionInfo info, bool isConstructor = true);
+    FunctionObject(ExecutionState& state, NativeFunctionInfo info, bool isConstructor = false);
     FunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, bool isConstructor = true);
 
     Value getFunctionPrototype(ExecutionState& state)
