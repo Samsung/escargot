@@ -17,7 +17,7 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
     } else {
         ErrorObject* obj = new ErrorObject(state, String::emptyString);
         Value message = argv[0];
-        if (message.isUndefined()) {
+        if (!message.isUndefined()) {
             obj->setThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message, message.toString(state), obj);
         }
         return obj;
@@ -38,7 +38,7 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
         } else {                                                                                                                                                                                                                                                                              \
             ErrorObject* obj = new errorname##ErrorObject(state, String::emptyString);                                                                                                                                                                                                        \
             Value message = argv[0];                                                                                                                                                                                                                                                          \
-            if (message.isUndefined()) {                                                                                                                                                                                                                                                      \
+            if (!message.isUndefined()) {                                                                                                                                                                                                                                                     \
                 obj->setThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message, message.toString(state), obj);                                                                                                                                                         \
             }                                                                                                                                                                                                                                                                                 \
             return obj;                                                                                                                                                                                                                                                                       \
@@ -113,7 +113,8 @@ void GlobalObject::installError(ExecutionState& state)
 
     m_error->setPrototype(state, m_functionPrototype);
 
-    m_errorPrototype = new Object(state);
+    m_errorPrototype = m_objectPrototype;
+    m_errorPrototype = new ErrorObject(state, String::emptyString);
     m_error->setFunctionPrototype(state, m_errorPrototype);
     m_errorPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     m_errorPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -135,7 +136,8 @@ void GlobalObject::installError(ExecutionState& state)
                                               }),                                                                                                                                                                                                                                                            \
                                               FunctionObject::__ForBuiltin__);                                                                                                                                                                                                                               \
     m_##errorname##Error->setPrototype(state, m_functionPrototype);                                                                                                                                                                                                                                          \
-    m_##errorname##ErrorPrototype = new ErrorObject(state, String::emptyString);                                                                                                                                                                                                                             \
+    m_##errorname##ErrorPrototype = m_errorPrototype;                                                                                                                                                                                                                                                        \
+    m_##errorname##ErrorPrototype = new bname##ErrorObject(state, String::emptyString);                                                                                                                                                                                                                      \
     m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().constructor, ObjectPropertyDescriptor(m_##errorname##Error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent))); \
     m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().message, ObjectPropertyDescriptor(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));      \
     m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));         \
