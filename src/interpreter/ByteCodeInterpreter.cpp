@@ -975,20 +975,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
 
         LoadArgumentsObjectOpcodeLbl : {
             LoadArgumentsObject* code = (LoadArgumentsObject*)currentCode;
-            ExecutionContext* e = ec;
-            while (!(e->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord())) {
-                e = e->parent();
-            }
-            Value val(Value::ForceUninitialized);
-            auto fnRecord = e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-            if (e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isArgumentObjectCreated()) {
-                val = fnRecord->getBindingValue(state, state.context()->staticStrings().arguments).m_value;
-            } else {
-                val = fnRecord->createArgumentsObject(state, e);
-                auto result = fnRecord->hasBinding(state, state.context()->staticStrings().arguments);
-                fnRecord->setMutableBindingByIndex(state, result.m_index, state.context()->staticStrings().arguments, val);
-            }
-            registerFile[code->m_registerIndex] = val;
+            registerFile[code->m_registerIndex] = loadArgumentsObject(state, ec);
             ADD_PROGRAM_COUNTER(LoadArgumentsObject);
             NEXT_INSTRUCTION();
         }
@@ -1046,6 +1033,49 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             NEXT_INSTRUCTION();
         }
 
+        CallFunctionInWithScopeOpcodeLbl : {
+            CallFunctionInWithScope* code = (CallFunctionInWithScope*)currentCode;
+            const AtomicString& calleeName = code->m_calleeName;
+            // NOTE: record for with scope
+            ASSERT(record->isObjectEnvironmentRecord());
+            EnvironmentRecord::GetBindingValueResult result = record->getBindingValue(state, calleeName);
+            Object* receiverObj = NULL;
+            bool bindedWithObject = false;
+            Value callee = loadByNameForCallInWith(state, env, calleeName, bindedWithObject);
+            if (bindedWithObject)
+                receiverObj = record->asObjectEnvironmentRecord()->bindingObject();
+            else
+                receiverObj = state.context()->globalObject();
+            registerFile[code->m_registerIndex] = FunctionObject::call(callee, state, receiverObj, code->m_argumentCount, &registerFile[code->m_registerIndex]);
+            ADD_PROGRAM_COUNTER(CallFunctionInWithScope);
+            NEXT_INSTRUCTION();
+        }
+
+        LoadArgumentsInWithScopeOpcodeLbl : {
+            LoadArgumentsObject* code = (LoadArgumentsObject*)currentCode;
+            Value val;
+            LexicalEnvironment* envTmp = env;
+            while (envTmp) {
+                if (envTmp->record()->isObjectEnvironmentRecord()) {
+                    EnvironmentRecord::GetBindingValueResult result = envTmp->record()->getBindingValue(state, state.context()->staticStrings().arguments);
+                    if (result.m_hasBindingValue)
+                        val = result.m_value;
+                    else
+                        val = loadArgumentsObject(state, ec);
+                    break;
+                } else if (envTmp->record()->isDeclarativeEnvironmentRecord() && envTmp->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+                    val = loadArgumentsObject(state, ec);
+                    break;
+                }
+                envTmp = envTmp->outerEnvironment();
+            }
+            registerFile[code->m_registerIndex] = val;
+            loadArgumentsObject(state, ec);
+            ADD_PROGRAM_COUNTER(LoadArgumentsObject);
+            NEXT_INSTRUCTION();
+        }
+
+
         } catch (const Value& v) {
             if (state.context()->m_sandBoxStack.size()) {
                 SandBox* sb = state.context()->m_sandBoxStack.back();
@@ -1094,6 +1124,41 @@ FillOpcodeTable : {
 
 #undef REGISTER_TABLE
 }
+}
+
+Value ByteCodeInterpreter::loadArgumentsObject(ExecutionState& state, ExecutionContext* e)
+{
+    while (!(e->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord())) {
+        e = e->parent();
+    }
+    Value val(Value::ForceUninitialized);
+    auto fnRecord = e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+    if (e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isArgumentObjectCreated()) {
+        val = fnRecord->getBindingValue(state, state.context()->staticStrings().arguments).m_value;
+    } else {
+        val = fnRecord->createArgumentsObject(state, e);
+        auto result = fnRecord->hasBinding(state, state.context()->staticStrings().arguments);
+        fnRecord->setMutableBindingByIndex(state, result.m_index, state.context()->staticStrings().arguments, val);
+    }
+    return val;
+}
+
+Value ByteCodeInterpreter::loadByNameForCallInWith(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool& bindedWithObject, bool throwException)
+{
+    bindedWithObject = false;
+    while (env) {
+        EnvironmentRecord::GetBindingValueResult result = env->record()->getBindingValue(state, name);
+        if (result.m_hasBindingValue) {
+            bindedWithObject = env->record()->isObjectEnvironmentRecord();
+            return result.m_value;
+        }
+        env = env->outerEnvironment();
+    }
+
+    if (throwException)
+        ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
+
+    return Value();
 }
 
 Value ByteCodeInterpreter::loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool throwException)

@@ -86,10 +86,12 @@ class Node;
     F(ObjectDefineGetter, 0, 0)               \
     F(ObjectDefineSetter, 0, 0)               \
     F(LoadArgumentsObject, 0, 0)              \
+    F(LoadArgumentsInWithScope, 0, 0)         \
     F(StoreArgumentsObject, 0, 0)             \
     F(CallNativeFunction, 0, 0)               \
     F(CallEvalFunction, 0, 0)                 \
     F(CallBoundFunction, 0, 0)                \
+    F(CallFunctionInWithScope, 0, 0)          \
     F(ResetExecuteResult, 0, 0)               \
     F(End, 0, 0)
 
@@ -1174,6 +1176,31 @@ public:
 #endif
 };
 
+class CallFunctionInWithScope : public ByteCode {
+public:
+    // register usage (before call)
+    // [arg0, arg1,... arg<argument count-1> ]
+    // register usage (after call)
+    // [return value]
+    CallFunctionInWithScope(const ByteCodeLOC& loc, const size_t& registerIndex, const AtomicString& calleeName, const size_t& argumentCount)
+        : ByteCode(Opcode::CallFunctionInWithScopeOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_calleeName(calleeName)
+        , m_argumentCount(argumentCount)
+    {
+    }
+    size_t m_registerIndex;
+    AtomicString m_calleeName;
+    size_t m_argumentCount;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("call in with r%d <- r%d-r%d", (int)m_registerIndex, (int)m_registerIndex, (int)m_registerIndex + (int)m_argumentCount - 1);
+    }
+#endif
+};
+
 class ReturnFunction : public ByteCode {
 public:
     ReturnFunction(const ByteCodeLOC& loc, const size_t& registerIndex)
@@ -1423,6 +1450,23 @@ public:
     virtual void dump()
     {
         printf("load arguments r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class LoadArgumentsInWithScope : public ByteCode {
+public:
+    LoadArgumentsInWithScope(const ByteCodeLOC& loc, size_t registerIndex)
+        : ByteCode(Opcode::LoadArgumentsInWithScopeOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    size_t m_registerIndex;
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("load arguments in with r%d", (int)m_registerIndex);
     }
 #endif
 };

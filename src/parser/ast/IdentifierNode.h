@@ -73,7 +73,10 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         if (m_name.string()->equals("arguments") && !context->isGlobalScope() && context->m_codeBlock->usesArgumentsObject()) {
-            codeBlock->pushCode(LoadArgumentsObject(ByteCodeLOC(m_loc.index), context->getRegister()), context, this);
+            if (UNLIKELY(context->m_isWithScope))
+                codeBlock->pushCode(LoadArgumentsInWithScope(ByteCodeLOC(m_loc.index), context->getRegister()), context, this);
+            else
+                codeBlock->pushCode(LoadArgumentsObject(ByteCodeLOC(m_loc.index), context->getRegister()), context, this);
             return;
         }
 

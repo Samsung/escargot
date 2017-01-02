@@ -139,7 +139,7 @@ void GlobalObject::installRegExp(ExecutionState& state)
 
     // $21.2.5.14 RegExp.prototype.toString
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toString),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toString, builtinRegExpToString, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toString, builtinRegExpToString, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $B.2.5.1 RegExp.prototype.compile
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().RegExp),

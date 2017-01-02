@@ -41,11 +41,13 @@ public:
         codeBlock->pushCode(WithOperation(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
         context->giveUpRegister();
 
+        context->m_isWithScope = true;
         m_body->generateStatementByteCode(codeBlock, context);
         context->registerJumpPositionsToComplexCase(start);
 
         codeBlock->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
         codeBlock->peekCode<WithOperation>(withPos)->m_withEndPostion = codeBlock->currentCodeSize();
+        context->m_isWithScope = false;
 
         context->m_tryStatementScopeCount--;
     }

@@ -13,6 +13,7 @@ namespace Escargot {
 
 class GlobalEnvironmentRecord;
 class DeclarativeEnvironmentRecord;
+class ObjectEnvironmentRecord;
 class FunctionEnvironmentRecord;
 class GlobalObject;
 class CodeBlock;
@@ -145,6 +146,12 @@ public:
     {
         ASSERT(isGlobalEnvironmentRecord());
         return reinterpret_cast<GlobalEnvironmentRecord*>(this);
+    }
+
+    ObjectEnvironmentRecord* asObjectEnvironmentRecord()
+    {
+        ASSERT(isObjectEnvironmentRecord());
+        return reinterpret_cast<ObjectEnvironmentRecord*>(this);
     }
 
     DeclarativeEnvironmentRecord* asDeclarativeEnvironmentRecord()

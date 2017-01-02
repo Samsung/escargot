@@ -34,6 +34,7 @@ struct ByteCodeGenerateContext {
         , m_isGlobalScope(parserContextInformation.m_isForGlobalScope)
         , m_isEvalCode(parserContextInformation.m_isEvalCode)
         , m_isOutermostContext(true)
+        , m_isWithScope(false)
         , m_offsetToBasePointer(0)
         , m_positionToContinue(0)
         , m_tryStatementScopeCount(0)
@@ -51,6 +52,7 @@ struct ByteCodeGenerateContext {
         , m_isGlobalScope(contextBefore.m_isGlobalScope)
         , m_isEvalCode(contextBefore.m_isEvalCode)
         , m_isOutermostContext(false)
+        , m_isWithScope(false)
         , m_shouldGenerateByteCodeInstantly(contextBefore.m_shouldGenerateByteCodeInstantly)
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
         , m_offsetToBasePointer(contextBefore.m_offsetToBasePointer)
@@ -175,6 +177,7 @@ struct ByteCodeGenerateContext {
     bool m_isGlobalScope;
     bool m_isEvalCode;
     bool m_isOutermostContext;
+    bool m_isWithScope;
 
     bool m_shouldGenerateByteCodeInstantly;
     bool m_inCallingExpressionScope;

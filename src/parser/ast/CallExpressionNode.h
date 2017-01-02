@@ -35,6 +35,18 @@ public:
 
     Node* callee() { return m_callee; }
     virtual ASTNodeType type() { return ASTNodeType::CallExpression; }
+    void generateArguments(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        context->m_inCallingExpressionScope = false;
+
+        for (size_t i = 0; i < m_arguments.size(); i++) {
+            m_arguments[i]->generateExpressionByteCode(codeBlock, context);
+        }
+        for (size_t i = 0; i < m_arguments.size(); i++) {
+            context->giveUpRegister();
+        }
+    }
+
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
@@ -51,24 +63,27 @@ public:
         }
 
         bool prevInCallingExpressionScope = context->m_inCallingExpressionScope;
+        bool useWithObjectAsReceiver = context->m_isWithScope && m_callee->isIdentifier();
+        if (UNLIKELY(useWithObjectAsReceiver)) {
+            // CallFunction should check whether receiver is global obj or with obj.
+            ASSERT(m_callee->isIdentifier());
+            AtomicString calleeName = m_callee->asIdentifier()->name();
+            generateArguments(codeBlock, context);
+            context->m_inCallingExpressionScope = prevInCallingExpressionScope;
+            codeBlock->pushCode(CallFunctionInWithScope(ByteCodeLOC(m_loc.index), context->getRegister(), calleeName, m_arguments.size()), context, this);
+            return;
+        }
+
         if (m_callee->isMemberExpression()) {
             context->m_inCallingExpressionScope = true;
             context->m_isHeadOfMemberExpression = true;
-        }
-        if (!m_callee->isMemberExpression()) {
+        } else {
+            // NOTE: receiver is always global Object => undefined
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value()), context, this);
         }
         m_callee->generateExpressionByteCode(codeBlock, context);
         size_t baseRegister = context->getLastRegisterIndex() - 1;
-        context->m_inCallingExpressionScope = false;
-
-        for (size_t i = 0; i < m_arguments.size(); i++) {
-            m_arguments[i]->generateExpressionByteCode(codeBlock, context);
-        }
-        for (size_t i = 0; i < m_arguments.size(); i++) {
-            context->giveUpRegister();
-        }
-
+        generateArguments(codeBlock, context);
         context->m_inCallingExpressionScope = prevInCallingExpressionScope;
         codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), baseRegister, m_arguments.size()), context, this);
 
