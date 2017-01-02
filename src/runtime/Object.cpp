@@ -17,7 +17,7 @@ ObjectRareData::ObjectRareData()
     m_extraData = nullptr;
 }
 
-Value ObjectGetResult::valueSlowCase(ExecutionState& state, Object* receiver) const
+Value ObjectGetResult::valueSlowCase(ExecutionState& state, const Value& receiver) const
 {
     if (m_jsGetterSetter->getter()) {
         return m_jsGetterSetter->getter()->call(state, receiver, 0, nullptr);
@@ -25,7 +25,7 @@ Value ObjectGetResult::valueSlowCase(ExecutionState& state, Object* receiver) co
     return Value();
 }
 
-Value ObjectGetResult::toPropertyDescriptor(ExecutionState& state, Object* receiver)
+Value ObjectGetResult::toPropertyDescriptor(ExecutionState& state, const Value& receiver)
 {
     // If Desc is undefined, then return undefined.
     if (!hasValue()) {
@@ -497,7 +497,7 @@ void Object::enumeration(ExecutionState& state, std::function<bool(const ObjectP
     }
 }
 
-ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& propertyName, Object* receiver)
+ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& receiver)
 {
     Object* target = this;
     while (true) {
@@ -515,7 +515,7 @@ ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& pro
 }
 
 // http://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-set-p-v-receiver
-bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, Object* receiver)
+bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, const Value& receiver)
 {
     auto desc = getOwnProperty(state, propertyName);
     if (!desc.hasValue()) {
@@ -537,9 +537,12 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
             if (!desc.isWritable()) {
                 return false;
             }
-            // TODO If Type(Receiver) is not Object, return false.
+
+            if (!receiver.isObject())
+                return false;
+            Object* receiverObj = receiver.toObject(state);
             // Let existingDescriptor be Receiver.[[GetOwnProperty]](P).
-            auto receiverDesc = receiver->getOwnProperty(state, propertyName);
+            auto receiverDesc = receiverObj->getOwnProperty(state, propertyName);
             // If existingDescriptor is not undefined, then
             if (receiverDesc.hasValue()) {
                 // If IsAccessorDescriptor(existingDescriptor) is true, return false.
@@ -552,12 +555,12 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
                 }
                 // Let valueDesc be the PropertyDescriptor{[[Value]]: V}.
                 ObjectPropertyDescriptor desc(v);
-                return receiver->defineOwnProperty(state, propertyName, desc);
+                return receiverObj->defineOwnProperty(state, propertyName, desc);
             } else {
                 // Else Receiver does not currently have a property P,
                 // Return CreateDataProperty(Receiver, P, V).
                 ObjectPropertyDescriptor newDesc(v, ObjectPropertyDescriptor::AllPresent);
-                return receiver->defineOwnProperty(state, propertyName, newDesc);
+                return receiverObj->defineOwnProperty(state, propertyName, newDesc);
             }
         } else {
             // Let setter be ownDesc.[[Set]].
@@ -576,14 +579,14 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
     }
 }
 
-void Object::setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, Object* receiver)
+void Object::setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver)
 {
     if (UNLIKELY(!set(state, P, v, receiver))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.string(state), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
     }
 }
 
-void Object::setThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const Value& v, Object* receiver)
+void Object::setThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver)
 {
     if (UNLIKELY(!set(state, P, v, receiver)) && state.inStrictMode()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.string(state), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
@@ -703,7 +706,7 @@ void Object::sort(ExecutionState& state, std::function<bool(const Value& a, cons
     }
 }
 
-Value Object::getOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, Object* receiver)
+Value Object::getOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, const Value& receiver)
 {
     Value v = m_values[idx];
     auto gs = v.asPointerValue()->asJSGetterSetter();

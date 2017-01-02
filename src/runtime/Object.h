@@ -341,7 +341,7 @@ public:
         m_jsGetterSetter = getterSetter;
     }
 
-    Value value(ExecutionState& state, Object* receiver) const
+    Value value(ExecutionState& state, const Value& receiver) const
     {
         if (LIKELY(m_isDataProperty))
             return m_value;
@@ -385,7 +385,7 @@ public:
     }
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.10.4
-    Value toPropertyDescriptor(ExecutionState& state, Object* receiver);
+    Value toPropertyDescriptor(ExecutionState& state, const Value& receiver);
 
 protected:
     bool m_hasValue : 1;
@@ -397,7 +397,7 @@ protected:
         Value m_value;
         JSGetterSetter* m_jsGetterSetter;
     };
-    Value valueSlowCase(ExecutionState& state, Object* receiver) const;
+    Value valueSlowCase(ExecutionState& state, const Value& receiver) const;
 };
 
 #define ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER 0
@@ -485,14 +485,14 @@ public:
         return get(state, propertyName, this).hasValue();
     }
 
-    ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P, Object* receiver);
+    ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P, const Value& receiver);
     ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P)
     {
         return get(state, P, this);
     }
 
-    void setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, Object* receiver);
-    void setThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const Value& v, Object* receiver);
+    void setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
+    void setThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
     void defineOwnPropertyThrowsException(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
     {
         if (!defineOwnProperty(state, P, desc)) {
@@ -604,7 +604,7 @@ protected:
         return getOwnDataPropertyUtilForObject(state, idx, this);
     }
 
-    Value getOwnDataPropertyUtilForObject(ExecutionState& state, size_t idx, Object* receiver)
+    Value getOwnDataPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& receiver)
     {
         ASSERT(m_structure->readProperty(state, idx).m_descriptor.isDataProperty());
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
@@ -630,8 +630,8 @@ protected:
         }
     }
 
-    Value getOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, Object* receiver);
-    Value getOwnPropertyUtilForObject(ExecutionState& state, size_t idx, Object* receiver)
+    Value getOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, const Value& receiver);
+    Value getOwnPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& receiver)
     {
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
         if (LIKELY(item.m_descriptor.isDataProperty())) {
@@ -662,7 +662,7 @@ protected:
     void markAsPrototypeObject(ExecutionState& state);
     void deleteOwnProperty(ExecutionState& state, size_t idx);
 
-    bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, Object* receiver);
+    bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
 };
 }
 
