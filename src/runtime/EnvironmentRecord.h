@@ -283,7 +283,7 @@ public:
         return false;
     }
 
-    virtual bool isDeclarativeEnvironmentRecordNotIndexded()
+    virtual bool isDeclarativeEnvironmentRecordNotIndexed()
     {
         return false;
     }
@@ -301,20 +301,29 @@ public:
 };
 
 // NOTE
-// DeclarativeEnvironmentRecordNotIndexded record does not create binding self likes FunctionEnvironmentRecord
-// this record is for catch statement now
-class DeclarativeEnvironmentRecordNotIndexded : public DeclarativeEnvironmentRecord {
+// DeclarativeEnvironmentRecordNotIndexed record does not create binding self likes FunctionEnvironmentRecord
+// this record is for catch statement and strict eval now
+class DeclarativeEnvironmentRecordNotIndexed : public DeclarativeEnvironmentRecord {
 public:
-    DeclarativeEnvironmentRecordNotIndexded(ExecutionState& state)
+    DeclarativeEnvironmentRecordNotIndexed(ExecutionState& state)
         : DeclarativeEnvironmentRecord(state, nullptr)
     {
     }
 
-    ~DeclarativeEnvironmentRecordNotIndexded()
+    // this constructor is for strict eval
+    DeclarativeEnvironmentRecordNotIndexed(ExecutionState& state, const CodeBlock::IdentifierInfoVector& vec)
+        : DeclarativeEnvironmentRecord(state, nullptr)
+    {
+        for (size_t i = 0; i < vec.size(); i++) {
+            createMutableBinding(state, vec[i].m_name, false);
+        }
+    }
+
+    ~DeclarativeEnvironmentRecordNotIndexed()
     {
     }
 
-    virtual bool isDeclarativeEnvironmentRecordNotIndexded()
+    virtual bool isDeclarativeEnvironmentRecordNotIndexed()
     {
         return true;
     }
@@ -340,7 +349,7 @@ public:
 
     virtual bool deleteBinding(ExecutionState& state, const AtomicString& name)
     {
-        // Currently 'canDelete' is always false in DeclarativeEnvironmentRecordNotIndexded::createMutableBinding
+        // Currently 'canDelete' is always false in DeclarativeEnvironmentRecordNotIndexed::createMutableBinding
         return false;
     }
 

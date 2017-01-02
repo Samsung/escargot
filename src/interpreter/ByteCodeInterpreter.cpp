@@ -740,7 +740,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                     programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
                 } else {
                     // setup new env
-                    EnvironmentRecord* newRecord = new DeclarativeEnvironmentRecordNotIndexded(state);
+                    EnvironmentRecord* newRecord = new DeclarativeEnvironmentRecordNotIndexed(state);
                     newRecord->createMutableBinding(state, code->m_catchVariableName);
                     newRecord->setMutableBinding(state, code->m_catchVariableName, val);
                     LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);

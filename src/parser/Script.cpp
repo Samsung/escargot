@@ -31,8 +31,7 @@ Value Script::execute(Context* ctx, bool isEvalMode, bool needNewEnv)
         if (UNLIKELY(needNewEnv)) {
             // NOTE: ES5 10.4.2.1 eval in strict mode
             prevEc = new ExecutionContext(ctx, nullptr, globalEnvironment, m_topCodeBlock->isStrict());
-            FunctionObject* tmpFunc = new FunctionObject(stateForInit, m_topCodeBlock, nullptr, false);
-            EnvironmentRecord* record = new FunctionEnvironmentRecordNotIndexed(stateForInit, ctx->globalObject(), tmpFunc, 0, nullptr, false);
+            EnvironmentRecord* record = new DeclarativeEnvironmentRecordNotIndexed(stateForInit, m_topCodeBlock->identifierInfos());
             env = new LexicalEnvironment(record, globalEnvironment);
         } else {
             env = globalEnvironment;
@@ -85,8 +84,7 @@ Value Script::executeLocal(ExecutionState& state, bool isEvalMode, bool needNewR
     EnvironmentRecord* record;
     if (UNLIKELY(needNewRecord)) {
         // NOTE: ES5 10.4.2.1 eval in strict mode
-        FunctionObject* tmpFunc = new FunctionObject(state, m_topCodeBlock, nullptr, false);
-        record = new FunctionEnvironmentRecordNotIndexed(state, state.executionContext()->lexicalEnvironment()->getThisBinding(), tmpFunc, 0, nullptr, false);
+        record = new DeclarativeEnvironmentRecordNotIndexed(state, m_topCodeBlock->identifierInfos());
     } else {
         record = state.executionContext()->lexicalEnvironment()->record();
     }

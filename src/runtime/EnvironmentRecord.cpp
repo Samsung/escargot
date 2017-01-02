@@ -75,7 +75,7 @@ EnvironmentRecord::BindingSlot GlobalEnvironmentRecord::hasBinding(ExecutionStat
     }
 }
 
-void DeclarativeEnvironmentRecordNotIndexded::createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete)
+void DeclarativeEnvironmentRecordNotIndexed::createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete)
 {
     ASSERT(canDelete == false);
     ASSERT(hasBinding(state, name).m_index == SIZE_MAX);
@@ -85,7 +85,7 @@ void DeclarativeEnvironmentRecordNotIndexded::createMutableBinding(ExecutionStat
     m_vector.pushBack(record);
 }
 
-EnvironmentRecord::GetBindingValueResult DeclarativeEnvironmentRecordNotIndexded::getBindingValue(ExecutionState& state, const AtomicString& name)
+EnvironmentRecord::GetBindingValueResult DeclarativeEnvironmentRecordNotIndexed::getBindingValue(ExecutionState& state, const AtomicString& name)
 {
     size_t len = m_vector.size();
     for (size_t i = 0; i < len; i++) {
@@ -96,7 +96,7 @@ EnvironmentRecord::GetBindingValueResult DeclarativeEnvironmentRecordNotIndexded
     return GetBindingValueResult();
 }
 
-void DeclarativeEnvironmentRecordNotIndexded::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+void DeclarativeEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
 {
     size_t len = m_vector.size();
     for (size_t i = 0; i < len; i++) {
