@@ -176,8 +176,8 @@ public:
     typedef uint64_t ValueIndex;
     ValueIndex toIndex(ExecutionState& ec) const;
 
-    enum { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() };
-    inline uint32_t toArrayIndex(ExecutionState& ec) const;
+    enum { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() + 1LL };
+    inline uint64_t toArrayIndex(ExecutionState& ec) const;
 
     inline bool abstractEqualsTo(ExecutionState& ec, const Value& val) const;
     bool abstractEqualsToSlowCase(ExecutionState& ec, const Value& val) const;

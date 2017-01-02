@@ -32,7 +32,7 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
         array = new ArrayObject(state);
     }
 
-    array->setArrayLength(state, size, true);
+    array->setArrayLength(state, size);
     if (interpretArgumentsAsElements) {
         Value val = argv[0];
         if (argc > 1 || !val.isInt32()) {
@@ -207,68 +207,139 @@ static Value builtinArraySort(ExecutionState& state, Value thisValue, size_t arg
 
 static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, splice);
-    uint32_t len = thisObject->length(state);
-    double relativeStart = argv[0].toInteger(state);
-    uint32_t actualStart = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, (double)len);
     // TODO(ES6): the number of actual arguments is used.
     // e.g. var arr = [1, 2, 3, 4, 5];
     //      Different: arr.splice(2) vs. arr.splice(2, undefined)
 
-    uint32_t insertCnt = (argc >= 2) ? argc - 2 : 0;
-    uint32_t deleteCnt = std::min(std::max(argv[1].toInteger(state), 0.0), (double)len - actualStart);
-    double finalCnt = (double)len - deleteCnt + insertCnt;
-    if (finalCnt > Value::InvalidArrayIndexValue) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_RangeError);
-    }
+    // Let O be the result of calling ToObject passing the this value as the argument.
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, splice);
 
-    uint32_t k = 0;
-    ArrayObject* array = new ArrayObject(state);
-    while (k < deleteCnt) {
-        ObjectGetResult fromValue = thisObject->get(state, ObjectPropertyName(state, Value(actualStart + k)));
+    // Let A be a new array created as if by the expression new Array()where Array is the standard built-in constructor with that name.
+    ArrayObject* A = new ArrayObject(state);
+
+    // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
+    // Let len be ToUint32(lenVal).
+    int64_t len = O->length(state);
+
+    // Let relativeStart be ToInteger(start).
+    double relativeStart = argv[0].toInteger(state);
+
+    // If relativeStart is negative, let actualStart be max((len + relativeStart),0); else let actualStart be min(relativeStart, len).
+    int64_t actualStart = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, (double)len);
+
+    // Let actualDeleteCount be min(max(ToInteger(deleteCount),0), len – actualStart).
+    int64_t actualDeleteCount = std::min(std::max(argv[1].toInteger(state), 0.0), (double)len - actualStart);
+
+    // Let k be 0.
+    int64_t k = 0;
+
+    // Repeat, while k < actualDeleteCount
+    while (k < actualDeleteCount) {
+        // Let from be ToString(actualStart+k).
+        ObjectPropertyName from(state, Value(actualStart + k));
+        // Let fromPresent be the result of calling the [[HasProperty]] internal method of O with argument from.
+        // If fromPresent is true, then
+        // Let fromValue be the result of calling the [[Get]] internal method of O with argument from.
+        ObjectGetResult fromValue = O->get(state, from);
         if (fromValue.hasValue()) {
-            array->defineOwnProperty(state, ObjectPropertyName(state, Value(k)),
-                                     ObjectPropertyDescriptor(fromValue.value(state, thisObject), ObjectPropertyDescriptor::AllPresent));
-            k++;
-        } else {
-            k = Object::nextIndexForward(state, thisObject, k, len, false);
+            // Call the [[DefineOwnProperty]] internal method of A with arguments ToString(k), Property Descriptor {[[Value]]: fromValue, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
+            A->defineOwnProperty(state, ObjectPropertyName(state, Value(k)),
+                                 ObjectPropertyDescriptor(fromValue.value(state, O), ObjectPropertyDescriptor::AllPresent));
+            // Increment k by 1.
         }
+        k = Object::nextIndexForward(state, O, k, len, false);
     }
 
-    if (insertCnt < deleteCnt) {
+    // Let items be an internal List whose elements are, in left to right order, the portion of the actual argument list starting with item1. The list will be empty if no such items are present.
+    Value* items = nullptr;
+    int64_t itemCount = 0;
+
+    if (argc > 2) {
+        items = argv + 2;
+        itemCount = argc - 2;
+    }
+
+    // If itemCount < actualDeleteCount, then
+    if (itemCount < actualDeleteCount) {
+        // Let k be actualStart.
         k = actualStart;
         // move [actualStart + deleteCnt, len) to [actualStart + insertCnt, len - deleteCnt + insertCnt)
-        while (k < len - deleteCnt) {
-            // TODO: thisObject->relocateIndexesForward((double)start + deleteCnt, len, insertCnt - deleteCnt);
-            uint32_t from = k + deleteCnt;
-            uint32_t to = k + insertCnt;
-            ObjectGetResult fromValue = thisObject->get(state, ObjectPropertyName(state, Value(from)));
+        while (k < len - actualDeleteCount) {
+            // Let from be ToString(k+actualDeleteCount).
+            uint32_t from = k + actualDeleteCount;
+            // Let to be ToString(k+itemCount).
+            uint32_t to = k + actualDeleteCount;
+            // Let fromPresent be the result of calling the [[HasProperty]] internal method of O with argument from.
+            ObjectGetResult fromValue = O->get(state, ObjectPropertyName(state, Value(from)));
+            // If fromPresent is true, then
             if (fromValue.hasValue()) {
-                thisObject->setThrowsException(state, ObjectPropertyName(state, Value(to)), fromValue.value(state, thisObject), thisObject);
+                // Let fromValue be the result of calling the [[Get]] internal method of O with argument from.
+                O->setThrowsException(state, ObjectPropertyName(state, Value(to)), fromValue.value(state, O), O);
+                // Call the [[Put]] internal method of O with arguments to, fromValue, and true.
             } else {
-                thisObject->deleteOwnProperty(state, ObjectPropertyName(state, Value(to)));
+                // Else, fromPresent is false
+
+                // Call the [[Delete]] internal method of O with arguments to and true.
+                O->deleteOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(to)));
             }
             k++;
         }
-        // delete [len - deleteCnt + insertCnt, len)
+        // delete [len - deleteCnt + itemCount, len)
+        // Let k be len.
         k = len;
-        while (k > len - deleteCnt + insertCnt) {
-            thisObject->deleteOwnProperty(state, ObjectPropertyName(state, Value(k - 1)));
+        // Repeat, while k > (len – actualDeleteCount + itemCount)
+        while (k > len - actualDeleteCount + itemCount) {
+            // Call the [[Delete]] internal method of O with arguments ToString(k–1) and true.
+            O->deleteOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(k - 1)));
+            // Decrease k by 1.
             k--;
         }
-    } else if (insertCnt > deleteCnt) {
-        // TODO
-        RELEASE_ASSERT_NOT_REACHED();
+    } else if (itemCount > actualDeleteCount) {
+        // Else if itemCount > actualDeleteCount, then
+
+        // Let k be (len – actualDeleteCount).
+        k = len - actualDeleteCount;
+
+        // Repeat, while k > actualStart
+        while (k > actualStart) {
+            // Let from be ToString(k + actualDeleteCount – 1).
+            ObjectPropertyName from(state, Value(k + actualDeleteCount - 1));
+            // Let to be ToString(k + itemCount – 1)
+            ObjectPropertyName to(state, Value(k + itemCount - 1));
+
+            // Let fromPresent be the result of calling the [[HasProperty]] internal method of O with argument from.
+            ObjectGetResult fromValue = O->get(state, from);
+            // If fromPresent is true, then
+            if (fromValue.hasValue()) {
+                // Let fromValue be the result of calling the [[Get]] internal method of O with argument from.
+                // Call the [[Put]] internal method of O with arguments to, fromValue, and true.
+                O->setThrowsException(state, to, fromValue.value(state, O), O);
+            } else {
+                // Else, fromPresent is false
+                // Call the [[Delete]] internal method of O with argument to and true.
+                O->deleteOwnPropertyThrowsException(state, to);
+            }
+            // Decrease k by 1.
+            k--;
+        }
     }
 
+    // Let k be actualStart.
     k = actualStart;
-    if (insertCnt > 0) {
-        // TODO: insert items
-        RELEASE_ASSERT_NOT_REACHED();
+
+    // while items is not empty
+    int64_t itemsIndex = 0;
+    while (itemsIndex < itemCount) {
+        // Remove the first element from items and let E be the value of that element.
+        Value E = items[itemsIndex++];
+        // Call the [[Put]] internal method of O with arguments ToString(k), E, and true.
+        O->setThrowsException(state, ObjectPropertyName(state, Value(k)), E, O);
+        // Increase k by 1.
+        k++;
     }
 
-    thisObject->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(finalCnt), thisObject);
-    return array;
+    O->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(len - actualDeleteCount + itemCount), O);
+    return A;
 }
 
 
@@ -545,7 +616,7 @@ static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t arg
         // Increase n by 1.
         n++;
         // Call the [[Put]] internal method of O with arguments "length", n, and true.
-        O->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, state.context()->staticStrings().length), argv[i], O);
+        O->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, state.context()->staticStrings().length), Value(n), O);
     }
 
     // Return n.
@@ -572,7 +643,7 @@ void GlobalObject::installArray(ExecutionState& state)
     m_arrayPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_array, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().isArray),
-                                              ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isArray, builtinArrayIsArray, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                              ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isArray, builtinArrayIsArray, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().concat),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().concat, builtinArrayConcat, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

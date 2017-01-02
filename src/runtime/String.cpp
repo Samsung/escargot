@@ -458,10 +458,10 @@ bool String::equals(const String* src) const
     }
 }
 
-uint32_t String::tryToUseAsArrayIndex() const
+uint64_t String::tryToUseAsArrayIndex() const
 {
     bool allOfCharIsDigit = true;
-    uint32_t number = 0;
+    uint64_t number = 0;
     size_t len = length();
 
     if (UNLIKELY(len == 0)) {

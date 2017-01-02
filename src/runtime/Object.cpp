@@ -448,12 +448,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
 
         if (!shouldDelete) {
             if (item.m_descriptor.isDataProperty()) {
-                if (LIKELY(!item.m_descriptor.isNativeAccessorProperty())) {
-                    m_values[idx] = newDesc.value();
-                    return true;
-                } else {
-                    return true;
-                }
+                return setOwnDataPropertyUtilForObject(state, idx, newDesc.value());
             } else {
                 m_values[idx] = Value(new JSGetterSetter(newDesc.getterSetter()));
             }
@@ -628,7 +623,7 @@ double Object::nextIndexForward(ExecutionState& state, Object* obj, const double
     double ret = end;
     while (ptr.isObject()) {
         ptr.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc) {
-            uint32_t index = Value::InvalidArrayIndexValue;
+            uint64_t index;
             Value key = name.toValue(state);
             if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
                 if (skipUndefined && ptr.asObject()->get(state, name).value(state, ptr.asObject()).isUndefined()) {
@@ -652,7 +647,7 @@ double Object::nextIndexBackward(ExecutionState& state, Object* obj, const doubl
     double ret = end;
     while (ptr.isObject()) {
         ptr.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc) {
-            uint32_t index = Value::InvalidArrayIndexValue;
+            uint64_t index;
             Value key = name.toValue(state);
             if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
                 if (skipUndefined && ptr.asObject()->get(state, name).value(state, ptr.asObject()).isUndefined()) {

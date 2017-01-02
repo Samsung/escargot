@@ -22,7 +22,7 @@ public:
         return true;
     }
 
-    void setLength(ExecutionState& state, const uint32_t& value)
+    void setLength(ExecutionState& state, const uint64_t& value)
     {
         setArrayLength(state, value);
     }
@@ -66,7 +66,7 @@ protected:
     }
 
     // return values means state of isFastMode
-    bool setArrayLength(ExecutionState& state, const uint32_t& newLength, bool isCalledFromCtor = false)
+    bool setArrayLength(ExecutionState& state, const uint32_t& newLength)
     {
         ASSERT(isExtensible() || newLength <= getArrayLength(state));
 
@@ -77,7 +77,7 @@ protected:
         if (UNLIKELY(isFastModeArray() && (newLength > ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE))) {
             uint32_t orgLength = getArrayLength(state);
             if (newLength > orgLength) {
-                if ((newLength - orgLength > ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP) && !isCalledFromCtor) {
+                if ((newLength - orgLength > ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP)) {
                     convertIntoNonFastMode(state);
                 }
             }
@@ -98,7 +98,7 @@ protected:
     ALWAYS_INLINE ObjectGetResult getFastModeValue(ExecutionState& state, const ObjectPropertyName& P)
     {
         if (LIKELY(isFastModeArray())) {
-            uint32_t idx;
+            uint64_t idx;
             if (LIKELY(P.isUIntType())) {
                 idx = P.uintValue();
             } else {
@@ -121,7 +121,7 @@ protected:
     ALWAYS_INLINE bool setFastModeValue(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
     {
         if (LIKELY(isFastModeArray())) {
-            uint32_t idx;
+            uint64_t idx;
             if (LIKELY(P.isUIntType())) {
                 idx = P.uintValue();
             } else {

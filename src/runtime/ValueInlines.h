@@ -670,14 +670,14 @@ inline Value::ValueIndex Value::toIndex(ExecutionState& state) const // $7.1.15 
     }
 }
 
-inline uint32_t Value::toArrayIndex(ExecutionState& state) const
+inline uint64_t Value::toArrayIndex(ExecutionState& state) const
 {
     int32_t i;
     if (LIKELY(isInt32()) && LIKELY((i = asInt32()) >= 0)) {
         return i;
     } else {
         String* key = toString(state);
-        return key->tryToUseAsIndex();
+        return key->tryToUseAsArrayIndex();
     }
 }
 

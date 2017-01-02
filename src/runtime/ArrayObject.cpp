@@ -33,7 +33,7 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
         return true;
     }
 
-    uint32_t idx = P.toValue(state).toArrayIndex(state);
+    uint64_t idx = P.toValue(state).toArrayIndex(state);
     if (idx != Value::InvalidArrayIndexValue) {
         setArrayLength(state, idx + 1);
     }
@@ -44,14 +44,14 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
 bool ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     if (LIKELY(isFastModeArray())) {
-        uint32_t idx;
+        uint64_t idx;
         if (LIKELY(P.isUIntType())) {
             idx = P.uintValue();
         } else {
             idx = P.string(state)->tryToUseAsArrayIndex();
         }
         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-            uint32_t len = m_fastModeData.size();
+            uint64_t len = m_fastModeData.size();
             ASSERT(len == getArrayLength(state));
             if (idx < len) {
                 m_fastModeData[idx] = Value(Value::EmptyValue);
