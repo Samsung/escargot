@@ -111,15 +111,22 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     if (!thisValue.isFunction())
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().bind.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
 
-    FunctionObject* target = thisValue.asFunction();
-    Value boundThis = argv[0];
+    FunctionObject* targetFunction = thisValue.asFunction();
 
-    CodeBlock* simpleCb = new CodeBlock(state.context());
+    Value boundThis = argv[0];
     size_t boundArgc = (argc >= 1) ? argc - 1 : argc;
     Value* boundArgv = (boundArgc == 0) ? nullptr : argv + 1;
-    simpleCb->initializeCodeBlockForCallBound(target, boundThis, boundArgc, boundArgv);
+    CodeBlock* cb = new CodeBlock(state.context(), targetFunction, boundThis, boundArgc, boundArgv);
 
-    FunctionObject* fn = new FunctionObject(state, simpleCb, nullptr);
+    FunctionObject* fn = new FunctionObject(state, cb, targetFunction->outerEnvironment(), targetFunction->isConstructor());
+
+    // Let thrower be the [[ThrowTypeError]] function Object (13.2.3).
+    FunctionObject* thrower = state.context()->globalObject()->throwTypeError();
+    // Call the [[DefineOwnProperty]] internal method of F with arguments "caller", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
+    fn->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().caller), ObjectPropertyDescriptor(JSGetterSetter(thrower, thrower), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+    // Call the [[DefineOwnProperty]] internal method of F with arguments "arguments", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
+    fn->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().arguments), ObjectPropertyDescriptor(JSGetterSetter(thrower, thrower), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+
     return fn;
 }
 

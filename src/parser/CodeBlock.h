@@ -59,6 +59,9 @@ public:
     // init native CodeBlock
     CodeBlock(Context* ctx, const NativeFunctionInfo& info);
 
+    // init bound CodeBlock
+    CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv);
+
     enum CodeBlockInitFlag {
         CodeBlockInitDefault = 0,
         CodeBlockHasEval = 1,
@@ -104,27 +107,27 @@ public:
         return false;
     }
 
-    bool hasEval()
+    bool hasEval() const
     {
         return m_hasEval;
     }
 
-    bool hasWith()
+    bool hasWith() const
     {
         return m_hasWith;
     }
 
-    bool hasCatch()
+    bool hasCatch() const
     {
         return m_hasCatch;
     }
 
-    bool hasYield()
+    bool hasYield() const
     {
         return m_hasYield;
     }
 
-    bool hasEvalWithCatchYield()
+    bool hasEvalWithCatchYield() const
     {
         return m_hasEval || m_hasWith || m_hasCatch || m_hasYield;
     }
@@ -189,58 +192,58 @@ public:
         return m_nativeFunctionConstructor;
     }
 
-    bool isStrict()
+    bool isStrict() const
     {
         return m_isStrict;
     }
 
-    bool canUseIndexedVariableStorage()
+    bool canUseIndexedVariableStorage() const
     {
         return m_canUseIndexedVariableStorage;
     }
 
-    bool canAllocateEnvironmentOnStack()
+    bool canAllocateEnvironmentOnStack() const
     {
         return m_canAllocateEnvironmentOnStack;
     }
 
-    bool isFunctionDeclaration()
+    bool isFunctionDeclaration() const
     {
         return m_isFunctionDeclaration;
     }
 
-    bool isFunctionExpression()
+    bool isFunctionExpression() const
     {
         return m_isFunctionExpression;
     }
 
-    bool isNativeFunction()
+    bool isNativeFunction() const
     {
         return m_isNativeFunction;
     }
 
-    bool usesArgumentsObject()
+    bool usesArgumentsObject() const
     {
         ASSERT(!isGlobalScopeCodeBlock());
         return m_usesArgumentsObject;
     }
 
-    const IdentifierInfoVector& identifierInfos()
+    const IdentifierInfoVector& identifierInfos() const
     {
         return m_identifierInfos;
     }
 
-    size_t identifierOnStackCount()
+    size_t identifierOnStackCount() const
     {
         return m_identifierOnStackCount;
     }
 
-    size_t identifierOnHeapCount()
+    size_t identifierOnHeapCount() const
     {
         return m_identifierOnHeapCount;
     }
 
-    AtomicString functionName()
+    AtomicString functionName() const
     {
         // check function
         // FIXME(ASSERT): also possible in strict & indirect eval
@@ -248,7 +251,7 @@ public:
         return m_functionName;
     }
 
-    const AtomicStringVector& functionParameters()
+    const AtomicStringVector& functionParameters() const
     {
         // check function
         // FIXME(ASSERT): also possible in strict & indirect eval
@@ -256,7 +259,7 @@ public:
         return m_parameterNames;
     }
 
-    bool needsComplexParameterCopy()
+    bool needsComplexParameterCopy() const
     {
         return m_needsComplexParameterCopy;
     }
@@ -267,7 +270,7 @@ public:
         AtomicString m_name;
     };
     typedef Vector<FunctionParametersInfo, gc_malloc_atomic_ignore_off_page_allocator<FunctionParametersInfo>> FunctionParametersInfoVector;
-    const FunctionParametersInfoVector& parametersInfomation()
+    const FunctionParametersInfoVector& parametersInfomation() const
     {
         return m_parametersInfomation;
     }
@@ -307,10 +310,6 @@ public:
     }
 
     bool hasNonConfiguableNameOnGlobal(const AtomicString& name);
-
-    // empty CodeBlock
-    CodeBlock(Context* ctx);
-    void initializeCodeBlockForCallBound(FunctionObject* boundTarget, Value& boundThis, size_t boundArgc, Value* boundArgv);
 
 protected:
     // init global codeBlock

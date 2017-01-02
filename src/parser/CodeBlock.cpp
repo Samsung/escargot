@@ -54,6 +54,56 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     }
 }
 
+CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv)
+    : m_context(ctx)
+    , m_script(nullptr)
+    , m_src()
+    , m_sourceElementStart(0, 0, 0)
+    , m_astNodeStartIndex(0)
+    , m_identifierOnStackCount(0)
+    , m_identifierOnHeapCount(0)
+    , m_functionNameIndex(SIZE_MAX)
+    , m_parentCodeBlock(targetFunction->codeBlock()->parentCodeBlock())
+    , m_cachedASTNode(nullptr)
+    , m_byteCodeBlock(nullptr)
+    , m_nativeFunctionConstructor(targetFunction->codeBlock()->nativeFunctionConstructor())
+#ifndef NDEBUG
+    , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+    , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+    , m_scopeContext(nullptr)
+#endif
+{
+    const CodeBlock* targetCodeBlock = targetFunction->codeBlock();
+
+    m_isNativeFunction = targetCodeBlock->isNativeFunction();
+    m_functionName = targetCodeBlock->functionName();
+    m_isStrict = targetCodeBlock->isStrict();
+    m_hasEval = targetCodeBlock->hasEval();
+    m_hasWith = targetCodeBlock->hasWith();
+    m_hasCatch = targetCodeBlock->hasCatch();
+    m_hasYield = targetCodeBlock->hasYield();
+    m_usesArgumentsObject = targetCodeBlock->usesArgumentsObject();
+    m_canUseIndexedVariableStorage = targetCodeBlock->canUseIndexedVariableStorage();
+    m_canAllocateEnvironmentOnStack = targetCodeBlock->canAllocateEnvironmentOnStack();
+    m_needsComplexParameterCopy = targetCodeBlock->needsComplexParameterCopy();
+
+    size_t targetFunctionLength = targetCodeBlock->parametersInfomation().size();
+    m_parametersInfomation.resize(targetFunctionLength > boundArgc ? targetFunctionLength - boundArgc : 0);
+
+    m_byteCodeBlock = new ByteCodeBlock();
+    CallBoundFunction code(ByteCodeLOC(0));
+    code.m_boundTargetFunction = targetFunction;
+    code.m_boundThis = boundThis;
+    code.m_boundArgumentsCount = boundArgc;
+    code.m_boundArguments = (Value*)GC_MALLOC(boundArgc * sizeof(Value));
+    memcpy(code.m_boundArguments, boundArgv, boundArgc * sizeof(Value));
+
+    ParserContextInformation defaultInfo;
+    ByteCodeGenerateContext context(this, m_byteCodeBlock, defaultInfo);
+    m_byteCodeBlock->pushCode(code, &context, nullptr);
+    m_byteCodeBlock->m_code.shrinkToFit();
+}
+
 CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, NodeLOC sourceElementStart, const AtomicStringVector& innerIdentifiers, CodeBlockInitFlag initFlags)
     : m_context(ctx)
     , m_script(script)
@@ -194,56 +244,6 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, NodeLOC sourc
     }
 
     m_needsComplexParameterCopy = false;
-}
-
-CodeBlock::CodeBlock(Context* ctx)
-    : m_context(ctx)
-    , m_script(nullptr)
-    , m_src()
-    , m_sourceElementStart(0, 0, 0)
-    , m_astNodeStartIndex(0)
-    , m_identifierOnStackCount(0)
-    , m_identifierOnHeapCount(0)
-    , m_functionNameIndex(SIZE_MAX)
-    , m_parentCodeBlock(nullptr)
-    , m_cachedASTNode(nullptr)
-    , m_byteCodeBlock(nullptr)
-    , m_nativeFunctionConstructor(nullptr)
-#ifndef NDEBUG
-    , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
-    , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
-    , m_scopeContext(nullptr)
-#endif
-{
-    m_isNativeFunction = false;
-    m_hasEval = false;
-    m_hasWith = false;
-    m_hasCatch = false;
-    m_hasYield = false;
-    m_usesArgumentsObject = false;
-    m_canUseIndexedVariableStorage = false;
-    m_canAllocateEnvironmentOnStack = true;
-    m_needsComplexParameterCopy = false;
-
-    m_byteCodeBlock = nullptr;
-}
-
-void CodeBlock::initializeCodeBlockForCallBound(FunctionObject* boundTarget, Value& boundThis, size_t boundArgc, Value* boundArgv)
-{
-    m_isStrict = boundTarget->codeBlock()->isStrict();
-
-    m_byteCodeBlock = new ByteCodeBlock();
-    CallBoundFunction code(ByteCodeLOC(0));
-    code.m_boundTargetFunction = boundTarget;
-    code.m_boundThis = boundThis;
-    code.m_boundArgumentsCount = boundArgc;
-    code.m_boundArguments = (Value*)GC_MALLOC(boundArgc * sizeof(Value));
-    memcpy(code.m_boundArguments, boundArgv, boundArgc * sizeof(Value));
-
-    ParserContextInformation defaultInfo;
-    ByteCodeGenerateContext ctx(this, m_byteCodeBlock, defaultInfo);
-    m_byteCodeBlock->pushCode(code, &ctx, nullptr);
-    m_byteCodeBlock->m_code.shrinkToFit();
 }
 
 bool CodeBlock::tryCaptureIdentifiersFromChildCodeBlock(AtomicString name)
