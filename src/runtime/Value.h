@@ -182,7 +182,7 @@ public:
     inline bool abstractEqualsTo(ExecutionState& ec, const Value& val) const;
     bool abstractEqualsToSlowCase(ExecutionState& ec, const Value& val) const;
     bool equalsTo(ExecutionState& ec, const Value& val) const;
-    inline bool equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val) const;
+    bool equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val) const;
 
 #ifdef ESCARGOT_32
     uint32_t tag() const;

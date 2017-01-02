@@ -33,9 +33,72 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
         return true;
     }
 
+    ObjectGetResult oldLenDesc = getOwnProperty(state, state.context()->staticStrings().length);
+    uint32_t oldLen = getArrayLength(state);
+
+    if (!P.isUIntType() && P.propertyName() == state.context()->staticStrings().length) {
+        if (!desc.isValuePresent()) {
+            return Object::defineOwnProperty(state, P, desc);
+        }
+
+        ObjectPropertyDescriptor newLenDesc(desc);
+        uint32_t newLen = desc.value().toUint32(state);
+        if (newLen != desc.value().toNumber(state))
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid array length");
+        newLenDesc.setValue(Value(newLen));
+
+        if (newLen >= oldLen) {
+            return Object::defineOwnProperty(state, P, newLenDesc);
+        }
+
+        if (!oldLenDesc.isWritable()) {
+            return false;
+        }
+
+        bool newWritable;
+        if (!newLenDesc.isWritablePresent() || newLenDesc.isWritable()) {
+            newWritable = true;
+        } else {
+            newWritable = false;
+            newLenDesc.setWritable(true);
+        }
+
+        bool succeeded = Object::defineOwnProperty(state, P, newLenDesc);
+        if (!succeeded) {
+            return false;
+        }
+
+        while (newLen < oldLen) {
+            oldLen--;
+            bool deleteSucceeded = deleteOwnProperty(state, ObjectPropertyName(state, Value(oldLen)));
+            if (!deleteSucceeded) {
+                newLenDesc.setValue(Value(oldLen + 1));
+                if (!newWritable)
+                    newLenDesc.setWritable(false);
+                Object::defineOwnProperty(state, P, newLenDesc);
+                return false;
+            }
+        }
+
+        if (!newWritable) {
+            bool ret = Object::defineOwnProperty(state, P, ObjectPropertyDescriptor((ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::NonWritablePresent));
+            ASSERT(ret);
+        }
+        return true;
+    }
+
     uint64_t idx = P.toValue(state).toArrayIndex(state);
     if (idx != Value::InvalidArrayIndexValue) {
-        setArrayLength(state, idx + 1);
+        uint32_t index = P.toValue(state).toUint32(state);
+        if ((index >= oldLen) && !oldLenDesc.isWritable())
+            return false;
+        bool succeeded = Object::defineOwnProperty(state, P, desc);
+        if (!succeeded)
+            return false;
+        if (index >= oldLen) {
+            setArrayLength(state, index + 1);
+        }
+        return true;
     }
 
     return Object::defineOwnProperty(state, P, desc);

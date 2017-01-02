@@ -46,6 +46,10 @@ String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
             return ec.context()->staticStrings().stringTrue.string();
         else
             return ec.context()->staticStrings().stringFalse.string();
+#ifndef NDEBUG
+    } else if (isEmpty()) {
+        return ec.context()->staticStrings().Empty.string();
+#endif
     } else {
         return toPrimitive(ec, PreferString).toString(ec);
     }
@@ -207,6 +211,50 @@ bool Value::equalsTo(ExecutionState& state, const Value& val) const
             return o->asString()->equals(o2->asString());
         }
         return o == o2;
+    }
+    return false;
+}
+
+bool Value::equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val) const
+{
+    if (isUndefined())
+        return val.isUndefined();
+
+    if (isNull())
+        return val.isNull();
+
+    if (isBoolean())
+        return val.isBoolean() && asBoolean() == val.asBoolean();
+
+    if (isNumber()) {
+        if (!val.isNumber())
+            return false;
+        double a = asNumber();
+        double b = val.asNumber();
+        if (std::isnan(a) && std::isnan(b))
+            return true;
+        if (std::isnan(a) || std::isnan(b))
+            return false;
+        // we can pass [If x is +0 and y is −0, return true. If x is −0 and y is +0, return true.]
+        // because
+        // double a = -0.0;
+        // double b = 0.0;
+        // a == b; is true
+        return a == b && std::signbit(a) == std::signbit(b);
+    }
+
+    if (isPointerValue()) {
+        PointerValue* o = asPointerValue();
+        if (!val.isPointerValue())
+            return false;
+        PointerValue* o2 = val.asPointerValue();
+        if (o->isString()) {
+            if (!o2->isString())
+                return false;
+            return *o->asString() == *o2->asString();
+        }
+        if (o == o2)
+            return o == o2;
     }
     return false;
 }

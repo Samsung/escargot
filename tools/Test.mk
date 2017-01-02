@@ -1,21 +1,12 @@
-OPT_CH10=ch10
-
-OPT_CH11=ch11
-
-OPT_CH15_1=ch15/15.1/15.1.1 ch15/15.1/15.1.2 ch15/15.1/15.1.3
-
-OPT_CH15_2_3=ch15/15.2/15.2.3/15.2.3.1/ ch15/15.2/15.2.3/15.2.3.2 ch15/15.2/15.2.3/15.2.3.3 ch15/15.2/15.2.3/15.2.3.4 ch15/15.2/15.2.3/15.2.3.5 ch15/15.2/15.2.3/15.2.3.8 ch15/15.2/15.2.3/15.2.3.9 ch15/15.2/15.2.3/15.2.3.10 ch15/15.2/15.2.3/15.2.3.11 ch15/15.2/15.2.3/15.2.3.12 ch15/15.2/15.2.3/15.2.3.13 ch15/15.2/15.2.3/15.2.3.14 # 15.2.3.6 15.2.3.7 (getter.setter can be undefined / arguments binding should be dynamically decided)
-OPT_CH15_2=ch15/15.2/15.2.1 ch15/15.2/15.2.2 $(OPT_CH15_2_3) ch15/15.2/15.2.4
-
 OPT_CH15_4=ch15/15.4/15.4.4/15.4.4.1/ ch15/15.4/15.4.4/15.4.4.2/ ch15/15.4/15.4.4/15.4.4.3/ ch15/15.4/15.4.4/15.4.4.4/ ch15/15.4/15.4.4/15.4.4.5/ ch15/15.4/15.4.4/15.4.4.6/
 
-OPT_CH15=$(OPT_CH15_1) $(OPT_CH15_2) ch15/15.3 ch15/15.6 ch15/15.7 ch15/15.8 ch15/15.10 ch15/15.11 $(OPT_CH15_4)
+OPT_CH15=ch15/15.1/ ch15/15.2 ch15/15.3 ch15/15.6 ch15/15.7 ch15/15.8 ch15/15.10 ch15/15.11 $(OPT_CH15_4)
 
 check:
 	make tidy-update
 	make x64.interpreter.release -j$(NPROCS)
 	# make run-sunspider | tee out/sunspider_result
-	make run-test262 OPT="ch06 ch07 ch08 ch09 $(OPT_CH10) $(OPT_CH11) ch12 ch13 ch14 $(OPT_CH15)"
+	make run-test262 OPT="ch06 ch07 ch08 ch09 ch10 ch11 ch12 ch13 ch14 $(OPT_CH15)"
 
 tidy-install:
 	apt-get install clang-format-3.8

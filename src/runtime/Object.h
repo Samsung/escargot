@@ -101,10 +101,12 @@ class JSGetterSetter : public PointerValue {
     friend class Object;
 
 public:
-    JSGetterSetter(FunctionObject* getter, FunctionObject* setter)
+    JSGetterSetter(Value getter, Value setter)
         : m_getter(getter)
         , m_setter(setter)
     {
+        ASSERT(getter.isEmpty() || getter.isFunction() || getter.isUndefined());
+        ASSERT(setter.isEmpty() || setter.isFunction() || setter.isUndefined());
     }
 
     virtual Type type()
@@ -117,19 +119,31 @@ public:
         return true;
     }
 
-    FunctionObject* getter() const
+    bool hasGetter() const
     {
+        return !m_getter.isEmpty();
+    }
+
+    bool hasSetter() const
+    {
+        return !m_setter.isEmpty();
+    }
+
+    Value getter() const
+    {
+        ASSERT(hasGetter());
         return m_getter;
     }
 
-    FunctionObject* setter() const
+    Value setter() const
     {
+        ASSERT(hasSetter());
         return m_setter;
     }
 
 protected:
-    FunctionObject* m_getter;
-    FunctionObject* m_setter;
+    Value m_getter;
+    Value m_setter;
 };
 
 class ObjectPropertyDescriptor {
@@ -144,23 +158,34 @@ public:
         NonWritablePresent = 1 << 4,
         NonEnumerablePresent = 1 << 5,
         NonConfigurablePresent = 1 << 6,
-        AllPresent = WritablePresent | EnumerablePresent | ConfigurablePresent
+        ValuePresent = 1 << 7,
+        AllPresent = WritablePresent | EnumerablePresent | ConfigurablePresent | ValuePresent
     };
 
     // for plain data property
     explicit ObjectPropertyDescriptor(const Value& value, PresentAttribute attribute = ObjectPropertyDescriptor::NotPresent)
         : m_isDataProperty(true)
-        , m_property(attribute)
+        , m_property((PresentAttribute)(attribute | ValuePresent))
         , m_value(value)
     {
         checkProperty();
     }
 
+    // Accessor descriptor
     explicit ObjectPropertyDescriptor(const JSGetterSetter& jsGetterSetter, PresentAttribute attribute)
         : m_isDataProperty(false)
         , m_property(attribute)
         , m_getterSetter(jsGetterSetter)
     {
+        checkProperty();
+    }
+
+    // Generic descriptor
+    explicit ObjectPropertyDescriptor(PresentAttribute attribute)
+        : m_isDataProperty(false)
+        , m_property(attribute)
+    {
+        ASSERT(!isValuePresent());
         checkProperty();
     }
 
@@ -196,12 +221,23 @@ public:
     const Value& value() const
     {
         ASSERT(isDataProperty());
+        ASSERT(isValuePresent());
         return m_value;
     }
 
-    bool isDataProperty() const
+    bool isDataDescriptor() const
     {
-        return m_isDataProperty;
+        return isValuePresent() || isWritablePresent();
+    }
+
+    bool isAccessorDescriptor() const
+    {
+        return !m_isDataProperty;
+    }
+
+    bool isGenericDescriptor() const
+    {
+        return !isDataDescriptor() && !isAccessorDescriptor();
     }
 
     const PresentAttribute& property() const
@@ -224,6 +260,11 @@ public:
         return (m_property & ConfigurablePresent) | (m_property & NonConfigurablePresent);
     }
 
+    bool isValuePresent() const
+    {
+        return (m_property & ValuePresent);
+    }
+
     bool isWritable() const
     {
         return (m_property & WritablePresent);
@@ -241,7 +282,7 @@ public:
 
     bool isDataWritableEnumerableConfigurable() const
     {
-        return isDataProperty() && isWritable() && isEnumerable() && isConfigurable();
+        return isDataProperty() && isValuePresent() && isWritable() && isEnumerable() && isConfigurable();
     }
 
     bool isNotPresent() const
@@ -253,25 +294,34 @@ public:
     bool hasJSGetter() const
     {
         ASSERT(!isDataProperty());
-        return m_getterSetter.m_getter;
+        return m_getterSetter.hasGetter();
     }
 
     bool hasJSSetter() const
     {
         ASSERT(!isDataProperty());
-        return m_getterSetter.m_setter;
+        return m_getterSetter.hasSetter();
     }
 
     const JSGetterSetter& getterSetter() const
     {
+        ASSERT(!isDataProperty());
         return m_getterSetter;
     }
 
     void setEnumerable(bool enumerable);
     void setConfigurable(bool configurable);
     void setWritable(bool writable);
+    void setValue(const Value& v);
 
     ObjectStructurePropertyDescriptor toObjectStructurePropertyDescriptor() const;
+    static ObjectPropertyDescriptor fromObjectStructurePropertyDescriptor(const ObjectStructurePropertyDescriptor& desc, const Value& value);
+
+private:
+    bool isDataProperty() const
+    {
+        return m_isDataProperty;
+    }
 
 protected:
     void checkProperty()
@@ -295,7 +345,7 @@ protected:
         }
 
         if (!m_isDataProperty) {
-            if ((m_property & WritablePresent) | (m_property & NonWritablePresent)) {
+            if ((m_property & WritablePresent) | (m_property & NonWritablePresent) | (m_property & ValuePresent)) {
                 ASSERT_NOT_REACHED();
             }
         }
@@ -615,16 +665,21 @@ protected:
         }
     }
 
+    bool setOwnDataPropertyUtilForObjectInner(ExecutionState& state, size_t idx, const ObjectStructureItem& item, const Value& newValue)
+    {
+        if (LIKELY(item.m_descriptor.isPlainDataProperty())) {
+            m_values[idx] = newValue;
+            return true;
+        } else {
+            return item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, newValue);
+        }
+    }
+
     bool setOwnDataPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& newValue)
     {
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
         if (LIKELY(item.m_descriptor.isWritable())) {
-            if (LIKELY(item.m_descriptor.isPlainDataProperty())) {
-                m_values[idx] = newValue;
-                return true;
-            } else {
-                return item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, newValue);
-            }
+            return setOwnDataPropertyUtilForObjectInner(state, idx, item, newValue);
         } else {
             return false;
         }

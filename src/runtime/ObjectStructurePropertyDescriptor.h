@@ -108,7 +108,7 @@ public:
 
     bool isNativeAccessorProperty() const
     {
-        ASSERT(isDataProperty());
+        //ASSERT(isDataProperty());
         return m_descriptorData.mode() == HasDataButHasNativeGetterSetter;
     }
 

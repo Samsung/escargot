@@ -19,8 +19,8 @@ ObjectRareData::ObjectRareData()
 
 Value ObjectGetResult::valueSlowCase(ExecutionState& state, const Value& receiver) const
 {
-    if (m_jsGetterSetter->getter()) {
-        return m_jsGetterSetter->getter()->call(state, receiver, 0, nullptr);
+    if (m_jsGetterSetter->hasGetter() && m_jsGetterSetter->getter().isFunction()) {
+        return m_jsGetterSetter->getter().asFunction()->call(state, receiver, 0, nullptr);
     }
     return Value();
 }
@@ -43,11 +43,11 @@ Value ObjectGetResult::toPropertyDescriptor(ExecutionState& state, const Value& 
         obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().writable), ObjectPropertyDescriptor(Value(isWritable()), ObjectPropertyDescriptor::AllPresent));
     } else {
         Value get;
-        if (jsGetterSetter()->getter())
+        if (jsGetterSetter()->hasGetter())
             get = jsGetterSetter()->getter();
 
         Value set;
-        if (jsGetterSetter()->setter())
+        if (jsGetterSetter()->hasSetter())
             set = jsGetterSetter()->setter();
 
         // Call the [[DefineOwnProperty]] internal method of obj with arguments "get", Property Descriptor {[[Value]]: Desc.[[Writable]], [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
@@ -87,34 +87,30 @@ ObjectPropertyDescriptor::ObjectPropertyDescriptor(ExecutionState& state, Object
     bool hasValue = false;
     desc = obj->get(state, ObjectPropertyName(strings->value));
     if (desc.hasValue()) {
-        m_value = desc.value(state, obj);
+        setValue(desc.value(state, obj));
         hasValue = true;
-    } else {
-        m_value = Value();
     }
 
     desc = obj->get(state, ObjectPropertyName(strings->get));
     if (desc.hasValue()) {
-        Value v = desc.value(state, obj);
-        if (!v.isFunction() && !v.isUndefined()) {
+        Value getter = desc.value(state, obj);
+        if (!getter.isFunction() && !getter.isUndefined()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Getter must be a function or undefined");
         } else {
             m_isDataProperty = false;
-            FunctionObject* getter = v.isFunction() ? v.asFunction() : nullptr;
-            m_getterSetter = JSGetterSetter(getter, nullptr);
+            m_getterSetter = JSGetterSetter(getter, Value(Value::EmptyValue));
         }
     }
 
     desc = obj->get(state, ObjectPropertyName(strings->set));
     if (desc.hasValue()) {
-        Value v = desc.value(state, obj);
-        if (!v.isFunction() && !v.isUndefined()) {
+        Value setter = desc.value(state, obj);
+        if (!setter.isFunction() && !setter.isUndefined()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Setter must be a function or undefined");
         } else {
-            FunctionObject* setter = v.isFunction() ? v.asFunction() : nullptr;
             if (m_isDataProperty) {
                 m_isDataProperty = false;
-                m_getterSetter = JSGetterSetter(nullptr, setter);
+                m_getterSetter = JSGetterSetter(Value(Value::EmptyValue), setter);
             } else {
                 m_getterSetter.m_setter = setter;
             }
@@ -132,26 +128,41 @@ ObjectPropertyDescriptor::ObjectPropertyDescriptor(ExecutionState& state, Object
 
 void ObjectPropertyDescriptor::setEnumerable(bool enumerable)
 {
-    if (enumerable)
+    if (enumerable) {
         m_property = (PresentAttribute)(m_property | EnumerablePresent);
-    else
+        m_property = (PresentAttribute)(m_property & ~NonEnumerablePresent);
+    } else {
         m_property = (PresentAttribute)(m_property | NonEnumerablePresent);
+        m_property = (PresentAttribute)(m_property & ~EnumerablePresent);
+    }
 }
 
 void ObjectPropertyDescriptor::setConfigurable(bool configurable)
 {
-    if (configurable)
+    if (configurable) {
         m_property = (PresentAttribute)(m_property | ConfigurablePresent);
-    else
+        m_property = (PresentAttribute)(m_property & ~NonConfigurablePresent);
+    } else {
         m_property = (PresentAttribute)(m_property | NonConfigurablePresent);
+        m_property = (PresentAttribute)(m_property & ~ConfigurablePresent);
+    }
 }
 
 void ObjectPropertyDescriptor::setWritable(bool writable)
 {
-    if (writable)
+    if (writable) {
         m_property = (PresentAttribute)(m_property | WritablePresent);
-    else
+        m_property = (PresentAttribute)(m_property & ~NonWritablePresent);
+    } else {
         m_property = (PresentAttribute)(m_property | NonWritablePresent);
+        m_property = (PresentAttribute)(m_property & ~WritablePresent);
+    }
+}
+
+void ObjectPropertyDescriptor::setValue(const Value& v)
+{
+    m_property = (PresentAttribute)(m_property | ValuePresent);
+    m_value = v;
 }
 
 ObjectStructurePropertyDescriptor ObjectPropertyDescriptor::toObjectStructurePropertyDescriptor() const
@@ -192,6 +203,37 @@ ObjectStructurePropertyDescriptor ObjectPropertyDescriptor::toObjectStructurePro
         }
 
         return ObjectStructurePropertyDescriptor::createAccessorDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)f);
+    }
+}
+
+ObjectPropertyDescriptor ObjectPropertyDescriptor::fromObjectStructurePropertyDescriptor(const ObjectStructurePropertyDescriptor& desc, const Value& value)
+{
+    const ObjectPropertyDescriptor::PresentAttribute flag = ObjectPropertyDescriptor::NotPresent;
+
+    // If IsDataDescriptor(Desc) is true, then
+    if (desc.isDataProperty()) {
+        // Call the [[DefineOwnProperty]] internal method of obj with arguments "value", Property Descriptor {[[Value]]: Desc.[[Value]], [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
+        ObjectPropertyDescriptor ret(value, flag);
+        // Call the [[DefineOwnProperty]] internal method of obj with arguments "writable", Property Descriptor {[[Value]]: Desc.[[Writable]], [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
+        ret.setWritable(desc.isWritable());
+
+        // Call the [[DefineOwnProperty]] internal method of obj with arguments "enumerable", Property Descriptor {[[Value]]: Desc.[[Writable]], [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
+        ret.setEnumerable(desc.isEnumerable());
+        // Call the [[DefineOwnProperty]] internal method of obj with arguments "configurable", Property Descriptor {[[Value]]: Desc.[[Writable]], [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
+        ret.setConfigurable(desc.isConfigurable());
+
+        return ret;
+    } else {
+        // Call the [[DefineOwnProperty]] internal method of obj with arguments "get", Property Descriptor {[[Value]]: Desc.[[Writable]], [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
+        // Call the [[DefineOwnProperty]] internal method of obj with arguments "set", Property Descriptor {[[Value]]: Desc.[[Writable]], [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
+        ObjectPropertyDescriptor ret(*value.asPointerValue()->asJSGetterSetter(), flag);
+
+        // Call the [[DefineOwnProperty]] internal method of obj with arguments "enumerable", Property Descriptor {[[Value]]: Desc.[[Writable]], [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
+        ret.setEnumerable(desc.isEnumerable());
+        // Call the [[DefineOwnProperty]] internal method of obj with arguments "configurable", Property Descriptor {[[Value]]: Desc.[[Writable]], [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
+        ret.setConfigurable(desc.isConfigurable());
+
+        return ret;
     }
 }
 
@@ -310,7 +352,10 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
 
         m_structure = m_structure->addProperty(state, propertyName, desc.toObjectStructurePropertyDescriptor());
         if (LIKELY(desc.isDataProperty())) {
-            m_values.pushBack(desc.value());
+            if (LIKELY(desc.isValuePresent()))
+                m_values.pushBack(desc.value());
+            else
+                m_values.pushBack(Value());
         } else {
             m_values.pushBack(Value(new JSGetterSetter(desc.getterSetter())));
         }
@@ -334,11 +379,14 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
         }
 
         bool shouldDelete = false;
+        ObjectPropertyDescriptor newDesc = ObjectPropertyDescriptor::fromObjectStructurePropertyDescriptor(item.m_descriptor, m_values[idx]);
 
-        ObjectPropertyDescriptor newDesc(desc);
-        // TODO If IsGenericDescriptor(Desc) is true, then no further validation is required.
-        // if IsDataDescriptor(current) and IsDataDescriptor(Desc) have different results, then
-        if (item.m_descriptor.isDataProperty() != desc.isDataProperty()) {
+        // If IsGenericDescriptor(Desc) is true, then
+        if (desc.isGenericDescriptor()) {
+            // no further validation is required.
+
+            // if IsDataDescriptor(current) and IsDataDescriptor(Desc) have different results, then
+        } else if (item.m_descriptor.isDataProperty() != desc.isDataDescriptor()) {
             // Reject, if the [[Configurable]] field of current is false.
             if (!item.m_descriptor.isConfigurable()) {
                 return false;
@@ -371,16 +419,11 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
                 // Convert the property named P of object O from a data property to an accessor property.
                 // Preserve the existing values of the converted property’s [[Configurable]] and [[Enumerable]] attributes
                 // and set the rest of the property’s attributes to their default values.
-                if (current.isWritable() || newDesc.isWritable()) {
-                    f = f | ObjectPropertyDescriptor::WritablePresent;
-                } else {
-                    f = f | ObjectPropertyDescriptor::NonWritablePresent;
-                }
                 newDesc = ObjectPropertyDescriptor(desc.value(), (ObjectPropertyDescriptor::PresentAttribute)f);
             }
         }
         // Else, if IsDataDescriptor(current) and IsDataDescriptor(Desc) are both true, then
-        else if (item.m_descriptor.isDataProperty() && desc.isDataProperty()) {
+        else if (item.m_descriptor.isDataProperty() && desc.isDataDescriptor()) {
             // If the [[Configurable]] field of current is false, then
             if (!item.m_descriptor.isConfigurable()) {
                 // Reject, if the [[Writable]] field of current is false and the [[Writable]] field of Desc is true.
@@ -390,7 +433,8 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
                 // If the [[Writable]] field of current is false, then
                 if (!item.m_descriptor.isWritable()) {
                     // Reject, if the [[Value]] field of Desc is present and SameValue(Desc.[[Value]], current.[[Value]]) is false.
-                    if (!desc.value().equalsTo(state, getOwnDataPropertyUtilForObject(state, idx, this))) {
+                    Value val = desc.isValuePresent() ? desc.value() : Value();
+                    if (!val.equalsToByTheSameValueAlgorithm(state, getOwnDataPropertyUtilForObject(state, idx, this))) {
                         return false;
                     }
                 }
@@ -398,57 +442,80 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
             // else, the [[Configurable]] field of current is true, so any change is acceptable.
         } else {
             // Else, IsAccessorDescriptor(current) and IsAccessorDescriptor(Desc) are both true so,
-            ASSERT(!item.m_descriptor.isDataProperty() && !desc.isDataProperty());
+            ASSERT(!item.m_descriptor.isDataProperty() && !desc.isDataDescriptor());
 
             // If the [[Configurable]] field of current is false, then
             if (!item.m_descriptor.isConfigurable()) {
-                Value c = m_values[idx];
-
-                // Reject, if the [[Get]] field of Desc is present and SameValue(Desc.[[Get]], current.[[Get]]) is false.
-                if (c.asPointerValue()->asJSGetterSetter()->getter() && c.asPointerValue()->asJSGetterSetter()->getter() != desc.getterSetter().getter()) {
-                    return false;
-                }
+                JSGetterSetter* current = Value(m_values[idx]).asPointerValue()->asJSGetterSetter();
 
                 // Reject, if the [[Set]] field of Desc is present and SameValue(Desc.[[Set]], current.[[Set]]) is false.
-                if (c.asPointerValue()->asJSGetterSetter()->setter() && c.asPointerValue()->asJSGetterSetter()->setter() != desc.getterSetter().setter()) {
-                    return false;
+                if (desc.getterSetter().hasSetter()) {
+                    Value currentSetter = current->hasSetter() ? current->setter() : Value();
+                    if (desc.getterSetter().setter() != currentSetter) {
+                        return false;
+                    }
                 }
-            }
 
-            Value v = m_values[idx];
-            JSGetterSetter* acc = v.asPointerValue()->asJSGetterSetter();
-            if (acc->getter()) {
-                newDesc.m_getterSetter.m_getter = acc->getter();
-            }
-            if (acc->setter()) {
-                newDesc.m_getterSetter.m_setter = acc->setter();
+                // Reject, if the [[Get]] field of Desc is present and SameValue(Desc.[[Get]], current.[[Get]]) is false.
+                if (desc.getterSetter().hasGetter()) {
+                    Value currentGetter = current->hasGetter() ? current->getter() : Value();
+                    if (desc.getterSetter().getter() != currentGetter) {
+                        return false;
+                    }
+                }
             }
         }
 
         // For each attribute field of Desc that is present, set the correspondingly named attribute of the property named P of object O to the value of the field.
-        if (desc.isDataProperty()) {
+        if (newDesc.isDataDescriptor()) {
+            if (desc.isValuePresent()) {
+                newDesc.setValue(desc.value());
+            } else if (!newDesc.isValuePresent()) {
+                newDesc.setValue(Value());
+            }
             if (desc.isWritablePresent()) {
-                if (desc.isWritable() != item.m_descriptor.isWritable()) {
+                newDesc.setWritable(desc.isWritable());
+            }
+        } else {
+            if (desc.isAccessorDescriptor()) {
+                if (desc.hasJSGetter()) {
+                    newDesc.m_getterSetter.m_getter = desc.getterSetter().getter();
+                }
+                if (desc.hasJSSetter()) {
+                    newDesc.m_getterSetter.m_setter = desc.getterSetter().setter();
+                }
+            }
+        }
+        if (desc.isConfigurablePresent()) {
+            newDesc.setConfigurable(desc.isConfigurable());
+        }
+        if (desc.isEnumerablePresent()) {
+            newDesc.setEnumerable(desc.isEnumerable());
+        }
+
+        if (newDesc.isDataDescriptor()) {
+            if (newDesc.isWritablePresent()) {
+                if (newDesc.isWritable() != item.m_descriptor.isWritable()) {
                     shouldDelete = true;
                 }
             }
         }
 
-        if (!shouldDelete && desc.isEnumerablePresent()) {
-            if (desc.isEnumerable() != item.m_descriptor.isEnumerable()) {
+        if (!shouldDelete && newDesc.isEnumerablePresent()) {
+            if (newDesc.isEnumerable() != item.m_descriptor.isEnumerable()) {
                 shouldDelete = true;
             }
         }
 
-        if (!shouldDelete && desc.isConfigurablePresent()) {
-            if (desc.isConfigurable() != item.m_descriptor.isConfigurable()) {
+        if (!shouldDelete && newDesc.isConfigurablePresent()) {
+            if (newDesc.isConfigurable() != item.m_descriptor.isConfigurable()) {
                 shouldDelete = true;
             }
         }
 
         if (!shouldDelete) {
-            if (item.m_descriptor.isDataProperty()) {
-                return setOwnDataPropertyUtilForObject(state, idx, newDesc.value());
+            if (newDesc.isDataDescriptor()) {
+                return setOwnDataPropertyUtilForObjectInner(state, idx, item, newDesc.value());
             } else {
                 m_values[idx] = Value(new JSGetterSetter(newDesc.getterSetter()));
             }
@@ -459,7 +526,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
             m_structure->m_properties[idx].m_descriptor = newDesc.toObjectStructurePropertyDescriptor();
             m_structure->m_version++;
 
-            if (newDesc.isDataProperty()) {
+            if (newDesc.isDataDescriptor()) {
                 m_values[idx] = newDesc.value();
             } else {
                 m_values[idx] = Value(new JSGetterSetter(newDesc.getterSetter()));
@@ -560,16 +627,16 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
             }
         } else {
             // Let setter be ownDesc.[[Set]].
-            auto setter = desc.jsGetterSetter()->setter();
+            Value setter = desc.jsGetterSetter()->hasSetter() ? desc.jsGetterSetter()->setter() : Value();
 
             // If setter is undefined, return false.
-            if (!setter) {
+            if (setter.isUndefined()) {
                 return false;
             }
 
             // Let setterResult be Call(setter, Receiver, «V»).
             Value argv[] = { v };
-            setter->call(state, receiver, 1, argv);
+            FunctionObject::call(setter, state, receiver, 1, argv);
             return true;
         }
     }
@@ -706,8 +773,8 @@ Value Object::getOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t i
 {
     Value v = m_values[idx];
     auto gs = v.asPointerValue()->asJSGetterSetter();
-    if (gs->getter()) {
-        gs->getter()->call(state, receiver, 0, nullptr);
+    if (gs->hasGetter() && gs->getter().isFunction()) {
+        gs->getter().asFunction()->call(state, receiver, 0, nullptr);
     }
     return Value();
 }
@@ -716,9 +783,9 @@ bool Object::setOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t id
 {
     Value v = m_values[idx];
     auto gs = v.asPointerValue()->asJSGetterSetter();
-    if (gs->setter()) {
+    if (gs->hasSetter() && gs->setter().isFunction()) {
         Value arg = newValue;
-        gs->setter()->call(state, this, 1, &arg);
+        gs->setter().asFunction()->call(state, this, 1, &arg);
         return true;
     }
     return false;

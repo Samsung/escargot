@@ -957,7 +957,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
 
         ObjectDefineGetterOpcodeLbl : {
             ObjectDefineGetter* code = (ObjectDefineGetter*)currentCode;
-            JSGetterSetter gs(registerFile[code->m_objectPropertyValueRegisterIndex].asFunction(), nullptr);
+            JSGetterSetter gs(registerFile[code->m_objectPropertyValueRegisterIndex].asFunction(), Value(Value::EmptyValue));
             ObjectPropertyDescriptor desc(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent));
             registerFile[code->m_objectRegisterIndex].toObject(state)->defineOwnPropertyThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, registerFile[code->m_objectPropertyNameRegisterIndex]), desc);
             ADD_PROGRAM_COUNTER(ObjectDefineGetter);
@@ -966,7 +966,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
 
         ObjectDefineSetterOpcodeLbl : {
             ObjectDefineSetter* code = (ObjectDefineSetter*)currentCode;
-            JSGetterSetter gs(nullptr, registerFile[code->m_objectPropertyValueRegisterIndex].asFunction());
+            JSGetterSetter gs(Value(Value::EmptyValue), registerFile[code->m_objectPropertyValueRegisterIndex].asFunction());
             ObjectPropertyDescriptor desc(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent));
             registerFile[code->m_objectRegisterIndex].toObject(state)->defineOwnPropertyThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, registerFile[code->m_objectPropertyNameRegisterIndex]), desc);
             ADD_PROGRAM_COUNTER(ObjectDefineGetter);

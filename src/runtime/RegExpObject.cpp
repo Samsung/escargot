@@ -16,6 +16,8 @@ RegExpObject::RegExpObject(ExecutionState& state, String* source, String* option
     , m_lastIndex(Value(0))
     , m_lastExecutedString(NULL)
 {
+    for (size_t i = 0; i < ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5; i++)
+        m_values[i] = Value();
     m_structure = state.context()->defaultStructureForRegExpObject();
     setPrototype(state, state.context()->globalObject()->regexpPrototype());
     setSource(state, m_source);
