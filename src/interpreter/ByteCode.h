@@ -59,6 +59,7 @@ class Node;
     F(GetGlobalObject, 1, 1)                  \
     F(SetGlobalObject, 0, 1)                  \
     F(Move, 1, 0)                             \
+    F(ToNumber, 1, 1)                         \
     F(Increment, 1, 1)                        \
     F(Decrement, 1, 1)                        \
     F(UnaryMinus, 1, 1)                       \
@@ -800,6 +801,24 @@ public:
     virtual void dump()
     {
         printf("mov r%d <- r%d", (int)m_registerIndex1, (int)m_registerIndex0);
+    }
+#endif
+};
+
+class ToNumber : public ByteCode {
+public:
+    ToNumber(const ByteCodeLOC& loc, const size_t& registerIndex)
+        : ByteCode(Opcode::ToNumberOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    size_t m_registerIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("to number r%d", (int)m_registerIndex);
     }
 #endif
 };

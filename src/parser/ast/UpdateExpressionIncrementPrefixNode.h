@@ -35,6 +35,7 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         m_argument->generateExpressionByteCode(codeBlock, context);
+        codeBlock->pushCode(ToNumber(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
         codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
         m_argument->generateStoreByteCode(codeBlock, context);
     }

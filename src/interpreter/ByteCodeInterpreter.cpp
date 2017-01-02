@@ -337,6 +337,15 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             NEXT_INSTRUCTION();
         }
 
+        ToNumberOpcodeLbl : {
+            ToNumber* code = (ToNumber*)currentCode;
+            const Value& val = registerFile[code->m_registerIndex];
+            registerFile[code->m_registerIndex] = Value(val.toNumber(state));
+            ;
+            ADD_PROGRAM_COUNTER(ToNumber);
+            NEXT_INSTRUCTION();
+        }
+
         IncrementOpcodeLbl : {
             Increment* code = (Increment*)currentCode;
             const Value& val = registerFile[code->m_registerIndex];
@@ -348,7 +357,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                 else
                     ret = Value(a + 1);
             } else {
-                ret = Value(val.toNumber(state) + 1);
+                ret = Value(val.asNumber() + 1);
             }
             registerFile[code->m_registerIndex] = ret;
             ADD_PROGRAM_COUNTER(Increment);
@@ -366,7 +375,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                 else
                     ret = Value(a - 1);
             } else {
-                ret = Value(val.toNumber(state) - 1);
+                ret = Value(val.asNumber() - 1);
             }
             registerFile[code->m_registerIndex] = ret;
             ADD_PROGRAM_COUNTER(Decrement);

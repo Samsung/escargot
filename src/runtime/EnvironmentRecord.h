@@ -539,6 +539,12 @@ public:
         return m_vector[idx].m_value;
     }
 
+    virtual bool deleteBinding(ExecutionState& state, const AtomicString& name)
+    {
+        // can not delete any binding in this record now
+        return false;
+    }
+
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName)
     {
         for (size_t i = 0; i < m_vector.size(); i++) {
