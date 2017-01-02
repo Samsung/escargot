@@ -333,7 +333,8 @@ def MakePlural(n):
 
 def CaseRunner(case):
   print(case.GetName())
-  return case.Run(case.command_template)
+  result = case.Run(case.command_template)
+  return [case.index, result]
 
 class TestSuite(object):
 
@@ -496,15 +497,19 @@ class TestSuite(object):
     casesV = []
     for case in cases:
         case.command_template = command_template
+        case.index = cases.index(case)
         casesV.append(case)
 
-    casesResult = pool.map(CaseRunner, casesV)
+    casesResult = pool.imap_unordered(CaseRunner, casesV)
 
-    idx = 0
+    resultTemp = [None] * len(cases)
+
+    for cr in casesResult:
+      resultTemp[cr[0]] = cr[1]
+
     for case in cases:
       #result = case.Run(command_template)
-      result = casesResult[idx]
-      idx = idx + 1
+      result = resultTemp[cases.index(case)]
 
       if junitfile:
         TestCaseElement = result.XmlAssemble(result)
