@@ -9,17 +9,18 @@ namespace Escargot {
 static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     bool patternIsRegExp = argv[0].isObject() && argv[0].asObject()->isRegExpObject();
+    if (patternIsRegExp) {
+        if (argv[1].isUndefined())
+            return argv[0];
+#ifndef USE_ES6_FEATURE
+        else
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot supply flags when constructing one RegExp from another");
+#endif
+    }
     RegExpObject* regexp;
     if (isNewExpression && thisValue.isObject() && thisValue.asObject()->isRegExpObject()) {
         regexp = thisValue.asPointerValue()->asObject()->asRegExpObject();
     } else {
-        if (patternIsRegExp) {
-            if (argv[1].isUndefined())
-                return argv[0];
-#ifndef USE_ES6_MODE
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot supply flags when constructing one RegExp from another");
-#endif
-        }
         regexp = new RegExpObject(state);
     }
     // TODO(ES6): consider the case that patternIsRegExp is true

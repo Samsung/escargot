@@ -39,7 +39,7 @@ String* escapeSlashInPattern(String* patternStr)
         for (i = 0; start + i < len; i++) {
             if (UNLIKELY(patternStr->charAt(start + i) == '/' && (i == 0 || patternStr->charAt(start + i - 1) != '\\'))) {
                 slashFlag = true;
-                builder.appendSubString(patternStr, start, i);
+                builder.appendSubString(patternStr, start, start + i);
                 builder.appendChar('\\');
                 builder.appendChar('/');
 
@@ -50,7 +50,7 @@ String* escapeSlashInPattern(String* patternStr)
         }
         if (start + i >= len) {
             if (UNLIKELY(slashFlag)) {
-                builder.appendSubString(patternStr, start, i);
+                builder.appendSubString(patternStr, start, start + i);
             }
             break;
         }
