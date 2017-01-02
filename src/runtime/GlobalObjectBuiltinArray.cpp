@@ -268,7 +268,7 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
             // Let from be ToString(k+actualDeleteCount).
             uint32_t from = k + actualDeleteCount;
             // Let to be ToString(k+itemCount).
-            uint32_t to = k + actualDeleteCount;
+            uint32_t to = k + itemCount;
             // Let fromPresent be the result of calling the [[HasProperty]] internal method of O with argument from.
             ObjectGetResult fromValue = O->get(state, ObjectPropertyName(state, Value(from)));
             // If fromPresent is true, then
@@ -527,8 +527,81 @@ static Value builtinArraySome(ExecutionState& state, Value thisValue, size_t arg
 
 static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    // Let array be the result of calling ToObject passing the this value as the argument.
+    RESOLVE_THIS_BINDING_TO_OBJECT(array, Array, toLocaleString);
+
+    // Let arrayLen be the result of calling the [[Get]] internal method of array with argument "length".
+    // Let len be ToUint32(arrayLen).
+    int64_t len = array->length(state);
+
+    // Let separator be the String value for the list-separator String appropriate for the host environment’s current locale (this is derived in an implementation-defined way).
+    String* separator = state.context()->staticStrings().asciiTable[(size_t)','].string();
+
+    // If len is zero, return the empty String.
+    if (len == 0)
+        return String::emptyString;
+
+    // Let firstElement be the result of calling the [[Get]] internal method of array with argument "0".
+    Value firstElement = array->get(state, ObjectPropertyName(state, Value(0))).value(state, array);
+
+    // If firstElement is undefined or null, then
+    Value R;
+    if (firstElement.isUndefinedOrNull()) {
+        // Let R be the empty String.
+        R = String::emptyString;
+    } else {
+        // Let elementObj be ToObject(firstElement).
+        Object* elementObj = firstElement.toObject(state);
+        // Let func be the result of calling the [[Get]] internal method of elementObj with argument "toLocaleString".
+        Value func = elementObj->get(state, state.context()->staticStrings().toLocaleString).value(state, elementObj);
+        // If IsCallable(func) is false, throw a TypeError exception.
+        if (!func.isFunction()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLoacleStringNotCallable);
+        }
+        // Let R be the result of calling the [[Call]] internal method of func providing elementObj as the this value and an empty arguments list.
+        R = func.asFunction()->call(state, elementObj, 0, nullptr);
+    }
+
+    // Let k be 1.
+    int64_t k = 1;
+
+    // Repeat, while k < len
+    while (k < len) {
+        // Let S be a String value produced by concatenating R and separator.
+        StringBuilder builder;
+        builder.appendString(R.toString(state));
+        builder.appendString(separator);
+        String* S = builder.finalize();
+
+        // Let nextElement be the result of calling the [[Get]] internal method of array with argument ToString(k).
+        Value nextElement = array->get(state, ObjectPropertyName(state, Value(k))).value(state, array);
+
+        // If nextElement is undefined or null, then
+        if (nextElement.isUndefinedOrNull()) {
+            // Let R be the empty String.
+            R = String::emptyString;
+        } else {
+            // Let elementObj be ToObject(nextElement).
+            Object* elementObj = nextElement.toObject(state);
+            // Let func be the result of calling the [[Get]] internal method of elementObj with argument "toLocaleString".
+            Value func = elementObj->get(state, state.context()->staticStrings().toLocaleString).value(state, elementObj);
+            // If IsCallable(func) is false, throw a TypeError exception.
+            if (!func.isFunction()) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLoacleStringNotCallable);
+            }
+            // Let R be the result of calling the [[Call]] internal method of func providing elementObj as the this value and an empty arguments list.
+            R = func.asFunction()->call(state, elementObj, 0, nullptr);
+        }
+        // Let R be a String value produced by concatenating S and R.
+        StringBuilder builder2;
+        builder2.appendString(S);
+        builder2.appendString(R.toString(state));
+        R = builder.finalize();
+        // Increase k by 1.
+        k++;
+    }
+    // Return R.
+    return R;
 }
 
 static Value builtinArrayUnShift(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -594,8 +667,32 @@ static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, siz
 
 static Value builtinArrayPop(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    // Let O be the result of calling ToObject passing the this value as the argument.
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, pop);
+
+    // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
+    // Let len be ToUint32(lenVal).
+    uint32_t len = O->length(state);
+
+    // If len is zero,
+    if (len == 0) {
+        // Call the [[Put]] internal method of O with arguments "length", 0, and true.
+        O->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(0), O);
+        // Return undefined.
+        return Value();
+    } else {
+        // Else, len > 0
+        // Let indx be ToString(len–1).
+        ObjectPropertyName indx(state, Value(len - 1));
+        // Let element be the result of calling the [[Get]] internal method of O with argument indx.
+        Value element = O->get(state, indx).value(state, O);
+        // Call the [[Delete]] internal method of O with arguments indx and true.
+        O->deleteOwnPropertyThrowsException(state, indx);
+        // Call the [[Put]] internal method of O with arguments "length", indx, and true.
+        O->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(len - 1), O);
+        // Return element.
+        return element;
+    }
 }
 
 static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -670,7 +767,7 @@ void GlobalObject::installArray(ExecutionState& state)
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().reduceRight),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().reduceRight, builtinArrayReduceRight, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().pop),
-                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().pop, builtinArrayPop, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().pop, builtinArrayPop, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().push),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().push, builtinArrayPush, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().shift),
