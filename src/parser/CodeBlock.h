@@ -107,6 +107,18 @@ public:
         return false;
     }
 
+    bool inNotIndexedCodeBlockScope()
+    {
+        CodeBlock* cb = this;
+        while (!cb->isGlobalScopeCodeBlock()) {
+            if (!cb->canUseIndexedVariableStorage()) {
+                return true;
+            }
+            cb = cb->parentCodeBlock();
+        }
+        return false;
+    }
+
     bool hasEval() const
     {
         return m_hasEval;
@@ -228,6 +240,11 @@ public:
         return m_usesArgumentsObject;
     }
 
+    bool hasArgumentsBinding() const
+    {
+        return m_hasArgumentsBinding;
+    }
+
     const IdentifierInfoVector& identifierInfos() const
     {
         return m_identifierInfos;
@@ -341,6 +358,7 @@ protected:
     bool m_hasCatch;
     bool m_hasYield;
     bool m_usesArgumentsObject;
+    bool m_hasArgumentsBinding;
     bool m_canUseIndexedVariableStorage;
     bool m_canAllocateEnvironmentOnStack;
     bool m_isFunctionExpression;

@@ -462,6 +462,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
                 m_structure = structure()->convertToWithFastAccess(state);
 
             m_structure->m_properties[idx].m_descriptor = newDesc.toObjectStructurePropertyDescriptor();
+            m_structure->m_version++;
 
             if (newDesc.isDataProperty()) {
                 m_values[idx] = newDesc.value();

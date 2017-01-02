@@ -360,6 +360,8 @@ protected:
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-function-environment-records
 class FunctionEnvironmentRecord : public DeclarativeEnvironmentRecord {
     friend class LexicalEnvironment;
+    friend class FunctionObject;
+    friend class ByteCodeInterpreter;
 
 public:
     ALWAYS_INLINE FunctionEnvironmentRecord(ExecutionState& state, const Value& receiver, FunctionObject* function, size_t argc, Value* argv, bool isNewExpression)
@@ -370,7 +372,6 @@ public:
         , m_functionObject(function)
         , m_argc(argc)
         , m_argv(argv)
-        , m_arguments(Value::ForceUninitialized)
     {
     }
 
@@ -433,21 +434,22 @@ public:
         return m_argv;
     }
 
-    Value arguments(ExecutionState& state, ExecutionContext* ec)
+    Value createArgumentsObject(ExecutionState& state, ExecutionContext* ec)
     {
-        if (UNLIKELY(!m_isArgumentObjectCreated)) {
-            m_isArgumentObjectCreated = true;
-            m_arguments = new ArgumentsObject(state, this, ec);
-        }
-        return m_arguments;
+        ASSERT(m_isArgumentObjectCreated == false);
+        m_isArgumentObjectCreated = true;
+        return new ArgumentsObject(state, this, ec);
     }
 
-    void setArguments(const Value& v)
+    void setArgumentsCreated()
     {
         m_isArgumentObjectCreated = true;
-        m_arguments = v;
     }
 
+    bool isArgumentObjectCreated()
+    {
+        return m_isArgumentObjectCreated;
+    }
 
 protected:
     bool m_isNewExpression;
@@ -456,7 +458,6 @@ protected:
     FunctionObject* m_functionObject;
     size_t m_argc;
     Value* m_argv;
-    Value m_arguments;
 };
 
 class FunctionEnvironmentRecordOnStack : public FunctionEnvironmentRecord {

@@ -36,6 +36,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     m_hasCatch = false;
     m_hasYield = false;
     m_usesArgumentsObject = false;
+    m_hasArgumentsBinding = false;
     m_canUseIndexedVariableStorage = true;
     m_canAllocateEnvironmentOnStack = true;
     m_needsComplexParameterCopy = false;
@@ -152,6 +153,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
         m_hasYield = false;
     }
     m_usesArgumentsObject = false;
+    m_hasArgumentsBinding = false;
     m_canUseIndexedVariableStorage = false;
     m_canAllocateEnvironmentOnStack = false;
     m_needsComplexParameterCopy = false;
@@ -214,6 +216,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, NodeLOC sourc
     }
 
     m_usesArgumentsObject = false;
+    m_hasArgumentsBinding = false;
 
     if (initFlags & CodeBlockInitFlag::CodeBlockIsFunctionDeclaration) {
         m_isFunctionDeclaration = true;
@@ -271,7 +274,7 @@ void CodeBlock::notifySelfOrChildHasEvalWithCatchYield()
 
 bool CodeBlock::hasNonConfiguableNameOnGlobal(const AtomicString& name)
 {
-    ASSERT(!inEvalWithCatchYieldScope());
+    ASSERT(!inNotIndexedCodeBlockScope());
     CodeBlock* top = this;
     while (top->parentCodeBlock()) {
         top = top->parentCodeBlock();

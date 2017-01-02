@@ -970,7 +970,16 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             while (!(e->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord())) {
                 e = e->parent();
             }
-            registerFile[code->m_registerIndex] = e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->arguments(state, e);
+            Value val(Value::ForceUninitialized);
+            auto fnRecord = e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+            if (e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isArgumentObjectCreated()) {
+                val = fnRecord->getBindingValue(state, state.context()->staticStrings().arguments).m_value;
+            } else {
+                val = fnRecord->createArgumentsObject(state, e);
+                auto result = fnRecord->hasBinding(state, state.context()->staticStrings().arguments);
+                fnRecord->setMutableBindingByIndex(state, result.m_index, state.context()->staticStrings().arguments, val);
+            }
+            registerFile[code->m_registerIndex] = val;
             ADD_PROGRAM_COUNTER(LoadArgumentsObject);
             NEXT_INSTRUCTION();
         }
@@ -981,8 +990,11 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             while (!(e->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord())) {
                 e = e->parent();
             }
-            e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->setArguments(registerFile[code->m_registerIndex]);
-            ADD_PROGRAM_COUNTER(LoadArgumentsObject);
+            auto fnRecord = e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+            fnRecord->m_isArgumentObjectCreated = true;
+            auto result = fnRecord->hasBinding(state, state.context()->staticStrings().arguments);
+            fnRecord->setMutableBindingByIndex(state, result.m_index, state.context()->staticStrings().arguments, registerFile[code->m_registerIndex]);
+            ADD_PROGRAM_COUNTER(StoreArgumentsObject);
             NEXT_INSTRUCTION();
         }
 

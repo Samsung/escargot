@@ -141,9 +141,8 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     if (UNLIKELY(m_codeBlock->needsComplexParameterCopy())) {
         if (!m_codeBlock->canUseIndexedVariableStorage()) {
             for (size_t i = 0; i < parameterCopySize; i++) {
-                env->record()->setMutableBinding(state, m_codeBlock->functionParameters()[i], argv[i]);
+                record->setMutableBinding(state, m_codeBlock->functionParameters()[i], argv[i]);
             }
-
         } else {
             for (size_t i = 0; i < info.size(); i++) {
                 Value val;
@@ -162,6 +161,25 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     } else {
         for (size_t i = 0; i < parameterCopySize; i++) {
             stackStorage[i] = argv[i];
+        }
+    }
+
+    if (UNLIKELY(m_codeBlock->hasArgumentsBinding())) {
+        ASSERT(m_codeBlock->usesArgumentsObject());
+        AtomicString arguments = state.context()->staticStrings().arguments;
+        for (size_t i = 0; i < m_codeBlock->functionParameters().size(); i++) {
+            if (UNLIKELY(m_codeBlock->functionParameters()[i] == arguments)) {
+                record->asFunctionEnvironmentRecord()->m_isArgumentObjectCreated = true;
+                break;
+            }
+        }
+
+        for (size_t i = 0; i < m_codeBlock->childBlocks().size(); i++) {
+            CodeBlock* cb = m_codeBlock->childBlocks()[i];
+            if (cb->isFunctionDeclaration() && cb->functionName() == arguments) {
+                record->asFunctionEnvironmentRecord()->m_isArgumentObjectCreated = true;
+                break;
+            }
         }
     }
 

@@ -56,10 +56,22 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
         for (size_t i = 0; i < scopeCtx->m_usingNames.size(); i++) {
             AtomicString uname = scopeCtx->m_usingNames[i];
             if (uname == arguments) {
+                codeBlock->m_usesArgumentsObject = true;
                 if (!codeBlock->hasName(arguments)) {
-                    codeBlock->m_usesArgumentsObject = true;
-                    continue;
+                    CodeBlock::IdentifierInfo info;
+                    info.m_indexForIndexedStorage = SIZE_MAX;
+                    info.m_name = arguments;
+                    info.m_needToAllocateOnStack = false;
+                    codeBlock->m_identifierInfos.pushBack(info);
+                } else {
+                    codeBlock->m_hasArgumentsBinding = true;
                 }
+                CodeBlock* b = codeBlock;
+                while (b) {
+                    b->notifySelfOrChildHasEvalWithCatchYield();
+                    b = b->parentCodeBlock();
+                }
+                continue;
             }
             if (!codeBlock->hasName(uname)) {
                 CodeBlock* c = codeBlock->parentCodeBlock();
@@ -72,7 +84,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
                 }
             }
         }
-        // FIXME: modify efficiently if possible. consider 10.4.3-1-102-s
+
         if (hasCapturedIdentifier) {
             CodeBlock* c = codeBlock->parentCodeBlock();
             while (c && c->m_canAllocateEnvironmentOnStack) {

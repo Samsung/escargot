@@ -44,7 +44,12 @@ public:
                 }
             }
             if (nameCase) {
-                codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), context->getRegister(), name), context, this);
+                if (name.string()->equals("arguments")) {
+                    m_argument->generateExpressionByteCode(codeBlock, context);
+                    codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), AtomicString()), context, this);
+                } else {
+                    codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), context->getRegister(), name), context, this);
+                }
                 return;
             }
         }

@@ -174,9 +174,4 @@
   <test id="Sbp_A4_T2"><reason>bestPractice</reason></test>
   <test id="Sbp_A5_T1"><reason>bestPractice</reason></test>
   <test id="Sbp_A5_T2"><reason>bestPractice</reason></test>
-
-  <test id="S13_A15_T4"><reason>temporary-arguments</reason></test>
-  <test id="15.2.3.10-3-11"><reason>temporary-arguments</reason></test>
-  <test id="15.2.3.10-3-21"><reason>temporary-arguments</reason></test>
-  <test id="15.2.3.12-2-a-11"><reason>temporary-arguments</reason></test>
 </excludeList>
