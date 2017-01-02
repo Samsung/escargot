@@ -90,7 +90,7 @@ public:
         return m_script;
     }
 
-    bool isGlobalScopeCodeBlock()
+    bool isGlobalScopeCodeBlock() const
     {
         return m_parentCodeBlock == nullptr;
     }
