@@ -65,10 +65,9 @@ public:
     };
 
     RegExpObject(ExecutionState& state);
-    RegExpObject(ExecutionState& state, String* source, String* option);
+    RegExpObject(ExecutionState& state, const Value& source, const Value& option);
 
-    static RegExpCacheEntry& getCacheEntryAndCompileIfNeeded(ExecutionState& state, String* source, const Option& option);
-    static Option parseOption(ExecutionState& state, String* optionStr);
+    void init(ExecutionState& state, const Value& source, const Value& option);
 
     double computedLastIndex(ExecutionState& state)
     {
@@ -80,10 +79,6 @@ public:
 
     bool match(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);
     bool matchNonGlobally(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);
-
-    void setSource(ExecutionState& state, String* src);
-    void setOption(ExecutionState& state, String* optionStr);
-    void setOption(const Option& option);
 
     const String* source()
     {
@@ -136,6 +131,13 @@ private:
     {
         m_bytecodePattern = pattern;
     }
+
+    void setOption(const Option& option);
+
+    static RegExpCacheEntry& getCacheEntryAndCompileIfNeeded(ExecutionState& state, String* source, const Option& option);
+
+    static Option parseOption(ExecutionState& state, const String* optionString);
+
 
     String* m_source;
     Option m_option;

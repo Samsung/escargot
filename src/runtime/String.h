@@ -118,6 +118,7 @@ public:
     ALWAYS_INLINE friend bool operator<=(const String& a, const String& b);
     ALWAYS_INLINE friend bool operator>(const String& a, const String& b);
     ALWAYS_INLINE friend bool operator>=(const String& a, const String& b);
+    ALWAYS_INLINE friend int stringCompare(const String& a, const String& b);
 
     // NOTE these function generates new copy of string data
     virtual UTF16StringData toUTF16StringData() const = 0;
@@ -184,6 +185,11 @@ inline bool operator<=(const String& a, const String& b)
 inline bool operator>=(const String& a, const String& b)
 {
     return String::stringCompare(a.length(), b.length(), &a, &b) >= 0;
+}
+
+inline int stringCompare(const String& a, const String& b)
+{
+    return String::stringCompare(a.length(), b.length(), &a, &b);
 }
 
 class ASCIIString : public String {

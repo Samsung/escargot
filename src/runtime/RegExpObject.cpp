@@ -7,12 +7,8 @@
 
 namespace Escargot {
 
-RegExpObject::RegExpObject(ExecutionState& state, String* source, String* optionString)
+RegExpObject::RegExpObject(ExecutionState& state, const Value& source, const Value& option)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5, true)
-    , m_source(source)
-    , m_option(parseOption(state, optionString))
-    , m_yarrPattern(NULL)
-    , m_bytecodePattern(NULL)
     , m_lastIndex(Value(0))
     , m_lastExecutedString(NULL)
 {
@@ -20,7 +16,7 @@ RegExpObject::RegExpObject(ExecutionState& state, String* source, String* option
         m_values[i] = Value();
     m_structure = state.context()->defaultStructureForRegExpObject();
     setPrototype(state, state.context()->globalObject()->regexpPrototype());
-    setSource(state, m_source);
+    init(state, source, option);
 }
 
 RegExpObject::RegExpObject(ExecutionState& state)
@@ -63,19 +59,25 @@ String* escapeSlashInPattern(String* patternStr)
         return builder.finalize();
 }
 
-void RegExpObject::setSource(ExecutionState& state, String* src)
+void RegExpObject::init(ExecutionState& state, const Value& source, const Value& option)
 {
-    String* escapedSrc = escapeSlashInPattern(src);
-    auto entry = getCacheEntryAndCompileIfNeeded(state, escapedSrc, m_option);
+    String* defaultRegExpString = state.context()->staticStrings().defaultRegExpString.string();
+
+    m_source = (source.isUndefined()) ? defaultRegExpString : source.toString(state);
+    m_source = m_source->length() ? m_source : defaultRegExpString;
+    m_source = escapeSlashInPattern(m_source);
+
+    m_option = parseOption(state, option.isUndefined() ? String::emptyString : option.toString(state));
+
+    auto entry = getCacheEntryAndCompileIfNeeded(state, m_source, m_option);
     if (entry.m_yarrError)
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has invalid source");
 
-    m_source = escapedSrc;
     m_yarrPattern = entry.m_yarrPattern;
     m_bytecodePattern = entry.m_bytecodePattern;
 }
 
-RegExpObject::Option RegExpObject::parseOption(ExecutionState& state, String* optionString)
+RegExpObject::Option RegExpObject::parseOption(ExecutionState& state, const String* optionString)
 {
     RegExpObject::Option option = RegExpObject::Option::None;
 
@@ -112,11 +114,6 @@ RegExpObject::Option RegExpObject::parseOption(ExecutionState& state, String* op
     }
 
     return option;
-}
-
-void RegExpObject::setOption(ExecutionState& state, String* optionStr)
-{
-    m_option = parseOption(state, optionStr);
 }
 
 void RegExpObject::setOption(const Option& option)

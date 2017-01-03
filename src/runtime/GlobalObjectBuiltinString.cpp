@@ -5,6 +5,7 @@
 #include "ErrorObject.h"
 #include "RegExpObject.h"
 #include "ArrayObject.h"
+#include "parser/esprima_cpp/esprima.h"
 
 namespace Escargot {
 
@@ -50,7 +51,7 @@ static Value builtinStringIndexOf(ExecutionState& state, Value thisValue, size_t
     if (argc > 1) {
         val = argv[1];
     }
-    size_t pos;
+    double pos;
     if (val.isUndefined()) {
         pos = 0;
     } else {
@@ -58,7 +59,7 @@ static Value builtinStringIndexOf(ExecutionState& state, Value thisValue, size_t
     }
 
     size_t len = str->length();
-    size_t start = std::min(std::max(pos, (size_t)0), len);
+    size_t start = std::min((size_t)std::max(pos, (double)0), len);
     size_t result = str->find(searchStr, start);
     if (result == SIZE_MAX)
         return Value(-1);
@@ -69,11 +70,11 @@ static Value builtinStringIndexOf(ExecutionState& state, Value thisValue, size_t
 static Value builtinStringLastIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let S be ToString(O).
-    RESOLVE_THIS_BINDING_TO_STRING(S, String, indexOf);
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, lastIndexOf);
     String* searchStr = argv[0].toString(state);
 
     double numPos;
-    if (argc > 0) {
+    if (argc > 1) {
         numPos = argv[1].toNumber(state);
     } else {
         numPos = Value().toNumber(state);
@@ -97,13 +98,14 @@ static Value builtinStringLastIndexOf(ExecutionState& state, Value thisValue, si
 
 static Value builtinStringLocaleCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, localeCompare);
+    String* That = argv[0].toString(state);
+    return Value(stringCompare(*S, *That));
 }
 
 static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, indexOf);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, substring);
     if (argc == 0) {
         return str;
     } else {
@@ -137,7 +139,7 @@ static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t a
     if (argument.isPointerValue() && argument.asPointerValue()->isRegExpObject()) {
         regexp = argument.asPointerValue()->asRegExpObject();
     } else {
-        regexp = new RegExpObject(state, argument.toString(state), String::emptyString);
+        regexp = new RegExpObject(state, argument, String::emptyString);
     }
 
     (void)regexp->lastIndex().toInteger(state);
@@ -323,8 +325,31 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
 
 static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    // Call CheckObjectCoercible passing the this value as its argument.
+    // Let string be the result of calling ToString, giving it the this value as its argument.
+    RESOLVE_THIS_BINDING_TO_STRING(string, String, search);
+    Value regexp = argv[0];
+
+    RegExpObject* rx;
+    if (regexp.isPointerValue() && regexp.asPointerValue()->isRegExpObject()) {
+        // If Type(regexp) is Object and the value of the [[Class]] internal property of regexp is "RegExp", then let rx be regexp;
+        rx = regexp.asPointerValue()->asRegExpObject();
+    } else {
+        // Else, let rx be a new RegExp object created as if by the expression new RegExp(regexp) where RegExp is the standard built-in constructor with that name.
+        rx = new RegExpObject(state, regexp, String::emptyString);
+    }
+
+    // Search the value string from its beginning for an occurrence of the regular expression pattern rx.
+    // Let result be a Number indicating the offset within string where the pattern matched, or –1 if there was no match.
+    // The lastIndex and global properties of regexp are ignored when performing the search. The lastIndex property of regexp is left unchanged.
+    RegexMatchResult result;
+    rx->match(state, string, result);
+    if (result.m_matchResults.size() != 0) {
+        // Return result.
+        return Value(result.m_matchResults[0][0].m_start);
+    } else {
+        return Value(-1);
+    }
 }
 
 static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -455,7 +480,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
 
 static Value builtinStringCharCodeAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, indexOf);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, charCodeAt);
     int position = argv[0].toInteger(state);
     Value ret;
     if (position < 0 || position >= (int)str->length())
@@ -597,20 +622,29 @@ static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, si
 
 static Value builtinStringToLocaleLowerCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, toLocaleLowerCase);
+    return builtinStringToLowerCase(state, thisValue, argc, argv, isNewExpression);
 }
 
 static Value builtinStringToLocaleUpperCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, toLocaleUpperCase);
+    return builtinStringToUpperCase(state, thisValue, argc, argv, isNewExpression);
 }
 
 static Value builtinStringTrim(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, trim);
+    size_t s, e;
+    for (s = 0; s < str->length(); s++) {
+        if (!esprima::isWhiteSpace((*str)[s]) && !esprima::isLineTerminator((*str)[s]))
+            break;
+    }
+    for (e = str->length() - 1; e >= s; e--) {
+        if (!esprima::isWhiteSpace((*str)[e]) && !esprima::isLineTerminator((*str)[e]))
+            break;
+    }
+    return new StringView(str, s, e + 1);
 }
 
 static Value builtinStringValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -672,7 +706,7 @@ void GlobalObject::installString(ExecutionState& state)
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->replace, builtinStringReplace, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->search),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->search, builtinStringSearch, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->search, builtinStringSearch, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->split),
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->split, builtinStringSplit, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

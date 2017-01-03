@@ -23,15 +23,7 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
     } else {
         regexp = new RegExpObject(state);
     }
-    // TODO(ES6): consider the case that patternIsRegExp is true
-    const StaticStrings* strings = &state.context()->staticStrings();
-    String* patternStr = (argv[0].isUndefined()) ? strings->defaultRegExpString.string() : argv[0].toString(state);
-    if (patternStr->length() == 0)
-        patternStr = strings->defaultRegExpString.string();
-
-    String* optionStr = (argv[1].isUndefined()) ? String::emptyString : argv[1].toString(state);
-    regexp->setSource(state, patternStr);
-    regexp->setOption(state, optionStr);
+    regexp->init(state, argv[0], argv[1]);
     return regexp;
 }
 
