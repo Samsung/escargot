@@ -6,21 +6,22 @@
 
 namespace Escargot {
 
-#define FOR_EACH_DATE_VALUES(F) \
-    F(Date)                     \
-    F(FullYear)                 \
-    F(Hours)                    \
-    F(Minutes)                  \
-    F(Month)                    \
-    F(UTCDate)                  \
-    F(UTCFullYear)              \
-    F(UTCHours)                 \
-    F(UTCMinutes)               \
-    F(UTCMonth)                 \
-    F(Milliseconds)             \
-    F(Seconds)                  \
-    F(UTCMilliseconds)          \
-    F(UTCSeconds)
+#define FOR_EACH_DATE_VALUES(F)                     \
+    /* Name, DateSetterTypr, Setter length, UTC? */ \
+    F(Milliseconds, Time, 1, false)                 \
+    F(UTCMilliseconds, Time, 1, true)               \
+    F(Seconds, Time, 2, false)                      \
+    F(UTCSeconds, Time, 2, true)                    \
+    F(Minutes, Time, 3, false)                      \
+    F(UTCMinutes, Time, 3, true)                    \
+    F(Hours, Time, 4, false)                        \
+    F(UTCHours, Time, 4, true)                      \
+    F(Date, Day, 1, false)                          \
+    F(UTCDate, Day, 1, true)                        \
+    F(Month, Day, 2, false)                         \
+    F(UTCMonth, Day, 2, true)                       \
+    F(FullYear, Day, 3, false)                      \
+    F(UTCFullYear, Day, 3, true)
 
 
 static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -30,14 +31,14 @@ static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size
         thisObject = thisValue.asObject()->asDateObject();
 
         if (argc == 0) {
-            thisObject->setTimeValueAsCurrentTime();
+            thisObject->setTime(DateObject::currentTime());
         } else if (argc == 1) {
             Value v = argv[0].toPrimitive(state);
             if (v.isString()) {
                 thisObject->setTimeValue(state, v);
             } else {
                 double V = v.toNumber(state);
-                thisObject->setTimeValue(state, DateObject::timeClip(state, V));
+                thisObject->setTime(DateObject::timeClip(state, V));
             }
         } else {
             double args[7] = { 0, 0, 1, 0, 0, 0, 0 }; // default value of year, month, date, hour, minute, second, millisecond
@@ -63,15 +64,14 @@ static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size
         return thisObject->toFullString(state);
     } else {
         DateObject d(state);
-        d.setTimeValueAsCurrentTime();
+        d.setTime(DateObject::currentTime());
         return d.toFullString(state);
     }
 }
 
 static Value builtinDateNow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    return Value(DateObject::currentTime());
 }
 
 static Value builtinDateParse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -116,44 +116,65 @@ static Value builtinDateToString(ExecutionState& state, Value thisValue, size_t 
 
 static Value builtinDateToDateString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
+    if (!thisObject->isDateObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
+    }
+    return thisObject->asDateObject()->toDateString(state);
 }
 
 static Value builtinDateToTimeString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
+    if (!thisObject->isDateObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
+    }
+    return thisObject->asDateObject()->toTimeString(state);
 }
 
 static Value builtinDateToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
+    if (!thisObject->isDateObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
+    }
+    return thisObject->asDateObject()->toFullString(state);
 }
 
 static Value builtinDateToLocaleDateString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
+    if (!thisObject->isDateObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
+    }
+    return thisObject->asDateObject()->toDateString(state);
 }
 
 static Value builtinDateToLocaleTimeString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
+    if (!thisObject->isDateObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
+    }
+    return thisObject->asDateObject()->toTimeString(state);
 }
 
 static Value builtinDateToUTCString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
+    if (!thisObject->isDateObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
+    }
+    return thisObject->asDateObject()->toFullString(state);
 }
 
 static Value builtinDateToISOString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
+    if (!thisObject->isDateObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
+    }
+    return thisObject->asDateObject()->toISOString(state);
 }
 
 static Value builtinDateToJSON(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -162,10 +183,7 @@ static Value builtinDateToJSON(ExecutionState& state, Value thisValue, size_t ar
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-typedef int (*DateGetterInt)(ExecutionState& state);
-typedef int64_t (*DateGetterInt64)(ExecutionState& state);
-
-#define DECLARE_STATIC_DATE_GETTER(Name)                                                                                                                                                                                           \
+#define DECLARE_STATIC_DATE_GETTER(Name, unused1, unused2, unused3)                                                                                                                                                                \
     static Value builtinDateGet##Name(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)                                                                                                      \
     {                                                                                                                                                                                                                              \
         RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, get##Name);                                                                                                                                                               \
@@ -178,15 +196,71 @@ typedef int64_t (*DateGetterInt64)(ExecutionState& state);
     }
 
 FOR_EACH_DATE_VALUES(DECLARE_STATIC_DATE_GETTER);
-DECLARE_STATIC_DATE_GETTER(Day);
-DECLARE_STATIC_DATE_GETTER(UTCDay);
-DECLARE_STATIC_DATE_GETTER(TimezoneOffset);
+DECLARE_STATIC_DATE_GETTER(Day, -, -, -);
+DECLARE_STATIC_DATE_GETTER(UTCDay, -, -, -);
+DECLARE_STATIC_DATE_GETTER(TimezoneOffset, -, -, -);
 
-#define DECLARE_STATIC_DATE_SETTER(Name)                                                                                      \
-    static Value builtinDateSet##Name(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression) \
-    {                                                                                                                         \
-        state.throwException(new ASCIIString(errorMessage_NotImplemented));                                                   \
-        RELEASE_ASSERT_NOT_REACHED();                                                                                         \
+enum DateSetterType {
+    Time,
+    Day
+};
+
+static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterType, size_t length, bool utc, Value thisValue, size_t argc, Value* argv, const AtomicString& name)
+{
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, name);
+    if (!thisObject->isDateObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, name.string(), errorMessage_GlobalObject_ThisNotDateObject);
+    }
+    DateObject* d = thisObject->asDateObject();
+
+    if (setterType == DateSetterType::Day && length == 3) {
+        // setFullYear, setUTCFullYear case
+        if (!d->isValid())
+            d->setTime(0);
+        ASSERT(d->isValid());
+    }
+    int year = d->getFullYear(state);
+    int month = d->getMonth(state);
+    int date = d->getDate(state);
+
+    int hour = d->getHours(state);
+    int minute = d->getMinutes(state);
+    int64_t second = d->getSeconds(state);
+    int64_t millisecond = d->getMilliseconds(state);
+
+    bool convertToUTC = !utc;
+
+    switch (setterType) {
+    case DateSetterType::Day:
+        if ((length >= 1) && (argc > length - 1))
+            date = argv[length - 1].toNumber(state);
+        if ((length >= 2) && (argc > length - 2))
+            month = argv[length - 2].toNumber(state);
+        if ((length >= 3) && (argc > length - 3))
+            year = argv[length - 3].toNumber(state);
+        break;
+    case DateSetterType::Time:
+        if ((length >= 1) && (argc > length - 1))
+            millisecond = argv[length - 1].toNumber(state);
+        if ((length >= 2) && (argc > length - 2))
+            second = argv[length - 2].toNumber(state);
+        if ((length >= 3) && (argc > length - 3))
+            minute = argv[length - 3].toNumber(state);
+        if ((length >= 4) && (argc > length - 4))
+            hour = argv[length - 4].toNumber(state);
+        break;
+    default:
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    d->setTimeValue(state, year, month, date, hour, minute, second, millisecond, convertToUTC);
+    return Value(d->primitiveValue());
+}
+
+#define DECLARE_STATIC_DATE_SETTER(Name, setterType, length, utc)                                                                                              \
+    static Value builtinDateSet##Name(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)                                  \
+    {                                                                                                                                                          \
+        return Value(builtinDateSetHelper(state, DateSetterType::setterType, length, utc, thisValue, argc, argv, state.context()->staticStrings().set##Name)); \
     }
 
 FOR_EACH_DATE_VALUES(DECLARE_STATIC_DATE_SETTER);
@@ -217,7 +291,7 @@ void GlobalObject::installDate(ExecutionState& state)
     m_date->markThisObjectDontNeedStructureTransitionTable(state);
     m_date->setPrototype(state, m_functionPrototype);
     m_datePrototype = m_objectPrototype;
-    m_datePrototype = new Object(state);
+    m_datePrototype = new DateObject(state);
     m_datePrototype->setPrototype(state, m_objectPrototype);
 
     m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_date, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -226,10 +300,10 @@ void GlobalObject::installDate(ExecutionState& state)
                               ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().now, builtinDateNow, 0, nullptr, NativeFunctionInfo::Strict)),
                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_date->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().parse),
-                              ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().parse, builtinDateParse, 0, nullptr, NativeFunctionInfo::Strict)),
+                              ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().parse, builtinDateParse, 1, nullptr, NativeFunctionInfo::Strict)),
                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_date->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().UTC),
-                              ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().UTC, builtinDateUTC, 0, nullptr, NativeFunctionInfo::Strict)),
+                              ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().UTC, builtinDateUTC, 7, nullptr, NativeFunctionInfo::Strict)),
                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getTime),
@@ -267,22 +341,22 @@ void GlobalObject::installDate(ExecutionState& state)
                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toISOString, builtinDateToISOString, 0, nullptr, NativeFunctionInfo::Strict)),
                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toJSON),
-                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toJSON, builtinDateToJSON, 0, nullptr, NativeFunctionInfo::Strict)),
+                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toJSON, builtinDateToJSON, 1, nullptr, NativeFunctionInfo::Strict)),
                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-#define DATE_DEFINE_GETTER(dname)                                                                                                                                                                                          \
+#define DATE_DEFINE_GETTER(dname, unused1, unused2, unused3)                                                                                                                                                               \
     m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().get##dname),                                                                                                             \
                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().get##dname, builtinDateGet##dname, 0, nullptr, NativeFunctionInfo::Strict)), \
                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     FOR_EACH_DATE_VALUES(DATE_DEFINE_GETTER);
-    DATE_DEFINE_GETTER(Day);
-    DATE_DEFINE_GETTER(UTCDay);
-    DATE_DEFINE_GETTER(TimezoneOffset);
+    DATE_DEFINE_GETTER(Day, -, -, -);
+    DATE_DEFINE_GETTER(UTCDay, -, -, -);
+    DATE_DEFINE_GETTER(TimezoneOffset, -, -, -);
 
-#define DATE_DEFINE_SETTER(dname)                                                                                                                                                                                          \
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().set##dname),                                                                                                             \
-                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().set##dname, builtinDateSet##dname, 1, nullptr, NativeFunctionInfo::Strict)), \
+#define DATE_DEFINE_SETTER(dname, unused1, length, unused3)                                                                                                                                                                     \
+    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().set##dname),                                                                                                                  \
+                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().set##dname, builtinDateSet##dname, length, nullptr, NativeFunctionInfo::Strict)), \
                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     FOR_EACH_DATE_VALUES(DATE_DEFINE_SETTER);

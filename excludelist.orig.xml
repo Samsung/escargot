@@ -190,7 +190,13 @@
   <test id="15.2.3.7-6-a-288"><reason>ArgumentsObject::defineOwnProperty</reason></test>
   <test id="15.2.3.7-6-a-289"><reason>ArgumentsObject::defineOwnProperty</reason></test>
 
-  <test id="S15.5.4.7_A1_T11"><reason>Date</reason></test>
   <test id="S15.5.4.7_A1_T12"><reason>Array indexof</reason></test>
   <test id="S15.5.4.8_A1_T12"><reason>Array lastIndexOf</reason></test>
+
+  <test id="S15.9.3.1_A5_T1"><reason>Locale</reason></test>
+  <test id="S15.9.3.1_A5_T2"><reason>Locale</reason></test>
+  <test id="S15.9.3.1_A5_T3"><reason>Locale</reason></test>
+  <test id="S15.9.3.1_A5_T4"><reason>Locale</reason></test>
+  <test id="S15.9.3.1_A5_T5"><reason>Locale</reason></test>
+  <test id="S15.9.3.1_A5_T6"><reason>Locale</reason></test>
 </excludeList>

@@ -24,13 +24,11 @@ DateObject::DateObject(ExecutionState& state)
     setTimeValueAsNaN();
 }
 
-void DateObject::setTimeValueAsCurrentTime()
+double DateObject::currentTime()
 {
     struct timespec time;
     clock_gettime(CLOCK_REALTIME, &time);
-    m_primitiveValue = time.tv_sec * msPerSecond + floor(time.tv_nsec / 1000000);
-    m_isCacheDirty = true;
-    m_hasValidDate = true;
+    return time.tv_sec * msPerSecond + floor(time.tv_nsec / 1000000);
 }
 
 void DateObject::setTimeValue(ExecutionState& state, const Value& str)
@@ -965,6 +963,23 @@ String* DateObject::toFullString(ExecutionState& state)
     } else {
         return new ASCIIString("Invalid Date");
     }
+}
+
+String* DateObject::toISOString(ExecutionState& state)
+{
+    char buffer[512];
+    if (!std::isnan(primitiveValue())) {
+        resolveCache(state);
+        if (getUTCFullYear(state) >= 0 && getUTCFullYear(state) <= 9999) {
+            snprintf(buffer, 512, "%04d-%02d-%02dT%02d:%02d:%02ld.%03ldZ", getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
+        } else {
+            snprintf(buffer, 512, "%+07d-%02d-%02dT%02d:%02d:%02ld.%03ldZ", getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
+        }
+        return new ASCIIString(buffer);
+    } else {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toISOString.string(), errorMessage_GlobalObject_InvalidDate);
+    }
+    RELEASE_ASSERT_NOT_REACHED();
 }
 
 int DateObject::getDate(ExecutionState& state)

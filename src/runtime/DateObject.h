@@ -12,6 +12,8 @@ class DateObject : public Object {
 public:
     DateObject(ExecutionState& state);
 
+    static double currentTime();
+
     double primitiveValue()
     {
         if (LIKELY(m_hasValidDate))
@@ -28,7 +30,6 @@ public:
         m_primitiveValue = primitiveValue;
     }
 
-    void setTimeValueAsCurrentTime();
     void setTimeValueAsNaN()
     {
         m_primitiveValue = 0;
@@ -56,6 +57,7 @@ public:
     String* toDateString(ExecutionState& state);
     String* toTimeString(ExecutionState& state);
     String* toFullString(ExecutionState& state);
+    String* toISOString(ExecutionState& state);
     int getDate(ExecutionState& state);
     int getDay(ExecutionState& state);
     int getFullYear(ExecutionState& state);
