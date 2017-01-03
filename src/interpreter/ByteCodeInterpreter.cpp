@@ -599,14 +599,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             NEXT_INSTRUCTION();
         }
 
-        UnaryPlusOpcodeLbl : {
-            UnaryPlus* code = (UnaryPlus*)currentCode;
-            const Value& val = registerFile[code->m_registerIndex];
-            registerFile[code->m_registerIndex] = Value(val.toNumber(state));
-            ADD_PROGRAM_COUNTER(UnaryPlus);
-            NEXT_INSTRUCTION();
-        }
-
         UnaryBitwiseNotOpcodeLbl : {
             UnaryBitwiseNot* code = (UnaryBitwiseNot*)currentCode;
             const Value& val = registerFile[code->m_registerIndex];

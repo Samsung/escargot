@@ -34,7 +34,7 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         m_argument->generateExpressionByteCode(codeBlock, context);
-        codeBlock->pushCode(UnaryPlus(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+        codeBlock->pushCode(ToNumber(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
     }
 
 protected:

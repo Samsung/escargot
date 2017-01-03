@@ -63,7 +63,6 @@ class Node;
     F(Increment, 1, 1)                        \
     F(Decrement, 1, 1)                        \
     F(UnaryMinus, 1, 1)                       \
-    F(UnaryPlus, 1, 1)                        \
     F(UnaryNot, 1, 1)                         \
     F(UnaryBitwiseNot, 1, 1)                  \
     F(UnaryTypeof, 1, 1)                      \
@@ -875,24 +874,6 @@ public:
     virtual void dump()
     {
         printf("unary minus r%d", (int)m_registerIndex);
-    }
-#endif
-};
-
-class UnaryPlus : public ByteCode {
-public:
-    UnaryPlus(const ByteCodeLOC& loc, const size_t& registerIndex)
-        : ByteCode(Opcode::UnaryPlusOpcode, loc)
-        , m_registerIndex(registerIndex)
-    {
-    }
-
-    size_t m_registerIndex;
-
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("unary plus r%d", (int)m_registerIndex);
     }
 #endif
 };
