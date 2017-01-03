@@ -563,7 +563,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         CreateArrayOpcodeLbl : {
             CreateArray* code = (CreateArray*)currentCode;
             ArrayObject* arr = new ArrayObject(state);
-            arr->setLength(state, code->m_length);
+            arr->defineOwnProperty(state, state.context()->staticStrings().length, ObjectPropertyDescriptor(Value(code->m_length)));
             registerFile[code->m_registerIndex] = arr;
             ADD_PROGRAM_COUNTER(CreateArray);
             NEXT_INSTRUCTION();
@@ -983,39 +983,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             auto result = fnRecord->hasBinding(state, state.context()->staticStrings().arguments);
             fnRecord->setMutableBindingByIndex(state, result.m_index, state.context()->staticStrings().arguments, registerFile[code->m_registerIndex]);
             ADD_PROGRAM_COUNTER(StoreArgumentsObject);
-            NEXT_INSTRUCTION();
-        }
-
-        LoadByGlobalNameOpcodeLbl : {
-            LoadByGlobalName* code = (LoadByGlobalName*)currentCode;
-            GlobalObject* g = state.context()->globalObject();
-            // check cache
-            if (UNLIKELY(!g->hasPropertyOnIndex(state, code->m_name, code->m_cacheIndex))) {
-                // fill cache
-                code->m_cacheIndex = g->findPropertyIndex(state, code->m_name);
-                ASSERT(code->m_cacheIndex != SIZE_MAX);
-            }
-            registerFile[code->m_registerIndex] = g->getPropertyOnIndex(state, code->m_cacheIndex);
-            ADD_PROGRAM_COUNTER(LoadByGlobalName);
-            NEXT_INSTRUCTION();
-        }
-
-        StoreByGlobalNameOpcodeLbl : {
-            StoreByGlobalName* code = (StoreByGlobalName*)currentCode;
-            GlobalObject* g = state.context()->globalObject();
-            // check cache
-            if (UNLIKELY(!g->hasPropertyOnIndex(state, code->m_name, code->m_cacheIndex))) {
-                // fill cache
-                code->m_cacheIndex = g->findPropertyIndex(state, code->m_name);
-                ASSERT(code->m_cacheIndex != SIZE_MAX);
-            }
-            if (UNLIKELY(!g->setPropertyOnIndex(state, code->m_cacheIndex, registerFile[code->m_registerIndex]))) {
-                if (state.inStrictMode()) {
-                    // TODO throw execption
-                    RELEASE_ASSERT_NOT_REACHED();
-                }
-            }
-            ADD_PROGRAM_COUNTER(StoreByGlobalName);
             NEXT_INSTRUCTION();
         }
 
@@ -1523,10 +1490,10 @@ void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionSt
         newItem.m_objectStructure = obj->structure();
         newItem.m_version = obj->structure()->version();
 
+        obj->setOwnPropertyThrowsExceptionWhenStrictMode(state, idx, value);
+
         inlineCache.m_cachedIndex = idx;
         inlineCache.m_cachedhiddenClassChain.push_back(newItem);
-
-        obj->setOwnPropertyThrowsExceptionWhenStrictMode(state, inlineCache.m_cachedIndex, value);
     } else {
         if (UNLIKELY(fromGlobalObject && state.inStrictMode())) {
             ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);

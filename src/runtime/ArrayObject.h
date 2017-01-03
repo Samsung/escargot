@@ -22,11 +22,6 @@ public:
         return true;
     }
 
-    void setLength(ExecutionState& state, const uint64_t& value)
-    {
-        setArrayLength(state, value);
-    }
-
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
@@ -65,34 +60,8 @@ protected:
         return m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER].toUint32(state);
     }
 
-    // return values means state of isFastMode
-    bool setArrayLength(ExecutionState& state, const uint64_t& newLength)
-    {
-        ASSERT(isExtensible() || newLength <= getArrayLength(state));
-
-        if (UNLIKELY(newLength == Value::InvalidArrayIndexValue)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
-        }
-
-        if (UNLIKELY(isFastModeArray() && (newLength > ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE))) {
-            uint32_t orgLength = getArrayLength(state);
-            if (newLength > orgLength) {
-                if ((newLength - orgLength > ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP)) {
-                    convertIntoNonFastMode(state);
-                }
-            }
-        }
-
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(newLength);
-
-        if (LIKELY(isFastModeArray())) {
-            m_fastModeData.resize(newLength, Value(Value::EmptyValue));
-            return true;
-        } else {
-            return false;
-        }
-    }
-
+    bool setArrayLength(ExecutionState& state, const uint64_t& newLength);
+    bool defineArrayLengthProperty(ExecutionState& state, const ObjectPropertyDescriptor& desc);
     void convertIntoNonFastMode(ExecutionState& state);
 
     ALWAYS_INLINE ObjectGetResult getFastModeValue(ExecutionState& state, const ObjectPropertyName& P)

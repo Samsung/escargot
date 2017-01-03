@@ -21,8 +21,6 @@ class Node;
     F(StoreByStackIndex, 0, 0)                \
     F(LoadByHeapIndex, 1, 0)                  \
     F(StoreByHeapIndex, 0, 0)                 \
-    F(LoadByGlobalName, 1, 0)                 \
-    F(StoreByGlobalName, 0, 0)                \
     F(DeclareVarVariable, 0, 0)               \
     F(DeclareFunctionDeclaration, 1, 0)       \
     F(DeclareFunctionExpression, 1, 0)        \
@@ -367,48 +365,6 @@ public:
     virtual void dump()
     {
         printf("store heap[%d][%d] <- r%d", (int)m_upperIndex, (int)m_index, (int)m_registerIndex);
-    }
-#endif
-};
-
-class LoadByGlobalName : public ByteCode {
-public:
-    LoadByGlobalName(const ByteCodeLOC& loc, const size_t& registerIndex, const PropertyName& name)
-        : ByteCode(Opcode::LoadByGlobalNameOpcode, loc)
-        , m_registerIndex(registerIndex)
-        , m_cacheIndex(SIZE_MAX)
-        , m_name(name)
-    {
-    }
-    size_t m_registerIndex;
-    size_t m_cacheIndex;
-    PropertyName m_name;
-
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("load r%d <- global[%s]", (int)m_registerIndex, m_name.string()->toUTF8StringData().data());
-    }
-#endif
-};
-
-class StoreByGlobalName : public ByteCode {
-public:
-    StoreByGlobalName(const ByteCodeLOC& loc, const size_t& registerIndex, const PropertyName& name)
-        : ByteCode(Opcode::StoreByGlobalNameOpcode, loc)
-        , m_registerIndex(registerIndex)
-        , m_cacheIndex(SIZE_MAX)
-        , m_name(name)
-    {
-    }
-    size_t m_registerIndex;
-    size_t m_cacheIndex;
-    PropertyName m_name;
-
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("store global[%s] <- r%d", m_name.string()->toUTF8StringData().data(), (int)m_registerIndex);
     }
 #endif
 };

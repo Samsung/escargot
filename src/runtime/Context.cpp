@@ -41,8 +41,7 @@ Value Context::arrayLengthNativeGetter(ExecutionState& state, Object* self)
 bool Context::arrayLengthNativeSetter(ExecutionState& state, Object* self, const Value& newData)
 {
     ASSERT(self->isArrayObject());
-    self->asArrayObject()->setLength(state, newData.toArrayIndex(state));
-    return true;
+    return self->asArrayObject()->setArrayLength(state, newData.toArrayIndex(state));
 }
 
 static ObjectPropertyNativeGetterSetterData arrayLengthGetterSetterData(

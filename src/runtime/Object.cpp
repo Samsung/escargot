@@ -523,11 +523,18 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
             if (!structure()->isStructureWithFastAccess())
                 m_structure = structure()->convertToWithFastAccess(state);
 
-            m_structure->m_properties[idx].m_descriptor = newDesc.toObjectStructurePropertyDescriptor();
+            if (m_structure->m_properties[idx].m_descriptor.isNativeAccessorProperty()) {
+                auto newNative = new ObjectPropertyNativeGetterSetterData(newDesc.isWritable(), newDesc.isEnumerable(), newDesc.isConfigurable(),
+                                                                          m_structure->m_properties[idx].m_descriptor.nativeGetterSetterData()->m_getter, m_structure->m_properties[idx].m_descriptor.nativeGetterSetterData()->m_setter);
+                m_structure->m_properties[idx].m_descriptor = ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(newNative);
+            } else {
+                m_structure->m_properties[idx].m_descriptor = newDesc.toObjectStructurePropertyDescriptor();
+            }
+
             m_structure->m_version++;
 
             if (newDesc.isDataDescriptor()) {
-                m_values[idx] = newDesc.value();
+                return setOwnDataPropertyUtilForObjectInner(state, idx, m_structure->m_properties[idx], newDesc.value());
             } else {
                 m_values[idx] = Value(new JSGetterSetter(newDesc.getterSetter()));
             }

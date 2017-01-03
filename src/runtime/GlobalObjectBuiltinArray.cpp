@@ -32,7 +32,7 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
         array = new ArrayObject(state);
     }
 
-    array->setArrayLength(state, size);
+    array->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(size), array);
     if (interpretArgumentsAsElements) {
         Value val = argv[0];
         if (argc > 1 || !val.isInt32()) {
@@ -362,30 +362,29 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
         Value argi = (i == 0) ? thisObject : argv[i - 1];
         if (argi.isObject() && argi.asObject()->isArrayObject()) {
             ArrayObject* arr = argi.asObject()->asArrayObject();
-            uint32_t len = arr->length(state);
-            if (n > Value::InvalidArrayIndexValue - len) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_RangeError);
+
+            // Let k be 0.
+            uint64_t k = 0;
+            // Let len be the result of calling the [[Get]] internal method of E with argument "length".
+            uint64_t len = arr->length(state);
+
+            // Repeat, while k < len
+            while (k < len) {
+                // Let exists be the result of calling the [[HasProperty]] internal method of E with P.
+                ObjectGetResult exists = arr->get(state, ObjectPropertyName(state, Value(k)));
+                if (exists.hasValue()) {
+                    array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n + k)), ObjectPropertyDescriptor(exists.value(state, arr), ObjectPropertyDescriptor::AllPresent));
+                }
+                k = Object::nextIndexForward(state, arr, k, len, false);
             }
 
-            uint32_t curIndex = 0;
-            while (curIndex < len) {
-                ObjectGetResult exists = arr->get(state, ObjectPropertyName(state, Value(curIndex)));
-                if (exists.hasValue()) {
-                    array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n + curIndex)), ObjectPropertyDescriptor(exists.value(state, arr), ObjectPropertyDescriptor::AllPresent));
-                    curIndex++;
-                } else {
-                    curIndex = Object::nextIndexForward(state, arr, curIndex, len, false);
-                }
-            }
             n += len;
+            array->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(n), array);
         } else {
-            if (n > Value::InvalidArrayIndexValue - 1) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_RangeError);
-            }
             array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n++)), ObjectPropertyDescriptor(argi, ObjectPropertyDescriptor::AllPresent));
         }
     }
-    array->setLength(state, n);
+
     return array;
 }
 
@@ -413,7 +412,7 @@ static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t ar
             k = tmp;
         }
     }
-    array->setLength(state, n);
+    array->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(n), array);
     return array;
 }
 

@@ -665,8 +665,12 @@ inline Value::ValueIndex Value::toIndex(ExecutionState& state) const // $7.1.15 
     if (LIKELY(isInt32()) && LIKELY((i = asInt32()) >= 0)) {
         return i;
     } else {
-        String* key = toString(state);
-        return key->tryToUseAsIndex();
+        auto newLen = toInteger(state);
+        if (newLen != toNumber(state) || std::isinf(newLen)) {
+            return Value::InvalidIndexValue;
+        } else {
+            return newLen;
+        }
     }
 }
 
@@ -676,8 +680,12 @@ inline uint64_t Value::toArrayIndex(ExecutionState& state) const
     if (LIKELY(isInt32()) && LIKELY((i = asInt32()) >= 0)) {
         return i;
     } else {
-        String* key = toString(state);
-        return key->tryToUseAsArrayIndex();
+        uint32_t newLen = toUint32(state);
+        if (newLen != toNumber(state)) {
+            return Value::InvalidArrayIndexValue;
+        } else {
+            return newLen;
+        }
     }
 }
 

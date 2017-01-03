@@ -9,9 +9,7 @@ namespace Escargot {
 typedef Value (*ObjectPropertyNativeGetter)(ExecutionState& state, Object* self);
 typedef bool (*ObjectPropertyNativeSetter)(ExecutionState& state, Object* self, const Value& newData);
 
-// NOTE
-// this is static data, so we don't needed gc
-struct ObjectPropertyNativeGetterSetterData {
+struct ObjectPropertyNativeGetterSetterData : public gc {
     bool m_isWritable : 1;
     bool m_isEnumerable : 1;
     bool m_isConfigurable : 1;
