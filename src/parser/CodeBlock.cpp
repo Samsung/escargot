@@ -40,6 +40,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     m_canUseIndexedVariableStorage = true;
     m_canAllocateEnvironmentOnStack = true;
     m_needsComplexParameterCopy = false;
+    m_isInWithScope = false;
 
     m_parametersInfomation.resize(info.m_argumentCount);
 
@@ -87,6 +88,7 @@ CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundT
     m_canUseIndexedVariableStorage = targetCodeBlock->canUseIndexedVariableStorage();
     m_canAllocateEnvironmentOnStack = targetCodeBlock->canAllocateEnvironmentOnStack();
     m_needsComplexParameterCopy = targetCodeBlock->needsComplexParameterCopy();
+    m_isInWithScope = targetCodeBlock->isInWithScope();
 
     size_t targetFunctionLength = targetCodeBlock->parametersInfomation().size();
     m_parametersInfomation.resize(targetFunctionLength > boundArgc ? targetFunctionLength - boundArgc : 0);
@@ -157,6 +159,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
     m_canUseIndexedVariableStorage = false;
     m_canAllocateEnvironmentOnStack = false;
     m_needsComplexParameterCopy = false;
+    m_isInWithScope = false;
 
     for (size_t i = 0; i < innerIdentifiers.size(); i++) {
         IdentifierInfo info;
@@ -247,6 +250,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, NodeLOC sourc
     }
 
     m_needsComplexParameterCopy = false;
+    m_isInWithScope = false;
 }
 
 bool CodeBlock::tryCaptureIdentifiersFromChildCodeBlock(AtomicString name)

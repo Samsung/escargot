@@ -13,9 +13,10 @@ class ByteCodeBlock;
 class Node;
 
 struct ParserContextInformation {
-    ParserContextInformation(bool isEvalCode = false, bool isForGlobalScope = false, bool isStrict = false)
+    ParserContextInformation(bool isEvalCode = false, bool isForGlobalScope = false, bool isStrict = false, bool isWithScope = false)
         : m_isEvalCode(isEvalCode)
         , m_isForGlobalScope(isForGlobalScope)
+        , m_isWithScope(isWithScope)
     {
         // NOTE: ES5 10.4.2.1
         if (isEvalCode && isStrict)
@@ -24,6 +25,7 @@ struct ParserContextInformation {
 
     bool m_isEvalCode : 1;
     bool m_isForGlobalScope : 1;
+    bool m_isWithScope : 1;
 };
 
 struct ByteCodeGenerateContext {
@@ -34,7 +36,7 @@ struct ByteCodeGenerateContext {
         , m_isGlobalScope(parserContextInformation.m_isForGlobalScope)
         , m_isEvalCode(parserContextInformation.m_isEvalCode)
         , m_isOutermostContext(true)
-        , m_isWithScope(false)
+        , m_isWithScope(parserContextInformation.m_isWithScope)
         , m_offsetToBasePointer(0)
         , m_positionToContinue(0)
         , m_tryStatementScopeCount(0)

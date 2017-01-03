@@ -74,7 +74,7 @@ void ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node*
 
     // TODO
     // fill ParserContextInformation info
-    ParserContextInformation info(isEvalMode, codeBlock->isGlobalScopeCodeBlock(), codeBlock->isStrict());
+    ParserContextInformation info(isEvalMode, codeBlock->isGlobalScopeCodeBlock(), codeBlock->isStrict(), codeBlock->isInWithScope());
 
     ByteCodeGenerateContext ctx(codeBlock, block, info);
 

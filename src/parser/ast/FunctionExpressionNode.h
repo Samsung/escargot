@@ -45,6 +45,8 @@ public:
             }
         }
         ASSERT(blk);
+        if (context->m_isWithScope)
+            blk->setInWithScope();
         codeBlock->pushCode(DeclareFunctionExpression(ByteCodeLOC(m_loc.index), context->getRegister(), blk), context, this);
 
         context->m_feCounter++;

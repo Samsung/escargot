@@ -281,6 +281,16 @@ public:
         return m_needsComplexParameterCopy;
     }
 
+    void setInWithScope()
+    {
+        m_isInWithScope = true;
+    }
+
+    bool isInWithScope() const
+    {
+        return m_isInWithScope;
+    }
+
     struct FunctionParametersInfo {
         bool m_isHeapAllocated;
         size_t m_index;
@@ -364,6 +374,7 @@ protected:
     bool m_isFunctionExpression;
     bool m_isFunctionDeclaration;
     bool m_needsComplexParameterCopy;
+    bool m_isInWithScope;
 
     Context* m_context;
     Script* m_script;
