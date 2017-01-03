@@ -6,7 +6,7 @@
 
 namespace Escargot {
 
-struct ArgumentsObjectArgData : public gc {
+struct ArgumentsObjectArgData : public PointerValue {
     FunctionEnvironmentRecord* m_targetRecord;
     CodeBlock* m_codeBlock;
     AtomicString m_name;
@@ -17,27 +17,28 @@ struct ArgumentsObjectArgData : public gc {
         , m_name(name)
     {
     }
+
+    virtual Type type()
+    {
+        return ExtraDataType;
+    }
 };
 
-static Value builtinArgumentObjectArgumentGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value ArgumentsObjectNativeGetter(ExecutionState& state, Object* self, const Value& objectInternalData)
 {
-    // TODO check is called from right place
-    FunctionObject* self = state.executionContext()->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
-    ArgumentsObjectArgData* data = (ArgumentsObjectArgData*)self->extraData();
+    ArgumentsObjectArgData* data = (ArgumentsObjectArgData*)objectInternalData.asPointerValue();
     CodeBlock::IdentifierInfo info = data->m_codeBlock->identifierInfos()[data->m_codeBlock->findName(data->m_name)];
     ASSERT(!info.m_needToAllocateOnStack);
     return data->m_targetRecord->getHeapValueByIndex(info.m_indexForIndexedStorage);
 }
 
-static Value builtinArgumentObjectArgumentSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static bool ArgumentsObjectNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData, Value& objectInternalData)
 {
-    // TODO check is called from right place
-    FunctionObject* self = state.executionContext()->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
-    ArgumentsObjectArgData* data = (ArgumentsObjectArgData*)self->extraData();
+    ArgumentsObjectArgData* data = (ArgumentsObjectArgData*)objectInternalData.asPointerValue();
     CodeBlock::IdentifierInfo info = data->m_codeBlock->identifierInfos()[data->m_codeBlock->findName(data->m_name)];
     ASSERT(!info.m_needToAllocateOnStack);
-    data->m_targetRecord->setHeapValueByIndex(info.m_indexForIndexedStorage, argv[0]);
-    return Value();
+    data->m_targetRecord->setHeapValueByIndex(info.m_indexForIndexedStorage, setterInputData);
+    return true;
 }
 
 ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* record, ExecutionContext* ec)
@@ -81,14 +82,12 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
                 // Add name as an element of the list mappedNames.
                 mappedNames.push_back(name);
                 // Let g be the result of calling the MakeArgGetter abstract operation with arguments name and env.
-                FunctionObject* g = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Empty, builtinArgumentObjectArgumentGetter, 0, nullptr, NativeFunctionInfo::Strict));
-                g->setExtraData(new ArgumentsObjectArgData(record, blk, name));
                 // Let p be the result of calling the MakeArgSetter abstract operation with arguments name and env.
-                FunctionObject* p = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Empty, builtinArgumentObjectArgumentSetter, 1, nullptr, NativeFunctionInfo::Strict));
-                ;
-                p->setExtraData(new ArgumentsObjectArgData(record, blk, name));
+                auto data = new ArgumentsObjectArgData(record, blk, name);
                 // Call the [[DefineOwnProperty]] internal method of map passing ToString(indx), the Property Descriptor {[[Set]]: p, [[Get]]: g, [[Configurable]]: true}, and false as arguments.
-                obj->defineOwnProperty(state, ObjectPropertyName(state, Value(indx)), ObjectPropertyDescriptor(JSGetterSetter(g, p), ObjectPropertyDescriptor::ConfigurablePresent));
+                auto gsData = new ObjectPropertyNativeGetterSetterData(true, true, true, ArgumentsObjectNativeGetter, ArgumentsObjectNativeSetter);
+                obj->deleteOwnProperty(state, ObjectPropertyName(state, Value(indx)));
+                obj->defineNativeGetterSetterDataProperty(state, ObjectPropertyName(state, Value(indx)), gsData, data);
             }
         }
         // Let indx = indx - 1

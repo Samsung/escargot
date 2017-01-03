@@ -215,9 +215,6 @@ public:
         }
     }
 
-    // TODO
-    // for native acc. data property
-
     const Value& value() const
     {
         ASSERT(isDataProperty());
@@ -623,6 +620,14 @@ public:
     static void throwCannotWriteError(ExecutionState& state, const PropertyName& P);
     static void throwCannotDeleteError(ExecutionState& state, const PropertyName& P);
 
+    // this function is always success
+    // conditon of useing this function is
+    // ASSERT(!hasOwnProperty(state, P));
+    // ASSERT(isExtensible());
+    // ASSERT(!isArrayObject());
+    // ASSERT(!isStringObject());
+    void defineNativeGetterSetterDataProperty(ExecutionState& state, const ObjectPropertyName& P, ObjectPropertyNativeGetterSetterData* data, const Value& objectInternalData);
+
 protected:
     Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);
     void initPlainObject(ExecutionState& state);
@@ -661,7 +666,7 @@ protected:
         if (LIKELY(item.m_descriptor.isPlainDataProperty())) {
             return m_values[idx];
         } else {
-            return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this);
+            return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this, m_values[idx]);
         }
     }
 
@@ -671,7 +676,10 @@ protected:
             m_values[idx] = newValue;
             return true;
         } else {
-            return item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, newValue);
+            Value value = m_values[idx];
+            bool ret = item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, newValue, value);
+            m_values[idx] = value;
+            return ret;
         }
     }
 

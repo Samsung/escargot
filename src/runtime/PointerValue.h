@@ -24,7 +24,8 @@ public:
         ArrayObjectType,
         DoubleInSmallValueType,
         DummyInSmallValueType,
-        JSGetterSetterType
+        JSGetterSetterType,
+        ExtraDataType
     };
 
     virtual Type type() = 0;

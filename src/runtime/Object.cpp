@@ -320,7 +320,7 @@ ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectProper
                 return ObjectGetResult(m_values[idx], item.m_descriptor.isWritable(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
             } else {
                 ObjectPropertyNativeGetterSetterData* data = item.m_descriptor.nativeGetterSetterData();
-                Value ret = data->m_getter(state, this);
+                Value ret = data->m_getter(state, this, m_values[idx]);
                 return ObjectGetResult(ret, item.m_descriptor.isWritable(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
             }
         } else {
@@ -523,7 +523,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
             if (!structure()->isStructureWithFastAccess())
                 m_structure = structure()->convertToWithFastAccess(state);
 
-            if (m_structure->m_properties[idx].m_descriptor.isNativeAccessorProperty()) {
+            if (newDesc.isDataDescriptor() && m_structure->m_properties[idx].m_descriptor.isNativeAccessorProperty()) {
                 auto newNative = new ObjectPropertyNativeGetterSetterData(newDesc.isWritable(), newDesc.isEnumerable(), newDesc.isConfigurable(),
                                                                           m_structure->m_properties[idx].m_descriptor.nativeGetterSetterData()->m_getter, m_structure->m_properties[idx].m_descriptor.nativeGetterSetterData()->m_setter);
                 m_structure->m_properties[idx].m_descriptor = ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(newNative);
@@ -796,5 +796,18 @@ bool Object::setOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t id
         return true;
     }
     return false;
+}
+
+// this function is always success
+void Object::defineNativeGetterSetterDataProperty(ExecutionState& state, const ObjectPropertyName& P, ObjectPropertyNativeGetterSetterData* data, const Value& v)
+{
+    ASSERT(!hasOwnProperty(state, P));
+    ASSERT(isExtensible());
+    ASSERT(!isArrayObject());
+    ASSERT(!isStringObject());
+
+    m_structure = m_structure->addProperty(state, P.toPropertyName(state), ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(data));
+    m_values.pushBack(v);
+    ASSERT(m_values.size() == m_structure->propertyCount());
 }
 }

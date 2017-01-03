@@ -13,16 +13,16 @@
 
 namespace Escargot {
 
-Value Context::functionPrototypeNativeGetter(ExecutionState& state, Object* self)
+Value Context::functionPrototypeNativeGetter(ExecutionState& state, Object* self, const Value& data)
 {
     ASSERT(self->isFunctionObject());
-    return self->uncheckedGetOwnDataProperty(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER);
+    return data;
 }
 
-bool Context::functionPrototypeNativeSetter(ExecutionState& state, Object* self, const Value& newData)
+bool Context::functionPrototypeNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData, Value& objectInternalData)
 {
     ASSERT(self->isFunctionObject());
-    self->uncheckedSetOwnDataProperty(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, newData);
+    objectInternalData = setterInputData;
     return true;
 }
 
@@ -32,28 +32,30 @@ static ObjectPropertyNativeGetterSetterData functionPrototypeNativeGetterSetterD
 static ObjectPropertyNativeGetterSetterData builtinFunctionPrototypeNativeGetterSetterData(
     false, false, false, &Context::functionPrototypeNativeGetter, &Context::functionPrototypeNativeSetter);
 
-Value Context::arrayLengthNativeGetter(ExecutionState& state, Object* self)
+Value Context::arrayLengthNativeGetter(ExecutionState& state, Object* self, const Value& data)
 {
     ASSERT(self->isArrayObject());
-    return self->uncheckedGetOwnDataProperty(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER);
+    return data;
 }
 
-bool Context::arrayLengthNativeSetter(ExecutionState& state, Object* self, const Value& newData)
+bool Context::arrayLengthNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData, Value& objectInternalData)
 {
     ASSERT(self->isArrayObject());
-    return self->asArrayObject()->setArrayLength(state, newData.toArrayIndex(state));
+    bool ret = self->asArrayObject()->setArrayLength(state, setterInputData.toArrayIndex(state));
+    objectInternalData = self->uncheckedGetOwnDataProperty(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER);
+    return ret;
 }
 
 static ObjectPropertyNativeGetterSetterData arrayLengthGetterSetterData(
     true, false, false, &Context::arrayLengthNativeGetter, &Context::arrayLengthNativeSetter);
 
-Value Context::stringLengthNativeGetter(ExecutionState& state, Object* self)
+Value Context::stringLengthNativeGetter(ExecutionState& state, Object* self, const Value& data)
 {
     ASSERT(self->isStringObject());
     return Value(self->asStringObject()->primitiveValue()->length());
 }
 
-bool Context::stringLengthNativeSetter(ExecutionState& state, Object* self, const Value& newData)
+bool Context::stringLengthNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData, Value& objectInternalData)
 {
     return false;
 }
@@ -61,7 +63,7 @@ bool Context::stringLengthNativeSetter(ExecutionState& state, Object* self, cons
 static ObjectPropertyNativeGetterSetterData stringLengthGetterSetterData(
     false, false, false, &Context::stringLengthNativeGetter, &Context::stringLengthNativeSetter);
 
-Value Context::regexpSourceNativeGetter(ExecutionState& state, Object* self)
+Value Context::regexpSourceNativeGetter(ExecutionState& state, Object* self, const Value& data)
 {
     ASSERT(self->isRegExpObject());
     return Value(self->asRegExpObject()->source());
@@ -69,7 +71,7 @@ Value Context::regexpSourceNativeGetter(ExecutionState& state, Object* self)
 static ObjectPropertyNativeGetterSetterData regexpSourceGetterData(
     false, false, false, &Context::regexpSourceNativeGetter, nullptr);
 
-Value Context::regexpGlobalNativeGetter(ExecutionState& state, Object* self)
+Value Context::regexpGlobalNativeGetter(ExecutionState& state, Object* self, const Value& data)
 {
     ASSERT(self->isRegExpObject());
     return Value((bool)(self->asRegExpObject()->option() & RegExpObject::Option::Global));
@@ -78,7 +80,7 @@ Value Context::regexpGlobalNativeGetter(ExecutionState& state, Object* self)
 static ObjectPropertyNativeGetterSetterData regexpGlobalGetterData(
     false, false, false, &Context::regexpGlobalNativeGetter, nullptr);
 
-Value Context::regexpIgnoreCaseNativeGetter(ExecutionState& state, Object* self)
+Value Context::regexpIgnoreCaseNativeGetter(ExecutionState& state, Object* self, const Value& data)
 {
     ASSERT(self->isRegExpObject());
     return Value((bool)(self->asRegExpObject()->option() & RegExpObject::Option::IgnoreCase));
@@ -87,7 +89,7 @@ Value Context::regexpIgnoreCaseNativeGetter(ExecutionState& state, Object* self)
 static ObjectPropertyNativeGetterSetterData regexpIgnoreCaseGetterData(
     false, false, false, &Context::regexpIgnoreCaseNativeGetter, nullptr);
 
-Value Context::regexpMultilineNativeGetter(ExecutionState& state, Object* self)
+Value Context::regexpMultilineNativeGetter(ExecutionState& state, Object* self, const Value& data)
 {
     ASSERT(self->isRegExpObject());
     return Value((bool)(self->asRegExpObject()->option() & RegExpObject::Option::MultiLine));
@@ -96,16 +98,16 @@ Value Context::regexpMultilineNativeGetter(ExecutionState& state, Object* self)
 static ObjectPropertyNativeGetterSetterData regexpMultilineGetterData(
     false, false, false, &Context::regexpMultilineNativeGetter, nullptr);
 
-Value Context::regexpLastIndexNativeGetter(ExecutionState& state, Object* self)
+Value Context::regexpLastIndexNativeGetter(ExecutionState& state, Object* self, const Value& data)
 {
     ASSERT(self->isRegExpObject());
     return self->asRegExpObject()->lastIndex();
 }
 
-bool Context::regexpLastIndexNativeSetter(ExecutionState& state, Object* self, const Value& newData)
+bool Context::regexpLastIndexNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData, Value& objectInternalData)
 {
     ASSERT(self->isRegExpObject());
-    self->asRegExpObject()->setLastIndex(newData);
+    self->asRegExpObject()->setLastIndex(setterInputData);
     return true;
 }
 

@@ -6,8 +6,8 @@
 
 namespace Escargot {
 
-typedef Value (*ObjectPropertyNativeGetter)(ExecutionState& state, Object* self);
-typedef bool (*ObjectPropertyNativeSetter)(ExecutionState& state, Object* self, const Value& newData);
+typedef Value (*ObjectPropertyNativeGetter)(ExecutionState& state, Object* self, const Value& data);
+typedef bool (*ObjectPropertyNativeSetter)(ExecutionState& state, Object* self, const Value& setterInputData, Value& objectInternalData);
 
 struct ObjectPropertyNativeGetterSetterData : public gc {
     bool m_isWritable : 1;
