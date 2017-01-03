@@ -190,8 +190,6 @@
   <test id="15.2.3.7-6-a-288"><reason>ArgumentsObject::defineOwnProperty</reason></test>
   <test id="15.2.3.7-6-a-289"><reason>ArgumentsObject::defineOwnProperty</reason></test>
 
-  <test id="S15.5.4.13_A1_T10"><reason>with</reason></test>
-  <test id="S15.5.4.15_A1_T10"><reason>with</reason></test>
   <test id="S15.5.4.7_A1_T11"><reason>Date</reason></test>
   <test id="S15.5.4.7_A1_T12"><reason>Array indexof</reason></test>
   <test id="S15.5.4.8_A1_T12"><reason>Array lastIndexOf</reason></test>
