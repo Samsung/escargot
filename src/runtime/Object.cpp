@@ -679,7 +679,7 @@ void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
     ASSERT(m_values.size() == m_structure->propertyCount());
 }
 
-uint32_t Object::length(ExecutionState& state)
+uint64_t Object::length(ExecutionState& state)
 {
     return get(state, state.context()->staticStrings().length, this).value(state, this).toUint32(state);
 }

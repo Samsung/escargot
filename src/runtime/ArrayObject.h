@@ -31,7 +31,7 @@ public:
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual void enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc)> callback) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual uint32_t length(ExecutionState& state)
+    virtual uint64_t length(ExecutionState& state)
     {
         return getArrayLength(state);
     }
@@ -66,7 +66,7 @@ protected:
     }
 
     // return values means state of isFastMode
-    bool setArrayLength(ExecutionState& state, const uint32_t& newLength)
+    bool setArrayLength(ExecutionState& state, const uint64_t& newLength)
     {
         ASSERT(isExtensible() || newLength <= getArrayLength(state));
 

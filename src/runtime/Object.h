@@ -523,7 +523,7 @@ public:
     // enumeration every property!
     // callback function should skip un-Enumerable property if needs
     virtual void enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc)> callback) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual uint32_t length(ExecutionState& state);
+    virtual uint64_t length(ExecutionState& state);
 
     bool hasOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
     {

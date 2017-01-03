@@ -58,7 +58,7 @@ static Value builtinArrayIsArray(ExecutionState& state, Value thisValue, size_t 
 static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, Array, join);
-    uint32_t len = thisBinded->length(state);
+    int64_t len = thisBinded->length(state);
     Value separator = argv[0];
     // TODO
     // size_t lenMax = ESString::maxLength();
@@ -703,7 +703,7 @@ static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t arg
 
     // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
     // Let n be ToUint32(lenVal).
-    uint32_t n = O->length(state);
+    int64_t n = O->length(state);
     // Let items be an internal List whose elements are, in left to right order, the arguments that were passed to this function invocation.
     // Repeat, while items is not empty
     // Remove the first element from items and let E be the value of the element.
@@ -712,9 +712,10 @@ static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t arg
         O->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, Value(n)), argv[i], O);
         // Increase n by 1.
         n++;
-        // Call the [[Put]] internal method of O with arguments "length", n, and true.
-        O->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, state.context()->staticStrings().length), Value(n), O);
     }
+
+    // Call the [[Put]] internal method of O with arguments "length", n, and true.
+    O->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, state.context()->staticStrings().length), Value(n), O);
 
     // Return n.
     return Value(n);
@@ -722,8 +723,51 @@ static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t arg
 
 static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    // Let O be the result of calling ToObject passing the this value as the argument.
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, push);
+    // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
+    // Let len be ToUint32(lenVal).
+    int64_t len = O->length(state);
+    // If len is zero, then
+    if (len == 0) {
+        // Call the [[Put]] internal method of O with arguments "length", 0, and true.
+        O->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(0), O);
+        // Return undefined.
+        return Value();
+    }
+    // Let first be the result of calling the [[Get]] internal method of O with argument "0".
+    Value first = O->get(state, ObjectPropertyName(state, Value(0)), O).value(state, O);
+    // Let k be 1.
+    int64_t k = 1;
+    // Repeat, while k < len
+    while (k < len) {
+        // Let from be ToString(k).
+        ObjectPropertyName from(state, Value(k));
+        // Let to be ToString(k–1).
+        ObjectPropertyName to(state, Value(k - 1));
+        // Let fromPresent be the result of calling the [[HasProperty]] internal method of O with argument from.
+        ObjectGetResult fromPresent = O->get(state, from);
+
+        // If fromPresent is true, then
+        if (fromPresent.hasValue()) {
+            // Let fromVal be the result of calling the [[Get]] internal method of O with argument from.
+            Value fromVal = fromPresent.value(state, O);
+            // Call the [[Put]] internal method of O with arguments to, fromVal, and true.
+            O->setThrowsException(state, to, fromVal, O);
+        } else {
+            // Else, fromPresent is false
+            // Call the [[Delete]] internal method of O with arguments to and true.
+            O->deleteOwnPropertyThrowsException(state, to);
+        }
+        // Increase k by 1.
+        k++;
+    }
+    // Call the [[Delete]] internal method of O with arguments ToString(len–1) and true.
+    O->deleteOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(len - 1)));
+    // Call the [[Put]] internal method of O with arguments "length", (len–1) , and true.
+    O->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(len - 1), O);
+    // Return first.
+    return first;
 }
 
 void GlobalObject::installArray(ExecutionState& state)
@@ -771,7 +815,7 @@ void GlobalObject::installArray(ExecutionState& state)
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().push),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().push, builtinArrayPush, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().shift),
-                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().shift, builtinArrayShift, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().shift, builtinArrayShift, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().reverse),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().reverse, builtinArrayReverse, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toString),
