@@ -11,6 +11,9 @@ namespace Escargot {
 class Context;
 class ByteCodeBlock;
 class LexicalEnvironment;
+struct GetObjectInlineCache;
+struct SetObjectInlineCache;
+struct EnumerateObjectData;
 
 class ByteCodeInterpreter {
 public:

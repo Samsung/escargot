@@ -43,6 +43,10 @@ public:
         return m_inStrictMode;
     }
 
+#if ESCARGOT_ENABLE_PROMISE
+    FunctionObject* resolveCallee();
+#endif
+
 private:
     bool m_inStrictMode;
     Context* m_context;

@@ -20,6 +20,9 @@ struct ObjectRareData : public gc {
     bool m_isFastModeArrayObject;
     const char* m_internalClassName;
     void* m_extraData;
+#ifdef ESCARGOT_ENABLE_PROMISE
+    Object* m_internalSlot;
+#endif
     ObjectRareData();
 };
 
@@ -495,8 +498,7 @@ public:
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-preventextensions
     void preventExtensions()
     {
-        ensureObjectRareData();
-        m_rareData->m_isExtensible = false;
+        ensureObjectRareData()->m_isExtensible = false;
     }
 
     Value getPrototype(ExecutionState& state)
@@ -614,6 +616,27 @@ public:
     {
         ensureObjectRareData()->m_extraData = e;
     }
+
+#ifdef ESCARGOT_ENABLE_PROMISE
+    Object* ensureInternalSlot(ExecutionState& state)
+    {
+        ensureObjectRareData();
+        if (!internalSlot())
+            setInternalSlot(new Object(state));
+        return internalSlot();
+    }
+
+    Object* internalSlot()
+    {
+        ASSERT(m_rareData);
+        return m_rareData->m_internalSlot;
+    }
+
+    void setInternalSlot(Object* object)
+    {
+        ensureObjectRareData()->m_internalSlot = object;
+    }
+#endif
 
     static void throwCannotDefineError(ExecutionState& state, const PropertyName& P);
     static void throwCannotWriteError(ExecutionState& state, const PropertyName& P);

@@ -2857,7 +2857,7 @@ public:
                     expr = this->finalize(node, new ThisExpressionNode());
                 } else if (this->matchKeyword(KeywordKind::Class)) {
                     // TODO
-                    RELEASE_ASSERT_NOT_REACHED();
+                    this->throwUnexpectedToken(this->nextToken());
                     // expr = this->parseClassExpression();
                 } else {
                     this->throwUnexpectedToken(this->nextToken());

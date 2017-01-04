@@ -19,6 +19,7 @@ class ScriptParser;
 class ObjectStructure;
 class ControlFlowRecord;
 class SandBox;
+class JobQueue;
 
 class Context : public gc {
     friend class AtomicString;
@@ -133,6 +134,13 @@ public:
     void somePrototypeObjectDefineIndexedProperty(ExecutionState& state);
     void throwException(ExecutionState& state, const Value& exception);
 
+#if ESCARGOT_ENABLE_PROMISE
+    JobQueue* jobQueue()
+    {
+        return m_jobQueue;
+    }
+#endif
+
 protected:
     bool m_didSomePrototypeObjectDefineIndexedProperty;
     VMInstance* m_instance;
@@ -155,6 +163,10 @@ protected:
     ObjectStructure* m_defaultStructureForRegExpObject;
 
     Vector<SandBox*, gc_malloc_allocator<SandBox*>> m_sandBoxStack;
+
+#if ESCARGOT_ENABLE_PROMISE
+    JobQueue* m_jobQueue;
+#endif
 };
 }
 

@@ -10,6 +10,7 @@
 #include "SandBox.h"
 #include "ArrayObject.h"
 #include "BumpPointerAllocator.h"
+#include "JobQueue.h"
 
 namespace Escargot {
 
@@ -129,6 +130,10 @@ Context::Context(VMInstance* instance)
 {
     m_staticStrings.initStaticStrings(&m_atomicStringMap);
     ExecutionState stateForInit(this);
+
+#if ESCARGOT_ENABLE_PROMISE
+    m_jobQueue = JobQueue::create();
+#endif
 
     ObjectStructure defaultStructureForObject(stateForInit);
     m_defaultStructureForObject = new ObjectStructure(stateForInit);

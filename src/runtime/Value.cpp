@@ -13,6 +13,28 @@
 
 namespace Escargot {
 
+#if defined(ESCARGOT_ENABLE_PROMISE) || defined(ESCARGOT_ENABLE_TYPEDARRAY)
+bool Value::isIterable() const
+{
+    if (isString())
+        return true;
+
+    if (!isObject())
+        return false;
+
+    Object* object = asObject();
+
+    if (object->isArrayObject())
+        return true;
+#ifdef ESCARGOT_ENABLE_TYPEDARRAY
+    if (object->isTypedArrayObject())
+        return true;
+#endif
+
+    return false;
+}
+#endif
+
 String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
 {
     ASSERT(!isString());

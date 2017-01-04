@@ -1,6 +1,6 @@
 
 # TODO this list should be maintained in a better way
-OPT_MASTER_PROMISE=built-ins/Promise/S25.4.3.1_A1.1_T1 built-ins/Promise/name built-ins/Promise/all/S25.4.4.1_A4.1_T1 built-ins/Promise/all/ctx-non-ctor built-ins/Promise/all/ctx-non-object built-ins/Promise/prototype/S25.4.4.2_A1.1_T1 built-ins/Promise/prototype/S25.4.5_A3.1_T1 built-ins/Promise/prototype/no-promise-state built-ins/Promise/prototype/prop-desc built-ins/Promise/prototype/proto
+OPT_MASTER_PROMISE=built-ins/Promise
 OPT_MASTER_ARRAYBUFFER=#built-ins/ArrayBuffer
 OPT_MASTER_DATAVIEW=#built-ins/DataView
 OPT_MASTER_TYPEDARRAY=#built-ins/TypedArray built-ins/TypedArrays
@@ -38,6 +38,8 @@ run-test262:
 	TZ="US/Pacific" python tools/packaging/test262.py --command ../../escargot $(OPT) --full-summary
 
 run-test262-master:
+	cp test/test262-harness-py-excludelist.xml test/test262-harness-py/excludelist.xml
+	cp test/test262-harness-py-test262.py ./test/test262-harness-py/src/test262.py
 	python ./test/test262-harness-py/src/test262.py --command ./escargot --tests=test/test262-master $(OPT) --full-summary
 
 run-test262-wearable:

@@ -20,6 +20,9 @@
 #include "util/Vector.h"
 #include "runtime/Value.h"
 #include "parser/ScriptParser.h"
+#ifdef ESCARGOT_ENABLE_PROMISE
+#include "DefaultJobQueue.h"
+#endif
 
 #ifdef ANDROID
 void __attribute__((optimize("O0"))) fillStack(size_t siz)
@@ -45,6 +48,21 @@ bool eval(Escargot::Context* context, Escargot::String* str, Escargot::String* f
         if (!resultValue.result.isEmpty()) {
             if (shouldPrintScriptResult)
                 puts(resultValue.msgStr->toUTF8StringData().data());
+
+#ifdef ESCARGOT_ENABLE_PROMISE
+            Escargot::DefaultJobQueue* jobQueue = Escargot::DefaultJobQueue::get(context->jobQueue());
+            while (jobQueue->hasNextJob()) {
+                auto jobResult = jobQueue->nextJob()->run(state);
+                if (shouldPrintScriptResult) {
+                    if (!jobResult.result.isEmpty()) {
+                        printf("%s\n", jobResult.result.toString(state)->toUTF8StringData().data());
+                    } else {
+                        printf("Uncaught %s:\n", jobResult.msgStr->toUTF8StringData().data());
+                    }
+                }
+            }
+#endif
+
         } else {
             printf("Uncaught %s:\n", resultValue.msgStr->toUTF8StringData().data());
             for (size_t i = 0; i < resultValue.error.stackTrace.size(); i++) {

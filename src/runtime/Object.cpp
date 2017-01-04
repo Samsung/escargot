@@ -15,6 +15,9 @@ ObjectRareData::ObjectRareData()
     m_isFastModeArrayObject = true;
     m_internalClassName = nullptr;
     m_extraData = nullptr;
+#ifdef ESCARGOT_ENABLE_PROMISE
+    m_internalSlot = nullptr;
+#endif
 }
 
 Value ObjectGetResult::valueSlowCase(ExecutionState& state, const Value& receiver) const
