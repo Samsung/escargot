@@ -556,7 +556,7 @@ static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, siz
                 return Value(k);
             }
         } else {
-            k = Object::nextIndexBackward(state, O, k, len, false);
+            k = Object::nextIndexBackward(state, O, k, -1, false);
             continue;
         }
         // Decrease k by 1.

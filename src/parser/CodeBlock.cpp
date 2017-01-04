@@ -305,7 +305,7 @@ void CodeBlock::computeVariables()
         m_canAllocateEnvironmentOnStack = false;
     }
 
-    if (inEvalWithCatchYieldScope()) {
+    if (inEvalWithCatchYieldScope() || inNotIndexedCodeBlockScope()) {
         m_canAllocateEnvironmentOnStack = false;
     }
 

@@ -251,7 +251,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         if (space_cnt >= 1) {
             UTF8StringData gapData;
             gapData.resizeWithUninitializedValues(space_cnt);
-            for (size_t i = 0; i < space_cnt; i++) {
+            for (int i = 0; i < space_cnt; i++) {
                 gapData[i] = ' ';
             }
             gap = new ASCIIString(gapData.data(), gapData.length());
@@ -328,7 +328,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
 
         StringBuilder product;
         product.appendChar('"');
-        for (int i = 0; i < str->length(); ++i) {
+        for (size_t i = 0; i < str->length(); ++i) {
             char16_t c = str->charAt(i);
 
             if (c == u'\"' || c == u'\\') {
@@ -483,7 +483,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         final.appendChar('{');
         if (partial.size() != 0) {
             if (gap->length() == 0) {
-                for (int i = 0; i < partial.size(); ++i) {
+                for (size_t i = 0; i < partial.size(); ++i) {
                     final.appendString(partial[i]);
                     if (i < partial.size() - 1) {
                         final.appendChar(',');
@@ -497,7 +497,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
                 seperatorBuilder.appendChar('\n');
                 seperatorBuilder.appendString(indent);
                 String* seperator = seperatorBuilder.finalize();
-                for (int i = 0; i < partial.size(); ++i) {
+                for (size_t i = 0; i < partial.size(); ++i) {
                     final.appendString(partial[i]);
                     if (i < partial.size() - 1) {
                         final.appendString(seperator);

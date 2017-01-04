@@ -98,10 +98,6 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
         codeBlock->appendChildBlock(generateCodeBlockTreeFromASTWalker(ctx, source, script, scopeCtx->m_childScopes[i], codeBlock));
     }
 
-    if (parentCodeBlock) {
-        codeBlock->computeVariables();
-    }
-
     return codeBlock;
 }
 
@@ -109,6 +105,14 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
 CodeBlock* ScriptParser::generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program)
 {
     return generateCodeBlockTreeFromASTWalker(ctx, source, script, program->scopeContext(), nullptr);
+}
+
+void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(CodeBlock* cb)
+{
+    for (size_t i = 0; i < cb->m_childBlocks.size(); i++) {
+        generateCodeBlockTreeFromASTWalkerPostProcess(cb->m_childBlocks[i]);
+    }
+    cb->computeVariables();
 }
 
 ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, String* fileName, CodeBlock* parentCodeBlock, bool strictFromOutside)
@@ -129,6 +133,9 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
         } else {
             topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, program);
         }
+
+        generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
+
         topCodeBlock->m_cachedASTNode = program;
         script->m_topCodeBlock = topCodeBlock;
 

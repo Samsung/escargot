@@ -713,7 +713,7 @@ double Object::nextIndexForward(ExecutionState& state, Object* obj, const double
                 }
                 if (index > cur) {
                     if (ret > index) {
-                        ret = index;
+                        ret = std::min(static_cast<double>(index), ret);
                     }
                 }
             }
@@ -737,9 +737,7 @@ double Object::nextIndexBackward(ExecutionState& state, Object* obj, const doubl
                     return true;
                 }
                 if (index < cur) {
-                    if (ret < index) {
-                        ret = index;
-                    }
+                    ret = std::max(static_cast<double>(index), ret);
                 }
             }
             return true;

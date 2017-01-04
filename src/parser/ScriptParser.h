@@ -47,6 +47,7 @@ public:
 protected:
     CodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program);
     CodeBlock* generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, CodeBlock* parentCodeBlock);
+    void generateCodeBlockTreeFromASTWalkerPostProcess(CodeBlock* cb);
 
     Context* m_context;
 };
