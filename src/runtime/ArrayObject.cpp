@@ -165,7 +165,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t& newLengt
             bool deleteSucceeded = deleteOwnProperty(state, ObjectPropertyName(state, Value(oldLen)));
             if (!deleteSucceeded) {
                 m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(oldLen + 1);
-                Object::throwCannotDeleteError(state, PropertyName(state, String::fromDouble(oldLen)));
+                // Object::throwCannotDeleteError(state, PropertyName(state, String::fromDouble(oldLen)));
                 return false;
             }
         }

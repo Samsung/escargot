@@ -175,9 +175,6 @@
   <test id="Sbp_A5_T1"><reason>bestPractice</reason></test>
   <test id="Sbp_A5_T2"><reason>bestPractice</reason></test>
 
-  <test id="S15.5.4.7_A1_T12"><reason>Array indexof</reason></test>
-  <test id="S15.5.4.8_A1_T12"><reason>Array lastIndexOf</reason></test>
-
   <test id="S15.9.3.1_A5_T1"><reason>Locale</reason></test>
   <test id="S15.9.3.1_A5_T2"><reason>Locale</reason></test>
   <test id="S15.9.3.1_A5_T3"><reason>Locale</reason></test>

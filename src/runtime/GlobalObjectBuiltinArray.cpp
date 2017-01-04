@@ -446,14 +446,125 @@ static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t 
 
 static Value builtinArrayIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    // Let O be the result of calling ToObject passing the this value as the argument.
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, indexOf);
+    // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
+    // Let len be ToUint32(lenValue).
+    int64_t len = O->length(state);
+
+    // If len is 0, return -1.
+    if (len == 0) {
+        return Value(-1);
+    }
+
+    // If argument fromIndex was passed let n be ToInteger(fromIndex); else let n be 0.
+    double n = 0;
+    if (argc > 1) {
+        n = argv[1].toInteger(state);
+    }
+
+    // If n ≥ len, return -1.
+    if (n >= len) {
+        return Value(-1);
+    }
+
+    double k;
+    // If n ≥ 0, then
+    if (n >= 0) {
+        // Let k be n.
+        k = n;
+    } else {
+        // Else, n<0
+        // Let k be len - abs(n).
+        k = len - std::abs(n);
+
+        // If k is less than 0, then let k be 0.
+        if (k < 0) {
+            k = 0;
+        }
+    }
+
+    // Repeat, while k<len
+    while (k < len) {
+        // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument ToString(k).
+        ObjectGetResult kPresent = O->get(state, ObjectPropertyName(state, Value(k)));
+        // If kPresent is true, then
+        if (kPresent.hasValue()) {
+            // Let elementK be the result of calling the [[Get]] internal method of O with the argument ToString(k).
+            Value elementK = kPresent.value(state, O);
+
+            // Let same be the result of applying the Strict Equality Comparison Algorithm to searchElement and elementK.
+            if (elementK.equalsTo(state, argv[0])) {
+                // If same is true, return k.
+                return Value(k);
+            }
+        } else {
+            k = Object::nextIndexForward(state, O, k, len, false);
+            continue;
+        }
+        // Increase k by 1.
+        k++;
+    }
+
+    // Return -1.
+    return Value(-1);
 }
 
 static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    // Let O be the result of calling ToObject passing the this value as the argument.
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, lastIndexOf);
+    // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
+    // Let len be ToUint32(lenValue).
+    int64_t len = O->length(state);
+
+    // If len is 0, return -1.
+    if (len == 0) {
+        return Value(-1);
+    }
+
+    // If argument fromIndex was passed let n be ToInteger(fromIndex); else let n be len-1.
+    double n;
+    if (argc > 1) {
+        n = argv[1].toInteger(state);
+    } else {
+        n = len - 1;
+    }
+
+    // If n ≥ 0, then let k be min(n, len – 1).
+    double k;
+    if (n >= 0) {
+        k = std::min(n, len - 1.0);
+    } else {
+        // Else, n < 0
+        // Let k be len - abs(n).
+        k = len - std::abs(n);
+    }
+
+    // Repeat, while k≥ 0
+    while (k >= 0) {
+        // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument ToString(k).
+        ObjectGetResult kPresent = O->get(state, ObjectPropertyName(state, Value(k)));
+        // If kPresent is true, then
+        if (kPresent.hasValue()) {
+            // Let elementK be the result of calling the [[Get]] internal method of O with the argument ToString(k).
+            Value elementK = kPresent.value(state, O);
+
+            // Let same be the result of applying the Strict Equality Comparison Algorithm to searchElement and elementK.
+            if (elementK.equalsTo(state, argv[0])) {
+                // If same is true, return k.
+                return Value(k);
+            }
+        } else {
+            k = Object::nextIndexBackward(state, O, k, len, false);
+            continue;
+        }
+        // Decrease k by 1.
+        k--;
+    }
+
+    // Return -1.
+    return Value(-1);
 }
 
 static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -603,12 +714,6 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
     return R;
 }
 
-static Value builtinArrayUnShift(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
-}
-
 static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
@@ -723,7 +828,7 @@ static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t arg
 static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, push);
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, shift);
     // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
     // Let len be ToUint32(lenVal).
     int64_t len = O->length(state);
@@ -768,6 +873,67 @@ static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t ar
     // Return first.
     return first;
 }
+
+static Value builtinArrayUnShift(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be the result of calling ToObject passing the this value as the argument.
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, unshift);
+    // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
+    // Let len be ToUint32(lenVal).
+    int64_t len = O->length(state);
+
+    // Let argCount be the number of actual arguments.
+    size_t argCount = argc;
+    // Let k be len.
+    int64_t k = len;
+
+    // Repeat, while k > 0,
+    while (k > 0) {
+        // Let from be ToString(k–1).
+        ObjectPropertyName from(state, Value(k - 1));
+        // Let to be ToString(k+argCount –1).
+        ObjectPropertyName to(state, Value(k + argCount - 1));
+
+        // Let fromPresent be the result of calling the [[HasProperty]] internal method of O with argument from.
+        ObjectGetResult fromPresent = O->get(state, from);
+        // If fromPresent is true, then
+        if (fromPresent.hasValue()) {
+            // Let fromValue be the result of calling the [[Get]] internal method of O with argument from.
+            Value fromValue = fromPresent.value(state, O);
+            // Call the [[Put]] internal method of O with arguments to, fromValue, and true.
+            O->setThrowsException(state, to, fromValue, O);
+        } else {
+            // Else, fromPresent is false
+            // Call the [[Delete]] internal method of O with arguments to, and true.
+            O->deleteOwnPropertyThrowsException(state, to);
+        }
+
+        // Decrease k by 1.
+        k--;
+    }
+
+    // Let j be 0.
+    size_t j = 0;
+    // Let items be an internal List whose elements are, in left to right order, the arguments that were passed to this function invocation.
+    Value* items = argv;
+
+    // Repeat, while items is not empty
+    while (j < argCount) {
+        // Remove the first element from items and let E be the value of that element.
+        Value E = items[j];
+        // Call the [[Put]] internal method of O with arguments ToString(j), E, and true.
+        O->setThrowsException(state, ObjectPropertyName(state, Value(j)), E, O);
+        // Increase j by 1.
+        j++;
+    }
+
+    // Call the [[Put]] internal method of O with arguments "length", len+argCount, and true.
+    O->setThrowsException(state, state.context()->staticStrings().length, Value(len + argCount), O);
+
+    // Return len+argCount.
+    return Value(len + argCount);
+}
+
 
 void GlobalObject::installArray(ExecutionState& state)
 {

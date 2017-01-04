@@ -83,6 +83,8 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
                 mappedNames.push_back(name);
                 // Let g be the result of calling the MakeArgGetter abstract operation with arguments name and env.
                 // Let p be the result of calling the MakeArgSetter abstract operation with arguments name and env.
+                // Set the [[ParameterMap]] internal property of obj to map.
+                // Set the [[Get]], [[GetOwnProperty]], [[DefineOwnProperty]], and [[Delete]] internal methods of obj to the definitions provided below.
                 auto data = new ArgumentsObjectArgData(record, blk, name);
                 // Call the [[DefineOwnProperty]] internal method of map passing ToString(indx), the Property Descriptor {[[Set]]: p, [[Get]]: g, [[Configurable]]: true}, and false as arguments.
                 auto gsData = new ObjectPropertyNativeGetterSetterData(true, true, true, ArgumentsObjectNativeGetter, ArgumentsObjectNativeSetter, true);
@@ -93,12 +95,6 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
         // Let indx = indx - 1
         indx--;
     }
-
-    // TODO If mappedNames is not empty, then
-    // if (mappedNames.size()) {
-    // TODO Set the [[ParameterMap]] internal property of obj to map.
-    // TODO Set the [[Get]], [[GetOwnProperty]], [[DefineOwnProperty]], and [[Delete]] internal methods of obj to the definitions provided below.
-    // }
 
     // If strict is false, then
     if (!isStrict) {

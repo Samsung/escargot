@@ -712,8 +712,9 @@ double Object::nextIndexForward(ExecutionState& state, Object* obj, const double
                     return true;
                 }
                 if (index > cur) {
-                    ret = index;
-                    return false;
+                    if (ret > index) {
+                        ret = index;
+                    }
                 }
             }
             return true;
@@ -736,8 +737,9 @@ double Object::nextIndexBackward(ExecutionState& state, Object* obj, const doubl
                     return true;
                 }
                 if (index < cur) {
-                    ret = index;
-                    return false;
+                    if (ret < index) {
+                        ret = index;
+                    }
                 }
             }
             return true;

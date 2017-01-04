@@ -305,6 +305,10 @@ void CodeBlock::computeVariables()
         m_canAllocateEnvironmentOnStack = false;
     }
 
+    if (inEvalWithCatchYieldScope()) {
+        m_canAllocateEnvironmentOnStack = false;
+    }
+
     if (canUseIndexedVariableStorage()) {
         if (m_functionName.string()->length()) {
             for (size_t i = 0; i < m_identifierInfos.size(); i++) {

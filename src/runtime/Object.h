@@ -284,7 +284,6 @@ public:
 
     bool isNotPresent() const
     {
-        ASSERT(isDataProperty());
         return (m_property == NotPresent);
     }
 

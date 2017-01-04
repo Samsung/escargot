@@ -53,6 +53,7 @@ public:
                     ExecutionState state(context->m_codeBlock->context());
                     codeBlock->pushCode(SetGlobalObject(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), PropertyName(state, m_name)), context, this);
                 } else {
+                    ASSERT(!context->m_codeBlock->canAllocateEnvironmentOnStack());
                     codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), m_name), context, this);
                 }
             } else {
@@ -63,6 +64,7 @@ public:
                 }
             }
         } else {
+            ASSERT(!context->m_codeBlock->canAllocateEnvironmentOnStack());
             codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), m_name), context, this);
         }
     }
@@ -84,6 +86,7 @@ public:
                     ExecutionState state(context->m_codeBlock->context());
                     codeBlock->pushCode(GetGlobalObject(ByteCodeLOC(m_loc.index), context->getRegister(), PropertyName(state, m_name)), context, this);
                 } else {
+                    ASSERT(!context->m_codeBlock->canAllocateEnvironmentOnStack());
                     codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), context->getRegister(), m_name), context, this);
                 }
             } else {
@@ -94,6 +97,7 @@ public:
                 }
             }
         } else {
+            ASSERT(!context->m_codeBlock->canAllocateEnvironmentOnStack());
             codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), context->getRegister(), m_name), context, this);
         }
     }

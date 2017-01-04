@@ -115,7 +115,7 @@ protected:
                     if (UNLIKELY(!isExtensible())) {
                         return false;
                     }
-                    if (UNLIKELY(!setArrayLength(state, idx + 1))) {
+                    if (UNLIKELY(!setArrayLength(state, idx + 1)) || UNLIKELY(!isFastModeArray())) {
                         return false;
                     }
                 }
