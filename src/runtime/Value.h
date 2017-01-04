@@ -176,7 +176,7 @@ public:
     typedef uint64_t ValueIndex;
     ValueIndex toIndex(ExecutionState& ec) const;
 
-    enum { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() + 1LL };
+    enum { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() };
     inline uint64_t toArrayIndex(ExecutionState& ec) const;
 
     inline bool abstractEqualsTo(ExecutionState& ec, const Value& val) const;

@@ -41,7 +41,15 @@ Value Context::arrayLengthNativeGetter(ExecutionState& state, Object* self, cons
 bool Context::arrayLengthNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData, Value& objectInternalData)
 {
     ASSERT(self->isArrayObject());
-    bool ret = self->asArrayObject()->setArrayLength(state, setterInputData.toArrayIndex(state));
+
+    // Let newLen be ToUint32(Desc.[[Value]]).
+    auto newLen = setterInputData.toUint32(state);
+    // If newLen is not equal to ToNumber( Desc.[[Value]]), throw a RangeError exception.
+    if (newLen != setterInputData.toNumber(state)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
+    }
+
+    bool ret = self->asArrayObject()->setArrayLength(state, setterInputData.toNumber(state));
     objectInternalData = self->uncheckedGetOwnDataProperty(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER);
     return ret;
 }

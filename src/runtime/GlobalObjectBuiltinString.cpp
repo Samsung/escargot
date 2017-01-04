@@ -131,6 +131,32 @@ static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size
     }
 }
 
+static Value builtinStringSubstr(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, substr);
+    if (argc < 1) {
+        return str;
+    }
+    double intStart = argv[0].toInteger(state);
+    double end;
+    if (argc > 1) {
+        if (argv[1].isUndefined()) {
+            end = std::numeric_limits<double>::infinity();
+        } else
+            end = argv[1].toInteger(state);
+    } else {
+        end = std::numeric_limits<double>::infinity();
+    }
+    double size = str->length();
+    if (intStart < 0)
+        intStart = std::max(size + intStart, 0.0);
+    double resultLength = std::min(std::max(end, 0.0), size - intStart);
+    if (resultLength <= 0)
+        return String::emptyString;
+
+    return str->subString(intStart, intStart + resultLength);
+}
+
 static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, match);
@@ -697,7 +723,10 @@ void GlobalObject::installString(ExecutionState& state)
 
     // $21.1.3.19 String.prototype.substring
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->substring),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->indexOf, builtinStringSubstring, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->substring, builtinStringSubstring, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->substr),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->substr, builtinStringSubstr, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->match),
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->match, builtinStringMatch, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

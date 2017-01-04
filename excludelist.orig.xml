@@ -174,11 +174,4 @@
   <test id="Sbp_A4_T2"><reason>bestPractice</reason></test>
   <test id="Sbp_A5_T1"><reason>bestPractice</reason></test>
   <test id="Sbp_A5_T2"><reason>bestPractice</reason></test>
-
-  <test id="S15.9.3.1_A5_T1"><reason>Locale</reason></test>
-  <test id="S15.9.3.1_A5_T2"><reason>Locale</reason></test>
-  <test id="S15.9.3.1_A5_T3"><reason>Locale</reason></test>
-  <test id="S15.9.3.1_A5_T4"><reason>Locale</reason></test>
-  <test id="S15.9.3.1_A5_T5"><reason>Locale</reason></test>
-  <test id="S15.9.3.1_A5_T6"><reason>Locale</reason></test>
 </excludeList>

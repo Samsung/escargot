@@ -42,7 +42,7 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
         bool succeeded = Object::defineOwnProperty(state, P, desc);
         if (!succeeded)
             return false;
-        if (idx >= oldLen && (idx + 1 < Value::InvalidArrayIndexValue)) {
+        if (idx >= oldLen && ((idx + 1) <= Value::InvalidArrayIndexValue)) {
             return setArrayLength(state, idx + 1);
         }
         return true;
@@ -137,10 +137,6 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t& newLengt
 {
     ASSERT(isExtensible() || newLength <= getArrayLength(state));
 
-    if (UNLIKELY(newLength == Value::InvalidArrayIndexValue)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
-    }
-
     if (UNLIKELY(isFastModeArray() && (newLength > ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE))) {
         uint32_t orgLength = getArrayLength(state);
         if (newLength > orgLength) {
@@ -162,10 +158,21 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t& newLengt
 
         while (newLen < oldLen) {
             oldLen--;
-            bool deleteSucceeded = deleteOwnProperty(state, ObjectPropertyName(state, Value(oldLen)));
+            ObjectPropertyName key(state, Value(oldLen));
+
+            if (!getOwnProperty(state, key).hasValue()) {
+                oldLen = Object::nextIndexBackward(state, this, oldLen, -1, false);
+
+                if (oldLen < newLen) {
+                    break;
+                }
+
+                key = ObjectPropertyName(state, Value(oldLen));
+            }
+
+            bool deleteSucceeded = deleteOwnProperty(state, key);
             if (!deleteSucceeded) {
                 m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(oldLen + 1);
-                // Object::throwCannotDeleteError(state, PropertyName(state, String::fromDouble(oldLen)));
                 return false;
             }
         }

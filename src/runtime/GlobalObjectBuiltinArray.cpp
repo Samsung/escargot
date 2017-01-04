@@ -427,7 +427,11 @@ static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t 
                                        state.context()->staticStrings().forEach.string(), errorMessage_GlobalObject_CallbackNotCallable);
     }
 
-    Value thisArg = argv[1];
+    // If thisArg was supplied, let T be thisArg; else let T be undefined.
+    Value T;
+    if (argc > 1)
+        T = argv[1];
+
     uint32_t k = 0;
     while (k < len) {
         Value Pk = Value(k);
@@ -435,10 +439,11 @@ static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t 
         if (res.hasValue()) {
             Value kValue = res.value(state, thisObject);
             Value args[3] = { kValue, Pk, thisObject };
-            callbackfn.asFunction()->call(state, thisArg, 3, args, false);
+            callbackfn.asFunction()->call(state, T, 3, args, false);
             k++;
         } else {
             k = Object::nextIndexForward(state, thisObject, k, len, false);
+            continue;
         }
     }
     return Value();
@@ -569,7 +574,7 @@ static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, siz
 
 static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, forEach);
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, every);
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
     // Let len be ToUint32(lenValue).
     uint32_t len = O->length(state);
@@ -619,20 +624,167 @@ static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t ar
 
 static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    // Let O be the result of calling ToObject passing the this value as the argument.
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, filter);
+
+    // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
+    // Let len be ToUint32(lenValue).
+    uint32_t len = O->length(state);
+
+    // If IsCallable(callbackfn) is false, throw a TypeError exception.
+    Value callbackfn = argv[0];
+    if (!callbackfn.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true,
+                                       state.context()->staticStrings().every.string(), errorMessage_GlobalObject_CallbackNotCallable);
+    }
+
+    // If thisArg was supplied, let T be thisArg; else let T be undefined.
+    Value T;
+    if (argc > 1)
+        T = argv[1];
+
+    // Let A be a new array created as if by the expression new Array() where Array is the standard built-in constructor with that name.
+    ArrayObject* A = new ArrayObject(state);
+
+    // Let k be 0.
+    uint64_t k = 0;
+    // Let to be 0.
+    uint64_t to = 0;
+    // Repeat, while k < len
+    while (k < len) {
+        // Let Pk be ToString(k).
+        ObjectPropertyName Pk(state, Value(k));
+        // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument Pk.
+        ObjectGetResult kPresent = O->get(state, Pk);
+        // If kPresent is true, then
+        if (kPresent.hasValue()) {
+            // Let kValue be the result of calling the [[Get]] internal method of O with argument Pk.
+            Value kValue = kPresent.value(state, O);
+
+            // Let selected be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
+            Value v[] = { kValue, Value(k), O };
+            Value selected = callbackfn.asFunction()->call(state, T, 3, v);
+
+            // If ToBoolean(selected) is true, then
+            if (selected.toBoolean(state)) {
+                // Call the [[DefineOwnProperty]] internal method of A with arguments ToString(to), Property Descriptor {[[Value]]: kValue, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
+                A->defineOwnProperty(state, ObjectPropertyName(state, Value(to)), ObjectPropertyDescriptor(kValue, ObjectPropertyDescriptor::AllPresent));
+                // Increase to by 1
+                to++;
+            }
+
+            k++;
+        } else {
+            k = Object::nextIndexForward(state, O, k, len, false);
+        }
+        // Increase k by 1.
+    }
+
+    // Return A.
+    return A;
 }
 
 static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    // Let O be the result of calling ToObject passing the this value as the argument.
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, map);
+    // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
+    // Let len be ToUint32(lenValue).
+    uint64_t len = O->length(state);
+
+    // If IsCallable(callbackfn) is false, throw a TypeError exception.
+    Value callbackfn = argv[0];
+    if (!callbackfn.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true,
+                                       state.context()->staticStrings().every.string(), errorMessage_GlobalObject_CallbackNotCallable);
+    }
+    // If thisArg was supplied, let T be thisArg; else let T be undefined.
+    Value T;
+    if (argc > 1)
+        T = argv[1];
+
+    // Let A be a new array created as if by the expression new Array(len) where Array is the standard built-in constructor with that name and len is the value of len.
+    ArrayObject* A = new ArrayObject(state);
+
+    // Let k be 0.
+    uint64_t k = 0;
+
+    // Repeat, while k < len
+    while (k < len) {
+        // Let Pk be ToString(k).
+        ObjectPropertyName Pk(state, Value(k));
+        // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument Pk.
+        ObjectGetResult kPresent = O->get(state, Pk);
+        // If kPresent is true, then
+        if (kPresent.hasValue()) {
+            // Let kValue be the result of calling the [[Get]] internal method of O with argument Pk.
+            Value kValue = kPresent.value(state, O);
+            // Let mappedValue be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
+            Value v[] = { kValue, Value(k), O };
+            Value mappedValue = callbackfn.asFunction()->call(state, T, 3, v);
+            // Call the [[DefineOwnProperty]] internal method of A with arguments Pk, Property Descriptor {[[Value]]: mappedValue, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
+            A->defineOwnProperty(state, Pk, ObjectPropertyDescriptor(mappedValue, ObjectPropertyDescriptor::AllPresent));
+            k++;
+        } else {
+            k = Object::nextIndexForward(state, O, k, len, false);
+        }
+        // Increase k by 1.
+    }
+
+    A->setThrowsException(state, state.context()->staticStrings().length, Value(len), A);
+
+    return A;
 }
 
 static Value builtinArraySome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    // Let O be the result of calling ToObject passing the this value as the argument.
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, some);
+    // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
+    // Let len be ToUint32(lenValue).
+    uint64_t len = O->length(state);
+
+    // If IsCallable(callbackfn) is false, throw a TypeError exception.
+    Value callbackfn = argv[0];
+    if (!callbackfn.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true,
+                                       state.context()->staticStrings().some.string(), errorMessage_GlobalObject_CallbackNotCallable);
+    }
+    Value T;
+    // If thisArg was supplied, let T be thisArg; else let T be undefined.
+    if (argc > 1) {
+        T = argv[1];
+    }
+
+    // Let k be 0.
+    uint64_t k = 0;
+    // Repeat, while k < len
+    while (k < len) {
+        // Let Pk be ToString(k).
+        ObjectPropertyName Pk(state, Value(k));
+
+        // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument Pk.
+        ObjectGetResult kPresent = O->get(state, Pk);
+        // If kPresent is true, then
+        if (kPresent.hasValue()) {
+            // Let kValue be the result of calling the [[Get]] internal method of O with argument Pk.
+            Value kValue = kPresent.value(state, O);
+            // Let testResult be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
+            Value argv[] = { kValue, Value(k), O };
+            Value testResult = callbackfn.asFunction()->call(state, T, 3, argv);
+            // If ToBoolean(testResult) is true, return true.
+            if (testResult.toBoolean(state)) {
+                return Value(true);
+            }
+        } else {
+            k = Object::nextIndexForward(state, O, k, len, false);
+            continue;
+        }
+        // Increase k by 1.
+        k++;
+    }
+    // Return false.
+    return Value(false);
 }
 
 static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -765,8 +917,84 @@ static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t a
 
 static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    // Let O be the result of calling ToObject passing the this value as the argument.
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, reduceRight);
+
+    // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
+    // Let len be ToUint32(lenValue).
+    int64_t len = O->length(state);
+
+    // If IsCallable(callbackfn) is false, throw a TypeError exception.
+    Value callbackfn = argv[0];
+    if (!callbackfn.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true,
+                                       state.context()->staticStrings().reduceRight.string(), errorMessage_GlobalObject_CallbackNotCallable);
+    }
+
+    // If len is 0 and initialValue is not present, throw a TypeError exception.
+    if (len == 0 && argc < 2) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().reduceRight.string(), errorMessage_GlobalObject_ReduceError);
+    }
+
+    // Let k be len-1.
+    int64_t k = len - 1;
+
+    Value accumulator;
+    // If initialValue is present, then
+    if (argc > 1) {
+        // Set accumulator to initialValue.
+        accumulator = argv[1];
+    } else {
+        // Else, initialValue is not present
+        // Let kPresent be false.
+        bool kPresent = false;
+
+        // Repeat, while kPresent is false and k ≥ 0
+        while ((kPresent == false) && k >= 0) {
+            // Let Pk be ToString(k).
+            ObjectPropertyName Pk(state, Value(k));
+            // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument Pk.
+            ObjectGetResult test = O->get(state, Pk);
+            kPresent = test.hasValue();
+
+            // If kPresent is true, then
+            if (kPresent) {
+                // Let accumulator be the result of calling the [[Get]] internal method of O with argument Pk.
+                accumulator = test.value(state, O);
+            }
+
+            // Decrease k by 1.
+            k = Object::nextIndexBackward(state, O, k, -1, false);
+        }
+        // If kPresent is false, throw a TypeError exception.
+        if (kPresent == false) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().reduceRight.string(), errorMessage_GlobalObject_ReduceError);
+        }
+    }
+
+    // Repeat, while k ≥ 0
+    while (k >= 0) {
+        // Let Pk be ToString(k).
+        ObjectPropertyName Pk(state, Value(k));
+        // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument Pk.
+        ObjectGetResult test = O->get(state, Pk);
+        bool kPresent = test.hasValue();
+        // If kPresent is true, then
+        if (kPresent) {
+            // Let kValue be the result of calling the [[Get]] internal method of O with argument Pk.
+            Value kValue = test.value(state, O);
+
+            // Let accumulator be the result of calling the [[Call]] internal method of callbackfn with undefined as the this value and argument list containing accumulator, kValue, k, and O.
+            Value v[] = { accumulator, kValue, Value(k), O };
+            accumulator = callbackfn.asFunction()->call(state, Value(), 4, v);
+        }
+
+        // Decrease k by 1.
+        k = Object::nextIndexBackward(state, O, k, -1, false);
+    }
+
+    // Return accumulator.
+    return accumulator;
 }
 
 static Value builtinArrayPop(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -954,7 +1182,7 @@ void GlobalObject::installArray(ExecutionState& state)
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().concat),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().concat, builtinArrayConcat, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().forEach),
-                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().forEach, builtinArrayForEach, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().forEach, builtinArrayForEach, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().indexOf),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().indexOf, builtinArrayIndexOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lastIndexOf),

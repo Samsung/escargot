@@ -94,7 +94,7 @@ protected:
             if (LIKELY(P.isUIntType())) {
                 idx = P.uintValue();
             } else {
-                idx = P.string(state)->tryToUseAsArrayIndex();
+                idx = P.toValue(state).toArrayIndex(state);
             }
             if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
                 uint32_t len = m_fastModeData.size();
