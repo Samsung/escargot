@@ -115,9 +115,11 @@ RAPIDJSON_DIAG_OFF(effc++)
 
 #include "error/error.h" // ParseErrorCode, ParseResult
 
+#if 0
 namespace escargot {
 void stackCheck();
 }
+#endif
 
 RAPIDJSON_NAMESPACE_BEGIN
 
@@ -1000,7 +1002,9 @@ private:
     // Parse any JSON value
     template<unsigned parseFlags, typename InputStream, typename Handler>
     void ParseValue(InputStream& is, Handler& handler) {
-        escargot::stackCheck();
+#if 0
+        Escargot::stackCheck();
+#endif
         switch (is.Peek()) {
             case 'n': ParseNull  <parseFlags>(is, handler); break;
             case 't': ParseTrue  <parseFlags>(is, handler); break;
