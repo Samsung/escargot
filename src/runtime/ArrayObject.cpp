@@ -185,4 +185,50 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t& newLengt
         return true;
     }
 }
+
+bool ArrayObject::setFastModeValue(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
+{
+    if (LIKELY(isFastModeArray())) {
+        uint64_t idx;
+        if (LIKELY(P.isUIntType())) {
+            idx = P.uintValue();
+        } else {
+            idx = P.toValue(state).toArrayIndex(state);
+        }
+        if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
+            uint32_t len = m_fastModeData.size();
+            if (len > idx && !m_fastModeData[idx].isEmpty()) {
+                // Non-empty slot of fast-mode array always has {writable:true, enumerable:true, configurable:true}.
+                // So, when new desciptor is not present, keep {w:true, e:true, c:true}
+                if (UNLIKELY(!desc.isNotPresent() && !desc.isDataWritableEnumerableConfigurable())) {
+                    convertIntoNonFastMode(state);
+                    return false;
+                }
+            } else if (UNLIKELY(!desc.isDataWritableEnumerableConfigurable())) {
+                // In case of empty slot property or over-lengthed property,
+                // when new desciptor is not present, keep {w:false, e:false, c:false}
+                convertIntoNonFastMode(state);
+                return false;
+            }
+
+            if (!desc.isValuePresent()) {
+                convertIntoNonFastMode(state);
+                return false;
+            }
+
+            if (UNLIKELY(len <= idx)) {
+                if (UNLIKELY(!isExtensible())) {
+                    return false;
+                }
+                if (UNLIKELY(!setArrayLength(state, idx + 1)) || UNLIKELY(!isFastModeArray())) {
+                    return false;
+                }
+            }
+            ASSERT(m_fastModeData.size() == getArrayLength(state));
+            m_fastModeData[idx] = desc.value();
+            return true;
+        }
+    }
+    return false;
+}
 }

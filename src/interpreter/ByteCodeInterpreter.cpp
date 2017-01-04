@@ -423,11 +423,31 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             const Value& property = registerFile[code->m_propertyRegisterIndex];
             if (LIKELY(willBeObject.isPointerValue() && willBeObject.asPointerValue()->isArrayObject())) {
                 ArrayObject* arr = willBeObject.asObject()->asArrayObject();
-                if (LIKELY(arr->setFastModeValue(state, ObjectPropertyName(state, property), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptor::AllPresent)))) {
-                    ADD_PROGRAM_COUNTER(SetObject);
-                    NEXT_INSTRUCTION();
+                if (LIKELY(arr->isFastModeArray())) {
+                    uint32_t idx;
+                    if (LIKELY(property.isUInt32()))
+                        idx = property.asUInt32();
+                    else {
+                        idx = property.toString(state)->tryToUseAsArrayIndex();
+                    }
+                    if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
+                        uint32_t len = arr->m_fastModeData.size();
+                        if (UNLIKELY(len <= idx)) {
+                            if (UNLIKELY(!arr->isExtensible())) {
+                                goto SetObjectOpcodeSlowCase;
+                            }
+                            if (UNLIKELY(!arr->setArrayLength(state, idx + 1)) || UNLIKELY(!arr->isFastModeArray())) {
+                                goto SetObjectOpcodeSlowCase;
+                            }
+                        }
+                        ASSERT(arr->m_fastModeData.size() == arr->getArrayLength(state));
+                        arr->m_fastModeData[idx] = registerFile[code->m_loadRegisterIndex];
+                        ADD_PROGRAM_COUNTER(SetObject);
+                        NEXT_INSTRUCTION();
+                    }
                 }
             }
+        SetObjectOpcodeSlowCase:
             Object* obj = fastToObject(state, willBeObject);
             obj->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, property), registerFile[code->m_loadRegisterIndex], obj);
             ADD_PROGRAM_COUNTER(SetObject);
