@@ -52,6 +52,9 @@ public:
         installDate(state);
         installRegExp(state);
         installJSON(state);
+#if ESCARGOT_ENABLE_PROMISE
+        installPromise(state);
+#endif
         installOthers(state);
     }
 
@@ -66,6 +69,9 @@ public:
     void installDate(ExecutionState& state);
     void installRegExp(ExecutionState& state);
     void installJSON(ExecutionState& state);
+#if ESCARGOT_ENABLE_PROMISE
+    void installPromise(ExecutionState& state);
+#endif
     void installOthers(ExecutionState& state);
 
     Value eval(ExecutionState& state, const Value& arg, CodeBlock* parentCodeBlock);
@@ -214,6 +220,17 @@ public:
         return m_json;
     }
 
+#if ESCARGOT_ENABLE_PROMISE
+    FunctionObject* promise()
+    {
+        return m_promise;
+    }
+    Object* promisePrototype()
+    {
+        return m_promisePrototype;
+    }
+#endif
+
     FunctionObject* eval()
     {
         return m_eval;
@@ -293,6 +310,11 @@ protected:
     NumberObject* m_numberProxyObject;
 
     Object* m_json;
+
+#if ESCARGOT_ENABLE_PROMISE
+    FunctionObject* m_promise;
+    Object* m_promisePrototype;
+#endif
 
     bool hasPropertyOnIndex(ExecutionState& state, const PropertyName& name, size_t idx)
     {

@@ -12,6 +12,9 @@ class NumberObject;
 class BooleanObject;
 class RegExpObject;
 class DateObject;
+#if ESCARGOT_ENABLE_PROMISE
+class PromiseObject;
+#endif
 class DoubleInSmallValue;
 class JSGetterSetter;
 
@@ -84,6 +87,13 @@ public:
         return false;
     }
 
+#if ESCARGOT_ENABLE_PROMISE
+    virtual bool isPromiseObject()
+    {
+        return false;
+    }
+#endif
+
     virtual bool isDoubleInSmallValue()
     {
         return false;
@@ -146,6 +156,14 @@ public:
         ASSERT(isDateObject());
         return (DateObject*)this;
     }
+
+#if ESCARGOT_ENABLE_PROMISE
+    PromiseObject* asPromiseObject()
+    {
+        ASSERT(isPromiseObject());
+        return (PromiseObject*)this;
+    }
+#endif
 
     DoubleInSmallValue* asDoubleInSmallValue()
     {

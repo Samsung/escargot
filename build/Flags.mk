@@ -7,11 +7,12 @@ ESCARGOT_CXXFLAGS_COMMON += -fno-rtti -fno-math-errno -I$(ESCARGOT_ROOT)/src/
 ESCARGOT_CXXFLAGS_COMMON += -fdata-sections -ffunction-sections
 ESCARGOT_CXXFLAGS_COMMON += -frounding-math -fsignaling-nans
 ESCARGOT_CXXFLAGS_COMMON += -fno-omit-frame-pointer
-#ESCARGOT_CXXFLAGS_COMMON += -DUSE_ES6_FEATURE
 
 ESCARGOT_CXXFLAGS_COMMON += -Wno-unused-but-set-variable -Wno-unused-but-set-parameter -Wno-unused-parameter
 ESCARGOT_CXXFLAGS_COMMON += -Wno-type-limits -Wno-unused-result -Wno-unused-variable # TODO: enable these warnings
 ESCARGOT_CXXFLAGS_COMMON += -Wno-deprecated-declarations
+
+ESCARGOT_CXXFLAGS_COMMON += -DESCARGOT_ENABLE_PROMISE
 
 #ESCARGOT_CXXFLAGS_COMMON += -DPROFILE_MASSIF
 #ESCARGOT_CXXFLAGS_COMMON += -DPROFILE_BDWGC
@@ -61,9 +62,6 @@ ESCARGOT_CXXFLAGS_RELEASE += -O2 -DNDEBUG -fno-stack-protector
 
 ifneq (,$(findstring tizen,$(HOST)))
   ESCARGOT_CXXFLAGS_RELEASE += -Os -finline-limit=64
-  ifeq ($(TIZEN_PROFILE), wearable)
-    ESCARGOT_CXXFLAGS_RELEASE += -UUSE_ES6_FEATURE
-  endif
   ifeq ($(HOST),tizen_obs)
     ESCARGOT_CXXFLAGS_DEBUG += -O1 # _FORTIFY_SOURCE requires compiling with optimization
   endif

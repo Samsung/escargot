@@ -1,3 +1,9 @@
 [submodule "test/test262"]
 	path = test/test262
 	url = https://github.com/tc39/test262.git
+[submodule "test/test262-master"]
+	path = test/test262-master
+	url = https://github.com/tc39/test262.git
+[submodule "test/test262-harness-py"]
+	path = test/test262-harness-py
+	url = https://github.com/test262-utils/test262-harness-py

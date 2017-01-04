@@ -12,10 +12,8 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
     if (patternIsRegExp) {
         if (argv[1].isUndefined())
             return argv[0];
-#ifndef USE_ES6_FEATURE
-        else
+        else // TODO(ES6) else part is only for es5
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot supply flags when constructing one RegExp from another");
-#endif
     }
     RegExpObject* regexp;
     if (isNewExpression && thisValue.isObject() && thisValue.asObject()->isRegExpObject()) {

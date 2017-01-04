@@ -3247,7 +3247,7 @@ public:
                 this->nextToken();
                 value = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
 
-#if USE_ES6_FEATURE
+                /* TODO(ES6) this part is only for es6
             } else if (this->match(LeftParenthesis)) {
                 value = this->parsePropertyMethodFunction();
                 method = true;
@@ -3264,7 +3264,7 @@ public:
                     shorthand = true;
                     value = id;
                 }
-#endif
+            */
             } else {
                 this->throwUnexpectedToken(this->nextToken());
             }
