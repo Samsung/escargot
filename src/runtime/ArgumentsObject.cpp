@@ -85,7 +85,7 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
                 // Let p be the result of calling the MakeArgSetter abstract operation with arguments name and env.
                 auto data = new ArgumentsObjectArgData(record, blk, name);
                 // Call the [[DefineOwnProperty]] internal method of map passing ToString(indx), the Property Descriptor {[[Set]]: p, [[Get]]: g, [[Configurable]]: true}, and false as arguments.
-                auto gsData = new ObjectPropertyNativeGetterSetterData(true, true, true, ArgumentsObjectNativeGetter, ArgumentsObjectNativeSetter);
+                auto gsData = new ObjectPropertyNativeGetterSetterData(true, true, true, ArgumentsObjectNativeGetter, ArgumentsObjectNativeSetter, true);
                 obj->deleteOwnProperty(state, ObjectPropertyName(state, Value(indx)));
                 obj->defineNativeGetterSetterDataProperty(state, ObjectPropertyName(state, Value(indx)), gsData, data);
             }
