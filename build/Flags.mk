@@ -9,10 +9,11 @@ ESCARGOT_CXXFLAGS_COMMON += -frounding-math -fsignaling-nans
 ESCARGOT_CXXFLAGS_COMMON += -fno-omit-frame-pointer
 
 ESCARGOT_CXXFLAGS_COMMON += -Wno-unused-but-set-variable -Wno-unused-but-set-parameter -Wno-unused-parameter
-ESCARGOT_CXXFLAGS_COMMON += -Wno-type-limits -Wno-unused-result -Wno-unused-variable # TODO: enable these warnings
+ESCARGOT_CXXFLAGS_COMMON += -Wno-type-limits -Wno-unused-result -Wno-unused-variable
 ESCARGOT_CXXFLAGS_COMMON += -Wno-deprecated-declarations
 
 ESCARGOT_CXXFLAGS_COMMON += -DESCARGOT_ENABLE_PROMISE
+ESCARGOT_CXXFLAGS_COMMON += -DESCARGOT_ENABLE_TYPEDARRAY
 
 #ESCARGOT_CXXFLAGS_COMMON += -DPROFILE_MASSIF
 #ESCARGOT_CXXFLAGS_COMMON += -DPROFILE_BDWGC
@@ -23,8 +24,6 @@ ESCARGOT_LDFLAGS_COMMON += -lrt
 #######################################################
 # flags for $(HOST) : linux / tizen*
 #######################################################
-ESCARGOT_CXXFLAGS_LINUX += -DENABLE_CODECACHE
-# ESCARGOT_CXXFLAGS_LINUX += -DENABLE_DTOACACHE
 
 ESCARGOT_CXXFLAGS_TIZEN += -DESCARGOT_SMALL_CONFIG=1 -DESCARGOT_TIZEN
 
@@ -48,12 +47,6 @@ ESCARGOT_LDFLAGS_ARM =
 endif
 
 #######################################################
-# flags for $(TYPE) : jit/interpreter
-#######################################################
-ESCARGOT_CXXFLAGS_INTERPRETER =
-ESCARGOT_CXXFLAGS_JIT = -DENABLE_ESJIT=1
-ESCARGOT_CXXFLAGS_JIT += -Wno-invalid-offsetof
-
 #######################################################
 # flags for $(MODE) : debug/release
 #######################################################
@@ -130,9 +123,3 @@ ESCARGOT_CXXFLAGS_THIRD_PARTY += -I$(ESCARGOT_ROOT)/third_party/rapidjson/includ
 
 # yarr
 ESCARGOT_CXXFLAGS_THIRD_PARTY += -I$(ESCARGOT_ROOT)/third_party/yarr/
-
-#######################################################
-# for printing TC coverage log
-#######################################################
-ESCARGOT_CXXFLAGS_TC = -DSTARFISH_TC_COVERAGE
-

@@ -282,9 +282,9 @@ public:
         return isDataProperty() && isValuePresent() && isWritable() && isEnumerable() && isConfigurable();
     }
 
-    bool isNotPresent() const
+    bool isValuePresentAlone() const
     {
-        return (m_property == NotPresent);
+        return (m_property == ValuePresent);
     }
 
     bool hasJSGetter() const

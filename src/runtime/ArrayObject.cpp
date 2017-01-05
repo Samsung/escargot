@@ -200,7 +200,7 @@ bool ArrayObject::setFastModeValue(ExecutionState& state, const ObjectPropertyNa
             if (len > idx && !m_fastModeData[idx].isEmpty()) {
                 // Non-empty slot of fast-mode array always has {writable:true, enumerable:true, configurable:true}.
                 // So, when new desciptor is not present, keep {w:true, e:true, c:true}
-                if (UNLIKELY(!desc.isNotPresent() && !desc.isDataWritableEnumerableConfigurable())) {
+                if (UNLIKELY(!(desc.isValuePresentAlone() || desc.isDataWritableEnumerableConfigurable()))) {
                     convertIntoNonFastMode(state);
                     return false;
                 }
