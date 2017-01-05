@@ -16,6 +16,10 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     stringCatch.init(atomicStringMap, "catch", strlen("catch"));
     defaultRegExpString.init(atomicStringMap, "(?:)", strlen("(?:)"));
 
+    get__proto__.init(atomicStringMap, "get __proto__", strlen("get __proto__"));
+    set__proto__.init(atomicStringMap, "set __proto__", strlen("set __proto__"));
+    getbyteLength.init(atomicStringMap, "get byteLength", strlen("get byteLength"));
+
     for (unsigned i = 0; i < ESCARGOT_ASCII_TABLE_MAX; i++) {
         char buf[2];
         buf[0] = i;

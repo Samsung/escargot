@@ -756,7 +756,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             } catch (const Value& val) {
                 state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
                 if (code->m_hasCatch == false) {
-                    ASSERT(state.rareData()->m_controlFlowRecord->back() == nullptr);
                     state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
                     programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
                 } else {

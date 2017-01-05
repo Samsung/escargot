@@ -700,6 +700,18 @@ inline double Value::toInteger(ExecutionState& state) const
         return d;
     return (d < 0 ? -1 : 1) * std::floor(std::abs(d));
 }
+
+inline double Value::toLength(ExecutionState& state) const
+{
+    double len = toInteger(state);
+    if (len <= 0.0) {
+        return 0.0;
+    }
+    if (len > 0 && std::isinf(len)) {
+        return std::pow(2, 32) - 1;
+    }
+    return std::min(len, std::pow(2, 32) - 1);
+}
 }
 
 #endif

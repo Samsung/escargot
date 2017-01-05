@@ -236,7 +236,6 @@ public:
 
     bool usesArgumentsObject() const
     {
-        ASSERT(!isGlobalScopeCodeBlock());
         return m_usesArgumentsObject;
     }
 

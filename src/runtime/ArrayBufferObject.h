@@ -8,18 +8,6 @@
 
 namespace Escargot {
 
-enum TypedArrayType {
-    Int8Array,
-    Uint8Array,
-    Uint8ClampedArray,
-    Int16Array,
-    Uint16Array,
-    Int32Array,
-    Uint32Array,
-    Float32Array,
-    Float64Array
-};
-
 class ArrayBufferObject : public Object {
 public:
     ArrayBufferObject(ExecutionState& state);
@@ -30,6 +18,11 @@ public:
     }
 
     void allocateBuffer(size_t bytelength);
+
+    virtual bool isArrayBufferObject()
+    {
+        return true;
+    }
 
     ALWAYS_INLINE const uint8_t* data() { return m_data; }
     ALWAYS_INLINE unsigned bytelength() { return m_bytelength; }
@@ -70,6 +63,26 @@ public:
             *((typename TypeAdaptor::Type*)rawStart) = littleEndianVal;
         }
         return true;
+    }
+
+    bool isDetachedBuffer()
+    {
+        if (data() == NULL)
+            return true;
+        return false;
+    }
+
+    void detachArrayBuffer()
+    {
+        free(m_data);
+        m_data = NULL;
+        m_bytelength = 0;
+    }
+
+    void fillData(const uint8_t* data, unsigned length)
+    {
+        ASSERT(!isDetachedBuffer());
+        memcpy(m_data, data, length);
     }
 
 private:

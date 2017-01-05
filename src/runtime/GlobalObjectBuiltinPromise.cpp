@@ -428,6 +428,7 @@ void GlobalObject::installPromise(ExecutionState& state)
     m_promise->setPrototype(state, m_functionPrototype);
     m_promisePrototype = m_objectPrototype;
     m_promisePrototype = new PromiseObject(state);
+    m_promisePrototype->markThisObjectDontNeedStructureTransitionTable(state);
     m_promisePrototype->setPrototype(state, m_objectPrototype);
     m_promisePrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_promise, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

@@ -115,8 +115,8 @@ void GlobalObject::installError(ExecutionState& state)
 
     m_errorPrototype = m_objectPrototype;
     m_errorPrototype = new ErrorObject(state, String::emptyString);
-    m_error->setFunctionPrototype(state, m_errorPrototype);
     m_errorPrototype->markThisObjectDontNeedStructureTransitionTable(state);
+    m_error->setFunctionPrototype(state, m_errorPrototype);
     m_errorPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_errorPrototype->defineOwnPropertyThrowsException(state, state.context()->staticStrings().message, ObjectPropertyDescriptor(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

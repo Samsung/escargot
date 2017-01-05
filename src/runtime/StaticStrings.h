@@ -288,6 +288,9 @@ public:
     AtomicString stringStatic;
     AtomicString stringCatch;
     AtomicString defaultRegExpString;
+    AtomicString get__proto__;
+    AtomicString set__proto__;
+    AtomicString getbyteLength;
 
 #define ESCARGOT_ASCII_TABLE_MAX 128
     AtomicString asciiTable[ESCARGOT_ASCII_TABLE_MAX];

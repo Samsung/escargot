@@ -50,6 +50,7 @@ void GlobalObject::installBoolean(ExecutionState& state)
     m_boolean->setPrototype(state, m_functionPrototype);
     m_booleanPrototype = m_objectPrototype;
     m_booleanPrototype = new BooleanObject(state, false);
+    m_booleanPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     m_booleanPrototype->setPrototype(state, m_objectPrototype);
     m_booleanPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_boolean, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

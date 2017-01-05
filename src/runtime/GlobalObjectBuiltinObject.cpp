@@ -7,12 +7,12 @@ namespace Escargot {
 
 static Value builtinObject__proto__Getter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    return thisValue.asObject()->getPrototype(state);
+    return thisValue.toObject(state)->getPrototype(state);
 }
 
 static Value builtinObject__proto__Setter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    thisValue.asObject()->setPrototype(state, argv[0]);
+    thisValue.toObject(state)->setPrototype(state, argv[0]);
     return Value();
 }
 
@@ -543,8 +543,8 @@ void GlobalObject::installObject(ExecutionState& state)
                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().propertyIsEnumerable, builtinObjectPropertyIsEnumerable, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     JSGetterSetter gs(
-        new FunctionObject(state, NativeFunctionInfo(strings.__proto__, builtinObject__proto__Getter, 0, nullptr, NativeFunctionInfo::Strict)),
-        new FunctionObject(state, NativeFunctionInfo(strings.__proto__, builtinObject__proto__Setter, 1, nullptr, NativeFunctionInfo::Strict)));
+        new FunctionObject(state, NativeFunctionInfo(strings.get__proto__, builtinObject__proto__Getter, 0, nullptr, NativeFunctionInfo::Strict)),
+        new FunctionObject(state, NativeFunctionInfo(strings.set__proto__, builtinObject__proto__Setter, 1, nullptr, NativeFunctionInfo::Strict)));
     ObjectPropertyDescriptor __proto__desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.__proto__), __proto__desc);
     defineOwnProperty(state, ObjectPropertyName(strings.Object),

@@ -119,6 +119,7 @@ void GlobalObject::installRegExp(ExecutionState& state)
 
     m_regexpPrototype = m_objectPrototype;
     m_regexpPrototype = new RegExpObject(state);
+    m_regexpPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     m_regexpPrototype->setPrototype(state, m_objectPrototype);
 
     m_regexpPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_regexp, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

@@ -366,6 +366,7 @@ void GlobalObject::installDate(ExecutionState& state)
     m_date->setPrototype(state, m_functionPrototype);
     m_datePrototype = m_objectPrototype;
     m_datePrototype = new DateObject(state);
+    m_datePrototype->markThisObjectDontNeedStructureTransitionTable(state);
     m_datePrototype->setPrototype(state, m_objectPrototype);
 
     m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_date, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

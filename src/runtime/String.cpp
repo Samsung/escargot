@@ -562,6 +562,9 @@ size_t String::rfind(String* str, size_t pos)
     if (srcStrLen <= size) {
         do {
             bool same = true;
+            if (pos >= size) {
+                continue;
+            }
             for (size_t k = 0; k < srcStrLen; k++) {
                 if (charAt(pos + k) != str->charAt(k)) {
                     same = false;

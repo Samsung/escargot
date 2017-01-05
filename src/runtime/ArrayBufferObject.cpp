@@ -1,6 +1,7 @@
 #if ESCARGOT_ENABLE_TYPEDARRAY
 #include "Escargot.h"
 #include "ArrayBufferObject.h"
+#include "Context.h"
 
 namespace Escargot {
 
@@ -9,11 +10,12 @@ ArrayBufferObject::ArrayBufferObject(ExecutionState& state)
     , m_data(nullptr)
     , m_bytelength(0)
 {
+    setPrototype(state, state.context()->globalObject()->arrayBufferPrototype());
 }
 
 void ArrayBufferObject::allocateBuffer(size_t bytelength)
 {
-    ASSERT(m_data == nullptr);
+    ASSERT(isDetachedBuffer());
 
     m_data = (uint8_t*)calloc(1, bytelength);
     m_bytelength = bytelength;

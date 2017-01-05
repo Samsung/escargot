@@ -205,8 +205,13 @@ void Context::somePrototypeObjectDefineIndexedProperty(ExecutionState& state)
         };
     Escargot::ArrayObject::iterateArrays(state, callback);
 
-    for (size_t i = 0; i < allOfArray.size(); i++) {
-        allOfArray[i]->convertIntoNonFastMode(state);
+    GC_disable();
+    std::vector<ArrayObject*, gc_malloc_ignore_off_page_allocator<ArrayObject*>> allOfArrayRooted;
+    allOfArrayRooted.assign(allOfArray.begin(), allOfArray.end());
+    GC_enable();
+
+    for (size_t i = 0; i < allOfArrayRooted.size(); i++) {
+        allOfArrayRooted[i]->convertIntoNonFastMode(state);
     }
 }
 }

@@ -29,6 +29,7 @@ public:
         : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, false)
     {
         m_objectPrototype = Object::createBuiltinObjectPrototype(state);
+        m_objectPrototype->markThisObjectDontNeedStructureTransitionTable(state);
         setPrototype(state, m_objectPrototype);
 
         m_structure = m_structure->convertToWithFastAccess(state);
@@ -55,6 +56,9 @@ public:
 #if ESCARGOT_ENABLE_PROMISE
         installPromise(state);
 #endif
+#if ESCARGOT_ENABLE_TYPEDARRAY
+        installTypedArray(state);
+#endif
         installOthers(state);
     }
 
@@ -71,6 +75,9 @@ public:
     void installJSON(ExecutionState& state);
 #if ESCARGOT_ENABLE_PROMISE
     void installPromise(ExecutionState& state);
+#endif
+#if ESCARGOT_ENABLE_TYPEDARRAY
+    void installTypedArray(ExecutionState& state);
 #endif
     void installOthers(ExecutionState& state);
 
@@ -231,6 +238,17 @@ public:
     }
 #endif
 
+#if ESCARGOT_ENABLE_TYPEDARRAY
+    FunctionObject* arrayBuffer()
+    {
+        return m_arrayBuffer;
+    }
+    Object* arrayBufferPrototype()
+    {
+        return m_arrayBufferPrototype;
+    }
+#endif
+
     FunctionObject* eval()
     {
         return m_eval;
@@ -314,6 +332,31 @@ protected:
 #if ESCARGOT_ENABLE_PROMISE
     FunctionObject* m_promise;
     Object* m_promisePrototype;
+#endif
+
+#if ESCARGOT_ENABLE_TYPEDARRAY
+    FunctionObject* m_arrayBuffer;
+    Object* m_arrayBufferPrototype;
+    FunctionObject* m_typedArray;
+    Object* m_typedArrayPrototype;
+    FunctionObject* m_int8Array;
+    Object* m_int8ArrayPrototype;
+    FunctionObject* m_uint8Array;
+    Object* m_uint8ArrayPrototype;
+    FunctionObject* m_uint8ClampedArray;
+    Object* m_uint8ClampedArrayPrototype;
+    FunctionObject* m_Int16Array;
+    Object* m_int16ArrayPrototype;
+    FunctionObject* m_uint16Array;
+    Object* m_uint16ArrayPrototype;
+    FunctionObject* m_int32Array;
+    Object* m_int32ArrayPrototype;
+    FunctionObject* m_Uint32Array;
+    Object* m_uint32ArrayPrototype;
+    FunctionObject* m_Float32Array;
+    Object* m_float32ArrayPrototype;
+    FunctionObject* m_Float64Array;
+    Object* m_float64ArrayPrototype;
 #endif
 
     bool hasPropertyOnIndex(ExecutionState& state, const PropertyName& name, size_t idx)

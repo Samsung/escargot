@@ -217,7 +217,6 @@ inline ObjectStructure* ObjectStructure::addProperty(ExecutionState& state, cons
         return this;
     }
 
-    ASSERT(name.string()->length());
     if (m_needsTransitionTable) {
         size_t r = searchTransitionTable(name, desc);
         if (r != SIZE_MAX) {

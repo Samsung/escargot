@@ -136,6 +136,7 @@ void GlobalObject::installFunction(ExecutionState& state)
                                                        FunctionObject::__ForBuiltin__);
     m_functionPrototype = emptyFunction;
     m_functionPrototype->setPrototype(state, m_objectPrototype);
+    m_functionPrototype->markThisObjectDontNeedStructureTransitionTable(state);
 
     m_function = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
                                         // create dummy object.

@@ -1173,6 +1173,7 @@ void GlobalObject::installArray(ExecutionState& state)
     m_array->setPrototype(state, m_functionPrototype);
     m_arrayPrototype = m_objectPrototype;
     m_arrayPrototype = new ArrayObject(state);
+    m_arrayPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     m_arrayPrototype->setPrototype(state, m_objectPrototype);
     m_arrayPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_array, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

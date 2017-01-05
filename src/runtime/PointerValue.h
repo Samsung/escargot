@@ -101,6 +101,13 @@ public:
     }
 #endif
 
+#if ESCARGOT_ENABLE_TYPEDARRAY
+    virtual bool isArrayBufferObject()
+    {
+        return false;
+    }
+#endif
+
     virtual bool isDoubleInSmallValue()
     {
         return false;

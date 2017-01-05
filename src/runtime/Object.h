@@ -13,6 +13,9 @@ class Object;
 class FunctionObject;
 class RegExpObject;
 class ErrorObject;
+#if ESCARGOT_ENABLE_TYPEDARRAY
+class ArrayBufferObject;
+#endif
 
 struct ObjectRareData : public gc {
     bool m_isExtensible;
@@ -489,6 +492,14 @@ public:
         return (RegExpObject*)this;
     }
 
+#if ESCARGOT_ENABLE_TYPEDARRAY
+    ArrayBufferObject* asArrayBufferObject()
+    {
+        ASSERT(isArrayBufferObject());
+        return (ArrayBufferObject*)this;
+    }
+#endif
+
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-isextensible
     bool isExtensible()
     {
@@ -566,7 +577,7 @@ public:
     void markThisObjectDontNeedStructureTransitionTable(ExecutionState& state)
     {
         ASSERT(structure()->inTransitionMode());
-        m_structure = m_structure->escapeTransitionMode(state);
+        m_structure = m_structure->convertToWithFastAccess(state);
     }
 
     static double nextIndexForward(ExecutionState& state, Object* obj, const double cur, const double len, const bool skipUndefined);

@@ -194,6 +194,7 @@ void GlobalObject::installNumber(ExecutionState& state)
     m_number->setPrototype(state, m_functionPrototype);
     m_numberPrototype = m_objectPrototype;
     m_numberPrototype = new NumberObject(state, 0);
+    m_numberPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     m_numberPrototype->setPrototype(state, m_objectPrototype);
     m_number->setFunctionPrototype(state, m_numberPrototype);
     m_numberPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_number, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

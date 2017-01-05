@@ -661,8 +661,8 @@ static Value builtinStringToLocaleUpperCase(ExecutionState& state, Value thisVal
 static Value builtinStringTrim(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, trim);
-    size_t s, e;
-    for (s = 0; s < str->length(); s++) {
+    int64_t s, e;
+    for (s = 0; s < (int64_t)str->length(); s++) {
         if (!esprima::isWhiteSpace((*str)[s]) && !esprima::isLineTerminator((*str)[s]))
             break;
     }
@@ -696,6 +696,7 @@ void GlobalObject::installString(ExecutionState& state)
     m_string->setPrototype(state, m_functionPrototype);
     m_stringPrototype = m_objectPrototype;
     m_stringPrototype = new StringObject(state, String::emptyString);
+    m_stringPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     m_stringPrototype->setPrototype(state, m_objectPrototype);
     m_string->setFunctionPrototype(state, m_stringPrototype);
     m_stringPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_string, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
