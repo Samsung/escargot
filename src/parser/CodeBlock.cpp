@@ -309,17 +309,17 @@ void CodeBlock::computeVariables()
         m_canAllocateEnvironmentOnStack = false;
     }
 
-    if (canUseIndexedVariableStorage()) {
-        if (m_functionName.string()->length()) {
-            for (size_t i = 0; i < m_identifierInfos.size(); i++) {
-                if (m_identifierInfos[i].m_name == m_functionName) {
-                    m_functionNameIndex = i;
-                    break;
-                }
+    if (m_functionName.string()->length()) {
+        for (size_t i = 0; i < m_identifierInfos.size(); i++) {
+            if (m_identifierInfos[i].m_name == m_functionName) {
+                m_functionNameIndex = i;
+                break;
             }
-            ASSERT(m_functionNameIndex != SIZE_MAX);
         }
+        ASSERT(m_functionNameIndex != SIZE_MAX);
+    }
 
+    if (canUseIndexedVariableStorage()) {
         size_t s = 0;
         size_t h = 0;
         for (size_t i = 0; i < m_identifierInfos.size(); i++) {

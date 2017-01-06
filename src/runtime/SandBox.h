@@ -23,7 +23,7 @@ public:
         m_context->m_sandBoxStack.pop_back();
     }
 
-    struct StackTraceData {
+    struct StackTraceData : public gc {
         String* fileName;
         NodeLOC loc;
         StackTraceData()

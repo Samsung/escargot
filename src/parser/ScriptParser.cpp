@@ -150,14 +150,14 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
     }
 
                 PRINT_TAB()
-                printf("CodeBlock %s (%d:%d -> %d:%d)(%s, %s) (E:%d, W:%d, C:%d, Y:%d)\n", cb->m_functionName.string()->toUTF8StringData().data(),
+                printf("CodeBlock %s (%d:%d -> %d:%d)(%s, %s) (E:%d, W:%d, C:%d, Y:%d) Name:%d\n", cb->m_functionName.string()->toUTF8StringData().data(),
                        (int)cb->m_locStart.line,
                        (int)cb->m_locStart.column,
                        (int)cb->m_locEnd.line,
                        (int)cb->m_locEnd.column,
                        cb->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap",
                        cb->m_canUseIndexedVariableStorage ? "Indexed" : "Named",
-                       (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasCatch, (int)cb->m_hasYield);
+                       (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasCatch, (int)cb->m_hasYield, (int)cb->m_functionNameIndex);
 
                 PRINT_TAB()
                 printf("Names: ");
