@@ -77,22 +77,67 @@ public:
         }
     }
 
-    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, bool needToReferenceSelf = true)
     {
         if (isPreComputedCase()) {
-            size_t valueIndex = context->getLastRegisterIndex();
-            m_object->generateExpressionByteCode(codeBlock, context);
-            size_t objectIndex = context->getLastRegisterIndex();
+            size_t valueIndex;
+            size_t objectIndex;
+            if (needToReferenceSelf) {
+                valueIndex = context->getLastRegisterIndex();
+                m_object->generateExpressionByteCode(codeBlock, context);
+                objectIndex = context->getLastRegisterIndex();
+            } else {
+                valueIndex = context->getLastRegisterIndex();
+                objectIndex = valueIndex - 1;
+            }
             codeBlock->pushCode(SetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name(), valueIndex), context, this);
             context->giveUpRegister();
         } else {
-            size_t valueIndex = context->getLastRegisterIndex();
-            m_object->generateExpressionByteCode(codeBlock, context);
-            size_t objectIndex = context->getLastRegisterIndex();
-            m_property->generateExpressionByteCode(codeBlock, context);
-            size_t propertyIndex = context->getLastRegisterIndex();
+            size_t valueIndex;
+            size_t objectIndex;
+            size_t propertyIndex;
+            if (needToReferenceSelf) {
+                valueIndex = context->getLastRegisterIndex();
+                m_object->generateExpressionByteCode(codeBlock, context);
+                objectIndex = context->getLastRegisterIndex();
+                m_property->generateExpressionByteCode(codeBlock, context);
+                propertyIndex = context->getLastRegisterIndex();
+            } else {
+                valueIndex = context->getLastRegisterIndex();
+                propertyIndex = valueIndex - 1;
+                objectIndex = propertyIndex - 1;
+            }
             codeBlock->pushCode(SetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
             context->giveUpRegister();
+            context->giveUpRegister();
+        }
+    }
+
+    virtual void generateResolveAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        m_object->generateExpressionByteCode(codeBlock, context);
+        if (isPreComputedCase()) {
+        } else {
+            m_property->generateExpressionByteCode(codeBlock, context);
+        }
+    }
+
+    virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        if (isPreComputedCase()) {
+            size_t objectIndex = context->getLastRegisterIndex();
+            size_t r0 = objectIndex;
+            size_t r1 = context->getRegister();
+            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r0, r1), context, this);
+            codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), r1, m_property->asIdentifier()->name()), context, this);
+        } else {
+            size_t objectIndex = context->getLastRegisterIndex() - 1;
+            size_t propertyIndex = context->getLastRegisterIndex();
+            size_t newObjectIndex = context->getRegister();
+            size_t newPropertyIndex = context->getRegister();
+            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), objectIndex, newObjectIndex), context, this);
+            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), propertyIndex, newPropertyIndex), context, this);
+            codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), newObjectIndex), context, this);
             context->giveUpRegister();
         }
     }

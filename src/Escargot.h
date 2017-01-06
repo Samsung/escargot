@@ -200,7 +200,7 @@
     static void operator delete(void*) = delete;  \
     static void operator delete[](void*) = delete;
 
-#define ALLOCA(bytes, typenameWithoutPointer, ec) (typenameWithoutPointer*)alloca(bytes)
+#define ALLOCA(bytes, typenameWithoutPointer, ec) (typenameWithoutPointer*)(LIKELY(bytes < 128) ? alloca(bytes) : GC_MALLOC(bytes))
 
 #include "heap/Heap.h"
 #include "CheckedArithmetic.h"

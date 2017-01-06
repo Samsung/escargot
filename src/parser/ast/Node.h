@@ -204,11 +204,20 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual void generateStoreByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
+    virtual void generateStoreByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, bool needToReferenceSelf = true)
     {
         RELEASE_ASSERT_NOT_REACHED();
         // TODO
         // codeBlock->pushCode(ThrowStatic(ESErrorObject::Code::ReferenceError, ESString::create("Invalid assignment.")), context, this);
+    }
+
+    virtual void generateResolveAddressByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
+    {
+        generateExpressionByteCode(codeBlock, context);
+    }
+    virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
+    {
+        generateExpressionByteCode(codeBlock, context);
     }
 
     NodeLOC m_loc;

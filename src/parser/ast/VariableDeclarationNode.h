@@ -41,7 +41,7 @@ public:
         }
     }
 
-    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, bool needToReferenceSelf = true)
     {
         ASSERT(m_declarations.size() == 1);
         if (m_declarations[0]->init()) {
@@ -49,6 +49,15 @@ public:
             context->giveUpRegister();
         }
         m_declarations[0]->id()->generateStoreByteCode(codeBlock, context);
+    }
+
+    virtual void generateResolveAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+    }
+
+    virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        generateExpressionByteCode(codeBlock, context);
     }
 
 protected:

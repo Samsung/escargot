@@ -44,8 +44,9 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionSimple; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
+        m_left->generateResolveAddressByteCode(codeBlock, context);
         m_right->generateExpressionByteCode(codeBlock, context);
-        m_left->generateStoreByteCode(codeBlock, context);
+        m_left->generateStoreByteCode(codeBlock, context, false);
     }
 
 protected:

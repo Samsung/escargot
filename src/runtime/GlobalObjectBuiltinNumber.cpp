@@ -110,14 +110,152 @@ static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t
 
 static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    double number;
+
+    if (thisValue.isNumber()) {
+        number = thisValue.asNumber();
+    } else if (thisValue.isPointerValue() && thisValue.asPointerValue()->isNumberObject()) {
+        number = thisValue.asPointerValue()->asNumberObject()->primitiveValue();
+    } else {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toExponential.string(), errorMessage_GlobalObject_ThisNotNumber);
+    }
+
+    int digit = 0; // only used when an argument is given
+    if (argc > 0) {
+        double fractionDigits = argv[0].toNumber(state);
+        digit = (int)trunc(fractionDigits);
+    }
+    if (std::isnan(number)) { // 3
+        return state.context()->staticStrings().NaN.string();
+    }
+    char buf[512];
+    std::basic_ostringstream<char> stream;
+    std::basic_ostringstream<char> expStream;
+    if (number < 0) { // 5
+        stream << "-";
+        number = -1 * number;
+    }
+    if (std::isinf(number)) { // 6
+        snprintf(buf, sizeof(buf), stream.str().c_str(), number, exp);
+        StringBuilder builder;
+        builder.appendString(buf);
+        builder.appendString(state.context()->staticStrings().Infinity.string());
+        return builder.finalize();
+    }
+    if (digit < 0 || digit > 20) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toExponential.string(), errorMessage_GlobalObject_RangeError);
+    }
+    int exp = 0;
+    if (number == 0) {
+        exp = 0;
+    } else if (std::abs(number) >= 10) {
+        double tmp = number;
+        while (tmp >= 10) {
+            exp++;
+            tmp /= 10.0;
+        }
+    } else if (std::abs(number) < 1) {
+        double tmp = number;
+        while (tmp < 1) {
+            exp--;
+            tmp *= 10.0;
+        }
+    }
+    number /= pow(10, exp);
+    if (argc == 0) {
+        stream << "%.15lf";
+    } else {
+        stream << "%." << digit << "lf";
+    }
+    snprintf(buf, sizeof(buf), stream.str().c_str(), number);
+    // remove trailing zeros
+    char* tail = nullptr;
+    if (argc == 0) {
+        tail = buf + strlen(buf) - 1;
+        while (*tail == '0' && *tail-- != '.') {
+        }
+        tail++;
+    } else {
+        for (size_t i = 0; i < strlen(buf); i++) {
+            tail = &buf[i];
+            if (*tail == '.') {
+                break;
+            }
+        }
+        tail++;
+        for (int i = 0; i < digit; i++)
+            tail++;
+    }
+    if (*(tail - 1) == '.')
+        tail--;
+    expStream << "e";
+    if (exp >= 0) {
+        expStream << "+";
+    }
+    expStream << "%d";
+    snprintf(tail, 512 - (ptrdiff_t)(buf - tail), expStream.str().c_str(), exp);
+    return Value(new ASCIIString(buf));
 }
 
 static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    double number;
+
+    if (thisValue.isNumber()) {
+        number = thisValue.asNumber();
+    } else if (thisValue.isPointerValue() && thisValue.asPointerValue()->isNumberObject()) {
+        number = thisValue.asPointerValue()->asNumberObject()->primitiveValue();
+    } else {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toPrecision.string(), errorMessage_GlobalObject_ThisNotNumber);
+    }
+
+    if (argc == 0 || argv[0].isUndefined()) {
+        return Value(number).toString(state);
+    } else if (argc >= 1) {
+        double x = number;
+        double p_d = argv[0].toNumber(state);
+        if (std::isnan(x)) {
+            return state.context()->staticStrings().NaN.string();
+        }
+        std::basic_ostringstream<char> stream;
+        if (x < 0) {
+            stream << "-";
+            x = -x;
+        }
+        if (std::isinf(x)) {
+            stream << "Infinity";
+        } else {
+            int p = (int)trunc(p_d);
+            if (p < 1 || p > 21) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toPrecision.string(), errorMessage_GlobalObject_RangeError);
+            }
+            if (LIKELY(x != 0)) {
+                int log10_num = trunc(log10(x));
+                if (log10_num + 1 <= p && log10_num > -6) {
+                    if (std::abs(x) >= 1) {
+                        stream << "%" << log10_num + 1 << "." << (p - log10_num - 1) << "lf";
+                    } else {
+                        stream << "%" << log10_num << "." << (p - log10_num) << "lf";
+                    }
+                } else {
+                    x = x / pow(10, log10_num);
+                    if (std::abs(x) < 1) {
+                        x *= 10;
+                        log10_num--;
+                    }
+                    stream << "%1." << (p - 1) << "lf"
+                           << "e" << ((log10_num >= 0) ? "+" : "") << log10_num;
+                }
+            } else {
+                stream << "%1." << (p - 1) << "lf";
+            }
+        }
+        std::string fstr = stream.str();
+        char buf[512];
+        snprintf(buf, sizeof(buf), fstr.c_str(), x);
+        return Value(new ASCIIString(buf));
+    }
+    return Value();
 }
 
 static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

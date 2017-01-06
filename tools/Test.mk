@@ -7,7 +7,7 @@ OPT_MASTER_TYPEDARRAY=#built-ins/TypedArray built-ins/TypedArrays
 
 check:
 	make tidy-update
-	make x64.interpreter.debug -j$(NPROCS)
+	make x64.interpreter.release -j$(NPROCS)
 	# make run-sunspider | tee out/sunspider_result
 	make run-test262
 	make run-test262-master OPT="$(OPT_MASTER_PROMISE) $(OPT_MASTER_ARRAYBUFFER) $(OPT_MASTER_DATAVIEW) $(OPT_MASTER_TYPEDARRAY)"

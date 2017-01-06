@@ -39,7 +39,7 @@ public:
         return m_name;
     }
 
-    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, bool needToReferenceSelf = true)
     {
         if (m_name.string()->equals("arguments") && !context->isGlobalScope() && context->m_codeBlock->usesArgumentsObject()) {
             codeBlock->pushCode(StoreArgumentsObject(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
@@ -100,6 +100,16 @@ public:
             ASSERT(!context->m_codeBlock->canAllocateEnvironmentOnStack());
             codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), context->getRegister(), m_name), context, this);
         }
+    }
+
+
+    virtual void generateResolveAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+    }
+
+    virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        generateExpressionByteCode(codeBlock, context);
     }
 
 protected:

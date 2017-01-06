@@ -442,6 +442,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                         }
                         ASSERT(arr->m_fastModeData.size() == arr->getArrayLength(state));
                         arr->m_fastModeData[idx] = registerFile[code->m_loadRegisterIndex];
+                        registerFile[code->m_objectRegisterIndex] = registerFile[code->m_loadRegisterIndex];
                         ADD_PROGRAM_COUNTER(SetObject);
                         NEXT_INSTRUCTION();
                     }
@@ -450,6 +451,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         SetObjectOpcodeSlowCase:
             Object* obj = fastToObject(state, willBeObject);
             obj->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, property), registerFile[code->m_loadRegisterIndex], obj);
+            registerFile[code->m_objectRegisterIndex] = registerFile[code->m_loadRegisterIndex];
             ADD_PROGRAM_COUNTER(SetObject);
             NEXT_INSTRUCTION();
         }
@@ -466,6 +468,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)currentCode;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             setObjectPreComputedCaseOperation(state, fastToObject(state, willBeObject), code->m_propertyName, registerFile[code->m_loadRegisterIndex], code->m_inlineCache, false);
+            registerFile[code->m_objectRegisterIndex] = registerFile[code->m_loadRegisterIndex];
             ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
             NEXT_INSTRUCTION();
         }
