@@ -15,6 +15,9 @@ class RegExpObject;
 class ErrorObject;
 #if ESCARGOT_ENABLE_TYPEDARRAY
 class ArrayBufferObject;
+class ArrayBufferView;
+template <typename TypeArg, int elementSize>
+class TypedArrayObject;
 #endif
 
 struct ObjectRareData : public gc {
@@ -497,6 +500,19 @@ public:
     {
         ASSERT(isArrayBufferObject());
         return (ArrayBufferObject*)this;
+    }
+
+    ArrayBufferView* asArrayBufferView()
+    {
+        ASSERT(isTypedArrayObject());
+        return (ArrayBufferView*)this;
+    }
+
+    template <typename TypeArg, int elementSize>
+    TypedArrayObject<TypeArg, elementSize>* asTypedArrayObject()
+    {
+        ASSERT(isTypedArrayObject());
+        return (TypedArrayObject<TypeArg, elementSize>*)this;
     }
 #endif
 

@@ -78,6 +78,8 @@ public:
 #endif
 #if ESCARGOT_ENABLE_TYPEDARRAY
     void installTypedArray(ExecutionState& state);
+    template <typename T, int elementSize>
+    FunctionObject* installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction);
 #endif
     void installOthers(ExecutionState& state);
 
@@ -247,6 +249,78 @@ public:
     {
         return m_arrayBufferPrototype;
     }
+    Object* int8Array()
+    {
+        return m_int8Array;
+    }
+    Object* int8ArrayPrototype()
+    {
+        return m_int8ArrayPrototype;
+    }
+    Object* uint8Array()
+    {
+        return m_uint8Array;
+    }
+    Object* uint8ArrayPrototype()
+    {
+        return m_uint8ArrayPrototype;
+    }
+    Object* int16Array()
+    {
+        return m_int16Array;
+    }
+    Object* int16ArrayPrototype()
+    {
+        return m_int16ArrayPrototype;
+    }
+    Object* uint16Array()
+    {
+        return m_uint16Array;
+    }
+    Object* uint16ArrayPrototype()
+    {
+        return m_uint16ArrayPrototype;
+    }
+    Object* int32Array()
+    {
+        return m_int32Array;
+    }
+    Object* int32ArrayPrototype()
+    {
+        return m_int32ArrayPrototype;
+    }
+    Object* uint32Array()
+    {
+        return m_uint32Array;
+    }
+    Object* uint32ArrayPrototype()
+    {
+        return m_uint32ArrayPrototype;
+    }
+    Object* uint8ClampedArray()
+    {
+        return m_uint8ClampedArray;
+    }
+    Object* uint8ClampedArrayPrototype()
+    {
+        return m_uint8ClampedArrayPrototype;
+    }
+    Object* float32Array()
+    {
+        return m_float32Array;
+    }
+    Object* float32ArrayPrototype()
+    {
+        return m_float32ArrayPrototype;
+    }
+    Object* float64Array()
+    {
+        return m_float64Array;
+    }
+    Object* float64ArrayPrototype()
+    {
+        return m_float64ArrayPrototype;
+    }
 #endif
 
     FunctionObject* eval()
@@ -345,17 +419,17 @@ protected:
     Object* m_uint8ArrayPrototype;
     FunctionObject* m_uint8ClampedArray;
     Object* m_uint8ClampedArrayPrototype;
-    FunctionObject* m_Int16Array;
+    FunctionObject* m_int16Array;
     Object* m_int16ArrayPrototype;
     FunctionObject* m_uint16Array;
     Object* m_uint16ArrayPrototype;
     FunctionObject* m_int32Array;
     Object* m_int32ArrayPrototype;
-    FunctionObject* m_Uint32Array;
+    FunctionObject* m_uint32Array;
     Object* m_uint32ArrayPrototype;
-    FunctionObject* m_Float32Array;
+    FunctionObject* m_float32Array;
     Object* m_float32ArrayPrototype;
-    FunctionObject* m_Float64Array;
+    FunctionObject* m_float64Array;
     Object* m_float64ArrayPrototype;
 #endif
 

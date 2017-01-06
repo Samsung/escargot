@@ -19,6 +19,7 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     get__proto__.init(atomicStringMap, "get __proto__", strlen("get __proto__"));
     set__proto__.init(atomicStringMap, "set __proto__", strlen("set __proto__"));
     getbyteLength.init(atomicStringMap, "get byteLength", strlen("get byteLength"));
+    getLength.init(atomicStringMap, "get length", strlen("get length"));
 
     for (unsigned i = 0; i < ESCARGOT_ASCII_TABLE_MAX; i++) {
         char buf[2];

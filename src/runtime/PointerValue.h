@@ -99,9 +99,7 @@ public:
     {
         return false;
     }
-#endif
 
-#if ESCARGOT_ENABLE_TYPEDARRAY
     virtual bool isArrayBufferObject()
     {
         return false;

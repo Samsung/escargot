@@ -28,7 +28,7 @@ public:
     ALWAYS_INLINE unsigned bytelength() { return m_bytelength; }
     // $24.1.1.5
     template <typename Type>
-    Value getValueFromBuffer(unsigned byteindex, bool isLittleEndian = 1)
+    Value getValueFromBuffer(ExecutionState& state, unsigned byteindex, bool isLittleEndian = 1)
     {
         // If isLittleEndian is not present, set isLittleEndian to either true or false.
         ASSERT(m_bytelength);
@@ -47,14 +47,14 @@ public:
     }
     // $24.1.1.6
     template <typename TypeAdaptor>
-    bool setValueInBuffer(unsigned byteindex, Value val, bool isLittleEndian = 1)
+    bool setValueInBuffer(ExecutionState& state, unsigned byteindex, Value val, bool isLittleEndian = 1)
     {
         // If isLittleEndian is not present, set isLittleEndian to either true or false.
         ASSERT(m_bytelength);
         size_t elementSize = sizeof(typename TypeAdaptor::Type);
         ASSERT(byteindex + elementSize <= m_bytelength);
         uint8_t* rawStart = m_data + byteindex;
-        typename TypeAdaptor::Type littleEndianVal = TypeAdaptor::toNative(val);
+        typename TypeAdaptor::Type littleEndianVal = TypeAdaptor::toNative(state, val);
         if (isLittleEndian != 1) {
             for (size_t i = 0; i < elementSize; i++) {
                 rawStart[i] = ((uint8_t*)&littleEndianVal)[elementSize - i - 1];

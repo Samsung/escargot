@@ -16,19 +16,22 @@ public:
         : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, true)
     {
         m_buffer = nullptr;
-        m_byteoffset = m_bytelength = 0;
+        m_arraylength = m_byteoffset = m_bytelength = 0;
     }
 
     ALWAYS_INLINE ArrayBufferObject* buffer() { return m_buffer; }
-    ALWAYS_INLINE void setBuffer(ArrayBufferObject* bo) { m_buffer = bo; }
     ALWAYS_INLINE unsigned bytelength() { return m_bytelength; }
-    ALWAYS_INLINE void setBytelength(unsigned l) { m_bytelength = l; }
     ALWAYS_INLINE unsigned byteoffset() { return m_byteoffset; }
+    ALWAYS_INLINE unsigned arraylength() { return m_arraylength; }
+    ALWAYS_INLINE void setArraylength(unsigned length) { m_arraylength = length; }
     ALWAYS_INLINE void setByteoffset(unsigned o) { m_byteoffset = o; }
+    ALWAYS_INLINE void setBytelength(unsigned l) { m_bytelength = l; }
+    ALWAYS_INLINE void setBuffer(ArrayBufferObject* bo) { m_buffer = bo; }
 protected:
     ArrayBufferObject* m_buffer;
     unsigned m_bytelength;
     unsigned m_byteoffset;
+    unsigned m_arraylength;
 };
 
 template <typename Adapter>
@@ -37,9 +40,9 @@ struct TypedArrayAdaptor {
     static Type toNative(ExecutionState& state, const Value& val)
     {
         if (val.isInt32()) {
-            return Adapter::toNativeFromInt32(val.asInt32());
+            return Adapter::toNativeFromInt32(state, val.asInt32());
         } else if (val.isDouble()) {
-            return Adapter::toNativeFromDouble(val.asDouble());
+            return Adapter::toNativeFromDouble(state, val.asDouble());
         }
         return static_cast<Type>(val.toNumber(state));
     }
@@ -93,47 +96,114 @@ struct Float32Adaptor : TypedArrayAdaptor<FloatTypedArrayAdaptor<float>> {
 struct Float64Adaptor : TypedArrayAdaptor<FloatTypedArrayAdaptor<double>> {
 };
 
-template <typename TypeAdaptor, int elementSize>
+template <typename TypeAdaptor, int typedArrayElementSize>
 class TypedArrayObject : public ArrayBufferView {
+    void typedArrayObjectPrototypeFiller(ExecutionState& state);
+
 public:
     TypedArrayObject(ExecutionState& state)
         : ArrayBufferView(state)
     {
-        m_arraylength = 0;
+        typedArrayObjectPrototypeFiller(state);
     }
 
-    Value get(const uint64_t& key)
+    // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
+    virtual const char* internalClassProperty();
+
+    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
     {
-        if ((unsigned)key < arraylength()) {
-            unsigned idxPosition = key * elementSize + byteoffset();
-            ArrayBufferObject* b = buffer();
-            return b->getValueFromBuffer<typename TypeAdaptor::Type>(idxPosition);
+        uint64_t index;
+        if (LIKELY(P.isUIntType())) {
+            index = P.uintValue();
+        } else {
+            index = P.toValue(state).toIndex(state);
         }
-        return Value();
-    }
-    bool set(const uint64_t& key, const Value& val)
-    {
-        if ((unsigned)key >= arraylength())
-            return false;
-        unsigned idxPosition = key * elementSize + byteoffset();
-        ArrayBufferObject* b = buffer();
-        return b->setValueInBuffer<TypeAdaptor>(idxPosition, val);
+
+        if (LIKELY(Value::InvalidIndexValue != index)) {
+            if ((unsigned)index < arraylength()) {
+                unsigned idxPosition = index * typedArrayElementSize + byteoffset();
+                ArrayBufferObject* b = buffer();
+                return ObjectGetResult(b->getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false);
+            }
+            return ObjectGetResult();
+        }
+        return ArrayBufferView::getOwnProperty(state, P);
     }
 
-    ALWAYS_INLINE unsigned arraylength() { return m_arraylength; }
+    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+    {
+        uint64_t index;
+        if (LIKELY(P.isUIntType())) {
+            index = P.uintValue();
+        } else {
+            index = P.toValue(state).toIndex(state);
+        }
+
+        if (LIKELY(Value::InvalidIndexValue != index)) {
+            if ((unsigned)index >= arraylength())
+                return false;
+            unsigned idxPosition = index * typedArrayElementSize + byteoffset();
+            ArrayBufferObject* b = buffer();
+
+            if (LIKELY(desc.isValuePresentAlone() || desc.isDataWritableEnumerableConfigurable() || (desc.isWritable() && desc.isEnumerable()))) {
+                b->setValueInBuffer<TypeAdaptor>(state, idxPosition, desc.value());
+                return true;
+            }
+            return false;
+        }
+        return ArrayBufferView::defineOwnProperty(state, P, desc);
+    }
+
+    virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+    {
+        return ArrayBufferView::deleteOwnProperty(state, P);
+    }
+
+    virtual void enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc)> callback) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+    {
+        size_t len = arraylength();
+        for (size_t i = 0; i < len; i++) {
+            unsigned idxPosition = i * typedArrayElementSize + byteoffset();
+            ArrayBufferObject* b = buffer();
+            if (!callback(ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent)))) {
+                return;
+            }
+        }
+        Object::enumeration(state, callback);
+    }
+
+    void allocateTypedArray(ExecutionState& state, unsigned length)
+    {
+        m_arraylength = length;
+        m_byteoffset = 0;
+        m_bytelength = length * typedArrayElementSize;
+        auto obj = new ArrayBufferObject(state);
+        obj->allocateBuffer(m_bytelength);
+        setBuffer(obj);
+    }
+
+    size_t elementSize()
+    {
+        return typedArrayElementSize;
+    }
+
+    virtual bool isTypedArrayObject()
+    {
+        return true;
+    }
+
 protected:
-    unsigned m_arraylength;
 };
 
-typedef TypedArrayObject<Int8Adaptor, 1> Int8Array;
-typedef TypedArrayObject<Int16Adaptor, 2> Int16Array;
-typedef TypedArrayObject<Int32Adaptor, 4> Int32Array;
-typedef TypedArrayObject<Uint8Adaptor, 1> Uint8Array;
-typedef TypedArrayObject<Uint16Adaptor, 2> Uint16Array;
-typedef TypedArrayObject<Uint32Adaptor, 4> EUint32Array;
-typedef TypedArrayObject<Uint8ClampedAdaptor, 1> Uint8ClampedArray;
-typedef TypedArrayObject<Float32Adaptor, 4> Float32Array;
-typedef TypedArrayObject<Float64Adaptor, 8> Float64Array;
+typedef TypedArrayObject<Int8Adaptor, 1> Int8ArrayObject;
+typedef TypedArrayObject<Int16Adaptor, 2> Int16ArrayObject;
+typedef TypedArrayObject<Int32Adaptor, 4> Int32ArrayObject;
+typedef TypedArrayObject<Uint8Adaptor, 1> Uint8ArrayObject;
+typedef TypedArrayObject<Uint16Adaptor, 2> Uint16ArrayObject;
+typedef TypedArrayObject<Uint32Adaptor, 4> EUint32ArrayObject;
+typedef TypedArrayObject<Uint8ClampedAdaptor, 1> Uint8ClampedArrayObject;
+typedef TypedArrayObject<Float32Adaptor, 4> Float32ArrayObject;
+typedef TypedArrayObject<Float64Adaptor, 8> Float64ArrayObject;
 }
 
 #endif
