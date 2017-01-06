@@ -68,13 +68,19 @@ void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb
     }
 }
 
-void ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node* ast, bool isEvalMode)
+void ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node* ast, bool isEvalMode, bool isOnGlobal)
 {
     ByteCodeBlock* block = new ByteCodeBlock();
 
     // TODO
     // fill ParserContextInformation info
-    ParserContextInformation info(isEvalMode, codeBlock->isGlobalScopeCodeBlock(), codeBlock->isStrict(), codeBlock->isInWithScope());
+    bool isGlobalScope;
+    if (!isEvalMode) {
+        isGlobalScope = codeBlock->isGlobalScopeCodeBlock();
+    } else {
+        isGlobalScope = isOnGlobal;
+    }
+    ParserContextInformation info(isEvalMode, isGlobalScope, codeBlock->isStrict(), codeBlock->isInWithScope());
 
     ByteCodeGenerateContext ctx(codeBlock, block, info);
 

@@ -12,13 +12,13 @@
 
 namespace Escargot {
 
-Value Script::execute(Context* ctx, bool isEvalMode, bool needNewEnv)
+Value Script::execute(Context* ctx, bool isEvalMode, bool needNewEnv, bool isOnGlobal)
 {
     Node* programNode = m_topCodeBlock->cachedASTNode();
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
 
     ByteCodeGenerator g;
-    g.generateByteCode(ctx, m_topCodeBlock, programNode, isEvalMode);
+    g.generateByteCode(ctx, m_topCodeBlock, programNode, isEvalMode, isOnGlobal);
 
     m_topCodeBlock->m_cachedASTNode = nullptr;
 

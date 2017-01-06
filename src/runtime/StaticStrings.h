@@ -292,6 +292,7 @@ public:
     AtomicString set__proto__;
     AtomicString getbyteLength;
     AtomicString getLength;
+    AtomicString getBuffer;
 
 #define ESCARGOT_ASCII_TABLE_MAX 128
     AtomicString asciiTable[ESCARGOT_ASCII_TABLE_MAX];

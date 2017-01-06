@@ -44,7 +44,7 @@ public:
                 }
             }
             if (nameCase) {
-                if (name.string()->equals("arguments")) {
+                if (name.string()->equals("arguments") && !context->isGlobalScope()) {
                     m_argument->generateExpressionByteCode(codeBlock, context);
                     codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), AtomicString()), context, this);
                 } else {

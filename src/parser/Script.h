@@ -32,7 +32,7 @@ public:
             Vector<StackTrace, gc_malloc_ignore_off_page_allocator<StackTrace>> stackTrace;
         } error;
     };
-    Value execute(Context* ctx, bool isEvalMode = false, bool needNewEnv = false);
+    Value execute(Context* ctx, bool isEvalMode = false, bool needNewEnv = false, bool isOnGlobal = false);
     ScriptSandboxExecuteResult sandboxExecute(Context* ctx); // execute using sandbox
     String* fileName()
     {

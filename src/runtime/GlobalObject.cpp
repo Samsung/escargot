@@ -34,6 +34,9 @@ static Value builtinLoad(ExecutionState& state, Value thisValue, size_t argc, Va
         fclose(fp);
 
         src = new UTF16String(std::move(utf8StringToUTF16String(str.data(), str.length())));
+    } else {
+        String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, globalObjectString, false, state.context()->staticStrings().load.string(), errorMessage_GlobalObject_FileNotExist);
     }
 
     Context* context = state.context();
@@ -42,6 +45,28 @@ static Value builtinLoad(ExecutionState& state, Value thisValue, size_t argc, Va
         result.m_script->execute(context);
     }
     return Value();
+}
+
+static Value builtinRead(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    auto f = argv[0].toString(state)->toUTF8StringData();
+    const char* fileName = f.data();
+    FILE* fp = fopen(fileName, "r");
+    String* src = String::emptyString;
+    if (fp) {
+        std::string str;
+        char buf[512];
+        while (fgets(buf, sizeof buf, fp) != NULL) {
+            str += buf;
+        }
+        fclose(fp);
+
+        src = new UTF16String(std::move(utf8StringToUTF16String(str.data(), str.length())));
+    } else {
+        String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, globalObjectString, false, state.context()->staticStrings().read.string(), "%s: cannot read");
+    }
+    return src;
 }
 #endif
 
@@ -63,10 +88,12 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg, CodeBlock* par
         const char* s = "eval input";
         ExecutionContext* pec = state.executionContext();
         bool isDirectCall = !!parentCodeBlock;
+        bool callInGlobal = true;
         bool strictFromOutside = false;
         while (isDirectCall && pec) {
             if (pec->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && pec->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
                 strictFromOutside = pec->inStrictMode();
+                callInGlobal = false;
                 break;
             } else if (pec->lexicalEnvironment()->record()->isGlobalEnvironmentRecord()) {
                 strictFromOutside = pec->inStrictMode();
@@ -82,7 +109,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg, CodeBlock* par
         bool needNewEnv = parserResult.m_script->topCodeBlock()->isStrict();
         if (!isDirectCall) {
             // In case of indirect call, use global execution context
-            return parserResult.m_script->execute(state.context(), true, needNewEnv);
+            return parserResult.m_script->execute(state.context(), true, needNewEnv, true);
         } else {
             return parserResult.m_script->executeLocal(state, true, needNewEnv);
         }
@@ -737,6 +764,10 @@ void GlobalObject::installOthers(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(strings->load),
                       ObjectPropertyDescriptor(new FunctionObject(state,
                                                                   NativeFunctionInfo(strings->load, builtinLoad, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+    defineOwnProperty(state, ObjectPropertyName(strings->read),
+                      ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                  NativeFunctionInfo(strings->read, builtinRead, 1, nullptr, NativeFunctionInfo::Strict), false),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 #endif
     defineOwnProperty(state, ObjectPropertyName(strings->gc),

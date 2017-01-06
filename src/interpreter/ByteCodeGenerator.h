@@ -208,7 +208,7 @@ public:
     {
     }
 
-    void generateByteCode(Context* c, CodeBlock* codeBlock, Node* ast, bool isEvalMode = false);
+    void generateByteCode(Context* c, CodeBlock* codeBlock, Node* ast, bool isEvalMode = false, bool isOnGlobal = false);
 };
 }
 

@@ -95,12 +95,21 @@ static Value builtinTypedArrayByteLenthGetter(ExecutionState& state, Value thisV
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-static Value builtinTypedArrayLenthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
         return Value(thisValue.asObject()->asArrayBufferView()->arraylength());
     }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get TypedArray.prototype.byteLength called on incompatible receiver");
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get TypedArray.prototype.length called on incompatible receiver");
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+static Value builtinTypedArrayBufferGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
+        return Value(thisValue.asObject()->asArrayBufferView()->buffer());
+    }
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get TypedArray.prototype.buffer called on incompatible receiver");
     RELEASE_ASSERT_NOT_REACHED();
 }
 
@@ -183,11 +192,114 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
     return obj;
 }
 
+template <typename T, int typedArrayElementSize>
+Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, TypedArray, set);
+    if (!thisBinded->isTypedArrayObject() || argc < 1) {
+        const StaticStrings* strings = &state.context()->staticStrings();
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, strings->set.string(), errorMessage_GlobalObject_ThisNotTypedArrayObject);
+    }
+    auto wrapper = thisBinded->asArrayBufferView();
+    int offset = 0;
+    if (argc >= 2)
+        offset = argv[1].toInt32(state);
+    if (offset < 0) {
+        const StaticStrings* strings = &state.context()->staticStrings();
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->TypedArray.string(), true, strings->set.string(), "");
+    }
+    auto arg0 = argv[0].toObject(state);
+    ArrayBufferObject* targetBuffer = wrapper->buffer();
+    unsigned targetLength = wrapper->arraylength();
+    int targetByteOffset = wrapper->byteoffset();
+    int targetElementSize = typedArrayElementSize;
+    if (!arg0->isTypedArrayObject()) {
+        Object* src = arg0;
+        uint64_t srcLength = src->length(state);
+        if (srcLength + (uint64_t)offset > targetLength) {
+            const StaticStrings* strings = &state.context()->staticStrings();
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), "");
+        }
+        int targetByteIndex = offset * targetElementSize + targetByteOffset;
+        int k = 0;
+        int limit = targetByteIndex + targetElementSize * srcLength;
+        while (targetByteIndex < limit) {
+            double kNumber = src->get(state, ObjectPropertyName(state, Value(k))).value(state, src).toNumber(state);
+            wrapper->setThrowsException(state, ObjectPropertyName(state, Value(targetByteIndex / targetElementSize)), Value(kNumber), wrapper);
+            k++;
+            targetByteIndex += targetElementSize;
+        }
+        return Value();
+    } else {
+        auto arg0Wrapper = arg0->asArrayBufferView();
+        ArrayBufferObject* srcBuffer = arg0Wrapper->buffer();
+        unsigned srcLength = arg0Wrapper->arraylength();
+        int srcByteOffset = arg0Wrapper->byteoffset();
+        if (srcLength + (unsigned)offset > targetLength) {
+            const StaticStrings* strings = &state.context()->staticStrings();
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), "");
+        }
+        int srcByteIndex = 0;
+        if (srcBuffer == targetBuffer) {
+            // TODO: 24) should clone targetBuffer
+            RELEASE_ASSERT_NOT_REACHED();
+        } else {
+            srcByteIndex = srcByteOffset;
+        }
+        unsigned targetIndex = (unsigned)offset, srcIndex = 0;
+        unsigned targetByteIndex = offset * targetElementSize + targetByteOffset;
+        unsigned limit = targetByteIndex + targetElementSize * srcLength;
+        while (targetIndex < offset + srcLength) {
+            Value value = arg0Wrapper->get(state, ObjectPropertyName(state, Value(srcIndex))).value(state, arg0Wrapper);
+            wrapper->setThrowsException(state, ObjectPropertyName(state, Value(targetIndex)), value, wrapper);
+            srcIndex++;
+            targetIndex++;
+        }
+        return Value();
+    }
+}
+
+template <typename T, int typedArrayElementSize>
+Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, TypedArray, subarray);
+    const StaticStrings* strings = &state.context()->staticStrings();
+    if (!thisBinded->isTypedArrayObject() || argc < 1) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, strings->subarray.string(), errorMessage_GlobalObject_ThisNotTypedArrayObject);
+    }
+    auto wrapper = thisBinded->asArrayBufferView();
+    ArrayBufferObject* buffer = wrapper->buffer();
+    unsigned srcLength = wrapper->arraylength();
+    int64_t relativeBegin = 0;
+    unsigned beginIndex;
+    if (argc >= 1)
+        relativeBegin = argv[0].toInt32(state);
+    if (relativeBegin < 0)
+        beginIndex = (srcLength + relativeBegin) > 0 ? (srcLength + relativeBegin) : 0;
+    else
+        beginIndex = (unsigned)relativeBegin < srcLength ? relativeBegin : srcLength;
+    int64_t relativeEnd = srcLength;
+    unsigned endIndex;
+    if (argc >= 2)
+        relativeEnd = argv[1].toInt32(state);
+    if (relativeEnd < 0)
+        endIndex = (srcLength + relativeEnd) > 0 ? (srcLength + relativeEnd) : 0;
+    else
+        endIndex = relativeEnd < srcLength ? relativeEnd : srcLength;
+    unsigned newLength = 0;
+    if (endIndex - beginIndex > 0)
+        newLength = endIndex - beginIndex;
+    int srcByteOffset = wrapper->byteoffset();
+    Value arg[3] = { buffer, Value(srcByteOffset + beginIndex * (wrapper->bytelength() / wrapper->arraylength())), Value(newLength) };
+    TypedArrayObject<T, typedArrayElementSize>* newobj = new TypedArrayObject<T, typedArrayElementSize>(state);
+    Value ret = FunctionObject::call(thisBinded->get(state, strings->constructor).value(state, thisBinded), state, newobj, 3, arg);
+    return ret;
+}
 
 template <typename T, int elementSize>
 FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction)
 {
-    // $22.2.1.1~
+    const StaticStrings* strings = &state.context()->staticStrings();
     FunctionObject* taConstructor = new FunctionObject(state, NativeFunctionInfo(taName, builtinTypedArrayConstructor<T, elementSize>, 3, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
                                                            return new TypedArrayObject<T, elementSize>(state);
                                                        }),
@@ -199,131 +311,16 @@ FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicStr
     Object* taPrototype = new TypedArrayObject<T, elementSize>(state);
     taPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     taPrototype->setPrototype(state, typedArrayFunction->getFunctionPrototype(state));
-    /*
-    // $22.2.3.2
-    taPrototype->defineAccessorProperty(strings->byteLength, [](ESObject* self, ESObject* originalObj, ::escargot::ESString* propertyName) -> ESValue {
-        // FIXME find right object from originalObj
-        return ESValue(originalObj->asESTypedArrayObject<T>()->bytelength());
-    }, nullptr, true, false, false);
-    // $22.2.3.2
-    taPrototype->defineAccessorProperty(strings->length, [](ESObject* self, ESObject* originalObj, ::escargot::ESString* propertyName) -> ESValue {
-        // FIXME find right object from originalObj
-        return ESValue(originalObj->asESTypedArrayObject<T>()->arraylength());
-    }, nullptr, true, false, false);
-    // TODO add reference
-    taPrototype->defineAccessorProperty(strings->buffer, [](ESObject* self, ESObject* originalObj, ::escargot::ESString* propertyName) -> ESValue {
-        // FIXME find right object from originalObj
-        return ESValue(originalObj->asESTypedArrayObject<T>()->buffer());
-    }, nullptr, true, false, false);
-    // $22.2.3.22 %TypedArray%.prototype.set(overloaded[, offset])
-    taPrototype->ESObject::defineDataProperty(strings->set, true, false, true, ESFunctionObject::create(NULL, [](ESVMInstance* instance)->ESValue {
-        int arglen = instance->currentExecutionContext()->argumentCount();
-        RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, TypedArray, set);
-        if (!thisBinded->isESTypedArrayObject() || arglen < 1) {
-            throwBuiltinError(instance, ErrorCode::TypeError, strings->TypedArray, true, strings->set, errorMessage_GlobalObject_ThisNotTypedArrayObject);
-        }
-        auto wrapper = thisBinded->asESTypedArrayObjectWrapper();
-        int offset = 0;
-        if (arglen >= 2)
-            offset = instance->currentExecutionContext()->arguments()[1].toInt32();
-        if (offset < 0)
-            throwBuiltinError(instance, ErrorCode::TypeError, strings->TypedArray, true, strings->set, "");
-        auto arg0 = instance->currentExecutionContext()->readArgument(0).asESPointer();
-        escargot::ESArrayBufferObject* targetBuffer = wrapper->buffer();
-        unsigned targetLength = wrapper->arraylength();
-        int targetByteOffset = wrapper->byteoffset();
-        int targetElementSize = wrapper->elementSize();
-        if (!arg0->isESTypedArrayObject()) {
-            ESObject* src = arg0->asESObject();
-            uint32_t srcLength = (uint32_t)src->get(strings->length.string()).asInt32();
-            if (srcLength + (uint32_t)offset > targetLength)
-                throwBuiltinError(instance, ErrorCode::RangeError, strings->TypedArray, true, strings->set, "");
-            int targetByteIndex = offset * targetElementSize + targetByteOffset;
-            int k = 0;
-            int limit = targetByteIndex + targetElementSize * srcLength;
-            while (targetByteIndex < limit) {
-                escargot::ESString* Pk = ESString::create(k);
-                double kNumber = src->get(Pk).toNumber();
-                wrapper->set(targetByteIndex / targetElementSize, ESValue(kNumber));
-                k++;
-                targetByteIndex += targetElementSize;
-            }
-            return ESValue();
-        } else {
-            auto arg0Wrapper = arg0->asESTypedArrayObjectWrapper();
-            escargot::ESArrayBufferObject* srcBuffer = arg0Wrapper->buffer();
-            unsigned srcLength = arg0Wrapper->arraylength();
-            int srcByteOffset = arg0Wrapper->byteoffset();
-            if (srcLength + (unsigned)offset > targetLength)
-                throwBuiltinError(instance, ErrorCode::RangeError, strings->TypedArray, true, strings->set, "");
-            int srcByteIndex = 0;
-            if (srcBuffer == targetBuffer) {
-                // TODO: 24) should clone targetBuffer
-                RELEASE_ASSERT_NOT_REACHED();
-            } else {
-                srcByteIndex = srcByteOffset;
-            }
-            unsigned targetIndex = (unsigned)offset, srcIndex = 0;
-            unsigned targetByteIndex = offset * targetElementSize + targetByteOffset;
-            unsigned limit = targetByteIndex + targetElementSize * srcLength;
-            if (wrapper->arraytype() != arg0Wrapper->arraytype()) {
-                while (targetIndex < offset + srcLength) {
-                    ESValue value = arg0Wrapper->get(srcIndex);
-                    wrapper->set(targetIndex, value);
-                    srcIndex++;
-                    targetIndex++;
-                }
-            } else {
-                while (targetByteIndex < limit) {
-                    ESValue value = srcBuffer->getValueFromBuffer<uint8_t>(srcByteIndex, escargot::Uint8Array);
-                    targetBuffer->setValueInBuffer<Uint8Adaptor>(targetByteIndex, escargot::Uint8Array, value);
-                    srcByteIndex++;
-                    targetByteIndex++;
-                }
-            }
-            return ESValue();
-        }
-    }, strings->set));
-    // $22.2.3.26 %TypedArray%.prototype.subarray([begin [, end]])
-    taPrototype->ESObject::defineDataProperty(strings->subarray, true, false, true, ESFunctionObject::create(NULL, [](ESVMInstance* instance)->ESValue {
-        size_t arglen = instance->currentExecutionContext()->argumentCount();
-        RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, TypedArray, subarray);
-        if (!thisBinded->isESTypedArrayObject())
-            throwBuiltinError(instance, ErrorCode::TypeError, strings->TypedArray, true, strings->subarray, errorMessage_GlobalObject_ThisNotTypedArrayObject);
-        auto wrapper = thisBinded->asESTypedArrayObjectWrapper();
-        escargot::ESArrayBufferObject* buffer = wrapper->buffer();
-        unsigned srcLength = wrapper->arraylength();
-        int64_t relativeBegin = 0;
-        unsigned beginIndex;
-        if (arglen >= 1)
-            relativeBegin = instance->currentExecutionContext()->arguments()[0].toInt32();
-        if (relativeBegin < 0)
-            beginIndex = (srcLength + relativeBegin) > 0 ? (srcLength + relativeBegin) : 0;
-        else
-            beginIndex = (unsigned) relativeBegin < srcLength ? relativeBegin : srcLength;
-        int64_t relativeEnd = srcLength;
-        unsigned endIndex;
-        if (arglen >= 2)
-            relativeEnd = instance->currentExecutionContext()->arguments()[1].toInt32();
-        if (relativeEnd < 0)
-            endIndex = (srcLength + relativeEnd) > 0 ? (srcLength + relativeEnd) : 0;
-        else
-            endIndex = relativeEnd < srcLength ? relativeEnd : srcLength;
-        unsigned newLength = 0;
-        if (endIndex - beginIndex > 0)
-            newLength = endIndex - beginIndex;
-        int srcByteOffset = wrapper->byteoffset();
-        ESValue arg[3] = {buffer, ESValue(srcByteOffset + beginIndex * wrapper->elementSize()), ESValue(newLength)};
-        escargot::ESTypedArrayObject<T>* newobj = escargot::ESTypedArrayObject<T>::create();
-        ESValue ret = ESFunctionObject::call(instance, thisBinded->get(strings->constructor.string()), newobj, arg, 3, instance);
-        return ret;
-    }, strings->subarray));
-    */
 
     taConstructor->setPrototype(state, m_functionPrototype); // empty Function
     taConstructor->setFunctionPrototype(state, taPrototype);
 
-    taPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(taConstructor, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    taPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(taConstructor, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    taPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->set),
+                                                  ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->set, builtinTypedArraySet<T, elementSize>, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    taPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->subarray),
+                                                  ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->subarray, builtinTypedArraySubArray<T, elementSize>, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(taName),
                       ObjectPropertyDescriptor(taConstructor, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -366,18 +363,25 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                                                       (NativeFunctionInfo::Flags)(NativeFunctionInfo::Strict | NativeFunctionInfo::Consturctor)),
                                                             FunctionObject::__ForBuiltin__);
     {
-        JSGetterSetter gs2(
+        JSGetterSetter gs(
             new FunctionObject(state, NativeFunctionInfo(strings->getbyteLength, builtinTypedArrayByteLenthGetter, 0, nullptr, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
-        ObjectPropertyDescriptor byteLengthDesc2(gs2, ObjectPropertyDescriptor::ConfigurablePresent);
+        ObjectPropertyDescriptor byteLengthDesc2(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         typedArrayFunction->getFunctionPrototype(state).asObject()->defineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc2);
     }
     {
-        JSGetterSetter gs2(
-            new FunctionObject(state, NativeFunctionInfo(strings->getLength, builtinTypedArrayLenthGetter, 0, nullptr, NativeFunctionInfo::Strict)),
+        JSGetterSetter gs(
+            new FunctionObject(state, NativeFunctionInfo(strings->getLength, builtinTypedArrayLengthGetter, 0, nullptr, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
-        ObjectPropertyDescriptor lengthDesc(gs2, ObjectPropertyDescriptor::ConfigurablePresent);
+        ObjectPropertyDescriptor lengthDesc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         typedArrayFunction->getFunctionPrototype(state).asObject()->defineOwnProperty(state, ObjectPropertyName(strings->length), lengthDesc);
+    }
+    {
+        JSGetterSetter gs(
+            new FunctionObject(state, NativeFunctionInfo(strings->getBuffer, builtinTypedArrayBufferGetter, 0, nullptr, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor bufferDesc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        typedArrayFunction->getFunctionPrototype(state).asObject()->defineOwnProperty(state, ObjectPropertyName(strings->buffer), bufferDesc);
     }
 
     m_int8Array = installTypedArray<Int8Adaptor, 1>(state, strings->Int8Array, &m_int8ArrayPrototype, typedArrayFunction);
