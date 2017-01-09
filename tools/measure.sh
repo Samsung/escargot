@@ -121,6 +121,8 @@ if [[ $2 != mem* ]]; then
   echo "== Measure Sunspider Time =="
   cd $SUNSPIDER_BASE
   ./sunspider --shell=$cmd --suite=sunspider-1.0.2 --args="$args" | tee $timeresfile
+  tmpresult=`cat $timeresfile | grep "Results are located at" | cut -d' ' -f5`
+  cp $tmpresult $TEST_RESULT_PATH/sunspider_time.res
   cd -
 fi
 
