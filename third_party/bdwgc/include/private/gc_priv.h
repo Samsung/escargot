@@ -1361,6 +1361,14 @@ GC_EXTERN struct obj_kind {
                         /* template to obtain descriptor.  Otherwise    */
                         /* template is used as is.                      */
    GC_bool ok_init;   /* Clear objects before putting them on the free list. */
+#  ifdef ESCARGOT
+   GC_bool ok_eager_sweep;
+                        /* Sweep unmarked object immediately. See comments   */
+                        /* in GC_do_enumerate_reachable_objects for details. */
+#    define OK_EAGER_SWEEP_INITZ /* comma */, FALSE
+#  else
+#    define OK_EAGER_SWEEP_INITZ /* empty */
+#  endif
 #  ifdef ENABLE_DISCLAIM
      GC_bool ok_mark_unconditionally;
                         /* Mark from all, including unmarked, objects   */

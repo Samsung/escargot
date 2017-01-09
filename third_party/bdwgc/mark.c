@@ -49,24 +49,29 @@ GC_INNER unsigned GC_n_mark_procs = GC_RESERVED_MARK_PROCS;
 GC_INNER struct obj_kind GC_obj_kinds[MAXOBJKINDS] = {
 /* PTRFREE */ { &GC_aobjfreelist[0], 0 /* filled in dynamically */,
                 0 | GC_DS_LENGTH, FALSE, FALSE
+                /*, */ OK_EAGER_SWEEP_INITZ
                 /*, */ OK_DISCLAIM_INITZ },
 /* NORMAL  */ { &GC_objfreelist[0], 0,
                 0 | GC_DS_LENGTH,  /* Adjusted in GC_init for EXTRA_BYTES */
                 TRUE /* add length to descr */, TRUE
+                /*, */ OK_EAGER_SWEEP_INITZ
                 /*, */ OK_DISCLAIM_INITZ },
 /* UNCOLLECTABLE */
               { &GC_uobjfreelist[0], 0,
                 0 | GC_DS_LENGTH, TRUE /* add length to descr */, TRUE
+                /*, */ OK_EAGER_SWEEP_INITZ
                 /*, */ OK_DISCLAIM_INITZ },
 # ifdef GC_ATOMIC_UNCOLLECTABLE
    /* AUNCOLLECTABLE */
               { &GC_auobjfreelist[0], 0,
                 0 | GC_DS_LENGTH, FALSE /* add length to descr */, FALSE
+                /*, */ OK_EAGER_SWEEP_INITZ
                 /*, */ OK_DISCLAIM_INITZ },
 # endif
 # ifdef STUBBORN_ALLOC
 /*STUBBORN*/ { (void **)&GC_sobjfreelist[0], 0,
                 0 | GC_DS_LENGTH, TRUE /* add length to descr */, TRUE
+                /*, */ OK_EAGER_SWEEP_INITZ
                 /*, */ OK_DISCLAIM_INITZ },
 # endif
 };

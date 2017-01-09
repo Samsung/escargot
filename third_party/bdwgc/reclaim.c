@@ -45,7 +45,7 @@ STATIC unsigned GC_n_leaked = 0;
 
 GC_INNER GC_bool GC_have_errors = FALSE;
 
-#if !defined(EAGER_SWEEP) && defined(ENABLE_DISCLAIM)
+#if !defined(EAGER_SWEEP) && (defined(ENABLE_DISCLAIM) || defined(ESCARGOT))
   STATIC void GC_reclaim_unconditionally_marked(void);
 #endif
 
@@ -782,7 +782,7 @@ GC_INNER void GC_start_reclaim(GC_bool report_if_found)
     /* This is a very stupid thing to do.  We make it possible anyway,  */
     /* so that you can convince yourself that it really is very stupid. */
     GC_reclaim_all((GC_stop_func)0, FALSE);
-# elif defined(ENABLE_DISCLAIM)
+# elif defined(ENABLE_DISCLAIM) || defined(ESCARGOT)
     /* However, make sure to clear reclaimable objects of kinds with    */
     /* unconditional marking enabled before we do any significant       */
     /* marking work.                                                    */
@@ -874,7 +874,7 @@ GC_INNER GC_bool GC_reclaim_all(GC_stop_func stop_func, GC_bool ignore_old)
     return(TRUE);
 }
 
-#if !defined(EAGER_SWEEP) && defined(ENABLE_DISCLAIM)
+#if !defined(EAGER_SWEEP) && (defined(ENABLE_DISCLAIM) || defined(ESCARGOT))
 /* We do an eager sweep on heap blocks where unconditional marking has  */
 /* been enabled, so that any reclaimable objects have been reclaimed    */
 /* before we start marking.  This is a simplified GC_reclaim_all        */
@@ -891,7 +891,14 @@ GC_INNER GC_bool GC_reclaim_all(GC_stop_func stop_func, GC_bool ignore_old)
 
     for (kind = 0; kind < GC_n_kinds; kind++) {
         ok = &(GC_obj_kinds[kind]);
-        if (!ok->ok_mark_unconditionally)
+        if (TRUE
+#       if defined(ENABLE_DISCLAIM)
+            && !ok->ok_mark_unconditionally
+#       endif
+#       if defined(ESCARGOT)
+            && !ok->ok_eager_sweep
+#       endif
+           )
           continue;
         rlp = ok->ok_reclaim_list;
         if (rlp == 0)
@@ -919,6 +926,22 @@ STATIC void GC_do_enumerate_reachable_objects(struct hblk *hbp, word ped)
   size_t sz = hhdr -> hb_sz;
   size_t bit_no;
   char *p, *plim;
+
+#ifdef ESCARGOT
+  /* In conservative GC, enumeration of live objects is dangerous.
+   *
+   * When a false reference points a invalid object (which is not swept yet),
+   * that invalid object would be considered as valid object,
+   * and it can be reported as enumeration output,
+   * Then further manipulation of that object can cause error.
+   *
+   * This assert is to ensure that this kind of error never happens.
+   * If invalid object gets swept immediately after it becomes garbage,
+   * accidental retension of non-swept object can never be happen,
+   * therefore enumeration can always be safe.
+   */
+  GC_ASSERT(GC_obj_kinds[hhdr -> hb_obj_kind].ok_eager_sweep);
+#endif
 
   if (GC_block_empty(hhdr)) {
     return;

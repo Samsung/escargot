@@ -177,6 +177,14 @@ GC_API unsigned GC_CALL GC_new_kind_inner(void ** /* free_list */,
                             GC_word /* mark_descriptor_template */,
                             int /* add_size_to_descriptor */,
                             int /* clear_new_objects */) GC_ATTR_NONNULL(1);
+#ifdef ESCARGOT
+/* Same as above but this kind of object can be enumerated safely.
+ * See comments in GC_do_enumerate_reachable_objects for details */
+GC_API unsigned GC_CALL GC_new_kind_enumerable(void ** /* free_list */,
+                            GC_word /* mark_descriptor_template */,
+                            int /* add_size_to_descriptor */,
+                            int /* clear_new_objects */) GC_ATTR_NONNULL(1);
+#endif
 
 /* Return a new mark procedure identifier, suitable for use as  */
 /* the first argument in GC_MAKE_PROC.                          */

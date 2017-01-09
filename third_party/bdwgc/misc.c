@@ -1860,6 +1860,9 @@ GC_API unsigned GC_CALL GC_new_kind_inner(void **fl, GC_word descr,
       GC_obj_kinds[result].ok_descriptor = descr;
       GC_obj_kinds[result].ok_relocate_descr = adjust;
       GC_obj_kinds[result].ok_init = (GC_bool)clear;
+      #ifdef ESCARGOT
+        GC_obj_kinds[result].ok_eager_sweep = FALSE;
+#     endif
 #     ifdef ENABLE_DISCLAIM
         GC_obj_kinds[result].ok_mark_unconditionally = FALSE;
         GC_obj_kinds[result].ok_disclaim_proc = 0;
@@ -1880,6 +1883,20 @@ GC_API unsigned GC_CALL GC_new_kind(void **fl, GC_word descr, int adjust,
     UNLOCK();
     return result;
 }
+
+#ifdef ESCARGOT
+GC_API unsigned GC_CALL GC_new_kind_enumerable(void **fl, GC_word descr, int adjust,
+                                               int clear)
+{
+    unsigned result;
+    DCL_LOCK_STATE;
+    LOCK();
+    result = GC_new_kind_inner(fl, descr, adjust, clear);
+    GC_obj_kinds[result].ok_eager_sweep = TRUE;
+    UNLOCK();
+    return result;
+}
+#endif
 
 GC_API unsigned GC_CALL GC_new_proc_inner(GC_mark_proc proc)
 {

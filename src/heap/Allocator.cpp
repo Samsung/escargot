@@ -122,10 +122,10 @@ void initializeCustomAllocators()
                                                              FALSE,
                                                              TRUE);
 
-    s_gcKinds[HeapObjectKind::ArrayObjectKind] = GC_new_kind(GC_new_free_list(),
-                                                             0 | GC_DS_LENGTH,
-                                                             TRUE,
-                                                             TRUE);
+    s_gcKinds[HeapObjectKind::ArrayObjectKind] = GC_new_kind_enumerable(GC_new_free_list(),
+                                                                        0 | GC_DS_LENGTH,
+                                                                        TRUE,
+                                                                        TRUE);
 
 #ifdef PROFILE_MASSIF
     GC_is_valid_displacement_print_proc = [](void* ptr) {
