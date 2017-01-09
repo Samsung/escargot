@@ -792,7 +792,7 @@ Value Object::getOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t i
     Value v = m_values[idx];
     auto gs = v.asPointerValue()->asJSGetterSetter();
     if (gs->hasGetter() && gs->getter().isFunction()) {
-        gs->getter().asFunction()->call(state, receiver, 0, nullptr);
+        return gs->getter().asFunction()->call(state, receiver, 0, nullptr);
     }
     return Value();
 }

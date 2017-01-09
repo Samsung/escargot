@@ -34,9 +34,6 @@ static Value builtinLoad(ExecutionState& state, Value thisValue, size_t argc, Va
         fclose(fp);
 
         src = new UTF16String(std::move(utf8StringToUTF16String(str.data(), str.length())));
-    } else {
-        String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, globalObjectString, false, state.context()->staticStrings().load.string(), errorMessage_GlobalObject_FileNotExist);
     }
 
     Context* context = state.context();
@@ -769,7 +766,16 @@ void GlobalObject::installOthers(ExecutionState& state)
                       ObjectPropertyDescriptor(new FunctionObject(state,
                                                                   NativeFunctionInfo(strings->read, builtinRead, 1, nullptr, NativeFunctionInfo::Strict), false),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+/*
+    defineOwnProperty(state, ObjectPropertyName(strings->dbgBreak),
+                      ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                  NativeFunctionInfo(strings->dbgBreak, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression) -> Value {
+        puts("dbgBreak");
+        return Value();
+    }, 0, nullptr, NativeFunctionInfo::Strict), false), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+    */
 #endif
+
     defineOwnProperty(state, ObjectPropertyName(strings->gc),
                       ObjectPropertyDescriptor(new FunctionObject(state,
                                                                   NativeFunctionInfo(strings->gc, builtinGc, 0, nullptr, NativeFunctionInfo::Strict), false),
