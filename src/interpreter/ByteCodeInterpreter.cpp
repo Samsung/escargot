@@ -449,7 +449,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                 }
             }
         SetObjectOpcodeSlowCase:
-            Object* obj = fastToObject(state, willBeObject);
+            Object* obj = willBeObject.toObject(state);
             obj->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, property), registerFile[code->m_loadRegisterIndex], obj);
             registerFile[code->m_objectRegisterIndex] = registerFile[code->m_loadRegisterIndex];
             ADD_PROGRAM_COUNTER(SetObject);
@@ -467,7 +467,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         SetObjectPreComputedCaseOpcodeLbl : {
             SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)currentCode;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            setObjectPreComputedCaseOperation(state, fastToObject(state, willBeObject), code->m_propertyName, registerFile[code->m_loadRegisterIndex], code->m_inlineCache, false);
+            setObjectPreComputedCaseOperation(state, willBeObject.toObject(state), code->m_propertyName, registerFile[code->m_loadRegisterIndex], code->m_inlineCache, false);
             registerFile[code->m_objectRegisterIndex] = registerFile[code->m_loadRegisterIndex];
             ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
             NEXT_INSTRUCTION();

@@ -291,9 +291,7 @@ Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t a
         newLength = endIndex - beginIndex;
     int srcByteOffset = wrapper->byteoffset();
     Value arg[3] = { buffer, Value(srcByteOffset + beginIndex * (wrapper->bytelength() / wrapper->arraylength())), Value(newLength) };
-    TypedArrayObject<T, typedArrayElementSize>* newobj = new TypedArrayObject<T, typedArrayElementSize>(state);
-    Value ret = FunctionObject::call(thisBinded->get(state, strings->constructor).value(state, thisBinded), state, newobj, 3, arg);
-    return ret;
+    return ByteCodeInterpreter::newOperation(state, thisBinded->get(state, strings->constructor).value(state, thisBinded), 3, arg);
 }
 
 template <typename T, int elementSize>

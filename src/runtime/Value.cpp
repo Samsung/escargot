@@ -302,18 +302,14 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
         int end;
         char* buf;
         const size_t len = data->length();
-        if (data->hasASCIIContent()) {
-            buf = (char*)data->characters8();
-        } else {
-            buf = ALLOCA(data->length() + 1, char, state);
-            for (unsigned i = 0; i < len; i++) {
-                char16_t c = data->charAt(i);
-                if (c >= 128)
-                    c = 0;
-                buf[i] = c;
-            }
-            buf[len] = 0;
+        buf = ALLOCA(data->length() + 1, char, state);
+        for (unsigned i = 0; i < len; i++) {
+            char16_t c = data->charAt(i);
+            if (c >= 128)
+                c = 0;
+            buf[i] = c;
         }
+        buf[len] = 0;
         if (len >= 3 && (!strncmp("-0x", buf, 3) || !strncmp("+0x", buf, 3))) { // hex number with Unary Plus or Minus is invalid in JavaScript while it is valid in C
             val = std::numeric_limits<double>::quiet_NaN();
             return val;
