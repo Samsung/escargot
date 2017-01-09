@@ -634,10 +634,11 @@ struct GetObjectInlineCacheData {
 
 struct GetObjectInlineCache {
     Vector<GetObjectInlineCacheData, gc_malloc_ignore_off_page_allocator<GetObjectInlineCacheData>> m_cache;
-    size_t m_executeCount;
+    uint16_t m_executeCount;
+    uint16_t m_cacheMissCount;
     GetObjectInlineCache()
     {
-        m_executeCount = 0;
+        m_cacheMissCount = m_executeCount = 0;
     }
 };
 
@@ -666,10 +667,12 @@ struct SetObjectInlineCache {
     ObjectStructureChain m_cachedhiddenClassChain;
     size_t m_cachedIndex;
     ObjectStructure* m_hiddenClassWillBe;
+    size_t m_cacheMissCount;
     SetObjectInlineCache()
     {
         m_cachedIndex = SIZE_MAX;
         m_hiddenClassWillBe = nullptr;
+        m_cacheMissCount = 0;
     }
 
     void invalidateCache()

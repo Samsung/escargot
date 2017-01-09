@@ -479,7 +479,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         GetObjectPreComputedCaseOpcodeLbl : {
             GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)currentCode;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            registerFile[code->m_objectRegisterIndex] = getObjectPrecomputedCaseOperation(state, fastToObject(state, willBeObject), willBeObject, code->m_propertyName, code->m_inlineCache).second;
+            registerFile[code->m_objectRegisterIndex] = getObjectPrecomputedCaseOperation(state, fastToObject(state, willBeObject), willBeObject, code->m_propertyName, code->m_inlineCache);
             ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
             NEXT_INSTRUCTION();
         }
@@ -1392,13 +1392,14 @@ bool ByteCodeInterpreter::abstractRelationalComparisonOrEqualSlowCase(ExecutionS
     }
 }
 
-ALWAYS_INLINE std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const Value& target, const PropertyName& name, GetObjectInlineCache& inlineCache)
+ALWAYS_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const Value& target, const PropertyName& name, GetObjectInlineCache& inlineCache)
 {
     unsigned currentCacheIndex = 0;
     ObjectStructureChainItem testItem;
     testItem.m_objectStructure = obj->structure();
     testItem.m_version = obj->structure()->version();
     const size_t cacheFillCount = inlineCache.m_cache.size();
+TestCache:
     for (; currentCacheIndex < cacheFillCount; currentCacheIndex++) {
         const GetObjectInlineCacheData& data = inlineCache.m_cache[currentCacheIndex];
         const ObjectStructureChain* const cachedHiddenClassChain = &data.m_cachedhiddenClassChain;
@@ -1408,13 +1409,15 @@ ALWAYS_INLINE std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCa
             testItem.m_objectStructure = obj->structure();
             testItem.m_version = obj->structure()->version();
             if (UNLIKELY((*cachedHiddenClassChain)[i] != testItem)) {
-                return getObjectPrecomputedCaseOperationCacheMiss(state, obj, target, name, inlineCache);
+                currentCacheIndex++;
+                goto TestCache;
             }
             const Value& proto = obj->getPrototype(state);
             if (LIKELY(proto.isObject())) {
                 obj = proto.asObject();
             } else {
-                return getObjectPrecomputedCaseOperationCacheMiss(state, obj, target, name, inlineCache);
+                currentCacheIndex++;
+                goto TestCache;
             }
         }
 
@@ -1422,9 +1425,9 @@ ALWAYS_INLINE std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCa
         testItem.m_version = obj->structure()->version();
         if (LIKELY((*cachedHiddenClassChain)[cSiz] == testItem)) {
             if (LIKELY(cachedIndex != SIZE_MAX)) {
-                return std::make_pair(true, obj->getOwnPropertyUtilForObject(state, cachedIndex, target));
+                return obj->getOwnPropertyUtilForObject(state, cachedIndex, target);
             } else {
-                return std::make_pair(false, Value());
+                return Value();
             }
         }
     }
@@ -1432,20 +1435,20 @@ ALWAYS_INLINE std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCa
     return getObjectPrecomputedCaseOperationCacheMiss(state, obj, target, name, inlineCache);
 }
 
-std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& target, const PropertyName& name, GetObjectInlineCache& inlineCache)
+Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& target, const PropertyName& name, GetObjectInlineCache& inlineCache)
 {
     // cache miss.
     inlineCache.m_executeCount++;
-    if (inlineCache.m_executeCount <= 3) {
+    inlineCache.m_cacheMissCount++;
+    if (inlineCache.m_executeCount <= 3 || inlineCache.m_cacheMissCount > 16) {
         auto result = obj->get(state, ObjectPropertyName(state, name));
-        return std::make_pair(result.hasValue(), result.value(state, target));
+        return result.value(state, target);
     }
 
     inlineCache.m_cache.insert(0, GetObjectInlineCacheData());
-    if (inlineCache.m_cache.size() > 5) {
-        inlineCache.m_cache.erase(4);
+    if (inlineCache.m_cache.size() > 8) {
+        inlineCache.m_cache.erase(7);
     }
-    ASSERT(&inlineCache.m_cache[0] == &inlineCache.m_cache[0]);
     ObjectStructureChain* cachedHiddenClassChain = &inlineCache.m_cache[0].m_cachedhiddenClassChain;
     size_t* cachedHiddenClassIndex = &inlineCache.m_cache[0].m_cachedIndex;
 
@@ -1468,9 +1471,9 @@ std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOperationCac
     }
 
     if (*cachedHiddenClassIndex != SIZE_MAX) {
-        return std::make_pair(true, obj->getOwnPropertyUtilForObject(state, *cachedHiddenClassIndex, target));
+        return obj->getOwnPropertyUtilForObject(state, *cachedHiddenClassIndex, target);
     } else {
-        return std::make_pair(false, Value());
+        return Value();
     }
 }
 
@@ -1523,7 +1526,13 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
 void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* originalObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache)
 {
     // cache miss
+    if (inlineCache.m_cacheMissCount > 16) {
+        originalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, originalObject);
+        return;
+    }
+
     inlineCache.invalidateCache();
+    inlineCache.m_cacheMissCount++;
 
     Object* obj = originalObject;
 
