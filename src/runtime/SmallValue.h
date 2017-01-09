@@ -131,6 +131,8 @@ extern SmallValueData* smallValueEmpty;
 extern SmallValueData* smallValueDeleted;
 }
 
+extern size_t g_doubleInSmallValueTag;
+
 class SmallValue {
 public:
     SmallValue(const SmallValue& from)
@@ -157,7 +159,7 @@ public:
     {
         if (HAS_OBJECT_TAG(m_data.payload)) {
             PointerValue* v = (PointerValue*)m_data.payload;
-            if (v->isDoubleInSmallValue()) {
+            if (g_doubleInSmallValueTag == *((size_t*)v)) {
                 return Value(v->asDoubleInSmallValue()->value());
             } else {
                 if (v == (PointerValue*)SmallValueImpl::smallValueUndefined->payload) {

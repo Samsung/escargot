@@ -709,11 +709,13 @@ public:
         , m_registerIndex(registerIndex)
         , m_propertyName(propertyName)
     {
+        m_savedGlobalObjectVersion = m_cachedIndex = SIZE_MAX;
     }
 
     size_t m_registerIndex;
     PropertyName m_propertyName;
-    GetObjectInlineCache m_inlineCache;
+    size_t m_savedGlobalObjectVersion;
+    size_t m_cachedIndex;
 #ifndef NDEBUG
     virtual void dump()
     {
@@ -729,11 +731,14 @@ public:
         , m_registerIndex(registerIndex)
         , m_propertyName(propertyName)
     {
+        m_savedGlobalObjectVersion = m_cachedIndex = SIZE_MAX;
     }
 
     size_t m_registerIndex;
     PropertyName m_propertyName;
-    SetObjectInlineCache m_inlineCache;
+    size_t m_savedGlobalObjectVersion;
+    size_t m_cachedIndex;
+
 #ifndef NDEBUG
     virtual void dump()
     {

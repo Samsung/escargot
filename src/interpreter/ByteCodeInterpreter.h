@@ -14,6 +14,8 @@ class LexicalEnvironment;
 struct GetObjectInlineCache;
 struct SetObjectInlineCache;
 struct EnumerateObjectData;
+class GetGlobalObject;
+class SetGlobalObject;
 
 class ByteCodeInterpreter {
 public:
@@ -35,13 +37,16 @@ public:
 
     static inline std::pair<bool, Value> getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const Value& targetObj, const PropertyName& name, GetObjectInlineCache& inlineCache);
     static std::pair<bool, Value> getObjectPrecomputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& target, const PropertyName& name, GetObjectInlineCache& inlineCache);
-    static inline void setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, bool fromGlobalObject);
-    static void setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, bool fromGlobalObject);
+    static inline void setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache);
+    static void setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache);
 
     static EnumerateObjectData* executeEnumerateObject(ExecutionState& state, Object* obj);
     static EnumerateObjectData* updateEnumerateObjectData(ExecutionState& state, EnumerateObjectData* data);
 
     static inline Object* fastToObject(ExecutionState& state, const Value& obj);
+
+    static Value getGlobalObjectSlowCase(ExecutionState& state, Object* go, GetGlobalObject* code);
+    static void setGlobalObjectSlowCase(ExecutionState& state, Object* go, SetGlobalObject* code, const Value& value);
 };
 }
 

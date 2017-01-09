@@ -708,7 +708,7 @@ protected:
         return getOwnDataPropertyUtilForObject(state, idx, this);
     }
 
-    Value getOwnDataPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& receiver)
+    ALWAYS_INLINE Value getOwnDataPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& receiver)
     {
         ASSERT(m_structure->readProperty(state, idx).m_descriptor.isDataProperty());
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
@@ -743,7 +743,7 @@ protected:
     }
 
     Value getOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, const Value& receiver);
-    Value getOwnPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& receiver)
+    ALWAYS_INLINE Value getOwnPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& receiver)
     {
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
         if (LIKELY(item.m_descriptor.isDataProperty())) {

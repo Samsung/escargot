@@ -186,6 +186,29 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t& newLengt
     }
 }
 
+ObjectGetResult ArrayObject::getFastModeValue(ExecutionState& state, const ObjectPropertyName& P)
+{
+    if (LIKELY(isFastModeArray())) {
+        uint64_t idx;
+        if (LIKELY(P.isUIntType())) {
+            idx = P.uintValue();
+        } else {
+            idx = P.string(state)->tryToUseAsArrayIndex();
+        }
+        if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
+            ASSERT(m_fastModeData.size() == getArrayLength(state));
+            if (LIKELY(idx < m_fastModeData.size())) {
+                Value v = m_fastModeData[idx];
+                if (LIKELY(!v.isEmpty())) {
+                    return ObjectGetResult(v, true, true, true);
+                }
+                return ObjectGetResult();
+            }
+        }
+    }
+    return ObjectGetResult();
+}
+
 bool ArrayObject::setFastModeValue(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
 {
     if (LIKELY(isFastModeArray())) {

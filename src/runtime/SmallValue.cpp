@@ -4,6 +4,8 @@
 
 namespace Escargot {
 
+size_t g_doubleInSmallValueTag;
+
 class DummyInSmallValue : public PointerValue {
 public:
     virtual Type type()

@@ -3,6 +3,8 @@
 
 namespace Escargot {
 
+extern size_t g_doubleInSmallValueTag;
+
 VMInstance::VMInstance()
 {
     std::setlocale(LC_ALL, "en_US.utf8");
@@ -14,5 +16,8 @@ VMInstance::VMInstance()
         m_timezoneID = getenv("TZ");
     }
     m_timezoneID = "US/Pacific";
+
+    auto temp = new DoubleInSmallValue(0);
+    g_doubleInSmallValueTag = *((size_t*)temp);
 }
 }

@@ -16,6 +16,8 @@
 
 namespace Escargot {
 
+size_t g_arrayObjectTag;
+
 NEVER_INLINE void registerOpcode(Opcode opcode, void* opcodeAddress)
 {
     static std::unordered_set<void*> labelAddressChecker;
@@ -59,6 +61,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         EnvironmentRecord* record = env->record();
         Value thisValue(Value::EmptyValue);
         Value* registerFile = ALLOCA(byteCodeBlock->m_requiredRegisterFileSizeInValueSize * sizeof(Value), Value, state);
+        GlobalObject* globalObject = state.context()->globalObject();
         char* codeBuffer = byteCodeBlock->m_code.data();
         programCounter = (size_t)(&codeBuffer[programCounter]);
         ByteCode* currentCode;
@@ -146,18 +149,22 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
 
         GetGlobalObjectOpcodeLbl : {
             GetGlobalObject* code = (GetGlobalObject*)currentCode;
-            auto result = getObjectPrecomputedCaseOperation(state, state.context()->globalObject(), state.context()->globalObject(), code->m_propertyName, code->m_inlineCache);
-            if (UNLIKELY(!result.first)) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, code->m_propertyName.string(), false, String::emptyString, errorMessage_IsNotDefined);
+            if (LIKELY(globalObject->structure()->version() == code->m_savedGlobalObjectVersion)) {
+                registerFile[code->m_registerIndex] = globalObject->getOwnPropertyUtilForObject(state, code->m_cachedIndex, globalObject);
+            } else {
+                registerFile[code->m_registerIndex] = getGlobalObjectSlowCase(state, globalObject, code);
             }
-            registerFile[code->m_registerIndex] = result.second;
             ADD_PROGRAM_COUNTER(GetGlobalObject);
             NEXT_INSTRUCTION();
         }
 
         SetGlobalObjectOpcodeLbl : {
             SetGlobalObject* code = (SetGlobalObject*)currentCode;
-            setObjectPreComputedCaseOperation(state, state.context()->globalObject(), code->m_propertyName, registerFile[code->m_registerIndex], code->m_inlineCache, true);
+            if (LIKELY(globalObject->structure()->version() == code->m_savedGlobalObjectVersion)) {
+                globalObject->setOwnPropertyThrowsExceptionWhenStrictMode(state, code->m_cachedIndex, registerFile[code->m_registerIndex]);
+            } else {
+                setGlobalObjectSlowCase(state, globalObject, code, registerFile[code->m_registerIndex]);
+            }
             ADD_PROGRAM_COUNTER(SetGlobalObject);
             NEXT_INSTRUCTION();
         }
@@ -402,13 +409,26 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             GetObject* code = (GetObject*)currentCode;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_objectRegisterIndex + 1];
-            if (LIKELY(willBeObject.isPointerValue() && willBeObject.asPointerValue()->isArrayObject())) {
+            if (LIKELY(willBeObject.isPointerValue() && (g_arrayObjectTag == *((size_t*)willBeObject.asPointerValue())))) {
                 ArrayObject* arr = willBeObject.asObject()->asArrayObject();
-                auto result = arr->getFastModeValue(state, ObjectPropertyName(state, property));
-                if (LIKELY(result.hasValue())) {
-                    registerFile[code->m_objectRegisterIndex] = result.value(state, arr);
-                    ADD_PROGRAM_COUNTER(GetObject);
-                    NEXT_INSTRUCTION();
+                if (LIKELY(arr->isFastModeArray())) {
+                    uint32_t idx;
+                    if (LIKELY(property.isUInt32()))
+                        idx = property.asUInt32();
+                    else {
+                        idx = property.toString(state)->tryToUseAsArrayIndex();
+                    }
+                    if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
+                        ASSERT(arr->m_fastModeData.size() == arr->getArrayLength(state));
+                        if (LIKELY(idx < arr->m_fastModeData.size())) {
+                            const Value& v = arr->m_fastModeData[idx];
+                            if (LIKELY(!v.isEmpty())) {
+                                registerFile[code->m_objectRegisterIndex] = v;
+                                ADD_PROGRAM_COUNTER(GetObject);
+                                NEXT_INSTRUCTION();
+                            }
+                        }
+                    }
                 }
             }
             Object* obj = fastToObject(state, willBeObject);
@@ -421,7 +441,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             SetObject* code = (SetObject*)currentCode;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_propertyRegisterIndex];
-            if (LIKELY(willBeObject.isPointerValue() && willBeObject.asPointerValue()->isArrayObject())) {
+            if (LIKELY(willBeObject.isPointerValue() && (g_arrayObjectTag == *((size_t*)willBeObject.asPointerValue())))) {
                 ArrayObject* arr = willBeObject.asObject()->asArrayObject();
                 if (LIKELY(arr->isFastModeArray())) {
                     uint32_t idx;
@@ -467,7 +487,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         SetObjectPreComputedCaseOpcodeLbl : {
             SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)currentCode;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            setObjectPreComputedCaseOperation(state, willBeObject.toObject(state), code->m_propertyName, registerFile[code->m_loadRegisterIndex], code->m_inlineCache, false);
+            setObjectPreComputedCaseOperation(state, willBeObject.toObject(state), code->m_propertyName, registerFile[code->m_loadRegisterIndex], code->m_inlineCache);
             registerFile[code->m_objectRegisterIndex] = registerFile[code->m_loadRegisterIndex];
             ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
             NEXT_INSTRUCTION();
@@ -1454,7 +1474,7 @@ std::pair<bool, Value> ByteCodeInterpreter::getObjectPrecomputedCaseOperationCac
     }
 }
 
-ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, bool fromGlobalObject)
+ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache)
 {
     Object* originalObject = obj;
 
@@ -1471,19 +1491,21 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
         int cSiz = inlineCache.m_cachedhiddenClassChain.size();
         bool miss = false;
         for (int i = 0; i < cSiz - 1; i++) {
-            if (inlineCache.m_cachedhiddenClassChain[i].m_objectStructure != obj->structure()) {
+            testItem.m_objectStructure = obj->structure();
+            testItem.m_version = obj->structure()->version();
+            if (UNLIKELY(inlineCache.m_cachedhiddenClassChain[i] != testItem)) {
                 miss = true;
                 break;
             } else {
                 Value o = obj->getPrototype(state);
-                if (!o.isObject()) {
+                if (UNLIKELY(!o.isObject())) {
                     miss = true;
                     break;
                 }
                 obj = o.asObject();
             }
         }
-        if (!miss) {
+        if (LIKELY(!miss)) {
             if (inlineCache.m_cachedhiddenClassChain[cSiz - 1].m_objectStructure == obj->structure()) {
                 // cache hit!
                 obj = originalObject;
@@ -1495,10 +1517,10 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
         }
     }
 
-    setObjectPreComputedCaseOperationCacheMiss(state, originalObject, name, value, inlineCache, fromGlobalObject);
+    setObjectPreComputedCaseOperationCacheMiss(state, originalObject, name, value, inlineCache);
 }
 
-void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* originalObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, bool fromGlobalObject)
+void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* originalObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache)
 {
     // cache miss
     inlineCache.invalidateCache();
@@ -1517,9 +1539,6 @@ void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionSt
         inlineCache.m_cachedIndex = idx;
         inlineCache.m_cachedhiddenClassChain.push_back(newItem);
     } else {
-        if (UNLIKELY(fromGlobalObject && state.inStrictMode())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
-        }
         Object* orgObject = obj;
         if (UNLIKELY(obj->structure()->isStructureWithFastAccess())) {
             inlineCache.invalidateCache();
@@ -1535,11 +1554,6 @@ void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionSt
         Value proto = obj->getPrototype(state);
         while (proto.isObject()) {
             obj = proto.asObject();
-            if (UNLIKELY(obj->structure()->isStructureWithFastAccess())) {
-                inlineCache.invalidateCache();
-                orgObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, orgObject);
-                return;
-            }
             newItem.m_objectStructure = obj->structure();
             newItem.m_version = obj->structure()->version();
             inlineCache.m_cachedhiddenClassChain.push_back(newItem);
@@ -1688,5 +1702,32 @@ ALWAYS_INLINE Object* ByteCodeInterpreter::fastToObject(ExecutionState& state, c
         return o;
     }
     return obj.toObject(state);
+}
+
+Value ByteCodeInterpreter::getGlobalObjectSlowCase(ExecutionState& state, Object* go, GetGlobalObject* code)
+{
+    size_t idx = go->structure()->findProperty(state, code->m_propertyName);
+    if (UNLIKELY(idx == SIZE_MAX)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, code->m_propertyName.string(), false, String::emptyString, errorMessage_IsNotDefined);
+    } else {
+        code->m_cachedIndex = idx;
+        code->m_savedGlobalObjectVersion = go->structure()->version();
+    }
+    return go->getOwnPropertyUtilForObject(state, idx, go);
+}
+
+void ByteCodeInterpreter::setGlobalObjectSlowCase(ExecutionState& state, Object* go, SetGlobalObject* code, const Value& value)
+{
+    size_t idx = go->structure()->findProperty(state, code->m_propertyName);
+    if (UNLIKELY(idx == SIZE_MAX)) {
+        if (UNLIKELY(state.inStrictMode())) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, code->m_propertyName.string(), false, String::emptyString, errorMessage_IsNotDefined);
+        }
+        go->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, go);
+    } else {
+        code->m_cachedIndex = idx;
+        code->m_savedGlobalObjectVersion = go->structure()->version();
+        go->setOwnPropertyThrowsExceptionWhenStrictMode(state, idx, value);
+    }
 }
 }

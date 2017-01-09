@@ -120,6 +120,8 @@ bool Context::regexpLastIndexNativeSetter(ExecutionState& state, Object* self, c
     return true;
 }
 
+extern size_t g_arrayObjectTag;
+
 static ObjectPropertyNativeGetterSetterData regexpLastIndexGetterSetterData(
     true, false, false, &Context::regexpLastIndexNativeGetter, &Context::regexpLastIndexNativeSetter);
 
@@ -187,6 +189,9 @@ Context::Context(VMInstance* instance)
 
     // TODO call destructor
     m_bumpPointerAllocator = new (GC) WTF::BumpPointerAllocator();
+
+    auto temp = new ArrayObject(stateForInit);
+    g_arrayObjectTag = *((size_t*)temp);
 }
 
 void Context::throwException(ExecutionState& state, const Value& exception)
