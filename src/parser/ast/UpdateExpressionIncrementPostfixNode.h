@@ -34,13 +34,14 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::UpdateExpressionIncrementPostfix; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        m_argument->generateExpressionByteCode(codeBlock, context);
+        size_t baseRegister = context->getRegister();
+        m_argument->generateResolveAddressByteCode(codeBlock, context);
+        m_argument->generateReferenceResolvedAddressByteCode(codeBlock, context);
         codeBlock->pushCode(ToNumber(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
         size_t resultRegisterIndex = context->getLastRegisterIndex();
-        size_t tempRegisterIndex = context->getRegister();
-        codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), resultRegisterIndex, tempRegisterIndex), context, this);
-        codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), tempRegisterIndex), context, this);
-        m_argument->generateStoreByteCode(codeBlock, context);
+        codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), resultRegisterIndex, baseRegister), context, this);
+        codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), resultRegisterIndex), context, this);
+        m_argument->generateStoreByteCode(codeBlock, context, false);
         context->giveUpRegister();
     }
 
