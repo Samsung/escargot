@@ -54,7 +54,7 @@ static Value builtinLoad(ExecutionState& state, Value thisValue, size_t argc, Va
     Context* context = state.context();
     auto result = context->scriptParser().parse(src, argv[0].toString(state));
     if (!result.m_error) {
-        result.m_script->execute(state, context);
+        result.m_script->execute(state, false, false, true);
     }
     return Value();
 }
