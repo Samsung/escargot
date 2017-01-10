@@ -12,26 +12,25 @@
 
 namespace Escargot {
 
-Value Script::execute(Context* ctx, bool isEvalMode, bool needNewEnv, bool isOnGlobal)
+Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, bool isOnGlobal)
 {
     Node* programNode = m_topCodeBlock->cachedASTNode();
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
 
     ByteCodeGenerator g;
-    g.generateByteCode(ctx, m_topCodeBlock, programNode, isEvalMode, isOnGlobal);
+    g.generateByteCode(state.context(), m_topCodeBlock, programNode, isEvalMode, isOnGlobal);
 
     m_topCodeBlock->m_cachedASTNode = nullptr;
 
     LexicalEnvironment* env;
     ExecutionContext* prevEc;
     {
-        ExecutionState stateForInit(ctx);
         CodeBlock* globalCodeBlock = (needNewEnv) ? nullptr : m_topCodeBlock;
-        LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(stateForInit, globalCodeBlock, ctx->globalObject()), nullptr);
+        LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, globalCodeBlock, state.context()->globalObject()), nullptr);
         if (UNLIKELY(needNewEnv)) {
             // NOTE: ES5 10.4.2.1 eval in strict mode
-            prevEc = new ExecutionContext(ctx, nullptr, globalEnvironment, m_topCodeBlock->isStrict());
-            EnvironmentRecord* record = new DeclarativeEnvironmentRecordNotIndexed(stateForInit, m_topCodeBlock->identifierInfos());
+            prevEc = new ExecutionContext(state.context(), state.executionContext(), globalEnvironment, m_topCodeBlock->isStrict());
+            EnvironmentRecord* record = new DeclarativeEnvironmentRecordNotIndexed(state, m_topCodeBlock->identifierInfos());
             env = new LexicalEnvironment(record, globalEnvironment);
         } else {
             env = globalEnvironment;
@@ -39,11 +38,11 @@ Value Script::execute(Context* ctx, bool isEvalMode, bool needNewEnv, bool isOnG
         }
     }
 
-    ExecutionContext ec(ctx, prevEc, env, m_topCodeBlock->isStrict());
+    ExecutionContext ec(state.context(), prevEc, env, m_topCodeBlock->isStrict());
     Value resultValue;
-    ExecutionState state(ctx, &ec, &resultValue);
+    ExecutionState newState(state.context(), &ec, &resultValue);
 
-    ByteCodeInterpreter::interpret(state, m_topCodeBlock, 0, nullptr);
+    ByteCodeInterpreter::interpret(newState, m_topCodeBlock, 0, nullptr);
 
     return resultValue;
 }
@@ -52,8 +51,10 @@ Script::ScriptSandboxExecuteResult Script::sandboxExecute(Context* ctx)
 {
     ScriptSandboxExecuteResult result;
     SandBox sb(ctx);
+    ExecutionState stateForInit(ctx);
+
     auto sandBoxResult = sb.run([&]() -> Value {
-        return execute(ctx);
+        return execute(stateForInit);
     });
     result.result = sandBoxResult.result;
     result.msgStr = sandBoxResult.msgStr;

@@ -20,6 +20,7 @@ class ObjectStructure;
 class ControlFlowRecord;
 class SandBox;
 class JobQueue;
+class ByteCodeBlock;
 
 class Context : public gc {
     friend class AtomicString;
@@ -141,6 +142,11 @@ public:
     }
 #endif
 
+    Vector<CodeBlock*, gc_allocator<CodeBlock*>>& compiledCodeBlocks()
+    {
+        return m_compiledCodeBlocks;
+    }
+
 protected:
     bool m_didSomePrototypeObjectDefineIndexedProperty;
     VMInstance* m_instance;
@@ -148,6 +154,7 @@ protected:
     GlobalObject* m_globalObject;
     AtomicStringMap m_atomicStringMap;
     ScriptParser* m_scriptParser;
+    Vector<CodeBlock*, gc_allocator<CodeBlock*>> m_compiledCodeBlocks;
 
     // To support Yarr
     WTF::BumpPointerAllocator* m_bumpPointerAllocator;

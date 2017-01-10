@@ -703,7 +703,7 @@ protected:
         m_values[idx] = newValue;
     }
 
-    Value getOwnDataPropertyUtilForObject(ExecutionState& state, size_t idx)
+    ALWAYS_INLINE Value getOwnDataPropertyUtilForObject(ExecutionState& state, size_t idx)
     {
         return getOwnDataPropertyUtilForObject(state, idx, this);
     }

@@ -39,7 +39,7 @@ static Value builtinLoad(ExecutionState& state, Value thisValue, size_t argc, Va
     Context* context = state.context();
     auto result = context->scriptParser().parse(src, argv[0].toString(state));
     if (!result.m_error) {
-        result.m_script->execute(context);
+        result.m_script->execute(state, context);
     }
     return Value();
 }
@@ -106,7 +106,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg, CodeBlock* par
         bool needNewEnv = parserResult.m_script->topCodeBlock()->isStrict();
         if (!isDirectCall) {
             // In case of indirect call, use global execution context
-            return parserResult.m_script->execute(state.context(), true, needNewEnv, true);
+            return parserResult.m_script->execute(state, true, needNewEnv, true);
         } else {
             return parserResult.m_script->executeLocal(state, true, needNewEnv);
         }

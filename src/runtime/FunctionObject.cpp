@@ -72,22 +72,8 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     Value receiver = receiverOrg;
     Context* ctx = state.context();
 
-    // prepare ByteCodeBlock if needed
-    if (!m_codeBlock->byteCodeBlock()) {
-        Node* ast;
-        if (m_codeBlock->cachedASTNode()) {
-            ast = m_codeBlock->cachedASTNode();
-        } else {
-            ast = state.context()->scriptParser().parseFunction(m_codeBlock);
-        }
-
-        ByteCodeGenerator g;
-        g.generateByteCode(ctx, m_codeBlock, ast);
-    }
-
     // prepare env, ec
     bool isStrict = m_codeBlock->isStrict();
-
     if (!isStrict) {
         if (receiver.isUndefinedOrNull()) {
             receiver = ctx->globalObject();
@@ -95,6 +81,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
             receiver = receiver.toObject(state);
         }
     }
+
     FunctionEnvironmentRecord* record;
     LexicalEnvironment* env;
     ExecutionContext* ec;
@@ -183,19 +170,64 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
         }
     }
 
+    // prepare ByteCodeBlock if needed
+    if (UNLIKELY(m_codeBlock->byteCodeBlock() == nullptr)) {
+        Vector<CodeBlock*, gc_allocator<CodeBlock*>>& v = state.context()->compiledCodeBlocks();
+
+        size_t currentCodeSizeTotal = 0;
+        for (size_t i = 0; i < v.size(); i++) {
+            currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_code.size();
+        }
+        // printf("codeSizeTotal %lfMB\n", (int)currentCodeSizeTotal / 1024.0 / 1024.0);
+
+        const int codeSizeMax = 1024 * 1024 * 2;
+        if (currentCodeSizeTotal > codeSizeMax) {
+            std::vector<CodeBlock*, gc_allocator<CodeBlock*>> codeBlocksInCurrentStack;
+
+            ExecutionContext* ec = state.executionContext();
+            while (ec) {
+                auto env = ec->lexicalEnvironment();
+                if (env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+                    auto cblk = env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock();
+                    if (cblk->script() && cblk->byteCodeBlock()) {
+                        if (std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), cblk) == codeBlocksInCurrentStack.end()) {
+                            codeBlocksInCurrentStack.push_back(cblk);
+                        }
+                    }
+                }
+                ec = ec->parent();
+            }
+
+            for (size_t i = 0; i < v.size(); i++) {
+                if (std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), v[i]) == codeBlocksInCurrentStack.end()) {
+                    v[i]->m_byteCodeBlock = nullptr;
+                }
+            }
+
+            v.clear();
+            v.resizeWithUninitializedValues(codeBlocksInCurrentStack.size());
+
+            for (size_t i = 0; i < codeBlocksInCurrentStack.size(); i++) {
+                v[i] = codeBlocksInCurrentStack[i];
+            }
+        }
+        ASSERT(!m_codeBlock->isNativeFunction());
+
+        Node* ast;
+        if (m_codeBlock->cachedASTNode()) {
+            ast = m_codeBlock->cachedASTNode();
+        } else {
+            ast = state.context()->scriptParser().parseFunction(m_codeBlock);
+        }
+
+        ByteCodeGenerator g;
+        g.generateByteCode(ctx, m_codeBlock, ast);
+        v.pushBack(m_codeBlock);
+    }
+
     // run function
     ByteCodeInterpreter::interpret(newState, m_codeBlock, 0, stackStorage);
 
     return resultValue;
-}
-
-Value FunctionObject::call(const Value& callee, ExecutionState& state, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression)
-{
-    if (LIKELY(callee.isFunction())) {
-        return callee.asFunction()->call(state, receiver, argc, argv, isNewExpression);
-    } else {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
-        RELEASE_ASSERT_NOT_REACHED();
-    }
 }
 }

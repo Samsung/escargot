@@ -657,7 +657,7 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
 
             // Let setterResult be Call(setter, Receiver, «V»).
             Value argv[] = { v };
-            FunctionObject::call(setter, state, receiver, 1, argv);
+            FunctionObject::call(state, setter, receiver, 1, argv);
             return true;
         }
     }

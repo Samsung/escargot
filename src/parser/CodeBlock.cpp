@@ -44,7 +44,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
 
     m_parametersInfomation.resize(info.m_argumentCount);
 
-    m_byteCodeBlock = new ByteCodeBlock();
+    m_byteCodeBlock = new ByteCodeBlock(this);
     CallNativeFunction code(info.m_nativeFunction);
     code.assignOpcodeInAddress();
     char* first = (char*)&code;
@@ -93,7 +93,7 @@ CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundT
     size_t targetFunctionLength = targetCodeBlock->parametersInfomation().size();
     m_parametersInfomation.resize(targetFunctionLength > boundArgc ? targetFunctionLength - boundArgc : 0);
 
-    m_byteCodeBlock = new ByteCodeBlock();
+    m_byteCodeBlock = new ByteCodeBlock(this);
     CallBoundFunction code(ByteCodeLOC(0));
     code.m_boundTargetFunction = targetFunction;
     code.m_boundThis = boundThis;

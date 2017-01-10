@@ -257,7 +257,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             arguments[subLen] = Value((int)result.m_matchResults[i][0].m_start);
             arguments[subLen + 1] = string;
             // 21.1.3.14 (11) it should be called with this as undefined
-            String* res = FunctionObject::call(callee, state, Value(), subLen + 2, arguments).toString(state);
+            String* res = FunctionObject::call(state, callee, Value(), subLen + 2, arguments).toString(state);
             builer.appendSubString(res, 0, res->length());
 
             if (i < matchCount - 1) {

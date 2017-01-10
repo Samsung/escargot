@@ -1475,12 +1475,13 @@ public:
 };
 
 
-typedef Vector<char, gc_malloc_ignore_off_page_allocator<char>, 200> ByteCodeBlockData;
+typedef Vector<char, gc_malloc_ignore_off_page_allocator<char>, 250> ByteCodeBlockData;
 class ByteCodeBlock : public gc {
 public:
-    ByteCodeBlock()
+    ByteCodeBlock(CodeBlock* codeBlock)
     {
         m_requiredRegisterFileSizeInValueSize = 1;
+        m_codeBlock = codeBlock;
     }
 
     template <typename CodeType>
@@ -1536,6 +1537,7 @@ public:
 
     ByteCodeBlockData m_code;
     size_t m_requiredRegisterFileSizeInValueSize;
+    CodeBlock* m_codeBlock;
 };
 }
 

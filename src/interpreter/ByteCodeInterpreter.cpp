@@ -526,7 +526,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             CallFunction* code = (CallFunction*)currentCode;
             const Value& receiver = registerFile[code->m_registerIndex];
             const Value& callee = registerFile[code->m_registerIndex + 1];
-            registerFile[code->m_registerIndex] = FunctionObject::call(callee, state, receiver, code->m_argumentCount, &registerFile[code->m_registerIndex + 2]);
+            registerFile[code->m_registerIndex] = FunctionObject::call(state, callee, receiver, code->m_argumentCount, &registerFile[code->m_registerIndex + 2]);
             ADD_PROGRAM_COUNTER(CallFunction);
             NEXT_INSTRUCTION();
         }
@@ -741,7 +741,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                 }
                 registerFile[code->m_registerIndex] = state.context()->globalObject()->eval(state, arg, codeBlock);
             } else {
-                registerFile[code->m_registerIndex] = FunctionObject::call(eval, state, Value(), code->m_argumentCount, &registerFile[code->m_registerIndex]);
+                registerFile[code->m_registerIndex] = FunctionObject::call(state, eval, Value(), code->m_argumentCount, &registerFile[code->m_registerIndex]);
             }
             ADD_PROGRAM_COUNTER(CallEvalFunction);
             NEXT_INSTRUCTION();
@@ -761,7 +761,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                 memcpy(mergedArgv + code->m_boundArgumentsCount, calledArgv, sizeof(Value) * calledArgc);
 
             // FIXME: consider new
-            Value result = FunctionObject::call(code->m_boundTargetFunction, state, code->m_boundThis, mergedArgc, mergedArgv);
+            Value result = FunctionObject::call(state, code->m_boundTargetFunction, code->m_boundThis, mergedArgc, mergedArgv);
             *state.exeuctionResult() = result;
             return;
         }
@@ -1048,7 +1048,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                 receiverObj = bindedRecord->asObjectEnvironmentRecord()->bindingObject();
             else
                 receiverObj = state.context()->globalObject();
-            registerFile[code->m_registerIndex] = FunctionObject::call(callee, state, receiverObj, code->m_argumentCount, &registerFile[code->m_registerIndex]);
+            registerFile[code->m_registerIndex] = FunctionObject::call(state, callee, receiverObj, code->m_argumentCount, &registerFile[code->m_registerIndex]);
             ADD_PROGRAM_COUNTER(CallFunctionInWithScope);
             NEXT_INSTRUCTION();
         }
@@ -1441,13 +1441,13 @@ Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMiss(ExecutionS
     inlineCache.m_executeCount++;
     inlineCache.m_cacheMissCount++;
     if (inlineCache.m_executeCount <= 3 || inlineCache.m_cacheMissCount > 16) {
-        auto result = obj->get(state, ObjectPropertyName(state, name));
-        return result.value(state, target);
+        inlineCache.m_cache.clear();
+        return obj->get(state, ObjectPropertyName(state, name)).value(state, target);
     }
 
     inlineCache.m_cache.insert(0, GetObjectInlineCacheData());
-    if (inlineCache.m_cache.size() > 8) {
-        inlineCache.m_cache.erase(7);
+    if (inlineCache.m_cache.size() > 6) {
+        inlineCache.m_cache.erase(5);
     }
     ObjectStructureChain* cachedHiddenClassChain = &inlineCache.m_cache[0].m_cachedhiddenClassChain;
     size_t* cachedHiddenClassIndex = &inlineCache.m_cache[0].m_cachedIndex;

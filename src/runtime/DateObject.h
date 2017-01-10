@@ -62,19 +62,19 @@ public:
     int getDay(ExecutionState& state);
     int getFullYear(ExecutionState& state);
     int getHours(ExecutionState& state);
-    int64_t getMilliseconds(ExecutionState& state);
+    int getMilliseconds(ExecutionState& state);
     int getMinutes(ExecutionState& state);
     int getMonth(ExecutionState& state);
-    int64_t getSeconds(ExecutionState& state);
+    int getSeconds(ExecutionState& state);
     int getTimezoneOffset(ExecutionState& state);
     int getUTCDate(ExecutionState& state);
     int getUTCDay(ExecutionState& state);
     int getUTCFullYear(ExecutionState& state);
     int getUTCHours(ExecutionState& state);
-    int64_t getUTCMilliseconds(ExecutionState& state);
+    int getUTCMilliseconds(ExecutionState& state);
     int getUTCMinutes(ExecutionState& state);
     int getUTCMonth(ExecutionState& state);
-    int64_t getUTCSeconds(ExecutionState& state);
+    int getUTCSeconds(ExecutionState& state);
 
     void setTimeValue(ExecutionState& state, const Value& str);
     void setTimeValue(ExecutionState& state, time64IncludingNaN t)

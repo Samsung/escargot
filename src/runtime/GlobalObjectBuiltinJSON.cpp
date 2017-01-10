@@ -165,7 +165,7 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
                     }
                 }
                 Value arguments[] = { name.toValue(state), val };
-                return FunctionObject::call(reviver, state, holder, 2, arguments, false);
+                return FunctionObject::call(state, reviver, holder, 2, arguments, false);
             };
             return Walk(root, ObjectPropertyName(state, String::emptyString));
         }
@@ -276,13 +276,13 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
             Value toJson = valObj->get(state, ObjectPropertyName(state, strings->toJSON)).value(state, valObj);
             if (toJson.isPointerValue() && toJson.asPointerValue()->isFunctionObject()) {
                 Value arguments[] = { key.toValue(state) };
-                value = FunctionObject::call(toJson, state, value, 1, arguments, false);
+                value = FunctionObject::call(state, toJson, value, 1, arguments, false);
             }
         }
 
         if (replacerFunc != NULL) {
             Value arguments[] = { key.toValue(state), value };
-            value = FunctionObject::call(replacerFunc, state, holder, 2, arguments, false);
+            value = FunctionObject::call(state, replacerFunc, holder, 2, arguments, false);
         }
 
         if (value.isObject()) {

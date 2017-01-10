@@ -3,6 +3,7 @@
 
 #include "parser/CodeBlock.h"
 #include "runtime/Object.h"
+#include "runtime/ErrorObject.h"
 
 namespace Escargot {
 
@@ -51,7 +52,15 @@ public:
     }
 
     Value call(ExecutionState& state, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression = false);
-    static Value call(const Value& callee, ExecutionState& state, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression = false);
+    ALWAYS_INLINE static Value call(ExecutionState& state, const Value& callee, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression = false)
+    {
+        if (LIKELY(callee.isFunction())) {
+            return callee.asFunction()->call(state, receiver, argc, argv, isNewExpression);
+        } else {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
+            RELEASE_ASSERT_NOT_REACHED();
+        }
+    }
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
     virtual const char* internalClassProperty()

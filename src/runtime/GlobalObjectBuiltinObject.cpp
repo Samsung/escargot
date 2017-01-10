@@ -190,7 +190,7 @@ static Value builtinObjectToLocaleString(ExecutionState& state, Value thisValue,
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLoacleStringNotCallable);
 
     // Return the result of calling the [[Call]] internal method of toString passing O as the this value and no arguments.
-    return FunctionObject::call(toString, state, Value(O), 0, nullptr);
+    return FunctionObject::call(state, toString, Value(O), 0, nullptr);
 }
 
 static Value builtinObjectGetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

@@ -580,7 +580,7 @@ inline double Value::toNumber(ExecutionState& state) const
 
 inline Object* Value::toObject(ExecutionState& ec) const // $7.1.13 ToObject
 {
-    if (isObject()) {
+    if (LIKELY(isObject())) {
         return asObject();
     } else {
         return toObjectSlowCase(ec);

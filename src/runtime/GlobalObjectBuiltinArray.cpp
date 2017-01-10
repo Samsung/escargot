@@ -199,7 +199,7 @@ static Value builtinArraySort(ExecutionState& state, Value thisValue, size_t arg
             String* valb = b.toString(state);
             return *vala < *valb;
         } else {
-            Value ret = FunctionObject::call(cmpfn, state, Value(), 2, arg);
+            Value ret = FunctionObject::call(state, cmpfn, Value(), 2, arg);
             return (ret.toNumber(state) < 0);
         } });
     return thisObject;
@@ -350,7 +350,7 @@ static Value builtinArrayToString(ExecutionState& state, Value thisValue, size_t
     if (!toString.isFunction()) {
         toString = state.context()->globalObject()->objectPrototypeToString();
     }
-    return FunctionObject::call(toString, state, thisObject, 0, nullptr);
+    return FunctionObject::call(state, toString, thisObject, 0, nullptr);
 }
 
 static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -906,7 +906,7 @@ static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t a
             Value kValue = O->get(state, ObjectPropertyName(state, Pk)).value(state, O); // 9.c.i
             const int fnargc = 4;
             Value fnargs[] = { accumulator, kValue, Value(k), O };
-            accumulator = FunctionObject::call(callbackfn, state, Value(), fnargc, fnargs);
+            accumulator = FunctionObject::call(state, callbackfn, Value(), fnargc, fnargs);
             k++;
         } else {
             k = Object::nextIndexForward(state, O, k, len, false);

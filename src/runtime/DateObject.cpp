@@ -971,9 +971,9 @@ String* DateObject::toISOString(ExecutionState& state)
     if (!std::isnan(primitiveValue())) {
         resolveCache(state);
         if (getUTCFullYear(state) >= 0 && getUTCFullYear(state) <= 9999) {
-            snprintf(buffer, 512, "%04d-%02d-%02dT%02d:%02d:%02ld.%03ldZ", getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
+            snprintf(buffer, 512, "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
         } else {
-            snprintf(buffer, 512, "%+07d-%02d-%02dT%02d:%02d:%02ld.%03ldZ", getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
+            snprintf(buffer, 512, "%+07d-%02d-%02dT%02d:%02d:%02d.%03dZ", getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
         }
         return new ASCIIString(buffer);
     } else {
@@ -1006,7 +1006,7 @@ int DateObject::getHours(ExecutionState& state)
     return m_cachedTM.tm_hour;
 }
 
-int64_t DateObject::getMilliseconds(ExecutionState& state)
+int DateObject::getMilliseconds(ExecutionState& state)
 {
     int ret = m_primitiveValue % (int)msPerSecond;
     return (ret < 0) ? (ret + (int)msPerSecond) % (int)msPerSecond : ret;
@@ -1024,7 +1024,7 @@ int DateObject::getMonth(ExecutionState& state)
     return m_cachedTM.tm_mon;
 }
 
-int64_t DateObject::getSeconds(ExecutionState& state)
+int DateObject::getSeconds(ExecutionState& state)
 {
     resolveCache(state);
     return m_cachedTM.tm_sec;
@@ -1074,7 +1074,7 @@ int DateObject::getUTCHours(ExecutionState& state)
     return (ret < 0) ? (ret + (int)hoursPerDay) % (int)hoursPerDay : ret;
 }
 
-int64_t DateObject::getUTCMilliseconds(ExecutionState& state)
+int DateObject::getUTCMilliseconds(ExecutionState& state)
 {
     int ret = m_primitiveValue % (int)msPerSecond;
     return (ret < 0) ? (ret + (int)msPerSecond) % (int)msPerSecond : ret;
@@ -1091,7 +1091,7 @@ int DateObject::getUTCMonth(ExecutionState& state)
     return monthFromTime(m_primitiveValue);
 }
 
-int64_t DateObject::getUTCSeconds(ExecutionState& state)
+int DateObject::getUTCSeconds(ExecutionState& state)
 {
     int ret = (long long)floor(m_primitiveValue / msPerSecond) % (int)secondsPerMinute;
     return (ret < 0) ? (ret + (int)secondsPerMinute) % (int)secondsPerMinute : ret;

@@ -15,26 +15,26 @@ SandBox::SandBoxResult PromiseReactionJob::run(ExecutionState& state)
         /* 25.4.2.1.4 Handler is "Identity" case */
         if (m_reaction.m_handler == (FunctionObject*)1) {
             Value value[] = { m_argument };
-            return FunctionObject::call(m_reaction.m_capability.m_resolveFunction, state, Value(), 1, value, false);
+            return FunctionObject::call(state, m_reaction.m_capability.m_resolveFunction, Value(), 1, value, false);
         }
 
         /* 25.4.2.1.5 Handler is "Thrower" case */
         if (m_reaction.m_handler == (FunctionObject*)2) {
             Value value[] = { m_argument };
-            return FunctionObject::call(m_reaction.m_capability.m_rejectFunction, state, Value(), 1, value, false);
+            return FunctionObject::call(state, m_reaction.m_capability.m_rejectFunction, Value(), 1, value, false);
         }
 
         SandBox sb(state.context());
         auto res = sb.run([&]() -> Value {
             Value arguments[] = { m_argument };
-            Value res = FunctionObject::call(m_reaction.m_handler, state, Value(), 1, arguments, false);
+            Value res = FunctionObject::call(state, m_reaction.m_handler, Value(), 1, arguments, false);
             // FIXME unregisterTryPos here in ES5
             Value value[] = { res };
-            return FunctionObject::call(m_reaction.m_capability.m_resolveFunction, state, Value(), 1, value, false);
+            return FunctionObject::call(state, m_reaction.m_capability.m_resolveFunction, Value(), 1, value, false);
         });
         if (!res.error.isEmpty()) {
             Value reason[] = { res.error };
-            return FunctionObject::call(m_reaction.m_capability.m_rejectFunction, state, Value(), 1, reason, false);
+            return FunctionObject::call(state, m_reaction.m_capability.m_rejectFunction, Value(), 1, reason, false);
         }
         return res.result;
     });
@@ -50,7 +50,7 @@ SandBox::SandBoxResult PromiseResolveThenableJob::run(ExecutionState& state)
         SandBox sb(state.context());
         auto res = sb.run([&]() -> Value {
             Value arguments[] = { capability.m_resolveFunction, capability.m_rejectFunction };
-            Value thenCallResult = FunctionObject::call(m_then, state, m_thenable, 2, arguments, false);
+            Value thenCallResult = FunctionObject::call(state, m_then, m_thenable, 2, arguments, false);
             // TODO unregisterTryPos here in ES5
             Value value[] = { thenCallResult };
             return Value();
@@ -62,7 +62,7 @@ SandBox::SandBoxResult PromiseResolveThenableJob::run(ExecutionState& state)
             alreadyResolved->setThrowsException(state, strings->value, Value(true), alreadyResolved);
 
             Value reason[] = { res.error };
-            return FunctionObject::call(capability.m_rejectFunction, state, Value(), 1, reason, false);
+            return FunctionObject::call(state, capability.m_rejectFunction, Value(), 1, reason, false);
         }
         return Value();
     });
