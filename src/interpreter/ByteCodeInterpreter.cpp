@@ -133,24 +133,10 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             NEXT_INSTRUCTION();
         }
 
-        LoadByNameOpcodeLbl : {
-            LoadByName* code = (LoadByName*)currentCode;
-            registerFile[code->m_registerIndex] = loadByName(state, env, code->m_name);
-            ADD_PROGRAM_COUNTER(LoadByName);
-            NEXT_INSTRUCTION();
-        }
-
-        StoreByNameOpcodeLbl : {
-            StoreByName* code = (StoreByName*)currentCode;
-            storeByName(state, env, code->m_name, registerFile[code->m_registerIndex]);
-            ADD_PROGRAM_COUNTER(StoreByName);
-            NEXT_INSTRUCTION();
-        }
-
         GetGlobalObjectOpcodeLbl : {
             GetGlobalObject* code = (GetGlobalObject*)currentCode;
             if (LIKELY(globalObject->structure()->version() == code->m_savedGlobalObjectVersion)) {
-                registerFile[code->m_registerIndex] = globalObject->getOwnPropertyUtilForObject(state, code->m_cachedIndex, globalObject);
+                registerFile[code->m_registerIndex] = globalObject->uncheckedGetOwnDataProperty(state, code->m_cachedIndex);
             } else {
                 registerFile[code->m_registerIndex] = getGlobalObjectSlowCase(state, globalObject, code);
             }
@@ -161,7 +147,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         SetGlobalObjectOpcodeLbl : {
             SetGlobalObject* code = (SetGlobalObject*)currentCode;
             if (LIKELY(globalObject->structure()->version() == code->m_savedGlobalObjectVersion)) {
-                globalObject->setOwnPropertyThrowsExceptionWhenStrictMode(state, code->m_cachedIndex, registerFile[code->m_registerIndex]);
+                globalObject->uncheckedSetOwnDataProperty(state, code->m_cachedIndex, registerFile[code->m_registerIndex]);
             } else {
                 setGlobalObjectSlowCase(state, globalObject, code, registerFile[code->m_registerIndex]);
             }
@@ -596,6 +582,14 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             NEXT_INSTRUCTION();
         }
 
+        UnaryBitwiseNotOpcodeLbl : {
+            UnaryBitwiseNot* code = (UnaryBitwiseNot*)currentCode;
+            const Value& val = registerFile[code->m_registerIndex];
+            registerFile[code->m_registerIndex] = Value(~val.toInt32(state));
+            ADD_PROGRAM_COUNTER(UnaryBitwiseNot);
+            NEXT_INSTRUCTION();
+        }
+
         CreateObjectOpcodeLbl : {
             CreateObject* code = (CreateObject*)currentCode;
             registerFile[code->m_registerIndex] = new Object(state);
@@ -639,14 +633,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             NewOperation* code = (NewOperation*)currentCode;
             registerFile[code->m_registerIndex] = newOperation(state, registerFile[code->m_registerIndex], code->m_argumentCount, &registerFile[code->m_registerIndex + 1]);
             ADD_PROGRAM_COUNTER(NewOperation);
-            NEXT_INSTRUCTION();
-        }
-
-        UnaryBitwiseNotOpcodeLbl : {
-            UnaryBitwiseNot* code = (UnaryBitwiseNot*)currentCode;
-            const Value& val = registerFile[code->m_registerIndex];
-            registerFile[code->m_registerIndex] = Value(~val.toInt32(state));
-            ADD_PROGRAM_COUNTER(UnaryBitwiseNot);
             NEXT_INSTRUCTION();
         }
 
@@ -728,6 +714,20 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             }
             *state.exeuctionResult() = code->m_fn(state, env->getThisBinding(), argc, argv, record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isNewExpression());
             return;
+        }
+
+        LoadByNameOpcodeLbl : {
+            LoadByName* code = (LoadByName*)currentCode;
+            registerFile[code->m_registerIndex] = loadByName(state, env, code->m_name);
+            ADD_PROGRAM_COUNTER(LoadByName);
+            NEXT_INSTRUCTION();
+        }
+
+        StoreByNameOpcodeLbl : {
+            StoreByName* code = (StoreByName*)currentCode;
+            storeByName(state, env, code->m_name, registerFile[code->m_registerIndex]);
+            ADD_PROGRAM_COUNTER(StoreByName);
+            NEXT_INSTRUCTION();
         }
 
         CallEvalFunctionOpcodeLbl : {
@@ -1087,7 +1087,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                         CodeBlock* cb = fn->codeBlock();
                         ByteCodeBlock* b = cb->byteCodeBlock();
                         ByteCode* code = b->peekCode<ByteCode>(programCounter - (size_t)b->m_code.data());
-                        NodeLOC loc = b->computeNodeLOCFromByteCode(code, cb);
+                        ExtendedNodeLOC loc = b->computeNodeLOCFromByteCode(code, cb);
                         if (sb->m_stackTraceData.size() == 0 || sb->m_stackTraceData.back().first != ec) {
                             SandBox::StackTraceData data;
                             data.loc = loc;
@@ -1109,7 +1109,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                     CodeBlock* cb = ec->m_lexicalEnvironment->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
                     ByteCodeBlock* b = cb->byteCodeBlock();
                     ByteCode* code = b->peekCode<ByteCode>((size_t)programCounter - (size_t)b->m_code.data());
-                    NodeLOC loc = b->computeNodeLOCFromByteCode(code, cb);
+                    ExtendedNodeLOC loc = b->computeNodeLOCFromByteCode(code, cb);
                     SandBox::StackTraceData data;
                     data.loc = loc;
                     data.fileName = cb->script()->fileName();
@@ -1719,6 +1719,12 @@ Value ByteCodeInterpreter::getGlobalObjectSlowCase(ExecutionState& state, Object
     if (UNLIKELY(idx == SIZE_MAX)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, code->m_propertyName.string(), false, String::emptyString, errorMessage_IsNotDefined);
     } else {
+        const ObjectStructureItem& item = go->structure()->readProperty(state, idx);
+        if (!item.m_descriptor.isPlainDataProperty()) {
+            code->m_savedGlobalObjectVersion = SIZE_MAX;
+            return go->getOwnPropertyUtilForObject(state, idx, go);
+        }
+
         code->m_cachedIndex = idx;
         code->m_savedGlobalObjectVersion = go->structure()->version();
     }
@@ -1734,6 +1740,12 @@ void ByteCodeInterpreter::setGlobalObjectSlowCase(ExecutionState& state, Object*
         }
         go->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, go);
     } else {
+        const ObjectStructureItem& item = go->structure()->readProperty(state, idx);
+        if (!item.m_descriptor.isPlainDataProperty()) {
+            code->m_savedGlobalObjectVersion = SIZE_MAX;
+            go->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, go);
+            return;
+        }
         code->m_cachedIndex = idx;
         code->m_savedGlobalObjectVersion = go->structure()->version();
         go->setOwnPropertyThrowsExceptionWhenStrictMode(state, idx, value);

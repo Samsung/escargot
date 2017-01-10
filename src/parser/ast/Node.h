@@ -127,18 +127,25 @@ enum ASTNodeType {
 };
 
 struct NodeLOC {
+    size_t index;
+    NodeLOC(size_t index)
+    {
+        this->index = index;
+    }
+};
+
+struct ExtendedNodeLOC {
     size_t line;
     size_t column;
     size_t index;
 
-    NodeLOC(size_t line, size_t column, size_t index)
+    ExtendedNodeLOC(size_t line, size_t column, size_t index)
     {
         this->line = line;
         this->column = column;
         this->index = index;
     }
 };
-
 class IdentifierNode;
 
 
@@ -147,7 +154,7 @@ class Node : public gc {
 
 protected:
     Node()
-        : m_loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+        : m_loc(SIZE_MAX)
     {
     }
 
@@ -240,8 +247,8 @@ struct ASTScopeContext : public gc {
     AtomicStringVector m_parameters;
     AtomicString m_functionName;
     Vector<ASTScopeContext *, gc_malloc_ignore_off_page_allocator<ASTScopeContext *>> m_childScopes;
-    NodeLOC m_locStart;
-    NodeLOC m_locEnd;
+    ExtendedNodeLOC m_locStart;
+    ExtendedNodeLOC m_locEnd;
     size_t m_nodeStartIndex;
 
     void insertName(AtomicString name)

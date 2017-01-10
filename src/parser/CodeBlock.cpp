@@ -107,11 +107,11 @@ CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundT
     m_byteCodeBlock->m_code.shrinkToFit();
 }
 
-CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, NodeLOC sourceElementStart, const AtomicStringVector& innerIdentifiers, CodeBlockInitFlag initFlags)
+CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const AtomicStringVector& innerIdentifiers, CodeBlockInitFlag initFlags)
     : m_context(ctx)
     , m_script(script)
     , m_src(src)
-    , m_sourceElementStart(NodeLOC(1, 0, 0))
+    , m_sourceElementStart(sourceElementStart)
     , m_astNodeStartIndex(sourceElementStart.index)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
@@ -170,7 +170,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
     }
 }
 
-CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, NodeLOC sourceElementStart, bool isStrict, size_t astNodeStartIndex, AtomicString functionName, const AtomicStringVector& parameterNames, const AtomicStringVector& innerIdentifiers,
+CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, size_t astNodeStartIndex, AtomicString functionName, const AtomicStringVector& parameterNames, const AtomicStringVector& innerIdentifiers,
                      CodeBlock* parentBlock, CodeBlockInitFlag initFlags)
     : m_context(ctx)
     , m_script(script)

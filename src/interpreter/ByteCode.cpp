@@ -18,10 +18,10 @@ ALWAYS_INLINE bool isLineTerminator(char16_t ch)
     return (ch == 0x0A) || (ch == 0x0D) || (ch == 0x2028) || (ch == 0x2029);
 }
 
-NodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(ByteCode* code, CodeBlock* cb)
+ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(ByteCode* code, CodeBlock* cb)
 {
     if (code->m_loc.index == SIZE_MAX) {
-        return NodeLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX);
+        return ExtendedNodeLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX);
     }
     size_t line = cb->sourceElementStart().line;
     size_t column = cb->sourceElementStart().column;
@@ -33,6 +33,6 @@ NodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(ByteCode* code, CodeBlock* cb)
             column = 0;
         }
     }
-    return NodeLOC(line, column, code->m_loc.index);
+    return ExtendedNodeLOC(line, column, code->m_loc.index);
 }
 }

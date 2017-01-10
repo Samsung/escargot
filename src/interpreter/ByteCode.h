@@ -1491,15 +1491,10 @@ public:
         {
             CodeType& t = const_cast<CodeType&>(code);
             t.m_node = node;
-            if (node) {
-                t.m_loc.line = node->m_loc.line;
-                t.m_loc.column = node->m_loc.column;
-            } else {
-                t.m_loc.line = -1;
-                t.m_loc.column = -1;
+            if ((getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) || (getenv("DUMP_CODEBLOCK_TREE") && strlen(getenv("DUMP_CODEBLOCK_TREE")))) {
+                t.m_loc.line = computeNodeLOCFromByteCode(&t, context->m_codeBlock).line;
+                t.m_loc.column = computeNodeLOCFromByteCode(&t, context->m_codeBlock).column;
             }
-            // t.m_loc.line = computeNodeLOCFromByteCode(&t, context->m_codeBlock).line;
-            // t.m_loc.column = computeNodeLOCFromByteCode(&t, context->m_codeBlock).column;
         }
 #endif
 
@@ -1533,7 +1528,7 @@ public:
         return m_code.size();
     }
 
-    NodeLOC computeNodeLOCFromByteCode(ByteCode* code, CodeBlock* cb);
+    ExtendedNodeLOC computeNodeLOCFromByteCode(ByteCode* code, CodeBlock* cb);
 
     ByteCodeBlockData m_code;
     size_t m_requiredRegisterFileSizeInValueSize;

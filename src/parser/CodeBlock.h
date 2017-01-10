@@ -184,7 +184,7 @@ public:
         return m_src;
     }
 
-    NodeLOC sourceElementStart()
+    ExtendedNodeLOC sourceElementStart()
     {
         return m_sourceElementStart;
     }
@@ -339,10 +339,10 @@ public:
 
 protected:
     // init global codeBlock
-    CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, NodeLOC sourceElementStart, const AtomicStringVector& innerIdentifiers, CodeBlockInitFlag initFlags);
+    CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const AtomicStringVector& innerIdentifiers, CodeBlockInitFlag initFlags);
 
     // init function codeBlock
-    CodeBlock(Context* ctx, Script* script, StringView src, NodeLOC sourceElementStart, bool isStrict, size_t astNodeStartIndex, AtomicString functionName, const AtomicStringVector& parameterNames, const AtomicStringVector& innerIdentifiers, CodeBlock* parentBlock, CodeBlockInitFlag initFlags);
+    CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, size_t astNodeStartIndex, AtomicString functionName, const AtomicStringVector& parameterNames, const AtomicStringVector& innerIdentifiers, CodeBlock* parentBlock, CodeBlockInitFlag initFlags);
 
     void computeVariables();
     void appendChildBlock(CodeBlock* cb)
@@ -378,7 +378,7 @@ protected:
     Context* m_context;
     Script* m_script;
     StringView m_src; // function source elements src
-    NodeLOC m_sourceElementStart;
+    ExtendedNodeLOC m_sourceElementStart;
     size_t m_astNodeStartIndex;
 
     size_t m_identifierOnStackCount;
@@ -403,8 +403,8 @@ protected:
     NativeFunctionConstructor m_nativeFunctionConstructor;
 
 #ifndef NDEBUG
-    NodeLOC m_locStart;
-    NodeLOC m_locEnd;
+    ExtendedNodeLOC m_locStart;
+    ExtendedNodeLOC m_locEnd;
     ASTScopeContext* m_scopeContext;
 #endif
 };

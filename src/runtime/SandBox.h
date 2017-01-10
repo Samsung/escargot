@@ -25,7 +25,7 @@ public:
 
     struct StackTraceData : public gc {
         String* fileName;
-        NodeLOC loc;
+        ExtendedNodeLOC loc;
         StackTraceData()
             : fileName(String::emptyString)
             , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)

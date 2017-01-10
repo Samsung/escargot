@@ -28,12 +28,27 @@ static Value builtinLoad(ExecutionState& state, Value thisValue, size_t argc, Va
     if (fp) {
         std::string str;
         char buf[512];
+        bool hasNonASCIIContent = false;
+
         while (fgets(buf, sizeof buf, fp) != NULL) {
+            if (!hasNonASCIIContent) {
+                char* check = buf;
+                while (*check) {
+                    if (*check < 0) {
+                        hasNonASCIIContent = true;
+                        break;
+                    }
+                    check++;
+                }
+            }
+
             str += buf;
         }
         fclose(fp);
-
-        src = new UTF16String(std::move(utf8StringToUTF16String(str.data(), str.length())));
+        if (hasNonASCIIContent)
+            src = new UTF16String(std::move(utf8StringToUTF16String(str.data(), str.length())));
+        else
+            src = new ASCIIString(str.data(), str.length());
     }
 
     Context* context = state.context();
@@ -53,12 +68,28 @@ static Value builtinRead(ExecutionState& state, Value thisValue, size_t argc, Va
     if (fp) {
         std::string str;
         char buf[512];
+        bool hasNonASCIIContent = false;
+
         while (fgets(buf, sizeof buf, fp) != NULL) {
+            if (!hasNonASCIIContent) {
+                char* check = buf;
+                while (*check) {
+                    if (*check < 0) {
+                        hasNonASCIIContent = true;
+                        break;
+                    }
+                    check++;
+                }
+            }
+
             str += buf;
         }
         fclose(fp);
 
-        src = new UTF16String(std::move(utf8StringToUTF16String(str.data(), str.length())));
+        if (hasNonASCIIContent)
+            src = new UTF16String(std::move(utf8StringToUTF16String(str.data(), str.length())));
+        else
+            src = new ASCIIString(str.data(), str.length());
     } else {
         String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, globalObjectString, false, state.context()->staticStrings().read.string(), "%s: cannot read");

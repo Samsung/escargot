@@ -35,7 +35,7 @@ public:
     {
         m_left->generateExpressionByteCode(codeBlock, context);
 
-        codeBlock->pushCode<JumpIfFalse>(JumpIfFalse(ByteCodeLOC(m_loc.line), context->getLastRegisterIndex()), context, this);
+        codeBlock->pushCode<JumpIfFalse>(JumpIfFalse(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
         size_t pos = codeBlock->lastCodePosition<JumpIfFalse>();
         context->giveUpRegister();
         m_right->generateExpressionByteCode(codeBlock, context);
