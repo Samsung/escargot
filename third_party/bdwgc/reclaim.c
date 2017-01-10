@@ -437,7 +437,12 @@ STATIC void GC_reclaim_block(struct hblk *hbp, word report_if_found)
             GC_bytes_found += HBLKSIZE;
             GC_freehblk(hbp);
           }
+#     ifndef ESCARGOT
         } else if (GC_find_leak || !GC_block_nearly_full(hhdr)) {
+#     else
+        // eagerly-swept objects should be reclaimed even if the block is nearlly full
+        } else if (GC_find_leak || !GC_block_nearly_full(hhdr) || ok->ok_eager_sweep) {
+#     endif
           /* group of smaller objects, enqueue the real work */
           rlh = &(ok -> ok_reclaim_list[BYTES_TO_GRANULES(sz)]);
           hhdr -> hb_next = *rlh;
