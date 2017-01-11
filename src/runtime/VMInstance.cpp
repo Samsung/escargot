@@ -4,6 +4,7 @@
 namespace Escargot {
 
 extern size_t g_doubleInSmallValueTag;
+extern size_t g_stringTag;
 
 VMInstance::VMInstance()
 {
@@ -19,5 +20,6 @@ VMInstance::VMInstance()
 
     auto temp = new DoubleInSmallValue(0);
     g_doubleInSmallValueTag = *((size_t*)temp);
+    g_stringTag = *((size_t*)String::emptyString);
 }
 }

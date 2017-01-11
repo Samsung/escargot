@@ -36,8 +36,11 @@ AtomicString::AtomicString(ExecutionState& ec, String* name)
 
 AtomicString::AtomicString(Context* c, const StringView& sv)
 {
-    UTF16StringData data = sv.toUTF16StringData();
-    init(&c->m_atomicStringMap, data.data(), data.length());
+    if (sv.hasASCIIContent()) {
+        init(&c->m_atomicStringMap, sv.characters8(), sv.length());
+    } else {
+        init(&c->m_atomicStringMap, sv.characters16(), sv.length());
+    }
 }
 
 AtomicString::AtomicString(Context* c, String* name)

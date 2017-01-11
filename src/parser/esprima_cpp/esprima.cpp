@@ -1810,7 +1810,12 @@ public:
         if (isPlainCase) {
             ret = std::shared_ptr<ScannerResult>(new (createScannerResult()) ScannerResult(this, Token::StringLiteralToken, str, /*octal, */ this->lineNumber, this->lineStart, start, this->index));
         } else {
-            String* newStr = new UTF16String(stringUTF16.data(), stringUTF16.length());
+            String* newStr;
+            if (isAllASCII(stringUTF16.data(), stringUTF16.length())) {
+                newStr = new ASCIIString(stringUTF16.data(), stringUTF16.length());
+            } else {
+                newStr = new UTF16String(stringUTF16.data(), stringUTF16.length());
+            }
             ret = std::shared_ptr<ScannerResult>(new (createScannerResult()) ScannerResult(this, Token::StringLiteralToken, StringView(newStr, 0, newStr->length()), /*octal, */ this->lineNumber, this->lineStart, start, this->index));
         }
         ret->octal = octal;

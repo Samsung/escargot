@@ -31,19 +31,19 @@ public:
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-11.8.5
     static bool abstractRelationalComparisonSlowCase(ExecutionState& state, const Value& left, const Value& right, bool leftFirst);
-    static inline bool abstractRelationalComparison(ExecutionState& state, const Value& left, const Value& right, bool leftFirst);
+    static bool abstractRelationalComparison(ExecutionState& state, const Value& left, const Value& right, bool leftFirst);
     static bool abstractRelationalComparisonOrEqualSlowCase(ExecutionState& state, const Value& left, const Value& right, bool leftFirst);
-    static inline bool abstractRelationalComparisonOrEqual(ExecutionState& state, const Value& left, const Value& right, bool leftFirst);
+    static bool abstractRelationalComparisonOrEqual(ExecutionState& state, const Value& left, const Value& right, bool leftFirst);
 
-    static inline Value getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const Value& targetObj, const PropertyName& name, GetObjectInlineCache& inlineCache);
+    static Value getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const Value& targetObj, const PropertyName& name, GetObjectInlineCache& inlineCache);
     static Value getObjectPrecomputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& target, const PropertyName& name, GetObjectInlineCache& inlineCache);
-    static inline void setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache);
+    static void setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache);
     static void setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache);
 
     static EnumerateObjectData* executeEnumerateObject(ExecutionState& state, Object* obj);
     static EnumerateObjectData* updateEnumerateObjectData(ExecutionState& state, EnumerateObjectData* data);
 
-    static inline Object* fastToObject(ExecutionState& state, const Value& obj);
+    static Object* fastToObject(ExecutionState& state, const Value& obj);
 
     static Value getGlobalObjectSlowCase(ExecutionState& state, Object* go, GetGlobalObject* code);
     static void setGlobalObjectSlowCase(ExecutionState& state, Object* go, SetGlobalObject* code, const Value& value);

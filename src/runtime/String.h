@@ -224,6 +224,16 @@ public:
         m_stringData.append(str, len);
     }
 
+    ASCIIString(const char16_t* str, size_t len)
+        : String()
+    {
+        m_stringData.resizeWithUninitializedValues(len);
+        for (size_t i = 0; i < len; i++) {
+            ASSERT(str[i] < 128);
+            m_stringData[i] = str[i];
+        }
+    }
+
     virtual char16_t charAt(const size_t& idx) const
     {
         return m_stringData[idx];

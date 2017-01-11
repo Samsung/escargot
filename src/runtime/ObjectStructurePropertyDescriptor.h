@@ -131,8 +131,8 @@ public:
 protected:
     enum ObjectStructurePropertyDescriptorMode {
         PlainDataMode,
-        HasDataButHasNativeGetterSetter,
         HasJSGetterSetter,
+        HasDataButHasNativeGetterSetter,
     };
 
     struct ObjectStructurePropertyDescriptorData {
@@ -149,7 +149,8 @@ protected:
             m_data |= (attribute & PresentAttribute::ConfigurablePresent) ? 8 : 0; // 8
             m_data |= (attribute & PresentAttribute::HasJSGetter) ? 16 : 0; // 16
             m_data |= (attribute & PresentAttribute::HasJSSetter) ? 32 : 0; // 32
-            m_data |= (mode << 6); // after
+            m_data |= (mode) ? 64 : 0; // 64
+            ASSERT(mode < 2);
         }
 
         ObjectStructurePropertyDescriptorData(ObjectPropertyNativeGetterSetterData* nativeGetterSetterData)
@@ -198,8 +199,7 @@ protected:
         ObjectStructurePropertyDescriptorMode mode() const
         {
             if (LIKELY(m_data & 1)) {
-                size_t mode = m_data >> 6;
-                return (ObjectStructurePropertyDescriptorMode)mode;
+                return (ObjectStructurePropertyDescriptorMode)(m_data & 64);
             } else {
                 return HasDataButHasNativeGetterSetter;
             }

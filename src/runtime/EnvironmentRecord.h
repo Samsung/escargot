@@ -119,12 +119,7 @@ public:
 
     virtual Value getThisBinding()
     {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-
-    virtual bool hasThisBinding()
-    {
-        RELEASE_ASSERT_NOT_REACHED();
+        return Value(Value::EmptyValue);
     }
 
     virtual bool isGlobalEnvironmentRecord()
@@ -181,11 +176,6 @@ public:
         return true;
     }
 
-    virtual bool hasThisBinding()
-    {
-        return false;
-    }
-
     virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false)
     {
         RELEASE_ASSERT_NOT_REACHED();
@@ -240,11 +230,6 @@ public:
         return true;
     }
 
-    virtual bool hasThisBinding()
-    {
-        return true;
-    }
-
     virtual Value getThisBinding();
     virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false);
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
@@ -278,11 +263,6 @@ public:
     virtual bool isDeclarativeEnvironmentRecord()
     {
         return true;
-    }
-
-    virtual bool hasThisBinding()
-    {
-        return false;
     }
 
     virtual bool isFunctionEnvironmentRecord()
@@ -380,12 +360,6 @@ public:
         , m_argc(argc)
         , m_argv(argv)
     {
-    }
-
-    virtual bool hasThisBinding()
-    {
-        // we dont use arrow function now. so binding status is alwalys not lexical.
-        return true;
     }
 
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-bindthisvalue

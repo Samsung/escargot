@@ -33,8 +33,9 @@ public:
     {
         LexicalEnvironment* env = this;
         while (true) {
-            if (LIKELY(env->record()->hasThisBinding())) {
-                return env->record()->getThisBinding();
+            Value v = env->record()->getThisBinding();
+            if (LIKELY(!v.isEmpty())) {
+                return v;
             }
             env = env->outerEnvironment();
         }

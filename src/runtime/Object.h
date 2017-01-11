@@ -775,6 +775,14 @@ protected:
     void deleteOwnProperty(ExecutionState& state, size_t idx);
 
     bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
+
+    Object* getPrototypeObject()
+    {
+        if (LIKELY((size_t)m_prototype > 2)) {
+            return m_prototype;
+        }
+        return nullptr;
+    }
 };
 }
 

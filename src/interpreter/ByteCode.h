@@ -218,6 +218,10 @@ public:
 #endif
 };
 
+#ifdef NDEBUG
+COMPILE_ASSERT(sizeof(ByteCode) == (sizeof(size_t) * 2), "");
+#endif
+
 class LoadLiteral : public ByteCode {
 public:
     LoadLiteral(const ByteCodeLOC& loc, const size_t& registerIndex, const Value& v)
