@@ -92,7 +92,7 @@ function measure(){
 timeresfile=$(echo $TEST_RESULT_PATH$tc'_time_'$num'.res')
 echo '' > $timeresfile
 if [[ $2 == octane ]]; then
-  if [[ $3 == memory ]]; then
+  if [[ $3 != time ]]; then
     outfile=$(echo $TEST_RESULT_PATH$1"_octane_memory.out")
     cd $OCTANE_BASE
     $cmd $args run.js &
@@ -109,53 +109,53 @@ if [[ $2 == octane ]]; then
       echo 'MaxPSS:'$MAXV', MaxRSS:'$MAXR >> $memresfile
       echo $MAXV
     cd -
-    exit 1;
   fi
-  echo "== Measure Octane Score =="
-  cd $OCTANE_BASE
-  $cmd $args run.js | tee $timeresfile
-  cp $timeresfile $TEST_RESULT_PATH/octane_score.res
-  cd -
-  exit 1;
-fi
 
-if [[ $2 != mem* ]]; then
-  echo "== Measure Sunspider Time =="
-  cd $SUNSPIDER_BASE
-  ./sunspider --shell=$cmd --suite=sunspider-1.0.2 --args="$args" | tee $timeresfile
-  tmpresult=`cat $timeresfile | grep "Results are located at" | cut -d' ' -f5`
-  cp $tmpresult $TEST_RESULT_PATH/sunspider_time.res
-  cd -
-fi
+  if [[ $3 != mem* ]]; then
+      echo "== Measure Octane Score =="
+      cd $OCTANE_BASE
+      $cmd $args run.js | tee $timeresfile
+      cp $timeresfile $TEST_RESULT_PATH/octane_score.res
+      cd -
+  fi
+else
+    if [[ $2 != mem* ]]; then
+      echo "== Measure Sunspider Time =="
+      cd $SUNSPIDER_BASE
+      ./sunspider --shell=$cmd --suite=sunspider-1.0.2 --args="$args" | tee $timeresfile
+      tmpresult=`cat $timeresfile | grep "Results are located at" | cut -d' ' -f5`
+      cp $tmpresult $TEST_RESULT_PATH/sunspider_time.res
+      cd -
+    fi
 
-if [[ $2 != time ]]; then
-  echo "== Measure Sunspider Memory =="
-  echo '' > tmp
-  for t in "${tests[@]}"; do
-    sleep 1s;
-    filename=$(echo $testpath$t'.js')
-    outfile=$(echo $TEST_RESULT_PATH$t".out")
-    echo '-----'$t
-    finalcmd="$cmd $filename &"
-    summem=""
-    echo '===================' >> $memresfile
-    for j in {1..5}; do
-      MAXV='Error'
-      measure $finalcmd
-      summem=$summem$MAXV"\\n"
-      sleep 0.5s;
-    done
-    echo $(echo -e $summem | awk '{s+=$1;if(NR==1||max<$1){max=$1};if(NR==1||($1!="" && $1<min)){min=$1}} END {printf("Avg. MaxPSS: %.4f", (s-max-min)/3)}')
-    echo $t $(echo -e $summem | awk '{s+=$1;if(NR==1||max<$1){max=$1};if(NR==1||($1!="" && $1<min)){min=$1}} END {printf(": %.4f", (s-max-min)/3)}') >> tmp
-  done
-  cat tmp | awk '{s+=$3} END {print s/26}' >> tmp
-  cat tmp
-  cat tmp > $TEST_RESULT_PATH/memory.res
-  rm tmp
-fi
+    if [[ $2 != time ]]; then
+      echo "== Measure Sunspider Memory =="
+      echo '' > tmp
+      for t in "${tests[@]}"; do
+        sleep 1s;
+        filename=$(echo $testpath$t'.js')
+        outfile=$(echo $TEST_RESULT_PATH$t".out")
+        echo '-----'$t
+        finalcmd="$cmd $filename &"
+        summem=""
+        echo '===================' >> $memresfile
+        for j in {1..5}; do
+          MAXV='Error'
+          measure $finalcmd
+          summem=$summem$MAXV"\\n"
+          sleep 0.5s;
+        done
+        echo $(echo -e $summem | awk '{s+=$1;if(NR==1||max<$1){max=$1};if(NR==1||($1!="" && $1<min)){min=$1}} END {printf("Avg. MaxPSS: %.4f", (s-max-min)/3)}')
+        echo $t $(echo -e $summem | awk '{s+=$1;if(NR==1||max<$1){max=$1};if(NR==1||($1!="" && $1<min)){min=$1}} END {printf(": %.4f", (s-max-min)/3)}') >> tmp
+      done
+      cat tmp | awk '{s+=$3} END {print s/26}' >> tmp
+      cat tmp
+      cat tmp > $TEST_RESULT_PATH/memory.res
+      rm tmp
+    fi
 
-if [[ $1 == v8* ]]; then
-  cp $SUNSPIDER_BASE/resources/sunspider-standalone-driver.orig.js $SUNSPIDER_BASE/resources/sunspider-standalone-driver.js
+    if [[ $1 == v8* ]]; then
+      cp $SUNSPIDER_BASE/resources/sunspider-standalone-driver.orig.js $SUNSPIDER_BASE/resources/sunspider-standalone-driver.js
+    fi
 fi
-
 echo '-------------------------------------------------finish exe'
