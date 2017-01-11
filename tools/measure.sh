@@ -89,6 +89,8 @@ function measure(){
   echo $MAXV
 }
 
+timeresfile=$(echo $TEST_RESULT_PATH$tc'_time_'$num'.res')
+echo '' > $timeresfile
 if [[ $2 == octane ]]; then
   if [[ $3 == memory ]]; then
     outfile=$(echo $TEST_RESULT_PATH$1"_octane_memory.out")
@@ -109,14 +111,14 @@ if [[ $2 == octane ]]; then
     cd -
     exit 1;
   fi
+  echo "== Measure Octane Score =="
   cd $OCTANE_BASE
-  $cmd $args run.js
+  $cmd $args run.js | tee $timeresfile
+  cp $timeresfile $TEST_RESULT_PATH/octane_score.res
   cd -
   exit 1;
 fi
 
-timeresfile=$(echo $TEST_RESULT_PATH$tc'_time_'$num'.res')
-echo '' > $timeresfile
 if [[ $2 != mem* ]]; then
   echo "== Measure Sunspider Time =="
   cd $SUNSPIDER_BASE
