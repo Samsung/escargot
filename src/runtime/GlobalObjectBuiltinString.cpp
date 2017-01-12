@@ -220,7 +220,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
         String* searchString = searchValue.toString(state);
         size_t idx = string->find(searchString);
         if (idx != (size_t)-1) {
-            Vector<RegexMatchResult::RegexMatchResultPiece, gc_malloc_pointer_free_allocator<RegexMatchResult::RegexMatchResultPiece>> piece;
+            std::vector<RegexMatchResult::RegexMatchResultPiece> piece;
             RegexMatchResult::RegexMatchResultPiece p;
             p.m_start = idx;
             p.m_end = idx + searchString->length();

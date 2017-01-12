@@ -200,8 +200,8 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
                 }
                 return true;
             }
-            Vector<RegexMatchResult::RegexMatchResultPiece, gc_malloc_pointer_free_allocator<RegexMatchResult::RegexMatchResultPiece>> piece;
-            piece.resizeWithUninitializedValues(subPatternNum + 1);
+            std::vector<RegexMatchResult::RegexMatchResultPiece> piece;
+            piece.resize(subPatternNum + 1);
 
             for (unsigned i = 0; i < subPatternNum + 1; i++) {
                 RegexMatchResult::RegexMatchResultPiece p;
@@ -210,7 +210,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
                 piece[i] = p;
             }
 
-            matchResult.m_matchResults.pushBack(Vector<RegexMatchResult::RegexMatchResultPiece, gc_malloc_pointer_free_allocator<RegexMatchResult::RegexMatchResultPiece>>(std::move(piece)));
+            matchResult.m_matchResults.push_back(std::vector<RegexMatchResult::RegexMatchResultPiece>(std::move(piece)));
             if (!isGlobal)
                 break;
             if (start == outputBuf[1]) {
@@ -254,7 +254,7 @@ void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, Re
             ++end;
         }
         for (size_t i = 0; i < temp.m_matchResults.size(); i++) {
-            result.m_matchResults.pushBack(temp.m_matchResults[i]);
+            result.m_matchResults.push_back(temp.m_matchResults[i]);
         }
         len++;
         temp.m_matchResults.clear();

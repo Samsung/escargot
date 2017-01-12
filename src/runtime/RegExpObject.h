@@ -19,7 +19,7 @@ struct RegexMatchResult {
     };
     COMPILE_ASSERT((sizeof(RegexMatchResultPiece)) == (sizeof(unsigned) * 2), sizeof_RegexMatchResultPiece_wrong);
     int m_subPatternNum;
-    Vector<Vector<RegexMatchResultPiece, gc_malloc_pointer_free_allocator<RegexMatchResultPiece>>, gc_allocator_ignore_off_page<Vector<RegexMatchResultPiece, gc_malloc_pointer_free_allocator<RegexMatchResultPiece>>>> m_matchResults;
+    std::vector<std::vector<RegexMatchResultPiece>> m_matchResults;
 };
 
 class RegExpObject : public Object {

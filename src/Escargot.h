@@ -142,7 +142,7 @@
 #endif
 
 #ifndef CRASH
-#define CRASH RELEASE_ASSERT_NOT_REACHED
+#define CRASH ASSERT_NOT_REACHED
 #endif
 
 #if defined(NDEBUG)
