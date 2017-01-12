@@ -87,7 +87,6 @@
 #endif
 #endif
 
-
 /* UNLIKELY */
 #ifndef UNLIKELY
 #if COMPILER(GCC)

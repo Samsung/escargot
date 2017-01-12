@@ -16,6 +16,8 @@ COMPILE_ASSERT(sizeof(SmallValueData) == 8, "");
 #endif
 
 class DoubleInSmallValue : public PointerValue {
+    friend class SmallValue;
+
 public:
     virtual Type type()
     {
@@ -121,17 +123,16 @@ const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
     ((reinterpret_cast<intptr_t>(value) & ::Escargot::SmallValueImpl::kSmiTagMask) == ::Escargot::SmallValueImpl::kSmiTag)
 #define HAS_OBJECT_TAG(value) \
     ((reinterpret_cast<intptr_t>(value) & ::Escargot::SmallValueImpl::kHeapObjectTagMask) == ::Escargot::SmallValueImpl::kHeapObjectTag)
-
-
-extern SmallValueData* smallValueUndefined;
-extern SmallValueData* smallValueNull;
-extern SmallValueData* smallValueTrue;
-extern SmallValueData* smallValueFalse;
-extern SmallValueData* smallValueEmpty;
-extern SmallValueData* smallValueDeleted;
 }
 
 extern size_t g_doubleInSmallValueTag;
+
+#define smallValueUndefined 0x8
+#define smallValueNull (0x8 + sizeof(size_t) * 1)
+#define smallValueTrue (0x8 + sizeof(size_t) * 2)
+#define smallValueFalse (0x8 + sizeof(size_t) * 3)
+#define smallValueEmpty (0x8 + sizeof(size_t) * 4)
+#define smallValueDeleted (0x8 + sizeof(size_t) * 5)
 
 class SmallValue {
 public:
@@ -145,12 +146,14 @@ public:
         if (LIKELY(SmallValueImpl::PlatformSmiTagging::IsValidSmi(from))) {
             m_data.payload = SmallValueImpl::PlatformSmiTagging::IntToSmi(from);
         } else {
+            m_data.payload = 1;
             fromValue(Value(from));
         }
     }
 
     SmallValue(const Value& from)
     {
+        m_data.payload = 1;
         fromValue(from);
         ASSERT(m_data.payload);
     }
@@ -159,24 +162,26 @@ public:
     {
         if (HAS_OBJECT_TAG(m_data.payload)) {
             PointerValue* v = (PointerValue*)m_data.payload;
-            if (g_doubleInSmallValueTag == *((size_t*)v)) {
-                return Value(v->asDoubleInSmallValue()->value());
-            } else {
-                if (v == (PointerValue*)SmallValueImpl::smallValueUndefined->payload) {
+            if (((size_t)v) <= smallValueDeleted) {
+                if (v == (PointerValue*)smallValueUndefined) {
                     return Value();
-                } else if (v == (PointerValue*)SmallValueImpl::smallValueNull->payload) {
+                } else if (v == (PointerValue*)smallValueNull) {
                     return Value(Value::Null);
-                } else if (v == (PointerValue*)SmallValueImpl::smallValueTrue->payload) {
+                } else if (v == (PointerValue*)smallValueTrue) {
                     return Value(Value::True);
-                } else if (v == (PointerValue*)SmallValueImpl::smallValueFalse->payload) {
+                } else if (v == (PointerValue*)smallValueFalse) {
                     return Value(Value::False);
-                } else if (v == (PointerValue*)SmallValueImpl::smallValueEmpty->payload) {
+                } else if (v == (PointerValue*)smallValueEmpty) {
                     return Value(Value::EmptyValue);
-                } else if (v == (PointerValue*)SmallValueImpl::smallValueDeleted->payload) {
+                } else if (v == (PointerValue*)smallValueDeleted) {
                     return Value(Value::DeletedValue);
+                } else {
+                    RELEASE_ASSERT_NOT_REACHED();
                 }
-                return Value(v);
+            } else if (g_doubleInSmallValueTag == *((size_t*)v)) {
+                return Value(v->asDoubleInSmallValue()->value());
             }
+            return Value(v);
         } else {
             int32_t value = SmallValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
             return Value(value);
@@ -194,30 +199,43 @@ public:
         }
     }
 
+    void operator=(const Value& from)
+    {
+        fromValue(from);
+    }
+
 protected:
     void fromValue(const Value& from)
     {
         if (from.isPointerValue()) {
-            m_data.payload = (size_t)from.asPointerValue();
+            m_data.payload = (intptr_t)from.asPointerValue();
         } else {
             int32_t i32;
             if (from.isInt32() && SmallValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
                 m_data.payload = SmallValueImpl::PlatformSmiTagging::IntToSmi(i32);
             } else if (from.isNumber()) {
+                auto payload = m_data.payload;
+                if (((size_t)payload > (size_t)smallValueDeleted) && HAS_OBJECT_TAG(payload)) {
+                    PointerValue* v = (PointerValue*)payload;
+                    if (g_doubleInSmallValueTag == *((size_t*)v)) {
+                        ((DoubleInSmallValue*)m_data.payload)->m_value = from.asNumber();
+                        return;
+                    }
+                }
                 m_data.payload = reinterpret_cast<intptr_t>(new DoubleInSmallValue(from.asNumber()));
             } else if (from.isUndefined()) {
-                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueUndefined->payload);
+                m_data.payload = (intptr_t)(smallValueUndefined);
             } else if (from.isTrue()) {
-                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueTrue->payload);
+                m_data.payload = (intptr_t)(smallValueTrue);
             } else if (from.isFalse()) {
-                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueFalse->payload);
+                m_data.payload = (intptr_t)(smallValueFalse);
             } else if (from.isNull()) {
-                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueNull->payload);
+                m_data.payload = (intptr_t)(smallValueNull);
             } else if (from.isEmpty()) {
-                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueEmpty->payload);
+                m_data.payload = (intptr_t)(smallValueEmpty);
             } else {
                 ASSERT(from.isDeleted());
-                m_data.payload = reinterpret_cast<intptr_t>(SmallValueImpl::smallValueDeleted->payload);
+                m_data.payload = (intptr_t)(smallValueDeleted);
             }
         }
     }

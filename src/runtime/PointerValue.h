@@ -26,7 +26,6 @@ public:
         FunctionObjectType,
         ArrayObjectType,
         DoubleInSmallValueType,
-        DummyInSmallValueType,
         JSGetterSetterType,
         ExtraDataType
     };
@@ -107,11 +106,6 @@ public:
 #endif
 
     virtual bool isDoubleInSmallValue()
-    {
-        return false;
-    }
-
-    virtual bool isDummyInSmallValueType()
     {
         return false;
     }

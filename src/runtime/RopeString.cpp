@@ -9,7 +9,7 @@ String* RopeString::createRopeString(String* lstr, String* rstr)
     size_t llen = lstr->length();
     size_t rlen = rstr->length();
 
-    if (llen + rlen < 0) {
+    if (llen + rlen < ESCARGOT_ROPE_STRING_MIN_LENGTH) {
         StringBuilder builder;
         builder.appendString(lstr);
         builder.appendString(rstr);
