@@ -7,3 +7,6 @@
 [submodule "test/test262-harness-py"]
 	path = test/test262-harness-py
 	url = https://github.com/test262-utils/test262-harness-py
+[submodule "test/octane"]
+	path = test/octane
+	url = https://github.com/chromium/octane.git

@@ -6,10 +6,13 @@ REPO_BASE=`pwd`
 if [[ -z "$TESTDIR_BASE" ]]; then
     TESTDIR_BASE="test/"
 fi
+if [[ -z "$MODE" ]]; then
+    MODE="release"
+fi
 TESTDIR_BASE=`realpath $TESTDIR_BASE`
 TESTBIN="$TESTDIR_BASE/bin/"
 MEMPS="$TESTBIN/memps"
-OCTANE_BASE="$TESTDIR_BASE/octane"
+OCTANE_BASE="test/octane"
 SUNSPIDER_BASE="$TESTDIR_BASE/SunSpider"
 tests=("3d-cube" "3d-morph" "3d-raytrace" "access-binary-trees" "access-fannkuch" "access-nbody" "access-nsieve" "bitops-3bit-bits-in-byte" "bitops-bits-in-byte" "bitops-bitwise-and" "bitops-nsieve-bits" "controlflow-recursive" "crypto-aes" "crypto-md5" "crypto-sha1" "date-format-tofte" "date-format-xparb" "math-cordic" "math-partial-sums" "math-spectral-norm" "regexp-dna" "string-base64" "string-fasta" "string-tagcloud" "string-unpack-code" "string-validate-input")
 cp $SUNSPIDER_BASE/resources/sunspider-standalone-driver.orig.js $SUNSPIDER_BASE/resources/sunspider-standalone-driver.js
@@ -47,8 +50,8 @@ elif [[ $1 == jsc* ]]; then
     tc="jsc.$ARCH.jit"
   fi
 elif [[ $1 == escargot*.interp* ]]; then
-  make $ARCH.interpreter.release -j8
-  cmd="$REPO_BASE/out/linux/$ARCH/interpreter/release/escargot"
+  make $ARCH.interpreter.$MODE -j8
+  cmd="$REPO_BASE/out/linux/$ARCH/interpreter/$MODE/escargot"
   tc="escargot.$ARCH.interp"
 #elif [[ $1 == escargot*.jit ]]; then
 #  make $ARCH.jit.release -j8
@@ -93,21 +96,11 @@ timeresfile=$(echo $TEST_RESULT_PATH$tc'_time_'$num'.res')
 echo '' > $timeresfile
 if [[ $2 == octane ]]; then
   if [[ $3 != time ]]; then
+    echo "== Measure Octane Memory =="
     outfile=$(echo $TEST_RESULT_PATH$1"_octane_memory.out")
     cd $OCTANE_BASE
-    $cmd $args run.js &
-    PID=$!
-    (while [ "$PID" ]; do
-      [ -f "/proc/$PID/smaps" ] || { exit 1;};
-      $MEMPS -p $PID 2> /dev/null
-      echo \"=========\"$PID; sleep 0.0001;
-     done ) >> $outfile &
-      sleep 340s;
-      echo "==========" >> $memresfile
-      MAXV=`cat $outfile | grep 'PSS:' | sed -e 's/,//g' | awk '{ if(max < $2) max=$2} END { print max}'`
-      MAXR=`cat $outfile | grep 'RSS:' | sed -e 's/,//g' | awk '{ if(max < $2) max=$2} END { print max}'`
-      echo 'MaxPSS:'$MAXV', MaxRSS:'$MAXR >> $memresfile
-      echo $MAXV
+    /usr/bin/time -v $cmd $args run.js &> $outfile
+    cat $outfile | grep "^\s" > $TEST_RESULT_PATH/octane_mem.res
     cd -
   fi
 

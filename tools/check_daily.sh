@@ -17,7 +17,7 @@ if (( $(grep -c 'All tests succeeded' $TEST262_RESULT) == 0 )); then
 fi
 
 echo "checking.. octane"
-./tools/measure.sh $TARGET.interpreter octane time > $OCTANE_RESULT
+make run-octane > $OCTANE_RESULT
 if (( $(grep -cE 'Error|NaN' $OCTANE_RESULT) != 0 )); then
    echo "[FAIL] octane"
    cat $OCTANE_RESULT
@@ -25,7 +25,7 @@ if (( $(grep -cE 'Error|NaN' $OCTANE_RESULT) != 0 )); then
 fi
 
 echo "checking.. sunspider"
-./tools/measure.sh $TARGET.interpreter time > $SUNSPIDER_RESULT
+MODE=$MODE ./tools/measure.sh $TARGET.interpreter time > $SUNSPIDER_RESULT
 if (( $(grep -cE 'Error|NaN' $SUNSPIDER_RESULT) != 0 )); then
    echo "[FAIL] sunspider"
    cat $SUNSPIDER_RESULT
