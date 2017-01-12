@@ -666,7 +666,7 @@ static Value builtinStringTrim(ExecutionState& state, Value thisValue, size_t ar
         if (!esprima::isWhiteSpace((*str)[s]) && !esprima::isLineTerminator((*str)[s]))
             break;
     }
-    for (e = str->length() - 1; e >= s; e--) {
+    for (e = ((int64_t)str->length()) - 1; e >= s; e--) {
         if (!esprima::isWhiteSpace((*str)[e]) && !esprima::isLineTerminator((*str)[e]))
             break;
     }
