@@ -19,7 +19,7 @@ class SetGlobalObject;
 
 class ByteCodeInterpreter {
 public:
-    static void interpret(ExecutionState& state, CodeBlock* codeBlock, size_t programCounter, Value* stackStorage);
+    static void interpret(ExecutionState& state, CodeBlock* codeBlock, size_t programCounter, Value* registerFile, Value* stackStorage);
     static Value loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool throwException = true);
     static EnvironmentRecord* getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue, bool throwException = true);
     static Value loadArgumentsObject(ExecutionState& state, ExecutionContext* e);

@@ -19,13 +19,13 @@ String* RopeString::createRopeString(String* lstr, String* rstr)
 
             char* result = ret.data();
             const char* buffer = (const char*)lData.buffer;
-            for (size_t i = 0; i < lData.length; i ++) {
+            for (size_t i = 0; i < lData.length; i++) {
                 result[i] = buffer[i];
             }
 
             result += lData.length;
             buffer = (const char*)rData.buffer;
-            for (size_t i = 0; i < rData.length; i ++) {
+            for (size_t i = 0; i < rData.length; i++) {
                 result[i] = buffer[i];
             }
             return new ASCIIString(std::move(ret));

@@ -67,10 +67,70 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Lexi
     setPrototype(state, state.context()->globalObject()->functionPrototype());
 }
 
+void FunctionObject::generateBytecodeBlock(ExecutionState& state)
+{
+    Vector<CodeBlock*, gc_allocator<CodeBlock*>>& v = state.context()->compiledCodeBlocks();
+
+    size_t currentCodeSizeTotal = 0;
+    for (size_t i = 0; i < v.size(); i++) {
+        currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_code.size();
+    }
+    // printf("codeSizeTotal %lfMB\n", (int)currentCodeSizeTotal / 1024.0 / 1024.0);
+
+    const int codeSizeMax = 1024 * 1024 * 2;
+    if (currentCodeSizeTotal > codeSizeMax) {
+        std::vector<CodeBlock*, gc_allocator<CodeBlock*>> codeBlocksInCurrentStack;
+
+        ExecutionContext* ec = state.executionContext();
+        while (ec) {
+            auto env = ec->lexicalEnvironment();
+            if (env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+                auto cblk = env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock();
+                if (cblk->script() && cblk->byteCodeBlock()) {
+                    if (std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), cblk) == codeBlocksInCurrentStack.end()) {
+                        codeBlocksInCurrentStack.push_back(cblk);
+                    }
+                }
+            }
+            ec = ec->parent();
+        }
+
+        for (size_t i = 0; i < v.size(); i++) {
+            if (std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), v[i]) == codeBlocksInCurrentStack.end()) {
+                v[i]->m_byteCodeBlock = nullptr;
+            }
+        }
+
+        v.clear();
+        v.resizeWithUninitializedValues(codeBlocksInCurrentStack.size());
+
+        for (size_t i = 0; i < codeBlocksInCurrentStack.size(); i++) {
+            v[i] = codeBlocksInCurrentStack[i];
+        }
+    }
+    ASSERT(!m_codeBlock->isNativeFunction());
+
+    Node* ast;
+    if (m_codeBlock->cachedASTNode()) {
+        ast = m_codeBlock->cachedASTNode();
+    } else {
+        ast = state.context()->scriptParser().parseFunction(m_codeBlock);
+    }
+
+    ByteCodeGenerator g;
+    g.generateByteCode(state.context(), m_codeBlock, ast);
+    v.pushBack(m_codeBlock);
+}
+
 Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, const size_t& argc, Value* argv, bool isNewExpression)
 {
     Value receiver = receiverOrg;
     Context* ctx = state.context();
+
+    // prepare ByteCodeBlock if needed
+    if (UNLIKELY(m_codeBlock->byteCodeBlock() == nullptr)) {
+        generateBytecodeBlock(state);
+    }
 
     // prepare env, ec
     bool isStrict = m_codeBlock->isStrict();
@@ -101,21 +161,23 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
         ec = new ExecutionContext(ctx, state.executionContext(), env, isStrict);
     }
 
+    Value* registerFile = (Value*)alloca(m_codeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
     Value* stackStorage = ALLOCA(stackStorageSize * sizeof(Value), Value, state);
-    for (size_t i = 0; i < stackStorageSize; i++) {
-        stackStorage[i] = Value();
-    }
     Value resultValue;
+    for (size_t i = 0; i < stackStorageSize; i++) {
+        stackStorage[i] = resultValue;
+    }
     ExecutionState newState(ctx, ec, &resultValue);
 
     // binding function name
     if (m_codeBlock->m_functionNameIndex != SIZE_MAX) {
-        if (LIKELY(m_codeBlock->m_functionNameSaveInfo.m_isAllocatedOnStack)) {
+        const CodeBlock::FunctionNameSaveInfo& info = m_codeBlock->m_functionNameSaveInfo;
+        if (LIKELY(info.m_isAllocatedOnStack)) {
             ASSERT(m_codeBlock->canUseIndexedVariableStorage());
-            stackStorage[m_codeBlock->m_functionNameSaveInfo.m_index] = this;
+            stackStorage[info.m_index] = this;
         } else {
             if (m_codeBlock->canUseIndexedVariableStorage()) {
-                record->setHeapValueByIndex(m_codeBlock->m_functionNameSaveInfo.m_index, this);
+                record->setHeapValueByIndex(info.m_index, this);
             } else {
                 record->setMutableBinding(state, m_codeBlock->functionName(), this);
             }
@@ -170,63 +232,8 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
         }
     }
 
-    // prepare ByteCodeBlock if needed
-    if (UNLIKELY(m_codeBlock->byteCodeBlock() == nullptr)) {
-        Vector<CodeBlock*, gc_allocator<CodeBlock*>>& v = state.context()->compiledCodeBlocks();
-
-        size_t currentCodeSizeTotal = 0;
-        for (size_t i = 0; i < v.size(); i++) {
-            currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_code.size();
-        }
-        // printf("codeSizeTotal %lfMB\n", (int)currentCodeSizeTotal / 1024.0 / 1024.0);
-
-        const int codeSizeMax = 1024 * 1024 * 2;
-        if (currentCodeSizeTotal > codeSizeMax) {
-            std::vector<CodeBlock*, gc_allocator<CodeBlock*>> codeBlocksInCurrentStack;
-
-            ExecutionContext* ec = state.executionContext();
-            while (ec) {
-                auto env = ec->lexicalEnvironment();
-                if (env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-                    auto cblk = env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock();
-                    if (cblk->script() && cblk->byteCodeBlock()) {
-                        if (std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), cblk) == codeBlocksInCurrentStack.end()) {
-                            codeBlocksInCurrentStack.push_back(cblk);
-                        }
-                    }
-                }
-                ec = ec->parent();
-            }
-
-            for (size_t i = 0; i < v.size(); i++) {
-                if (std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), v[i]) == codeBlocksInCurrentStack.end()) {
-                    v[i]->m_byteCodeBlock = nullptr;
-                }
-            }
-
-            v.clear();
-            v.resizeWithUninitializedValues(codeBlocksInCurrentStack.size());
-
-            for (size_t i = 0; i < codeBlocksInCurrentStack.size(); i++) {
-                v[i] = codeBlocksInCurrentStack[i];
-            }
-        }
-        ASSERT(!m_codeBlock->isNativeFunction());
-
-        Node* ast;
-        if (m_codeBlock->cachedASTNode()) {
-            ast = m_codeBlock->cachedASTNode();
-        } else {
-            ast = state.context()->scriptParser().parseFunction(m_codeBlock);
-        }
-
-        ByteCodeGenerator g;
-        g.generateByteCode(ctx, m_codeBlock, ast);
-        v.pushBack(m_codeBlock);
-    }
-
     // run function
-    ByteCodeInterpreter::interpret(newState, m_codeBlock, 0, stackStorage);
+    ByteCodeInterpreter::interpret(newState, m_codeBlock, 0, registerFile, stackStorage);
 
     return resultValue;
 }

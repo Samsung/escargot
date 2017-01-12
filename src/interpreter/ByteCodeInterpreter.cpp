@@ -49,21 +49,19 @@ ALWAYS_INLINE size_t resolveProgramCounter(char* codeBuffer, const size_t progra
     return programCounter - (size_t)codeBuffer;
 }
 
-void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock, size_t programCounter, Value* stackStorage)
+void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock, register size_t programCounter, Value* registerFile, Value* stackStorage)
 {
     if (UNLIKELY(codeBlock == nullptr)) {
         goto FillOpcodeTable;
     }
     {
         ASSERT(codeBlock->byteCodeBlock() != nullptr);
-        ByteCodeBlock* byteCodeBlock = codeBlock->byteCodeBlock();
         ExecutionContext* ec = state.executionContext();
         LexicalEnvironment* env = ec->lexicalEnvironment();
         EnvironmentRecord* record = env->record();
         Value thisValue(Value::EmptyValue);
-        Value* registerFile = (Value*)alloca(byteCodeBlock->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
         GlobalObject* globalObject = state.context()->globalObject();
-        char* codeBuffer = byteCodeBlock->m_code.data();
+        char* codeBuffer = codeBlock->byteCodeBlock()->m_code.data();
         programCounter = (size_t)(&codeBuffer[programCounter]);
 
         goto*(((ByteCode*)programCounter)->m_opcodeInAddress);
@@ -731,7 +729,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                 }
                 state.ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
                 size_t newPc = programCounter + sizeof(TryOperation);
-                interpret(state, codeBlock, resolveProgramCounter(codeBuffer, newPc), stackStorage);
+                interpret(state, codeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile, stackStorage);
                 programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
             } catch (const Value& val) {
                 state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
@@ -749,7 +747,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                     try {
                         ExecutionState newState(state.context(), newEc, state.exeuctionResult());
                         newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
-                        interpret(newState, codeBlock, code->m_catchPosition, stackStorage);
+                        interpret(newState, codeBlock, code->m_catchPosition, registerFile, stackStorage);
                         programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
                     } catch (const Value& val) {
                         state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
@@ -813,7 +811,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             ExecutionState newState(state.context(), newEc, state.exeuctionResult());
             newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
 
-            interpret(newState, codeBlock, resolveProgramCounter(codeBuffer, newPc), stackStorage);
+            interpret(newState, codeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile, stackStorage);
 
             ControlFlowRecord* record = state.rareData()->m_controlFlowRecord->back();
             state.rareData()->m_controlFlowRecord->erase(state.rareData()->m_controlFlowRecord->size() - 1);

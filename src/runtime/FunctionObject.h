@@ -69,6 +69,7 @@ public:
     }
 
 protected:
+    void generateBytecodeBlock(ExecutionState& state);
     bool m_isConstructor;
     CodeBlock* m_codeBlock;
     LexicalEnvironment* m_outerEnvironment;

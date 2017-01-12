@@ -42,7 +42,8 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     Value resultValue;
     ExecutionState newState(state.context(), &ec, &resultValue);
 
-    ByteCodeInterpreter::interpret(newState, m_topCodeBlock, 0, nullptr);
+    Value* registerFile = (Value*)alloca(m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
+    ByteCodeInterpreter::interpret(newState, m_topCodeBlock, 0, registerFile, nullptr);
 
     return resultValue;
 }
@@ -108,7 +109,8 @@ Value Script::executeLocal(ExecutionState& state, bool isEvalMode, bool needNewR
         stackStorage[i] = Value();
     }
 
-    ByteCodeInterpreter::interpret(newState, m_topCodeBlock, 0, stackStorage);
+    Value* registerFile = (Value*)alloca(m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
+    ByteCodeInterpreter::interpret(newState, m_topCodeBlock, 0, registerFile, stackStorage);
 
     return resultValue;
 }
