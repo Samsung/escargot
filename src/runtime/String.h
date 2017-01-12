@@ -20,6 +20,12 @@ typedef std::basic_string<char32_t, std::char_traits<char32_t>> UTF32StringDataN
 class ASCIIString;
 class UTF16String;
 
+struct StringBufferAccessData {
+    bool hasASCIIContent;
+    size_t length;
+    const void* buffer;
+};
+
 class String : public PointerValue {
     friend class AtomicString;
 
@@ -65,6 +71,8 @@ public:
         return charAt(idx);
     }
 
+    virtual StringBufferAccessData bufferAccessData() const = 0;
+
     bool equals(const String* src) const;
     bool equals(const char* src) const
     {
@@ -85,22 +93,33 @@ public:
     size_t find(String* str, size_t pos = 0);
     size_t rfind(String* str, size_t pos);
     String* subString(size_t from, size_t to);
-    size_t hashValue() const
+
+    template <typename T>
+    static inline size_t stringHash(T* src, size_t length)
     {
         size_t hash = static_cast<size_t>(0xc70f6907UL);
+        for (; length; --length)
+            hash = (hash * 131) + *src++;
+        return hash;
+    }
 
-        size_t len = length();
-        if (LIKELY(hasASCIIContent())) {
-            auto ptr = characters8();
-            for (size_t i = 0; i < len; i++) {
-                hash = (hash * 131) + ptr[i];
-            }
+    size_t hashValue() const
+    {
+        auto data = bufferAccessData();
+        size_t len = data.length;
+        size_t hash;
+        if (LIKELY(data.hasASCIIContent)) {
+            auto ptr = (const char*)data.buffer;
+            hash = stringHash(ptr, len);
         } else {
-            auto ptr = characters16();
-            for (size_t i = 0; i < len; i++) {
-                hash = (hash * 131) + ptr[i];
-            }
+            auto ptr = (const char16_t*)data.buffer;
+            hash = stringHash(ptr, len);
         }
+
+        if (UNLIKELY((hash % sizeof(size_t)) == 0)) {
+            hash++;
+        }
+
         return hash;
     }
 
@@ -249,6 +268,15 @@ public:
         return m_stringData.data();
     }
 
+    virtual StringBufferAccessData bufferAccessData() const
+    {
+        StringBufferAccessData data;
+        data.hasASCIIContent = true;
+        data.length = m_stringData.length();
+        data.buffer = m_stringData.data();
+        return data;
+    }
+
     virtual UTF16StringData toUTF16StringData() const;
     virtual UTF8StringData toUTF8StringData() const;
 
@@ -290,6 +318,15 @@ public:
     virtual const char16_t* characters16() const
     {
         return m_stringData.data();
+    }
+
+    virtual StringBufferAccessData bufferAccessData() const
+    {
+        StringBufferAccessData data;
+        data.hasASCIIContent = false;
+        data.length = m_stringData.length();
+        data.buffer = m_stringData.data();
+        return data;
     }
 
     virtual UTF16StringData toUTF16StringData() const;
@@ -342,7 +379,7 @@ struct hash<Escargot::String*> {
 };
 
 template <>
-struct equal_to<Escargot::String> {
+struct equal_to<Escargot::String*> {
     bool operator()(Escargot::String* const& a, Escargot::String* const& b) const
     {
         return a->equals(b);

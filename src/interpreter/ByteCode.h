@@ -58,8 +58,6 @@ class Node;
     F(SetGlobalObject, 0, 1)                  \
     F(Move, 1, 0)                             \
     F(ToNumber, 1, 1)                         \
-    F(Increment, 1, 1)                        \
-    F(Decrement, 1, 1)                        \
     F(UnaryMinus, 1, 1)                       \
     F(UnaryNot, 1, 1)                         \
     F(UnaryBitwiseNot, 1, 1)                  \
@@ -788,42 +786,6 @@ public:
     virtual void dump()
     {
         printf("to number r%d", (int)m_registerIndex);
-    }
-#endif
-};
-
-class Increment : public ByteCode {
-public:
-    Increment(const ByteCodeLOC& loc, const size_t& registerIndex)
-        : ByteCode(Opcode::IncrementOpcode, loc)
-        , m_registerIndex(registerIndex)
-    {
-    }
-
-    size_t m_registerIndex;
-
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("increment r%d", (int)m_registerIndex);
-    }
-#endif
-};
-
-class Decrement : public ByteCode {
-public:
-    Decrement(const ByteCodeLOC& loc, const size_t& registerIndex)
-        : ByteCode(Opcode::DecrementOpcode, loc)
-        , m_registerIndex(registerIndex)
-    {
-    }
-
-    size_t m_registerIndex;
-
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("decrement r%d", (int)m_registerIndex);
     }
 #endif
 };

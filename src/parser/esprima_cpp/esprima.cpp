@@ -2052,7 +2052,11 @@ public:
             value: body,
             literal: str
         };*/
-        return new UTF16String(str.data(), str.length());
+        if (isAllASCII(str.data(), str.length())) {
+            return new ASCIIString(str.data(), str.length());
+        } else {
+            return new UTF16String(str.data(), str.length());
+        }
     }
 
     String* scanRegExpFlags()
@@ -2103,7 +2107,11 @@ public:
             literal: str
         };
         */
-        return new UTF16String(flags.data(), flags.length());
+        if (isAllASCII(flags.data(), flags.length())) {
+            return new ASCIIString(flags.data(), flags.length());
+        } else {
+            return new UTF16String(flags.data(), flags.length());
+        }
     }
 
     std::shared_ptr<ScannerResult> scanRegExp()

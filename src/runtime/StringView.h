@@ -109,6 +109,19 @@ public:
         return m_string->characters16() + m_start;
     }
 
+    virtual StringBufferAccessData bufferAccessData() const
+    {
+        StringBufferAccessData data;
+        data.hasASCIIContent = m_string->hasASCIIContent();
+        data.length = m_end - m_start;
+        if (data.hasASCIIContent) {
+            data.buffer = m_string->characters8() + m_start;
+        } else {
+            data.buffer = m_string->characters16() + m_start;
+        }
+        return data;
+    }
+
 protected:
     String* m_string;
     size_t m_start, m_end;
@@ -186,6 +199,11 @@ public:
     virtual const char16_t* characters16() const
     {
         return m_src.characters16();
+    }
+
+    virtual StringBufferAccessData bufferAccessData() const
+    {
+        return m_src.bufferAccessData();
     }
 
     StringView src()

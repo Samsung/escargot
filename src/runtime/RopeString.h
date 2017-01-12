@@ -60,6 +60,11 @@ public:
         return normalString()->characters16();
     }
 
+    virtual StringBufferAccessData bufferAccessData() const
+    {
+        return normalString()->bufferAccessData();
+    }
+
 protected:
     String* normalString() const
     {

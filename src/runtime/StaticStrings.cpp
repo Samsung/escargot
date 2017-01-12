@@ -30,12 +30,31 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     }
 
     for (unsigned i = 0; i < ESCARGOT_STRINGS_NUMBERS_MAX; i++) {
-        ASCIIStringData s = dtoa(i);
+        ASCIIStringData s = ::Escargot::dtoa(i);
         numbers[i].init(atomicStringMap, s.data(), s.size());
     }
 
 #define INIT_STATIC_STRING(name) name.init(atomicStringMap, #name, strlen(#name));
     FOR_EACH_STATIC_STRING(INIT_STATIC_STRING)
 #undef INIT_STATIC_STRING
+}
+
+::Escargot::String* StaticStrings::dtoa(double d) const
+{
+    auto iter = dtoaCache.begin();
+
+    while (iter != dtoaCache.end()) {
+        if ((*iter).first == d) {
+            return (*iter).second;
+        }
+        iter++;
+    }
+
+    ::Escargot::String* s = String::fromDouble(d);
+    dtoaCache.push_front(std::make_pair(d, s));
+    if (dtoaCache.size() > dtoaCacheSize) {
+        dtoaCache.pop_back();
+    }
+    return s;
 }
 }

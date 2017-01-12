@@ -32,7 +32,8 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
         array = new ArrayObject(state);
     }
 
-    array->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(size), array);
+    array->setArrayLength(state, size);
+
     if (interpretArgumentsAsElements) {
         Value val = argv[0];
         if (argc > 1 || !val.isInt32()) {

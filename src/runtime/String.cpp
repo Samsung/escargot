@@ -197,7 +197,6 @@ size_t utf32ToUtf8(char32_t uc, char* UTF8)
     return tRequiredSize;
 }
 
-
 UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t& len)
 {
     UTF8StringDataNonGCStd str;
@@ -439,22 +438,23 @@ int String::stringCompare(size_t l1, size_t l2, const String* c1, const String* 
 
 bool String::equals(const String* src) const
 {
-    size_t srcLen = src->length();
-    if (srcLen != length()) {
+    auto myData = bufferAccessData();
+    auto srcData = src->bufferAccessData();
+    if (srcData.length != myData.length) {
         return false;
     }
 
-    bool myIsASCII = hasASCIIContent();
-    bool srcIsASCII = src->hasASCIIContent();
+    bool myIsASCII = myData.hasASCIIContent;
+    bool srcIsASCII = srcData.hasASCIIContent;
 
-    if (myIsASCII && srcIsASCII) {
-        return stringEqual(characters8(), src->characters8(), srcLen);
+    if (LIKELY(myIsASCII && srcIsASCII)) {
+        return stringEqual((const char*)myData.buffer, (const char*)srcData.buffer, myData.length);
     } else if (myIsASCII && !srcIsASCII) {
-        return stringEqual(src->characters16(), characters8(), srcLen);
+        return stringEqual((const char16_t*)srcData.buffer, (const char*)myData.buffer, myData.length);
     } else if (!myIsASCII && srcIsASCII) {
-        return stringEqual(characters16(), src->characters8(), srcLen);
+        return stringEqual((const char16_t*)myData.buffer, (const char*)srcData.buffer, myData.length);
     } else {
-        return stringEqual(characters16(), src->characters16(), srcLen);
+        return stringEqual((const char16_t*)myData.buffer, (const char16_t*)srcData.buffer, myData.length);
     }
 }
 

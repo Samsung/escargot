@@ -43,7 +43,7 @@ String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
         if (num >= 0 && num < ESCARGOT_STRINGS_NUMBERS_MAX)
             return ec.context()->staticStrings().numbers[num].string();
 
-        return String::fromInt32(num);
+        return ec.context()->staticStrings().dtoa(num);
     } else if (isNumber()) {
         double d = asNumber();
         if (std::isnan(d))
@@ -58,7 +58,8 @@ String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
         // in c++, d = -0.0, d == 0.0 is true
         if (d == 0.0)
             d = 0;
-        return String::fromDouble(d);
+
+        return ec.context()->staticStrings().dtoa(d);
     } else if (isUndefined()) {
         return ec.context()->staticStrings().undefined.string();
     } else if (isNull()) {
@@ -295,20 +296,31 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
             data = o->asStringObject()->primitiveValue();
         }
 
+        const size_t len = data->length();
+
         // A StringNumericLiteral that is empty or contains only white space is converted to +0.
-        if (data->length() == 0)
+        if (len == 0)
             return 0;
 
         int end;
         char* buf;
-        const size_t len = data->length();
-        buf = ALLOCA(data->length() + 1, char, state);
-        for (unsigned i = 0; i < len; i++) {
-            char16_t c = data->charAt(i);
-            if (c >= 128)
-                c = 0;
-            buf[i] = c;
+
+        buf = ALLOCA(len + 1, char, state);
+        if (data->hasASCIIContent()) {
+            const char* src = data->characters8();
+            for (unsigned i = 0; i < len; i++) {
+                buf[i] = src[i];
+            }
+        } else {
+            const char16_t* src = data->characters16();
+            for (unsigned i = 0; i < len; i++) {
+                char16_t c = src[i];
+                if (c >= 128)
+                    c = 0;
+                buf[i] = c;
+            }
         }
+
         buf[len] = 0;
         if (len >= 3 && (!strncmp("-0x", buf, 3) || !strncmp("+0x", buf, 3))) { // hex number with Unary Plus or Minus is invalid in JavaScript while it is valid in C
             val = std::numeric_limits<double>::quiet_NaN();

@@ -216,7 +216,7 @@ bool ArrayObject::setFastModeValue(ExecutionState& state, const ObjectPropertyNa
         if (LIKELY(P.isUIntType())) {
             idx = P.uintValue();
         } else {
-            idx = P.toValue(state).toArrayIndex(state);
+            idx = P.string(state)->tryToUseAsArrayIndex();
         }
         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
             uint32_t len = m_fastModeData.size();

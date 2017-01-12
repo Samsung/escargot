@@ -61,7 +61,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         LexicalEnvironment* env = ec->lexicalEnvironment();
         EnvironmentRecord* record = env->record();
         Value thisValue(Value::EmptyValue);
-        Value* registerFile = ALLOCA(byteCodeBlock->m_requiredRegisterFileSizeInValueSize * sizeof(Value), Value, state);
+        Value* registerFile = (Value*)alloca(byteCodeBlock->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
         GlobalObject* globalObject = state.context()->globalObject();
         char* codeBuffer = byteCodeBlock->m_code.data();
         programCounter = (size_t)(&codeBuffer[programCounter]);
@@ -241,15 +241,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             NEXT_INSTRUCTION();
         }
 
-        BinaryModOpcodeLbl : {
-            BinaryMod* code = (BinaryMod*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_srcIndex0] = modOperation(state, left, right);
-            ADD_PROGRAM_COUNTER(BinaryMod);
-            NEXT_INSTRUCTION();
-        }
-
         BinaryEqualOpcodeLbl : {
             BinaryEqual* code = (BinaryEqual*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
@@ -331,42 +322,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             NEXT_INSTRUCTION();
         }
 
-        IncrementOpcodeLbl : {
-            Increment* code = (Increment*)programCounter;
-            const Value& val = registerFile[code->m_registerIndex];
-            Value ret(Value::ForceUninitialized);
-            if (LIKELY(val.isInt32())) {
-                int32_t a = val.asInt32();
-                if (UNLIKELY(a == std::numeric_limits<int32_t>::max()))
-                    ret = Value(Value::EncodeAsDouble, ((double)a) + 1);
-                else
-                    ret = Value(a + 1);
-            } else {
-                ret = Value(val.asNumber() + 1);
-            }
-            registerFile[code->m_registerIndex] = ret;
-            ADD_PROGRAM_COUNTER(Increment);
-            NEXT_INSTRUCTION();
-        }
-
-        DecrementOpcodeLbl : {
-            Decrement* code = (Decrement*)programCounter;
-            const Value& val = registerFile[code->m_registerIndex];
-            Value ret(Value::ForceUninitialized);
-            if (LIKELY(val.isInt32())) {
-                int32_t a = val.asInt32();
-                if (UNLIKELY(a == std::numeric_limits<int32_t>::min()))
-                    ret = Value(Value::EncodeAsDouble, ((double)a) - 1);
-                else
-                    ret = Value(a - 1);
-            } else {
-                ret = Value(val.asNumber() - 1);
-            }
-            registerFile[code->m_registerIndex] = ret;
-            ADD_PROGRAM_COUNTER(Decrement);
-            NEXT_INSTRUCTION();
-        }
-
         UnaryMinusOpcodeLbl : {
             UnaryMinus* code = (UnaryMinus*)programCounter;
             const Value& val = registerFile[code->m_registerIndex];
@@ -387,8 +342,9 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             GetObject* code = (GetObject*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_objectRegisterIndex + 1];
-            if (LIKELY(willBeObject.isPointerValue() && (g_arrayObjectTag == *((size_t*)willBeObject.asPointerValue())))) {
-                ArrayObject* arr = willBeObject.asObject()->asArrayObject();
+            PointerValue* v;
+            if (LIKELY(willBeObject.isPointerValue() && (g_arrayObjectTag == *((size_t*)(v = willBeObject.asPointerValue()))))) {
+                ArrayObject* arr = (ArrayObject*)v;
                 if (LIKELY(arr->isFastModeArray())) {
                     uint32_t idx;
                     if (LIKELY(property.isUInt32()))
@@ -506,6 +462,15 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             const Value& callee = registerFile[code->m_registerIndex + 1];
             registerFile[code->m_registerIndex] = FunctionObject::call(state, callee, receiver, code->m_argumentCount, &registerFile[code->m_registerIndex + 2]);
             ADD_PROGRAM_COUNTER(CallFunction);
+            NEXT_INSTRUCTION();
+        }
+
+        BinaryModOpcodeLbl : {
+            BinaryMod* code = (BinaryMod*)programCounter;
+            const Value& left = registerFile[code->m_srcIndex0];
+            const Value& right = registerFile[code->m_srcIndex1];
+            registerFile[code->m_srcIndex0] = modOperation(state, left, right);
+            ADD_PROGRAM_COUNTER(BinaryMod);
             NEXT_INSTRUCTION();
         }
 
@@ -1069,7 +1034,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             NEXT_INSTRUCTION();
         }
 
-
         } catch (const Value& v) {
             if (state.context()->m_sandBoxStack.size()) {
                 SandBox* sb = state.context()->m_sandBoxStack.back();
@@ -1309,7 +1273,7 @@ NEVER_INLINE Value ByteCodeInterpreter::instanceOfOperation(ExecutionState& stat
     return Value(false);
 }
 
-bool ByteCodeInterpreter::abstractRelationalComparison(ExecutionState& state, const Value& left, const Value& right, bool leftFirst)
+ALWAYS_INLINE bool ByteCodeInterpreter::abstractRelationalComparison(ExecutionState& state, const Value& left, const Value& right, bool leftFirst)
 {
     // consume very fast case
     if (LIKELY(left.isInt32() && right.isInt32())) {
@@ -1323,7 +1287,7 @@ bool ByteCodeInterpreter::abstractRelationalComparison(ExecutionState& state, co
     return abstractRelationalComparisonSlowCase(state, left, right, leftFirst);
 }
 
-bool ByteCodeInterpreter::abstractRelationalComparisonOrEqual(ExecutionState& state, const Value& left, const Value& right, bool leftFirst)
+ALWAYS_INLINE bool ByteCodeInterpreter::abstractRelationalComparisonOrEqual(ExecutionState& state, const Value& left, const Value& right, bool leftFirst)
 {
     // consume very fast case
     if (LIKELY(left.isInt32() && right.isInt32())) {

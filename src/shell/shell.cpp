@@ -108,12 +108,28 @@ int main(int argc, char* argv[])
             runShell = false;
             std::string str;
             char buf[512];
+            bool hasNonASCIIContent = false;
             while (fgets(buf, sizeof buf, fp) != NULL) {
                 str += buf;
+                if (!hasNonASCIIContent) {
+                    char* check = buf;
+                    while (*check) {
+                        if (*check < 0) {
+                            hasNonASCIIContent = true;
+                            break;
+                        }
+                        check++;
+                    }
+                }
             }
             fclose(fp);
 
-            Escargot::String* src = new Escargot::UTF16String(std::move(Escargot::utf8StringToUTF16String(str.data(), str.length())));
+            Escargot::String* src;
+            if (hasNonASCIIContent)
+                src = new Escargot::UTF16String(std::move(Escargot::utf8StringToUTF16String(str.data(), str.length())));
+            else
+                src = new Escargot::ASCIIString(str.data(), str.length());
+
             if (!eval(context, src, Escargot::String::fromUTF8(argv[i], strlen(argv[i])), false))
                 return 3;
         }

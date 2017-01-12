@@ -588,7 +588,7 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
         size_t len = str->length();
         newStr.resizeWithUninitializedValues(len);
         const char* buf = str->characters8();
-        for (size_t i = 0; i < str->length(); i++) {
+        for (size_t i = 0; i < len; i++) {
             newStr[i] = u_tolower(buf[i]);
         }
         return new ASCIIString(std::move(newStr));
@@ -621,7 +621,7 @@ static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, si
         size_t len = str->length();
         newStr.resizeWithUninitializedValues(len);
         const char* buf = str->characters8();
-        for (size_t i = 0; i < str->length(); i++) {
+        for (size_t i = 0; i < len; i++) {
             newStr[i] = u_toupper(buf[i]);
         }
         return new ASCIIString(std::move(newStr));

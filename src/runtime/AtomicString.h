@@ -7,9 +7,9 @@
 
 namespace Escargot {
 
-typedef std::unordered_map<std::pair<const char*, size_t>, String*,
-                           std::hash<std::pair<const char*, size_t> >, std::equal_to<std::pair<const char*, size_t> >,
-                           gc_allocator<std::pair<const std::pair<const char*, size_t>, String*> > >
+typedef std::unordered_set<String*,
+                           std::hash<String*>, std::equal_to<String*>,
+                           gc_allocator<String*> >
     AtomicStringMap;
 
 class AtomicString : public gc {
@@ -67,10 +67,20 @@ public:
         return true;
     }
 
-
 protected:
-    void init(AtomicStringMap* ec, const char* src, size_t len);
-    void init(AtomicStringMap* ec, const char16_t* src, size_t len);
+    void init(AtomicStringMap* ec, String* name);
+    void init(AtomicStringMap* ec, const char* str, size_t len)
+    {
+        init(ec, new ASCIIString(str, len));
+    }
+    void init(AtomicStringMap* ec, const char16_t* src, size_t len)
+    {
+        if (isAllASCII(src, len)) {
+            init(ec, new ASCIIString(src, len));
+        } else {
+            init(ec, new UTF16String(src, len));
+        }
+    }
     String* m_string;
 };
 
@@ -86,36 +96,8 @@ inline bool operator!=(const AtomicString& a, const AtomicString& b)
     return !operator==(a, b);
 }
 
-inline size_t stringHash(const char* src, size_t length)
-{
-    size_t hash = static_cast<size_t>(0xc70f6907UL);
-    for (; length; --length)
-        hash = (hash * 131) + *src++;
-    return hash;
+typedef Vector<AtomicString, gc_malloc_atomic_ignore_off_page_allocator<AtomicString> > AtomicStringVector;
 }
 
-typedef Vector<AtomicString, gc_allocator_ignore_off_page<AtomicString> > AtomicStringVector;
-}
-
-namespace std {
-template <>
-struct hash<std::pair<const char*, size_t> > {
-    size_t operator()(std::pair<const char*, size_t> const& x) const
-    {
-        return Escargot::stringHash(x.first, x.second);
-    }
-};
-
-template <>
-struct equal_to<std::pair<const char*, size_t> > {
-    bool operator()(std::pair<const char*, size_t> const& a, std::pair<const char*, size_t> const& b) const
-    {
-        if (a.second == b.second) {
-            return memcmp(a.first, b.first, sizeof(char) * a.second) == 0;
-        }
-        return false;
-    }
-};
-}
 
 #endif

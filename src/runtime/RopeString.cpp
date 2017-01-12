@@ -10,10 +10,31 @@ String* RopeString::createRopeString(String* lstr, String* rstr)
     size_t rlen = rstr->length();
 
     if (llen + rlen < ESCARGOT_ROPE_STRING_MIN_LENGTH) {
-        StringBuilder builder;
-        builder.appendString(lstr);
-        builder.appendString(rstr);
-        return builder.finalize();
+        auto lData = lstr->bufferAccessData();
+        auto rData = rstr->bufferAccessData();
+        if (LIKELY(lData.hasASCIIContent && rData.hasASCIIContent)) {
+            ASCIIStringData ret;
+            size_t len = lData.length + rData.length;
+            ret.resizeWithUninitializedValues(len);
+
+            char* result = ret.data();
+            const char* buffer = (const char*)lData.buffer;
+            for (size_t i = 0; i < lData.length; i ++) {
+                result[i] = buffer[i];
+            }
+
+            result += lData.length;
+            buffer = (const char*)rData.buffer;
+            for (size_t i = 0; i < rData.length; i ++) {
+                result[i] = buffer[i];
+            }
+            return new ASCIIString(std::move(ret));
+        } else {
+            StringBuilder builder;
+            builder.appendString(lstr);
+            builder.appendString(rstr);
+            return builder.finalize();
+        }
     }
     // TODO
     // if (static_cast<int64_t>(llen) > static_cast<int64_t>(ESString::maxLength() - rlen))
@@ -51,16 +72,18 @@ void RopeString::flattenRopeStringWorker()
             }
         }
         String* sub = cur;
-        pos -= sub->length();
-        size_t subLength = sub->length();
+        auto data = sub->bufferAccessData();
 
-        if (sub->hasASCIIContent()) {
-            auto ptr = sub->characters8();
+        pos -= data.length;
+        size_t subLength = data.length;
+
+        if (data.hasASCIIContent) {
+            auto ptr = (const char*)data.buffer;
             for (size_t i = 0; i < subLength; i++) {
                 result[i + pos] = ptr[i];
             }
         } else {
-            auto ptr = sub->characters16();
+            auto ptr = (const char16_t*)data.buffer;
             for (size_t i = 0; i < subLength; i++) {
                 result[i + pos] = ptr[i];
             }

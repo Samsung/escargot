@@ -37,7 +37,11 @@ public:
         m_argument->generateResolveAddressByteCode(codeBlock, context);
         m_argument->generateReferenceResolvedAddressByteCode(codeBlock, context);
         codeBlock->pushCode(ToNumber(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
-        codeBlock->pushCode(Decrement(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+        size_t resultRegisterIndex = context->getLastRegisterIndex();
+        size_t literalRegisterIndex = context->getRegister();
+        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), literalRegisterIndex, Value(-1)), context, this);
+        codeBlock->pushCode(BinaryPlus(ByteCodeLOC(m_loc.index), resultRegisterIndex, literalRegisterIndex), context, this);
+        context->giveUpRegister();
         m_argument->generateStoreByteCode(codeBlock, context, false);
     }
 

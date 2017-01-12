@@ -17,12 +17,12 @@ StringObject::StringObject(ExecutionState& state, String* value)
 ObjectGetResult StringObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     Value::ValueIndex idx;
-    if (LIKELY(P.isUIntType())) {
+    if (P.isUIntType()) {
         idx = P.uintValue();
     } else {
-        idx = P.toValue(state).toIndex(state);
+        idx = P.string(state)->tryToUseAsIndex();
     }
-    if (LIKELY(idx != Value::InvalidIndexValue)) {
+    if (idx != Value::InvalidIndexValue) {
         size_t strLen = m_primitiveValue->length();
         if (LIKELY(idx < strLen)) {
             return ObjectGetResult(Value(String::fromCharCode(m_primitiveValue->charAt(idx))), false, true, false);
