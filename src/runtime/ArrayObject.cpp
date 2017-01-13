@@ -72,7 +72,7 @@ bool ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
     return Object::deleteOwnProperty(state, P);
 }
 
-void ArrayObject::enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc)> callback) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+void ArrayObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     if (LIKELY(isFastModeArray())) {
         size_t len = m_fastModeData.size();
@@ -80,12 +80,12 @@ void ArrayObject::enumeration(ExecutionState& state, std::function<bool(const Ob
             ASSERT(isFastModeArray());
             if (m_fastModeData[i].isEmpty())
                 continue;
-            if (!callback(ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent))) {
+            if (!callback(state, this, ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent), data)) {
                 return;
             }
         }
     }
-    Object::enumeration(state, callback);
+    Object::enumeration(state, callback, data);
 }
 
 void ArrayObject::sort(ExecutionState& state, std::function<bool(const Value& a, const Value& b)> comp)

@@ -72,17 +72,19 @@ inline Value objectDefineProperties(ExecutionState& state, Value object, Value p
     if (!object.isObject())
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Object.string(), false, strings->defineProperty.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
     Object* props = properties.toObject(state);
-    std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor> > descriptors;
-    props->enumeration(state, [&](const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc) -> bool {
-        auto propDesc = props->getOwnProperty(state, name);
+    std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, gc_allocator_ignore_off_page<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>> descriptors;
+    props->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+        auto propDesc = self->getOwnProperty(state, name);
+        std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, gc_allocator_ignore_off_page<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>>* descriptors = (std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, gc_allocator_ignore_off_page<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>>*)data;
         if (propDesc.hasValue() && desc.isEnumerable()) {
-            Value propVal = propDesc.value(state, props);
+            Value propVal = propDesc.value(state, self);
             if (!propVal.isObject())
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Object.string(), false, strings->defineProperty.string(), errorMessage_GlobalObject_DescriptorNotObject);
-            descriptors.push_back(std::make_pair(name, ObjectPropertyDescriptor(state, propVal.toObject(state))));
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().defineProperty.string(), errorMessage_GlobalObject_DescriptorNotObject);
+            descriptors->push_back(std::make_pair(name, ObjectPropertyDescriptor(state, propVal.toObject(state))));
         }
         return true;
-    });
+    },
+                       &descriptors);
     for (auto it : descriptors) {
         object.asObject()->defineOwnPropertyThrowsException(state, it.first, it.second);
     }
@@ -213,11 +215,13 @@ static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t 
     //O->markThisObjectDontNeedStructureTransitionTable(state);
 
     // For each named own property name P of O,
-    std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor> > descriptors;
-    O->enumeration(state, [&](const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc) -> bool {
-        descriptors.push_back(std::make_pair(P, desc));
+    std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>> descriptors;
+    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+        std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>* descriptors = (std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>*)data;
+        descriptors->push_back(std::make_pair(P, desc));
         return true;
-    });
+    },
+                   &descriptors);
     for (const auto& it : descriptors) {
         const ObjectPropertyName& P = it.first;
         const ObjectStructurePropertyDescriptor& desc = it.second;
@@ -284,16 +288,24 @@ static Value builtinObjectGetOwnPropertyNames(ExecutionState& state, Value thisV
 
     // Let n be 0.
     size_t n = 0;
+    struct Data {
+        ArrayObject* array;
+        size_t* n;
+    } data;
+    data.array = array;
+    data.n = &n;
     // For each named own property P of O
-    O->enumeration(state, [&](const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc) -> bool {
+    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+        Data* a = (Data*)data;
         // Let name be the String value that is the name of P.
         Value name = P.string(state);
         // Call the [[DefineOwnProperty]] internal method of array with arguments ToString(n), the PropertyDescriptor {[[Value]]: name, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
-        array->defineOwnProperty(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(name, ObjectPropertyDescriptor::AllPresent));
+        a->array->defineOwnProperty(state, ObjectPropertyName(state, Value((*a->n))), ObjectPropertyDescriptor(name, ObjectPropertyDescriptor::AllPresent));
         // Increment n by 1.
-        n++;
+        (*a->n)++;
         return true;
-    });
+    },
+                   &data);
 
     // Return array.
     return array;
@@ -319,13 +331,15 @@ static Value builtinObjectIsFrozen(ExecutionState& state, Value thisValue, size_
 
     bool hasNonFrozenProperty = false;
     // For each named own property name P of O,
-    O->enumeration(state, [&](const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc) -> bool {
+    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
         if ((desc.isDataProperty() && desc.isWritable()) || desc.isConfigurable()) {
-            hasNonFrozenProperty = true;
+            bool* hasNonFrozenProperty = (bool*)data;
+            *hasNonFrozenProperty = true;
             return false;
         }
         return true;
-    });
+    },
+                   &hasNonFrozenProperty);
     if (hasNonFrozenProperty)
         return Value(false);
 
@@ -347,15 +361,17 @@ static Value builtinObjectIsSealed(ExecutionState& state, Value thisValue, size_
 
     bool hasNonSealedProperty = false;
     // For each named own property name P of O,
-    O->enumeration(state, [&](const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc) -> bool {
+    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
         // Let desc be the result of calling the [[GetOwnProperty]] internal method of O with P.
         // If desc.[[Configurable]] is true, then return false.
         if (desc.isConfigurable()) {
-            hasNonSealedProperty = true;
+            bool* hasNonSealedProperty = (bool*)data;
+            *hasNonSealedProperty = true;
             return false;
         }
         return true;
-    });
+    },
+                   &hasNonSealedProperty);
     if (hasNonSealedProperty)
         return Value(false);
 
@@ -381,16 +397,25 @@ static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t ar
     // Let index be 0.
     size_t index = 0;
 
+    struct Data {
+        ArrayObject* array;
+        size_t* index;
+    } data;
+    data.array = array;
+    data.index = &index;
+
     // For each own enumerable property of O whose name String is P
-    O->enumeration(state, [&](const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc) -> bool {
+    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
         if (desc.isEnumerable()) {
+            Data* aData = (Data*)data;
             // Call the [[DefineOwnProperty]] internal method of array with arguments ToString(index), the PropertyDescriptor {[[Value]]: P, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
-            array->defineOwnProperty(state, ObjectPropertyName(state, Value(index)), ObjectPropertyDescriptor(Value(P.string(state)), ObjectPropertyDescriptor::AllPresent));
+            aData->array->defineOwnProperty(state, ObjectPropertyName(state, Value(*aData->index)), ObjectPropertyDescriptor(Value(P.string(state)), ObjectPropertyDescriptor::AllPresent));
             // Increment index by 1.
-            index++;
+            (*aData->index)++;
         }
         return true;
-    });
+    },
+                   &data);
 
     // Return array.
     return array;
@@ -408,11 +433,13 @@ static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t ar
     Object* O = argv[0].asObject();
 
     // For each named own property name P of O,
-    std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor> > descriptors;
-    O->enumeration(state, [&](const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc) -> bool {
-        descriptors.push_back(std::make_pair(P, desc));
+    std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, gc_malloc_ignore_off_page_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>> descriptors;
+    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+        std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, gc_malloc_ignore_off_page_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>>* descriptors = (std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, gc_malloc_ignore_off_page_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>>*)data;
+        descriptors->push_back(std::make_pair(P, desc));
         return true;
-    });
+    },
+                   &descriptors);
     for (const auto& it : descriptors) {
         const ObjectPropertyName& P = it.first;
         const ObjectStructurePropertyDescriptor& desc = it.second;

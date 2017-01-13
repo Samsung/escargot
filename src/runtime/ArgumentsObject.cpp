@@ -136,9 +136,4 @@ bool ArgumentsObject::deleteOwnProperty(ExecutionState& state, const ObjectPrope
 {
     return Object::deleteOwnProperty(state, P);
 }
-
-void ArgumentsObject::enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc)> callback) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
-{
-    Object::enumeration(state, callback);
-}
 }

@@ -1555,12 +1555,14 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
     size_t ownKeyCount = 0;
     bool shouldSearchProto = false;
 
-    target.asObject()->enumeration(state, [&](const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc) -> bool {
+    target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
         if (desc.isEnumerable()) {
-            ownKeyCount++;
+            size_t* ownKeyCount = (size_t*)data;
+            (*ownKeyCount)++;
         }
         return true;
-    });
+    },
+                                   &ownKeyCount);
     ObjectStructureChainItem newItem;
     newItem.m_objectStructure = target.asObject()->structure();
     newItem.m_version = target.asObject()->structure()->version();
@@ -1572,13 +1574,15 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
     target = target.asObject()->getPrototype(state);
     while (target.isObject()) {
         if (!shouldSearchProto) {
-            target.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc) -> bool {
+            target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
                 if (desc.isEnumerable()) {
-                    shouldSearchProto = true;
+                    bool* shouldSearchProto = (bool*)data;
+                    *shouldSearchProto = true;
                     return false;
                 }
                 return true;
-            });
+            },
+                                           &shouldSearchProto);
         }
         newItem.m_objectStructure = target.asObject()->structure();
         newItem.m_version = target.asObject()->structure()->version();
@@ -1587,36 +1591,52 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
     }
 
     target = obj;
+    struct EData {
+        std::unordered_set<String*, std::hash<String*>, std::equal_to<String*>, gc_malloc_ignore_off_page_allocator<String*>>* keyStringSet;
+        EnumerateObjectData* data;
+        Object* obj;
+        size_t* idx;
+    } eData;
+
+    eData.data = data;
+    eData.keyStringSet = &keyStringSet;
+    eData.obj = obj;
+
     if (shouldSearchProto) {
         while (target.isObject()) {
-            target.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc) -> bool {
+            target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+                EData* eData = (EData*)data;
                 if (desc.isEnumerable()) {
                     String* key = name.toValue(state).toString(state);
-                    auto iter = keyStringSet.find(key);
-                    if (iter == keyStringSet.end()) {
-                        keyStringSet.insert(key);
-                        data->m_keys.pushBack(name.toValue(state));
+                    auto iter = eData->keyStringSet->find(key);
+                    if (iter == eData->keyStringSet->end()) {
+                        eData->keyStringSet->insert(key);
+                        eData->data->m_keys.pushBack(name.toValue(state));
                     }
-                } else if (target == obj) {
+                } else if (self == eData->obj) {
                     // 12.6.4 The values of [[Enumerable]] attributes are not considered
                     // when determining if a property of a prototype object is shadowed by a previous object on the prototype chain.
                     String* key = name.toValue(state).toString(state);
-                    ASSERT(keyStringSet.find(key) == keyStringSet.end());
-                    keyStringSet.insert(key);
+                    ASSERT(eData->keyStringSet->find(key) == eData->keyStringSet->end());
+                    eData->keyStringSet->insert(key);
                 }
                 return true;
-            });
+            },
+                                           &eData);
             target = target.asObject()->getPrototype(state);
         }
     } else {
         size_t idx = 0;
+        eData.idx = &idx;
         data->m_keys.resizeWithUninitializedValues(ownKeyCount);
-        target.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc) -> bool {
+        target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
             if (desc.isEnumerable()) {
-                data->m_keys[idx++] = name.toValue(state);
+                EData* eData = (EData*)data;
+                eData->data->m_keys[(*eData->idx)++] = name.toValue(state);
             }
             return true;
-        });
+        },
+                                       &eData);
         ASSERT(ownKeyCount == idx);
     }
 

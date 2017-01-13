@@ -159,17 +159,17 @@ public:
         return ArrayBufferView::deleteOwnProperty(state, P);
     }
 
-    virtual void enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc)> callback) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
     {
         size_t len = arraylength();
         for (size_t i = 0; i < len; i++) {
             unsigned idxPosition = i * typedArrayElementSize + byteoffset();
             ArrayBufferObject* b = buffer();
-            if (!callback(ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent)))) {
+            if (!callback(state, this, ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent)), data)) {
                 return;
             }
         }
-        Object::enumeration(state, callback);
+        Object::enumeration(state, callback, data);
     }
 
     void allocateTypedArray(ExecutionState& state, unsigned length)

@@ -165,7 +165,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     Value* stackStorage = ALLOCA(stackStorageSize * sizeof(Value), Value, state);
     Value resultValue;
     for (size_t i = 0; i < stackStorageSize; i++) {
-        stackStorage[i] = resultValue;
+        stackStorage[i] = Value();
     }
     ExecutionState newState(ctx, ec, &resultValue);
 

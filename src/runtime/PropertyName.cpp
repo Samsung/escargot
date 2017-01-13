@@ -6,21 +6,25 @@ namespace Escargot {
 
 PropertyName::PropertyName(ExecutionState& state, String* string)
 {
-    if (string->length() == 0) {
+    StringBufferAccessData data = string->bufferAccessData();
+    if (data.length == 0) {
         m_data = ((size_t)AtomicString().string()) | 1;
         return;
     }
     bool needsRemainNormalString = false;
-    char16_t c = string->charAt(0);
-    if ((c == '.' || (c >= '0' && c <= '9')) && string->length() > 16) {
+    char16_t c = data.hasASCIIContent ? ((char*)data.buffer)[0] : ((char16_t*)data.buffer)[0];
+    if ((c == '.' || (c >= '0' && c <= '9')) && data.length > 16) {
         needsRemainNormalString = true;
     }
 
     if (UNLIKELY(needsRemainNormalString)) {
         m_data = (size_t)string;
     } else {
-        m_data = ((size_t)AtomicString(state, string).string()) | 1;
+        if (c < ESCARGOT_ASCII_TABLE_MAX && (data.length == 1)) {
+            m_data = ((size_t)state.context()->staticStrings().asciiTable[c].string()) | 1;
+        } else {
+            m_data = ((size_t)AtomicString(state, string).string()) | 1;
+        }
     }
-    ASSERT(m_data);
 }
 }

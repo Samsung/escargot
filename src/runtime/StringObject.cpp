@@ -47,14 +47,14 @@ bool StringObject::deleteOwnProperty(ExecutionState& state, const ObjectProperty
     return Object::deleteOwnProperty(state, P);
 }
 
-void StringObject::enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc)> callback) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+void StringObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     size_t len = m_primitiveValue->length();
     for (size_t i = 0; i < len; i++) {
-        if (!callback(ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::EnumerablePresent))) {
+        if (!callback(state, this, ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::EnumerablePresent), data)) {
             return;
         }
     }
-    Object::enumeration(state, callback);
+    Object::enumeration(state, callback, data);
 }
 }

@@ -570,12 +570,12 @@ bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& 
     return true;
 }
 
-void Object::enumeration(ExecutionState& state, std::function<bool(const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc)> fn) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     size_t cnt = m_structure->propertyCount();
     for (size_t i = 0; i < cnt; i++) {
         const ObjectStructureItem& item = m_structure->readProperty(state, i);
-        if (!fn(ObjectPropertyName(state, item.m_propertyName), item.m_descriptor)) {
+        if (!callback(state, this, ObjectPropertyName(state, item.m_propertyName), item.m_descriptor, data)) {
             break;
         }
     }
@@ -709,22 +709,34 @@ double Object::nextIndexForward(ExecutionState& state, Object* obj, const double
 {
     Value ptr = obj;
     double ret = end;
+    struct Data {
+        const bool* skipUndefined;
+        const double* cur;
+        double* ret;
+    } data;
+    data.skipUndefined = &skipUndefined;
+    data.cur = &cur;
+    data.ret = &ret;
+
     while (ptr.isObject()) {
-        ptr.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc) {
+        ptr.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
             uint64_t index;
+            Data* e = (Data*)data;
+            double* ret = e->ret;
             Value key = name.toValue(state);
             if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
-                if (skipUndefined && ptr.asObject()->get(state, name).value(state, ptr.asObject()).isUndefined()) {
+                if (*e->skipUndefined && self->get(state, name).value(state, self).isUndefined()) {
                     return true;
                 }
-                if (index > cur) {
-                    if (ret > index) {
-                        ret = std::min(static_cast<double>(index), ret);
+                if (index > *e->cur) {
+                    if (*ret > index) {
+                        *ret = std::min(static_cast<double>(index), *ret);
                     }
                 }
             }
             return true;
-        });
+        },
+                                    &data);
         ptr = ptr.asObject()->getPrototype(state);
     }
     return ret;
@@ -734,20 +746,34 @@ double Object::nextIndexBackward(ExecutionState& state, Object* obj, const doubl
 {
     Value ptr = obj;
     double ret = end;
+
+    struct Data {
+        const bool* skipUndefined;
+        const double* cur;
+        double* ret;
+    } data;
+
+    data.skipUndefined = &skipUndefined;
+    data.cur = &cur;
+    data.ret = &ret;
+
     while (ptr.isObject()) {
-        ptr.asObject()->enumeration(state, [&](const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc) {
+        ptr.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
             uint64_t index;
+            Data* e = (Data*)data;
+            double* ret = e->ret;
             Value key = name.toValue(state);
             if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
-                if (skipUndefined && ptr.asObject()->get(state, name).value(state, ptr.asObject()).isUndefined()) {
+                if (*e->skipUndefined && self->get(state, name).value(state, self).isUndefined()) {
                     return true;
                 }
-                if (index < cur) {
-                    ret = std::max(static_cast<double>(index), ret);
+                if (index < *e->cur) {
+                    *ret = std::max(static_cast<double>(index), *ret);
                 }
             }
             return true;
-        });
+        },
+                                    &data);
         ptr = ptr.asObject()->getPrototype(state);
     }
     return ret;

@@ -146,12 +146,15 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
                         }
                     } else {
                         Object* object = val.asObject();
-                        std::vector<ObjectPropertyName> keys;
-                        object->enumeration(state, [&](const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc) -> bool {
-                            if (desc.isEnumerable())
-                                keys.push_back(P);
+                        std::vector<ObjectPropertyName, gc_malloc_ignore_off_page_allocator<ObjectPropertyName>> keys;
+                        object->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+                            if (desc.isEnumerable()) {
+                                std::vector<ObjectPropertyName, gc_malloc_ignore_off_page_allocator<ObjectPropertyName>>* keys = (std::vector<ObjectPropertyName, gc_malloc_ignore_off_page_allocator<ObjectPropertyName>>*)data;
+                                keys->push_back(P);
+                            }
                             return true;
-                        });
+                        },
+                                            &keys);
                         for (auto key : keys) {
                             if (!object->hasOwnProperty(state, key))
                                 continue;
@@ -185,7 +188,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
     Value space = argv[2];
     String* indent = new ASCIIString("");
     ValueVector stack;
-    std::vector<ObjectPropertyName> propertyList;
+    std::vector<ObjectPropertyName, gc_malloc_ignore_off_page_allocator<ObjectPropertyName>> propertyList;
     bool propertyListTouched = false;
 
     // 4
@@ -198,13 +201,15 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
             ArrayObject* arrObject = replacer.asObject()->asArrayObject();
 
             std::vector<Value::ValueIndex> indexes;
-            arrObject->enumeration(state, [&](const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc) -> bool { //Value key, HiddenClassPropertyInfo* propertyInfo) {
+            arrObject->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool { //Value key, HiddenClassPropertyInfo* propertyInfo) {
                 Value::ValueIndex idx = P.toValue(state).toIndex(state);
                 if (idx != Value::InvalidIndexValue) {
-                    indexes.push_back(idx);
+                    std::vector<Value::ValueIndex>* indexes = (std::vector<Value::ValueIndex>*)data;
+                    indexes->push_back(idx);
                 }
                 return true;
-            });
+            },
+                                   &indexes);
             std::sort(indexes.begin(), indexes.end(), std::less<Value::ValueIndex>());
             for (uint32_t i = 0; i < indexes.size(); ++i) {
                 String* item = nullptr;
@@ -449,16 +454,18 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         newIndent.appendString(gap);
         indent = newIndent.finalize();
         // 5, 6
-        std::vector<ObjectPropertyName> k;
+        std::vector<ObjectPropertyName, gc_malloc_ignore_off_page_allocator<ObjectPropertyName>> k;
         if (propertyListTouched) {
             k = propertyList;
         } else {
-            value->enumeration(state, [&](const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc) -> bool {
+            value->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+                std::vector<ObjectPropertyName, gc_malloc_ignore_off_page_allocator<ObjectPropertyName>>* k = (std::vector<ObjectPropertyName, gc_malloc_ignore_off_page_allocator<ObjectPropertyName>>*)data;
                 if (desc.isEnumerable()) {
-                    k.push_back(P);
+                    k->push_back(P);
                 }
                 return true;
-            });
+            },
+                               &k);
         }
 
         // 7
