@@ -23,7 +23,7 @@ fi
 
 if [[ $1 == duk* ]]; then
   export LD_LIBRARY_PATH="$TESTBIN/$ARCH/duk/"
-  cmd="$TESTBIN/$ARCH/duk/duk"
+  cmd="$TESTBIN/$ARCH/duk_1.6.0/duk"
   tc="duktape.$ARCH"
 elif [[ $1 == v8* ]]; then
   cmd="$TESTBIN/$ARCH/v8/d8"
