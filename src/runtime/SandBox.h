@@ -52,6 +52,7 @@ public:
 protected:
     Context* m_context;
     Vector<std::pair<ExecutionContext*, StackTraceData>, gc_malloc_allocator<std::pair<ExecutionContext*, StackTraceData>>> m_stackTraceData;
+    Value m_exception; // To avoid accidential GC of exception value
 };
 }
 

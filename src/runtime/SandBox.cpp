@@ -28,6 +28,7 @@ SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner)
 
 void SandBox::throwException(ExecutionState& state, Value exception)
 {
+    m_exception = exception;
     throw exception;
 }
 }

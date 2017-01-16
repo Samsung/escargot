@@ -777,7 +777,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                     } else
                         programCounter = jumpTo(codeBuffer, pos);
                 } else if (record->reason() == ControlFlowRecord::NeedsThrow) {
-                    throw record->value();
+                    state.context()->throwException(state, record->value());
                 } else if (record->reason() == ControlFlowRecord::NeedsReturn) {
                     record->m_count--;
                     if (record->count()) {
@@ -1033,44 +1033,43 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         }
 
         } catch (const Value& v) {
-            if (state.context()->m_sandBoxStack.size()) {
-                SandBox* sb = state.context()->m_sandBoxStack.back();
-                if (ec->m_lexicalEnvironment->record()->isDeclarativeEnvironmentRecord()) {
-                    if (ec->m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-                        FunctionObject* fn = ec->m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
-                        CodeBlock* cb = fn->codeBlock();
-                        ByteCodeBlock* b = cb->byteCodeBlock();
-                        ByteCode* code = b->peekCode<ByteCode>(programCounter - (size_t)b->m_code.data());
-                        ExtendedNodeLOC loc = b->computeNodeLOCFromByteCode(code, cb);
-                        if (sb->m_stackTraceData.size() == 0 || sb->m_stackTraceData.back().first != ec) {
-                            SandBox::StackTraceData data;
-                            data.loc = loc;
-                            if (cb->script())
-                                data.fileName = cb->script()->fileName();
-                            else {
-                                StringBuilder builder;
-                                builder.appendString("function ");
-                                builder.appendString(cb->functionName().string());
-                                builder.appendString("() { ");
-                                builder.appendString("[native function]");
-                                builder.appendString(" } ");
-                                data.fileName = builder.finalize();
-                            }
-                            sb->m_stackTraceData.pushBack(std::make_pair(ec, data));
-                        }
-                    }
-                } else if (ec->m_lexicalEnvironment->record()->isGlobalEnvironmentRecord()) {
-                    CodeBlock* cb = ec->m_lexicalEnvironment->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
+            ASSERT(state.context()->m_sandBoxStack.size());
+            SandBox* sb = state.context()->m_sandBoxStack.back();
+            if (ec->m_lexicalEnvironment->record()->isDeclarativeEnvironmentRecord()) {
+                if (ec->m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+                    FunctionObject* fn = ec->m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
+                    CodeBlock* cb = fn->codeBlock();
                     ByteCodeBlock* b = cb->byteCodeBlock();
-                    ByteCode* code = b->peekCode<ByteCode>((size_t)programCounter - (size_t)b->m_code.data());
+                    ByteCode* code = b->peekCode<ByteCode>(programCounter - (size_t)b->m_code.data());
                     ExtendedNodeLOC loc = b->computeNodeLOCFromByteCode(code, cb);
-                    SandBox::StackTraceData data;
-                    data.loc = loc;
-                    data.fileName = cb->script()->fileName();
-                    sb->m_stackTraceData.pushBack(std::make_pair(ec, data));
+                    if (sb->m_stackTraceData.size() == 0 || sb->m_stackTraceData.back().first != ec) {
+                        SandBox::StackTraceData data;
+                        data.loc = loc;
+                        if (cb->script())
+                            data.fileName = cb->script()->fileName();
+                        else {
+                            StringBuilder builder;
+                            builder.appendString("function ");
+                            builder.appendString(cb->functionName().string());
+                            builder.appendString("() { ");
+                            builder.appendString("[native function]");
+                            builder.appendString(" } ");
+                            data.fileName = builder.finalize();
+                        }
+                        sb->m_stackTraceData.pushBack(std::make_pair(ec, data));
+                    }
                 }
+            } else if (ec->m_lexicalEnvironment->record()->isGlobalEnvironmentRecord()) {
+                CodeBlock* cb = ec->m_lexicalEnvironment->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
+                ByteCodeBlock* b = cb->byteCodeBlock();
+                ByteCode* code = b->peekCode<ByteCode>((size_t)programCounter - (size_t)b->m_code.data());
+                ExtendedNodeLOC loc = b->computeNodeLOCFromByteCode(code, cb);
+                SandBox::StackTraceData data;
+                data.loc = loc;
+                data.fileName = cb->script()->fileName();
+                sb->m_stackTraceData.pushBack(std::make_pair(ec, data));
             }
-            throw v;
+            sb->throwException(state, v);
         }
     }
 FillOpcodeTable : {
