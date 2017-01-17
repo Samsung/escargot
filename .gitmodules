@@ -10,3 +10,6 @@
 [submodule "test/octane"]
 	path = test/octane
 	url = https://github.com/chromium/octane.git
+[submodule "test/vendortest"]
+	path = test/vendortest
+	url = git@10.113.64.74:escargot/vendortest.git
