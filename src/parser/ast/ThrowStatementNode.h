@@ -30,6 +30,10 @@ public:
     {
         m_argument = argument;
     }
+    virtual ~ThrowStatementNode()
+    {
+        delete m_argument;
+    }
 
     virtual ASTNodeType type() { return ASTNodeType::ThrowStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)

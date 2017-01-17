@@ -49,7 +49,7 @@ ALWAYS_INLINE size_t resolveProgramCounter(char* codeBuffer, const size_t progra
     return programCounter - (size_t)codeBuffer;
 }
 
-void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock, register size_t programCounter, Value* registerFile, Value* stackStorage)
+void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, register size_t programCounter, Value* registerFile, Value* stackStorage)
 {
     if (UNLIKELY(codeBlock == nullptr)) {
         goto FillOpcodeTable;
@@ -61,7 +61,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         EnvironmentRecord* record = env->record();
         Value thisValue(Value::EmptyValue);
         GlobalObject* globalObject = state.context()->globalObject();
-        char* codeBuffer = codeBlock->byteCodeBlock()->m_code.data();
+        char* codeBuffer = byteCodeBlock->m_code.data();
         programCounter = (size_t)(&codeBuffer[programCounter]);
 
         goto*(((ByteCode*)programCounter)->m_opcodeInAddress);
@@ -411,7 +411,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         GetObjectPreComputedCaseOpcodeLbl : {
             GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            registerFile[code->m_objectRegisterIndex] = getObjectPrecomputedCaseOperation(state, fastToObject(state, willBeObject), willBeObject, code->m_propertyName, code->m_inlineCache);
+            registerFile[code->m_objectRegisterIndex] = getObjectPrecomputedCaseOperation(state, fastToObject(state, willBeObject), willBeObject, code->m_propertyName, *code->m_inlineCache);
             ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
             NEXT_INSTRUCTION();
         }
@@ -419,7 +419,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         SetObjectPreComputedCaseOpcodeLbl : {
             SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            setObjectPreComputedCaseOperation(state, willBeObject.toObject(state), code->m_propertyName, registerFile[code->m_loadRegisterIndex], code->m_inlineCache);
+            setObjectPreComputedCaseOperation(state, willBeObject.toObject(state), code->m_propertyName, registerFile[code->m_loadRegisterIndex], *code->m_inlineCache);
             registerFile[code->m_objectRegisterIndex] = registerFile[code->m_loadRegisterIndex];
             ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
             NEXT_INSTRUCTION();
@@ -631,7 +631,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
 
         ReturnFunctionOpcodeLbl : {
             ReturnFunction* code = (ReturnFunction*)programCounter;
-            if (code->m_registerIndex != SIZE_MAX)
+            if (code->m_registerIndex != std::numeric_limits<ByteCodeRegisterIndex>::max())
                 *state.exeuctionResult() = registerFile[code->m_registerIndex];
             else
                 *state.exeuctionResult() = Value();
@@ -729,7 +729,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                 }
                 state.ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
                 size_t newPc = programCounter + sizeof(TryOperation);
-                interpret(state, codeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile, stackStorage);
+                interpret(state, codeBlock, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile, stackStorage);
                 programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
             } catch (const Value& val) {
                 state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
@@ -747,7 +747,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                     try {
                         ExecutionState newState(state.context(), newEc, state.exeuctionResult());
                         newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
-                        interpret(newState, codeBlock, code->m_catchPosition, registerFile, stackStorage);
+                        interpret(newState, codeBlock, byteCodeBlock, code->m_catchPosition, registerFile, stackStorage);
                         programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
                     } catch (const Value& val) {
                         state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
@@ -811,7 +811,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             ExecutionState newState(state.context(), newEc, state.exeuctionResult());
             newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
 
-            interpret(newState, codeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile, stackStorage);
+            interpret(newState, codeBlock, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile, stackStorage);
 
             ControlFlowRecord* record = state.rareData()->m_controlFlowRecord->back();
             state.rareData()->m_controlFlowRecord->erase(state.rareData()->m_controlFlowRecord->size() - 1);
@@ -1402,6 +1402,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
     if (inlineCache.m_cache.size() > 6) {
         inlineCache.m_cache.erase(5);
     }
+
     ObjectStructureChain* cachedHiddenClassChain = &inlineCache.m_cache[0].m_cachedhiddenClassChain;
     size_t* cachedHiddenClassIndex = &inlineCache.m_cache[0].m_cachedIndex;
 
@@ -1466,7 +1467,7 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
                 // cache hit!
                 obj = originalObject;
                 ASSERT(!obj->structure()->isStructureWithFastAccess());
-                obj->m_values.push_back(value);
+                obj->m_values.push_back(value, inlineCache.m_hiddenClassWillBe->propertyCount());
                 obj->m_structure = inlineCache.m_hiddenClassWillBe;
                 return;
             }

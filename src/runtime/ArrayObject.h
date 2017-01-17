@@ -67,7 +67,7 @@ protected:
     ObjectGetResult getFastModeValue(ExecutionState& state, const ObjectPropertyName& P);
     bool setFastModeValue(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
 
-    ValueVector m_fastModeData;
+    Vector<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> m_fastModeData;
 };
 }
 

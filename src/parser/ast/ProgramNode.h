@@ -33,6 +33,15 @@ public:
         m_scopeContext->m_associateNode = this;
     }
 
+    virtual ~ProgramNode()
+    {
+        size_t len = m_body.size();
+
+        for (size_t i = 0; i < len; i++) {
+            delete m_body[i];
+        }
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::Program; }
     ASTScopeContext* scopeContext() { return m_scopeContext; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)

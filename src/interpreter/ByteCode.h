@@ -157,6 +157,7 @@ inline size_t getByteCodePopCount(Opcode code)
     }
 }
 
+
 struct ByteCodeLOC {
 #ifndef NDEBUG
     size_t line;
@@ -181,7 +182,6 @@ public:
         : m_opcodeInAddress((void*)code)
         , m_loc(loc)
 #ifndef NDEBUG
-        , m_node(nullptr)
         , m_orgOpcode(EndOpcode)
 #endif
     {
@@ -198,7 +198,6 @@ public:
     void* m_opcodeInAddress;
     ByteCodeLOC m_loc;
 #ifndef NDEBUG
-    Node* m_node;
     Opcode m_orgOpcode;
 
     void dumpCode(size_t pos)
@@ -228,7 +227,7 @@ public:
         , m_value(v)
     {
     }
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     Value m_value;
 
 #ifndef NDEBUG
@@ -261,7 +260,7 @@ public:
         , m_name(name)
     {
     }
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     AtomicString m_name;
 
 #ifndef NDEBUG
@@ -280,7 +279,7 @@ public:
         , m_name(name)
     {
     }
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     AtomicString m_name;
 
 #ifndef NDEBUG
@@ -299,7 +298,7 @@ public:
         , m_index(index)
     {
     }
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     size_t m_index;
 
 #ifndef NDEBUG
@@ -318,7 +317,7 @@ public:
         , m_index(index)
     {
     }
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     size_t m_index;
 
 #ifndef NDEBUG
@@ -338,7 +337,7 @@ public:
         , m_index(index)
     {
     }
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     size_t m_upperIndex;
     size_t m_index;
 
@@ -359,7 +358,7 @@ public:
         , m_index(index)
     {
     }
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     size_t m_upperIndex;
     size_t m_index;
 
@@ -414,7 +413,7 @@ public:
     {
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     CodeBlock* m_codeBlock;
 #ifndef NDEBUG
     virtual void dump()
@@ -432,7 +431,7 @@ public:
     {
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
 #ifndef NDEBUG
     virtual void dump()
     {
@@ -450,7 +449,7 @@ public:
     {
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     size_t m_argumentCount;
 #ifndef NDEBUG
     virtual void dump()
@@ -479,8 +478,8 @@ public:
             , m_srcIndex1(registerIndex1)                                                                    \
         {                                                                                                    \
         }                                                                                                    \
-        size_t m_srcIndex0;                                                                                  \
-        size_t m_srcIndex1;                                                                                  \
+        ByteCodeRegisterIndex m_srcIndex0;                                                                   \
+        ByteCodeRegisterIndex m_srcIndex1;                                                                   \
         DEFINE_BINARY_OPERATION_DUMP(HumanName)                                                              \
     };
 
@@ -515,7 +514,7 @@ public:
     {
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -534,7 +533,7 @@ public:
         m_length = 0;
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     size_t m_length;
 
 #ifndef NDEBUG
@@ -554,7 +553,7 @@ public:
     {
     }
 
-    size_t m_objectRegisterIndex;
+    ByteCodeRegisterIndex m_objectRegisterIndex;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -574,9 +573,9 @@ public:
     {
     }
 
-    size_t m_objectRegisterIndex;
-    size_t m_propertyRegisterIndex;
-    size_t m_loadRegisterIndex;
+    ByteCodeRegisterIndex m_objectRegisterIndex;
+    ByteCodeRegisterIndex m_propertyRegisterIndex;
+    ByteCodeRegisterIndex m_loadRegisterIndex;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -596,9 +595,9 @@ public:
     {
     }
 
-    size_t m_objectRegisterIndex;
-    size_t m_propertyRegisterIndex;
-    size_t m_loadRegisterIndex;
+    ByteCodeRegisterIndex m_objectRegisterIndex;
+    ByteCodeRegisterIndex m_propertyRegisterIndex;
+    ByteCodeRegisterIndex m_loadRegisterIndex;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -625,7 +624,7 @@ struct ObjectStructureChainItem : public gc {
 
 typedef Vector<ObjectStructureChainItem, gc_malloc_ignore_off_page_allocator<ObjectStructureChainItem>> ObjectStructureChain;
 
-struct GetObjectInlineCacheData {
+struct GetObjectInlineCacheData : public gc {
     GetObjectInlineCacheData()
     {
         m_cachedIndex = SIZE_MAX;
@@ -642,21 +641,34 @@ struct GetObjectInlineCache {
     {
         m_cacheMissCount = m_executeCount = 0;
     }
+    void* operator new(size_t size)
+    {
+        static bool typeInited = false;
+        static GC_descr descr;
+        if (!typeInited) {
+            GC_word bm = 0x1;
+            descr = GC_make_descriptor(&bm, size);
+            typeInited = true;
+        }
+        return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+    }
+    void* operator new[](size_t size) = delete;
 };
 
 class GetObjectPreComputedCase : public ByteCode {
 public:
     // [object] -> [value]
-    GetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, PropertyName propertyName)
+    GetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, PropertyName propertyName, GetObjectInlineCache* inlineCache)
         : ByteCode(Opcode::GetObjectPreComputedCaseOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_propertyName(propertyName)
+        , m_inlineCache(inlineCache)
     {
     }
 
     size_t m_objectRegisterIndex;
     PropertyName m_propertyName;
-    GetObjectInlineCache m_inlineCache;
+    GetObjectInlineCache* m_inlineCache;
 #ifndef NDEBUG
     virtual void dump()
     {
@@ -665,7 +677,7 @@ public:
 #endif
 };
 
-struct SetObjectInlineCache {
+struct SetObjectInlineCache : public gc {
     ObjectStructureChain m_cachedhiddenClassChain;
     size_t m_cachedIndex;
     ObjectStructure* m_hiddenClassWillBe;
@@ -687,18 +699,19 @@ struct SetObjectInlineCache {
 
 class SetObjectPreComputedCase : public ByteCode {
 public:
-    SetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, PropertyName propertyName, const size_t& loadRegisterIndex)
+    SetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, PropertyName propertyName, const size_t& loadRegisterIndex, SetObjectInlineCache* inlineCache)
         : ByteCode(Opcode::SetObjectPreComputedCaseOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
-        , m_propertyName(propertyName)
         , m_loadRegisterIndex(loadRegisterIndex)
+        , m_propertyName(propertyName)
+        , m_inlineCache(inlineCache)
     {
     }
 
-    size_t m_objectRegisterIndex;
+    ByteCodeRegisterIndex m_objectRegisterIndex;
+    ByteCodeRegisterIndex m_loadRegisterIndex;
     PropertyName m_propertyName;
-    size_t m_loadRegisterIndex;
-    SetObjectInlineCache m_inlineCache;
+    SetObjectInlineCache* m_inlineCache;
 #ifndef NDEBUG
     virtual void dump()
     {
@@ -714,10 +727,11 @@ public:
         , m_registerIndex(registerIndex)
         , m_propertyName(propertyName)
     {
+        ASSERT(propertyName.hasAtomicString());
         m_savedGlobalObjectVersion = m_cachedIndex = SIZE_MAX;
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     PropertyName m_propertyName;
     size_t m_savedGlobalObjectVersion;
     size_t m_cachedIndex;
@@ -736,10 +750,11 @@ public:
         , m_registerIndex(registerIndex)
         , m_propertyName(propertyName)
     {
+        ASSERT(propertyName.hasAtomicString());
         m_savedGlobalObjectVersion = m_cachedIndex = SIZE_MAX;
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     PropertyName m_propertyName;
     size_t m_savedGlobalObjectVersion;
     size_t m_cachedIndex;
@@ -761,8 +776,8 @@ public:
     {
     }
 
-    size_t m_registerIndex0;
-    size_t m_registerIndex1;
+    ByteCodeRegisterIndex m_registerIndex0;
+    ByteCodeRegisterIndex m_registerIndex1;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -780,7 +795,7 @@ public:
     {
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -798,7 +813,7 @@ public:
     {
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -816,7 +831,7 @@ public:
     {
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -834,7 +849,7 @@ public:
     {
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -853,7 +868,7 @@ public:
     {
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     AtomicString m_id;
 
 #ifndef NDEBUG
@@ -874,8 +889,8 @@ public:
     {
     }
 
-    size_t m_registerIndex0;
-    size_t m_registerIndex1;
+    ByteCodeRegisterIndex m_registerIndex0;
+    ByteCodeRegisterIndex m_registerIndex1;
     AtomicString m_id;
 
 #ifndef NDEBUG
@@ -954,13 +969,10 @@ protected:
 
 class JumpComplexCase : public ByteCode {
 public:
-    JumpComplexCase(Jump* jmp, size_t count)
+    JumpComplexCase(Jump* jmp, ControlFlowRecord* controlFlowRecord)
         : ByteCode(Opcode::JumpComplexCaseOpcode, jmp->m_loc)
+        , m_controlFlowRecord(controlFlowRecord)
     {
-        m_controlFlowRecord = new ControlFlowRecord(ControlFlowRecord::ControlFlowReason::NeedsJump, Value((PointerValue*)jmp->m_jumpPosition), count);
-#ifndef NDEBUG
-        m_node = jmp->m_node;
-#endif
     }
 
     ControlFlowRecord* m_controlFlowRecord;
@@ -991,7 +1003,7 @@ public:
     {
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     size_t m_jumpPosition;
 
 #ifndef NDEBUG
@@ -1011,7 +1023,7 @@ public:
     {
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     size_t m_jumpPosition;
 
 #ifndef NDEBUG
@@ -1034,7 +1046,7 @@ public:
         , m_argumentCount(argumentCount)
     {
     }
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     size_t m_argumentCount;
 
 #ifndef NDEBUG
@@ -1057,7 +1069,7 @@ public:
         , m_argumentCount(argumentCount)
     {
     }
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     size_t m_argumentCount;
 
 #ifndef NDEBUG
@@ -1100,7 +1112,7 @@ public:
         , m_argumentCount(argumentCount)
     {
     }
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     AtomicString m_calleeName;
     size_t m_argumentCount;
 
@@ -1119,7 +1131,7 @@ public:
         , m_registerIndex(registerIndex)
     {
     }
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -1190,7 +1202,7 @@ public:
         , m_registerIndex(registerIndex)
     {
     }
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -1218,10 +1230,10 @@ public:
     EnumerateObject(const ByteCodeLOC& loc)
         : ByteCode(Opcode::EnumerateObjectOpcode, loc)
     {
-        m_objectRegisterIndex = m_dataRegisterIndex = SIZE_MAX;
+        m_objectRegisterIndex = m_dataRegisterIndex = std::numeric_limits<ByteCodeRegisterIndex>::max();
     }
-    size_t m_objectRegisterIndex;
-    size_t m_dataRegisterIndex;
+    ByteCodeRegisterIndex m_objectRegisterIndex;
+    ByteCodeRegisterIndex m_dataRegisterIndex;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -1236,10 +1248,10 @@ public:
     EnumerateObjectKey(const ByteCodeLOC& loc)
         : ByteCode(Opcode::EnumerateObjectKeyOpcode, loc)
     {
-        m_dataRegisterIndex = m_registerIndex = SIZE_MAX;
+        m_dataRegisterIndex = m_registerIndex = std::numeric_limits<ByteCodeRegisterIndex>::max();
     }
-    size_t m_registerIndex;
-    size_t m_dataRegisterIndex;
+    ByteCodeRegisterIndex m_registerIndex;
+    ByteCodeRegisterIndex m_dataRegisterIndex;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -1254,9 +1266,10 @@ public:
     CheckIfKeyIsLast(const ByteCodeLOC& loc)
         : ByteCode(Opcode::CheckIfKeyIsLastOpcode, loc)
     {
-        m_forInEndPosition = m_registerIndex = SIZE_MAX;
+        m_forInEndPosition = SIZE_MAX;
+        m_registerIndex = std::numeric_limits<ByteCodeRegisterIndex>::max();
     }
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     size_t m_forInEndPosition;
 #ifndef NDEBUG
     virtual void dump()
@@ -1276,7 +1289,7 @@ public:
     {
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     String* m_body;
     String* m_option;
 #ifndef NDEBUG
@@ -1296,7 +1309,7 @@ public:
         m_withEndPostion = SIZE_MAX;
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
     size_t m_withEndPostion;
 #ifndef NDEBUG
     virtual void dump()
@@ -1316,9 +1329,9 @@ public:
     {
     }
 
-    size_t m_objectRegisterIndex;
-    size_t m_objectPropertyNameRegisterIndex;
-    size_t m_objectPropertyValueRegisterIndex;
+    ByteCodeRegisterIndex m_objectRegisterIndex;
+    ByteCodeRegisterIndex m_objectPropertyNameRegisterIndex;
+    ByteCodeRegisterIndex m_objectPropertyValueRegisterIndex;
 #ifndef NDEBUG
     virtual void dump()
     {
@@ -1337,9 +1350,9 @@ public:
     {
     }
 
-    size_t m_objectRegisterIndex;
-    size_t m_objectPropertyNameRegisterIndex;
-    size_t m_objectPropertyValueRegisterIndex;
+    ByteCodeRegisterIndex m_objectRegisterIndex;
+    ByteCodeRegisterIndex m_objectPropertyNameRegisterIndex;
+    ByteCodeRegisterIndex m_objectPropertyValueRegisterIndex;
 #ifndef NDEBUG
     virtual void dump()
     {
@@ -1356,7 +1369,7 @@ public:
     {
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
 #ifndef NDEBUG
     virtual void dump()
     {
@@ -1373,7 +1386,7 @@ public:
     {
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
 #ifndef NDEBUG
     virtual void dump()
     {
@@ -1390,7 +1403,7 @@ public:
     {
     }
 
-    size_t m_registerIndex;
+    ByteCodeRegisterIndex m_registerIndex;
 #ifndef NDEBUG
     virtual void dump()
     {
@@ -1441,7 +1454,9 @@ public:
 };
 
 
-typedef Vector<char, gc_malloc_ignore_off_page_allocator<char>, 250> ByteCodeBlockData;
+typedef Vector<char, gc_malloc_atomic_ignore_off_page_allocator<char>, 250> ByteCodeBlockData;
+typedef Vector<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> ByteCodeLiteralData;
+
 class ByteCodeBlock : public gc {
 public:
     ByteCodeBlock(CodeBlock* codeBlock)
@@ -1456,7 +1471,6 @@ public:
 #ifndef NDEBUG
         {
             CodeType& t = const_cast<CodeType&>(code);
-            t.m_node = node;
             if ((getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) || (getenv("DUMP_CODEBLOCK_TREE") && strlen(getenv("DUMP_CODEBLOCK_TREE")))) {
                 t.m_loc.line = computeNodeLOCFromByteCode(&t, context->m_codeBlock).line;
                 t.m_loc.column = computeNodeLOCFromByteCode(&t, context->m_codeBlock).column;
@@ -1474,6 +1488,9 @@ public:
         }
 
         m_requiredRegisterFileSizeInValueSize = std::max(m_requiredRegisterFileSizeInValueSize, (size_t)context->m_baseRegisterCount);
+
+        // TODO throw exception
+        RELEASE_ASSERT(m_requiredRegisterFileSizeInValueSize < std::numeric_limits<ByteCodeRegisterIndex>::max());
     }
     template <typename CodeType>
     CodeType* peekCode(size_t position)
@@ -1497,6 +1514,7 @@ public:
     ExtendedNodeLOC computeNodeLOCFromByteCode(ByteCode* code, CodeBlock* cb);
 
     ByteCodeBlockData m_code;
+    ByteCodeLiteralData m_literalData;
     size_t m_requiredRegisterFileSizeInValueSize;
     CodeBlock* m_codeBlock;
 };

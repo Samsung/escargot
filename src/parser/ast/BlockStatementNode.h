@@ -31,6 +31,14 @@ public:
         m_body = body;
     }
 
+    virtual ~BlockStatementNode()
+    {
+        size_t len = m_body.size();
+        for (size_t i = 0; i < len; i++) {
+            delete m_body[i];
+        }
+        m_body.clear();
+    }
     virtual ASTNodeType type() { return ASTNodeType::BlockStatement; }
     size_t size() { return m_body.size(); }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)

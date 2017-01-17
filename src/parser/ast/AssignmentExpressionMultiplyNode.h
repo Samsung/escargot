@@ -35,6 +35,12 @@ public:
         m_right = right;
     }
 
+    virtual ~AssignmentExpressionMultiplyNode()
+    {
+        delete m_left;
+        delete m_right;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionMultiply; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {

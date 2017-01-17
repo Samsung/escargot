@@ -31,6 +31,14 @@ public:
         m_arguments = arguments;
     }
 
+    virtual ~NewExpressionNode()
+    {
+        delete m_callee;
+        for (size_t i = 0; i < m_arguments.size(); i++) {
+            delete m_arguments[i];
+        }
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::NewExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {

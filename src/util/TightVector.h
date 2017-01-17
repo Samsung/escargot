@@ -133,9 +133,9 @@ public:
             m_buffer = newBuffer;
             m_size = m_size - c;
         } else {
-            m_size = 0;
             if (m_buffer)
                 Allocator().deallocate(m_buffer, m_size);
+            m_size = 0;
             m_buffer = nullptr;
         }
     }
@@ -184,9 +184,9 @@ public:
 
     void clear()
     {
-        m_size = 0;
         if (m_buffer)
             Allocator().deallocate(m_buffer, m_size);
+        m_size = 0;
         m_buffer = nullptr;
     }
 
@@ -199,14 +199,14 @@ public:
                 newBuffer[i] = m_buffer[i];
             }
 
-            m_size = newSize;
             if (m_buffer)
                 Allocator().deallocate(m_buffer, m_size);
+            m_size = newSize;
             m_buffer = newBuffer;
         } else {
-            m_size = newSize;
             if (m_buffer)
                 Allocator().deallocate(m_buffer, m_size);
+            m_size = newSize;
             m_buffer = nullptr;
         }
     }
@@ -224,14 +224,16 @@ public:
                 newBuffer[i] = val;
             }
 
-            m_size = newSize;
             if (m_buffer)
                 Allocator().deallocate(m_buffer, m_size);
+
+            m_size = newSize;
             m_buffer = newBuffer;
         } else {
-            m_size = newSize;
             if (m_buffer)
                 Allocator().deallocate(m_buffer, m_size);
+
+            m_size = newSize;
             m_buffer = nullptr;
         }
     }
@@ -239,6 +241,113 @@ public:
 protected:
     T* m_buffer;
     size_t m_size;
+};
+
+template <typename T, typename Allocator>
+class TightVectorWithNoSize : public gc {
+public:
+    TightVectorWithNoSize()
+    {
+        m_buffer = nullptr;
+    }
+
+    TightVectorWithNoSize(TightVectorWithNoSize<T, Allocator>&& other)
+    {
+        m_buffer = other.m_buffer;
+        other.m_buffer = nullptr;
+    }
+
+    TightVectorWithNoSize(const TightVectorWithNoSize<T, Allocator>& other) = delete;
+
+    const TightVectorWithNoSize<T, Allocator>& operator=(const TightVectorWithNoSize<T, Allocator>& other) = delete;
+
+    ~TightVectorWithNoSize()
+    {
+        if (m_buffer) {
+            Allocator().deallocate(m_buffer);
+        }
+    }
+
+    void pushBack(const T& val, size_t newSize)
+    {
+        T* newBuffer = Allocator().allocate(newSize);
+        for (size_t i = 0; i < newSize - 1; i++) {
+            newBuffer[i] = m_buffer[i];
+        }
+        newBuffer[newSize - 1] = val;
+        if (m_buffer)
+            Allocator().deallocate(m_buffer);
+        m_buffer = newBuffer;
+    }
+
+    void push_back(const T& val, size_t newSize)
+    {
+        pushBack(val, newSize);
+    }
+
+    T& operator[](const size_t& idx)
+    {
+        return m_buffer[idx];
+    }
+
+    const T& operator[](const size_t& idx) const
+    {
+        return m_buffer[idx];
+    }
+
+    void resizeWithUninitializedValues(size_t oldSize, size_t newSize)
+    {
+        if (newSize) {
+            T* newBuffer = Allocator().allocate(newSize);
+
+            for (size_t i = 0; i < oldSize && i < newSize; i++) {
+                newBuffer[i] = m_buffer[i];
+            }
+
+            if (m_buffer)
+                Allocator().deallocate(m_buffer, oldSize);
+            m_buffer = newBuffer;
+        } else {
+            if (m_buffer)
+                Allocator().deallocate(m_buffer, oldSize);
+            m_buffer = nullptr;
+        }
+    }
+
+    void erase(size_t pos, size_t currentSize)
+    {
+        erase(pos, pos + 1, currentSize);
+    }
+
+    void erase(size_t start, size_t end, size_t currentSize)
+    {
+        ASSERT(start < end);
+        ASSERT(start >= 0);
+        ASSERT(end <= currentSize);
+
+        size_t c = end - start;
+        if (currentSize - c) {
+            T* newBuffer = Allocator().allocate(currentSize - c);
+            for (size_t i = 0; i < start; i++) {
+                newBuffer[i] = m_buffer[i];
+            }
+
+            for (size_t i = end; i < currentSize; i++) {
+                newBuffer[i - c] = m_buffer[i];
+            }
+
+            if (m_buffer)
+                Allocator().deallocate(m_buffer, currentSize);
+            m_buffer = newBuffer;
+        } else {
+            if (m_buffer)
+                Allocator().deallocate(m_buffer, currentSize);
+            m_buffer = nullptr;
+        }
+    }
+
+protected:
+    T* m_buffer;
 };
 }
 

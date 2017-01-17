@@ -39,6 +39,12 @@ public:
         m_value = value;
     }
 
+    virtual ~PropertyNode()
+    {
+        delete m_key;
+        delete m_value;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::Property; }
     Node* key()
     {

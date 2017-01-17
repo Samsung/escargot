@@ -163,6 +163,11 @@ public:
     {
     }
 
+    virtual Node *clone()
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
     virtual ASTNodeType type() = 0;
 
     bool isIdentifier()

@@ -5,6 +5,11 @@
 
 namespace Escargot {
 
+void* CodeBlock::operator new(size_t size)
+{
+    return CustomAllocator<CodeBlock>().allocate(1);
+}
+
 CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     : m_context(ctx)
     , m_script(nullptr)
@@ -100,6 +105,9 @@ CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundT
     code.m_boundArgumentsCount = boundArgc;
     code.m_boundArguments = (Value*)GC_MALLOC(boundArgc * sizeof(Value));
     memcpy(code.m_boundArguments, boundArgv, boundArgc * sizeof(Value));
+    m_byteCodeBlock->m_literalData.pushBack(targetFunction);
+    m_byteCodeBlock->m_literalData.pushBack(boundThis);
+    m_byteCodeBlock->m_literalData.pushBack((PointerValue*)code.m_boundArguments);
 
     ParserContextInformation defaultInfo;
     ByteCodeGenerateContext context(this, m_byteCodeBlock, defaultInfo);

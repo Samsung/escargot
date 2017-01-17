@@ -29,6 +29,10 @@ public:
     {
         m_argument = (ExpressionNode*)argument;
     }
+    virtual ~UnaryExpressionDeleteNode()
+    {
+        delete m_argument;
+    }
 
     virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionDelete; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
@@ -54,9 +58,12 @@ public:
         } else if (m_argument->isMemberExpression()) {
             ((MemberExpressionNode*)m_argument)->object()->generateExpressionByteCode(codeBlock, context);
             size_t o = context->getLastRegisterIndex();
-            if (((MemberExpressionNode*)m_argument)->isPreComputedCase())
+            if (((MemberExpressionNode*)m_argument)->isPreComputedCase()) {
+                // we can use LoadLiteral here
+                // because, (MemberExpressionNode*)m_argument)->property()->asIdentifier()->name().string()
+                // is protected by AtomicString (IdentifierNode always has AtomicString)
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(((MemberExpressionNode*)m_argument)->property()->asIdentifier()->name().string())), context, this);
-            else
+            } else
                 ((MemberExpressionNode*)m_argument)->property()->generateExpressionByteCode(codeBlock, context);
             size_t p = context->getLastRegisterIndex();
 

@@ -35,6 +35,12 @@ public:
         m_right = right;
     }
 
+    virtual ~AssignmentExpressionBitwiseOrNode()
+    {
+        delete m_left;
+        delete m_right;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionBitwiseOr; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {

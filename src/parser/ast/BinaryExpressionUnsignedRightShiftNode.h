@@ -30,6 +30,11 @@ public:
         m_right = (ExpressionNode*)right;
     }
 
+    virtual ~BinaryExpressionUnsignedRightShiftNode()
+    {
+        delete m_left;
+        delete m_right;
+    }
     virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionUnsignedRightShift; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {

@@ -19,6 +19,7 @@
 
 #include "runtime/Value.h"
 #include "runtime/ArrayObject.h"
+#include "parser/CodeBlock.h"
 
 
 #ifdef PROFILE_MASSIF
@@ -98,15 +99,25 @@ namespace Escargot {
 static int s_gcKinds[HeapObjectKind::NumberOfKind];
 
 template <GC_get_next_pointer_proc proc>
+static struct GC_ms_entry* markAndPushCustomIterable(GC_word* addr,
+                                                     struct GC_ms_entry* mark_stack_ptr,
+                                                     struct GC_ms_entry* mark_stack_limit,
+                                                     GC_word env)
+{
+    return GC_mark_and_push_custom_iterable(addr, mark_stack_ptr, mark_stack_limit, proc);
+}
+
+template <GC_get_sub_pointer_proc proc, const int number_of_sub_pointer>
 static struct GC_ms_entry* markAndPushCustom(GC_word* addr,
                                              struct GC_ms_entry* mark_stack_ptr,
                                              struct GC_ms_entry* mark_stack_limit,
                                              GC_word env)
 {
-    return GC_mark_and_push_custom(addr, mark_stack_ptr, mark_stack_limit, proc);
+    size_t subPtrs[number_of_sub_pointer];
+    return GC_mark_and_push_custom(addr, mark_stack_ptr, mark_stack_limit, proc, subPtrs, number_of_sub_pointer);
 }
 
-static GC_word* getNextValidValue(GC_word** iterator)
+static GC_word* getNextValidInValueVector(GC_word** iterator)
 {
     Value* current = (*(Value**)iterator)++;
     if (*current && current->isPointerValue())
@@ -115,10 +126,30 @@ static GC_word* getNextValidValue(GC_word** iterator)
         return NULL;
 }
 
+static int getValidValueInCodeBlock(void* ptr, size_t* arr)
+{
+    CodeBlock* current = (CodeBlock*)ptr;
+    arr[0] = (size_t)current->context();
+    arr[1] = (size_t)current->script();
+    arr[2] = (size_t)current->src().string();
+    arr[3] = (size_t)(void*)current->identifierInfos().data();
+    arr[4] = (size_t)(void*)current->parameterNames().data();
+    arr[5] = (size_t)(void*)current->parametersInfomation().data();
+    arr[6] = (size_t)current->parentCodeBlock();
+    arr[7] = (size_t)(void*)current->childBlocks().data();
+    arr[8] = (size_t)current->cachedASTNode();
+    arr[9] = (size_t)current->byteCodeBlock();
+    arr[10] = (size_t) nullptr;
+#ifndef NDEBUG
+    arr[10] = (size_t)current->scopeContext();
+#endif
+    return 0;
+}
+
 void initializeCustomAllocators()
 {
     s_gcKinds[HeapObjectKind::ValueVectorKind] = GC_new_kind(GC_new_free_list(),
-                                                             GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getNextValidValue>), 0),
+                                                             GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInValueVector>), 0),
                                                              FALSE,
                                                              TRUE);
 
@@ -126,6 +157,11 @@ void initializeCustomAllocators()
                                                                         0 | GC_DS_LENGTH,
                                                                         TRUE,
                                                                         TRUE);
+
+    s_gcKinds[HeapObjectKind::CodeBlockKind] = GC_new_kind(GC_new_free_list(),
+                                                           GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInCodeBlock, 11>), 0),
+                                                           FALSE,
+                                                           TRUE);
 
 #ifdef PROFILE_MASSIF
     GC_is_valid_displacement_print_proc = [](void* ptr) {
@@ -197,5 +233,15 @@ ArrayObject* CustomAllocator<ArrayObject>::allocate(size_type GC_n, const void*)
     ASSERT(GC_n == 1);
     int kind = s_gcKinds[HeapObjectKind::ArrayObjectKind];
     return (ArrayObject*)GC_GENERIC_MALLOC(sizeof(ArrayObject), kind);
+}
+
+template <>
+CodeBlock* CustomAllocator<CodeBlock>::allocate(size_type GC_n, const void*)
+{
+    // Un-comment this to use default allocator
+    // return (CodeBlock*)GC_MALLOC(sizeof(CodeBlock));
+    ASSERT(GC_n == 1);
+    int kind = s_gcKinds[HeapObjectKind::CodeBlockKind];
+    return (CodeBlock*)GC_GENERIC_MALLOC(sizeof(CodeBlock), kind);
 }
 }

@@ -12,6 +12,8 @@ class CodeBlock;
 class ByteCodeBlock;
 class Node;
 
+typedef unsigned char ByteCodeRegisterIndex;
+
 struct ParserContextInformation {
     ParserContextInformation(bool isEvalCode = false, bool isForGlobalScope = false, bool isStrict = false, bool isWithScope = false)
         : m_isEvalCode(isEvalCode)
@@ -152,6 +154,7 @@ struct ByteCodeGenerateContext {
 
     size_t getRegister()
     {
+        ASSERT(m_baseRegisterCount + 1 < std::numeric_limits<ByteCodeRegisterIndex>::max());
         return m_baseRegisterCount++;
     }
 

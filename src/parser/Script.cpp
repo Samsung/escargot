@@ -20,6 +20,7 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     ByteCodeGenerator g;
     g.generateByteCode(state.context(), m_topCodeBlock, programNode, isEvalMode, isOnGlobal);
 
+    delete m_topCodeBlock->m_cachedASTNode;
     m_topCodeBlock->m_cachedASTNode = nullptr;
 
     LexicalEnvironment* env;
@@ -43,7 +44,7 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     ExecutionState newState(state.context(), &ec, &resultValue);
 
     Value* registerFile = (Value*)alloca(m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
-    ByteCodeInterpreter::interpret(newState, m_topCodeBlock, 0, registerFile, nullptr);
+    ByteCodeInterpreter::interpret(newState, m_topCodeBlock, m_topCodeBlock->byteCodeBlock(), 0, registerFile, nullptr);
 
     return resultValue;
 }
@@ -81,6 +82,7 @@ Value Script::executeLocal(ExecutionState& state, bool isEvalMode, bool needNewR
     ByteCodeGenerator g;
     g.generateByteCode(state.context(), m_topCodeBlock, programNode, isEvalMode);
 
+    delete m_topCodeBlock->m_cachedASTNode;
     m_topCodeBlock->m_cachedASTNode = nullptr;
 
     EnvironmentRecord* record;
@@ -110,7 +112,7 @@ Value Script::executeLocal(ExecutionState& state, bool isEvalMode, bool needNewR
     }
 
     Value* registerFile = (Value*)alloca(m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
-    ByteCodeInterpreter::interpret(newState, m_topCodeBlock, 0, registerFile, stackStorage);
+    ByteCodeInterpreter::interpret(newState, m_topCodeBlock, m_topCodeBlock->byteCodeBlock(), 0, registerFile, stackStorage);
 
     return resultValue;
 }

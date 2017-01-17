@@ -13,6 +13,7 @@ public:
 
 #include <gc.h>
 #include <gc_mark.h>
+#include <gc_typed.h>
 
 //#define PROFILE_MASSIF
 #ifdef PROFILE_MASSIF

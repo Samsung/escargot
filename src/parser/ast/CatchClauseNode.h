@@ -36,6 +36,13 @@ public:
         m_body = (BlockStatementNode *)body;
     }
 
+    virtual ~CatchClauseNode()
+    {
+        delete m_param;
+        delete m_guard;
+        delete m_body;
+    }
+
     IdentifierNode *param()
     {
         return m_param;

@@ -231,11 +231,19 @@
           /* Print more detailed information in backtrace */
           object_start = GC_base(base) + sizeof(oh);
           GC_bool interior = ((*((void**)(object_start + offset))) != current);
-          GC_err_printf("offset %ld in object %p (=> points %p%s):\n",
-                        (long)offset,
-                        object_start,
-                        *((void**)(object_start + offset)),
-                        interior?", interior":"");
+          if (interior) {
+              int interior_offset = ((*((void**)(object_start + offset))) - current);
+              GC_err_printf("offset %ld in object %p (=> points %p%s %d):\n",
+                            (long)offset,
+                            object_start,
+                            *((void**)(object_start + offset)),
+                            interior?", interior":"", interior_offset);
+          } else {
+              GC_err_printf("offset %ld in object %p (=> points %p):\n",
+                            (long)offset,
+                            object_start,
+                            *((void**)(object_start + offset)));
+          }
 #endif
           /* Take GC_base(base) to get real base, i.e. header. */
           GC_print_heap_obj(GC_base(base));

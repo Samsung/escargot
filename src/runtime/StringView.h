@@ -28,6 +28,11 @@ public:
         m_end = 0;
     }
 
+    virtual bool isStringView()
+    {
+        return true;
+    }
+
     virtual char16_t charAt(const size_t& idx) const
     {
         return m_string->charAt(idx + m_start);

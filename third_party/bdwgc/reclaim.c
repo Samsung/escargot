@@ -14,6 +14,10 @@
  * modified is included with the above copyright notice.
  */
 
+// escargot
+// force enable eager sweep
+#define EAGER_SWEEP
+
 #include "private/gc_priv.h"
 
 #ifdef ENABLE_DISCLAIM

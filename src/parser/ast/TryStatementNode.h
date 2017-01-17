@@ -34,6 +34,13 @@ public:
         m_guardedHandlers = guardedHandlers;
         m_finalizer = (BlockStatementNode *)finalizer;
     }
+    virtual ~TryStatementNode()
+    {
+        delete m_block;
+        delete m_handler;
+        delete m_finalizer;
+        // TODO delete m_guardedHandlers
+    }
 
     virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
     {

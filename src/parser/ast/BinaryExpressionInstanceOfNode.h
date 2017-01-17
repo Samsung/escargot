@@ -30,6 +30,12 @@ public:
         m_right = (ExpressionNode*)right;
     }
 
+    virtual ~BinaryExpressionInstanceOfNode()
+    {
+        delete m_left;
+        delete m_right;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionInstanceOf; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {

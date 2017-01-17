@@ -31,6 +31,11 @@ public:
         m_expression = expression;
     }
 
+    virtual ~ExpressionStatementNode()
+    {
+        delete m_expression;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::ExpressionStatement; }
     Node* expression() { return m_expression; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)

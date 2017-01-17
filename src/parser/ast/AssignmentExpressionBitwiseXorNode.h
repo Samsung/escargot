@@ -35,6 +35,12 @@ public:
         m_right = right;
     }
 
+    virtual ~AssignmentExpressionBitwiseXorNode()
+    {
+        delete m_left;
+        delete m_right;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionBitwiseXor; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {

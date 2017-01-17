@@ -36,6 +36,12 @@ public:
         m_right = right;
     }
 
+    virtual ~AssignmentExpressionSimpleNode()
+    {
+        delete m_left;
+        delete m_right;
+    }
+
     Node* left()
     {
         return m_left;

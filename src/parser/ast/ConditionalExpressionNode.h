@@ -31,6 +31,12 @@ public:
         m_consequente = (ExpressionNode*)consequente;
         m_alternate = (ExpressionNode*)alternate;
     }
+    virtual ~ConditionalExpressionNode()
+    {
+        delete m_test;
+        delete m_consequente;
+        delete m_alternate;
+    }
 
     virtual ASTNodeType type() { return ASTNodeType::ConditionalExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)

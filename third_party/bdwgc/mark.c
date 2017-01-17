@@ -875,7 +875,7 @@ GC_INNER mse * GC_mark_from(mse *mark_stack_top, mse *mark_stack,
 }
 
 #ifdef ESCARGOT
-GC_API mse * GC_mark_and_push_custom(GC_word *addr, mse *mark_stack_ptr, mse *mark_stack_limit,
+GC_API mse * GC_mark_and_push_custom_iterable(GC_word *addr, mse *mark_stack_ptr, mse *mark_stack_limit,
                                      const GC_get_next_pointer_proc proc) {
     DECLARE_HDR_CACHE;
 
@@ -895,6 +895,25 @@ GC_API mse * GC_mark_and_push_custom(GC_word *addr, mse *mark_stack_ptr, mse *ma
     }
     return (mark_stack_ptr);
 }
+
+GC_API mse * GC_mark_and_push_custom(GC_word *addr, mse *mark_stack_ptr, mse *mark_stack_limit,
+                                        const GC_get_sub_pointer_proc proc,
+                                        size_t* arr, const int number_of_sub_pointer) {
+    DECLARE_HDR_CACHE;
+
+    INIT_HDR_CACHE;
+
+    char* start = GC_USR_PTR_FROM_BASE(addr);
+    int i = 0;
+
+    i = proc(start, arr);
+    for (; i < number_of_sub_pointer; i ++) {
+        if (arr[i])
+            PUSH_CONTENTS((ptr_t)arr[i], mark_stack_ptr, mark_stack_limit, start, exit);
+    }
+    return (mark_stack_ptr);
+}
+
 #endif
 
 #ifdef PARALLEL_MARK

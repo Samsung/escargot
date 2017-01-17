@@ -33,6 +33,10 @@ public:
         m_scopeContext = scopeContext;
         m_scopeContext->m_associateNode = node;
     }
+    ~FunctionNode()
+    {
+        delete m_body;
+    }
 
     inline const PatternNodeVector& params() { return m_params; }
     inline Node* body() { return m_body; }

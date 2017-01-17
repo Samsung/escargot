@@ -54,12 +54,12 @@ public:
         return m_data;
     }
 
-protected:
     ALWAYS_INLINE bool hasAtomicString() const
     {
         return LIKELY(m_data & 1);
     }
 
+protected:
     size_t m_data;
     // AtomicString <- saves its (String* | 1)
     // String* <- saves pointer

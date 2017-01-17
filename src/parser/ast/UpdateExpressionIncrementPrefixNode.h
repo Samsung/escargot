@@ -30,6 +30,10 @@ public:
     {
         m_argument = (ExpressionNode*)argument;
     }
+    virtual ~UpdateExpressionIncrementPrefixNode()
+    {
+        delete m_argument;
+    }
 
     virtual ASTNodeType type() { return ASTNodeType::UpdateExpressionIncrementPrefix; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)

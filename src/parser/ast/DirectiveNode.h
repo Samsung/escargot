@@ -31,6 +31,11 @@ public:
         m_value = value;
     }
 
+    virtual ~DirectiveNode()
+    {
+        delete m_expr;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::Directive; }
     StringView value() { return m_value; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)

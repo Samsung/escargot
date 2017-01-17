@@ -24,6 +24,7 @@ class ExecutionState;
 enum HeapObjectKind {
     ValueVectorKind = 0,
     ArrayObjectKind,
+    CodeBlockKind,
     NumberOfKind,
 };
 
@@ -150,7 +151,17 @@ public:
     }
 
     // __p is not permitted to be a null pointer.
-    void deallocate(pointer __p, size_type GC_ATTR_UNUSED GC_n) { GC_FREE(__p); }
+    void deallocate(pointer __p, size_type GC_ATTR_UNUSED GC_n)
+    {
+        GC_FREE(__p);
+    }
+
+    // __p is not permitted to be a null pointer.
+    void deallocate(pointer __p)
+    {
+        GC_FREE(__p);
+    }
+
     size_type max_size() const throw() { return size_t(-1) / sizeof(GC_Tp); }
     void construct(pointer __p, const GC_Tp& __val) { new (__p) GC_Tp(__val); }
     void destroy(pointer __p) { __p->~GC_Tp(); }
@@ -295,7 +306,17 @@ public:
     }
 
     // __p is not permitted to be a null pointer.
-    void deallocate(pointer __p, size_type GC_ATTR_UNUSED GC_n) { GC_FREE(__p); }
+    void deallocate(pointer __p, size_type GC_ATTR_UNUSED GC_n)
+    {
+        GC_FREE(__p);
+    }
+
+    // __p is not permitted to be a null pointer.
+    void deallocate(pointer __p)
+    {
+        GC_FREE(__p);
+    }
+
     size_type max_size() const throw() { return size_t(-1) / sizeof(GC_Tp); }
     void construct(pointer __p, const GC_Tp& __val) { new (__p) GC_Tp(__val); }
     void destroy(pointer __p) { __p->~GC_Tp(); }

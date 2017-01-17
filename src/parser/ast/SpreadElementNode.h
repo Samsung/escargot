@@ -29,6 +29,11 @@ public:
         m_arg = arg;
     }
 
+    virtual ~SpreadElementNode()
+    {
+        delete m_arg;
+    }
+
     virtual ASTNodeType type()
     {
         return SpreadElement;

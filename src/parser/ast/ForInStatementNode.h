@@ -34,6 +34,13 @@ public:
         m_each = each;
     }
 
+    virtual ~ForInStatementNode()
+    {
+        delete m_left;
+        delete m_right;
+        delete m_body;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::ForInStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
     {
@@ -66,9 +73,9 @@ public:
 
         size_t exit3Pos = codeBlock->lastCodePosition<CheckIfKeyIsLast>();
         codeBlock->pushCode(EnumerateObjectKey(ByteCodeLOC(m_loc.index)), &newContext, this);
-        size_t checkIfKeyIsLastPos = codeBlock->lastCodePosition<CheckIfKeyIsLast>();
+        size_t enumerateObjectKeyPos = codeBlock->lastCodePosition<EnumerateObjectKey>();
 
-        codeBlock->peekCode<EnumerateObjectKey>(checkIfKeyIsLastPos)->m_registerIndex = newContext.getRegister();
+        codeBlock->peekCode<EnumerateObjectKey>(enumerateObjectKeyPos)->m_registerIndex = newContext.getRegister();
         size_t pushPos = codeBlock->currentCodeSize();
         m_left->generateStoreByteCode(codeBlock, &newContext);
         newContext.giveUpRegister();
@@ -80,7 +87,7 @@ public:
 
         codeBlock->peekCode<EnumerateObject>(ePosition)->m_dataRegisterIndex = forInIndex;
         codeBlock->peekCode<CheckIfKeyIsLast>(exit3Pos)->m_registerIndex = forInIndex;
-        codeBlock->peekCode<EnumerateObjectKey>(checkIfKeyIsLastPos)->m_dataRegisterIndex = forInIndex;
+        codeBlock->peekCode<EnumerateObjectKey>(enumerateObjectKeyPos)->m_dataRegisterIndex = forInIndex;
 
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), continuePosition), &newContext, this);
         size_t forInEnd = codeBlock->currentCodeSize();

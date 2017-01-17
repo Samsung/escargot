@@ -244,7 +244,7 @@ Object::Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea)
     : m_structure(state.context()->defaultStructureForObject())
     , m_rareData(nullptr)
 {
-    m_values.resizeWithUninitializedValues(defaultSpace);
+    m_values.resizeWithUninitializedValues(0, defaultSpace);
     if (initPlainArea) {
         initPlainObject(state);
     }
@@ -356,14 +356,14 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
         m_structure = m_structure->addProperty(state, propertyName, desc.toObjectStructurePropertyDescriptor());
         if (LIKELY(desc.isDataProperty())) {
             if (LIKELY(desc.isValuePresent()))
-                m_values.pushBack(desc.value());
+                m_values.pushBack(desc.value(), m_structure->propertyCount());
             else
-                m_values.pushBack(Value());
+                m_values.pushBack(Value(), m_structure->propertyCount());
         } else {
-            m_values.pushBack(Value(new JSGetterSetter(desc.getterSetter())));
+            m_values.pushBack(Value(new JSGetterSetter(desc.getterSetter())), m_structure->propertyCount());
         }
 
-        ASSERT(m_values.size() == m_structure->propertyCount());
+        // ASSERT(m_values.size() == m_structure->propertyCount());
         return true;
     } else {
         size_t idx = oldIdx;
@@ -695,9 +695,9 @@ void Object::throwCannotDeleteError(ExecutionState& state, const PropertyName& P
 void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
 {
     m_structure = m_structure->removeProperty(state, idx);
-    m_values.erase(idx);
+    m_values.erase(idx, m_structure->propertyCount() + 1);
 
-    ASSERT(m_values.size() == m_structure->propertyCount());
+    // ASSERT(m_values.size() == m_structure->propertyCount());
 }
 
 uint64_t Object::length(ExecutionState& state)
@@ -847,7 +847,7 @@ void Object::defineNativeGetterSetterDataProperty(ExecutionState& state, const O
     ASSERT(!isStringObject());
 
     m_structure = m_structure->addProperty(state, P.toPropertyName(state), ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(data));
-    m_values.pushBack(v);
-    ASSERT(m_values.size() == m_structure->propertyCount());
+    m_values.pushBack(v, m_structure->propertyCount());
+    // ASSERT(m_values.size() == m_structure->propertyCount());
 }
 }

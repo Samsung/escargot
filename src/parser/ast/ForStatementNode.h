@@ -34,6 +34,14 @@ public:
         m_body = (StatementNode *)body;
     }
 
+    virtual ~ForStatementNode()
+    {
+        delete m_init;
+        delete m_test;
+        delete m_update;
+        delete m_body;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::ForStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
     {

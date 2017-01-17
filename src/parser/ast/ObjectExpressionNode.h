@@ -32,6 +32,14 @@ public:
         m_properties = properties;
     }
 
+    virtual ~ObjectExpressionNode()
+    {
+        for (unsigned i = 0; i < m_properties.size(); i++) {
+            PropertyNode* p = m_properties[i];
+            delete p;
+        }
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::ObjectExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
@@ -42,6 +50,9 @@ public:
             AtomicString propertyAtomicName;
             if (p->key()->isIdentifier()) {
                 propertyAtomicName = p->key()->asIdentifier()->name();
+                // we can use LoadLiteral here
+                // because, p->key()->asIdentifier()->name().string()
+                // is protected by AtomicString (IdentifierNode always has AtomicString)
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(p->key()->asIdentifier()->name().string())), context, this);
             } else {
                 p->key()->generateExpressionByteCode(codeBlock, context);

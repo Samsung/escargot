@@ -29,6 +29,10 @@ public:
     {
         m_argument = argument;
     }
+    virtual ~UnaryExpressionTypeOfNode()
+    {
+        delete m_argument;
+    }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {

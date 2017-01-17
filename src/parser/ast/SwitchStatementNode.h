@@ -36,6 +36,18 @@ public:
         m_lexical = lexical;
     }
 
+    virtual ~SwitchStatementNode()
+    {
+        delete m_discriminant;
+        for (unsigned i = 0; i < m_casesA.size(); i++) {
+            delete m_casesA[i];
+        }
+        for (unsigned i = 0; i < m_casesB.size(); i++) {
+            delete m_casesB[i];
+        }
+        delete m_default;
+    }
+
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         ByteCodeGenerateContext newContext(*context);

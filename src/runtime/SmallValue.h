@@ -155,7 +155,26 @@ public:
     {
         m_data.payload = 1;
         fromValue(from);
-        ASSERT(m_data.payload);
+    }
+
+    SmallValue(PointerValue* v)
+    {
+        if (v) {
+            m_data.payload = (intptr_t)v;
+        } else {
+            m_data.payload = (intptr_t)smallValueEmpty;
+        }
+    }
+
+    bool isEmpty() const
+    {
+        if (HAS_OBJECT_TAG(m_data.payload)) {
+            PointerValue* v = (PointerValue*)m_data.payload;
+            if (((size_t)v) == smallValueEmpty) {
+                return true;
+            }
+        }
+        return false;
     }
 
     operator Value()
@@ -208,7 +227,11 @@ protected:
     void fromValue(const Value& from)
     {
         if (from.isPointerValue()) {
-            m_data.payload = (intptr_t)from.asPointerValue();
+            if (UNLIKELY(from.isEmpty())) {
+                m_data.payload = (intptr_t)(smallValueEmpty);
+            } else {
+                m_data.payload = (intptr_t)from.asPointerValue();
+            }
         } else {
             int32_t i32;
             if (from.isInt32() && SmallValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
@@ -238,6 +261,7 @@ protected:
                 m_data.payload = (intptr_t)(smallValueDeleted);
             }
         }
+        ASSERT(m_data.payload);
     }
 
     SmallValueData m_data;

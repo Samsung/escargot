@@ -98,6 +98,10 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
         codeBlock->appendChildBlock(generateCodeBlockTreeFromASTWalker(ctx, source, script, scopeCtx->m_childScopes[i], codeBlock));
     }
 
+#ifdef NDEBUG
+    delete scopeCtx;
+#endif
+
     return codeBlock;
 }
 

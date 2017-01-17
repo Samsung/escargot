@@ -32,6 +32,12 @@ public:
         m_body = (StatementNode *)body;
     }
 
+    virtual ~DoWhileStatementNode()
+    {
+        delete m_test;
+        delete m_body;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::DoWhileStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
     {

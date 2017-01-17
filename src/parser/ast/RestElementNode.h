@@ -30,6 +30,11 @@ public:
         m_argument = argument;
     }
 
+    virtual ~RestElementNode()
+    {
+        delete m_argument;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::RestElement; }
     IdentifierNode* argument()
     {

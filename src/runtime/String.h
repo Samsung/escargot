@@ -50,6 +50,11 @@ public:
         return false;
     }
 
+    virtual bool isStringView()
+    {
+        return false;
+    }
+
     virtual bool hasASCIIContent() const
     {
         return false;

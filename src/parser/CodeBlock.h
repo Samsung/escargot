@@ -56,6 +56,9 @@ class CodeBlock : public gc {
     friend class FunctionObject;
 
 public:
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
     // init native CodeBlock
     CodeBlock(Context* ctx, const NativeFunctionInfo& info);
 
@@ -301,6 +304,11 @@ public:
         return m_parametersInfomation;
     }
 
+    const AtomicStringVector& parameterNames() const
+    {
+        return m_parameterNames;
+    }
+
     struct IndexedIdentifierInfo {
         bool m_isResultSaved;
         bool m_isStackAllocated;
@@ -336,7 +344,12 @@ public:
     }
 
     bool hasNonConfiguableNameOnGlobal(const AtomicString& name);
-
+#ifndef NDEBUG
+    ASTScopeContext* scopeContext()
+    {
+        return m_scopeContext;
+    }
+#endif
 protected:
     // init global codeBlock
     CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const AtomicStringVector& innerIdentifiers, CodeBlockInitFlag initFlags);
@@ -360,22 +373,23 @@ protected:
         m_identifierInfos.push_back(info);
     }
 
-    bool m_isNativeFunction;
-    bool m_isStrict;
-    bool m_hasEval;
-    bool m_hasWith;
-    bool m_hasCatch;
-    bool m_hasYield;
-    bool m_usesArgumentsObject;
-    bool m_hasArgumentsBinding;
-    bool m_canUseIndexedVariableStorage;
-    bool m_canAllocateEnvironmentOnStack;
-    bool m_isFunctionExpression;
-    bool m_isFunctionDeclaration;
-    bool m_needsComplexParameterCopy;
-    bool m_isInWithScope;
-
     Context* m_context;
+
+    bool m_isNativeFunction : 1;
+    bool m_isStrict : 1;
+    bool m_hasEval : 1;
+    bool m_hasWith : 1;
+    bool m_hasCatch : 1;
+    bool m_hasYield : 1;
+    bool m_usesArgumentsObject : 1;
+    bool m_hasArgumentsBinding : 1;
+    bool m_canUseIndexedVariableStorage : 1;
+    bool m_canAllocateEnvironmentOnStack : 1;
+    bool m_isFunctionExpression : 1;
+    bool m_isFunctionDeclaration : 1;
+    bool m_needsComplexParameterCopy : 1;
+    bool m_isInWithScope : 1;
+
     Script* m_script;
     StringView m_src; // function source elements src
     ExtendedNodeLOC m_sourceElementStart;

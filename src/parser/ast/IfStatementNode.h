@@ -32,6 +32,13 @@ public:
         m_alternate = (StatementNode*)alternate;
     }
 
+    virtual ~IfStatementNode()
+    {
+        delete m_test;
+        delete m_consequente;
+        delete m_alternate;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::IfStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {

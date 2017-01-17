@@ -313,10 +313,18 @@ GC_API void GC_CALL GC_set_mark_bit(const void *) GC_ATTR_NONNULL(1);
  * but it can be changed in future for better performance.
  */
 typedef GC_word* (GC_get_next_pointer_proc)(GC_word** iterator);
-GC_API struct GC_ms_entry* GC_mark_and_push_custom(GC_word* addr,
+GC_API struct GC_ms_entry* GC_mark_and_push_custom_iterable(GC_word* addr,
                                                    struct GC_ms_entry *mark_stack_ptr,
                                                    struct GC_ms_entry *mark_stack_limit,
                                                    const GC_get_next_pointer_proc proc);
+
+typedef int (GC_get_sub_pointer_proc)(void* ptr, size_t* sub_ptrs);
+GC_API struct GC_ms_entry* GC_mark_and_push_custom(GC_word* addr,
+                                                   struct GC_ms_entry *mark_stack_ptr,
+                                                   struct GC_ms_entry *mark_stack_limit,
+                                                   const GC_get_sub_pointer_proc proc,
+                                                   size_t* sub_ptrs,
+                                                   const int number_of_sub_pointer);
 #endif
 
 /* Push everything in the given range onto the mark stack.              */

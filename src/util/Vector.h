@@ -47,7 +47,7 @@ public:
         }
     }
 
-    const Vector<T, Allocator>& operator=(const Vector<T, Allocator, glowFactor>& other)
+    const Vector<T, Allocator, glowFactor>& operator=(const Vector<T, Allocator, glowFactor>& other)
     {
         if (other.size()) {
             m_size = other.size();
@@ -62,7 +62,7 @@ public:
         return *this;
     }
 
-    Vector(const Vector<T, Allocator>& other, const T& newItem)
+    Vector(const Vector<T, Allocator, glowFactor>& other, const T& newItem)
     {
         m_size = other.size() + 1;
         m_capacity = other.m_capacity + 1;
@@ -76,19 +76,20 @@ public:
     ~Vector()
     {
         if (m_buffer)
-            Allocator().deallocate(m_buffer, m_size);
+            Allocator().deallocate(m_buffer, m_capacity);
     }
 
     void pushBack(const T& val)
     {
         if (m_capacity <= (m_size + 1)) {
+            size_t oldc = m_capacity;
             m_capacity = computeAllocateSize(m_size + 1);
             T* newBuffer = Allocator().allocate(m_capacity);
             for (size_t i = 0; i < m_size; i++) {
                 newBuffer[i] = m_buffer[i];
             }
             if (m_buffer)
-                Allocator().deallocate(m_buffer, m_size);
+                Allocator().deallocate(m_buffer, oldc);
             m_buffer = newBuffer;
         }
         m_buffer[m_size] = val;
@@ -104,6 +105,7 @@ public:
     {
         ASSERT(pos <= m_size);
         if (m_capacity <= (m_size + 1)) {
+            size_t oldC = m_capacity;
             m_capacity = computeAllocateSize(m_size + 1);
             T* newBuffer = Allocator().allocate(m_capacity);
             for (size_t i = 0; i < pos; i++) {
@@ -114,7 +116,7 @@ public:
                 newBuffer[i + 1] = m_buffer[i];
             }
             if (m_buffer)
-                Allocator().deallocate(m_buffer, m_size);
+                Allocator().deallocate(m_buffer, oldC);
             m_buffer = newBuffer;
         } else {
             for (size_t i = pos; i < m_size; i++) {
@@ -139,6 +141,7 @@ public:
 
         size_t c = end - start;
         if (m_size - c) {
+            size_t oldC = m_capacity;
             T* newBuffer = Allocator().allocate(m_size - c);
             for (size_t i = 0; i < start; i++) {
                 newBuffer[i] = m_buffer[i];
@@ -149,7 +152,7 @@ public:
             }
 
             if (m_buffer)
-                Allocator().deallocate(m_buffer, m_size);
+                Allocator().deallocate(m_buffer, oldC);
             m_buffer = newBuffer;
             m_size = m_size - c;
             m_capacity = m_size;
@@ -195,6 +198,11 @@ public:
         return m_buffer;
     }
 
+    const T* data() const
+    {
+        return m_buffer;
+    }
+
     T& back()
     {
         return m_buffer[m_size - 1];
@@ -203,7 +211,7 @@ public:
     void clear()
     {
         if (m_buffer) {
-            Allocator().deallocate(m_buffer, m_size);
+            Allocator().deallocate(m_buffer, m_capacity);
         }
         m_buffer = nullptr;
         m_size = 0;
@@ -217,9 +225,10 @@ public:
             for (size_t i = 0; i < m_size; i++) {
                 newBuffer[i] = m_buffer[i];
             }
+            size_t oldC = m_capacity;
             m_capacity = m_size;
             if (m_buffer)
-                Allocator().deallocate(m_buffer, m_size);
+                Allocator().deallocate(m_buffer, oldC);
             m_buffer = newBuffer;
         }
     }
@@ -232,10 +241,10 @@ public:
             for (size_t i = 0; i < m_size && i < newSize; i++) {
                 newBuffer[i] = m_buffer[i];
             }
+            if (m_buffer)
+                Allocator().deallocate(m_buffer, m_capacity);
             m_capacity = newSize;
             m_size = newSize;
-            if (m_buffer)
-                Allocator().deallocate(m_buffer, m_size);
             m_buffer = newBuffer;
         } else {
             clear();
@@ -254,10 +263,10 @@ public:
                 for (size_t i = m_size; i < newSize; i++) {
                     newBuffer[i] = val;
                 }
+                if (m_buffer)
+                    Allocator().deallocate(m_buffer, m_capacity);
                 m_size = newSize;
                 m_capacity = newCapacity;
-                if (m_buffer)
-                    Allocator().deallocate(m_buffer, m_size);
                 m_buffer = newBuffer;
             } else {
                 for (size_t i = m_size; i < newSize; i++) {

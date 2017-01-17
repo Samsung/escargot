@@ -29,6 +29,10 @@ public:
     {
         m_argument = argument;
     }
+    virtual ~UnaryExpressionLogicalNotNode()
+    {
+        delete m_argument;
+    }
 
     virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionLogicalNot; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)

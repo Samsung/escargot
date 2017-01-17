@@ -18,6 +18,7 @@
 #define LiteralNode_h
 
 #include "Node.h"
+#include "parser/Script.h"
 
 namespace Escargot {
 
@@ -34,6 +35,9 @@ public:
     const Value& value() { return m_value; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
+        if (m_value.isPointerValue()) {
+            codeBlock->m_literalData.pushBack(m_value.asPointerValue());
+        }
         codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), m_value), context, this);
     }
 

@@ -33,6 +33,14 @@ public:
         m_arguments = arguments;
     }
 
+    virtual ~CallExpressionNode()
+    {
+        delete m_callee;
+        for (size_t i = 0; i < m_arguments.size(); i++) {
+            delete m_arguments[i];
+        }
+        m_arguments.clear();
+    }
     Node* callee() { return m_callee; }
     virtual ASTNodeType type() { return ASTNodeType::CallExpression; }
     void generateArguments(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)

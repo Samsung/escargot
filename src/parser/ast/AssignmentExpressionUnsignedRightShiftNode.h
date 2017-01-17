@@ -34,6 +34,12 @@ public:
         m_right = right;
     }
 
+    virtual ~AssignmentExpressionUnsignedShiftNode()
+    {
+        delete m_left;
+        delete m_right;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionUnsignedRightShift; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {

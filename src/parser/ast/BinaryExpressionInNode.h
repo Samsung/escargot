@@ -30,6 +30,12 @@ public:
         m_right = (ExpressionNode*)right;
     }
 
+    virtual ~BinaryExpressionInNode()
+    {
+        delete m_left;
+        delete m_right;
+    }
+
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         m_left->generateExpressionByteCode(codeBlock, context);

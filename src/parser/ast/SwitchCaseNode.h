@@ -33,6 +33,15 @@ public:
         m_consequent = consequent;
     }
 
+    virtual ~SwitchCaseNode()
+    {
+        delete m_test;
+        size_t len = m_consequent.size();
+        for (size_t i = 0; i < len; i++) {
+            delete m_consequent[i];
+        }
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::SwitchCase; }
     bool isDefaultNode()
     {

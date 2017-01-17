@@ -683,7 +683,10 @@ protected:
     ObjectStructure* m_structure;
     Object* m_prototype;
     ObjectRareData* m_rareData;
-    TightVector<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> m_values;
+    // TightVector<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> m_values;
+    TightVectorWithNoSize<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> m_values;
+
+    COMPILE_ASSERT(sizeof(TightVector<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>>) == sizeof(size_t) * 2, "");
 
     ObjectStructure* structure() const
     {

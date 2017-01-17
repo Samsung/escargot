@@ -29,6 +29,11 @@ public:
     {
         m_argument = argument;
     }
+    virtual ~UnaryExpressionMinusNode()
+    {
+        delete m_argument;
+    }
+
 
     virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionMinus; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)

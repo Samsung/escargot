@@ -31,6 +31,12 @@ public:
         m_body = body;
     }
 
+    virtual ~WithStatementNode()
+    {
+        delete m_object;
+        delete m_body;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::WithStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {

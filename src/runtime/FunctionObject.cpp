@@ -120,6 +120,13 @@ void FunctionObject::generateBytecodeBlock(ExecutionState& state)
     ByteCodeGenerator g;
     g.generateByteCode(state.context(), m_codeBlock, ast);
     v.pushBack(m_codeBlock);
+
+    if (m_codeBlock->cachedASTNode()) {
+        m_codeBlock->m_cachedASTNode = nullptr;
+        delete ast;
+    } else {
+        delete ast;
+    }
 }
 
 Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, const size_t& argc, Value* argv, bool isNewExpression)
@@ -233,7 +240,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     }
 
     // run function
-    ByteCodeInterpreter::interpret(newState, m_codeBlock, 0, registerFile, stackStorage);
+    ByteCodeInterpreter::interpret(newState, m_codeBlock, m_codeBlock->byteCodeBlock(), 0, registerFile, stackStorage);
 
     return resultValue;
 }

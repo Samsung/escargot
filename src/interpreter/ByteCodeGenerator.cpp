@@ -61,7 +61,9 @@ void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb
 {
     auto iter = m_complexCaseStatementPositions.find(codePos);
     if (iter != m_complexCaseStatementPositions.end()) {
-        JumpComplexCase j(cb->peekCode<Jump>(codePos), iter->second);
+        ControlFlowRecord* r = new ControlFlowRecord(ControlFlowRecord::ControlFlowReason::NeedsJump, Value((PointerValue*)(cb->peekCode<Jump>(codePos)->m_jumpPosition)), iter->second);
+        m_byteCodeBlock->m_literalData.pushBack((PointerValue*)r);
+        JumpComplexCase j(cb->peekCode<Jump>(codePos), r);
         j.assignOpcodeInAddress();
         memcpy(cb->m_code.data() + codePos, &j, sizeof(JumpComplexCase));
         m_complexCaseStatementPositions.erase(iter);
@@ -88,6 +90,7 @@ void ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node*
         CodeBlock* b = codeBlock->childBlocks()[i];
         if (b->isFunctionDeclaration()) {
             ctx.getRegister();
+            block->m_literalData.pushBack((PointerValue*)b);
             block->pushCode(DeclareFunctionDeclaration(b), &ctx, nullptr);
             IdentifierNode idNode(b->m_functionName);
             idNode.generateStoreByteCode(block, &ctx);

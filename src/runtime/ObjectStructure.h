@@ -53,7 +53,7 @@ public:
     }
 
     ObjectStructure(ExecutionState& state, ObjectStructureItemVector&& properties, bool needsTransitionTable, bool hasIndexPropertyName)
-        : m_properties(properties)
+        : m_properties(std::move(properties))
     {
         m_needsTransitionTable = needsTransitionTable;
         m_hasIndexPropertyName = hasIndexPropertyName;

@@ -34,6 +34,12 @@ public:
         m_init = init;
     }
 
+    virtual ~VariableDeclaratorNode()
+    {
+        delete m_id;
+        delete m_init;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::VariableDeclarator; }
     Node* id() { return m_id; }
     Node* init() { return m_init; }

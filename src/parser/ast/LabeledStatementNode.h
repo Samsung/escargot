@@ -31,6 +31,11 @@ public:
         m_label = label;
     }
 
+    virtual ~LabeledStatementNode()
+    {
+        delete m_statementNode;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::LabeledStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
