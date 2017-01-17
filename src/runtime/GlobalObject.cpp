@@ -4,6 +4,7 @@
 #include "ErrorObject.h"
 #include "StringObject.h"
 #include "NumberObject.h"
+#include "DateObject.h"
 #include "parser/ScriptParser.h"
 #include "parser/esprima_cpp/esprima.h"
 #include "heap/LeakChecker.h"
@@ -19,10 +20,7 @@ static Value builtinPrint(ExecutionState& state, Value thisValue, size_t argc, V
     return Value();
 }
 
-static Value builtinLoad(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    auto f = argv[0].toString(state)->toUTF8StringData();
-    const char* fileName = f.data();
+static String* builtinHelperFileRead(ExecutionState& state, const char* fileName, AtomicString builtinName) {
     FILE* fp = fopen(fileName, "r");
     String* src = String::emptyString;
     if (fp) {
@@ -49,53 +47,66 @@ static Value builtinLoad(ExecutionState& state, Value thisValue, size_t argc, Va
             src = new UTF16String(std::move(utf8StringToUTF16String(str.data(), str.length())));
         else
             src = new ASCIIString(str.data(), str.length());
+    } else {
+        char msg[1024];
+        sprintf(msg, "%%s: cannot open file %s", fileName);
+        String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
+        ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, builtinName.string(), msg);
     }
+    return src;
+}
 
+static Value builtinLoad(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    auto f = argv[0].toString(state)->toUTF8StringData();
+    const char* fileName = f.data();
+    String* src = builtinHelperFileRead(state, fileName, state.context()->staticStrings().load);
     Context* context = state.context();
     auto result = context->scriptParser().parse(src, argv[0].toString(state));
     if (!result.m_error) {
-        result.m_script->execute(state, false, false, true);
+        return result.m_script->execute(state, false, false, true);
+    } else {
+        auto err = result.m_error->message->toUTF8StringData();
+        String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
+        char msg[1024];
+        sprintf(msg, "%%s: %s", err.data());
+        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, globalObjectString, false, state.context()->staticStrings().load.string(), msg);
+        RELEASE_ASSERT_NOT_REACHED();
     }
-    return Value();
+    RELEASE_ASSERT_NOT_REACHED();
 }
 
 static Value builtinRead(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     auto f = argv[0].toString(state)->toUTF8StringData();
     const char* fileName = f.data();
-    FILE* fp = fopen(fileName, "r");
-    String* src = String::emptyString;
-    if (fp) {
-        std::string str;
-        char buf[512];
-        bool hasNonASCIIContent = false;
-
-        while (fgets(buf, sizeof buf, fp) != NULL) {
-            if (!hasNonASCIIContent) {
-                char* check = buf;
-                while (*check) {
-                    if (*check < 0) {
-                        hasNonASCIIContent = true;
-                        break;
-                    }
-                    check++;
-                }
-            }
-
-            str += buf;
-        }
-        fclose(fp);
-
-        if (hasNonASCIIContent)
-            src = new UTF16String(std::move(utf8StringToUTF16String(str.data(), str.length())));
-        else
-            src = new ASCIIString(str.data(), str.length());
-    } else {
-        String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, globalObjectString, false, state.context()->staticStrings().read.string(), "%s: cannot read");
-    }
+    String* src = builtinHelperFileRead(state, fileName, state.context()->staticStrings().read);
     return src;
 }
+
+static Value builtinRun(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    double startTime = DateObject::currentTime();
+
+    auto f = argv[0].toString(state)->toUTF8StringData();
+    const char* fileName = f.data();
+    String* src = builtinHelperFileRead(state, fileName, state.context()->staticStrings().run);
+    Context* context = state.context();
+    auto result = context->scriptParser().parse(src, argv[0].toString(state));
+    if (!result.m_error) {
+        result.m_script->execute(state, false, false, true);
+        return Value(DateObject::currentTime() - startTime);
+    } else {
+        auto err = result.m_error->message->toUTF8StringData();
+        String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
+        char msg[1024];
+        sprintf(msg, "%%s: %s", err.data());
+        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, globalObjectString, false, state.context()->staticStrings().load.string(), msg);
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
 #endif
 
 static Value builtinGc(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -796,6 +807,10 @@ void GlobalObject::installOthers(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(strings->read),
                       ObjectPropertyDescriptor(new FunctionObject(state,
                                                                   NativeFunctionInfo(strings->read, builtinRead, 1, nullptr, NativeFunctionInfo::Strict), false),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+    defineOwnProperty(state, ObjectPropertyName(strings->run),
+                      ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                  NativeFunctionInfo(strings->run, builtinRun, 1, nullptr, NativeFunctionInfo::Strict), false),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 /*
     defineOwnProperty(state, ObjectPropertyName(strings->dbgBreak),

@@ -49,17 +49,18 @@ run-test262-wearable:
 	diff test262log.wearable.orig.txt test262log.wearable.gen.txt
 
 run-spidermonkey:
-	cd test/SpiderMonkey; \
-	./jstests.py -s --xul-info=x86_64-gcc3:Linux:false ../../escargot --failure-file=mozilla.x64.interpreter.release.escargot.gen.txt -p "$(OPT)"; \
+	cd test/vendortest/SpiderMonkey; \
+	./jstests.py -s --xul-info=x86_64-gcc3:Linux:false ../../../escargot --failure-file=mozilla.x64.interpreter.release.escargot.gen.txt -p "$(OPT)"; \
 	diff mozilla.x64.interpreter.release.escargot.orig.txt mozilla.x64.interpreter.release.escargot.gen.txt
 
 run-spidermonkey-for-32bit:
-	cd test/SpiderMonkey; \
-	./jstests.py -s --xul-info=x86-gcc3:Linux:false ../../escargot --failure-file=mozilla.x86.interpreter.release.escargot.gen.txt -p "$(OPT)"; \
+	cd test/vendortest/SpiderMonkey; \
+	./jstests.py -s --xul-info=x86-gcc3:Linux:false ../../../escargot --failure-file=mozilla.x86.interpreter.release.escargot.gen.txt -p "$(OPT)"; \
 	diff mozilla.x86.interpreter.release.escargot.orig.txt mozilla.x64.interpreter.release.escargot.gen.txt
 
 run-jsc-stress:
-	PYTHONPATH=. ./tools/driver.py -s stress;
+	cp tools/vendortest/jsc.stress.resource.typedarray-constructor-helper-functions.js test/vendortest/JavaScriptCore/stress/resources/typedarray-constructor-helper-functions.js
+	PYTHONPATH=. ./tools/vendortest/driver.py -s stress;
 
 run-jsc-mozilla:
 	cd test/JavaScriptCore/mozilla/; \

@@ -892,10 +892,8 @@ public:
                 return New;
             } else if (first == 't' && id == "try") {
                 return Try;
-                /*
             } else if (first == 'l' && id == "let") {
                 return Let;
-                */
             }
 
             break;
@@ -929,10 +927,8 @@ public:
                 }
             } else if (first == 't' && id == "throw") {
                 return Throw;
-                /*
             } else if (first == 'y' && id == "yield") {
                 return Yield;
-                */
             } else if (first == 's' && id == "super") {
                 return Super;
                 /*
@@ -2896,7 +2892,7 @@ public:
             if (!this->context->strict && this->context->allowYield && this->matchKeyword(KeywordKind::Yield)) {
                 expr = this->parseIdentifierName();
             } else if (!this->context->strict && this->matchKeyword(KeywordKind::Let)) {
-                expr = this->finalize(node, finishIdentifier(this->nextToken(), true));
+                throwUnexpectedToken(this->nextToken());
             } else {
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
@@ -4931,7 +4927,7 @@ public:
                 }
             } else if (this->matchKeyword(Const) || this->matchKeyword(Let)) {
                 // TODO
-                RELEASE_ASSERT_NOT_REACHED();
+                this->throwUnexpectedToken(this->nextToken());
                 /*
                 init = this->createNode();
                 const kind = this->nextToken().value;
@@ -5735,6 +5731,7 @@ public:
     FunctionExpressionNode* parseGeneratorMethod()
     {
         // TODO
+        this->throwUnexpectedToken(this->nextToken());
         RELEASE_ASSERT_NOT_REACHED();
         /*
         MetaNode node = this->createNode();
@@ -5756,6 +5753,7 @@ public:
     Node* parseYieldExpression()
     {
         // TODO
+        this->throwUnexpectedToken(this->nextToken());
         RELEASE_ASSERT_NOT_REACHED();
         /*
         const node = this->createNode();

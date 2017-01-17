@@ -103,6 +103,20 @@ int main(int argc, char* argv[])
     bool runShell = true;
 
     for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--shell") == 0) {
+            runShell = true;
+            continue;
+        }
+        if (strcmp(argv[i], "-e") == 0) {
+            runShell = false;
+            i++;
+            Escargot::String* src = new Escargot::ASCIIString(argv[i], strlen(argv[i]));
+            const char* source = "shell input";
+            if (!eval(context, src, Escargot::String::fromUTF8(source, strlen(source)), false))
+                return 3;
+            continue;
+        }
+
         FILE* fp = fopen(argv[i], "r");
         if (fp) {
             runShell = false;
@@ -132,20 +146,12 @@ int main(int argc, char* argv[])
 
             if (!eval(context, src, Escargot::String::fromUTF8(argv[i], strlen(argv[i])), false))
                 return 3;
-        }
-        if (strcmp(argv[i], "--shell") == 0) {
-            runShell = true;
-        }
-        if (strcmp(argv[i], "-e") == 0) {
+        } else {
             runShell = false;
-            i++;
-            Escargot::String* src = new Escargot::ASCIIString(argv[i], strlen(argv[i]));
-            const char* source = "shell input";
-            if (!eval(context, src, Escargot::String::fromUTF8(source, strlen(source)), false))
-                return 3;
+            printf("Cannot open file %s\n", argv[i]);
+            return 3;
         }
     }
-
 
     while (runShell) {
         char buf[2048];
