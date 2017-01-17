@@ -103,17 +103,28 @@ int main(int argc, char* argv[])
     bool runShell = true;
 
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--shell") == 0) {
-            runShell = true;
-            continue;
-        }
-        if (strcmp(argv[i], "-e") == 0) {
-            runShell = false;
-            i++;
-            Escargot::String* src = new Escargot::ASCIIString(argv[i], strlen(argv[i]));
-            const char* source = "shell input";
-            if (!eval(context, src, Escargot::String::fromUTF8(source, strlen(source)), false))
-                return 3;
+        if (strlen(argv[i]) >= 2 && argv[i][0] == '-') { // parse command line option
+            if (argv[i][1] == '-') { // `--option` case
+                if (strcmp(argv[i], "--shell") == 0) {
+                    runShell = true;
+                    continue;
+                }
+            } else { // `-option` case
+                if (strcmp(argv[i], "-e") == 0) {
+                    runShell = false;
+                    i++;
+                    Escargot::String* src = new Escargot::ASCIIString(argv[i], strlen(argv[i]));
+                    const char* source = "shell input";
+                    if (!eval(context, src, Escargot::String::fromUTF8(source, strlen(source)), false))
+                        return 3;
+                    continue;
+                }
+                if (strcmp(argv[i], "-f") == 0) {
+                    continue;
+                }
+            }
+            fprintf(stderr, "Cannot recognize option `%s`", argv[i]);
+            // return 3;
             continue;
         }
 
