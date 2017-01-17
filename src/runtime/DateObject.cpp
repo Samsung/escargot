@@ -5,17 +5,64 @@
 
 namespace Escargot {
 
-static const int64_t MaximumDatePrimitiveValue = 8640000000000000;
+#define RESOLVECACHE(state)  \
+    if (m_isCacheDirty) {    \
+        resolveCache(state); \
+    }
 
+#define LEAP ((int16_t)1)
+enum { JAN,
+       FEB,
+       MAR,
+       APR,
+       MAY,
+       JUN,
+       JUL,
+       AUG,
+       SEP,
+       OCT,
+       NOV,
+       DEC,
+       INVALID };
 
-static constexpr double hoursPerDay = 24.0;
-static constexpr double minutesPerHour = 60.0;
-static constexpr double secondsPerMinute = 60.0;
-static constexpr double secondsPerHour = secondsPerMinute * minutesPerHour;
-static constexpr double msPerSecond = 1000.0;
-static constexpr double msPerMinute = msPerSecond * secondsPerMinute;
-static constexpr double msPerHour = msPerSecond * secondsPerHour;
-static constexpr double msPerDay = msPerHour * hoursPerDay;
+enum { SUN,
+       MON,
+       TUE,
+       WED,
+       THU,
+       FRI,
+       SAT };
+
+static constexpr int8_t daysInMonth[12] = {
+    31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+};
+
+static constexpr int16_t _firstDay(int mon)
+{
+    return (mon == 0) ? 0 : (_firstDay(mon - 1) + daysInMonth[mon - 1]);
+}
+
+static constexpr int16_t firstDayOfMonth[2][13] = {
+    {
+        _firstDay(JAN), _firstDay(FEB), _firstDay(MAR),
+        _firstDay(APR), _firstDay(MAY), _firstDay(JUN),
+        _firstDay(JUL), _firstDay(AUG), _firstDay(SEP),
+        _firstDay(OCT), _firstDay(NOV), _firstDay(DEC),
+        _firstDay(INVALID),
+    },
+    {
+        _firstDay(JAN), _firstDay(FEB), _firstDay(MAR) + LEAP,
+        _firstDay(APR) + LEAP, _firstDay(MAY) + LEAP, _firstDay(JUN) + LEAP,
+        _firstDay(JUL) + LEAP, _firstDay(AUG) + LEAP, _firstDay(SEP) + LEAP,
+        _firstDay(OCT) + LEAP, _firstDay(NOV) + LEAP, _firstDay(DEC) + LEAP,
+        _firstDay(INVALID) + LEAP,
+    },
+};
+
+static const char days[7][4] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+static const char months[12][4] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+static const char* invalidDate = "Invalid Date";
 
 DateObject::DateObject(ExecutionState& state)
     : Object(state)
@@ -24,50 +71,65 @@ DateObject::DateObject(ExecutionState& state)
     setTimeValueAsNaN();
 }
 
-double DateObject::currentTime()
+
+void DateObject::initCachedUTC(ExecutionState& state, DateObject* d)
+{
+    state.context()->vmInstance()->setCachedUTC(d);
+}
+
+
+time64_t DateObject::currentTime()
 {
     struct timespec time;
-    clock_gettime(CLOCK_REALTIME, &time);
-    return time.tv_sec * msPerSecond + floor(time.tv_nsec / 1000000);
+    if (clock_gettime(CLOCK_REALTIME, &time) == 0) {
+        return time.tv_sec * const_Date_msPerSecond + time.tv_nsec / const_Date_nsPerMs;
+    } else {
+        return TIME64NAN;
+    }
 }
+
+
+void DateObject::setTimeValue(time64_t t)
+{
+    m_primitiveValue = t;
+    m_isCacheDirty = true;
+}
+
 
 void DateObject::setTimeValue(ExecutionState& state, const Value& str)
 {
     String* istr = str.toString(state);
 
-    time64IncludingNaN primitiveValue = parseStringToDate(state, istr);
-    if (std::isnan(primitiveValue)) {
-        setTimeValueAsNaN();
-    } else {
-        m_primitiveValue = (time64_t)primitiveValue;
+    m_primitiveValue = parseStringToDate(state, istr);
+    if (IS_VALID_TIME(m_primitiveValue)) {
         m_isCacheDirty = true;
-        m_hasValidDate = true;
     }
 }
 
 
-void DateObject::setTimeValue(ExecutionState& state, int year, int month, int date, int hour, int minute, int64_t second, int64_t millisecond, bool convertToUTC)
+void DateObject::setTimeValue(ExecutionState& state, int year, int month,
+                              int date, int hour, int minute, int64_t second,
+                              int64_t millisecond, bool convertToUTC)
 {
-    int ym = year + floor(month / 12.0);
-    int mn = month % 12;
-    if (mn < 0)
-        mn = (mn + 12) % 12;
+    int yearComputed = year + floor(month / (double)const_Date_monthsPerYear);
+    int monthComputed = month % const_Date_monthsPerYear;
+    if (monthComputed < 0)
+        monthComputed = (monthComputed + const_Date_monthsPerYear) % const_Date_monthsPerYear;
 
-    time64IncludingNaN primitiveValue = ymdhmsToSeconds(state, ym, mn, date, hour, minute, second) * msPerSecond + millisecond;
+    time64_t primitiveValue = timeinfoToMs(state, yearComputed, monthComputed, date, hour, minute, second, millisecond);
 
     if (convertToUTC) {
-        primitiveValue = applyLocalTimezoneOffset(state, (time64_t)primitiveValue);
+        primitiveValue = applyLocalTimezoneOffset(state, primitiveValue);
     }
 
-    if (LIKELY(!std::isnan(primitiveValue)) && primitiveValue <= MaximumDatePrimitiveValue && primitiveValue >= -MaximumDatePrimitiveValue) {
-        m_hasValidDate = true;
-        m_primitiveValue = (time64_t)primitiveValue;
-        resolveCache(state);
+    if (LIKELY(IS_VALID_TIME(primitiveValue)) && IS_IN_TIME_RANGE(primitiveValue)) {
+        m_primitiveValue = primitiveValue;
     } else {
         setTimeValueAsNaN();
     }
     m_isCacheDirty = true;
 }
+
 
 // code from WebKit 3369f50e501f85e27b6e7baffd0cc7ac70931cc3
 // WTF/wtf/DateMath.cpp:340
@@ -88,28 +150,30 @@ static int equivalentYearForDST(int year)
         return year;
 
     int quotient = difference / 28;
-    int product = (quotient)*28;
+    int product = quotient * 28;
 
     year += product;
     ASSERT((year >= minYear && year <= maxYear) || (product - year == static_cast<int>(std::numeric_limits<double>::quiet_NaN())));
     return year;
 }
 
-time64IncludingNaN DateObject::applyLocalTimezoneOffset(ExecutionState& state, time64_t t)
+
+// Make timeinfo which assumes UTC timezone offset to
+// timeinfo which assumes local timezone offset
+// e.g. return (t - 32400*1000) on KST zone
+time64_t DateObject::applyLocalTimezoneOffset(ExecutionState& state, time64_t t)
 {
     if (state.context()->vmInstance()->timezone() == NULL) {
         state.context()->vmInstance()->setTimezone(icu::TimeZone::createTimeZone(state.context()->vmInstance()->timezoneID()));
     }
 
     UErrorCode succ = U_ZERO_ERROR;
-    time64IncludingNaN primitiveValue = t;
     int32_t stdOffset, dstOffset;
 
     // roughly check range before calling yearFromTime function
     stdOffset = state.context()->vmInstance()->timezone()->getRawOffset();
-    primitiveValue -= stdOffset;
-    if (primitiveValue > MaximumDatePrimitiveValue || primitiveValue < -MaximumDatePrimitiveValue) {
-        return std::numeric_limits<double>::quiet_NaN();
+    if (!IS_IN_TIME_RANGE(t - stdOffset)) {
+        return TIME64NAN;
     }
 
     // Find the equivalent year because ECMAScript spec says
@@ -117,28 +181,28 @@ time64IncludingNaN DateObject::applyLocalTimezoneOffset(ExecutionState& state, t
     // whether the exact time was subject to daylight saving time,
     // but just whether daylight saving time would have been in effect
     // if the current daylight saving time algorithm had been used at the time.
-    primitiveValue = t;
-    int year = yearFromTime(t);
-    int equivalentYear = equivalentYearForDST(year);
-    if (year != equivalentYear) {
-        primitiveValue = primitiveValue - timeFromYear(year) + timeFromYear(equivalentYear);
-    }
+    int realYear = yearFromTime(t);
+    int equivalentYear = equivalentYearForDST(realYear);
 
-    state.context()->vmInstance()->timezone()->getOffset(primitiveValue, true, stdOffset, dstOffset, succ);
+    time64_t msBetweenYears = (realYear != equivalentYear) ? (timeFromYear(equivalentYear) - timeFromYear(realYear)) : 0;
 
-    primitiveValue = t - stdOffset - dstOffset;
+    t += msBetweenYears;
+    state.context()->vmInstance()->timezone()->getOffset(t, true, stdOffset, dstOffset, succ);
+    t -= msBetweenYears;
 
     // range check should be completed by caller function
     if (succ == U_ZERO_ERROR) {
-        return primitiveValue;
+        return t - (stdOffset + dstOffset);
     }
-    return std::numeric_limits<double>::quiet_NaN();
+    return TIME64NAN;
 }
 
-time64_t DateObject::ymdhmsToSeconds(ExecutionState& state, int year, int mon, int day, int hour, int minute, int64_t second)
+
+time64_t DateObject::timeinfoToMs(ExecutionState& state, int year, int mon, int day, int hour, int minute, int64_t second, int64_t millisecond)
 {
-    return (makeDay(year, mon, day) * msPerDay + (hour * msPerHour + minute * msPerMinute + second * msPerSecond /* + millisecond */)) / 1000.0;
+    return (daysToMs(year, mon, day) + hour * const_Date_msPerHour + minute * const_Date_msPerMinute + second * const_Date_msPerSecond + millisecond);
 }
+
 
 static const struct KnownZone {
     char tzName[4];
@@ -155,6 +219,7 @@ static const struct KnownZone {
     { "PST", -480 },
     { "PDT", -420 }
 };
+
 // returns 0-11 (Jan-Dec); -1 on failure
 static int findMonth(const char* monthStr)
 {
@@ -176,14 +241,17 @@ static int findMonth(const char* monthStr)
     }
     return -1;
 }
+
 inline bool isASCIISpace(char c)
 {
     return c <= ' ' && (c == ' ' || (c <= 0xD && c >= 0x9));
 }
+
 inline bool isASCIIDigit(char c)
 {
     return c >= '0' && c <= '9';
 }
+
 inline static void skipSpacesAndComments(const char*& s)
 {
     int nesting = 0;
@@ -200,6 +268,7 @@ inline static void skipSpacesAndComments(const char*& s)
         s++;
     }
 }
+
 static bool parseInt(const char* string, char** stopPosition, int base, int* result)
 {
     long longResult = strtol(string, stopPosition, base);
@@ -234,7 +303,7 @@ static bool parseLong(const char* string, char** stopPosition, int base, long* r
     }
 }
 
-time64IncludingNaN DateObject::parseStringToDate_1(ExecutionState& state, String* istr, bool& haveTZ, int& offset)
+time64_t DateObject::parseStringToDate_1(ExecutionState& state, String* istr, bool& haveTZ, int& offset)
 {
     haveTZ = false;
     offset = 0;
@@ -261,53 +330,53 @@ time64IncludingNaN DateObject::parseStringToDate_1(ExecutionState& state, String
     skipSpacesAndComments(dateString);
 
     if (!*dateString)
-        return std::numeric_limits<double>::quiet_NaN();
+        return TIME64NAN;
 
     char* newPosStr;
     long int day;
     if (!parseLong(dateString, &newPosStr, 10, &day))
-        return std::numeric_limits<double>::quiet_NaN();
+        return TIME64NAN;
     dateString = newPosStr;
 
     if (!*dateString)
-        return std::numeric_limits<double>::quiet_NaN();
+        return TIME64NAN;
 
     if (day < 0)
-        return std::numeric_limits<double>::quiet_NaN();
+        return TIME64NAN;
 
     int year = 0;
     if (day > 31) {
         // ### where is the boundary and what happens below?
         if (*dateString != '/')
-            return std::numeric_limits<double>::quiet_NaN();
+            return TIME64NAN;
         // looks like a YYYY/MM/DD date
         if (!*++dateString)
-            return std::numeric_limits<double>::quiet_NaN();
+            return TIME64NAN;
         if (day <= std::numeric_limits<int>::min() || day >= std::numeric_limits<int>::max())
-            return std::numeric_limits<double>::quiet_NaN();
+            return TIME64NAN;
         year = static_cast<int>(day);
         if (!parseLong(dateString, &newPosStr, 10, &month))
-            return std::numeric_limits<double>::quiet_NaN();
+            return TIME64NAN;
         month -= 1;
         dateString = newPosStr;
         if (*dateString++ != '/' || !*dateString)
-            return std::numeric_limits<double>::quiet_NaN();
+            return TIME64NAN;
         if (!parseLong(dateString, &newPosStr, 10, &day))
-            return std::numeric_limits<double>::quiet_NaN();
+            return TIME64NAN;
         dateString = newPosStr;
     } else if (*dateString == '/' && month == -1) {
         dateString++;
         // This looks like a MM/DD/YYYY date, not an RFC date.
         month = day - 1; // 0-based
         if (!parseLong(dateString, &newPosStr, 10, &day))
-            return std::numeric_limits<double>::quiet_NaN();
+            return TIME64NAN;
         if (day < 1 || day > 31)
-            return std::numeric_limits<double>::quiet_NaN();
+            return TIME64NAN;
         dateString = newPosStr;
         if (*dateString == '/')
             dateString++;
         if (!*dateString)
-            return std::numeric_limits<double>::quiet_NaN();
+            return TIME64NAN;
     } else {
         if (*dateString == '-')
             dateString++;
@@ -320,28 +389,28 @@ time64IncludingNaN DateObject::parseStringToDate_1(ExecutionState& state, String
         if (month == -1) { // not found yet
             month = findMonth(dateString);
             if (month == -1)
-                return std::numeric_limits<double>::quiet_NaN();
+                return TIME64NAN;
 
             while (*dateString && *dateString != '-' && *dateString != ',' && !isASCIISpace(*dateString))
                 dateString++;
 
             if (!*dateString)
-                return std::numeric_limits<double>::quiet_NaN();
+                return TIME64NAN;
 
             // '-99 23:12:40 GMT'
             if (*dateString != '-' && *dateString != '/' && *dateString != ',' && !isASCIISpace(*dateString))
-                return std::numeric_limits<double>::quiet_NaN();
+                return TIME64NAN;
             dateString++;
         }
     }
 
     if (month < 0 || month > 11)
-        return std::numeric_limits<double>::quiet_NaN();
+        return TIME64NAN;
 
     // '99 23:12:40 GMT'
     if (year <= 0 && *dateString) {
         if (!parseInt(dateString, &newPosStr, 10, &year))
-            return std::numeric_limits<double>::quiet_NaN();
+            return TIME64NAN;
     }
 
     // Don't fail if the time is missing.
@@ -354,7 +423,7 @@ time64IncludingNaN DateObject::parseStringToDate_1(ExecutionState& state, String
         // ' 23:12:40 GMT'
         if (!(isASCIISpace(*newPosStr) || *newPosStr == ',')) {
             if (*newPosStr != ':')
-                return std::numeric_limits<double>::quiet_NaN();
+                return TIME64NAN;
             // There was no year; the number was the hour.
             year = -1;
         } else {
@@ -373,50 +442,50 @@ time64IncludingNaN DateObject::parseStringToDate_1(ExecutionState& state, String
             dateString = newPosStr;
 
             if (hour < 0 || hour > 23)
-                return std::numeric_limits<double>::quiet_NaN();
+                return TIME64NAN;
 
             if (!*dateString)
-                return std::numeric_limits<double>::quiet_NaN();
+                return TIME64NAN;
 
             // ':12:40 GMT'
             if (*dateString++ != ':')
-                return std::numeric_limits<double>::quiet_NaN();
+                return TIME64NAN;
 
             if (!parseLong(dateString, &newPosStr, 10, &minute))
-                return std::numeric_limits<double>::quiet_NaN();
+                return TIME64NAN;
             dateString = newPosStr;
 
             if (minute < 0 || minute > 59)
-                return std::numeric_limits<double>::quiet_NaN();
+                return TIME64NAN;
 
             // ':40 GMT'
             if (*dateString && *dateString != ':' && !isASCIISpace(*dateString))
-                return std::numeric_limits<double>::quiet_NaN();
+                return TIME64NAN;
 
             // seconds are optional in rfc822 + rfc2822
             if (*dateString == ':') {
                 dateString++;
 
                 if (!parseLong(dateString, &newPosStr, 10, &second))
-                    return std::numeric_limits<double>::quiet_NaN();
+                    return TIME64NAN;
                 dateString = newPosStr;
 
                 if (second < 0 || second > 59)
-                    return std::numeric_limits<double>::quiet_NaN();
+                    return TIME64NAN;
             }
 
             skipSpacesAndComments(dateString);
 
             if (strncasecmp(dateString, "AM", 2) == 0) {
                 if (hour > 12)
-                    return std::numeric_limits<double>::quiet_NaN();
+                    return TIME64NAN;
                 if (hour == 12)
                     hour = 0;
                 dateString += 2;
                 skipSpacesAndComments(dateString);
             } else if (strncasecmp(dateString, "PM", 2) == 0) {
                 if (hour > 12)
-                    return std::numeric_limits<double>::quiet_NaN();
+                    return TIME64NAN;
                 if (hour != 12)
                     hour += 12;
                 dateString += 2;
@@ -428,7 +497,7 @@ time64IncludingNaN DateObject::parseStringToDate_1(ExecutionState& state, String
     // The year may be after the time but before the time zone.
     if (isASCIIDigit(*dateString) && year == -1) {
         if (!parseInt(dateString, &newPosStr, 10, &year))
-            return std::numeric_limits<double>::quiet_NaN();
+            return TIME64NAN;
         dateString = newPosStr;
         skipSpacesAndComments(dateString);
     }
@@ -443,11 +512,11 @@ time64IncludingNaN DateObject::parseStringToDate_1(ExecutionState& state, String
         if (*dateString == '+' || *dateString == '-') {
             int o;
             if (!parseInt(dateString, &newPosStr, 10, &o))
-                return std::numeric_limits<double>::quiet_NaN();
+                return TIME64NAN;
             dateString = newPosStr;
 
             if (o < -9959 || o > 9959)
-                return std::numeric_limits<double>::quiet_NaN();
+                return TIME64NAN;
 
             int sgn = (o < 0) ? -1 : 1;
             o = abs(o);
@@ -460,7 +529,7 @@ time64IncludingNaN DateObject::parseStringToDate_1(ExecutionState& state, String
                 ++dateString; // skip the ':'
                 int o2;
                 if (!parseInt(dateString, &newPosStr, 10, &o2))
-                    return std::numeric_limits<double>::quiet_NaN();
+                    return TIME64NAN;
                 dateString = newPosStr;
                 offset = (o * 60 + o2) * sgn;
             }
@@ -481,14 +550,14 @@ time64IncludingNaN DateObject::parseStringToDate_1(ExecutionState& state, String
 
     if (*dateString && year == -1) {
         if (!parseInt(dateString, &newPosStr, 10, &year))
-            return std::numeric_limits<double>::quiet_NaN();
+            return TIME64NAN;
         dateString = newPosStr;
         skipSpacesAndComments(dateString);
     }
 
     // Trailing garbage
     if (*dateString)
-        return std::numeric_limits<double>::quiet_NaN();
+        return TIME64NAN;
 
     // Y2K: Handle 2 digit years.
     if (year >= 0 && year < 100) {
@@ -498,8 +567,9 @@ time64IncludingNaN DateObject::parseStringToDate_1(ExecutionState& state, String
             year += 1900;
     }
 
-    return ymdhmsToSeconds(state, year, month, day, hour, minute, second) * msPerSecond;
+    return timeinfoToMs(state, year, month, day, hour, minute, second, 0);
 }
+
 static char* parseES5DatePortion(const char* currentPosition, int& year, long& month, long& day)
 {
     char* postParsePosition;
@@ -642,12 +712,12 @@ static char* parseES5TimePortion(char* currentPosition, long& hours, long& minut
     return currentPosition;
 }
 
-time64IncludingNaN DateObject::parseStringToDate_2(ExecutionState& state, String* istr, bool& haveTZ)
+time64_t DateObject::parseStringToDate_2(ExecutionState& state, String* istr, bool& haveTZ)
 {
     haveTZ = true;
     const char* dateString = istr->toUTF8StringData().data();
 
-    static const long daysPerMonth[12] = { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+    static const long const_Date_daysPerMonth[12] = { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
     // The year must be present, but the other fields may be omitted - see ES5.1 15.9.1.15.
     int year = 0;
@@ -661,320 +731,275 @@ time64IncludingNaN DateObject::parseStringToDate_2(ExecutionState& state, String
     // Parse the date YYYY[-MM[-DD]]
     char* currentPosition = parseES5DatePortion(dateString, year, month, day);
     if (!currentPosition)
-        return std::numeric_limits<double>::quiet_NaN();
+        return TIME64NAN;
     // Look for a time portion.
     if (*currentPosition == 'T') {
         haveTZ = false;
         // Parse the time HH:mm[:ss[.sss]][Z|(+|-)00:00]
         currentPosition = parseES5TimePortion(currentPosition + 1, hours, minutes, seconds, timeZoneSeconds, haveTZ);
         if (!currentPosition)
-            return std::numeric_limits<double>::quiet_NaN();
+            return TIME64NAN;
     }
     // Check that we have parsed all characters in the string.
     if (*currentPosition)
-        return std::numeric_limits<double>::quiet_NaN();
+        return TIME64NAN;
 
     // A few of these checks could be done inline above, but since many of them are interrelated
     // we would be sacrificing readability to "optimize" the (presumably less common) failure path.
     if (month < 1 || month > 12)
-        return std::numeric_limits<double>::quiet_NaN();
-    if (day < 1 || day > daysPerMonth[month - 1])
-        return std::numeric_limits<double>::quiet_NaN();
+        return TIME64NAN;
+    if (day < 1 || day > const_Date_daysPerMonth[month - 1])
+        return TIME64NAN;
     if (month == 2 && day > 28 && daysInYear(year) != 366)
-        return std::numeric_limits<double>::quiet_NaN();
+        return TIME64NAN;
     if (hours < 0 || hours > 24)
-        return std::numeric_limits<double>::quiet_NaN();
+        return TIME64NAN;
     if (hours == 24 && (minutes || seconds))
-        return std::numeric_limits<double>::quiet_NaN();
+        return TIME64NAN;
     if (minutes < 0 || minutes > 59)
-        return std::numeric_limits<double>::quiet_NaN();
+        return TIME64NAN;
     if (seconds < 0 || seconds >= 61)
-        return std::numeric_limits<double>::quiet_NaN();
+        return TIME64NAN;
     if (seconds > 60) {
         // Discard leap seconds by clamping to the end of a minute.
         seconds = 60;
     }
 
-    double dateSeconds = ymdhmsToSeconds(state, year, month - 1, day, hours, minutes, (int)seconds) - timeZoneSeconds;
-    return dateSeconds * msPerSecond + (seconds - (int)seconds) * msPerSecond;
+    time64_t date = timeinfoToMs(state, year, month - 1, day, hours, minutes, (int)seconds, (seconds - (int)seconds) * const_Date_msPerSecond) - timeZoneSeconds * const_Date_msPerSecond;
+    return date;
 }
 
-time64IncludingNaN DateObject::parseStringToDate(ExecutionState& state, String* istr)
+time64_t DateObject::parseStringToDate(ExecutionState& state, String* istr)
 {
     bool haveTZ;
     int offset;
-    time64IncludingNaN primitiveValue = parseStringToDate_2(state, istr, haveTZ);
-    if (!std::isnan(primitiveValue)) {
+    time64_t primitiveValue = parseStringToDate_2(state, istr, haveTZ);
+    if (IS_VALID_TIME(primitiveValue)) {
         if (!haveTZ) { // add local timezone offset
             primitiveValue = applyLocalTimezoneOffset(state, primitiveValue);
         }
     } else {
         primitiveValue = parseStringToDate_1(state, istr, haveTZ, offset);
-        if (!std::isnan(primitiveValue)) {
+        if (IS_VALID_TIME(primitiveValue)) {
             if (!haveTZ) {
                 primitiveValue = applyLocalTimezoneOffset(state, primitiveValue);
             } else {
-                primitiveValue = primitiveValue - (offset * msPerMinute);
+                primitiveValue = primitiveValue - (offset * const_Date_msPerMinute);
             }
         }
     }
 
-    if (primitiveValue <= MaximumDatePrimitiveValue && primitiveValue >= -MaximumDatePrimitiveValue) {
+    if (IS_VALID_TIME(primitiveValue) && IS_IN_TIME_RANGE(primitiveValue)) {
         return primitiveValue;
     } else {
-        return std::numeric_limits<double>::quiet_NaN();
+        return TIME64NAN;
     }
 }
 
 
-int DateObject::daysInYear(int year)
+inline int DateObject::daysInYear(int year)
 {
-    long y = year;
-    if (y % 4 != 0) {
-        return 365;
-    } else if (y % 100 != 0) {
-        return 366;
-    } else if (y % 400 != 0) {
-        return 365;
-    } else { // y % 400 == 0
-        return 366;
+    if (year % 4 != 0) {
+        return const_Date_daysPerYear;
+    } else if (year % 100 != 0) {
+        return const_Date_daysPerLeapYear;
+    } else if (year % 400 != 0) {
+        return const_Date_daysPerYear;
+    } else { // year % 400 == 0
+        return const_Date_daysPerLeapYear;
     }
 }
 
-int DateObject::dayFromYear(int year) // day number of the first day of year 'y'
+// The number of days from (1970.1.1) to (year.1.1)
+inline int DateObject::daysFromYear(int year)
 {
-    return 365 * (year - 1970) + floor((year - 1969) / 4.0) - floor((year - 1901) / 100.0) + floor((year - 1601) / 400.0);
+    if (LIKELY(year >= 1970)) {
+        return 365 * (year - 1970)
+            + (year - 1969) / 4
+            - (year - 1901) / 100
+            + (year - 1601) / 400;
+    } else {
+        return 365 * (year - 1970)
+            + floor((year - 1969) / 4.0)
+            - floor((year - 1901) / 100.0)
+            + floor((year - 1601) / 400.0);
+    }
 }
+
 
 int DateObject::yearFromTime(time64_t t)
 {
-    long estimate = ceil(t / msPerDay / 365.0) + 1970;
-
-    while (makeDay(estimate, 0, 1) * msPerDay > t) {
+    int estimate = floor(t / const_Date_msPerDay / 365.2425) + 1970;
+    time64_t yearAsMs = daysToMs(estimate, 0, 1);
+    if (yearAsMs > t) {
         estimate--;
     }
-
-    while (makeDay(estimate + 1, 0, 1) * msPerDay <= t) {
+    if (yearAsMs + daysInYear(estimate) * const_Date_msPerDay <= t) {
         estimate++;
     }
-
-
     return estimate;
 }
 
-int DateObject::inLeapYear(time64_t t)
+
+inline bool DateObject::inLeapYear(int year)
 {
-    int days = daysInYear(yearFromTime(t));
-    if (days == 365) {
-        return 0;
-    } else if (days == 366) {
-        return 1;
-    }
-    RELEASE_ASSERT_NOT_REACHED();
+    int days = daysInYear(year);
+    // assume 'days' is 365 or 366
+    return (bool)(days - const_Date_daysPerYear);
 }
 
-int DateObject::dayFromMonth(int year, int month)
+
+void DateObject::getYMDFromTime(time64_t t, struct timeinfo& cachedLocal)
 {
-    int ds[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-    if (daysInYear(year) == 366) {
-        ds[1] = 29;
+    int estimate = floor(t / const_Date_msPerDay / 365.2425) + 1970;
+    time64_t yearAsMs = daysToMs(estimate, 0, 1);
+    if (yearAsMs > t) {
+        estimate--;
     }
-    int retval = 0;
-    for (int i = 0; i < month; i++) {
-        retval += ds[i];
+    if (yearAsMs + daysInYear(estimate) * const_Date_msPerDay <= t) {
+        estimate++;
     }
-    return retval;
+
+    cachedLocal.year = estimate;
+
+    int dayWithinYear = daysFromTime(t) - daysFromYear(cachedLocal.year);
+    int leap = (int)inLeapYear(cachedLocal.year);
+
+    if (dayWithinYear < 0 || dayWithinYear >= const_Date_daysPerLeapYear) {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    for (int i = 1; i <= 12; i++) {
+        if (dayWithinYear < firstDayOfMonth[leap][i]) {
+            cachedLocal.month = i - 1;
+            break;
+        }
+    }
+
+    cachedLocal.mday = dayWithinYear + 1 - firstDayOfMonth[leap][cachedLocal.month];
 }
 
-int DateObject::monthFromTime(time64_t t)
+
+int DateObject::daysFromMonth(int year, int month)
 {
-    int dayWithinYear = day(t) - dayFromYear(yearFromTime(t));
-    int leap = inLeapYear(t);
-    if (dayWithinYear < 0) {
-        RELEASE_ASSERT_NOT_REACHED();
-    } else if (dayWithinYear < 31) {
-        return 0;
-    } else if (dayWithinYear < 59 + leap) {
-        return 1;
-    } else if (dayWithinYear < 90 + leap) {
-        return 2;
-    } else if (dayWithinYear < 120 + leap) {
-        return 3;
-    } else if (dayWithinYear < 151 + leap) {
-        return 4;
-    } else if (dayWithinYear < 181 + leap) {
-        return 5;
-    } else if (dayWithinYear < 212 + leap) {
-        return 6;
-    } else if (dayWithinYear < 243 + leap) {
-        return 7;
-    } else if (dayWithinYear < 273 + leap) {
-        return 8;
-    } else if (dayWithinYear < 304 + leap) {
-        return 9;
-    } else if (dayWithinYear < 334 + leap) {
-        return 10;
-    } else if (dayWithinYear < 365 + leap) {
-        return 11;
-    } else {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
+    int leap = (int)inLeapYear(year);
+
+    return firstDayOfMonth[leap][month];
 }
 
-int DateObject::dateFromTime(time64_t t)
-{
-    int dayWithinYear = day(t) - dayFromYear(yearFromTime(t));
-    int leap = inLeapYear(t);
-    int retval = dayWithinYear - leap;
-    switch (monthFromTime(t)) {
-    case 0:
-        return retval + 1 + leap;
-    case 1:
-        return retval - 30 + leap;
-    case 2:
-        return retval - 58;
-    case 3:
-        return retval - 89;
-    case 4:
-        return retval - 119;
-    case 5:
-        return retval - 150;
-    case 6:
-        return retval - 180;
-    case 7:
-        return retval - 211;
-    case 8:
-        return retval - 242;
-    case 9:
-        return retval - 272;
-    case 10:
-        return retval - 303;
-    case 11:
-        return retval - 333;
-    default:
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-}
 
 int DateObject::daysFromTime(time64_t t)
 {
     if (t < 0)
-        t -= (msPerDay - 1);
-    return static_cast<int>(t / msPerDay);
+        t -= (const_Date_msPerDay - 1);
+    return static_cast<int>(t / (double)const_Date_msPerDay);
 }
 
-void DateObject::computeLocalTime(ExecutionState& state, time64_t t, struct tm& tm)
+
+// This function expects m_primitiveValue is valid.
+void DateObject::resolveCache(ExecutionState& state)
 {
     if (state.context()->vmInstance()->timezone() == NULL) {
         state.context()->vmInstance()->setTimezone(icu::TimeZone::createTimeZone(state.context()->vmInstance()->timezoneID()));
     }
 
+    int realYear = yearFromTime(m_primitiveValue);
+    int equivalentYear = equivalentYearForDST(realYear);
+
+    time64_t msBetweenYears = (realYear != equivalentYear) ? (timeFromYear(equivalentYear) - timeFromYear(realYear)) : 0;
+
+    m_primitiveValue += msBetweenYears;
+
     UErrorCode succ = U_ZERO_ERROR;
     int32_t stdOffset, dstOffset;
-    state.context()->vmInstance()->timezone()->getOffset(t, false, stdOffset, dstOffset, succ);
+    state.context()->vmInstance()->timezone()->getOffset(m_primitiveValue, false, stdOffset, dstOffset, succ);
 
-    tm.tm_isdst = dstOffset == 0 ? 0 : 1;
-    tm.tm_gmtoff = (stdOffset + dstOffset) / 1000;
+    m_cachedLocal.isdst = dstOffset == 0 ? 0 : 1;
+    m_cachedLocal.gmtoff = -1 * (stdOffset + dstOffset) / const_Date_msPerMinute;
 
-    t = t + stdOffset + dstOffset;
+    time64_t t = m_primitiveValue + stdOffset + dstOffset;
+
+    getYMDFromTime(t, m_cachedLocal);
 
     int days = daysFromTime(t);
-    int timeInDay = static_cast<int>(t - days * msPerDay);
+    int timeInDay = static_cast<int>(t - days * const_Date_msPerDay);
     ASSERT(timeInDay >= 0);
-    tm.tm_year = yearFromTime(t) - 1900;
-    tm.tm_mon = monthFromTime(t);
-    tm.tm_mday = dateFromTime(t);
-    int weekday = (days + 4) % 7;
-    tm.tm_wday = weekday >= 0 ? weekday : weekday + 7;
-    tm.tm_hour = timeInDay / (int)msPerHour;
-    tm.tm_min = (timeInDay / (int)msPerMinute) % 60;
-    tm.tm_sec = (timeInDay / (int)msPerSecond) % 60;
-    // tm.tm_yday
+    int weekday = (days + 4) % const_Date_daysPerWeek;
+    m_cachedLocal.wday = weekday >= 0 ? weekday : weekday + const_Date_daysPerWeek;
+    // Do not cast const_Date_msPer[Hour|Minute|Second] into double
+    m_cachedLocal.hour = timeInDay / const_Date_msPerHour;
+    m_cachedLocal.min = (timeInDay / const_Date_msPerMinute) % const_Date_minutesPerHour;
+    m_cachedLocal.sec = (timeInDay / const_Date_msPerSecond) % const_Date_secondsPerMinute;
+    m_cachedLocal.millisec = (timeInDay) % const_Date_msPerSecond;
+
+    m_primitiveValue -= msBetweenYears;
+    m_cachedLocal.year += (realYear - equivalentYear);
+
+    m_isCacheDirty = false;
 }
 
-time64_t DateObject::makeDay(int year, int month, int date)
-{
-    // TODO: have to check whether year or month is infinity
-    //  if(year == infinity || month == infinity){
-    //      return nan;
-    //  }
 
-    // adjustment on argument[0],[1] is performed at setTimeValue(with 7 arguments) function
+time64_t DateObject::daysToMs(int year, int month, int date)
+{
     ASSERT(0 <= month && month < 12);
-    long ym = year;
-    int mn = month;
-    time64_t t = timeFromYear(ym) + dayFromMonth(ym, mn) * msPerDay;
-    return day(t) + date - 1;
+    time64_t t = timeFromYear(year) + daysFromMonth(year, month) * const_Date_msPerDay;
+    return t + (date - 1) * const_Date_msPerDay;
 }
 
-void DateObject::resolveCache(ExecutionState& state)
-{
-    if (m_isCacheDirty) {
-        int realyear = yearFromTime(m_primitiveValue);
-        int equivalentYear = equivalentYearForDST(realyear);
-        time64_t primitiveValueForDST = m_primitiveValue;
-
-        if (realyear != equivalentYear) {
-            primitiveValueForDST = primitiveValueForDST + (timeFromYear(equivalentYear) - timeFromYear(realyear));
-        }
-        computeLocalTime(state, primitiveValueForDST, m_cachedTM);
-        m_cachedTM.tm_year += (realyear - equivalentYear);
-        m_isCacheDirty = false;
-    }
-}
 
 String* DateObject::toDateString(ExecutionState& state)
 {
-    static char days[7][4] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
-    static char months[12][4] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-
-    resolveCache(state);
-    char buffer[512];
-    if (!std::isnan(primitiveValue())) {
-        snprintf(buffer, 512, "%s %s %02d %d", days[getDay(state)], months[getMonth(state)], getDate(state), getFullYear(state));
+    RESOLVECACHE(state);
+    char buffer[32];
+    if (IS_VALID_TIME(m_primitiveValue)) {
+        snprintf(buffer, 32, "%s %s %02d %d", days[getDay(state)], months[getMonth(state)], getDate(state), getFullYear(state));
         return new ASCIIString(buffer);
     } else {
-        return new ASCIIString("Invalid Date");
+        return new ASCIIString(invalidDate);
     }
 }
 
 String* DateObject::toTimeString(ExecutionState& state)
 {
-    resolveCache(state);
-    char buffer[512];
-    if (!std::isnan(primitiveValue())) {
-        int gmt = getTimezoneOffset(state) / -36;
-        snprintf(buffer, 512, "%02d:%02d:%02d GMT%s%04d (%s)", getHours(state), getMinutes(state), (int)getSeconds(state), (gmt < 0) ? "-" : "+", std::abs(gmt), m_cachedTM.tm_isdst ? tzname[1] : tzname[0]);
+    RESOLVECACHE(state);
+    char buffer[32];
+    if (IS_VALID_TIME(m_primitiveValue)) {
+        int tzOffsetAsMin = -getTimezoneOffset(state); // 540
+        int tzOffsetHour = (tzOffsetAsMin / const_Date_minutesPerHour);
+        int tzOffsetMin = ((tzOffsetAsMin / (double)const_Date_minutesPerHour) - tzOffsetHour) * 60;
+        tzOffsetHour *= 100;
+        snprintf(buffer, 32, "%02d:%02d:%02d GMT%s%04d (%s)", getHours(state), getMinutes(state), getSeconds(state), (tzOffsetAsMin < 0) ? "-" : "+", std::abs(tzOffsetHour + tzOffsetMin), m_cachedLocal.isdst ? tzname[1] : tzname[0]);
         return new ASCIIString(buffer);
     } else {
-        return new ASCIIString("Invalid Date");
+        return new ASCIIString(invalidDate);
     }
 }
 
 String* DateObject::toFullString(ExecutionState& state)
 {
-    if (!std::isnan(primitiveValue())) {
-        resolveCache(state);
+    if (IS_VALID_TIME(m_primitiveValue)) {
         StringBuilder builder;
         builder.appendString(toDateString(state));
         builder.appendChar(' ');
         builder.appendString(toTimeString(state));
         return builder.finalize();
     } else {
-        return new ASCIIString("Invalid Date");
+        return new ASCIIString(invalidDate);
     }
 }
 
 String* DateObject::toISOString(ExecutionState& state)
 {
-    char buffer[512];
-    if (!std::isnan(primitiveValue())) {
-        resolveCache(state);
+    const char* format[2] = { "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ",
+                              "%+07d-%02d-%02dT%02d:%02d:%02d.%03dZ" };
+    char buffer[64];
+    if (IS_VALID_TIME(m_primitiveValue)) {
+        int formatSelect;
         if (getUTCFullYear(state) >= 0 && getUTCFullYear(state) <= 9999) {
-            snprintf(buffer, 512, "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
+            formatSelect = 0;
         } else {
-            snprintf(buffer, 512, "%+07d-%02d-%02dT%02d:%02d:%02d.%03dZ", getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
+            formatSelect = 1;
         }
+        snprintf(buffer, 64, format[formatSelect], getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
         return new ASCIIString(buffer);
     } else {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toISOString.string(), errorMessage_GlobalObject_InvalidDate);
@@ -982,120 +1007,99 @@ String* DateObject::toISOString(ExecutionState& state)
     RELEASE_ASSERT_NOT_REACHED();
 }
 
+
+String* DateObject::toUTCString(ExecutionState& state, String* functionName)
+{
+    const char* format = "%s, %02d %s %d %02d:%02d:%02d GMT";
+
+    char buffer[64];
+    if (IS_VALID_TIME(m_primitiveValue)) {
+        snprintf(buffer, 64, format, days[getUTCDay(state)], getUTCDate(state),
+                 months[getUTCMonth(state)], getUTCFullYear(state),
+                 getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state));
+        return new ASCIIString(buffer);
+    } else {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Date.string(), true, functionName, errorMessage_GlobalObject_InvalidDate);
+    }
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+
 int DateObject::getDate(ExecutionState& state)
 {
-    resolveCache(state);
-    return m_cachedTM.tm_mday;
+    RESOLVECACHE(state);
+    return m_cachedLocal.mday;
 }
 
 int DateObject::getDay(ExecutionState& state)
 {
-    int ret = ((int)day(m_primitiveValue - getTimezoneOffset(state) * msPerSecond) + 4) % 7;
-    return (ret < 0) ? (ret + 7) % 7 : ret;
+    RESOLVECACHE(state);
+    return m_cachedLocal.wday;
 }
 
 int DateObject::getFullYear(ExecutionState& state)
 {
-    resolveCache(state);
-    return m_cachedTM.tm_year + 1900;
+    RESOLVECACHE(state);
+    return m_cachedLocal.year;
 }
 
 int DateObject::getHours(ExecutionState& state)
 {
-    resolveCache(state);
-    return m_cachedTM.tm_hour;
+    RESOLVECACHE(state);
+    return m_cachedLocal.hour;
 }
 
 int DateObject::getMilliseconds(ExecutionState& state)
 {
-    int ret = m_primitiveValue % (int)msPerSecond;
-    return (ret < 0) ? (ret + (int)msPerSecond) % (int)msPerSecond : ret;
+    RESOLVECACHE(state);
+    return m_cachedLocal.millisec;
 }
 
 int DateObject::getMinutes(ExecutionState& state)
 {
-    resolveCache(state);
-    return m_cachedTM.tm_min;
+    RESOLVECACHE(state);
+    return m_cachedLocal.min;
 }
 
 int DateObject::getMonth(ExecutionState& state)
 {
-    resolveCache(state);
-    return m_cachedTM.tm_mon;
+    RESOLVECACHE(state);
+    return m_cachedLocal.month;
 }
 
 int DateObject::getSeconds(ExecutionState& state)
 {
-    resolveCache(state);
-    return m_cachedTM.tm_sec;
+    RESOLVECACHE(state);
+    return m_cachedLocal.sec;
 }
 
 int DateObject::getTimezoneOffset(ExecutionState& state)
 {
-    resolveCache(state);
-    return -1 * m_cachedTM.tm_gmtoff;
+    RESOLVECACHE(state);
+    return m_cachedLocal.gmtoff;
 }
 
-void DateObject::setTime(double t)
-{
-    if (std::isnan(t)) {
-        setTimeValueAsNaN();
-        return;
+
+#define DECLARE_DATE_UTC_GETTER(Name)                                                      \
+    int DateObject::getUTC##Name(ExecutionState& state)                                    \
+    {                                                                                      \
+        DateObject* cachedUTC = state.context()->vmInstance()->cachedUTC();                \
+        time64_t primitiveValueUTC                                                         \
+            = m_primitiveValue + getTimezoneOffset(state) * const_Date_msPerMinute;        \
+        if (!(cachedUTC->isValid()) || cachedUTC->primitiveValue() != primitiveValueUTC) { \
+            cachedUTC->setTimeValue(primitiveValueUTC);                                    \
+        }                                                                                  \
+        return cachedUTC->get##Name(state);                                                \
     }
 
-    if (t <= MaximumDatePrimitiveValue && t >= -MaximumDatePrimitiveValue) {
-        m_primitiveValue = floor(t);
-        m_isCacheDirty = true;
-        m_hasValidDate = true;
-    } else {
-        setTimeValueAsNaN();
-    }
-}
-
-int DateObject::getUTCDate(ExecutionState& state)
-{
-    return dateFromTime(m_primitiveValue);
-}
-
-int DateObject::getUTCDay(ExecutionState& state)
-{
-    int ret = (int)(day(m_primitiveValue) + 4) % 7;
-    return (ret < 0) ? (ret + 7) % 7 : ret;
-}
-
-int DateObject::getUTCFullYear(ExecutionState& state)
-{
-    return yearFromTime(m_primitiveValue);
-}
-
-int DateObject::getUTCHours(ExecutionState& state)
-{
-    int ret = (long long)floor(m_primitiveValue / msPerHour) % (int)hoursPerDay;
-    return (ret < 0) ? (ret + (int)hoursPerDay) % (int)hoursPerDay : ret;
-}
-
-int DateObject::getUTCMilliseconds(ExecutionState& state)
-{
-    int ret = m_primitiveValue % (int)msPerSecond;
-    return (ret < 0) ? (ret + (int)msPerSecond) % (int)msPerSecond : ret;
-}
-
-int DateObject::getUTCMinutes(ExecutionState& state)
-{
-    int ret = (long long)floor(m_primitiveValue / msPerMinute) % (int)minutesPerHour;
-    return (ret < 0) ? (ret + (int)minutesPerHour) % (int)minutesPerHour : ret;
-}
-
-int DateObject::getUTCMonth(ExecutionState& state)
-{
-    return monthFromTime(m_primitiveValue);
-}
-
-int DateObject::getUTCSeconds(ExecutionState& state)
-{
-    int ret = (long long)floor(m_primitiveValue / msPerSecond) % (int)secondsPerMinute;
-    return (ret < 0) ? (ret + (int)secondsPerMinute) % (int)secondsPerMinute : ret;
-}
+DECLARE_DATE_UTC_GETTER(Date);
+DECLARE_DATE_UTC_GETTER(Day);
+DECLARE_DATE_UTC_GETTER(FullYear);
+DECLARE_DATE_UTC_GETTER(Hours);
+DECLARE_DATE_UTC_GETTER(Milliseconds);
+DECLARE_DATE_UTC_GETTER(Minutes);
+DECLARE_DATE_UTC_GETTER(Month);
+DECLARE_DATE_UTC_GETTER(Seconds);
 
 void* DateObject::operator new(size_t size)
 {

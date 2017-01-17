@@ -31,14 +31,14 @@ static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size
         thisObject = thisValue.asObject()->asDateObject();
 
         if (argc == 0) {
-            thisObject->setTime(DateObject::currentTime());
+            thisObject->setTimeValue(DateObject::currentTime());
         } else if (argc == 1) {
             Value v = argv[0].toPrimitive(state);
             if (v.isString()) {
                 thisObject->setTimeValue(state, v);
             } else {
                 double V = v.toNumber(state);
-                thisObject->setTime(DateObject::timeClip(state, V));
+                thisObject->setTimeValue(DateObject::timeClip(state, V));
             }
         } else {
             double args[7] = { 0, 0, 1, 0, 0, 0, 0 }; // default value of year, month, date, hour, minute, second, millisecond
@@ -64,7 +64,7 @@ static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size
         return thisObject->toFullString(state);
     } else {
         DateObject d(state);
-        d.setTime(DateObject::currentTime());
+        d.setTimeValue(DateObject::currentTime());
         return d.toFullString(state);
     }
 }
@@ -89,7 +89,7 @@ static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc,
 static Value builtinDateGetTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, getTime);
-    if (!thisObject->isDateObject()) {
+    if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().getTime.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
     return Value(thisObject->asDateObject()->primitiveValue());
@@ -98,7 +98,7 @@ static Value builtinDateGetTime(ExecutionState& state, Value thisValue, size_t a
 static Value builtinDateValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, valueOf);
-    if (!thisObject->isDateObject()) {
+    if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().valueOf.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
     double val = thisObject->asDateObject()->primitiveValue();
@@ -108,7 +108,7 @@ static Value builtinDateValueOf(ExecutionState& state, Value thisValue, size_t a
 static Value builtinDateToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
-    if (!thisObject->isDateObject()) {
+    if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
     return thisObject->asDateObject()->toFullString(state);
@@ -117,7 +117,7 @@ static Value builtinDateToString(ExecutionState& state, Value thisValue, size_t 
 static Value builtinDateToDateString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
-    if (!thisObject->isDateObject()) {
+    if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
     return thisObject->asDateObject()->toDateString(state);
@@ -126,7 +126,7 @@ static Value builtinDateToDateString(ExecutionState& state, Value thisValue, siz
 static Value builtinDateToTimeString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
-    if (!thisObject->isDateObject()) {
+    if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
     return thisObject->asDateObject()->toTimeString(state);
@@ -135,7 +135,7 @@ static Value builtinDateToTimeString(ExecutionState& state, Value thisValue, siz
 static Value builtinDateToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
-    if (!thisObject->isDateObject()) {
+    if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
     return thisObject->asDateObject()->toFullString(state);
@@ -144,7 +144,7 @@ static Value builtinDateToLocaleString(ExecutionState& state, Value thisValue, s
 static Value builtinDateToLocaleDateString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
-    if (!thisObject->isDateObject()) {
+    if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
     return thisObject->asDateObject()->toDateString(state);
@@ -153,7 +153,7 @@ static Value builtinDateToLocaleDateString(ExecutionState& state, Value thisValu
 static Value builtinDateToLocaleTimeString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
-    if (!thisObject->isDateObject()) {
+    if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
     return thisObject->asDateObject()->toTimeString(state);
@@ -161,18 +161,18 @@ static Value builtinDateToLocaleTimeString(ExecutionState& state, Value thisValu
 
 static Value builtinDateToUTCString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
-    if (!thisObject->isDateObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toUTCString);
+    if (!(thisObject->isDateObject())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toUTCString.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
-    return thisObject->asDateObject()->toFullString(state);
+    return thisObject->asDateObject()->toUTCString(state, state.context()->staticStrings().toUTCString.string());
 }
 
 static Value builtinDateToISOString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
-    if (!thisObject->isDateObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toISOString);
+    if (!(thisObject->isDateObject())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toISOString.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
     return thisObject->asDateObject()->toISOString(state);
 }
@@ -186,31 +186,20 @@ static Value builtinDateToJSON(ExecutionState& state, Value thisValue, size_t ar
 static Value builtinDateToGMTString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toGMTString);
-    if (thisObject->isDateObject()) {
-        DateObject* thisDateObject = thisObject->asDateObject();
-        static char days[7][4] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
-        static char months[12][4] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-        char buffer[512];
-        if (!std::isnan(thisDateObject->primitiveValue())) {
-            snprintf(buffer, 512, "%s, %02d %s %d %02d:%02d:%02d GMT", days[thisDateObject->getUTCDay(state)], thisDateObject->getUTCDate(state), months[thisDateObject->getUTCMonth(state)], thisDateObject->getUTCFullYear(state), thisDateObject->getUTCHours(state), thisDateObject->getUTCMinutes(state), (int)thisDateObject->getUTCSeconds(state));
-            return new ASCIIString(buffer);
-        } else {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toGMTString.string(), errorMessage_GlobalObject_InvalidDate);
-        }
-    } else {
+    if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toGMTString.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
-    RELEASE_ASSERT_NOT_REACHED();
+    return thisObject->asDateObject()->toUTCString(state, state.context()->staticStrings().toGMTString.string());
 }
 
 #define DECLARE_STATIC_DATE_GETTER(Name, unused1, unused2, unused3)                                                                                                                                                                \
     static Value builtinDateGet##Name(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)                                                                                                      \
     {                                                                                                                                                                                                                              \
         RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, get##Name);                                                                                                                                                               \
-        if (!thisObject->isDateObject()) {                                                                                                                                                                                         \
+        if (!(thisObject->isDateObject())) {                                                                                                                                                                                       \
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().get##Name.string(), errorMessage_GlobalObject_ThisNotDateObject); \
         }                                                                                                                                                                                                                          \
-        if (!thisObject->asDateObject()->isValid())                                                                                                                                                                                \
+        if (!(thisObject->asDateObject()->isValid()))                                                                                                                                                                              \
             return Value(std::numeric_limits<double>::quiet_NaN());                                                                                                                                                                \
         return Value(thisObject->asDateObject()->get##Name(state));                                                                                                                                                                \
     }
@@ -227,15 +216,17 @@ enum DateSetterType {
 static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterType, size_t length, bool utc, Value thisValue, size_t argc, Value* argv, const AtomicString& name)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, name);
-    if (!thisObject->isDateObject()) {
+    if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, name.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
     DateObject* d = thisObject->asDateObject();
 
     if (setterType == DateSetterType::Day && length == 3) {
         // setFullYear, setUTCFullYear case
-        if (!d->isValid())
-            d->setTime(0);
+        if (!(d->isValid())) {
+            d->setTimeValue(DateObject::timeClip(state, 0));
+            d->setTimeValue(d->getTimezoneOffset(state) * const_Date_msPerSecond);
+        }
         ASSERT(d->isValid());
     }
     int year = d->getFullYear(state);
@@ -287,11 +278,11 @@ FOR_EACH_DATE_VALUES(DECLARE_STATIC_DATE_SETTER);
 static Value builtinDateSetTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, setTime);
-    if (!thisObject->isDateObject()) {
+    if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().setTime.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
     if (argc > 0 && argv[0].isNumber()) {
-        thisObject->asDateObject()->setTime(argv[0].toNumber(state));
+        thisObject->asDateObject()->setTimeValue(DateObject::timeClip(state, argv[0]));
         return Value(thisObject->asDateObject()->primitiveValue());
     } else {
         double value = std::numeric_limits<double>::quiet_NaN();
@@ -303,7 +294,7 @@ static Value builtinDateSetTime(ExecutionState& state, Value thisValue, size_t a
 static Value builtinDateGetYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, getYear);
-    if (!thisObject->isDateObject()) {
+    if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().getYear.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
     int ret = thisObject->asDateObject()->getFullYear(state) - 1900;
@@ -313,7 +304,7 @@ static Value builtinDateGetYear(ExecutionState& state, Value thisValue, size_t a
 static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, getYear);
-    if (!thisObject->isDateObject()) {
+    if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().setYear.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
 
@@ -347,13 +338,13 @@ static Value builtinDateGetTimezoneOffset(ExecutionState& state, Value thisValue
     }
     Object* thisObject = thisValue.toObject(state);
     ;
-    if (!thisObject->isDateObject()) {
+    if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true,
                                        state.context()->staticStrings().getTimezoneOffset.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
-    if (!thisObject->asDateObject()->isValid())
+    if (!(thisObject->asDateObject()->isValid()))
         return Value(std::numeric_limits<double>::quiet_NaN());
-    return Value(thisObject->asDateObject()->getTimezoneOffset(state) / 60.0);
+    return Value(thisObject->asDateObject()->getTimezoneOffset(state));
 }
 
 void GlobalObject::installDate(ExecutionState& state)
@@ -451,5 +442,7 @@ void GlobalObject::installDate(ExecutionState& state)
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Date),
                       ObjectPropertyDescriptor(m_date, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    DateObject::initCachedUTC(state, new DateObject(state));
 }
 }

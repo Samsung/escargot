@@ -5,35 +5,51 @@
 
 namespace Escargot {
 
+#define TIME64NAN (1LL << 63)
+#define IS_VALID_TIME(time) ((time != TIME64NAN) ? true : false)
+#define IS_IN_TIME_RANGE(millisec) \
+    (millisec <= const_Date_MaximumDatePrimitiveValue && millisec >= -const_Date_MaximumDatePrimitiveValue)
+
 typedef int64_t time64_t;
-typedef double time64IncludingNaN;
+
+static const int const_Date_daysPerWeek = 7;
+static const int const_Date_daysPerYear = 365;
+static const int const_Date_daysPerLeapYear = const_Date_daysPerYear + 1;
+static const int const_Date_monthsPerYear = 12;
+static const int64_t const_Date_MaximumDatePrimitiveValue = 8.64e15;
+static const int64_t const_Date_nsPerMs = 1e6;
+static const int64_t const_Date_hoursPerDay = 24;
+static const int64_t const_Date_minutesPerHour = 60;
+static const int64_t const_Date_secondsPerMinute = 60;
+static const int64_t const_Date_secondsPerHour = const_Date_secondsPerMinute * const_Date_minutesPerHour;
+static const int64_t const_Date_msPerSecond = 1000;
+static const int64_t const_Date_msPerMinute = const_Date_msPerSecond * const_Date_secondsPerMinute;
+static const int64_t const_Date_msPerHour = const_Date_msPerSecond * const_Date_secondsPerHour;
+static const int64_t const_Date_msPerDay = const_Date_msPerHour * const_Date_hoursPerDay;
+
 
 class DateObject : public Object {
 public:
     DateObject(ExecutionState& state);
 
-    static double currentTime();
+    static void initCachedUTC(ExecutionState& state, DateObject* d);
+
+    static time64_t currentTime();
 
     double primitiveValue()
     {
-        if (LIKELY(m_hasValidDate))
+        if (LIKELY(IS_VALID_TIME(m_primitiveValue)))
             return m_primitiveValue;
         return std::numeric_limits<double>::quiet_NaN();
     }
-
-    void setPrimitiveValue(double primitiveValue)
+    inline void setTimeValueAsNaN()
     {
-        if (std::isnan(primitiveValue)) {
-            setTimeValueAsNaN();
-            return;
-        }
-        m_primitiveValue = primitiveValue;
+        m_primitiveValue = TIME64NAN;
     }
 
-    void setTimeValueAsNaN()
+    inline bool isValid()
     {
-        m_primitiveValue = 0;
-        m_hasValidDate = false;
+        return IS_VALID_TIME(m_primitiveValue);
     }
 
     virtual bool isDateObject()
@@ -41,23 +57,29 @@ public:
         return true;
     }
 
-    static time64IncludingNaN applyLocalTimezoneOffset(ExecutionState& state, time64_t t);
-    static time64_t ymdhmsToSeconds(ExecutionState& state, int year, int month, int day, int hour, int minute, int64_t second);
-    static time64IncludingNaN timeClip(ExecutionState& state, double V)
+    static time64_t timeClip(ExecutionState& state, double V)
     {
         if (std::isinf(V) || std::isnan(V)) {
-            return nan("0");
-        } else if (std::abs(V) >= 8640000000000000.0) {
-            return nan("0");
+            return TIME64NAN;
+        } else if (!IS_IN_TIME_RANGE(V)) {
+            return TIME64NAN;
         } else {
             return Value(V).toInteger(state);
         }
     }
 
+    void setTimeValue(time64_t t);
+    void setTimeValue(ExecutionState& state, const Value& str);
+    void setTimeValue(ExecutionState& state, int year, int month, int date, int hour, int minute, int64_t second, int64_t millisecond, bool convertToUTC = true);
+
+    static time64_t timeinfoToMs(ExecutionState& state, int year, int month, int day, int hour, int minute, int64_t second, int64_t millisecond); //
+    static time64_t applyLocalTimezoneOffset(ExecutionState& state, time64_t t); //
+
     String* toDateString(ExecutionState& state);
     String* toTimeString(ExecutionState& state);
     String* toFullString(ExecutionState& state);
     String* toISOString(ExecutionState& state);
+    String* toUTCString(ExecutionState& state, String* functionName);
     int getDate(ExecutionState& state);
     int getDay(ExecutionState& state);
     int getFullYear(ExecutionState& state);
@@ -76,18 +98,6 @@ public:
     int getUTCMonth(ExecutionState& state);
     int getUTCSeconds(ExecutionState& state);
 
-    void setTimeValue(ExecutionState& state, const Value& str);
-    void setTimeValue(ExecutionState& state, time64IncludingNaN t)
-    {
-        m_hasValidDate = true;
-        setPrimitiveValue(t);
-    }
-    void setTimeValue(ExecutionState& state, int year, int month, int date, int hour, int minute, int64_t second, int64_t millisecond, bool convertToUTC = true);
-    inline bool isValid()
-    {
-        return m_hasValidDate;
-    }
-    void setTime(time64IncludingNaN t);
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
     virtual const char* internalClassProperty()
@@ -99,37 +109,39 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    struct tm m_cachedTM; // it stores time disregarding timezone
-    int64_t m_primitiveValue; // it stores timevalue regarding timezone
+    struct timeinfo {
+        int year;
+        int month;
+        int mday;
+
+        int hour;
+        int min;
+        int sec;
+        int millisec;
+
+        int wday;
+        int gmtoff;
+        int isdst;
+        // int yday;
+    };
+
+    time64_t m_primitiveValue; // 1LL << 63 is reserved for represent NaN
+    struct timeinfo m_cachedLocal;
     bool m_isCacheDirty;
-    bool m_hasValidDate; // function get***() series (in ESValue.cpp) should check if the timevalue is valid with this flag
-    int m_timezone;
 
     void resolveCache(ExecutionState& state);
-    static time64IncludingNaN parseStringToDate(ExecutionState& state, String* istr);
-    static time64IncludingNaN parseStringToDate_1(ExecutionState& state, String* istr, bool& haveTZ, int& offset);
-    static time64IncludingNaN parseStringToDate_2(ExecutionState& state, String* istr, bool& haveTZ);
-    static constexpr double hoursPerDay = 24.0;
-    static constexpr double minutesPerHour = 60.0;
-    static constexpr double secondsPerMinute = 60.0;
-    static constexpr double secondsPerHour = secondsPerMinute * minutesPerHour;
-    static constexpr double msPerSecond = 1000.0;
-    static constexpr double msPerMinute = msPerSecond * secondsPerMinute;
-    static constexpr double msPerHour = msPerSecond * secondsPerHour;
-    static constexpr double msPerDay = msPerHour * hoursPerDay;
-    static double day(time64_t t) { return floor(t / msPerDay); }
-    static int timeWithinDay(time64_t t) { return t % (int)msPerDay; }
+    static time64_t parseStringToDate(ExecutionState& state, String* istr);
+    static time64_t parseStringToDate_1(ExecutionState& state, String* istr, bool& haveTZ, int& offset);
+    static time64_t parseStringToDate_2(ExecutionState& state, String* istr, bool& haveTZ);
     static int daysInYear(int year);
-    static int dayFromYear(int year);
-    static time64_t timeFromYear(int year) { return msPerDay * dayFromYear(year); }
-    static int yearFromTime(time64_t t);
-    static int inLeapYear(time64_t t);
-    static int dayFromMonth(int year, int month);
-    static int monthFromTime(time64_t t);
-    static int dateFromTime(time64_t t);
+    static int daysFromMonth(int year, int month);
+    static int daysFromYear(int year);
     static int daysFromTime(time64_t t); // return the number of days after 1970.1.1
-    static time64_t makeDay(int year, int month, int date);
-    static void computeLocalTime(ExecutionState& state, time64_t t, struct tm& tm);
+    static time64_t daysToMs(int year, int month, int date);
+    static time64_t timeFromYear(int year) { return const_Date_msPerDay * daysFromYear(year); }
+    static int yearFromTime(time64_t t);
+    static void getYMDFromTime(time64_t t, struct timeinfo& cachedLocal);
+    static bool inLeapYear(int year);
 };
 }
 

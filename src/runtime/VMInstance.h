@@ -29,6 +29,16 @@ public:
         m_timezoneID = id;
     }
 
+    DateObject* cachedUTC() const
+    {
+        return m_cachedUTC;
+    }
+
+    void setCachedUTC(DateObject* d)
+    {
+        m_cachedUTC = d;
+    }
+
     void* operator new(size_t size)
     {
         return GC_MALLOC_ATOMIC(size);
@@ -39,6 +49,7 @@ protected:
     icu::Locale m_locale;
     icu::TimeZone* m_timezone;
     icu::UnicodeString m_timezoneID;
+    DateObject* m_cachedUTC;
 };
 }
 

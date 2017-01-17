@@ -5,7 +5,6 @@
 
 namespace Escargot {
 
-class VMInstance;
 class ExecutionContext;
 class Value;
 
