@@ -82,10 +82,18 @@ run-chakracore:
 	./run.sh ../../escargot $(OPT) | tee chakracorelog.gen.txt; \
 	diff chakracorelog.orig.txt chakracorelog.gen.txt
 
-run-v8-test:
-	./test/v8/tool/run-tests.py --quickcheck --no-presubmit --no-variants --arch-and-mode=x64.release --escargot --report -p verbose --no-sorting mjsunit | tee test/v8/mjsunit.gen.txt; \
-	diff test/v8/mjsunit.orig.txt test/v8/mjsunit.gen.txt
+run-v8-donotuse:
+	cp tools/vendortest/v8/v8.mjsunit.status test/vendortest/v8/test/mjsunit/mjsunit.status
+	cp tools/vendortest/v8/v8.mjsunit.js test/vendortest/v8/test/mjsunit/mjsunit.js
+	cp tools/vendortest/v8/v8.run-tests.py test/vendortest/v8/tools/run-tests.py
+	cp tools/vendortest/v8/v8.testsuite.py test/vendortest/v8/tools/testrunner/local/testsuite.py
+	cp tools/vendortest/v8/v8.execution.py test/vendortest/v8/tools/testrunner/local/execution.py
+	cp tools/vendortest/v8/v8.progress.py test/vendortest/v8/tools/testrunner/local/progress.py
+	./test/vendortest/v8/tools/run-tests.py --quickcheck --no-presubmit --no-variants --arch-and-mode=$(ARCH).release --escargot --report -p verbose --no-sorting mjsunit | tee tools/vendortest/v8.$(ARCH).mjsunit.gen.txt; \
+	diff tools/vendortest/v8.$(ARCH).mjsunit.orig.txt tools/vendortest/v8.$(ARCH).mjsunit.gen.txt
 
-run-v8-test-for-32bit:
-	./test/v8/tool/run-tests.py --quickcheck --no-presubmit --no-variants --arch-and-mode=x32.release --escargot --report -p verbose --no-sorting mjsunit | tee test/v8/mjsunit.gen.txt; \
-	diff test/v8/mjsunit.orig.txt test/v8/mjsunit.gen.txt
+run-v8-64:
+	make run-v8-donotuse ARCH=x64
+
+run-v8-32:
+	make run-v8-donotuse ARCH=x32
