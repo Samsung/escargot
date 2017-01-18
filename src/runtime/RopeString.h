@@ -65,6 +65,9 @@ public:
         return normalString()->bufferAccessData();
     }
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 protected:
     String* normalString() const
     {

@@ -126,7 +126,7 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
     try {
         ProgramNode* program = esprima::parseProgram(m_context, scriptSource, nullptr, strictFromOutside);
 
-        script = new Script(fileName);
+        script = new Script(fileName, new StringView(scriptSource));
         CodeBlock* topCodeBlock;
         if (parentCodeBlock) {
             program->scopeContext()->m_hasEval = parentCodeBlock->hasEval();

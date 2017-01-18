@@ -14,6 +14,7 @@ class ArrayObject : public Object {
     friend class Context;
     friend class ByteCodeInterpreter;
     friend Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
+    friend int getValidValueInArrayObject(void* ptr, size_t* arr);
 
 public:
     ArrayObject(ExecutionState& state);
@@ -47,7 +48,7 @@ public:
     }
 
 protected:
-    bool isFastModeArray()
+    ALWAYS_INLINE bool isFastModeArray()
     {
         if (LIKELY(m_rareData == nullptr)) {
             return true;
@@ -55,7 +56,7 @@ protected:
         return m_rareData->m_isFastModeArrayObject;
     }
 
-    uint32_t getArrayLength(ExecutionState& state)
+    ALWAYS_INLINE uint32_t getArrayLength(ExecutionState& state)
     {
         return m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER].toUint32(state);
     }
@@ -67,7 +68,7 @@ protected:
     ObjectGetResult getFastModeValue(ExecutionState& state, const ObjectPropertyName& P);
     bool setFastModeValue(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
 
-    Vector<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> m_fastModeData;
+    VectorWithNoSize<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> m_fastModeData;
 };
 }
 

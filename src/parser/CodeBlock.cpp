@@ -7,7 +7,26 @@ namespace Escargot {
 
 void* CodeBlock::operator new(size_t size)
 {
-    return CustomAllocator<CodeBlock>().allocate(1);
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(CodeBlock)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_context));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_script));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_identifierInfos));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_parameterNames));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_parametersInfomation));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_parentCodeBlock));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_childBlocks));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_cachedASTNode));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_byteCodeBlock));
+#ifndef NDEBUG
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_scopeContext));
+#endif
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(CodeBlock));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
 CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)

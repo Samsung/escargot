@@ -35,4 +35,46 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(ByteCode* code, CodeBl
     }
     return ExtendedNodeLOC(line, column, code->m_loc.index);
 }
+
+void* GetObjectInlineCache::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(GetObjectInlineCache)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCache, m_cache));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(GetObjectInlineCache));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+void* SetObjectInlineCache::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(SetObjectInlineCache)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SetObjectInlineCache, m_cachedhiddenClassChain));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SetObjectInlineCache, m_hiddenClassWillBe));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(SetObjectInlineCache));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+void* EnumerateObjectData::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(EnumerateObjectData)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(EnumerateObjectData, m_hiddenClassChain));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(EnumerateObjectData, m_object));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(EnumerateObjectData, m_keys));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(EnumerateObjectData));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
 }

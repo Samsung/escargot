@@ -351,8 +351,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                         idx = property.toString(state)->tryToUseAsArrayIndex();
                     }
                     if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-                        ASSERT(arr->m_fastModeData.size() == arr->getArrayLength(state));
-                        if (LIKELY(idx < arr->m_fastModeData.size())) {
+                        if (LIKELY(idx < arr->getArrayLength(state))) {
                             const Value& v = arr->m_fastModeData[idx];
                             if (LIKELY(!v.isEmpty())) {
                                 registerFile[code->m_objectRegisterIndex] = v;
@@ -383,7 +382,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                         idx = property.toString(state)->tryToUseAsArrayIndex();
                     }
                     if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-                        uint32_t len = arr->m_fastModeData.size();
+                        uint32_t len = arr->getArrayLength(state);
                         if (UNLIKELY(len <= idx)) {
                             if (UNLIKELY(!arr->isExtensible())) {
                                 goto SetObjectOpcodeSlowCase;
@@ -392,7 +391,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                                 goto SetObjectOpcodeSlowCase;
                             }
                         }
-                        ASSERT(arr->m_fastModeData.size() == arr->getArrayLength(state));
                         arr->m_fastModeData[idx] = registerFile[code->m_loadRegisterIndex];
                         registerFile[code->m_objectRegisterIndex] = registerFile[code->m_loadRegisterIndex];
                         ADD_PROGRAM_COUNTER(SetObject);
@@ -1356,7 +1354,7 @@ TestCache:
     for (; currentCacheIndex < cacheFillCount; currentCacheIndex++) {
         const GetObjectInlineCacheData& data = inlineCache.m_cache[currentCacheIndex];
         const ObjectStructureChain* const cachedHiddenClassChain = &data.m_cachedhiddenClassChain;
-        const size_t& cachedIndex = data.m_cachedIndex;
+        size_t cachedIndex = data.m_cachedIndex;
         const size_t cSiz = cachedHiddenClassChain->size() - 1;
         for (size_t i = 0; i < cSiz; i++) {
             testItem.m_objectStructure = obj->structure();
@@ -1377,7 +1375,7 @@ TestCache:
         testItem.m_objectStructure = obj->structure();
         testItem.m_version = obj->structure()->version();
         if (LIKELY((*cachedHiddenClassChain)[cSiz] == testItem)) {
-            if (LIKELY(cachedIndex != SIZE_MAX)) {
+            if (LIKELY(data.m_hasIndex)) {
                 return obj->getOwnPropertyUtilForObject(state, cachedIndex, target);
             } else {
                 return Value();
@@ -1404,7 +1402,6 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
     }
 
     ObjectStructureChain* cachedHiddenClassChain = &inlineCache.m_cache[0].m_cachedhiddenClassChain;
-    size_t* cachedHiddenClassIndex = &inlineCache.m_cache[0].m_cachedIndex;
 
     ObjectStructureChainItem newItem;
     while (true) {
@@ -1414,7 +1411,8 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
         cachedHiddenClassChain->push_back(newItem);
         size_t idx = obj->structure()->findProperty(state, name);
         if (idx != SIZE_MAX) {
-            *cachedHiddenClassIndex = idx;
+            inlineCache.m_cache[0].m_cachedIndex = idx;
+            inlineCache.m_cache[0].m_hasIndex = true;
             break;
         }
         const Value& proto = obj->getPrototype(state);
@@ -1424,14 +1422,14 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
             break;
     }
 
-    if (*cachedHiddenClassIndex != SIZE_MAX) {
-        return obj->getOwnPropertyUtilForObject(state, *cachedHiddenClassIndex, target);
+    if (inlineCache.m_cache[0].m_hasIndex) {
+        return obj->getOwnPropertyUtilForObject(state, inlineCache.m_cache[0].m_cachedIndex, target);
     } else {
         return Value();
     }
 }
 
-ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache)
+NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache)
 {
     Object* originalObject = obj;
 

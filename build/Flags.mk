@@ -9,7 +9,7 @@ ESCARGOT_CXXFLAGS_COMMON += -frounding-math -fsignaling-nans
 ESCARGOT_CXXFLAGS_COMMON += -fno-omit-frame-pointer
 
 ESCARGOT_CXXFLAGS_COMMON += -Wno-unused-but-set-variable -Wno-unused-but-set-parameter -Wno-unused-parameter
-ESCARGOT_CXXFLAGS_COMMON += -Wno-type-limits -Wno-unused-result -Wno-unused-variable
+ESCARGOT_CXXFLAGS_COMMON += -Wno-type-limits -Wno-unused-result -Wno-unused-variable -Wno-invalid-offsetof
 ESCARGOT_CXXFLAGS_COMMON += -Wno-deprecated-declarations
 
 ESCARGOT_CXXFLAGS_COMMON += -DESCARGOT_ENABLE_PROMISE

@@ -11,6 +11,22 @@ NumberObject::NumberObject(ExecutionState& state, double value)
     setPrototype(state, state.context()->globalObject()->numberPrototype());
 }
 
+void* NumberObject::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(NumberObject)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(NumberObject, m_structure));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(NumberObject, m_rareData));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(NumberObject, m_prototype));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(NumberObject, m_values));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(NumberObject));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 //// CODE FROM JAVASCRIPTCORE /////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////

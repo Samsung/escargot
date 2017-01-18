@@ -3,10 +3,15 @@
 #include "Heap.h"
 #include "LeakChecker.h"
 
+#include <malloc.h>
+
 namespace Escargot {
 
 void Heap::initialize()
 {
+    mallopt(M_MMAP_THRESHOLD, 2048);
+    mallopt(M_MMAP_MAX, 1024 * 1024);
+
     GC_set_free_space_divisor(24);
     GC_set_force_unmap_on_gcollect(1);
     //  GC_set_full_freq(1);

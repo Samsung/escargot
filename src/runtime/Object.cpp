@@ -20,6 +20,19 @@ ObjectRareData::ObjectRareData()
 #endif
 }
 
+void* ObjectRareData::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(ObjectRareData)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectRareData, m_extraData));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectRareData, m_internalSlot));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ObjectRareData));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
 Value ObjectGetResult::valueSlowCase(ExecutionState& state, const Value& receiver) const
 {
     if (m_jsGetterSetter->hasGetter() && m_jsGetterSetter->getter().isFunction()) {

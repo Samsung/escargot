@@ -622,37 +622,36 @@ struct ObjectStructureChainItem : public gc {
     }
 };
 
-typedef Vector<ObjectStructureChainItem, gc_malloc_ignore_off_page_allocator<ObjectStructureChainItem>> ObjectStructureChain;
+typedef Vector<ObjectStructureChainItem, gc_malloc_atomic_ignore_off_page_allocator<ObjectStructureChainItem>> ObjectStructureChain;
 
 struct GetObjectInlineCacheData : public gc {
     GetObjectInlineCacheData()
     {
-        m_cachedIndex = SIZE_MAX;
+        m_hasIndex = false;
+        m_cachedIndex = 0;
     }
     ObjectStructureChain m_cachedhiddenClassChain;
-    size_t m_cachedIndex;
+    struct {
+        bool m_hasIndex : 1;
+#ifdef ESCARGOT_32
+        size_t m_cachedIndex : 31;
+#else
+        size_t m_cachedIndex : 63;
+#endif
+    };
 };
 
 struct GetObjectInlineCache {
-    Vector<GetObjectInlineCacheData, gc_malloc_ignore_off_page_allocator<GetObjectInlineCacheData>> m_cache;
-    uint16_t m_executeCount;
-    uint16_t m_cacheMissCount;
     GetObjectInlineCache()
     {
         m_cacheMissCount = m_executeCount = 0;
     }
-    void* operator new(size_t size)
-    {
-        static bool typeInited = false;
-        static GC_descr descr;
-        if (!typeInited) {
-            GC_word bm = 0x1;
-            descr = GC_make_descriptor(&bm, size);
-            typeInited = true;
-        }
-        return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-    }
+    void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
+
+    Vector<GetObjectInlineCacheData, gc_malloc_ignore_off_page_allocator<GetObjectInlineCacheData>> m_cache;
+    uint16_t m_executeCount;
+    uint16_t m_cacheMissCount;
 };
 
 class GetObjectPreComputedCase : public ByteCode {
@@ -677,7 +676,7 @@ public:
 #endif
 };
 
-struct SetObjectInlineCache : public gc {
+struct SetObjectInlineCache {
     ObjectStructureChain m_cachedhiddenClassChain;
     size_t m_cachedIndex;
     ObjectStructure* m_hiddenClassWillBe;
@@ -695,6 +694,9 @@ struct SetObjectInlineCache : public gc {
         m_hiddenClassWillBe = nullptr;
         m_cachedhiddenClassChain.clear();
     }
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
 };
 
 class SetObjectPreComputedCase : public ByteCode {
@@ -1212,7 +1214,7 @@ public:
 #endif
 };
 
-struct EnumerateObjectData : public gc {
+struct EnumerateObjectData {
     EnumerateObjectData()
     {
         m_idx = 0;
@@ -1222,6 +1224,9 @@ struct EnumerateObjectData : public gc {
     Object* m_object;
     size_t m_idx;
     ValueVector m_keys;
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
 };
 
 

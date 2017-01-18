@@ -127,6 +127,9 @@ public:
         return data;
     }
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 protected:
     String* m_string;
     size_t m_start, m_end;
@@ -211,7 +214,7 @@ public:
         return m_src.bufferAccessData();
     }
 
-    StringView src()
+    StringView src() const
     {
         return m_src;
     }

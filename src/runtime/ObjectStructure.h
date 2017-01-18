@@ -118,6 +118,9 @@ public:
         return m_version;
     }
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 protected:
     bool m_needsTransitionTable;
     bool m_hasIndexPropertyName;
@@ -172,6 +175,7 @@ class ObjectStructureWithFastAccess : public ObjectStructure {
 public:
     ObjectStructureWithFastAccess(ExecutionState& state)
         : ObjectStructure(state, false)
+        , m_propertyNameMap(new (GC) PropertyNameMap())
     {
         m_isStructureWithFastAccess = true;
         buildPropertyNameMap();
@@ -179,6 +183,7 @@ public:
 
     ObjectStructureWithFastAccess(ExecutionState& state, ObjectStructureItemVector&& properties, bool hasIndexPropertyName)
         : ObjectStructure(state, std::move(properties), false, hasIndexPropertyName)
+        , m_propertyNameMap(new (GC) PropertyNameMap())
     {
         m_isStructureWithFastAccess = true;
         buildPropertyNameMap();
@@ -186,21 +191,24 @@ public:
 
     void buildPropertyNameMap()
     {
-        m_propertyNameMap.clear();
+        m_propertyNameMap->clear();
         size_t len = m_properties.size();
         for (size_t i = 0; i < len; i++) {
-            m_propertyNameMap.insert(std::make_pair(m_properties[i].m_propertyName, i));
+            m_propertyNameMap->insert(std::make_pair(m_properties[i].m_propertyName, i));
         }
     }
 
-    PropertyNameMap m_propertyNameMap;
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+    PropertyNameMap* m_propertyNameMap;
 };
 
 inline PropertyNameMap& ObjectStructure::propertyNameMap()
 {
     ASSERT(m_isStructureWithFastAccess);
     ObjectStructureWithFastAccess* self = (ObjectStructureWithFastAccess*)this;
-    return self->m_propertyNameMap;
+    return *self->m_propertyNameMap;
 }
 
 inline ObjectStructure* ObjectStructure::addProperty(ExecutionState& state, const PropertyName& name, const ObjectStructurePropertyDescriptor& desc)

@@ -584,4 +584,31 @@ String* String::subString(size_t from, size_t to)
     builder.appendSubString(this, from, to);
     return builder.finalize();
 }
+
+
+void* ASCIIString::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(ASCIIString)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASCIIString, m_stringData));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ASCIIString));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+void* UTF16String::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(UTF16String)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(UTF16String, m_stringData));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(UTF16String));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
 }

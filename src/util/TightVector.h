@@ -346,6 +346,11 @@ public:
         }
     }
 
+    T* data()
+    {
+        return m_buffer;
+    }
+
 protected:
     T* m_buffer;
 };

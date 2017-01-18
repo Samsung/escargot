@@ -95,6 +95,9 @@ public:
         return "Date";
     }
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 private:
     struct tm m_cachedTM; // it stores time disregarding timezone
     int64_t m_primitiveValue; // it stores timevalue regarding timezone

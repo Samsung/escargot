@@ -433,8 +433,8 @@ public:
     }
 
 protected:
-    bool m_isNewExpression;
-    bool m_isArgumentObjectCreated;
+    bool m_isNewExpression : 1;
+    bool m_isArgumentObjectCreated : 1;
     Value m_thisValue;
     FunctionObject* m_functionObject;
     size_t m_argc;

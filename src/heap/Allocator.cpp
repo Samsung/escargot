@@ -126,25 +126,17 @@ static GC_word* getNextValidInValueVector(GC_word** iterator)
         return NULL;
 }
 
-static int getValidValueInCodeBlock(void* ptr, size_t* arr)
+int getValidValueInArrayObject(void* ptr, size_t* arr)
 {
-    CodeBlock* current = (CodeBlock*)ptr;
-    arr[0] = (size_t)current->context();
-    arr[1] = (size_t)current->script();
-    arr[2] = (size_t)current->src().string();
-    arr[3] = (size_t)(void*)current->identifierInfos().data();
-    arr[4] = (size_t)(void*)current->parameterNames().data();
-    arr[5] = (size_t)(void*)current->parametersInfomation().data();
-    arr[6] = (size_t)current->parentCodeBlock();
-    arr[7] = (size_t)(void*)current->childBlocks().data();
-    arr[8] = (size_t)current->cachedASTNode();
-    arr[9] = (size_t)current->byteCodeBlock();
-    arr[10] = (size_t) nullptr;
-#ifndef NDEBUG
-    arr[10] = (size_t)current->scopeContext();
-#endif
+    ArrayObject* current = (ArrayObject*)ptr;
+    arr[0] = (size_t)current->m_structure;
+    arr[1] = (size_t)current->m_prototype;
+    arr[2] = (size_t)current->m_rareData;
+    arr[3] = (size_t)current->m_values.data();
+    arr[4] = (size_t)current->m_fastModeData.data();
     return 0;
 }
+
 
 void initializeCustomAllocators()
 {
@@ -154,14 +146,9 @@ void initializeCustomAllocators()
                                                              TRUE);
 
     s_gcKinds[HeapObjectKind::ArrayObjectKind] = GC_new_kind_enumerable(GC_new_free_list(),
-                                                                        0 | GC_DS_LENGTH,
-                                                                        TRUE,
+                                                                        GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInArrayObject, 5>), 0),
+                                                                        FALSE,
                                                                         TRUE);
-
-    s_gcKinds[HeapObjectKind::CodeBlockKind] = GC_new_kind(GC_new_free_list(),
-                                                           GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInCodeBlock, 11>), 0),
-                                                           FALSE,
-                                                           TRUE);
 
 #ifdef PROFILE_MASSIF
     GC_is_valid_displacement_print_proc = [](void* ptr) {
@@ -233,15 +220,5 @@ ArrayObject* CustomAllocator<ArrayObject>::allocate(size_type GC_n, const void*)
     ASSERT(GC_n == 1);
     int kind = s_gcKinds[HeapObjectKind::ArrayObjectKind];
     return (ArrayObject*)GC_GENERIC_MALLOC(sizeof(ArrayObject), kind);
-}
-
-template <>
-CodeBlock* CustomAllocator<CodeBlock>::allocate(size_type GC_n, const void*)
-{
-    // Un-comment this to use default allocator
-    // return (CodeBlock*)GC_MALLOC(sizeof(CodeBlock));
-    ASSERT(GC_n == 1);
-    int kind = s_gcKinds[HeapObjectKind::CodeBlockKind];
-    return (CodeBlock*)GC_GENERIC_MALLOC(sizeof(CodeBlock), kind);
 }
 }

@@ -24,6 +24,27 @@ RegExpObject::RegExpObject(ExecutionState& state)
 {
 }
 
+void* RegExpObject::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(RegExpObject)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_structure));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_rareData));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_prototype));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_values));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_source));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_yarrPattern));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_bytecodePattern));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_lastIndex));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_lastExecutedString));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(RegExpObject));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
 String* escapeSlashInPattern(String* patternStr)
 {
     if (patternStr->length() == 0)

@@ -9,7 +9,7 @@ namespace Escargot {
 typedef Value (*ObjectPropertyNativeGetter)(ExecutionState& state, Object* self, const Value& data);
 typedef bool (*ObjectPropertyNativeSetter)(ExecutionState& state, Object* self, const Value& setterInputData, Value& objectInternalData);
 
-struct ObjectPropertyNativeGetterSetterData : public gc {
+struct ObjectPropertyNativeGetterSetterData {
     bool m_isWritable : 1;
     bool m_isEnumerable : 1;
     bool m_isConfigurable : 1;
@@ -27,6 +27,12 @@ struct ObjectPropertyNativeGetterSetterData : public gc {
         , m_setter(setter)
     {
     }
+
+    void* operator new(size_t size)
+    {
+        return GC_MALLOC_ATOMIC(size);
+    }
+    void* operator new[](size_t size) = delete;
 };
 
 class ObjectStructurePropertyDescriptor {

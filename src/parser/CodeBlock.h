@@ -81,7 +81,7 @@ public:
         AtomicString m_name;
     };
 
-    typedef Vector<IdentifierInfo, gc_malloc_ignore_off_page_allocator<IdentifierInfo>> IdentifierInfoVector;
+    typedef Vector<IdentifierInfo, gc_malloc_atomic_ignore_off_page_allocator<IdentifierInfo>> IdentifierInfoVector;
 
     Context* context()
     {
@@ -265,16 +265,12 @@ public:
     AtomicString functionName() const
     {
         // check function
-        // FIXME(ASSERT): also possible in strict & indirect eval
-        // ASSERT(m_parentCodeBlock || m_isNativeFunction);
         return m_functionName;
     }
 
     const AtomicStringVector& functionParameters() const
     {
         // check function
-        // FIXME(ASSERT): also possible in strict & indirect eval
-        // ASSERT(m_parentCodeBlock || m_isNativeFunction);
         return m_parameterNames;
     }
 
@@ -402,7 +398,7 @@ protected:
         bool m_isAllocatedOnStack;
         size_t m_index;
     } m_functionNameSaveInfo;
-    Vector<IdentifierInfo, gc_malloc_ignore_off_page_allocator<IdentifierInfo>> m_identifierInfos;
+    IdentifierInfoVector m_identifierInfos;
 
     // function info
     AtomicString m_functionName;

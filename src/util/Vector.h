@@ -293,6 +293,112 @@ protected:
     size_t m_size;
 };
 
+template <typename T, typename Allocator, int const glowFactor = 120>
+class VectorWithNoSize : public gc {
+public:
+    VectorWithNoSize()
+    {
+        m_buffer = nullptr;
+        m_capacity = 0;
+    }
+
+    const VectorWithNoSize<T, Allocator, glowFactor>& operator=(const VectorWithNoSize<T, Allocator, glowFactor>& other) = delete;
+    VectorWithNoSize(const VectorWithNoSize<T, Allocator, glowFactor>& other, const T& newItem) = delete;
+    ~VectorWithNoSize()
+    {
+        if (m_buffer)
+            Allocator().deallocate(m_buffer, m_capacity);
+    }
+
+    void pushBack(const T& val, size_t newSize)
+    {
+        if (m_capacity <= (newSize)) {
+            size_t oldc = m_capacity;
+            m_capacity = computeAllocateSize(newSize);
+            T* newBuffer = Allocator().allocate(m_capacity);
+            for (size_t i = 0; i < (newSize - 1); i++) {
+                newBuffer[i] = m_buffer[i];
+            }
+            if (m_buffer)
+                Allocator().deallocate(m_buffer, oldc);
+            m_buffer = newBuffer;
+        }
+        m_buffer[(newSize - 1)] = val;
+    }
+
+    size_t capacity() const
+    {
+        return m_capacity;
+    }
+
+    T& operator[](const size_t& idx)
+    {
+        return m_buffer[idx];
+    }
+
+    const T& operator[](const size_t& idx) const
+    {
+        return m_buffer[idx];
+    }
+
+    T* data()
+    {
+        return m_buffer;
+    }
+
+    const T* data() const
+    {
+        return m_buffer;
+    }
+
+    void clear()
+    {
+        if (m_buffer) {
+            Allocator().deallocate(m_buffer, m_capacity);
+        }
+        m_buffer = nullptr;
+        m_capacity = 0;
+    }
+
+    void resize(size_t oldSize, size_t newSize, const T& val = T())
+    {
+        if (newSize) {
+            if (newSize > m_capacity) {
+                size_t newCapacity = computeAllocateSize(newSize);
+                T* newBuffer = Allocator().allocate(newCapacity);
+                for (size_t i = 0; i < oldSize && i < newSize; i++) {
+                    newBuffer[i] = m_buffer[i];
+                }
+                for (size_t i = oldSize; i < newSize; i++) {
+                    newBuffer[i] = val;
+                }
+                if (m_buffer)
+                    Allocator().deallocate(m_buffer, m_capacity);
+                m_capacity = newCapacity;
+                m_buffer = newBuffer;
+            } else {
+                for (size_t i = oldSize; i < newSize; i++) {
+                    m_buffer[i] = val;
+                }
+            }
+        } else {
+            clear();
+        }
+    }
+
+protected:
+    size_t computeAllocateSize(size_t newSize)
+    {
+        size_t n = newSize * glowFactor / 100.f;
+        if (n == newSize)
+            n++;
+        return n;
+    }
+
+    T* m_buffer;
+    size_t m_capacity;
+};
+
 
 class VectorUtil {
 public:

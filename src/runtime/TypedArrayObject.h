@@ -192,6 +192,24 @@ public:
         return true;
     }
 
+    void* operator new(size_t size)
+    {
+        static bool typeInited = false;
+        static GC_descr descr;
+        if (!typeInited) {
+            GC_word obj_bitmap[GC_BITMAP_SIZE(TypedArrayObject)] = { 0 };
+            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(TypedArrayObject, m_structure));
+            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(TypedArrayObject, m_rareData));
+            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(TypedArrayObject, m_prototype));
+            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(TypedArrayObject, m_values));
+            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(TypedArrayObject, m_buffer));
+            descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(TypedArrayObject));
+            typeInited = true;
+        }
+        return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+    }
+    void* operator new[](size_t size) = delete;
+
 protected:
 };
 

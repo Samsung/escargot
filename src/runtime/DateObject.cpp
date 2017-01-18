@@ -1096,4 +1096,20 @@ int DateObject::getUTCSeconds(ExecutionState& state)
     int ret = (long long)floor(m_primitiveValue / msPerSecond) % (int)secondsPerMinute;
     return (ret < 0) ? (ret + (int)secondsPerMinute) % (int)secondsPerMinute : ret;
 }
+
+void* DateObject::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(DateObject)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(DateObject, m_structure));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(DateObject, m_rareData));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(DateObject, m_prototype));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(DateObject, m_values));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(DateObject));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
 }

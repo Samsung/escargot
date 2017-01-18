@@ -103,4 +103,18 @@ void RopeString::flattenRopeString()
         }
     }
 }
+
+void* RopeString::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(RopeString)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RopeString, m_left));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RopeString, m_right));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(RopeString));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
 }

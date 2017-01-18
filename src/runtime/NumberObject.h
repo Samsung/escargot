@@ -43,6 +43,9 @@ public:
         return "Number";
     }
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 protected:
     double m_primitiveValue;
 };

@@ -20,14 +20,14 @@ static Value builtinPrint(ExecutionState& state, Value thisValue, size_t argc, V
     return Value();
 }
 
-static String* builtinHelperFileRead(ExecutionState& state, const char* fileName, AtomicString builtinName) {
+static String* builtinHelperFileRead(ExecutionState& state, const char* fileName, AtomicString builtinName)
+{
     FILE* fp = fopen(fileName, "r");
     String* src = String::emptyString;
     if (fp) {
         std::string str;
         char buf[512];
         bool hasNonASCIIContent = false;
-
         while (fgets(buf, sizeof buf, fp) != NULL) {
             if (!hasNonASCIIContent) {
                 char* check = buf;
@@ -39,7 +39,6 @@ static String* builtinHelperFileRead(ExecutionState& state, const char* fileName
                     check++;
                 }
             }
-
             str += buf;
         }
         fclose(fp);

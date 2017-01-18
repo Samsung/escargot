@@ -126,6 +126,9 @@ public:
         return "RegExp";
     }
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 private:
     void setBytecodePattern(JSC::Yarr::BytecodePattern* pattern)
     {
@@ -144,7 +147,7 @@ private:
     JSC::Yarr::YarrPattern* m_yarrPattern;
     JSC::Yarr::BytecodePattern* m_bytecodePattern;
 
-    Value m_lastIndex;
+    SmallValue m_lastIndex;
     const String* m_lastExecutedString;
 };
 

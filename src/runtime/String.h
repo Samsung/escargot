@@ -285,6 +285,13 @@ public:
     virtual UTF16StringData toUTF16StringData() const;
     virtual UTF8StringData toUTF8StringData() const;
 
+    void* operator new(size_t size);
+    void* operator new(size_t size, void* ptr)
+    {
+        return ptr;
+    }
+    void* operator new[](size_t size) = delete;
+
 protected:
     ASCIIStringData m_stringData;
 };
@@ -336,6 +343,9 @@ public:
 
     virtual UTF16StringData toUTF16StringData() const;
     virtual UTF8StringData toUTF8StringData() const;
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
 
 protected:
     UTF16StringData m_stringData;

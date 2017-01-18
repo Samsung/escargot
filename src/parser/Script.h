@@ -11,8 +11,9 @@ class Context;
 class Script : public gc {
     friend class ScriptParser;
     friend class GlobalObject;
-    Script(String* fileName)
+    Script(String* fileName, String* src)
         : m_fileName(fileName)
+        , m_src(src)
         , m_topCodeBlock(nullptr)
     {
     }
@@ -47,6 +48,7 @@ public:
 protected:
     Value executeLocal(ExecutionState& state, bool isEvalMode = false, bool needNewEnv = false);
     String* m_fileName;
+    String* m_src;
     CodeBlock* m_topCodeBlock;
 };
 }

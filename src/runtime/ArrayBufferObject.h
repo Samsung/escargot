@@ -85,6 +85,9 @@ public:
         memcpy(m_data, data, length);
     }
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 private:
     uint8_t* m_data;
     unsigned m_bytelength;

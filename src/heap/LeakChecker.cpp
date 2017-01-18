@@ -85,6 +85,13 @@ void GCLeakChecker::dumpBackTrace(ExecutionState& state, const char* phase)
     fprintf(stderr, "Cannot print the backtrace of leaked address.\n");
     fprintf(stderr, "Please re-configure bdwgc with `--enable-gc-debug`, ");
     fprintf(stderr, "and re-build escargot with `-DGC_DEBUG`.\n");
+    for (const auto& it : m_leakCheckedAddrs) {
+        if (it.deallocated) {
+            fprintf(stderr, "%s (%p) deallocated\n", it.description.c_str(), it.ptr);
+        } else {
+            fprintf(stderr, "%s (%p) still allocated\n", it.description.c_str(), it.ptr);
+        }
+    }
 #endif
 }
 
