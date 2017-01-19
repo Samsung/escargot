@@ -12,16 +12,25 @@ RegExpObject::RegExpObject(ExecutionState& state, const Value& source, const Val
     , m_lastIndex(Value(0))
     , m_lastExecutedString(NULL)
 {
-    for (size_t i = 0; i < ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5; i++)
-        m_values[i] = Value();
-    m_structure = state.context()->defaultStructureForRegExpObject();
-    setPrototype(state, state.context()->globalObject()->regexpPrototype());
+    initRegExpObject(state);
     init(state, source, option);
 }
 
 RegExpObject::RegExpObject(ExecutionState& state)
-    : RegExpObject(state, String::emptyString, String::emptyString)
+    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5, true)
+    , m_lastIndex(Value(0))
+    , m_lastExecutedString(NULL)
 {
+    initRegExpObject(state);
+    init(state, String::emptyString, String::emptyString);
+}
+
+void RegExpObject::initRegExpObject(ExecutionState& state)
+{
+    for (size_t i = 0; i < ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5; i++)
+        m_values[i] = Value();
+    m_structure = state.context()->defaultStructureForRegExpObject();
+    setPrototype(state, state.context()->globalObject()->regexpPrototype());
 }
 
 void* RegExpObject::operator new(size_t size)

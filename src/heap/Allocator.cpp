@@ -117,7 +117,7 @@ static struct GC_ms_entry* markAndPushCustom(GC_word* addr,
     return GC_mark_and_push_custom(addr, mark_stack_ptr, mark_stack_limit, proc, subPtrs, number_of_sub_pointer);
 }
 
-static GC_word* getNextValidInValueVector(GC_word* ptr, GC_word** next_ptr)
+GC_word* getNextValidInValueVector(GC_word* ptr, GC_word** next_ptr)
 {
     Value* current = (Value*)ptr;
 #ifdef ESCARGOT_32

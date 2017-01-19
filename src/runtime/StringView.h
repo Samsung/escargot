@@ -17,7 +17,9 @@ public:
     }
 
     StringView(const StringView& str, const size_t& s, const size_t& e)
-        : StringView(str.string(), s + str.start(), e + str.start())
+        : m_string(str.string())
+        , m_start(s + str.start())
+        , m_end(e + str.start())
     {
     }
 
@@ -140,18 +142,24 @@ class BufferedStringView : public String {
 
 public:
     BufferedStringView()
-        : BufferedStringView(StringView())
+        : m_src(StringView())
     {
+        init();
     }
 
     BufferedStringView(StringView src)
         : m_src(src)
     {
-        m_hasASCIIContent = src.hasASCIIContent();
+        init();
+    }
+
+    void init()
+    {
+        m_hasASCIIContent = m_src.hasASCIIContent();
         if (m_hasASCIIContent) {
-            m_buffer = src.characters8();
+            m_buffer = m_src.characters8();
         } else {
-            m_buffer = src.characters16();
+            m_buffer = m_src.characters16();
         }
     }
 

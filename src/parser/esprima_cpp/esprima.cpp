@@ -326,8 +326,11 @@ struct ParserError : public gc {
     }
 
     ParserError(size_t index, size_t line, size_t col, const char* description)
-        : ParserError(index, line, col, new ASCIIString(description))
     {
+        this->index = index;
+        this->line = line;
+        this->col = col;
+        this->description = new ASCIIString(description);
     }
 };
 
@@ -1128,7 +1131,7 @@ public:
             // '\u' (U+005C, U+0075) denotes an escaped character.
             if (cp == 0x5C) {
                 // id = id.substr(0, id.length - 1);
-                id.pop_back();
+                id.erase(id.length() - 1);
 
                 if (this->source.bufferedCharAt(this->index) != 0x75) {
                     this->throwUnexpectedToken();

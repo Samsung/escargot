@@ -34,10 +34,7 @@ public:
     AtomicString(ExecutionState& ec, String* name);
     AtomicString(ExecutionState& ec, const char16_t* src, size_t len);
     AtomicString(ExecutionState& ec, const char* src, size_t len);
-    AtomicString(ExecutionState& ec, const char* src)
-        : AtomicString(ec, src, strlen(src))
-    {
-    }
+    AtomicString(ExecutionState& ec, const char* src);
     AtomicString(Context* c, const char16_t* src, size_t len);
     AtomicString(Context* c, const char* src, size_t len);
     AtomicString(Context* c, const StringView& sv);

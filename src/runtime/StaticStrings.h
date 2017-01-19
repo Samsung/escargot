@@ -279,6 +279,10 @@ namespace Escargot {
 
 class StaticStrings {
 public:
+    StaticStrings()
+        : dtoaCacheSize(5)
+    {
+    }
     AtomicString NegativeInfinity;
     AtomicString stringTrue;
     AtomicString stringFalse;
@@ -306,7 +310,7 @@ public:
 
     void initStaticStrings(AtomicStringMap* map);
 
-    const size_t dtoaCacheSize = 5;
+    const size_t dtoaCacheSize; // 5;
     mutable std::list<std::pair<double, ::Escargot::String*>, gc_malloc_ignore_off_page_allocator<std::pair<double, ::Escargot::String*>>> dtoaCache;
 
     ::Escargot::String* dtoa(double d) const;

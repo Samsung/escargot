@@ -23,6 +23,7 @@ struct RegexMatchResult {
 };
 
 class RegExpObject : public Object {
+    void initRegExpObject(ExecutionState& state);
 public:
     enum Option {
         None = 1,

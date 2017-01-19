@@ -59,7 +59,7 @@ const int kApiIntSize = sizeof(int);
 const int kApiInt64Size = sizeof(int64_t);
 
 // Tag information for HeapObject.
-const int kHeapObjectTag = 0;
+const intptr_t kHeapObjectTag = 0;
 const int kHeapObjectTagSize = 2;
 const intptr_t kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
 
@@ -98,7 +98,7 @@ struct SmiTagging<4> {
     {
         int shift_bits = kSmiTagSize + kSmiShiftSize;
         // Throw away top 32 bits and shift down (requires >> to be sign extending).
-        return static_cast<int>(reinterpret_cast<intptr_t>(value) >> shift_bits);
+        return static_cast<int>(value >> shift_bits);
     }
     inline static int32_t IntToSmi(int value)
     {
@@ -129,7 +129,7 @@ const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
 #define HAS_SMI_TAG(value) \
     ((reinterpret_cast<intptr_t>(value) & ::Escargot::SmallValueImpl::kSmiTagMask) == ::Escargot::SmallValueImpl::kSmiTag)
 #define HAS_OBJECT_TAG(value) \
-    ((reinterpret_cast<intptr_t>(value) & ::Escargot::SmallValueImpl::kHeapObjectTagMask) == ::Escargot::SmallValueImpl::kHeapObjectTag)
+    ((value & ::Escargot::SmallValueImpl::kHeapObjectTagMask) == ::Escargot::SmallValueImpl::kHeapObjectTag)
 }
 
 extern size_t g_doubleInSmallValueTag;

@@ -264,8 +264,11 @@ Object::Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea)
 }
 
 Object::Object(ExecutionState& state)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, true)
+    : m_structure(state.context()->defaultStructureForObject())
+    , m_rareData(nullptr)
 {
+    m_values.resizeWithUninitializedValues(0, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER);
+    initPlainObject(state);
 }
 
 void* Object::operator new(size_t size)

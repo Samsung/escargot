@@ -64,13 +64,23 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForB
 }
 
 FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, bool isConstructor)
-    : FunctionObject(state, new CodeBlock(state.context(), info), nullptr, isConstructor)
+    : Object(state, isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
+    , m_isConstructor(isConstructor)
+    , m_codeBlock(new CodeBlock(state.context(), info))
+    , m_outerEnvironment(nullptr)
 {
+    initFunctionObject(state);
+    setPrototype(state, state.context()->globalObject()->functionPrototype());
 }
 
 FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltin)
-    : FunctionObject(state, new CodeBlock(state.context(), info), nullptr, true)
+    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3, false)
+    , m_isConstructor(true)
+    , m_codeBlock(new CodeBlock(state.context(), info))
+    , m_outerEnvironment(nullptr)
 {
+    initFunctionObject(state);
+    setPrototype(state, state.context()->globalObject()->functionPrototype());
     m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
 }
 

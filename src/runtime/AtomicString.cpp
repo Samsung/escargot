@@ -18,6 +18,11 @@ AtomicString::AtomicString(ExecutionState& ec, const char* src, size_t len)
     init(&ec.context()->m_atomicStringMap, new ASCIIString(src, len));
 }
 
+AtomicString::AtomicString(ExecutionState& ec, const char* src)
+{
+    init(&ec.context()->m_atomicStringMap, new ASCIIString(src, strlen(src)));
+}
+
 AtomicString::AtomicString(Context* c, const char16_t* src, size_t len)
 {
     if (isAllASCII(src, len)) {
