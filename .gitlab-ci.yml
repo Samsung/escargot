@@ -1,4 +1,4 @@
-image: 10.113.64.54:5000/starfish/starfish:latest
+image: 10.113.64.54:5000/escargot/escargot:latest
 build_x64_release:
     stage: build
     tags:
