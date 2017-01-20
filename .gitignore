@@ -56,4 +56,5 @@ android/obj
 android/libs
 #test/chakracore/chakracorelog.verbose.txt
 *.gen.txt
+*.log.txt
 bdwgcUsage.dat
