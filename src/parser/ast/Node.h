@@ -163,11 +163,6 @@ public:
     {
     }
 
-    virtual Node *clone()
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-
     virtual ASTNodeType type() = 0;
 
     bool isIdentifier()
@@ -245,6 +240,7 @@ struct ASTScopeContext : public gc {
     bool m_hasWith;
     bool m_hasCatch;
     bool m_hasYield;
+    ASTNodeType m_nodeType;
     ASTScopeContext *m_parentContext;
     Node *m_associateNode;
     AtomicStringVector m_names;

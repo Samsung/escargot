@@ -9,7 +9,7 @@ namespace Escargot {
 
 typedef std::unordered_set<String*,
                            std::hash<String*>, std::equal_to<String*>,
-                           gc_allocator<String*> >
+                           gc_malloc_ignore_off_page_allocator<String*> >
     AtomicStringMap;
 
 class AtomicString : public gc {

@@ -30,6 +30,9 @@ public:
         return "Boolean";
     }
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 protected:
     bool m_primitiveValue;
 };

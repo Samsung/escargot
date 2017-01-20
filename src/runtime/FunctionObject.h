@@ -68,6 +68,9 @@ public:
         return "Function";
     }
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 protected:
     void generateBytecodeBlock(ExecutionState& state);
     bool m_isConstructor;

@@ -31,6 +31,7 @@ public:
         m_body = body;
         m_scopeContext = scopeContext;
         m_scopeContext->m_associateNode = this;
+        m_scopeContext->m_nodeType = type();
     }
 
     virtual ~ProgramNode()

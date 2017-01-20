@@ -7,6 +7,9 @@ namespace Escargot {
 
 void* CodeBlock::operator new(size_t size)
 {
+#ifdef GC_DEBUG
+    return CustomAllocator<CodeBlock>().allocate(1);
+#else
     static bool typeInited = false;
     static GC_descr descr;
     if (!typeInited) {
@@ -27,6 +30,7 @@ void* CodeBlock::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)

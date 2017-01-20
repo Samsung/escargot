@@ -78,7 +78,7 @@ public:
     void fulfillPromise(ExecutionState& state, Value value);
     void rejectPromise(ExecutionState& state, Value reason);
 
-    typedef std::vector<PromiseReaction, gc_allocator_ignore_off_page<PromiseReaction> > Reactions;
+    typedef Vector<PromiseReaction, gc_allocator_ignore_off_page<PromiseReaction> > Reactions;
     void triggerPromiseReactions(ExecutionState& state, Reactions& reactions);
 
     void appendReaction(FunctionObject* onFulfilled, FunctionObject* onRejected, PromiseReaction::Capability& capability)
@@ -98,6 +98,9 @@ public:
         ASSERT(m_state != PromiseState::Pending);
         return m_promiseResult;
     }
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
 
 protected:
     PromiseState m_state;

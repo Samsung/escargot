@@ -680,6 +680,9 @@ public:
     // ASSERT(!isStringObject());
     void defineNativeGetterSetterDataProperty(ExecutionState& state, const ObjectPropertyName& P, ObjectPropertyNativeGetterSetterData* data, const Value& objectInternalData);
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 protected:
     Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);
     void initPlainObject(ExecutionState& state);

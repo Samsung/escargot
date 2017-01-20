@@ -54,6 +54,7 @@ class CodeBlock : public gc {
     friend class ScriptParser;
     friend class ByteCodeGenerator;
     friend class FunctionObject;
+    friend int getValidValueInCodeBlock(void* ptr, GC_mark_custom_result* arr);
 
 public:
     void* operator new(size_t size);

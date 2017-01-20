@@ -351,6 +351,12 @@ public:
         return "global";
     }
 
+    void* operator new(size_t size)
+    {
+        return GC_MALLOC(size);
+    }
+    void* operator new[](size_t size) = delete;
+
 protected:
     FunctionObject* m_object;
     Object* m_objectPrototype;

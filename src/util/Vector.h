@@ -168,7 +168,7 @@ public:
 
     size_t capacity() const
     {
-        return m_size;
+        return m_capacity;
     }
 
     bool empty() const

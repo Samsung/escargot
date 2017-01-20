@@ -13,6 +13,25 @@ PromiseObject::PromiseObject(ExecutionState& state)
     setPrototype(state, state.context()->globalObject()->promisePrototype());
 }
 
+void* PromiseObject::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(PromiseObject)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(PromiseObject, m_structure));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(PromiseObject, m_rareData));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(PromiseObject, m_prototype));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(PromiseObject, m_values));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(PromiseObject, m_promiseResult));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(PromiseObject, m_fulfillReactions));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(PromiseObject, m_rejectReactions));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(PromiseObject));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
 PromiseReaction::Capability PromiseObject::createResolvingFunctions(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
@@ -94,8 +113,8 @@ void PromiseObject::rejectPromise(ExecutionState& state, Value reason)
 
 void PromiseObject::triggerPromiseReactions(ExecutionState& state, PromiseObject::Reactions& reactions)
 {
-    for (auto it : reactions)
-        state.context()->jobQueue()->enqueueJob(new PromiseReactionJob(it, m_promiseResult));
+    for (size_t i = 0; i < reactions.size(); i++)
+        state.context()->jobQueue()->enqueueJob(new PromiseReactionJob(reactions[i], m_promiseResult));
 }
 }
 

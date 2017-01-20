@@ -24,6 +24,7 @@ class ExecutionState;
 enum HeapObjectKind {
     ValueVectorKind = 0,
     ArrayObjectKind,
+    CodeBlockKind,
     NumberOfKind,
 };
 

@@ -641,15 +641,16 @@ struct GetObjectInlineCacheData : public gc {
     };
 };
 
+typedef Vector<GetObjectInlineCacheData, gc_malloc_ignore_off_page_allocator<GetObjectInlineCacheData>> GetObjectInlineCacheDataVector;
+
 struct GetObjectInlineCache {
     GetObjectInlineCache()
     {
         m_cacheMissCount = m_executeCount = 0;
+        m_cache = new (GC) GetObjectInlineCacheDataVector();
     }
-    void* operator new(size_t size);
-    void* operator new[](size_t size) = delete;
 
-    Vector<GetObjectInlineCacheData, gc_malloc_ignore_off_page_allocator<GetObjectInlineCacheData>> m_cache;
+    GetObjectInlineCacheDataVector* m_cache;
     uint16_t m_executeCount;
     uint16_t m_cacheMissCount;
 };
@@ -657,17 +658,16 @@ struct GetObjectInlineCache {
 class GetObjectPreComputedCase : public ByteCode {
 public:
     // [object] -> [value]
-    GetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, PropertyName propertyName, GetObjectInlineCache* inlineCache)
+    GetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, PropertyName propertyName)
         : ByteCode(Opcode::GetObjectPreComputedCaseOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_propertyName(propertyName)
-        , m_inlineCache(inlineCache)
     {
     }
 
     size_t m_objectRegisterIndex;
     PropertyName m_propertyName;
-    GetObjectInlineCache* m_inlineCache;
+    GetObjectInlineCache m_inlineCache;
 #ifndef NDEBUG
     virtual void dump()
     {
@@ -1218,12 +1218,13 @@ struct EnumerateObjectData {
     EnumerateObjectData()
     {
         m_idx = 0;
+        m_keys = new ValueVector();
     }
 
     ObjectStructureChain m_hiddenClassChain;
     Object* m_object;
     size_t m_idx;
-    ValueVector m_keys;
+    ValueVector* m_keys;
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -1459,7 +1460,7 @@ public:
 };
 
 
-typedef Vector<char, gc_malloc_atomic_ignore_off_page_allocator<char>, 250> ByteCodeBlockData;
+typedef Vector<char, gc_malloc_atomic_ignore_off_page_allocator<char>, 175> ByteCodeBlockData;
 typedef Vector<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> ByteCodeLiteralData;
 
 class ByteCodeBlock : public gc {

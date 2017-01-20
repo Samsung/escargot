@@ -14,7 +14,7 @@ class ArrayObject : public Object {
     friend class Context;
     friend class ByteCodeInterpreter;
     friend Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
-    friend int getValidValueInArrayObject(void* ptr, size_t* arr);
+    friend int getValidValueInArrayObject(void* ptr, GC_mark_custom_result* arr);
 
 public:
     ArrayObject(ExecutionState& state);

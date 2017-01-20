@@ -409,7 +409,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
         GetObjectPreComputedCaseOpcodeLbl : {
             GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            registerFile[code->m_objectRegisterIndex] = getObjectPrecomputedCaseOperation(state, fastToObject(state, willBeObject), willBeObject, code->m_propertyName, *code->m_inlineCache);
+            registerFile[code->m_objectRegisterIndex] = getObjectPrecomputedCaseOperation(state, fastToObject(state, willBeObject), willBeObject, code->m_propertyName, code->m_inlineCache);
             ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
             NEXT_INSTRUCTION();
         }
@@ -662,10 +662,10 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                 for (size_t i = argc; i < len; i++) {
                     newArgv[i] = Value();
                 }
-                argv = newArgv;
-                // argc = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->parametersInfomation().size();
+                *state.exeuctionResult() = code->m_fn(state, env->getThisBinding(), argc, newArgv, record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isNewExpression());
+            } else {
+                *state.exeuctionResult() = code->m_fn(state, env->getThisBinding(), argc, argv, record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isNewExpression());
             }
-            *state.exeuctionResult() = code->m_fn(state, env->getThisBinding(), argc, argv, record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isNewExpression());
             return;
         }
 
@@ -877,7 +877,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                 registerFile[code->m_registerIndex] = Value((PointerValue*)updateEnumerateObjectData(state, data));
             }
 
-            if (data->m_keys.size() == data->m_idx) {
+            if (data->m_keys->size() == data->m_idx) {
                 programCounter = jumpTo(codeBuffer, code->m_forInEndPosition);
             } else {
                 ADD_PROGRAM_COUNTER(CheckIfKeyIsLast);
@@ -889,7 +889,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
             EnumerateObjectKey* code = (EnumerateObjectKey*)programCounter;
             EnumerateObjectData* data = (EnumerateObjectData*)registerFile[code->m_dataRegisterIndex].asPointerValue();
             data->m_idx++;
-            registerFile[code->m_registerIndex] = data->m_keys[data->m_idx - 1].toString(state);
+            registerFile[code->m_registerIndex] = (*data->m_keys)[data->m_idx - 1].toString(state);
             ADD_PROGRAM_COUNTER(EnumerateObjectKey);
             NEXT_INSTRUCTION();
         }
@@ -1349,10 +1349,10 @@ ALWAYS_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperation(Execu
     ObjectStructureChainItem testItem;
     testItem.m_objectStructure = obj->structure();
     testItem.m_version = obj->structure()->version();
-    const size_t cacheFillCount = inlineCache.m_cache.size();
+    const size_t cacheFillCount = inlineCache.m_cache->size();
 TestCache:
     for (; currentCacheIndex < cacheFillCount; currentCacheIndex++) {
-        const GetObjectInlineCacheData& data = inlineCache.m_cache[currentCacheIndex];
+        const GetObjectInlineCacheData& data = (*inlineCache.m_cache)[currentCacheIndex];
         const ObjectStructureChain* const cachedHiddenClassChain = &data.m_cachedhiddenClassChain;
         size_t cachedIndex = data.m_cachedIndex;
         const size_t cSiz = cachedHiddenClassChain->size() - 1;
@@ -1392,16 +1392,16 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
     inlineCache.m_executeCount++;
     inlineCache.m_cacheMissCount++;
     if (inlineCache.m_executeCount <= 3 || inlineCache.m_cacheMissCount > 16) {
-        inlineCache.m_cache.clear();
+        inlineCache.m_cache->clear();
         return obj->get(state, ObjectPropertyName(state, name)).value(state, target);
     }
 
-    inlineCache.m_cache.insert(0, GetObjectInlineCacheData());
-    if (inlineCache.m_cache.size() > 6) {
-        inlineCache.m_cache.erase(5);
+    inlineCache.m_cache->insert(0, GetObjectInlineCacheData());
+    if (inlineCache.m_cache->size() > 6) {
+        inlineCache.m_cache->erase(5);
     }
 
-    ObjectStructureChain* cachedHiddenClassChain = &inlineCache.m_cache[0].m_cachedhiddenClassChain;
+    ObjectStructureChain* cachedHiddenClassChain = &(*inlineCache.m_cache)[0].m_cachedhiddenClassChain;
 
     ObjectStructureChainItem newItem;
     while (true) {
@@ -1411,8 +1411,8 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
         cachedHiddenClassChain->push_back(newItem);
         size_t idx = obj->structure()->findProperty(state, name);
         if (idx != SIZE_MAX) {
-            inlineCache.m_cache[0].m_cachedIndex = idx;
-            inlineCache.m_cache[0].m_hasIndex = true;
+            (*inlineCache.m_cache)[0].m_cachedIndex = idx;
+            (*inlineCache.m_cache)[0].m_hasIndex = true;
             break;
         }
         const Value& proto = obj->getPrototype(state);
@@ -1422,8 +1422,8 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
             break;
     }
 
-    if (inlineCache.m_cache[0].m_hasIndex) {
-        return obj->getOwnPropertyUtilForObject(state, inlineCache.m_cache[0].m_cachedIndex, target);
+    if ((*inlineCache.m_cache)[0].m_hasIndex) {
+        return obj->getOwnPropertyUtilForObject(state, (*inlineCache.m_cache)[0].m_cachedIndex, target);
     } else {
         return Value();
     }
@@ -1609,7 +1609,7 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
                     auto iter = eData->keyStringSet->find(key);
                     if (iter == eData->keyStringSet->end()) {
                         eData->keyStringSet->insert(key);
-                        eData->data->m_keys.pushBack(name.toValue(state));
+                        eData->data->m_keys->pushBack(name.toValue(state));
                     }
                 } else if (self == eData->obj) {
                     // 12.6.4 The values of [[Enumerable]] attributes are not considered
@@ -1626,11 +1626,11 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
     } else {
         size_t idx = 0;
         eData.idx = &idx;
-        data->m_keys.resizeWithUninitializedValues(ownKeyCount);
+        data->m_keys->resizeWithUninitializedValues(ownKeyCount);
         target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
             if (desc.isEnumerable()) {
                 EData* eData = (EData*)data;
-                eData->data->m_keys[(*eData->idx)++] = name.toValue(state);
+                (*eData->data->m_keys)[(*eData->idx)++] = name.toValue(state);
             }
             return true;
         },
@@ -1645,12 +1645,12 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::updateEnumerateObjectData
 {
     EnumerateObjectData* newData = executeEnumerateObject(state, data->m_object);
     std::vector<Value, gc_malloc_ignore_off_page_allocator<Value>> oldKeys;
-    if (data->m_keys.size()) {
-        oldKeys.insert(oldKeys.end(), &data->m_keys[0], &data->m_keys[data->m_keys.size() - 1] + 1);
+    if (data->m_keys->size()) {
+        oldKeys.insert(oldKeys.end(), &(*data->m_keys)[0], &(*data->m_keys)[(*data->m_keys).size() - 1] + 1);
     }
     std::vector<Value, gc_malloc_ignore_off_page_allocator<Value>> differenceKeys;
-    for (size_t i = 0; i < newData->m_keys.size(); i++) {
-        const Value& key = newData->m_keys[i];
+    for (size_t i = 0; i < (*newData->m_keys).size(); i++) {
+        const Value& key = (*newData->m_keys)[i];
         if (std::find(oldKeys.begin(), oldKeys.begin() + data->m_idx, key) == oldKeys.begin() + data->m_idx) {
             // If a property that has not yet been visited during enumeration is deleted, then it will not be visited.
             if (std::find(oldKeys.begin() + data->m_idx, oldKeys.end(), key) != oldKeys.end()) {
@@ -1661,10 +1661,10 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::updateEnumerateObjectData
         }
     }
     data = newData;
-    data->m_keys.clear();
-    data->m_keys.resizeWithUninitializedValues(differenceKeys.size());
+    (*data->m_keys).clear();
+    (*data->m_keys).resizeWithUninitializedValues(differenceKeys.size());
     for (size_t i = 0; i < differenceKeys.size(); i++) {
-        data->m_keys[i] = differenceKeys[i];
+        (*data->m_keys)[i] = differenceKeys[i];
     }
     return data;
 }

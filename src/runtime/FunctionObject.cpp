@@ -10,8 +10,25 @@
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/ErrorObject.h"
 
-
 namespace Escargot {
+
+void* FunctionObject::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(FunctionObject)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(FunctionObject, m_structure));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(FunctionObject, m_rareData));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(FunctionObject, m_prototype));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(FunctionObject, m_values));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(FunctionObject, m_outerEnvironment));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(FunctionObject, m_codeBlock));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(FunctionObject));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
 
 void FunctionObject::initFunctionObject(ExecutionState& state)
 {
@@ -67,7 +84,7 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Lexi
     setPrototype(state, state.context()->globalObject()->functionPrototype());
 }
 
-void FunctionObject::generateBytecodeBlock(ExecutionState& state)
+NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
 {
     Vector<CodeBlock*, gc_allocator<CodeBlock*>>& v = state.context()->compiledCodeBlocks();
 
@@ -168,7 +185,8 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
         ec = new ExecutionContext(ctx, state.executionContext(), env, isStrict);
     }
 
-    Value* registerFile = (Value*)alloca(m_codeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
+    Value registerFile[m_codeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize];
+    memset(registerFile, 0, m_codeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
     Value* stackStorage = ALLOCA(stackStorageSize * sizeof(Value), Value, state);
     Value resultValue;
     for (size_t i = 0; i < stackStorageSize; i++) {

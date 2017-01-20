@@ -16,10 +16,13 @@ VMInstance::VMInstance()
     if (getenv("TZ")) {
         m_timezoneID = getenv("TZ");
     }
-    m_timezoneID = "US/Pacific";
 
-    auto temp = new DoubleInSmallValue(0);
-    g_doubleInSmallValueTag = *((size_t*)temp);
+    if (!String::emptyString) {
+        String::emptyString = new (NoGC) ASCIIString("");
+    }
+
+    DoubleInSmallValue temp(0);
+    g_doubleInSmallValueTag = *((size_t*)&temp);
     g_stringTag = *((size_t*)String::emptyString);
 }
 }

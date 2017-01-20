@@ -32,7 +32,7 @@ fi
 
 # Common flags --------------------------------------------
 
-GCCONFFLAGS_COMMON=" --disable-parallel-mark --enable-large-config " # --enable-large-config --enable-cplusplus"
+GCCONFFLAGS_COMMON=" --enable-munmap --disable-parallel-mark --enable-large-config " # --enable-large-config --enable-cplusplus"
 CFLAGS_COMMON=" -g3 "
 CFLAGS_COMMON+=" -DESCARGOT "
 CFLAGS_COMMON+=" -fdata-sections -ffunction-sections " # To exclude unused code from final binary
@@ -58,8 +58,8 @@ LDFLAGS_arm=
 
 # MODE flags : debug / release ----------------------------
 
-GCCONFFLAGS_release=" --disable-debug --disable-gc-debug --enable-munmap "
-GCCONFFLAGS_debug=" --enable-debug --enable-gc-debug --enable-munmap"
+GCCONFFLAGS_release=" --disable-debug --disable-gc-debug "
+GCCONFFLAGS_debug=" --enable-debug --enable-gc-debug "
 CFLAGS_release=' -O2 '
 CFLAGS_debug=' -O0 '
 
@@ -75,7 +75,7 @@ function build_gc_for_linux() {
     for host in linux; do
     for arch in x86 x64; do
     for mode in debug release; do
-    for libtype in shared static; do
+    for libtype in static; do
         echo =========================================================================
 
         if ([ "$ARCH" != "" ] && [ "$ARCH" != $arch ]) ||

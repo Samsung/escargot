@@ -35,7 +35,7 @@ void HeapUsageVisualizer::initialize()
 void GCLeakChecker::registerAddress(void* ptr, std::string description)
 {
     RELEASE_ASSERT(ptr);
-    m_leakCheckedAddrs.push_back(LeakCheckedAddr{ ptr, description, false });
+    m_leakCheckedAddrs.push_back(LeakCheckedAddr{ (void*)((size_t)ptr + 1), description, false });
 
     printf("GCLeakChecker::registerAddress %p (%zu - %zu = %zu)\n", ptr,
            m_leakCheckedAddrs.size(), m_totalFreed, m_leakCheckedAddrs.size() - m_totalFreed);
@@ -55,7 +55,7 @@ void GCLeakChecker::unregisterAddress(void* ptr)
            m_leakCheckedAddrs.size(), m_totalFreed, m_leakCheckedAddrs.size() - m_totalFreed);
 
     for (auto& it : m_leakCheckedAddrs) {
-        if (it.ptr == ptr) {
+        if (it.ptr == (void*)((size_t)ptr + 1)) {
             it.deallocated = true;
             return;
         }
@@ -74,10 +74,10 @@ void GCLeakChecker::dumpBackTrace(ExecutionState& state, const char* phase)
     GC_gcollect();
     for (const auto& it : m_leakCheckedAddrs) {
         if (it.deallocated) {
-            fprintf(stderr, "%s (%p) deallocated\n", it.description.c_str(), it.ptr);
+            fprintf(stderr, "%s (%p) deallocated\n", it.description.c_str(), (void*)((size_t)it.ptr - 1));
         } else {
-            fprintf(stderr, "Backtrace of %s (%p):\n", it.description.c_str(), it.ptr);
-            GC_print_backtrace(it.ptr);
+            fprintf(stderr, "Backtrace of %s (%p):\n", it.description.c_str(), (void*)((size_t)it.ptr - 1));
+            GC_print_backtrace((void*)((size_t)it.ptr - 1));
         }
     }
     fprintf(stderr, "GCLeakChecker::dumpBackTrace %s end <<<<<<<<<<\n", s_gcLogPhaseName.c_str());
@@ -87,9 +87,9 @@ void GCLeakChecker::dumpBackTrace(ExecutionState& state, const char* phase)
     fprintf(stderr, "and re-build escargot with `-DGC_DEBUG`.\n");
     for (const auto& it : m_leakCheckedAddrs) {
         if (it.deallocated) {
-            fprintf(stderr, "%s (%p) deallocated\n", it.description.c_str(), it.ptr);
+            fprintf(stderr, "%s (%p) deallocated\n", it.description.c_str(), (void*)((size_t)it.ptr - 1));
         } else {
-            fprintf(stderr, "%s (%p) still allocated\n", it.description.c_str(), it.ptr);
+            fprintf(stderr, "%s (%p) still allocated\n", it.description.c_str(), (void*)((size_t)it.ptr - 1));
         }
     }
 #endif

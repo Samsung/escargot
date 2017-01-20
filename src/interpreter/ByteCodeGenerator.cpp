@@ -103,6 +103,7 @@ void ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node*
     if (!codeBlock->isGlobalScopeCodeBlock())
         block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX), SIZE_MAX), &ctx, nullptr);
 
+    // printf("codeSize %lf, %lf\n", block->m_code.size() / 1024.0 / 1024.0, block->m_code.capacity() / 1024.0 / 1024.0);
     block->m_code.shrinkToFit();
 
 #ifndef NDEBUG

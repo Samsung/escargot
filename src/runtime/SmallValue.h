@@ -34,6 +34,13 @@ public:
     {
     }
 
+    void* operator new(size_t size)
+    {
+        return GC_MALLOC_ATOMIC(size);
+    }
+    void* operator new[](size_t size) = delete;
+
+
     double value()
     {
         return m_value;

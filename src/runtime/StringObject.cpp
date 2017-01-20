@@ -13,6 +13,23 @@ StringObject::StringObject(ExecutionState& state, String* value)
     setPrototype(state, state.context()->globalObject()->stringPrototype());
 }
 
+void* StringObject::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(StringObject)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(StringObject, m_structure));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(StringObject, m_rareData));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(StringObject, m_prototype));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(StringObject, m_values));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(StringObject, m_primitiveValue));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(StringObject));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
 
 ObjectGetResult StringObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {

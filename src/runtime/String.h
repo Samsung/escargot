@@ -286,6 +286,10 @@ public:
     virtual UTF8StringData toUTF8StringData() const;
 
     void* operator new(size_t size);
+    void* operator new(size_t size, GCPlacement p)
+    {
+        return gc::operator new(size, p);
+    }
     void* operator new(size_t size, void* ptr)
     {
         return ptr;

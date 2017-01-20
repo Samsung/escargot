@@ -31,7 +31,7 @@ public:
         m_body = body;
         m_isGenerator = isGenerator;
         m_scopeContext = scopeContext;
-        m_scopeContext->m_associateNode = node;
+        m_scopeContext->m_nodeType = node->type();
     }
     ~FunctionNode()
     {

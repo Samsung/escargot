@@ -5455,6 +5455,8 @@ public:
 
     BlockStatementNode* parseFunctionSourceElements()
     {
+        bool parseSingleFunction = this->config.parseSingleFunction;
+        this->config.parseSingleFunction = false;
         MetaNode nodeStart = this->createNode();
 
         this->expect(LeftBrace);
@@ -5493,7 +5495,14 @@ public:
         scopeContexts.back()->m_locEnd.column = nodeEnd.column;
         scopeContexts.back()->m_locEnd.index = nodeEnd.index;
 
-        return this->finalize(nodeStart, new BlockStatementNode(std::move(body)));
+        if (parseSingleFunction) {
+            return this->finalize(nodeStart, new BlockStatementNode(std::move(body)));
+        } else {
+            for (size_t i = 0; i < body.size(); i++) {
+                delete body[i];
+            }
+            return this->finalize(nodeStart, new BlockStatementNode(std::move(StatementNodeVector())));
+        }
     }
 
     FunctionDeclarationNode* parseFunctionDeclaration(bool identifierIsOptional = false)

@@ -113,27 +113,68 @@ static struct GC_ms_entry* markAndPushCustom(GC_word* addr,
                                              struct GC_ms_entry* mark_stack_limit,
                                              GC_word env)
 {
-    size_t subPtrs[number_of_sub_pointer];
+    GC_mark_custom_result subPtrs[number_of_sub_pointer];
     return GC_mark_and_push_custom(addr, mark_stack_ptr, mark_stack_limit, proc, subPtrs, number_of_sub_pointer);
 }
 
-static GC_word* getNextValidInValueVector(GC_word** iterator)
+static GC_word* getNextValidInValueVector(GC_word* ptr, GC_word** next_ptr)
 {
-    Value* current = (*(Value**)iterator)++;
+    Value* current = (Value*)ptr;
+#ifdef ESCARGOT_32
+    *next_ptr = ptr + 2;
+#else
+    *next_ptr = ptr + 1;
+#endif
     if (*current && current->isPointerValue())
         return (GC_word*)current->asPointerValue();
     else
         return NULL;
 }
 
-int getValidValueInArrayObject(void* ptr, size_t* arr)
+int getValidValueInArrayObject(void* ptr, GC_mark_custom_result* arr)
 {
     ArrayObject* current = (ArrayObject*)ptr;
-    arr[0] = (size_t)current->m_structure;
-    arr[1] = (size_t)current->m_prototype;
-    arr[2] = (size_t)current->m_rareData;
-    arr[3] = (size_t)current->m_values.data();
-    arr[4] = (size_t)current->m_fastModeData.data();
+    arr[0].from = (GC_word*)&current->m_structure;
+    arr[0].to = (GC_word*)current->m_structure;
+    arr[1].from = (GC_word*)&current->m_prototype;
+    arr[1].to = (GC_word*)current->m_prototype;
+    arr[2].from = (GC_word*)&current->m_rareData;
+    arr[2].to = (GC_word*)current->m_rareData;
+    arr[3].from = (GC_word*)&current->m_values;
+    arr[3].to = (GC_word*)current->m_values.data();
+    arr[4].from = (GC_word*)&current->m_fastModeData;
+    arr[4].to = (GC_word*)current->m_fastModeData.data();
+    return 0;
+}
+
+int getValidValueInCodeBlock(void* ptr, GC_mark_custom_result* arr)
+{
+    CodeBlock* current = (CodeBlock*)ptr;
+    arr[0].from = (GC_word*)&current->m_context;
+    arr[0].to = (GC_word*)current->m_context;
+    arr[1].from = (GC_word*)&current->m_script;
+    arr[1].to = (GC_word*)current->m_script;
+    arr[2].from = (GC_word*)&current->m_identifierInfos;
+    arr[2].to = (GC_word*)current->m_identifierInfos.data();
+    arr[3].from = (GC_word*)&current->m_parameterNames;
+    arr[3].to = (GC_word*)current->m_parameterNames.data();
+    arr[4].from = (GC_word*)&current->m_parametersInfomation;
+    arr[4].to = (GC_word*)current->m_parametersInfomation.data();
+    arr[5].from = (GC_word*)&current->m_parentCodeBlock;
+    arr[5].to = (GC_word*)current->m_parentCodeBlock;
+    arr[6].from = (GC_word*)&current->m_childBlocks;
+    arr[6].to = (GC_word*)current->m_childBlocks.data();
+    arr[7].from = (GC_word*)&current->m_cachedASTNode;
+    arr[7].to = (GC_word*)current->m_cachedASTNode;
+    arr[8].from = (GC_word*)&current->m_byteCodeBlock;
+    arr[8].to = (GC_word*)current->m_byteCodeBlock;
+#ifdef NDEBUG
+    arr[9].from = (GC_word*)&current->m_context;
+    arr[9].to = (GC_word*)nullptr;
+#else
+    arr[9].from = (GC_word*)&current->m_scopeContext;
+    arr[9].to = (GC_word*)current->m_scopeContext;
+#endif
     return 0;
 }
 
@@ -149,6 +190,11 @@ void initializeCustomAllocators()
                                                                         GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInArrayObject, 5>), 0),
                                                                         FALSE,
                                                                         TRUE);
+
+    s_gcKinds[HeapObjectKind::CodeBlockKind] = GC_new_kind_enumerable(GC_new_free_list(),
+                                                                      GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInCodeBlock, 10>), 0),
+                                                                      FALSE,
+                                                                      TRUE);
 
 #ifdef PROFILE_MASSIF
     GC_is_valid_displacement_print_proc = [](void* ptr) {
@@ -220,5 +266,15 @@ ArrayObject* CustomAllocator<ArrayObject>::allocate(size_type GC_n, const void*)
     ASSERT(GC_n == 1);
     int kind = s_gcKinds[HeapObjectKind::ArrayObjectKind];
     return (ArrayObject*)GC_GENERIC_MALLOC(sizeof(ArrayObject), kind);
+}
+
+template <>
+CodeBlock* CustomAllocator<CodeBlock>::allocate(size_type GC_n, const void*)
+{
+    // Un-comment this to use default allocator
+    // return (CodeBlock*)GC_MALLOC(sizeof(CodeBlock));
+    ASSERT(GC_n == 1);
+    int kind = s_gcKinds[HeapObjectKind::CodeBlockKind];
+    return (CodeBlock*)GC_GENERIC_MALLOC(sizeof(CodeBlock), kind);
 }
 }

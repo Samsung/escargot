@@ -81,16 +81,16 @@ void DeclarativeEnvironmentRecordNotIndexed::createMutableBinding(ExecutionState
     ASSERT(hasBinding(state, name).m_index == SIZE_MAX);
     IdentifierRecord record;
     record.m_name = name;
-    record.m_value = Value();
-    m_vector.pushBack(record);
+    m_recordVector.pushBack(record);
+    m_heapStorage.pushBack(Value());
 }
 
 EnvironmentRecord::GetBindingValueResult DeclarativeEnvironmentRecordNotIndexed::getBindingValue(ExecutionState& state, const AtomicString& name)
 {
-    size_t len = m_vector.size();
+    size_t len = m_recordVector.size();
     for (size_t i = 0; i < len; i++) {
-        if (m_vector[i].m_name == name) {
-            return EnvironmentRecord::GetBindingValueResult(m_vector[i].m_value);
+        if (m_recordVector[i].m_name == name) {
+            return EnvironmentRecord::GetBindingValueResult(m_heapStorage[i]);
         }
     }
     return GetBindingValueResult();
@@ -98,10 +98,10 @@ EnvironmentRecord::GetBindingValueResult DeclarativeEnvironmentRecordNotIndexed:
 
 void DeclarativeEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
 {
-    size_t len = m_vector.size();
+    size_t len = m_recordVector.size();
     for (size_t i = 0; i < len; i++) {
-        if (m_vector[i].m_name == name) {
-            m_vector[i].m_value = V;
+        if (m_recordVector[i].m_name == name) {
+            m_heapStorage[i] = V;
             return;
         }
     }
@@ -115,15 +115,15 @@ void FunctionEnvironmentRecordNotIndexed::createMutableBinding(ExecutionState& s
     ASSERT(hasBinding(state, name).m_index == SIZE_MAX);
     IdentifierRecord record;
     record.m_name = name;
-    record.m_value = Value();
-    m_vector.pushBack(record);
+    m_recordVector.pushBack(record);
+    m_heapStorage.pushBack(Value());
 }
 EnvironmentRecord::GetBindingValueResult FunctionEnvironmentRecordNotIndexed::getBindingValue(ExecutionState& state, const AtomicString& name)
 {
-    size_t len = m_vector.size();
+    size_t len = m_recordVector.size();
     for (size_t i = 0; i < len; i++) {
-        if (m_vector[i].m_name == name) {
-            return EnvironmentRecord::GetBindingValueResult(m_vector[i].m_value);
+        if (m_recordVector[i].m_name == name) {
+            return EnvironmentRecord::GetBindingValueResult(m_heapStorage[i]);
         }
     }
     return GetBindingValueResult();
@@ -131,10 +131,10 @@ EnvironmentRecord::GetBindingValueResult FunctionEnvironmentRecordNotIndexed::ge
 
 void FunctionEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
 {
-    size_t len = m_vector.size();
+    size_t len = m_recordVector.size();
     for (size_t i = 0; i < len; i++) {
-        if (m_vector[i].m_name == name) {
-            m_vector[i].m_value = V;
+        if (m_recordVector[i].m_name == name) {
+            m_heapStorage[i] = V;
             return;
         }
     }

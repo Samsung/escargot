@@ -34,11 +34,11 @@ void __attribute__((optimize("O0"))) fillStack(size_t siz)
 }
 #endif
 
-bool eval(Escargot::Context* context, Escargot::String* str, Escargot::String* fileName, bool shouldPrintScriptResult)
+NEVER_INLINE bool eval(Escargot::Context* context, Escargot::String* str, Escargot::String* fileName, bool shouldPrintScriptResult)
 {
     auto result = context->scriptParser().parse(str, fileName);
     if (result.m_error) {
-        char msg[10240];
+        static char msg[10240];
         auto err = result.m_error->message->toUTF8StringData();
         puts(err.data());
         return false;
@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
         if (fp) {
             runShell = false;
             std::string str;
-            char buf[512];
+            static char buf[512];
             bool hasNonASCIIContent = false;
             while (fgets(buf, sizeof buf, fp) != NULL) {
                 str += buf;
@@ -165,7 +165,7 @@ int main(int argc, char* argv[])
     }
 
     while (runShell) {
-        char buf[2048];
+        static char buf[2048];
         printf("escargot> ");
         if (!fgets(buf, sizeof buf, stdin)) {
             printf("ERROR: Cannot read interactive shell input\n");

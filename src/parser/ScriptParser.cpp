@@ -32,8 +32,8 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
                                                                  | (scopeCtx->m_hasWith ? CodeBlock::CodeBlockHasWith : 0)
                                                                  | (scopeCtx->m_hasCatch ? CodeBlock::CodeBlockHasCatch : 0)
                                                                  | (scopeCtx->m_hasYield ? CodeBlock::CodeBlockHasYield : 0)
-                                                                 | (scopeCtx->m_associateNode->type() == FunctionExpression ? CodeBlock::CodeBlockIsFunctionExpression : 0)
-                                                                 | (scopeCtx->m_associateNode->type() == FunctionDeclaration ? CodeBlock::CodeBlockIsFunctionDeclaration : 0)));
+                                                                 | (scopeCtx->m_nodeType == FunctionExpression ? CodeBlock::CodeBlockIsFunctionExpression : 0)
+                                                                 | (scopeCtx->m_nodeType == FunctionDeclaration ? CodeBlock::CodeBlockIsFunctionDeclaration : 0)));
     }
 
 #ifndef NDEBUG

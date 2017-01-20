@@ -39,6 +39,10 @@ public:
         return "String";
     }
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+
 protected:
     String* m_primitiveValue;
 };

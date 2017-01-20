@@ -21,10 +21,9 @@ class ArgumentsObject;
 
 struct IdentifierRecord {
     AtomicString m_name;
-    Value m_value;
 };
 
-typedef Vector<IdentifierRecord, gc_malloc_ignore_off_page_allocator<IdentifierRecord>> IdentifierRecordVector;
+typedef Vector<IdentifierRecord, gc_malloc_atomic_ignore_off_page_allocator<IdentifierRecord>> IdentifierRecordVector;
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-environment-records
 class EnvironmentRecord : public gc {
@@ -294,12 +293,14 @@ class DeclarativeEnvironmentRecordNotIndexed : public DeclarativeEnvironmentReco
 public:
     DeclarativeEnvironmentRecordNotIndexed(ExecutionState& state)
         : DeclarativeEnvironmentRecord(state, nullptr)
+        , m_heapStorage(*(new ValueVector()))
     {
     }
 
     // this constructor is for strict eval
     DeclarativeEnvironmentRecordNotIndexed(ExecutionState& state, const CodeBlock::IdentifierInfoVector& vec)
         : DeclarativeEnvironmentRecord(state, nullptr)
+        , m_heapStorage(*(new ValueVector()))
     {
         for (size_t i = 0; i < vec.size(); i++) {
             createMutableBinding(state, vec[i].m_name, false);
@@ -317,8 +318,8 @@ public:
 
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName)
     {
-        for (size_t i = 0; i < m_vector.size(); i++) {
-            if (m_vector[i].m_name == atomicName) {
+        for (size_t i = 0; i < m_recordVector.size(); i++) {
+            if (m_recordVector[i].m_name == atomicName) {
                 return BindingSlot(this, i);
             }
         }
@@ -331,7 +332,7 @@ public:
 
     virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
     {
-        m_vector[idx].m_value = v;
+        m_heapStorage[idx] = v;
     }
 
     virtual bool deleteBinding(ExecutionState& state, const AtomicString& name)
@@ -341,7 +342,8 @@ public:
     }
 
 protected:
-    IdentifierRecordVector m_vector;
+    IdentifierRecordVector m_recordVector;
+    ValueVector& m_heapStorage;
 };
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-function-environment-records
@@ -463,7 +465,7 @@ class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecord {
 public:
     ALWAYS_INLINE FunctionEnvironmentRecordOnHeap(ExecutionState& state, const Value& receiver, FunctionObject* function, size_t argc, Value* argv, bool isNewExpression)
         : FunctionEnvironmentRecord(state, receiver, function, argc, argv, isNewExpression)
-        , m_heapStorage(function->codeBlock()->identifierOnHeapCount())
+        , m_heapStorage(*(new ValueVector(function->codeBlock()->identifierOnHeapCount())))
     {
     }
 
@@ -483,7 +485,7 @@ public:
     }
 
 protected:
-    ValueVector m_heapStorage;
+    ValueVector& m_heapStorage;
 };
 
 class FunctionEnvironmentRecordNotIndexed : public FunctionEnvironmentRecord {
@@ -492,6 +494,7 @@ class FunctionEnvironmentRecordNotIndexed : public FunctionEnvironmentRecord {
 public:
     ALWAYS_INLINE FunctionEnvironmentRecordNotIndexed(ExecutionState& state, const Value& receiver, FunctionObject* function, size_t argc, Value* argv, bool isNewExpression)
         : FunctionEnvironmentRecord(state, receiver, function, argc, argv, isNewExpression)
+        , m_heapStorage(*(new ValueVector()))
     {
         const CodeBlock::IdentifierInfoVector& vec = function->codeBlock()->identifierInfos();
         size_t len = vec.size();
@@ -507,17 +510,17 @@ public:
 
     virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
     {
-        m_vector[idx].m_value = v;
+        m_heapStorage[idx] = v;
     }
 
     virtual void setHeapValueByIndex(const size_t& idx, const Value& v)
     {
-        m_vector[idx].m_value = v;
+        m_heapStorage[idx] = v;
     }
 
     virtual Value getHeapValueByIndex(const size_t& idx)
     {
-        return m_vector[idx].m_value;
+        return m_heapStorage[idx];
     }
 
     virtual bool deleteBinding(ExecutionState& state, const AtomicString& name)
@@ -528,8 +531,9 @@ public:
 
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName)
     {
-        for (size_t i = 0; i < m_vector.size(); i++) {
-            if (m_vector[i].m_name == atomicName) {
+        size_t len = m_recordVector.size();
+        for (size_t i = 0; i < len; i++) {
+            if (m_recordVector[i].m_name == atomicName) {
                 return BindingSlot(this, i);
             }
         }
@@ -542,7 +546,8 @@ public:
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
 
 protected:
-    IdentifierRecordVector m_vector;
+    IdentifierRecordVector m_recordVector;
+    ValueVector& m_heapStorage;
 };
 }
 #endif

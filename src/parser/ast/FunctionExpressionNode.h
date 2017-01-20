@@ -29,6 +29,11 @@ public:
     {
     }
 
+    FunctionNode& function()
+    {
+        return m_function;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::FunctionExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {

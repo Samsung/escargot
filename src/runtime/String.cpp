@@ -7,7 +7,7 @@
 
 namespace Escargot {
 
-String* String::emptyString = new (malloc(sizeof(String))) ASCIIString("");
+String* String::emptyString;
 
 bool isAllASCII(const char* buf, const size_t& len)
 {
