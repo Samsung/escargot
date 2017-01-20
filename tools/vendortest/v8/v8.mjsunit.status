@@ -650,7 +650,7 @@
 ['escargot == True', {
 
   ## 1. ES6 spec
-  # object/class
+  # object/class (FIXME: check after conversion to ES5)
   'accessors-no-prototype': [SKIP],
   'regress/regress-4255-4': [SKIP],
   'regress/regress-520029': [SKIP],
@@ -680,12 +680,6 @@
   'regress/regress-4377': [SKIP],
   'regress/regress-crbug-498811': [SKIP],
   'regress/regress-eval-context': [SKIP],
-  'compiler/escape-analysis-10': [SKIP],
-  'compiler/osr-block-scope-func': [SKIP],
-  'compiler/osr-block-scope-id': [SKIP],
-  'compiler/osr-block-scope': [SKIP],
-  'compiler/osr-for-let': [SKIP],
-  'compiler/osr-while-let': [SKIP],
   # builtins
   'html-string-funcs': [SKIP],
   'number-is': [SKIP],
@@ -729,7 +723,7 @@
   # Map
   'regress/regress-crbug-416558': [SKIP],
   'regress/regress-crbug-664974': [SKIP],
-  # Arrow
+  # Arrow (FIXME: check after conversion to ES5)
   'regress/regress-5351': [SKIP],
   'regress/regress-554865': [SKIP],
   'regress/regress-679727': [SKIP],
@@ -737,7 +731,6 @@
   'regress/regress-crbug-615774': [SKIP],
   # etc
   'harmony/*': [SKIP],
-  'es6/*': [SKIP],
   'es7/*': [SKIP],
   'es8/*': [SKIP],
 

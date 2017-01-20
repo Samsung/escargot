@@ -1,13 +1,13 @@
 >>> Running tests for x32.release
 Total: 3102 tests
- *  633 tests will be skipped
+ *  309 tests will be skipped
  *    4 tests are expected to timeout sometimes
  *    2 tests are expected to be flaky but not crash
- * 2424 tests are expected to pass
+ * 2736 tests are expected to pass
  *    0 tests are expected to fail that we won't fix
- *    6 tests are expected to fail that we should fix
+ *    7 tests are expected to fail that we should fix
 No connection to distribution server; running tests locally.
-Running 2449 tests
+Running 2762 tests
 Done running mjsunit/accessors-on-global-object: FAIL
 Done running mjsunit/api-call-after-bypassed-exception: pass
 Done running mjsunit/argument-assigned: pass
@@ -17,8 +17,8 @@ Done running mjsunit/arguments-call-apply: pass
 Done running mjsunit/arguments-enum: pass
 Done running mjsunit/arguments-escape: pass
 Done running mjsunit/arguments-lazy: pass
-Done running mjsunit/arguments-load-across-eval: pass
-Done running mjsunit/arguments-read-and-assignment: pass
+Done running mjsunit/arguments-load-across-eval: FAIL
+Done running mjsunit/arguments-read-and-assignment: CRASH
 Done running mjsunit/array-concat: pass
 Done running mjsunit/array-constructor: FAIL
 Done running mjsunit/array-elements-from-array-prototype-chain: pass
@@ -224,10 +224,10 @@ Done running mjsunit/object-toprimitive: FAIL
 Done running mjsunit/override-read-only-property: FAIL
 Done running mjsunit/parse-int-float: FAIL
 Done running mjsunit/parse-surrogates: pass
-Done running mjsunit/preparse-toplevel-strict-eval: pass
+Done running mjsunit/preparse-toplevel-strict-eval: CRASH
 Done running mjsunit/primitive-keyed-access: FAIL
 Done running mjsunit/print: FAIL
-Done running mjsunit/property-load-across-eval: pass
+Done running mjsunit/property-load-across-eval: FAIL
 Done running mjsunit/property-name-eval-arguments: pass
 Done running mjsunit/property-object-key: pass
 Done running mjsunit/proto-accessor: CRASH
@@ -479,6 +479,233 @@ Done running mjsunit/compiler/thisfunction: pass
 Done running mjsunit/compiler/to-fast-properties: pass
 Done running mjsunit/compiler/unary-add: pass
 Done running mjsunit/compiler/variables: pass
+Done running mjsunit/es6/array-concat-revoked-proxy-1: FAIL
+Done running mjsunit/es6/array-concat-revoked-proxy-2: FAIL
+Done running mjsunit/es6/array-concat: FAIL
+Done running mjsunit/es6/array-copywithin: FAIL
+Done running mjsunit/es6/array-fill: FAIL
+Done running mjsunit/es6/array-find: FAIL
+Done running mjsunit/es6/array-findindex: FAIL
+Done running mjsunit/es6/array-from: FAIL
+Done running mjsunit/es6/array-length: FAIL
+Done running mjsunit/es6/array-of: FAIL
+Done running mjsunit/es6/array-reverse-order: pass
+Done running mjsunit/es6/array-species-neg-zero: FAIL
+Done running mjsunit/es6/array-species: FAIL
+Done running mjsunit/es6/array-tostring: FAIL
+Done running mjsunit/es6/arraybuffer-species: FAIL
+Done running mjsunit/es6/arrow-functions-lexical-arguments: FAIL
+Done running mjsunit/es6/arrow-functions-this: FAIL
+Done running mjsunit/es6/arrow-functions: FAIL
+Done running mjsunit/es6/arrow-rest-params-lazy-parsing: FAIL
+Done running mjsunit/es6/arrow-rest-params: FAIL
+Done running mjsunit/es6/block-conflicts-sloppy: FAIL
+Done running mjsunit/es6/block-conflicts: FAIL
+Done running mjsunit/es6/block-const-assign-sloppy: FAIL
+Done running mjsunit/es6/block-const-assign: FAIL
+Done running mjsunit/es6/block-eval-var-over-let: FAIL
+Done running mjsunit/es6/block-for-sloppy: FAIL
+Done running mjsunit/es6/block-for: FAIL
+Done running mjsunit/es6/block-leave-sloppy: FAIL
+Done running mjsunit/es6/block-leave: FAIL
+Done running mjsunit/es6/block-let-contextual-sloppy: FAIL
+Done running mjsunit/es6/block-let-declaration-sloppy: FAIL
+Done running mjsunit/es6/block-let-declaration: FAIL
+Done running mjsunit/es6/block-let-semantics-sloppy: FAIL
+Done running mjsunit/es6/block-let-semantics: FAIL
+Done running mjsunit/es6/block-scope-class: FAIL
+Done running mjsunit/es6/block-scoping-top-level-sloppy: FAIL
+Done running mjsunit/es6/block-scoping-top-level: FAIL
+Done running mjsunit/es6/block-sloppy-function: FAIL
+Done running mjsunit/es6/built-in-accessor-names: FAIL
+Done running mjsunit/es6/catch-parameter-redeclaration: FAIL
+Done running mjsunit/es6/class-property-name-eval-arguments: FAIL
+Done running mjsunit/es6/classes-derived-return-type: FAIL
+Done running mjsunit/es6/classes-experimental: FAIL
+Done running mjsunit/es6/classes-lazy-parsing: FAIL
+Done running mjsunit/es6/classes-subclass-arrays: FAIL
+Done running mjsunit/es6/classes-super: FAIL
+Done running mjsunit/es6/completion: FAIL
+Done running mjsunit/es6/computed-property-names-classes: FAIL
+Done running mjsunit/es6/computed-property-names-object-literals-methods: FAIL
+Done running mjsunit/es6/computed-property-names: FAIL
+Done running mjsunit/es6/default-parameters-destructuring: FAIL
+Done running mjsunit/es6/default-parameters: FAIL
+Done running mjsunit/es6/destructuring-assignment-lazy: FAIL
+Done running mjsunit/es6/destructuring-assignment: FAIL
+Done running mjsunit/es6/destructuring: FAIL
+Done running mjsunit/es6/empty-for: FAIL
+Done running mjsunit/es6/for-each-in-catch: FAIL
+Done running mjsunit/es6/for-of: FAIL
+Done running mjsunit/es6/function-length-configurable: FAIL
+Done running mjsunit/es6/function-name-configurable: FAIL
+Done running mjsunit/es6/function-name: FAIL
+Done running mjsunit/es6/function-prototype-name: FAIL
+Done running mjsunit/es6/generator-destructuring: FAIL
+Done running mjsunit/es6/generators-parsing: FAIL
+Done running mjsunit/es6/generators-poisoned-properties: FAIL
+Done running mjsunit/es6/generators-runtime: FAIL
+Done running mjsunit/es6/generators-states: FAIL
+Done running mjsunit/es6/hasinstance-symbol: FAIL
+Done running mjsunit/es6/instanceof: FAIL
+Done running mjsunit/es6/iteration-semantics: FAIL
+Done running mjsunit/es6/iteration-syntax: FAIL
+Done running mjsunit/es6/iterator-close: FAIL
+Done running mjsunit/es6/iterator-prototype: FAIL
+Done running mjsunit/es6/json: FAIL
+Done running mjsunit/es6/map-minus-zero: FAIL
+Done running mjsunit/es6/math-cbrt: FAIL
+Done running mjsunit/es6/math-hypot: FAIL
+Done running mjsunit/es6/math-log1p: FAIL
+Done running mjsunit/es6/math-sign: FAIL
+Done running mjsunit/es6/math: FAIL
+Done running mjsunit/es6/method-name-eval-arguments: FAIL
+Done running mjsunit/es6/new-target: FAIL
+Done running mjsunit/es6/numeric-literals: FAIL
+Done running mjsunit/es6/object-assign: FAIL
+Done running mjsunit/es6/object-literals-property-shorthand: FAIL
+Done running mjsunit/es6/object-tostring: FAIL
+Done running mjsunit/es6/pattern-brand-check: FAIL
+Done running mjsunit/es6/promise-internal-setter: FAIL
+Done running mjsunit/es6/promise-lookup-getter-setter: FAIL
+Done running mjsunit/es6/prototype-ordinary-objects: FAIL
+Done running mjsunit/es6/proxies-accesschecks: FAIL
+Done running mjsunit/es6/proxies-apply: FAIL
+Done running mjsunit/es6/proxies-bind: FAIL
+Done running mjsunit/es6/proxies-construct: FAIL
+Done running mjsunit/es6/proxies-define-property: FAIL
+Done running mjsunit/es6/proxies-delete-property: FAIL
+Done running mjsunit/es6/proxies-example-membrane: FAIL
+Done running mjsunit/es6/proxies-for: FAIL
+Done running mjsunit/es6/proxies-get-own-property-descriptor: FAIL
+Done running mjsunit/es6/proxies-get-prototype-of: FAIL
+Done running mjsunit/es6/proxies-global-reference: FAIL
+Done running mjsunit/es6/proxies-has-own-property: FAIL
+Done running mjsunit/es6/proxies-has: FAIL
+Done running mjsunit/es6/proxies-hash: FAIL
+Done running mjsunit/es6/proxies-integrity: FAIL
+Done running mjsunit/es6/proxies-is-extensible: FAIL
+Done running mjsunit/es6/proxies-json: FAIL
+Done running mjsunit/es6/proxies-keys: FAIL
+Done running mjsunit/es6/proxies-object-assign: FAIL
+Done running mjsunit/es6/proxies-ownkeys: FAIL
+Done running mjsunit/es6/proxies-prevent-extensions: FAIL
+Done running mjsunit/es6/proxies-property-is-enumerable: FAIL
+Done running mjsunit/es6/proxies-prototype-target-stackoverflow: FAIL
+Done running mjsunit/es6/proxies-revocable: FAIL
+Done running mjsunit/es6/proxies-set-prototype-of: FAIL
+Done running mjsunit/es6/proxies-set: FAIL
+Done running mjsunit/es6/proxies-with-unscopables: FAIL
+Done running mjsunit/es6/proxies-with: FAIL
+Done running mjsunit/es6/reflect-apply: FAIL
+Done running mjsunit/es6/reflect-get-own-property-descriptor: FAIL
+Done running mjsunit/es6/reflect-get-prototype-of: FAIL
+Done running mjsunit/es6/reflect-own-keys: FAIL
+Done running mjsunit/es6/reflect-set-prototype-of: FAIL
+Done running mjsunit/es6/reflect: FAIL
+Done running mjsunit/es6/regexp-constructor: FAIL
+Done running mjsunit/es6/regexp-flags: FAIL
+Done running mjsunit/es6/regexp-match-lastindex: FAIL
+Done running mjsunit/es6/regexp-prototype: pass
+Done running mjsunit/es6/regexp-replace-lastindex: pass
+Done running mjsunit/es6/regexp-sticky: FAIL
+Done running mjsunit/es6/regexp-tolength: FAIL
+Done running mjsunit/es6/regexp-tostring: FAIL
+Done running mjsunit/es6/rest-params: FAIL
+Done running mjsunit/es6/set-minus-zero: FAIL
+Done running mjsunit/es6/sloppy-restrictive-block-function: FAIL
+Done running mjsunit/es6/species: FAIL
+Done running mjsunit/es6/spread-call-new-class: FAIL
+Done running mjsunit/es6/spread-call-new: FAIL
+Done running mjsunit/es6/spread-call-super-property: FAIL
+Done running mjsunit/es6/spread-call: FAIL
+Done running mjsunit/es6/string-codepointat: FAIL
+Done running mjsunit/es6/string-endswith: FAIL
+Done running mjsunit/es6/string-fromcodepoint: FAIL
+Done running mjsunit/es6/string-html: FAIL
+Done running mjsunit/es6/string-includes: FAIL
+Done running mjsunit/es6/string-iterator: FAIL
+Done running mjsunit/es6/string-match: FAIL
+Done running mjsunit/es6/string-raw: FAIL
+Done running mjsunit/es6/string-repeat: FAIL
+Done running mjsunit/es6/string-replace: FAIL
+Done running mjsunit/es6/string-search: FAIL
+Done running mjsunit/es6/string-split: FAIL
+Done running mjsunit/es6/string-startswith: FAIL
+Done running mjsunit/es6/templates: FAIL
+Done running mjsunit/es6/throw-type-error-function-restrictions: FAIL
+Done running mjsunit/es6/typed-array-iterator: FAIL
+Done running mjsunit/es6/typedarray-copywithin: FAIL
+Done running mjsunit/es6/typedarray-fill: FAIL
+Done running mjsunit/es6/typedarray-find: FAIL
+Done running mjsunit/es6/typedarray-findindex: FAIL
+Done running mjsunit/es6/typedarray-from: FAIL
+Done running mjsunit/es6/typedarray-indexing: FAIL
+Done running mjsunit/es6/typedarray-iteration: FAIL
+Done running mjsunit/es6/typedarray-of: FAIL
+Done running mjsunit/es6/typedarray-proto: FAIL
+Done running mjsunit/es6/typedarray-reduce: FAIL
+Done running mjsunit/es6/typedarray-reverse: FAIL
+Done running mjsunit/es6/typedarray-set-length-internal: FAIL
+Done running mjsunit/es6/typedarray-set-length: FAIL
+Done running mjsunit/es6/typedarray-slice: FAIL
+Done running mjsunit/es6/typedarray-sort: FAIL
+Done running mjsunit/es6/typedarray-species: FAIL
+Done running mjsunit/es6/typedarray-tostring: FAIL
+Done running mjsunit/es6/typedarray: FAIL
+Done running mjsunit/es6/unicode-escapes-in-regexps: FAIL
+Done running mjsunit/es6/unicode-escapes: pass
+Done running mjsunit/es6/unicode-regexp-ignore-case-noi18n: pass
+Done running mjsunit/es6/unicode-regexp-ignore-case: FAIL
+Done running mjsunit/es6/unicode-regexp-restricted-syntax: FAIL
+Done running mjsunit/es6/unicode-regexp-unanchored-advance: FAIL
+Done running mjsunit/es6/unicode-regexp-zero-length: FAIL
+Done running mjsunit/es6/unscopables: FAIL
+Done running mjsunit/es6/debug-promises/throw-with-undefined-reject: FAIL
+Done running mjsunit/es6/regress/regress-2034: FAIL
+Done running mjsunit/es6/regress/regress-2186: FAIL
+Done running mjsunit/es6/regress/regress-2225: FAIL
+Done running mjsunit/es6/regress/regress-2243: FAIL
+Done running mjsunit/es6/regress/regress-2322: FAIL
+Done running mjsunit/es6/regress/regress-2506: FAIL
+Done running mjsunit/es6/regress/regress-2691: FAIL
+Done running mjsunit/es6/regress/regress-2829: FAIL
+Done running mjsunit/es6/regress/regress-2858: CRASH
+Done running mjsunit/es6/regress/regress-3426: pass
+Done running mjsunit/es6/regress/regress-3501: FAIL
+Done running mjsunit/es6/regress/regress-3683: FAIL
+Done running mjsunit/es6/regress/regress-3902: pass
+Done running mjsunit/es6/regress/regress-3938: FAIL
+Done running mjsunit/es6/regress/regress-4056: FAIL
+Done running mjsunit/es6/regress/regress-4097: FAIL
+Done running mjsunit/es6/regress/regress-4211: FAIL
+Done running mjsunit/es6/regress/regress-4298: FAIL
+Done running mjsunit/es6/regress/regress-4395-global-eval: FAIL
+Done running mjsunit/es6/regress/regress-4395: FAIL
+Done running mjsunit/es6/regress/regress-4400: pass
+Done running mjsunit/es6/regress/regress-4417: FAIL
+Done running mjsunit/es6/regress/regress-4466: FAIL
+Done running mjsunit/es6/regress/regress-4482: FAIL
+Done running mjsunit/es6/regress/regress-4522: FAIL
+Done running mjsunit/es6/regress/regress-4585: FAIL
+Done running mjsunit/es6/regress/regress-474783: FAIL
+Done running mjsunit/es6/regress/regress-4759: FAIL
+Done running mjsunit/es6/regress/regress-513474: pass
+Done running mjsunit/es6/regress/regress-517455: FAIL
+Done running mjsunit/es6/regress/regress-5337: FAIL
+Done running mjsunit/es6/regress/regress-576662: FAIL
+Done running mjsunit/es6/regress/regress-594084: pass
+Done running mjsunit/es6/regress/regress-650172: FAIL
+Done running mjsunit/es6/regress/regress-660925: FAIL
+Done running mjsunit/es6/regress/regress-arrow-duplicate-params: pass
+Done running mjsunit/es6/regress/regress-cr493566: FAIL
+Done running mjsunit/es6/regress/regress-cr512574: FAIL
+Done running mjsunit/es6/regress/regress-crbug-248025: pass
+Done running mjsunit/es6/regress/regress-crbug-346141: FAIL
+Done running mjsunit/es6/regress/regress-crbug-461520: FAIL
+Done running mjsunit/es6/regress/regress-crbug-465671-null: FAIL
+Done running mjsunit/es6/regress/regress-crbug-465671: FAIL
+Done running mjsunit/es6/regress/regress-new-target-context: FAIL
 Done running mjsunit/ignition/dead-code-source-position: FAIL
 Done running mjsunit/ignition/regress-629792-source-position-on-jump: pass
 Done running mjsunit/ignition/regress-662418: FAIL
@@ -945,7 +1172,7 @@ Done running mjsunit/regress/regress-cr-658267: pass
 Done running mjsunit/regress/regress-crbug-100859: FAIL
 Done running mjsunit/regress/regress-crbug-126414: pass
 Done running mjsunit/regress/regress-crbug-135008: pass
-Done running mjsunit/regress/regress-crbug-135066: pass
+Done running mjsunit/regress/regress-crbug-135066: CRASH
 Done running mjsunit/regress/regress-crbug-142087: pass
 Done running mjsunit/regress/regress-crbug-146910: pass
 Done running mjsunit/regress/regress-crbug-148376: pass
@@ -976,7 +1203,7 @@ Done running mjsunit/regress/regress-crbug-40931: pass
 Done running mjsunit/regress/regress-crbug-422858: FAIL
 Done running mjsunit/regress/regress-crbug-425585: pass
 Done running mjsunit/regress/regress-crbug-429159: pass
-Done running mjsunit/regress/regress-crbug-433766: pass
+Done running mjsunit/regress/regress-crbug-433766: CRASH
 Done running mjsunit/regress/regress-crbug-450642: pass
 Done running mjsunit/regress/regress-crbug-451013: CRASH
 Done running mjsunit/regress/regress-crbug-454091: pass
@@ -1120,6 +1347,22 @@ Done running mjsunit/third_party/regexp-pcre/regexp-pcre: pass
 --- stdout ---
 Uncaught ReferenceError: __defineGetter__ is not defined:
 /home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/accessors-on-global-object.js (67:14)
+=== mjsunit/arguments-load-across-eval ===
+--- stderr ---
+--- stdout ---
+Uncaught Failure: expected <3> found <1>
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (225:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/arguments-load-across-eval.js (74:6)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/arguments-load-across-eval.js (77:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/arguments-load-across-eval.js (79:2)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/arguments-load-across-eval.js (114:0)
+=== mjsunit/arguments-read-and-assignment ===
+--- stderr ---
+exit code: -11
+--- CRASHED ---
 === mjsunit/array-constructor ===
 --- stderr ---
 === mjsunit/array-indexing ===
@@ -1465,6 +1708,10 @@ Stack: undefined:
 /home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
 /home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (340:4)
 /home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/parse-int-float.js (147:0)
+=== mjsunit/preparse-toplevel-strict-eval ===
+--- stderr ---
+exit code: -11
+--- CRASHED ---
 === mjsunit/primitive-keyed-access ===
 --- stderr ---
 --- stdout ---
@@ -1483,6 +1730,18 @@ Stack: undefined:
 /home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (225:4)
 /home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
 /home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/print.js (10:0)
+=== mjsunit/property-load-across-eval ===
+--- stderr ---
+--- stdout ---
+Uncaught Failure: expected <4> found <2>
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (225:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/property-load-across-eval.js (96:6)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/property-load-across-eval.js (100:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/property-load-across-eval.js (102:2)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/property-load-across-eval.js (134:0)
 === mjsunit/proto-accessor ===
 --- stderr ---
 exit code: -11
@@ -1678,6 +1937,953 @@ Stack: undefined:
 --- stderr ---
 exit code: -11
 --- CRASHED ---
+=== mjsunit/es6/array-concat-revoked-proxy-1 ===
+--- stderr ---
+--- stdout ---
+Line 8: Unexpected token (
+=== mjsunit/es6/array-concat-revoked-proxy-2 ===
+--- stderr ---
+--- stdout ---
+Line 8: Unexpected token (
+=== mjsunit/es6/array-concat ===
+--- stderr ---
+--- stdout ---
+Line 205: Unexpected token class
+=== mjsunit/es6/array-copywithin ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: cannot convert undefined into object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/array-copywithin.js (6:15)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/array-copywithin.js (9:0)
+=== mjsunit/es6/array-fill ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: cannot convert undefined into object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/array-fill.js (9:16)
+=== mjsunit/es6/array-find ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: cannot convert undefined into object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/array-find.js (55:16)
+=== mjsunit/es6/array-findindex ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: cannot convert undefined into object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/array-findindex.js (55:16)
+=== mjsunit/es6/array-from ===
+--- stderr ---
+--- stdout ---
+Line 69: Unexpected token yield
+=== mjsunit/es6/array-length ===
+--- stderr ---
+=== mjsunit/es6/array-of ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: Callee is not a function object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/array-of.js (29:6)
+=== mjsunit/es6/array-species-neg-zero ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Symbol is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/array-species-neg-zero.js (29:14)
+=== mjsunit/es6/array-species ===
+--- stderr ---
+--- stdout ---
+Line 11: Unexpected token class
+=== mjsunit/es6/array-tostring ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: Callee is not a function object:
+function toString() { [native function] }  (-1:-1)
+function call() { [native function] }  (-1:-1)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/array-tostring.js (25:17)
+=== mjsunit/es6/arraybuffer-species ===
+--- stderr ---
+--- stdout ---
+Line 7: Unexpected token class
+=== mjsunit/es6/arrow-functions-lexical-arguments ===
+--- stderr ---
+=== mjsunit/es6/arrow-functions-this ===
+--- stderr ---
+=== mjsunit/es6/arrow-functions ===
+--- stderr ---
+=== mjsunit/es6/arrow-rest-params-lazy-parsing ===
+--- stderr ---
+--- stdout ---
+Line 6: Unexpected token ...
+=== mjsunit/es6/arrow-rest-params ===
+--- stderr ---
+--- stdout ---
+Line 6: Unexpected token ...
+=== mjsunit/es6/block-conflicts-sloppy ===
+--- stderr ---
+--- stdout ---
+Uncaught Failure (global:'let x;var x;'): expected <"Conflict"> found <undefined>
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (225:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/block-conflicts-sloppy.js (47:2)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/block-conflicts-sloppy.js (57:2)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/block-conflicts-sloppy.js (106:4)
+=== mjsunit/es6/block-conflicts ===
+--- stderr ---
+--- stdout ---
+Uncaught Failure (global:'let x;var x;'): expected <"Conflict"> found <undefined>
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (225:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/block-conflicts.js (47:2)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/block-conflicts.js (57:2)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/block-conflicts.js (106:4)
+=== mjsunit/es6/block-const-assign-sloppy ===
+--- stderr ---
+--- stdout ---
+Line 32: Unexpected token const
+=== mjsunit/es6/block-const-assign ===
+--- stderr ---
+--- stdout ---
+Line 34: Unexpected token const
+=== mjsunit/es6/block-eval-var-over-let ===
+--- stderr ---
+--- stdout ---
+Line 9: Unexpected token let
+=== mjsunit/es6/block-for-sloppy ===
+--- stderr ---
+--- stdout ---
+Line 30: Unexpected token let
+=== mjsunit/es6/block-for ===
+--- stderr ---
+--- stdout ---
+Line 32: Unexpected token let
+=== mjsunit/es6/block-leave-sloppy ===
+--- stderr ---
+--- stdout ---
+Line 34: Unexpected token let
+=== mjsunit/es6/block-leave ===
+--- stderr ---
+--- stdout ---
+Line 36: Unexpected token let
+=== mjsunit/es6/block-let-contextual-sloppy ===
+--- stderr ---
+--- stdout ---
+Line 8: Unexpected token let
+=== mjsunit/es6/block-let-declaration-sloppy ===
+--- stderr ---
+--- stdout ---
+Line 31: Unexpected token let
+=== mjsunit/es6/block-let-declaration ===
+--- stderr ---
+--- stdout ---
+Line 33: Unexpected token let
+=== mjsunit/es6/block-let-semantics-sloppy ===
+--- stderr ---
+--- stdout ---
+Line 89: Unexpected token of
+=== mjsunit/es6/block-let-semantics ===
+--- stderr ---
+--- stdout ---
+Line 91: Unexpected token of
+=== mjsunit/es6/block-scope-class ===
+--- stderr ---
+--- stdout ---
+Uncaught SyntaxError: Line 1: Unexpected token class:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/block-scope-class.js (8:22)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/block-scope-class.js (24:2)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/block-scope-class.js (29:0)
+=== mjsunit/es6/block-scoping-top-level-sloppy ===
+--- stderr ---
+--- stdout ---
+Line 5: Unexpected token let
+=== mjsunit/es6/block-scoping-top-level ===
+--- stderr ---
+--- stdout ---
+Line 7: Unexpected token let
+=== mjsunit/es6/block-sloppy-function ===
+--- stderr ---
+--- stdout ---
+Line 57: Unexpected token let
+=== mjsunit/es6/built-in-accessor-names ===
+--- stderr ---
+--- stdout ---
+Line 24: Unexpected token let
+=== mjsunit/es6/catch-parameter-redeclaration ===
+--- stderr ---
+=== mjsunit/es6/class-property-name-eval-arguments ===
+--- stderr ---
+--- stdout ---
+Line 7: Unexpected token class
+=== mjsunit/es6/classes-derived-return-type ===
+--- stderr ---
+--- stdout ---
+Line 6: Unexpected token class
+=== mjsunit/es6/classes-experimental ===
+--- stderr ---
+--- stdout ---
+Line 7: Unexpected token class
+=== mjsunit/es6/classes-lazy-parsing ===
+--- stderr ---
+--- stdout ---
+Line 7: Unexpected token class
+=== mjsunit/es6/classes-subclass-arrays ===
+--- stderr ---
+--- stdout ---
+Line 8: Unexpected token class
+=== mjsunit/es6/classes-super ===
+--- stderr ---
+--- stdout ---
+Line 7: Unexpected token class
+=== mjsunit/es6/completion ===
+--- stderr ---
+--- stdout ---
+Uncaught Failure: expected <undefined> found <42>
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (225:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/completion.js (7:2)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/completion.js (18:0)
+=== mjsunit/es6/computed-property-names-classes ===
+--- stderr ---
+--- stdout ---
+Line 14: Unexpected token class
+=== mjsunit/es6/computed-property-names-object-literals-methods ===
+--- stderr ---
+--- stdout ---
+Line 13: Unexpected token (
+=== mjsunit/es6/computed-property-names ===
+--- stderr ---
+--- stdout ---
+Uncaught Failure (array element at index 0): expected <"1"> found <"a">
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (225:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (315:8)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/computed-property-names.js (39:2)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/computed-property-names.js (32:0)
+=== mjsunit/es6/default-parameters-destructuring ===
+--- stderr ---
+=== mjsunit/es6/default-parameters ===
+--- stderr ---
+=== mjsunit/es6/destructuring-assignment-lazy ===
+--- stderr ---
+=== mjsunit/es6/destructuring-assignment ===
+--- stderr ---
+--- stdout ---
+Line 70: Unexpected token =>
+=== mjsunit/es6/destructuring ===
+--- stderr ---
+=== mjsunit/es6/empty-for ===
+--- stderr ---
+--- stdout ---
+Line 31: Unexpected token const
+=== mjsunit/es6/for-each-in-catch ===
+--- stderr ---
+=== mjsunit/es6/for-of ===
+--- stderr ---
+--- stdout ---
+Line 9: Unexpected token of
+=== mjsunit/es6/function-length-configurable ===
+--- stderr ---
+--- stdout ---
+Uncaught Failure: expected <true> found <false>
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (225:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (340:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/function-length-configurable.js (37:2)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/function-length-configurable.js (28:2)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/function-length-configurable.js (46:0)
+=== mjsunit/es6/function-name-configurable ===
+--- stderr ---
+--- stdout ---
+Uncaught Failure: expected <""> found <"Function">
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (225:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/function-name-configurable.js (93:2)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/function-name-configurable.js (91:0)
+=== mjsunit/es6/function-name ===
+--- stderr ---
+--- stdout ---
+Line 9: Unexpected token let
+=== mjsunit/es6/function-prototype-name ===
+--- stderr ---
+--- stdout ---
+Uncaught Failure: expected <""> found <"Function">
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (225:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (290:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/function-prototype-name.js (9:0)
+=== mjsunit/es6/generator-destructuring ===
+--- stderr ---
+=== mjsunit/es6/generators-parsing ===
+--- stderr ---
+--- stdout ---
+Line 31: Unexpected token yield
+=== mjsunit/es6/generators-poisoned-properties ===
+--- stderr ---
+--- stdout ---
+Uncaught Failure: expected <false> found <true>
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (225:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (345:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/generators-poisoned-properties.js (7:2)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/generators-poisoned-properties.js (9:0)
+=== mjsunit/es6/generators-runtime ===
+--- stderr ---
+--- stdout ---
+Line 34: Unexpected token yield
+=== mjsunit/es6/generators-states ===
+--- stderr ---
+--- stdout ---
+Line 22: Unexpected token yield
+=== mjsunit/es6/hasinstance-symbol ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Symbol is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/hasinstance-symbol.js (10:19)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/hasinstance-symbol.js (15:0)
+=== mjsunit/es6/instanceof ===
+--- stderr ---
+--- stdout ---
+Line 54: Unexpected token =>
+=== mjsunit/es6/iteration-semantics ===
+--- stderr ---
+--- stdout ---
+Line 37: Unexpected token yield
+=== mjsunit/es6/iteration-syntax ===
+--- stderr ---
+--- stdout ---
+Line 32: Unexpected token of
+=== mjsunit/es6/iterator-close ===
+--- stderr ---
+--- stdout ---
+Line 6: Unexpected token yield
+=== mjsunit/es6/iterator-prototype ===
+--- stderr ---
+--- stdout ---
+Line 48: Unexpected token of
+=== mjsunit/es6/json ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Symbol is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/json.js (7:28)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/json.js (19:0)
+=== mjsunit/es6/map-minus-zero ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Map is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/map-minus-zero.js (11:14)
+=== mjsunit/es6/math-cbrt ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: Callee is not a function object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/math-cbrt.js (9:17)
+=== mjsunit/es6/math-hypot ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: Callee is not a function object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/math-hypot.js (55:17)
+=== mjsunit/es6/math-log1p ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: Callee is not a function object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/math-log1p.js (9:17)
+=== mjsunit/es6/math-sign ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: Callee is not a function object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/math-sign.js (55:34)
+=== mjsunit/es6/math ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Symbol is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/math.js (7:28)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/math.js (19:0)
+=== mjsunit/es6/method-name-eval-arguments ===
+--- stderr ---
+--- stdout ---
+Line 7: Unexpected token (
+=== mjsunit/es6/new-target ===
+--- stderr ---
+--- stdout ---
+Line 10: Unexpected token class
+=== mjsunit/es6/numeric-literals ===
+--- stderr ---
+--- stdout ---
+Line 29: Unexpected token ILLEGAL
+=== mjsunit/es6/object-assign ===
+--- stderr ---
+=== mjsunit/es6/object-literals-property-shorthand ===
+--- stderr ---
+--- stdout ---
+Line 8: Unexpected token }
+=== mjsunit/es6/object-tostring ===
+--- stderr ---
+=== mjsunit/es6/pattern-brand-check ===
+--- stderr ---
+--- stdout ---
+Line 23: Unexpected token (
+=== mjsunit/es6/promise-internal-setter ===
+--- stderr ---
+--- stdout ---
+Line 13: Unexpected token class
+=== mjsunit/es6/promise-lookup-getter-setter ===
+--- stderr ---
+--- stdout ---
+Line 5: Unexpected token let
+=== mjsunit/es6/prototype-ordinary-objects ===
+--- stderr ---
+--- stdout ---
+Line 51: Unexpected token of
+=== mjsunit/es6/proxies-accesschecks ===
+--- stderr ---
+--- stdout ---
+Line 8: Unexpected token (
+=== mjsunit/es6/proxies-apply ===
+--- stderr ---
+--- stdout ---
+Line 93: Unexpected token =>
+=== mjsunit/es6/proxies-bind ===
+--- stderr ---
+--- stdout ---
+Line 63: Unexpected token (
+=== mjsunit/es6/proxies-construct ===
+--- stderr ---
+--- stdout ---
+Line 22: Unexpected token (
+=== mjsunit/es6/proxies-define-property ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Proxy is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/proxies-define-property.js (23:16)
+=== mjsunit/es6/proxies-delete-property ===
+--- stderr ---
+--- stdout ---
+Line 7: Unexpected token (
+=== mjsunit/es6/proxies-example-membrane ===
+--- stderr ---
+--- stdout ---
+Line 33: Unexpected token let
+=== mjsunit/es6/proxies-for ===
+--- stderr ---
+--- stdout ---
+Line 49: Unexpected token (
+=== mjsunit/es6/proxies-get-own-property-descriptor ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Proxy is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/proxies-get-own-property-descriptor.js (42:16)
+=== mjsunit/es6/proxies-get-prototype-of ===
+--- stderr ---
+=== mjsunit/es6/proxies-global-reference ===
+--- stderr ---
+--- stdout ---
+Line 6: Unexpected token (
+=== mjsunit/es6/proxies-has-own-property ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Proxy is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/proxies-has-own-property.js (11:16)
+=== mjsunit/es6/proxies-has ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Proxy is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/proxies-has.js (21:16)
+=== mjsunit/es6/proxies-hash ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Set is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/proxies-hash.js (102:8)
+=== mjsunit/es6/proxies-integrity ===
+--- stderr ---
+--- stdout ---
+Line 13: Unexpected token const
+=== mjsunit/es6/proxies-is-extensible ===
+--- stderr ---
+=== mjsunit/es6/proxies-json ===
+--- stderr ---
+--- stdout ---
+Line 38: Unexpected token =>
+=== mjsunit/es6/proxies-keys ===
+--- stderr ---
+=== mjsunit/es6/proxies-object-assign ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Proxy is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/proxies-object-assign.js (19:16)
+=== mjsunit/es6/proxies-ownkeys ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Proxy is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/proxies-ownkeys.js (21:16)
+=== mjsunit/es6/proxies-prevent-extensions ===
+--- stderr ---
+=== mjsunit/es6/proxies-property-is-enumerable ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Proxy is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/proxies-property-is-enumerable.js (11:16)
+=== mjsunit/es6/proxies-prototype-target-stackoverflow ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Proxy is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/proxies-prototype-target-stackoverflow.js (9:14)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/proxies-prototype-target-stackoverflow.js (15:0)
+=== mjsunit/es6/proxies-revocable ===
+--- stderr ---
+=== mjsunit/es6/proxies-set-prototype-of ===
+--- stderr ---
+=== mjsunit/es6/proxies-set ===
+--- stderr ---
+=== mjsunit/es6/proxies-with-unscopables ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Proxy is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/proxies-with-unscopables.js (9:18)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/proxies-with-unscopables.js (35:0)
+=== mjsunit/es6/proxies-with ===
+--- stderr ---
+--- stdout ---
+Line 73: Unexpected token (
+=== mjsunit/es6/reflect-apply ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Reflect is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/reflect-apply.js (7:18)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/reflect-apply.js (11:0)
+=== mjsunit/es6/reflect-get-own-property-descriptor ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Reflect is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/reflect-get-own-property-descriptor.js (75:17)
+=== mjsunit/es6/reflect-get-prototype-of ===
+--- stderr ---
+--- stdout ---
+Line 92: Unexpected token of
+=== mjsunit/es6/reflect-own-keys ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Reflect is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/reflect-own-keys.js (64:11)
+=== mjsunit/es6/reflect-set-prototype-of ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Symbol is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/reflect-set-prototype-of.js (85:2)
+=== mjsunit/es6/reflect ===
+--- stderr ---
+--- stdout ---
+Line 94: Unexpected token let
+=== mjsunit/es6/regexp-constructor ===
+--- stderr ---
+--- stdout ---
+Line 22: Unexpected token let
+=== mjsunit/es6/regexp-flags ===
+--- stderr ---
+--- stdout ---
+Uncaught Failure: expected <false> found <undefined>
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (225:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (345:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/regexp-flags.js (14:0)
+=== mjsunit/es6/regexp-match-lastindex ===
+--- stderr ---
+--- stdout ---
+Uncaught Failure: unreachable
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (208:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (431:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/regexp-match-lastindex.js (9:43)
+function match() { [native function] }  (-1:-1)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/regexp-match-lastindex.js (17:0)
+=== mjsunit/es6/regexp-sticky ===
+--- stderr ---
+--- stdout ---
+Uncaught Failure: expected <7> found <0>
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (225:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/regexp-sticky.js (68:0)
+=== mjsunit/es6/regexp-tolength ===
+--- stderr ---
+--- stdout ---
+Line 7: Unexpected token let
+=== mjsunit/es6/regexp-tostring ===
+--- stderr ---
+--- stdout ---
+Line 50: Unexpected token let
+=== mjsunit/es6/rest-params ===
+--- stderr ---
+--- stdout ---
+Line 172: Unexpected token class
+=== mjsunit/es6/set-minus-zero ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Set is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/set-minus-zero.js (11:14)
+=== mjsunit/es6/sloppy-restrictive-block-function ===
+--- stderr ---
+--- stdout ---
+Uncaught Failure: expected <undefined> found <function f() {}>
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (225:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/sloppy-restrictive-block-function.js (11:2)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/sloppy-restrictive-block-function.js (17:0)
+=== mjsunit/es6/species ===
+--- stderr ---
+--- stdout ---
+Line 9: Unexpected token let
+=== mjsunit/es6/spread-call-new-class ===
+--- stderr ---
+--- stdout ---
+Line 8: Unexpected token class
+=== mjsunit/es6/spread-call-new ===
+--- stderr ---
+=== mjsunit/es6/spread-call-super-property ===
+--- stderr ---
+--- stdout ---
+Line 7: Unexpected token class
+=== mjsunit/es6/spread-call ===
+--- stderr ---
+--- stdout ---
+Line 41: Unexpected token yield
+=== mjsunit/es6/string-codepointat ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: cannot convert undefined into object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/string-codepointat.js (15:13)
+=== mjsunit/es6/string-endswith ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: cannot convert undefined into object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/string-endswith.js (55:16)
+=== mjsunit/es6/string-fromcodepoint ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: cannot convert undefined into object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/string-fromcodepoint.js (15:13)
+=== mjsunit/es6/string-html ===
+--- stderr ---
+--- stdout ---
+Line 165: Unexpected token (
+=== mjsunit/es6/string-includes ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: cannot convert undefined into object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/string-includes.js (55:16)
+=== mjsunit/es6/string-iterator ===
+--- stderr ---
+--- stdout ---
+Line 79: Unexpected token of
+=== mjsunit/es6/string-match ===
+--- stderr ---
+=== mjsunit/es6/string-raw ===
+--- stderr ---
+--- stdout ---
+Line 286: Unexpected token -
+=== mjsunit/es6/string-repeat ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: cannot convert undefined into object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/string-repeat.js (55:20)
+=== mjsunit/es6/string-replace ===
+--- stderr ---
+--- stdout ---
+Line 6: Unexpected token =>
+=== mjsunit/es6/string-search ===
+--- stderr ---
+=== mjsunit/es6/string-split ===
+--- stderr ---
+=== mjsunit/es6/string-startswith ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: Callee is not a function object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/string-startswith.js (53:12)
+=== mjsunit/es6/templates ===
+--- stderr ---
+=== mjsunit/es6/throw-type-error-function-restrictions ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: cannot convert undefined into object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/throw-type-error-function-restrictions.js (10:4)
+=== mjsunit/es6/typed-array-iterator ===
+--- stderr ---
+--- stdout ---
+Line 33: Unexpected token of
+=== mjsunit/es6/typedarray-copywithin ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: cannot convert undefined into object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/typedarray-copywithin.js (21:15)
+function forEach() { [native function] }  (-1:-1)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/typedarray-copywithin.js (17:2)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/typedarray-copywithin.js (24:0)
+=== mjsunit/es6/typedarray-fill ===
+--- stderr ---
+--- stdout ---
+Line 16: Unexpected token of
+=== mjsunit/es6/typedarray-find ===
+--- stderr ---
+--- stdout ---
+Line 16: Unexpected token of
+=== mjsunit/es6/typedarray-findindex ===
+--- stderr ---
+--- stdout ---
+Line 16: Unexpected token of
+=== mjsunit/es6/typedarray-from ===
+--- stderr ---
+--- stdout ---
+Line 17: Unexpected token of
+=== mjsunit/es6/typedarray-indexing ===
+--- stderr ---
+--- stdout ---
+Line 17: Unexpected token of
+=== mjsunit/es6/typedarray-iteration ===
+--- stderr ---
+--- stdout ---
+Line 27: Unexpected token of
+=== mjsunit/es6/typedarray-of ===
+--- stderr ---
+--- stdout ---
+Line 58: Unexpected token class
+=== mjsunit/es6/typedarray-proto ===
+--- stderr ---
+--- stdout ---
+Line 10: Unexpected token let
+=== mjsunit/es6/typedarray-reduce ===
+--- stderr ---
+--- stdout ---
+Line 90: Unexpected token of
+=== mjsunit/es6/typedarray-reverse ===
+--- stderr ---
+--- stdout ---
+Line 31: Unexpected token of
+=== mjsunit/es6/typedarray-set-length-internal ===
+--- stderr ---
+--- stdout ---
+Line 19: Unexpected token of
+=== mjsunit/es6/typedarray-set-length ===
+--- stderr ---
+--- stdout ---
+Line 41: Unexpected token of
+=== mjsunit/es6/typedarray-slice ===
+--- stderr ---
+--- stdout ---
+Line 17: Unexpected token of
+=== mjsunit/es6/typedarray-sort ===
+--- stderr ---
+--- stdout ---
+Line 28: Unexpected token of
+=== mjsunit/es6/typedarray-species ===
+--- stderr ---
+--- stdout ---
+Line 19: Unexpected token let
+=== mjsunit/es6/typedarray-tostring ===
+--- stderr ---
+--- stdout ---
+Line 20: Unexpected token of
+=== mjsunit/es6/typedarray ===
+--- stderr ---
+--- stdout ---
+Line 302: Unexpected token yield
+=== mjsunit/es6/unicode-escapes-in-regexps ===
+--- stderr ---
+=== mjsunit/es6/unicode-regexp-ignore-case ===
+--- stderr ---
+--- stdout ---
+Uncaught Failure: expected <true> found <false>
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (225:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (340:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/unicode-regexp-ignore-case.js (20:0)
+=== mjsunit/es6/unicode-regexp-restricted-syntax ===
+--- stderr ---
+--- stdout ---
+Uncaught Did not throw exception
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (208:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (384:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/unicode-regexp-restricted-syntax.js (11:0)
+=== mjsunit/es6/unicode-regexp-unanchored-advance ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: Callee is not a function object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/unicode-regexp-unanchored-advance.js (9:8)
+=== mjsunit/es6/unicode-regexp-zero-length ===
+--- stderr ---
+--- stdout ---
+Uncaught Failure: expected <0> found <1>
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (225:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/unicode-regexp-zero-length.js (27:0)
+=== mjsunit/es6/unscopables ===
+--- stderr ---
+--- stdout ---
+Line 134: Unexpected token of
+=== mjsunit/es6/debug-promises/throw-with-undefined-reject ===
+--- stderr ---
+=== mjsunit/es6/regress/regress-2034 ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: WeakMap is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/regress/regress-2034.js (56:14)
+=== mjsunit/es6/regress/regress-2186 ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Set is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/regress/regress-2186.js (66:14)
+=== mjsunit/es6/regress/regress-2225 ===
+--- stderr ---
+--- stdout ---
+Line 30: Unexpected token (
+=== mjsunit/es6/regress/regress-2243 ===
+--- stderr ---
+--- stdout ---
+Uncaught Did not throw exception
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (208:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (384:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/regress/regress-2243.js (55:0)
+=== mjsunit/es6/regress/regress-2322 ===
+--- stderr ---
+--- stdout ---
+Line 32: Unexpected token let
+=== mjsunit/es6/regress/regress-2506 ===
+--- stderr ---
+--- stdout ---
+Line 8: Unexpected token let
+=== mjsunit/es6/regress/regress-2691 ===
+--- stderr ---
+--- stdout ---
+Uncaught Did not throw exception
+
+Stack: undefined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (208:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (384:4)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/regress/regress-2691.js (59:0)
+=== mjsunit/es6/regress/regress-2829 ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: WeakMap is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/regress/regress-2829.js (29:16)
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/regress/regress-2829.js (55:0)
+=== mjsunit/es6/regress/regress-2858 ===
+--- stderr ---
+exit code: -11
+--- CRASHED ---
+=== mjsunit/es6/regress/regress-3501 ===
+--- stderr ---
+--- stdout ---
+Line 8: Unexpected token let
+=== mjsunit/es6/regress/regress-3683 ===
+--- stderr ---
+--- stdout ---
+Line 9: Unexpected token let
+=== mjsunit/es6/regress/regress-3938 ===
+--- stderr ---
+--- stdout ---
+Line 7: Unexpected token const
+=== mjsunit/es6/regress/regress-4056 ===
+--- stderr ---
+=== mjsunit/es6/regress/regress-4097 ===
+--- stderr ---
+--- stdout ---
+Line 7: Unexpected token class
+=== mjsunit/es6/regress/regress-4211 ===
+--- stderr ---
+=== mjsunit/es6/regress/regress-4298 ===
+--- stderr ---
+=== mjsunit/es6/regress/regress-4395-global-eval ===
+--- stderr ---
+--- stdout ---
+Line 5: Unexpected token =>
+=== mjsunit/es6/regress/regress-4395 ===
+--- stderr ---
+--- stdout ---
+Line 7: Unexpected token =>
+=== mjsunit/es6/regress/regress-4417 ===
+--- stderr ---
+=== mjsunit/es6/regress/regress-4466 ===
+--- stderr ---
+--- stdout ---
+Line 7: Unexpected token class
+=== mjsunit/es6/regress/regress-4482 ===
+--- stderr ---
+--- stdout ---
+Line 7: Unexpected token yield
+=== mjsunit/es6/regress/regress-4522 ===
+--- stderr ---
+--- stdout ---
+Line 7: Unexpected token class
+=== mjsunit/es6/regress/regress-4585 ===
+--- stderr ---
+=== mjsunit/es6/regress/regress-474783 ===
+--- stderr ---
+--- stdout ---
+Line 7: Unexpected token class
+=== mjsunit/es6/regress/regress-4759 ===
+--- stderr ---
+=== mjsunit/es6/regress/regress-517455 ===
+--- stderr ---
+=== mjsunit/es6/regress/regress-5337 ===
+--- stderr ---
+=== mjsunit/es6/regress/regress-576662 ===
+--- stderr ---
+=== mjsunit/es6/regress/regress-650172 ===
+--- stderr ---
+--- stdout ---
+Uncaught TypeError: Callee is not a function object:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/regress/regress-650172.js (9:15)
+=== mjsunit/es6/regress/regress-660925 ===
+--- stderr ---
+--- stdout ---
+Line 5: Unexpected token let
+=== mjsunit/es6/regress/regress-cr493566 ===
+--- stderr ---
+--- stdout ---
+Line 9: Unexpected token class
+=== mjsunit/es6/regress/regress-cr512574 ===
+--- stderr ---
+=== mjsunit/es6/regress/regress-crbug-346141 ===
+--- stderr ---
+--- stdout ---
+Uncaught ReferenceError: Symbol is not defined:
+/home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/es6/regress/regress-crbug-346141.js (9:8)
+=== mjsunit/es6/regress/regress-crbug-461520 ===
+--- stderr ---
+--- stdout ---
+Line 9: Unexpected token (
+=== mjsunit/es6/regress/regress-crbug-465671-null ===
+--- stderr ---
+--- stdout ---
+Line 11: Unexpected token =>
+=== mjsunit/es6/regress/regress-crbug-465671 ===
+--- stderr ---
+--- stdout ---
+Line 11: Unexpected token =>
+=== mjsunit/es6/regress/regress-new-target-context ===
+--- stderr ---
 === mjsunit/ignition/dead-code-source-position ===
 --- stderr ---
 --- stdout ---
@@ -2282,6 +3488,10 @@ Stack: undefined:
 /home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
 /home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (340:4)
 /home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/regress/regress-crbug-100859.js (67:0)
+=== mjsunit/regress/regress-crbug-135066 ===
+--- stderr ---
+exit code: -11
+--- CRASHED ---
 === mjsunit/regress/regress-crbug-352586 ===
 --- stderr ---
 === mjsunit/regress/regress-crbug-357052 ===
@@ -2303,6 +3513,10 @@ Stack: undefined:
 /home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (225:4)
 /home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/mjsunit.js (296:6)
 /home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/regress/regress-crbug-422858.js (26:0)
+=== mjsunit/regress/regress-crbug-433766 ===
+--- stderr ---
+exit code: -11
+--- CRASHED ---
 === mjsunit/regress/regress-crbug-451013 ===
 --- stderr ---
 exit code: -11
@@ -2480,6 +3694,6 @@ function keys() { [native function] }  (-1:-1)
 /home/june0cho/webTF/ESCARGOT/escargot2/test/vendortest/v8/test/mjsunit/third_party/object-keys/object-keys.js (67:13)
 
 ===
-=== 235 tests failed
-=== 16 tests CRASHED
+=== 456 tests failed
+=== 21 tests CRASHED
 ===
