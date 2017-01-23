@@ -46,21 +46,26 @@ public:
             return;
         }
 
-        if (context->m_codeBlock->canUseIndexedVariableStorage() || context->isGlobalScope()) {
+        if ((context->m_codeBlock->canUseIndexedVariableStorage() || context->m_codeBlock->isGlobalScopeCodeBlock())) {
             CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {
-                if (!context->m_codeBlock->inNotIndexedCodeBlockScope() && !context->m_codeBlock->inEvalWithCatchYieldScope()) {
+                if (!context->m_codeBlock->inCatchWith() && !context->m_codeBlock->inEvalScope() && !context->m_isCatchScope && !context->m_isEvalCode && !context->m_codeBlock->hasWith()) {
                     ExecutionState state(context->m_codeBlock->context());
                     codeBlock->pushCode(SetGlobalObject(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), PropertyName(state, m_name)), context, this);
                 } else {
-                    ASSERT(!context->m_codeBlock->canAllocateEnvironmentOnStack());
                     codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), m_name), context, this);
                 }
             } else {
+                if (context->m_isCatchScope && m_name == context->m_lastCatchVariableName) {
+                    codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), m_name), context, this);
+                    return;
+                }
+
                 if (info.m_isStackAllocated) {
                     codeBlock->pushCode(StoreByStackIndex(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), info.m_index), context, this);
                 } else {
-                    codeBlock->pushCode(StoreByHeapIndex(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), info.m_upperIndex, info.m_index), context, this);
+                    size_t cIdx = context->m_isCatchScope ? 1 : 0;
+                    codeBlock->pushCode(StoreByHeapIndex(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), info.m_upperIndex + cIdx, info.m_index), context, this);
                 }
             }
         } else {
@@ -79,21 +84,26 @@ public:
             return;
         }
 
-        if (context->m_codeBlock->canUseIndexedVariableStorage() || context->isGlobalScope()) {
+        if ((context->m_codeBlock->canUseIndexedVariableStorage() || context->m_codeBlock->isGlobalScopeCodeBlock())) {
             CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {
-                if (!context->m_codeBlock->inNotIndexedCodeBlockScope() && !context->m_codeBlock->inEvalWithCatchYieldScope()) {
+                if (!context->m_codeBlock->inCatchWith() && !context->m_codeBlock->inEvalScope() && !context->m_isCatchScope && !context->m_isEvalCode && !context->m_codeBlock->hasWith()) {
                     ExecutionState state(context->m_codeBlock->context());
                     codeBlock->pushCode(GetGlobalObject(ByteCodeLOC(m_loc.index), context->getRegister(), PropertyName(state, m_name)), context, this);
                 } else {
-                    ASSERT(!context->m_codeBlock->canAllocateEnvironmentOnStack());
                     codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), context->getRegister(), m_name), context, this);
                 }
             } else {
+                if (context->m_isCatchScope && m_name == context->m_lastCatchVariableName) {
+                    codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), context->getRegister(), m_name), context, this);
+                    return;
+                }
+
                 if (info.m_isStackAllocated) {
                     codeBlock->pushCode(LoadByStackIndex(ByteCodeLOC(m_loc.index), context->getRegister(), info.m_index), context, this);
                 } else {
-                    codeBlock->pushCode(LoadByHeapIndex(ByteCodeLOC(m_loc.index), context->getRegister(), info.m_upperIndex, info.m_index), context, this);
+                    size_t cIdx = context->m_isCatchScope ? 1 : 0;
+                    codeBlock->pushCode(LoadByHeapIndex(ByteCodeLOC(m_loc.index), context->getRegister(), info.m_upperIndex + cIdx, info.m_index), context, this);
                 }
             }
         } else {

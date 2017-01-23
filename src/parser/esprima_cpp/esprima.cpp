@@ -2205,6 +2205,8 @@ struct Context : public gc {
     bool inFunctionBody;
     bool inIteration;
     bool inSwitch;
+    bool inCatch;
+    bool inWith;
     std::vector<std::pair<String*, bool>> labelSet;
     bool strict;
 };
@@ -2281,6 +2283,8 @@ public:
         auto parentContext = scopeContexts.back();
         scopeContexts.push_back(new ASTScopeContext(this->context->strict, scopeContexts.back()));
         scopeContexts.back()->m_functionName = functionName;
+        scopeContexts.back()->m_inCatch = this->context->inCatch;
+        scopeContexts.back()->m_inWith = this->context->inWith;
         for (size_t i = 0; i < params.size(); i++) {
             ASSERT(params[i]->isIdentifier());
             IdentifierNode* id = (IdentifierNode*)params[i];
@@ -2335,6 +2339,8 @@ public:
         this->context->inFunctionBody = false;
         this->context->inIteration = false;
         this->context->inSwitch = false;
+        this->context->inCatch = false;
+        this->context->inWith = false;
         this->context->strict = this->sourceType == Module;
 
         this->startMarker.index = 0;
@@ -5163,7 +5169,11 @@ public:
         this->expect(LeftParenthesis);
         Node* object = this->parseExpression();
         this->expect(RightParenthesis);
+
+        bool prevInWith = this->context->inWith;
+        this->context->inWith = true;
         StatementNode* body = this->parseStatement();
+        this->context->inWith = prevInWith;
 
         return this->finalize(node, new WithStatementNode(object, body));
     }
@@ -5296,6 +5306,9 @@ public:
             this->throwUnexpectedToken(this->lookahead);
         }
 
+        bool prevInCatch = this->context->inCatch;
+        this->context->inCatch = true;
+
         std::vector<std::shared_ptr<ScannerResult>, gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>> params;
         Node* param = this->parsePattern(params);
 
@@ -5324,7 +5337,7 @@ public:
         this->expect(RightParenthesis);
         Node* body = this->parseBlock();
 
-        scopeContexts.back()->m_hasCatch = true;
+        this->context->inCatch = prevInCatch;
 
         return this->finalize(node, new CatchClauseNode(param, nullptr, body));
     }

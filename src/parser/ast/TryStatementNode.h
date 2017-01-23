@@ -51,11 +51,15 @@ public:
         codeBlock->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
         size_t tryCatchBodyPos = codeBlock->lastCodePosition<TryCatchWithBodyEnd>();
         if (m_handler) {
+            bool prev = context->m_isCatchScope;
+            context->m_isCatchScope = true;
+            context->m_lastCatchVariableName = m_handler->param()->name();
             codeBlock->peekCode<TryOperation>(pos)->m_catchPosition = codeBlock->currentCodeSize();
             m_handler->body()->generateStatementByteCode(codeBlock, context);
             codeBlock->peekCode<TryOperation>(pos)->m_hasCatch = true;
             codeBlock->peekCode<TryOperation>(pos)->m_catchVariableName = m_handler->param()->name();
             codeBlock->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
+            context->m_isCatchScope = prev;
         }
 
         context->registerJumpPositionsToComplexCase(pos);

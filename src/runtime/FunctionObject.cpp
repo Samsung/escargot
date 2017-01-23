@@ -186,6 +186,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
         env = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, outerEnvironment());
         ec = new (alloca(sizeof(ExecutionContext))) ExecutionContext(ctx, state.executionContext(), env, isStrict);
     } else {
+        record = new FunctionEnvironmentRecordNotIndexed(state, receiver, this, argc, argv, isNewExpression);
         if (m_codeBlock->canUseIndexedVariableStorage()) {
             record = new FunctionEnvironmentRecordOnHeap(state, receiver, this, argc, argv, isNewExpression);
         } else {

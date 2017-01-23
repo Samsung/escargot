@@ -63,6 +63,8 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     m_hasWith = false;
     m_hasCatch = false;
     m_hasYield = false;
+    m_inCatch = false;
+    m_inWith = false;
     m_usesArgumentsObject = false;
     m_hasArgumentsBinding = false;
     m_canUseIndexedVariableStorage = true;
@@ -112,6 +114,8 @@ CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundT
     m_hasWith = targetCodeBlock->hasWith();
     m_hasCatch = targetCodeBlock->hasCatch();
     m_hasYield = targetCodeBlock->hasYield();
+    m_inCatch = false;
+    m_inWith = false;
     m_usesArgumentsObject = targetCodeBlock->usesArgumentsObject();
     m_canUseIndexedVariableStorage = targetCodeBlock->canUseIndexedVariableStorage();
     m_canAllocateEnvironmentOnStack = targetCodeBlock->canAllocateEnvironmentOnStack();
@@ -185,6 +189,19 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
     } else {
         m_hasYield = false;
     }
+
+    if (initFlags & CodeBlockInitFlag::CodeBlockInCatch) {
+        m_inCatch = true;
+    } else {
+        m_inCatch = false;
+    }
+
+    if (initFlags & CodeBlockInitFlag::CodeBlockInWith) {
+        m_inWith = true;
+    } else {
+        m_inWith = false;
+    }
+
     m_usesArgumentsObject = false;
     m_hasArgumentsBinding = false;
     m_canUseIndexedVariableStorage = false;
@@ -247,6 +264,18 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeL
         m_hasYield = true;
     } else {
         m_hasYield = false;
+    }
+
+    if (initFlags & CodeBlockInitFlag::CodeBlockInCatch) {
+        m_inCatch = true;
+    } else {
+        m_inCatch = false;
+    }
+
+    if (initFlags & CodeBlockInitFlag::CodeBlockInWith) {
+        m_inWith = true;
+    } else {
+        m_inWith = false;
     }
 
     m_usesArgumentsObject = false;

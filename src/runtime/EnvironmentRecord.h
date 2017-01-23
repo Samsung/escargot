@@ -342,8 +342,8 @@ public:
     }
 
 protected:
-    IdentifierRecordVector m_recordVector;
     ValueVector& m_heapStorage;
+    IdentifierRecordVector m_recordVector;
 };
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-function-environment-records
@@ -546,8 +546,8 @@ public:
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
 
 protected:
-    IdentifierRecordVector m_recordVector;
     ValueVector& m_heapStorage;
+    IdentifierRecordVector m_recordVector;
 };
 }
 #endif

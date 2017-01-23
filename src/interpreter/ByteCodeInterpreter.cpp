@@ -104,7 +104,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                 upperEnv = upperEnv->outerEnvironment();
             }
             FunctionEnvironmentRecord* record = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-            ASSERT(record->isFunctionEnvironmentRecordOnHeap());
+            ASSERT(record->isFunctionEnvironmentRecordOnHeap() || record->isFunctionEnvironmentRecordNotIndexed());
             registerFile[code->m_registerIndex] = ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[code->m_index];
             ADD_PROGRAM_COUNTER(LoadByHeapIndex);
             NEXT_INSTRUCTION();
@@ -117,7 +117,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock,
                 upperEnv = upperEnv->outerEnvironment();
             }
             FunctionEnvironmentRecord* record = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-            ASSERT(record->isFunctionEnvironmentRecordOnHeap());
+            ASSERT(record->isFunctionEnvironmentRecordOnHeap() || record->isFunctionEnvironmentRecordNotIndexed());
             ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[code->m_index] = registerFile[code->m_registerIndex];
             ADD_PROGRAM_COUNTER(StoreByHeapIndex);
             NEXT_INSTRUCTION();

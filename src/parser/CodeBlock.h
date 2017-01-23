@@ -72,8 +72,10 @@ public:
         CodeBlockHasWith = 1 << 1,
         CodeBlockHasCatch = 1 << 2,
         CodeBlockHasYield = 1 << 3,
-        CodeBlockIsFunctionDeclaration = 1 << 4,
-        CodeBlockIsFunctionExpression = 1 << 5,
+        CodeBlockInCatch = 1 << 4,
+        CodeBlockInWith = 1 << 5,
+        CodeBlockIsFunctionDeclaration = 1 << 6,
+        CodeBlockIsFunctionExpression = 1 << 7,
     };
 
     struct IdentifierInfo {
@@ -109,6 +111,23 @@ public:
             cb = cb->parentCodeBlock();
         }
         return false;
+    }
+
+    bool inEvalScope()
+    {
+        CodeBlock* cb = this;
+        while (cb) {
+            if (cb->hasEval()) {
+                return true;
+            }
+            cb = cb->parentCodeBlock();
+        }
+        return false;
+    }
+
+    bool inCatchWith()
+    {
+        return m_inCatch || m_inWith;
     }
 
     bool inNotIndexedCodeBlockScope()
@@ -319,18 +338,18 @@ public:
         IndexedIdentifierInfo info;
 
         CodeBlock* blk = this;
-        while (blk) {
-            if (blk->canUseIndexedVariableStorage()) {
-                size_t index = blk->findName(name);
-                if (index != SIZE_MAX) {
-                    info.m_isResultSaved = true;
-                    info.m_isStackAllocated = blk->m_identifierInfos[index].m_needToAllocateOnStack;
-                    info.m_upperIndex = upperIndex;
+        while (!blk->isGlobalScopeCodeBlock()) {
+            size_t index = blk->findName(name);
+            if (index != SIZE_MAX) {
+                info.m_isResultSaved = true;
+                info.m_isStackAllocated = blk->m_identifierInfos[index].m_needToAllocateOnStack;
+                info.m_upperIndex = upperIndex;
+                if (blk->canUseIndexedVariableStorage()) {
                     info.m_index = blk->m_identifierInfos[index].m_indexForIndexedStorage;
-                    return info;
+                } else {
+                    info.m_index = index;
                 }
-            } else {
-                break;
+                return info;
             }
             upperIndex++;
             blk = blk->parentCodeBlock();
@@ -378,6 +397,8 @@ protected:
     bool m_hasWith : 1;
     bool m_hasCatch : 1;
     bool m_hasYield : 1;
+    bool m_inCatch : 1;
+    bool m_inWith : 1;
     bool m_usesArgumentsObject : 1;
     bool m_hasArgumentsBinding : 1;
     bool m_canUseIndexedVariableStorage : 1;

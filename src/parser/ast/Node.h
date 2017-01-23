@@ -240,6 +240,8 @@ struct ASTScopeContext : public gc {
     bool m_hasWith;
     bool m_hasCatch;
     bool m_hasYield;
+    bool m_inCatch;
+    bool m_inWith;
     ASTNodeType m_nodeType;
     ASTScopeContext *m_parentContext;
     Node *m_associateNode;
@@ -273,6 +275,7 @@ struct ASTScopeContext : public gc {
     {
         m_isStrict = isStrict;
         m_hasYield = m_hasCatch = m_hasWith = m_hasEval = false;
+        m_inCatch = m_inWith = false;
         m_parentContext = parentContext;
         m_associateNode = nullptr;
     }

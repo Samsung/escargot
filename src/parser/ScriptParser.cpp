@@ -32,6 +32,8 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
                                                                  | (scopeCtx->m_hasWith ? CodeBlock::CodeBlockHasWith : 0)
                                                                  | (scopeCtx->m_hasCatch ? CodeBlock::CodeBlockHasCatch : 0)
                                                                  | (scopeCtx->m_hasYield ? CodeBlock::CodeBlockHasYield : 0)
+                                                                 | (scopeCtx->m_inCatch ? CodeBlock::CodeBlockInCatch : 0)
+                                                                 | (scopeCtx->m_inWith ? CodeBlock::CodeBlockInWith : 0)
                                                                  | (scopeCtx->m_nodeType == FunctionExpression ? CodeBlock::CodeBlockIsFunctionExpression : 0)
                                                                  | (scopeCtx->m_nodeType == FunctionDeclaration ? CodeBlock::CodeBlockIsFunctionDeclaration : 0)));
     }
