@@ -94,7 +94,6 @@ enum KeywordKind {
     If,
     In,
     Do,
-    Of,
     Var,
     For,
     New,
@@ -882,8 +881,6 @@ public:
 
             } else if (first == 'd' && id == "do") {
                 return Do;
-            } else if (first == 'o' && id == "of") {
-                return Of;
             }
             break;
         case 3:
@@ -4923,7 +4920,8 @@ public:
                     left = init;
                     right = this->parseExpression();
                     init = nullptr;
-                } else if (declarations.size() == 1 && declarations[0]->init() == nullptr && this->matchContextualKeyword(Of)) {
+                } else if (declarations.size() == 1 && declarations[0]->init() == nullptr
+                           && this->lookahead->type == Token::IdentifierToken && this->lookahead->valueString == "of") {
                     init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
                     this->nextToken();
                     left = init;
@@ -4989,7 +4987,7 @@ public:
                     left = init;
                     right = this->parseExpression();
                     init = nullptr;
-                } else if (this->matchContextualKeyword(Of)) {
+                } else if (this->lookahead->type == Token::IdentifierToken && this->lookahead->valueString == "of") {
                     // TODO
                     RELEASE_ASSERT_NOT_REACHED();
                     /*

@@ -9,6 +9,35 @@
 //       IIFE for better modularity/resilience against tests that must do
 //       particularly bizarre things that might break the harness.
 
+var origLoad = load;
+var load = function (path) {
+    try {
+        return origLoad(path);
+    } catch (e1) {
+        if (e1 instanceof URIError) {
+            try {
+                return origLoad("../../../tools/vendortest/" + path);
+            } catch (e2) {
+                if (e2 instanceof URIError) {
+                    try {
+                        return origLoad("tools/vendortest/" + path);
+                    } catch (e3) {
+                        print(e3);
+                        throw e3;
+                    }
+                } else {
+                    print(e2);
+                    throw e2;
+                }
+            }
+        } else {
+            print(e1);
+            throw e1;
+        }
+    }
+}
+load("spidermonkey.base.js");
+
 (function(global) {
   /**********************************************************************
    * CACHED PRIMORDIAL FUNCTIONALITY (before a test might overwrite it) *

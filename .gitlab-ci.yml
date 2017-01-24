@@ -5,7 +5,7 @@ build_x64_release:
         - escargot_main_build
     before_script:
         - unset TIZEN_SDK_HOME
-        - ./build_third_party.sh
+        - ARCH=x64 MODE=release ./build_third_party.sh
         - make clean
     script:
         - make x64.interpreter.release -j && for file in `ldd ./escargot | grep icu | awk '{print $3}'`; do cp "$file" .; done
@@ -63,7 +63,7 @@ build_x86_release:
         - escargot_main_build
     before_script:
         - unset TIZEN_SDK_HOME
-        - ./build_third_party.sh
+        - ARCH=x86 MODE=release ./build_third_party.sh
         - make clean
     script:
         - make x86.interpreter.release -j
@@ -118,7 +118,7 @@ build_x64_debug:
         - escargot_main_build
     before_script:
         - unset TIZEN_SDK_HOME
-        - ./build_third_party.sh
+        - ARCH=x64 MODE=debug ./build_third_party.sh
         - make clean
     script:
         - make x64.interpreter.debug -j && for file in `ldd ./escargot | grep icu | awk '{print $3}'`; do cp "$file" .; done
@@ -177,7 +177,7 @@ build_x86_debug:
         - escargot_main_build
     before_script:
         - unset TIZEN_SDK_HOME
-        - ./build_third_party.sh
+        - ARCH=x86 MODE=debug ./build_third_party.sh
         - make clean
     script:
         - make x86.interpreter.debug -j

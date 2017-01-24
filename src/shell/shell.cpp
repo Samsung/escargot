@@ -34,6 +34,11 @@ void __attribute__((optimize("O0"))) fillStack(size_t siz)
 }
 #endif
 
+namespace Escargot {
+
+void installTestFunctions(Escargot::ExecutionState& state);
+}
+
 NEVER_INLINE bool eval(Escargot::Context* context, Escargot::String* str, Escargot::String* fileName, bool shouldPrintScriptResult)
 {
     auto result = context->scriptParser().parse(str, fileName);
@@ -99,6 +104,9 @@ int main(int argc, char* argv[])
 
     Escargot::VMInstance* instance = new Escargot::VMInstance();
     Escargot::Context* context = new Escargot::Context(instance);
+
+    Escargot::ExecutionState stateForInit(context);
+    installTestFunctions(stateForInit);
 
     bool runShell = true;
 

@@ -64,11 +64,6 @@ public:
 private:
     std::list<Job*, gc_allocator<Job*> > m_jobs;
 };
-
-JobQueue* JobQueue::create()
-{
-    return DefaultJobQueue::create();
-}
 }
 #endif // ESCARGOT_ENABLE_PROMISE
 #endif // __EscargotDefaultJobQueue__

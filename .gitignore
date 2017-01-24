@@ -58,3 +58,4 @@ android/libs
 *.gen.txt
 *.log.txt
 bdwgcUsage.dat
+node_modules
