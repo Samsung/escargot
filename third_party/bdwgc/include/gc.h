@@ -565,6 +565,10 @@ GC_API void GC_CALL GC_add_roots(void * /* low_address */,
 GC_API void GC_CALL GC_remove_roots(void * /* low_address */,
                                     void * /* high_address_plus_1 */);
 
+typedef void (GC_CALLBACK * GC_mark_stack_func)(void);
+GC_API void GC_CALL GC_register_mark_stack_func(GC_mark_stack_func func);
+GC_API void GC_CALL GC_push_all_eager(char *bottom, char *top);
+
 /* Add a displacement to the set of those considered valid by the       */
 /* collector.  GC_register_displacement(n) means that if p was returned */
 /* by GC_malloc, then (char *)p + n will be considered to be a valid    */
