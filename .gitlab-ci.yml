@@ -20,7 +20,7 @@ test_x64_release_sunspider:
     stage: test
     before_script:
         - rm -rf test/testRepo
-        - git clone git@10.113.64.74:escargot/test.git test/testRepo
+        - git clone git@10.113.64.74:webtf/js_full_tc.git test/testRepo
         - export TESTDIR_BASE="test/testRepo"
         - cp out/linux/x64/interpreter/release/escargot ./escargot
         - export LD_LIBRARY_PATH=`pwd`
@@ -46,9 +46,6 @@ test_x64_release_test262:
         - git submodule deinit -f .
         - git submodule init
         - git submodule update
-        - rm -rf test/testRepo
-        - git clone git@10.113.64.74:escargot/test.git test/testRepo
-        - export TESTDIR_BASE="test/testRepo"
         - cp out/linux/x64/interpreter/release/escargot ./escargot
         - export LD_LIBRARY_PATH=`pwd`
     script: make run-test262; exit $?;
@@ -75,7 +72,7 @@ test_x86_release_sunspider:
     stage: test
     before_script:
         - rm -rf test/testRepo
-        - git clone git@10.113.64.74:escargot/test.git test/testRepo
+        - git clone git@10.113.64.74:webtf/js_full_tc.git test/testRepo
         - export TESTDIR_BASE="test/testRepo"
         - cp out/linux/x86/interpreter/release/escargot ./escargot
         - export LD_LIBRARY_PATH=`pwd`/deps/x86-linux/lib;
@@ -101,9 +98,6 @@ test_x86_release_test262:
         - git submodule deinit -f .
         - git submodule init
         - git submodule update
-        - rm -rf test/testRepo
-        - git clone git@10.113.64.74:escargot/test.git test/testRepo
-        - export TESTDIR_BASE="test/testRepo"
         - cp out/linux/x86/interpreter/release/escargot ./escargot
         - export LD_LIBRARY_PATH=`pwd`/deps/x86-linux/lib;
     script: make run-test262; exit $?;
@@ -133,7 +127,7 @@ test_x64_debug_sunspider:
     stage: test
     before_script:
         - rm -rf test/testRepo
-        - git clone git@10.113.64.74:escargot/test.git test/testRepo
+        - git clone git@10.113.64.74:webtf/js_full_tc.git test/testRepo
         - export TESTDIR_BASE="test/testRepo"
         - cp out/linux/x64/interpreter/debug/escargot ./escargot
         - export LD_LIBRARY_PATH=`pwd`
@@ -189,7 +183,7 @@ test_x86_debug_sunspider:
     stage: test
     before_script:
         - rm -rf test/testRepo
-        - git clone git@10.113.64.74:escargot/test.git test/testRepo
+        - git clone git@10.113.64.74:webtf/js_full_tc.git test/testRepo
         - export TESTDIR_BASE="test/testRepo"
         - cp out/linux/x86/interpreter/debug/escargot ./escargot
         - export LD_LIBRARY_PATH=`pwd`/deps/x86-linux/lib;
