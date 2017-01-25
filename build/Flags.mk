@@ -79,6 +79,11 @@ ESCARGOT_CXXFLAGS_LTO += -flto -ffat-lto-objects
 ESCARGOT_LDFLAGS_LTO += -flto
 
 #######################################################
+# flags for TEST
+#######################################################
+ESCARGOT_CXXFLAGS_VENDORTEST += -DESCARGOT_ENABLE_VENDORTEST
+
+#######################################################
 # flags for $(THIRD_PARTY)
 #######################################################
 # icu

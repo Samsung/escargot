@@ -178,8 +178,8 @@ endif
 CXXFLAGS += $(ESCARGOT_CXXFLAGS_THIRD_PARTY)
 LDFLAGS += $(ESCARGOT_LDFLAGS_THIRD_PARTY)
 
-ifeq ($(TC), 1)
-  CXXFLAGS += $(ESCARGOT_CXXFLAGS_TC)
+ifeq ($(VENDORTEST), 1)
+  CXXFLAGS += $(ESCARGOT_CXXFLAGS_VENDORTEST)
 endif
 
 ifeq ($(LTO), 1)
@@ -320,7 +320,7 @@ tizen3_wearable_emulator.interpreter.debug.static: $(OUTDIR)/$(STATIC_LIB)
 tizen3_wearable_emulator.interpreter.release.static: $(OUTDIR)/$(STATIC_LIB)
 	cp -f $< .
 
-DEPENDENCY_MAKEFILE = Makefile $(BUILDDIR)/Toolchain.mk $(BUILDDIR)/Flags.mk
+DEPENDENCY_MAKEFILE = #Makefile $(BUILDDIR)/Toolchain.mk $(BUILDDIR)/Flags.mk
 
 $(OUTDIR)/$(BIN): $(OBJS) $(OBJS_GC) $(DEPENDENCY_MAKEFILE)
 	@echo "[LINK] $@"

@@ -25,7 +25,6 @@
 #endif
 
 namespace Escargot {
-
 void installTestFunctions(Escargot::ExecutionState& state);
 }
 
@@ -96,7 +95,9 @@ int main(int argc, char* argv[])
     Escargot::Context* context = new Escargot::Context(instance);
 
     Escargot::ExecutionState stateForInit(context);
+#ifdef ESCARGOT_ENABLE_VENDORTEST
     installTestFunctions(stateForInit);
+#endif
 
     bool runShell = true;
 

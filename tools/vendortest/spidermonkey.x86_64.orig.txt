@@ -485,6 +485,7 @@ ecma/GlobalObject/15.1.2.3-2.js
 ecma/GlobalObject/15.1.2.5-1.js
 ecma/LexicalConventions/7.7.4.js
 ecma/Number/15.7.4.3-2.js
+ecma/Statements/12.10-1.js
 ecma/Statements/12.6.3-2.js
 ecma/TypeConversion/9.3.1-3.js
 ecma/TypeConversion/9.4-1.js
@@ -759,7 +760,6 @@ js1_5/Regress/regress-303213.js
 js1_5/Regress/regress-306633.js
 js1_5/Regress/regress-306727.js
 js1_5/Regress/regress-308566.js
-js1_5/Regress/regress-311629.js
 js1_5/Regress/regress-312260.js
 js1_5/Regress/regress-31255.js
 js1_5/Regress/regress-319391.js

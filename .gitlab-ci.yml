@@ -8,7 +8,7 @@ build_x64_release:
         - ARCH=x64 MODE=release ./build_third_party.sh
         - make clean
     script:
-        - make x64.interpreter.release -j && for file in `ldd ./escargot | grep icu | awk '{print $3}'`; do cp "$file" .; done
+        - VENDORTEST=1 make x64.interpreter.release -j$(nproc) && for file in `ldd ./escargot | grep icu | awk '{print $3}'`; do cp "$file" .; done
     artifacts:
         paths:
             - out/linux/x64/interpreter/release/escargot
@@ -19,23 +19,18 @@ build_x64_release:
 test_x64_release_sunspider:
     stage: test
     before_script:
-        - rm -rf test/testRepo
         - git clone git@10.113.64.74:webtf/js_full_tc.git test/testRepo
-        - export TESTDIR_BASE="test/testRepo"
         - cp out/linux/x64/interpreter/release/escargot ./escargot
-        - export LD_LIBRARY_PATH=`pwd`
-    script: ./escargot $TESTDIR_BASE/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
+    script: ./escargot test/testRepo/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
     dependencies:
         - build_x64_release
 
 test_x64_release_octane:
     stage: test
     before_script:
-        - git submodule deinit -f .
         - git submodule init
-        - git submodule update
+        - git submodule update test/octane
         - cp out/linux/x64/interpreter/release/escargot ./escargot
-        - export LD_LIBRARY_PATH=`pwd`
     script: make run-octane | tail -1 > out/octane_result; if ! cat out/octane_result | grep -c 'Score' > /dev/null; then exit 1; fi
     dependencies:
         - build_x64_release
@@ -43,14 +38,25 @@ test_x64_release_octane:
 test_x64_release_test262:
     stage: test
     before_script:
-        - git submodule deinit -f .
         - git submodule init
-        - git submodule update
+        - git submodule update test/test262
         - cp out/linux/x64/interpreter/release/escargot ./escargot
-        - export LD_LIBRARY_PATH=`pwd`
     script: make run-test262; exit $?;
     dependencies:
         - build_x64_release
+
+test_x64_release_spidermonkey:
+    stage: test
+    tags:
+        - escargot_allow_slow
+    before_script:
+        - git submodule init
+        - git submodule update test/vendortest
+        - cp out/linux/x64/interpreter/release/escargot ./escargot
+    script: make run-spidermonkey-full; exit $?;
+    dependencies:
+        - build_x64_release
+    allow_failure: true
 
 ###############################################################################
 
@@ -63,7 +69,7 @@ build_x86_release:
         - ARCH=x86 MODE=release ./build_third_party.sh
         - make clean
     script:
-        - make x86.interpreter.release -j
+        - VENDORTEST=1 make x86.interpreter.release -j$(nproc)
     artifacts:
         paths:
             - out/linux/x86/interpreter/release/escargot
@@ -71,23 +77,18 @@ build_x86_release:
 test_x86_release_sunspider:
     stage: test
     before_script:
-        - rm -rf test/testRepo
         - git clone git@10.113.64.74:webtf/js_full_tc.git test/testRepo
-        - export TESTDIR_BASE="test/testRepo"
         - cp out/linux/x86/interpreter/release/escargot ./escargot
-        - export LD_LIBRARY_PATH=`pwd`/deps/x86-linux/lib;
-    script: ./escargot $TESTDIR_BASE/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
+    script: ./escargot test/testRepo/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
     dependencies:
         - build_x86_release
 
 test_x86_release_octane:
     stage: test
     before_script:
-        - git submodule deinit -f .
         - git submodule init
-        - git submodule update
+        - git submodule update test/octane
         - cp out/linux/x86/interpreter/release/escargot ./escargot
-        - export LD_LIBRARY_PATH=`pwd`/deps/x86-linux/lib;
     script: make run-octane | tail -1 > out/octane_result; if ! cat out/octane_result | grep -c 'Score' > /dev/null; then exit 1; fi
     dependencies:
         - build_x86_release
@@ -95,14 +96,23 @@ test_x86_release_octane:
 test_x86_release_test262:
     stage: test
     before_script:
-        - git submodule deinit -f .
         - git submodule init
-        - git submodule update
+        - git submodule update test/test262
         - cp out/linux/x86/interpreter/release/escargot ./escargot
-        - export LD_LIBRARY_PATH=`pwd`/deps/x86-linux/lib;
     script: make run-test262; exit $?;
     dependencies:
         - build_x86_release
+
+test_x86_release_spidermonkey:
+    stage: test
+    before_script:
+        - git submodule init
+        - git submodule update test/vendortest
+        - cp out/linux/x86/interpreter/release/escargot ./escargot
+    script: make run-spidermonkey-full; exit $?;
+    dependencies:
+        - build_x86_release
+    allow_failure: true
 
 ###############################################################################
 
@@ -115,7 +125,7 @@ build_x64_debug:
         - ARCH=x64 MODE=debug ./build_third_party.sh
         - make clean
     script:
-        - make x64.interpreter.debug -j && for file in `ldd ./escargot | grep icu | awk '{print $3}'`; do cp "$file" .; done
+        - VENDORTEST=1 make x64.interpreter.debug -j$(nproc) && for file in `ldd ./escargot | grep icu | awk '{print $3}'`; do cp "$file" .; done
     artifacts:
         paths:
             - out/linux/x64/interpreter/debug/escargot
@@ -126,23 +136,18 @@ build_x64_debug:
 test_x64_debug_sunspider:
     stage: test
     before_script:
-        - rm -rf test/testRepo
         - git clone git@10.113.64.74:webtf/js_full_tc.git test/testRepo
-        - export TESTDIR_BASE="test/testRepo"
         - cp out/linux/x64/interpreter/debug/escargot ./escargot
-        - export LD_LIBRARY_PATH=`pwd`
-    script: ./escargot $TESTDIR_BASE/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
+    script: ./escargot test/testRepo/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
     dependencies:
         - build_x64_debug
-#
+
 #test_x64_debug_octane:
 #    stage: test
 #    before_script:
-#        - git submodule deinit -f .
 #        - git submodule init
-#        - git submodule update
+#        - git submodule update test/octane
 #        - cp out/linux/x64/interpreter/debug/escargot ./escargot
-#        - export LD_LIBRARY_PATH=`pwd`
 #    script: make run-octane | tail -1 > out/octane_result; if ! cat out/octane_result | grep -c 'Score' > /dev/null; then exit 1; fi
 #    dependencies:
 #        - build_x64_debug
@@ -151,14 +156,9 @@ test_x64_debug_sunspider:
 #test_x64_debug_test262:
 #    stage: test
 #    before_script:
-#        - git submodule deinit -f .
 #        - git submodule init
-#        - git submodule update
-#        - rm -rf test/testRepo
-#        - git clone git@10.113.64.74:escargot/test.git test/testRepo
-#        - export TESTDIR_BASE="test/testRepo"
+#        - git submodule update test/test262
 #        - cp out/linux/x64/interpreter/debug/escargot ./escargot
-#        - export LD_LIBRARY_PATH=`pwd`
 #    script: make run-test262; exit $?;
 #    dependencies:
 #        - build_x64_debug
@@ -174,7 +174,7 @@ build_x86_debug:
         - ARCH=x86 MODE=debug ./build_third_party.sh
         - make clean
     script:
-        - make x86.interpreter.debug -j
+        - VENDORTEST=1 make x86.interpreter.debug -j$(nproc)
     artifacts:
         paths:
             - out/linux/x86/interpreter/debug/escargot
@@ -182,23 +182,18 @@ build_x86_debug:
 test_x86_debug_sunspider:
     stage: test
     before_script:
-        - rm -rf test/testRepo
         - git clone git@10.113.64.74:webtf/js_full_tc.git test/testRepo
-        - export TESTDIR_BASE="test/testRepo"
         - cp out/linux/x86/interpreter/debug/escargot ./escargot
-        - export LD_LIBRARY_PATH=`pwd`/deps/x86-linux/lib;
-    script: ./escargot $TESTDIR_BASE/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
+    script: ./escargot test/testRepo/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
     dependencies:
         - build_x86_debug
-#
+
 #test_x86_debug_octane:
 #    stage: test
 #    before_script:
-#        - git submodule deinit -f .
 #        - git submodule init
-#        - git submodule update
+#        - git submodule update test/octane
 #        - cp out/linux/x86/interpreter/debug/escargot ./escargot
-#        - export LD_LIBRARY_PATH=`pwd`/deps/x86-linux/lib;
 #    script: make run-octane | tail -1 > out/octane_result; if ! cat out/octane_result | grep -c 'Score' > /dev/null; then exit 1; fi
 #    dependencies:
 #        - build_x86_debug
@@ -206,14 +201,8 @@ test_x86_debug_sunspider:
 #test_x86_debug_test262:
 #    stage: test
 #    before_script:
-#        - git submodule deinit -f .
 #        - git submodule init
-#        - git submodule update
-#        - rm -rf test/testRepo
-#        - git clone git@10.113.64.74:escargot/test.git test/testRepo
-#        - export TESTDIR_BASE="test/testRepo"
-#        - cp out/linux/x86/interpreter/debug/escargot ./escargot
-#        - export LD_LIBRARY_PATH=`pwd`/deps/x86-linux/lib;
+#        - git submodule update test/test262
 #    script: make run-test262; exit $?;
 #    dependencies:
 #        - build_x86_debug
