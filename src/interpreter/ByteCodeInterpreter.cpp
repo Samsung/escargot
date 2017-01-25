@@ -50,19 +50,12 @@ ALWAYS_INLINE size_t resolveProgramCounter(char* codeBuffer, const size_t progra
     return programCounter - (size_t)codeBuffer;
 }
 
-void  ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile, Value* stackStorage)
+void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile, Value* stackStorage)
 {
-    fillStack(768);
-    interpretImpl(state, codeBlock, byteCodeBlock, programCounter, registerFile, stackStorage);
-}
-
-void ByteCodeInterpreter::interpretImpl(ExecutionState& state, CodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, register size_t programCounter, Value* registerFile, Value* stackStorage)
-{
-    if (UNLIKELY(codeBlock == nullptr)) {
+    if (UNLIKELY(byteCodeBlock == nullptr)) {
         goto FillOpcodeTable;
     }
     {
-        ASSERT(codeBlock->byteCodeBlock() != nullptr);
         ExecutionContext* ec = state.executionContext();
         LexicalEnvironment* env = ec->lexicalEnvironment();
         EnvironmentRecord* record = env->record();
@@ -71,10 +64,11 @@ void ByteCodeInterpreter::interpretImpl(ExecutionState& state, CodeBlock* codeBl
         char* codeBuffer = byteCodeBlock->m_code.data();
         programCounter = (size_t)(&codeBuffer[programCounter]);
 
-        goto*(((ByteCode*)programCounter)->m_opcodeInAddress);
-
         try {
-#define NEXT_INSTRUCTION() goto*(((ByteCode*)programCounter)->m_opcodeInAddress);
+#define NEXT_INSTRUCTION() goto NextInstruction;
+
+        NextInstruction:
+            goto*(((ByteCode*)programCounter)->m_opcodeInAddress);
 
         LoadLiteralOpcodeLbl : {
             LoadLiteral* code = (LoadLiteral*)programCounter;
@@ -322,7 +316,6 @@ void ByteCodeInterpreter::interpretImpl(ExecutionState& state, CodeBlock* codeBl
             ToNumber* code = (ToNumber*)programCounter;
             const Value& val = registerFile[code->m_registerIndex];
             registerFile[code->m_registerIndex] = Value(val.toNumber(state));
-            ;
             ADD_PROGRAM_COUNTER(ToNumber);
             NEXT_INSTRUCTION();
         }
@@ -655,7 +648,6 @@ void ByteCodeInterpreter::interpretImpl(ExecutionState& state, CodeBlock* codeBl
             NEXT_INSTRUCTION();
         }
 
-
         CallNativeFunctionOpcodeLbl : {
             CallNativeFunction* code = (CallNativeFunction*)programCounter;
             Value* argv = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->argv();
@@ -699,7 +691,7 @@ void ByteCodeInterpreter::interpretImpl(ExecutionState& state, CodeBlock* codeBl
                 if (code->m_argumentCount) {
                     arg = registerFile[code->m_registerIndex];
                 }
-                registerFile[code->m_registerIndex] = state.context()->globalObject()->eval(state, arg, codeBlock);
+                registerFile[code->m_registerIndex] = state.context()->globalObject()->eval(state, arg, byteCodeBlock->m_codeBlock);
             } else {
                 registerFile[code->m_registerIndex] = FunctionObject::call(state, eval, Value(), code->m_argumentCount, &registerFile[code->m_registerIndex]);
             }
@@ -728,38 +720,7 @@ void ByteCodeInterpreter::interpretImpl(ExecutionState& state, CodeBlock* codeBl
 
         TryOperationOpcodeLbl : {
             TryOperation* code = (TryOperation*)programCounter;
-            try {
-                if (!state.ensureRareData()->m_controlFlowRecord) {
-                    state.ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
-                }
-                state.ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
-                size_t newPc = programCounter + sizeof(TryOperation);
-                interpret(state, codeBlock, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile, stackStorage);
-                programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
-            } catch (const Value& val) {
-                state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
-                if (code->m_hasCatch == false) {
-                    state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
-                    programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
-                } else {
-                    // setup new env
-                    EnvironmentRecord* newRecord = new DeclarativeEnvironmentRecordNotIndexed(state);
-                    newRecord->createMutableBinding(state, code->m_catchVariableName);
-                    newRecord->setMutableBinding(state, code->m_catchVariableName, val);
-                    LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
-                    ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
-
-                    try {
-                        ExecutionState newState(state.context(), newEc, state.exeuctionResult());
-                        newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
-                        interpret(newState, codeBlock, byteCodeBlock, code->m_catchPosition, registerFile, stackStorage);
-                        programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
-                    } catch (const Value& val) {
-                        state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
-                        programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
-                    }
-                }
-            }
+            programCounter = tryOperation(state, code, ec, env, programCounter, byteCodeBlock, registerFile, stackStorage);
             NEXT_INSTRUCTION();
         }
 
@@ -803,44 +764,12 @@ void ByteCodeInterpreter::interpretImpl(ExecutionState& state, CodeBlock* codeBl
 
         WithOperationOpcodeLbl : {
             WithOperation* code = (WithOperation*)programCounter;
-            if (!state.ensureRareData()->m_controlFlowRecord) {
-                state.ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
+            size_t newPc = programCounter;
+            if (withOperation(state, code, registerFile[code->m_registerIndex].toObject(state), ec, env, newPc, byteCodeBlock, registerFile, stackStorage)) {
+                programCounter = newPc;
+                return;
             }
-            state.ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
-            size_t newPc = programCounter + sizeof(WithOperation);
-
-            // setup new env
-            EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(state, registerFile[code->m_registerIndex].toObject(state));
-            LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
-            ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
-            ExecutionState newState(state.context(), newEc, state.exeuctionResult());
-            newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
-
-            interpret(newState, codeBlock, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile, stackStorage);
-
-            ControlFlowRecord* record = state.rareData()->m_controlFlowRecord->back();
-            state.rareData()->m_controlFlowRecord->erase(state.rareData()->m_controlFlowRecord->size() - 1);
-
-            if (record) {
-                if (record->reason() == ControlFlowRecord::NeedsJump) {
-                    size_t pos = (size_t)record->value().asPointerValue();
-                    record->m_count--;
-                    if (record->count()) {
-                        state.rareData()->m_controlFlowRecord->back() = record;
-                        return;
-                    } else
-                        programCounter = jumpTo(codeBuffer, pos);
-                } else {
-                    ASSERT(record->reason() == ControlFlowRecord::NeedsReturn);
-                    record->m_count--;
-                    if (record->count()) {
-                        state.rareData()->m_controlFlowRecord->back() = record;
-                    }
-                    return;
-                }
-            } else {
-                programCounter = jumpTo(codeBuffer, code->m_withEndPostion);
-            }
+            programCounter = newPc;
             NEXT_INSTRUCTION();
         }
 
@@ -911,23 +840,7 @@ void ByteCodeInterpreter::interpretImpl(ExecutionState& state, CodeBlock* codeBl
 
         UnaryDeleteOpcodeLbl : {
             UnaryDelete* code = (UnaryDelete*)programCounter;
-            if (code->m_id.string()->length()) {
-                bool result;
-                if (UNLIKELY(code->m_id == state.context()->staticStrings().arguments && !env->record()->isGlobalEnvironmentRecord())) {
-                    result = false;
-                } else {
-                    result = env->deleteBinding(state, code->m_id);
-                }
-                registerFile[code->m_registerIndex0] = Value(result);
-            } else {
-                const Value& o = registerFile[code->m_registerIndex0];
-                const Value& p = registerFile[code->m_registerIndex1];
-                Object* obj = o.toObject(state);
-                bool result = obj->deleteOwnProperty(state, ObjectPropertyName(state, p));
-                if (!result && state.inStrictMode())
-                    Object::throwCannotDeleteError(state, ObjectPropertyName(state, p).toPropertyName(state));
-                registerFile[code->m_registerIndex0] = Value(result);
-            }
+            deleteOperation(state, env, code, registerFile);
             ADD_PROGRAM_COUNTER(UnaryDelete);
             NEXT_INSTRUCTION();
         }
@@ -976,14 +889,7 @@ void ByteCodeInterpreter::interpretImpl(ExecutionState& state, CodeBlock* codeBl
 
         StoreArgumentsObjectOpcodeLbl : {
             StoreArgumentsObject* code = (StoreArgumentsObject*)programCounter;
-            ExecutionContext* e = ec;
-            while (!(e->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord())) {
-                e = e->parent();
-            }
-            auto fnRecord = e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-            fnRecord->m_isArgumentObjectCreated = true;
-            auto result = fnRecord->hasBinding(state, state.context()->staticStrings().arguments);
-            fnRecord->setMutableBindingByIndex(state, result.m_index, state.context()->staticStrings().arguments, registerFile[code->m_registerIndex]);
+            storeArgumentsObject(state, ec, registerFile[code->m_registerIndex]);
             ADD_PROGRAM_COUNTER(StoreArgumentsObject);
             NEXT_INSTRUCTION();
         }
@@ -996,25 +902,13 @@ void ByteCodeInterpreter::interpretImpl(ExecutionState& state, CodeBlock* codeBl
 
         CallFunctionInWithScopeOpcodeLbl : {
             CallFunctionInWithScope* code = (CallFunctionInWithScope*)programCounter;
-            const AtomicString& calleeName = code->m_calleeName;
-            // NOTE: record for with scope
-            Object* receiverObj = NULL;
-            Value callee;
-            EnvironmentRecord* bindedRecord = getBindedEnvironmentRecordByName(state, env, calleeName, callee);
-            if (!bindedRecord)
-                callee = Value();
-
-            if (bindedRecord && bindedRecord->isObjectEnvironmentRecord())
-                receiverObj = bindedRecord->asObjectEnvironmentRecord()->bindingObject();
-            else
-                receiverObj = state.context()->globalObject();
-            registerFile[code->m_registerIndex] = FunctionObject::call(state, callee, receiverObj, code->m_argumentCount, &registerFile[code->m_registerIndex]);
+            registerFile[code->m_registerIndex] = callFunctionInWithScope(state, code, ec, env, &registerFile[code->m_registerIndex]);
             ADD_PROGRAM_COUNTER(CallFunctionInWithScope);
             NEXT_INSTRUCTION();
         }
 
         LoadArgumentsInWithScopeOpcodeLbl : {
-            LoadArgumentsObject* code = (LoadArgumentsObject*)programCounter;
+            LoadArgumentsInWithScope* code = (LoadArgumentsInWithScope*)programCounter;
             Value val;
             LexicalEnvironment* envTmp = env;
             while (envTmp) {
@@ -1033,48 +927,12 @@ void ByteCodeInterpreter::interpretImpl(ExecutionState& state, CodeBlock* codeBl
             }
             registerFile[code->m_registerIndex] = val;
             loadArgumentsObject(state, ec);
-            ADD_PROGRAM_COUNTER(LoadArgumentsObject);
+            ADD_PROGRAM_COUNTER(LoadArgumentsInWithScope);
             NEXT_INSTRUCTION();
         }
 
         } catch (const Value& v) {
-            ASSERT(state.context()->m_sandBoxStack.size());
-            SandBox* sb = state.context()->m_sandBoxStack.back();
-            if (ec->m_lexicalEnvironment->record()->isDeclarativeEnvironmentRecord()) {
-                if (ec->m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-                    FunctionObject* fn = ec->m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
-                    CodeBlock* cb = fn->codeBlock();
-                    ByteCodeBlock* b = cb->byteCodeBlock();
-                    ByteCode* code = b->peekCode<ByteCode>(programCounter - (size_t)b->m_code.data());
-                    ExtendedNodeLOC loc = b->computeNodeLOCFromByteCode(code, cb);
-                    if (sb->m_stackTraceData.size() == 0 || sb->m_stackTraceData.back().first != ec) {
-                        SandBox::StackTraceData data;
-                        data.loc = loc;
-                        if (cb->script())
-                            data.fileName = cb->script()->fileName();
-                        else {
-                            StringBuilder builder;
-                            builder.appendString("function ");
-                            builder.appendString(cb->functionName().string());
-                            builder.appendString("() { ");
-                            builder.appendString("[native function]");
-                            builder.appendString(" } ");
-                            data.fileName = builder.finalize();
-                        }
-                        sb->m_stackTraceData.pushBack(std::make_pair(ec, data));
-                    }
-                }
-            } else if (ec->m_lexicalEnvironment->record()->isGlobalEnvironmentRecord()) {
-                CodeBlock* cb = ec->m_lexicalEnvironment->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
-                ByteCodeBlock* b = cb->byteCodeBlock();
-                ByteCode* code = b->peekCode<ByteCode>((size_t)programCounter - (size_t)b->m_code.data());
-                ExtendedNodeLOC loc = b->computeNodeLOCFromByteCode(code, cb);
-                SandBox::StackTraceData data;
-                data.loc = loc;
-                data.fileName = cb->script()->fileName();
-                sb->m_stackTraceData.pushBack(std::make_pair(ec, data));
-            }
-            sb->throwException(state, v);
+            processException(state, v, ec, programCounter);
         }
     }
 FillOpcodeTable : {
@@ -1101,6 +959,18 @@ NEVER_INLINE Value ByteCodeInterpreter::loadArgumentsObject(ExecutionState& stat
         fnRecord->setMutableBindingByIndex(state, result.m_index, state.context()->staticStrings().arguments, val);
     }
     return val;
+}
+
+NEVER_INLINE void ByteCodeInterpreter::storeArgumentsObject(ExecutionState& state, ExecutionContext* ec, Value v)
+{
+    ExecutionContext* e = ec;
+    while (!(e->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord())) {
+        e = e->parent();
+    }
+    auto fnRecord = e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+    fnRecord->m_isArgumentObjectCreated = true;
+    auto result = fnRecord->hasBinding(state, state.context()->staticStrings().arguments);
+    fnRecord->setMutableBindingByIndex(state, result.m_index, state.context()->staticStrings().arguments, v);
 }
 
 NEVER_INLINE EnvironmentRecord* ByteCodeInterpreter::getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue, bool throwException)
@@ -1275,6 +1145,27 @@ NEVER_INLINE Value ByteCodeInterpreter::instanceOfOperation(ExecutionState& stat
     return Value(false);
 }
 
+NEVER_INLINE void ByteCodeInterpreter::deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile)
+{
+    if (code->m_id.string()->length()) {
+        bool result;
+        if (UNLIKELY(code->m_id == state.context()->staticStrings().arguments && !env->record()->isGlobalEnvironmentRecord())) {
+            result = false;
+        } else {
+            result = env->deleteBinding(state, code->m_id);
+        }
+        registerFile[code->m_registerIndex0] = Value(result);
+    } else {
+        const Value& o = registerFile[code->m_registerIndex0];
+        const Value& p = registerFile[code->m_registerIndex1];
+        Object* obj = o.toObject(state);
+        bool result = obj->deleteOwnProperty(state, ObjectPropertyName(state, p));
+        if (!result && state.inStrictMode())
+            Object::throwCannotDeleteError(state, ObjectPropertyName(state, p).toPropertyName(state));
+        registerFile[code->m_registerIndex0] = Value(result);
+    }
+}
+
 ALWAYS_INLINE bool ByteCodeInterpreter::abstractRelationalComparison(ExecutionState& state, const Value& left, const Value& right, bool leftFirst)
 {
     // consume very fast case
@@ -1350,7 +1241,7 @@ NEVER_INLINE bool ByteCodeInterpreter::abstractRelationalComparisonOrEqualSlowCa
     }
 }
 
-ALWAYS_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const Value& target, const PropertyName& name, GetObjectInlineCache& inlineCache)
+NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const Value& target, const PropertyName& name, GetObjectInlineCache& inlineCache)
 {
     unsigned currentCacheIndex = 0;
     ObjectStructureChainItem testItem;
@@ -1436,7 +1327,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache)
+ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache)
 {
     Object* originalObject = obj;
 
@@ -1732,5 +1623,147 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalObjectSlowCase(ExecutionState& s
         code->m_savedGlobalObjectVersion = go->structure()->version();
         go->setOwnPropertyThrowsExceptionWhenStrictMode(state, idx, value);
     }
+}
+
+NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, TryOperation* code, ExecutionContext* ec, LexicalEnvironment* env, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage)
+{
+    char* codeBuffer = byteCodeBlock->m_code.data();
+    try {
+        if (!state.ensureRareData()->m_controlFlowRecord) {
+            state.ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
+        }
+        state.ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
+        size_t newPc = programCounter + sizeof(TryOperation);
+        clearStack<386>();
+        interpret(state, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile, stackStorage);
+        programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
+    } catch (const Value& val) {
+        state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
+        if (code->m_hasCatch == false) {
+            state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
+            programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
+        } else {
+            // setup new env
+            EnvironmentRecord* newRecord = new DeclarativeEnvironmentRecordNotIndexed(state);
+            newRecord->createMutableBinding(state, code->m_catchVariableName);
+            newRecord->setMutableBinding(state, code->m_catchVariableName, val);
+            LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
+            ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
+
+            try {
+                ExecutionState newState(state.context(), newEc, state.exeuctionResult());
+                newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
+                clearStack<386>();
+                interpret(newState, byteCodeBlock, code->m_catchPosition, registerFile, stackStorage);
+                programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
+            } catch (const Value& val) {
+                state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
+                programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
+            }
+        }
+    }
+    return programCounter;
+}
+
+NEVER_INLINE bool ByteCodeInterpreter::withOperation(ExecutionState& state, WithOperation* code, Object* obj, ExecutionContext* ec, LexicalEnvironment* env, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage)
+{
+    if (!state.ensureRareData()->m_controlFlowRecord) {
+        state.ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
+    }
+    state.ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
+    size_t newPc = programCounter + sizeof(WithOperation);
+    char* codeBuffer = byteCodeBlock->m_code.data();
+
+    // setup new env
+    EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(state, obj);
+    LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
+    ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
+    ExecutionState newState(state.context(), newEc, state.exeuctionResult());
+    newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
+
+    interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile, stackStorage);
+
+    ControlFlowRecord* record = state.rareData()->m_controlFlowRecord->back();
+    state.rareData()->m_controlFlowRecord->erase(state.rareData()->m_controlFlowRecord->size() - 1);
+
+    if (record) {
+        if (record->reason() == ControlFlowRecord::NeedsJump) {
+            size_t pos = (size_t)record->value().asPointerValue();
+            record->m_count--;
+            if (record->count()) {
+                state.rareData()->m_controlFlowRecord->back() = record;
+            } else
+                programCounter = jumpTo(codeBuffer, pos);
+            return true;
+        } else {
+            ASSERT(record->reason() == ControlFlowRecord::NeedsReturn);
+            record->m_count--;
+            if (record->count()) {
+                state.rareData()->m_controlFlowRecord->back() = record;
+            }
+            return true;
+        }
+    } else {
+        programCounter = jumpTo(codeBuffer, code->m_withEndPostion);
+    }
+    return false;
+}
+
+NEVER_INLINE Value ByteCodeInterpreter::callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, ExecutionContext* ec, LexicalEnvironment* env, Value* argv)
+{
+    const AtomicString& calleeName = code->m_calleeName;
+    // NOTE: record for with scope
+    Object* receiverObj = NULL;
+    Value callee;
+    EnvironmentRecord* bindedRecord = getBindedEnvironmentRecordByName(state, env, calleeName, callee);
+    if (!bindedRecord)
+        callee = Value();
+
+    if (bindedRecord && bindedRecord->isObjectEnvironmentRecord())
+        receiverObj = bindedRecord->asObjectEnvironmentRecord()->bindingObject();
+    else
+        receiverObj = state.context()->globalObject();
+    return FunctionObject::call(state, callee, receiverObj, code->m_argumentCount, argv);
+}
+
+NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, const Value& value, ExecutionContext* ec, size_t programCounter)
+{
+    ASSERT(state.context()->m_sandBoxStack.size());
+    SandBox* sb = state.context()->m_sandBoxStack.back();
+    if (ec->m_lexicalEnvironment->record()->isDeclarativeEnvironmentRecord()) {
+        if (ec->m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            FunctionObject* fn = ec->m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
+            CodeBlock* cb = fn->codeBlock();
+            ByteCodeBlock* b = cb->byteCodeBlock();
+            ByteCode* code = b->peekCode<ByteCode>(programCounter - (size_t)b->m_code.data());
+            ExtendedNodeLOC loc = b->computeNodeLOCFromByteCode(code, cb);
+            if (sb->m_stackTraceData.size() == 0 || sb->m_stackTraceData.back().first != ec) {
+                SandBox::StackTraceData data;
+                data.loc = loc;
+                if (cb->script())
+                    data.fileName = cb->script()->fileName();
+                else {
+                    StringBuilder builder;
+                    builder.appendString("function ");
+                    builder.appendString(cb->functionName().string());
+                    builder.appendString("() { ");
+                    builder.appendString("[native function]");
+                    builder.appendString(" } ");
+                    data.fileName = builder.finalize();
+                }
+                sb->m_stackTraceData.pushBack(std::make_pair(ec, data));
+            }
+        }
+    } else if (ec->m_lexicalEnvironment->record()->isGlobalEnvironmentRecord()) {
+        CodeBlock* cb = ec->m_lexicalEnvironment->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
+        ByteCodeBlock* b = cb->byteCodeBlock();
+        ByteCode* code = b->peekCode<ByteCode>((size_t)programCounter - (size_t)b->m_code.data());
+        ExtendedNodeLOC loc = b->computeNodeLOCFromByteCode(code, cb);
+        SandBox::StackTraceData data;
+        data.loc = loc;
+        data.fileName = cb->script()->fileName();
+        sb->m_stackTraceData.pushBack(std::make_pair(ec, data));
+    }
+    sb->throwException(state, value);
 }
 }

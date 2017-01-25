@@ -3,11 +3,10 @@
 
 namespace Escargot {
 
-inline void __attribute__((optimize("O0"))) fillStack(size_t siz)
+template <const int siz>
+inline void __attribute__((optimize("O0"))) clearStack()
 {
-    volatile char a[siz];
-    memset((char*)a, 0, siz);
+    volatile char a[siz] = { 0 };
 }
-
 }
 #endif

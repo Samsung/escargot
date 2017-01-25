@@ -9,6 +9,7 @@
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/ErrorObject.h"
+#include "util/Util.h"
 
 namespace Escargot {
 
@@ -269,7 +270,8 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     }
 
     // run function
-    ByteCodeInterpreter::interpret(newState, m_codeBlock, m_codeBlock->byteCodeBlock(), 0, registerFile, stackStorage);
+    clearStack<512>();
+    ByteCodeInterpreter::interpret(newState, m_codeBlock->byteCodeBlock(), 0, registerFile, stackStorage);
 
     return resultValue;
 }

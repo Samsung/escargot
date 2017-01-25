@@ -73,11 +73,6 @@
 #endif
 #endif
 
-#ifdef ESCARGOT_SMALL_CONFIG
-#undef ALWAYS_INLINE
-#define ALWAYS_INLINE inline
-#endif
-
 /* NEVER_INLINE */
 #ifndef NEVER_INLINE
 #if COMPILER(GCC)

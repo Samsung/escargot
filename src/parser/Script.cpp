@@ -9,6 +9,7 @@
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/SandBox.h"
+#include "util/Util.h"
 
 namespace Escargot {
 
@@ -44,7 +45,8 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     ExecutionState newState(state.context(), &ec, &resultValue);
 
     Value* registerFile = (Value*)alloca(m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
-    ByteCodeInterpreter::interpret(newState, m_topCodeBlock, m_topCodeBlock->byteCodeBlock(), 0, registerFile, nullptr);
+    clearStack<512>();
+    ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile, nullptr);
 
     return resultValue;
 }
@@ -112,7 +114,8 @@ Value Script::executeLocal(ExecutionState& state, bool isEvalMode, bool needNewR
     }
 
     Value* registerFile = (Value*)alloca(m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
-    ByteCodeInterpreter::interpret(newState, m_topCodeBlock, m_topCodeBlock->byteCodeBlock(), 0, registerFile, stackStorage);
+    clearStack<512>();
+    ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile, stackStorage);
 
     return resultValue;
 }
