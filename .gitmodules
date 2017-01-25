@@ -12,4 +12,4 @@
 	url = https://github.com/chromium/octane.git
 [submodule "test/vendortest"]
 	path = test/vendortest
-	url = git@10.113.64.74:escargot/vendortest.git
+    url = git@10.113.64.74:webtf/js_vendor_tc.git
