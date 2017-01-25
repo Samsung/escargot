@@ -12,6 +12,7 @@
 #include "runtime/ErrorObject.h"
 #include "runtime/ArrayObject.h"
 #include "parser/ScriptParser.h"
+#include "util/Util.h"
 #include "../third_party/checked_arithmetic/CheckedArithmetic.h"
 
 namespace Escargot {
@@ -49,7 +50,13 @@ ALWAYS_INLINE size_t resolveProgramCounter(char* codeBuffer, const size_t progra
     return programCounter - (size_t)codeBuffer;
 }
 
-void ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, register size_t programCounter, Value* registerFile, Value* stackStorage)
+void  ByteCodeInterpreter::interpret(ExecutionState& state, CodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile, Value* stackStorage)
+{
+    fillStack(768);
+    interpretImpl(state, codeBlock, byteCodeBlock, programCounter, registerFile, stackStorage);
+}
+
+void ByteCodeInterpreter::interpretImpl(ExecutionState& state, CodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, register size_t programCounter, Value* registerFile, Value* stackStorage)
 {
     if (UNLIKELY(codeBlock == nullptr)) {
         goto FillOpcodeTable;

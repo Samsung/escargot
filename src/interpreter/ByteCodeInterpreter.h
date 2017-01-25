@@ -47,6 +47,8 @@ public:
 
     static Value getGlobalObjectSlowCase(ExecutionState& state, Object* go, GetGlobalObject* code);
     static void setGlobalObjectSlowCase(ExecutionState& state, Object* go, SetGlobalObject* code, const Value& value);
+private:
+    NEVER_INLINE static void interpretImpl(ExecutionState& state, CodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile, Value* stackStorage);
 };
 }
 

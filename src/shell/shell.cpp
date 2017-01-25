@@ -24,16 +24,6 @@
 #include "DefaultJobQueue.h"
 #endif
 
-#ifdef ANDROID
-void __attribute__((optimize("O0"))) fillStack(size_t siz)
-{
-    volatile char a[siz];
-    for (unsigned i = 0; i < siz; i++) {
-        a[i] = 0x00;
-    }
-}
-#endif
-
 namespace Escargot {
 
 void installTestFunctions(Escargot::ExecutionState& state);
