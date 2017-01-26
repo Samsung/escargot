@@ -3189,7 +3189,9 @@ public:
         case Token::BooleanLiteralToken:
         case Token::NullLiteralToken:
         case Token::KeywordToken:
+            this->trackUsingNames = false;
             key = this->finalize(node, finishIdentifier(token, false));
+            this->trackUsingNames = true;
             break;
 
         case Token::PunctuatorToken:
@@ -3702,7 +3704,9 @@ public:
                 this->context->isBindingElement = false;
                 this->context->isAssignmentTarget = true;
                 this->expect(Period);
+                this->trackUsingNames = false;
                 IdentifierNode* property = this->parseIdentifierName();
+                this->trackUsingNames = true;
                 expr = this->finalize(this->startNode(startToken), new MemberExpressionNode(expr, property, true));
 
             } else if (this->match(LeftParenthesis)) {
@@ -3768,7 +3772,9 @@ public:
                 this->context->isBindingElement = false;
                 this->context->isAssignmentTarget = true;
                 this->expect(Period);
+                this->trackUsingNames = false;
                 IdentifierNode* property = this->parseIdentifierName();
+                this->trackUsingNames = true;
                 expr = this->finalize(node, new MemberExpressionNode(expr, property, true));
 
             } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->head) {

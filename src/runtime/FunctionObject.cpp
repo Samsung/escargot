@@ -186,7 +186,6 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
         env = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, outerEnvironment());
         ec = new (alloca(sizeof(ExecutionContext))) ExecutionContext(ctx, state.executionContext(), env, isStrict);
     } else {
-        record = new FunctionEnvironmentRecordNotIndexed(state, receiver, this, argc, argv, isNewExpression);
         if (m_codeBlock->canUseIndexedVariableStorage()) {
             record = new FunctionEnvironmentRecordOnHeap(state, receiver, this, argc, argv, isNewExpression);
         } else {
@@ -197,7 +196,6 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     }
 
     Value registerFile[m_codeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize];
-    memset(registerFile, 0, m_codeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
     Value* stackStorage = ALLOCA(stackStorageSize * sizeof(Value), Value, state);
     Value resultValue;
     for (size_t i = 0; i < stackStorageSize; i++) {
@@ -269,7 +267,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     }
 
     // run function
-    clearStack<512>();
+    clearStack<384>();
     ByteCodeInterpreter::interpret(newState, m_codeBlock->byteCodeBlock(), 0, registerFile, stackStorage);
 
     return resultValue;

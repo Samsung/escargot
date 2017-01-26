@@ -58,24 +58,34 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
         for (size_t i = 0; i < scopeCtx->m_usingNames.size(); i++) {
             AtomicString uname = scopeCtx->m_usingNames[i];
             if (uname == arguments) {
-                codeBlock->m_usesArgumentsObject = true;
-                if (!codeBlock->hasName(arguments)) {
-                    CodeBlock::IdentifierInfo info;
-                    info.m_indexForIndexedStorage = SIZE_MAX;
-                    info.m_name = arguments;
-                    info.m_needToAllocateOnStack = false;
-                    codeBlock->m_identifierInfos.pushBack(info);
-                } else {
-                    codeBlock->m_hasArgumentsBinding = true;
+                AtomicStringVector& pv = codeBlock->m_parameterNames;
+                bool hasArgumentsParameter = false;
+                for (size_t i = 0; i < pv.size(); i++) {
+                    if (pv[i] == arguments) {
+                        hasArgumentsParameter = true;
+                        break;
+                    }
                 }
-                CodeBlock* b = codeBlock;
-                while (b) {
-                    b->notifySelfOrChildHasEvalWithCatchYield();
-                    b = b->parentCodeBlock();
+                if (!hasArgumentsParameter) {
+                    codeBlock->m_usesArgumentsObject = true;
+                    if (!codeBlock->hasName(arguments)) {
+                        CodeBlock::IdentifierInfo info;
+                        info.m_indexForIndexedStorage = SIZE_MAX;
+                        info.m_name = arguments;
+                        info.m_needToAllocateOnStack = false;
+                        codeBlock->m_identifierInfos.pushBack(info);
+                    } else {
+                        codeBlock->m_hasArgumentsBinding = true;
+                    }
+
+                    CodeBlock* b = codeBlock;
+                    b->m_canAllocateEnvironmentOnStack = false;
+
+                    for (size_t j = 0; j < b->m_identifierInfos.size(); j++) {
+                        b->m_identifierInfos[j].m_needToAllocateOnStack = false;
+                    }
                 }
-                continue;
-            }
-            if (!codeBlock->hasName(uname)) {
+            } else if (!codeBlock->hasName(uname)) {
                 CodeBlock* c = codeBlock->parentCodeBlock();
                 while (c) {
                     if (c->tryCaptureIdentifiersFromChildCodeBlock(uname)) {
@@ -156,14 +166,15 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
     }
 
                 PRINT_TAB()
-                printf("CodeBlock %s (%d:%d -> %d:%d)(%s, %s) (E:%d, W:%d, C:%d, Y:%d) Name:%d\n", cb->m_functionName.string()->toUTF8StringData().data(),
+                printf("CodeBlock %s %s (%d:%d -> %d:%d)(%s, %s) (E:%d, W:%d, C:%d, Y:%d, A:%d) Name:%d\n", cb->m_functionName.string()->toUTF8StringData().data(),
+                       cb->m_isStrict ? "Strict" : "",
                        (int)cb->m_locStart.line,
                        (int)cb->m_locStart.column,
                        (int)cb->m_locEnd.line,
                        (int)cb->m_locEnd.column,
                        cb->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap",
                        cb->m_canUseIndexedVariableStorage ? "Indexed" : "Named",
-                       (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasCatch, (int)cb->m_hasYield, (int)cb->m_functionNameIndex);
+                       (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasCatch, (int)cb->m_hasYield, (int)cb->m_usesArgumentsObject, (int)cb->m_functionNameIndex);
 
                 PRINT_TAB()
                 printf("Names: ");

@@ -361,7 +361,6 @@ bool CodeBlock::hasNonConfiguableNameOnGlobal(const AtomicString& name)
 void CodeBlock::computeVariables()
 {
     if (m_usesArgumentsObject) {
-        m_canUseIndexedVariableStorage = false;
         m_canAllocateEnvironmentOnStack = false;
     }
 

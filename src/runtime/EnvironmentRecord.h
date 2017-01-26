@@ -293,14 +293,14 @@ class DeclarativeEnvironmentRecordNotIndexed : public DeclarativeEnvironmentReco
 public:
     DeclarativeEnvironmentRecordNotIndexed(ExecutionState& state)
         : DeclarativeEnvironmentRecord(state, nullptr)
-        , m_heapStorage(*(new ValueVector()))
+        , m_heapStorage()
     {
     }
 
     // this constructor is for strict eval
     DeclarativeEnvironmentRecordNotIndexed(ExecutionState& state, const CodeBlock::IdentifierInfoVector& vec)
         : DeclarativeEnvironmentRecord(state, nullptr)
-        , m_heapStorage(*(new ValueVector()))
+        , m_heapStorage()
     {
         for (size_t i = 0; i < vec.size(); i++) {
             createMutableBinding(state, vec[i].m_name, false);
@@ -342,7 +342,7 @@ public:
     }
 
 protected:
-    ValueVector& m_heapStorage;
+    ValueVector m_heapStorage;
     IdentifierRecordVector m_recordVector;
 };
 
@@ -465,7 +465,7 @@ class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecord {
 public:
     ALWAYS_INLINE FunctionEnvironmentRecordOnHeap(ExecutionState& state, const Value& receiver, FunctionObject* function, size_t argc, Value* argv, bool isNewExpression)
         : FunctionEnvironmentRecord(state, receiver, function, argc, argv, isNewExpression)
-        , m_heapStorage(*(new ValueVector(function->codeBlock()->identifierOnHeapCount())))
+        , m_heapStorage(function->codeBlock()->identifierOnHeapCount())
     {
     }
 
@@ -485,7 +485,7 @@ public:
     }
 
 protected:
-    ValueVector& m_heapStorage;
+    ValueVector m_heapStorage;
 };
 
 class FunctionEnvironmentRecordNotIndexed : public FunctionEnvironmentRecord {
@@ -494,7 +494,7 @@ class FunctionEnvironmentRecordNotIndexed : public FunctionEnvironmentRecord {
 public:
     ALWAYS_INLINE FunctionEnvironmentRecordNotIndexed(ExecutionState& state, const Value& receiver, FunctionObject* function, size_t argc, Value* argv, bool isNewExpression)
         : FunctionEnvironmentRecord(state, receiver, function, argc, argv, isNewExpression)
-        , m_heapStorage(*(new ValueVector()))
+        , m_heapStorage()
     {
         const CodeBlock::IdentifierInfoVector& vec = function->codeBlock()->identifierInfos();
         size_t len = vec.size();
@@ -546,7 +546,7 @@ public:
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
 
 protected:
-    ValueVector& m_heapStorage;
+    ValueVector m_heapStorage;
     IdentifierRecordVector m_recordVector;
 };
 }

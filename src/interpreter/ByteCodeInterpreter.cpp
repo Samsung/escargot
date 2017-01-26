@@ -813,7 +813,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
                 registerFile[code->m_registerIndex] = Value((PointerValue*)updateEnumerateObjectData(state, data));
             }
 
-            if (data->m_keys->size() == data->m_idx) {
+            if (data->m_keys.size() == data->m_idx) {
                 programCounter = jumpTo(codeBuffer, code->m_forInEndPosition);
             } else {
                 ADD_PROGRAM_COUNTER(CheckIfKeyIsLast);
@@ -825,7 +825,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             EnumerateObjectKey* code = (EnumerateObjectKey*)programCounter;
             EnumerateObjectData* data = (EnumerateObjectData*)registerFile[code->m_dataRegisterIndex].asPointerValue();
             data->m_idx++;
-            registerFile[code->m_registerIndex] = (*data->m_keys)[data->m_idx - 1].toString(state);
+            registerFile[code->m_registerIndex] = data->m_keys[data->m_idx - 1].toString(state);
             ADD_PROGRAM_COUNTER(EnumerateObjectKey);
             NEXT_INSTRUCTION();
         }
@@ -951,17 +951,42 @@ NEVER_INLINE Value ByteCodeInterpreter::loadArgumentsObject(ExecutionState& stat
     }
     Value val(Value::ForceUninitialized);
     auto fnRecord = e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+    AtomicString arguments = state.context()->staticStrings().arguments;
     if (e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isArgumentObjectCreated()) {
-        val = fnRecord->getBindingValue(state, state.context()->staticStrings().arguments).m_value;
+        if (fnRecord->isFunctionEnvironmentRecordNotIndexed()) {
+            val = fnRecord->getBindingValue(state, arguments).m_value;
+        } else {
+            const CodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->identifierInfos();
+            size_t idx = SIZE_MAX;
+            for (size_t i = 0; i < v.size(); i++) {
+                if (v[i].m_name == arguments) {
+                    idx = v[i].m_indexForIndexedStorage;
+                    break;
+                }
+            }
+            val = fnRecord->getHeapValueByIndex(idx);
+        }
     } else {
         val = fnRecord->createArgumentsObject(state, e);
-        auto result = fnRecord->hasBinding(state, state.context()->staticStrings().arguments);
-        fnRecord->setMutableBindingByIndex(state, result.m_index, state.context()->staticStrings().arguments, val);
+        if (fnRecord->isFunctionEnvironmentRecordNotIndexed()) {
+            auto result = fnRecord->hasBinding(state, arguments);
+            fnRecord->setMutableBindingByIndex(state, result.m_index, arguments, val);
+        } else {
+            const CodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->identifierInfos();
+            size_t idx = SIZE_MAX;
+            for (size_t i = 0; i < v.size(); i++) {
+                if (v[i].m_name == arguments) {
+                    idx = v[i].m_indexForIndexedStorage;
+                    break;
+                }
+            }
+            fnRecord->setHeapValueByIndex(idx, val);
+        }
     }
     return val;
 }
 
-NEVER_INLINE void ByteCodeInterpreter::storeArgumentsObject(ExecutionState& state, ExecutionContext* ec, Value v)
+NEVER_INLINE void ByteCodeInterpreter::storeArgumentsObject(ExecutionState& state, ExecutionContext* ec, Value val)
 {
     ExecutionContext* e = ec;
     while (!(e->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord())) {
@@ -969,8 +994,22 @@ NEVER_INLINE void ByteCodeInterpreter::storeArgumentsObject(ExecutionState& stat
     }
     auto fnRecord = e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
     fnRecord->m_isArgumentObjectCreated = true;
-    auto result = fnRecord->hasBinding(state, state.context()->staticStrings().arguments);
-    fnRecord->setMutableBindingByIndex(state, result.m_index, state.context()->staticStrings().arguments, v);
+
+    AtomicString arguments = state.context()->staticStrings().arguments;
+    if (fnRecord->isFunctionEnvironmentRecordNotIndexed()) {
+        auto result = fnRecord->hasBinding(state, arguments);
+        fnRecord->setMutableBindingByIndex(state, result.m_index, arguments, val);
+    } else {
+        const CodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->identifierInfos();
+        size_t idx = SIZE_MAX;
+        for (size_t i = 0; i < v.size(); i++) {
+            if (v[i].m_name == arguments) {
+                idx = v[i].m_indexForIndexedStorage;
+                break;
+            }
+        }
+        fnRecord->setHeapValueByIndex(idx, val);
+    }
 }
 
 NEVER_INLINE EnvironmentRecord* ByteCodeInterpreter::getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue, bool throwException)
@@ -1507,7 +1546,7 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
                     auto iter = eData->keyStringSet->find(key);
                     if (iter == eData->keyStringSet->end()) {
                         eData->keyStringSet->insert(key);
-                        eData->data->m_keys->pushBack(name.toValue(state));
+                        eData->data->m_keys.pushBack(name.toValue(state));
                     }
                 } else if (self == eData->obj) {
                     // 12.6.4 The values of [[Enumerable]] attributes are not considered
@@ -1524,11 +1563,11 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
     } else {
         size_t idx = 0;
         eData.idx = &idx;
-        data->m_keys->resizeWithUninitializedValues(ownKeyCount);
+        data->m_keys.resizeWithUninitializedValues(ownKeyCount);
         target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
             if (desc.isEnumerable()) {
                 EData* eData = (EData*)data;
-                (*eData->data->m_keys)[(*eData->idx)++] = name.toValue(state);
+                eData->data->m_keys[(*eData->idx)++] = name.toValue(state);
             }
             return true;
         },
@@ -1543,12 +1582,12 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::updateEnumerateObjectData
 {
     EnumerateObjectData* newData = executeEnumerateObject(state, data->m_object);
     std::vector<Value, gc_malloc_ignore_off_page_allocator<Value>> oldKeys;
-    if (data->m_keys->size()) {
-        oldKeys.insert(oldKeys.end(), &(*data->m_keys)[0], &(*data->m_keys)[(*data->m_keys).size() - 1] + 1);
+    if (data->m_keys.size()) {
+        oldKeys.insert(oldKeys.end(), &data->m_keys[0], &data->m_keys[data->m_keys.size() - 1] + 1);
     }
     std::vector<Value, gc_malloc_ignore_off_page_allocator<Value>> differenceKeys;
-    for (size_t i = 0; i < (*newData->m_keys).size(); i++) {
-        const Value& key = (*newData->m_keys)[i];
+    for (size_t i = 0; i < newData->m_keys.size(); i++) {
+        const Value& key = newData->m_keys[i];
         if (std::find(oldKeys.begin(), oldKeys.begin() + data->m_idx, key) == oldKeys.begin() + data->m_idx) {
             // If a property that has not yet been visited during enumeration is deleted, then it will not be visited.
             if (std::find(oldKeys.begin() + data->m_idx, oldKeys.end(), key) != oldKeys.end()) {
@@ -1559,10 +1598,10 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::updateEnumerateObjectData
         }
     }
     data = newData;
-    (*data->m_keys).clear();
-    (*data->m_keys).resizeWithUninitializedValues(differenceKeys.size());
+    data->m_keys.clear();
+    data->m_keys.resizeWithUninitializedValues(differenceKeys.size());
     for (size_t i = 0; i < differenceKeys.size(); i++) {
-        (*data->m_keys)[i] = differenceKeys[i];
+        data->m_keys[i] = differenceKeys[i];
     }
     return data;
 }

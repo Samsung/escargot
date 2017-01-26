@@ -1218,13 +1218,12 @@ struct EnumerateObjectData {
     EnumerateObjectData()
     {
         m_idx = 0;
-        m_keys = new ValueVector();
     }
 
     ObjectStructureChain m_hiddenClassChain;
     Object* m_object;
     size_t m_idx;
-    ValueVector* m_keys;
+    ValueVector m_keys;
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
