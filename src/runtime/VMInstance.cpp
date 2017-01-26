@@ -4,6 +4,7 @@
 namespace Escargot {
 
 extern size_t g_doubleInSmallValueTag;
+extern size_t g_objectRareDataTag;
 extern size_t g_stringTag;
 
 VMInstance::VMInstance()
@@ -24,5 +25,7 @@ VMInstance::VMInstance()
     DoubleInSmallValue temp(0);
     g_doubleInSmallValueTag = *((size_t*)&temp);
     g_stringTag = *((size_t*)String::emptyString);
+    ObjectRareData data(nullptr);
+    g_objectRareDataTag = *((size_t*)&data);
 }
 }

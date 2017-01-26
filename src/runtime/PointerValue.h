@@ -23,6 +23,7 @@ public:
     enum Type {
         StringType,
         ObjectType,
+        ObjectRareDataType,
         FunctionObjectType,
         ArrayObjectType,
         DoubleInSmallValueType,

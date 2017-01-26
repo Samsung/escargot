@@ -40,7 +40,6 @@ void* RegExpObject::operator new(size_t size)
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(RegExpObject)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_structure));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_rareData));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_prototype));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_values));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_source));

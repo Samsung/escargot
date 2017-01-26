@@ -199,7 +199,6 @@ public:
         if (!typeInited) {
             GC_word obj_bitmap[GC_BITMAP_SIZE(TypedArrayObject)] = { 0 };
             GC_set_bit(obj_bitmap, GC_WORD_OFFSET(TypedArrayObject, m_structure));
-            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(TypedArrayObject, m_rareData));
             GC_set_bit(obj_bitmap, GC_WORD_OFFSET(TypedArrayObject, m_prototype));
             GC_set_bit(obj_bitmap, GC_WORD_OFFSET(TypedArrayObject, m_values));
             GC_set_bit(obj_bitmap, GC_WORD_OFFSET(TypedArrayObject, m_buffer));

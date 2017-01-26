@@ -1104,7 +1104,6 @@ void* DateObject::operator new(size_t size)
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(DateObject)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(DateObject, m_structure));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(DateObject, m_rareData));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(DateObject, m_prototype));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(DateObject, m_values));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(DateObject));

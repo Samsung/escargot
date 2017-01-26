@@ -20,16 +20,24 @@ template <typename TypeArg, int elementSize>
 class TypedArrayObject;
 #endif
 
-struct ObjectRareData : public gc {
+extern size_t g_objectRareDataTag;
+
+struct ObjectRareData : public PointerValue {
     bool m_isExtensible;
     bool m_isEverSetAsPrototypeObject;
     bool m_isFastModeArrayObject;
     const char* m_internalClassName;
     void* m_extraData;
+    Object* m_prototype;
 #ifdef ESCARGOT_ENABLE_PROMISE
     Object* m_internalSlot;
 #endif
-    ObjectRareData();
+    ObjectRareData(Object* obj);
+
+    virtual Type type()
+    {
+        return ObjectRareDataType;
+    }
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -465,6 +473,7 @@ class Object : public PointerValue {
     friend class Context;
     friend class GlobalObject;
     friend class ByteCodeInterpreter;
+    friend class ObjectRareData;
     static Object* createBuiltinObjectPrototype(ExecutionState& state);
 
 public:
@@ -522,7 +531,7 @@ public:
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-isextensible
     bool isExtensible()
     {
-        return m_rareData == nullptr ? true : m_rareData->m_isExtensible;
+        return rareData() == nullptr ? true : rareData()->m_isExtensible;
     }
 
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-preventextensions
@@ -534,6 +543,17 @@ public:
     Value getPrototype(ExecutionState& state)
     {
         if (LIKELY((size_t)m_prototype > 2)) {
+            if (UNLIKELY(g_objectRareDataTag == *((size_t*)(m_prototype)))) {
+                Object* e = rareData()->m_prototype;
+                if ((size_t)e > 2) {
+                    return e;
+                } else if (e == nullptr) {
+                    return Value(Value::Null);
+                } else {
+                    ASSERT((size_t)e == 1);
+                    return Value();
+                }
+            }
             return m_prototype;
         } else if (m_prototype == nullptr) {
             return Value(Value::Null);
@@ -606,27 +626,27 @@ public:
 
     ObjectRareData* ensureObjectRareData()
     {
-        if (m_rareData == nullptr) {
-            m_rareData = new ObjectRareData();
+        if (rareData() == nullptr) {
+            m_prototype = (Object*)(new ObjectRareData(this));
         }
-        return m_rareData;
+        return rareData();
     }
 
     bool isEverSetAsPrototypeObject() const
     {
-        if (LIKELY(m_rareData == nullptr)) {
+        if (LIKELY(rareData() == nullptr)) {
             return false;
         } else {
-            return m_rareData->m_isEverSetAsPrototypeObject;
+            return rareData()->m_isEverSetAsPrototypeObject;
         }
     }
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
     virtual const char* internalClassProperty()
     {
-        if (LIKELY(m_rareData == nullptr) || LIKELY(m_rareData->m_internalClassName == nullptr))
+        if (LIKELY(rareData() == nullptr) || LIKELY(rareData()->m_internalClassName == nullptr))
             return "Object";
-        return m_rareData->m_internalClassName;
+        return rareData()->m_internalClassName;
     }
 
     void giveInternalClassProperty(const char* name)
@@ -636,8 +656,8 @@ public:
 
     void* extraData()
     {
-        if (m_rareData) {
-            return m_rareData->m_extraData;
+        if (rareData()) {
+            return rareData()->m_extraData;
         }
         return nullptr;
     }
@@ -658,8 +678,8 @@ public:
 
     Object* internalSlot()
     {
-        ASSERT(m_rareData);
-        return m_rareData->m_internalSlot;
+        ASSERT(rareData());
+        return rareData()->m_internalSlot;
     }
 
     void setInternalSlot(Object* object)
@@ -686,9 +706,17 @@ public:
 protected:
     Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);
     void initPlainObject(ExecutionState& state);
+    ObjectRareData* rareData() const
+    {
+        if ((size_t)m_prototype > 2) {
+            if ((g_objectRareDataTag == *((size_t*)(m_prototype)))) {
+                return (ObjectRareData*)m_prototype;
+            }
+        }
+        return nullptr;
+    }
     ObjectStructure* m_structure;
     Object* m_prototype;
-    ObjectRareData* m_rareData;
     TightVectorWithNoSize<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> m_values;
 
     COMPILE_ASSERT(sizeof(TightVectorWithNoSize<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>>) == sizeof(size_t) * 1, "");
@@ -787,9 +815,24 @@ protected:
     Object* getPrototypeObject()
     {
         if (LIKELY((size_t)m_prototype > 2)) {
+            if (UNLIKELY(g_objectRareDataTag == *((size_t*)(m_prototype)))) {
+                Object* e = rareData()->m_prototype;
+                if ((size_t)e > 2) {
+                    return e;
+                } else if (e == nullptr) {
+                    return nullptr;
+                } else {
+                    ASSERT((size_t)e == 1);
+                    return nullptr;
+                }
+            }
             return m_prototype;
+        } else if (m_prototype == nullptr) {
+            return nullptr;
+        } else {
+            ASSERT((size_t)m_prototype == 1);
+            return nullptr;
         }
-        return nullptr;
     }
 };
 }

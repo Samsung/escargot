@@ -50,10 +50,10 @@ public:
 protected:
     ALWAYS_INLINE bool isFastModeArray()
     {
-        if (LIKELY(m_rareData == nullptr)) {
+        if (LIKELY(rareData() == nullptr)) {
             return true;
         }
-        return m_rareData->m_isFastModeArrayObject;
+        return rareData()->m_isFastModeArrayObject;
     }
 
     ALWAYS_INLINE uint32_t getArrayLength(ExecutionState& state)

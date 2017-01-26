@@ -8,8 +8,14 @@
 
 namespace Escargot {
 
-ObjectRareData::ObjectRareData()
+size_t g_objectRareDataTag;
+
+ObjectRareData::ObjectRareData(Object* obj)
 {
+    if (obj)
+        m_prototype = obj->m_prototype;
+    else
+        m_prototype = nullptr;
     m_isExtensible = true;
     m_isEverSetAsPrototypeObject = false;
     m_isFastModeArrayObject = true;
@@ -26,6 +32,7 @@ void* ObjectRareData::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(ObjectRareData)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectRareData, m_prototype));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectRareData, m_extraData));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectRareData, m_internalSlot));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ObjectRareData));
@@ -255,7 +262,6 @@ ObjectPropertyDescriptor ObjectPropertyDescriptor::fromObjectStructurePropertyDe
 
 Object::Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea)
     : m_structure(state.context()->defaultStructureForObject())
-    , m_rareData(nullptr)
 {
     m_values.resizeWithUninitializedValues(0, defaultSpace);
     if (initPlainArea) {
@@ -265,7 +271,6 @@ Object::Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea)
 
 Object::Object(ExecutionState& state)
     : m_structure(state.context()->defaultStructureForObject())
-    , m_rareData(nullptr)
 {
     m_values.resizeWithUninitializedValues(0, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER);
     initPlainObject(state);
@@ -278,7 +283,6 @@ void* Object::operator new(size_t size)
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(Object)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Object, m_structure));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Object, m_rareData));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Object, m_prototype));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Object, m_values));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(Object));
@@ -316,21 +320,27 @@ void Object::setPrototype(ExecutionState& state, const Value& value)
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't set prototype of this object");
     }
 
+    Object* o;
     if (value.isObject()) {
-        m_prototype = value.asObject();
-        m_prototype->markAsPrototypeObject(state);
+        value.asObject()->markAsPrototypeObject(state);
+        o = value.asObject();
     } else if (value.isNull()) {
-        m_prototype = nullptr;
+        o = nullptr;
     } else if (value.isUndefined()) {
-        m_prototype = (Object*)1;
+        o = (Object*)1;
     } else {
+    }
+    if (rareData()) {
+        rareData()->m_prototype = o;
+    } else {
+        m_prototype = o;
     }
 }
 
 void Object::markAsPrototypeObject(ExecutionState& state)
 {
     ensureObjectRareData();
-    m_rareData->m_isEverSetAsPrototypeObject = true;
+    rareData()->m_isEverSetAsPrototypeObject = true;
 
     if (!state.context()->didSomePrototypeObjectDefineIndexedProperty()) {
         if (structure()->hasIndexPropertyName()) {

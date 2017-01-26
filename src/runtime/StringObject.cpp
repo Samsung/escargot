@@ -20,7 +20,6 @@ void* StringObject::operator new(size_t size)
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(StringObject)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(StringObject, m_structure));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(StringObject, m_rareData));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(StringObject, m_prototype));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(StringObject, m_values));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(StringObject, m_primitiveValue));
