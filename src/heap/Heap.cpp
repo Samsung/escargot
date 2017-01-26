@@ -17,8 +17,8 @@ void Heap::initialize()
 
     GC_set_free_space_divisor(24);
     GC_set_force_unmap_on_gcollect(1);
-    //  GC_set_full_freq(1);
-    //  GC_set_time_limit(GC_TIME_UNLIMITED);
+    // GC_set_full_freq(1);
+    // GC_set_time_limit(GC_TIME_UNLIMITED);
 
     GC_register_mark_stack_func([]() {
         unw_cursor_t cursor;

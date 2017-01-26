@@ -1460,7 +1460,7 @@ public:
 };
 
 
-typedef Vector<char, gc_malloc_atomic_ignore_off_page_allocator<char>, 175> ByteCodeBlockData;
+typedef Vector<char, std::allocator<char>, 200> ByteCodeBlockData;
 typedef Vector<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> ByteCodeLiteralData;
 
 class ByteCodeBlock : public gc {
@@ -1469,6 +1469,13 @@ public:
     {
         m_requiredRegisterFileSizeInValueSize = 1;
         m_codeBlock = codeBlock;
+
+        GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
+                                                void*) {
+            ByteCodeBlock* self = (ByteCodeBlock*)obj;
+            self->m_code.clear();
+        },
+                                       nullptr, nullptr, nullptr);
     }
 
     template <typename CodeType>

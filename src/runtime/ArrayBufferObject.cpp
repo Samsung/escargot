@@ -13,17 +13,22 @@ ArrayBufferObject::ArrayBufferObject(ExecutionState& state)
     setPrototype(state, state.context()->globalObject()->arrayBufferPrototype());
 }
 
+// static int callocTotal;
+
 void ArrayBufferObject::allocateBuffer(size_t bytelength)
 {
     ASSERT(isDetachedBuffer());
 
     m_data = (uint8_t*)calloc(1, bytelength);
     m_bytelength = bytelength;
-
+    // callocTotal += bytelength;
+    // printf("callocTotal %lf\n", callocTotal / 1024.0 / 1024.0);
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
                                             void*) {
         ArrayBufferObject* self = (ArrayBufferObject*)obj;
         free(self->m_data);
+        // callocTotal -= self->m_bytelength;
+        // printf("callocTotal %lf\n", callocTotal / 1024.0 / 1024.0);
     },
                                    nullptr, nullptr, nullptr);
 }

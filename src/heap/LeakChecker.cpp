@@ -4,6 +4,9 @@
 #include "heap/Allocator.h"
 #include "runtime/ErrorObject.h"
 
+#include <sys/time.h>
+#include <sys/resource.h>
+
 namespace Escargot {
 
 #ifdef PROFILE_BDWGC

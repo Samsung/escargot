@@ -28,6 +28,9 @@ void* GC_generic_malloc_hook(size_t siz, int kind);
 void* GC_generic_malloc_ignore_off_page_hook(size_t siz, int kind);
 void GC_free_hook(void* address);
 
+#undef GC_MALLOC_EXPLICITLY_TYPED
+#define GC_MALLOC_EXPLICITLY_TYPED(bytes, d) GC_MALLOC(bytes)
+
 #undef GC_MALLOC
 #define GC_MALLOC(X) GC_malloc_hook(X)
 
