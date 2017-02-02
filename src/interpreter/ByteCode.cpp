@@ -1,6 +1,11 @@
 #include "Escargot.h"
 #include "ByteCode.h"
 #include "ByteCodeInterpreter.h"
+#include "runtime/Context.h"
+#include "parser/ScriptParser.h"
+#include "parser/ast/AST.h"
+#include "parser/esprima_cpp/esprima.h"
+
 
 namespace Escargot {
 
@@ -18,22 +23,51 @@ ALWAYS_INLINE bool isLineTerminator(char16_t ch)
     return (ch == 0x0A) || (ch == 0x0D) || (ch == 0x2028) || (ch == 0x2029);
 }
 
-ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(ByteCode* code, CodeBlock* cb)
+void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
 {
-    if (code->m_loc.index == SIZE_MAX) {
+    if (m_locData.size() || (m_codeBlock->src().length() == 0)) {
+        return;
+    }
+
+    ByteCodeGenerator g;
+    ByteCodeBlock* block;
+    if (m_codeBlock->isGlobalScopeCodeBlock()) {
+        block = g.generateByteCode(c, m_codeBlock, esprima::parseProgram(m_codeBlock->context(), m_codeBlock->src(), nullptr, m_codeBlock->isStrict()), m_isEvalMode, m_isOnGlobal, true);
+    } else {
+        block = g.generateByteCode(c, m_codeBlock, c->scriptParser().parseFunction(m_codeBlock), m_isEvalMode, m_isOnGlobal, true);
+    }
+    m_locData = std::move(block->m_locData);
+    // prevent infinate fillLocDataIfNeeded if m_locData.size() == 0 in here
+    m_locData.pushBack(std::make_pair(SIZE_MAX, SIZE_MAX));
+}
+
+ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t codePosition, CodeBlock* cb)
+{
+    if (codePosition == SIZE_MAX) {
         return ExtendedNodeLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX);
     }
+
+    fillLocDataIfNeeded(c);
+
+    size_t index = 0;
+    for (size_t i = 0; i < m_locData.size(); i++) {
+        if (m_locData[i].first == codePosition) {
+            index = m_locData[i].second;
+            break;
+        }
+    }
+
     size_t line = cb->sourceElementStart().line;
     size_t column = cb->sourceElementStart().column;
-    for (size_t i = 0; i < code->m_loc.index; i++) {
+    for (size_t i = 0; i < index; i++) {
         char16_t c = cb->src().charAt(i);
         column++;
         if (isLineTerminator(c)) {
             line++;
-            column = 0;
+            column = 1;
         }
     }
-    return ExtendedNodeLOC(line, column, code->m_loc.index);
+    return ExtendedNodeLOC(line, column, codePosition);
 }
 
 void* SetObjectInlineCache::operator new(size_t size)

@@ -40,6 +40,7 @@ struct ByteCodeGenerateContext {
         , m_isOutermostContext(true)
         , m_isWithScope(parserContextInformation.m_isWithScope)
         , m_isCatchScope(false)
+        , m_shouldGenerateLOCData(true)
         , m_offsetToBasePointer(0)
         , m_positionToContinue(0)
         , m_tryStatementScopeCount(0)
@@ -61,6 +62,7 @@ struct ByteCodeGenerateContext {
         , m_isCatchScope(false)
         , m_shouldGenerateByteCodeInstantly(contextBefore.m_shouldGenerateByteCodeInstantly)
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
+        , m_shouldGenerateLOCData(contextBefore.m_shouldGenerateLOCData)
         , m_offsetToBasePointer(contextBefore.m_offsetToBasePointer)
         , m_positionToContinue(contextBefore.m_positionToContinue)
         , m_tryStatementScopeCount(contextBefore.m_tryStatementScopeCount)
@@ -192,7 +194,7 @@ struct ByteCodeGenerateContext {
     bool m_shouldGenerateByteCodeInstantly;
     bool m_inCallingExpressionScope;
     bool m_isHeadOfMemberExpression;
-    // bool m_hasArgumentsBinding;
+    bool m_shouldGenerateLOCData;
 
     std::vector<size_t> m_breakStatementPositions;
     std::vector<size_t> m_continueStatementPositions;
@@ -216,7 +218,7 @@ public:
     {
     }
 
-    void generateByteCode(Context* c, CodeBlock* codeBlock, Node* ast, bool isEvalMode = false, bool isOnGlobal = false);
+    ByteCodeBlock* generateByteCode(Context* c, CodeBlock* codeBlock, Node* ast, bool isEvalMode = false, bool isOnGlobal = false, bool shouldGenerateLOCData = false);
 };
 }
 

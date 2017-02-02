@@ -1280,7 +1280,7 @@ NEVER_INLINE bool ByteCodeInterpreter::abstractRelationalComparisonOrEqualSlowCa
     }
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const Value& target, const PropertyName& name, GetObjectInlineCache& inlineCache)
+ALWAYS_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const Value& target, const PropertyName& name, GetObjectInlineCache& inlineCache)
 {
     unsigned currentCacheIndex = 0;
     ObjectStructureChainItem testItem;
@@ -1774,8 +1774,7 @@ NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, c
             FunctionObject* fn = ec->m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
             CodeBlock* cb = fn->codeBlock();
             ByteCodeBlock* b = cb->byteCodeBlock();
-            ByteCode* code = b->peekCode<ByteCode>(programCounter - (size_t)b->m_code.data());
-            ExtendedNodeLOC loc = b->computeNodeLOCFromByteCode(code, cb);
+            ExtendedNodeLOC loc = b->computeNodeLOCFromByteCode(state.context(), programCounter - (size_t)b->m_code.data(), cb);
             if (sb->m_stackTraceData.size() == 0 || sb->m_stackTraceData.back().first != ec) {
                 SandBox::StackTraceData data;
                 data.loc = loc;
@@ -1796,8 +1795,7 @@ NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, c
     } else if (ec->m_lexicalEnvironment->record()->isGlobalEnvironmentRecord()) {
         CodeBlock* cb = ec->m_lexicalEnvironment->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
         ByteCodeBlock* b = cb->byteCodeBlock();
-        ByteCode* code = b->peekCode<ByteCode>((size_t)programCounter - (size_t)b->m_code.data());
-        ExtendedNodeLOC loc = b->computeNodeLOCFromByteCode(code, cb);
+        ExtendedNodeLOC loc = b->computeNodeLOCFromByteCode(state.context(), (size_t)programCounter - (size_t)b->m_code.data(), cb);
         SandBox::StackTraceData data;
         data.loc = loc;
         data.fileName = cb->script()->fileName();

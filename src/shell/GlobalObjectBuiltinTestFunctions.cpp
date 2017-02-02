@@ -4,6 +4,8 @@
 namespace Escargot {
 
 #ifdef ESCARGOT_ENABLE_PROMISE
+#ifdef ESCARGOT_ENABLE_VENDORTEST
+
 static Value builtinDrainJobQueue(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     DefaultJobQueue* jobQueue = DefaultJobQueue::get(state.context()->jobQueue());
@@ -22,6 +24,7 @@ static Value builtinAddPromiseReactions(ExecutionState& state, Value thisValue, 
     promise->appendReaction(argv[1].toObject(state)->asFunctionObject(), argv[2].toObject(state)->asFunctionObject(), capability);
     return Value();
 }
+#endif
 #endif
 
 

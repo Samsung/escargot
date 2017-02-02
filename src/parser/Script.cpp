@@ -19,7 +19,7 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
 
     ByteCodeGenerator g;
-    g.generateByteCode(state.context(), m_topCodeBlock, programNode, isEvalMode, isOnGlobal);
+    m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode, isEvalMode, isOnGlobal);
 
     delete m_topCodeBlock->m_cachedASTNode;
     m_topCodeBlock->m_cachedASTNode = nullptr;
@@ -82,7 +82,7 @@ Value Script::executeLocal(ExecutionState& state, bool isEvalMode, bool needNewR
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
 
     ByteCodeGenerator g;
-    g.generateByteCode(state.context(), m_topCodeBlock, programNode, isEvalMode);
+    m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode, isEvalMode);
 
     delete m_topCodeBlock->m_cachedASTNode;
     m_topCodeBlock->m_cachedASTNode = nullptr;

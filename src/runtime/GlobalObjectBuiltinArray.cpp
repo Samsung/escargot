@@ -247,8 +247,10 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
             A->defineOwnProperty(state, ObjectPropertyName(state, Value(k)),
                                  ObjectPropertyDescriptor(fromValue.value(state, O), ObjectPropertyDescriptor::AllPresent));
             // Increment k by 1.
+            k++;
+        } else {
+            k = Object::nextIndexForward(state, O, k, len, false);
         }
-        k = Object::nextIndexForward(state, O, k, len, false);
     }
 
     // Let items be an internal List whose elements are, in left to right order, the portion of the actual argument list starting with item1. The list will be empty if no such items are present.

@@ -79,8 +79,9 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
                     }
 
                     CodeBlock* b = codeBlock;
-                    b->m_canAllocateEnvironmentOnStack = false;
-
+                    if (b->parameterNames().size()) {
+                        b->m_canAllocateEnvironmentOnStack = false;
+                    }
                     for (size_t j = 0; j < b->m_identifierInfos.size(); j++) {
                         b->m_identifierInfos[j].m_needToAllocateOnStack = false;
                     }
@@ -222,7 +223,7 @@ Node* ScriptParser::parseFunction(CodeBlock* codeBlock)
         Node* body = esprima::parseSingleFunction(m_context, codeBlock);
         return body;
     } catch (esprima::Error* orgError) {
-        //
+        puts(orgError->message->toUTF8StringData().data());
         RELEASE_ASSERT_NOT_REACHED();
     }
 }

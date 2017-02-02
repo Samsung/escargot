@@ -180,8 +180,8 @@ public:
     MAKE_STACK_ALLOCATED();
     ByteCode(Opcode code, const ByteCodeLOC& loc)
         : m_opcodeInAddress((void*)code)
-        , m_loc(loc)
 #ifndef NDEBUG
+        , m_loc(loc)
         , m_orgOpcode(EndOpcode)
 #endif
     {
@@ -196,8 +196,8 @@ public:
     }
 
     void* m_opcodeInAddress;
-    ByteCodeLOC m_loc;
 #ifndef NDEBUG
+    ByteCodeLOC m_loc;
     Opcode m_orgOpcode;
 
     void dumpCode(size_t pos)
@@ -216,7 +216,7 @@ public:
 };
 
 #ifdef NDEBUG
-COMPILE_ASSERT(sizeof(ByteCode) == (sizeof(size_t) * 2), "");
+COMPILE_ASSERT(sizeof(ByteCode) == (sizeof(size_t)), "");
 #endif
 
 class LoadLiteral : public ByteCode {
@@ -972,7 +972,7 @@ protected:
 class JumpComplexCase : public ByteCode {
 public:
     JumpComplexCase(Jump* jmp, ControlFlowRecord* controlFlowRecord)
-        : ByteCode(Opcode::JumpComplexCaseOpcode, jmp->m_loc)
+        : ByteCode(Opcode::JumpComplexCaseOpcode, ByteCodeLOC(SIZE_MAX))
         , m_controlFlowRecord(controlFlowRecord)
     {
     }
@@ -1460,6 +1460,7 @@ public:
 
 
 typedef Vector<char, std::allocator<char>, 200> ByteCodeBlockData;
+typedef Vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>> ByteCodeLOCData;
 typedef Vector<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> ByteCodeLiteralData;
 
 class ByteCodeBlock : public gc {
@@ -1468,11 +1469,14 @@ public:
     {
         m_requiredRegisterFileSizeInValueSize = 1;
         m_codeBlock = codeBlock;
+        m_isEvalMode = false;
+        m_isOnGlobal = false;
 
         GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
                                                 void*) {
             ByteCodeBlock* self = (ByteCodeBlock*)obj;
             self->m_code.clear();
+            self->m_locData.clear();
         },
                                        nullptr, nullptr, nullptr);
     }
@@ -1480,12 +1484,13 @@ public:
     template <typename CodeType>
     void pushCode(const CodeType& code, ByteCodeGenerateContext* context, Node* node)
     {
+        size_t idx = node ? node->m_loc.index : SIZE_MAX;
 #ifndef NDEBUG
         {
             CodeType& t = const_cast<CodeType&>(code);
             if ((getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) || (getenv("DUMP_CODEBLOCK_TREE") && strlen(getenv("DUMP_CODEBLOCK_TREE")))) {
-                t.m_loc.line = computeNodeLOCFromByteCode(&t, context->m_codeBlock).line;
-                t.m_loc.column = computeNodeLOCFromByteCode(&t, context->m_codeBlock).column;
+                t.m_loc.line = computeNodeLOCFromByteCode(context->m_codeBlock->context(), idx, context->m_codeBlock).line;
+                t.m_loc.column = computeNodeLOCFromByteCode(context->m_codeBlock->context(), idx, context->m_codeBlock).column;
             }
         }
 #endif
@@ -1493,6 +1498,9 @@ public:
         const_cast<CodeType&>(code).assignOpcodeInAddress();
         char* first = (char*)&code;
         size_t start = m_code.size();
+        if (context->m_shouldGenerateLOCData)
+            m_locData.pushBack(std::make_pair(start, idx));
+
         m_code.resize(m_code.size() + sizeof(CodeType));
         for (size_t i = 0; i < sizeof(CodeType); i++) {
             m_code[start++] = *first;
@@ -1523,10 +1531,15 @@ public:
         return m_code.size();
     }
 
-    ExtendedNodeLOC computeNodeLOCFromByteCode(ByteCode* code, CodeBlock* cb);
+    ExtendedNodeLOC computeNodeLOCFromByteCode(Context* c, size_t codePosition, CodeBlock* cb);
+    void fillLocDataIfNeeded(Context* c);
+
+    bool m_isEvalMode;
+    bool m_isOnGlobal;
 
     ByteCodeBlockData m_code;
     ByteCodeLiteralData m_literalData;
+    ByteCodeLOCData m_locData;
     size_t m_requiredRegisterFileSizeInValueSize;
     CodeBlock* m_codeBlock;
 };

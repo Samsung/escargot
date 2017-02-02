@@ -101,6 +101,7 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
     size_t currentCodeSizeTotal = 0;
     for (size_t i = 0; i < v.size(); i++) {
         currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_code.size();
+        currentCodeSizeTotal += (v[i]->m_byteCodeBlock->m_locData.size() * sizeof(std::pair<size_t, size_t>));
     }
     // printf("codeSizeTotal %lfMB\n", (int)currentCodeSizeTotal / 1024.0 / 1024.0);
 
@@ -133,6 +134,9 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
 
         for (size_t i = 0; i < codeBlocksInCurrentStack.size(); i++) {
             v[i] = codeBlocksInCurrentStack[i];
+            if (v[i]->m_byteCodeBlock) {
+                v[i]->m_byteCodeBlock->m_locData.clear();
+            }
         }
     }
     ASSERT(!m_codeBlock->isNativeFunction());
@@ -145,7 +149,8 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
     }
 
     ByteCodeGenerator g;
-    g.generateByteCode(state.context(), m_codeBlock, ast);
+    m_codeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_codeBlock, ast, false, false, false);
+
     v.pushBack(m_codeBlock);
 
     if (m_codeBlock->cachedASTNode()) {

@@ -70,9 +70,11 @@ void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb
     }
 }
 
-void ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node* ast, bool isEvalMode, bool isOnGlobal)
+ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node* ast, bool isEvalMode, bool isOnGlobal, bool shouldGenerateLOCData)
 {
     ByteCodeBlock* block = new ByteCodeBlock(codeBlock);
+    block->m_isEvalMode = isEvalMode;
+    block->m_isOnGlobal = isOnGlobal;
 
     bool isGlobalScope;
     if (!isEvalMode) {
@@ -83,6 +85,7 @@ void ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node*
     ParserContextInformation info(isEvalMode, isGlobalScope, codeBlock->isStrict(), codeBlock->isInWithScope());
 
     ByteCodeGenerateContext ctx(codeBlock, block, info);
+    ctx.m_shouldGenerateLOCData = shouldGenerateLOCData;
 
     // generate init function decls first
     size_t len = codeBlock->childBlocks().size();
@@ -143,6 +146,6 @@ void ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node*
     }
 #endif
 
-    codeBlock->m_byteCodeBlock = block;
+    return block;
 }
 }

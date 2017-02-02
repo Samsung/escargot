@@ -286,17 +286,20 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
 {
     ASSERT(isPointerValue());
     PointerValue* o = asPointerValue();
-    if (o->isString() || o->isStringObject()) {
+    bool isString = o->isString();
+    if (isString || o->isStringObject()) {
         double val;
         String* data;
-        if (LIKELY(o->isString())) {
+        if (LIKELY(isString)) {
             data = o->asString();
         } else {
             ASSERT(o->isStringObject());
             data = o->asStringObject()->primitiveValue();
         }
 
-        const size_t len = data->length();
+        auto bufferAccessData = data->bufferAccessData();
+
+        const size_t len = bufferAccessData.length;
 
         // A StringNumericLiteral that is empty or contains only white space is converted to +0.
         if (len == 0)
@@ -306,13 +309,13 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
         char* buf;
 
         buf = ALLOCA(len + 1, char, state);
-        if (data->hasASCIIContent()) {
-            const char* src = data->characters8();
+        if (bufferAccessData.hasASCIIContent) {
+            const char* src = (const char*)bufferAccessData.buffer;
             for (unsigned i = 0; i < len; i++) {
                 buf[i] = src[i];
             }
         } else {
-            const char16_t* src = data->characters16();
+            const char16_t* src = (const char16_t*)bufferAccessData.buffer;
             for (unsigned i = 0; i < len; i++) {
                 char16_t c = src[i];
                 if (c >= 128)
@@ -374,24 +377,30 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
                          Invalid };
             State state = State::Initial;
             for (unsigned i = 0; i < len; i++) {
+                char16_t ch;
+                if (LIKELY(bufferAccessData.hasASCIIContent)) {
+                    ch = ((char*)bufferAccessData.buffer)[i];
+                } else {
+                    ch = ((char16_t*)bufferAccessData.buffer)[i];
+                }
                 switch (state) {
                 case Initial:
-                    if (isSpace(data->charAt(i)))
+                    if (isSpace(ch))
                         break;
                     else
                         state = State::ReadingNumber;
                 case ReadingNumber:
-                    if (isSpace(data->charAt(i)))
+                    if (isSpace(ch))
                         state = State::DoneReadingNumber;
                     else {
-                        char16_t c = data->charAt(i);
+                        char16_t c = ch;
                         if (c >= 128)
                             c = 0;
                         buf[ptr++] = c;
                     }
                     break;
                 case DoneReadingNumber:
-                    if (!isSpace(data->charAt(i)))
+                    if (!isSpace(ch))
                         state = State::Invalid;
                     break;
                 case Invalid:
