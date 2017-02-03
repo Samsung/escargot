@@ -19,8 +19,9 @@ struct AlignmentTestStruct
   (sizeof(AlignmentTestStruct<t_>) - sizeof(t_))
 
 typedef Escargot::String String;
-//typedef char16_t UChar;
-typedef char LChar;
+// typedef char16_t UChar;
+// typedef char LChar;
+typedef unsigned char LChar;
 
 enum TextCaseSensitivity {
     TextCaseSensitive,

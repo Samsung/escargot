@@ -14,8 +14,8 @@ void StringBuilder::appendPiece(String* str, size_t s, size_t e)
         piece.m_string = str;
         piece.m_start = s;
         piece.m_end = e;
-        if (!str->hasASCIIContent()) {
-            m_hasASCIIContent = false;
+        if (!str->has8BitContent()) {
+            m_has8BitContent = false;
         }
         m_contentLength += e - s;
         if (m_piecesInlineStorageUsage < ESCARGOT_STRING_BUILDER_INLINE_STORAGE_MAX) {
@@ -31,8 +31,8 @@ String* StringBuilder::finalize()
         return String::emptyString;
     }
 
-    if (m_hasASCIIContent) {
-        ASCIIStringData ret;
+    if (m_has8BitContent) {
+        Latin1StringData ret;
         ret.resizeWithUninitializedValues(m_contentLength);
 
         size_t currentLength = 0;
@@ -54,7 +54,7 @@ String* StringBuilder::finalize()
             currentLength += l;
         }
 
-        return new ASCIIString(std::move(ret));
+        return new Latin1String(std::move(ret));
     } else {
         UTF16StringData ret;
         ret.resizeWithUninitializedValues(m_contentLength);
@@ -65,7 +65,7 @@ String* StringBuilder::finalize()
             size_t s = m_piecesInlineStorage[i].m_start;
             size_t e = m_piecesInlineStorage[i].m_end;
             size_t l = e - s;
-            if (data->hasASCIIContent()) {
+            if (data->has8BitContent()) {
                 auto ptr = data->characters8();
                 ptr += s;
                 for (size_t j = 0; j < l; j++) {
@@ -85,7 +85,7 @@ String* StringBuilder::finalize()
             size_t s = m_pieces[i].m_start;
             size_t e = m_pieces[i].m_end;
             size_t l = e - s;
-            if (data->hasASCIIContent()) {
+            if (data->has8BitContent()) {
                 auto ptr = data->characters8();
                 ptr += s;
                 for (size_t j = 0; j < l; j++) {

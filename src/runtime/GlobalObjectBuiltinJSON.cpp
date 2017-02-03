@@ -115,7 +115,7 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
     String* JText = argv[0].toString(state);
     Value unfiltered;
 
-    if (JText->isASCIIString()) {
+    if (JText->has8BitContent()) {
         unfiltered = parseJSON<char, rapidjson::UTF8<char>>(state, JText->toUTF8StringData().data());
     } else {
         unfiltered = parseJSON<char16_t, rapidjson::UTF16<char16_t>>(state, JText->toUTF16StringData().data());

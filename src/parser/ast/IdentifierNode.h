@@ -20,6 +20,7 @@
 #include "ExpressionNode.h"
 #include "Node.h"
 #include "PatternNode.h"
+#include "runtime/Context.h"
 
 namespace Escargot {
 
@@ -89,6 +90,14 @@ public:
             if (!info.m_isResultSaved) {
                 if (!context->m_codeBlock->inCatchWith() && !context->m_codeBlock->inEvalScope() && !context->m_isCatchScope && !context->m_isEvalCode && !context->m_codeBlock->hasWith()) {
                     ExecutionState state(context->m_codeBlock->context());
+                    size_t idx = state.context()->globalObject()->structure()->findProperty(state, m_name);
+                    if (idx != SIZE_MAX) {
+                        const ObjectStructureItem& item = state.context()->globalObject()->structure()->readProperty(state, idx);
+                        if (item.m_descriptor.isPlainDataProperty()) {
+                            codeBlock->pushCode(GetGlobalObject(ByteCodeLOC(m_loc.index), context->getRegister(), PropertyName(state, m_name), state.context()->globalObject()->structure()->version(), idx), context, this);
+                            return;
+                        }
+                    }
                     codeBlock->pushCode(GetGlobalObject(ByteCodeLOC(m_loc.index), context->getRegister(), PropertyName(state, m_name)), context, this);
                 } else {
                     codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), context->getRegister(), m_name), context, this);

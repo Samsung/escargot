@@ -216,7 +216,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
         memset(outputBuf, -1, sizeof(unsigned) * 2 * (subPatternNum + 1));
         if (start > length)
             break;
-        if (str->hasASCIIContent())
+        if (str->has8BitContent())
             result = JSC::Yarr::interpret(m_bytecodePattern, str->characters8(), length, start, outputBuf);
         else
             result = JSC::Yarr::interpret(m_bytecodePattern, (const UChar*)str->characters16(), length, start, outputBuf);

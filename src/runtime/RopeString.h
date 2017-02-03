@@ -13,7 +13,7 @@ protected:
         : String()
     {
         m_contentLength = 0;
-        m_hasASCIIContent = false;
+        m_has8BitContent = false;
         m_left = nullptr;
         m_right = nullptr;
     }
@@ -40,9 +40,9 @@ public:
         return normalString()->toUTF8StringData();
     }
 
-    virtual bool hasASCIIContent() const
+    virtual bool has8BitContent() const
     {
-        return m_hasASCIIContent;
+        return m_has8BitContent;
     }
 
     virtual bool isRopeString()
@@ -50,7 +50,7 @@ public:
         return true;
     }
 
-    virtual const char* characters8() const
+    virtual const LChar* characters8() const
     {
         return normalString()->characters8();
     }
@@ -78,7 +78,7 @@ protected:
     void flattenRopeStringWorker();
     void flattenRopeString();
 
-    bool m_hasASCIIContent;
+    bool m_has8BitContent;
     String* m_left;
     String* m_right;
     size_t m_contentLength;

@@ -44,7 +44,7 @@ AtomicString::AtomicString(ExecutionState& ec, String* name)
 
 AtomicString::AtomicString(Context* c, const StringView& sv)
 {
-    if (sv.hasASCIIContent()) {
+    if (sv.has8BitContent()) {
         init(&c->m_atomicStringMap, sv.characters8(), sv.length());
     } else {
         init(&c->m_atomicStringMap, sv.characters16(), sv.length());

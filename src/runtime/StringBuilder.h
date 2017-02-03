@@ -20,7 +20,7 @@ class StringBuilder {
 public:
     StringBuilder()
     {
-        m_hasASCIIContent = true;
+        m_has8BitContent = true;
         m_contentLength = 0;
         m_piecesInlineStorageUsage = 0;
     }
@@ -56,7 +56,7 @@ public:
     String* finalize();
 
 protected:
-    bool m_hasASCIIContent;
+    bool m_has8BitContent;
     size_t m_piecesInlineStorageUsage;
     size_t m_contentLength;
     StringBuilderPiece m_piecesInlineStorage[ESCARGOT_STRING_BUILDER_INLINE_STORAGE_MAX];

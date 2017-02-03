@@ -724,13 +724,14 @@ public:
 
 class GetGlobalObject : public ByteCode {
 public:
-    GetGlobalObject(const ByteCodeLOC& loc, const size_t& registerIndex, PropertyName propertyName)
+    GetGlobalObject(const ByteCodeLOC& loc, const size_t& registerIndex, PropertyName propertyName, size_t version = SIZE_MAX, size_t index = SIZE_MAX)
         : ByteCode(Opcode::GetGlobalObjectOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_propertyName(propertyName)
     {
         ASSERT(propertyName.hasAtomicString());
-        m_savedGlobalObjectVersion = m_cachedIndex = SIZE_MAX;
+        m_savedGlobalObjectVersion = version;
+        m_cachedIndex = index;
     }
 
     ByteCodeRegisterIndex m_registerIndex;

@@ -12,23 +12,23 @@ String* RopeString::createRopeString(String* lstr, String* rstr)
     if (llen + rlen < ESCARGOT_ROPE_STRING_MIN_LENGTH) {
         auto lData = lstr->bufferAccessData();
         auto rData = rstr->bufferAccessData();
-        if (LIKELY(lData.hasASCIIContent && rData.hasASCIIContent)) {
-            ASCIIStringData ret;
+        if (LIKELY(lData.has8BitContent && rData.has8BitContent)) {
+            Latin1StringData ret;
             size_t len = lData.length + rData.length;
             ret.resizeWithUninitializedValues(len);
 
-            char* result = ret.data();
-            const char* buffer = (const char*)lData.buffer;
+            LChar* result = ret.data();
+            const LChar* buffer = (const LChar*)lData.buffer;
             for (size_t i = 0; i < lData.length; i++) {
                 result[i] = buffer[i];
             }
 
             result += lData.length;
-            buffer = (const char*)rData.buffer;
+            buffer = (const LChar*)rData.buffer;
             for (size_t i = 0; i < rData.length; i++) {
                 result[i] = buffer[i];
             }
-            return new ASCIIString(std::move(ret));
+            return new Latin1String(std::move(ret));
         } else {
             StringBuilder builder;
             builder.appendString(lstr);
@@ -45,7 +45,7 @@ String* RopeString::createRopeString(String* lstr, String* rstr)
     rope->m_left = lstr;
     rope->m_right = rstr;
 
-    rope->m_hasASCIIContent = lstr->hasASCIIContent() & rstr->hasASCIIContent();
+    rope->m_has8BitContent = lstr->has8BitContent() & rstr->has8BitContent();
     return rope;
 }
 template <typename A, typename B>
@@ -77,8 +77,8 @@ void RopeString::flattenRopeStringWorker()
         pos -= data.length;
         size_t subLength = data.length;
 
-        if (data.hasASCIIContent) {
-            auto ptr = (const char*)data.buffer;
+        if (data.has8BitContent) {
+            auto ptr = (const LChar*)data.buffer;
             for (size_t i = 0; i < subLength; i++) {
                 result[i + pos] = ptr[i];
             }
@@ -96,8 +96,8 @@ void RopeString::flattenRopeStringWorker()
 void RopeString::flattenRopeString()
 {
     if (m_right) {
-        if (m_hasASCIIContent) {
-            flattenRopeStringWorker<ASCIIStringData, ASCIIString>();
+        if (m_has8BitContent) {
+            flattenRopeStringWorker<Latin1StringData, Latin1String>();
         } else {
             flattenRopeStringWorker<UTF16StringData, UTF16String>();
         }

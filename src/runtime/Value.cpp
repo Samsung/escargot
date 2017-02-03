@@ -309,10 +309,13 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
         char* buf;
 
         buf = ALLOCA(len + 1, char, state);
-        if (bufferAccessData.hasASCIIContent) {
-            const char* src = (const char*)bufferAccessData.buffer;
+        if (bufferAccessData.has8BitContent) {
+            const LChar* src = (const LChar*)bufferAccessData.buffer;
             for (unsigned i = 0; i < len; i++) {
-                buf[i] = src[i];
+                LChar c = src[i];
+                if (c >= 128)
+                    c = 0;
+                buf[i] = c;
             }
         } else {
             const char16_t* src = (const char16_t*)bufferAccessData.buffer;
@@ -378,8 +381,8 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
             State state = State::Initial;
             for (unsigned i = 0; i < len; i++) {
                 char16_t ch;
-                if (LIKELY(bufferAccessData.hasASCIIContent)) {
-                    ch = ((char*)bufferAccessData.buffer)[i];
+                if (LIKELY(bufferAccessData.has8BitContent)) {
+                    ch = ((LChar*)bufferAccessData.buffer)[i];
                 } else {
                     ch = ((char16_t*)bufferAccessData.buffer)[i];
                 }

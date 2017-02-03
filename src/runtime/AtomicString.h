@@ -66,6 +66,10 @@ public:
 
 protected:
     void init(AtomicStringMap* ec, String* name);
+    void init(AtomicStringMap* ec, const LChar* str, size_t len)
+    {
+        init(ec, new Latin1String(str, len));
+    }
     void init(AtomicStringMap* ec, const char* str, size_t len)
     {
         init(ec, new ASCIIString(str, len));

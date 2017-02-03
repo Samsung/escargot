@@ -583,15 +583,15 @@ static Value builtinStringSlice(ExecutionState& state, Value thisValue, size_t a
 static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, toLowerCase);
-    if (str->hasASCIIContent()) {
-        ASCIIStringData newStr;
+    if (str->has8BitContent()) {
+        Latin1StringData newStr;
         size_t len = str->length();
         newStr.resizeWithUninitializedValues(len);
-        const char* buf = str->characters8();
+        const LChar* buf = str->characters8();
         for (size_t i = 0; i < len; i++) {
             newStr[i] = u_tolower(buf[i]);
         }
-        return new ASCIIString(std::move(newStr));
+        return new Latin1String(std::move(newStr));
     } else {
         size_t len = str->length();
         UTF16StringData newStr(str->characters16(), len);
@@ -616,15 +616,15 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
 static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, toUpperCase);
-    if (str->hasASCIIContent()) {
-        ASCIIStringData newStr;
+    if (str->has8BitContent()) {
+        Latin1StringData newStr;
         size_t len = str->length();
         newStr.resizeWithUninitializedValues(len);
-        const char* buf = str->characters8();
+        const LChar* buf = str->characters8();
         for (size_t i = 0; i < len; i++) {
             newStr[i] = u_toupper(buf[i]);
         }
-        return new ASCIIString(std::move(newStr));
+        return new Latin1String(std::move(newStr));
     } else {
         size_t len = str->length();
         UTF16StringData newStr(str->characters16(), len);

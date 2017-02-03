@@ -7,12 +7,17 @@
 
 namespace Escargot {
 
+// A type to hold a single Latin-1 character.
+typedef unsigned char LChar;
+
 typedef BasicString<char, gc_malloc_atomic_ignore_off_page_allocator<char>> ASCIIStringData;
+typedef BasicString<LChar, gc_malloc_atomic_ignore_off_page_allocator<LChar>> Latin1StringData;
 typedef BasicString<char, gc_malloc_atomic_ignore_off_page_allocator<char>> UTF8StringData;
 typedef BasicString<char16_t, gc_malloc_atomic_ignore_off_page_allocator<char16_t>> UTF16StringData;
 typedef BasicString<char32_t, gc_malloc_atomic_ignore_off_page_allocator<char32_t>> UTF32StringData;
 
 typedef std::basic_string<char, std::char_traits<char>> ASCIIStringDataNonGCStd;
+typedef std::basic_string<LChar, std::char_traits<LChar>> Latin1StringDataNonGCStd;
 typedef std::basic_string<char, std::char_traits<char>> UTF8StringDataNonGCStd;
 typedef std::basic_string<char16_t, std::char_traits<char16_t>> UTF16StringDataNonGCStd;
 typedef std::basic_string<char32_t, std::char_traits<char32_t>> UTF32StringDataNonGCStd;
@@ -21,7 +26,7 @@ class ASCIIString;
 class UTF16String;
 
 struct StringBufferAccessData {
-    bool hasASCIIContent;
+    bool has8BitContent;
     size_t length;
     const void* buffer;
 };
@@ -40,11 +45,6 @@ public:
         return true;
     }
 
-    virtual bool isASCIIString()
-    {
-        return false;
-    }
-
     virtual bool isRopeString()
     {
         return false;
@@ -55,7 +55,7 @@ public:
         return false;
     }
 
-    virtual bool hasASCIIContent() const
+    virtual bool has8BitContent() const
     {
         return false;
     }
@@ -113,8 +113,8 @@ public:
         auto data = bufferAccessData();
         size_t len = data.length;
         size_t hash;
-        if (LIKELY(data.hasASCIIContent)) {
-            auto ptr = (const char*)data.buffer;
+        if (LIKELY(data.has8BitContent)) {
+            auto ptr = (const LChar*)data.buffer;
             hash = stringHash(ptr, len);
         } else {
             auto ptr = (const char16_t*)data.buffer;
@@ -138,11 +138,16 @@ public:
         return !operator==(src);
     }
 
-    ALWAYS_INLINE friend bool operator<(const String& a, const String& b);
-    ALWAYS_INLINE friend bool operator<=(const String& a, const String& b);
-    ALWAYS_INLINE friend bool operator>(const String& a, const String& b);
-    ALWAYS_INLINE friend bool operator>=(const String& a, const String& b);
-    ALWAYS_INLINE friend int stringCompare(const String& a, const String& b);
+    ALWAYS_INLINE
+    friend bool operator<(const String& a, const String& b);
+    ALWAYS_INLINE
+    friend bool operator<=(const String& a, const String& b);
+    ALWAYS_INLINE
+    friend bool operator>(const String& a, const String& b);
+    ALWAYS_INLINE
+    friend bool operator>=(const String& a, const String& b);
+    ALWAYS_INLINE
+    friend int stringCompare(const String& a, const String& b);
 
     // NOTE these function generates new copy of string data
     virtual UTF16StringData toUTF16StringData() const = 0;
@@ -154,10 +159,10 @@ public:
 
     bool is8Bit() const
     {
-        return hasASCIIContent();
+        return has8BitContent();
     }
 
-    virtual const char* characters8() const
+    virtual const LChar* characters8() const
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -167,11 +172,6 @@ public:
     }
 
 protected:
-    // NOTE this for atomic string
-    // don't use this function anywhere
-    inline const char* asASCIIStringData();
-    inline const char16_t* asUTF16StringData();
-
     static int stringCompare(size_t l1, size_t l2, const String* c1, const String* c2);
 
     template <typename T>
@@ -180,7 +180,7 @@ protected:
         return memcmp(s, s1, sizeof(T) * len) == 0;
     }
 
-    static ALWAYS_INLINE bool stringEqual(const char16_t* s, const char* s1, const size_t& len)
+    static ALWAYS_INLINE bool stringEqual(const char16_t* s, const LChar* s1, const size_t& len)
     {
         for (size_t i = 0; i < len; i++) {
             if (s[i] != s1[i]) {
@@ -220,12 +220,7 @@ class ASCIIString : public String {
     friend class String;
 
 public:
-    virtual bool isASCIIString()
-    {
-        return true;
-    }
-
-    virtual bool hasASCIIContent() const
+    virtual bool has8BitContent() const
     {
         return true;
     }
@@ -268,15 +263,15 @@ public:
         return m_stringData.size();
     }
 
-    virtual const char* characters8() const
+    virtual const LChar* characters8() const
     {
-        return m_stringData.data();
+        return (const LChar*)m_stringData.data();
     }
 
     virtual StringBufferAccessData bufferAccessData() const
     {
         StringBufferAccessData data;
-        data.hasASCIIContent = true;
+        data.has8BitContent = true;
         data.length = m_stringData.length();
         data.buffer = m_stringData.data();
         return data;
@@ -300,11 +295,86 @@ protected:
     ASCIIStringData m_stringData;
 };
 
+class Latin1String : public String {
+    friend class Latin1;
+
+public:
+    virtual bool has8BitContent() const
+    {
+        return true;
+    }
+
+    Latin1String(Latin1StringData&& src)
+        : String()
+        , m_stringData(std::move(src))
+    {
+    }
+
+    Latin1String(const char* str)
+        : String()
+    {
+        m_stringData.append((const LChar*)str, strlen(str));
+    }
+
+    Latin1String(const char* str, size_t len)
+        : String()
+    {
+        m_stringData.append((const LChar*)str, len);
+    }
+
+    Latin1String(const LChar* str, size_t len)
+        : String()
+    {
+        m_stringData.append(str, len);
+    }
+
+    virtual char16_t charAt(const size_t& idx) const
+    {
+        return m_stringData[idx];
+    }
+
+    virtual size_t length() const
+    {
+        return m_stringData.size();
+    }
+
+    virtual const LChar* characters8() const
+    {
+        return m_stringData.data();
+    }
+
+    virtual StringBufferAccessData bufferAccessData() const
+    {
+        StringBufferAccessData data;
+        data.has8BitContent = true;
+        data.length = m_stringData.length();
+        data.buffer = m_stringData.data();
+        return data;
+    }
+
+    virtual UTF16StringData toUTF16StringData() const;
+    virtual UTF8StringData toUTF8StringData() const;
+
+    void* operator new(size_t size);
+    void* operator new(size_t size, GCPlacement p)
+    {
+        return gc::operator new(size, p);
+    }
+    void* operator new(size_t size, void* ptr)
+    {
+        return ptr;
+    }
+    void* operator new[](size_t size) = delete;
+
+protected:
+    Latin1StringData m_stringData;
+};
+
 class UTF16String : public String {
     friend class String;
 
 public:
-    virtual bool hasASCIIContent() const
+    virtual bool has8BitContent() const
     {
         return false;
     }
@@ -339,7 +409,7 @@ public:
     virtual StringBufferAccessData bufferAccessData() const
     {
         StringBufferAccessData data;
-        data.hasASCIIContent = false;
+        data.has8BitContent = false;
         data.length = m_stringData.length();
         data.buffer = m_stringData.data();
         return data;
@@ -354,12 +424,6 @@ public:
 protected:
     UTF16StringData m_stringData;
 };
-
-const char* String::asASCIIStringData()
-{
-    ASSERT(isASCIIString());
-    return ((ASCIIString*)this)->m_stringData.data();
-}
 
 bool isAllASCII(const char* buf, const size_t& len);
 bool isAllASCII(const char16_t* buf, const size_t& len);

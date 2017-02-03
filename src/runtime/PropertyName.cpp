@@ -12,7 +12,7 @@ PropertyName::PropertyName(ExecutionState& state, String* string)
         return;
     }
     bool needsRemainNormalString = false;
-    char16_t c = data.hasASCIIContent ? ((char*)data.buffer)[0] : ((char16_t*)data.buffer)[0];
+    char16_t c = data.has8BitContent ? ((LChar*)data.buffer)[0] : ((char16_t*)data.buffer)[0];
     if ((c == '.' || (c >= '0' && c <= '9')) && data.length > 16) {
         needsRemainNormalString = true;
     }

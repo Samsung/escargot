@@ -101,12 +101,12 @@ public:
         return m_end;
     }
 
-    virtual bool hasASCIIContent() const
+    virtual bool has8BitContent() const
     {
-        return m_string->hasASCIIContent();
+        return m_string->has8BitContent();
     }
 
-    virtual const char* characters8() const
+    virtual const LChar* characters8() const
     {
         return m_string->characters8() + m_start;
     }
@@ -119,9 +119,9 @@ public:
     virtual StringBufferAccessData bufferAccessData() const
     {
         StringBufferAccessData data;
-        data.hasASCIIContent = m_string->hasASCIIContent();
+        data.has8BitContent = m_string->has8BitContent();
         data.length = m_end - m_start;
-        if (data.hasASCIIContent) {
+        if (data.has8BitContent) {
             data.buffer = m_string->characters8() + m_start;
         } else {
             data.buffer = m_string->characters16() + m_start;
@@ -155,8 +155,8 @@ public:
 
     void init()
     {
-        m_hasASCIIContent = m_src.hasASCIIContent();
-        if (m_hasASCIIContent) {
+        m_has8BitContent = m_src.has8BitContent();
+        if (m_has8BitContent) {
             m_buffer = m_src.characters8();
         } else {
             m_buffer = m_src.characters16();
@@ -165,8 +165,8 @@ public:
 
     char16_t bufferedCharAt(const size_t& idx) const
     {
-        if (LIKELY(m_hasASCIIContent)) {
-            return ((const char*)m_buffer)[idx];
+        if (LIKELY(m_has8BitContent)) {
+            return ((const LChar*)m_buffer)[idx];
         } else {
             return ((const char16_t*)m_buffer)[idx];
         }
@@ -202,12 +202,12 @@ public:
         return utf16StringToUTF8String(s.data(), s.length());
     }
 
-    virtual bool hasASCIIContent() const
+    virtual bool has8BitContent() const
     {
-        return m_hasASCIIContent;
+        return m_has8BitContent;
     }
 
-    virtual const char* characters8() const
+    virtual const LChar* characters8() const
     {
         return m_src.characters8();
     }
@@ -228,7 +228,7 @@ public:
     }
 
 protected:
-    bool m_hasASCIIContent;
+    bool m_has8BitContent;
     const void* m_buffer;
     StringView m_src;
 };

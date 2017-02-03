@@ -233,6 +233,35 @@ UTF8StringData ASCIIString::toUTF8StringData() const
     return m_stringData;
 }
 
+UTF16StringData Latin1String::toUTF16StringData() const
+{
+    UTF16StringData ret;
+    size_t len = length();
+    ret.resizeWithUninitializedValues(len);
+    for (size_t i = 0; i < len; i++) {
+        ret[i] = charAt(i);
+    }
+    return ret;
+}
+
+UTF8StringData Latin1String::toUTF8StringData() const
+{
+    UTF8StringData ret;
+    size_t len = length();
+    for (size_t i = 0; i < len; i++) {
+        uint8_t ch = m_stringData[i]; /* assume that code points above 0xff are impossible since latin-1 is 8-bit */
+        if (ch < 0x80) {
+            ret.append((char*)&ch, 1);
+        } else {
+            ch = (0xc0 | (ch & 0xc0) >> 6);
+            ret.append((char*)&ch, 1);
+            ch = (0x80 | (ch & 0x3f));
+            ret.append((char*)&ch, 1);
+        }
+    }
+    return ret;
+}
+
 UTF16StringData UTF16String::toUTF16StringData() const
 {
     return m_stringData;
@@ -444,15 +473,15 @@ bool String::equals(const String* src) const
         return false;
     }
 
-    bool myIsASCII = myData.hasASCIIContent;
-    bool srcIsASCII = srcData.hasASCIIContent;
+    bool myIs8Bit = myData.has8BitContent;
+    bool srcIs8Bit = srcData.has8BitContent;
 
-    if (LIKELY(myIsASCII && srcIsASCII)) {
-        return stringEqual((const char*)myData.buffer, (const char*)srcData.buffer, myData.length);
-    } else if (myIsASCII && !srcIsASCII) {
-        return stringEqual((const char16_t*)srcData.buffer, (const char*)myData.buffer, myData.length);
-    } else if (!myIsASCII && srcIsASCII) {
-        return stringEqual((const char16_t*)myData.buffer, (const char*)srcData.buffer, myData.length);
+    if (LIKELY(myIs8Bit && srcIs8Bit)) {
+        return stringEqual((const LChar*)myData.buffer, (const LChar*)srcData.buffer, myData.length);
+    } else if (myIs8Bit && !srcIs8Bit) {
+        return stringEqual((const char16_t*)srcData.buffer, (const LChar*)myData.buffer, myData.length);
+    } else if (!myIs8Bit && srcIs8Bit) {
+        return stringEqual((const char16_t*)myData.buffer, (const LChar*)srcData.buffer, myData.length);
     } else {
         return stringEqual((const char16_t*)myData.buffer, (const char16_t*)srcData.buffer, myData.length);
     }
@@ -593,6 +622,19 @@ void* ASCIIString::operator new(size_t size)
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(ASCIIString)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASCIIString, m_stringData));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ASCIIString));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+void* Latin1String::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(Latin1String)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Latin1String, m_stringData));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ASCIIString));
         typeInited = true;
     }

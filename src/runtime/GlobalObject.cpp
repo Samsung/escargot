@@ -25,27 +25,35 @@ static String* builtinHelperFileRead(ExecutionState& state, const char* fileName
     FILE* fp = fopen(fileName, "r");
     String* src = String::emptyString;
     if (fp) {
-        std::string str;
+        std::string utf8Str;
+        Latin1StringDataNonGCStd str;
         char buf[512];
-        bool hasNonASCIIContent = false;
+        bool hasNonLatin1Content = false;
         while (fgets(buf, sizeof buf, fp) != NULL) {
-            if (!hasNonASCIIContent) {
-                char* check = buf;
-                while (*check) {
-                    if (*check < 0) {
-                        hasNonASCIIContent = true;
+            if (!hasNonLatin1Content) {
+                const char* source = buf;
+                size_t len = strlen(buf);
+                int charlen;
+                bool valid;
+                while (source < buf + len) {
+                    char32_t ch = readUTF8Sequence(source, valid, charlen);
+                    if (ch > 255) {
+                        hasNonLatin1Content = true;
+                        fseek(fp, 0, SEEK_SET);
                         break;
+                    } else {
+                        str += (LChar)ch;
                     }
-                    check++;
                 }
+            } else {
+                utf8Str += buf;
             }
-            str += buf;
         }
         fclose(fp);
-        if (hasNonASCIIContent)
-            src = new UTF16String(std::move(utf8StringToUTF16String(str.data(), str.length())));
+        if (hasNonLatin1Content)
+            src = new UTF16String(std::move(utf8StringToUTF16String(utf8Str.data(), utf8Str.length())));
         else
-            src = new ASCIIString(str.data(), str.length());
+            src = new Latin1String(str.data(), str.length());
     } else {
         char msg[1024];
         sprintf(msg, "%%s: cannot open file %s", fileName);
