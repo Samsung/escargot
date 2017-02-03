@@ -72,7 +72,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
                         CodeBlock::IdentifierInfo info;
                         info.m_indexForIndexedStorage = SIZE_MAX;
                         info.m_name = arguments;
-                        info.m_needToAllocateOnStack = false;
+                        info.m_needToAllocateOnStack = true;
                         codeBlock->m_identifierInfos.pushBack(info);
                     } else {
                         codeBlock->m_hasArgumentsBinding = true;
@@ -81,9 +81,14 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
                     CodeBlock* b = codeBlock;
                     if (b->parameterNames().size()) {
                         b->m_canAllocateEnvironmentOnStack = false;
-                    }
-                    for (size_t j = 0; j < b->m_identifierInfos.size(); j++) {
-                        b->m_identifierInfos[j].m_needToAllocateOnStack = false;
+                        for (size_t j = 0; j < b->parameterNames().size(); j++) {
+                            for (size_t k = 0; k < b->identifierInfos().size(); k++) {
+                                if (b->identifierInfos()[k].m_name == b->parameterNames()[j]) {
+                                    b->m_identifierInfos[k].m_needToAllocateOnStack = false;
+                                    break;
+                                }
+                            }
+                        }
                     }
                 }
             } else if (!codeBlock->hasName(uname)) {

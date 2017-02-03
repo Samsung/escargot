@@ -63,6 +63,10 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
         char16_t c = cb->src().charAt(i);
         column++;
         if (isLineTerminator(c)) {
+            // skip \r\n
+            if (c == 13 && (i + 1 < index) && cb->src().charAt(i + 1) == 10) {
+                i++;
+            }
             line++;
             column = 1;
         }

@@ -882,14 +882,14 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
 
         LoadArgumentsObjectOpcodeLbl : {
             LoadArgumentsObject* code = (LoadArgumentsObject*)programCounter;
-            registerFile[code->m_registerIndex] = loadArgumentsObject(state, ec);
+            registerFile[code->m_registerIndex] = loadArgumentsObject(state, ec, stackStorage);
             ADD_PROGRAM_COUNTER(LoadArgumentsObject);
             NEXT_INSTRUCTION();
         }
 
         StoreArgumentsObjectOpcodeLbl : {
             StoreArgumentsObject* code = (StoreArgumentsObject*)programCounter;
-            storeArgumentsObject(state, ec, registerFile[code->m_registerIndex]);
+            storeArgumentsObject(state, ec, stackStorage, registerFile[code->m_registerIndex]);
             ADD_PROGRAM_COUNTER(StoreArgumentsObject);
             NEXT_INSTRUCTION();
         }
@@ -917,16 +917,15 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
                     if (result.m_hasBindingValue)
                         val = result.m_value;
                     else
-                        val = loadArgumentsObject(state, ec);
+                        val = loadArgumentsObject(state, ec, stackStorage);
                     break;
                 } else if (envTmp->record()->isDeclarativeEnvironmentRecord() && envTmp->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-                    val = loadArgumentsObject(state, ec);
+                    val = loadArgumentsObject(state, ec, stackStorage);
                     break;
                 }
                 envTmp = envTmp->outerEnvironment();
             }
             registerFile[code->m_registerIndex] = val;
-            loadArgumentsObject(state, ec);
             ADD_PROGRAM_COUNTER(LoadArgumentsInWithScope);
             NEXT_INSTRUCTION();
         }
@@ -944,7 +943,7 @@ FillOpcodeTable : {
 }
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::loadArgumentsObject(ExecutionState& state, ExecutionContext* e)
+NEVER_INLINE Value ByteCodeInterpreter::loadArgumentsObject(ExecutionState& state, ExecutionContext* e, Value* stackStorage)
 {
     while (!(e->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord())) {
         e = e->parent();
@@ -957,14 +956,13 @@ NEVER_INLINE Value ByteCodeInterpreter::loadArgumentsObject(ExecutionState& stat
             val = fnRecord->getBindingValue(state, arguments).m_value;
         } else {
             const CodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->identifierInfos();
-            size_t idx = SIZE_MAX;
             for (size_t i = 0; i < v.size(); i++) {
                 if (v[i].m_name == arguments) {
-                    idx = v[i].m_indexForIndexedStorage;
+                    ASSERT(v[i].m_needToAllocateOnStack);
+                    val = stackStorage[v[i].m_indexForIndexedStorage];
                     break;
                 }
             }
-            val = fnRecord->getHeapValueByIndex(idx);
         }
     } else {
         val = fnRecord->createArgumentsObject(state, e);
@@ -973,20 +971,19 @@ NEVER_INLINE Value ByteCodeInterpreter::loadArgumentsObject(ExecutionState& stat
             fnRecord->setMutableBindingByIndex(state, result.m_index, arguments, val);
         } else {
             const CodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->identifierInfos();
-            size_t idx = SIZE_MAX;
             for (size_t i = 0; i < v.size(); i++) {
                 if (v[i].m_name == arguments) {
-                    idx = v[i].m_indexForIndexedStorage;
+                    ASSERT(v[i].m_needToAllocateOnStack);
+                    stackStorage[v[i].m_indexForIndexedStorage] = val;
                     break;
                 }
             }
-            fnRecord->setHeapValueByIndex(idx, val);
         }
     }
     return val;
 }
 
-NEVER_INLINE void ByteCodeInterpreter::storeArgumentsObject(ExecutionState& state, ExecutionContext* ec, Value val)
+NEVER_INLINE void ByteCodeInterpreter::storeArgumentsObject(ExecutionState& state, ExecutionContext* ec, Value* stackStorage, Value val)
 {
     ExecutionContext* e = ec;
     while (!(e->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord())) {
@@ -1001,14 +998,14 @@ NEVER_INLINE void ByteCodeInterpreter::storeArgumentsObject(ExecutionState& stat
         fnRecord->setMutableBindingByIndex(state, result.m_index, arguments, val);
     } else {
         const CodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->identifierInfos();
-        size_t idx = SIZE_MAX;
+        size_t idx;
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == arguments) {
-                idx = v[i].m_indexForIndexedStorage;
+                ASSERT(v[i].m_needToAllocateOnStack);
+                stackStorage[v[i].m_indexForIndexedStorage] = val;
                 break;
             }
         }
-        fnRecord->setHeapValueByIndex(idx, val);
     }
 }
 

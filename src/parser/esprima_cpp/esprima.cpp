@@ -5639,7 +5639,8 @@ public:
             fnName = id->name();
         pushScopeContext(params, fnName);
         extractNamesFromFunctionParams(params);
-        scopeContexts.back()->insertName(fnName);
+        if (id)
+            scopeContexts.back()->insertName(fnName);
 
         bool previousStrict = this->context->strict;
         BlockStatementNode* body = this->parseFunctionSourceElements();

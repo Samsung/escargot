@@ -26,8 +26,8 @@ public:
     static void interpret(ExecutionState& state, ByteCodeBlock* byteCodeBlock, register size_t programCounter, Value* registerFile, Value* stackStorage);
     static Value loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool throwException = true);
     static EnvironmentRecord* getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue, bool throwException = true);
-    static Value loadArgumentsObject(ExecutionState& state, ExecutionContext* e);
-    static void storeArgumentsObject(ExecutionState& state, ExecutionContext* ec, Value v);
+    static Value loadArgumentsObject(ExecutionState& state, ExecutionContext* e, Value* stackStorage);
+    static void storeArgumentsObject(ExecutionState& state, ExecutionContext* ec, Value* stackStorage, Value v);
     static void storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value);
     static Value plusSlowCase(ExecutionState& state, const Value& a, const Value& b);
     static Value modOperation(ExecutionState& state, const Value& left, const Value& right);
