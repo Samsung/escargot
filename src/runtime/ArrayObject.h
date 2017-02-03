@@ -47,6 +47,15 @@ public:
         return "Array";
     }
 
+    static ObjectGetResult fastGetObject(ExecutionState& state, const Value& mayBeArray, const Value& property);
+    static bool fastSetObject(ExecutionState& state, const Value& mayBeArray, const Value& property, const Value& value);
+    static void fastSetObjectThrowsException(ExecutionState& state, const Value& mayBeArray, const Value& property, const Value& value)
+    {
+        if (UNLIKELY(!fastSetObject(state, mayBeArray, property, value))) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, property.toString(state), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
+        }
+    }
+
 protected:
     ALWAYS_INLINE bool isFastModeArray()
     {

@@ -52,9 +52,18 @@ public:
             return false;
         }
 
-        for (size_t i = 0; i < srcLen; i++) {
-            if (src[i] != charAt(i)) {
-                return false;
+        auto data = bufferAccessData();
+        if (data.has8BitContent) {
+            for (size_t i = 0; i < srcLen; i++) {
+                if (src[i] != ((const LChar*)data.buffer)[i]) {
+                    return false;
+                }
+            }
+        } else {
+            for (size_t i = 0; i < srcLen; i++) {
+                if (src[i] != ((const char16_t*)data.buffer)[i]) {
+                    return false;
+                }
             }
         }
 

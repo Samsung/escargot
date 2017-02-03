@@ -298,7 +298,7 @@ public:
     AtomicString getLength;
     AtomicString getBuffer;
 
-#define ESCARGOT_ASCII_TABLE_MAX 128
+#define ESCARGOT_ASCII_TABLE_MAX 256
     AtomicString asciiTable[ESCARGOT_ASCII_TABLE_MAX];
 
 #define ESCARGOT_STRINGS_NUMBERS_MAX 128

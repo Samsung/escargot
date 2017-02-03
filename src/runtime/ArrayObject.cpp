@@ -251,4 +251,63 @@ bool ArrayObject::setFastModeValue(ExecutionState& state, const ObjectPropertyNa
     }
     return false;
 }
+
+extern size_t g_arrayObjectTag;
+
+ObjectGetResult ArrayObject::fastGetObject(ExecutionState& state, const Value& mayBeArray, const Value& property)
+{
+    PointerValue* v;
+    if (LIKELY(mayBeArray.isPointerValue() && (g_arrayObjectTag == *((size_t*)(v = mayBeArray.asPointerValue()))))) {
+        ArrayObject* arr = (ArrayObject*)v;
+        if (LIKELY(arr->isFastModeArray())) {
+            uint32_t idx;
+            if (LIKELY(property.isUInt32()))
+                idx = property.asUInt32();
+            else {
+                idx = property.toString(state)->tryToUseAsArrayIndex();
+            }
+            if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
+                if (LIKELY(idx < arr->getArrayLength(state))) {
+                    const Value& v = arr->m_fastModeData[idx];
+                    if (LIKELY(!v.isEmpty())) {
+                        return ObjectGetResult(v, true, true, true);
+                    }
+                }
+            }
+        }
+    }
+    Object* obj = mayBeArray.toObject(state);
+    return obj->get(state, ObjectPropertyName(state, property));
+}
+
+bool ArrayObject::fastSetObject(ExecutionState& state, const Value& mayBeArray, const Value& property, const Value& value)
+{
+    if (LIKELY(mayBeArray.isPointerValue() && (g_arrayObjectTag == *((size_t*)mayBeArray.asPointerValue())))) {
+        ArrayObject* arr = mayBeArray.asObject()->asArrayObject();
+        if (LIKELY(arr->isFastModeArray())) {
+            uint32_t idx;
+            if (LIKELY(property.isUInt32()))
+                idx = property.asUInt32();
+            else {
+                idx = property.toString(state)->tryToUseAsArrayIndex();
+            }
+            if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
+                uint32_t len = arr->getArrayLength(state);
+                if (UNLIKELY(len <= idx)) {
+                    if (UNLIKELY(!arr->isExtensible())) {
+                        goto SetObjectSlowCase;
+                    }
+                    if (UNLIKELY(!arr->setArrayLength(state, idx + 1)) || UNLIKELY(!arr->isFastModeArray())) {
+                        goto SetObjectSlowCase;
+                    }
+                }
+                arr->m_fastModeData[idx] = value;
+                return true;
+            }
+        }
+    }
+SetObjectSlowCase:
+    Object* obj = mayBeArray.toObject(state);
+    return obj->set(state, ObjectPropertyName(state, property), value, obj);
+}
 }

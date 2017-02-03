@@ -23,7 +23,7 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     getBuffer.init(atomicStringMap, "get buffer", strlen("get buffer"));
 
     for (unsigned i = 0; i < ESCARGOT_ASCII_TABLE_MAX; i++) {
-        char buf[2];
+        LChar buf[2];
         buf[0] = i;
         buf[1] = 0;
         asciiTable[i].init(atomicStringMap, buf, 1);

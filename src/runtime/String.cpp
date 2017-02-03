@@ -565,17 +565,34 @@ size_t String::find(String* str, size_t pos)
 
     if (srcStrLen <= size) {
         char32_t src0 = str->charAt(0);
-        for (; pos <= size - srcStrLen; ++pos) {
-            if (charAt(pos) == src0) {
-                bool same = true;
-                for (size_t k = 1; k < srcStrLen; k++) {
-                    if (charAt(pos + k) != str->charAt(k)) {
-                        same = false;
-                        break;
+        auto data = bufferAccessData();
+        if (data.has8BitContent) {
+            for (; pos <= size - srcStrLen; ++pos) {
+                if (((const LChar*)data.buffer)[pos] == src0) {
+                    bool same = true;
+                    for (size_t k = 1; k < srcStrLen; k++) {
+                        if (((const LChar*)data.buffer)[pos + k] != str->charAt(k)) {
+                            same = false;
+                            break;
+                        }
                     }
+                    if (same)
+                        return pos;
                 }
-                if (same)
-                    return pos;
+            }
+        } else {
+            for (; pos <= size - srcStrLen; ++pos) {
+                if (((const char16_t*)data.buffer)[pos] == src0) {
+                    bool same = true;
+                    for (size_t k = 1; k < srcStrLen; k++) {
+                        if (((const char16_t*)data.buffer)[pos + k] != str->charAt(k)) {
+                            same = false;
+                            break;
+                        }
+                    }
+                    if (same)
+                        return pos;
+                }
             }
         }
     }

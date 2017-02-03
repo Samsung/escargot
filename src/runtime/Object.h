@@ -589,6 +589,7 @@ public:
         return get(state, P, this);
     }
 
+    bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
     void setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
     void setThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
     void defineOwnPropertyThrowsException(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
@@ -809,8 +810,6 @@ protected:
 
     void markAsPrototypeObject(ExecutionState& state);
     void deleteOwnProperty(ExecutionState& state, size_t idx);
-
-    bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
 
     Object* getPrototypeObject()
     {
