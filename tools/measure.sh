@@ -101,6 +101,7 @@ if [[ $2 == octane ]]; then
     cd $OCTANE_BASE
     /usr/bin/time -v $cmd $args run.js &> $outfile
     cat $outfile | grep "^\s" > $TEST_RESULT_PATH/octane_mem.res
+    cat $outfile | grep "Maximum resident set size" | sed -e 's/^[[:space:]]*//'
     cd -
   fi
 

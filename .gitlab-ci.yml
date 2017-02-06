@@ -8,18 +8,15 @@ build_x64_release:
         - ARCH=x64 MODE=release ./build_third_party.sh
         - make clean
     script:
-        - VENDORTEST=1 make x64.interpreter.release -j$(nproc) && for file in `ldd ./escargot | grep icu | awk '{print $3}'`; do cp "$file" .; done
+        - VENDORTEST=1 make x64.interpreter.release -j$(nproc)
     artifacts:
         paths:
             - out/linux/x64/interpreter/release/escargot
-            - "libicui18n.so*"
-            - "libicuuc.so*"
-            - "libicudata.so*"
 
 test_x64_release_sunspider:
     stage: test
     before_script:
-        - git clone git@10.113.64.74:webtf/js_full_tc.git test/testRepo
+        - git clone --depth 1 git@10.113.64.74:webtf/js_full_tc.git test/testRepo
         - cp out/linux/x64/interpreter/release/escargot ./escargot
     script: ./escargot test/testRepo/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
     dependencies:
@@ -28,6 +25,7 @@ test_x64_release_sunspider:
 test_x64_release_octane:
     stage: test
     before_script:
+        - git submodule deinit -f test/octane
         - git submodule init
         - git submodule update test/octane
         - cp out/linux/x64/interpreter/release/escargot ./escargot
@@ -38,6 +36,7 @@ test_x64_release_octane:
 test_x64_release_test262:
     stage: test
     before_script:
+        - git submodule deinit -f test/test262
         - git submodule init
         - git submodule update test/test262
         - cp out/linux/x64/interpreter/release/escargot ./escargot
@@ -50,6 +49,7 @@ test_x64_release_spidermonkey:
     tags:
         - escargot_allow_slow
     before_script:
+        - git submodule deinit -f test/vendortest
         - git submodule init
         - git submodule update test/vendortest
         - cp out/linux/x64/interpreter/release/escargot ./escargot
@@ -77,7 +77,7 @@ build_x86_release:
 test_x86_release_sunspider:
     stage: test
     before_script:
-        - git clone git@10.113.64.74:webtf/js_full_tc.git test/testRepo
+        - git clone --depth 1 git@10.113.64.74:webtf/js_full_tc.git test/testRepo
         - cp out/linux/x86/interpreter/release/escargot ./escargot
     script: ./escargot test/testRepo/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
     dependencies:
@@ -86,6 +86,7 @@ test_x86_release_sunspider:
 test_x86_release_octane:
     stage: test
     before_script:
+        - git submodule deinit -f test/octane
         - git submodule init
         - git submodule update test/octane
         - cp out/linux/x86/interpreter/release/escargot ./escargot
@@ -96,6 +97,7 @@ test_x86_release_octane:
 test_x86_release_test262:
     stage: test
     before_script:
+        - git submodule deinit -f test/test262
         - git submodule init
         - git submodule update test/test262
         - cp out/linux/x86/interpreter/release/escargot ./escargot
@@ -105,7 +107,10 @@ test_x86_release_test262:
 
 test_x86_release_spidermonkey:
     stage: test
+    tags:
+        - escargot_allow_slow
     before_script:
+        - git submodule deinit -f test/vendortest
         - git submodule init
         - git submodule update test/vendortest
         - cp out/linux/x86/interpreter/release/escargot ./escargot
@@ -125,18 +130,15 @@ build_x64_debug:
         - ARCH=x64 MODE=debug ./build_third_party.sh
         - make clean
     script:
-        - VENDORTEST=1 make x64.interpreter.debug -j$(nproc) && for file in `ldd ./escargot | grep icu | awk '{print $3}'`; do cp "$file" .; done
+        - VENDORTEST=1 make x64.interpreter.debug -j$(nproc)
     artifacts:
         paths:
             - out/linux/x64/interpreter/debug/escargot
-            - "libicui18n.so*"
-            - "libicuuc.so*"
-            - "libicudata.so*"
 
 test_x64_debug_sunspider:
     stage: test
     before_script:
-        - git clone git@10.113.64.74:webtf/js_full_tc.git test/testRepo
+        - git clone --depth 1 git@10.113.64.74:webtf/js_full_tc.git test/testRepo
         - cp out/linux/x64/interpreter/debug/escargot ./escargot
     script: ./escargot test/testRepo/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
     dependencies:
@@ -145,6 +147,7 @@ test_x64_debug_sunspider:
 #test_x64_debug_octane:
 #    stage: test
 #    before_script:
+#        - git submodule deinit -f test/octane
 #        - git submodule init
 #        - git submodule update test/octane
 #        - cp out/linux/x64/interpreter/debug/escargot ./escargot
@@ -152,10 +155,10 @@ test_x64_debug_sunspider:
 #    dependencies:
 #        - build_x64_debug
 #
-#
 #test_x64_debug_test262:
 #    stage: test
 #    before_script:
+#        - git submodule deinit -f test/test262
 #        - git submodule init
 #        - git submodule update test/test262
 #        - cp out/linux/x64/interpreter/debug/escargot ./escargot
@@ -182,7 +185,7 @@ build_x86_debug:
 test_x86_debug_sunspider:
     stage: test
     before_script:
-        - git clone git@10.113.64.74:webtf/js_full_tc.git test/testRepo
+        - git clone --depth 1 git@10.113.64.74:webtf/js_full_tc.git test/testRepo
         - cp out/linux/x86/interpreter/debug/escargot ./escargot
     script: ./escargot test/testRepo/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
     dependencies:
@@ -191,6 +194,7 @@ test_x86_debug_sunspider:
 #test_x86_debug_octane:
 #    stage: test
 #    before_script:
+#        - git submodule deinit -f test/octane
 #        - git submodule init
 #        - git submodule update test/octane
 #        - cp out/linux/x86/interpreter/debug/escargot ./escargot
@@ -201,6 +205,7 @@ test_x86_debug_sunspider:
 #test_x86_debug_test262:
 #    stage: test
 #    before_script:
+#        - git submodule deinit -f test/test262
 #        - git submodule init
 #        - git submodule update test/test262
 #    script: make run-test262; exit $?;
