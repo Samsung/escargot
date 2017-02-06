@@ -6,6 +6,8 @@
 
 namespace Escargot {
 
+size_t g_argumentsObjectTag;
+
 struct ArgumentsObjectArgData : public PointerValue {
     FunctionEnvironmentRecord* m_targetRecord;
     CodeBlock* m_codeBlock;
@@ -58,8 +60,19 @@ void* ArgumentsObject::operator new(size_t size)
 }
 
 ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* record, ExecutionContext* ec)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, true)
+    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3, true)
 {
+    g_argumentsObjectTag = *((size_t*)this);
+
+    CodeBlock* blk = record->functionObject()->codeBlock();
+    bool isStrict = blk->isStrict();
+
+    if (isStrict) {
+        m_structure = state.context()->defaultStructureForArgumentsObjectInStrictMode();
+    } else {
+        m_structure = state.context()->defaultStructureForArgumentsObject();
+    }
+
     // http://www.ecma-international.org/ecma-262/5.1/#sec-10.6
     // Let len be the number of elements in args.
     size_t len = record->argc();
@@ -68,13 +81,12 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
     // Set the [[Class]] internal property of obj to "Arguments".
     // Let Object be the standard built-in Object constructor (15.2.2).
     // Set the [[Prototype]] internal property of obj to the standard built-in Object prototype object (15.2.4).
-    Object* obj = this;
+    // Object* obj = this;
 
     // Call the [[DefineOwnProperty]] internal method on obj passing "length", the Property Descriptor {[[Value]]: len, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}, and false as arguments.
-    obj->defineOwnProperty(state, state.context()->staticStrings().length, ObjectPropertyDescriptor(Value(len), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // obj->defineOwnProperty(state, state.context()->staticStrings().length, ObjectPropertyDescriptor(Value(len), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(len);
 
-    CodeBlock* blk = record->functionObject()->codeBlock();
-    bool isStrict = blk->isStrict();
     // Let map be the result of creating a new object as if by the expression new Object() where Object is the standard built-in constructor with that name
     // Let mappedNames be an empty List.
     std::vector<AtomicString> mappedNames;
@@ -117,7 +129,8 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
     // If strict is false, then
     if (!isStrict) {
         // Call the [[DefineOwnProperty]] internal method on obj passing "callee", the property descriptor {[[Value]]: func, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}, and false as arguments.
-        obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().callee), ObjectPropertyDescriptor(record->functionObject(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+        // obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().callee), ObjectPropertyDescriptor(record->functionObject(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = Value(record->functionObject());
 
         Value caller;
         ExecutionContext* pec = ec->parent();
@@ -128,15 +141,18 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
             }
             pec = pec->parent();
         }
-        obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().caller), ObjectPropertyDescriptor(caller, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+        // obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().caller), ObjectPropertyDescriptor(caller, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(caller);
     } else {
         // Else, strict is true so
         // Let thrower be the [[ThrowTypeError]] function Object (13.2.3).
         FunctionObject* thrower = state.context()->globalObject()->throwTypeError();
         // Call the [[DefineOwnProperty]] internal method of obj with arguments "callee", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
-        obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().callee), ObjectPropertyDescriptor(JSGetterSetter(thrower, thrower), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+        // obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().callee), ObjectPropertyDescriptor(JSGetterSetter(thrower, thrower), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = Value(new JSGetterSetter(thrower, thrower));
         // Call the [[DefineOwnProperty]] internal method of obj with arguments "caller", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
-        obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().caller), ObjectPropertyDescriptor(JSGetterSetter(thrower, thrower), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+        // obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().caller), ObjectPropertyDescriptor(JSGetterSetter(thrower, thrower), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(new JSGetterSetter(thrower, thrower));
     }
 }
 
@@ -242,5 +258,53 @@ void ArgumentsObject::enumeration(ExecutionState& state, bool (*callback)(Execut
         }
     }
     Object::enumeration(state, callback, data);
+}
+
+ObjectGetResult ArgumentsObject::getIndexedProperty(ExecutionState& state, const Value& property)
+{
+    uint64_t idx;
+    if (LIKELY(property.isUInt32())) {
+        idx = property.asUInt32();
+    } else {
+        idx = property.toString(state)->tryToUseAsIndex();
+    }
+    if (LIKELY(idx != Value::InvalidIndexValue)) {
+        if (idx < m_argumentPropertyInfo.size()) {
+            Value val = m_argumentPropertyInfo[idx].first;
+            if (!val.isEmpty()) {
+                if (m_argumentPropertyInfo[idx].second.isNativeAccessorProperty()) {
+                    return ObjectGetResult(ArgumentsObjectNativeGetter(state, this, val), true, true, true);
+                } else {
+                    return ObjectGetResult(val, true, true, true);
+                }
+            }
+        }
+    }
+    return get(state, ObjectPropertyName(state, property));
+}
+
+bool ArgumentsObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)
+{
+    uint64_t idx;
+    if (LIKELY(property.isUInt32())) {
+        idx = property.asUInt32();
+    } else {
+        idx = property.toString(state)->tryToUseAsIndex();
+    }
+    if (LIKELY(idx != Value::InvalidIndexValue)) {
+        if (idx < m_argumentPropertyInfo.size()) {
+            Value val = m_argumentPropertyInfo[idx].first;
+            if (!val.isEmpty()) {
+                if (m_argumentPropertyInfo[idx].second.isNativeAccessorProperty()) {
+                    ArgumentsObjectNativeSetter(state, this, value, val);
+                    return true;
+                } else {
+                    m_argumentPropertyInfo[idx].first = value;
+                    return true;
+                }
+            }
+        }
+    }
+    return set(state, ObjectPropertyName(state, property), value, this);
 }
 }

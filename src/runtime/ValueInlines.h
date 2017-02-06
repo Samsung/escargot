@@ -136,12 +136,12 @@ inline int32_t Value::payload() const
     return u.asBits.payload;
 }
 
-inline bool Value::isInt32() const
+ALWAYS_INLINE bool Value::isInt32() const
 {
     return tag() == Int32Tag;
 }
 
-inline bool Value::isDouble() const
+ALWAYS_INLINE bool Value::isDouble() const
 {
     return tag() < LowestTag;
 }
@@ -174,7 +174,7 @@ inline bool Value::isDeleted() const
     return tag() == DeletedValueTag;
 }
 
-inline bool Value::isNumber() const
+ALWAYS_INLINE bool Value::isNumber() const
 {
     return isInt32() || isDouble();
 }
@@ -322,7 +322,7 @@ inline bool Value::operator!=(const Value& other) const
     return u.asInt64 != other.u.asInt64;
 }
 
-inline bool Value::isInt32() const
+ALWAYS_INLINE bool Value::isInt32() const
 {
 #ifdef ESCARGOT_LITTLE_ENDIAN
     ASSERT(sizeof(short) == 2);
@@ -366,7 +366,7 @@ inline bool Value::isDeleted() const
     return u.asInt64 == ValueDeleted;
 }
 
-inline bool Value::isNumber() const
+ALWAYS_INLINE bool Value::isNumber() const
 {
 #ifdef ESCARGOT_LITTLE_ENDIAN
     ASSERT(sizeof(short) == 2);
@@ -516,7 +516,7 @@ inline uint32_t Value::asUInt32() const
     return asInt32();
 }
 
-inline double Value::asNumber() const
+ALWAYS_INLINE double Value::asNumber() const
 {
     ASSERT(isNumber());
     return isInt32() ? asInt32() : asDouble();

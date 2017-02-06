@@ -8,7 +8,7 @@ namespace Escargot {
 #define ESCARGOT_ROPE_STRING_MIN_LENGTH 24
 
 class RopeString : public String {
-protected:
+public:
     RopeString()
         : String()
     {
@@ -18,7 +18,6 @@ protected:
         m_right = nullptr;
     }
 
-public:
     // this function not always create RopeString.
     // if (l+r).length() < ESCARGOT_ROPE_STRING_MIN_LENGTH
     // then create just normalString

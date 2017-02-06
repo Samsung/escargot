@@ -884,4 +884,14 @@ void Object::defineNativeGetterSetterDataProperty(ExecutionState& state, const O
     m_values.pushBack(v, m_structure->propertyCount());
     // ASSERT(m_values.size() == m_structure->propertyCount());
 }
+
+ObjectGetResult Object::getIndexedProperty(ExecutionState& state, const Value& property)
+{
+    return get(state, ObjectPropertyName(state, property));
+}
+
+bool Object::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)
+{
+    return set(state, ObjectPropertyName(state, property), value, this);
+}
 }

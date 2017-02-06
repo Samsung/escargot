@@ -613,6 +613,14 @@ public:
         }
     }
 
+    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property);
+    virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value);
+    void setIndexedPropertyThrowsException(ExecutionState& state, const Value& property, const Value& value)
+    {
+        if (!setIndexedProperty(state, property, value)) {
+            throwCannotDefineError(state, PropertyName(state, property.toString(state)));
+        }
+    }
 
     void markThisObjectDontNeedStructureTransitionTable(ExecutionState& state)
     {

@@ -95,6 +95,16 @@ public:
         return m_defaultStructureForRegExpObject;
     }
 
+    ObjectStructure* defaultStructureForArgumentsObject()
+    {
+        return m_defaultStructureForArgumentsObject;
+    }
+
+    ObjectStructure* defaultStructureForArgumentsObjectInStrictMode()
+    {
+        return m_defaultStructureForArgumentsObjectInStrictMode;
+    }
+
     GlobalObject* globalObject()
     {
         return m_globalObject;
@@ -168,6 +178,8 @@ protected:
     ObjectStructure* m_defaultStructureForArrayObject;
     ObjectStructure* m_defaultStructureForStringObject;
     ObjectStructure* m_defaultStructureForRegExpObject;
+    ObjectStructure* m_defaultStructureForArgumentsObject;
+    ObjectStructure* m_defaultStructureForArgumentsObjectInStrictMode;
 
     Vector<SandBox*, gc_malloc_allocator<SandBox*>> m_sandBoxStack;
 

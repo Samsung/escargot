@@ -4,6 +4,8 @@
 
 namespace Escargot {
 
+size_t g_arrayObjectTag;
+
 ArrayObject::ArrayObject(ExecutionState& state)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1, true)
 {
@@ -252,62 +254,51 @@ bool ArrayObject::setFastModeValue(ExecutionState& state, const ObjectPropertyNa
     return false;
 }
 
-extern size_t g_arrayObjectTag;
-
-ObjectGetResult ArrayObject::fastGetObject(ExecutionState& state, const Value& mayBeArray, const Value& property)
+ObjectGetResult ArrayObject::getIndexedProperty(ExecutionState& state, const Value& property)
 {
-    PointerValue* v;
-    if (LIKELY(mayBeArray.isPointerValue() && (g_arrayObjectTag == *((size_t*)(v = mayBeArray.asPointerValue()))))) {
-        ArrayObject* arr = (ArrayObject*)v;
-        if (LIKELY(arr->isFastModeArray())) {
-            uint32_t idx;
-            if (LIKELY(property.isUInt32()))
-                idx = property.asUInt32();
-            else {
-                idx = property.toString(state)->tryToUseAsArrayIndex();
-            }
-            if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-                if (LIKELY(idx < arr->getArrayLength(state))) {
-                    const Value& v = arr->m_fastModeData[idx];
-                    if (LIKELY(!v.isEmpty())) {
-                        return ObjectGetResult(v, true, true, true);
-                    }
+    if (LIKELY(isFastModeArray())) {
+        uint64_t idx;
+        if (LIKELY(property.isUInt32())) {
+            idx = property.asUInt32();
+        } else {
+            idx = property.toString(state)->tryToUseAsArrayIndex();
+        }
+        if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
+            if (LIKELY(idx < getArrayLength(state))) {
+                Value v = m_fastModeData[idx];
+                if (LIKELY(!v.isEmpty())) {
+                    return ObjectGetResult(v, true, true, true);
                 }
+                return get(state, ObjectPropertyName(state, property));
             }
         }
     }
-    Object* obj = mayBeArray.toObject(state);
-    return obj->get(state, ObjectPropertyName(state, property));
+    return get(state, ObjectPropertyName(state, property));
 }
 
-bool ArrayObject::fastSetObject(ExecutionState& state, const Value& mayBeArray, const Value& property, const Value& value)
+bool ArrayObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)
 {
-    if (LIKELY(mayBeArray.isPointerValue() && (g_arrayObjectTag == *((size_t*)mayBeArray.asPointerValue())))) {
-        ArrayObject* arr = mayBeArray.asObject()->asArrayObject();
-        if (LIKELY(arr->isFastModeArray())) {
-            uint32_t idx;
-            if (LIKELY(property.isUInt32()))
-                idx = property.asUInt32();
-            else {
-                idx = property.toString(state)->tryToUseAsArrayIndex();
-            }
-            if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-                uint32_t len = arr->getArrayLength(state);
-                if (UNLIKELY(len <= idx)) {
-                    if (UNLIKELY(!arr->isExtensible())) {
-                        goto SetObjectSlowCase;
-                    }
-                    if (UNLIKELY(!arr->setArrayLength(state, idx + 1)) || UNLIKELY(!arr->isFastModeArray())) {
-                        goto SetObjectSlowCase;
-                    }
+    if (LIKELY(isFastModeArray())) {
+        uint64_t idx;
+        if (LIKELY(property.isUInt32())) {
+            idx = property.asUInt32();
+        } else {
+            idx = property.toString(state)->tryToUseAsArrayIndex();
+        }
+        if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
+            uint32_t len = getArrayLength(state);
+            if (UNLIKELY(len <= idx)) {
+                if (UNLIKELY(!isExtensible())) {
+                    return false;
                 }
-                arr->m_fastModeData[idx] = value;
-                return true;
+                if (UNLIKELY(!setArrayLength(state, idx + 1)) || UNLIKELY(!isFastModeArray())) {
+                    return set(state, ObjectPropertyName(state, property), value, this);
+                }
             }
+            m_fastModeData[idx] = value;
+            return true;
         }
     }
-SetObjectSlowCase:
-    Object* obj = mayBeArray.toObject(state);
-    return obj->set(state, ObjectPropertyName(state, property), value, obj);
+    return set(state, ObjectPropertyName(state, property), value, this);
 }
 }

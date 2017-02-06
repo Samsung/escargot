@@ -17,9 +17,6 @@
 
 namespace Escargot {
 
-size_t g_arrayObjectTag;
-size_t g_stringTag;
-
 NEVER_INLINE void registerOpcode(Opcode opcode, void* opcodeAddress)
 {
     static std::unordered_set<void*> labelAddressChecker;
@@ -1607,6 +1604,15 @@ ALWAYS_INLINE Object* ByteCodeInterpreter::fastToObject(ExecutionState& state, c
 {
     if (LIKELY(obj.isPointerValue())) {
         PointerValue* v = obj.asPointerValue();
+        /*
+        size_t tag = *((size_t*)(v));
+        if ((tag == g_asciiStringTag) || (tag == g_latin1StringTag) || (tag == g_utf16StringTag) || (tag == g_ropeStringTag) || (tag == g_stringViewTag)) {
+            StringObject* o = state.context()->globalObject()->stringProxyObject();
+            o->setPrimitiveValue(state, obj.asString());
+            return o;
+        }
+        return v->asObject();
+        */
         if (LIKELY(v->isObject())) {
             return obj.asObject();
         } else if (v->isString()) {

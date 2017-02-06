@@ -9,9 +9,11 @@ namespace Escargot {
 #define ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE 65536 * 2
 #define ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP 1024
 
+extern size_t g_arrayObjectTag;
 
 class ArrayObject : public Object {
     friend class Context;
+    friend class Object;
     friend class ByteCodeInterpreter;
     friend Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
     friend int getValidValueInArrayObject(void* ptr, GC_mark_custom_result* arr);
@@ -32,6 +34,8 @@ public:
         return getArrayLength(state);
     }
     virtual void sort(ExecutionState& state, std::function<bool(const Value& a, const Value& b)> comp);
+    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property);
+    virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value);
 
     // Use custom allocator for Array object (for Badtime)
     void* operator new(size_t size);
@@ -45,15 +49,6 @@ public:
     virtual const char* internalClassProperty()
     {
         return "Array";
-    }
-
-    static ObjectGetResult fastGetObject(ExecutionState& state, const Value& mayBeArray, const Value& property);
-    static bool fastSetObject(ExecutionState& state, const Value& mayBeArray, const Value& property, const Value& value);
-    static void fastSetObjectThrowsException(ExecutionState& state, const Value& mayBeArray, const Value& property, const Value& value)
-    {
-        if (UNLIKELY(!fastSetObject(state, mayBeArray, property, value))) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, property.toString(state), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
-        }
     }
 
 protected:

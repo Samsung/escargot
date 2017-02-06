@@ -18,7 +18,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
     CodeBlock* codeBlock;
     if (parentCodeBlock == nullptr) {
         // globalBlock
-        codeBlock = new CodeBlock(ctx, script, source, scopeCtx->m_isStrict, scopeCtx->m_locStart, scopeCtx->m_names,
+        codeBlock = new CodeBlock(ctx, script, source, scopeCtx->m_isStrict, ExtendedNodeLOC(1, 1, 0), scopeCtx->m_names,
                                   (CodeBlock::CodeBlockInitFlag)((scopeCtx->m_hasEval ? CodeBlock::CodeBlockHasEval : 0)
                                                                  | (scopeCtx->m_hasWith ? CodeBlock::CodeBlockHasWith : 0)
                                                                  | (scopeCtx->m_hasCatch ? CodeBlock::CodeBlockHasCatch : 0)
@@ -88,6 +88,21 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
                                     break;
                                 }
                             }
+                        }
+                    }
+
+                    for (size_t i = 0; i < b->functionParameters().size(); i++) {
+                        if (UNLIKELY(b->functionParameters()[i] == arguments)) {
+                            b->m_hasArgumentsBindingInParameterOrChildFD = true;
+                            break;
+                        }
+                    }
+
+                    for (size_t i = 0; i < b->childBlocks().size(); i++) {
+                        CodeBlock* cb = b->childBlocks()[i];
+                        if (cb->isFunctionDeclaration() && cb->functionName() == arguments) {
+                            b->m_hasArgumentsBindingInParameterOrChildFD = true;
+                            break;
                         }
                     }
                 }

@@ -9,6 +9,12 @@ namespace Escargot {
 
 String* String::emptyString;
 
+size_t g_asciiStringTag;
+size_t g_latin1StringTag;
+size_t g_utf16StringTag;
+size_t g_ropeStringTag;
+size_t g_stringViewTag;
+
 bool isAllASCII(const char* buf, const size_t& len)
 {
     for (unsigned i = 0; i < len; i++) {

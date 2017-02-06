@@ -67,6 +67,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     m_inWith = false;
     m_usesArgumentsObject = false;
     m_hasArgumentsBinding = false;
+    m_hasArgumentsBindingInParameterOrChildFD = false;
     m_canUseIndexedVariableStorage = true;
     m_canAllocateEnvironmentOnStack = true;
     m_needsComplexParameterCopy = false;
@@ -204,6 +205,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
 
     m_usesArgumentsObject = false;
     m_hasArgumentsBinding = false;
+    m_hasArgumentsBindingInParameterOrChildFD = false;
     m_canUseIndexedVariableStorage = false;
     m_canAllocateEnvironmentOnStack = false;
     m_needsComplexParameterCopy = false;
@@ -280,6 +282,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeL
 
     m_usesArgumentsObject = false;
     m_hasArgumentsBinding = false;
+    m_hasArgumentsBindingInParameterOrChildFD = false;
 
     if (initFlags & CodeBlockInitFlag::CodeBlockIsFunctionDeclaration) {
         m_isFunctionDeclaration = true;

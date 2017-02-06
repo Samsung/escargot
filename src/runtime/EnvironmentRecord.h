@@ -342,7 +342,7 @@ public:
     }
 
 protected:
-    ValueVector m_heapStorage;
+    SmallValueVector m_heapStorage;
     IdentifierRecordVector m_recordVector;
 };
 
@@ -485,7 +485,7 @@ public:
     }
 
 protected:
-    ValueVector m_heapStorage;
+    SmallValueVector m_heapStorage;
 };
 
 class FunctionEnvironmentRecordNotIndexed : public FunctionEnvironmentRecord {
@@ -546,7 +546,7 @@ public:
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
 
 protected:
-    ValueVector m_heapStorage;
+    SmallValueVector m_heapStorage;
     IdentifierRecordVector m_recordVector;
 };
 }

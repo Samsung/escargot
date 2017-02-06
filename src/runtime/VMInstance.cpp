@@ -5,7 +5,6 @@ namespace Escargot {
 
 extern size_t g_doubleInSmallValueTag;
 extern size_t g_objectRareDataTag;
-extern size_t g_stringTag;
 
 VMInstance::VMInstance()
 {
@@ -28,7 +27,28 @@ VMInstance::VMInstance()
 
     DoubleInSmallValue temp(0);
     g_doubleInSmallValueTag = *((size_t*)&temp);
-    g_stringTag = *((size_t*)String::emptyString);
+
+    {
+        ASCIIString str("", 0);
+        g_asciiStringTag = *((size_t*)&str);
+    }
+    {
+        Latin1String str("", 0);
+        g_latin1StringTag = *((size_t*)&str);
+    }
+    {
+        UTF16String str(u"", 0);
+        g_utf16StringTag = *((size_t*)&str);
+    }
+    {
+        RopeString str;
+        g_ropeStringTag = *((size_t*)&str);
+    }
+    {
+        StringView str;
+        g_stringViewTag = *((size_t*)&str);
+    }
+
     ObjectRareData data(nullptr);
     g_objectRareDataTag = *((size_t*)&data);
 }

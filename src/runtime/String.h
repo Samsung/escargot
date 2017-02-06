@@ -23,7 +23,16 @@ typedef std::basic_string<char16_t, std::char_traits<char16_t>> UTF16StringDataN
 typedef std::basic_string<char32_t, std::char_traits<char32_t>> UTF32StringDataNonGCStd;
 
 class ASCIIString;
+class Latin1String;
 class UTF16String;
+class RopeString;
+class StringView;
+
+extern size_t g_asciiStringTag;
+extern size_t g_latin1StringTag;
+extern size_t g_utf16StringTag;
+extern size_t g_ropeStringTag;
+extern size_t g_stringViewTag;
 
 struct StringBufferAccessData {
     bool has8BitContent;

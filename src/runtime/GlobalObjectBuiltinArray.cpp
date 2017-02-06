@@ -96,7 +96,7 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
                 builder.appendString(sep);
             }
         }
-        Value elem = ArrayObject::fastGetObject(state, thisBinded, Value(curIndex)).value(state, thisBinded);
+        Value elem = thisBinded->getIndexedProperty(state, Value(curIndex)).value(state, thisBinded);
 
         if (!elem.isUndefinedOrNull()) {
             builder.appendString(elem.toString(state));
@@ -241,7 +241,7 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
         // Let fromPresent be the result of calling the [[HasProperty]] internal method of O with argument from.
         // If fromPresent is true, then
         // Let fromValue be the result of calling the [[Get]] internal method of O with argument from.
-        ObjectGetResult fromValue = ArrayObject::fastGetObject(state, O, Value(actualStart + k));
+        ObjectGetResult fromValue = O->getIndexedProperty(state, Value(actualStart + k));
         if (fromValue.hasValue()) {
             // Call the [[DefineOwnProperty]] internal method of A with arguments ToString(k), Property Descriptor {[[Value]]: fromValue, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
             A->ArrayObject::defineOwnProperty(state, ObjectPropertyName(state, Value(k)),
@@ -273,12 +273,12 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
             // Let to be ToString(k+itemCount).
             uint32_t to = k + itemCount;
             // Let fromPresent be the result of calling the [[HasProperty]] internal method of O with argument from.
-            ObjectGetResult fromValue = ArrayObject::fastGetObject(state, O, Value(from));
+            ObjectGetResult fromValue = O->getIndexedProperty(state, Value(from));
             // If fromPresent is true, then
             if (fromValue.hasValue()) {
                 // Let fromValue be the result of calling the [[Get]] internal method of O with argument from.
-                ArrayObject::fastSetObjectThrowsException(state, O, Value(to), fromValue.value(state, O));
                 // Call the [[Put]] internal method of O with arguments to, fromValue, and true.
+                O->setIndexedPropertyThrowsException(state, Value(to), fromValue.value(state, O));
             } else {
                 // Else, fromPresent is false
 
@@ -311,12 +311,12 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
             ObjectPropertyName to(state, Value(k + itemCount - 1));
 
             // Let fromPresent be the result of calling the [[HasProperty]] internal method of O with argument from.
-            ObjectGetResult fromValue = ArrayObject::fastGetObject(state, O, Value(k + actualDeleteCount - 1));
+            ObjectGetResult fromValue = O->getIndexedProperty(state, Value(k + actualDeleteCount - 1));
             // If fromPresent is true, then
             if (fromValue.hasValue()) {
                 // Let fromValue be the result of calling the [[Get]] internal method of O with argument from.
                 // Call the [[Put]] internal method of O with arguments to, fromValue, and true.
-                ArrayObject::fastSetObjectThrowsException(state, O, Value(k + itemCount - 1), fromValue.value(state, O));
+                O->setIndexedPropertyThrowsException(state, Value(k + itemCount - 1), fromValue.value(state, O));
             } else {
                 // Else, fromPresent is false
                 // Call the [[Delete]] internal method of O with argument to and true.
@@ -336,7 +336,7 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
         // Remove the first element from items and let E be the value of that element.
         Value E = items[itemsIndex++];
         // Call the [[Put]] internal method of O with arguments ToString(k), E, and true.
-        ArrayObject::fastSetObjectThrowsException(state, O, Value(k), E);
+        O->setIndexedPropertyThrowsException(state, Value(k), E);
         // Increase k by 1.
         k++;
     }
@@ -495,7 +495,7 @@ static Value builtinArrayIndexOf(ExecutionState& state, Value thisValue, size_t 
     // Repeat, while k<len
     while (k < len) {
         // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument ToString(k).
-        ObjectGetResult kPresent = ArrayObject::fastGetObject(state, O, Value(k));
+        ObjectGetResult kPresent = O->getIndexedProperty(state, Value(k));
         // If kPresent is true, then
         if (kPresent.hasValue()) {
             // Let elementK be the result of calling the [[Get]] internal method of O with the argument ToString(k).
@@ -552,7 +552,7 @@ static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, siz
     // Repeat, while k≥ 0
     while (k >= 0) {
         // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument ToString(k).
-        ObjectGetResult kPresent = ArrayObject::fastGetObject(state, O, Value(k));
+        ObjectGetResult kPresent = O->getIndexedProperty(state, Value(k));
         // If kPresent is true, then
         if (kPresent.hasValue()) {
             // Let elementK be the result of calling the [[Get]] internal method of O with the argument ToString(k).
@@ -1044,7 +1044,7 @@ static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t arg
     // Remove the first element from items and let E be the value of the element.
     for (size_t i = 0; i < argc; i++) {
         // Call the [[Put]] internal method of O with arguments ToString(n), E, and true.
-        ArrayObject::fastSetObject(state, O, Value(n), argv[i]);
+        O->setIndexedPropertyThrowsException(state, Value(n), argv[i]);
         // Increase n by 1.
         n++;
     }

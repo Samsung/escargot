@@ -185,13 +185,13 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     LexicalEnvironment* env;
     ExecutionContext* ec;
     size_t stackStorageSize = m_codeBlock->identifierOnStackCount();
-    if (m_codeBlock->canAllocateEnvironmentOnStack()) {
+    if (LIKELY(m_codeBlock->canAllocateEnvironmentOnStack())) {
         // no capture, very simple case
         record = new (alloca(sizeof(FunctionEnvironmentRecordOnStack))) FunctionEnvironmentRecordOnStack(state, receiver, this, argc, argv, isNewExpression);
         env = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, outerEnvironment());
         ec = new (alloca(sizeof(ExecutionContext))) ExecutionContext(ctx, state.executionContext(), env, isStrict);
     } else {
-        if (m_codeBlock->canUseIndexedVariableStorage()) {
+        if (LIKELY(m_codeBlock->canUseIndexedVariableStorage())) {
             record = new FunctionEnvironmentRecordOnHeap(state, receiver, this, argc, argv, isNewExpression);
         } else {
             record = new FunctionEnvironmentRecordNotIndexed(state, receiver, this, argc, argv, isNewExpression);
@@ -200,7 +200,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
         ec = new ExecutionContext(ctx, state.executionContext(), env, isStrict);
     }
 
-    Value registerFile[m_codeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize];
+    Value* registerFile = (Value*)alloca(m_codeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
     Value* stackStorage = ALLOCA(stackStorageSize * sizeof(Value), Value, state);
     Value resultValue;
     for (size_t i = 0; i < stackStorageSize; i++) {
@@ -216,7 +216,8 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
             stackStorage[info.m_index] = this;
         } else {
             if (m_codeBlock->canUseIndexedVariableStorage()) {
-                record->setHeapValueByIndex(info.m_index, this);
+                ASSERT(record->isFunctionEnvironmentRecordOnHeap());
+                ((FunctionEnvironmentRecordOnHeap*)record)->FunctionEnvironmentRecordOnHeap::setHeapValueByIndex(info.m_index, this);
             } else {
                 record->setMutableBinding(state, m_codeBlock->functionName(), this);
             }
@@ -240,7 +241,8 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
                 else if (info[i].m_index >= argc)
                     continue;
                 if (info[i].m_isHeapAllocated) {
-                    record->setHeapValueByIndex(info[i].m_index, val);
+                    ASSERT(record->isFunctionEnvironmentRecordOnHeap());
+                    ((FunctionEnvironmentRecordOnHeap*)record)->FunctionEnvironmentRecordOnHeap::setHeapValueByIndex(info[i].m_index, val);
                 } else {
                     stackStorage[info[i].m_index] = val;
                 }
@@ -254,20 +256,8 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
 
     if (UNLIKELY(m_codeBlock->hasArgumentsBinding())) {
         ASSERT(m_codeBlock->usesArgumentsObject());
-        AtomicString arguments = state.context()->staticStrings().arguments;
-        for (size_t i = 0; i < m_codeBlock->functionParameters().size(); i++) {
-            if (UNLIKELY(m_codeBlock->functionParameters()[i] == arguments)) {
-                record->asFunctionEnvironmentRecord()->m_isArgumentObjectCreated = true;
-                break;
-            }
-        }
-
-        for (size_t i = 0; i < m_codeBlock->childBlocks().size(); i++) {
-            CodeBlock* cb = m_codeBlock->childBlocks()[i];
-            if (cb->isFunctionDeclaration() && cb->functionName() == arguments) {
-                record->asFunctionEnvironmentRecord()->m_isArgumentObjectCreated = true;
-                break;
-            }
+        if (m_codeBlock->hasArgumentsBindingInParameterOrChildFD()) {
+            record->asFunctionEnvironmentRecord()->m_isArgumentObjectCreated = true;
         }
     }
 

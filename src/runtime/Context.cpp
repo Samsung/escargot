@@ -120,8 +120,6 @@ bool Context::regexpLastIndexNativeSetter(ExecutionState& state, Object* self, c
     return true;
 }
 
-extern size_t g_arrayObjectTag;
-
 static ObjectPropertyNativeGetterSetterData regexpLastIndexGetterSetterData(
     true, false, false, &Context::regexpLastIndexNativeGetter, &Context::regexpLastIndexNativeSetter);
 
@@ -184,6 +182,15 @@ Context::Context(VMInstance* instance)
                                                                                        ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpIgnoreCaseGetterData));
     m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.multiline,
                                                                                        ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpMultilineGetterData));
+
+    m_defaultStructureForArgumentsObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length, ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+    m_defaultStructureForArgumentsObject = m_defaultStructureForArgumentsObject->addProperty(stateForInit, m_staticStrings.callee, ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+    m_defaultStructureForArgumentsObject = m_defaultStructureForArgumentsObject->addProperty(stateForInit, m_staticStrings.caller, ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+
+    m_defaultStructureForArgumentsObjectInStrictMode = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length, ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+    m_defaultStructureForArgumentsObjectInStrictMode = m_defaultStructureForArgumentsObjectInStrictMode->addProperty(stateForInit, m_staticStrings.callee, ObjectStructurePropertyDescriptor::createAccessorDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::NotPresent)));
+    m_defaultStructureForArgumentsObjectInStrictMode = m_defaultStructureForArgumentsObjectInStrictMode->addProperty(stateForInit, m_staticStrings.caller, ObjectStructurePropertyDescriptor::createAccessorDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::NotPresent)));
+
     m_globalObject = new GlobalObject(stateForInit);
     m_globalObject->installBuiltins(stateForInit);
 

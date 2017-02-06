@@ -143,6 +143,11 @@ extern size_t g_doubleInSmallValueTag;
 
 class SmallValue {
 public:
+    SmallValue()
+    {
+        m_data.payload = (intptr_t)(smallValueUndefined);
+    }
+
     SmallValue(const SmallValue& from)
     {
         m_data.payload = from.m_data.payload;
@@ -273,6 +278,8 @@ protected:
 
     SmallValueData m_data;
 };
+
+typedef Vector<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> SmallValueVector;
 }
 
 
