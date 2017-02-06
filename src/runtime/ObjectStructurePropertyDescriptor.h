@@ -13,16 +13,14 @@ struct ObjectPropertyNativeGetterSetterData {
     bool m_isWritable : 1;
     bool m_isEnumerable : 1;
     bool m_isConfigurable : 1;
-    bool m_isRemovedOnRedefineProperty : 1; // special flag for arguments object
     ObjectPropertyNativeGetter m_getter;
     ObjectPropertyNativeSetter m_setter;
 
     ObjectPropertyNativeGetterSetterData(bool isWritable, bool isEnumerable, bool isConfigurable,
-                                         ObjectPropertyNativeGetter getter, ObjectPropertyNativeSetter setter, bool isRemovedOnRedefineProperty = false)
+                                         ObjectPropertyNativeGetter getter, ObjectPropertyNativeSetter setter)
         : m_isWritable(isWritable)
         , m_isEnumerable(isEnumerable)
         , m_isConfigurable(isConfigurable)
-        , m_isRemovedOnRedefineProperty(isRemovedOnRedefineProperty)
         , m_getter(getter)
         , m_setter(setter)
     {
@@ -35,7 +33,7 @@ struct ObjectPropertyNativeGetterSetterData {
     void* operator new[](size_t size) = delete;
 };
 
-class ObjectStructurePropertyDescriptor {
+class ObjectStructurePropertyDescriptor : public gc {
     MAKE_STACK_ALLOCATED();
 
 public:

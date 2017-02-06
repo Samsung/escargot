@@ -569,17 +569,9 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
                 m_structure = structure()->convertToWithFastAccess(state);
 
             if (newDesc.isDataDescriptor() && m_structure->m_properties[idx].m_descriptor.isNativeAccessorProperty()) {
-                if (m_structure->m_properties[idx].m_descriptor.nativeGetterSetterData()->m_isRemovedOnRedefineProperty) {
-                    // special path for arguments object
-                    if (newDesc.isDataDescriptor()) {
-                        setOwnDataPropertyUtilForObjectInner(state, idx, m_structure->m_properties[idx], newDesc.value());
-                    }
-                    m_structure->m_properties[idx].m_descriptor = newDesc.toObjectStructurePropertyDescriptor();
-                } else {
-                    auto newNative = new ObjectPropertyNativeGetterSetterData(newDesc.isWritable(), newDesc.isEnumerable(), newDesc.isConfigurable(),
-                                                                              m_structure->m_properties[idx].m_descriptor.nativeGetterSetterData()->m_getter, m_structure->m_properties[idx].m_descriptor.nativeGetterSetterData()->m_setter);
-                    m_structure->m_properties[idx].m_descriptor = ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(newNative);
-                }
+                auto newNative = new ObjectPropertyNativeGetterSetterData(newDesc.isWritable(), newDesc.isEnumerable(), newDesc.isConfigurable(),
+                                                                          m_structure->m_properties[idx].m_descriptor.nativeGetterSetterData()->m_getter, m_structure->m_properties[idx].m_descriptor.nativeGetterSetterData()->m_setter);
+                m_structure->m_properties[idx].m_descriptor = ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(newNative);
             } else {
                 m_structure->m_properties[idx].m_descriptor = newDesc.toObjectStructurePropertyDescriptor();
             }

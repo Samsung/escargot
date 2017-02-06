@@ -41,11 +41,25 @@ static bool ArgumentsObjectNativeSetter(ExecutionState& state, Object* self, con
     return true;
 }
 
+void* ArgumentsObject::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(ArgumentsObject)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_structure));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_prototype));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_values));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_argumentPropertyInfo));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ArgumentsObject));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
 ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* record, ExecutionContext* ec)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, true)
 {
-    m_structure = structure()->convertToWithFastAccess(state);
-
     // http://www.ecma-international.org/ecma-262/5.1/#sec-10.6
     // Let len be the number of elements in args.
     size_t len = record->argc();
@@ -67,11 +81,15 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
     // Let indx = len - 1.
     int64_t indx = ((int64_t)len - 1);
     // Repeat while indx >= 0,
+
+    m_argumentPropertyInfo.resizeWithUninitializedValues(len);
+
     while (indx >= 0) {
         // Let val be the element of args at 0-origined list position indx.
         Value val = record->argv()[indx];
         // Call the [[DefineOwnProperty]] internal method on obj passing ToString(indx), the property descriptor {[[Value]]: val, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false as arguments.
-        obj->defineOwnProperty(state, ObjectPropertyName(state, Value(indx)), ObjectPropertyDescriptor(val, ObjectPropertyDescriptor::AllPresent));
+        m_argumentPropertyInfo[indx].first = val;
+        m_argumentPropertyInfo[indx].second = ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent);
 
         // If indx is less than the number of elements in names, then
         if ((size_t)indx < blk->parametersInfomation().size()) {
@@ -87,9 +105,9 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
                 // Set the [[Get]], [[GetOwnProperty]], [[DefineOwnProperty]], and [[Delete]] internal methods of obj to the definitions provided below.
                 auto data = new ArgumentsObjectArgData(record, blk, name);
                 // Call the [[DefineOwnProperty]] internal method of map passing ToString(indx), the Property Descriptor {[[Set]]: p, [[Get]]: g, [[Configurable]]: true}, and false as arguments.
-                auto gsData = new ObjectPropertyNativeGetterSetterData(true, true, true, ArgumentsObjectNativeGetter, ArgumentsObjectNativeSetter, true);
-                obj->deleteOwnProperty(state, ObjectPropertyName(state, Value(indx)));
-                obj->defineNativeGetterSetterDataProperty(state, ObjectPropertyName(state, Value(indx)), gsData, data);
+                auto gsData = new ObjectPropertyNativeGetterSetterData(true, true, true, ArgumentsObjectNativeGetter, ArgumentsObjectNativeSetter);
+                m_argumentPropertyInfo[indx].first = Value(data);
+                m_argumentPropertyInfo[indx].second = ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(gsData);
             }
         }
         // Let indx = indx - 1
@@ -124,16 +142,105 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
 
 ObjectGetResult ArgumentsObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
+    uint64_t idx;
+    if (LIKELY(P.isUIntType())) {
+        idx = P.uintValue();
+    } else {
+        idx = P.string(state)->tryToUseAsIndex();
+    }
+    if (LIKELY(idx != Value::InvalidIndexValue)) {
+        if (idx < m_argumentPropertyInfo.size()) {
+            Value val = m_argumentPropertyInfo[idx].first;
+            if (!val.isEmpty()) {
+                if (m_argumentPropertyInfo[idx].second.isNativeAccessorProperty()) {
+                    return ObjectGetResult(ArgumentsObjectNativeGetter(state, this, val), true, true, true);
+                } else {
+                    return ObjectGetResult(val, true, true, true);
+                }
+            }
+        }
+    }
     return Object::getOwnProperty(state, P);
 }
 
 bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
+    uint64_t idx;
+    if (LIKELY(P.isUIntType())) {
+        idx = P.uintValue();
+    } else {
+        idx = P.string(state)->tryToUseAsIndex();
+    }
+    if (LIKELY(idx != Value::InvalidIndexValue)) {
+        if (idx < m_argumentPropertyInfo.size()) {
+            Value val = m_argumentPropertyInfo[idx].first;
+            if (!val.isEmpty()) {
+                if (desc.isDataWritableEnumerableConfigurable()) {
+                    if (m_argumentPropertyInfo[idx].second.isNativeAccessorProperty()) {
+                        ArgumentsObjectNativeSetter(state, this, desc.value(), val);
+                        return true;
+                    } else {
+                        m_argumentPropertyInfo[idx].first = desc.value();
+                        return true;
+                    }
+                } else {
+                    if (m_argumentPropertyInfo[idx].second.isNativeAccessorProperty() && desc.isDataDescriptor()) {
+                        ArgumentsObjectNativeSetter(state, this, desc.value(), val);
+                    }
+                    m_argumentPropertyInfo[idx].first = Value(Value::EmptyValue);
+                    ObjectPropertyDescriptor newDesc(desc);
+                    newDesc.setWritable(true);
+                    newDesc.setConfigurable(true);
+                    newDesc.setEnumerable(true);
+
+                    if (desc.isWritablePresent()) {
+                        newDesc.setWritable(desc.isWritable());
+                    }
+                    if (desc.isEnumerablePresent()) {
+                        newDesc.setEnumerable(desc.isEnumerable());
+                    }
+                    if (desc.isConfigurablePresent()) {
+                        newDesc.setConfigurable(desc.isConfigurable());
+                    }
+
+                    return Object::defineOwnProperty(state, P, newDesc);
+                }
+            }
+        }
+    }
     return Object::defineOwnProperty(state, P, desc);
 }
 
 bool ArgumentsObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
+    uint64_t idx;
+    if (LIKELY(P.isUIntType())) {
+        idx = P.uintValue();
+    } else {
+        idx = P.string(state)->tryToUseAsIndex();
+    }
+    if (LIKELY(idx != Value::InvalidIndexValue)) {
+        if (idx < m_argumentPropertyInfo.size()) {
+            Value val = m_argumentPropertyInfo[idx].first;
+            if (!val.isEmpty()) {
+                m_argumentPropertyInfo[idx].first = Value(Value::EmptyValue);
+                return true;
+            }
+        }
+    }
     return Object::deleteOwnProperty(state, P);
+}
+
+void ArgumentsObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data)
+{
+    for (size_t i = 0; i < m_argumentPropertyInfo.size(); i++) {
+        Value v = m_argumentPropertyInfo[i].first;
+        if (!v.isEmpty()) {
+            if (!callback(state, this, ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent), data)) {
+                return;
+            }
+        }
+    }
+    Object::enumeration(state, callback, data);
 }
 }
