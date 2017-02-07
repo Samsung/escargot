@@ -57,6 +57,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
         m_functionNameSaveInfo.m_index = m_functionNameIndex;
     }
     m_isNativeFunction = true;
+    m_hasCallNativeFunctionCode = true;
     m_functionName = info.m_name;
     m_isStrict = info.m_isStrict;
     m_hasEval = false;
@@ -108,6 +109,7 @@ CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundT
 {
     const CodeBlock* targetCodeBlock = targetFunction->codeBlock();
 
+    m_hasCallNativeFunctionCode = false;
     m_isNativeFunction = targetCodeBlock->isNativeFunction();
     m_functionName = targetCodeBlock->functionName();
     m_isStrict = targetCodeBlock->isStrict();
@@ -162,6 +164,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
     , m_scopeContext(nullptr)
 #endif
 {
+    m_hasCallNativeFunctionCode = false;
     m_isFunctionDeclaration = false;
     m_isFunctionExpression = false;
     m_isNativeFunction = false;
@@ -243,6 +246,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeL
 #endif
 {
     m_isNativeFunction = false;
+    m_hasCallNativeFunctionCode = false;
     m_isStrict = isStrict;
     if (initFlags & CodeBlockInitFlag::CodeBlockHasEval) {
         m_hasEval = true;

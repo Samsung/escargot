@@ -257,6 +257,11 @@ public:
         return m_isNativeFunction;
     }
 
+    bool hasCallNativeFunctionCode() const
+    {
+        return m_hasCallNativeFunctionCode;
+    }
+
     bool usesArgumentsObject() const
     {
         return m_usesArgumentsObject;
@@ -397,6 +402,7 @@ protected:
     Context* m_context;
 
     bool m_isNativeFunction : 1;
+    bool m_hasCallNativeFunctionCode : 1;
     bool m_isStrict : 1;
     bool m_hasEval : 1;
     bool m_hasWith : 1;

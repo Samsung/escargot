@@ -117,20 +117,6 @@ static struct GC_ms_entry* markAndPushCustom(GC_word* addr,
     return GC_mark_and_push_custom(addr, mark_stack_ptr, mark_stack_limit, proc, subPtrs, number_of_sub_pointer);
 }
 
-GC_word* getNextValidInValueVector(GC_word* ptr, GC_word** next_ptr)
-{
-    Value* current = (Value*)ptr;
-#ifdef ESCARGOT_32
-    *next_ptr = ptr + 2;
-#else
-    *next_ptr = ptr + 1;
-#endif
-    if (*current && current->isPointerValue())
-        return (GC_word*)current->asPointerValue();
-    else
-        return NULL;
-}
-
 int getValidValueInArrayObject(void* ptr, GC_mark_custom_result* arr)
 {
     ArrayObject* current = (ArrayObject*)ptr;
@@ -143,6 +129,20 @@ int getValidValueInArrayObject(void* ptr, GC_mark_custom_result* arr)
     arr[3].from = (GC_word*)&current->m_fastModeData;
     arr[3].to = (GC_word*)current->m_fastModeData.data();
     return 0;
+}
+
+GC_word* getNextValidInValueVector(GC_word* ptr, GC_word** next_ptr)
+{
+    Value* current = (Value*)ptr;
+#ifdef ESCARGOT_32
+    *next_ptr = ptr + 2;
+#else
+    *next_ptr = ptr + 1;
+#endif
+    if (*current && current->isPointerValue())
+        return (GC_word*)current->asPointerValue();
+    else
+        return NULL;
 }
 
 int getValidValueInCodeBlock(void* ptr, GC_mark_custom_result* arr)
@@ -183,12 +183,24 @@ void initializeCustomAllocators()
                                                              GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInValueVector>), 0),
                                                              FALSE,
                                                              TRUE);
+#ifdef NDEBUG
+    GC_word obj_bitmap[GC_BITMAP_SIZE(ArrayObject)] = { 0 };
+    GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayObject, m_structure));
+    GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayObject, m_prototype));
+    GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayObject, m_values));
+    GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayObject, m_fastModeData));
+    auto descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ArrayObject));
 
+    s_gcKinds[HeapObjectKind::ArrayObjectKind] = GC_new_kind_enumerable(GC_new_free_list(),
+                                                                        descr,
+                                                                        FALSE,
+                                                                        TRUE);
+#else
     s_gcKinds[HeapObjectKind::ArrayObjectKind] = GC_new_kind_enumerable(GC_new_free_list(),
                                                                         GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInArrayObject, 4>), 0),
                                                                         FALSE,
                                                                         TRUE);
-
+#endif
     s_gcKinds[HeapObjectKind::CodeBlockKind] = GC_new_kind_enumerable(GC_new_free_list(),
                                                                       GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInCodeBlock, 10>), 0),
                                                                       FALSE,

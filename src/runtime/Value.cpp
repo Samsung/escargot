@@ -69,10 +69,6 @@ String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
             return ec.context()->staticStrings().stringTrue.string();
         else
             return ec.context()->staticStrings().stringFalse.string();
-#ifndef NDEBUG
-    } else if (isEmpty()) {
-        return ec.context()->staticStrings().Empty.string();
-#endif
     } else {
         return toPrimitive(ec, PreferString).toString(ec);
     }

@@ -299,7 +299,7 @@ public:
     {
     }
     ByteCodeRegisterIndex m_registerIndex;
-    size_t m_index;
+    uint16_t m_index;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -318,7 +318,7 @@ public:
     {
     }
     ByteCodeRegisterIndex m_registerIndex;
-    size_t m_index;
+    uint16_t m_index;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -338,7 +338,7 @@ public:
     {
     }
     ByteCodeRegisterIndex m_registerIndex;
-    size_t m_upperIndex;
+    uint16_t m_upperIndex;
     size_t m_index;
 
 #ifndef NDEBUG
@@ -359,7 +359,7 @@ public:
     {
     }
     ByteCodeRegisterIndex m_registerIndex;
-    size_t m_upperIndex;
+    uint16_t m_upperIndex;
     size_t m_index;
 
 #ifndef NDEBUG
@@ -450,7 +450,7 @@ public:
     }
 
     ByteCodeRegisterIndex m_registerIndex;
-    size_t m_argumentCount;
+    uint16_t m_argumentCount;
 #ifndef NDEBUG
     virtual void dump()
     {

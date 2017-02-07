@@ -709,9 +709,6 @@ public:
     // ASSERT(!isStringObject());
     void defineNativeGetterSetterDataProperty(ExecutionState& state, const ObjectPropertyName& P, ObjectPropertyNativeGetterSetterData* data, const Value& objectInternalData);
 
-    void* operator new(size_t size);
-    void* operator new[](size_t size) = delete;
-
 protected:
     Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);
     void initPlainObject(ExecutionState& state);
@@ -760,24 +757,22 @@ protected:
         if (LIKELY(item.m_descriptor.isPlainDataProperty())) {
             return m_values[idx];
         } else {
-            return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this, m_values[idx]);
+            return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this);
         }
     }
 
-    bool setOwnDataPropertyUtilForObjectInner(ExecutionState& state, size_t idx, const ObjectStructureItem& item, const Value& newValue)
+    ALWAYS_INLINE bool setOwnDataPropertyUtilForObjectInner(ExecutionState& state, size_t idx, const ObjectStructureItem& item, const Value& newValue)
     {
         if (LIKELY(item.m_descriptor.isPlainDataProperty())) {
             m_values[idx] = newValue;
             return true;
         } else {
-            Value value = m_values[idx];
-            bool ret = item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, newValue, value);
-            m_values[idx] = value;
+            bool ret = item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, newValue);
             return ret;
         }
     }
 
-    bool setOwnDataPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& newValue)
+    ALWAYS_INLINE bool setOwnDataPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& newValue)
     {
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
         if (LIKELY(item.m_descriptor.isWritable())) {
@@ -799,7 +794,7 @@ protected:
     }
 
     bool setOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, const Value& newValue);
-    bool setOwnPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& newValue)
+    ALWAYS_INLINE bool setOwnPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& newValue)
     {
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
         if (LIKELY(item.m_descriptor.isDataProperty())) {
@@ -809,7 +804,7 @@ protected:
         }
     }
 
-    void setOwnPropertyThrowsExceptionWhenStrictMode(ExecutionState& state, size_t idx, const Value& newValue)
+    ALWAYS_INLINE void setOwnPropertyThrowsExceptionWhenStrictMode(ExecutionState& state, size_t idx, const Value& newValue)
     {
         if (UNLIKELY(!setOwnPropertyUtilForObject(state, idx, newValue) && state.inStrictMode())) {
             throwCannotWriteError(state, m_structure->readProperty(state, idx).m_propertyName);

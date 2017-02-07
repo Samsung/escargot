@@ -5,26 +5,21 @@
 
 namespace Escargot {
 
-#define ESCARGOT_ROPE_STRING_MIN_LENGTH 24
-
 class RopeString : public String {
 public:
-    RopeString()
+    RopeString(String* left, String* right)
         : String()
     {
-        m_contentLength = 0;
-        m_has8BitContent = false;
-        m_left = nullptr;
-        m_right = nullptr;
+        m_left = left;
+        m_right = right;
     }
 
-    // this function not always create RopeString.
-    // if (l+r).length() < ESCARGOT_ROPE_STRING_MIN_LENGTH
-    // then create just normalString
-    static String* createRopeString(String* lstr, String* rstr);
     virtual size_t length() const
     {
-        return m_contentLength;
+        if (m_right) {
+            return m_left->length() + m_right->length();
+        }
+        return m_left->length();
     }
     virtual char16_t charAt(const size_t& idx) const
     {
@@ -41,7 +36,17 @@ public:
 
     virtual bool has8BitContent() const
     {
-        return m_has8BitContent;
+        if (m_right) {
+            bool a = m_left->has8BitContent();
+            if (!a)
+                return false;
+            bool b = m_right->has8BitContent();
+            if (!b) {
+                return false;
+            }
+            return true;
+        }
+        return m_left->has8BitContent();
     }
 
     virtual bool isRopeString()
@@ -64,9 +69,6 @@ public:
         return normalString()->bufferAccessData();
     }
 
-    void* operator new(size_t size);
-    void* operator new[](size_t size) = delete;
-
 protected:
     String* normalString() const
     {
@@ -77,10 +79,8 @@ protected:
     void flattenRopeStringWorker();
     void flattenRopeString();
 
-    bool m_has8BitContent;
     String* m_left;
     String* m_right;
-    size_t m_contentLength;
 };
 }
 

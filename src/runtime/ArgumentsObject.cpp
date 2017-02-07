@@ -8,39 +8,18 @@ namespace Escargot {
 
 size_t g_argumentsObjectTag;
 
-struct ArgumentsObjectArgData : public PointerValue {
-    FunctionEnvironmentRecord* m_targetRecord;
-    CodeBlock* m_codeBlock;
-    AtomicString m_name;
-
-    ArgumentsObjectArgData(FunctionEnvironmentRecord* targetRecord, CodeBlock* codeBlock, AtomicString name)
-        : m_targetRecord(targetRecord)
-        , m_codeBlock(codeBlock)
-        , m_name(name)
-    {
-    }
-
-    virtual Type type()
-    {
-        return ExtraDataType;
-    }
-};
-
-static Value ArgumentsObjectNativeGetter(ExecutionState& state, Object* self, const Value& objectInternalData)
+static Value ArgumentsObjectNativeGetter(ExecutionState& state, Object* self, FunctionEnvironmentRecord* targetRecord, CodeBlock* codeBlock, AtomicString name)
 {
-    ArgumentsObjectArgData* data = (ArgumentsObjectArgData*)objectInternalData.asPointerValue();
-    CodeBlock::IdentifierInfo info = data->m_codeBlock->identifierInfos()[data->m_codeBlock->findName(data->m_name)];
+    CodeBlock::IdentifierInfo info = codeBlock->identifierInfos()[codeBlock->findName(name)];
     ASSERT(!info.m_needToAllocateOnStack);
-    return data->m_targetRecord->getHeapValueByIndex(info.m_indexForIndexedStorage);
+    return targetRecord->getHeapValueByIndex(info.m_indexForIndexedStorage);
 }
 
-static bool ArgumentsObjectNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData, Value& objectInternalData)
+static void ArgumentsObjectNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData, FunctionEnvironmentRecord* targetRecord, CodeBlock* codeBlock, AtomicString name)
 {
-    ArgumentsObjectArgData* data = (ArgumentsObjectArgData*)objectInternalData.asPointerValue();
-    CodeBlock::IdentifierInfo info = data->m_codeBlock->identifierInfos()[data->m_codeBlock->findName(data->m_name)];
+    CodeBlock::IdentifierInfo info = codeBlock->identifierInfos()[codeBlock->findName(name)];
     ASSERT(!info.m_needToAllocateOnStack);
-    data->m_targetRecord->setHeapValueByIndex(info.m_indexForIndexedStorage, setterInputData);
-    return true;
+    targetRecord->setHeapValueByIndex(info.m_indexForIndexedStorage, setterInputData);
 }
 
 void* ArgumentsObject::operator new(size_t size)
@@ -52,6 +31,8 @@ void* ArgumentsObject::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_structure));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_prototype));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_values));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_targetRecord));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_codeBlock));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_argumentPropertyInfo));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ArgumentsObject));
         typeInited = true;
@@ -95,13 +76,15 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
     // Repeat while indx >= 0,
 
     m_argumentPropertyInfo.resizeWithUninitializedValues(len);
+    m_targetRecord = record;
+    m_codeBlock = blk;
 
     while (indx >= 0) {
         // Let val be the element of args at 0-origined list position indx.
         Value val = record->argv()[indx];
         // Call the [[DefineOwnProperty]] internal method on obj passing ToString(indx), the property descriptor {[[Value]]: val, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false as arguments.
         m_argumentPropertyInfo[indx].first = val;
-        m_argumentPropertyInfo[indx].second = ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent);
+        m_argumentPropertyInfo[indx].second = AtomicString();
 
         // If indx is less than the number of elements in names, then
         if ((size_t)indx < blk->parametersInfomation().size()) {
@@ -115,11 +98,9 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
                 // Let p be the result of calling the MakeArgSetter abstract operation with arguments name and env.
                 // Set the [[ParameterMap]] internal property of obj to map.
                 // Set the [[Get]], [[GetOwnProperty]], [[DefineOwnProperty]], and [[Delete]] internal methods of obj to the definitions provided below.
-                auto data = new ArgumentsObjectArgData(record, blk, name);
                 // Call the [[DefineOwnProperty]] internal method of map passing ToString(indx), the Property Descriptor {[[Set]]: p, [[Get]]: g, [[Configurable]]: true}, and false as arguments.
-                auto gsData = new ObjectPropertyNativeGetterSetterData(true, true, true, ArgumentsObjectNativeGetter, ArgumentsObjectNativeSetter);
-                m_argumentPropertyInfo[indx].first = Value(data);
-                m_argumentPropertyInfo[indx].second = ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(gsData);
+                m_argumentPropertyInfo[indx].first = Value();
+                m_argumentPropertyInfo[indx].second = name;
             }
         }
         // Let indx = indx - 1
@@ -168,8 +149,8 @@ ObjectGetResult ArgumentsObject::getOwnProperty(ExecutionState& state, const Obj
         if (idx < m_argumentPropertyInfo.size()) {
             Value val = m_argumentPropertyInfo[idx].first;
             if (!val.isEmpty()) {
-                if (m_argumentPropertyInfo[idx].second.isNativeAccessorProperty()) {
-                    return ObjectGetResult(ArgumentsObjectNativeGetter(state, this, val), true, true, true);
+                if (m_argumentPropertyInfo[idx].second.string()->length()) {
+                    return ObjectGetResult(ArgumentsObjectNativeGetter(state, this, m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second), true, true, true);
                 } else {
                     return ObjectGetResult(val, true, true, true);
                 }
@@ -192,16 +173,16 @@ bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPrope
             Value val = m_argumentPropertyInfo[idx].first;
             if (!val.isEmpty()) {
                 if (desc.isDataWritableEnumerableConfigurable()) {
-                    if (m_argumentPropertyInfo[idx].second.isNativeAccessorProperty()) {
-                        ArgumentsObjectNativeSetter(state, this, desc.value(), val);
+                    if (m_argumentPropertyInfo[idx].second.string()->length()) {
+                        ArgumentsObjectNativeSetter(state, this, desc.value(), m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second);
                         return true;
                     } else {
                         m_argumentPropertyInfo[idx].first = desc.value();
                         return true;
                     }
                 } else {
-                    if (m_argumentPropertyInfo[idx].second.isNativeAccessorProperty() && desc.isDataDescriptor()) {
-                        ArgumentsObjectNativeSetter(state, this, desc.value(), val);
+                    if (m_argumentPropertyInfo[idx].second.string()->length() && desc.isDataDescriptor()) {
+                        ArgumentsObjectNativeSetter(state, this, desc.value(), m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second);
                     }
                     m_argumentPropertyInfo[idx].first = Value(Value::EmptyValue);
                     ObjectPropertyDescriptor newDesc(desc);
@@ -272,8 +253,8 @@ ObjectGetResult ArgumentsObject::getIndexedProperty(ExecutionState& state, const
         if (idx < m_argumentPropertyInfo.size()) {
             Value val = m_argumentPropertyInfo[idx].first;
             if (!val.isEmpty()) {
-                if (m_argumentPropertyInfo[idx].second.isNativeAccessorProperty()) {
-                    return ObjectGetResult(ArgumentsObjectNativeGetter(state, this, val), true, true, true);
+                if (m_argumentPropertyInfo[idx].second.string()->length()) {
+                    return ObjectGetResult(ArgumentsObjectNativeGetter(state, this, m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second), true, true, true);
                 } else {
                     return ObjectGetResult(val, true, true, true);
                 }
@@ -295,8 +276,8 @@ bool ArgumentsObject::setIndexedProperty(ExecutionState& state, const Value& pro
         if (idx < m_argumentPropertyInfo.size()) {
             Value val = m_argumentPropertyInfo[idx].first;
             if (!val.isEmpty()) {
-                if (m_argumentPropertyInfo[idx].second.isNativeAccessorProperty()) {
-                    ArgumentsObjectNativeSetter(state, this, value, val);
+                if (m_argumentPropertyInfo[idx].second.string()->length()) {
+                    ArgumentsObjectNativeSetter(state, this, value, m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second);
                     return true;
                 } else {
                     m_argumentPropertyInfo[idx].first = value;

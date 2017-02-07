@@ -360,7 +360,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
                 }
             }
             Object* obj = fastToObject(state, willBeObject);
-            registerFile[code->m_objectRegisterIndex] = obj->get(state, ObjectPropertyName(state, property)).value(state, obj);
+            registerFile[code->m_objectRegisterIndex] = obj->getIndexedProperty(state, property).value(state, obj);
             ADD_PROGRAM_COUNTER(GetObject);
             NEXT_INSTRUCTION();
         }
@@ -395,18 +395,14 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
                     }
                 }
             }
-        SetObjectOpcodeSlowCase:
-            Object* obj = willBeObject.toObject(state);
-            obj->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, property), registerFile[code->m_loadRegisterIndex], obj);
-            registerFile[code->m_objectRegisterIndex] = registerFile[code->m_loadRegisterIndex];
-            ADD_PROGRAM_COUNTER(SetObject);
-            NEXT_INSTRUCTION();
+            goto SetObjectOpcodeSlowCase;
         }
 
         GetObjectPreComputedCaseOpcodeLbl : {
             GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            registerFile[code->m_objectRegisterIndex] = getObjectPrecomputedCaseOperation(state, fastToObject(state, willBeObject), willBeObject, code->m_propertyName, code->m_inlineCache);
+            Object* obj = fastToObject(state, willBeObject);
+            registerFile[code->m_objectRegisterIndex] = getObjectPrecomputedCaseOperation(state, obj, willBeObject, code->m_propertyName, code->m_inlineCache);
             ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
             NEXT_INSTRUCTION();
         }
@@ -550,7 +546,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
         CreateArrayOpcodeLbl : {
             CreateArray* code = (CreateArray*)programCounter;
             ArrayObject* arr = new ArrayObject(state);
-            arr->defineOwnProperty(state, state.context()->staticStrings().length, ObjectPropertyDescriptor(Value(code->m_length)));
+            arr->setArrayLength(state, code->m_length);
             registerFile[code->m_registerIndex] = arr;
             ADD_PROGRAM_COUNTER(CreateArray);
             NEXT_INSTRUCTION();
@@ -638,6 +634,21 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             return;
         }
 
+        SetObjectOpcodeSlowCase : {
+            SetObject* code = (SetObject*)programCounter;
+            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+            const Value& property = registerFile[code->m_propertyRegisterIndex];
+            Object* obj = willBeObject.toObject(state);
+            bool result = obj->setIndexedProperty(state, property, registerFile[code->m_loadRegisterIndex]);
+            if (UNLIKELY(!result)) {
+                if (state.inStrictMode())
+                    Object::throwCannotWriteError(state, PropertyName(state, property.toString(state)));
+            }
+            registerFile[code->m_objectRegisterIndex] = registerFile[code->m_loadRegisterIndex];
+            ADD_PROGRAM_COUNTER(SetObject);
+            NEXT_INSTRUCTION();
+        }
+
         DeclareFunctionDeclarationOpcodeLbl : {
             DeclareFunctionDeclaration* code = (DeclareFunctionDeclaration*)programCounter;
             registerFile[0] = new FunctionObject(state, code->m_codeBlock, env);
@@ -647,21 +658,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
 
         CallNativeFunctionOpcodeLbl : {
             CallNativeFunction* code = (CallNativeFunction*)programCounter;
-            Value* argv = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->argv();
-            size_t argc = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->argc();
-            if (argc < record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->parametersInfomation().size()) {
-                size_t len = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->parametersInfomation().size();
-                Value* newArgv = ALLOCA(sizeof(Value) * len, Value, state);
-                for (size_t i = 0; i < argc; i++) {
-                    newArgv[i] = argv[i];
-                }
-                for (size_t i = argc; i < len; i++) {
-                    newArgv[i] = Value();
-                }
-                *state.exeuctionResult() = code->m_fn(state, env->getThisBinding(), argc, newArgv, record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isNewExpression());
-            } else {
-                *state.exeuctionResult() = code->m_fn(state, env->getThisBinding(), argc, argv, record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isNewExpression());
-            }
             return;
         }
 
@@ -1079,7 +1075,7 @@ NEVER_INLINE Value ByteCodeInterpreter::plusSlowCase(ExecutionState& state, cons
         rval = right.toPrimitive(state);
     }
     if (lval.isString() || rval.isString()) {
-        ret = RopeString::createRopeString(lval.toString(state), rval.toString(state));
+        ret = new RopeString(lval.toString(state), rval.toString(state));
     } else {
         ret = Value(lval.toNumber(state) + rval.toNumber(state));
     }
@@ -1274,15 +1270,15 @@ NEVER_INLINE bool ByteCodeInterpreter::abstractRelationalComparisonOrEqualSlowCa
     }
 }
 
-ALWAYS_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const Value& target, const PropertyName& name, GetObjectInlineCache& inlineCache)
+ALWAYS_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const Value& receiver, const PropertyName& name, GetObjectInlineCache& inlineCache)
 {
+    Object* orgObj = obj;
     unsigned currentCacheIndex = 0;
     ObjectStructureChainItem testItem;
-    testItem.m_objectStructure = obj->structure();
-    testItem.m_version = obj->structure()->version();
     const size_t cacheFillCount = inlineCache.m_cache->size();
 TestCache:
     for (; currentCacheIndex < cacheFillCount; currentCacheIndex++) {
+        obj = orgObj;
         const GetObjectInlineCacheData& data = (*inlineCache.m_cache)[currentCacheIndex];
         const ObjectStructureChain* const cachedHiddenClassChain = &data.m_cachedhiddenClassChain;
         size_t cachedIndex = data.m_cachedIndex;
@@ -1307,26 +1303,28 @@ TestCache:
         testItem.m_version = obj->structure()->version();
         if (LIKELY((*cachedHiddenClassChain)[cSiz] == testItem)) {
             if (LIKELY(data.m_hasIndex)) {
-                return obj->getOwnPropertyUtilForObject(state, cachedIndex, target);
+                return obj->getOwnDataPropertyUtilForObject(state, cachedIndex, receiver);
             } else {
                 return Value();
             }
         }
     }
 
-    return getObjectPrecomputedCaseOperationCacheMiss(state, obj, target, name, inlineCache);
+    return getObjectPrecomputedCaseOperationCacheMiss(state, orgObj, receiver, name, inlineCache);
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& target, const PropertyName& name, GetObjectInlineCache& inlineCache)
+NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& receiver, const PropertyName& name, GetObjectInlineCache& inlineCache)
 {
+    const int maxCacheMissCount = 16;
     // cache miss.
     inlineCache.m_executeCount++;
     inlineCache.m_cacheMissCount++;
-    if (inlineCache.m_executeCount <= 3 || inlineCache.m_cacheMissCount > 16) {
+    if (inlineCache.m_executeCount <= 3 || inlineCache.m_cacheMissCount >= maxCacheMissCount) {
         inlineCache.m_cache->clear();
-        return obj->get(state, ObjectPropertyName(state, name)).value(state, target);
+        return obj->get(state, ObjectPropertyName(state, name)).value(state, receiver);
     }
 
+    Object* orgObj = obj;
     inlineCache.m_cache->insert(0, GetObjectInlineCacheData());
     if (inlineCache.m_cache->size() > 6) {
         inlineCache.m_cache->erase(5);
@@ -1342,6 +1340,11 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
         cachedHiddenClassChain->push_back(newItem);
         size_t idx = obj->structure()->findProperty(state, name);
         if (idx != SIZE_MAX) {
+            if (!obj->structure()->readProperty(state, idx).m_descriptor.isDataProperty()) {
+                inlineCache.m_cache->clear();
+                inlineCache.m_cacheMissCount = maxCacheMissCount;
+                return orgObj->get(state, ObjectPropertyName(state, name)).value(state, receiver);
+            }
             (*inlineCache.m_cache)[0].m_cachedIndex = idx;
             (*inlineCache.m_cache)[0].m_hasIndex = true;
             break;
@@ -1354,7 +1357,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
     }
 
     if ((*inlineCache.m_cache)[0].m_hasIndex) {
-        return obj->getOwnPropertyUtilForObject(state, (*inlineCache.m_cache)[0].m_cachedIndex, target);
+        return obj->getOwnPropertyUtilForObject(state, (*inlineCache.m_cache)[0].m_cachedIndex, orgObj);
     } else {
         return Value();
     }
@@ -1371,7 +1374,7 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
     if (inlineCache.m_cachedIndex != SIZE_MAX && inlineCache.m_cachedhiddenClassChain[0] == testItem) {
         ASSERT(inlineCache.m_cachedhiddenClassChain.size() == 1);
         // cache hit!
-        obj->setOwnPropertyThrowsExceptionWhenStrictMode(state, inlineCache.m_cachedIndex, value);
+        obj->m_values[inlineCache.m_cachedIndex] = value;
         return;
     } else if (inlineCache.m_hiddenClassWillBe) {
         int cSiz = inlineCache.m_cachedhiddenClassChain.size();
@@ -1427,9 +1430,11 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
         newItem.m_version = obj->structure()->version();
 
         obj->setOwnPropertyThrowsExceptionWhenStrictMode(state, idx, value);
-
-        inlineCache.m_cachedIndex = idx;
-        inlineCache.m_cachedhiddenClassChain.push_back(newItem);
+        auto desc = obj->structure()->readProperty(state, idx).m_descriptor;
+        if (desc.isPlainDataProperty() && desc.isWritable()) {
+            inlineCache.m_cachedIndex = idx;
+            inlineCache.m_cachedhiddenClassChain.push_back(newItem);
+        }
     } else {
         Object* orgObject = obj;
         if (UNLIKELY(obj->structure()->isStructureWithFastAccess())) {

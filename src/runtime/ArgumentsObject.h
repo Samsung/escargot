@@ -8,6 +8,7 @@ namespace Escargot {
 
 class ExecutionContext;
 class FunctionEnvironmentRecord;
+class CodeBlock;
 
 extern size_t g_argumentsObjectTag;
 
@@ -30,7 +31,9 @@ public:
     void* operator new[](size_t size) = delete;
 
 protected:
-    Vector<std::pair<SmallValue, ObjectStructurePropertyDescriptor>, gc_malloc_ignore_off_page_allocator<std::pair<SmallValue, ObjectStructurePropertyDescriptor>>> m_argumentPropertyInfo;
+    FunctionEnvironmentRecord* m_targetRecord;
+    CodeBlock* m_codeBlock;
+    TightVector<std::pair<SmallValue, AtomicString>, gc_malloc_ignore_off_page_allocator<std::pair<SmallValue, AtomicString>>> m_argumentPropertyInfo;
 };
 }
 

@@ -40,6 +40,7 @@ void* ObjectRareData::operator new(size_t size)
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
+
 Value ObjectGetResult::valueSlowCase(ExecutionState& state, const Value& receiver) const
 {
     if (m_jsGetterSetter->hasGetter() && m_jsGetterSetter->getter().isFunction()) {
@@ -276,21 +277,6 @@ Object::Object(ExecutionState& state)
     initPlainObject(state);
 }
 
-void* Object::operator new(size_t size)
-{
-    static bool typeInited = false;
-    static GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(Object)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Object, m_structure));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Object, m_prototype));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Object, m_values));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(Object));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-}
-
 void Object::initPlainObject(ExecutionState& state)
 {
     m_prototype = state.context()->globalObject()->objectPrototype()->asObject();
@@ -365,8 +351,7 @@ ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectProper
                 return ObjectGetResult(m_values[idx], item.m_descriptor.isWritable(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
             } else {
                 ObjectPropertyNativeGetterSetterData* data = item.m_descriptor.nativeGetterSetterData();
-                Value ret = data->m_getter(state, this, m_values[idx]);
-                return ObjectGetResult(ret, item.m_descriptor.isWritable(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
+                return ObjectGetResult(data->m_getter(state, this), item.m_descriptor.isWritable(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
             }
         } else {
             Value v = m_values[idx];

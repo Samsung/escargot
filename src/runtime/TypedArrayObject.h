@@ -209,6 +209,43 @@ public:
     }
     void* operator new[](size_t size) = delete;
 
+    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property)
+    {
+        uint64_t idx;
+        if (LIKELY(property.isUInt32())) {
+            idx = property.asUInt32();
+        } else {
+            idx = property.toString(state)->tryToUseAsIndex();
+        }
+        if (LIKELY(idx != Value::InvalidIndexValue)) {
+            if ((unsigned)idx < arraylength()) {
+                unsigned idxPosition = idx * typedArrayElementSize + byteoffset();
+                ArrayBufferObject* b = buffer();
+                return ObjectGetResult(b->getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false);
+            }
+        }
+        return get(state, ObjectPropertyName(state, property));
+    }
+
+    virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)
+    {
+        uint64_t index;
+        if (LIKELY(property.isUInt32())) {
+            index = property.asUInt32();
+        } else {
+            index = property.toString(state)->tryToUseAsIndex();
+        }
+        if (LIKELY(Value::InvalidIndexValue != index)) {
+            if ((unsigned)index < arraylength()) {
+                unsigned idxPosition = index * typedArrayElementSize + byteoffset();
+                ArrayBufferObject* b = buffer();
+                b->setValueInBuffer<TypeAdaptor>(state, idxPosition, value);
+                return true;
+            }
+        }
+        return set(state, ObjectPropertyName(state, property), value, this);
+    }
+
 protected:
 };
 

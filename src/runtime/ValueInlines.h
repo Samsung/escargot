@@ -578,7 +578,7 @@ inline double Value::toNumber(ExecutionState& state) const
     }
 }
 
-inline Object* Value::toObject(ExecutionState& ec) const // $7.1.13 ToObject
+ALWAYS_INLINE Object* Value::toObject(ExecutionState& ec) const // $7.1.13 ToObject
 {
     if (LIKELY(isObject())) {
         return asObject();

@@ -73,4 +73,21 @@ void StringObject::enumeration(ExecutionState& state, bool (*callback)(Execution
     }
     Object::enumeration(state, callback, data);
 }
+
+ObjectGetResult StringObject::getIndexedProperty(ExecutionState& state, const Value& property)
+{
+    Value::ValueIndex idx;
+    if (LIKELY(property.isUInt32())) {
+        idx = property.asUInt32();
+    } else {
+        idx = property.toString(state)->tryToUseAsIndex();
+    }
+    if (idx != Value::InvalidIndexValue) {
+        size_t strLen = m_primitiveValue->length();
+        if (LIKELY(idx < strLen)) {
+            return ObjectGetResult(Value(String::fromCharCode(m_primitiveValue->charAt(idx))), false, true, false);
+        }
+    }
+    return get(state, ObjectPropertyName(state, property));
+}
 }

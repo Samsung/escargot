@@ -124,7 +124,8 @@ void ArrayObject::convertIntoNonFastMode(ExecutionState& state)
 
     ensureObjectRareData()->m_isFastModeArrayObject = false;
 
-    for (size_t i = 0; i < getArrayLength(state); i++) {
+    auto length = getArrayLength(state);
+    for (size_t i = 0; i < length; i++) {
         if (!m_fastModeData[i].isEmpty()) {
             defineOwnPropertyThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, Value(i)), ObjectPropertyDescriptor(m_fastModeData[i], ObjectPropertyDescriptor::AllPresent));
         }
