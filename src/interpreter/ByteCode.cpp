@@ -53,6 +53,9 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
     for (size_t i = 0; i < m_locData.size(); i++) {
         if (m_locData[i].first == codePosition) {
             index = m_locData[i].second;
+            if (index == SIZE_MAX) {
+                return ExtendedNodeLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX);
+            }
             break;
         }
     }

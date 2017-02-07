@@ -14,14 +14,15 @@ public:
         return m_timezone;
     }
 
-    void setTimezone(icu::TimeZone* tz)
+    void setTimezone()
     {
-        m_timezone = tz->clone();
-    }
-
-    icu::UnicodeString timezoneID() const
-    {
-        return m_timezoneID;
+        if (m_timezoneID == "") {
+            icu::TimeZone* tz = icu::TimeZone::createDefault();
+            ASSERT(tz != nullptr);
+            tz->getID(m_timezoneID);
+            delete tz;
+        }
+        m_timezone = (icu::TimeZone::createTimeZone(m_timezoneID))->clone();
     }
 
     void setTimezoneID(icu::UnicodeString id)
@@ -41,7 +42,15 @@ public:
 
     void* operator new(size_t size)
     {
-        return GC_MALLOC_ATOMIC(size);
+        static bool typeInited = false;
+        static GC_descr descr;
+        if (!typeInited) {
+            GC_word obj_bitmap[GC_BITMAP_SIZE(VMInstance)] = { 0 };
+            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(VMInstance, m_cachedUTC));
+            descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(VMInstance));
+            typeInited = true;
+        }
+        return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
     }
     void* operator new[](size_t size) = delete;
 

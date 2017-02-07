@@ -16,9 +16,7 @@ VMInstance::VMInstance()
     if (getenv("TZ")) { // Usually used by StarFish
         m_timezoneID = getenv("TZ");
     } else { // Used by escargot standalone
-        icu::TimeZone* tz = icu::TimeZone::createDefault();
-        ASSERT(tz != nullptr);
-        tz->getID(m_timezoneID);
+        m_timezoneID = "";
     }
 
     if (!String::emptyString) {

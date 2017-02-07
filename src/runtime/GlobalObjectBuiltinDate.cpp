@@ -229,14 +229,30 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
         }
         ASSERT(d->isValid());
     }
-    int year = d->getFullYear(state);
-    int month = d->getMonth(state);
-    int date = d->getDate(state);
 
-    int hour = d->getHours(state);
-    int minute = d->getMinutes(state);
-    int64_t second = d->getSeconds(state);
-    int64_t millisecond = d->getMilliseconds(state);
+    double year, month, date, hour, minute, second, millisecond;
+
+    if (d->isValid()) {
+        if (!utc) {
+            year = d->getFullYear(state);
+            month = d->getMonth(state);
+            date = d->getDate(state);
+
+            hour = d->getHours(state);
+            minute = d->getMinutes(state);
+            second = d->getSeconds(state);
+            millisecond = d->getMilliseconds(state);
+        } else {
+            year = d->getUTCFullYear(state);
+            month = d->getUTCMonth(state);
+            date = d->getUTCDate(state);
+
+            hour = d->getUTCHours(state);
+            minute = d->getUTCMinutes(state);
+            second = d->getUTCSeconds(state);
+            millisecond = d->getUTCMilliseconds(state);
+        }
+    }
 
     bool convertToUTC = !utc;
 
@@ -263,7 +279,12 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    d->setTimeValue(state, year, month, date, hour, minute, second, millisecond, convertToUTC);
+    if (std::isnan(year) || std::isnan(month) || std::isnan(date) || std::isnan(hour) || std::isnan(minute) || std::isnan(second) || std::isnan(millisecond)) {
+        d->setTimeValueAsNaN();
+    } else if (d->isValid()) {
+        d->setTimeValue(state, year, month, date, hour, minute, second, millisecond, convertToUTC);
+    }
+
     return Value(d->primitiveValue());
 }
 
@@ -281,8 +302,8 @@ static Value builtinDateSetTime(ExecutionState& state, Value thisValue, size_t a
     if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().setTime.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
-    if (argc > 0 && argv[0].isNumber()) {
-        thisObject->asDateObject()->setTimeValue(DateObject::timeClip(state, argv[0]));
+    if (argc > 0) {
+        thisObject->asDateObject()->setTimeValue(DateObject::timeClip(state, argv[0].toNumber(state)));
         return Value(thisObject->asDateObject()->primitiveValue());
     } else {
         double value = std::numeric_limits<double>::quiet_NaN();
@@ -297,13 +318,16 @@ static Value builtinDateGetYear(ExecutionState& state, Value thisValue, size_t a
     if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().getYear.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
+    if (!(thisObject->asDateObject()->isValid())) {
+        return Value(std::numeric_limits<double>::quiet_NaN());
+    }
     int ret = thisObject->asDateObject()->getFullYear(state) - 1900;
     return Value(ret);
 }
 
 static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, getYear);
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, setYear);
     if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().setYear.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }

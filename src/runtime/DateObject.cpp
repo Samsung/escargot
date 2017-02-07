@@ -164,7 +164,7 @@ static int equivalentYearForDST(int year)
 time64_t DateObject::applyLocalTimezoneOffset(ExecutionState& state, time64_t t)
 {
     if (state.context()->vmInstance()->timezone() == NULL) {
-        state.context()->vmInstance()->setTimezone(icu::TimeZone::createTimeZone(state.context()->vmInstance()->timezoneID()));
+        state.context()->vmInstance()->setTimezone();
     }
 
     UErrorCode succ = U_ZERO_ERROR;
@@ -899,30 +899,34 @@ int DateObject::daysFromTime(time64_t t)
 void DateObject::resolveCache(ExecutionState& state)
 {
     if (state.context()->vmInstance()->timezone() == NULL) {
-        state.context()->vmInstance()->setTimezone(icu::TimeZone::createTimeZone(state.context()->vmInstance()->timezoneID()));
+        state.context()->vmInstance()->setTimezone();
     }
 
-    int realYear = yearFromTime(m_primitiveValue);
+    time64_t t = m_primitiveValue;
+    int realYear = yearFromTime(t);
     int equivalentYear = equivalentYearForDST(realYear);
 
     time64_t msBetweenYears = (realYear != equivalentYear) ? (timeFromYear(equivalentYear) - timeFromYear(realYear)) : 0;
 
-    m_primitiveValue += msBetweenYears;
+    t += msBetweenYears;
 
     UErrorCode succ = U_ZERO_ERROR;
     int32_t stdOffset, dstOffset;
-    state.context()->vmInstance()->timezone()->getOffset(m_primitiveValue, false, stdOffset, dstOffset, succ);
+    state.context()->vmInstance()->timezone()->getOffset(t, false, stdOffset, dstOffset, succ);
 
     m_cachedLocal.isdst = dstOffset == 0 ? 0 : 1;
     m_cachedLocal.gmtoff = -1 * (stdOffset + dstOffset) / const_Date_msPerMinute;
 
-    time64_t t = m_primitiveValue + stdOffset + dstOffset;
+    t += (stdOffset + dstOffset);
+    t -= msBetweenYears;
 
     getYMDFromTime(t, m_cachedLocal);
 
     int days = daysFromTime(t);
     int timeInDay = static_cast<int>(t - days * const_Date_msPerDay);
+
     ASSERT(timeInDay >= 0);
+
     int weekday = (days + 4) % const_Date_daysPerWeek;
     m_cachedLocal.wday = weekday >= 0 ? weekday : weekday + const_Date_daysPerWeek;
     // Do not cast const_Date_msPer[Hour|Minute|Second] into double
@@ -930,9 +934,6 @@ void DateObject::resolveCache(ExecutionState& state)
     m_cachedLocal.min = (timeInDay / const_Date_msPerMinute) % const_Date_minutesPerHour;
     m_cachedLocal.sec = (timeInDay / const_Date_msPerSecond) % const_Date_secondsPerMinute;
     m_cachedLocal.millisec = (timeInDay) % const_Date_msPerSecond;
-
-    m_primitiveValue -= msBetweenYears;
-    m_cachedLocal.year += (realYear - equivalentYear);
 
     m_isCacheDirty = false;
 }
