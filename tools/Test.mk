@@ -79,9 +79,17 @@ run-jetstream:
 		python parsingResults.py jetstream-result-raw.res;
 
 run-chakracore:
-	cd test/chakracore/; \
-	./run.sh ../../escargot $(OPT) | tee chakracorelog.gen.txt; \
-	diff chakracorelog.orig.txt chakracorelog.gen.txt
+	cp tools/vendortest/chakracore/chakracore.run.sh test/vendortest/ChakraCore/run.sh
+	cp tools/vendortest/chakracore/chakracore.include.js test/vendortest/ChakraCore/include.js
+	cp tools/vendortest/chakracore/chakracore.rlexedirs.xml test/vendortest/ChakraCore/rlexedirs.xml
+	cp tools/vendortest/chakracore/Array.rlexe.xml test/vendortest/ChakraCore/Array/rlexe.xml
+	cp tools/vendortest/chakracore/Error.rlexe.xml test/vendortest/ChakraCore/Error/rlexe.xml
+	cp tools/vendortest/chakracore/Function.rlexe.xml test/vendortest/ChakraCore/Function/rlexe.xml
+	cp tools/vendortest/chakracore/Miscellaneous.rlexe.xml test/vendortest/ChakraCore/Miscellaneous/rlexe.xml
+	cp tools/vendortest/chakracore/Strings.rlexe.xml test/vendortest/ChakraCore/Strings/rlexe.xml
+	cp tools/vendortest/chakracore/es6.rlexe.xml test/vendortest/ChakraCore/es6/rlexe.xml
+	test/vendortest/ChakraCore/run.sh ./escargot | tee tools/vendortest/chakracore.gen.txt; \
+	diff tools/vendortest/chakracore.orig.txt tools/vendortest/chakracore.gen.txt
 
 run-v8-donotuse:
 	cp tools/vendortest/v8/v8.mjsunit.status test/vendortest/v8/test/mjsunit/mjsunit.status
