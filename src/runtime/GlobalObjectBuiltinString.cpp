@@ -563,7 +563,7 @@ static Value builtinStringConcat(ExecutionState& state, Value thisValue, size_t 
     RESOLVE_THIS_BINDING_TO_STRING(str, String, concat);
     for (size_t i = 0; i < argc; i++) {
         String* appendStr = argv[i].toString(state);
-        str = new RopeString(str, appendStr);
+        str = RopeString::createRopeString(str, appendStr);
     }
     return Value(str);
 }

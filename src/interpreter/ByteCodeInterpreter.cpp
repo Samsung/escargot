@@ -1066,7 +1066,7 @@ NEVER_INLINE Value ByteCodeInterpreter::plusSlowCase(ExecutionState& state, cons
         rval = right.toPrimitive(state);
     }
     if (lval.isString() || rval.isString()) {
-        ret = new RopeString(lval.toString(state), rval.toString(state));
+        ret = RopeString::createRopeString(lval.toString(state), rval.toString(state));
     } else {
         ret = Value(lval.toNumber(state) + rval.toNumber(state));
     }

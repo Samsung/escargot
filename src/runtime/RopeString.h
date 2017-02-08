@@ -5,21 +5,26 @@
 
 namespace Escargot {
 
+#define ESCARGOT_ROPE_STRING_MIN_LENGTH 24
+
 class RopeString : public String {
 public:
-    RopeString(String* left, String* right)
+    RopeString()
         : String()
     {
-        m_left = left;
-        m_right = right;
+        m_left = nullptr;
+        m_right = nullptr;
+        m_contentLength = 0;
     }
+
+    // this function not always create RopeString.
+    // if (l+r).length() < ESCARGOT_ROPE_STRING_MIN_LENGTH
+    // then create just normalString
+    static String* createRopeString(String* lstr, String* rstr);
 
     virtual size_t length() const
     {
-        if (m_right) {
-            return m_left->length() + m_right->length();
-        }
-        return m_left->length();
+        return m_contentLength;
     }
     virtual char16_t charAt(const size_t& idx) const
     {
@@ -81,6 +86,7 @@ protected:
 
     String* m_left;
     String* m_right;
+    size_t m_contentLength;
 };
 }
 

@@ -39,7 +39,7 @@ VMInstance::VMInstance()
         g_utf16StringTag = *((size_t*)&str);
     }
     {
-        RopeString str(String::emptyString, String::emptyString);
+        RopeString str;
         g_ropeStringTag = *((size_t*)&str);
     }
     {
