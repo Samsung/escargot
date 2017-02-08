@@ -32,7 +32,7 @@ fi
 
 # Common flags --------------------------------------------
 
-GCCONFFLAGS_COMMON=" --enable-munmap --disable-parallel-mark --enable-large-config " # --enable-large-config --enable-cplusplus"
+GCCONFFLAGS_COMMON=" --enable-munmap --disable-parallel-mark --enable-large-config --disable-pthread --disable-parallel-mark --disable-threads " # --enable-large-config --enable-cplusplus"
 CFLAGS_COMMON=" -g3 "
 CFLAGS_COMMON+=" -DESCARGOT "
 CFLAGS_COMMON+=" -fdata-sections -ffunction-sections " # To exclude unused code from final binary

@@ -49,7 +49,6 @@ public:
         m_needsTransitionTable = needsTransitionTable;
         m_hasIndexPropertyName = false;
         m_isStructureWithFastAccess = false;
-        m_version = 0;
     }
 
     ObjectStructure(ExecutionState& state, ObjectStructureItemVector&& properties, bool needsTransitionTable, bool hasIndexPropertyName)
@@ -58,7 +57,6 @@ public:
         m_needsTransitionTable = needsTransitionTable;
         m_hasIndexPropertyName = hasIndexPropertyName;
         m_isStructureWithFastAccess = false;
-        m_version = 0;
     }
 
     size_t findProperty(ExecutionState& state, String* propertyName)
@@ -113,11 +111,6 @@ public:
         return m_properties.size();
     }
 
-    size_t version() const
-    {
-        return m_version;
-    }
-
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
@@ -125,7 +118,6 @@ protected:
     bool m_needsTransitionTable;
     bool m_hasIndexPropertyName;
     bool m_isStructureWithFastAccess;
-    size_t m_version;
     ObjectStructureItemVector m_properties;
     ObjectStructureTransitionTableVector m_transitionTable;
 
@@ -171,6 +163,7 @@ protected:
 
 class ObjectStructureWithFastAccess : public ObjectStructure {
     friend class ByteCodeInterpreter;
+    friend class ObjectStructure;
 
 public:
     ObjectStructureWithFastAccess(ExecutionState& state)
@@ -187,6 +180,14 @@ public:
     {
         m_isStructureWithFastAccess = true;
         buildPropertyNameMap();
+    }
+
+    ObjectStructureWithFastAccess(ExecutionState& state, ObjectStructureWithFastAccess& old)
+        : ObjectStructure(state, std::move(old.m_properties), old.m_needsTransitionTable, old.m_hasIndexPropertyName)
+        , m_propertyNameMap(old.m_propertyNameMap)
+    {
+        m_isStructureWithFastAccess = true;
+        old.m_propertyNameMap = nullptr;
     }
 
     void buildPropertyNameMap()
@@ -219,10 +220,8 @@ inline ObjectStructure* ObjectStructure::addProperty(ExecutionState& state, cons
         m_hasIndexPropertyName = m_hasIndexPropertyName | isIndexString(name.string());
         propertyNameMap().insert(std::make_pair(name, m_properties.size() - 1));
         ObjectStructureWithFastAccess* self = (ObjectStructureWithFastAccess*)this;
-        self->m_version++;
-        if (UNLIKELY(self->m_version == SIZE_MAX))
-            self->m_version = 0;
-        return this;
+        ObjectStructureWithFastAccess* newSelf = new ObjectStructureWithFastAccess(state, *self);
+        return newSelf;
     }
 
     if (m_needsTransitionTable) {
@@ -257,10 +256,8 @@ inline ObjectStructure* ObjectStructure::removeProperty(ExecutionState& state, s
         propertyNameMap().clear();
         ObjectStructureWithFastAccess* self = (ObjectStructureWithFastAccess*)this;
         self->buildPropertyNameMap();
-        self->m_version++;
-        if (UNLIKELY(self->m_version == SIZE_MAX))
-            self->m_version = 0;
-        return this;
+        ObjectStructureWithFastAccess* newSelf = new ObjectStructureWithFastAccess(state, *self);
+        return newSelf;
     }
 
     ObjectStructureItemVector newProperties;

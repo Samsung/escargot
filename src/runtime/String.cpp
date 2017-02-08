@@ -495,59 +495,78 @@ bool String::equals(const String* src) const
 
 uint64_t String::tryToUseAsArrayIndex() const
 {
-    bool allOfCharIsDigit = true;
-    uint64_t number = 0;
-    size_t len = length();
+    uint32_t number = 0;
+    auto data = bufferAccessData();
+    const size_t& len = data.length;
 
     if (UNLIKELY(len == 0)) {
         return Value::InvalidArrayIndexValue;
     }
 
+    char16_t first;
+    if (LIKELY(data.has8BitContent)) {
+        first = ((LChar*)data.buffer)[0];
+    } else {
+        first = ((char16_t*)data.buffer)[0];
+    }
+
     if (len > 1) {
-        if (charAt(0) == '0') {
+        if (first == '0') {
             return Value::InvalidArrayIndexValue;
         }
     }
 
     for (unsigned i = 0; i < len; i++) {
-        char16_t c = charAt(i);
+        char16_t c;
+        if (LIKELY(data.has8BitContent)) {
+            c = ((LChar*)data.buffer)[i];
+        } else {
+            c = ((char16_t*)data.buffer)[i];
+        }
         if (c < '0' || c > '9') {
-            allOfCharIsDigit = false;
-            break;
+            return Value::InvalidArrayIndexValue;
         } else {
             uint32_t cnum = c - '0';
-            if (number > (std::numeric_limits<uint32_t>::max() - cnum) / 10)
+            if (number > (Value::InvalidArrayIndexValue - cnum) / 10)
                 return Value::InvalidArrayIndexValue;
             number = number * 10 + cnum;
         }
     }
-    if (LIKELY(allOfCharIsDigit)) {
-        return number;
-    }
-    return Value::InvalidArrayIndexValue;
+    return number;
 }
 
 uint64_t String::tryToUseAsIndex() const
 {
-    bool allOfCharIsDigit = true;
     uint32_t number = 0;
-    size_t len = length();
+    auto data = bufferAccessData();
+    const size_t& len = data.length;
 
     if (UNLIKELY(len == 0)) {
         return Value::InvalidIndexValue;
     }
 
+    char16_t first;
+    if (LIKELY(data.has8BitContent)) {
+        first = ((LChar*)data.buffer)[0];
+    } else {
+        first = ((char16_t*)data.buffer)[0];
+    }
+
     if (len > 1) {
-        if (charAt(0) == '0') {
+        if (first == '0') {
             return Value::InvalidIndexValue;
         }
     }
 
     for (unsigned i = 0; i < len; i++) {
-        char16_t c = charAt(0);
+        char16_t c;
+        if (LIKELY(data.has8BitContent)) {
+            c = ((LChar*)data.buffer)[i];
+        } else {
+            c = ((char16_t*)data.buffer)[i];
+        }
         if (c < '0' || c > '9') {
-            allOfCharIsDigit = false;
-            break;
+            return Value::InvalidIndexValue;
         } else {
             uint32_t cnum = c - '0';
             if (number > (Value::InvalidIndexValue - cnum) / 10)
@@ -555,10 +574,7 @@ uint64_t String::tryToUseAsIndex() const
             number = number * 10 + cnum;
         }
     }
-    if (LIKELY(allOfCharIsDigit)) {
-        return number;
-    }
-    return Value::InvalidIndexValue;
+    return number;
 }
 
 size_t String::find(String* str, size_t pos)

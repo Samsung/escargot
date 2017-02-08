@@ -162,10 +162,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
                 if (offset + newByteLength > bufferByteLength)
                     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
             }
-            obj->setBuffer(buffer);
-            obj->setBytelength(newByteLength);
-            obj->setByteoffset(offset);
-            obj->setArraylength(newByteLength / elementSize);
+            obj->setBuffer(buffer, offset, newByteLength, newByteLength / elementSize);
         } else if (val.isObject()) {
             // TODO implement 22.2.1.4
             Object* inputObj = val.asObject();
@@ -174,10 +171,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             unsigned elementSize = obj->elementSize();
             ArrayBufferObject* buffer = new ArrayBufferObject(state);
             buffer->allocateBuffer(length * elementSize);
-            obj->setBuffer(buffer);
-            obj->setBytelength(length * elementSize);
-            obj->setByteoffset(0);
-            obj->setArraylength(length);
+            obj->setBuffer(buffer, 0, length * elementSize, length);
             for (uint64_t i = 0; i < length; i++) {
                 ObjectPropertyName pK(state, Value(i));
                 obj->setThrowsException(state, pK, inputObj->get(state, pK).value(state, inputObj), obj);

@@ -94,7 +94,7 @@ public:
                     if (idx != SIZE_MAX) {
                         const ObjectStructureItem& item = state.context()->globalObject()->structure()->readProperty(state, idx);
                         if (item.m_descriptor.isPlainDataProperty()) {
-                            codeBlock->pushCode(GetGlobalObject(ByteCodeLOC(m_loc.index), context->getRegister(), PropertyName(state, m_name), state.context()->globalObject()->structure()->version(), idx), context, this);
+                            codeBlock->pushCode(GetGlobalObject(ByteCodeLOC(m_loc.index), context->getRegister(), PropertyName(state, m_name), idx), context, this);
                             return;
                         }
                     }

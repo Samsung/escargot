@@ -193,7 +193,7 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
     return false;
 }
 
-bool Value::equalsTo(ExecutionState& state, const Value& val) const
+bool Value::equalsToSlowCase(ExecutionState& state, const Value& val) const
 {
     if (isUndefined())
         return val.isUndefined();
@@ -305,11 +305,11 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
         char* buf;
 
         buf = ALLOCA(len + 1, char, state);
-        if (bufferAccessData.has8BitContent) {
+        if (LIKELY(bufferAccessData.has8BitContent)) {
             const LChar* src = (const LChar*)bufferAccessData.buffer;
             for (unsigned i = 0; i < len; i++) {
                 LChar c = src[i];
-                if (c >= 128)
+                if (UNLIKELY(c >= 128))
                     c = 0;
                 buf[i] = c;
             }
@@ -324,7 +324,7 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
         }
 
         buf[len] = 0;
-        if (len >= 3 && (!strncmp("-0x", buf, 3) || !strncmp("+0x", buf, 3))) { // hex number with Unary Plus or Minus is invalid in JavaScript while it is valid in C
+        if (UNLIKELY(len >= 3 && (!strncmp("-0x", buf, 3) || !strncmp("+0x", buf, 3)))) { // hex number with Unary Plus or Minus is invalid in JavaScript while it is valid in C
             val = std::numeric_limits<double>::quiet_NaN();
             return val;
         }

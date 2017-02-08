@@ -15,20 +15,45 @@ public:
     ArrayBufferView(ExecutionState& state)
         : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, true)
     {
+        m_rawBuffer = nullptr;
         m_buffer = nullptr;
         m_arraylength = m_byteoffset = m_bytelength = 0;
     }
 
     ALWAYS_INLINE ArrayBufferObject* buffer() { return m_buffer; }
+    ALWAYS_INLINE uint8_t* rawBuffer() { return m_rawBuffer; }
     ALWAYS_INLINE unsigned bytelength() { return m_bytelength; }
     ALWAYS_INLINE unsigned byteoffset() { return m_byteoffset; }
     ALWAYS_INLINE unsigned arraylength() { return m_arraylength; }
-    ALWAYS_INLINE void setArraylength(unsigned length) { m_arraylength = length; }
-    ALWAYS_INLINE void setByteoffset(unsigned o) { m_byteoffset = o; }
-    ALWAYS_INLINE void setBytelength(unsigned l) { m_bytelength = l; }
-    ALWAYS_INLINE void setBuffer(ArrayBufferObject* bo) { m_buffer = bo; }
-protected:
+    ALWAYS_INLINE void setBuffer(ArrayBufferObject* bo, unsigned byteOffset, unsigned byteLength, unsigned arrayLength)
+    {
+        m_buffer = bo;
+        m_byteoffset = byteOffset;
+        m_bytelength = byteLength;
+        m_arraylength = arrayLength;
+        m_rawBuffer = (uint8_t*)(bo->data() + m_byteoffset);
+    }
+
+    void* operator new(size_t size)
+    {
+        static bool typeInited = false;
+        static GC_descr descr;
+        if (!typeInited) {
+            GC_word obj_bitmap[GC_BITMAP_SIZE(ArrayBufferView)] = { 0 };
+            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayBufferView, m_structure));
+            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayBufferView, m_prototype));
+            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayBufferView, m_values));
+            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayBufferView, m_buffer));
+            descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ArrayBufferView));
+            typeInited = true;
+        }
+        return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+    }
+    void* operator new[](size_t size) = delete;
+
+private:
     ArrayBufferObject* m_buffer;
+    uint8_t* m_rawBuffer;
     unsigned m_bytelength;
     unsigned m_byteoffset;
     unsigned m_arraylength;
@@ -110,20 +135,56 @@ public:
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
     virtual const char* internalClassProperty();
 
+    template <typename Type>
+    Value getValueFromBuffer(ExecutionState& state, unsigned byteindex, bool isLittleEndian = 1)
+    {
+        // If isLittleEndian is not present, set isLittleEndian to either true or false.
+        ASSERT(bytelength());
+        size_t elementSize = sizeof(Type);
+        ASSERT(byteindex + elementSize <= bytelength());
+        uint8_t* rawStart = rawBuffer() + byteindex;
+        Type res;
+        if (isLittleEndian != 1) { // bigEndian
+            for (size_t i = 0; i < elementSize; i++) {
+                ((uint8_t*)&res)[elementSize - i - 1] = rawStart[i];
+            }
+        } else { // littleEndian
+            res = *((Type*)rawStart);
+        }
+        return Value(res);
+    }
+
+    template <typename Type>
+    void setValueInBuffer(ExecutionState& state, unsigned byteindex, const Value& val, bool isLittleEndian = 1)
+    {
+        // If isLittleEndian is not present, set isLittleEndian to either true or false.
+        ASSERT(bytelength());
+        size_t elementSize = sizeof(typename Type::Type);
+        ASSERT(byteindex + elementSize <= bytelength());
+        uint8_t* rawStart = rawBuffer() + byteindex;
+        typename Type::Type littleEndianVal = Type::toNative(state, val);
+        if (isLittleEndian != 1) {
+            for (size_t i = 0; i < elementSize; i++) {
+                rawStart[i] = ((uint8_t*)&littleEndianVal)[elementSize - i - 1];
+            }
+        } else {
+            *((typename Type::Type*)rawStart) = littleEndianVal;
+        }
+    }
+
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
     {
         uint64_t index;
         if (LIKELY(P.isUIntType())) {
             index = P.uintValue();
         } else {
-            index = P.toValue(state).toIndex(state);
+            index = P.string(state)->tryToUseAsIndex();
         }
 
         if (LIKELY(Value::InvalidIndexValue != index)) {
             if ((unsigned)index < arraylength()) {
-                unsigned idxPosition = index * typedArrayElementSize + byteoffset();
-                ArrayBufferObject* b = buffer();
-                return ObjectGetResult(b->getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false);
+                unsigned idxPosition = index * typedArrayElementSize;
+                return ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false);
             }
             return ObjectGetResult();
         }
@@ -136,17 +197,16 @@ public:
         if (LIKELY(P.isUIntType())) {
             index = P.uintValue();
         } else {
-            index = P.toValue(state).toIndex(state);
+            index = P.string(state)->tryToUseAsIndex();
         }
 
         if (LIKELY(Value::InvalidIndexValue != index)) {
             if ((unsigned)index >= arraylength())
                 return false;
-            unsigned idxPosition = index * typedArrayElementSize + byteoffset();
-            ArrayBufferObject* b = buffer();
+            unsigned idxPosition = index * typedArrayElementSize;
 
             if (LIKELY(desc.isValuePresentAlone() || desc.isDataWritableEnumerableConfigurable() || (desc.isWritable() && desc.isEnumerable()))) {
-                b->setValueInBuffer<TypeAdaptor>(state, idxPosition, desc.value());
+                setValueInBuffer<TypeAdaptor>(state, idxPosition, desc.value());
                 return true;
             }
             return false;
@@ -174,12 +234,9 @@ public:
 
     void allocateTypedArray(ExecutionState& state, unsigned length)
     {
-        m_arraylength = length;
-        m_byteoffset = 0;
-        m_bytelength = length * typedArrayElementSize;
         auto obj = new ArrayBufferObject(state);
-        obj->allocateBuffer(m_bytelength);
-        setBuffer(obj);
+        obj->allocateBuffer(length * typedArrayElementSize);
+        setBuffer(obj, 0, length * typedArrayElementSize, length);
     }
 
     size_t elementSize()
@@ -192,23 +249,6 @@ public:
         return true;
     }
 
-    void* operator new(size_t size)
-    {
-        static bool typeInited = false;
-        static GC_descr descr;
-        if (!typeInited) {
-            GC_word obj_bitmap[GC_BITMAP_SIZE(TypedArrayObject)] = { 0 };
-            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(TypedArrayObject, m_structure));
-            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(TypedArrayObject, m_prototype));
-            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(TypedArrayObject, m_values));
-            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(TypedArrayObject, m_buffer));
-            descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(TypedArrayObject));
-            typeInited = true;
-        }
-        return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-    }
-    void* operator new[](size_t size) = delete;
-
     virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property)
     {
         uint64_t idx;
@@ -219,9 +259,8 @@ public:
         }
         if (LIKELY(idx != Value::InvalidIndexValue)) {
             if ((unsigned)idx < arraylength()) {
-                unsigned idxPosition = idx * typedArrayElementSize + byteoffset();
-                ArrayBufferObject* b = buffer();
-                return ObjectGetResult(b->getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false);
+                unsigned idxPosition = idx * typedArrayElementSize;
+                return ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false);
             }
         }
         return get(state, ObjectPropertyName(state, property));
@@ -237,9 +276,8 @@ public:
         }
         if (LIKELY(Value::InvalidIndexValue != index)) {
             if ((unsigned)index < arraylength()) {
-                unsigned idxPosition = index * typedArrayElementSize + byteoffset();
-                ArrayBufferObject* b = buffer();
-                b->setValueInBuffer<TypeAdaptor>(state, idxPosition, value);
+                unsigned idxPosition = index * typedArrayElementSize;
+                setValueInBuffer<TypeAdaptor>(state, idxPosition, value);
                 return true;
             }
         }

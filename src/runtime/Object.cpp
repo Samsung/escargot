@@ -561,10 +561,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
                 m_structure->m_properties[idx].m_descriptor = newDesc.toObjectStructurePropertyDescriptor();
             }
 
-            m_structure->m_version++;
-            if (m_structure->m_version == SIZE_MAX) {
-                m_structure->m_version = 0;
-            }
+            m_structure = new ObjectStructureWithFastAccess(state, *((ObjectStructureWithFastAccess*)m_structure));
 
             if (newDesc.isDataDescriptor()) {
                 return setOwnDataPropertyUtilForObjectInner(state, idx, m_structure->m_properties[idx], newDesc.value());
@@ -608,10 +605,8 @@ ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& pro
         if (result.hasValue()) {
             return result;
         }
-        Value __proto__ = target->getPrototype(state);
-        if (__proto__.isObject()) {
-            target = __proto__.asObject();
-        } else {
+        target = target->getPrototypeObject();
+        if (!target) {
             return ObjectGetResult();
         }
     }

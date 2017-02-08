@@ -34,7 +34,12 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
         return true;
     }
 
-    uint64_t idx = P.toValue(state).toArrayIndex(state);
+    uint64_t idx;
+    if (LIKELY(P.isUIntType())) {
+        idx = P.uintValue();
+    } else {
+        idx = P.string(state)->tryToUseAsArrayIndex();
+    }
     if (idx != Value::InvalidArrayIndexValue) {
         auto oldLenDesc = structure()->readProperty(state, (size_t)0);
         uint32_t oldLen = getArrayLength(state);

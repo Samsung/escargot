@@ -77,6 +77,19 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
     return ExtendedNodeLOC(line, column, codePosition);
 }
 
+void* GetObjectInlineCacheData::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(GetObjectInlineCacheData)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCacheData, m_cachedhiddenClassChain));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(GetObjectInlineCacheData));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
 void* SetObjectInlineCache::operator new(size_t size)
 {
     static bool typeInited = false;

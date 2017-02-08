@@ -610,10 +610,9 @@ public:
 
 struct ObjectStructureChainItem : public gc {
     ObjectStructure* m_objectStructure;
-    size_t m_version;
     bool operator==(const ObjectStructureChainItem& item) const
     {
-        return m_objectStructure == item.m_objectStructure && m_version == item.m_version;
+        return m_objectStructure == item.m_objectStructure;
     }
 
     bool operator!=(const ObjectStructureChainItem& item) const
@@ -622,26 +621,22 @@ struct ObjectStructureChainItem : public gc {
     }
 };
 
-typedef Vector<ObjectStructureChainItem, gc_malloc_atomic_ignore_off_page_allocator<ObjectStructureChainItem>> ObjectStructureChain;
+typedef TightVector<ObjectStructureChainItem, gc_malloc_atomic_ignore_off_page_allocator<ObjectStructureChainItem>> ObjectStructureChain;
 
 struct GetObjectInlineCacheData : public gc {
     GetObjectInlineCacheData()
     {
-        m_hasIndex = false;
-        m_cachedIndex = 0;
+        m_cachedIndex = SIZE_MAX;
     }
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
     ObjectStructureChain m_cachedhiddenClassChain;
-    struct {
-        bool m_hasIndex : 1;
-#ifdef ESCARGOT_32
-        size_t m_cachedIndex : 31;
-#else
-        size_t m_cachedIndex : 63;
-#endif
-    };
+    size_t m_cachedIndex;
 };
 
-typedef Vector<GetObjectInlineCacheData, gc_malloc_ignore_off_page_allocator<GetObjectInlineCacheData>> GetObjectInlineCacheDataVector;
+typedef TightVector<GetObjectInlineCacheData*, gc_malloc_ignore_off_page_allocator<GetObjectInlineCacheData*>> GetObjectInlineCacheDataVector;
 
 struct GetObjectInlineCache {
     GetObjectInlineCache()
@@ -724,20 +719,20 @@ public:
 
 class GetGlobalObject : public ByteCode {
 public:
-    GetGlobalObject(const ByteCodeLOC& loc, const size_t& registerIndex, PropertyName propertyName, size_t version = SIZE_MAX, size_t index = SIZE_MAX)
+    GetGlobalObject(const ByteCodeLOC& loc, const size_t& registerIndex, PropertyName propertyName, size_t index = SIZE_MAX)
         : ByteCode(Opcode::GetGlobalObjectOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_propertyName(propertyName)
     {
         ASSERT(propertyName.hasAtomicString());
-        m_savedGlobalObjectVersion = version;
         m_cachedIndex = index;
+        m_cachedStructure = nullptr;
     }
 
     ByteCodeRegisterIndex m_registerIndex;
     PropertyName m_propertyName;
-    size_t m_savedGlobalObjectVersion;
     size_t m_cachedIndex;
+    ObjectStructure* m_cachedStructure;
 #ifndef NDEBUG
     virtual void dump()
     {
@@ -754,13 +749,14 @@ public:
         , m_propertyName(propertyName)
     {
         ASSERT(propertyName.hasAtomicString());
-        m_savedGlobalObjectVersion = m_cachedIndex = SIZE_MAX;
+        m_cachedIndex = SIZE_MAX;
+        m_cachedStructure = nullptr;
     }
 
     ByteCodeRegisterIndex m_registerIndex;
     PropertyName m_propertyName;
-    size_t m_savedGlobalObjectVersion;
     size_t m_cachedIndex;
+    ObjectStructure* m_cachedStructure;
 
 #ifndef NDEBUG
     virtual void dump()

@@ -129,7 +129,4 @@ ESCARGOT_CXXFLAGS_THIRD_PARTY += -I$(ESCARGOT_ROOT)/third_party/rapidjson/includ
 # yarr
 ESCARGOT_CXXFLAGS_THIRD_PARTY += -I$(ESCARGOT_ROOT)/third_party/yarr/
 
-# libunwind
-ESCARGOT_LDFLAGS_THIRD_PARTY += -lunwind
-
 

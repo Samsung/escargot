@@ -787,7 +787,11 @@ protected:
     {
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
         if (LIKELY(item.m_descriptor.isDataProperty())) {
-            return getOwnDataPropertyUtilForObject(state, idx, receiver);
+            if (LIKELY(item.m_descriptor.isPlainDataProperty())) {
+                return m_values[idx];
+            } else {
+                return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this);
+            }
         } else {
             return getOwnPropertyUtilForObjectAccCase(state, idx, receiver);
         }

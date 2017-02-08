@@ -324,7 +324,7 @@ DEPENDENCY_MAKEFILE = Makefile $(BUILDDIR)/Toolchain.mk $(BUILDDIR)/Flags.mk
 
 $(OUTDIR)/$(BIN): $(OBJS) $(OBJS_GC) $(DEPENDENCY_MAKEFILE)
 	@echo "[LINK] $@"
-	@$(CXX) -o $@ $(OBJS) $(OBJS_GC) $(LDFLAGS)
+	$(QUIET) $(CXX) -o $@ $(OBJS) $(OBJS_GC) $(LDFLAGS)
 
 $(OUTDIR)/$(SHARED_LIB): $(OBJS) $(OBJS_GC) $(DEPENDENCY_MAKEFILE)
 	@echo "[LINK] $@"

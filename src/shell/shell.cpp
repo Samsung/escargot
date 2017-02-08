@@ -70,27 +70,12 @@ NEVER_INLINE bool eval(Escargot::Context* context, Escargot::String* str, Escarg
 
 int main(int argc, char* argv[])
 {
-    // GC_disable();
-    /*
-    GC_set_force_unmap_on_gcollect(1);
-    for (size_t i = 0; i < 96; i ++) {
-        void* ptr = GC_MALLOC_ATOMIC(1024*1024*i);
-        printf("%p\n", ptr);
-    }
-    GC_gcollect();
-    GC_gcollect();
-    GC_gcollect();
-    GC_gcollect();
-    GC_gcollect();
-    */
-
-    Escargot::Heap::initialize();
-
 #ifndef NDEBUG
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
 #endif
 
+    Escargot::Heap::initialize();
     Escargot::VMInstance* instance = new Escargot::VMInstance();
     Escargot::Context* context = new Escargot::Context(instance);
 
