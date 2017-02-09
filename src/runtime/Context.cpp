@@ -128,7 +128,7 @@ Context::Context(VMInstance* instance)
     , m_scriptParser(new ScriptParser(this))
 {
     m_staticStrings.initStaticStrings(&m_atomicStringMap);
-    ExecutionState stateForInit(this);
+    ExecutionState stateForInit(this, nullptr);
 
 #if ESCARGOT_ENABLE_PROMISE
     m_jobQueue = JobQueue::create();

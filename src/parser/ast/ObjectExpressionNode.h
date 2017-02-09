@@ -81,6 +81,8 @@ public:
 
             // for drop value index
             context->giveUpRegister();
+
+            codeBlock->m_shouldClearStack = true;
         }
         ASSERT(objIndex == context->getLastRegisterIndex());
     }

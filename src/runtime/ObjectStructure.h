@@ -70,6 +70,21 @@ public:
         return findProperty(name);
     }
 
+    size_t findProperty(const PropertyName& s)
+    {
+        if (UNLIKELY(m_isStructureWithFastAccess)) {
+            return findPropertyWithMap(s);
+        }
+
+        size_t siz = m_properties.size();
+        for (size_t i = 0; i < siz; i++) {
+            if (m_properties[i].m_propertyName == s) {
+                return i;
+            }
+        }
+        return SIZE_MAX;
+    }
+
     ObjectStructureItem readProperty(ExecutionState& state, String* propertyName)
     {
         return readProperty(state, findProperty(state, propertyName));
@@ -126,21 +141,6 @@ protected:
         ASSERT(m_needsTransitionTable);
         for (size_t i = 0; i < m_transitionTable.size(); i++) {
             if (m_transitionTable[i].m_descriptor == desc && m_transitionTable[i].m_propertyName == s) {
-                return i;
-            }
-        }
-        return SIZE_MAX;
-    }
-
-    size_t findProperty(const PropertyName& s)
-    {
-        if (UNLIKELY(m_isStructureWithFastAccess)) {
-            return findPropertyWithMap(s);
-        }
-
-        size_t siz = m_properties.size();
-        for (size_t i = 0; i < siz; i++) {
-            if (m_properties[i].m_propertyName == s) {
                 return i;
             }
         }

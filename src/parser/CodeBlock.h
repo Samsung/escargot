@@ -369,7 +369,6 @@ public:
         return info;
     }
 
-    bool hasNonConfiguableNameOnGlobal(const AtomicString& name);
 #ifndef NDEBUG
     ASTScopeContext* scopeContext()
     {

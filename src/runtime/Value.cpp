@@ -136,7 +136,10 @@ Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint prefer
 
 bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) const
 {
-    if (isNumber() && val.isNumber()) {
+    bool selfIsNumber = isNumber();
+    bool valIsNumber = val.isNumber();
+
+    if (selfIsNumber && valIsNumber) {
         double a = asNumber();
         double b = val.asNumber();
 
@@ -147,14 +150,22 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
 
         return false;
     } else {
-        if (isUndefinedOrNull() && val.isUndefinedOrNull())
+        bool selfIsUndefinedOrNull = isUndefinedOrNull();
+        bool valIsUndefinedOrNull = val.isUndefinedOrNull();
+        if (selfIsUndefinedOrNull && valIsUndefinedOrNull)
             return true;
 
-        if (isNumber() && val.isString()) {
+        bool selfIsPointerValue = isPointerValue();
+        bool valIsPointerValue = val.isPointerValue();
+
+        bool valIsString = valIsPointerValue ? val.asPointerValue()->isString() : false;
+        bool selfIsString = selfIsPointerValue ? asPointerValue()->isString() : false;
+
+        if (selfIsNumber && valIsString) {
             // If Type(x) is Number and Type(y) is String,
             // return the result of the comparison x == ToNumber(y).
             return asNumber() == val.toNumber(state);
-        } else if (isString() && val.isNumber()) {
+        } else if (selfIsString && valIsNumber) {
             // If Type(x) is String and Type(y) is Number,
             // return the result of the comparison ToNumber(x) == y.
             return val.asNumber() == toNumber(state);
@@ -167,13 +178,13 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
             // If Type(y) is Boolean, return the result of the comparison x == ToNumber(y).
             // return the result of the comparison ToNumber(x) == y.
             return abstractEqualsTo(state, Value(val.toNumber(state)));
-        } else if ((isString() || isNumber()) && val.isObject()) {
+        } else if ((selfIsString || selfIsNumber) && (valIsPointerValue && !valIsString)) {
             // If Type(x) is either String, Number, or Symbol and Type(y) is Object, then
             if (val.asPointerValue()->isDateObject())
                 return abstractEqualsTo(state, val.toPrimitive(state, Value::PreferString));
             else
                 return abstractEqualsTo(state, val.toPrimitive(state));
-        } else if (isObject() && (val.isString() || val.isNumber())) {
+        } else if ((selfIsPointerValue && !selfIsString) && (valIsString || valIsNumber)) {
             // If Type(x) is Object and Type(y) is either String, Number, or Symbol, then
             if (asPointerValue()->isDateObject())
                 return toPrimitive(state, Value::PreferString).abstractEqualsTo(state, val);
@@ -181,7 +192,7 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
                 return toPrimitive(state).abstractEqualsTo(state, val);
         }
 
-        if (isPointerValue() && val.isPointerValue()) {
+        if (selfIsPointerValue && valIsPointerValue) {
             PointerValue* o = asPointerValue();
             PointerValue* comp = val.asPointerValue();
 

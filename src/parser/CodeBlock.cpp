@@ -343,28 +343,6 @@ void CodeBlock::notifySelfOrChildHasEvalWithCatchYield()
     }
 }
 
-bool CodeBlock::hasNonConfiguableNameOnGlobal(const AtomicString& name)
-{
-    ASSERT(!inNotIndexedCodeBlockScope());
-    CodeBlock* top = this;
-    while (top->parentCodeBlock()) {
-        top = top->parentCodeBlock();
-    }
-
-    if (top->hasName(name)) {
-        return true;
-    }
-
-    ExecutionState state(m_context);
-    auto desc = m_context->globalObject()->getOwnProperty(state, ObjectPropertyName(state, name));
-    if (desc.hasValue()) {
-        if (!desc.isConfigurable()) {
-            return true;
-        }
-    }
-    return false;
-}
-
 void CodeBlock::computeVariables()
 {
     if (m_usesArgumentsObject) {

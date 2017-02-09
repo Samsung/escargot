@@ -175,14 +175,14 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
         }
     }
 
-    const CodeBlock::FunctionParametersInfoVector& info = m_codeBlock->parametersInfomation();
     if (m_codeBlock->hasCallNativeFunctionCode()) {
+        const CodeBlock::FunctionParametersInfoVector& info = m_codeBlock->parametersInfomation();
         CallNativeFunction* code = (CallNativeFunction*)&m_codeBlock->byteCodeBlock()->m_code[0];
         FunctionEnvironmentRecordOnStack record(state, receiver, this, argc, argv, isNewExpression);
         LexicalEnvironment env(&record, outerEnvironment());
         ExecutionContext ec(ctx, state.executionContext(), &env, isStrict);
         Value resultValue(Value::ForceUninitialized);
-        ExecutionState newState(ctx, &ec, &resultValue);
+        ExecutionState newState(ctx, &receiver, &ec, &resultValue);
 
         size_t len = info.size();
         if (argc < len) {
@@ -204,7 +204,9 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
         generateBytecodeBlock(state);
     }
 
-    size_t registerSize = m_codeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize;
+    ByteCodeBlock* blk = m_codeBlock->byteCodeBlock();
+
+    size_t registerSize = blk->m_requiredRegisterFileSizeInValueSize;
     bool canAllocateEnvironmentOnStack = m_codeBlock->canAllocateEnvironmentOnStack();
     bool canUseIndexedVariableStorage = m_codeBlock->canUseIndexedVariableStorage();
     size_t stackStorageSize = m_codeBlock->identifierOnStackCount();
@@ -229,16 +231,15 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
         ec = new ExecutionContext(ctx, state.executionContext(), env, isStrict);
     }
 
-    Value* registerFile = ALLOCA((stackStorageSize + registerSize) * sizeof(Value), Value, state);
-    Value* stackStorage = registerFile + registerSize;
+    Value* registerFile = (Value*)alloca(registerSize * sizeof(Value));
+    Value* stackStorage = ALLOCA((stackStorageSize) * sizeof(Value), Value, state);
 
     for (size_t i = 0; i < stackStorageSize; i++) {
         stackStorage[i] = Value();
     }
 
     Value resultValue;
-
-    ExecutionState newState(ctx, ec, &resultValue);
+    ExecutionState newState(ctx, &receiver, ec, &resultValue);
 
     // binding function name
     if (m_codeBlock->m_functionNameIndex != SIZE_MAX) {
@@ -263,6 +264,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
                 record->setMutableBinding(state, m_codeBlock->functionParameters()[i], argv[i]);
             }
         } else {
+            const CodeBlock::FunctionParametersInfoVector& info = m_codeBlock->parametersInfomation();
             for (size_t i = 0; i < info.size(); i++) {
                 Value val(Value::ForceUninitialized);
                 // NOTE: consider the special case with duplicated parameter names (**test262: S10.2.1_A3)
@@ -294,8 +296,9 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     }
 
     // run function
-    clearStack<384>();
-    ByteCodeInterpreter::interpret(newState, m_codeBlock->byteCodeBlock(), 0, registerFile, stackStorage);
+    ByteCodeInterpreter::interpret(newState, blk, 0, registerFile, stackStorage);
+    if (blk->m_shouldClearStack)
+        clearStack<512>();
 
     return resultValue;
 }

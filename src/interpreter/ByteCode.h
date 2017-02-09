@@ -1468,6 +1468,7 @@ public:
         m_codeBlock = codeBlock;
         m_isEvalMode = false;
         m_isOnGlobal = false;
+        m_shouldClearStack = false;
 
         GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
                                                 void*) {
@@ -1486,8 +1487,11 @@ public:
         {
             CodeType& t = const_cast<CodeType&>(code);
             if ((getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) || (getenv("DUMP_CODEBLOCK_TREE") && strlen(getenv("DUMP_CODEBLOCK_TREE")))) {
-                t.m_loc.line = computeNodeLOCFromByteCode(context->m_codeBlock->context(), idx, context->m_codeBlock).line;
-                t.m_loc.column = computeNodeLOCFromByteCode(context->m_codeBlock->context(), idx, context->m_codeBlock).column;
+                if (idx != SIZE_MAX) {
+                    auto loc = computeNodeLOC(m_codeBlock->src(), m_codeBlock->sourceElementStart(), idx);
+                    t.m_loc.line = loc.line;
+                    t.m_loc.column = loc.column;
+                }
             }
         }
 #endif
@@ -1529,10 +1533,12 @@ public:
     }
 
     ExtendedNodeLOC computeNodeLOCFromByteCode(Context* c, size_t codePosition, CodeBlock* cb);
+    ExtendedNodeLOC computeNodeLOC(StringView src, ExtendedNodeLOC sourceElementStart, size_t index);
     void fillLocDataIfNeeded(Context* c);
 
     bool m_isEvalMode;
     bool m_isOnGlobal;
+    bool m_shouldClearStack;
 
     ByteCodeBlockData m_code;
     ByteCodeLiteralData m_literalData;

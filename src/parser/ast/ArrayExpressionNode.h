@@ -62,6 +62,8 @@ public:
         }
         codeBlock->peekCode<CreateArray>(arrayIndex)->m_length = arrLen;
         ASSERT(objIndex == context->getLastRegisterIndex());
+
+        codeBlock->m_shouldClearStack = true;
     }
 
 protected:

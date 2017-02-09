@@ -823,10 +823,13 @@ void GlobalObject::installOthers(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(strings->dbgBreak),
                       ObjectPropertyDescriptor(new FunctionObject(state,
                                                                   NativeFunctionInfo(strings->dbgBreak, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression) -> Value {
-        puts("dbgBreak");
-        return Value();
-    }, 0, nullptr, NativeFunctionInfo::Strict), false), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
-    */
+                                                                      puts("dbgBreak");
+                                                                      return Value();
+                                                                  },
+                                                                                     0, nullptr, NativeFunctionInfo::Strict),
+                                                                  false),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+*/
 #endif
 
     defineOwnProperty(state, ObjectPropertyName(strings->gc),

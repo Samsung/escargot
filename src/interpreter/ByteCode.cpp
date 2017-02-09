@@ -60,21 +60,26 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
         }
     }
 
-    size_t line = cb->sourceElementStart().line;
-    size_t column = cb->sourceElementStart().column;
+    return computeNodeLOC(cb->src(), cb->sourceElementStart(), index);
+}
+
+ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(StringView src, ExtendedNodeLOC sourceElementStart, size_t index)
+{
+    size_t line = sourceElementStart.line;
+    size_t column = sourceElementStart.column;
     for (size_t i = 0; i < index; i++) {
-        char16_t c = cb->src().charAt(i);
+        char16_t c = src.charAt(i);
         column++;
         if (isLineTerminator(c)) {
             // skip \r\n
-            if (c == 13 && (i + 1 < index) && cb->src().charAt(i + 1) == 10) {
+            if (c == 13 && (i + 1 < index) && src.charAt(i + 1) == 10) {
                 i++;
             }
             line++;
             column = 1;
         }
     }
-    return ExtendedNodeLOC(line, column, codePosition);
+    return ExtendedNodeLOC(line, column, index);
 }
 
 void* GetObjectInlineCacheData::operator new(size_t size)

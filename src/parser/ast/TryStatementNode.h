@@ -71,6 +71,8 @@ public:
         codeBlock->pushCode(FinallyEnd(ByteCodeLOC(m_loc.index)), context, this);
         codeBlock->peekCode<FinallyEnd>(codeBlock->lastCodePosition<FinallyEnd>())->m_tryDupCount = context->m_tryStatementScopeCount;
         context->m_tryStatementScopeCount--;
+
+        codeBlock->m_shouldClearStack = true;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::TryStatement; }

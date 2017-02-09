@@ -54,6 +54,8 @@ public:
         for (size_t i = 0; i < m_arguments.size(); i++) {
             context->giveUpRegister();
         }
+
+        codeBlock->m_shouldClearStack = true;
     }
 
 protected:

@@ -42,7 +42,8 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
 
     ExecutionContext ec(state.context(), prevEc, env, m_topCodeBlock->isStrict());
     Value resultValue;
-    ExecutionState newState(state.context(), &ec, &resultValue);
+    Value thisValue(state.context()->globalObject());
+    ExecutionState newState(state.context(), &thisValue, &ec, &resultValue);
 
     Value* registerFile = (Value*)alloca(m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
     clearStack<512>();
@@ -55,7 +56,8 @@ Script::ScriptSandboxExecuteResult Script::sandboxExecute(Context* ctx)
 {
     ScriptSandboxExecuteResult result;
     SandBox sb(ctx);
-    ExecutionState stateForInit(ctx);
+    Value thisValue(ctx->globalObject());
+    ExecutionState stateForInit(ctx, &thisValue);
 
     auto sandBoxResult = sb.run([&]() -> Value {
         return execute(stateForInit);
@@ -105,7 +107,7 @@ Value Script::executeLocal(ExecutionState& state, bool isEvalMode, bool needNewR
 
     ExecutionContext ec(state.context(), state.executionContext(), newEnvironment, m_topCodeBlock->isStrict());
     Value resultValue;
-    ExecutionState newState(state.context(), &ec, &resultValue);
+    ExecutionState newState(state.context(), state.thisValue(), &ec, &resultValue);
 
     size_t stackStorageSize = m_topCodeBlock->identifierOnStackCount();
     Value* stackStorage = ALLOCA(stackStorageSize * sizeof(Value), Value, state);

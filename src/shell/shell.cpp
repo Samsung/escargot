@@ -38,7 +38,8 @@ NEVER_INLINE bool eval(Escargot::Context* context, Escargot::String* str, Escarg
         return false;
     } else {
         Escargot::Script::ScriptSandboxExecuteResult resultValue = result.m_script->sandboxExecute(context);
-        Escargot::ExecutionState state(context);
+        Escargot::Value thisValue(context->globalObject());
+        Escargot::ExecutionState state(context, &thisValue);
         if (!resultValue.result.isEmpty()) {
             if (shouldPrintScriptResult)
                 puts(resultValue.msgStr->toUTF8StringData().data());
@@ -79,7 +80,8 @@ int main(int argc, char* argv[])
     Escargot::VMInstance* instance = new Escargot::VMInstance();
     Escargot::Context* context = new Escargot::Context(instance);
 
-    Escargot::ExecutionState stateForInit(context);
+    Escargot::Value thisValue(context->globalObject());
+    Escargot::ExecutionState stateForInit(context, &thisValue);
 #ifdef ESCARGOT_ENABLE_VENDORTEST
     installTestFunctions(stateForInit);
 #endif

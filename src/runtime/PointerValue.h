@@ -24,11 +24,8 @@ public:
         StringType,
         ObjectType,
         ObjectRareDataType,
-        FunctionObjectType,
-        ArrayObjectType,
         DoubleInSmallValueType,
         JSGetterSetterType,
-        ExtraDataType
     };
 
     virtual Type type() = 0;
@@ -182,6 +179,11 @@ public:
     {
         ASSERT(isJSGetterSetter());
         return (JSGetterSetter*)this;
+    }
+
+    bool hasTag(const size_t tag)
+    {
+        return tag == *((size_t*)(this));
     }
 };
 }

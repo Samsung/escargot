@@ -31,7 +31,7 @@ public:
     static void storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value);
     static Value plusSlowCase(ExecutionState& state, const Value& a, const Value& b);
     static Value modOperation(ExecutionState& state, const Value& left, const Value& right);
-    static Value newOperation(ExecutionState& state, const Value& callee, size_t argc, Value* argv);
+    static Object* newOperation(ExecutionState& state, const Value& callee, size_t argc, Value* argv);
     static Value instanceOfOperation(ExecutionState& state, const Value& left, const Value& right);
     static void deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile);
 
