@@ -25,7 +25,7 @@ BASE_DIR = os.path.join('tools', 'vendortest')
 TIMEOUT_DEFAULT = 60
 
 TEST_SUITES = ["stress", "mozilla"]
-SUPPORTED_ARCHS = ["x64", "x86", "arm64", "arm"]
+SUPPORTED_ARCHS = ["x86_64", "x86", "arm64", "arm"]
 VARIANTS = ["interpreter", "jit"]
 MODES = ["debug", "release"]
 ENGINES = ["escargot", "jsc", "v8"]
@@ -126,11 +126,11 @@ class TestReader(object):
         raise NotImplementedError
 
     def output_file(self, a_v_m_e):
-        return os.path.join(BASE_DIR, ".".join([self.name, self._gen_output_suffix()]))
+        return os.path.join(BASE_DIR, ".".join([self.name, a_v_m_e[0], self._gen_output_suffix()]))
         #return os.path.join(BASE_DIR, ".".join([self.name, a_v_m_e[0], a_v_m_e[1], a_v_m_e[2], a_v_m_e[3], self._gen_output_suffix()]))
 
     def origin_file(self, a_v_m_e):
-        return os.path.join(BASE_DIR, ".".join([self.name, self._orig_output_suffix()]))
+        return os.path.join(BASE_DIR, ".".join([self.name, a_v_m_e[0], self._orig_output_suffix()]))
         #return os.path.join(BASE_DIR, ".".join([self.name, a_v_m_e[0], a_v_m_e[1], a_v_m_e[2], a_v_m_e[3], self._orig_output_suffix()]))
 
     def _suffix(self):

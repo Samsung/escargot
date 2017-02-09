@@ -942,7 +942,7 @@ Running all tests
 [Optimizer] IntDivTypeSpec.js .......... Pass
 [Optimizer] bailonnoprofile_objtypespecstore.js .......... Fail
 [Optimizer] Non32bitOverflow.js .......... Pass
-[Optimizer] implicit_upwardexposed.js .......... Fail
+[Optimizer] implicit_upwardexposed.js .......... Pass
 [Optimizer] bug1288834.js .......... Pass
 [Optimizer] opttagchecks1.js .......... Pass
 [Optimizer] opttagchecks2.js .......... Fail
@@ -1413,7 +1413,7 @@ Running all tests
 [typedarray] dataview.js .......... Fail
 [typedarray] objectproperty.js .......... Fail
 [typedarray] nan.js .......... Fail
-[typedarray] negIndexes.js .......... Pass
+[typedarray] negIndexes.js .......... Fail
 [typedarray] set.js .......... Fail
 [typedarray] samethread.js .......... Fail
 [typedarray] crossthread.js .......... Fail
@@ -2317,7 +2317,7 @@ TESTNAME					TOTAL	PASS	FAIL	SKIP	PASS_RATIO
                Array		113		65		43		5		(57%)
       TaggedIntegers		44		43		1		0		(97%)
         TaggedFloats		1		0		1		0		(0%)
-           Optimizer		214		181		33		0		(84%)
+           Optimizer		214		182		32		0		(85%)
             Function		67		24		41		2		(35%)
               Object		64		37		27		0		(57%)
                Regex		32		18		14		0		(56%)
@@ -2332,7 +2332,7 @@ TESTNAME					TOTAL	PASS	FAIL	SKIP	PASS_RATIO
               strict		105		42		42		21		(40%)
                 utf8		3		1		2		0		(33%)
         UnifiedRegex		27		8		19		0		(29%)
-          typedarray		47		9		38		0		(19%)
+          typedarray		47		8		39		0		(17%)
              bailout		34		27		7		0		(79%)
                 loop		6		4		2		0		(66%)
           StackTrace		17		0		17		0		(0%)

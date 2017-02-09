@@ -67,14 +67,15 @@ run-spidermonkey-full:
 
 run-jsc-stress:
 	cp tools/vendortest/jsc.stress.resource.typedarray-constructor-helper-functions.js test/vendortest/JavaScriptCore/stress/resources/typedarray-constructor-helper-functions.js
-	PYTHONPATH=. ./tools/vendortest/driver.py -s stress;
+	$(eval BIN_ARCH:=$(shell [[ "$(shell file escargot)" == *"32-bit"* ]] && echo "x86" || echo "x86_64"))
+	PYTHONPATH=. ./tools/vendortest/driver.py -s stress -a $(BIN_ARCH);
 
-run-jsc-mozilla:
-	cd test/JavaScriptCore/mozilla/; \
+#run-jsc-mozilla:
+#	cd test/JavaScriptCore/mozilla/; \
 		perl jsDriver.pl -e escargot -s ../../../escargot
 
-run-jetstream:
-	cd test/JetStream-standalone-escargot/JetStream-1.1/; \
+#run-jetstream:
+#	cd test/JetStream-standalone-escargot/JetStream-1.1/; \
 		./run.sh ../../../escargot; \
 		python parsingResults.py jetstream-result-raw.res;
 
@@ -88,21 +89,17 @@ run-chakracore:
 	cp tools/vendortest/chakracore/Miscellaneous.rlexe.xml test/vendortest/ChakraCore/Miscellaneous/rlexe.xml
 	cp tools/vendortest/chakracore/Strings.rlexe.xml test/vendortest/ChakraCore/Strings/rlexe.xml
 	cp tools/vendortest/chakracore/es6.rlexe.xml test/vendortest/ChakraCore/es6/rlexe.xml
-	test/vendortest/ChakraCore/run.sh ./escargot | tee tools/vendortest/chakracore.gen.txt; \
-	diff tools/vendortest/chakracore.orig.txt tools/vendortest/chakracore.gen.txt
+	$(eval BIN_ARCH:=$(shell [[ "$(shell file escargot)" == *"32-bit"* ]] && echo "x86" || echo "x86_64"))
+	test/vendortest/ChakraCore/run.sh ./escargot | tee tools/vendortest/chakracore.$(BIN_ARCH).gen.txt; \
+	diff tools/vendortest/chakracore.$(BIN_ARCH).orig.txt tools/vendortest/chakracore.$(BIN_ARCH).gen.txt
 
-run-v8-donotuse:
+run-v8:
 	cp tools/vendortest/v8/v8.mjsunit.status test/vendortest/v8/test/mjsunit/mjsunit.status
 	cp tools/vendortest/v8/v8.mjsunit.js test/vendortest/v8/test/mjsunit/mjsunit.js
 	cp tools/vendortest/v8/v8.run-tests.py test/vendortest/v8/tools/run-tests.py
 	cp tools/vendortest/v8/v8.testsuite.py test/vendortest/v8/tools/testrunner/local/testsuite.py
 	cp tools/vendortest/v8/v8.execution.py test/vendortest/v8/tools/testrunner/local/execution.py
 	cp tools/vendortest/v8/v8.progress.py test/vendortest/v8/tools/testrunner/local/progress.py
-	./test/vendortest/v8/tools/run-tests.py --quickcheck --no-presubmit --no-variants --arch-and-mode=$(ARCH).release --escargot --report -p verbose --no-sorting mjsunit | tee tools/vendortest/v8.$(ARCH).mjsunit.gen.txt; \
+	$(eval ARCH:=$(shell [[ "$(shell file escargot)" == *"32-bit"* ]] && echo "x32" || echo "x64"))
+	./test/vendortest/v8/tools/run-tests.py --quickcheck --no-presubmit --no-variants --arch-and-mode=$(ARCH).release --shell-dir ../../../ --escargot --report -p verbose --no-sorting mjsunit | tee tools/vendortest/v8.$(ARCH).mjsunit.gen.txt; \
 	diff tools/vendortest/v8.$(ARCH).mjsunit.orig.txt tools/vendortest/v8.$(ARCH).mjsunit.gen.txt
-
-run-v8-64:
-	make run-v8-donotuse ARCH=x64
-
-run-v8-32:
-	make run-v8-donotuse ARCH=x32

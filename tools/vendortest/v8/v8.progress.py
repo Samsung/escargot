@@ -115,22 +115,24 @@ class SimpleProgressIndicator(ProgressIndicator):
 
   def Done(self):
     print
+    # NOTE(Escargot): redirect log to file to check regression
+    old_stdout = sys.stdout
+    sys.stdout = open('v8.verbose.txt', 'w')
     for failed in self.runner.failed:
       self.PrintFailureHeader(failed)
       if failed.output.stderr:
         print "--- stderr ---"
-        # NOTE(Escargot): disable log to check regression
-        # print failed.output.stderr.strip()
+        print failed.output.stderr.strip()
       if failed.output.stdout:
         print "--- stdout ---"
         print failed.output.stdout.strip()
-      # NOTE(Escargot): disable log to check regression
-      # print "Command: %s" % self._EscapeCommand(failed)
+      print "Command: %s" % self._EscapeCommand(failed)
       if failed.output.HasCrashed():
         print "exit code: %d" % failed.output.exit_code
         print "--- CRASHED ---"
       if failed.output.HasTimedOut():
         print "--- TIMEOUT ---"
+    sys.stdout = old_stdout
     if len(self.runner.failed) == 0:
       print "==="
       print "=== All tests succeeded"
