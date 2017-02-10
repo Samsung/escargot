@@ -49,7 +49,7 @@ public:
         return StringType;
     }
 
-    virtual bool isString()
+    virtual bool isString() const
     {
         return true;
     }

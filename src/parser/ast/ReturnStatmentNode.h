@@ -40,10 +40,10 @@ public:
     {
         if (m_argument) {
             m_argument->generateExpressionByteCode(codeBlock, context);
-            codeBlock->pushCode(ReturnFunction(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+            codeBlock->pushCode(ReturnFunctionWithValue(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
             context->giveUpRegister();
         } else {
-            codeBlock->pushCode(ReturnFunction(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this);
+            codeBlock->pushCode(ReturnFunction(ByteCodeLOC(m_loc.index)), context, this);
         }
     }
 

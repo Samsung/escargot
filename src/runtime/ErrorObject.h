@@ -80,7 +80,7 @@ public:
     static void throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototoype, String* functionName, const char* templateString);
     static ErrorObject* createError(ExecutionState& state, ErrorObject::Code code, String* errorMessage);
     ErrorObject(ExecutionState& state, String* errorMessage);
-    virtual bool isErrorObject()
+    virtual bool isErrorObject() const
     {
         return true;
     }

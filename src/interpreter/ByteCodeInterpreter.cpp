@@ -354,7 +354,12 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
                     }
                 }
             }
-            Object* obj = fastToObject(state, willBeObject);
+            Object* obj;
+            if (LIKELY(willBeObject.isObject())) {
+                obj = willBeObject.asObject();
+            } else {
+                obj = fastToObject(state, willBeObject);
+            }
             registerFile[code->m_objectRegisterIndex] = obj->getIndexedProperty(state, property).value(state, obj);
             ADD_PROGRAM_COUNTER(GetObject);
             NEXT_INSTRUCTION();
@@ -396,7 +401,12 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
         GetObjectPreComputedCaseOpcodeLbl : {
             GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            Object* obj = fastToObject(state, willBeObject);
+            Object* obj;
+            if (LIKELY(willBeObject.isObject())) {
+                obj = willBeObject.asObject();
+            } else {
+                obj = fastToObject(state, willBeObject);
+            }
             registerFile[code->m_objectRegisterIndex] = getObjectPrecomputedCaseOperation(state, obj, willBeObject, code->m_propertyName, code->m_inlineCache);
             ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
             NEXT_INSTRUCTION();
@@ -529,6 +539,28 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             NEXT_INSTRUCTION();
         }
 
+        ReturnFunctionWithValueOpcodeLbl : {
+            ReturnFunctionWithValue* code = (ReturnFunctionWithValue*)programCounter;
+            *state.exeuctionResult() = registerFile[code->m_registerIndex];
+            if (UNLIKELY(state.rareData() != nullptr)) {
+                if (state.rareData()->m_controlFlowRecord && state.rareData()->m_controlFlowRecord->size()) {
+                    state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, Value(), state.rareData()->m_controlFlowRecord->size());
+                }
+            }
+            return;
+        }
+
+        ReturnFunctionOpcodeLbl : {
+            ReturnFunction* code = (ReturnFunction*)programCounter;
+            *state.exeuctionResult() = Value();
+            if (UNLIKELY(state.rareData() != nullptr)) {
+                if (state.rareData()->m_controlFlowRecord && state.rareData()->m_controlFlowRecord->size()) {
+                    state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, Value(), state.rareData()->m_controlFlowRecord->size());
+                }
+            }
+            return;
+        }
+
         CreateObjectOpcodeLbl : {
             CreateObject* code = (CreateObject*)programCounter;
             registerFile[code->m_registerIndex] = new Object(state);
@@ -551,6 +583,14 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             const Value& property = registerFile[code->m_propertyRegisterIndex];
             willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(state, property), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptor::AllPresent));
             ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyOperation);
+            NEXT_INSTRUCTION();
+        }
+
+        ObjectDefineOwnPropertyWithNameOperationOpcodeLbl : {
+            ObjectDefineOwnPropertyWithNameOperation* code = (ObjectDefineOwnPropertyWithNameOperation*)programCounter;
+            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+            willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptor::AllPresent));
+            ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyWithNameOperation);
             NEXT_INSTRUCTION();
         }
 
@@ -606,25 +646,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             registerFile[code->m_registerIndex] = val;
             ADD_PROGRAM_COUNTER(UnaryTypeof);
             NEXT_INSTRUCTION();
-        }
-
-        EndOpcodeLbl : {
-            *state.exeuctionResult() = registerFile[0];
-            return;
-        }
-
-        ReturnFunctionOpcodeLbl : {
-            ReturnFunction* code = (ReturnFunction*)programCounter;
-            if (code->m_registerIndex != std::numeric_limits<ByteCodeRegisterIndex>::max())
-                *state.exeuctionResult() = registerFile[code->m_registerIndex];
-            else
-                *state.exeuctionResult() = Value();
-            if (UNLIKELY(state.rareData() != nullptr)) {
-                if (state.rareData()->m_controlFlowRecord && state.rareData()->m_controlFlowRecord->size()) {
-                    state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, Value(), state.rareData()->m_controlFlowRecord->size());
-                }
-            }
-            return;
         }
 
         SetObjectOpcodeSlowCase : {
@@ -721,7 +742,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             state.rareData()->m_controlFlowRecord->erase(state.rareData()->m_controlFlowRecord->size() - 1);
             if (record) {
                 if (record->reason() == ControlFlowRecord::NeedsJump) {
-                    size_t pos = (size_t)record->value().asPointerValue();
+                    size_t pos = record->wordValue();
                     record->m_count--;
                     if (record->count()) {
                         state.rareData()->m_controlFlowRecord->back() = record;
@@ -913,6 +934,11 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             registerFile[code->m_registerIndex] = val;
             ADD_PROGRAM_COUNTER(LoadArgumentsInWithScope);
             NEXT_INSTRUCTION();
+        }
+
+        EndOpcodeLbl : {
+            *state.exeuctionResult() = registerFile[0];
+            return;
         }
 
         } catch (const Value& v) {
@@ -1337,11 +1363,10 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
             (*inlineCache.m_cache)[0]->m_cachedIndex = idx;
             break;
         }
-        const Value& proto = obj->getPrototype(state);
-        if (proto.isObject()) {
-            obj = proto.asObject();
-        } else
+        obj = obj->getPrototypeObject();
+        if (!obj) {
             break;
+        }
     }
 
     if ((*inlineCache.m_cache)[0]->m_cachedIndex != SIZE_MAX) {
@@ -1399,7 +1424,6 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
 {
     // cache miss
     if (inlineCache.m_cacheMissCount > 16) {
-        // puts(name.string()->toUTF8StringData().data());
         originalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, originalObject);
         return;
     }
@@ -1588,24 +1612,10 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::updateEnumerateObjectData
 
 ALWAYS_INLINE Object* ByteCodeInterpreter::fastToObject(ExecutionState& state, const Value& obj)
 {
-    if (LIKELY(obj.isPointerValue())) {
-        PointerValue* v = obj.asPointerValue();
-        /*
-        size_t tag = *((size_t*)(v));
-        if ((tag == g_asciiStringTag) || (tag == g_latin1StringTag) || (tag == g_utf16StringTag) || (tag == g_ropeStringTag) || (tag == g_stringViewTag)) {
-            StringObject* o = state.context()->globalObject()->stringProxyObject();
-            o->setPrimitiveValue(state, obj.asString());
-            return o;
-        }
-        return v->asObject();
-        */
-        if (LIKELY(v->isObject())) {
-            return obj.asObject();
-        } else if (v->isString()) {
-            StringObject* o = state.context()->globalObject()->stringProxyObject();
-            o->setPrimitiveValue(state, obj.asString());
-            return o;
-        }
+    if (LIKELY(obj.isString())) {
+        StringObject* o = state.context()->globalObject()->stringProxyObject();
+        o->setPrimitiveValue(state, obj.asString());
+        return o;
     } else if (obj.isNumber()) {
         NumberObject* o = state.context()->globalObject()->numberProxyObject();
         o->setPrimitiveValue(state, obj.asNumber());
@@ -1716,7 +1726,7 @@ NEVER_INLINE bool ByteCodeInterpreter::withOperation(ExecutionState& state, With
 
     if (record) {
         if (record->reason() == ControlFlowRecord::NeedsJump) {
-            size_t pos = (size_t)record->value().asPointerValue();
+            size_t pos = record->wordValue();
             record->m_count--;
             if (record->count()) {
                 state.rareData()->m_controlFlowRecord->back() = record;

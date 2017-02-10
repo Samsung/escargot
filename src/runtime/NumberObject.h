@@ -19,7 +19,7 @@ public:
         m_primitiveValue = data;
     }
 
-    virtual bool isNumberObject()
+    virtual bool isNumberObject() const
     {
         return true;
     }

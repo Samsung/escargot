@@ -56,12 +56,6 @@ inline Value::Value(EmptyValueInitTag)
     u.asBits.payload = 0;
 }
 
-inline Value::Value(DeletedValueInitTag)
-{
-    u.asBits.tag = DeletedValueTag;
-    u.asBits.payload = 0;
-}
-
 inline Value::Value(TrueInitTag)
 {
     u.asBits.tag = BooleanTag;
@@ -80,24 +74,52 @@ inline Value::Value(bool b)
     u.asBits.payload = b;
 }
 
+extern size_t g_objectTag;
+
 inline Value::Value(PointerValue* ptr)
 {
-    if (LIKELY(ptr != NULL)) {
-        u.asBits.tag = PointerTag;
+    if (ptr->hasTag(g_objectTag) || ptr->isObject()) {
+        u.asBits.tag = ObjectPointerTag;
     } else {
-        u.asBits.tag = EmptyValueTag;
+        u.asBits.tag = OtherPointerTag;
     }
-    u.asBits.payload = reinterpret_cast<int32_t>(ptr);
+    u.asBits.payload = reinterpret_cast<int32_t>(const_cast<PointerValue*>(ptr));
 }
 
 inline Value::Value(const PointerValue* ptr)
 {
-    if (LIKELY(ptr != NULL)) {
-        u.asBits.tag = PointerTag;
+    if (ptr->hasTag(g_objectTag) || ptr->isObject()) {
+        u.asBits.tag = ObjectPointerTag;
     } else {
-        u.asBits.tag = EmptyValueTag;
+        u.asBits.tag = OtherPointerTag;
     }
     u.asBits.payload = reinterpret_cast<int32_t>(const_cast<PointerValue*>(ptr));
+}
+
+inline Value::Value(String* ptr)
+{
+    ASSERT(ptr != NULL);
+    u.asBits.tag = OtherPointerTag;
+    u.asBits.payload = reinterpret_cast<int32_t>(ptr);
+}
+
+inline Value::Value(const String* ptr)
+{
+    ASSERT(ptr != NULL);
+    u.asBits.tag = OtherPointerTag;
+    u.asBits.payload = reinterpret_cast<int32_t>(const_cast<String*>(ptr));
+}
+
+inline Value::Value(Object* ptr)
+{
+    u.asBits.tag = ObjectPointerTag;
+    u.asBits.payload = reinterpret_cast<int32_t>(const_cast<Object*>(ptr));
+}
+
+inline Value::Value(const Object* ptr)
+{
+    u.asBits.tag = ObjectPointerTag;
+    u.asBits.payload = reinterpret_cast<int32_t>(const_cast<Object*>(ptr));
 }
 
 inline Value::Value(EncodeAsDoubleTag, double d)
@@ -169,11 +191,6 @@ inline bool Value::isEmpty() const
     return tag() == EmptyValueTag;
 }
 
-inline bool Value::isDeleted() const
-{
-    return tag() == DeletedValueTag;
-}
-
 ALWAYS_INLINE bool Value::isNumber() const
 {
     return isInt32() || isDouble();
@@ -181,7 +198,7 @@ ALWAYS_INLINE bool Value::isNumber() const
 
 inline bool Value::isPointerValue() const
 {
-    return tag() == PointerTag;
+    return (tag() == ObjectPointerTag) || (tag() == OtherPointerTag);
 }
 
 inline bool Value::isUndefined() const
@@ -217,13 +234,33 @@ inline PointerValue* Value::asPointerValue() const
 
 inline bool Value::isString() const
 {
-    return isPointerValue() && asPointerValue()->isString();
+    return tag() == OtherPointerTag;
 }
 
 inline String* Value::asString() const
 {
     ASSERT(isString());
     return asPointerValue()->asString();
+}
+
+inline bool Value::isObject() const
+{
+    return tag() == ObjectPointerTag;
+}
+
+inline Object* Value::asObject() const
+{
+    return asPointerValue()->asObject();
+}
+
+inline bool Value::isFunction() const
+{
+    return isObject() && asPointerValue()->isFunctionObject();
+}
+
+inline FunctionObject* Value::asFunction() const
+{
+    return asPointerValue()->asFunctionObject();
 }
 
 #else
@@ -255,11 +292,6 @@ inline Value::Value(UndefinedInitTag)
 inline Value::Value(EmptyValueInitTag)
 {
     u.asInt64 = ValueEmpty;
-}
-
-inline Value::Value(DeletedValueInitTag)
-{
-    u.asInt64 = ValueDeleted;
 }
 
 inline Value::Value(TrueInitTag)
@@ -308,7 +340,6 @@ inline Value::Value(int i)
 
 inline Value::operator bool() const
 {
-    ASSERT(u.asInt64 != ValueDeleted);
     return u.asInt64 != ValueEmpty;
 }
 
@@ -359,11 +390,6 @@ inline double Value::asDouble() const
 inline bool Value::isEmpty() const
 {
     return u.asInt64 == ValueEmpty;
-}
-
-inline bool Value::isDeleted() const
-{
-    return u.asInt64 == ValueDeleted;
 }
 
 ALWAYS_INLINE bool Value::isNumber() const
@@ -422,6 +448,26 @@ inline PointerValue* Value::asPointerValue() const
 {
     ASSERT(isPointerValue());
     return u.ptr;
+}
+
+inline bool Value::isObject() const
+{
+    return isPointerValue() && asPointerValue()->isObject();
+}
+
+inline Object* Value::asObject() const
+{
+    return asPointerValue()->asObject();
+}
+
+inline bool Value::isFunction() const
+{
+    return isPointerValue() && asPointerValue()->isFunctionObject();
+}
+
+inline FunctionObject* Value::asFunction() const
+{
+    return asPointerValue()->asFunctionObject();
 }
 
 #endif
@@ -524,29 +570,12 @@ ALWAYS_INLINE double Value::asNumber() const
 
 inline bool Value::isPrimitive() const
 {
-    // return isUndefined() || isNull() || isNumber() || isESString() || isBoolean();
+// return isUndefined() || isNull() || isNumber() || isString() || isBoolean();
+#ifdef ESCARGOT_32
+    return tag() != ObjectPointerTag;
+#else
     return !isPointerValue() || asPointerValue()->isString();
-}
-
-
-inline bool Value::isObject() const
-{
-    return isPointerValue() && asPointerValue()->isObject();
-}
-
-inline Object* Value::asObject() const
-{
-    return asPointerValue()->asObject();
-}
-
-inline bool Value::isFunction() const
-{
-    return isPointerValue() && asPointerValue()->isFunctionObject();
-}
-
-inline FunctionObject* Value::asFunction() const
-{
-    return asPointerValue()->asFunctionObject();
+#endif
 }
 
 inline double Value::toNumber(ExecutionState& state) const

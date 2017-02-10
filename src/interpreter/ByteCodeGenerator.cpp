@@ -61,7 +61,7 @@ void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb
 {
     auto iter = m_complexCaseStatementPositions.find(codePos);
     if (iter != m_complexCaseStatementPositions.end()) {
-        ControlFlowRecord* r = new ControlFlowRecord(ControlFlowRecord::ControlFlowReason::NeedsJump, Value((PointerValue*)(cb->peekCode<Jump>(codePos)->m_jumpPosition)), iter->second);
+        ControlFlowRecord* r = new ControlFlowRecord(ControlFlowRecord::ControlFlowReason::NeedsJump, (cb->peekCode<Jump>(codePos)->m_jumpPosition), iter->second);
         m_byteCodeBlock->m_literalData.pushBack((PointerValue*)r);
         JumpComplexCase j(cb->peekCode<Jump>(codePos), r);
         j.assignOpcodeInAddress();
@@ -104,7 +104,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
     // generate common codes
     ast->generateStatementByteCode(block, &ctx);
     if (!codeBlock->isGlobalScopeCodeBlock())
-        block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX), SIZE_MAX), &ctx, nullptr);
+        block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
 
     // printf("codeSize %lf, %lf\n", block->m_code.size() / 1024.0 / 1024.0, block->m_code.capacity() / 1024.0 / 1024.0);
     block->m_code.shrinkToFit();

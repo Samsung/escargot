@@ -52,7 +52,7 @@ public:
         return IS_VALID_TIME(m_primitiveValue);
     }
 
-    virtual bool isDateObject()
+    virtual bool isDateObject() const
     {
         return true;
     }

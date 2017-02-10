@@ -71,16 +71,15 @@ public:
     enum { BooleanTag = 0xfffffffe };
     enum { NullTag = 0xfffffffd };
     enum { UndefinedTag = 0xfffffffc };
-    enum { PointerTag = 0xfffffffb };
-    enum { EmptyValueTag = 0xfffffffa };
-    enum { DeletedValueTag = 0xfffffff9 };
-    enum { LowestTag = DeletedValueTag };
+    enum { OtherPointerTag = 0xfffffffb };
+    enum { ObjectPointerTag = 0xfffffffa };
+    enum { EmptyValueTag = 0xfffffff9 };
+    enum { LowestTag = EmptyValueTag };
 #endif
 
     enum NullInitTag { Null };
     enum UndefinedInitTag { Undefined };
     enum EmptyValueInitTag { EmptyValue };
-    enum DeletedValueInitTag { DeletedValue };
     enum TrueInitTag { True };
     enum FalseInitTag { False };
     enum EncodeAsDoubleTag { EncodeAsDouble };
@@ -91,11 +90,19 @@ public:
     Value(NullInitTag);
     Value(UndefinedInitTag);
     Value(EmptyValueInitTag);
-    Value(DeletedValueInitTag);
     Value(TrueInitTag);
     Value(FalseInitTag);
+#ifdef ESCARGOT_64
     Value(PointerValue* ptr);
     Value(const PointerValue* ptr);
+#else
+    Value(PointerValue* ptr);
+    Value(const PointerValue* ptr);
+    Value(Object* ptr);
+    Value(const Object* ptr);
+    Value(String* ptr);
+    Value(const String* ptr);
+#endif
 
     // Numbers
     Value(EncodeAsDoubleTag, double);
@@ -135,7 +142,6 @@ public:
 
     // Querying the type.
     inline bool isEmpty() const;
-    inline bool isDeleted() const;
     inline bool isFunction() const;
     inline bool isUndefined() const;
     inline bool isNull() const;
@@ -213,8 +219,8 @@ public:
 #define TagMask (TagTypeNumber | TagBitTypeOther)
 
 // These special values are never visible to JavaScript code; Empty is used to represent
-// Array holes, and for uninitialized ESValues. Deleted is used in hash table code.
-// These values would map to cell types in the ESValue encoding, but not valid GC cell
+// Array holes, and for uninitialized Values. Deleted is used in hash table code.
+// These values would map to cell types in the Value encoding, but not valid GC cell
 // pointer should have either of these values (Empty is null, deleted is at an invalid
 // alignment for a GC cell, and in the zero page).
 #define ValueEmpty 0x0ll

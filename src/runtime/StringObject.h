@@ -14,7 +14,7 @@ public:
         return m_primitiveValue;
     }
 
-    virtual bool isStringObject()
+    virtual bool isStringObject() const
     {
         return true;
     }

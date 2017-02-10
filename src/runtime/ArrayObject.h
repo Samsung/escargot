@@ -21,7 +21,7 @@ class ArrayObject : public Object {
 
 public:
     ArrayObject(ExecutionState& state);
-    virtual bool isArrayObject()
+    virtual bool isArrayObject() const
     {
         return true;
     }

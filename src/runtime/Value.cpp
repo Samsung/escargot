@@ -158,8 +158,13 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
         bool selfIsPointerValue = isPointerValue();
         bool valIsPointerValue = val.isPointerValue();
 
+#ifdef ESCARGOT_32
+        bool valIsString = valIsPointerValue ? !val.isObject() : false;
+        bool selfIsString = selfIsPointerValue ? !isObject() : false;
+#else
         bool valIsString = valIsPointerValue ? val.asPointerValue()->isString() : false;
         bool selfIsString = selfIsPointerValue ? asPointerValue()->isString() : false;
+#endif
 
         if (selfIsNumber && valIsString) {
             // If Type(x) is Number and Type(y) is String,

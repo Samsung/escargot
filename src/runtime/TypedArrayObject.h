@@ -244,7 +244,7 @@ public:
         return typedArrayElementSize;
     }
 
-    virtual bool isTypedArrayObject()
+    virtual bool isTypedArrayObject() const
     {
         return true;
     }

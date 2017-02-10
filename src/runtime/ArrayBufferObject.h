@@ -19,7 +19,7 @@ public:
 
     void allocateBuffer(size_t bytelength);
 
-    virtual bool isArrayBufferObject()
+    virtual bool isArrayBufferObject() const
     {
         return true;
     }

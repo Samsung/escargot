@@ -58,11 +58,6 @@ AtomicString::AtomicString(Context* c, String* name)
 
 void AtomicString::init(AtomicStringMap* ec, String* name)
 {
-    if (UNLIKELY(name->length() == 0)) {
-        m_string = String::emptyString;
-        return;
-    }
-
     auto iter = ec->find(name);
     if (ec->end() == iter) {
         ec->insert(name);

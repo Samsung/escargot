@@ -6,6 +6,7 @@ namespace Escargot {
 
 void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
 {
+    atomicStringMap->insert(String::emptyString);
     NegativeInfinity.init(atomicStringMap, "-Infinity", strlen("-Infinity"));
     stringTrue.init(atomicStringMap, "true", strlen("true"));
     stringFalse.init(atomicStringMap, "false", strlen("false"));

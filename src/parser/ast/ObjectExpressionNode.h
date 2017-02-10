@@ -48,12 +48,18 @@ public:
         for (unsigned i = 0; i < m_properties.size(); i++) {
             PropertyNode* p = m_properties[i];
             AtomicString propertyAtomicName;
+            bool hasKey = false;
             if (p->key()->isIdentifier()) {
-                propertyAtomicName = p->key()->asIdentifier()->name();
-                // we can use LoadLiteral here
-                // because, p->key()->asIdentifier()->name().string()
-                // is protected by AtomicString (IdentifierNode always has AtomicString)
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(p->key()->asIdentifier()->name().string())), context, this);
+                if (p->kind() == PropertyNode::Kind::Init) {
+                    // skip
+                    propertyAtomicName = p->key()->asIdentifier()->name();
+                    hasKey = true;
+                } else {
+                    // we can use LoadLiteral here
+                    // because, p->key()->asIdentifier()->name().string()
+                    // is protected by AtomicString (IdentifierNode always has AtomicString)
+                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(p->key()->asIdentifier()->name().string())), context, this);
+                }
             } else {
                 p->key()->generateExpressionByteCode(codeBlock, context);
             }
@@ -64,10 +70,13 @@ public:
             size_t valueIndex = context->getLastRegisterIndex();
 
             if (p->kind() == PropertyNode::Kind::Init) {
-                codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex), context, this);
-
-                // for drop property index
-                context->giveUpRegister();
+                if (hasKey) {
+                    codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), objIndex, propertyAtomicName, valueIndex), context, this);
+                } else {
+                    codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex), context, this);
+                    // for drop property index
+                    context->giveUpRegister();
+                }
             } else if (p->kind() == PropertyNode::Kind::Get) {
                 codeBlock->pushCode(ObjectDefineGetter(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex), context, this);
                 // for drop property index

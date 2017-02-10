@@ -24,7 +24,7 @@ public:
         return DoubleInSmallValueType;
     }
 
-    virtual bool isDoubleInSmallValue()
+    virtual bool isDoubleInSmallValue() const
     {
         return true;
     }
@@ -139,7 +139,6 @@ extern size_t g_doubleInSmallValueTag;
 #define smallValueTrue (0x8 + sizeof(size_t) * 2)
 #define smallValueFalse (0x8 + sizeof(size_t) * 3)
 #define smallValueEmpty (0x8 + sizeof(size_t) * 4)
-#define smallValueDeleted (0x8 + sizeof(size_t) * 5)
 
 class SmallValue {
 public:
@@ -193,7 +192,7 @@ public:
     {
         if (HAS_OBJECT_TAG(m_data.payload)) {
             PointerValue* v = (PointerValue*)m_data.payload;
-            if (((size_t)v) <= smallValueDeleted) {
+            if (((size_t)v) <= smallValueEmpty) {
                 if (v == (PointerValue*)smallValueUndefined) {
                     return Value();
                 } else if (v == (PointerValue*)smallValueNull) {
@@ -202,12 +201,9 @@ public:
                     return Value(Value::True);
                 } else if (v == (PointerValue*)smallValueFalse) {
                     return Value(Value::False);
-                } else if (v == (PointerValue*)smallValueEmpty) {
-                    return Value(Value::EmptyValue);
-                } else if (v == (PointerValue*)smallValueDeleted) {
-                    return Value(Value::DeletedValue);
                 } else {
-                    RELEASE_ASSERT_NOT_REACHED();
+                    ASSERT(v == (PointerValue*)smallValueEmpty);
+                    return Value(Value::EmptyValue);
                 }
             } else if (g_doubleInSmallValueTag == *((size_t*)v)) {
                 return Value(v->asDoubleInSmallValue()->value());
@@ -250,7 +246,7 @@ protected:
                 m_data.payload = SmallValueImpl::PlatformSmiTagging::IntToSmi(i32);
             } else if (from.isNumber()) {
                 auto payload = m_data.payload;
-                if (((size_t)payload > (size_t)smallValueDeleted) && HAS_OBJECT_TAG(payload)) {
+                if (((size_t)payload > (size_t)smallValueEmpty) && HAS_OBJECT_TAG(payload)) {
                     PointerValue* v = (PointerValue*)payload;
                     if (g_doubleInSmallValueTag == *((size_t*)v)) {
                         ((DoubleInSmallValue*)m_data.payload)->m_value = from.asNumber();
@@ -266,11 +262,9 @@ protected:
                 m_data.payload = (intptr_t)(smallValueFalse);
             } else if (from.isNull()) {
                 m_data.payload = (intptr_t)(smallValueNull);
-            } else if (from.isEmpty()) {
-                m_data.payload = (intptr_t)(smallValueEmpty);
             } else {
-                ASSERT(from.isDeleted());
-                m_data.payload = (intptr_t)(smallValueDeleted);
+                ASSERT(from.isEmpty());
+                m_data.payload = (intptr_t)(smallValueEmpty);
             }
         }
         ASSERT(m_data.payload);

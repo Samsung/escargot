@@ -36,7 +36,7 @@ public:
         m_structure = m_structure->convertToWithFastAccess(state);
     }
 
-    virtual bool isGlobalObject()
+    virtual bool isGlobalObject() const
     {
         return true;
     }

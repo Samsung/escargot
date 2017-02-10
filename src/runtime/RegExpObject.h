@@ -112,7 +112,7 @@ public:
         m_lastIndex = v;
     }
 
-    virtual bool isRegExpObject()
+    virtual bool isRegExpObject() const
     {
         return true;
     }

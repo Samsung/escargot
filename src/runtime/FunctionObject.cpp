@@ -13,6 +13,8 @@
 
 namespace Escargot {
 
+size_t g_functionObjectTag;
+
 void* FunctionObject::operator new(size_t size)
 {
     static bool typeInited = false;

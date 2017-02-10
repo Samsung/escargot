@@ -134,7 +134,7 @@ public:
         return JSGetterSetterType;
     }
 
-    virtual bool isJSGetterSetter()
+    virtual bool isJSGetterSetter() const
     {
         return true;
     }
@@ -469,6 +469,8 @@ protected:
 #define ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER 0
 #define ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 
+extern size_t g_objectTag;
+
 class Object : public PointerValue {
     friend class Context;
     friend class GlobalObject;
@@ -484,7 +486,7 @@ public:
         return ObjectType;
     }
 
-    virtual bool isObject()
+    virtual bool isObject() const
     {
         return true;
     }

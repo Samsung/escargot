@@ -64,7 +64,7 @@ public:
 
     PromiseObject(ExecutionState& state);
 
-    virtual bool isPromiseObject()
+    virtual bool isPromiseObject() const
     {
         return true;
     }

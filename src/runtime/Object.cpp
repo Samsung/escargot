@@ -261,6 +261,8 @@ ObjectPropertyDescriptor ObjectPropertyDescriptor::fromObjectStructurePropertyDe
     }
 }
 
+size_t g_objectTag;
+
 Object::Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea)
     : m_structure(state.context()->defaultStructureForObject())
 {
@@ -287,6 +289,7 @@ Object* Object::createBuiltinObjectPrototype(ExecutionState& state)
     Object* obj = new Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, false);
     obj->m_structure = state.context()->defaultStructureForObject();
     obj->m_prototype = nullptr;
+    g_objectTag = *((size_t*)obj);
     return obj;
 }
 

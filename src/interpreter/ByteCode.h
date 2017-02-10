@@ -13,81 +13,83 @@ class ObjectStructure;
 class Node;
 
 // <OpcodeName, PushCount, PopCount>
-#define FOR_EACH_BYTECODE_OP(F)               \
-    F(LoadLiteral, 1, 0)                      \
-    F(LoadByName, 1, 0)                       \
-    F(StoreByName, 0, 0)                      \
-    F(LoadByStackIndex, 1, 0)                 \
-    F(StoreByStackIndex, 0, 0)                \
-    F(LoadByHeapIndex, 1, 0)                  \
-    F(StoreByHeapIndex, 0, 0)                 \
-    F(DeclareVarVariable, 0, 0)               \
-    F(DeclareFunctionDeclaration, 1, 0)       \
-    F(DeclareFunctionExpression, 1, 0)        \
-    F(GetThis, 1, 0)                          \
-    F(NewOperation, 1, 0)                     \
-    F(BinaryPlus, 1, 2)                       \
-    F(BinaryMinus, 1, 2)                      \
-    F(BinaryMultiply, 1, 2)                   \
-    F(BinaryDivision, 1, 2)                   \
-    F(BinaryMod, 1, 2)                        \
-    F(BinaryEqual, 1, 2)                      \
-    F(BinaryLessThan, 1, 2)                   \
-    F(BinaryLessThanOrEqual, 1, 2)            \
-    F(BinaryGreaterThan, 1, 2)                \
-    F(BinaryGreaterThanOrEqual, 1, 2)         \
-    F(BinaryNotEqual, 1, 2)                   \
-    F(BinaryStrictEqual, 1, 2)                \
-    F(BinaryNotStrictEqual, 1, 2)             \
-    F(BinaryBitwiseAnd, 1, 2)                 \
-    F(BinaryBitwiseOr, 1, 2)                  \
-    F(BinaryBitwiseXor, 1, 2)                 \
-    F(BinaryLeftShift, 1, 2)                  \
-    F(BinarySignedRightShift, 1, 2)           \
-    F(BinaryUnsignedRightShift, 1, 2)         \
-    F(BinaryInOperation, 1, 2)                \
-    F(BinaryInstanceOfOperation, 1, 2)        \
-    F(CreateObject, 1, 0)                     \
-    F(CreateArray, 1, 0)                      \
-    F(ObjectDefineOwnPropertyOperation, 0, 0) \
-    F(GetObject, 1, 2)                        \
-    F(SetObject, 0, 2)                        \
-    F(GetObjectPreComputedCase, 1, 1)         \
-    F(SetObjectPreComputedCase, 0, 1)         \
-    F(GetGlobalObject, 1, 1)                  \
-    F(SetGlobalObject, 0, 1)                  \
-    F(Move, 1, 0)                             \
-    F(ToNumber, 1, 1)                         \
-    F(UnaryMinus, 1, 1)                       \
-    F(UnaryNot, 1, 1)                         \
-    F(UnaryBitwiseNot, 1, 1)                  \
-    F(UnaryTypeof, 1, 1)                      \
-    F(UnaryDelete, 1, 1)                      \
-    F(Jump, 0, 0)                             \
-    F(JumpComplexCase, 0, 0)                  \
-    F(JumpIfTrue, 0, 0)                       \
-    F(JumpIfFalse, 0, 0)                      \
-    F(CallFunction, -1, 0)                    \
-    F(ReturnFunction, 0, 0)                   \
-    F(TryOperation, 0, 0)                     \
-    F(TryCatchWithBodyEnd, 0, 0)              \
-    F(FinallyEnd, 0, 0)                       \
-    F(ThrowOperation, 0, 0)                   \
-    F(EnumerateObject, 1, 0)                  \
-    F(EnumerateObjectKey, 1, 0)               \
-    F(CheckIfKeyIsLast, 0, 0)                 \
-    F(LoadRegexp, 1, 0)                       \
-    F(WithOperation, 0, 0)                    \
-    F(ObjectDefineGetter, 0, 0)               \
-    F(ObjectDefineSetter, 0, 0)               \
-    F(LoadArgumentsObject, 0, 0)              \
-    F(LoadArgumentsInWithScope, 0, 0)         \
-    F(StoreArgumentsObject, 0, 0)             \
-    F(CallNativeFunction, 0, 0)               \
-    F(CallEvalFunction, 0, 0)                 \
-    F(CallBoundFunction, 0, 0)                \
-    F(CallFunctionInWithScope, 0, 0)          \
-    F(ResetExecuteResult, 0, 0)               \
+#define FOR_EACH_BYTECODE_OP(F)                       \
+    F(LoadLiteral, 1, 0)                              \
+    F(LoadByName, 1, 0)                               \
+    F(StoreByName, 0, 0)                              \
+    F(LoadByStackIndex, 1, 0)                         \
+    F(StoreByStackIndex, 0, 0)                        \
+    F(LoadByHeapIndex, 1, 0)                          \
+    F(StoreByHeapIndex, 0, 0)                         \
+    F(DeclareVarVariable, 0, 0)                       \
+    F(DeclareFunctionDeclaration, 1, 0)               \
+    F(DeclareFunctionExpression, 1, 0)                \
+    F(GetThis, 1, 0)                                  \
+    F(NewOperation, 1, 0)                             \
+    F(BinaryPlus, 1, 2)                               \
+    F(BinaryMinus, 1, 2)                              \
+    F(BinaryMultiply, 1, 2)                           \
+    F(BinaryDivision, 1, 2)                           \
+    F(BinaryMod, 1, 2)                                \
+    F(BinaryEqual, 1, 2)                              \
+    F(BinaryLessThan, 1, 2)                           \
+    F(BinaryLessThanOrEqual, 1, 2)                    \
+    F(BinaryGreaterThan, 1, 2)                        \
+    F(BinaryGreaterThanOrEqual, 1, 2)                 \
+    F(BinaryNotEqual, 1, 2)                           \
+    F(BinaryStrictEqual, 1, 2)                        \
+    F(BinaryNotStrictEqual, 1, 2)                     \
+    F(BinaryBitwiseAnd, 1, 2)                         \
+    F(BinaryBitwiseOr, 1, 2)                          \
+    F(BinaryBitwiseXor, 1, 2)                         \
+    F(BinaryLeftShift, 1, 2)                          \
+    F(BinarySignedRightShift, 1, 2)                   \
+    F(BinaryUnsignedRightShift, 1, 2)                 \
+    F(BinaryInOperation, 1, 2)                        \
+    F(BinaryInstanceOfOperation, 1, 2)                \
+    F(CreateObject, 1, 0)                             \
+    F(CreateArray, 1, 0)                              \
+    F(ObjectDefineOwnPropertyOperation, 0, 0)         \
+    F(ObjectDefineOwnPropertyWithNameOperation, 0, 0) \
+    F(GetObject, 1, 2)                                \
+    F(SetObject, 0, 2)                                \
+    F(GetObjectPreComputedCase, 1, 1)                 \
+    F(SetObjectPreComputedCase, 0, 1)                 \
+    F(GetGlobalObject, 1, 1)                          \
+    F(SetGlobalObject, 0, 1)                          \
+    F(Move, 1, 0)                                     \
+    F(ToNumber, 1, 1)                                 \
+    F(UnaryMinus, 1, 1)                               \
+    F(UnaryNot, 1, 1)                                 \
+    F(UnaryBitwiseNot, 1, 1)                          \
+    F(UnaryTypeof, 1, 1)                              \
+    F(UnaryDelete, 1, 1)                              \
+    F(Jump, 0, 0)                                     \
+    F(JumpComplexCase, 0, 0)                          \
+    F(JumpIfTrue, 0, 0)                               \
+    F(JumpIfFalse, 0, 0)                              \
+    F(CallFunction, -1, 0)                            \
+    F(ReturnFunction, 0, 0)                           \
+    F(ReturnFunctionWithValue, 0, 0)                  \
+    F(TryOperation, 0, 0)                             \
+    F(TryCatchWithBodyEnd, 0, 0)                      \
+    F(FinallyEnd, 0, 0)                               \
+    F(ThrowOperation, 0, 0)                           \
+    F(EnumerateObject, 1, 0)                          \
+    F(EnumerateObjectKey, 1, 0)                       \
+    F(CheckIfKeyIsLast, 0, 0)                         \
+    F(LoadRegexp, 1, 0)                               \
+    F(WithOperation, 0, 0)                            \
+    F(ObjectDefineGetter, 0, 0)                       \
+    F(ObjectDefineSetter, 0, 0)                       \
+    F(LoadArgumentsObject, 0, 0)                      \
+    F(LoadArgumentsInWithScope, 0, 0)                 \
+    F(StoreArgumentsObject, 0, 0)                     \
+    F(CallNativeFunction, 0, 0)                       \
+    F(CallEvalFunction, 0, 0)                         \
+    F(CallBoundFunction, 0, 0)                        \
+    F(CallFunctionInWithScope, 0, 0)                  \
+    F(ResetExecuteResult, 0, 0)                       \
     F(End, 0, 0)
 
 enum Opcode {
@@ -607,6 +609,28 @@ public:
 #endif
 };
 
+class ObjectDefineOwnPropertyWithNameOperation : public ByteCode {
+public:
+    ObjectDefineOwnPropertyWithNameOperation(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, AtomicString propertyName, const size_t& loadRegisterIndex)
+        : ByteCode(Opcode::ObjectDefineOwnPropertyWithNameOperationOpcode, loc)
+        , m_objectRegisterIndex(objectRegisterIndex)
+        , m_loadRegisterIndex(loadRegisterIndex)
+        , m_propertyName(propertyName)
+    {
+    }
+
+    ByteCodeRegisterIndex m_objectRegisterIndex;
+    ByteCodeRegisterIndex m_loadRegisterIndex;
+    AtomicString m_propertyName;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("object define own property with name r%d.%s <- r%d", (int)m_objectRegisterIndex, m_propertyName.string()->toUTF8StringData().data(), (int)m_loadRegisterIndex);
+    }
+#endif
+};
+
 
 struct ObjectStructureChainItem : public gc {
     ObjectStructure* m_objectStructure;
@@ -935,6 +959,13 @@ public:
         m_count = count;
     }
 
+    ControlFlowRecord(const ControlFlowReason& reason, const size_t& value, size_t count = 0)
+    {
+        m_reason = reason;
+        m_wordValue = value;
+        m_count = count;
+    }
+
     const ControlFlowReason& reason()
     {
         return m_reason;
@@ -950,6 +981,16 @@ public:
         m_value = value;
     }
 
+    const size_t& wordValue()
+    {
+        return m_wordValue;
+    }
+
+    void setWordValue(const size_t& value)
+    {
+        m_wordValue = value;
+    }
+
     size_t count()
     {
         return m_count;
@@ -962,7 +1003,10 @@ public:
 
 protected:
     ControlFlowReason m_reason;
-    Value m_value;
+    union {
+        Value m_value;
+        size_t m_wordValue;
+    };
     size_t m_count;
 };
 
@@ -1125,8 +1169,22 @@ public:
 
 class ReturnFunction : public ByteCode {
 public:
-    ReturnFunction(const ByteCodeLOC& loc, const size_t& registerIndex)
+    ReturnFunction(const ByteCodeLOC& loc)
         : ByteCode(Opcode::ReturnFunctionOpcode, loc)
+    {
+    }
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("return");
+    }
+#endif
+};
+
+class ReturnFunctionWithValue : public ByteCode {
+public:
+    ReturnFunctionWithValue(const ByteCodeLOC& loc, const size_t& registerIndex)
+        : ByteCode(Opcode::ReturnFunctionWithValueOpcode, loc)
         , m_registerIndex(registerIndex)
     {
     }
@@ -1211,10 +1269,15 @@ public:
 #endif
 };
 
-struct EnumerateObjectData {
+struct EnumerateObjectData : public PointerValue {
     EnumerateObjectData()
     {
         m_idx = 0;
+    }
+
+    virtual Type type()
+    {
+        return EnumerateObjectDataType;
     }
 
     ObjectStructureChain m_hiddenClassChain;

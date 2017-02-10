@@ -134,6 +134,9 @@ void GlobalObject::installFunction(ExecutionState& state)
 {
     FunctionObject* emptyFunction = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionEmptyFunction, 1, nullptr, 0)),
                                                        FunctionObject::__ForBuiltin__);
+
+    g_functionObjectTag = *((size_t*)emptyFunction);
+
     m_functionPrototype = emptyFunction;
     m_functionPrototype->setPrototype(state, m_objectPrototype);
     m_functionPrototype->markThisObjectDontNeedStructureTransitionTable(state);

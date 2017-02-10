@@ -26,89 +26,90 @@ public:
         ObjectRareDataType,
         DoubleInSmallValueType,
         JSGetterSetterType,
+        EnumerateObjectDataType,
     };
 
     virtual Type type() = 0;
-    virtual bool isString()
+    virtual bool isString() const
     {
         return false;
     }
 
-    virtual bool isObject()
+    virtual bool isObject() const
     {
         return false;
     }
 
-    virtual bool isFunctionObject()
+    virtual bool isFunctionObject() const
     {
         return false;
     }
 
-    virtual bool isArrayObject()
+    virtual bool isArrayObject() const
     {
         return false;
     }
 
-    virtual bool isStringObject()
+    virtual bool isStringObject() const
     {
         return false;
     }
 
-    virtual bool isNumberObject()
+    virtual bool isNumberObject() const
     {
         return false;
     }
 
-    virtual bool isBooleanObject()
+    virtual bool isBooleanObject() const
     {
         return false;
     }
 
-    virtual bool isDateObject()
+    virtual bool isDateObject() const
     {
         return false;
     }
 
-    virtual bool isRegExpObject()
+    virtual bool isRegExpObject() const
     {
         return false;
     }
 
-    virtual bool isErrorObject()
+    virtual bool isErrorObject() const
     {
         return false;
     }
 
-    virtual bool isGlobalObject()
+    virtual bool isGlobalObject() const
     {
         return false;
     }
 
 #if ESCARGOT_ENABLE_PROMISE
-    virtual bool isPromiseObject()
+    virtual bool isPromiseObject() const
     {
         return false;
     }
 #endif
 
 #if ESCARGOT_ENABLE_TYPEDARRAY
-    virtual bool isTypedArrayObject()
+    virtual bool isTypedArrayObject() const
     {
         return false;
     }
 
-    virtual bool isArrayBufferObject()
+    virtual bool isArrayBufferObject() const
     {
         return false;
     }
 #endif
 
-    virtual bool isDoubleInSmallValue()
+    virtual bool isDoubleInSmallValue() const
     {
         return false;
     }
 
-    virtual bool isJSGetterSetter()
+    virtual bool isJSGetterSetter() const
     {
         return false;
     }
@@ -181,7 +182,7 @@ public:
         return (JSGetterSetter*)this;
     }
 
-    bool hasTag(const size_t tag)
+    bool hasTag(const size_t tag) const
     {
         return tag == *((size_t*)(this));
     }

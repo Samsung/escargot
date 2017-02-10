@@ -19,7 +19,7 @@ public:
         m_primitiveValue = val;
     }
 
-    virtual bool isBooleanObject()
+    virtual bool isBooleanObject() const
     {
         return true;
     }
