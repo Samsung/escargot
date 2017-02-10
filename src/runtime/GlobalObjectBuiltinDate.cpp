@@ -76,14 +76,40 @@ static Value builtinDateNow(ExecutionState& state, Value thisValue, size_t argc,
 
 static Value builtinDateParse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    Value str = argv[0].toPrimitive(state, Value::PreferString);
+    if (str.isString()) {
+        DateObject d(state);
+        d.setTimeValue(state, str);
+        return Value(d.primitiveValue());
+    }
+    return Value(std::numeric_limits<double>::quiet_NaN());
 }
 
 static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    DateObject d(state);
+    double args[7] = { 0, 0, 1, 0, 0, 0, 0 }; // default value of year, month, date, hour, minute, second, millisecond
+    for (size_t i = 0; i < argc; i++) {
+        args[i] = argv[i].toNumber(state);
+    }
+    double year = args[0];
+    double month = args[1];
+    double date = args[2];
+    double hour = args[3];
+    double minute = args[4];
+    double second = args[5];
+    double millisecond = args[6];
+
+    if (!std::isnan(year) && (int)year >= 0 && (int)year <= 99) {
+        year += 1900;
+    }
+
+    if (argc < 2 || std::isnan(year) || std::isnan(month) || std::isnan(date) || std::isnan(hour) || std::isnan(minute) || std::isnan(second) || std::isnan(millisecond)) {
+        d.setTimeValueAsNaN();
+    } else {
+        d.setTimeValue(state, year, month, date, hour, minute, second, millisecond, false);
+    }
+    return Value(d.primitiveValue());
 }
 
 static Value builtinDateGetTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -179,8 +205,26 @@ static Value builtinDateToISOString(ExecutionState& state, Value thisValue, size
 
 static Value builtinDateToJSON(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toJSON);
+
+    Value tv = thisValue.toPrimitive(state, Value::PreferNumber);
+    if (tv.isNumber() && (std::isnan(tv.asNumber()) || std::isinf(tv.asNumber()))) {
+        return Value(Value::Null);
+    }
+
+    ObjectGetResult isoFuncGetResult = thisObject->get(state, ObjectPropertyName(state.context()->staticStrings().toISOString));
+
+    if (!(isoFuncGetResult.hasValue())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toJSON.string(), errorMessage_GlobalObject_ToISOStringNotCallable);
+    }
+
+    Value isoFunc = isoFuncGetResult.value(state, thisObject);
+
+    if (!(isoFunc.isFunction())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toJSON.string(), errorMessage_GlobalObject_ToISOStringNotCallable);
+    }
+
+    return FunctionObject::call(state, isoFunc, thisObject, 0, nullptr, false);
 }
 
 static Value builtinDateToGMTString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

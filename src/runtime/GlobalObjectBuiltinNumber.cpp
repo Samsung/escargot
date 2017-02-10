@@ -312,7 +312,7 @@ static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue,
 
 static Value builtinNumberValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    if (thisValue.isBoolean()) {
+    if (thisValue.isNumber()) {
         return Value(thisValue);
     } else if (thisValue.isObject() && thisValue.asObject()->isNumberObject()) {
         return Value(thisValue.asPointerValue()->asNumberObject()->primitiveValue());
