@@ -107,7 +107,7 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
     }
     // printf("codeSizeTotal %lfMB\n", (int)currentCodeSizeTotal / 1024.0 / 1024.0);
 
-    const int codeSizeMax = 1024 * 1024 * 2;
+    const size_t codeSizeMax = 1024 * 1024 * 2;
     if (currentCodeSizeTotal > codeSizeMax) {
         std::vector<CodeBlock*, gc_allocator<CodeBlock*>> codeBlocksInCurrentStack;
 

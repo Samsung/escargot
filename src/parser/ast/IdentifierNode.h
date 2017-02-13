@@ -56,7 +56,7 @@ public:
                     codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), m_name), context, this);
                 }
             } else {
-                if (context->m_isCatchScope && m_name == context->m_lastCatchVariableName) {
+                if (context->m_isWithScope || (context->m_isCatchScope && m_name == context->m_lastCatchVariableName)) {
                     codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), m_name), context, this);
                     return;
                 }
@@ -93,7 +93,7 @@ public:
                     codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), context->getRegister(), m_name), context, this);
                 }
             } else {
-                if (context->m_isCatchScope && m_name == context->m_lastCatchVariableName) {
+                if (context->m_isWithScope || (context->m_isCatchScope && m_name == context->m_lastCatchVariableName)) {
                     codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), context->getRegister(), m_name), context, this);
                     return;
                 }

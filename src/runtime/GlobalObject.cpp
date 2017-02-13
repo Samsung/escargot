@@ -425,7 +425,7 @@ static Value decode(ExecutionState& state, String* uriString, bool noComponent, 
             char16_t nextnext = uriString->charAt(i + 2);
 
             // char to hex
-            unsigned char b;
+            unsigned char b = 0;
             if (!twocharToHexaDecimal(next, nextnext, &b))
                 ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
             i += 2;

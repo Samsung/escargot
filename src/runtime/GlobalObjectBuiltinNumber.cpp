@@ -62,7 +62,7 @@ static Value builtinNumberConstructor(ExecutionState& state, Value thisValue, si
 
 static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    double number;
+    double number = 0.0;
 
     if (thisValue.isNumber()) {
         number = thisValue.asNumber();
@@ -110,7 +110,7 @@ static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t
 
 static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    double number;
+    double number = 0.0;
 
     if (thisValue.isNumber()) {
         number = thisValue.asNumber();
@@ -199,7 +199,7 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
 
 static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    double number;
+    double number = 0.0;
 
     if (thisValue.isNumber()) {
         number = thisValue.asNumber();

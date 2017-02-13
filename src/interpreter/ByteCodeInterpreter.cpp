@@ -1334,7 +1334,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
 {
     const int maxCacheMissCount = 16;
     const int minCacheFillCount = 3;
-    const int maxCacheCount = 10;
+    const size_t maxCacheCount = 10;
     // cache miss.
     inlineCache.m_executeCount++;
     if (inlineCache.m_executeCount <= minCacheFillCount) {

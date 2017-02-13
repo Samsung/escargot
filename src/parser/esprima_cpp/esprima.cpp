@@ -3230,8 +3230,8 @@ public:
         std::shared_ptr<ScannerResult> token = this->lookahead;
 
         PropertyNode::Kind kind;
-        Node* key; //'': Node.PropertyKey;
-        Node* value; //: Node.PropertyValue;
+        Node* key = nullptr; //'': Node.PropertyKey;
+        Node* value = nullptr; //: Node.PropertyValue;
 
         bool computed = false;
         bool method = false;

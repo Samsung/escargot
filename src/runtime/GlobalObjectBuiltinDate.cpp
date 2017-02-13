@@ -333,7 +333,7 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
     }
 
     DateObject* thisDateObject = thisObject->asDateObject();
-    double args[1];
+    double args[1] = { 0.0 };
     if (argc < 1) {
         thisDateObject->setTimeValueAsNaN();
         return Value(thisDateObject->primitiveValue());
