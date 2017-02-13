@@ -5,15 +5,15 @@
 
 namespace Escargot {
 
-#define ESCARGOT_ROPE_STRING_MIN_LENGTH 24
+#define ESCARGOT_ROPE_STRING_MIN_LENGTH 4
 
 class RopeString : public String {
 public:
     RopeString()
         : String()
     {
-        m_left = nullptr;
-        m_right = nullptr;
+        m_left = String::emptyString;
+        m_right = String::emptyString;
         m_contentLength = 0;
     }
 

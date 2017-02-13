@@ -77,7 +77,7 @@ public:
             ASSERT(m_property->isIdentifier());
             size_t pos = codeBlock->currentCodeSize();
             codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name()), context, this);
-            codeBlock->m_literalData.pushBack((PointerValue*)codeBlock->peekCode<GetObjectPreComputedCase>(pos)->m_inlineCache.m_cache);
+            context->m_getObjectCodePositions.push_back(pos);
         } else {
             m_property->generateExpressionByteCode(codeBlock, context);
             codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex), context, this);
@@ -142,7 +142,7 @@ public:
 
             size_t pos = codeBlock->currentCodeSize();
             codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), r1, m_property->asIdentifier()->name()), context, this);
-            codeBlock->m_literalData.pushBack((PointerValue*)codeBlock->peekCode<GetObjectPreComputedCase>(pos)->m_inlineCache.m_cache);
+            context->m_getObjectCodePositions.push_back(pos);
         } else {
             size_t objectIndex = context->getLastRegisterIndex() - 1;
             size_t propertyIndex = context->getLastRegisterIndex();

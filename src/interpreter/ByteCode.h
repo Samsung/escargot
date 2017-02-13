@@ -645,31 +645,46 @@ struct ObjectStructureChainItem : public gc {
     }
 };
 
-typedef TightVector<ObjectStructureChainItem, gc_malloc_atomic_ignore_off_page_allocator<ObjectStructureChainItem>> ObjectStructureChain;
+typedef std::vector<ObjectStructureChainItem, std::allocator<ObjectStructureChainItem>> ObjectStructureChain;
 
-struct GetObjectInlineCacheData : public gc {
+struct GetObjectInlineCacheData {
     GetObjectInlineCacheData()
     {
         m_cachedIndex = SIZE_MAX;
     }
 
-    void* operator new(size_t size);
-    void* operator new[](size_t size) = delete;
+    GetObjectInlineCacheData(const GetObjectInlineCacheData& src)
+    {
+        m_cachedhiddenClassChain = src.m_cachedhiddenClassChain;
+        m_cachedIndex = src.m_cachedIndex;
+    }
+
+    GetObjectInlineCacheData(GetObjectInlineCacheData&& src)
+    {
+        m_cachedhiddenClassChain = std::move(src.m_cachedhiddenClassChain);
+        m_cachedIndex = src.m_cachedIndex;
+    }
+
+    GetObjectInlineCacheData& operator=(const GetObjectInlineCacheData& src)
+    {
+        m_cachedhiddenClassChain = src.m_cachedhiddenClassChain;
+        m_cachedIndex = src.m_cachedIndex;
+        return *this;
+    }
 
     ObjectStructureChain m_cachedhiddenClassChain;
     size_t m_cachedIndex;
 };
 
-typedef TightVector<GetObjectInlineCacheData*, gc_malloc_ignore_off_page_allocator<GetObjectInlineCacheData*>> GetObjectInlineCacheDataVector;
+typedef std::vector<GetObjectInlineCacheData, std::allocator<GetObjectInlineCacheData>> GetObjectInlineCacheDataVector;
 
 struct GetObjectInlineCache {
     GetObjectInlineCache()
     {
         m_cacheMissCount = m_executeCount = 0;
-        m_cache = new (GC) GetObjectInlineCacheDataVector();
     }
 
-    GetObjectInlineCacheDataVector* m_cache;
+    GetObjectInlineCacheDataVector m_cache;
     uint16_t m_executeCount;
     uint16_t m_cacheMissCount;
 };
@@ -684,9 +699,9 @@ public:
     {
     }
 
+    GetObjectInlineCache m_inlineCache;
     size_t m_objectRegisterIndex;
     PropertyName m_propertyName;
-    GetObjectInlineCache m_inlineCache;
 #ifndef NDEBUG
     virtual void dump()
     {
@@ -1283,7 +1298,7 @@ struct EnumerateObjectData : public PointerValue {
     ObjectStructureChain m_hiddenClassChain;
     Object* m_object;
     size_t m_idx;
-    ValueVector m_keys;
+    SmallValueVector m_keys;
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -1536,6 +1551,11 @@ public:
         GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
                                                 void*) {
             ByteCodeBlock* self = (ByteCodeBlock*)obj;
+            for (size_t i = 0; i < self->m_getObjectCodePositions.size(); i++) {
+                GetObjectInlineCacheDataVector().swap(((GetObjectPreComputedCase*)((size_t)self->m_code.data() + self->m_getObjectCodePositions[i]))->m_inlineCache.m_cache);
+            }
+            std::vector<size_t>().swap(self->m_getObjectCodePositions);
+
             self->m_code.clear();
             self->m_locData.clear();
         },
@@ -1608,6 +1628,8 @@ public:
     ByteCodeLOCData m_locData;
     size_t m_requiredRegisterFileSizeInValueSize;
     CodeBlock* m_codeBlock;
+
+    std::vector<size_t> m_getObjectCodePositions;
 };
 }
 

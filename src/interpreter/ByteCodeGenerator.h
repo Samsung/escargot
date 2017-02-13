@@ -83,6 +83,7 @@ struct ByteCodeGenerateContext {
         ctx.m_labeledBreakStatmentPositions.insert(ctx.m_labeledBreakStatmentPositions.end(), m_labeledBreakStatmentPositions.begin(), m_labeledBreakStatmentPositions.end());
         ctx.m_labeledContinueStatmentPositions.insert(ctx.m_labeledContinueStatmentPositions.end(), m_labeledContinueStatmentPositions.begin(), m_labeledContinueStatmentPositions.end());
         ctx.m_complexCaseStatementPositions.insert(m_complexCaseStatementPositions.begin(), m_complexCaseStatementPositions.end());
+        ctx.m_getObjectCodePositions.insert(ctx.m_getObjectCodePositions.end(), m_getObjectCodePositions.begin(), m_getObjectCodePositions.end());
         ctx.m_offsetToBasePointer = m_offsetToBasePointer;
         ctx.m_positionToContinue = m_positionToContinue;
         ctx.m_feCounter = m_feCounter;
@@ -200,6 +201,7 @@ struct ByteCodeGenerateContext {
     std::vector<size_t> m_continueStatementPositions;
     std::vector<std::pair<String*, size_t> > m_labeledBreakStatmentPositions;
     std::vector<std::pair<String*, size_t> > m_labeledContinueStatmentPositions;
+    std::vector<size_t> m_getObjectCodePositions;
     // For For In Statement
     size_t m_offsetToBasePointer;
     // For Label Statement
