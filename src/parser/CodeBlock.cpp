@@ -56,6 +56,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
         m_functionNameSaveInfo.m_isAllocatedOnStack = true;
         m_functionNameSaveInfo.m_index = m_functionNameIndex;
     }
+    m_thisSymbolIndex = SIZE_MAX;
     m_isNativeFunction = true;
     m_hasCallNativeFunctionCode = true;
     m_functionName = info.m_name;
@@ -110,6 +111,7 @@ CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundT
     const CodeBlock* targetCodeBlock = targetFunction->codeBlock();
 
     m_hasCallNativeFunctionCode = false;
+    m_thisSymbolIndex = SIZE_MAX;
     m_isNativeFunction = targetCodeBlock->isNativeFunction();
     m_functionName = targetCodeBlock->functionName();
     m_isStrict = targetCodeBlock->isStrict();
@@ -221,6 +223,8 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
         info.m_indexForIndexedStorage = SIZE_MAX;
         m_identifierInfos.push_back(info);
     }
+
+    m_thisSymbolIndex = SIZE_MAX;
 }
 
 CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, size_t astNodeStartIndex, AtomicString functionName, const AtomicStringVector& parameterNames, const AtomicStringVector& innerIdentifiers,
@@ -302,6 +306,10 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeL
 
     m_canUseIndexedVariableStorage = !hasEvalWithCatchYield();
 
+    if (m_inWith) {
+        m_canUseIndexedVariableStorage = false;
+    }
+
     if (m_canUseIndexedVariableStorage) {
         m_canAllocateEnvironmentOnStack = true;
     } else {
@@ -316,6 +324,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeL
         m_identifierInfos.push_back(info);
     }
 
+    m_thisSymbolIndex = SIZE_MAX;
     m_needsComplexParameterCopy = false;
     m_isInWithScope = false;
 }
@@ -384,11 +393,15 @@ void CodeBlock::computeVariables()
             }
         }
 
+        m_thisSymbolIndex = s;
+        s++;
+
         m_identifierOnStackCount = s;
         m_identifierOnHeapCount = h;
     } else {
         m_needsComplexParameterCopy = true;
 
+        size_t s = 0;
         size_t h = 0;
         for (size_t i = 0; i < m_identifierInfos.size(); i++) {
             m_identifierInfos[i].m_needToAllocateOnStack = false;
@@ -410,7 +423,10 @@ void CodeBlock::computeVariables()
             m_parametersInfomation[i].m_index = SIZE_MAX;
         }
 
-        m_identifierOnStackCount = 0;
+        m_thisSymbolIndex = s;
+        s++;
+
+        m_identifierOnStackCount = s;
         m_identifierOnHeapCount = h;
     }
 

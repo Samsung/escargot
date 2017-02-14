@@ -20,14 +20,8 @@ GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBloc
     const CodeBlock::IdentifierInfoVector& vec = codeBlock->identifierInfos();
     size_t len = vec.size();
     for (size_t i = 0; i < len; i++) {
-        ASSERT(vec[i].m_needToAllocateOnStack == false);
         createMutableBinding(state, vec[i].m_name, false);
     }
-}
-
-Value GlobalEnvironmentRecord::getThisBinding()
-{
-    return m_globalObject;
 }
 
 void GlobalEnvironmentRecord::createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete)

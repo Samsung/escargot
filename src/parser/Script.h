@@ -46,7 +46,7 @@ public:
     }
 
 protected:
-    Value executeLocal(ExecutionState& state, bool isEvalMode = false, bool needNewEnv = false);
+    Value executeLocal(ExecutionState& state, Value thisValue, bool isEvalMode = false, bool needNewEnv = false);
     String* m_fileName;
     String* m_src;
     CodeBlock* m_topCodeBlock;

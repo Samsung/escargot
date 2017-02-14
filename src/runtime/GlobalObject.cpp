@@ -124,19 +124,38 @@ static Value builtinGc(ExecutionState& state, Value thisValue, size_t argc, Valu
 
 static Value builtinEval(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    return state.context()->globalObject()->eval(state, argv[0], nullptr);
+    return state.context()->globalObject()->eval(state, argv[0]);
 }
 
-Value GlobalObject::eval(ExecutionState& state, const Value& arg, CodeBlock* parentCodeBlock)
+Value GlobalObject::eval(ExecutionState& state, const Value& arg)
 {
     if (arg.isString()) {
         ScriptParser parser(state.context());
         const char* s = "eval input";
         ExecutionContext* pec = state.executionContext();
-        bool isDirectCall = !!parentCodeBlock;
+        bool strictFromOutside = false;
+        ScriptParser::ScriptParserResult parserResult = parser.parse(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), nullptr, strictFromOutside);
+        if (parserResult.m_error) {
+            ErrorObject* err = ErrorObject::createError(state, parserResult.m_error->errorCode, parserResult.m_error->message);
+            state.throwException(err);
+        }
+        bool needNewEnv = parserResult.m_script->topCodeBlock()->isStrict();
+        // In case of indirect call, use global execution context
+        return parserResult.m_script->execute(state, true, needNewEnv, true);
+    }
+    return arg;
+}
+
+Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thisValue, CodeBlock* parentCodeBlock)
+{
+    if (arg.isString()) {
+        ScriptParser parser(state.context());
+        const char* s = "eval input";
+        ExecutionContext* pec = state.executionContext();
+        bool isDirectCall = true;
         bool callInGlobal = true;
         bool strictFromOutside = false;
-        while (isDirectCall && pec) {
+        while (pec) {
             if (pec->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && pec->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
                 strictFromOutside = pec->inStrictMode();
                 callInGlobal = false;
@@ -153,12 +172,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg, CodeBlock* par
             state.throwException(err);
         }
         bool needNewEnv = parserResult.m_script->topCodeBlock()->isStrict();
-        if (!isDirectCall) {
-            // In case of indirect call, use global execution context
-            return parserResult.m_script->execute(state, true, needNewEnv, true);
-        } else {
-            return parserResult.m_script->executeLocal(state, true, needNewEnv);
-        }
+        return parserResult.m_script->executeLocal(state, thisValue, true, needNewEnv);
     }
     return arg;
 }

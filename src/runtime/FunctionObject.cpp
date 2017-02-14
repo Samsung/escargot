@@ -163,9 +163,9 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
     }
 }
 
-Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, const size_t& argc, Value* argv, bool isNewExpression)
+Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, const size_t& argc, Value* argv, bool isNewExpression)
 {
-    Value receiver = receiverOrg;
+    Value receiver = receiverSrc;
     Context* ctx = state.context();
     bool isStrict = m_codeBlock->isStrict();
     // prepare receiver
@@ -180,11 +180,10 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     if (m_codeBlock->hasCallNativeFunctionCode()) {
         const CodeBlock::FunctionParametersInfoVector& info = m_codeBlock->parametersInfomation();
         CallNativeFunction* code = (CallNativeFunction*)&m_codeBlock->byteCodeBlock()->m_code[0];
-        FunctionEnvironmentRecordOnStack record(state, receiver, this, argc, argv, isNewExpression);
+        FunctionEnvironmentRecordOnStack record(state, this, argc, argv);
         LexicalEnvironment env(&record, outerEnvironment());
         ExecutionContext ec(ctx, state.executionContext(), &env, isStrict);
-        Value resultValue(Value::ForceUninitialized);
-        ExecutionState newState(ctx, &receiver, &ec, &resultValue);
+        ExecutionState newState(ctx, &ec);
 
         size_t len = info.size();
         if (argc < len) {
@@ -195,9 +194,13 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
             for (size_t i = argc; i < len; i++) {
                 newArgv[i] = Value();
             }
-            return code->m_fn(newState, receiver, argc, newArgv, isNewExpression);
-        } else {
+            argv = newArgv;
+        }
+
+        try {
             return code->m_fn(newState, receiver, argc, argv, isNewExpression);
+        } catch (const Value& v) {
+            ByteCodeInterpreter::processException(newState, v, &ec, SIZE_MAX);
         }
     }
 
@@ -209,8 +212,6 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     ByteCodeBlock* blk = m_codeBlock->byteCodeBlock();
 
     size_t registerSize = blk->m_requiredRegisterFileSizeInValueSize;
-    bool canAllocateEnvironmentOnStack = m_codeBlock->canAllocateEnvironmentOnStack();
-    bool canUseIndexedVariableStorage = m_codeBlock->canUseIndexedVariableStorage();
     size_t stackStorageSize = m_codeBlock->identifierOnStackCount();
     size_t parameterCopySize = std::min(argc, m_codeBlock->functionParameters().size());
 
@@ -218,30 +219,30 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
     FunctionEnvironmentRecord* record;
     LexicalEnvironment* env;
     ExecutionContext* ec;
-    if (LIKELY(canAllocateEnvironmentOnStack)) {
+    if (LIKELY(m_codeBlock->canAllocateEnvironmentOnStack())) {
         // no capture, very simple case
-        record = new (alloca(sizeof(FunctionEnvironmentRecordOnStack))) FunctionEnvironmentRecordOnStack(state, receiver, this, argc, argv, isNewExpression);
+        record = new (alloca(sizeof(FunctionEnvironmentRecordOnStack))) FunctionEnvironmentRecordOnStack(state, this, argc, argv);
         env = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, outerEnvironment());
         ec = new (alloca(sizeof(ExecutionContext))) ExecutionContext(ctx, state.executionContext(), env, isStrict);
     } else {
-        if (LIKELY(canUseIndexedVariableStorage)) {
-            record = new FunctionEnvironmentRecordOnHeap(state, receiver, this, argc, argv, isNewExpression);
+        if (LIKELY(m_codeBlock->canUseIndexedVariableStorage())) {
+            record = new FunctionEnvironmentRecordOnHeap(state, this, argc, argv);
         } else {
-            record = new FunctionEnvironmentRecordNotIndexed(state, receiver, this, argc, argv, isNewExpression);
+            record = new FunctionEnvironmentRecordNotIndexed(state, this, argc, argv);
         }
         env = new LexicalEnvironment(record, outerEnvironment());
         ec = new ExecutionContext(ctx, state.executionContext(), env, isStrict);
     }
 
-    Value* registerFile = (Value*)alloca(registerSize * sizeof(Value));
-    Value* stackStorage = ALLOCA((stackStorageSize) * sizeof(Value), Value, state);
+    Value* registerFile = ALLOCA((registerSize + stackStorageSize) * sizeof(Value), Value, state);
+    Value* stackStorage = registerFile + registerSize;
 
     for (size_t i = 0; i < stackStorageSize; i++) {
         stackStorage[i] = Value();
     }
 
     Value resultValue;
-    ExecutionState newState(ctx, &receiver, ec, &resultValue);
+    ExecutionState newState(ctx, ec, &resultValue);
 
     // binding function name
     if (m_codeBlock->m_functionNameIndex != SIZE_MAX) {
@@ -289,6 +290,8 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverOrg, cons
             stackStorage[i] = argv[i];
         }
     }
+
+    stackStorage[m_codeBlock->thisSymbolIndex()] = receiver;
 
     if (UNLIKELY(m_codeBlock->hasArgumentsBinding())) {
         ASSERT(m_codeBlock->usesArgumentsObject());

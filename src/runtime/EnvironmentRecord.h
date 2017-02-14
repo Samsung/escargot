@@ -116,11 +116,6 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual Value getThisBinding()
-    {
-        return Value(Value::EmptyValue);
-    }
-
     virtual bool isGlobalEnvironmentRecord()
     {
         return false;
@@ -229,7 +224,6 @@ public:
         return true;
     }
 
-    virtual Value getThisBinding();
     virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false);
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
@@ -353,19 +347,14 @@ class FunctionEnvironmentRecord : public DeclarativeEnvironmentRecord {
     friend class ByteCodeInterpreter;
 
 public:
-    ALWAYS_INLINE FunctionEnvironmentRecord(ExecutionState& state, const Value& receiver, FunctionObject* function, size_t argc, Value* argv, bool isNewExpression)
+    ALWAYS_INLINE FunctionEnvironmentRecord(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv)
         : DeclarativeEnvironmentRecord(state, function->codeBlock())
-        , m_isNewExpression(isNewExpression)
         , m_isArgumentObjectCreated(false)
-        , m_thisValue(receiver)
         , m_functionObject(function)
         , m_argc(argc)
         , m_argv(argv)
     {
     }
-
-    // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-bindthisvalue
-    // void bindThisValue(const ESValue& V);
 
     virtual bool isFunctionEnvironmentRecord()
     {
@@ -385,16 +374,6 @@ public:
     virtual bool isFunctionEnvironmentRecordNotIndexed()
     {
         return false;
-    }
-
-    virtual Value getThisBinding()
-    {
-        return m_thisValue;
-    }
-
-    bool isNewExpression()
-    {
-        return m_isNewExpression;
     }
 
     virtual Value getHeapValueByIndex(const size_t& idx)
@@ -435,9 +414,7 @@ public:
     }
 
 protected:
-    bool m_isNewExpression : 1;
     bool m_isArgumentObjectCreated : 1;
-    Value m_thisValue;
     FunctionObject* m_functionObject;
     size_t m_argc;
     Value* m_argv;
@@ -447,8 +424,8 @@ class FunctionEnvironmentRecordOnStack : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
 
 public:
-    ALWAYS_INLINE FunctionEnvironmentRecordOnStack(ExecutionState& state, const Value& receiver, FunctionObject* function, size_t argc, Value* argv, bool isNewExpression)
-        : FunctionEnvironmentRecord(state, receiver, function, argc, argv, isNewExpression)
+    ALWAYS_INLINE FunctionEnvironmentRecordOnStack(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv)
+        : FunctionEnvironmentRecord(state, function, argc, argv)
     {
     }
 
@@ -463,8 +440,8 @@ class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecord {
     friend class ByteCodeInterpreter;
 
 public:
-    ALWAYS_INLINE FunctionEnvironmentRecordOnHeap(ExecutionState& state, const Value& receiver, FunctionObject* function, size_t argc, Value* argv, bool isNewExpression)
-        : FunctionEnvironmentRecord(state, receiver, function, argc, argv, isNewExpression)
+    ALWAYS_INLINE FunctionEnvironmentRecordOnHeap(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv)
+        : FunctionEnvironmentRecord(state, function, argc, argv)
         , m_heapStorage(function->codeBlock()->identifierOnHeapCount())
     {
     }
@@ -492,8 +469,8 @@ class FunctionEnvironmentRecordNotIndexed : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
 
 public:
-    ALWAYS_INLINE FunctionEnvironmentRecordNotIndexed(ExecutionState& state, const Value& receiver, FunctionObject* function, size_t argc, Value* argv, bool isNewExpression)
-        : FunctionEnvironmentRecord(state, receiver, function, argc, argv, isNewExpression)
+    ALWAYS_INLINE FunctionEnvironmentRecordNotIndexed(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv)
+        : FunctionEnvironmentRecord(state, function, argc, argv)
         , m_heapStorage()
     {
         const CodeBlock::IdentifierInfoVector& vec = function->codeBlock()->identifierInfos();

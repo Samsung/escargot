@@ -140,14 +140,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             NEXT_INSTRUCTION();
         }
 
-        GetThisOpcodeLbl : {
-            GetThis* code = (GetThis*)programCounter;
-            ASSERT(*state.thisValue() == ec->lexicalEnvironment()->getThisBinding());
-            registerFile[code->m_registerIndex] = *state.thisValue();
-            ADD_PROGRAM_COUNTER(GetThis);
-            NEXT_INSTRUCTION();
-        }
-
         BinaryPlusOpcodeLbl : {
             BinaryPlus* code = (BinaryPlus*)programCounter;
             const Value& v0 = registerFile[code->m_srcIndex0];
@@ -698,7 +690,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
                 if (code->m_argumentCount) {
                     arg = registerFile[code->m_registerIndex];
                 }
-                registerFile[code->m_registerIndex] = state.context()->globalObject()->eval(state, arg, byteCodeBlock->m_codeBlock);
+                registerFile[code->m_registerIndex] = state.context()->globalObject()->evalLocal(state, arg, stackStorage[byteCodeBlock->m_codeBlock->thisSymbolIndex()], byteCodeBlock->m_codeBlock);
             } else {
                 registerFile[code->m_registerIndex] = FunctionObject::call(state, eval, Value(), code->m_argumentCount, &registerFile[code->m_registerIndex]);
             }
@@ -1687,7 +1679,7 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
             ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
 
             try {
-                ExecutionState newState(state.context(), state.thisValue(), newEc, state.exeuctionResult());
+                ExecutionState newState(state.context(), newEc, state.exeuctionResult());
                 newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
                 clearStack<386>();
                 interpret(newState, byteCodeBlock, code->m_catchPosition, registerFile, stackStorage);
@@ -1714,7 +1706,7 @@ NEVER_INLINE bool ByteCodeInterpreter::withOperation(ExecutionState& state, With
     EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(state, obj);
     LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
     ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
-    ExecutionState newState(state.context(), state.thisValue(), newEc, state.exeuctionResult());
+    ExecutionState newState(state.context(), newEc, state.exeuctionResult());
     newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
 
     interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile, stackStorage);
@@ -1771,7 +1763,10 @@ NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, c
             FunctionObject* fn = ec->m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
             CodeBlock* cb = fn->codeBlock();
             ByteCodeBlock* b = cb->byteCodeBlock();
-            ExtendedNodeLOC loc = b->computeNodeLOCFromByteCode(state.context(), programCounter - (size_t)b->m_code.data(), cb);
+            ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
+            if (programCounter != SIZE_MAX) {
+                loc = b->computeNodeLOCFromByteCode(state.context(), programCounter - (size_t)b->m_code.data(), cb);
+            }
             if (sb->m_stackTraceData.size() == 0 || sb->m_stackTraceData.back().first != ec) {
                 SandBox::StackTraceData data;
                 data.loc = loc;
@@ -1792,7 +1787,10 @@ NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, c
     } else if (ec->m_lexicalEnvironment->record()->isGlobalEnvironmentRecord()) {
         CodeBlock* cb = ec->m_lexicalEnvironment->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
         ByteCodeBlock* b = cb->byteCodeBlock();
-        ExtendedNodeLOC loc = b->computeNodeLOCFromByteCode(state.context(), (size_t)programCounter - (size_t)b->m_code.data(), cb);
+        ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
+        if (programCounter != SIZE_MAX) {
+            loc = b->computeNodeLOCFromByteCode(state.context(), programCounter - (size_t)b->m_code.data(), cb);
+        }
         SandBox::StackTraceData data;
         data.loc = loc;
         data.fileName = cb->script()->fileName();

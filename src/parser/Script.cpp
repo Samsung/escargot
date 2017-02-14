@@ -43,11 +43,11 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     ExecutionContext ec(state.context(), prevEc, env, m_topCodeBlock->isStrict());
     Value resultValue;
     Value thisValue(state.context()->globalObject());
-    ExecutionState newState(state.context(), &thisValue, &ec, &resultValue);
+    ExecutionState newState(state.context(), &ec, &resultValue);
 
     Value* registerFile = (Value*)alloca(m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
     clearStack<512>();
-    ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile, nullptr);
+    ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile, &thisValue);
 
     return resultValue;
 }
@@ -56,8 +56,7 @@ Script::ScriptSandboxExecuteResult Script::sandboxExecute(Context* ctx)
 {
     ScriptSandboxExecuteResult result;
     SandBox sb(ctx);
-    Value thisValue(ctx->globalObject());
-    ExecutionState stateForInit(ctx, &thisValue);
+    ExecutionState stateForInit(ctx);
 
     auto sandBoxResult = sb.run([&]() -> Value {
         return execute(stateForInit);
@@ -78,7 +77,7 @@ Script::ScriptSandboxExecuteResult Script::sandboxExecute(Context* ctx)
 }
 
 // NOTE: eval by direct call
-Value Script::executeLocal(ExecutionState& state, bool isEvalMode, bool needNewRecord)
+Value Script::executeLocal(ExecutionState& state, Value thisValue, bool isEvalMode, bool needNewRecord)
 {
     Node* programNode = m_topCodeBlock->cachedASTNode();
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
@@ -107,13 +106,15 @@ Value Script::executeLocal(ExecutionState& state, bool isEvalMode, bool needNewR
 
     ExecutionContext ec(state.context(), state.executionContext(), newEnvironment, m_topCodeBlock->isStrict());
     Value resultValue;
-    ExecutionState newState(state.context(), state.thisValue(), &ec, &resultValue);
+    ExecutionState newState(state.context(), &ec, &resultValue);
 
     size_t stackStorageSize = m_topCodeBlock->identifierOnStackCount();
     Value* stackStorage = ALLOCA(stackStorageSize * sizeof(Value), Value, state);
     for (size_t i = 0; i < stackStorageSize; i++) {
         stackStorage[i] = Value();
     }
+
+    stackStorage[m_topCodeBlock->thisSymbolIndex()] = thisValue;
 
     Value* registerFile = (Value*)alloca(m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
     clearStack<512>();

@@ -26,9 +26,8 @@ class ExecutionState : public gc {
     MAKE_STACK_ALLOCATED();
 
 public:
-    ExecutionState(Context* context, Value* thisValue, ExecutionContext* executionContext = nullptr, Value* exeuctionResult = nullptr)
+    ExecutionState(Context* context, ExecutionContext* executionContext = nullptr, Value* exeuctionResult = nullptr)
         : m_context(context)
-        , m_thisValue(thisValue)
         , m_executionContext(executionContext)
         , m_exeuctionResult(exeuctionResult)
         , m_rareData(nullptr)
@@ -43,11 +42,6 @@ public:
     ExecutionContext* executionContext()
     {
         return m_executionContext;
-    }
-
-    Value* thisValue()
-    {
-        return m_thisValue;
     }
 
     Value* exeuctionResult()
@@ -76,7 +70,6 @@ public:
 
 protected:
     Context* m_context;
-    Value* m_thisValue;
     ExecutionContext* m_executionContext;
     Value* m_exeuctionResult;
     ExecutionStateRareData* m_rareData;

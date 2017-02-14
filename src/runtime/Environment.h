@@ -28,19 +28,6 @@ public:
         return m_outerEnvironment;
     }
 
-    // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-lexical-environment-operations
-    Value getThisBinding()
-    {
-        LexicalEnvironment* env = this;
-        while (true) {
-            Value v = env->record()->getThisBinding();
-            if (LIKELY(!v.isEmpty())) {
-                return v;
-            }
-            env = env->outerEnvironment();
-        }
-    }
-
     bool deleteBinding(ExecutionState& state, const AtomicString& name)
     {
         LexicalEnvironment* env = this;

@@ -67,7 +67,8 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(StringView src, ExtendedNodeLOC so
 {
     size_t line = sourceElementStart.line;
     size_t column = sourceElementStart.column;
-    for (size_t i = 0; i < index; i++) {
+    size_t srcLength = src.length();
+    for (size_t i = 0; i < index && i < srcLength; i++) {
         char16_t c = src.charAt(i);
         column++;
         if (isLineTerminator(c)) {

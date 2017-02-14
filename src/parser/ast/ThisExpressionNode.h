@@ -31,7 +31,8 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ThisExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        codeBlock->pushCode(GetThis(ByteCodeLOC(m_loc.index), context->getRegister()), context, this);
+        size_t i = context->m_codeBlock->thisSymbolIndex();
+        codeBlock->pushCode(LoadByStackIndex(ByteCodeLOC(m_loc.index), context->getRegister(), i), context, this);
     }
 
 protected:

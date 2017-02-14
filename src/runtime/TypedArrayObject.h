@@ -258,7 +258,7 @@ public:
             idx = property.toString(state)->tryToUseAsIndex();
         }
         if (LIKELY(idx != Value::InvalidIndexValue)) {
-            if ((unsigned)idx < arraylength()) {
+            if (LIKELY((unsigned)idx < arraylength())) {
                 unsigned idxPosition = idx * typedArrayElementSize;
                 return ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false);
             }
@@ -275,7 +275,7 @@ public:
             index = property.toString(state)->tryToUseAsIndex();
         }
         if (LIKELY(Value::InvalidIndexValue != index)) {
-            if ((unsigned)index < arraylength()) {
+            if (LIKELY((unsigned)index < arraylength())) {
                 unsigned idxPosition = index * typedArrayElementSize;
                 setValueInBuffer<TypeAdaptor>(state, idxPosition, value);
                 return true;

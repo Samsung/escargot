@@ -24,7 +24,6 @@ class Node;
     F(DeclareVarVariable, 0, 0)                       \
     F(DeclareFunctionDeclaration, 1, 0)               \
     F(DeclareFunctionExpression, 1, 0)                \
-    F(GetThis, 1, 0)                                  \
     F(NewOperation, 1, 0)                             \
     F(BinaryPlus, 1, 2)                               \
     F(BinaryMinus, 1, 2)                              \
@@ -421,23 +420,6 @@ public:
     virtual void dump()
     {
         printf("function expression %s -> r%d", m_codeBlock->functionName().string()->toUTF8StringData().data(), (int)m_registerIndex);
-    }
-#endif
-};
-
-class GetThis : public ByteCode {
-public:
-    GetThis(const ByteCodeLOC& loc, const size_t& registerIndex)
-        : ByteCode(Opcode::GetThisOpcode, loc)
-        , m_registerIndex(registerIndex)
-    {
-    }
-
-    ByteCodeRegisterIndex m_registerIndex;
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("this -> r%d", (int)m_registerIndex);
     }
 #endif
 };

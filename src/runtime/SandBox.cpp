@@ -12,8 +12,7 @@ namespace Escargot {
 SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner)
 {
     SandBox::SandBoxResult result;
-    Value thisValue(m_context->globalObject());
-    ExecutionState state(m_context, &thisValue);
+    ExecutionState state(m_context);
     try {
         result.result = scriptRunner();
         result.msgStr = result.result.toString(state);

@@ -12,7 +12,7 @@ class CodeBlock;
 class ByteCodeBlock;
 class Node;
 
-typedef unsigned char ByteCodeRegisterIndex;
+typedef uint8_t ByteCodeRegisterIndex;
 
 struct ParserContextInformation {
     ParserContextInformation(bool isEvalCode = false, bool isForGlobalScope = false, bool isStrict = false, bool isWithScope = false)
@@ -41,6 +41,7 @@ struct ByteCodeGenerateContext {
         , m_isWithScope(parserContextInformation.m_isWithScope)
         , m_isCatchScope(false)
         , m_shouldGenerateLOCData(true)
+        , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
         , m_offsetToBasePointer(0)
         , m_positionToContinue(0)
         , m_tryStatementScopeCount(0)
@@ -63,6 +64,7 @@ struct ByteCodeGenerateContext {
         , m_shouldGenerateByteCodeInstantly(contextBefore.m_shouldGenerateByteCodeInstantly)
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
         , m_shouldGenerateLOCData(contextBefore.m_shouldGenerateLOCData)
+        , m_registerStack(contextBefore.m_registerStack)
         , m_offsetToBasePointer(contextBefore.m_offsetToBasePointer)
         , m_positionToContinue(contextBefore.m_positionToContinue)
         , m_tryStatementScopeCount(contextBefore.m_tryStatementScopeCount)
@@ -153,20 +155,24 @@ struct ByteCodeGenerateContext {
 
     size_t getLastRegisterIndex()
     {
-        ASSERT(m_baseRegisterCount > 0);
-        return m_baseRegisterCount - 1;
+        return m_registerStack->back();
     }
 
     size_t getRegister()
     {
         ASSERT(m_baseRegisterCount + 1 < std::numeric_limits<ByteCodeRegisterIndex>::max());
-        return m_baseRegisterCount++;
+        m_registerStack->push_back(m_baseRegisterCount);
+        m_baseRegisterCount++;
+        return m_registerStack->back();
     }
 
     void giveUpRegister()
     {
-        ASSERT(m_baseRegisterCount > 0);
-        m_baseRegisterCount--;
+        ASSERT(m_registerStack->size());
+        if (m_registerStack->back() == (m_baseRegisterCount - 1)) {
+            m_baseRegisterCount--;
+        }
+        m_registerStack->pop_back();
     }
 
     void consumeBreakPositions(ByteCodeBlock* cb, size_t position);
@@ -197,10 +203,11 @@ struct ByteCodeGenerateContext {
     bool m_isHeadOfMemberExpression;
     bool m_shouldGenerateLOCData;
 
+    std::shared_ptr<std::vector<ByteCodeRegisterIndex>> m_registerStack;
     std::vector<size_t> m_breakStatementPositions;
     std::vector<size_t> m_continueStatementPositions;
-    std::vector<std::pair<String*, size_t> > m_labeledBreakStatmentPositions;
-    std::vector<std::pair<String*, size_t> > m_labeledContinueStatmentPositions;
+    std::vector<std::pair<String*, size_t>> m_labeledBreakStatmentPositions;
+    std::vector<std::pair<String*, size_t>> m_labeledContinueStatmentPositions;
     std::vector<size_t> m_getObjectCodePositions;
     // For For In Statement
     size_t m_offsetToBasePointer;
