@@ -308,12 +308,14 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
                             builder.appendSubString(string, 0, result.m_matchResults[i][0].m_start);
                         } else if ('0' <= c && c <= '9') {
                             size_t idx = c - '0';
-                            int peek = replaceString->charAt(j + 2) - '0';
                             bool usePeek = false;
-                            if (0 <= peek && peek <= 9) {
-                                idx *= 10;
-                                idx += peek;
-                                usePeek = true;
+                            if (j + 2 < replaceString->length()) {
+                                int peek = replaceString->charAt(j + 2) - '0';
+                                if (0 <= peek && peek <= 9) {
+                                    idx *= 10;
+                                    idx += peek;
+                                    usePeek = true;
+                                }
                             }
 
                             if (idx < result.m_matchResults[i].size() && idx != 0) {

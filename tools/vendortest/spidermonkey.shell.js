@@ -54,7 +54,9 @@ load("spidermonkey.base.js");
   var ObjectCreate = global.Object.create;
   var ObjectDefineProperty = global.Object.defineProperty;
   //var ReflectApply = global.Reflect.apply;
-  var ReflectApply = function() { throw "escargot: Need to implement ReflectApply in ES5-compatible way"; };
+  var ReflectApply = function(target, thisArgument, argumentList) {
+      target.apply(thisArgument, argumentList);
+  };
   var StringPrototypeEndsWith = global.String.prototype.endsWith;
 
   var runningInBrowser = typeof global.window !== "undefined";

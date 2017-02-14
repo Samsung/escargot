@@ -1,5 +1,10 @@
 # Escargot
 
+## Prerequisites
+```
+apt-get install autoconf automake libtool libc++-dev libicu-dev gcc-multilib g++-multilib
+```
+
 ## Building
 
 ``` sh

@@ -348,7 +348,7 @@ static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t ar
     }
     auto u8Str = s->subString(p, p + len)->toUTF8StringData();
     double number = atof(u8Str.data());
-    if (number == 0.0 && !std::signbit(number) && !isdigit(ch) && !(len - p >= 1 && ch == '.' && isdigit(s->charAt(p + 1))))
+    if (number == 0.0 && !std::signbit(number) && !isdigit(ch) && !(len - p >= 1 && (ch == '.' || ch == '+') && isdigit(s->charAt(p + 1))))
         return Value(std::numeric_limits<double>::quiet_NaN());
     if (number == std::numeric_limits<double>::infinity())
         return Value(std::numeric_limits<double>::quiet_NaN());

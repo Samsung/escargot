@@ -153,7 +153,7 @@ ALWAYS_INLINE bool isOctalDigit(char16_t ch)
     return (ch >= '0' && ch < '8'); // 0..7
 }
 
-ALWAYS_INLINE bool octalValue(char16_t ch)
+ALWAYS_INLINE char16_t octalValue(char16_t ch)
 {
     ASSERT(isOctalDigit(ch));
     return ch - '0';
@@ -1745,11 +1745,6 @@ public:
                     case 'v':
                         stringUTF16 += '\x0B';
                         break;
-                    case '8':
-                    case '9':
-                        stringUTF16 += ch;
-                        this->tolerateUnexpectedToken();
-                        break;
 
                     default:
                         if (ch && isOctalDigit(ch)) {
@@ -1757,6 +1752,9 @@ public:
 
                             octal = octToDec.octal || octal;
                             stringUTF16 += octToDec.code;
+                        } else if (isDecimalDigit(ch)) {
+                            octal = true;
+                            stringUTF16 += ch;
                         } else {
                             stringUTF16 += ch;
                         }
