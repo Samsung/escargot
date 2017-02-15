@@ -74,10 +74,18 @@ run-jsc-stress:
 #	cd test/JavaScriptCore/mozilla/; \
 		perl jsDriver.pl -e escargot -s ../../../escargot
 
-#run-jetstream:
-#	cd test/JetStream-standalone-escargot/JetStream-1.1/; \
-		./run.sh ../../../escargot; \
-		python parsingResults.py jetstream-result-raw.res;
+run-jetstream:
+	cp tools/vendortest/jetstream/jetstream.CDjsSetup.js test/vendortest/JetStream-1.1/CDjsSetup.js
+	cp tools/vendortest/jetstream/jetstream.OctaneSetup.js test/vendortest/JetStream-1.1/OctaneSetup.js
+	cp tools/vendortest/jetstream/jetstream.Octane2Setup.js test/vendortest/JetStream-1.1/Octane2Setup.js
+	cp tools/vendortest/jetstream/jetstream.SimpleSetup.js test/vendortest/JetStream-1.1/SimpleSetup.js
+	cp tools/vendortest/jetstream/jetstream.SunSpiderSetup.js test/vendortest/JetStream-1.1/SunSpiderSetup.js
+	cp tools/vendortest/jetstream/jetstream.runOnePlan.js test/vendortest/JetStream-1.1/runOnePlan.js
+	cp tools/vendortest/jetstream/jetstream.run.sh test/vendortest/JetStream-1.1/run.sh
+	cd test/vendortest/JetStream-1.1/; \
+	./run.sh ../../../escargot; \
+	cd -; \
+	python tools/vendortest/jetstream/parsingResults.py tools/vendortest/jetstream/jetstream-result-raw.res;
 
 run-chakracore:
 	cp tools/vendortest/chakracore/chakracore.run.sh test/vendortest/ChakraCore/run.sh

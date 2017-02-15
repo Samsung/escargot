@@ -6,7 +6,7 @@
 
 namespace Escargot {
 
-#define ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE 65536 * 2
+#define ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE 65536 * 16
 #define ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP 1024
 
 extern size_t g_arrayObjectTag;
