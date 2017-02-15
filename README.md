@@ -16,3 +16,19 @@ To get available configuration list, get help of completion
 ``` sh
 make <tab><tab>
 ```
+
+## Testing
+
+First, get benchmarks and tests
+
+
+``` sh
+git submodule init
+git submodule update
+```
+
+### Sunspider
+
+```sh
+make make run-sunspider
+```
