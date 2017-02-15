@@ -30,5 +30,5 @@ git submodule update
 ### Sunspider
 
 ```sh
-make make run-sunspider
+make run-sunspider
 ```
