@@ -139,10 +139,11 @@ GC_word* getNextValidInValueVector(GC_word* ptr, GC_word** next_ptr)
 #else
     *next_ptr = ptr + 1;
 #endif
-    if (*current && current->isPointerValue())
-        return (GC_word*)current->asPointerValue();
-    else
-        return NULL;
+    GC_word* ret = NULL;
+    if (*current && current->isPointerValue()) {
+        ret = (GC_word*)current->asPointerValue();
+    }
+    return ret;
 }
 
 int getValidValueInCodeBlock(void* ptr, GC_mark_custom_result* arr)
@@ -262,10 +263,15 @@ Value* CustomAllocator<Value>::allocate(size_type GC_n, const void*)
     // return (Value*)GC_MALLOC_IGNORE_OFF_PAGE(sizeof(Value) * GC_n);
     int kind = s_gcKinds[HeapObjectKind::ValueVectorKind];
     size_t size = sizeof(Value) * GC_n;
-    if (size > 1024)
-        return (Value*)GC_GENERIC_MALLOC_IGNORE_OFF_PAGE(size, kind);
-    else
-        return (Value*)GC_GENERIC_MALLOC(size, kind);
+
+    Value* ret;
+    if (size > 1024) {
+        ret = (Value*)GC_GENERIC_MALLOC_IGNORE_OFF_PAGE(size, kind);
+    }
+    else {
+        ret = (Value*)GC_GENERIC_MALLOC(size, kind);
+    }
+    return ret;
 }
 
 template <>
