@@ -160,7 +160,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             } else {
                 ret = plusSlowCase(state, v0, v1);
             }
-            registerFile[code->m_srcIndex0] = ret;
+            registerFile[code->m_dstIndex] = ret;
             ADD_PROGRAM_COUNTER(BinaryPlus);
             NEXT_INSTRUCTION();
         }
@@ -183,7 +183,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             } else {
                 ret = Value(left.toNumber(state) - right.toNumber(state));
             }
-            registerFile[code->m_srcIndex0] = ret;
+            registerFile[code->m_dstIndex] = ret;
             ADD_PROGRAM_COUNTER(BinaryMinus);
             NEXT_INSTRUCTION();
         }
@@ -210,7 +210,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             } else {
                 ret = Value(Value::EncodeAsDouble, left.toNumber(state) * right.toNumber(state));
             }
-            registerFile[code->m_srcIndex0] = ret;
+            registerFile[code->m_dstIndex] = ret;
             ADD_PROGRAM_COUNTER(BinaryMultiply);
             NEXT_INSTRUCTION();
         }
@@ -219,7 +219,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             BinaryDivision* code = (BinaryDivision*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_srcIndex0] = Value(left.toNumber(state) / right.toNumber(state));
+            registerFile[code->m_dstIndex] = Value(left.toNumber(state) / right.toNumber(state));
             ADD_PROGRAM_COUNTER(BinaryDivision);
             NEXT_INSTRUCTION();
         }
@@ -228,7 +228,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             BinaryEqual* code = (BinaryEqual*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_srcIndex0] = Value(left.abstractEqualsTo(state, right));
+            registerFile[code->m_dstIndex] = Value(left.abstractEqualsTo(state, right));
             ADD_PROGRAM_COUNTER(BinaryEqual);
             NEXT_INSTRUCTION();
         }
@@ -237,7 +237,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             BinaryNotEqual* code = (BinaryNotEqual*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_srcIndex0] = Value(!left.abstractEqualsTo(state, right));
+            registerFile[code->m_dstIndex] = Value(!left.abstractEqualsTo(state, right));
             ADD_PROGRAM_COUNTER(BinaryNotEqual);
             NEXT_INSTRUCTION();
         }
@@ -246,7 +246,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             BinaryStrictEqual* code = (BinaryStrictEqual*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_srcIndex0] = Value(left.equalsTo(state, right));
+            registerFile[code->m_dstIndex] = Value(left.equalsTo(state, right));
             ADD_PROGRAM_COUNTER(BinaryStrictEqual);
             NEXT_INSTRUCTION();
         }
@@ -255,7 +255,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             BinaryNotStrictEqual* code = (BinaryNotStrictEqual*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_srcIndex0] = Value(!left.equalsTo(state, right));
+            registerFile[code->m_dstIndex] = Value(!left.equalsTo(state, right));
             ADD_PROGRAM_COUNTER(BinaryNotStrictEqual);
             NEXT_INSTRUCTION();
         }
@@ -264,7 +264,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             BinaryLessThan* code = (BinaryLessThan*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_srcIndex0] = Value(abstractRelationalComparison(state, left, right, true));
+            registerFile[code->m_dstIndex] = Value(abstractRelationalComparison(state, left, right, true));
             ADD_PROGRAM_COUNTER(BinaryLessThan);
             NEXT_INSTRUCTION();
         }
@@ -273,7 +273,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             BinaryLessThanOrEqual* code = (BinaryLessThanOrEqual*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_srcIndex0] = Value(abstractRelationalComparisonOrEqual(state, left, right, true));
+            registerFile[code->m_dstIndex] = Value(abstractRelationalComparisonOrEqual(state, left, right, true));
             ADD_PROGRAM_COUNTER(BinaryLessThanOrEqual);
             NEXT_INSTRUCTION();
         }
@@ -282,7 +282,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             BinaryGreaterThan* code = (BinaryGreaterThan*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_srcIndex0] = Value(abstractRelationalComparison(state, right, left, false));
+            registerFile[code->m_dstIndex] = Value(abstractRelationalComparison(state, right, left, false));
             ADD_PROGRAM_COUNTER(BinaryGreaterThan);
             NEXT_INSTRUCTION();
         }
@@ -291,31 +291,31 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             BinaryGreaterThanOrEqual* code = (BinaryGreaterThanOrEqual*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_srcIndex0] = Value(abstractRelationalComparisonOrEqual(state, right, left, false));
+            registerFile[code->m_dstIndex] = Value(abstractRelationalComparisonOrEqual(state, right, left, false));
             ADD_PROGRAM_COUNTER(BinaryGreaterThanOrEqual);
             NEXT_INSTRUCTION();
         }
 
         ToNumberOpcodeLbl : {
             ToNumber* code = (ToNumber*)programCounter;
-            const Value& val = registerFile[code->m_registerIndex];
-            registerFile[code->m_registerIndex] = Value(val.toNumber(state));
+            const Value& val = registerFile[code->m_srcIndex];
+            registerFile[code->m_dstIndex] = Value(val.toNumber(state));
             ADD_PROGRAM_COUNTER(ToNumber);
             NEXT_INSTRUCTION();
         }
 
         UnaryMinusOpcodeLbl : {
             UnaryMinus* code = (UnaryMinus*)programCounter;
-            const Value& val = registerFile[code->m_registerIndex];
-            registerFile[code->m_registerIndex] = Value(-val.toNumber(state));
+            const Value& val = registerFile[code->m_srcIndex];
+            registerFile[code->m_dstIndex] = Value(-val.toNumber(state));
             ADD_PROGRAM_COUNTER(UnaryMinus);
             NEXT_INSTRUCTION();
         }
 
         UnaryNotOpcodeLbl : {
             UnaryNot* code = (UnaryNot*)programCounter;
-            const Value& val = registerFile[code->m_registerIndex];
-            registerFile[code->m_registerIndex] = Value(!val.toBoolean(state));
+            const Value& val = registerFile[code->m_srcIndex];
+            registerFile[code->m_dstIndex] = Value(!val.toBoolean(state));
             ADD_PROGRAM_COUNTER(UnaryNot);
             NEXT_INSTRUCTION();
         }
@@ -323,7 +323,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
         GetObjectOpcodeLbl : {
             GetObject* code = (GetObject*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            const Value& property = registerFile[code->m_objectRegisterIndex + 1];
+            const Value& property = registerFile[code->m_propertyRegisterIndex];
             PointerValue* v;
             if (LIKELY(willBeObject.isPointerValue() && (v = willBeObject.asPointerValue())->hasTag(g_arrayObjectTag))) {
                 ArrayObject* arr = (ArrayObject*)v;
@@ -338,7 +338,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
                         if (LIKELY(idx < arr->getArrayLength(state))) {
                             const Value& v = arr->m_fastModeData[idx];
                             if (LIKELY(!v.isEmpty())) {
-                                registerFile[code->m_objectRegisterIndex] = v;
+                                registerFile[code->m_storeRegisterIndex] = v;
                                 ADD_PROGRAM_COUNTER(GetObject);
                                 NEXT_INSTRUCTION();
                             }
@@ -352,7 +352,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             } else {
                 obj = fastToObject(state, willBeObject);
             }
-            registerFile[code->m_objectRegisterIndex] = obj->getIndexedProperty(state, property).value(state, obj);
+            registerFile[code->m_storeRegisterIndex] = obj->getIndexedProperty(state, property).value(state, obj);
             ADD_PROGRAM_COUNTER(GetObject);
             NEXT_INSTRUCTION();
         }
@@ -381,7 +381,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
                             }
                         }
                         arr->m_fastModeData[idx] = registerFile[code->m_loadRegisterIndex];
-                        registerFile[code->m_objectRegisterIndex] = registerFile[code->m_loadRegisterIndex];
                         ADD_PROGRAM_COUNTER(SetObject);
                         NEXT_INSTRUCTION();
                     }
@@ -399,7 +398,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             } else {
                 obj = fastToObject(state, willBeObject);
             }
-            registerFile[code->m_objectRegisterIndex] = getObjectPrecomputedCaseOperation(state, obj, willBeObject, code->m_propertyName, code->m_inlineCache);
+            registerFile[code->m_storeRegisterIndex] = getObjectPrecomputedCaseOperation(state, obj, willBeObject, code->m_propertyName, code->m_inlineCache);
             ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
             NEXT_INSTRUCTION();
         }
@@ -408,7 +407,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             setObjectPreComputedCaseOperation(state, willBeObject.toObject(state), code->m_propertyName, registerFile[code->m_loadRegisterIndex], *code->m_inlineCache);
-            registerFile[code->m_objectRegisterIndex] = registerFile[code->m_loadRegisterIndex];
             ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
             NEXT_INSTRUCTION();
         }
@@ -455,7 +453,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             BinaryMod* code = (BinaryMod*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_srcIndex0] = modOperation(state, left, right);
+            registerFile[code->m_dstIndex] = modOperation(state, left, right);
             ADD_PROGRAM_COUNTER(BinaryMod);
             NEXT_INSTRUCTION();
         }
@@ -464,7 +462,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             BinaryBitwiseAnd* code = (BinaryBitwiseAnd*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_srcIndex0] = Value(left.toInt32(state) & right.toInt32(state));
+            registerFile[code->m_dstIndex] = Value(left.toInt32(state) & right.toInt32(state));
             ADD_PROGRAM_COUNTER(BinaryBitwiseAnd);
             NEXT_INSTRUCTION();
         }
@@ -473,7 +471,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             BinaryBitwiseOr* code = (BinaryBitwiseOr*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_srcIndex0] = Value(left.toInt32(state) | right.toInt32(state));
+            registerFile[code->m_dstIndex] = Value(left.toInt32(state) | right.toInt32(state));
             ADD_PROGRAM_COUNTER(BinaryBitwiseOr);
             NEXT_INSTRUCTION();
         }
@@ -482,7 +480,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             BinaryBitwiseXor* code = (BinaryBitwiseXor*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_srcIndex0] = Value(left.toInt32(state) ^ right.toInt32(state));
+            registerFile[code->m_dstIndex] = Value(left.toInt32(state) ^ right.toInt32(state));
             ADD_PROGRAM_COUNTER(BinaryBitwiseXor);
             NEXT_INSTRUCTION();
         }
@@ -494,7 +492,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             int32_t lnum = left.toInt32(state);
             int32_t rnum = right.toInt32(state);
             lnum <<= ((unsigned int)rnum) & 0x1F;
-            registerFile[code->m_srcIndex0] = Value(lnum);
+            registerFile[code->m_dstIndex] = Value(lnum);
             ADD_PROGRAM_COUNTER(BinaryLeftShift);
             NEXT_INSTRUCTION();
         }
@@ -506,7 +504,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             int32_t lnum = left.toInt32(state);
             int32_t rnum = right.toInt32(state);
             lnum >>= ((unsigned int)rnum) & 0x1F;
-            registerFile[code->m_srcIndex0] = Value(lnum);
+            registerFile[code->m_dstIndex] = Value(lnum);
             ADD_PROGRAM_COUNTER(BinarySignedRightShift);
             NEXT_INSTRUCTION();
         }
@@ -518,15 +516,15 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             uint32_t lnum = left.toUint32(state);
             uint32_t rnum = right.toUint32(state);
             lnum = (lnum) >> ((rnum)&0x1F);
-            registerFile[code->m_srcIndex0] = Value(lnum);
+            registerFile[code->m_dstIndex] = Value(lnum);
             ADD_PROGRAM_COUNTER(BinaryUnsignedRightShift);
             NEXT_INSTRUCTION();
         }
 
         UnaryBitwiseNotOpcodeLbl : {
             UnaryBitwiseNot* code = (UnaryBitwiseNot*)programCounter;
-            const Value& val = registerFile[code->m_registerIndex];
-            registerFile[code->m_registerIndex] = Value(~val.toInt32(state));
+            const Value& val = registerFile[code->m_srcIndex];
+            registerFile[code->m_dstIndex] = Value(~val.toInt32(state));
             ADD_PROGRAM_COUNTER(UnaryBitwiseNot);
             NEXT_INSTRUCTION();
         }
@@ -586,13 +584,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             NEXT_INSTRUCTION();
         }
 
-        DeclareVarVariableOpcodeLbl : {
-            DeclareVarVariable* code = (DeclareVarVariable*)programCounter;
-            ec->lexicalEnvironment()->record()->createMutableBinding(state, code->m_name, false);
-            ADD_PROGRAM_COUNTER(DeclareVarVariable);
-            NEXT_INSTRUCTION();
-        }
-
         DeclareFunctionExpressionOpcodeLbl : {
             DeclareFunctionExpression* code = (DeclareFunctionExpression*)programCounter;
             registerFile[code->m_registerIndex] = new FunctionObject(state, code->m_codeBlock, ec->lexicalEnvironment());
@@ -613,7 +604,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             if (code->m_id.string()->length()) {
                 val = loadByName(state, ec->lexicalEnvironment(), code->m_id, false);
             } else {
-                val = registerFile[code->m_registerIndex];
+                val = registerFile[code->m_srcIndex];
             }
             if (val.isUndefined())
                 val = state.context()->staticStrings().undefined.string();
@@ -635,7 +626,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
                 }
             }
 
-            registerFile[code->m_registerIndex] = val;
+            registerFile[code->m_dstIndex] = val;
             ADD_PROGRAM_COUNTER(UnaryTypeof);
             NEXT_INSTRUCTION();
         }
@@ -650,7 +641,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
                 if (state.inStrictMode())
                     Object::throwCannotWriteError(state, PropertyName(state, property.toString(state)));
             }
-            registerFile[code->m_objectRegisterIndex] = registerFile[code->m_loadRegisterIndex];
             ADD_PROGRAM_COUNTER(SetObject);
             NEXT_INSTRUCTION();
         }
@@ -848,14 +838,14 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             if (!registerFile[code->m_srcIndex1].isObject())
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "type of rvalue is not Object");
             auto result = registerFile[code->m_srcIndex1].toObject(state)->get(state, ObjectPropertyName(state, registerFile[code->m_srcIndex0]));
-            registerFile[code->m_srcIndex0] = Value(result.hasValue());
+            registerFile[code->m_dstIndex] = Value(result.hasValue());
             ADD_PROGRAM_COUNTER(BinaryInOperation);
             NEXT_INSTRUCTION();
         }
 
         BinaryInstanceOfOperationOpcodeLbl : {
             BinaryInstanceOfOperation* code = (BinaryInstanceOfOperation*)programCounter;
-            registerFile[code->m_srcIndex0] = instanceOfOperation(state, registerFile[code->m_srcIndex0], registerFile[code->m_srcIndex1]);
+            registerFile[code->m_dstIndex] = instanceOfOperation(state, registerFile[code->m_srcIndex0], registerFile[code->m_srcIndex1]);
             ADD_PROGRAM_COUNTER(BinaryInstanceOfOperation);
             NEXT_INSTRUCTION();
         }
@@ -1192,15 +1182,15 @@ NEVER_INLINE void ByteCodeInterpreter::deleteOperation(ExecutionState& state, Le
         } else {
             result = env->deleteBinding(state, code->m_id);
         }
-        registerFile[code->m_registerIndex0] = Value(result);
+        registerFile[code->m_dstIndex] = Value(result);
     } else {
-        const Value& o = registerFile[code->m_registerIndex0];
-        const Value& p = registerFile[code->m_registerIndex1];
+        const Value& o = registerFile[code->m_srcIndex0];
+        const Value& p = registerFile[code->m_srcIndex1];
         Object* obj = o.toObject(state);
         bool result = obj->deleteOwnProperty(state, ObjectPropertyName(state, p));
         if (!result && state.inStrictMode())
             Object::throwCannotDeleteError(state, ObjectPropertyName(state, p).toPropertyName(state));
-        registerFile[code->m_registerIndex0] = Value(result);
+        registerFile[code->m_dstIndex] = Value(result);
     }
 }
 

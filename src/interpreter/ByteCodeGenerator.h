@@ -12,8 +12,6 @@ class CodeBlock;
 class ByteCodeBlock;
 class Node;
 
-typedef uint8_t ByteCodeRegisterIndex;
-
 struct ParserContextInformation {
     ParserContextInformation(bool isEvalCode = false, bool isForGlobalScope = false, bool isStrict = false, bool isWithScope = false)
         : m_isEvalCode(isEvalCode)
@@ -39,7 +37,9 @@ struct ByteCodeGenerateContext {
         , m_isEvalCode(parserContextInformation.m_isEvalCode)
         , m_isOutermostContext(true)
         , m_isWithScope(parserContextInformation.m_isWithScope)
-        , m_isCatchScope(false)
+        , m_canUseDisalignedRegister(true)
+        , m_canSkipCopyToRegister(true)
+        , m_catchScopeCount(0)
         , m_shouldGenerateLOCData(true)
         , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
         , m_offsetToBasePointer(0)
@@ -60,7 +60,9 @@ struct ByteCodeGenerateContext {
         , m_isEvalCode(contextBefore.m_isEvalCode)
         , m_isOutermostContext(false)
         , m_isWithScope(false)
-        , m_isCatchScope(false)
+        , m_canUseDisalignedRegister(contextBefore.m_canUseDisalignedRegister)
+        , m_canSkipCopyToRegister(contextBefore.m_canSkipCopyToRegister)
+        , m_catchScopeCount(contextBefore.m_catchScopeCount)
         , m_shouldGenerateByteCodeInstantly(contextBefore.m_shouldGenerateByteCodeInstantly)
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
         , m_shouldGenerateLOCData(contextBefore.m_shouldGenerateLOCData)
@@ -158,12 +160,28 @@ struct ByteCodeGenerateContext {
         return m_registerStack->back();
     }
 
+    size_t getLastRegisterIndex(size_t idx)
+    {
+        return *(m_registerStack->end() - idx - 1);
+    }
+
     size_t getRegister()
     {
-        ASSERT(m_baseRegisterCount + 1 < std::numeric_limits<ByteCodeRegisterIndex>::max());
+        if ((m_baseRegisterCount + 1) > REGULAR_REGISTER_LIMIT) {
+            throw "register limit exceed";
+        }
+        RELEASE_ASSERT(m_baseRegisterCount + 1 < REGULAR_REGISTER_LIMIT);
         m_registerStack->push_back(m_baseRegisterCount);
         m_baseRegisterCount++;
         return m_registerStack->back();
+    }
+
+    void pushRegister(ByteCodeRegisterIndex index)
+    {
+        if (index == m_baseRegisterCount) {
+            m_baseRegisterCount++;
+        }
+        m_registerStack->push_back(index);
     }
 
     void giveUpRegister()
@@ -194,7 +212,10 @@ struct ByteCodeGenerateContext {
     bool m_isEvalCode;
     bool m_isOutermostContext;
     bool m_isWithScope;
-    bool m_isCatchScope;
+    bool m_canUseDisalignedRegister;
+    bool m_canSkipCopyToRegister;
+
+    size_t m_catchScopeCount;
 
     AtomicString m_lastCatchVariableName;
 

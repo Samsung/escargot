@@ -44,8 +44,10 @@ public:
         size_t src1 = context->getLastRegisterIndex();
         context->giveUpRegister();
         size_t src0 = context->getLastRegisterIndex();
+        context->giveUpRegister();
+        size_t dst = context->getRegister();
 
-        codeBlock->pushCode(BinaryInOperation(ByteCodeLOC(m_loc.index), src0, src1), context, this);
+        codeBlock->pushCode(BinaryInOperation(ByteCodeLOC(m_loc.index), src0, src1, dst), context, this);
     }
 
     virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionIn; }

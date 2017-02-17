@@ -150,6 +150,14 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(CodeBlock* cb)
         generateCodeBlockTreeFromASTWalkerPostProcess(cb->m_childBlocks[i]);
     }
     cb->computeVariables();
+    if (cb->m_identifierOnStackCount > VARIABLE_LIMIT) {
+        auto err = new esprima::Error(new ASCIIString("variable limit exceeded"));
+        err->errorCode = ErrorObject::SyntaxError;
+        err->lineNumber = cb->m_sourceElementStart.line;
+        err->column = cb->m_sourceElementStart.column;
+        err->index = cb->m_sourceElementStart.index;
+        throw err;
+    }
 }
 
 ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, String* fileName, CodeBlock* parentCodeBlock, bool strictFromOutside)

@@ -43,13 +43,24 @@ public:
     }
     Node* callee() { return m_callee; }
     virtual ASTNodeType type() { return ASTNodeType::CallExpression; }
-    void generateArguments(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    void generateArguments(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, bool clearInCallingExpressionScope = true)
     {
-        context->m_inCallingExpressionScope = false;
+        context->m_inCallingExpressionScope = !clearInCallingExpressionScope;
 
         for (size_t i = 0; i < m_arguments.size(); i++) {
+            size_t registerExpect = context->getRegister();
+            context->giveUpRegister();
+
             m_arguments[i]->generateExpressionByteCode(codeBlock, context);
+            size_t r = context->getLastRegisterIndex();
+            if (r != registerExpect) {
+                context->giveUpRegister();
+                size_t newR = context->getRegister();
+                ASSERT(newR == registerExpect);
+                codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r, newR), context, this);
+            }
         }
+
         for (size_t i = 0; i < m_arguments.size(); i++) {
             context->giveUpRegister();
         }
@@ -58,13 +69,7 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
-            bool prevInCallingExpressionScope = context->m_inCallingExpressionScope;
-            for (size_t i = 0; i < m_arguments.size(); i++) {
-                m_arguments[i]->generateExpressionByteCode(codeBlock, context);
-            }
-            for (size_t i = 0; i < m_arguments.size(); i++) {
-                context->giveUpRegister();
-            }
+            generateArguments(codeBlock, context, false);
             size_t baseRegister = context->getRegister();
             codeBlock->pushCode(CallEvalFunction(ByteCodeLOC(m_loc.index), baseRegister, m_arguments.size()), context, this);
             return;
@@ -82,6 +87,9 @@ public:
             return;
         }
 
+        size_t baseRegister = context->getRegister();
+        context->giveUpRegister();
+
         if (m_callee->isMemberExpression()) {
             context->m_inCallingExpressionScope = true;
             context->m_isHeadOfMemberExpression = true;
@@ -89,8 +97,19 @@ public:
             // NOTE: receiver is always global Object => undefined
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value()), context, this);
         }
+
+        size_t calleeExpect = baseRegister + 1;
+
         m_callee->generateExpressionByteCode(codeBlock, context);
-        size_t baseRegister = context->getLastRegisterIndex() - 1;
+
+        size_t r = context->getLastRegisterIndex();
+        if (r != calleeExpect && !m_callee->isMemberExpression()) {
+            context->giveUpRegister();
+            size_t callee = context->getRegister();
+            ASSERT(callee == calleeExpect);
+            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r, callee), context, this);
+        }
+
         generateArguments(codeBlock, context);
         context->m_inCallingExpressionScope = prevInCallingExpressionScope;
         codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), baseRegister, m_arguments.size()), context, this);

@@ -20,6 +20,7 @@ typedef Vector<CodeBlock*, gc_malloc_ignore_off_page_allocator<CodeBlock*>> Code
 typedef Value (*NativeFunctionPointer)(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
 typedef Object* (*NativeFunctionConstructor)(ExecutionState& state, size_t argc, Value* argv);
 
+
 struct NativeFunctionInfo {
     enum Flags {
         Strict = 1,

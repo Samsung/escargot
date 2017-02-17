@@ -41,12 +41,11 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
 #ifndef NDEBUG
-        size_t before = context->m_baseRegisterCount;
+        size_t before = context->m_registerStack->size();
 #endif
         m_expression->generateExpressionByteCode(codeBlock, context);
-        // codeBlock->pushCode(StoreExecutionResult(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
         context->giveUpRegister();
-        ASSERT(context->m_baseRegisterCount == before);
+        ASSERT(context->m_registerStack->size() == before);
     }
 
 protected:

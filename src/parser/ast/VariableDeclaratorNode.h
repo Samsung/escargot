@@ -46,9 +46,8 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         ASSERT(m_id->isIdentifier());
+        ASSERT(context->m_codeBlock->hasName(m_id->asIdentifier()->name()));
         AtomicString name = m_id->asIdentifier()->name();
-        if (!context->m_codeBlock->hasName(name))
-            codeBlock->pushCode(DeclareVarVariable(ByteCodeLOC(m_loc.index), name), context, this);
         if (m_init) {
             context->getRegister();
             m_init->generateExpressionByteCode(codeBlock, context);

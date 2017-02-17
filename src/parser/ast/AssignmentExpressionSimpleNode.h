@@ -20,7 +20,7 @@
 #include "ExpressionNode.h"
 #include "IdentifierNode.h"
 #include "PatternNode.h"
-// #include "MemberExpressionNode.h"
+#include "MemberExpressionNode.h"
 
 namespace Escargot {
 
@@ -50,7 +50,11 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionSimple; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
+        bool canSkipCopyToRegister = context->m_canSkipCopyToRegister;
+        context->m_canSkipCopyToRegister = false;
         m_left->generateResolveAddressByteCode(codeBlock, context);
+        context->m_canSkipCopyToRegister = canSkipCopyToRegister;
+
         m_right->generateExpressionByteCode(codeBlock, context);
         m_left->generateStoreByteCode(codeBlock, context, false);
     }

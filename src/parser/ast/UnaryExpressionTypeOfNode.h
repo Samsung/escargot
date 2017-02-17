@@ -50,16 +50,22 @@ public:
             if (nameCase) {
                 if (name.string()->equals("arguments") && !context->isGlobalScope()) {
                     m_argument->generateExpressionByteCode(codeBlock, context);
-                    codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), AtomicString()), context, this);
+                    size_t srcIndex = context->getRegister();
+                    context->giveUpRegister();
+                    size_t dstIndex = context->getRegister();
+                    codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), srcIndex, dstIndex, AtomicString()), context, this);
                 } else {
-                    codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), context->getRegister(), name), context, this);
+                    codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), SIZE_MAX, context->getRegister(), name), context, this);
                 }
                 return;
             }
         }
 
         m_argument->generateExpressionByteCode(codeBlock, context);
-        codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), AtomicString()), context, this);
+        size_t srcIndex = context->getLastRegisterIndex();
+        context->giveUpRegister();
+        size_t dstIndex = context->getRegister();
+        codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), srcIndex, dstIndex, AtomicString()), context, this);
     }
 
     virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionTypeOf; }

@@ -21,7 +21,6 @@ class Node;
     F(StoreByStackIndex, 0, 0)                        \
     F(LoadByHeapIndex, 1, 0)                          \
     F(StoreByHeapIndex, 0, 0)                         \
-    F(DeclareVarVariable, 0, 0)                       \
     F(DeclareFunctionDeclaration, 1, 0)               \
     F(DeclareFunctionExpression, 1, 0)                \
     F(NewOperation, 1, 0)                             \
@@ -183,7 +182,7 @@ public:
         : m_opcodeInAddress((void*)code)
 #ifndef NDEBUG
         , m_loc(loc)
-        , m_orgOpcode(EndOpcode)
+        , m_orgOpcode(code)
 #endif
     {
     }
@@ -371,23 +370,6 @@ public:
 #endif
 };
 
-class DeclareVarVariable : public ByteCode {
-public:
-    DeclareVarVariable(const ByteCodeLOC& loc, const AtomicString& name)
-        : ByteCode(Opcode::DeclareVarVariableOpcode, loc)
-        , m_name(name)
-    {
-    }
-    AtomicString m_name;
-
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("declare %s", m_name.string()->toUTF8StringData().data());
-    }
-#endif
-};
-
 class DeclareFunctionDeclaration : public ByteCode {
 public:
     DeclareFunctionDeclaration(CodeBlock* cb)
@@ -424,47 +406,30 @@ public:
 #endif
 };
 
-class NewOperation : public ByteCode {
-public:
-    NewOperation(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& argc)
-        : ByteCode(Opcode::NewOperationOpcode, loc)
-        , m_registerIndex(registerIndex)
-        , m_argumentCount(argc)
-    {
-    }
-
-    ByteCodeRegisterIndex m_registerIndex;
-    uint16_t m_argumentCount;
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("new -> r%d", (int)m_registerIndex);
-    }
-#endif
-};
-
 #ifdef NDEBUG
 #define DEFINE_BINARY_OPERATION_DUMP(name)
 #else
-#define DEFINE_BINARY_OPERATION_DUMP(name)                                                      \
-    virtual void dump()                                                                         \
-    {                                                                                           \
-        printf(name " r%d <- r%d , r%d", (int)m_srcIndex0, (int)m_srcIndex0, (int)m_srcIndex1); \
+#define DEFINE_BINARY_OPERATION_DUMP(name)                                                     \
+    virtual void dump()                                                                        \
+    {                                                                                          \
+        printf(name " r%d <- r%d , r%d", (int)m_dstIndex, (int)m_srcIndex0, (int)m_srcIndex1); \
     }
 #endif
 
-#define DEFINE_BINARY_OPERATION(CodeName, HumanName)                                                         \
-    class Binary##CodeName : public ByteCode {                                                               \
-    public:                                                                                                  \
-        Binary##CodeName(const ByteCodeLOC& loc, const size_t& registerIndex0, const size_t& registerIndex1) \
-            : ByteCode(Opcode::Binary##CodeName##Opcode, loc)                                                \
-            , m_srcIndex0(registerIndex0)                                                                    \
-            , m_srcIndex1(registerIndex1)                                                                    \
-        {                                                                                                    \
-        }                                                                                                    \
-        ByteCodeRegisterIndex m_srcIndex0;                                                                   \
-        ByteCodeRegisterIndex m_srcIndex1;                                                                   \
-        DEFINE_BINARY_OPERATION_DUMP(HumanName)                                                              \
+#define DEFINE_BINARY_OPERATION(CodeName, HumanName)                                                                                         \
+    class Binary##CodeName : public ByteCode {                                                                                               \
+    public:                                                                                                                                  \
+        Binary##CodeName(const ByteCodeLOC& loc, const size_t& registerIndex0, const size_t& registerIndex1, const size_t& dstRegisterIndex) \
+            : ByteCode(Opcode::Binary##CodeName##Opcode, loc)                                                                                \
+            , m_srcIndex0(registerIndex0)                                                                                                    \
+            , m_srcIndex1(registerIndex1)                                                                                                    \
+            , m_dstIndex(dstRegisterIndex)                                                                                                   \
+        {                                                                                                                                    \
+        }                                                                                                                                    \
+        ByteCodeRegisterIndex m_srcIndex0;                                                                                                   \
+        ByteCodeRegisterIndex m_srcIndex1;                                                                                                   \
+        ByteCodeRegisterIndex m_dstIndex;                                                                                                    \
+        DEFINE_BINARY_OPERATION_DUMP(HumanName)                                                                                              \
     };
 
 DEFINE_BINARY_OPERATION(Plus, "plus");
@@ -530,19 +495,22 @@ public:
 
 class GetObject : public ByteCode {
 public:
-    // [object, property] -> [value]
-    GetObject(const ByteCodeLOC& loc, const size_t& objectRegisterIndex)
+    GetObject(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, const size_t& propertyRegisterIndex, const size_t& storeRegisterIndex)
         : ByteCode(Opcode::GetObjectOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
+        , m_propertyRegisterIndex(propertyRegisterIndex)
+        , m_storeRegisterIndex(storeRegisterIndex)
     {
     }
 
     ByteCodeRegisterIndex m_objectRegisterIndex;
+    ByteCodeRegisterIndex m_propertyRegisterIndex;
+    ByteCodeRegisterIndex m_storeRegisterIndex;
 
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("get object r%d <- r%d[r%d]", (int)m_objectRegisterIndex, (int)m_objectRegisterIndex, (int)m_objectRegisterIndex + 1);
+        printf("get object r%d <- r%d[r%d]", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, (int)m_propertyRegisterIndex);
     }
 #endif
 };
@@ -674,20 +642,22 @@ struct GetObjectInlineCache {
 class GetObjectPreComputedCase : public ByteCode {
 public:
     // [object] -> [value]
-    GetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, PropertyName propertyName)
+    GetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, const size_t& storeRegisterIndex, PropertyName propertyName)
         : ByteCode(Opcode::GetObjectPreComputedCaseOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
+        , m_storeRegisterIndex(storeRegisterIndex)
         , m_propertyName(propertyName)
     {
     }
 
     GetObjectInlineCache m_inlineCache;
-    size_t m_objectRegisterIndex;
+    ByteCodeRegisterIndex m_objectRegisterIndex;
+    ByteCodeRegisterIndex m_storeRegisterIndex;
     PropertyName m_propertyName;
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("get object r%d <- r%d.%s", (int)m_objectRegisterIndex, (int)m_objectRegisterIndex, m_propertyName.string()->toUTF8StringData().data());
+        printf("get object r%d <- r%d.%s", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, m_propertyName.string()->toUTF8StringData().data());
     }
 #endif
 };
@@ -809,114 +779,126 @@ public:
 
 class ToNumber : public ByteCode {
 public:
-    ToNumber(const ByteCodeLOC& loc, const size_t& registerIndex)
+    ToNumber(const ByteCodeLOC& loc, const size_t& srcIndex, const size_t& dstIndex)
         : ByteCode(Opcode::ToNumberOpcode, loc)
-        , m_registerIndex(registerIndex)
+        , m_srcIndex(srcIndex)
+        , m_dstIndex(dstIndex)
     {
     }
 
-    ByteCodeRegisterIndex m_registerIndex;
+    ByteCodeRegisterIndex m_srcIndex;
+    ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("to number r%d", (int)m_registerIndex);
+        printf("to number r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
 #endif
 };
 
 class UnaryMinus : public ByteCode {
 public:
-    UnaryMinus(const ByteCodeLOC& loc, const size_t& registerIndex)
+    UnaryMinus(const ByteCodeLOC& loc, const size_t& srcIndex, const size_t& dstIndex)
         : ByteCode(Opcode::UnaryMinusOpcode, loc)
-        , m_registerIndex(registerIndex)
+        , m_srcIndex(srcIndex)
+        , m_dstIndex(dstIndex)
     {
     }
 
-    ByteCodeRegisterIndex m_registerIndex;
+    ByteCodeRegisterIndex m_srcIndex;
+    ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("unary minus r%d", (int)m_registerIndex);
+        printf("unary minus r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
 #endif
 };
 
 class UnaryNot : public ByteCode {
 public:
-    UnaryNot(const ByteCodeLOC& loc, const size_t& registerIndex)
+    UnaryNot(const ByteCodeLOC& loc, const size_t& srcIndex, const size_t& dstIndex)
         : ByteCode(Opcode::UnaryNotOpcode, loc)
-        , m_registerIndex(registerIndex)
+        , m_srcIndex(srcIndex)
+        , m_dstIndex(dstIndex)
     {
     }
 
-    ByteCodeRegisterIndex m_registerIndex;
+    ByteCodeRegisterIndex m_srcIndex;
+    ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("unary not r%d", (int)m_registerIndex);
+        printf("unary not r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
 #endif
 };
 
 class UnaryBitwiseNot : public ByteCode {
 public:
-    UnaryBitwiseNot(const ByteCodeLOC& loc, const size_t& registerIndex)
+    UnaryBitwiseNot(const ByteCodeLOC& loc, const size_t& srcIndex, const size_t& dstIndex)
         : ByteCode(Opcode::UnaryBitwiseNotOpcode, loc)
-        , m_registerIndex(registerIndex)
+        , m_srcIndex(srcIndex)
+        , m_dstIndex(dstIndex)
     {
     }
 
-    ByteCodeRegisterIndex m_registerIndex;
+    ByteCodeRegisterIndex m_srcIndex;
+    ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("unary bitwise not r%d", (int)m_registerIndex);
+        printf("unary bitwise not r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
 #endif
 };
 
 class UnaryTypeof : public ByteCode {
 public:
-    UnaryTypeof(const ByteCodeLOC& loc, const size_t& registerIndex, AtomicString name)
+    UnaryTypeof(const ByteCodeLOC& loc, const size_t& srcIndex, const size_t& dstIndex, AtomicString name)
         : ByteCode(Opcode::UnaryTypeofOpcode, loc)
-        , m_registerIndex(registerIndex)
+        , m_srcIndex(srcIndex)
+        , m_dstIndex(dstIndex)
         , m_id(name)
     {
     }
 
-    ByteCodeRegisterIndex m_registerIndex;
+    ByteCodeRegisterIndex m_srcIndex;
+    ByteCodeRegisterIndex m_dstIndex;
     AtomicString m_id;
 
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("unary typeof r%d", (int)m_registerIndex);
+        printf("unary typeof r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
 #endif
 };
 
 class UnaryDelete : public ByteCode {
 public:
-    UnaryDelete(const ByteCodeLOC& loc, const size_t& registerIndex0, const size_t& registerIndex1, AtomicString name)
+    UnaryDelete(const ByteCodeLOC& loc, const size_t& srcIndex0, const size_t& srcIndex1, const size_t& dstIndex, AtomicString name)
         : ByteCode(Opcode::UnaryDeleteOpcode, loc)
-        , m_registerIndex0(registerIndex0)
-        , m_registerIndex1(registerIndex1)
+        , m_srcIndex0(srcIndex0)
+        , m_srcIndex1(srcIndex1)
+        , m_dstIndex(dstIndex)
         , m_id(name)
     {
     }
 
-    ByteCodeRegisterIndex m_registerIndex0;
-    ByteCodeRegisterIndex m_registerIndex1;
+    ByteCodeRegisterIndex m_srcIndex0;
+    ByteCodeRegisterIndex m_srcIndex1;
+    ByteCodeRegisterIndex m_dstIndex;
     AtomicString m_id;
 
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("unary delete r%d r%d %s", (int)m_registerIndex0, (int)m_registerIndex1, m_id.string()->toUTF8StringData().data());
+        printf("unary delete r%d <- r%d r%d %s", (int)m_dstIndex, (int)m_srcIndex0, (int)m_srcIndex1, m_id.string()->toUTF8StringData().data());
     }
 #endif
 };
@@ -1160,6 +1142,25 @@ public:
     virtual void dump()
     {
         printf("call in with r%d <- r%d-r%d", (int)m_registerIndex, (int)m_registerIndex, (int)m_registerIndex + (int)m_argumentCount - 1);
+    }
+#endif
+};
+
+class NewOperation : public ByteCode {
+public:
+    NewOperation(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& argc)
+        : ByteCode(Opcode::NewOperationOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_argumentCount(argc)
+    {
+    }
+
+    ByteCodeRegisterIndex m_registerIndex;
+    uint16_t m_argumentCount;
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("new -> r%d", (int)m_registerIndex);
     }
 #endif
 };
@@ -1561,7 +1562,7 @@ public:
         }
 #endif
 
-        const_cast<CodeType&>(code).assignOpcodeInAddress();
+        // const_cast<CodeType&>(code).assignOpcodeInAddress();
         char* first = (char*)&code;
         size_t start = m_code.size();
         if (context->m_shouldGenerateLOCData)

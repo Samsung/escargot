@@ -61,9 +61,12 @@ public:
         for (unsigned i = 0; i < m_casesB.size(); i++) {
             SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesB[i];
             caseNode->m_test->generateExpressionByteCode(codeBlock, &newContext);
-            codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex(), rIndex0), &newContext, this);
+            size_t refIndex = newContext.getLastRegisterIndex();
+            size_t resultIndex = newContext.getRegister();
+            codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), refIndex, rIndex0, resultIndex), &newContext, this);
             jumpCodePerCaseNodePosition.push_back(codeBlock->currentCodeSize());
-            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex()), &newContext, this);
+            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), resultIndex), &newContext, this);
+            newContext.giveUpRegister();
             newContext.giveUpRegister();
         }
 
@@ -72,9 +75,12 @@ public:
         for (unsigned i = 0; i < m_casesA.size(); i++) {
             SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesA[i];
             caseNode->m_test->generateExpressionByteCode(codeBlock, &newContext);
-            codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex(), rIndex0), &newContext, this);
+            size_t refIndex = newContext.getLastRegisterIndex();
+            size_t resultIndex = newContext.getRegister();
+            codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), refIndex, rIndex0, resultIndex), &newContext, this);
             jumpCodePerCaseNodePosition.push_back(codeBlock->currentCodeSize());
-            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex()), &newContext, this);
+            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), resultIndex), &newContext, this);
+            newContext.giveUpRegister();
             newContext.giveUpRegister();
         }
 

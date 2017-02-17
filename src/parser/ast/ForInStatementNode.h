@@ -44,22 +44,26 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ForInStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
     {
+        bool canUseDisalignedRegisterBefore = context->m_canUseDisalignedRegister;
+        context->m_canUseDisalignedRegister = false;
+
         ByteCodeGenerateContext newContext(*context);
 
         m_right->generateExpressionByteCode(codeBlock, &newContext);
         size_t rightIdx = newContext.getLastRegisterIndex();
         codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), newContext.getRegister(), Value()), &newContext, this);
         size_t literalIdx = newContext.getLastRegisterIndex();
-        codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), literalIdx, rightIdx), &newContext, this);
-        codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), literalIdx), &newContext, this);
+        newContext.giveUpRegister();
+        size_t equalResultIndex = newContext.getRegister();
+        newContext.giveUpRegister();
+        codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), literalIdx, rightIdx, equalResultIndex), &newContext, this);
+        codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), equalResultIndex), &newContext, this);
         size_t exit1Pos = codeBlock->lastCodePosition<JumpIfTrue>();
 
         codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), literalIdx, Value(Value::Null)), &newContext, this);
-        codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), literalIdx, rightIdx), &newContext, this);
-        codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), literalIdx), &newContext, this);
+        codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), literalIdx, rightIdx, equalResultIndex), &newContext, this);
+        codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), equalResultIndex), &newContext, this);
         size_t exit2Pos = codeBlock->lastCodePosition<JumpIfTrue>();
-        // drop literalIdx
-        newContext.giveUpRegister();
 
         size_t ePosition = codeBlock->currentCodeSize();
         codeBlock->pushCode(EnumerateObject(ByteCodeLOC(m_loc.index)), &newContext, this);
@@ -108,6 +112,8 @@ public:
         codeBlock->peekCode<Jump>(jPos)->m_jumpPosition = codeBlock->currentCodeSize();
 
         newContext.propagateInformationTo(*context);
+
+        context->m_canUseDisalignedRegister = canUseDisalignedRegisterBefore;
     }
 
 protected:

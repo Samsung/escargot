@@ -64,9 +64,18 @@ void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb
         ControlFlowRecord* r = new ControlFlowRecord(ControlFlowRecord::ControlFlowReason::NeedsJump, (cb->peekCode<Jump>(codePos)->m_jumpPosition), iter->second);
         m_byteCodeBlock->m_literalData.pushBack((PointerValue*)r);
         JumpComplexCase j(cb->peekCode<Jump>(codePos), r);
-        j.assignOpcodeInAddress();
         memcpy(cb->m_code.data() + codePos, &j, sizeof(JumpComplexCase));
         m_complexCaseStatementPositions.erase(iter);
+    }
+}
+
+ALWAYS_INLINE void assignStackIndexIfNeeded(ByteCodeRegisterIndex& registerIndex, ByteCodeRegisterIndex stackBase, ByteCodeRegisterIndex stackBaseWillBe)
+{
+    if (UNLIKELY(registerIndex == std::numeric_limits<ByteCodeRegisterIndex>::max())) {
+        return;
+    }
+    if (registerIndex >= stackBase) {
+        registerIndex = stackBaseWillBe + (registerIndex - stackBase);
     }
 }
 
@@ -85,6 +94,8 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
     ParserContextInformation info(isEvalMode, isGlobalScope, codeBlock->isStrict(), codeBlock->isInWithScope());
 
     ByteCodeGenerateContext ctx(codeBlock, block, info);
+    if (isEvalMode)
+        ctx.m_canUseDisalignedRegister = false;
     ctx.m_shouldGenerateLOCData = shouldGenerateLOCData;
 
     // generate init function decls first
@@ -102,18 +113,201 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
     }
 
     // generate common codes
-    ast->generateStatementByteCode(block, &ctx);
-    if (!codeBlock->isGlobalScopeCodeBlock())
-        block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
+    try {
+        ast->generateStatementByteCode(block, &ctx);
+        if (!codeBlock->isGlobalScopeCodeBlock())
+            block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
+    } catch (const char* err) {
+        // TODO
+        RELEASE_ASSERT_NOT_REACHED();
+    }
 
     // printf("codeSize %lf, %lf\n", block->m_code.size() / 1024.0 / 1024.0, block->m_code.capacity() / 1024.0 / 1024.0);
     block->m_code.shrinkToFit();
 
     block->m_getObjectCodePositions = std::move(ctx.m_getObjectCodePositions);
 
+    {
+        ByteCodeRegisterIndex stackBase = REGULAR_REGISTER_LIMIT;
+        ByteCodeRegisterIndex stackBaseWillBe = block->m_requiredRegisterFileSizeInValueSize;
+        size_t idx = 0;
+        size_t bytecodeCounter = 0;
+        char* code = block->m_code.data();
+        char* end = &block->m_code.data()[block->m_code.size()];
+        while (&code[idx] < end) {
+            ByteCode* currentCode = (ByteCode*)(&code[idx]);
+            Opcode opcode = (Opcode)(size_t)currentCode->m_opcodeInAddress;
+            currentCode->assignOpcodeInAddress();
+
+            switch (opcode) {
+            case StoreByNameOpcode: {
+                StoreByName* cd = (StoreByName*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case StoreByStackIndexOpcode: {
+                StoreByStackIndex* cd = (StoreByStackIndex*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case StoreByHeapIndexOpcode: {
+                StoreByHeapIndex* cd = (StoreByHeapIndex*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case GetObjectOpcode: {
+                GetObject* cd = (GetObject*)currentCode;
+                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_propertyRegisterIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case SetObjectOpcode: {
+                SetObject* cd = (SetObject*)currentCode;
+                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_propertyRegisterIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case ObjectDefineOwnPropertyOperationOpcode: {
+                ObjectDefineOwnPropertyOperation* cd = (ObjectDefineOwnPropertyOperation*)currentCode;
+                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_propertyRegisterIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case ObjectDefineOwnPropertyWithNameOperationOpcode: {
+                ObjectDefineOwnPropertyWithNameOperation* cd = (ObjectDefineOwnPropertyWithNameOperation*)currentCode;
+                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case GetObjectPreComputedCaseOpcode: {
+                GetObjectPreComputedCase* cd = (GetObjectPreComputedCase*)currentCode;
+                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case SetObjectPreComputedCaseOpcode: {
+                SetObjectPreComputedCase* cd = (SetObjectPreComputedCase*)currentCode;
+                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case ReturnFunctionWithValueOpcode: {
+                ReturnFunctionWithValue* cd = (ReturnFunctionWithValue*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case SetGlobalObjectOpcode: {
+                SetGlobalObject* cd = (SetGlobalObject*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case MoveOpcode: {
+                Move* cd = (Move*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex0, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_registerIndex1, stackBase, stackBaseWillBe);
+                break;
+            }
+            case ToNumberOpcode:
+            case UnaryMinusOpcode:
+            case UnaryNotOpcode:
+            case UnaryBitwiseNotOpcode: {
+                ToNumber* cd = (ToNumber*)currentCode;
+                assignStackIndexIfNeeded(cd->m_srcIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case UnaryTypeofOpcode: {
+                UnaryTypeof* cd = (UnaryTypeof*)currentCode;
+                assignStackIndexIfNeeded(cd->m_srcIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case UnaryDeleteOpcode: {
+                UnaryDelete* cd = (UnaryDelete*)currentCode;
+                assignStackIndexIfNeeded(cd->m_srcIndex0, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_srcIndex1, stackBase, stackBaseWillBe);
+                break;
+            }
+            case JumpIfTrueOpcode: {
+                JumpIfTrue* cd = (JumpIfTrue*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case JumpIfFalseOpcode: {
+                JumpIfFalse* cd = (JumpIfFalse*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case ThrowOperationOpcode: {
+                ThrowOperation* cd = (ThrowOperation*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case EnumerateObjectOpcode: {
+                EnumerateObject* cd = (EnumerateObject*)currentCode;
+                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case BinaryPlusOpcode:
+            case BinaryMinusOpcode:
+            case BinaryMultiplyOpcode:
+            case BinaryDivisionOpcode:
+            case BinaryModOpcode:
+            case BinaryEqualOpcode:
+            case BinaryNotEqualOpcode:
+            case BinaryLessThanOpcode:
+            case BinaryLessThanOrEqualOpcode:
+            case BinaryGreaterThanOpcode:
+            case BinaryGreaterThanOrEqualOpcode:
+            case BinaryStrictEqualOpcode:
+            case BinaryNotStrictEqualOpcode:
+            case BinaryBitwiseAndOpcode:
+            case BinaryBitwiseOrOpcode:
+            case BinaryBitwiseXorOpcode:
+            case BinaryLeftShiftOpcode:
+            case BinarySignedRightShiftOpcode:
+            case BinaryUnsignedRightShiftOpcode:
+            case BinaryInOperationOpcode:
+            case BinaryInstanceOfOperationOpcode: {
+                BinaryPlus* plus = (BinaryPlus*)currentCode;
+                assignStackIndexIfNeeded(plus->m_srcIndex0, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(plus->m_srcIndex1, stackBase, stackBaseWillBe);
+                break;
+            }
+            default:
+                break;
+            }
+
+            switch (opcode) {
+#define ITER_BYTE_CODE(code, pushCount, popCount) \
+    case code##Opcode:                            \
+        idx += sizeof(code);                      \
+        continue;
+
+                FOR_EACH_BYTECODE_OP(ITER_BYTE_CODE)
+#undef ITER_BYTE_CODE
+            default:
+                RELEASE_ASSERT_NOT_REACHED();
+                break;
+            };
+        }
+    }
+
 #ifndef NDEBUG
     if (getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) {
         printf("dumpBytecode %s (%d:%d)>>>>>>>>>>>>>>>>>>>>>>\n", codeBlock->m_functionName.string()->toUTF8StringData().data(), (int)codeBlock->sourceElementStart().line, (int)codeBlock->sourceElementStart().column);
+        printf("register info.. [");
+        for (size_t i = 0; i < block->m_requiredRegisterFileSizeInValueSize; i++) {
+            printf("X,");
+        }
+        size_t b = block->m_requiredRegisterFileSizeInValueSize;
+        for (size_t i = 0; i < block->m_codeBlock->identifierInfos().size(); i++) {
+            if (block->m_codeBlock->identifierInfos()[i].m_needToAllocateOnStack) {
+                printf("(%d,%s),", (int)b++, block->m_codeBlock->identifierInfos()[i].m_name.string()->toUTF8StringData().data());
+            }
+        }
+        printf("this]\n");
         size_t idx = 0;
         size_t bytecodeCounter = 0;
         char* code = block->m_code.data();

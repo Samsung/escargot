@@ -38,7 +38,10 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         m_argument->generateExpressionByteCode(codeBlock, context);
-        codeBlock->pushCode(UnaryNot(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+        size_t srcIndex = context->getLastRegisterIndex();
+        context->giveUpRegister();
+        size_t dstIndex = context->getRegister();
+        codeBlock->pushCode(UnaryNot(ByteCodeLOC(m_loc.index), srcIndex, dstIndex), context, this);
     }
 
 protected:

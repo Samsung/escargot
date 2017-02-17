@@ -47,8 +47,10 @@ public:
         size_t src1 = context->getLastRegisterIndex();
         context->giveUpRegister();
         size_t src0 = context->getLastRegisterIndex();
+        context->giveUpRegister();
+        size_t dst = context->getRegister();
 
-        codeBlock->pushCode(BinaryNotEqual(ByteCodeLOC(m_loc.index), src0, src1), context, this);
+        codeBlock->pushCode(BinaryNotEqual(ByteCodeLOC(m_loc.index), src0, src1, dst), context, this);
     }
 
 protected:

@@ -38,15 +38,27 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::UpdateExpressionIncrementPrefix; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
+        size_t resultRegisterExpect = context->getRegister();
+        context->giveUpRegister();
+
         m_argument->generateResolveAddressByteCode(codeBlock, context);
         m_argument->generateReferenceResolvedAddressByteCode(codeBlock, context);
-        codeBlock->pushCode(ToNumber(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+        size_t srcIndex = context->getLastRegisterIndex();
+        context->giveUpRegister();
+        size_t dstIndex = context->getRegister();
+        codeBlock->pushCode(ToNumber(ByteCodeLOC(m_loc.index), srcIndex, dstIndex), context, this);
         size_t resultRegisterIndex = context->getLastRegisterIndex();
         size_t literalRegisterIndex = context->getRegister();
         codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), literalRegisterIndex, Value(1)), context, this);
-        codeBlock->pushCode(BinaryPlus(ByteCodeLOC(m_loc.index), resultRegisterIndex, literalRegisterIndex), context, this);
+        codeBlock->pushCode(BinaryPlus(ByteCodeLOC(m_loc.index), resultRegisterIndex, literalRegisterIndex, resultRegisterIndex), context, this);
         context->giveUpRegister();
         m_argument->generateStoreByteCode(codeBlock, context, false);
+        if (resultRegisterExpect != context->getLastRegisterIndex()) {
+            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), resultRegisterExpect), context, this);
+            context->giveUpRegister();
+            context->getRegister();
+            ASSERT(context->getLastRegisterIndex() == resultRegisterExpect);
+        }
     }
 
 protected:

@@ -132,6 +132,7 @@ CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundT
 
     m_byteCodeBlock = new ByteCodeBlock(this);
     CallBoundFunction code(ByteCodeLOC(0));
+    code.assignOpcodeInAddress();
     code.m_boundTargetFunction = targetFunction;
     code.m_boundThis = boundThis;
     code.m_boundArgumentsCount = boundArgc;

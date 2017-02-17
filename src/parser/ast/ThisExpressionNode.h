@@ -32,7 +32,10 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         size_t i = context->m_codeBlock->thisSymbolIndex();
-        codeBlock->pushCode(LoadByStackIndex(ByteCodeLOC(m_loc.index), context->getRegister(), i), context, this);
+        if (context->m_canUseDisalignedRegister)
+            context->pushRegister(REGULAR_REGISTER_LIMIT + i);
+        else
+            codeBlock->pushCode(LoadByStackIndex(ByteCodeLOC(m_loc.index), context->getRegister(), i), context, this);
     }
 
 protected:

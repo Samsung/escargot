@@ -267,8 +267,7 @@ Value* CustomAllocator<Value>::allocate(size_type GC_n, const void*)
     Value* ret;
     if (size > 1024) {
         ret = (Value*)GC_GENERIC_MALLOC_IGNORE_OFF_PAGE(size, kind);
-    }
-    else {
+    } else {
         ret = (Value*)GC_GENERIC_MALLOC(size, kind);
     }
     return ret;

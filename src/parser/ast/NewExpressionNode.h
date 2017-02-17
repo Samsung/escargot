@@ -42,6 +42,9 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::NewExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
+        bool canUseDisalignedRegisterBefore = context->m_canUseDisalignedRegister;
+        context->m_canUseDisalignedRegister = false;
+
         m_callee->generateExpressionByteCode(codeBlock, context);
         size_t base = context->getLastRegisterIndex();
 
@@ -56,6 +59,7 @@ public:
         }
 
         codeBlock->m_shouldClearStack = true;
+        context->m_canUseDisalignedRegister = canUseDisalignedRegisterBefore;
     }
 
 protected:

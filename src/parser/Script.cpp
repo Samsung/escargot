@@ -45,9 +45,11 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     Value thisValue(state.context()->globalObject());
     ExecutionState newState(state.context(), &ec, &resultValue);
 
-    Value* registerFile = (Value*)alloca(m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
+    Value* registerFile = (Value*)alloca((m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize + 1) * sizeof(Value));
+    Value* stackStorage = registerFile + m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize;
+    stackStorage[0] = thisValue;
     clearStack<512>();
-    ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile, &thisValue);
+    ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile, stackStorage);
 
     return resultValue;
 }
@@ -109,14 +111,14 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, bool isEvalMo
     ExecutionState newState(state.context(), &ec, &resultValue);
 
     size_t stackStorageSize = m_topCodeBlock->identifierOnStackCount();
-    Value* stackStorage = ALLOCA(stackStorageSize * sizeof(Value), Value, state);
+    Value* registerFile = ALLOCA((m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize + stackStorageSize) * sizeof(Value), Value, state);
+    Value* stackStorage = registerFile + m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize;
     for (size_t i = 0; i < stackStorageSize; i++) {
         stackStorage[i] = Value();
     }
 
     stackStorage[m_topCodeBlock->thisSymbolIndex()] = thisValue;
 
-    Value* registerFile = (Value*)alloca(m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize * sizeof(Value));
     clearStack<512>();
     ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile, stackStorage);
 

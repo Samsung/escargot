@@ -46,11 +46,13 @@ public:
     {
         m_left->generateResolveAddressByteCode(codeBlock, context);
         m_left->generateReferenceResolvedAddressByteCode(codeBlock, context);
+        size_t src0 = context->getLastRegisterIndex();
         m_right->generateExpressionByteCode(codeBlock, context);
         size_t src1 = context->getLastRegisterIndex();
         context->giveUpRegister();
-        size_t src0 = context->getLastRegisterIndex();
-        codeBlock->pushCode(BinaryMultiply(ByteCodeLOC(m_loc.index), src0, src1), context, this);
+        context->giveUpRegister();
+        size_t dst = context->getRegister();
+        codeBlock->pushCode(BinaryMultiply(ByteCodeLOC(m_loc.index), src0, src1, dst), context, this);
         m_left->generateStoreByteCode(codeBlock, context, false);
     }
 

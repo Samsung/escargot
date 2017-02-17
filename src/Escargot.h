@@ -196,6 +196,10 @@
 
 #define ALLOCA(bytes, typenameWithoutPointer, ec) (typenameWithoutPointer*)(LIKELY(bytes < 512) ? alloca(bytes) : GC_MALLOC(bytes))
 
+typedef uint16_t ByteCodeRegisterIndex;
+#define REGULAR_REGISTER_LIMIT (std::numeric_limits<ByteCodeRegisterIndex>::max() / 2)
+#define VARIABLE_LIMIT (std::numeric_limits<ByteCodeRegisterIndex>::max() / 2)
+
 #include "heap/Heap.h"
 #include "CheckedArithmetic.h"
 #include "runtime/String.h"

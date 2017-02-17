@@ -51,7 +51,7 @@ public:
             }
 
             if (nameCase) {
-                codeBlock->pushCode(UnaryDelete(ByteCodeLOC(m_loc.index), context->getRegister(), SIZE_MAX, name), context, this);
+                codeBlock->pushCode(UnaryDelete(ByteCodeLOC(m_loc.index), SIZE_MAX, SIZE_MAX, context->getRegister(), name), context, this);
             } else {
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(false)), context, this);
             }
@@ -67,8 +67,11 @@ public:
                 ((MemberExpressionNode*)m_argument)->property()->generateExpressionByteCode(codeBlock, context);
             size_t p = context->getLastRegisterIndex();
 
-            codeBlock->pushCode(UnaryDelete(ByteCodeLOC(m_loc.index), o, p, AtomicString()), context, this);
             context->giveUpRegister();
+            context->giveUpRegister();
+            size_t dst = context->getRegister();
+
+            codeBlock->pushCode(UnaryDelete(ByteCodeLOC(m_loc.index), o, p, dst, AtomicString()), context, this);
         } else {
             m_argument->generateExpressionByteCode(codeBlock, context);
             context->giveUpRegister();
