@@ -24,8 +24,8 @@ tidy-update:
 # Targets : benchmarks
 
 run-sunspider:
-	cd test/SunSpider/; \
-	./sunspider --shell=../../escargot --suite=sunspider-1.0.2
+	cd test/vendortest/SunSpider/; \
+	./sunspider --shell=../../../escargot --suite=sunspider-1.0.2
 
 run-octane:
 	cd test/octane/; \
