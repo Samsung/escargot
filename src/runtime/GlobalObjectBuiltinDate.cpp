@@ -104,7 +104,13 @@ static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc,
         year += 1900;
     }
 
-    if (argc < 2 || std::isnan(year) || std::isnan(month) || std::isnan(date) || std::isnan(hour) || std::isnan(minute) || std::isnan(second) || std::isnan(millisecond)) {
+    if (argc < 2) {
+        d.setTimeValueAsNaN();
+    } else if (std::isnan(year) || std::isnan(month) || std::isnan(date) || std::isnan(hour)
+              || std::isnan(minute) || std::isnan(second) || std::isnan(millisecond)) {
+        d.setTimeValueAsNaN();
+    } else if (std::isinf(year) || std::isinf(month) || std::isinf(date) || std::isinf(hour)
+               || std::isinf(minute) || std::isinf(second) || std::isinf(millisecond)) {
         d.setTimeValueAsNaN();
     } else {
         d.setTimeValue(state, year, month, date, hour, minute, second, millisecond, false);
