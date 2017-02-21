@@ -124,6 +124,34 @@ public:
         generateExpressionByteCode(codeBlock, context);
     }
 
+    std::pair<bool, ByteCodeRegisterIndex> isAllocatedOnStack(ByteCodeGenerateContext* context)
+    {
+        if (m_name.string()->equals("arguments") && !context->isGlobalScope() && context->m_codeBlock->usesArgumentsObject()) {
+            return std::make_pair(false, std::numeric_limits<ByteCodeRegisterIndex>::max());
+        }
+        if ((context->m_codeBlock->canUseIndexedVariableStorage() || context->m_codeBlock->isGlobalScopeCodeBlock())) {
+            CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
+            if (!info.m_isResultSaved) {
+                return std::make_pair(false, std::numeric_limits<ByteCodeRegisterIndex>::max());
+            } else {
+                if (context->m_isWithScope || (context->m_catchScopeCount && m_name == context->m_lastCatchVariableName)) {
+                    return std::make_pair(false, std::numeric_limits<ByteCodeRegisterIndex>::max());
+                }
+
+                if (info.m_isStackAllocated) {
+                    if (context->m_canUseDisalignedRegister && context->m_canSkipCopyToRegister)
+                        return std::make_pair(true, REGULAR_REGISTER_LIMIT + info.m_index);
+                    else
+                        return std::make_pair(false, std::numeric_limits<ByteCodeRegisterIndex>::max());
+                } else {
+                    return std::make_pair(false, std::numeric_limits<ByteCodeRegisterIndex>::max());
+                }
+            }
+        } else {
+            return std::make_pair(false, std::numeric_limits<ByteCodeRegisterIndex>::max());
+        }
+    }
+
 protected:
     AtomicString m_name;
 };

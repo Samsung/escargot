@@ -132,7 +132,9 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
         ByteCodeRegisterIndex stackBaseWillBe = block->m_requiredRegisterFileSizeInValueSize;
         size_t idx = 0;
         size_t bytecodeCounter = 0;
+
         char* code = block->m_code.data();
+        size_t codeBase = (size_t)code;
         char* end = &block->m_code.data()[block->m_code.size()];
         while (&code[idx] < end) {
             ByteCode* currentCode = (ByteCode*)(&code[idx]);
@@ -210,6 +212,8 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
                 break;
             }
             case ToNumberOpcode:
+            case IncrementOpcode:
+            case DecrementOpcode:
             case UnaryMinusOpcode:
             case UnaryNotOpcode:
             case UnaryBitwiseNotOpcode: {
@@ -229,13 +233,24 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
                 assignStackIndexIfNeeded(cd->m_srcIndex1, stackBase, stackBaseWillBe);
                 break;
             }
+            case JumpOpcode: {
+                Jump* cd = (Jump*)currentCode;
+                cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
+                break;
+            }
+            case JumpComplexCaseOpcode: {
+                JumpComplexCase* cd = (JumpComplexCase*)currentCode;
+                break;
+            }
             case JumpIfTrueOpcode: {
                 JumpIfTrue* cd = (JumpIfTrue*)currentCode;
+                cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
                 break;
             }
             case JumpIfFalseOpcode: {
                 JumpIfFalse* cd = (JumpIfFalse*)currentCode;
+                cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
                 break;
             }
@@ -311,6 +326,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
         size_t idx = 0;
         size_t bytecodeCounter = 0;
         char* code = block->m_code.data();
+        size_t codeBase = (size_t)code;
         char* end = &block->m_code.data()[block->m_code.size()];
         while (&code[idx] < end) {
             ByteCode* currentCode = (ByteCode*)(&code[idx]);
@@ -326,7 +342,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
             switch (opcode) {
 #define DUMP_BYTE_CODE(code, pushCount, popCount) \
     case code##Opcode:                            \
-        currentCode->dumpCode(idx);               \
+        currentCode->dumpCode(idx + codeBase);    \
         idx += sizeof(code);                      \
         continue;
 

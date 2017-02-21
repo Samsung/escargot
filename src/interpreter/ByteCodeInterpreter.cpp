@@ -92,32 +92,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             NEXT_INSTRUCTION();
         }
 
-        LoadByHeapIndexOpcodeLbl : {
-            LoadByHeapIndex* code = (LoadByHeapIndex*)programCounter;
-            LexicalEnvironment* upperEnv = ec->lexicalEnvironment();
-            for (size_t i = 0; i < code->m_upperIndex; i++) {
-                upperEnv = upperEnv->outerEnvironment();
-            }
-            FunctionEnvironmentRecord* record = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-            ASSERT(record->isFunctionEnvironmentRecordOnHeap() || record->isFunctionEnvironmentRecordNotIndexed());
-            registerFile[code->m_registerIndex] = ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[code->m_index];
-            ADD_PROGRAM_COUNTER(LoadByHeapIndex);
-            NEXT_INSTRUCTION();
-        }
-
-        StoreByHeapIndexOpcodeLbl : {
-            StoreByHeapIndex* code = (StoreByHeapIndex*)programCounter;
-            LexicalEnvironment* upperEnv = ec->lexicalEnvironment();
-            for (size_t i = 0; i < code->m_upperIndex; i++) {
-                upperEnv = upperEnv->outerEnvironment();
-            }
-            FunctionEnvironmentRecord* record = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-            ASSERT(record->isFunctionEnvironmentRecordOnHeap() || record->isFunctionEnvironmentRecordNotIndexed());
-            ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[code->m_index] = registerFile[code->m_registerIndex];
-            ADD_PROGRAM_COUNTER(StoreByHeapIndex);
-            NEXT_INSTRUCTION();
-        }
-
         GetGlobalObjectOpcodeLbl : {
             GetGlobalObject* code = (GetGlobalObject*)programCounter;
             if (LIKELY(globalObject->structure() == code->m_cachedStructure)) {
@@ -296,11 +270,43 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             NEXT_INSTRUCTION();
         }
 
-        ToNumberOpcodeLbl : {
-            ToNumber* code = (ToNumber*)programCounter;
+        IncrementOpcodeLbl : {
+            Increment* code = (Increment*)programCounter;
             const Value& val = registerFile[code->m_srcIndex];
-            registerFile[code->m_dstIndex] = Value(val.toNumber(state));
-            ADD_PROGRAM_COUNTER(ToNumber);
+            if (LIKELY(val.isInt32())) {
+                int32_t a = val.asInt32();
+                int32_t b = 1;
+                int32_t c;
+                bool result = ArithmeticOperations<int32_t, int32_t, int32_t>::add(a, b, c);
+                if (LIKELY(result)) {
+                    registerFile[code->m_dstIndex] = Value(c);
+                } else {
+                    registerFile[code->m_dstIndex] = Value(Value::EncodeAsDouble, (double)a + (double)b);
+                }
+            } else {
+                registerFile[code->m_dstIndex] = plusSlowCase(state, val, Value(1));
+            }
+            ADD_PROGRAM_COUNTER(Increment);
+            NEXT_INSTRUCTION();
+        }
+
+        DecrementOpcodeLbl : {
+            Decrement* code = (Decrement*)programCounter;
+            const Value& val = registerFile[code->m_srcIndex];
+            if (LIKELY(val.isInt32())) {
+                int32_t a = val.asInt32();
+                int32_t b = -1;
+                int32_t c;
+                bool result = ArithmeticOperations<int32_t, int32_t, int32_t>::add(a, b, c);
+                if (LIKELY(result)) {
+                    registerFile[code->m_dstIndex] = Value(c);
+                } else {
+                    registerFile[code->m_dstIndex] = Value(Value::EncodeAsDouble, (double)a + (double)b);
+                }
+            } else {
+                registerFile[code->m_dstIndex] = plusSlowCase(state, val, Value(-1));
+            }
+            ADD_PROGRAM_COUNTER(Decrement);
             NEXT_INSTRUCTION();
         }
 
@@ -414,7 +420,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
         JumpOpcodeLbl : {
             Jump* code = (Jump*)programCounter;
             ASSERT(code->m_jumpPosition != SIZE_MAX);
-            programCounter = jumpTo(codeBuffer, code->m_jumpPosition);
+            programCounter = code->m_jumpPosition;
             NEXT_INSTRUCTION();
         }
 
@@ -422,7 +428,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             JumpIfTrue* code = (JumpIfTrue*)programCounter;
             ASSERT(code->m_jumpPosition != SIZE_MAX);
             if (registerFile[code->m_registerIndex].toBoolean(state)) {
-                programCounter = jumpTo(codeBuffer, code->m_jumpPosition);
+                programCounter = code->m_jumpPosition;
             } else {
                 ADD_PROGRAM_COUNTER(JumpIfTrue);
             }
@@ -433,10 +439,36 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             JumpIfFalse* code = (JumpIfFalse*)programCounter;
             ASSERT(code->m_jumpPosition != SIZE_MAX);
             if (!registerFile[code->m_registerIndex].toBoolean(state)) {
-                programCounter = jumpTo(codeBuffer, code->m_jumpPosition);
+                programCounter = code->m_jumpPosition;
             } else {
                 ADD_PROGRAM_COUNTER(JumpIfFalse);
             }
+            NEXT_INSTRUCTION();
+        }
+
+        LoadByHeapIndexOpcodeLbl : {
+            LoadByHeapIndex* code = (LoadByHeapIndex*)programCounter;
+            LexicalEnvironment* upperEnv = ec->lexicalEnvironment();
+            for (size_t i = 0; i < code->m_upperIndex; i++) {
+                upperEnv = upperEnv->outerEnvironment();
+            }
+            FunctionEnvironmentRecord* record = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+            ASSERT(record->isFunctionEnvironmentRecordOnHeap() || record->isFunctionEnvironmentRecordNotIndexed());
+            registerFile[code->m_registerIndex] = ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[code->m_index];
+            ADD_PROGRAM_COUNTER(LoadByHeapIndex);
+            NEXT_INSTRUCTION();
+        }
+
+        StoreByHeapIndexOpcodeLbl : {
+            StoreByHeapIndex* code = (StoreByHeapIndex*)programCounter;
+            LexicalEnvironment* upperEnv = ec->lexicalEnvironment();
+            for (size_t i = 0; i < code->m_upperIndex; i++) {
+                upperEnv = upperEnv->outerEnvironment();
+            }
+            FunctionEnvironmentRecord* record = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+            ASSERT(record->isFunctionEnvironmentRecordOnHeap() || record->isFunctionEnvironmentRecordNotIndexed());
+            ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[code->m_index] = registerFile[code->m_registerIndex];
+            ADD_PROGRAM_COUNTER(StoreByHeapIndex);
             NEXT_INSTRUCTION();
         }
 
@@ -446,6 +478,14 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             const Value& callee = registerFile[code->m_registerIndex + 1];
             registerFile[code->m_registerIndex] = FunctionObject::call(state, callee, receiver, code->m_argumentCount, &registerFile[code->m_registerIndex + 2]);
             ADD_PROGRAM_COUNTER(CallFunction);
+            NEXT_INSTRUCTION();
+        }
+
+        ToNumberOpcodeLbl : {
+            ToNumber* code = (ToNumber*)programCounter;
+            const Value& val = registerFile[code->m_srcIndex];
+            registerFile[code->m_dstIndex] = Value(val.toNumber(state));
+            ADD_PROGRAM_COUNTER(ToNumber);
             NEXT_INSTRUCTION();
         }
 

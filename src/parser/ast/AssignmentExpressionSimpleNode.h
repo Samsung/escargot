@@ -50,13 +50,44 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionSimple; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        bool canSkipCopyToRegister = context->m_canSkipCopyToRegister;
-        context->m_canSkipCopyToRegister = false;
-        m_left->generateResolveAddressByteCode(codeBlock, context);
-        context->m_canSkipCopyToRegister = canSkipCopyToRegister;
+        bool isSlowMode = true;
 
-        m_right->generateExpressionByteCode(codeBlock, context);
-        m_left->generateStoreByteCode(codeBlock, context, false);
+        if (m_right->isLiteral()) {
+            isSlowMode = false;
+        }
+
+        if (m_left->isIdentifier()) {
+            isSlowMode = false;
+        } else {
+            bool isLeftSimple = m_left->isIdentifier() || m_left->isLiteral();
+            if (m_left->isMemberExpression()) {
+                isLeftSimple = (m_left->asMemberExpression()->object()->isIdentifier() || m_left->asMemberExpression()->object()->isLiteral()) && (m_left->asMemberExpression()->property()->isIdentifier() || m_left->asMemberExpression()->property()->isLiteral());
+            }
+
+            bool isRightSimple = m_right->isIdentifier() || m_right->isLiteral();
+            if (m_right->isMemberExpression()) {
+                isRightSimple = (m_right->asMemberExpression()->object()->isIdentifier() || m_right->asMemberExpression()->object()->isLiteral()) && (m_right->asMemberExpression()->property()->isIdentifier() || m_right->asMemberExpression()->property()->isLiteral());
+            }
+
+            if (isLeftSimple && isRightSimple) {
+                isSlowMode = false;
+            }
+        }
+
+
+        if (isSlowMode) {
+            bool canSkipCopyToRegister = context->m_canSkipCopyToRegister;
+            context->m_canSkipCopyToRegister = false;
+            m_left->generateResolveAddressByteCode(codeBlock, context);
+            context->m_canSkipCopyToRegister = canSkipCopyToRegister;
+
+            m_right->generateExpressionByteCode(codeBlock, context);
+            m_left->generateStoreByteCode(codeBlock, context, false);
+        } else {
+            m_left->generateResolveAddressByteCode(codeBlock, context);
+            m_right->generateExpressionByteCode(codeBlock, context);
+            m_left->generateStoreByteCode(codeBlock, context, false);
+        }
     }
 
 protected:

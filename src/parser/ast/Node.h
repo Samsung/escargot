@@ -146,8 +146,10 @@ struct ExtendedNodeLOC {
         this->index = index;
     }
 };
-class IdentifierNode;
 
+class LiteralNode;
+class IdentifierNode;
+class MemberExpressionNode;
 
 class Node : public gc {
     friend class ScriptParser;
@@ -176,6 +178,18 @@ public:
         return (IdentifierNode *)this;
     }
 
+    MemberExpressionNode *asMemberExpression()
+    {
+        ASSERT(isMemberExpression());
+        return (MemberExpressionNode *)this;
+    }
+
+    LiteralNode *asLiteral()
+    {
+        ASSERT(isLiteral());
+        return (LiteralNode *)this;
+    }
+
     bool isLiteral()
     {
         return type() == ASTNodeType::Literal;
@@ -192,6 +206,11 @@ public:
     }
 
     virtual bool isStatementNode()
+    {
+        return false;
+    }
+
+    virtual bool isUpdateExpression()
     {
         return false;
     }
@@ -222,9 +241,15 @@ public:
     {
         generateExpressionByteCode(codeBlock, context);
     }
+
     virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
     {
         generateExpressionByteCode(codeBlock, context);
+    }
+
+    virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
     }
 
     NodeLOC m_loc;

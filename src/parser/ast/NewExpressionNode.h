@@ -49,14 +49,24 @@ public:
         size_t base = context->getLastRegisterIndex();
 
         for (size_t i = 0; i < m_arguments.size(); i++) {
-            m_arguments[i]->generateExpressionByteCode(codeBlock, context);
-        }
+            size_t registerExpect = context->getRegister();
+            context->giveUpRegister();
 
-        codeBlock->pushCode(NewOperation(ByteCodeLOC(m_loc.index), base, m_arguments.size()), context, this);
+            m_arguments[i]->generateExpressionByteCode(codeBlock, context);
+            size_t r = context->getLastRegisterIndex();
+            if (r != registerExpect) {
+                context->giveUpRegister();
+                size_t newR = context->getRegister();
+                ASSERT(newR == registerExpect);
+                codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r, newR), context, this);
+            }
+        }
 
         for (size_t i = 0; i < m_arguments.size(); i++) {
             context->giveUpRegister();
         }
+
+        codeBlock->pushCode(NewOperation(ByteCodeLOC(m_loc.index), base, m_arguments.size()), context, this);
 
         codeBlock->m_shouldClearStack = true;
         context->m_canUseDisalignedRegister = canUseDisalignedRegisterBefore;

@@ -40,6 +40,10 @@ public:
     Node* expression() { return m_expression; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
+        if (!context->m_isEvalCode && !context->m_isGlobalScope && m_expression->isUpdateExpression()) {
+            m_expression->generateResultNotRequiredExpressionByteCode(codeBlock, context);
+            return;
+        }
 #ifndef NDEBUG
         size_t before = context->m_registerStack->size();
 #endif

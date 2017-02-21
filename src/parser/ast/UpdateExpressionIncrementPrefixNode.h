@@ -61,6 +61,29 @@ public:
         }
     }
 
+    virtual bool isUpdateExpression()
+    {
+        return true;
+    }
+
+    virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        if (m_argument->isIdentifier()) {
+            auto r = m_argument->asIdentifier()->isAllocatedOnStack(context);
+            if (r.first) {
+                codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), r.second, r.second), context, this);
+                return;
+            }
+        }
+        m_argument->generateExpressionByteCode(codeBlock, context);
+        size_t src = context->getLastRegisterIndex();
+        context->giveUpRegister();
+        size_t dst = context->getRegister();
+        codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), src, dst), context, this);
+        m_argument->generateStoreByteCode(codeBlock, context);
+        context->giveUpRegister();
+    }
+
 protected:
     ExpressionNode* m_argument;
 };

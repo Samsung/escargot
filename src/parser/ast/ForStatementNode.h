@@ -71,8 +71,12 @@ public:
 
         size_t updatePosition = codeBlock->currentCodeSize();
         if (m_update) {
-            m_update->generateExpressionByteCode(codeBlock, &newContext);
-            newContext.giveUpRegister();
+            if (!context->m_isEvalCode && !context->m_isGlobalScope && m_update->isUpdateExpression()) {
+                m_update->generateResultNotRequiredExpressionByteCode(codeBlock, &newContext);
+            } else {
+                m_update->generateExpressionByteCode(codeBlock, &newContext);
+                newContext.giveUpRegister();
+            }
         }
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), forStart), &newContext, this);
 

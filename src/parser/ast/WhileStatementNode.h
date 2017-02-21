@@ -46,12 +46,17 @@ public:
         newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by m_test
 
         size_t whileStart = codeBlock->currentCodeSize();
-        m_test->generateExpressionByteCode(codeBlock, &newContext);
+        size_t testPos = SIZE_MAX;
+        ExecutionState stateForTest(codeBlock->m_codeBlock->context());
+        if (m_test->isLiteral() && m_test->asLiteral()->value().isPrimitive() && m_test->asLiteral()->value().toBoolean(stateForTest)) {
+            // skip generate code
+        } else {
+            m_test->generateExpressionByteCode(codeBlock, &newContext);
+            codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex()), &newContext, this);
+            testPos = codeBlock->lastCodePosition<JumpIfFalse>();
+            newContext.giveUpRegister();
+        }
 
-        codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex()), &newContext, this);
-        size_t testPos = codeBlock->lastCodePosition<JumpIfFalse>();
-
-        newContext.giveUpRegister();
         newContext.giveUpRegister();
 
         m_body->generateStatementByteCode(codeBlock, &newContext);
@@ -60,7 +65,8 @@ public:
         newContext.consumeContinuePositions(codeBlock, whileStart);
         size_t whileEnd = codeBlock->currentCodeSize();
         newContext.consumeBreakPositions(codeBlock, whileEnd);
-        codeBlock->peekCode<JumpIfFalse>(testPos)->m_jumpPosition = whileEnd;
+        if (testPos != SIZE_MAX)
+            codeBlock->peekCode<JumpIfFalse>(testPos)->m_jumpPosition = whileEnd;
         newContext.m_positionToContinue = context->m_positionToContinue;
         newContext.propagateInformationTo(*context);
     }
