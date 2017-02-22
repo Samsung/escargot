@@ -91,7 +91,8 @@ def check_tidy(src_dir, update=False):
                     f = open(file + '.formatted', 'w')
                     f.write(formatted)
                     f.close()
-                    subprocess.call(['diff'] + [file, file+'.formatted'])
+                    if subprocess.call(['diff'] + [file, file+'.formatted']) != 0:
+                        print(file + '\n')
                     os.remove(file + '.formatted')
 
         for line in fileinput.input(files):

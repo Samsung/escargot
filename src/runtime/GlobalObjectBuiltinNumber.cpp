@@ -306,7 +306,17 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
 
 static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Number, toLocaleString);
+
+
+    ObjectGetResult toStrFuncGetResult = thisObject->get(state, ObjectPropertyName(state.context()->staticStrings().toString));
+    if (toStrFuncGetResult.hasValue()) {
+        Value toStrFunc = toStrFuncGetResult.value(state, thisObject);
+        if (toStrFunc.isFunction()) {
+            return FunctionObject::call(state, toStrFunc, thisObject, argc, argv, isNewExpression);
+        }
+    }
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLocaleStringNotCallable);
     RELEASE_ASSERT_NOT_REACHED();
 }
 

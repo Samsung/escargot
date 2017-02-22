@@ -56,7 +56,6 @@ test_x64_release_spidermonkey:
     script: make run-spidermonkey-full; exit $?;
     dependencies:
         - build_x64_release
-    allow_failure: true
 
 #test_x64_release_v8:
 #    stage: test
@@ -159,7 +158,6 @@ test_x86_release_spidermonkey:
     script: make run-spidermonkey-full; exit $?;
     dependencies:
         - build_x86_release
-    allow_failure: true
 
 #test_x86_release_v8:
 #    stage: test

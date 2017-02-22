@@ -43,7 +43,7 @@ extern const char* errorMessage_GlobalObject_NotExecutable;
 extern const char* errorMessage_GlobalObject_FirstArgumentNotObject;
 extern const char* errorMessage_GlobalObject_SecondArgumentNotObject;
 extern const char* errorMessage_GlobalObject_DescriptorNotObject;
-extern const char* errorMessage_GlobalObject_ToLoacleStringNotCallable;
+extern const char* errorMessage_GlobalObject_ToLocaleStringNotCallable;
 extern const char* errorMessage_GlobalObject_ToISOStringNotCallable;
 extern const char* errorMessage_GlobalObject_CallbackNotCallable;
 extern const char* errorMessage_GlobalObject_InvalidDate;

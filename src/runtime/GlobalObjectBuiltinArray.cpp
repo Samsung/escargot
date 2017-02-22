@@ -817,7 +817,7 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
         Value func = elementObj->get(state, state.context()->staticStrings().toLocaleString).value(state, elementObj);
         // If IsCallable(func) is false, throw a TypeError exception.
         if (!func.isFunction()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLoacleStringNotCallable);
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLocaleStringNotCallable);
         }
         // Let R be the result of calling the [[Call]] internal method of func providing elementObj as the this value and an empty arguments list.
         R = func.asFunction()->call(state, elementObj, 0, nullptr);
@@ -848,7 +848,7 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
             Value func = elementObj->get(state, state.context()->staticStrings().toLocaleString).value(state, elementObj);
             // If IsCallable(func) is false, throw a TypeError exception.
             if (!func.isFunction()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLoacleStringNotCallable);
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLocaleStringNotCallable);
             }
             // Let R be the result of calling the [[Call]] internal method of func providing elementObj as the this value and an empty arguments list.
             R = func.asFunction()->call(state, elementObj, 0, nullptr);
@@ -857,7 +857,7 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
         StringBuilder builder2;
         builder2.appendString(S);
         builder2.appendString(R.toString(state));
-        R = builder.finalize(&state);
+        R = builder2.finalize(&state);
         // Increase k by 1.
         k++;
     }
@@ -1101,7 +1101,7 @@ static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t ar
     return first;
 }
 
-static Value builtinArrayUnShift(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, unshift);
@@ -1220,7 +1220,7 @@ void GlobalObject::installArray(ExecutionState& state)
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toLocaleString),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toLocaleString, builtinArrayToLocaleString, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().unshift),
-                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().unshift, builtinArrayUnShift, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().unshift, builtinArrayUnshift, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_array->setFunctionPrototype(state, m_arrayPrototype);
 

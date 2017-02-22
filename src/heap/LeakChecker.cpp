@@ -41,7 +41,7 @@ void GCLeakChecker::registerAddress(void* ptr, std::string description)
     m_leakCheckedAddrs.push_back(LeakCheckedAddr{ (void*)((size_t)ptr + 1), description, false });
 
     ESCARGOT_LOG_INFO("GCLeakChecker::registerAddress %p (%zu - %zu = %zu)\n", ptr,
-           m_leakCheckedAddrs.size(), m_totalFreed, m_leakCheckedAddrs.size() - m_totalFreed);
+                      m_leakCheckedAddrs.size(), m_totalFreed, m_leakCheckedAddrs.size() - m_totalFreed);
 
     GC_REGISTER_FINALIZER_NO_ORDER(ptr, [](void* obj, void* cd) {
         GCLeakChecker::unregisterAddress(obj);
@@ -55,7 +55,7 @@ void GCLeakChecker::unregisterAddress(void* ptr)
     m_totalFreed++;
 
     ESCARGOT_LOG_INFO("GCLeakChecker::unregisterAddress %p (%zu - %zu = %zu)\n", ptr,
-           m_leakCheckedAddrs.size(), m_totalFreed, m_leakCheckedAddrs.size() - m_totalFreed);
+                      m_leakCheckedAddrs.size(), m_totalFreed, m_leakCheckedAddrs.size() - m_totalFreed);
 
     for (auto& it : m_leakCheckedAddrs) {
         if (it.ptr == (void*)((size_t)ptr + 1)) {

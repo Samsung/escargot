@@ -798,7 +798,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             WithOperation* code = (WithOperation*)programCounter;
             size_t newPc = programCounter;
             if (withOperation(state, code, registerFile[code->m_registerIndex].toObject(state), ec, ec->lexicalEnvironment(), newPc, byteCodeBlock, registerFile, stackStorage)) {
-                programCounter = newPc;
                 return;
             }
             programCounter = newPc;
@@ -1755,7 +1754,7 @@ NEVER_INLINE bool ByteCodeInterpreter::withOperation(ExecutionState& state, With
                 state.rareData()->m_controlFlowRecord->back() = record;
             } else
                 programCounter = jumpTo(codeBuffer, pos);
-            return true;
+            return false;
         } else {
             ASSERT(record->reason() == ControlFlowRecord::NeedsReturn);
             record->m_count--;

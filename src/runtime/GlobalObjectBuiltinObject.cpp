@@ -189,7 +189,7 @@ static Value builtinObjectToLocaleString(ExecutionState& state, Value thisValue,
 
     // If IsCallable(toString) is false, throw a TypeError exception.
     if (!toString.isFunction())
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLoacleStringNotCallable);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLocaleStringNotCallable);
 
     // Return the result of calling the [[Call]] internal method of toString passing O as the this value and no arguments.
     return FunctionObject::call(state, toString, Value(O), 0, nullptr);
@@ -576,5 +576,7 @@ void GlobalObject::installObject(ExecutionState& state)
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.__proto__), __proto__desc);
     defineOwnProperty(state, ObjectPropertyName(strings.Object),
                       ObjectPropertyDescriptor(m_object, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_objectPrototypeToString = new FunctionObject(state, NativeFunctionInfo(strings.toString, builtinObjectToString, 0, nullptr, NativeFunctionInfo::Strict));
 }
 }

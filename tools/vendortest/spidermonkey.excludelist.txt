@@ -3,6 +3,11 @@ ecma/Date/15.9.5.js
 ecma_5/strict/11.1.5.js
 
 
+# Error message differs
+ecma_3/Array/15.4.5.1-01.js
+ecma_3/extensions/regress-274152.js
+ecma_3/LexicalConventions/7.8.3-01.js
+
 # Arrow function expression not supported
 ecma_5/JSON/stringify-replacer-array-trailing-holes.js
 js1_8_5/extensions/clone-forge.js
@@ -560,6 +565,7 @@ js1_8_5/extensions/object-toSource-with-symbol-keys.js
 js1_8_5/extensions/symbol-uneval.js
 js1_8_5/extensions/toSource-0.js
 js1_8_5/regress/regress-yarr-regexp.js
+ecma_3/Array/regress-387501.js
 
 
 # uneval() not supported
@@ -637,6 +643,13 @@ js1_8_5/regress/regress-586482-3.js
 js1_8_5/regress/regress-586482-4.js
 js1_8_5/regress/regress-586482-5.js
 
+# deprecated function.arguments
+ecma/FunctionObjects/15.3.1.1-1.js
+ecma/FunctionObjects/15.3.5-2.js
+ecma/FunctionObjects/15.3.1.1-2.js
+ecma/FunctionObjects/15.3.5.3.js
+ecma/FunctionObjects/15.3.2.1-1.js
+ecma/FunctionObjects/15.3.2.1-2.js
 
 # for..of statement not supported
 ecma_5/extensions/regress-bug567606.js
@@ -652,4 +665,17 @@ ecma_6/TypedArray/uint8clamped-constructor.js
 js1_5/Regress/regress-503860.js
 js1_8_5/extensions/decompile-for-of.js
 
+
+# TC causes strange behavior which is out of spec
+ecma/ExecutionContexts/10.2.2-2.js
+ecma_3/Array/15.5.4.8-01.js
+
+# RegExp.lastMatch not supported
+ecma_3/Statements/regress-642975.js
+
+# RegExp.$1-$9 not supported
+ecma_3/extensions/regress-220367-002.js
+
+# usage of deprecated RegExp function
+ecma_3/extensions/regress-327170.js
 

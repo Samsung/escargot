@@ -81,8 +81,11 @@ static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t
         arguments = ALLOCA(sizeof(Value) * arrlen, Value, state);
         for (size_t i = 0; i < arrlen; i++) {
             auto re = obj->getIndexedProperty(state, Value(i));
-            if (re.hasValue())
+            if (re.hasValue()) {
                 arguments[i] = re.value(state, obj);
+            } else {
+                arguments[i] = Value();
+            }
         }
     } else {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_SecondArgumentNotObject);

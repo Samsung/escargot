@@ -50,7 +50,7 @@ bool Context::arrayLengthNativeSetter(ExecutionState& state, Object* self, const
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
     }
 
-    bool ret = self->asArrayObject()->setArrayLength(state, setterInputData.toNumber(state));
+    bool ret = self->asArrayObject()->setArrayLength(state, newLen);
     return ret;
 }
 
