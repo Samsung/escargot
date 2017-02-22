@@ -40,7 +40,7 @@ void GCLeakChecker::registerAddress(void* ptr, std::string description)
     RELEASE_ASSERT(ptr);
     m_leakCheckedAddrs.push_back(LeakCheckedAddr{ (void*)((size_t)ptr + 1), description, false });
 
-    printf("GCLeakChecker::registerAddress %p (%zu - %zu = %zu)\n", ptr,
+    ESCARGOT_LOG_INFO("GCLeakChecker::registerAddress %p (%zu - %zu = %zu)\n", ptr,
            m_leakCheckedAddrs.size(), m_totalFreed, m_leakCheckedAddrs.size() - m_totalFreed);
 
     GC_REGISTER_FINALIZER_NO_ORDER(ptr, [](void* obj, void* cd) {
@@ -54,7 +54,7 @@ void GCLeakChecker::unregisterAddress(void* ptr)
     RELEASE_ASSERT(ptr);
     m_totalFreed++;
 
-    printf("GCLeakChecker::unregisterAddress %p (%zu - %zu = %zu)\n", ptr,
+    ESCARGOT_LOG_INFO("GCLeakChecker::unregisterAddress %p (%zu - %zu = %zu)\n", ptr,
            m_leakCheckedAddrs.size(), m_totalFreed, m_leakCheckedAddrs.size() - m_totalFreed);
 
     for (auto& it : m_leakCheckedAddrs) {
@@ -73,26 +73,26 @@ void GCLeakChecker::dumpBackTrace(ExecutionState& state, const char* phase)
 
 #ifdef GC_DEBUG
     auto stream = stderr;
-    fprintf(stderr, "GCLeakChecker::dumpBackTrace %s start >>>>>>>>>>\n", s_gcLogPhaseName.c_str());
+    ESCARGOT_LOG_ERROR("GCLeakChecker::dumpBackTrace %s start >>>>>>>>>>\n", s_gcLogPhaseName.c_str());
     GC_gcollect();
     for (const auto& it : m_leakCheckedAddrs) {
         if (it.deallocated) {
-            fprintf(stderr, "%s (%p) deallocated\n", it.description.c_str(), (void*)((size_t)it.ptr - 1));
+            ESCARGOT_LOG_ERROR("%s (%p) deallocated\n", it.description.c_str(), (void*)((size_t)it.ptr - 1));
         } else {
-            fprintf(stderr, "Backtrace of %s (%p):\n", it.description.c_str(), (void*)((size_t)it.ptr - 1));
+            ESCARGOT_LOG_ERROR("Backtrace of %s (%p):\n", it.description.c_str(), (void*)((size_t)it.ptr - 1));
             GC_print_backtrace((void*)((size_t)it.ptr - 1));
         }
     }
-    fprintf(stderr, "GCLeakChecker::dumpBackTrace %s end <<<<<<<<<<\n", s_gcLogPhaseName.c_str());
+    ESCARGOT_LOG_ERROR("GCLeakChecker::dumpBackTrace %s end <<<<<<<<<<\n", s_gcLogPhaseName.c_str());
 #else
-    fprintf(stderr, "Cannot print the backtrace of leaked address.\n");
-    fprintf(stderr, "Please re-configure bdwgc with `--enable-gc-debug`, ");
-    fprintf(stderr, "and re-build escargot with `-DGC_DEBUG`.\n");
+    ESCARGOT_LOG_ERROR("Cannot print the backtrace of leaked address.\n");
+    ESCARGOT_LOG_ERROR("Please re-configure bdwgc with `--enable-gc-debug`, ");
+    ESCARGOT_LOG_ERROR("and re-build escargot with `-DGC_DEBUG`.\n");
     for (const auto& it : m_leakCheckedAddrs) {
         if (it.deallocated) {
-            fprintf(stderr, "%s (%p) deallocated\n", it.description.c_str(), (void*)((size_t)it.ptr - 1));
+            ESCARGOT_LOG_ERROR("%s (%p) deallocated\n", it.description.c_str(), (void*)((size_t)it.ptr - 1));
         } else {
-            fprintf(stderr, "%s (%p) still allocated\n", it.description.c_str(), (void*)((size_t)it.ptr - 1));
+            ESCARGOT_LOG_ERROR("%s (%p) still allocated\n", it.description.c_str(), (void*)((size_t)it.ptr - 1));
         }
     }
 #endif

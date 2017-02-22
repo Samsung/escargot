@@ -56,7 +56,7 @@ static String* builtinHelperFileRead(ExecutionState& state, const char* fileName
             src = new Latin1String(str.data(), str.length());
     } else {
         char msg[1024];
-        sprintf(msg, "%%s: cannot open file %s", fileName);
+        snprintf(msg, sizeof(msg), "%%s: cannot open file %s", fileName);
         String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
         ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, builtinName.string(), msg);
     }
@@ -76,7 +76,7 @@ static Value builtinLoad(ExecutionState& state, Value thisValue, size_t argc, Va
         auto err = result.m_error->message->toUTF8StringData();
         String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
         char msg[1024];
-        sprintf(msg, "%%s: %s", err.data());
+        snprintf(msg, sizeof(msg), "%%s: %s", err.data());
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, globalObjectString, false, state.context()->staticStrings().load.string(), msg);
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -107,7 +107,7 @@ static Value builtinRun(ExecutionState& state, Value thisValue, size_t argc, Val
         auto err = result.m_error->message->toUTF8StringData();
         String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
         char msg[1024];
-        sprintf(msg, "%%s: %s", err.data());
+        snprintf(msg, sizeof(msg), "%%s: %s", err.data());
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, globalObjectString, false, state.context()->staticStrings().load.string(), msg);
         RELEASE_ASSERT_NOT_REACHED();
     }

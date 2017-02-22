@@ -2344,13 +2344,13 @@ public:
             char message[512];
             UTF8StringData d1 = arg0->toUTF8StringData();
             UTF8StringData d2 = arg1->toUTF8StringData();
-            snprintf(message, 512, messageFormat, d1.data(), d2.data());
+            snprintf(message, sizeof(message), messageFormat, d1.data(), d2.data());
             auto temp = utf8StringToUTF16String(message, strlen(message));
             msg = UTF16StringDataNonGCStd(temp.data(), temp.length());
         } else if (arg0->length()) {
             char message[512];
             UTF8StringData d1 = arg0->toUTF8StringData();
-            snprintf(message, 512, messageFormat, d1.data());
+            snprintf(message, sizeof(message), messageFormat, d1.data());
             auto temp = utf8StringToUTF16String(message, strlen(message));
             msg = UTF16StringDataNonGCStd(temp.data(), temp.length());
         } else {

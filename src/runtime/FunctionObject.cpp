@@ -105,7 +105,7 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
         currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_code.size();
         currentCodeSizeTotal += (v[i]->m_byteCodeBlock->m_locData.size() * sizeof(std::pair<size_t, size_t>));
     }
-    // printf("codeSizeTotal %lfMB\n", (int)currentCodeSizeTotal / 1024.0 / 1024.0);
+    // ESCARGOT_LOG_INFO("codeSizeTotal %lfMB\n", (int)currentCodeSizeTotal / 1024.0 / 1024.0);
 
     const size_t codeSizeMax = 1024 * 1024 * 2;
     if (currentCodeSizeTotal > codeSizeMax) {

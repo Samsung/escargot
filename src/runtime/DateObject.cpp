@@ -952,7 +952,7 @@ String* DateObject::toDateString(ExecutionState& state)
     RESOLVECACHE(state);
     char buffer[32];
     if (IS_VALID_TIME(m_primitiveValue)) {
-        snprintf(buffer, 32, "%s %s %02d %d", days[getDay(state)], months[getMonth(state)], getDate(state), getFullYear(state));
+        snprintf(buffer, sizeof(buffer), "%s %s %02d %d", days[getDay(state)], months[getMonth(state)], getDate(state), getFullYear(state));
         return new ASCIIString(buffer);
     } else {
         return new ASCIIString(invalidDate);
@@ -968,7 +968,7 @@ String* DateObject::toTimeString(ExecutionState& state)
         int tzOffsetHour = (tzOffsetAsMin / const_Date_minutesPerHour);
         int tzOffsetMin = ((tzOffsetAsMin / (double)const_Date_minutesPerHour) - tzOffsetHour) * 60;
         tzOffsetHour *= 100;
-        snprintf(buffer, 32, "%02d:%02d:%02d GMT%s%04d (%s)", getHours(state), getMinutes(state), getSeconds(state), (tzOffsetAsMin < 0) ? "-" : "+", std::abs(tzOffsetHour + tzOffsetMin), m_cachedLocal.isdst ? tzname[1] : tzname[0]);
+        snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d GMT%s%04d (%s)", getHours(state), getMinutes(state), getSeconds(state), (tzOffsetAsMin < 0) ? "-" : "+", std::abs(tzOffsetHour + tzOffsetMin), m_cachedLocal.isdst ? tzname[1] : tzname[0]);
         return new ASCIIString(buffer);
     } else {
         return new ASCIIString(invalidDate);
@@ -1000,7 +1000,7 @@ String* DateObject::toISOString(ExecutionState& state)
         } else {
             formatSelect = 1;
         }
-        snprintf(buffer, 64, format[formatSelect], getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
+        snprintf(buffer, sizeof(buffer), format[formatSelect], getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
         return new ASCIIString(buffer);
     } else {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toISOString.string(), errorMessage_GlobalObject_InvalidDate);
@@ -1015,7 +1015,7 @@ String* DateObject::toUTCString(ExecutionState& state, String* functionName)
 
     char buffer[64];
     if (IS_VALID_TIME(m_primitiveValue)) {
-        snprintf(buffer, 64, format, days[getUTCDay(state)], getUTCDate(state),
+        snprintf(buffer, sizeof(buffer), format, days[getUTCDay(state)], getUTCDate(state),
                  months[getUTCMonth(state)], getUTCFullYear(state),
                  getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state));
         return new ASCIIString(buffer);
