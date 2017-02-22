@@ -43,7 +43,7 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     ExecutionContext ec(state.context(), prevEc, env, m_topCodeBlock->isStrict());
     Value resultValue;
     Value thisValue(state.context()->globalObject());
-    ExecutionState newState(state.context(), &ec, &resultValue);
+    ExecutionState newState(&state, &ec, &resultValue);
 
     Value* registerFile = (Value*)alloca((m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize + 1) * sizeof(Value));
     Value* stackStorage = registerFile + m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize;
@@ -108,7 +108,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, bool isEvalMo
 
     ExecutionContext ec(state.context(), state.executionContext(), newEnvironment, m_topCodeBlock->isStrict());
     Value resultValue;
-    ExecutionState newState(state.context(), &ec, &resultValue);
+    ExecutionState newState(&state, &ec, &resultValue);
 
     size_t stackStorageSize = m_topCodeBlock->identifierOnStackCount();
     Value* registerFile = ALLOCA((m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize + stackStorageSize) * sizeof(Value), Value, state);

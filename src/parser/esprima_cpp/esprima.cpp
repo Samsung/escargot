@@ -2238,6 +2238,7 @@ public:
 
     Vector<ASTScopeContext*, gc_allocator_ignore_off_page<ASTScopeContext*>> scopeContexts;
     bool trackUsingNames;
+    size_t recursiveDepth;
 
     ASTScopeContext* popScopeContext(const MetaNode& node)
     {
@@ -2333,6 +2334,7 @@ public:
         this->lastMarker.index = this->scanner->index;
         this->lastMarker.lineNumber = this->scanner->lineNumber;
         this->lastMarker.lineStart = this->scanner->lineStart;
+        this->recursiveDepth = 0;
     }
 
     void throwError(const char* messageFormat, String* arg0 = String::emptyString, String* arg1 = String::emptyString, ErrorObject::Code code = ErrorObject::SyntaxError)
@@ -2709,6 +2711,13 @@ public:
 
     typedef Node* (Parser::*ParseFunction)();
 
+    void checkResursiveLimit()
+    {
+        if (this->recursiveDepth > ESPRIMA_RECURSIVE_LIMIT) {
+            this->throwError("too many recursion in script");
+        }
+    }
+
     template <typename T>
     Node* isolateCoverGrammar(T parseFunction)
     {
@@ -2720,8 +2729,10 @@ public:
         this->context->isAssignmentTarget = true;
         this->context->firstCoverInitializedNameError = nullptr;
 
-
+        this->recursiveDepth++;
+        this->checkResursiveLimit();
         Node* result = (this->*parseFunction)();
+        this->recursiveDepth--;
         if (this->context->firstCoverInitializedNameError != nullptr) {
             this->throwUnexpectedToken(this->context->firstCoverInitializedNameError);
         }
@@ -2744,7 +2755,10 @@ public:
         this->context->isAssignmentTarget = true;
         this->context->firstCoverInitializedNameError = nullptr;
 
+        this->recursiveDepth++;
+        this->checkResursiveLimit();
         Node* result = (this->*parseFunction)();
+        this->recursiveDepth--;
 
         this->context->isBindingElement = this->context->isBindingElement && previousIsBindingElement;
         this->context->isAssignmentTarget = this->context->isAssignmentTarget && previousIsAssignmentTarget;
@@ -2972,9 +2986,11 @@ public:
         Node* pattern;
 
         if (this->match(LeftSquareBracket)) {
+            this->throwError("Array pattern is not supported yet");
             RELEASE_ASSERT_NOT_REACHED();
             // pattern = this->parseArrayPattern(params, kind);
         } else if (this->match(LeftBrace)) {
+            this->throwError("Object pattern is not supported yet");
             RELEASE_ASSERT_NOT_REACHED();
             // pattern = this->parseObjectPattern(params, kind);
         } else {
@@ -3365,6 +3381,7 @@ public:
     // ECMA-262 12.2.9 Template Literals
     Node* parseTemplateLiteral()
     {
+        this->throwError("Template literal is not supported yet");
         RELEASE_ASSERT_NOT_REACHED();
     }
     /*
@@ -3567,6 +3584,7 @@ public:
 
         this->expect(LeftParenthesis);
         if (this->match(RightParenthesis)) {
+            this->throwError("Arrow function is not supported yet");
             RELEASE_ASSERT_NOT_REACHED();
         } else {
             std::shared_ptr<ScannerResult> startToken = this->lookahead;
@@ -3642,6 +3660,7 @@ public:
             if (this->lookahead->type == Token::IdentifierToken && this->context->inFunctionBody && this->lookahead->valueString == "target") {
                 // TODO
                 IdentifierNode* property = this->parseIdentifierName();
+                this->throwError("Meta property is not supported yet");
                 RELEASE_ASSERT_NOT_REACHED();
                 // expr = new Node.MetaProperty(id, property);
             } else {
@@ -3670,7 +3689,7 @@ public:
         if (this->matchKeyword(Super) && this->context->inFunctionBody) {
             MetaNode node = this->createNode();
             this->nextToken();
-            // TODO
+            this->throwError("super keyword is not supported yet");
             RELEASE_ASSERT_NOT_REACHED();
             // expr = this->finalize(node, new Node.Super());
             if (!this->match(LeftParenthesis) && !this->match(Period) && !this->match(LeftSquareBracket)) {
@@ -3726,7 +3745,7 @@ public:
             this->throwUnexpectedToken(this->lookahead);
         }
 
-        // TODO
+        this->throwError("super keyword is not supported yet");
         RELEASE_ASSERT_NOT_REACHED();
         // return this->finalize(node, new Node.Super());
         return nullptr;
@@ -3762,6 +3781,7 @@ public:
                 Node* quasi = this->parseTemplateLiteral();
                 // TODO
                 // expr = this->finalize(node, new Node.TaggedTemplateExpression(expr, quasi));
+                this->throwError("Tagged template expression is not supported yet");
                 RELEASE_ASSERT_NOT_REACHED();
             } else {
                 break;
@@ -4800,11 +4820,8 @@ public:
         Node* test = this->parseExpression();
 
         if (!this->match(RightParenthesis) && this->config.tolerant) {
-            RELEASE_ASSERT_NOT_REACHED();
-            /*
             this->tolerateUnexpectedToken(this->nextToken());
-            consequent = this->finalize(this->createNode(), new Node.EmptyStatement());
-            */
+            consequent = this->finalize(this->createNode(), new EmptyStatementNode());
         } else {
             this->expect(RightParenthesis);
             consequent = this->parseStatement();
@@ -4975,7 +4992,7 @@ public:
                     right = this->parseExpression();
                     init = nullptr;
                 } else if (this->lookahead->type == Token::IdentifierToken && this->lookahead->valueString == "of") {
-                    // TODO
+                    this->throwError("for of is not supported yet");
                     RELEASE_ASSERT_NOT_REACHED();
                     /*
                     if (!this->context->isAssignmentTarget || init.type === Syntax.AssignmentExpression) {
@@ -5033,6 +5050,7 @@ public:
             if (forIn) {
                 return this->finalize(node, new ForInStatementNode(left, right, body, false));
             } else {
+                this->throwError("For of is not supported yet");
                 RELEASE_ASSERT_NOT_REACHED();
                 // return this->finalize(node, new Node.ForOfStatement(left, right, body));
             }
@@ -5353,7 +5371,7 @@ public:
 
     StatementNode* parseDebuggerStatement()
     {
-        // TODO
+        this->throwError("debugger keyword is not supported yet");
         RELEASE_ASSERT_NOT_REACHED();
         /*
         const node = this->createNode();
@@ -5763,8 +5781,7 @@ public:
 
     Node* parseYieldExpression()
     {
-        // TODO
-        this->throwUnexpectedToken(this->nextToken());
+        this->throwError("yield keyword is not supported yet");
         RELEASE_ASSERT_NOT_REACHED();
         /*
         const node = this->createNode();

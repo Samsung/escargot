@@ -84,10 +84,8 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
     while (curIndex < len) {
         if (curIndex != 0) {
             if (sep->length() > 0) {
-                if (static_cast<double>(builder.contentLength()) > static_cast<double>(lenMax - (curIndex - prevIndex - 1) * sep->length())) {
-                    RELEASE_ASSERT_NOT_REACHED();
-                    // TODO
-                    // instance->throwOOMError();
+                if (static_cast<double>(builder.contentLength()) > static_cast<double>(STRING_MAXIMUM_LENGTH - (curIndex - prevIndex - 1) * sep->length())) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_String_InvalidStringLength);
                 }
                 while (curIndex - prevIndex > 1) {
                     builder.appendString(sep);
@@ -109,17 +107,15 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
         }
     }
     if (sep->length() > 0) {
-        if (static_cast<double>(builder.contentLength()) > static_cast<double>(lenMax - (curIndex - prevIndex - 1) * sep->length())) {
-            // TODO
-            RELEASE_ASSERT_NOT_REACHED();
-            // instance->throwOOMError();
+        if (static_cast<double>(builder.contentLength()) > static_cast<double>(STRING_MAXIMUM_LENGTH - (curIndex - prevIndex - 1) * sep->length())) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_String_InvalidStringLength);
         }
         while (curIndex - prevIndex > 1) {
             builder.appendString(sep);
             prevIndex++;
         }
     }
-    return builder.finalize();
+    return builder.finalize(&state);
 }
 
 static Value builtinArrayReverse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -836,7 +832,7 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
         StringBuilder builder;
         builder.appendString(R.toString(state));
         builder.appendString(separator);
-        String* S = builder.finalize();
+        String* S = builder.finalize(&state);
 
         // Let nextElement be the result of calling the [[Get]] internal method of array with argument ToString(k).
         Value nextElement = array->get(state, ObjectPropertyName(state, Value(k))).value(state, array);
@@ -861,7 +857,7 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
         StringBuilder builder2;
         builder2.appendString(S);
         builder2.appendString(R.toString(state));
-        R = builder.finalize();
+        R = builder.finalize(&state);
         // Increase k by 1.
         k++;
     }

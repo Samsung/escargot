@@ -1,14 +1,12 @@
 #include "Escargot.h"
 #include "StringBuilder.h"
+#include "ExecutionState.h"
+#include "ErrorObject.h"
 
 namespace Escargot {
 
 void StringBuilder::appendPiece(String* str, size_t s, size_t e)
 {
-    // TODO
-    // if (static_cast<int64_t>(m_contentLength) > static_cast<int64_t>(ESString::maxLength() - (e - s)))
-    //     ESVMInstance::currentInstance()->throwOOMError();
-
     if (e - s > 0) {
         StringBuilderPiece piece;
         piece.m_string = str;
@@ -18,17 +16,24 @@ void StringBuilder::appendPiece(String* str, size_t s, size_t e)
             m_has8BitContent = false;
         }
         m_contentLength += e - s;
-        if (m_piecesInlineStorageUsage < ESCARGOT_STRING_BUILDER_INLINE_STORAGE_MAX) {
+        if (m_piecesInlineStorageUsage < STRING_BUILDER_INLINE_STORAGE_MAX) {
             m_piecesInlineStorage[m_piecesInlineStorageUsage++] = piece;
         } else
             m_pieces.push_back(piece);
     }
 }
 
-String* StringBuilder::finalize()
+String* StringBuilder::finalize(ExecutionState* state)
 {
     if (!m_contentLength) {
         return String::emptyString;
+    }
+
+
+    if (state) {
+        if (UNLIKELY(m_contentLength > STRING_MAXIMUM_LENGTH)) {
+            ErrorObject::throwBuiltinError(*state, ErrorObject::RangeError, errorMessage_String_InvalidStringLength);
+        }
     }
 
     if (m_has8BitContent) {

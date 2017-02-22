@@ -509,7 +509,7 @@ static Value decode(ExecutionState& state, String* uriString, bool noComponent, 
             }
         }
     }
-    return unescaped.finalize();
+    return unescaped.finalize(&state);
 }
 
 static Value builtinDecodeURI(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -580,7 +580,7 @@ static Value encode(ExecutionState& state, String* uriString, bool noComponent, 
             RELEASE_ASSERT_NOT_REACHED();
         }
     }
-    return escaped.finalize();
+    return escaped.finalize(&state);
 }
 
 static Value builtinEncodeURI(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -637,7 +637,9 @@ static Value builtinEscape(ExecutionState& state, Value thisValue, size_t argc, 
 {
     String* str = argv[0].toString(state);
     size_t length = str->length();
-    ASCIIStringDataNonGCStd R = "";
+    ASCIIStringDataNonGCStd R;
+
+    size_t len = 0;
     for (size_t i = 0; i < length; i++) {
         char16_t t = str->charAt(i);
         if ((48 <= t && t <= 57) // DecimalDigit
@@ -645,16 +647,26 @@ static Value builtinEscape(ExecutionState& state, Value thisValue, size_t argc, 
             || (97 <= t && t <= 122) // uriAlpha - lower case
             || t == '@' || t == '*' || t == '_' || t == '+' || t == '-' || t == '.' || t == '/') {
             R.push_back(t);
+            len += 1;
         } else if (t < 256) {
             // %xy
             R.append("%");
             R.append(char2hex(t));
+
+            len = R.length();
         } else {
             // %uwxyz
             R.append("%u");
             R.append(char2hex4digit(t));
+
+            len = R.length();
+        }
+
+        if (UNLIKELY(len > STRING_MAXIMUM_LENGTH)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_String_InvalidStringLength);
         }
     }
+
     return new ASCIIString(R.data(), R.size());
 }
 

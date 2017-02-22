@@ -107,7 +107,6 @@ public:
     size_t find(String* str, size_t pos = 0);
     size_t rfind(String* str, size_t pos);
 
-#define ESCARGOT_STRING_SUB_STRING_MIN_VIEW_LENGTH 32
     String* subString(size_t from, size_t to);
 
     template <typename T>

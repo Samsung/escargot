@@ -648,7 +648,7 @@ size_t String::rfind(String* str, size_t pos)
 
 String* String::subString(size_t from, size_t to)
 {
-    if (to - from > ESCARGOT_STRING_SUB_STRING_MIN_VIEW_LENGTH) {
+    if (to - from > STRING_SUB_STRING_MIN_VIEW_LENGTH) {
         StringView* str = new StringView(this, from, to);
         return str;
     }

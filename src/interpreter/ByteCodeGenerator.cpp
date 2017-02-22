@@ -264,6 +264,11 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
                 assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe);
                 break;
             }
+            case WithOperationOpcode: {
+                WithOperation* cd = (WithOperation*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
+                break;
+            }
             case BinaryPlusOpcode:
             case BinaryMinusOpcode:
             case BinaryMultiplyOpcode:

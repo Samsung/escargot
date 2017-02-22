@@ -200,6 +200,31 @@ typedef uint16_t ByteCodeRegisterIndex;
 #define REGULAR_REGISTER_LIMIT (std::numeric_limits<ByteCodeRegisterIndex>::max() / 2)
 #define VARIABLE_LIMIT (std::numeric_limits<ByteCodeRegisterIndex>::max() / 2)
 
+#ifndef STACK_GROWS_DOWN
+#define STACK_GROWS_DOWN
+#endif
+
+#ifndef STACK_LIMIT_FROM_BASE
+#define STACK_LIMIT_FROM_BASE 1024 * 1024 * 4 // 4MB
+#endif
+
+#ifndef STRING_MAXIMUM_LENGTH
+#define STRING_MAXIMUM_LENGTH 1024 * 1024 * 512 // 512MB
+#endif
+
+#ifndef STRING_SUB_STRING_MIN_VIEW_LENGTH
+#define STRING_SUB_STRING_MIN_VIEW_LENGTH 32
+#endif
+
+#ifndef STRING_BUILDER_INLINE_STORAGE_MAX
+#define STRING_BUILDER_INLINE_STORAGE_MAX 12
+#endif
+
+
+#ifndef ROPE_STRING_MIN_LENGTH
+#define ROPE_STRING_MIN_LENGTH 4
+#endif
+
 #include "heap/Heap.h"
 #include "CheckedArithmetic.h"
 #include "runtime/String.h"

@@ -6,7 +6,7 @@
 
 namespace Escargot {
 
-#define ESCARGOT_STRING_BUILDER_INLINE_STORAGE_MAX 12
+class ExecutionState;
 
 class StringBuilder {
     MAKE_STACK_ALLOCATED();
@@ -53,13 +53,13 @@ public:
         appendPiece(str, s, e);
     }
 
-    String* finalize();
+    String* finalize(ExecutionState* state = nullptr); // provide ExecutionState if you need limit of string length(exception can be thrown only in ExecutionState area)
 
 protected:
     bool m_has8BitContent;
     size_t m_piecesInlineStorageUsage;
     size_t m_contentLength;
-    StringBuilderPiece m_piecesInlineStorage[ESCARGOT_STRING_BUILDER_INLINE_STORAGE_MAX];
+    StringBuilderPiece m_piecesInlineStorage[STRING_BUILDER_INLINE_STORAGE_MAX];
     Vector<StringBuilderPiece, gc_allocator_ignore_off_page<StringBuilderPiece>> m_pieces;
 };
 }

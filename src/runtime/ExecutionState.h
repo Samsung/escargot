@@ -32,6 +32,17 @@ public:
         , m_exeuctionResult(exeuctionResult)
         , m_rareData(nullptr)
     {
+        volatile int sp;
+        m_stackBase = (size_t)&sp;
+    }
+
+    ExecutionState(ExecutionState* parent, ExecutionContext* executionContext = nullptr, Value* exeuctionResult = nullptr)
+        : m_context(parent->context())
+        , m_executionContext(executionContext)
+        , m_stackBase(parent->stackBase())
+        , m_exeuctionResult(exeuctionResult)
+        , m_rareData(nullptr)
+    {
     }
 
     Context* context()
@@ -47,6 +58,11 @@ public:
     Value* exeuctionResult()
     {
         return m_exeuctionResult;
+    }
+
+    size_t stackBase()
+    {
+        return m_stackBase;
     }
 
     bool inStrictMode()
@@ -71,6 +87,7 @@ public:
 protected:
     Context* m_context;
     ExecutionContext* m_executionContext;
+    size_t m_stackBase;
     Value* m_exeuctionResult;
     ExecutionStateRareData* m_rareData;
 };

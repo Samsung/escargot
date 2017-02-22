@@ -165,6 +165,16 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
 
 Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, const size_t& argc, Value* argv, bool isNewExpression)
 {
+    volatile int sp;
+    size_t currentStackBase = (size_t)&sp;
+#ifdef STACK_GROWS_DOWN
+    if (UNLIKELY((state.stackBase() - currentStackBase) > STACK_LIMIT_FROM_BASE)) {
+#else
+    if (UNLIKELY((currentStackBase - state.stackBase()) > STACK_LIMIT_FROM_BASE)) {
+#endif
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
+    }
+
     Value receiver = receiverSrc;
     Context* ctx = state.context();
     bool isStrict = m_codeBlock->isStrict();
@@ -183,7 +193,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
         FunctionEnvironmentRecordOnStack record(state, this, argc, argv);
         LexicalEnvironment env(&record, outerEnvironment());
         ExecutionContext ec(ctx, state.executionContext(), &env, isStrict);
-        ExecutionState newState(ctx, &ec);
+        ExecutionState newState(&state, &ec);
 
         size_t len = info.size();
         if (argc < len) {
@@ -242,7 +252,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
     }
 
     Value resultValue;
-    ExecutionState newState(ctx, ec, &resultValue);
+    ExecutionState newState(&state, ec, &resultValue);
 
     // binding function name
     if (m_codeBlock->m_functionNameIndex != SIZE_MAX) {

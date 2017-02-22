@@ -251,7 +251,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
                 else {
                     StringBuilder argStrBuilder;
                     argStrBuilder.appendSubString(string, result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end);
-                    arguments[j] = argStrBuilder.finalize();
+                    arguments[j] = argStrBuilder.finalize(&state);
                 }
             }
             arguments[subLen] = Value((int)result.m_matchResults[i][0].m_start);
@@ -265,7 +265,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             }
         }
         builer.appendSubString(string, result.m_matchResults[matchCount - 1][0].m_end, string->length());
-        return builer.finalize();
+        return builer.finalize(&state);
     } else {
         ASSERT(replaceString);
 
@@ -346,7 +346,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             }
             builder.appendSubString(string, result.m_matchResults[matchCount - 1][0].m_end, string->length());
         }
-        return builder.finalize();
+        return builder.finalize(&state);
     }
     RELEASE_ASSERT_NOT_REACHED();
 }
@@ -555,7 +555,7 @@ static Value builtinStringFromCharCode(ExecutionState& state, Value thisValue, s
         for (size_t i = 0; i < argc; i++) {
             builder.appendChar((char16_t)argv[i].toInteger(state));
         }
-        return builder.finalize();
+        return builder.finalize(&state);
     }
     return Value();
 }
@@ -565,7 +565,7 @@ static Value builtinStringConcat(ExecutionState& state, Value thisValue, size_t 
     RESOLVE_THIS_BINDING_TO_STRING(str, String, concat);
     for (size_t i = 0; i < argc; i++) {
         String* appendStr = argv[i].toString(state);
-        str = RopeString::createRopeString(str, appendStr);
+        str = RopeString::createRopeString(str, appendStr, &state);
     }
     return Value(str);
 }

@@ -61,6 +61,7 @@ extern const char* errorMessage_GlobalObject_NotExistNewInArrayBufferConstructor
 extern const char* errorMessage_GlobalObject_NotExistNewInTypedArrayConstructor;
 extern const char* errorMessage_GlobalObject_NotExistNewInDataViewConstructor;
 extern const char* errorMessage_GlobalObject_InvalidArrayLength;
+extern const char* errorMessage_String_InvalidStringLength;
 
 class ErrorObject : public Object {
 public:

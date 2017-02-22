@@ -100,7 +100,7 @@ static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t
     builder.appendString(nameStr);
     builder.appendString(": ");
     builder.appendString(messageStr);
-    return builder.finalize();
+    return builder.finalize(&state);
 }
 
 void GlobalObject::installError(ExecutionState& state)

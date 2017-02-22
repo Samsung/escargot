@@ -1,15 +1,16 @@
 #include "Escargot.h"
 #include "RopeString.h"
 #include "StringBuilder.h"
+#include "ErrorObject.h"
 
 namespace Escargot {
 
-String* RopeString::createRopeString(String* lstr, String* rstr)
+String* RopeString::createRopeString(String* lstr, String* rstr, ExecutionState* state)
 {
     size_t llen = lstr->length();
     size_t rlen = rstr->length();
 
-    if (llen + rlen < ESCARGOT_ROPE_STRING_MIN_LENGTH) {
+    if (llen + rlen < ROPE_STRING_MIN_LENGTH) {
         auto lData = lstr->bufferAccessData();
         auto rData = rstr->bufferAccessData();
         if (LIKELY(lData.has8BitContent && rData.has8BitContent)) {
@@ -36,9 +37,12 @@ String* RopeString::createRopeString(String* lstr, String* rstr)
             return builder.finalize();
         }
     }
-    // TODO
-    // if (static_cast<int64_t>(llen) > static_cast<int64_t>(ESString::maxLength() - rlen))
-    //     ESVMInstance::currentInstance()->throwOOMError();
+
+    if (state) {
+        if (UNLIKELY((llen + rlen) > STRING_MAXIMUM_LENGTH)) {
+            ErrorObject::throwBuiltinError(*state, ErrorObject::RangeError, errorMessage_String_InvalidStringLength);
+        }
+    }
 
     RopeString* rope = new RopeString();
     rope->m_contentLength = llen + rlen;

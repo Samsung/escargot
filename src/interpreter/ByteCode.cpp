@@ -13,7 +13,7 @@ OpcodeTable g_opcodeTable;
 
 OpcodeTable::OpcodeTable()
 {
-    ExecutionState state(nullptr, nullptr);
+    ExecutionState state((Context*)nullptr, nullptr);
     ByteCodeInterpreter::interpret(state, nullptr, 0, nullptr, nullptr);
 }
 

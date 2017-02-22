@@ -678,8 +678,11 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             Object* obj = willBeObject.toObject(state);
             bool result = obj->setIndexedProperty(state, property, registerFile[code->m_loadRegisterIndex]);
             if (UNLIKELY(!result)) {
-                if (state.inStrictMode())
+                if (state.inStrictMode()) {
+                    // copy assignee for generating right execution result
+                    registerFile[code->m_objectRegisterIndex] = registerFile[code->m_loadRegisterIndex];
                     Object::throwCannotWriteError(state, PropertyName(state, property.toString(state)));
+                }
             }
             ADD_PROGRAM_COUNTER(SetObject);
             NEXT_INSTRUCTION();
@@ -1114,7 +1117,7 @@ NEVER_INLINE Value ByteCodeInterpreter::plusSlowCase(ExecutionState& state, cons
         rval = right.toPrimitive(state);
     }
     if (lval.isString() || rval.isString()) {
-        ret = RopeString::createRopeString(lval.toString(state), rval.toString(state));
+        ret = RopeString::createRopeString(lval.toString(state), rval.toString(state), &state);
     } else {
         ret = Value(lval.toNumber(state) + rval.toNumber(state));
     }
@@ -1709,7 +1712,7 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
             ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
 
             try {
-                ExecutionState newState(state.context(), newEc, state.exeuctionResult());
+                ExecutionState newState(&state, newEc, state.exeuctionResult());
                 newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
                 clearStack<386>();
                 interpret(newState, byteCodeBlock, code->m_catchPosition, registerFile, stackStorage);
@@ -1736,7 +1739,7 @@ NEVER_INLINE bool ByteCodeInterpreter::withOperation(ExecutionState& state, With
     EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(state, obj);
     LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
     ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
-    ExecutionState newState(state.context(), newEc, state.exeuctionResult());
+    ExecutionState newState(&state, newEc, state.exeuctionResult());
     newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
 
     interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile, stackStorage);

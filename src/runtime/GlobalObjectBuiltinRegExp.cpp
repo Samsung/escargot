@@ -99,7 +99,7 @@ static Value builtinRegExpToString(ExecutionState& state, Value thisValue, size_
         flags[flags_idx++] = 'y';
     }
     builder.appendString(flags);
-    return builder.finalize();
+    return builder.finalize(&state);
 }
 
 static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

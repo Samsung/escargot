@@ -5,7 +5,7 @@
 
 namespace Escargot {
 
-#define ESCARGOT_ROPE_STRING_MIN_LENGTH 4
+class ExecutionState;
 
 class RopeString : public String {
 public:
@@ -18,9 +18,10 @@ public:
     }
 
     // this function not always create RopeString.
-    // if (l+r).length() < ESCARGOT_ROPE_STRING_MIN_LENGTH
+    // if (l+r).length() < ROPE_STRING_MIN_LENGTH
     // then create just normalString
-    static String* createRopeString(String* lstr, String* rstr);
+    // provide ExecutionState if you need limit of string length(exception can be thrown only in ExecutionState area)
+    static String* createRopeString(String* lstr, String* rstr, ExecutionState* state = nullptr);
 
     virtual size_t length() const
     {

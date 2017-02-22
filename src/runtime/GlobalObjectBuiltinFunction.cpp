@@ -32,7 +32,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
 
     // TODO user should get line - 1
     ScriptParser parser(state.context());
-    auto parserResult = parser.parse(src.finalize(), new ASCIIString("Function Constructor input"));
+    auto parserResult = parser.parse(src.finalize(&state), new ASCIIString("Function Constructor input"));
 
     if (parserResult.m_error) {
         ErrorObject* err = ErrorObject::createError(state, parserResult.m_error->errorCode, parserResult.m_error->message);
@@ -59,7 +59,7 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
         builder.appendString(" [native code] ");
     builder.appendString("}");
 
-    return builder.finalize();
+    return builder.finalize(&state);
 }
 
 static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

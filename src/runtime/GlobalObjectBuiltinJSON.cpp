@@ -363,7 +363,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
             }
         }
         product.appendChar('"');
-        return product.finalize();
+        return product.finalize(&state);
     };
 
     JA = [&](ArrayObject* arrayObj) -> String* {
@@ -382,7 +382,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         StringBuilder newIndent;
         newIndent.appendString(indent);
         newIndent.appendString(gap);
-        indent = newIndent.finalize();
+        indent = newIndent.finalize(&state);
         // 5
         std::vector<String*, gc_allocator_ignore_off_page<String*>> partial;
         // 6, 7
@@ -416,7 +416,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
                 seperatorBuilder.appendChar(',');
                 seperatorBuilder.appendChar('\n');
                 seperatorBuilder.appendString(indent);
-                String* seperator = seperatorBuilder.finalize();
+                String* seperator = seperatorBuilder.finalize(&state);
                 for (size_t i = 0; i < partial.size(); ++i) {
                     final.appendString(partial[i]);
                     if (i < partial.size() - 1) {
@@ -434,7 +434,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         // 12
         indent = stepback;
 
-        return final.finalize();
+        return final.finalize(&state);
     };
 
     JO = [&](Object* value) -> String* {
@@ -452,7 +452,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         StringBuilder newIndent;
         newIndent.appendString(indent);
         newIndent.appendString(gap);
-        indent = newIndent.finalize();
+        indent = newIndent.finalize(&state);
         // 5, 6
         std::vector<ObjectPropertyName, gc_malloc_ignore_off_page_allocator<ObjectPropertyName>> k;
         if (propertyListTouched) {
@@ -482,7 +482,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
                     member.appendChar(' ');
                 }
                 member.appendString(strP.toString(state));
-                partial.push_back(member.finalize());
+                partial.push_back(member.finalize(&state));
             }
         }
         // 9
@@ -503,7 +503,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
                 seperatorBuilder.appendChar(',');
                 seperatorBuilder.appendChar('\n');
                 seperatorBuilder.appendString(indent);
-                String* seperator = seperatorBuilder.finalize();
+                String* seperator = seperatorBuilder.finalize(&state);
                 for (size_t i = 0; i < partial.size(); ++i) {
                     final.appendString(partial[i]);
                     if (i < partial.size() - 1) {
@@ -520,7 +520,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         // 12
         indent = stepback;
 
-        return final.finalize();
+        return final.finalize(&state);
     };
 
     // 9

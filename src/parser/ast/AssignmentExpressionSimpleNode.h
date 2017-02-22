@@ -74,7 +74,8 @@ public:
             }
         }
 
-
+        bool isBase = context->m_registerStack->size() == 0;
+        size_t rightRegister;
         if (isSlowMode) {
             bool canSkipCopyToRegister = context->m_canSkipCopyToRegister;
             context->m_canSkipCopyToRegister = false;
@@ -82,11 +83,19 @@ public:
             context->m_canSkipCopyToRegister = canSkipCopyToRegister;
 
             m_right->generateExpressionByteCode(codeBlock, context);
+            rightRegister = context->getLastRegisterIndex();
             m_left->generateStoreByteCode(codeBlock, context, false);
         } else {
             m_left->generateResolveAddressByteCode(codeBlock, context);
             m_right->generateExpressionByteCode(codeBlock, context);
+            rightRegister = context->getLastRegisterIndex();
             m_left->generateStoreByteCode(codeBlock, context, false);
+        }
+
+        if (isBase && (context->m_isGlobalScope || context->m_isEvalCode)) {
+            if (rightRegister != 0) {
+                codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), rightRegister, 0), context, this);
+            }
         }
     }
 
