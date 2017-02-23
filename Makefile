@@ -209,6 +209,7 @@ ifeq ($(OUTPUT), bin)
 endif
 
 SRC += $(foreach dir, third_party/yarr, $(wildcard $(dir)/*.cpp))
+SRC += $(foreach dir, third_party/GCutil, $(wildcard $(dir)/*.cpp))
 
 SRC_CC =
 SRC_CC += $(foreach dir, third_party/double_conversion , $(wildcard $(dir)/*.cc))
@@ -218,9 +219,9 @@ OBJS += $(SRC_CC:%.cc= $(OUTDIR)/%.o)
 OBJS += $(SRC_C:%.c= $(OUTDIR)/%.o)
 
 ifeq ($(OUTPUT), bin)
-  OBJS_GC=third_party/bdwgc/out/$(HOST)/$(ARCH)/$(MODE).static/.libs/libgc.a
+  OBJS_GC=third_party/GCutil/bdwgc/out/$(HOST)/$(ARCH)/$(MODE).static/.libs/libgc.a
 else
-  OBJS_GC=third_party/bdwgc/out/$(HOST)/$(ARCH)/$(MODE).shared/.libs/libgc.a
+  OBJS_GC=third_party/GCutil/bdwgc/out/$(HOST)/$(ARCH)/$(MODE).shared/.libs/libgc.a
 endif
 
 #######################################################

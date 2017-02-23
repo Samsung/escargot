@@ -14,7 +14,7 @@ class LexicalEnvironment;
 class CodeBlock;
 class Script;
 
-typedef Vector<CodeBlock*, gc_malloc_ignore_off_page_allocator<CodeBlock*>> CodeBlockVector;
+typedef Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>> CodeBlockVector;
 
 // length of argv is same with NativeFunctionInfo.m_argumentCount
 typedef Value (*NativeFunctionPointer)(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
@@ -85,7 +85,7 @@ public:
         AtomicString m_name;
     };
 
-    typedef Vector<IdentifierInfo, gc_malloc_atomic_ignore_off_page_allocator<IdentifierInfo>> IdentifierInfoVector;
+    typedef Vector<IdentifierInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<IdentifierInfo>> IdentifierInfoVector;
 
     Context* context()
     {
@@ -330,7 +330,7 @@ public:
         size_t m_index;
         AtomicString m_name;
     };
-    typedef Vector<FunctionParametersInfo, gc_malloc_atomic_ignore_off_page_allocator<FunctionParametersInfo>> FunctionParametersInfoVector;
+    typedef Vector<FunctionParametersInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<FunctionParametersInfo>> FunctionParametersInfoVector;
     const FunctionParametersInfoVector& parametersInfomation() const
     {
         return m_parametersInfomation;

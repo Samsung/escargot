@@ -9,7 +9,7 @@ namespace Escargot {
 
 typedef std::unordered_set<String*,
                            std::hash<String*>, std::equal_to<String*>,
-                           gc_malloc_ignore_off_page_allocator<String*> >
+                           GCUtil::gc_malloc_ignore_off_page_allocator<String*> >
     AtomicStringMap;
 
 class AtomicString : public gc {
@@ -97,7 +97,7 @@ inline bool operator!=(const AtomicString& a, const AtomicString& b)
     return !operator==(a, b);
 }
 
-typedef Vector<AtomicString, gc_malloc_atomic_ignore_off_page_allocator<AtomicString> > AtomicStringVector;
+typedef Vector<AtomicString, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<AtomicString> > AtomicStringVector;
 }
 
 

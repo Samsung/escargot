@@ -20,7 +20,7 @@ void Heap::initialize()
     initializeCustomAllocators();
 
 #ifdef PROFILE_BDWGC
-    Escargot::HeapUsageVisualizer::initialize();
+    GCUtil::HeapUsageVisualizer::initialize();
 #endif
 }
 

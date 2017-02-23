@@ -274,7 +274,7 @@ struct ASTScopeContext : public gc {
     AtomicStringVector m_usingNames;
     AtomicStringVector m_parameters;
     AtomicString m_functionName;
-    Vector<ASTScopeContext *, gc_malloc_ignore_off_page_allocator<ASTScopeContext *>> m_childScopes;
+    Vector<ASTScopeContext *, GCUtil::gc_malloc_ignore_off_page_allocator<ASTScopeContext *>> m_childScopes;
     ExtendedNodeLOC m_locStart;
     ExtendedNodeLOC m_locEnd;
     size_t m_nodeStartIndex;

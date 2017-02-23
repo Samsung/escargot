@@ -7,7 +7,7 @@
 #include "DateObject.h"
 #include "parser/ScriptParser.h"
 #include "parser/esprima_cpp/esprima.h"
-#include "heap/LeakChecker.h"
+#include "heap/LeakCheckerBridge.h"
 #include "EnvironmentRecord.h"
 #include "Environment.h"
 

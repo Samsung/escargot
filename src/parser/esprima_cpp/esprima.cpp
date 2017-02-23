@@ -2220,7 +2220,7 @@ public:
     std::unique_ptr<Scanner> scanner;
     /*
     std::unordered_map<IdentifierNode*, std::shared_ptr<ScannerResult>,
-                       std::hash<IdentifierNode*>, std::equal_to<IdentifierNode*>, gc_malloc_ignore_off_page_allocator<std::pair<IdentifierNode*, std::shared_ptr<ScannerResult>>>>
+                       std::hash<IdentifierNode*>, std::equal_to<IdentifierNode*>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<IdentifierNode*, std::shared_ptr<ScannerResult>>>>
         nodeExtraInfo;
      */
     enum SourceType {
@@ -2960,7 +2960,7 @@ public:
         options.paramSet.push_back(name);
     }
 
-    RestElementNode* parseRestElement(std::vector<std::shared_ptr<ScannerResult>, gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>>& params)
+    RestElementNode* parseRestElement(std::vector<std::shared_ptr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>>& params)
     {
         MetaNode node = this->createNode();
 
@@ -2981,7 +2981,7 @@ public:
         return this->finalize(node, new RestElementNode(param));
     }
 
-    Node* parsePattern(std::vector<std::shared_ptr<ScannerResult>, gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>>& params, String* kind = String::emptyString)
+    Node* parsePattern(std::vector<std::shared_ptr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>>& params, String* kind = String::emptyString)
     {
         Node* pattern;
 
@@ -3004,7 +3004,7 @@ public:
         return pattern;
     }
 
-    Node* parsePatternWithDefault(std::vector<std::shared_ptr<ScannerResult>, gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>>& params, String* kind = String::emptyString)
+    Node* parsePatternWithDefault(std::vector<std::shared_ptr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>>& params, String* kind = String::emptyString)
     {
         std::shared_ptr<ScannerResult> startToken = this->lookahead;
 
@@ -3025,7 +3025,7 @@ public:
     {
         Node* param;
         trackUsingNames = false;
-        std::vector<std::shared_ptr<ScannerResult>, gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>> params;
+        std::vector<std::shared_ptr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>> params;
         std::shared_ptr<ScannerResult> token = this->lookahead;
         if (token->type == Token::PunctuatorToken && token->valuePunctuatorsKind == PunctuatorsKind::PeriodPeriodPeriod) {
             RestElementNode* param = this->parseRestElement(params);
@@ -4012,7 +4012,7 @@ public:
         Node* expr = this->inheritCoverGrammar(&Parser::parseExponentiationExpression);
 
         std::shared_ptr<ScannerResult> token = this->lookahead;
-        std::vector<std::shared_ptr<ScannerResult>, gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>> tokenKeeper;
+        std::vector<std::shared_ptr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>> tokenKeeper;
         int prec = this->binaryPrecedence(token);
         if (prec > 0) {
             this->nextToken();
@@ -4021,13 +4021,13 @@ public:
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
 
-            std::vector<std::shared_ptr<ScannerResult>, gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>> markers;
+            std::vector<std::shared_ptr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>> markers;
             markers.push_back(startToken);
             markers.push_back(this->lookahead);
             Node* left = expr;
             Node* right = this->isolateCoverGrammar(&Parser::parseExponentiationExpression);
 
-            std::vector<void*, gc_malloc_ignore_off_page_allocator<void*>> stack;
+            std::vector<void*, GCUtil::gc_malloc_ignore_off_page_allocator<void*>> stack;
             stack.push_back(left);
             tokenKeeper.push_back(token);
             stack.push_back(token.get());
@@ -4742,7 +4742,7 @@ public:
     {
         MetaNode node = this->createNode();
 
-        std::vector<std::shared_ptr<ScannerResult>, gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>> params;
+        std::vector<std::shared_ptr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>> params;
         Node* id = this->parsePattern(params, new ASCIIString("var"));
 
         // ECMA-262 12.2.1
@@ -5318,10 +5318,10 @@ public:
         bool prevInCatch = this->context->inCatch;
         this->context->inCatch = true;
 
-        std::vector<std::shared_ptr<ScannerResult>, gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>> params;
+        std::vector<std::shared_ptr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>> params;
         Node* param = this->parsePattern(params);
 
-        std::vector<String*, gc_malloc_ignore_off_page_allocator<String*>> paramMap;
+        std::vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> paramMap;
         for (size_t i = 0; i < params.size(); i++) {
             bool has = false;
             for (size_t j = 0; j < paramMap.size(); j++) {

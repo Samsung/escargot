@@ -33,7 +33,7 @@ public:
 protected:
     FunctionEnvironmentRecord* m_targetRecord;
     CodeBlock* m_codeBlock;
-    TightVector<std::pair<SmallValue, AtomicString>, gc_malloc_ignore_off_page_allocator<std::pair<SmallValue, AtomicString>>> m_argumentPropertyInfo;
+    TightVector<std::pair<SmallValue, AtomicString>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<SmallValue, AtomicString>>> m_argumentPropertyInfo;
 };
 }
 

@@ -5,6 +5,9 @@ build_x64_release:
         - escargot_main_build
     before_script:
         - unset TIZEN_SDK_HOME
+        - git submodule deinit -f third_party/GCutil
+        - git submodule init
+        - git submodule update third_party/GCutil
         - ARCH=x64 MODE=release ./build_third_party.sh
         - make clean
     script:
@@ -107,6 +110,9 @@ build_x86_release:
         - escargot_main_build
     before_script:
         - unset TIZEN_SDK_HOME
+        - git submodule deinit -f third_party/GCutil
+        - git submodule init
+        - git submodule update third_party/GCutil
         - ARCH=x86 MODE=release ./build_third_party.sh
         - make clean
     script:
@@ -209,6 +215,9 @@ build_x64_debug:
         - escargot_main_build
     before_script:
         - unset TIZEN_SDK_HOME
+        - git submodule deinit -f third_party/GCutil
+        - git submodule init
+        - git submodule update third_party/GCutil
         - ARCH=x64 MODE=debug ./build_third_party.sh
         - make clean
     script:
@@ -256,6 +265,9 @@ build_x86_debug:
         - escargot_main_build
     before_script:
         - unset TIZEN_SDK_HOME
+        - git submodule deinit -f third_party/GCutil
+        - git submodule init
+        - git submodule update third_party/GCutil
         - ARCH=x86 MODE=debug ./build_third_party.sh
         - make clean
     script:

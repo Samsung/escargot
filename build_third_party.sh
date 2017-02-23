@@ -22,7 +22,7 @@ COMPILER_VERSION_MINOR=4.6.4
 ###########################################################
 # GC build
 ###########################################################
-cd third_party/bdwgc/
+cd third_party/GCutil/bdwgc/
 if [[ $INCREMENTAL == false ]]; then
     autoreconf -vif
     automake --add-missing

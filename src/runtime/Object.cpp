@@ -798,7 +798,7 @@ double Object::nextIndexBackward(ExecutionState& state, Object* obj, const doubl
 
 void Object::sort(ExecutionState& state, std::function<bool(const Value& a, const Value& b)> comp)
 {
-    std::vector<Value, gc_malloc_ignore_off_page_allocator<Value>> selected;
+    std::vector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> selected;
 
     uint32_t len = length(state);
     uint32_t n = 0;

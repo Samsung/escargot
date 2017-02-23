@@ -1592,7 +1592,7 @@ public:
 
 typedef Vector<char, std::allocator<char>, 200> ByteCodeBlockData;
 typedef Vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>> ByteCodeLOCData;
-typedef Vector<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> ByteCodeLiteralData;
+typedef Vector<SmallValue, GCUtil::gc_malloc_ignore_off_page_allocator<SmallValue>> ByteCodeLiteralData;
 
 class ByteCodeBlock : public gc {
 public:

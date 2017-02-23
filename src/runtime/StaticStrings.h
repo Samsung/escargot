@@ -311,7 +311,7 @@ public:
     void initStaticStrings(AtomicStringMap* map);
 
     const size_t dtoaCacheSize; // 5;
-    mutable std::list<std::pair<double, ::Escargot::String*>, gc_malloc_ignore_off_page_allocator<std::pair<double, ::Escargot::String*>>> dtoaCache;
+    mutable std::list<std::pair<double, ::Escargot::String*>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<double, ::Escargot::String*>>> dtoaCache;
 
     ::Escargot::String* dtoa(double d) const;
 };

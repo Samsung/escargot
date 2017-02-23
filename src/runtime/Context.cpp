@@ -217,7 +217,7 @@ void Context::somePrototypeObjectDefineIndexedProperty(ExecutionState& state)
     Escargot::ArrayObject::iterateArrays(state, callback);
 
     GC_disable();
-    std::vector<ArrayObject*, gc_malloc_ignore_off_page_allocator<ArrayObject*>> allOfArrayRooted;
+    std::vector<ArrayObject*, GCUtil::gc_malloc_ignore_off_page_allocator<ArrayObject*>> allOfArrayRooted;
     allOfArrayRooted.assign(allOfArray.begin(), allOfArray.end());
     GC_enable();
 

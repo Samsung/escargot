@@ -273,7 +273,7 @@ protected:
     SmallValueData m_data;
 };
 
-typedef Vector<SmallValue, gc_malloc_ignore_off_page_allocator<SmallValue>> SmallValueVector;
+typedef Vector<SmallValue, GCUtil::gc_malloc_ignore_off_page_allocator<SmallValue>> SmallValueVector;
 }
 
 

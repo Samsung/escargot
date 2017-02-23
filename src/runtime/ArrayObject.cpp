@@ -97,7 +97,7 @@ void ArrayObject::sort(ExecutionState& state, std::function<bool(const Value& a,
 {
     if (isFastModeArray()) {
         if (getArrayLength(state)) {
-            std::vector<Value, gc_malloc_ignore_off_page_allocator<Value>> values(&m_fastModeData[0], m_fastModeData.data() + getArrayLength(state));
+            std::vector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> values(&m_fastModeData[0], m_fastModeData.data() + getArrayLength(state));
             std::sort(values.begin(), values.end(), comp);
             for (size_t i = 0; i < values.size(); i++) {
                 m_fastModeData[i] = values[i];

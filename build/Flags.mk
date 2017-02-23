@@ -112,7 +112,7 @@ else ifneq (,$(findstring tizen_,$(HOST)))
 endif
 
 # bdwgc
-ESCARGOT_CXXFLAGS_THIRD_PARTY += -I$(ESCARGOT_ROOT)/third_party/bdwgc/include/
+ESCARGOT_CXXFLAGS_THIRD_PARTY += -I$(ESCARGOT_ROOT)/third_party/GCutil/bdwgc/include/
 ifeq ($(MODE), debug)
   ESCARGOT_CXXFLAGS_THIRD_PARTY += -DGC_DEBUG
 endif
@@ -128,5 +128,8 @@ ESCARGOT_CXXFLAGS_THIRD_PARTY += -I$(ESCARGOT_ROOT)/third_party/rapidjson/includ
 
 # yarr
 ESCARGOT_CXXFLAGS_THIRD_PARTY += -I$(ESCARGOT_ROOT)/third_party/yarr/
+
+# GCutil
+ESCARGOT_CXXFLAGS_THIRD_PARTY += -I$(ESCARGOT_ROOT)/third_party/GCutil/
 
 

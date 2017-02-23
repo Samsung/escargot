@@ -181,7 +181,7 @@ protected:
     ObjectStructure* m_defaultStructureForArgumentsObject;
     ObjectStructure* m_defaultStructureForArgumentsObjectInStrictMode;
 
-    Vector<SandBox*, gc_malloc_allocator<SandBox*>> m_sandBoxStack;
+    Vector<SandBox*, GCUtil::gc_malloc_allocator<SandBox*>> m_sandBoxStack;
 
 #if ESCARGOT_ENABLE_PROMISE
     JobQueue* m_jobQueue;

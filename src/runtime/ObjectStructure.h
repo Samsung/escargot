@@ -34,8 +34,8 @@ struct ObjectStructureTransitionItem : public gc {
     }
 };
 
-typedef Vector<ObjectStructureItem, gc_malloc_ignore_off_page_allocator<ObjectStructureItem>> ObjectStructureItemVector;
-typedef Vector<ObjectStructureTransitionItem, gc_malloc_ignore_off_page_allocator<ObjectStructureTransitionItem>> ObjectStructureTransitionTableVector;
+typedef Vector<ObjectStructureItem, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectStructureItem>> ObjectStructureItemVector;
+typedef Vector<ObjectStructureTransitionItem, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectStructureTransitionItem>> ObjectStructureTransitionTableVector;
 
 #define ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE 96
 

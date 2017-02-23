@@ -37,7 +37,7 @@ public:
         Value result;
         Value error;
         String* msgStr;
-        Vector<StackTraceData, gc_malloc_allocator<StackTraceData>> stackTraceData;
+        Vector<StackTraceData, GCUtil::gc_malloc_allocator<StackTraceData>> stackTraceData;
         SandBoxResult()
             : result(Value::EmptyValue)
             , error(Value::EmptyValue)
@@ -51,7 +51,7 @@ public:
 
 protected:
     Context* m_context;
-    Vector<std::pair<ExecutionContext*, StackTraceData>, gc_malloc_allocator<std::pair<ExecutionContext*, StackTraceData>>> m_stackTraceData;
+    Vector<std::pair<ExecutionContext*, StackTraceData>, GCUtil::gc_malloc_allocator<std::pair<ExecutionContext*, StackTraceData>>> m_stackTraceData;
     Value m_exception; // To avoid accidential GC of exception value
 };
 }

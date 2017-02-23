@@ -57,7 +57,7 @@ void RopeString::flattenRopeStringWorker()
 {
     A result;
     result.resizeWithUninitializedValues(length());
-    std::vector<String*, gc_malloc_atomic_ignore_off_page_allocator<String*>> queue;
+    std::vector<String*, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<String*>> queue;
     queue.push_back(m_left);
     queue.push_back(m_right);
     size_t pos = result.size();

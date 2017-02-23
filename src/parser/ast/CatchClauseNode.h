@@ -60,7 +60,7 @@ protected:
     BlockStatementNode *m_body;
 };
 
-typedef Vector<Node *, gc_malloc_ignore_off_page_allocator<Node *>> CatchClauseNodeVector;
+typedef Vector<Node *, GCUtil::gc_malloc_ignore_off_page_allocator<Node *>> CatchClauseNodeVector;
 }
 
 #endif

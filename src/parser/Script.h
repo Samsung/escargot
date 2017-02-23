@@ -30,7 +30,7 @@ public:
                 size_t line;
                 size_t column;
             };
-            Vector<StackTrace, gc_malloc_ignore_off_page_allocator<StackTrace>> stackTrace;
+            Vector<StackTrace, GCUtil::gc_malloc_ignore_off_page_allocator<StackTrace>> stackTrace;
         } error;
     };
     Value execute(ExecutionState& state, bool isEvalMode = false, bool needNewEnv = false, bool isOnGlobal = false);
