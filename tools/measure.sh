@@ -13,9 +13,8 @@ TESTDIR_BASE=`realpath $TESTDIR_BASE`
 TESTBIN="$TESTDIR_BASE/bin/"
 MEMPS="$TESTBIN/memps"
 OCTANE_BASE="test/octane"
-SUNSPIDER_BASE="$TESTDIR_BASE/SunSpider"
+SUNSPIDER_BASE="test/vendortest/SunSpider"
 tests=("3d-cube" "3d-morph" "3d-raytrace" "access-binary-trees" "access-fannkuch" "access-nbody" "access-nsieve" "bitops-3bit-bits-in-byte" "bitops-bits-in-byte" "bitops-bitwise-and" "bitops-nsieve-bits" "controlflow-recursive" "crypto-aes" "crypto-md5" "crypto-sha1" "date-format-tofte" "date-format-xparb" "math-cordic" "math-partial-sums" "math-spectral-norm" "regexp-dna" "string-base64" "string-fasta" "string-tagcloud" "string-unpack-code" "string-validate-input")
-cp $SUNSPIDER_BASE/resources/sunspider-standalone-driver.orig.js $SUNSPIDER_BASE/resources/sunspider-standalone-driver.js
 ARCH="x64"
 if [[ $1 == *"32"* ]]; then
   ARCH="x86"
@@ -26,7 +25,7 @@ if [[ $1 == duk* ]]; then
   cmd="$TESTBIN/$ARCH/duk_1.6.0/duk"
   tc="duktape.$ARCH"
 elif [[ $1 == v8* ]]; then
-  cmd="$TESTBIN/$ARCH/v8/d8"
+  cmd="$TESTBIN/$ARCH/v8_5.7.477/d8"
   if [[ $1 == *.full* ]]; then
     args="--nocrankshaft"
     tc="v8.$ARCH.full"
@@ -34,19 +33,22 @@ elif [[ $1 == v8* ]]; then
     tc="v8.$ARCH"
   fi
   if [[ $2 == time ]]; then
-      cp $SUNSPIDER_BASE/resources/sunspider-standalone-driver-v8.js $SUNSPIDER_BASE/resources/sunspider-standalone-driver.js
+      cp tools/vendortest/sunspider-standalone-driver-v8.js $SUNSPIDER_BASE/resources/sunspider-standalone-driver.js
   fi
 elif [[ $1 == jsc* ]]; then
-  export LD_LIBRARY_PATH="$TESTBIN/$ARCH/jsc/lib:$TESTBIN/$ARCH/jsc/libicu"
+  JSC_PATH="$TESTBIN/$ARCH/jsc_170222"
   if [[ $1 == jsc*.interp* ]]; then
-    cmd="$TESTBIN/$ARCH/jsc/interp/jsc"
+    export LD_LIBRARY_PATH="$JSC_PATH/interp/lib:$JSC_PATH/libicu"
+    cmd="$JSC_PATH/interp/jsc"
     tc="jsc.$ARCH.interp"
-  elif [[ $1 == jsc*.full.jit ]]; then
-    cmd="$TESTBIN/$ARCH/jsc/baseline/jsc"
+  elif [[ $1 == jsc*.full.jit ]] || [[ $1 == jsc*.base ]]; then
+    export LD_LIBRARY_PATH="$JSC_PATH/baseline/lib:$JSC_PATH/libicu"
+    cmd="$JSC_PATH/baseline/jsc"
     args="--useDFGJIT=false"
     tc="jsc.$ARCH.baselineJIT"
   elif [[ $1 == jsc*.jit ]]; then
-    cmd="$TESTBIN/$ARCH/jsc/baseline/jsc"
+    export LD_LIBRARY_PATH="$JSC_PATH/baseline/lib:$JSC_PATH/libicu"
+    cmd="$JSC_PATH/baseline/jsc"
     tc="jsc.$ARCH.jit"
   fi
 elif [[ $1 == escargot*.interp* ]]; then
@@ -63,8 +65,12 @@ else
 fi
 echo "== REPO BASE PATH: "$REPO_BASE
 echo "== TEST BASE PATH: "$TESTDIR_BASE
-echo "== BINARY PATH: "$cmd
+echo "== BINARY PATH: "$cmd $args
 echo "======================================================="
+git submodule deinit -f test/octane
+git submodule deinit -f test/vendortest
+git submodule init
+git submodule update
 testpath="$SUNSPIDER_BASE/tests/sunspider-1.0.2/"
 
 TEST_RESULT_PATH="$TESTDIR_BASE/out/"
@@ -146,10 +152,6 @@ else
       cat tmp
       cat tmp > $TEST_RESULT_PATH/memory.res
       rm tmp
-    fi
-
-    if [[ $1 == v8* ]]; then
-      cp $SUNSPIDER_BASE/resources/sunspider-standalone-driver.orig.js $SUNSPIDER_BASE/resources/sunspider-standalone-driver.js
     fi
 fi
 echo '-------------------------------------------------finish exe'
