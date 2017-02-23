@@ -87,35 +87,52 @@ public:
             return;
         }
 
-        size_t baseRegister = context->getRegister();
-        context->giveUpRegister();
-
+        bool isCalleeHasReceiver = false;
         if (m_callee->isMemberExpression()) {
+            isCalleeHasReceiver = true;
             context->m_inCallingExpressionScope = true;
             context->m_isHeadOfMemberExpression = true;
-        } else {
-            // NOTE: receiver is always global Object => undefined
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value()), context, this);
         }
-
-        size_t calleeExpect = baseRegister + 1;
 
         m_callee->generateExpressionByteCode(codeBlock, context);
 
-        size_t r = context->getLastRegisterIndex();
-        if (r != calleeExpect && !m_callee->isMemberExpression()) {
-            context->giveUpRegister();
-            size_t callee = context->getRegister();
-            ASSERT(callee == calleeExpect);
-            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r, callee), context, this);
+        size_t receiverIndex = SIZE_MAX;
+        size_t calleeIndex = SIZE_MAX;
+        if (isCalleeHasReceiver) {
+            receiverIndex = context->getLastRegisterIndex(1);
+            calleeIndex = context->getLastRegisterIndex();
+        } else {
+            calleeIndex = context->getLastRegisterIndex();
         }
 
-        generateArguments(codeBlock, context);
-        context->m_inCallingExpressionScope = prevInCallingExpressionScope;
-        codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), baseRegister, m_arguments.size()), context, this);
-
-        // drop callee index;
+        size_t argumentsStartIndex = context->getRegister();
         context->giveUpRegister();
+
+        if (m_arguments.size() == 1) {
+            m_arguments[0]->generateExpressionByteCode(codeBlock, context);
+            argumentsStartIndex = context->getLastRegisterIndex();
+            context->giveUpRegister();
+        } else {
+            generateArguments(codeBlock, context);
+        }
+
+        // drop callee, receiver registers
+        if (isCalleeHasReceiver) {
+            context->giveUpRegister();
+            context->giveUpRegister();
+        } else {
+            context->giveUpRegister();
+        }
+
+        size_t resultIndex = context->getRegister();
+
+        if (isCalleeHasReceiver) {
+            codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, m_arguments.size(), resultIndex), context, this);
+        } else {
+            codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, m_arguments.size(), resultIndex), context, this);
+        }
+
+        context->m_inCallingExpressionScope = prevInCallingExpressionScope;
     }
 
 protected:

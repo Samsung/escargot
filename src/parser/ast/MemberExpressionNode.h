@@ -72,23 +72,14 @@ public:
         m_object->generateExpressionByteCode(codeBlock, context);
         size_t objectIndex = context->getLastRegisterIndex();
 
+        size_t resultIndex;
         if (context->m_inCallingExpressionScope && prevHead) {
-            if (objectIndexExpect != objectIndex) {
-                context->giveUpRegister();
-                size_t w = context->getRegister();
-                ASSERT(w == objectIndexExpect);
-                codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), objectIndex, w), context, this);
-            }
-            size_t r1 = context->getRegister();
-            ASSERT(r1 == (objectIndexExpect + 1));
-            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), objectIndex, r1), context, this);
-            objectIndex = r1;
+            resultIndex = context->getRegister();
+        } else {
+            // drop objectIndex
+            context->giveUpRegister();
+            resultIndex = context->getRegister();
         }
-
-        // drop objectIndex
-        context->giveUpRegister();
-
-        size_t resultIndex = context->getRegister();
 
         if (isPreComputedCase()) {
             ASSERT(m_property->isIdentifier());

@@ -69,6 +69,7 @@ class Node;
     F(JumpIfTrue, 0, 0)                               \
     F(JumpIfFalse, 0, 0)                              \
     F(CallFunction, -1, 0)                            \
+    F(CallFunctionWithReceiver, -1, 0)                \
     F(ReturnFunction, 0, 0)                           \
     F(ReturnFunctionWithValue, 0, 0)                  \
     F(TryOperation, 0, 0)                             \
@@ -1100,23 +1101,49 @@ public:
 
 class CallFunction : public ByteCode {
 public:
-    // register usage (before call)
-    // [receiver, callee, arg0, arg1,... arg<argument count-1> ]
-    // register usage (after call)
-    // [return value]
-    CallFunction(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& argumentCount)
+    CallFunction(const ByteCodeLOC& loc, const size_t& calleeIndex, const size_t& argumentsStartIndex, const size_t& argumentCount, const size_t& resultIndex)
         : ByteCode(Opcode::CallFunctionOpcode, loc)
-        , m_registerIndex(registerIndex)
+        , m_calleeIndex(calleeIndex)
+        , m_argumentsStartIndex(argumentsStartIndex)
         , m_argumentCount(argumentCount)
+        , m_resultIndex(resultIndex)
     {
     }
-    ByteCodeRegisterIndex m_registerIndex;
-    size_t m_argumentCount;
+    ByteCodeRegisterIndex m_calleeIndex;
+    ByteCodeRegisterIndex m_argumentsStartIndex;
+    uint16_t m_argumentCount;
+    ByteCodeRegisterIndex m_resultIndex;
 
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("call r%d <- r%d-r%d", (int)m_registerIndex, (int)m_registerIndex, (int)m_registerIndex + (int)m_argumentCount + 1);
+        printf("call r%d <- r%d(r%d-r%d)", (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
+    }
+#endif
+};
+
+class CallFunctionWithReceiver : public ByteCode {
+public:
+    CallFunctionWithReceiver(const ByteCodeLOC& loc, const size_t& receiverIndex, const size_t& calleeIndex, const size_t& argumentsStartIndex, const size_t& argumentCount, const size_t& resultIndex)
+        : ByteCode(Opcode::CallFunctionWithReceiverOpcode, loc)
+        , m_receiverIndex(receiverIndex)
+        , m_calleeIndex(calleeIndex)
+        , m_argumentsStartIndex(argumentsStartIndex)
+        , m_argumentCount(argumentCount)
+        , m_resultIndex(resultIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_receiverIndex;
+    ByteCodeRegisterIndex m_calleeIndex;
+    ByteCodeRegisterIndex m_argumentsStartIndex;
+    uint16_t m_argumentCount;
+    ByteCodeRegisterIndex m_resultIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("call r%d <- r%d,r%d(r%d-r%d)", (int)m_resultIndex, (int)m_receiverIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
     }
 #endif
 };
@@ -1190,19 +1217,23 @@ public:
 
 class NewOperation : public ByteCode {
 public:
-    NewOperation(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& argc)
+    NewOperation(const ByteCodeLOC& loc, const size_t& calleeIndex, const size_t& argumentsStartIndex, const size_t& argumentCount, const size_t& resultIndex)
         : ByteCode(Opcode::NewOperationOpcode, loc)
-        , m_registerIndex(registerIndex)
-        , m_argumentCount(argc)
+        , m_calleeIndex(calleeIndex)
+        , m_argumentsStartIndex(argumentsStartIndex)
+        , m_argumentCount(argumentCount)
+        , m_resultIndex(resultIndex)
     {
     }
 
-    ByteCodeRegisterIndex m_registerIndex;
+    ByteCodeRegisterIndex m_calleeIndex;
+    ByteCodeRegisterIndex m_argumentsStartIndex;
     uint16_t m_argumentCount;
+    ByteCodeRegisterIndex m_resultIndex;
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("new -> r%d", (int)m_registerIndex);
+        printf("new r%d <- r%d(r%d-r%d)", (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
     }
 #endif
 };

@@ -171,14 +171,14 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
                 int32_t a = left.asInt32();
                 int32_t b = right.asInt32();
                 if ((!a || !b) && (a >> 31 || b >> 31)) { // -1 * 0 should be treated as -0, not +0
-                    ret = Value(left.toNumber(state) * right.toNumber(state));
+                    ret = Value(left.asNumber() * right.asNumber());
                 } else {
                     int32_t c = right.asInt32();
                     bool result = ArithmeticOperations<int32_t, int32_t, int32_t>::multiply(a, b, c);
                     if (LIKELY(result)) {
                         ret = Value(c);
                     } else {
-                        ret = Value(Value::EncodeAsDouble, left.toNumber(state) * right.toNumber(state));
+                        ret = Value(Value::EncodeAsDouble, a * (double)b);
                     }
                 }
             } else {
@@ -446,6 +446,23 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             NEXT_INSTRUCTION();
         }
 
+        CallFunctionOpcodeLbl : {
+            CallFunction* code = (CallFunction*)programCounter;
+            const Value& callee = registerFile[code->m_calleeIndex];
+            registerFile[code->m_resultIndex] = FunctionObject::call(state, callee, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+            ADD_PROGRAM_COUNTER(CallFunction);
+            NEXT_INSTRUCTION();
+        }
+
+        CallFunctionWithReceiverOpcodeLbl : {
+            CallFunctionWithReceiver* code = (CallFunctionWithReceiver*)programCounter;
+            const Value& callee = registerFile[code->m_calleeIndex];
+            const Value& receiver = registerFile[code->m_receiverIndex];
+            registerFile[code->m_resultIndex] = FunctionObject::call(state, callee, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+            ADD_PROGRAM_COUNTER(CallFunctionWithReceiver);
+            NEXT_INSTRUCTION();
+        }
+
         LoadByHeapIndexOpcodeLbl : {
             LoadByHeapIndex* code = (LoadByHeapIndex*)programCounter;
             LexicalEnvironment* upperEnv = ec->lexicalEnvironment();
@@ -469,15 +486,6 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
             ASSERT(record->isFunctionEnvironmentRecordOnHeap() || record->isFunctionEnvironmentRecordNotIndexed());
             ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[code->m_index] = registerFile[code->m_registerIndex];
             ADD_PROGRAM_COUNTER(StoreByHeapIndex);
-            NEXT_INSTRUCTION();
-        }
-
-        CallFunctionOpcodeLbl : {
-            CallFunction* code = (CallFunction*)programCounter;
-            const Value& receiver = registerFile[code->m_registerIndex];
-            const Value& callee = registerFile[code->m_registerIndex + 1];
-            registerFile[code->m_registerIndex] = FunctionObject::call(state, callee, receiver, code->m_argumentCount, &registerFile[code->m_registerIndex + 2]);
-            ADD_PROGRAM_COUNTER(CallFunction);
             NEXT_INSTRUCTION();
         }
 
@@ -633,7 +641,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
 
         NewOperationOpcodeLbl : {
             NewOperation* code = (NewOperation*)programCounter;
-            registerFile[code->m_registerIndex] = newOperation(state, registerFile[code->m_registerIndex], code->m_argumentCount, &registerFile[code->m_registerIndex + 1]);
+            registerFile[code->m_resultIndex] = newOperation(state, registerFile[code->m_calleeIndex], code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
             ADD_PROGRAM_COUNTER(NewOperation);
             NEXT_INSTRUCTION();
         }

@@ -42,23 +42,28 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::NewExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        bool canUseDisalignedRegisterBefore = context->m_canUseDisalignedRegister;
-        context->m_canUseDisalignedRegister = false;
-
         m_callee->generateExpressionByteCode(codeBlock, context);
-        size_t base = context->getLastRegisterIndex();
+        size_t callee = context->getLastRegisterIndex();
 
-        for (size_t i = 0; i < m_arguments.size(); i++) {
-            size_t registerExpect = context->getRegister();
-            context->giveUpRegister();
+        size_t argumentsStartIndex = context->getRegister();
+        context->giveUpRegister();
 
-            m_arguments[i]->generateExpressionByteCode(codeBlock, context);
-            size_t r = context->getLastRegisterIndex();
-            if (r != registerExpect) {
+        if (m_arguments.size() == 1) {
+            m_arguments[0]->generateExpressionByteCode(codeBlock, context);
+            argumentsStartIndex = context->getLastRegisterIndex();
+        } else {
+            for (size_t i = 0; i < m_arguments.size(); i++) {
+                size_t registerExpect = context->getRegister();
                 context->giveUpRegister();
-                size_t newR = context->getRegister();
-                ASSERT(newR == registerExpect);
-                codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r, newR), context, this);
+
+                m_arguments[i]->generateExpressionByteCode(codeBlock, context);
+                size_t r = context->getLastRegisterIndex();
+                if (r != registerExpect) {
+                    context->giveUpRegister();
+                    size_t newR = context->getRegister();
+                    ASSERT(newR == registerExpect);
+                    codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r, newR), context, this);
+                }
             }
         }
 
@@ -66,10 +71,13 @@ public:
             context->giveUpRegister();
         }
 
-        codeBlock->pushCode(NewOperation(ByteCodeLOC(m_loc.index), base, m_arguments.size()), context, this);
+        // give up callee index
+        context->giveUpRegister();
+
+        size_t result = context->getRegister();
+        codeBlock->pushCode(NewOperation(ByteCodeLOC(m_loc.index), callee, argumentsStartIndex, m_arguments.size(), result), context, this);
 
         codeBlock->m_shouldClearStack = true;
-        context->m_canUseDisalignedRegister = canUseDisalignedRegisterBefore;
     }
 
 protected:

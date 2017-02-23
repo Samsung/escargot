@@ -3671,6 +3671,9 @@ public:
             ArgumentVector args;
             if (this->match(LeftParenthesis))
                 args = this->parseArguments();
+            if (args.size() > 65535) {
+                this->throwError("too many arguments in new");
+            }
             expr = new NewExpressionNode(callee, std::move(args));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
@@ -3713,6 +3716,9 @@ public:
                 this->context->isBindingElement = false;
                 this->context->isAssignmentTarget = false;
                 ArgumentVector args = this->parseArguments();
+                if (args.size() > 65535) {
+                    this->throwError("too many arguments in call");
+                }
                 expr = this->finalize(this->startNode(startToken), new CallExpressionNode(expr, std::move(args)));
 
             } else if (this->match(LeftSquareBracket)) {

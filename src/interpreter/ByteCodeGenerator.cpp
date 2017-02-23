@@ -233,6 +233,28 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
                 assignStackIndexIfNeeded(cd->m_srcIndex1, stackBase, stackBaseWillBe);
                 break;
             }
+            case CallFunctionOpcode: {
+                CallFunction* cd = (CallFunction*)currentCode;
+                assignStackIndexIfNeeded(cd->m_calleeIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case CallFunctionWithReceiverOpcode: {
+                CallFunctionWithReceiver* cd = (CallFunctionWithReceiver*)currentCode;
+                assignStackIndexIfNeeded(cd->m_receiverIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_calleeIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case NewOperationOpcode: {
+                NewOperation* cd = (NewOperation*)currentCode;
+                assignStackIndexIfNeeded(cd->m_calleeIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe);
+                break;
+            }
             case JumpOpcode: {
                 Jump* cd = (Jump*)currentCode;
                 cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
