@@ -38,12 +38,16 @@ public:
         }
     }
 
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
+        ByteCodeRegisterIndex r;
         for (size_t i = 0; i < m_expressions.size(); i++) {
-            m_expressions[i]->generateExpressionByteCode(codeBlock, context);
-            if (i < m_expressions.size() - 1)
-                context->giveUpRegister();
+            r = m_expressions[i]->getRegister(codeBlock, context);
+            m_expressions[i]->generateExpressionByteCode(codeBlock, context, r);
+            context->giveUpRegister();
+        }
+        if (r != dstRegister) {
+            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r, dstRegister), context, this);
         }
     }
 

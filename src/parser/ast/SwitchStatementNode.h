@@ -54,14 +54,14 @@ public:
 
         newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by caseNode->m_test
 
-        m_discriminant->generateExpressionByteCode(codeBlock, &newContext);
-        size_t rIndex0 = newContext.getLastRegisterIndex();
+        size_t rIndex0 = m_discriminant->getRegister(codeBlock, &newContext);
+        m_discriminant->generateExpressionByteCode(codeBlock, &newContext, rIndex0);
 
         std::vector<size_t> jumpCodePerCaseNodePosition;
         for (unsigned i = 0; i < m_casesB.size(); i++) {
             SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesB[i];
-            caseNode->m_test->generateExpressionByteCode(codeBlock, &newContext);
-            size_t refIndex = newContext.getLastRegisterIndex();
+            size_t refIndex = caseNode->m_test->getRegister(codeBlock, &newContext);
+            caseNode->m_test->generateExpressionByteCode(codeBlock, &newContext, refIndex);
             size_t resultIndex = newContext.getRegister();
             codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), refIndex, rIndex0, resultIndex), &newContext, this);
             jumpCodePerCaseNodePosition.push_back(codeBlock->currentCodeSize());
@@ -74,8 +74,8 @@ public:
 
         for (unsigned i = 0; i < m_casesA.size(); i++) {
             SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesA[i];
-            caseNode->m_test->generateExpressionByteCode(codeBlock, &newContext);
-            size_t refIndex = newContext.getLastRegisterIndex();
+            size_t refIndex = caseNode->m_test->getRegister(codeBlock, &newContext);
+            caseNode->m_test->generateExpressionByteCode(codeBlock, &newContext, refIndex);
             size_t resultIndex = newContext.getRegister();
             codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), refIndex, rIndex0, resultIndex), &newContext, this);
             jumpCodePerCaseNodePosition.push_back(codeBlock->currentCodeSize());

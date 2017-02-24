@@ -40,10 +40,10 @@ public:
         return m_name;
     }
 
-    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, bool needToReferenceSelf = true)
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf = true)
     {
         if (m_name.string()->equals("arguments") && !context->isGlobalScope() && context->m_codeBlock->usesArgumentsObject()) {
-            codeBlock->pushCode(StoreArgumentsObject(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+            codeBlock->pushCode(StoreArgumentsObject(ByteCodeLOC(m_loc.index), srcRegister), context, this);
             return;
         }
 
@@ -51,36 +51,38 @@ public:
             CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {
                 if (!context->m_codeBlock->inCatchWith() && !context->m_codeBlock->inEvalScope() && !context->m_catchScopeCount && !context->m_isEvalCode && !context->m_codeBlock->hasWith()) {
-                    codeBlock->pushCode(SetGlobalObject(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), PropertyName(m_name)), context, this);
+                    codeBlock->pushCode(SetGlobalObject(ByteCodeLOC(m_loc.index), srcRegister, PropertyName(m_name)), context, this);
                 } else {
-                    codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), m_name), context, this);
+                    codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
                 }
             } else {
                 if (context->m_isWithScope || (context->m_catchScopeCount && m_name == context->m_lastCatchVariableName)) {
-                    codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), m_name), context, this);
+                    codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
                     return;
                 }
 
                 if (info.m_isStackAllocated) {
-                    codeBlock->pushCode(StoreByStackIndex(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), info.m_index), context, this);
+                    if (srcRegister != REGULAR_REGISTER_LIMIT + info.m_index) {
+                        codeBlock->pushCode(StoreByStackIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_index), context, this);
+                    }
                 } else {
                     size_t cIdx = context->m_catchScopeCount;
-                    codeBlock->pushCode(StoreByHeapIndex(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), info.m_upperIndex + cIdx, info.m_index), context, this);
+                    codeBlock->pushCode(StoreByHeapIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_upperIndex + cIdx, info.m_index), context, this);
                 }
             }
         } else {
             ASSERT(!context->m_codeBlock->canAllocateEnvironmentOnStack());
-            codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), m_name), context, this);
+            codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
         }
     }
 
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         if (m_name.string()->equals("arguments") && !context->isGlobalScope() && context->m_codeBlock->usesArgumentsObject()) {
             if (UNLIKELY(context->m_isWithScope))
-                codeBlock->pushCode(LoadArgumentsInWithScope(ByteCodeLOC(m_loc.index), context->getRegister()), context, this);
+                codeBlock->pushCode(LoadArgumentsInWithScope(ByteCodeLOC(m_loc.index), dstRegister), context, this);
             else
-                codeBlock->pushCode(LoadArgumentsObject(ByteCodeLOC(m_loc.index), context->getRegister()), context, this);
+                codeBlock->pushCode(LoadArgumentsObject(ByteCodeLOC(m_loc.index), dstRegister), context, this);
             return;
         }
 
@@ -88,29 +90,31 @@ public:
             CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {
                 if (!context->m_codeBlock->inCatchWith() && !context->m_codeBlock->inEvalScope() && !context->m_catchScopeCount && !context->m_isEvalCode && !context->m_codeBlock->hasWith()) {
-                    codeBlock->pushCode(GetGlobalObject(ByteCodeLOC(m_loc.index), context->getRegister(), PropertyName(m_name)), context, this);
+                    codeBlock->pushCode(GetGlobalObject(ByteCodeLOC(m_loc.index), dstRegister, PropertyName(m_name)), context, this);
                 } else {
-                    codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), context->getRegister(), m_name), context, this);
+                    codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
                 }
             } else {
                 if (context->m_isWithScope || (context->m_catchScopeCount && m_name == context->m_lastCatchVariableName)) {
-                    codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), context->getRegister(), m_name), context, this);
+                    codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
                     return;
                 }
 
                 if (info.m_isStackAllocated) {
-                    if (context->m_canUseDisalignedRegister && context->m_canSkipCopyToRegister)
-                        context->pushRegister(REGULAR_REGISTER_LIMIT + info.m_index);
-                    else
-                        codeBlock->pushCode(LoadByStackIndex(ByteCodeLOC(m_loc.index), context->getRegister(), info.m_index), context, this);
+                    if (context->m_canUseDisalignedRegister && context->m_canSkipCopyToRegister) {
+                        if (dstRegister != (REGULAR_REGISTER_LIMIT + info.m_index)) {
+                            codeBlock->pushCode(LoadByStackIndex(ByteCodeLOC(m_loc.index), dstRegister, info.m_index), context, this);
+                        }
+                    } else
+                        codeBlock->pushCode(LoadByStackIndex(ByteCodeLOC(m_loc.index), dstRegister, info.m_index), context, this);
                 } else {
                     size_t cIdx = context->m_catchScopeCount;
-                    codeBlock->pushCode(LoadByHeapIndex(ByteCodeLOC(m_loc.index), context->getRegister(), info.m_upperIndex + cIdx, info.m_index), context, this);
+                    codeBlock->pushCode(LoadByHeapIndex(ByteCodeLOC(m_loc.index), dstRegister, info.m_upperIndex + cIdx, info.m_index), context, this);
                 }
             }
         } else {
             ASSERT(!context->m_codeBlock->canAllocateEnvironmentOnStack());
-            codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), context->getRegister(), m_name), context, this);
+            codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
         }
     }
 
@@ -121,7 +125,7 @@ public:
 
     virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        generateExpressionByteCode(codeBlock, context);
+        generateExpressionByteCode(codeBlock, context, context->getRegister());
     }
 
     std::pair<bool, ByteCodeRegisterIndex> isAllocatedOnStack(ByteCodeGenerateContext* context)
@@ -149,6 +153,17 @@ public:
             }
         } else {
             return std::make_pair(false, std::numeric_limits<ByteCodeRegisterIndex>::max());
+        }
+    }
+
+    virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        auto ret = isAllocatedOnStack(context);
+        if (ret.first) {
+            context->pushRegister(ret.second);
+            return ret.second;
+        } else {
+            return context->getRegister();
         }
     }
 

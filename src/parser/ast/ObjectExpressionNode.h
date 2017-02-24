@@ -41,14 +41,15 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ObjectExpression; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        codeBlock->pushCode(CreateObject(ByteCodeLOC(m_loc.index), context->getRegister()), context, this);
-        size_t objIndex = context->getLastRegisterIndex();
+        codeBlock->pushCode(CreateObject(ByteCodeLOC(m_loc.index), dstRegister), context, this);
+        size_t objIndex = dstRegister;
         for (unsigned i = 0; i < m_properties.size(); i++) {
             PropertyNode* p = m_properties[i];
             AtomicString propertyAtomicName;
             bool hasKey = false;
+            size_t propertyIndex = SIZE_MAX;
             if (p->key()->isIdentifier()) {
                 if (p->kind() == PropertyNode::Kind::Init) {
                     // skip
@@ -58,16 +59,16 @@ public:
                     // we can use LoadLiteral here
                     // because, p->key()->asIdentifier()->name().string()
                     // is protected by AtomicString (IdentifierNode always has AtomicString)
-                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(p->key()->asIdentifier()->name().string())), context, this);
+                    propertyIndex = context->getRegister();
+                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), propertyIndex, Value(p->key()->asIdentifier()->name().string())), context, this);
                 }
             } else {
-                p->key()->generateExpressionByteCode(codeBlock, context);
+                propertyIndex = p->key()->getRegister(codeBlock, context);
+                p->key()->generateExpressionByteCode(codeBlock, context, propertyIndex);
             }
-            size_t propertyIndex = context->getLastRegisterIndex();
 
-            p->value()->generateExpressionByteCode(codeBlock, context);
-
-            size_t valueIndex = context->getLastRegisterIndex();
+            size_t valueIndex = p->value()->getRegister(codeBlock, context);
+            p->value()->generateExpressionByteCode(codeBlock, context, valueIndex);
 
             if (p->kind() == PropertyNode::Kind::Init) {
                 if (hasKey) {
@@ -93,7 +94,6 @@ public:
 
             codeBlock->m_shouldClearStack = true;
         }
-        ASSERT(objIndex == context->getLastRegisterIndex());
     }
 
 protected:

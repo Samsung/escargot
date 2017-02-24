@@ -38,8 +38,9 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ThrowStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        m_argument->generateExpressionByteCode(codeBlock, context);
-        codeBlock->pushCode(ThrowOperation(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+        auto r = m_argument->getRegister(codeBlock, context);
+        m_argument->generateExpressionByteCode(codeBlock, context, r);
+        codeBlock->pushCode(ThrowOperation(ByteCodeLOC(m_loc.index), r), context, this);
         context->giveUpRegister();
     }
 

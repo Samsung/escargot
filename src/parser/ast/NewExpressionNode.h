@@ -40,30 +40,21 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::NewExpression; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        m_callee->generateExpressionByteCode(codeBlock, context);
-        size_t callee = context->getLastRegisterIndex();
+        size_t callee = m_callee->getRegister(codeBlock, context);
+        m_callee->generateExpressionByteCode(codeBlock, context, callee);
 
         size_t argumentsStartIndex = context->getRegister();
         context->giveUpRegister();
 
         if (m_arguments.size() == 1) {
-            m_arguments[0]->generateExpressionByteCode(codeBlock, context);
-            argumentsStartIndex = context->getLastRegisterIndex();
+            argumentsStartIndex = m_arguments[0]->getRegister(codeBlock, context);
+            m_arguments[0]->generateExpressionByteCode(codeBlock, context, argumentsStartIndex);
         } else {
             for (size_t i = 0; i < m_arguments.size(); i++) {
                 size_t registerExpect = context->getRegister();
-                context->giveUpRegister();
-
-                m_arguments[i]->generateExpressionByteCode(codeBlock, context);
-                size_t r = context->getLastRegisterIndex();
-                if (r != registerExpect) {
-                    context->giveUpRegister();
-                    size_t newR = context->getRegister();
-                    ASSERT(newR == registerExpect);
-                    codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r, newR), context, this);
-                }
+                m_arguments[i]->generateExpressionByteCode(codeBlock, context, registerExpect);
             }
         }
 
@@ -74,8 +65,7 @@ public:
         // give up callee index
         context->giveUpRegister();
 
-        size_t result = context->getRegister();
-        codeBlock->pushCode(NewOperation(ByteCodeLOC(m_loc.index), callee, argumentsStartIndex, m_arguments.size(), result), context, this);
+        codeBlock->pushCode(NewOperation(ByteCodeLOC(m_loc.index), callee, argumentsStartIndex, m_arguments.size(), dstRegister), context, this);
 
         codeBlock->m_shouldClearStack = true;
     }

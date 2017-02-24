@@ -49,8 +49,8 @@ public:
 
         ByteCodeGenerateContext newContext(*context);
 
-        m_right->generateExpressionByteCode(codeBlock, &newContext);
-        size_t rightIdx = newContext.getLastRegisterIndex();
+        size_t rightIdx = m_right->getRegister(codeBlock, &newContext);
+        m_right->generateExpressionByteCode(codeBlock, &newContext, rightIdx);
         codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), newContext.getRegister(), Value()), &newContext, this);
         size_t literalIdx = newContext.getLastRegisterIndex();
         newContext.giveUpRegister();
@@ -81,7 +81,7 @@ public:
 
         codeBlock->peekCode<EnumerateObjectKey>(enumerateObjectKeyPos)->m_registerIndex = newContext.getRegister();
         size_t pushPos = codeBlock->currentCodeSize();
-        m_left->generateStoreByteCode(codeBlock, &newContext);
+        m_left->generateStoreByteCode(codeBlock, &newContext, newContext.getLastRegisterIndex(), true);
         newContext.giveUpRegister();
 
         ASSERT(newContext.m_baseRegisterCount == 0);

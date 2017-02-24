@@ -43,8 +43,9 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         context->getRegister(); // ExeuctionResult of m_consequente|m_alternate should not be overwritten by m_test
-        m_test->generateExpressionByteCode(codeBlock, context);
-        codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+        size_t testReg = m_test->getRegister(codeBlock, context);
+        m_test->generateExpressionByteCode(codeBlock, context, testReg);
+        codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testReg), context, this);
         context->giveUpRegister();
         context->giveUpRegister();
         size_t jPos = codeBlock->lastCodePosition<JumpIfFalse>();

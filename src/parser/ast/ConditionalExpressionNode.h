@@ -39,35 +39,25 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ConditionalExpression; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        size_t resultRegisterExpected = context->getRegister();
+        size_t resultRegisterExpected = dstRegister;
+
+        size_t testReg = m_test->getRegister(codeBlock, context);
+        m_test->generateExpressionByteCode(codeBlock, context, testReg);
+        codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testReg), context, this);
+
+        // give testReg
         context->giveUpRegister();
 
-        m_test->generateExpressionByteCode(codeBlock, context);
-        codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
-        context->giveUpRegister();
         size_t jumpPosForTestIsFalse = codeBlock->lastCodePosition<JumpIfFalse>();
-        m_consequente->generateExpressionByteCode(codeBlock, context);
-        size_t resultA = context->getLastRegisterIndex();
-        if (resultRegisterExpected != resultA) {
-            context->giveUpRegister();
-            context->pushRegister(resultRegisterExpected);
-            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), resultA, resultRegisterExpected), context, this);
-        }
-        context->giveUpRegister();
+        m_consequente->generateExpressionByteCode(codeBlock, context, dstRegister);
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this);
         JumpIfFalse* jumpForTestIsFalse = codeBlock->peekCode<JumpIfFalse>(jumpPosForTestIsFalse);
         size_t jumpPosForEndOfConsequence = codeBlock->lastCodePosition<Jump>();
 
         jumpForTestIsFalse->m_jumpPosition = codeBlock->currentCodeSize();
-        m_alternate->generateExpressionByteCode(codeBlock, context);
-        size_t resultB = context->getLastRegisterIndex();
-        if (resultRegisterExpected != resultB) {
-            context->giveUpRegister();
-            context->pushRegister(resultRegisterExpected);
-            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), resultB, resultRegisterExpected), context, this);
-        }
+        m_alternate->generateExpressionByteCode(codeBlock, context, dstRegister);
 
         Jump* jumpForEndOfConsequence = codeBlock->peekCode<Jump>(jumpPosForEndOfConsequence);
         jumpForEndOfConsequence->m_jumpPosition = codeBlock->currentCodeSize();

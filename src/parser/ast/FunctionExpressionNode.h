@@ -35,7 +35,7 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::FunctionExpression; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex)
     {
         CodeBlock* blk = nullptr;
         size_t cnt = 0;
@@ -53,7 +53,7 @@ public:
         if (context->m_isWithScope)
             blk->setInWithScope();
         codeBlock->m_literalData.pushBack((PointerValue*)blk);
-        codeBlock->pushCode(DeclareFunctionExpression(ByteCodeLOC(m_loc.index), context->getRegister(), blk), context, this);
+        codeBlock->pushCode(DeclareFunctionExpression(ByteCodeLOC(m_loc.index), dstIndex, blk), context, this);
         context->m_feCounter++;
     }
 

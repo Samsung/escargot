@@ -225,32 +225,29 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual void generateExpressionByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
+    virtual void generateExpressionByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, ByteCodeRegisterIndex dstRegister)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual void generateStoreByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, bool needToReferenceSelf = true)
+    virtual void generateStoreByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf = true)
     {
         RELEASE_ASSERT_NOT_REACHED();
-        // TODO
-        // codeBlock->pushCode(ThrowStatic(ESErrorObject::Code::ReferenceError, ESString::create("Invalid assignment.")), context, this);
     }
 
     virtual void generateResolveAddressByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
     {
-        generateExpressionByteCode(codeBlock, context);
+        RELEASE_ASSERT_NOT_REACHED();
     }
 
     virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
     {
-        generateExpressionByteCode(codeBlock, context);
-    }
-
-    virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
-    {
         RELEASE_ASSERT_NOT_REACHED();
     }
+
+    virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context);
+
+    virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context);
 
     NodeLOC m_loc;
 };

@@ -34,11 +34,11 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::RegExpLiteral; }
     String* body() { return m_body; }
     String* flag() { return m_flag; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         codeBlock->m_literalData.pushBack(m_body);
         codeBlock->m_literalData.pushBack(m_flag);
-        codeBlock->pushCode(LoadRegexp(ByteCodeLOC(m_loc.index), context->getRegister(), m_body, m_flag), context, this);
+        codeBlock->pushCode(LoadRegexp(ByteCodeLOC(m_loc.index), dstRegister, m_body, m_flag), context, this);
     }
 
 protected:

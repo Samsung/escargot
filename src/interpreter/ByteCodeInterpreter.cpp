@@ -729,11 +729,11 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
                 // do eval
                 Value arg;
                 if (code->m_argumentCount) {
-                    arg = registerFile[code->m_registerIndex];
+                    arg = registerFile[code->m_argumentsStartIndex];
                 }
-                registerFile[code->m_registerIndex] = state.context()->globalObject()->evalLocal(state, arg, stackStorage[byteCodeBlock->m_codeBlock->thisSymbolIndex()], byteCodeBlock->m_codeBlock);
+                registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, stackStorage[byteCodeBlock->m_codeBlock->thisSymbolIndex()], byteCodeBlock->m_codeBlock);
             } else {
-                registerFile[code->m_registerIndex] = FunctionObject::call(state, eval, Value(), code->m_argumentCount, &registerFile[code->m_registerIndex]);
+                registerFile[code->m_resultIndex] = FunctionObject::call(state, eval, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
             }
             ADD_PROGRAM_COUNTER(CallEvalFunction);
             NEXT_INSTRUCTION();
@@ -940,7 +940,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
 
         CallFunctionInWithScopeOpcodeLbl : {
             CallFunctionInWithScope* code = (CallFunctionInWithScope*)programCounter;
-            registerFile[code->m_registerIndex] = callFunctionInWithScope(state, code, ec, ec->lexicalEnvironment(), &registerFile[code->m_registerIndex]);
+            registerFile[code->m_resultIndex] = callFunctionInWithScope(state, code, ec, ec->lexicalEnvironment(), &registerFile[code->m_argumentsStartIndex]);
             ADD_PROGRAM_COUNTER(CallFunctionInWithScope);
             NEXT_INSTRUCTION();
         }

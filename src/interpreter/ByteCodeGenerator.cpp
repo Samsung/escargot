@@ -107,7 +107,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
             block->m_literalData.pushBack((PointerValue*)b);
             block->pushCode(DeclareFunctionDeclaration(b), &ctx, nullptr);
             IdentifierNode idNode(b->m_functionName);
-            idNode.generateStoreByteCode(block, &ctx);
+            idNode.generateStoreByteCode(block, &ctx, 0, false);
             ctx.giveUpRegister();
         }
     }
@@ -142,6 +142,16 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
             currentCode->assignOpcodeInAddress();
 
             switch (opcode) {
+            case LoadLiteralOpcode: {
+                LoadLiteral* cd = (LoadLiteral*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case LoadByNameOpcode: {
+                LoadByName* cd = (LoadByName*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
+                break;
+            }
             case StoreByNameOpcode: {
                 StoreByName* cd = (StoreByName*)currentCode;
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
@@ -152,13 +162,39 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
                 break;
             }
+            case LoadByStackIndexOpcode: {
+                LoadByStackIndex* cd = (LoadByStackIndex*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case LoadByHeapIndexOpcode: {
+                LoadByHeapIndex* cd = (LoadByHeapIndex*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
+                break;
+            }
             case StoreByHeapIndexOpcode: {
                 StoreByHeapIndex* cd = (StoreByHeapIndex*)currentCode;
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
                 break;
             }
+            case DeclareFunctionExpressionOpcode: {
+                DeclareFunctionExpression* cd = (DeclareFunctionExpression*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case CreateObjectOpcode: {
+                CreateObject* cd = (CreateObject*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case CreateArrayOpcode: {
+                CreateArray* cd = (CreateArray*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
+                break;
+            }
             case GetObjectOpcode: {
                 GetObject* cd = (GetObject*)currentCode;
+                assignStackIndexIfNeeded(cd->m_storeRegisterIndex, stackBase, stackBaseWillBe);
                 assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe);
                 assignStackIndexIfNeeded(cd->m_propertyRegisterIndex, stackBase, stackBaseWillBe);
                 break;
@@ -187,6 +223,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
             case GetObjectPreComputedCaseOpcode: {
                 GetObjectPreComputedCase* cd = (GetObjectPreComputedCase*)currentCode;
                 assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_storeRegisterIndex, stackBase, stackBaseWillBe);
                 break;
             }
             case SetObjectPreComputedCaseOpcode: {
@@ -200,15 +237,34 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
                 break;
             }
-            case SetGlobalObjectOpcode: {
-                SetGlobalObject* cd = (SetGlobalObject*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
-                break;
-            }
             case MoveOpcode: {
                 Move* cd = (Move*)currentCode;
                 assignStackIndexIfNeeded(cd->m_registerIndex0, stackBase, stackBaseWillBe);
                 assignStackIndexIfNeeded(cd->m_registerIndex1, stackBase, stackBaseWillBe);
+                break;
+            }
+            case ObjectDefineGetterOpcode: {
+                ObjectDefineGetter* cd = (ObjectDefineGetter*)currentCode;
+                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_objectPropertyNameRegisterIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_objectPropertyValueRegisterIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case ObjectDefineSetterOpcode: {
+                ObjectDefineSetter* cd = (ObjectDefineSetter*)currentCode;
+                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_objectPropertyNameRegisterIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_objectPropertyValueRegisterIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case GetGlobalObjectOpcode: {
+                GetGlobalObject* cd = (GetGlobalObject*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case SetGlobalObjectOpcode: {
+                SetGlobalObject* cd = (SetGlobalObject*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe);
                 break;
             }
             case ToNumberOpcode:
@@ -244,6 +300,18 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
                 CallFunctionWithReceiver* cd = (CallFunctionWithReceiver*)currentCode;
                 assignStackIndexIfNeeded(cd->m_receiverIndex, stackBase, stackBaseWillBe);
                 assignStackIndexIfNeeded(cd->m_calleeIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case CallEvalFunctionOpcode: {
+                CallEvalFunction* cd = (CallEvalFunction*)currentCode;
+                assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe);
+                break;
+            }
+            case CallFunctionInWithScopeOpcode: {
+                CallFunctionInWithScope* cd = (CallFunctionInWithScope*)currentCode;
                 assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe);
                 assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe);
                 break;
@@ -315,6 +383,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
                 BinaryPlus* plus = (BinaryPlus*)currentCode;
                 assignStackIndexIfNeeded(plus->m_srcIndex0, stackBase, stackBaseWillBe);
                 assignStackIndexIfNeeded(plus->m_srcIndex1, stackBase, stackBaseWillBe);
+                assignStackIndexIfNeeded(plus->m_dstIndex, stackBase, stackBaseWillBe);
                 break;
             }
             default:

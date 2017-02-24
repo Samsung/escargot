@@ -36,13 +36,12 @@ public:
 
 
     virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionMinus; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        m_argument->generateExpressionByteCode(codeBlock, context);
-        size_t srcIndex = context->getLastRegisterIndex();
+        size_t srcIndex = m_argument->getRegister(codeBlock, context);
+        m_argument->generateExpressionByteCode(codeBlock, context, srcIndex);
         context->giveUpRegister();
-        size_t dstIndex = context->getRegister();
-        codeBlock->pushCode(UnaryMinus(ByteCodeLOC(m_loc.index), srcIndex, dstIndex), context, this);
+        codeBlock->pushCode(UnaryMinus(ByteCodeLOC(m_loc.index), srcIndex, dstRegister), context, this);
     }
 
 protected:

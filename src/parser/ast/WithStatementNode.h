@@ -42,9 +42,10 @@ public:
     {
         size_t start = codeBlock->currentCodeSize();
         context->m_tryStatementScopeCount++;
-        m_object->generateExpressionByteCode(codeBlock, context);
+        auto r = m_object->getRegister(codeBlock, context);
+        m_object->generateExpressionByteCode(codeBlock, context, r);
         size_t withPos = codeBlock->currentCodeSize();
-        codeBlock->pushCode(WithOperation(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+        codeBlock->pushCode(WithOperation(ByteCodeLOC(m_loc.index), r), context, this);
         context->giveUpRegister();
 
         context->m_isWithScope = true;

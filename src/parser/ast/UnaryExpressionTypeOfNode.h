@@ -34,7 +34,7 @@ public:
         delete m_argument;
     }
 
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         if (m_argument->isIdentifier()) {
             AtomicString name = m_argument->asIdentifier()->name();
@@ -49,23 +49,21 @@ public:
             }
             if (nameCase) {
                 if (name.string()->equals("arguments") && !context->isGlobalScope()) {
-                    m_argument->generateExpressionByteCode(codeBlock, context);
-                    size_t srcIndex = context->getRegister();
+                    size_t srcIndex = m_argument->getRegister(codeBlock, context);
+                    m_argument->generateExpressionByteCode(codeBlock, context, srcIndex);
                     context->giveUpRegister();
-                    size_t dstIndex = context->getRegister();
-                    codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), srcIndex, dstIndex, AtomicString()), context, this);
+                    codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), srcIndex, dstRegister, AtomicString()), context, this);
                 } else {
-                    codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), SIZE_MAX, context->getRegister(), name), context, this);
+                    codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), SIZE_MAX, dstRegister, name), context, this);
                 }
                 return;
             }
         }
 
-        m_argument->generateExpressionByteCode(codeBlock, context);
-        size_t srcIndex = context->getLastRegisterIndex();
+        size_t srcIndex = m_argument->getRegister(codeBlock, context);
+        m_argument->generateExpressionByteCode(codeBlock, context, srcIndex);
         context->giveUpRegister();
-        size_t dstIndex = context->getRegister();
-        codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), srcIndex, dstIndex, AtomicString()), context, this);
+        codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), srcIndex, dstRegister, AtomicString()), context, this);
     }
 
     virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionTypeOf; }

@@ -39,18 +39,17 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionGreaterThan; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        m_left->generateExpressionByteCode(codeBlock, context);
-        m_right->generateExpressionByteCode(codeBlock, context);
+        size_t src0 = m_left->getRegister(codeBlock, context);
+        size_t src1 = m_right->getRegister(codeBlock, context);
+        m_left->generateExpressionByteCode(codeBlock, context, src0);
+        m_right->generateExpressionByteCode(codeBlock, context, src1);
 
-        size_t src1 = context->getLastRegisterIndex();
         context->giveUpRegister();
-        size_t src0 = context->getLastRegisterIndex();
         context->giveUpRegister();
-        size_t dst = context->getRegister();
 
-        codeBlock->pushCode(BinaryGreaterThan(ByteCodeLOC(m_loc.index), src0, src1, dst), context, this);
+        codeBlock->pushCode(BinaryGreaterThan(ByteCodeLOC(m_loc.index), src0, src1, dstRegister), context, this);
     }
 
 protected:

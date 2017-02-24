@@ -37,28 +37,16 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionLogicalAnd; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        size_t resultRegisterExpected = context->getRegister();
-        context->giveUpRegister();
-        m_left->generateExpressionByteCode(codeBlock, context);
+        size_t resultRegisterExpected = dstRegister;
 
-        size_t r = context->getLastRegisterIndex();
-        if (resultRegisterExpected != r) {
-            context->giveUpRegister();
-            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r, context->getRegister()), context, this);
-        }
-        codeBlock->pushCode<JumpIfFalse>(JumpIfFalse(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+        m_left->generateExpressionByteCode(codeBlock, context, resultRegisterExpected);
+
+        codeBlock->pushCode<JumpIfFalse>(JumpIfFalse(ByteCodeLOC(m_loc.index), resultRegisterExpected), context, this);
         size_t pos = codeBlock->lastCodePosition<JumpIfFalse>();
-        context->giveUpRegister();
 
-        m_right->generateExpressionByteCode(codeBlock, context);
-
-        r = context->getLastRegisterIndex();
-        if (resultRegisterExpected != r) {
-            context->giveUpRegister();
-            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r, context->getRegister()), context, this);
-        }
+        m_right->generateExpressionByteCode(codeBlock, context, resultRegisterExpected);
 
         codeBlock->peekCode<JumpIfFalse>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
     }

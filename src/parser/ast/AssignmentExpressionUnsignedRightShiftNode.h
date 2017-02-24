@@ -41,18 +41,17 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionUnsignedRightShift; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         m_left->generateResolveAddressByteCode(codeBlock, context);
         m_left->generateReferenceResolvedAddressByteCode(codeBlock, context);
         size_t src0 = context->getLastRegisterIndex();
-        m_right->generateExpressionByteCode(codeBlock, context);
-        size_t src1 = context->getLastRegisterIndex();
+        size_t src1 = m_right->getRegister(codeBlock, context);
+        m_right->generateExpressionByteCode(codeBlock, context, src1);
         context->giveUpRegister();
         context->giveUpRegister();
-        size_t dst = context->getRegister();
-        codeBlock->pushCode(BinaryUnsignedRightShift(ByteCodeLOC(m_loc.index), src0, src1, dst), context, this);
-        m_left->generateStoreByteCode(codeBlock, context, false);
+        codeBlock->pushCode(BinaryUnsignedRightShift(ByteCodeLOC(m_loc.index), src0, src1, dstRegister), context, this);
+        m_left->generateStoreByteCode(codeBlock, context, dstRegister, false);
     }
 
 protected:

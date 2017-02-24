@@ -39,8 +39,9 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         if (m_argument) {
-            m_argument->generateExpressionByteCode(codeBlock, context);
-            codeBlock->pushCode(ReturnFunctionWithValue(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex()), context, this);
+            ByteCodeRegisterIndex index = m_argument->getRegister(codeBlock, context);
+            m_argument->generateExpressionByteCode(codeBlock, context, index);
+            codeBlock->pushCode(ReturnFunctionWithValue(ByteCodeLOC(m_loc.index), index), context, this);
             context->giveUpRegister();
         } else {
             codeBlock->pushCode(ReturnFunction(ByteCodeLOC(m_loc.index)), context, this);

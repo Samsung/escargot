@@ -55,13 +55,16 @@ public:
 
         size_t forStart = codeBlock->currentCodeSize();
 
+        size_t testIndex;
         if (m_test) {
-            m_test->generateExpressionByteCode(codeBlock, &newContext);
+            testIndex = m_test->getRegister(codeBlock, &newContext);
+            m_test->generateExpressionByteCode(codeBlock, &newContext, testIndex);
         } else {
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), newContext.getRegister(), Value(true)), &newContext, this);
+            testIndex = newContext.getRegister();
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), testIndex, Value(true)), &newContext, this);
         }
 
-        codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex()), &newContext, this);
+        codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testIndex), &newContext, this);
         size_t testPos = codeBlock->lastCodePosition<JumpIfFalse>();
 
         newContext.giveUpRegister();
@@ -74,7 +77,7 @@ public:
             if (!context->m_isEvalCode && !context->m_isGlobalScope && m_update->isUpdateExpression()) {
                 m_update->generateResultNotRequiredExpressionByteCode(codeBlock, &newContext);
             } else {
-                m_update->generateExpressionByteCode(codeBlock, &newContext);
+                m_update->generateExpressionByteCode(codeBlock, &newContext, m_update->getRegister(codeBlock, &newContext));
                 newContext.giveUpRegister();
             }
         }

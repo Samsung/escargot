@@ -40,14 +40,14 @@ public:
     Node* expression() { return m_expression; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        if (!context->m_isEvalCode && !context->m_isGlobalScope && m_expression->isUpdateExpression()) {
+        if (!context->m_isEvalCode && !context->m_isGlobalScope) {
             m_expression->generateResultNotRequiredExpressionByteCode(codeBlock, context);
             return;
         }
 #ifndef NDEBUG
         size_t before = context->m_registerStack->size();
 #endif
-        m_expression->generateExpressionByteCode(codeBlock, context);
+        m_expression->generateExpressionByteCode(codeBlock, context, m_expression->getRegister(codeBlock, context));
         context->giveUpRegister();
         ASSERT(context->m_registerStack->size() == before);
     }

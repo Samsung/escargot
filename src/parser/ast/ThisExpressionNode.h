@@ -29,13 +29,23 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ThisExpression; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        if (context->m_canUseDisalignedRegister) {
+            size_t i = context->m_codeBlock->thisSymbolIndex();
+            context->pushRegister(REGULAR_REGISTER_LIMIT + i);
+            return REGULAR_REGISTER_LIMIT + i;
+        } else {
+            return context->getRegister();
+        }
+    }
+
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         size_t i = context->m_codeBlock->thisSymbolIndex();
-        if (context->m_canUseDisalignedRegister)
-            context->pushRegister(REGULAR_REGISTER_LIMIT + i);
-        else
-            codeBlock->pushCode(LoadByStackIndex(ByteCodeLOC(m_loc.index), context->getRegister(), i), context, this);
+        if (dstRegister != REGULAR_REGISTER_LIMIT + i) {
+            codeBlock->pushCode(LoadByStackIndex(ByteCodeLOC(m_loc.index), dstRegister, i), context, this);
+        }
     }
 
 protected:

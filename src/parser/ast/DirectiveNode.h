@@ -40,7 +40,7 @@ public:
     StringView value() { return m_value; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        m_expr->generateExpressionByteCode(codeBlock, context);
+        m_expr->generateExpressionByteCode(codeBlock, context, context->getRegister());
         context->giveUpRegister();
     }
 

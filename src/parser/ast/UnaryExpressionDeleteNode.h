@@ -35,9 +35,8 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionDelete; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        size_t base = context->m_baseRegisterCount;
         if (m_argument->isIdentifier()) {
             AtomicString name = m_argument->asIdentifier()->name();
             bool nameCase = false;
@@ -51,34 +50,35 @@ public:
             }
 
             if (nameCase) {
-                codeBlock->pushCode(UnaryDelete(ByteCodeLOC(m_loc.index), SIZE_MAX, SIZE_MAX, context->getRegister(), name), context, this);
+                codeBlock->pushCode(UnaryDelete(ByteCodeLOC(m_loc.index), SIZE_MAX, SIZE_MAX, dstRegister, name), context, this);
             } else {
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(false)), context, this);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, Value(false)), context, this);
             }
         } else if (m_argument->isMemberExpression()) {
-            ((MemberExpressionNode*)m_argument)->object()->generateExpressionByteCode(codeBlock, context);
-            size_t o = context->getLastRegisterIndex();
+            ByteCodeRegisterIndex o = m_argument->getRegister(codeBlock, context);
+            ((MemberExpressionNode*)m_argument)->object()->generateExpressionByteCode(codeBlock, context, o);
+            ByteCodeRegisterIndex p;
             if (((MemberExpressionNode*)m_argument)->isPreComputedCase()) {
                 // we can use LoadLiteral here
                 // because, (MemberExpressionNode*)m_argument)->property()->asIdentifier()->name().string()
                 // is protected by AtomicString (IdentifierNode always has AtomicString)
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(((MemberExpressionNode*)m_argument)->property()->asIdentifier()->name().string())), context, this);
-            } else
-                ((MemberExpressionNode*)m_argument)->property()->generateExpressionByteCode(codeBlock, context);
-            size_t p = context->getLastRegisterIndex();
+                p = context->getRegister();
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), p, Value(((MemberExpressionNode*)m_argument)->property()->asIdentifier()->name().string())), context, this);
+            } else {
+                p = ((MemberExpressionNode*)m_argument)->property()->getRegister(codeBlock, context);
+                ((MemberExpressionNode*)m_argument)->property()->generateExpressionByteCode(codeBlock, context, p);
+            }
 
             context->giveUpRegister();
             context->giveUpRegister();
-            size_t dst = context->getRegister();
 
-            codeBlock->pushCode(UnaryDelete(ByteCodeLOC(m_loc.index), o, p, dst, AtomicString()), context, this);
+            codeBlock->pushCode(UnaryDelete(ByteCodeLOC(m_loc.index), o, p, dstRegister, AtomicString()), context, this);
         } else {
-            m_argument->generateExpressionByteCode(codeBlock, context);
+            ByteCodeRegisterIndex o = m_argument->getRegister(codeBlock, context);
+            m_argument->generateExpressionByteCode(codeBlock, context, o);
             context->giveUpRegister();
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(true)), context, this);
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, Value(true)), context, this);
         }
-
-        ASSERT(base + 1 == context->m_baseRegisterCount);
     }
 
 protected:

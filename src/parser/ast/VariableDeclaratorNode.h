@@ -50,8 +50,9 @@ public:
         AtomicString name = m_id->asIdentifier()->name();
         if (m_init) {
             context->getRegister();
-            m_init->generateExpressionByteCode(codeBlock, context);
-            m_id->generateStoreByteCode(codeBlock, context);
+            auto r = m_init->getRegister(codeBlock, context);
+            m_init->generateExpressionByteCode(codeBlock, context, r);
+            m_id->generateStoreByteCode(codeBlock, context, r, false);
             context->giveUpRegister();
             context->giveUpRegister();
         }

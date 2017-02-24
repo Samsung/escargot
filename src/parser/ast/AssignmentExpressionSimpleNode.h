@@ -48,7 +48,7 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionSimple; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    bool hasSlowAssigmentOperation()
     {
         bool isSlowMode = true;
 
@@ -74,28 +74,61 @@ public:
             }
         }
 
+        return isSlowMode;
+    }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    {
+        bool isSlowMode = hasSlowAssigmentOperation();
+
         bool isBase = context->m_registerStack->size() == 0;
-        size_t rightRegister;
+        size_t rightRegister = dstRegister;
         if (isSlowMode) {
             bool canSkipCopyToRegister = context->m_canSkipCopyToRegister;
             context->m_canSkipCopyToRegister = false;
+
             m_left->generateResolveAddressByteCode(codeBlock, context);
             context->m_canSkipCopyToRegister = canSkipCopyToRegister;
 
-            m_right->generateExpressionByteCode(codeBlock, context);
-            rightRegister = context->getLastRegisterIndex();
-            m_left->generateStoreByteCode(codeBlock, context, false);
+            m_right->generateExpressionByteCode(codeBlock, context, rightRegister);
+            m_left->generateStoreByteCode(codeBlock, context, rightRegister, false);
         } else {
             m_left->generateResolveAddressByteCode(codeBlock, context);
-            m_right->generateExpressionByteCode(codeBlock, context);
-            rightRegister = context->getLastRegisterIndex();
-            m_left->generateStoreByteCode(codeBlock, context, false);
+            m_right->generateExpressionByteCode(codeBlock, context, rightRegister);
+            m_left->generateStoreByteCode(codeBlock, context, rightRegister, false);
         }
+    }
 
-        if (isBase && (context->m_isGlobalScope || context->m_isEvalCode)) {
-            if (rightRegister != 0) {
-                codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), rightRegister, 0), context, this);
+    virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        bool isSlowMode = hasSlowAssigmentOperation();
+
+        if (isSlowMode) {
+            size_t rightRegister = context->getRegister();
+            bool canSkipCopyToRegister = context->m_canSkipCopyToRegister;
+            context->m_canSkipCopyToRegister = false;
+
+            m_left->generateResolveAddressByteCode(codeBlock, context);
+            context->m_canSkipCopyToRegister = canSkipCopyToRegister;
+
+            m_right->generateExpressionByteCode(codeBlock, context, rightRegister);
+            m_left->generateStoreByteCode(codeBlock, context, rightRegister, false);
+            context->giveUpRegister();
+        } else {
+            auto rt = m_right->type();
+            if (m_left->isIdentifier() && (rt != ASTNodeType::ArrayExpression && rt != ASTNodeType::ObjectExpression) && !context->m_isGlobalScope && !context->m_isEvalCode) {
+                auto r = m_left->asIdentifier()->isAllocatedOnStack(context);
+                if (r.first) {
+                    context->pushRegister(r.second);
+                    m_right->generateExpressionByteCode(codeBlock, context, r.second);
+                    context->giveUpRegister();
+                    return;
+                }
             }
+            size_t rightRegister = context->getRegister();
+            m_left->generateResolveAddressByteCode(codeBlock, context);
+            m_right->generateExpressionByteCode(codeBlock, context, rightRegister);
+            m_left->generateStoreByteCode(codeBlock, context, rightRegister, false);
+            context->giveUpRegister();
         }
     }
 

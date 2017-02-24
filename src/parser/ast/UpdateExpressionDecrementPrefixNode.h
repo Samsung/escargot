@@ -36,10 +36,9 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::UpdateExpressionDecrementPrefix; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        size_t resultRegisterExpect = context->getRegister();
-        context->giveUpRegister();
+        size_t resultRegisterExpect = dstRegister;
 
         m_argument->generateResolveAddressByteCode(codeBlock, context);
         m_argument->generateReferenceResolvedAddressByteCode(codeBlock, context);
@@ -52,12 +51,10 @@ public:
         codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), literalRegisterIndex, Value(-1)), context, this);
         codeBlock->pushCode(BinaryPlus(ByteCodeLOC(m_loc.index), resultRegisterIndex, literalRegisterIndex, resultRegisterIndex), context, this);
         context->giveUpRegister();
-        m_argument->generateStoreByteCode(codeBlock, context, false);
-        if (resultRegisterExpect != context->getLastRegisterIndex()) {
-            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), context->getLastRegisterIndex(), resultRegisterExpect), context, this);
-            context->giveUpRegister();
-            context->getRegister();
-            ASSERT(context->getLastRegisterIndex() == resultRegisterExpect);
+        context->giveUpRegister();
+        m_argument->generateStoreByteCode(codeBlock, context, resultRegisterIndex, false);
+        if (resultRegisterIndex != dstRegister) {
+            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), resultRegisterIndex, dstRegister), context, this);
         }
     }
 
@@ -75,12 +72,12 @@ public:
                 return;
             }
         }
-        m_argument->generateExpressionByteCode(codeBlock, context);
-        size_t src = context->getLastRegisterIndex();
+        size_t src = m_argument->getRegister(codeBlock, context);
+        m_argument->generateExpressionByteCode(codeBlock, context, src);
         context->giveUpRegister();
         size_t dst = context->getRegister();
         codeBlock->pushCode(Decrement(ByteCodeLOC(m_loc.index), src, dst), context, this);
-        m_argument->generateStoreByteCode(codeBlock, context);
+        m_argument->generateStoreByteCode(codeBlock, context, dst);
         context->giveUpRegister();
     }
 

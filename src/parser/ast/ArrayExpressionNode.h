@@ -39,20 +39,21 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ArrayExpression; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         size_t arrayIndex = codeBlock->currentCodeSize();
         size_t arrLen = 0;
-        codeBlock->pushCode(CreateArray(ByteCodeLOC(m_loc.index), context->getRegister()), context, this);
-        size_t objIndex = context->getLastRegisterIndex();
+        codeBlock->pushCode(CreateArray(ByteCodeLOC(m_loc.index), dstRegister), context, this);
+        size_t objIndex = dstRegister;
         for (unsigned i = 0; i < m_elements.size(); i++) {
             arrLen = i + 1;
+            size_t valueIndex;
             if (m_elements[i]) {
-                m_elements[i]->generateExpressionByteCode(codeBlock, context);
+                valueIndex = m_elements[i]->getRegister(codeBlock, context);
+                m_elements[i]->generateExpressionByteCode(codeBlock, context, valueIndex);
             } else {
                 continue;
             }
-            size_t valueIndex = context->getLastRegisterIndex();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(i)), context, this);
             size_t property = context->getLastRegisterIndex();
             codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, property, valueIndex), context, this);
@@ -61,7 +62,6 @@ public:
             context->giveUpRegister();
         }
         codeBlock->peekCode<CreateArray>(arrayIndex)->m_length = arrLen;
-        ASSERT(objIndex == context->getLastRegisterIndex());
 
         codeBlock->m_shouldClearStack = true;
     }

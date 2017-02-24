@@ -48,8 +48,9 @@ public:
 
         newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by m_test
         size_t testPos = codeBlock->currentCodeSize();
-        m_test->generateExpressionByteCode(codeBlock, &newContext);
-        codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex(), doStart), &newContext, this);
+        size_t testReg = m_test->getRegister(codeBlock, &newContext);
+        m_test->generateExpressionByteCode(codeBlock, &newContext, testReg);
+        codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), testReg, doStart), &newContext, this);
 
         newContext.giveUpRegister();
         newContext.giveUpRegister();

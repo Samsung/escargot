@@ -1150,23 +1150,21 @@ public:
 
 class CallEvalFunction : public ByteCode {
 public:
-    // register usage (before call)
-    // [arg0, arg1,... arg<argument count-1> ]
-    // register usage (after call)
-    // [return value]
-    CallEvalFunction(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& argumentCount)
+    CallEvalFunction(const ByteCodeLOC& loc, const size_t& argumentsStartIndex, size_t argumentCount, const size_t& resultIndex)
         : ByteCode(Opcode::CallEvalFunctionOpcode, loc)
-        , m_registerIndex(registerIndex)
+        , m_argumentsStartIndex(argumentsStartIndex)
         , m_argumentCount(argumentCount)
+        , m_resultIndex(resultIndex)
     {
     }
-    ByteCodeRegisterIndex m_registerIndex;
-    size_t m_argumentCount;
+    ByteCodeRegisterIndex m_argumentsStartIndex;
+    uint16_t m_argumentCount;
+    ByteCodeRegisterIndex m_resultIndex;
 
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("call eval r%d <- r%d-r%d", (int)m_registerIndex, (int)m_registerIndex, (int)m_registerIndex + (int)m_argumentCount);
+        printf("call eval r%d <- r%d-r%d", (int)m_resultIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
     }
 #endif
 };
@@ -1192,25 +1190,24 @@ public:
 
 class CallFunctionInWithScope : public ByteCode {
 public:
-    // register usage (before call)
-    // [arg0, arg1,... arg<argument count-1> ]
-    // register usage (after call)
-    // [return value]
-    CallFunctionInWithScope(const ByteCodeLOC& loc, const size_t& registerIndex, const AtomicString& calleeName, const size_t& argumentCount)
+    CallFunctionInWithScope(const ByteCodeLOC& loc, const AtomicString& calleeName, const size_t& argumentsStartIndex, size_t argumentCount, const size_t& resultIndex)
         : ByteCode(Opcode::CallFunctionInWithScopeOpcode, loc)
-        , m_registerIndex(registerIndex)
         , m_calleeName(calleeName)
+        , m_argumentsStartIndex(argumentsStartIndex)
         , m_argumentCount(argumentCount)
+        , m_resultIndex(resultIndex)
     {
     }
-    ByteCodeRegisterIndex m_registerIndex;
+
     AtomicString m_calleeName;
-    size_t m_argumentCount;
+    ByteCodeRegisterIndex m_argumentsStartIndex;
+    uint16_t m_argumentCount;
+    ByteCodeRegisterIndex m_resultIndex;
 
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("call in with r%d <- r%d-r%d", (int)m_registerIndex, (int)m_registerIndex, (int)m_registerIndex + (int)m_argumentCount - 1);
+        printf("call in with r%d <- r%d-r%d", (int)m_resultIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount - 1);
     }
 #endif
 };

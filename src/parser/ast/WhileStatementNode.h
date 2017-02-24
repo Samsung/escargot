@@ -51,8 +51,9 @@ public:
         if (m_test->isLiteral() && m_test->asLiteral()->value().isPrimitive() && m_test->asLiteral()->value().toBoolean(stateForTest)) {
             // skip generate code
         } else {
-            m_test->generateExpressionByteCode(codeBlock, &newContext);
-            codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), newContext.getLastRegisterIndex()), &newContext, this);
+            ByteCodeRegisterIndex testR = m_test->getRegister(codeBlock, &newContext);
+            m_test->generateExpressionByteCode(codeBlock, &newContext, testR);
+            codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testR), &newContext, this);
             testPos = codeBlock->lastCodePosition<JumpIfFalse>();
             newContext.giveUpRegister();
         }

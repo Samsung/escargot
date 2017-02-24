@@ -38,9 +38,10 @@ public:
 
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        generateExpressionByteCode(codeBlock, context);
+        generateExpressionByteCode(codeBlock, context, context->getRegister());
         context->giveUpRegister();
     }
+
 
 protected:
 };

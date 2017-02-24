@@ -33,12 +33,12 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::Literal; }
     const Value& value() { return m_value; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         if (m_value.isPointerValue()) {
             codeBlock->m_literalData.pushBack(m_value.asPointerValue());
         }
-        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), m_value), context, this);
+        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, m_value), context, this);
     }
 
 protected:
