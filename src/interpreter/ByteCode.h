@@ -1332,6 +1332,7 @@ struct EnumerateObjectData : public PointerValue {
 
     ObjectStructureChain m_hiddenClassChain;
     Object* m_object;
+    size_t m_originalLength;
     size_t m_idx;
     SmallValueVector m_keys;
 

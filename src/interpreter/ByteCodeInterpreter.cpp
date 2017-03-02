@@ -843,9 +843,13 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
                     break;
                 }
             }
+            if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().length.string())).value(state, Value()).toUint32(state) != data->m_originalLength) {
+                shouldUpdateEnumerateObjectData = true;
+            }
 
             if (shouldUpdateEnumerateObjectData) {
                 registerFile[code->m_registerIndex] = Value((PointerValue*)updateEnumerateObjectData(state, data));
+                data = (EnumerateObjectData*)registerFile[code->m_registerIndex].asPointerValue();
             }
 
             if (data->m_keys.size() == data->m_idx) {
@@ -1520,6 +1524,12 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
 {
     EnumerateObjectData* data = new EnumerateObjectData();
     data->m_object = obj;
+    Value v = obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().length.string())).value(state, Value());
+    if (v.isInt32()) {
+        data->m_originalLength = v.toUint32(state);
+    } else {
+        data->m_originalLength = 0;
+    }
 
     Value target = data->m_object;
 

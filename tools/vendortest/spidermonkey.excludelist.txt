@@ -22,6 +22,52 @@ js1_8_5/reflect-parse/destructuring-function-parameters.js
 js1_8_5/reflect-parse/expression.js
 js1_8_5/reflect-parse/newTarget.js
 ecma_5/Object/object-create-with-primitive-second-arg.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-01-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-02-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-03-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-04-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-05-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-06-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-07-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-08-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-09-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-10-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-11-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-12-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-13-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-14-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-15-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-16-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-17-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-18-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-19-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-20-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-21-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-22-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-23-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-24-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-25-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-26-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-27-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-28-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-29-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-30-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-31-of-32.js
+ecma_5/Object/15.2.3.6-dictionary-redefinition-32-of-32.js
+ecma_5/Object/15.2.3.6-function-length.js
+ecma_5/Object/15.2.3.6-middle-redefinition-1-of-8.js
+ecma_5/Object/15.2.3.6-middle-redefinition-2-of-8.js
+ecma_5/Object/15.2.3.6-middle-redefinition-3-of-8.js
+ecma_5/Object/15.2.3.6-middle-redefinition-4-of-8.js
+ecma_5/Object/15.2.3.6-middle-redefinition-5-of-8.js
+ecma_5/Object/15.2.3.6-middle-redefinition-6-of-8.js
+ecma_5/Object/15.2.3.6-middle-redefinition-7-of-8.js
+ecma_5/Object/15.2.3.6-middle-redefinition-8-of-8.js
+ecma_5/Object/15.2.3.6-new-definition.js
+ecma_5/Object/15.2.3.6-redefinition-1-of-4.js
+ecma_5/Object/15.2.3.6-redefinition-2-of-4.js
+ecma_5/Object/15.2.3.6-redefinition-3-of-4.js
+ecma_5/Object/15.2.3.6-redefinition-4-of-4.js
 ecma_6/ArrayBuffer/constructorNotCallable.js
 ecma_6/Promise/dependent-promises.js
 ecma_6/TypedArray/constructor-non-detached.js
@@ -541,6 +587,9 @@ shell/warning.js
 # Object.prototype.toSource not supported
 ecma_3/extensions/10.1.3-2.js
 ecma_5/Function/function-bind.js
+ecma_5/extensions/String-toSource.js
+ecma_5/extensions/Number-toSource.js
+ecma_5/extensions/Boolean-toSource.js
 js1_5/extensions/regress-245148.js
 js1_5/extensions/regress-255245.js
 js1_5/extensions/regress-311161.js
@@ -590,6 +639,7 @@ js1_8_5/regress/regress-621814.js
 
 
 # evalcx() not supported
+ecma_5/extensions/regress-bug607284.js
 js1_8_5/extensions/proxy-proto-setter.js
 js1_8_5/extensions/regress-636818.js
 js1_8_5/regress/regress-595230-2.js
@@ -631,17 +681,8 @@ js1_7/regress/regress-407957.js
 
 
 # deprecated function.caller
-ecma_5/Function/arguments-caller-callee.js
-ecma_5/extensions/function-caller-skips-eval-frames.js
-ecma_5/extensions/function-properties.js
 js1_5/Function/regress-222029-001.js
 js1_5/Function/regress-222029-002.js
-js1_8_5/regress/regress-577648-2.js
-js1_8_5/regress/regress-586482-1.js
-js1_8_5/regress/regress-586482-2.js
-js1_8_5/regress/regress-586482-3.js
-js1_8_5/regress/regress-586482-4.js
-js1_8_5/regress/regress-586482-5.js
 
 # deprecated function.arguments
 ecma/FunctionObjects/15.3.1.1-1.js
@@ -650,6 +691,12 @@ ecma/FunctionObjects/15.3.1.1-2.js
 ecma/FunctionObjects/15.3.5.3.js
 ecma/FunctionObjects/15.3.2.1-1.js
 ecma/FunctionObjects/15.3.2.1-2.js
+ecma_5/extensions/function-properties.js
+
+
+# implementation-dependent Arguments.caller
+ecma_5/Function/arguments-property-attributes.js
+
 
 # for..of statement not supported
 ecma_5/extensions/regress-bug567606.js

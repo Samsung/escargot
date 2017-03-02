@@ -47,6 +47,8 @@ run-test262-master:
 run-spidermonkey:
 	rm test/vendortest/SpiderMonkey/shell.js
 	ln -s `pwd`/tools/vendortest/spidermonkey.shell.js test/vendortest/SpiderMonkey/shell.js
+	rm test/vendortest/SpiderMonkey/js1_8_1/jit/shell.js
+	ln -s `pwd`/tools/vendortest/spidermonkey.js1_8_1.jit.shell.js test/vendortest/SpiderMonkey/js1_8_1/jit/shell.js
 	rm test/vendortest/SpiderMonkey/ecma_6/shell.js
 	ln -s `pwd`/tools/vendortest/spidermonkey.ecma_6.shell.js test/vendortest/SpiderMonkey/ecma_6/shell.js
 	$(eval BIN_ARCH:=$(shell [[ "$(shell file escargot)" == *"32-bit"* ]] && echo "x86" || echo "x86_64"))
