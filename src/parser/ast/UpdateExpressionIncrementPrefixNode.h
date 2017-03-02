@@ -47,20 +47,12 @@ public:
         size_t dstIndex = context->getRegister();
         codeBlock->pushCode(ToNumber(ByteCodeLOC(m_loc.index), srcIndex, dstIndex), context, this);
         size_t resultRegisterIndex = context->getLastRegisterIndex();
-        size_t literalRegisterIndex = context->getRegister();
-        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), literalRegisterIndex, Value(1)), context, this);
-        codeBlock->pushCode(BinaryPlus(ByteCodeLOC(m_loc.index), resultRegisterIndex, literalRegisterIndex, resultRegisterIndex), context, this);
-        context->giveUpRegister();
+        codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), resultRegisterIndex, resultRegisterIndex), context, this);
         context->giveUpRegister();
         m_argument->generateStoreByteCode(codeBlock, context, resultRegisterIndex, false);
         if (resultRegisterIndex != dstRegister) {
             codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), resultRegisterIndex, dstRegister), context, this);
         }
-    }
-
-    virtual bool isUpdateExpression()
-    {
-        return true;
     }
 
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)

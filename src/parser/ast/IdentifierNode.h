@@ -63,7 +63,7 @@ public:
 
                 if (info.m_isStackAllocated) {
                     if (srcRegister != REGULAR_REGISTER_LIMIT + info.m_index) {
-                        codeBlock->pushCode(StoreByStackIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_index), context, this);
+                        codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), srcRegister, REGULAR_REGISTER_LIMIT + info.m_index), context, this);
                     }
                 } else {
                     size_t cIdx = context->m_catchScopeCount;
@@ -103,10 +103,10 @@ public:
                 if (info.m_isStackAllocated) {
                     if (context->m_canUseDisalignedRegister && context->m_canSkipCopyToRegister) {
                         if (dstRegister != (REGULAR_REGISTER_LIMIT + info.m_index)) {
-                            codeBlock->pushCode(LoadByStackIndex(ByteCodeLOC(m_loc.index), dstRegister, info.m_index), context, this);
+                            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + info.m_index, dstRegister), context, this);
                         }
                     } else
-                        codeBlock->pushCode(LoadByStackIndex(ByteCodeLOC(m_loc.index), dstRegister, info.m_index), context, this);
+                        codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + info.m_index, dstRegister), context, this);
                 } else {
                     size_t cIdx = context->m_catchScopeCount;
                     codeBlock->pushCode(LoadByHeapIndex(ByteCodeLOC(m_loc.index), dstRegister, info.m_upperIndex + cIdx, info.m_index), context, this);
@@ -125,7 +125,7 @@ public:
 
     virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        generateExpressionByteCode(codeBlock, context, context->getRegister());
+        generateExpressionByteCode(codeBlock, context, getRegister(codeBlock, context));
     }
 
     std::pair<bool, ByteCodeRegisterIndex> isAllocatedOnStack(ByteCodeGenerateContext* context)

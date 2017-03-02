@@ -23,7 +23,7 @@ class UnaryDelete;
 
 class ByteCodeInterpreter {
 public:
-    static void interpret(ExecutionState& state, ByteCodeBlock* byteCodeBlock, register size_t programCounter, Value* registerFile, Value* stackStorage);
+    static void interpret(ExecutionState& state, ByteCodeBlock* byteCodeBlock, register size_t programCounter, Value* registerFile);
     static Value loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool throwException = true);
     static EnvironmentRecord* getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue, bool throwException = true);
     static Value loadArgumentsObject(ExecutionState& state, ExecutionContext* e, Value* stackStorage);
@@ -54,7 +54,7 @@ public:
     static Value getGlobalObjectSlowCase(ExecutionState& state, Object* go, GetGlobalObject* code);
     static void setGlobalObjectSlowCase(ExecutionState& state, Object* go, SetGlobalObject* code, const Value& value);
 
-    static size_t tryOperation(ExecutionState& state, TryOperation* code, ExecutionContext* ec, LexicalEnvironment* env, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage);
+    static size_t tryOperation(ExecutionState& state, TryOperation* code, ExecutionContext* ec, LexicalEnvironment* env, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 
     static bool withOperation(ExecutionState& state, WithOperation* code, Object* obj, ExecutionContext* ec, LexicalEnvironment* env, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage);
     static Value callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, ExecutionContext* ec, LexicalEnvironment* env, Value* argv);

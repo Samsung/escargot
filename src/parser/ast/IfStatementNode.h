@@ -50,16 +50,19 @@ public:
         context->giveUpRegister();
         size_t jPos = codeBlock->lastCodePosition<JumpIfFalse>();
         m_consequente->generateStatementByteCode(codeBlock, context);
-        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index)), context, this);
+        size_t jPos2;
+        if (m_alternate) {
+            codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index)), context, this);
+            jPos2 = codeBlock->lastCodePosition<Jump>();
+        }
         JumpIfFalse* j = codeBlock->peekCode<JumpIfFalse>(jPos);
-        size_t jPos2 = codeBlock->lastCodePosition<Jump>();
         j->m_jumpPosition = codeBlock->currentCodeSize();
 
         if (!m_alternate) {
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value()), context, this);
-            context->giveUpRegister();
-            Jump* j2 = codeBlock->peekCode<Jump>(jPos2);
-            j2->m_jumpPosition = codeBlock->currentCodeSize();
+            if (context->m_isEvalCode || context->m_isGlobalScope) {
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value()), context, this);
+                context->giveUpRegister();
+            }
         } else {
             m_alternate->generateStatementByteCode(codeBlock, context);
             Jump* j2 = codeBlock->peekCode<Jump>(jPos2);

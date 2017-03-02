@@ -44,7 +44,7 @@ public:
     {
         size_t i = context->m_codeBlock->thisSymbolIndex();
         if (dstRegister != REGULAR_REGISTER_LIMIT + i) {
-            codeBlock->pushCode(LoadByStackIndex(ByteCodeLOC(m_loc.index), dstRegister, i), context, this);
+            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + i, dstRegister), context, this);
         }
     }
 

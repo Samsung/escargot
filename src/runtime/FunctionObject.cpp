@@ -311,7 +311,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
     }
 
     // run function
-    ByteCodeInterpreter::interpret(newState, blk, 0, registerFile, stackStorage);
+    ByteCodeInterpreter::interpret(newState, blk, 0, registerFile);
     if (blk->m_shouldClearStack)
         clearStack<512>();
 

@@ -49,7 +49,7 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     Value* stackStorage = registerFile + m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize;
     stackStorage[0] = thisValue;
     clearStack<512>();
-    ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile, stackStorage);
+    ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
 
     return resultValue;
 }
@@ -120,7 +120,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, bool isEvalMo
     stackStorage[m_topCodeBlock->thisSymbolIndex()] = thisValue;
 
     clearStack<512>();
-    ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile, stackStorage);
+    ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
 
     return resultValue;
 }

@@ -210,11 +210,6 @@ public:
         return false;
     }
 
-    virtual bool isUpdateExpression()
-    {
-        return false;
-    }
-
     NodeLOC loc()
     {
         return m_loc;

@@ -17,8 +17,6 @@ class Node;
     F(LoadLiteral, 1, 0)                              \
     F(LoadByName, 1, 0)                               \
     F(StoreByName, 0, 0)                              \
-    F(LoadByStackIndex, 1, 0)                         \
-    F(StoreByStackIndex, 0, 0)                        \
     F(LoadByHeapIndex, 1, 0)                          \
     F(StoreByHeapIndex, 0, 0)                         \
     F(DeclareFunctionDeclaration, 1, 0)               \
@@ -49,6 +47,7 @@ class Node;
     F(CreateArray, 1, 0)                              \
     F(ObjectDefineOwnPropertyOperation, 0, 0)         \
     F(ObjectDefineOwnPropertyWithNameOperation, 0, 0) \
+    F(ArrayDefineOwnPropertyOperation, 0, 0)          \
     F(GetObject, 1, 2)                                \
     F(SetObject, 0, 2)                                \
     F(GetObjectPreComputedCase, 1, 1)                 \
@@ -289,44 +288,6 @@ public:
     virtual void dump()
     {
         printf("store %s <- r%d", m_name.string()->toUTF8StringData().data(), (int)m_registerIndex);
-    }
-#endif
-};
-
-class LoadByStackIndex : public ByteCode {
-public:
-    LoadByStackIndex(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& index)
-        : ByteCode(Opcode::LoadByStackIndexOpcode, loc)
-        , m_registerIndex(registerIndex)
-        , m_index(index)
-    {
-    }
-    ByteCodeRegisterIndex m_registerIndex;
-    uint16_t m_index;
-
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("load r%d <- stack[%d]", (int)m_registerIndex, (int)m_index);
-    }
-#endif
-};
-
-class StoreByStackIndex : public ByteCode {
-public:
-    StoreByStackIndex(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& index)
-        : ByteCode(Opcode::StoreByStackIndexOpcode, loc)
-        , m_registerIndex(registerIndex)
-        , m_index(index)
-    {
-    }
-    ByteCodeRegisterIndex m_registerIndex;
-    uint16_t m_index;
-
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("store stack[%d] <- r%d", (int)m_index, (int)m_registerIndex);
     }
 #endif
 };
@@ -584,6 +545,27 @@ public:
 #endif
 };
 
+class ArrayDefineOwnPropertyOperation : public ByteCode {
+public:
+    ArrayDefineOwnPropertyOperation(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, const uint32_t& arrayIndex, const size_t& loadRegisterIndex)
+        : ByteCode(Opcode::ArrayDefineOwnPropertyOperationOpcode, loc)
+        , m_objectRegisterIndex(objectRegisterIndex)
+        , m_loadRegisterIndex(loadRegisterIndex)
+        , m_arrayIndex(arrayIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_objectRegisterIndex;
+    ByteCodeRegisterIndex m_loadRegisterIndex;
+    uint32_t m_arrayIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("array define own property r%d[r%d] <- r%d", (int)m_objectRegisterIndex, (int)m_arrayIndex, (int)m_loadRegisterIndex);
+    }
+#endif
+};
 
 struct ObjectStructureChainItem : public gc {
     ObjectStructure* m_objectStructure;

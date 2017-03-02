@@ -14,7 +14,7 @@ OpcodeTable g_opcodeTable;
 OpcodeTable::OpcodeTable()
 {
     ExecutionState state((Context*)nullptr, nullptr);
-    ByteCodeInterpreter::interpret(state, nullptr, 0, nullptr, nullptr);
+    ByteCodeInterpreter::interpret(state, nullptr, 0, nullptr);
 }
 
 // ECMA-262 11.3 Line Terminators

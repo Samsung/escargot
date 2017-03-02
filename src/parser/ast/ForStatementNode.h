@@ -56,35 +56,33 @@ public:
         size_t forStart = codeBlock->currentCodeSize();
 
         size_t testIndex;
+        size_t testPos;
         if (m_test) {
             testIndex = m_test->getRegister(codeBlock, &newContext);
             m_test->generateExpressionByteCode(codeBlock, &newContext, testIndex);
-        } else {
-            testIndex = newContext.getRegister();
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), testIndex, Value(true)), &newContext, this);
+            codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testIndex), &newContext, this);
+            testPos = codeBlock->lastCodePosition<JumpIfFalse>();
+            newContext.giveUpRegister();
         }
 
-        codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testIndex), &newContext, this);
-        size_t testPos = codeBlock->lastCodePosition<JumpIfFalse>();
-
-        newContext.giveUpRegister();
         newContext.giveUpRegister();
 
         m_body->generateStatementByteCode(codeBlock, &newContext);
 
         size_t updatePosition = codeBlock->currentCodeSize();
         if (m_update) {
-            if (!context->m_isEvalCode && !context->m_isGlobalScope && m_update->isUpdateExpression()) {
+            if (!context->m_isEvalCode && !context->m_isGlobalScope) {
                 m_update->generateResultNotRequiredExpressionByteCode(codeBlock, &newContext);
             } else {
-                m_update->generateExpressionByteCode(codeBlock, &newContext, m_update->getRegister(codeBlock, &newContext));
+                m_update->generateExpressionByteCode(codeBlock, &newContext, newContext.getRegister());
                 newContext.giveUpRegister();
             }
         }
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), forStart), &newContext, this);
 
         size_t forEnd = codeBlock->currentCodeSize();
-        codeBlock->peekCode<JumpIfFalse>(testPos)->m_jumpPosition = forEnd;
+        if (m_test)
+            codeBlock->peekCode<JumpIfFalse>(testPos)->m_jumpPosition = forEnd;
 
         newContext.consumeBreakPositions(codeBlock, forEnd);
         newContext.consumeContinuePositions(codeBlock, updatePosition);

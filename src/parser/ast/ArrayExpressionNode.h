@@ -54,11 +54,8 @@ public:
             } else {
                 continue;
             }
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value(i)), context, this);
-            size_t property = context->getLastRegisterIndex();
-            codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, property, valueIndex), context, this);
-            // drop property, value register
-            context->giveUpRegister();
+            codeBlock->pushCode(ArrayDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, i, valueIndex), context, this);
+            // drop value register
             context->giveUpRegister();
         }
         codeBlock->peekCode<CreateArray>(arrayIndex)->m_length = arrLen;

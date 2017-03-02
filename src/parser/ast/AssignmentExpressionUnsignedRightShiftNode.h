@@ -54,6 +54,11 @@ public:
         m_left->generateStoreByteCode(codeBlock, context, dstRegister, false);
     }
 
+    virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        return m_left->getRegister(codeBlock, context);
+    }
+
 protected:
     Node* m_left; // left: Pattern;
     Node* m_right; // right: Expression;

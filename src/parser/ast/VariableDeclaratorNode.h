@@ -50,10 +50,17 @@ public:
         AtomicString name = m_id->asIdentifier()->name();
         if (m_init) {
             context->getRegister();
-            auto r = m_init->getRegister(codeBlock, context);
-            m_init->generateExpressionByteCode(codeBlock, context, r);
-            m_id->generateStoreByteCode(codeBlock, context, r, false);
-            context->giveUpRegister();
+            if (!name.string()->equals("arguments")) {
+                AssignmentExpressionSimpleNode assign(m_id, m_init);
+                assign.generateResultNotRequiredExpressionByteCode(codeBlock, context);
+                // for avoding double-free
+                assign.giveupChildren();
+            } else {
+                auto r = m_init->getRegister(codeBlock, context);
+                m_init->generateExpressionByteCode(codeBlock, context, r);
+                m_id->generateStoreByteCode(codeBlock, context, r, false);
+                context->giveUpRegister();
+            }
             context->giveUpRegister();
         }
     }

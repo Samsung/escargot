@@ -42,6 +42,11 @@ public:
         delete m_right;
     }
 
+    void giveupChildren()
+    {
+        m_left = m_right = nullptr;
+    }
+
     Node* left()
     {
         return m_left;
@@ -103,7 +108,7 @@ public:
         bool isSlowMode = hasSlowAssigmentOperation();
 
         if (isSlowMode) {
-            size_t rightRegister = context->getRegister();
+            size_t rightRegister = m_right->getRegister(codeBlock, context);
             bool canSkipCopyToRegister = context->m_canSkipCopyToRegister;
             context->m_canSkipCopyToRegister = false;
 
@@ -124,12 +129,18 @@ public:
                     return;
                 }
             }
-            size_t rightRegister = context->getRegister();
+
+            size_t rightRegister = m_right->getRegister(codeBlock, context);
             m_left->generateResolveAddressByteCode(codeBlock, context);
             m_right->generateExpressionByteCode(codeBlock, context, rightRegister);
             m_left->generateStoreByteCode(codeBlock, context, rightRegister, false);
             context->giveUpRegister();
         }
+    }
+
+    virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        return m_left->getRegister(codeBlock, context);
     }
 
 protected:
