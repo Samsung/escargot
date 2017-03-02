@@ -17,6 +17,10 @@ public:
         return "ArrayBuffer";
     }
 
+    // Clone srcBuffer's srcByteOffset ~ end.
+    bool cloneBuffer(ArrayBufferObject* srcBuffer, size_t srcByteOffset);
+    // Clone srcBuffer's srcByteOffset ~ (srcByteOffset + cloneLength).
+    bool cloneBuffer(ArrayBufferObject* srcBuffer, size_t srcByteOffset, size_t cloneLength);
     void allocateBuffer(size_t bytelength);
 
     virtual bool isArrayBufferObject() const

@@ -33,6 +33,23 @@ void ArrayBufferObject::allocateBuffer(size_t bytelength)
                                    nullptr, nullptr, nullptr);
 }
 
+// http://www.ecma-international.org/ecma-262/6.0/#sec-clonearraybuffer
+bool ArrayBufferObject::cloneBuffer(ArrayBufferObject* srcBuffer, size_t srcByteOffset)
+{
+    unsigned srcLength = srcBuffer->bytelength();
+    ASSERT(srcByteOffset <= srcLength);
+    unsigned cloneLength = srcLength - srcByteOffset;
+    return cloneBuffer(srcBuffer, srcByteOffset, cloneLength);
+}
+
+bool ArrayBufferObject::cloneBuffer(ArrayBufferObject* srcBuffer, size_t srcByteOffset, size_t cloneLength)
+{
+    if (srcBuffer->isDetachedBuffer())
+        return false;
+    allocateBuffer(cloneLength);
+    fillData(srcBuffer->data() + srcByteOffset, cloneLength);
+    return true;
+}
 
 void* ArrayBufferObject::operator new(size_t size)
 {

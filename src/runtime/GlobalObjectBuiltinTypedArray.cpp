@@ -234,9 +234,19 @@ Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, 
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), "");
         }
         int srcByteIndex = 0;
+        ArrayBufferObject* oldSrcBuffer = srcBuffer;
+        unsigned oldSrcByteoffset = arg0Wrapper->byteoffset();
+        unsigned oldSrcBytelength = arg0Wrapper->bytelength();
+        unsigned oldSrcArraylength = arg0Wrapper->arraylength();
         if (srcBuffer == targetBuffer) {
-            // TODO: 24) should clone targetBuffer
-            RELEASE_ASSERT_NOT_REACHED();
+            // NOTE: Step 24
+            srcBuffer = new ArrayBufferObject(state);
+            bool succeed = srcBuffer->cloneBuffer(targetBuffer, srcByteOffset, oldSrcBytelength);
+            if (!succeed) {
+                const StaticStrings* strings = &state.context()->staticStrings();
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->TypedArray.string(), true, strings->set.string(), "");
+            }
+            arg0Wrapper->setBuffer(srcBuffer, 0, srcBuffer->bytelength(), oldSrcArraylength);
         } else {
             srcByteIndex = srcByteOffset;
         }
@@ -249,6 +259,8 @@ Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, 
             srcIndex++;
             targetIndex++;
         }
+        if (oldSrcBuffer != srcBuffer)
+            arg0Wrapper->setBuffer(oldSrcBuffer, oldSrcByteoffset, oldSrcBytelength, oldSrcArraylength);
         return Value();
     }
 }
@@ -297,17 +309,18 @@ FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicStr
                                                        }),
                                                        FunctionObject::__ForBuiltin__);
     taConstructor->markThisObjectDontNeedStructureTransitionTable(state);
-    taConstructor->setPrototype(state, m_functionPrototype);
 
     *proto = m_objectPrototype;
     Object* taPrototype = new TypedArrayObject<T, elementSize>(state);
     taPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     taPrototype->setPrototype(state, typedArrayFunction->getFunctionPrototype(state));
 
-    taConstructor->setPrototype(state, m_functionPrototype); // empty Function
+    taConstructor->setPrototype(state, typedArrayFunction); // %TypedArray%
     taConstructor->setFunctionPrototype(state, taPrototype);
 
     taPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(taConstructor, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // FIXME Below functions should be properties of %TypedArray%.prototype instead of taPrototype
     taPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->set),
                                                   ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->set, builtinTypedArraySet<T, elementSize>, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

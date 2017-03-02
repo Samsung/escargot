@@ -120,4 +120,18 @@
   <test id="built-ins/Promise/resolve/ctx-non-object"><reason>Function.length.configurable|Symbol|class</reason></test>
   <test id="built-ins/Promise/resolve/length"><reason>Function.length.configurable|Symbol|class</reason></test>
   <test id="built-ins/Promise/resolve/length"><reason>Function.length.configurable|Symbol|class</reason></test>
+  <test id="built-ins/TypedArray/prototype/set/array-arg-return-abrupt-from-src-length-symbol"><reason>Symbol</reason></test>
+  <test id="built-ins/TypedArray/prototype/set/array-arg-return-abrupt-from-src-length-symbol"><reason>Symbol</reason></test>
+  <test id="built-ins/TypedArray/prototype/set/array-arg-return-abrupt-from-src-tonumber-value-symbol"><reason>Symbol</reason></test>
+  <test id="built-ins/TypedArray/prototype/set/array-arg-return-abrupt-from-src-tonumber-value-symbol"><reason>Symbol</reason></test>
+  <test id="built-ins/TypedArray/prototype/set/array-arg-return-abrupt-from-tointeger-offset-symbol"><reason>Symbol</reason></test>
+  <test id="built-ins/TypedArray/prototype/set/array-arg-return-abrupt-from-tointeger-offset-symbol"><reason>Symbol</reason></test>
+  <test id="built-ins/TypedArray/prototype/set/typedarray-arg-return-abrupt-from-tointeger-offset-symbol"><reason>Symbol</reason></test>
+  <test id="built-ins/TypedArray/prototype/set/typedarray-arg-return-abrupt-from-tointeger-offset-symbol"><reason>Symbol</reason></test>
+  <test id="built-ins/TypedArray/prototype/set/length"><reason>Function.length.configurable</reason></test>
+  <test id="built-ins/TypedArray/prototype/set/length"><reason>Function.length.configurable</reason></test>
+  <test id="built-ins/TypedArray/prototype/set/this-is-not-object"><reason>Symbol</reason></test>
+  <test id="built-ins/TypedArray/prototype/set/this-is-not-object"><reason>Symbol</reason></test>
+  <test id="built-ins/TypedArray/prototype/set/this-is-not-typedarray-instance"><reason>DataView</reason></test>
+  <test id="built-ins/TypedArray/prototype/set/this-is-not-typedarray-instance"><reason>DataView</reason></test>
 </excludeList>
