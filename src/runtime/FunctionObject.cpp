@@ -143,15 +143,11 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
     }
     ASSERT(!m_codeBlock->isNativeFunction());
 
-    Node* ast;
-    if (m_codeBlock->cachedASTNode()) {
-        ast = m_codeBlock->cachedASTNode();
-    } else {
-        ast = state.context()->scriptParser().parseFunction(m_codeBlock);
-    }
+    auto ret = state.context()->scriptParser().parseFunction(m_codeBlock);
+    Node* ast = ret.first;
 
     ByteCodeGenerator g;
-    m_codeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_codeBlock, ast, false, false, false);
+    m_codeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_codeBlock, ast, ret.second, false, false, false);
 
     v.pushBack(m_codeBlock);
 
@@ -223,6 +219,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
 
     size_t registerSize = blk->m_requiredRegisterFileSizeInValueSize;
     size_t stackStorageSize = m_codeBlock->identifierOnStackCount();
+    size_t literalStorageSize = blk->m_numeralLiteralData.size();
     size_t parameterCopySize = std::min(argc, m_codeBlock->functionParameters().size());
 
     // prepare env, ec
@@ -244,11 +241,17 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
         ec = new ExecutionContext(ctx, state.executionContext(), env, isStrict);
     }
 
-    Value* registerFile = ALLOCA((registerSize + stackStorageSize) * sizeof(Value), Value, state);
+    Value* registerFile = ALLOCA((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value), Value, state);
     Value* stackStorage = registerFile + registerSize;
+    Value* literalStorage = stackStorage + stackStorageSize;
 
     for (size_t i = 0; i < stackStorageSize; i++) {
         stackStorage[i] = Value();
+    }
+
+    Value* src = blk->m_numeralLiteralData.data();
+    for (size_t i = 0; i < literalStorageSize; i++) {
+        literalStorage[i] = src[i];
     }
 
     Value resultValue;

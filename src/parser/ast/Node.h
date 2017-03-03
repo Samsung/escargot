@@ -259,6 +259,7 @@ struct ASTScopeContext : public gc {
     bool m_hasYield;
     bool m_inCatch;
     bool m_inWith;
+    bool m_hasManyNumeralLiteral;
     ASTNodeType m_nodeType;
     ASTScopeContext *m_parentContext;
     Node *m_associateNode;
@@ -267,6 +268,7 @@ struct ASTScopeContext : public gc {
     AtomicStringVector m_parameters;
     AtomicString m_functionName;
     Vector<ASTScopeContext *, GCUtil::gc_malloc_ignore_off_page_allocator<ASTScopeContext *>> m_childScopes;
+    Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>> m_numeralLiteralData;
     ExtendedNodeLOC m_locStart;
     ExtendedNodeLOC m_locEnd;
     size_t m_nodeStartIndex;
@@ -285,6 +287,19 @@ struct ASTScopeContext : public gc {
         }
     }
 
+    void insertNumeralLiteral(Value v)
+    {
+        ASSERT(!v.isPointerValue());
+        if (VectorUtil::findInVector(m_numeralLiteralData, v) == VectorUtil::invalidIndex) {
+            if (m_numeralLiteralData.size() < KEEP_NUMERAL_LITERDATA_IN_REGISTERFILE_LIMIT)
+                m_numeralLiteralData.push_back(v);
+            else {
+                m_numeralLiteralData.clear();
+                m_hasManyNumeralLiteral = true;
+            }
+        }
+    }
+
     ASTScopeContext(bool isStrict, ASTScopeContext *parentContext)
         : m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
         , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
@@ -292,7 +307,7 @@ struct ASTScopeContext : public gc {
     {
         m_isStrict = isStrict;
         m_hasYield = m_hasCatch = m_hasWith = m_hasEval = false;
-        m_inCatch = m_inWith = false;
+        m_hasManyNumeralLiteral = m_inCatch = m_inWith = false;
         m_parentContext = parentContext;
         m_associateNode = nullptr;
     }

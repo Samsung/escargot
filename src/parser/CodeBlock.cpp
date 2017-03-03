@@ -143,7 +143,7 @@ CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundT
     m_byteCodeBlock->m_literalData.pushBack((PointerValue*)code.m_boundArguments);
 
     ParserContextInformation defaultInfo;
-    ByteCodeGenerateContext context(this, m_byteCodeBlock, defaultInfo);
+    ByteCodeGenerateContext context(this, m_byteCodeBlock, defaultInfo, nullptr);
     m_byteCodeBlock->pushCode(code, &context, nullptr);
     m_byteCodeBlock->m_code.shrinkToFit();
 }

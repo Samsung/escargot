@@ -32,9 +32,11 @@ void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
     ByteCodeGenerator g;
     ByteCodeBlock* block;
     if (m_codeBlock->isGlobalScopeCodeBlock()) {
-        block = g.generateByteCode(c, m_codeBlock, esprima::parseProgram(m_codeBlock->context(), m_codeBlock->src(), nullptr, m_codeBlock->isStrict()), m_isEvalMode, m_isOnGlobal, true);
+        ProgramNode* nd = esprima::parseProgram(m_codeBlock->context(), m_codeBlock->src(), nullptr, m_codeBlock->isStrict());
+        block = g.generateByteCode(c, m_codeBlock, nd, nd->scopeContext(), m_isEvalMode, m_isOnGlobal, true);
     } else {
-        block = g.generateByteCode(c, m_codeBlock, c->scriptParser().parseFunction(m_codeBlock), m_isEvalMode, m_isOnGlobal, true);
+        auto ret = c->scriptParser().parseFunction(m_codeBlock);
+        block = g.generateByteCode(c, m_codeBlock, ret.first, ret.second, m_isEvalMode, m_isOnGlobal, true);
     }
     m_locData = std::move(block->m_locData);
     // prevent infinate fillLocDataIfNeeded if m_locData.size() == 0 in here

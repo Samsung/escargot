@@ -198,7 +198,12 @@
 
 typedef uint16_t ByteCodeRegisterIndex;
 #define REGULAR_REGISTER_LIMIT (std::numeric_limits<ByteCodeRegisterIndex>::max() / 2)
-#define VARIABLE_LIMIT (std::numeric_limits<ByteCodeRegisterIndex>::max() / 2)
+#define VARIABLE_LIMIT (std::numeric_limits<ByteCodeRegisterIndex>::max() / 4)
+#define BINDED_NUMERAL_VARIABLE_LIMIT (std::numeric_limits<ByteCodeRegisterIndex>::max() / 4)
+
+#ifndef KEEP_NUMERAL_LITERDATA_IN_REGISTERFILE_LIMIT
+#define KEEP_NUMERAL_LITERDATA_IN_REGISTERFILE_LIMIT 16
+#endif
 
 #ifndef STACK_GROWS_DOWN
 #define STACK_GROWS_DOWN

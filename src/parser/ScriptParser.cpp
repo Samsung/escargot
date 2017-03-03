@@ -245,10 +245,10 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
     return result;
 }
 
-Node* ScriptParser::parseFunction(CodeBlock* codeBlock)
+std::pair<Node*, ASTScopeContext*> ScriptParser::parseFunction(CodeBlock* codeBlock)
 {
     try {
-        Node* body = esprima::parseSingleFunction(m_context, codeBlock);
+        std::pair<Node*, ASTScopeContext*> body = esprima::parseSingleFunction(m_context, codeBlock);
         return body;
     } catch (esprima::Error* orgError) {
         puts(orgError->message->toUTF8StringData().data());

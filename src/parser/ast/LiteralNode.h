@@ -38,8 +38,27 @@ public:
         if (m_value.isPointerValue()) {
             codeBlock->m_literalData.pushBack(m_value.asPointerValue());
         }
-        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, m_value), context, this);
+        if (dstRegister < REGULAR_REGISTER_LIMIT + VARIABLE_LIMIT) {
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, m_value), context, this);
+        }
     }
+
+    virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        size_t idxExists = SIZE_MAX;
+        if (context->m_keepNumberalLiteralsInRegisterFile) {
+            if (!m_value.isPointerValue()) {
+                for (size_t i = 0; i < context->m_numeralLiteralData->size(); i++) {
+                    if ((*context->m_numeralLiteralData)[i] == m_value) {
+                        context->pushRegister(REGULAR_REGISTER_LIMIT + VARIABLE_LIMIT + i);
+                        return context->getLastRegisterIndex();
+                    }
+                }
+            }
+        }
+        return context->getRegister();
+    }
+
 
 protected:
     Value m_value;

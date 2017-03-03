@@ -10,6 +10,7 @@
 #include "runtime/ErrorObject.h"
 #include "runtime/SandBox.h"
 #include "util/Util.h"
+#include "parser/ast/AST.h"
 
 namespace Escargot {
 
@@ -19,7 +20,7 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
 
     ByteCodeGenerator g;
-    m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode, isEvalMode, isOnGlobal);
+    m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode, ((ProgramNode*)programNode)->scopeContext(), isEvalMode, isOnGlobal);
 
     delete m_topCodeBlock->m_cachedASTNode;
     m_topCodeBlock->m_cachedASTNode = nullptr;
@@ -45,9 +46,15 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     Value thisValue(state.context()->globalObject());
     ExecutionState newState(&state, &ec, &resultValue);
 
-    Value* registerFile = (Value*)alloca((m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize + 1) * sizeof(Value));
+    size_t literalStorageSize = m_topCodeBlock->byteCodeBlock()->m_numeralLiteralData.size();
+    Value* registerFile = (Value*)alloca((m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize + 1 + literalStorageSize) * sizeof(Value));
     Value* stackStorage = registerFile + m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize;
     stackStorage[0] = thisValue;
+    Value* literalStorage = stackStorage + 1;
+    Value* src = m_topCodeBlock->byteCodeBlock()->m_numeralLiteralData.data();
+    for (size_t i = 0; i < literalStorageSize; i++) {
+        literalStorage[i] = src[i];
+    }
     clearStack<512>();
     ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
 
@@ -85,7 +92,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, bool isEvalMo
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
 
     ByteCodeGenerator g;
-    m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode, isEvalMode);
+    m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode, ((ProgramNode*)programNode)->scopeContext(), isEvalMode);
 
     delete m_topCodeBlock->m_cachedASTNode;
     m_topCodeBlock->m_cachedASTNode = nullptr;
@@ -111,10 +118,16 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, bool isEvalMo
     ExecutionState newState(&state, &ec, &resultValue);
 
     size_t stackStorageSize = m_topCodeBlock->identifierOnStackCount();
-    Value* registerFile = ALLOCA((m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize + stackStorageSize) * sizeof(Value), Value, state);
+    size_t literalStorageSize = m_topCodeBlock->byteCodeBlock()->m_numeralLiteralData.size();
+    Value* registerFile = ALLOCA((m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize + stackStorageSize + literalStorageSize) * sizeof(Value), Value, state);
     Value* stackStorage = registerFile + m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize;
     for (size_t i = 0; i < stackStorageSize; i++) {
         stackStorage[i] = Value();
+    }
+    Value* literalStorage = stackStorage + stackStorageSize;
+    Value* src = m_topCodeBlock->byteCodeBlock()->m_numeralLiteralData.data();
+    for (size_t i = 0; i < literalStorageSize; i++) {
+        literalStorage[i] = src[i];
     }
 
     stackStorage[m_topCodeBlock->thisSymbolIndex()] = thisValue;

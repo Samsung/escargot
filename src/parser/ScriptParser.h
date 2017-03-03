@@ -42,7 +42,7 @@ public:
         return parse(StringView(script, 0, script->length()), fileName, nullptr, strictFromOutside);
     }
     ScriptParserResult parse(StringView script, String* fileName = String::emptyString, CodeBlock* parentCodeBlock = nullptr, bool strictFromOutside = false);
-    Node* parseFunction(CodeBlock* codeBlock);
+    std::pair<Node*, ASTScopeContext*> parseFunction(CodeBlock* codeBlock);
 
 protected:
     CodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program);

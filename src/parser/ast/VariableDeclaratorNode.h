@@ -52,6 +52,7 @@ public:
             context->getRegister();
             if (!name.string()->equals("arguments")) {
                 AssignmentExpressionSimpleNode assign(m_id, m_init);
+                assign.m_loc = m_loc;
                 assign.generateResultNotRequiredExpressionByteCode(codeBlock, context);
                 // for avoding double-free
                 assign.giveupChildren();

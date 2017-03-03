@@ -123,6 +123,14 @@ public:
             if (m_left->isIdentifier() && (rt != ASTNodeType::ArrayExpression && rt != ASTNodeType::ObjectExpression) && !context->m_isGlobalScope && !context->m_isEvalCode) {
                 auto r = m_left->asIdentifier()->isAllocatedOnStack(context);
                 if (r.first) {
+                    if (m_right->isLiteral()) {
+                        auto r2 = m_right->getRegister(codeBlock, context);
+                        if (r2 >= REGULAR_REGISTER_LIMIT + VARIABLE_LIMIT) {
+                            context->giveUpRegister();
+                            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r2, r.second), context, this);
+                            return;
+                        }
+                    }
                     context->pushRegister(r.second);
                     m_right->generateExpressionByteCode(codeBlock, context, r.second);
                     context->giveUpRegister();

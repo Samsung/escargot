@@ -29,7 +29,7 @@ struct ParserContextInformation {
 };
 
 struct ByteCodeGenerateContext {
-    ByteCodeGenerateContext(CodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, ParserContextInformation& parserContextInformation)
+    ByteCodeGenerateContext(CodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, ParserContextInformation& parserContextInformation, Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>>* numeralLiteralData)
         : m_baseRegisterCount(0)
         , m_codeBlock(codeBlock)
         , m_byteCodeBlock(byteCodeBlock)
@@ -39,6 +39,7 @@ struct ByteCodeGenerateContext {
         , m_isWithScope(parserContextInformation.m_isWithScope)
         , m_canUseDisalignedRegister(true)
         , m_canSkipCopyToRegister(true)
+        , m_keepNumberalLiteralsInRegisterFile(numeralLiteralData)
         , m_catchScopeCount(0)
         , m_shouldGenerateLOCData(true)
         , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
@@ -46,6 +47,7 @@ struct ByteCodeGenerateContext {
         , m_positionToContinue(0)
         , m_tryStatementScopeCount(0)
         , m_feCounter(0)
+        , m_numeralLiteralData(numeralLiteralData)
     {
         m_inCallingExpressionScope = false;
         m_isHeadOfMemberExpression = false;
@@ -62,6 +64,7 @@ struct ByteCodeGenerateContext {
         , m_isWithScope(false)
         , m_canUseDisalignedRegister(contextBefore.m_canUseDisalignedRegister)
         , m_canSkipCopyToRegister(contextBefore.m_canSkipCopyToRegister)
+        , m_keepNumberalLiteralsInRegisterFile(contextBefore.m_keepNumberalLiteralsInRegisterFile)
         , m_catchScopeCount(contextBefore.m_catchScopeCount)
         , m_shouldGenerateByteCodeInstantly(contextBefore.m_shouldGenerateByteCodeInstantly)
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
@@ -71,6 +74,7 @@ struct ByteCodeGenerateContext {
         , m_positionToContinue(contextBefore.m_positionToContinue)
         , m_tryStatementScopeCount(contextBefore.m_tryStatementScopeCount)
         , m_feCounter(contextBefore.m_feCounter)
+        , m_numeralLiteralData(contextBefore.m_numeralLiteralData)
     {
         m_isHeadOfMemberExpression = false;
     }
@@ -214,6 +218,7 @@ struct ByteCodeGenerateContext {
     bool m_isWithScope;
     bool m_canUseDisalignedRegister;
     bool m_canSkipCopyToRegister;
+    bool m_keepNumberalLiteralsInRegisterFile;
 
     size_t m_catchScopeCount;
 
@@ -238,6 +243,7 @@ struct ByteCodeGenerateContext {
     int m_tryStatementScopeCount;
     size_t m_feCounter;
     std::map<size_t, size_t> m_complexCaseStatementPositions;
+    Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>>* m_numeralLiteralData;
 };
 
 class ByteCodeGenerator {
@@ -248,7 +254,7 @@ public:
     {
     }
 
-    ByteCodeBlock* generateByteCode(Context* c, CodeBlock* codeBlock, Node* ast, bool isEvalMode = false, bool isOnGlobal = false, bool shouldGenerateLOCData = false);
+    ByteCodeBlock* generateByteCode(Context* c, CodeBlock* codeBlock, Node* ast, ASTScopeContext* scopeCtx, bool isEvalMode = false, bool isOnGlobal = false, bool shouldGenerateLOCData = false);
 };
 }
 

@@ -47,7 +47,7 @@ public:
 #ifndef NDEBUG
         size_t before = context->m_registerStack->size();
 #endif
-        m_expression->generateExpressionByteCode(codeBlock, context, m_expression->getRegister(codeBlock, context));
+        m_expression->generateExpressionByteCode(codeBlock, context, context->getRegister());
         context->giveUpRegister();
         ASSERT(context->m_registerStack->size() == before);
     }

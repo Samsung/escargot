@@ -2185,6 +2185,7 @@ struct Context : public gc {
     bool inSwitch;
     bool inCatch;
     bool inWith;
+    bool inLoop;
     std::vector<std::pair<String*, bool>> labelSet;
     bool strict;
 };
@@ -2320,6 +2321,7 @@ public:
         this->context->inSwitch = false;
         this->context->inCatch = false;
         this->context->inWith = false;
+        this->context->inLoop = false;
         this->context->strict = this->sourceType == Module;
 
         this->startMarker.index = 0;
@@ -2830,9 +2832,11 @@ public:
             this->context->isBindingElement = false;
             token = this->nextToken();
             // raw = this->getTokenRaw(token);
-            if (token->type == Token::NumericLiteralToken)
+            if (token->type == Token::NumericLiteralToken) {
+                if (this->context->inLoop || token->valueNumber == 0)
+                    this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
                 expr = this->finalize(node, new LiteralNode(Value(token->valueNumber)));
-            else
+            } else
                 expr = this->finalize(node, new LiteralNode(Value(new StringView(token->valueString))));
             break;
 
@@ -2844,6 +2848,7 @@ public:
             // raw = this->getTokenRaw(token);
             {
                 bool value = token->valueString == "true";
+                this->scopeContexts.back()->insertNumeralLiteral(Value(value));
                 expr = this->finalize(node, new LiteralNode(Value(value)));
             }
             break;
@@ -2854,6 +2859,7 @@ public:
             token = this->nextToken();
             // token.value = null;
             // raw = this->getTokenRaw(token);
+            this->scopeContexts.back()->insertNumeralLiteral(Value(Value::Null));
             expr = this->finalize(node, new LiteralNode(Value(Value::Null)));
             break;
 
@@ -3174,6 +3180,8 @@ public:
             {
                 Value v;
                 if (token->type == Token::NumericLiteralToken) {
+                    if (this->context->inLoop || token->valueNumber == 0)
+                        this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
                     v = Value(token->valueNumber);
                 } else {
                     v = Value(new StringView(token->valueString));
@@ -4870,6 +4878,9 @@ public:
         MetaNode node = this->createNode();
         Node* body;
 
+        bool prevInLoop = this->context->inLoop;
+        this->context->inLoop = true;
+
         this->expectKeyword(While);
         this->expect(LeftParenthesis);
         Node* test = this->parseExpression();
@@ -4886,6 +4897,8 @@ public:
             this->context->inIteration = previousInIteration;
         }
 
+        this->context->inLoop = prevInLoop;
+
         return this->finalize(node, new WhileStatementNode(test, body));
     }
 
@@ -4900,6 +4913,8 @@ public:
         bool forIn = true;
         Node* left = nullptr;
         Node* right = nullptr;
+
+        bool prevInLoop = this->context->inLoop;
 
         MetaNode node = this->createNode();
         this->expectKeyword(For);
@@ -5028,6 +5043,7 @@ public:
         }
 
         if (left == nullptr) {
+            this->context->inLoop = true;
             if (!this->match(SemiColon)) {
                 test = this->parseExpression();
             }
@@ -5049,6 +5065,8 @@ public:
             body = this->isolateCoverGrammar(&Parser::parseStatement);
             this->context->inIteration = previousInIteration;
         }
+
+        this->context->inLoop = prevInLoop;
 
         if (left == nullptr) {
             return this->finalize(node, new ForStatementNode(init, test, update, body));
@@ -6227,12 +6245,13 @@ ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserAST
     return parser.parseProgram();
 }
 
-Node* parseSingleFunction(::Escargot::Context* ctx, CodeBlock* codeBlock)
+std::pair<Node*, ASTScopeContext*> parseSingleFunction(::Escargot::Context* ctx, CodeBlock* codeBlock)
 {
     Parser parser(ctx, codeBlock->src(), nullptr, codeBlock->sourceElementStart().line, codeBlock->sourceElementStart().column);
     parser.config.parseSingleFunction = true;
-    parser.scopeContexts.pushBack(new ASTScopeContext(codeBlock->isStrict(), nullptr));
-    return parser.parseFunctionSourceElements();
+    auto scopeCtx = new ASTScopeContext(codeBlock->isStrict(), nullptr);
+    parser.scopeContexts.pushBack(scopeCtx);
+    return std::make_pair(parser.parseFunctionSourceElements(), scopeCtx);
 }
 
 bool isIdentifierPartData[0x10000] = {
