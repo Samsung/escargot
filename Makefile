@@ -196,6 +196,7 @@ endif
 
 SRC=
 SRC += $(foreach dir, src , $(wildcard $(dir)/*.cpp))
+SRC += $(foreach dir, src/api , $(wildcard $(dir)/*.cpp))
 SRC += $(foreach dir, src/heap , $(wildcard $(dir)/*.cpp))
 SRC += $(foreach dir, src/interpreter , $(wildcard $(dir)/*.cpp))
 SRC += $(foreach dir, src/parser , $(wildcard $(dir)/*.cpp))
