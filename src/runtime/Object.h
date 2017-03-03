@@ -522,11 +522,11 @@ public:
         return (ArrayBufferView*)this;
     }
 
-    template <typename TypeArg, int elementSize>
-    TypedArrayObject<TypeArg, elementSize>* asTypedArrayObject()
+    template <typename TypedArrayType>
+    TypedArrayType* asTypedArrayObject()
     {
         ASSERT(isTypedArrayObject());
-        return (TypedArrayObject<TypeArg, elementSize>*)this;
+        return (TypedArrayType*)this;
     }
 #endif
 

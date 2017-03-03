@@ -79,7 +79,7 @@ public:
 #endif
 #if ESCARGOT_ENABLE_TYPEDARRAY
     void installTypedArray(ExecutionState& state);
-    template <typename T, int elementSize>
+    template <typename TA, int elementSize>
     FunctionObject* installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction);
 #endif
     void installOthers(ExecutionState& state);

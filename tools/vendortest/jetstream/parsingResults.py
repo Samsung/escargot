@@ -1,11 +1,26 @@
 import sys;
+import math;
 
 savedNames = ['3d-cube', '3d-raytrace', 'base64', 'crypto-aes', 'crypto-md5', 'crypto-sha1', 'date-format-tofte', 'date-format-xparb', 'n-body', 'regex-dna', 'tagcloud', 'towers.c', 'container.cpp', 'dry.c', 'n-body.c', 'quicksort.c', 'gcc-loops.cpp', 'hash-map', 'float-mm.c', 'bigfib.cpp', 'code-multi-load', 'richards', 'delta-blue', 'crypto', 'proto-raytracer', 'earley-boyer', 'regexp-2010', 'splay', 'splay-latency', 'navier-stokes', 'pdfjs', 'mandreel', 'mandreel-latency', 'gbemu', 'code-first-load', 'box2d', 'zlib', 'typescript', 'cdjs'];
+
+def compute_geomean(result):
+    totalSum = 0.0;
+    numDone = 0;
+    for i in range(0, 39):
+        if (result[i][1] != "NaN"):
+            totalSum += math.log(result[i][1]);
+            numDone += 1;
+    if (numDone == 0):
+        return "NaN";
+    total = totalSum * (1.0 / numDone);
+    return str(math.exp(total));
 
 def print_formatted(result):
     i = 0;
     for i in range(0, 39):
         print(result[i][0] + ' : ' + str(result[i][1]));
+    print("------------------------");
+    print("GeoMean: " + compute_geomean(result));
 
 # argv[0] : res file name
 def main(argv):

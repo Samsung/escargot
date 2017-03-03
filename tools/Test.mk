@@ -3,7 +3,7 @@
 OPT_MASTER_PROMISE=built-ins/Promise
 OPT_MASTER_ARRAYBUFFER=#built-ins/ArrayBuffer
 OPT_MASTER_DATAVIEW=#built-ins/DataView
-OPT_MASTER_TYPEDARRAY=#built-ins/TypedArray built-ins/TypedArrays
+OPT_MASTER_TYPEDARRAY=built-ins/TypedArray/prototype/set #built-ins/TypedArray built-ins/TypedArrays
 
 check:
 	make tidy-update
@@ -81,6 +81,7 @@ run-jetstream:
 	cp tools/vendortest/jetstream/jetstream.Octane2Setup.js test/vendortest/JetStream-1.1/Octane2Setup.js
 	cp tools/vendortest/jetstream/jetstream.SimpleSetup.js test/vendortest/JetStream-1.1/SimpleSetup.js
 	cp tools/vendortest/jetstream/jetstream.SunSpiderSetup.js test/vendortest/JetStream-1.1/SunSpiderSetup.js
+	cp tools/vendortest/jetstream/jetstream.cdjs.util.js test/vendortest/JetStream-1.1/cdjs/util.js
 	cp tools/vendortest/jetstream/jetstream.runOnePlan.js test/vendortest/JetStream-1.1/runOnePlan.js
 	cp tools/vendortest/jetstream/jetstream.run.sh test/vendortest/JetStream-1.1/run.sh
 	cd test/vendortest/JetStream-1.1/; \

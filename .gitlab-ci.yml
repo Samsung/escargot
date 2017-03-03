@@ -47,6 +47,17 @@ test_x64_release_test262:
     dependencies:
         - build_x64_release
 
+test_x64_release_jetstream:
+    stage: test
+    before_script:
+        - git submodule deinit -f test/vendortest
+        - git submodule init
+        - git submodule update test/vendortest
+        - cp out/linux/x64/interpreter/release/escargot ./escargot
+    script: make run-jetstream; exit $?;
+    dependencies:
+        - build_x64_release
+
 test_x64_release_spidermonkey:
     stage: test
     tags:
@@ -149,6 +160,17 @@ test_x86_release_test262:
         - git submodule update test/test262
         - cp out/linux/x86/interpreter/release/escargot ./escargot
     script: make run-test262; exit $?;
+    dependencies:
+        - build_x86_release
+
+test_x86_release_jetstream:
+    stage: test
+    before_script:
+        - git submodule deinit -f test/vendortest
+        - git submodule init
+        - git submodule update test/vendortest
+        - cp out/linux/x86/interpreter/release/escargot ./escargot
+    script: make run-jetstream; exit $?;
     dependencies:
         - build_x86_release
 

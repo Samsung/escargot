@@ -9,6 +9,17 @@
 
 namespace Escargot {
 
+enum TypedArrayType {
+    Int8,
+    Int16,
+    Int32,
+    Uint8,
+    Uint16,
+    Uint32,
+    Uint8Clamped,
+    Float32,
+    Float64
+};
 
 class ArrayBufferView : public Object {
 public:
@@ -20,6 +31,7 @@ public:
         m_arraylength = m_byteoffset = m_bytelength = 0;
     }
 
+    virtual TypedArrayType typedArrayType() = 0;
     ALWAYS_INLINE ArrayBufferObject* buffer() { return m_buffer; }
     ALWAYS_INLINE uint8_t* rawBuffer() { return m_rawBuffer; }
     ALWAYS_INLINE unsigned bytelength() { return m_bytelength; }
@@ -287,15 +299,114 @@ public:
 protected:
 };
 
-typedef TypedArrayObject<Int8Adaptor, 1> Int8ArrayObject;
-typedef TypedArrayObject<Int16Adaptor, 2> Int16ArrayObject;
-typedef TypedArrayObject<Int32Adaptor, 4> Int32ArrayObject;
-typedef TypedArrayObject<Uint8Adaptor, 1> Uint8ArrayObject;
-typedef TypedArrayObject<Uint16Adaptor, 2> Uint16ArrayObject;
-typedef TypedArrayObject<Uint32Adaptor, 4> EUint32ArrayObject;
-typedef TypedArrayObject<Uint8ClampedAdaptor, 1> Uint8ClampedArrayObject;
-typedef TypedArrayObject<Float32Adaptor, 4> Float32ArrayObject;
-typedef TypedArrayObject<Float64Adaptor, 8> Float64ArrayObject;
+typedef TypedArrayObject<Int8Adaptor, 1> Int8ArrayObjectWrapper;
+class Int8ArrayObject : public Int8ArrayObjectWrapper {
+public:
+    Int8ArrayObject(ExecutionState& state)
+        : Int8ArrayObjectWrapper(state)
+    {
+    }
+    virtual TypedArrayType typedArrayType()
+    {
+        return TypedArrayType::Int8;
+    }
+};
+typedef TypedArrayObject<Int16Adaptor, 2> Int16ArrayObjectWrapper;
+class Int16ArrayObject : public Int16ArrayObjectWrapper {
+public:
+    Int16ArrayObject(ExecutionState& state)
+        : Int16ArrayObjectWrapper(state)
+    {
+    }
+    virtual TypedArrayType typedArrayType()
+    {
+        return TypedArrayType::Int16;
+    }
+};
+typedef TypedArrayObject<Int32Adaptor, 4> Int32ArrayObjectWrapper;
+class Int32ArrayObject : public Int32ArrayObjectWrapper {
+public:
+    Int32ArrayObject(ExecutionState& state)
+        : Int32ArrayObjectWrapper(state)
+    {
+    }
+    virtual TypedArrayType typedArrayType()
+    {
+        return TypedArrayType::Int32;
+    }
+};
+typedef TypedArrayObject<Uint8Adaptor, 1> Uint8ArrayObjectWrapper;
+class Uint8ArrayObject : public Uint8ArrayObjectWrapper {
+public:
+    Uint8ArrayObject(ExecutionState& state)
+        : Uint8ArrayObjectWrapper(state)
+    {
+    }
+    virtual TypedArrayType typedArrayType()
+    {
+        return TypedArrayType::Uint8;
+    }
+};
+typedef TypedArrayObject<Uint16Adaptor, 2> Uint16ArrayObjectWrapper;
+class Uint16ArrayObject : public Uint16ArrayObjectWrapper {
+public:
+    Uint16ArrayObject(ExecutionState& state)
+        : Uint16ArrayObjectWrapper(state)
+    {
+    }
+    virtual TypedArrayType typedArrayType()
+    {
+        return TypedArrayType::Uint16;
+    }
+};
+typedef TypedArrayObject<Uint32Adaptor, 4> Uint32ArrayObjectWrapper;
+class Uint32ArrayObject : public Uint32ArrayObjectWrapper {
+public:
+    Uint32ArrayObject(ExecutionState& state)
+        : Uint32ArrayObjectWrapper(state)
+    {
+    }
+    virtual TypedArrayType typedArrayType()
+    {
+        return TypedArrayType::Uint32;
+    }
+};
+typedef TypedArrayObject<Uint8ClampedAdaptor, 1> Uint8ClampedArrayObjectWrapper;
+class Uint8ClampedArrayObject : public Uint8ClampedArrayObjectWrapper {
+public:
+    Uint8ClampedArrayObject(ExecutionState& state)
+        : Uint8ClampedArrayObjectWrapper(state)
+    {
+    }
+    virtual TypedArrayType typedArrayType()
+    {
+        return TypedArrayType::Uint8Clamped;
+    }
+};
+typedef TypedArrayObject<Float32Adaptor, 4> Float32ArrayObjectWrapper;
+class Float32ArrayObject : public Float32ArrayObjectWrapper {
+public:
+    Float32ArrayObject(ExecutionState& state)
+        : Float32ArrayObjectWrapper(state)
+    {
+    }
+    virtual TypedArrayType typedArrayType()
+    {
+        return TypedArrayType::Float32;
+    }
+};
+typedef TypedArrayObject<Float64Adaptor, 8> Float64ArrayObjectWrapper;
+class Float64ArrayObject : public Float64ArrayObjectWrapper {
+public:
+    Float64ArrayObject(ExecutionState& state)
+        : Float64ArrayObjectWrapper(state)
+    {
+    }
+    virtual TypedArrayType typedArrayType()
+    {
+        return TypedArrayType::Float64;
+    }
+};
 }
 
 #endif

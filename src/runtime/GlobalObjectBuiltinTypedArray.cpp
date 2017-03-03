@@ -9,6 +9,26 @@
 
 namespace Escargot {
 
+static int getElementSize(TypedArrayType type)
+{
+    switch (type) {
+    case TypedArrayType::Int8:
+    case TypedArrayType::Uint8:
+    case TypedArrayType::Uint8Clamped:
+        return 1;
+    case TypedArrayType::Int16:
+    case TypedArrayType::Uint16:
+        return 2;
+    case TypedArrayType::Int32:
+    case TypedArrayType::Uint32:
+    case TypedArrayType::Float32:
+        return 4;
+    case TypedArrayType::Float64:
+        return 8;
+    }
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
 Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (!isNewExpression)
@@ -113,13 +133,13 @@ static Value builtinTypedArrayBufferGetter(ExecutionState& state, Value thisValu
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-template <typename T, int typedArrayElementSize>
+template <typename TA, int typedArrayElementSize>
 Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // if NewTarget is undefined, throw a TypeError
     if (!isNewExpression)
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_NotExistNewInTypedArrayConstructor);
-    TypedArrayObject<T, typedArrayElementSize>* obj = thisValue.asObject()->asTypedArrayObject<T, typedArrayElementSize>();
+    TA* obj = thisValue.asObject()->asTypedArrayObject<TA>();
     if (argc == 0) {
         obj->allocateTypedArray(state, 0);
     } else if (argc >= 1) {
@@ -186,7 +206,6 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
     return obj;
 }
 
-template <typename T, int typedArrayElementSize>
 Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, TypedArray, set);
@@ -206,7 +225,7 @@ Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, 
     ArrayBufferObject* targetBuffer = wrapper->buffer();
     unsigned targetLength = wrapper->arraylength();
     int targetByteOffset = wrapper->byteoffset();
-    int targetElementSize = typedArrayElementSize;
+    int targetElementSize = getElementSize(wrapper->typedArrayType());
     if (!arg0->isTypedArrayObject()) {
         Object* src = arg0;
         uint64_t srcLength = src->length(state);
@@ -265,7 +284,6 @@ Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, 
     }
 }
 
-template <typename T, int typedArrayElementSize>
 Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, TypedArray, subarray);
@@ -300,18 +318,18 @@ Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t a
     return ByteCodeInterpreter::newOperation(state, thisBinded->get(state, strings->constructor).value(state, thisBinded), 3, arg);
 }
 
-template <typename T, int elementSize>
+template <typename TA, int elementSize>
 FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    FunctionObject* taConstructor = new FunctionObject(state, NativeFunctionInfo(taName, builtinTypedArrayConstructor<T, elementSize>, 3, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
-                                                           return new TypedArrayObject<T, elementSize>(state);
+    FunctionObject* taConstructor = new FunctionObject(state, NativeFunctionInfo(taName, builtinTypedArrayConstructor<TA, elementSize>, 3, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+                                                           return new TA(state);
                                                        }),
                                                        FunctionObject::__ForBuiltin__);
     taConstructor->markThisObjectDontNeedStructureTransitionTable(state);
 
     *proto = m_objectPrototype;
-    Object* taPrototype = new TypedArrayObject<T, elementSize>(state);
+    Object* taPrototype = new TA(state);
     taPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     taPrototype->setPrototype(state, typedArrayFunction->getFunctionPrototype(state));
 
@@ -319,13 +337,6 @@ FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicStr
     taConstructor->setFunctionPrototype(state, taPrototype);
 
     taPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(taConstructor, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
-    // FIXME Below functions should be properties of %TypedArray%.prototype instead of taPrototype
-    taPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->set),
-                                                  ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->set, builtinTypedArraySet<T, elementSize>, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
-    taPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->subarray),
-                                                  ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->subarray, builtinTypedArraySubArray<T, elementSize>, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(taName),
                       ObjectPropertyDescriptor(taConstructor, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -362,11 +373,19 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().ArrayBuffer),
                       ObjectPropertyDescriptor(m_arrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    // %TypedArray%
     FunctionObject* typedArrayFunction = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().TypedArray, builtinTypedArrayConstructor, 0, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
                                                                 return new Object(state);
                                                             },
                                                                                       (NativeFunctionInfo::Flags)(NativeFunctionInfo::Strict | NativeFunctionInfo::Consturctor)),
                                                             FunctionObject::__ForBuiltin__);
+    // %TypedArray%.prototype
+    Object* typedArrayPrototype = typedArrayFunction->getFunctionPrototype(state).asObject();
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->subarray),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->subarray, builtinTypedArraySubArray, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->set),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->set, builtinTypedArraySet, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     {
         JSGetterSetter gs(
             new FunctionObject(state, NativeFunctionInfo(strings->getbyteLength, builtinTypedArrayByteLenthGetter, 0, nullptr, NativeFunctionInfo::Strict)),
@@ -389,15 +408,15 @@ void GlobalObject::installTypedArray(ExecutionState& state)
         typedArrayFunction->getFunctionPrototype(state).asObject()->defineOwnProperty(state, ObjectPropertyName(strings->buffer), bufferDesc);
     }
 
-    m_int8Array = installTypedArray<Int8Adaptor, 1>(state, strings->Int8Array, &m_int8ArrayPrototype, typedArrayFunction);
-    m_int16Array = installTypedArray<Int16Adaptor, 2>(state, strings->Int16Array, &m_int16ArrayPrototype, typedArrayFunction);
-    m_int32Array = installTypedArray<Int32Adaptor, 4>(state, strings->Int32Array, &m_int32ArrayPrototype, typedArrayFunction);
-    m_uint8Array = installTypedArray<Uint8Adaptor, 1>(state, strings->Uint8Array, &m_uint8ArrayPrototype, typedArrayFunction);
-    m_uint16Array = installTypedArray<Uint16Adaptor, 2>(state, strings->Uint16Array, &m_uint16ArrayPrototype, typedArrayFunction);
-    m_uint32Array = installTypedArray<Uint32Adaptor, 4>(state, strings->Uint32Array, &m_uint32ArrayPrototype, typedArrayFunction);
-    m_uint8ClampedArray = installTypedArray<Uint8Adaptor, 1>(state, strings->Uint8ClampedArray, &m_uint8ClampedArrayPrototype, typedArrayFunction);
-    m_float32Array = installTypedArray<Float32Adaptor, 4>(state, strings->Float32Array, &m_float32ArrayPrototype, typedArrayFunction);
-    m_float64Array = installTypedArray<Float64Adaptor, 8>(state, strings->Float64Array, &m_float64ArrayPrototype, typedArrayFunction);
+    m_int8Array = installTypedArray<Int8ArrayObject, 1>(state, strings->Int8Array, &m_int8ArrayPrototype, typedArrayFunction);
+    m_int16Array = installTypedArray<Int16ArrayObject, 2>(state, strings->Int16Array, &m_int16ArrayPrototype, typedArrayFunction);
+    m_int32Array = installTypedArray<Int32ArrayObject, 4>(state, strings->Int32Array, &m_int32ArrayPrototype, typedArrayFunction);
+    m_uint8Array = installTypedArray<Uint8ArrayObject, 1>(state, strings->Uint8Array, &m_uint8ArrayPrototype, typedArrayFunction);
+    m_uint16Array = installTypedArray<Uint16ArrayObject, 2>(state, strings->Uint16Array, &m_uint16ArrayPrototype, typedArrayFunction);
+    m_uint32Array = installTypedArray<Uint32ArrayObject, 4>(state, strings->Uint32Array, &m_uint32ArrayPrototype, typedArrayFunction);
+    m_uint8ClampedArray = installTypedArray<Uint8ClampedArrayObject, 1>(state, strings->Uint8ClampedArray, &m_uint8ClampedArrayPrototype, typedArrayFunction);
+    m_float32Array = installTypedArray<Float32ArrayObject, 4>(state, strings->Float32Array, &m_float32ArrayPrototype, typedArrayFunction);
+    m_float64Array = installTypedArray<Float64ArrayObject, 8>(state, strings->Float64Array, &m_float64ArrayPrototype, typedArrayFunction);
     m_int8ArrayPrototype = m_int8Array->getFunctionPrototype(state).asObject();
     m_int16ArrayPrototype = m_int16Array->getFunctionPrototype(state).asObject();
     m_int32ArrayPrototype = m_int32Array->getFunctionPrototype(state).asObject();
