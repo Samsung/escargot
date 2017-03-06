@@ -23,7 +23,6 @@ struct ExecutionStateRareData : public gc {
 
 class ExecutionState : public gc {
     friend class ByteCodeInterpreter;
-    MAKE_STACK_ALLOCATED();
 
 public:
     ExecutionState(Context* context, ExecutionContext* executionContext = nullptr, Value* exeuctionResult = nullptr)

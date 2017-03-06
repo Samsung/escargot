@@ -6,25 +6,31 @@
 namespace Escargot {
 
 class Globals {
+public:
     static void initialize();
+    static void finalize();
 };
 
 class VMInstanceRef {
-    explicit VMInstanceRef();
+public:
+    static VMInstanceRef* create();
 };
 
 class ContextRef {
-    explicit ContextRef(VMInstanceRef vminstance);
+public:
+    static ContextRef* create(VMInstanceRef* vminstance);
 };
 
 class ExecutionStateRef {
-    explicit ExecutionStateRef(ContextRef vminstance);
+public:
+    static ExecutionStateRef* create(ContextRef* ctx);
 };
 
 class ASCIIStringRef {
-    ASCIIStringRef(const char* str);
-    ASCIIStringRef(const char* str, size_t len);
-    ASCIIStringRef(const char16_t* str, size_t len);
+public:
+    static ASCIIStringRef* create(const char* str);
+    static ASCIIStringRef* create(const char* str, size_t len);
+    static ASCIIStringRef* create(const char16_t* str, size_t len);
 };
 
 } // namespace Escargot
