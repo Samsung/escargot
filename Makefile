@@ -367,4 +367,5 @@ clean:
 # Test
 #######################################################
 
-include $(TOOLSDIR)/Test.mk
+include $(BUILDDIR)/TestCC.mk
+include $(BUILDDIR)/TestJS.mk
