@@ -222,12 +222,12 @@ typedef uint16_t ByteCodeRegisterIndex;
 #endif
 
 #ifndef STRING_BUILDER_INLINE_STORAGE_MAX
-#define STRING_BUILDER_INLINE_STORAGE_MAX 12
+#define STRING_BUILDER_INLINE_STORAGE_MAX 24
 #endif
 
 
 #ifndef ROPE_STRING_MIN_LENGTH
-#define ROPE_STRING_MIN_LENGTH 4
+#define ROPE_STRING_MIN_LENGTH 24
 #endif
 
 #include "heap/Heap.h"

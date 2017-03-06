@@ -60,7 +60,7 @@ protected:
     size_t m_piecesInlineStorageUsage;
     size_t m_contentLength;
     StringBuilderPiece m_piecesInlineStorage[STRING_BUILDER_INLINE_STORAGE_MAX];
-    Vector<StringBuilderPiece, gc_allocator_ignore_off_page<StringBuilderPiece>> m_pieces;
+    Vector<StringBuilderPiece, gc_allocator_ignore_off_page<StringBuilderPiece>, 200> m_pieces;
 };
 }
 

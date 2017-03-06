@@ -362,6 +362,10 @@ struct ScannerResult {
     inline void operator delete(void*, void*) {}
     inline void operator delete[](void* obj) {}
     inline void operator delete[](void*, void*) {}
+    ScannerResult()
+    {
+    }
+
     ScannerResult(Scanner* scanner, Token type, size_t lineNumber, size_t lineStart, size_t start, size_t end)
     {
         this->scanner = scanner;
@@ -525,10 +529,19 @@ public:
     size_t lineNumber;
     size_t lineStart;
     std::vector<Curly> curlyStack;
+    bool isPoolEnabled;
     std::vector<ScannerResult*, gc_allocator<ScannerResult*>> resultMemoryPool;
+    ScannerResult scannerResultInnerPool[4];
+
+    ~Scanner()
+    {
+        isPoolEnabled = false;
+    }
+
 
     Scanner(BufferedStringView code, ErrorHandler* handler, size_t startLine = 0, size_t startColumn = 0)
     {
+        isPoolEnabled = true;
         source = code;
         errorHandler = handler;
         // trackComment = false;
@@ -537,6 +550,11 @@ public:
         index = 0;
         lineNumber = ((length > 0) ? 1 : 0) + startLine;
         lineStart = startColumn;
+
+        for (size_t i = 0; i < 4; i++) {
+            scannerResultInnerPool[i].scanner = this;
+            resultMemoryPool.push_back(&scannerResultInnerPool[i]);
+        }
     }
 
     ScannerResult* createScannerResult()
@@ -2160,7 +2178,9 @@ public:
 
 ScannerResult::~ScannerResult()
 {
-    this->scanner->resultMemoryPool.push_back(this);
+    if (this->scanner->isPoolEnabled) {
+        this->scanner->resultMemoryPool.push_back(this);
+    }
 }
 
 struct Config : public gc {
@@ -2217,8 +2237,10 @@ public:
     ::Escargot::Context* escargotContext;
     Config config;
     ParserASTNodeHandler delegate;
+    ErrorHandler errorHandlerInstance;
     ErrorHandler* errorHandler;
-    std::unique_ptr<Scanner> scanner;
+    Scanner scannerInstance;
+    Scanner* scanner;
     /*
     std::unordered_map<IdentifierNode*, std::shared_ptr<ScannerResult>,
                        std::hash<IdentifierNode*>, std::equal_to<IdentifierNode*>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<IdentifierNode*, std::shared_ptr<ScannerResult>>>>
@@ -2232,6 +2254,7 @@ public:
     std::shared_ptr<ScannerResult> lookahead;
     bool hasLineTerminator;
 
+    Context contextInstance;
     Context* context;
     std::vector<std::shared_ptr<ScannerResult>, gc_allocator_ignore_off_page<std::shared_ptr<ScannerResult>>> tokens;
     Marker startMarker;
@@ -2276,6 +2299,8 @@ public:
     }
 
     Parser(::Escargot::Context* escargotContext, StringView code, ParserASTNodeHandler delegate, size_t startLine = 0, size_t startColumn = 0 /*, options: any = {}, delegate*/)
+        : errorHandler(&errorHandlerInstance)
+        , scannerInstance(code, this->errorHandler, startLine, startColumn)
     {
         this->escargotContext = escargotContext;
         trackUsingNames = true;
@@ -2301,16 +2326,14 @@ public:
 
         this->delegate = delegate;
 
-        this->errorHandler = new ErrorHandler();
-
-        this->scanner = std::unique_ptr<Scanner>(new Scanner(code, this->errorHandler, startLine, startColumn));
+        this->scanner = &scannerInstance;
 
         // this->sourceType = (options && options.sourceType == 'module') ? 'module' : 'script';
         this->sourceType = Script;
         this->lookahead = nullptr;
         this->hasLineTerminator = false;
 
-        this->context = new Context();
+        this->context = &contextInstance;
         this->context->allowIn = true;
         this->context->allowYield = true;
         this->context->firstCoverInitializedNameError = nullptr;

@@ -97,6 +97,11 @@ public:
         return m_script;
     }
 
+    bool isConsturctor() const
+    {
+        return m_isConsturctor;
+    }
+
     bool isGlobalScopeCodeBlock() const
     {
         return m_parentCodeBlock == nullptr;
@@ -407,6 +412,7 @@ protected:
     Context* m_context;
 
     bool m_isNativeFunction : 1;
+    bool m_isConsturctor : 1;
     bool m_hasCallNativeFunctionCode : 1;
     bool m_isStrict : 1;
     bool m_hasEval : 1;

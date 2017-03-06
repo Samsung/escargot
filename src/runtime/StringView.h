@@ -127,13 +127,14 @@ public:
 
     virtual StringBufferAccessData bufferAccessData() const
     {
+        auto srcData = m_string->bufferAccessData();
         StringBufferAccessData data;
-        data.has8BitContent = m_string->has8BitContent();
+        data.has8BitContent = srcData.has8BitContent;
         data.length = m_end - m_start;
-        if (data.has8BitContent) {
-            data.buffer = m_string->characters8() + m_start;
+        if (srcData.has8BitContent) {
+            data.buffer = ((LChar*)srcData.buffer) + m_start;
         } else {
-            data.buffer = m_string->characters16() + m_start;
+            data.buffer = ((char16_t*)srcData.buffer) + m_start;
         }
         return data;
     }

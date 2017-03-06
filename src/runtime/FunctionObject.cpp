@@ -15,26 +15,9 @@ namespace Escargot {
 
 size_t g_functionObjectTag;
 
-void* FunctionObject::operator new(size_t size)
-{
-    static bool typeInited = false;
-    static GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(FunctionObject)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(FunctionObject, m_structure));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(FunctionObject, m_prototype));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(FunctionObject, m_values));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(FunctionObject, m_outerEnvironment));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(FunctionObject, m_codeBlock));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(FunctionObject));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-}
-
 void FunctionObject::initFunctionObject(ExecutionState& state)
 {
-    if (m_isConstructor) {
+    if (isConstructor()) {
         m_structure = state.context()->defaultStructureForFunctionObject();
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(Object::createFunctionPrototypeObject(state, this)));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionName().string()));
@@ -58,16 +41,15 @@ void FunctionObject::initFunctionObject(ExecutionState& state)
 
 FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltin)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2, false)
-    , m_isConstructor(false)
     , m_codeBlock(codeBlock)
     , m_outerEnvironment(nullptr)
 {
+    ASSERT(!isConstructor());
     initFunctionObject(state);
 }
 
-FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, bool isConstructor)
-    : Object(state, isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
-    , m_isConstructor(isConstructor)
+FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info)
+    : Object(state, info.m_isConsturctor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
     , m_codeBlock(new CodeBlock(state.context(), info))
     , m_outerEnvironment(nullptr)
 {
@@ -77,18 +59,17 @@ FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, b
 
 FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltin)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3, false)
-    , m_isConstructor(true)
     , m_codeBlock(new CodeBlock(state.context(), info))
     , m_outerEnvironment(nullptr)
 {
+    ASSERT(isConstructor());
     initFunctionObject(state);
     setPrototype(state, state.context()->globalObject()->functionPrototype());
     m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
 }
 
-FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnv, bool isConstructor)
-    : Object(state, isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
-    , m_isConstructor(isConstructor)
+FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnv)
+    : Object(state, codeBlock->isConsturctor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
     , m_codeBlock(codeBlock)
     , m_outerEnvironment(outerEnv)
 {

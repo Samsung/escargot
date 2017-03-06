@@ -695,19 +695,19 @@ public:
 
 class GetGlobalObject : public ByteCode {
 public:
-    GetGlobalObject(const ByteCodeLOC& loc, const size_t& registerIndex, PropertyName propertyName, size_t index = SIZE_MAX)
+    GetGlobalObject(const ByteCodeLOC& loc, const size_t& registerIndex, PropertyName propertyName)
         : ByteCode(Opcode::GetGlobalObjectOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_propertyName(propertyName)
     {
         ASSERT(propertyName.hasAtomicString());
-        m_cachedIndex = index;
+        m_cachedAddress = nullptr;
         m_cachedStructure = nullptr;
     }
 
     ByteCodeRegisterIndex m_registerIndex;
     PropertyName m_propertyName;
-    size_t m_cachedIndex;
+    void* m_cachedAddress;
     ObjectStructure* m_cachedStructure;
 #ifndef NDEBUG
     virtual void dump()
@@ -725,13 +725,13 @@ public:
         , m_propertyName(propertyName)
     {
         ASSERT(propertyName.hasAtomicString());
-        m_cachedIndex = SIZE_MAX;
+        m_cachedAddress = nullptr;
         m_cachedStructure = nullptr;
     }
 
     ByteCodeRegisterIndex m_registerIndex;
     PropertyName m_propertyName;
-    size_t m_cachedIndex;
+    void* m_cachedAddress;
     ObjectStructure* m_cachedStructure;
 
 #ifndef NDEBUG

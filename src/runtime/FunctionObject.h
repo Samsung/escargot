@@ -17,25 +17,25 @@ class FunctionObject : public Object {
     FunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltin);
 
 public:
-    FunctionObject(ExecutionState& state, NativeFunctionInfo info, bool isConstructor = false);
-    FunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, bool isConstructor = true);
+    FunctionObject(ExecutionState& state, NativeFunctionInfo info);
+    FunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment);
 
     Value getFunctionPrototype(ExecutionState& state)
     {
-        ASSERT(m_isConstructor);
+        ASSERT(isConstructor());
         return m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER];
     }
 
     bool setFunctionPrototype(ExecutionState& state, const Value& v)
     {
-        ASSERT(m_isConstructor);
+        ASSERT(isConstructor());
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = v;
         return true;
     }
 
     bool isConstructor()
     {
-        return m_isConstructor;
+        return m_codeBlock->isConsturctor();
     }
 
     virtual bool isFunctionObject() const
@@ -70,12 +70,8 @@ public:
         return "Function";
     }
 
-    void* operator new(size_t size);
-    void* operator new[](size_t size) = delete;
-
 protected:
     void generateBytecodeBlock(ExecutionState& state);
-    bool m_isConstructor;
     CodeBlock* m_codeBlock;
     LexicalEnvironment* m_outerEnvironment;
 };

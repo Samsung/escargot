@@ -49,6 +49,7 @@ public:
 
         ByteCodeGenerateContext newContext(*context);
 
+        size_t baseCountBefore = newContext.m_registerStack->size();
         size_t rightIdx = m_right->getRegister(codeBlock, &newContext);
         m_right->generateExpressionByteCode(codeBlock, &newContext, rightIdx);
         codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), newContext.getRegister(), Value()), &newContext, this);
@@ -71,7 +72,7 @@ public:
         // drop rightIdx
         newContext.giveUpRegister();
 
-        ASSERT(newContext.m_baseRegisterCount == 0);
+        ASSERT(newContext.m_registerStack->size() == baseCountBefore);
         size_t continuePosition = codeBlock->currentCodeSize();
         codeBlock->pushCode(CheckIfKeyIsLast(ByteCodeLOC(m_loc.index)), &newContext, this);
 
@@ -84,7 +85,7 @@ public:
         m_left->generateStoreByteCode(codeBlock, &newContext, newContext.getLastRegisterIndex(), true);
         newContext.giveUpRegister();
 
-        ASSERT(newContext.m_baseRegisterCount == 0);
+        ASSERT(newContext.m_registerStack->size() == baseCountBefore);
         m_body->generateStatementByteCode(codeBlock, &newContext);
         size_t forInIndex = codeBlock->m_requiredRegisterFileSizeInValueSize;
         codeBlock->m_requiredRegisterFileSizeInValueSize++;

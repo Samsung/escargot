@@ -121,7 +121,7 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     Value* boundArgv = (boundArgc == 0) ? nullptr : argv + 1;
     CodeBlock* cb = new CodeBlock(state.context(), targetFunction, boundThis, boundArgc, boundArgv);
 
-    FunctionObject* fn = new FunctionObject(state, cb, targetFunction->outerEnvironment(), targetFunction->isConstructor());
+    FunctionObject* fn = new FunctionObject(state, cb, targetFunction->outerEnvironment());
 
     // Let thrower be the [[ThrowTypeError]] function Object (13.2.3).
     FunctionObject* thrower = state.context()->globalObject()->throwTypeError();

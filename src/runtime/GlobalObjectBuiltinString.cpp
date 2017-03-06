@@ -511,10 +511,18 @@ static Value builtinStringCharCodeAt(ExecutionState& state, Value thisValue, siz
     RESOLVE_THIS_BINDING_TO_STRING(str, String, charCodeAt);
     int position = argv[0].toInteger(state);
     Value ret;
-    if (position < 0 || position >= (int)str->length())
+    auto data = str->bufferAccessData();
+    if (position < 0 || position >= (int)data.length)
         ret = Value(std::numeric_limits<double>::quiet_NaN());
-    else
-        ret = Value(str->charAt(position));
+    else {
+        char16_t c;
+        if (data.has8BitContent) {
+            c = ((LChar*)data.buffer)[position];
+        } else {
+            c = ((char16_t*)data.buffer)[position];
+        }
+        ret = Value(c);
+    }
     return ret;
 }
 
@@ -531,8 +539,15 @@ static Value builtinStringCharAt(ExecutionState& state, Value thisValue, size_t 
         return Value(String::emptyString);
     }
 
-    if (LIKELY(0 <= position && position < (int64_t)str->length())) {
-        char16_t c = str->charAt(position);
+    auto accessData = str->bufferAccessData();
+
+    if (LIKELY(0 <= position && position < (int64_t)accessData.length)) {
+        char16_t c;
+        if (accessData.has8BitContent) {
+            c = ((LChar*)accessData.buffer)[position];
+        } else {
+            c = ((char16_t*)accessData.buffer)[position];
+        }
         if (LIKELY(c < ESCARGOT_ASCII_TABLE_MAX)) {
             return state.context()->staticStrings().asciiTable[c].string();
         } else {

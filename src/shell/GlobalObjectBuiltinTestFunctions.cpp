@@ -37,12 +37,12 @@ void installTestFunctions(ExecutionState& state)
     AtomicString drainJobQueue(state, "drainJobQueue");
     globalObject->defineOwnProperty(state, ObjectPropertyName(drainJobQueue),
                                     ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                NativeFunctionInfo(drainJobQueue, builtinDrainJobQueue, 0, nullptr, NativeFunctionInfo::Strict), false),
+                                                                                NativeFunctionInfo(drainJobQueue, builtinDrainJobQueue, 0, nullptr, NativeFunctionInfo::Strict)),
                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
     AtomicString addPromiseReactions(state, "addPromiseReactions");
     globalObject->defineOwnProperty(state, ObjectPropertyName(addPromiseReactions),
                                     ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                NativeFunctionInfo(addPromiseReactions, builtinAddPromiseReactions, 3, nullptr, NativeFunctionInfo::Strict), false),
+                                                                                NativeFunctionInfo(addPromiseReactions, builtinAddPromiseReactions, 3, nullptr, NativeFunctionInfo::Strict)),
                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 #endif // ESCARGOT_ENABLE_PROMISE
 

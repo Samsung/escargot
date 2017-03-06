@@ -69,6 +69,29 @@ EnvironmentRecord::BindingSlot GlobalEnvironmentRecord::hasBinding(ExecutionStat
     }
 }
 
+FunctionEnvironmentRecordOnHeap::FunctionEnvironmentRecordOnHeap(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv)
+    : FunctionEnvironmentRecord(state, function, argc, argv)
+    , m_heapStorage(function->codeBlock()->identifierOnHeapCount())
+{
+}
+
+FunctionEnvironmentRecordNotIndexed::FunctionEnvironmentRecordNotIndexed(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv)
+    : FunctionEnvironmentRecord(state, function, argc, argv)
+    , m_heapStorage()
+{
+    const CodeBlock::IdentifierInfoVector& vec = function->codeBlock()->identifierInfos();
+    size_t len = vec.size();
+    m_recordVector.resizeWithUninitializedValues(len);
+    m_heapStorage.resizeWithUninitializedValues(len);
+
+    for (size_t i = 0; i < len; i++) {
+        IdentifierRecord record;
+        record.m_name = vec[i].m_name;
+        m_recordVector[i] = record;
+        m_heapStorage[i] = Value();
+    }
+}
+
 void DeclarativeEnvironmentRecordNotIndexed::createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete)
 {
     ASSERT(canDelete == false);

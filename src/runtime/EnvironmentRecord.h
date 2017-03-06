@@ -440,11 +440,7 @@ class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecord {
     friend class ByteCodeInterpreter;
 
 public:
-    ALWAYS_INLINE FunctionEnvironmentRecordOnHeap(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv)
-        : FunctionEnvironmentRecord(state, function, argc, argv)
-        , m_heapStorage(function->codeBlock()->identifierOnHeapCount())
-    {
-    }
+    FunctionEnvironmentRecordOnHeap(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv);
 
     virtual bool isFunctionEnvironmentRecordOnHeap()
     {
@@ -469,16 +465,7 @@ class FunctionEnvironmentRecordNotIndexed : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
 
 public:
-    ALWAYS_INLINE FunctionEnvironmentRecordNotIndexed(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv)
-        : FunctionEnvironmentRecord(state, function, argc, argv)
-        , m_heapStorage()
-    {
-        const CodeBlock::IdentifierInfoVector& vec = function->codeBlock()->identifierInfos();
-        size_t len = vec.size();
-        for (size_t i = 0; i < len; i++) {
-            createMutableBinding(state, vec[i].m_name, false);
-        }
-    }
+    FunctionEnvironmentRecordNotIndexed(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv);
 
     virtual bool isFunctionEnvironmentRecordNotIndexed()
     {

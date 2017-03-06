@@ -114,7 +114,6 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
         CodeBlock* b = codeBlock->childBlocks()[i];
         if (b->isFunctionDeclaration()) {
             ctx.getRegister();
-            block->m_literalData.pushBack((PointerValue*)b);
             block->pushCode(DeclareFunctionDeclaration(b), &ctx, nullptr);
             IdentifierNode idNode(b->m_functionName);
             idNode.generateStoreByteCode(block, &ctx, 0, false);

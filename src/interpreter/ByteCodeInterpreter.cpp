@@ -82,7 +82,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
         GetGlobalObjectOpcodeLbl : {
             GetGlobalObject* code = (GetGlobalObject*)programCounter;
             if (LIKELY(globalObject->structure() == code->m_cachedStructure)) {
-                registerFile[code->m_registerIndex] = globalObject->uncheckedGetOwnDataProperty(state, code->m_cachedIndex);
+                registerFile[code->m_registerIndex] = *((SmallValue*)code->m_cachedAddress);
             } else {
                 registerFile[code->m_registerIndex] = getGlobalObjectSlowCase(state, globalObject, code);
             }
@@ -93,7 +93,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
         SetGlobalObjectOpcodeLbl : {
             SetGlobalObject* code = (SetGlobalObject*)programCounter;
             if (LIKELY(globalObject->structure() == code->m_cachedStructure)) {
-                globalObject->uncheckedSetOwnDataProperty(state, code->m_cachedIndex, registerFile[code->m_registerIndex]);
+                *((SmallValue*)code->m_cachedAddress) = registerFile[code->m_registerIndex];
             } else {
                 setGlobalObjectSlowCase(state, globalObject, code, registerFile[code->m_registerIndex]);
             }
@@ -291,7 +291,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
                     registerFile[code->m_dstIndex] = Value(Value::EncodeAsDouble, (double)a + (double)b);
                 }
             } else {
-                registerFile[code->m_dstIndex] = plusSlowCase(state, val, Value(-1));
+                registerFile[code->m_dstIndex] = Value(val.toNumber(state) - 1);
             }
             ADD_PROGRAM_COUNTER(Decrement);
             NEXT_INSTRUCTION();
@@ -1666,7 +1666,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalObjectSlowCase(ExecutionState& 
             return go->getOwnPropertyUtilForObject(state, idx, go);
         }
 
-        code->m_cachedIndex = idx;
+        code->m_cachedAddress = &go->m_values.data()[idx];
         code->m_cachedStructure = go->structure();
     }
     return go->getOwnPropertyUtilForObject(state, idx, go);
@@ -1687,7 +1687,7 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalObjectSlowCase(ExecutionState& s
             go->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, go);
             return;
         }
-        code->m_cachedIndex = idx;
+        code->m_cachedAddress = &go->m_values.data()[idx];
         code->m_cachedStructure = go->structure();
         go->setOwnPropertyThrowsExceptionWhenStrictMode(state, idx, value);
     }

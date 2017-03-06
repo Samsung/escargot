@@ -60,5 +60,4 @@ ASCIIStringRef* ASCIIStringRef::create(const char16_t* str, size_t len)
 {
     return nullptr;
 }
-
 }
