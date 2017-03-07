@@ -87,9 +87,21 @@ run-jetstream:
 	cp tools/vendortest/jetstream/jetstream.runOnePlan.js test/vendortest/JetStream-1.1/runOnePlan.js
 	cp tools/vendortest/jetstream/jetstream.run.sh test/vendortest/JetStream-1.1/run.sh
 	cd test/vendortest/JetStream-1.1/; \
-	./run.sh ../../../escargot; \
+	./run.sh ../../../escargot $(TARGET_TEST); \
 	cd -; \
-	python tools/vendortest/jetstream/parsingResults.py tools/vendortest/jetstream/jetstream-result-raw.res;
+	python tools/vendortest/jetstream/parsingResults.py tools/vendortest/jetstream/jetstream-result-raw.res $(TARGET_TEST);
+
+run-jetstream-only-simple:
+	make run-jetstream TARGET_TEST="simple"
+
+run-jetstream-only-cdjs:
+	make run-jetstream TARGET_TEST="cdjs"
+
+run-jetstream-only-sunspider:
+	make run-jetstream TARGET_TEST="sunspider"
+
+run-jetstream-only-octane:
+	make run-jetstream TARGET_TEST="octane"
 
 run-chakracore:
 	cp tools/vendortest/chakracore/chakracore.run.sh test/vendortest/ChakraCore/run.sh
