@@ -268,10 +268,13 @@ struct ASTScopeContext : public gc {
     AtomicStringVector m_parameters;
     AtomicString m_functionName;
     Vector<ASTScopeContext *, GCUtil::gc_malloc_ignore_off_page_allocator<ASTScopeContext *>> m_childScopes;
-    Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>> m_numeralLiteralData;
+    Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>> *m_numeralLiteralData;
     ExtendedNodeLOC m_locStart;
     ExtendedNodeLOC m_locEnd;
     size_t m_nodeStartIndex;
+
+    void *operator new(size_t size);
+    void *operator new[](size_t size) = delete;
 
     void insertName(AtomicString name)
     {
@@ -290,11 +293,13 @@ struct ASTScopeContext : public gc {
     void insertNumeralLiteral(Value v)
     {
         ASSERT(!v.isPointerValue());
-        if (VectorUtil::findInVector(m_numeralLiteralData, v) == VectorUtil::invalidIndex) {
-            if (m_numeralLiteralData.size() < KEEP_NUMERAL_LITERDATA_IN_REGISTERFILE_LIMIT)
-                m_numeralLiteralData.push_back(v);
+        if (!m_numeralLiteralData)
+            m_numeralLiteralData = new (GC) Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>>();
+        if (VectorUtil::findInVector(*m_numeralLiteralData, v) == VectorUtil::invalidIndex) {
+            if (m_numeralLiteralData->size() < KEEP_NUMERAL_LITERDATA_IN_REGISTERFILE_LIMIT)
+                m_numeralLiteralData->push_back(v);
             else {
-                m_numeralLiteralData.clear();
+                m_numeralLiteralData->clear();
                 m_hasManyNumeralLiteral = true;
             }
         }
@@ -310,6 +315,7 @@ struct ASTScopeContext : public gc {
         m_hasManyNumeralLiteral = m_inCatch = m_inWith = false;
         m_parentContext = parentContext;
         m_associateNode = nullptr;
+        m_numeralLiteralData = nullptr;
     }
 };
 

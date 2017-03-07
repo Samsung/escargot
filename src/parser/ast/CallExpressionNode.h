@@ -43,9 +43,43 @@ public:
     }
     Node* callee() { return m_callee; }
     virtual ASTNodeType type() { return ASTNodeType::CallExpression; }
-    void generateArguments(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, bool clearInCallingExpressionScope = true)
+    ByteCodeRegisterIndex generateArguments(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, bool clearInCallingExpressionScope = true)
     {
         context->m_inCallingExpressionScope = !clearInCallingExpressionScope;
+
+        ByteCodeRegisterIndex ret = context->getRegister();
+        context->giveUpRegister();
+
+        const int smallAmountOfArguments = 16;
+        if (m_arguments.size() && m_arguments.size() < smallAmountOfArguments) {
+            ByteCodeRegisterIndex regs[smallAmountOfArguments];
+            for (size_t i = 0; i < m_arguments.size(); i++) {
+                regs[i] = m_arguments[i]->getRegister(codeBlock, context);
+            }
+
+            bool isSorted = true;
+
+            auto k = regs[0];
+            for (size_t i = 1; i < m_arguments.size(); i++) {
+                if (k + i != regs[i]) {
+                    isSorted = false;
+                    break;
+                }
+            }
+            for (size_t i = 0; i < m_arguments.size(); i++) {
+                context->giveUpRegister();
+            }
+            if (isSorted) {
+                for (size_t i = 0; i < m_arguments.size(); i++) {
+                    regs[i] = m_arguments[i]->getRegister(codeBlock, context);
+                    m_arguments[i]->generateExpressionByteCode(codeBlock, context, regs[i]);
+                }
+                for (size_t i = 0; i < m_arguments.size(); i++) {
+                    context->giveUpRegister();
+                }
+                return k;
+            }
+        }
 
         for (size_t i = 0; i < m_arguments.size(); i++) {
             size_t registerExpect = context->getRegister();
@@ -55,14 +89,14 @@ public:
         for (size_t i = 0; i < m_arguments.size(); i++) {
             context->giveUpRegister();
         }
+
+        return ret;
     }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
-            size_t startIndex = context->getRegister();
-            context->giveUpRegister();
-            generateArguments(codeBlock, context, false);
+            size_t startIndex = generateArguments(codeBlock, context, false);
             codeBlock->pushCode(CallEvalFunction(ByteCodeLOC(m_loc.index), startIndex, m_arguments.size(), dstRegister), context, this);
             return;
         }
@@ -70,12 +104,10 @@ public:
         bool prevInCallingExpressionScope = context->m_inCallingExpressionScope;
         bool useWithObjectAsReceiver = context->m_isWithScope && m_callee->isIdentifier();
         if (UNLIKELY(useWithObjectAsReceiver)) {
-            size_t startIndex = context->getRegister();
-            context->giveUpRegister();
             // CallFunction should check whether receiver is global obj or with obj.
             ASSERT(m_callee->isIdentifier());
             AtomicString calleeName = m_callee->asIdentifier()->name();
-            generateArguments(codeBlock, context);
+            size_t startIndex = generateArguments(codeBlock, context);
             context->m_inCallingExpressionScope = prevInCallingExpressionScope;
             codeBlock->pushCode(CallFunctionInWithScope(ByteCodeLOC(m_loc.index), calleeName, startIndex, m_arguments.size(), dstRegister), context, this);
             return;
@@ -99,16 +131,7 @@ public:
             receiverIndex = context->getLastRegisterIndex();
         }
 
-        size_t argumentsStartIndex = context->getRegister();
-        context->giveUpRegister();
-
-        if (m_arguments.size() == 1) {
-            argumentsStartIndex = m_arguments[0]->getRegister(codeBlock, context);
-            m_arguments[0]->generateExpressionByteCode(codeBlock, context, argumentsStartIndex);
-            context->giveUpRegister();
-        } else {
-            generateArguments(codeBlock, context);
-        }
+        size_t argumentsStartIndex = generateArguments(codeBlock, context);
 
         // drop callee, receiver registers
         if (isCalleeHasReceiver) {

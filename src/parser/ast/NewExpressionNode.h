@@ -40,27 +40,59 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::NewExpression; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    ByteCodeRegisterIndex generateArguments(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, bool clearInCallingExpressionScope = true)
     {
-        size_t callee = m_callee->getRegister(codeBlock, context);
-        m_callee->generateExpressionByteCode(codeBlock, context, callee);
-
-        size_t argumentsStartIndex = context->getRegister();
+        ByteCodeRegisterIndex ret = context->getRegister();
         context->giveUpRegister();
 
-        if (m_arguments.size() == 1) {
-            argumentsStartIndex = m_arguments[0]->getRegister(codeBlock, context);
-            m_arguments[0]->generateExpressionByteCode(codeBlock, context, argumentsStartIndex);
-        } else {
+        const int smallAmountOfArguments = 16;
+        if (m_arguments.size() && m_arguments.size() < smallAmountOfArguments) {
+            ByteCodeRegisterIndex regs[smallAmountOfArguments];
             for (size_t i = 0; i < m_arguments.size(); i++) {
-                size_t registerExpect = context->getRegister();
-                m_arguments[i]->generateExpressionByteCode(codeBlock, context, registerExpect);
+                regs[i] = m_arguments[i]->getRegister(codeBlock, context);
             }
+
+            bool isSorted = true;
+
+            auto k = regs[0];
+            for (size_t i = 1; i < m_arguments.size(); i++) {
+                if (k + i != regs[i]) {
+                    isSorted = false;
+                    break;
+                }
+            }
+            for (size_t i = 0; i < m_arguments.size(); i++) {
+                context->giveUpRegister();
+            }
+            if (isSorted) {
+                for (size_t i = 0; i < m_arguments.size(); i++) {
+                    regs[i] = m_arguments[i]->getRegister(codeBlock, context);
+                    m_arguments[i]->generateExpressionByteCode(codeBlock, context, regs[i]);
+                }
+                for (size_t i = 0; i < m_arguments.size(); i++) {
+                    context->giveUpRegister();
+                }
+                return k;
+            }
+        }
+
+        for (size_t i = 0; i < m_arguments.size(); i++) {
+            size_t registerExpect = context->getRegister();
+            m_arguments[i]->generateExpressionByteCode(codeBlock, context, registerExpect);
         }
 
         for (size_t i = 0; i < m_arguments.size(); i++) {
             context->giveUpRegister();
         }
+
+        return ret;
+    }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    {
+        size_t callee = m_callee->getRegister(codeBlock, context);
+        m_callee->generateExpressionByteCode(codeBlock, context, callee);
+
+        size_t argumentsStartIndex = generateArguments(codeBlock, context);
 
         // give up callee index
         context->giveUpRegister();

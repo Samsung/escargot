@@ -141,8 +141,9 @@ CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundT
     code.m_boundArguments = (Value*)GC_MALLOC(boundArgc * sizeof(Value));
     memcpy(code.m_boundArguments, boundArgv, boundArgc * sizeof(Value));
     m_byteCodeBlock->m_literalData.pushBack(targetFunction);
-    m_byteCodeBlock->m_literalData.pushBack(boundThis);
-    m_byteCodeBlock->m_literalData.pushBack((PointerValue*)code.m_boundArguments);
+    if (boundThis.isPointerValue())
+        m_byteCodeBlock->m_literalData.pushBack(boundThis.asPointerValue());
+    m_byteCodeBlock->m_literalData.pushBack(code.m_boundArguments);
 
     ParserContextInformation defaultInfo;
     ByteCodeGenerateContext context(this, m_byteCodeBlock, defaultInfo, nullptr);

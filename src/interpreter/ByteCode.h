@@ -1332,7 +1332,7 @@ struct EnumerateObjectData : public PointerValue {
 
     ObjectStructureChain m_hiddenClassChain;
     Object* m_object;
-    size_t m_originalLength;
+    uint64_t m_originalLength;
     size_t m_idx;
     SmallValueVector m_keys;
 
@@ -1572,7 +1572,7 @@ public:
 
 typedef Vector<char, std::allocator<char>, 200> ByteCodeBlockData;
 typedef Vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>> ByteCodeLOCData;
-typedef Vector<SmallValue, GCUtil::gc_malloc_ignore_off_page_allocator<SmallValue>> ByteCodeLiteralData;
+typedef Vector<void*, GCUtil::gc_malloc_ignore_off_page_allocator<void*>> ByteCodeLiteralData;
 typedef Vector<Value, std::allocator<Value>> ByteCodeNumeralLiteralData;
 
 class ByteCodeBlock : public gc {
@@ -1664,6 +1664,10 @@ public:
     ByteCodeBlockData m_code;
     ByteCodeNumeralLiteralData m_numeralLiteralData;
     ByteCodeLiteralData m_literalData;
+    std::unordered_set<ObjectStructure*, std::hash<ObjectStructure*>, std::equal_to<ObjectStructure*>,
+                       GCUtil::gc_malloc_ignore_off_page_allocator<ObjectStructure*>>
+        m_objectStructuresInUse;
+
 
     ByteCodeLOCData m_locData;
     size_t m_requiredRegisterFileSizeInValueSize;

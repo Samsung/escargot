@@ -101,7 +101,7 @@ public:
                 objectIndex = context->getLastRegisterIndex();
             }
             SetObjectInlineCache* inlineCache = new SetObjectInlineCache();
-            codeBlock->m_literalData.pushBack((PointerValue*)inlineCache);
+            codeBlock->m_literalData.pushBack(inlineCache);
             codeBlock->pushCode(SetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name(), valueIndex, inlineCache), context, this);
             context->giveUpRegister();
         } else {

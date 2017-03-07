@@ -75,6 +75,8 @@ int main(int argc, char* argv[])
     setbuf(stderr, NULL);
 #endif
 
+    srand(time(NULL));
+
     Escargot::Heap::initialize();
     Escargot::VMInstance* instance = new Escargot::VMInstance();
     Escargot::Context* context = new Escargot::Context(instance);

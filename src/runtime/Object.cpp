@@ -385,7 +385,9 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
         if (UNLIKELY(!isExtensible()))
             return false;
 
+        auto structureBefore = m_structure;
         m_structure = m_structure->addProperty(state, propertyName, desc.toObjectStructurePropertyDescriptor());
+        ASSERT(structureBefore != m_structure);
         if (LIKELY(desc.isDataProperty())) {
             if (LIKELY(desc.isValuePresent()))
                 m_values.pushBack(desc.value(), m_structure->propertyCount());
@@ -555,6 +557,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
                 m_values[idx] = Value(new JSGetterSetter(newDesc.getterSetter()));
             }
         } else {
+            auto structureBefore = m_structure;
             if (!structure()->isStructureWithFastAccess())
                 m_structure = structure()->convertToWithFastAccess(state);
 
@@ -568,6 +571,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
 
             m_structure = new ObjectStructureWithFastAccess(state, *((ObjectStructureWithFastAccess*)m_structure));
 
+            ASSERT(structureBefore != m_structure);
             if (newDesc.isDataDescriptor()) {
                 return setOwnDataPropertyUtilForObjectInner(state, idx, m_structure->m_properties[idx], newDesc.value());
             } else {

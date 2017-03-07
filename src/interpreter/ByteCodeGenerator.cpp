@@ -62,7 +62,7 @@ void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb
     auto iter = m_complexCaseStatementPositions.find(codePos);
     if (iter != m_complexCaseStatementPositions.end()) {
         ControlFlowRecord* r = new ControlFlowRecord(ControlFlowRecord::ControlFlowReason::NeedsJump, (cb->peekCode<Jump>(codePos)->m_jumpPosition), iter->second);
-        m_byteCodeBlock->m_literalData.pushBack((PointerValue*)r);
+        m_byteCodeBlock->m_literalData.pushBack(r);
         JumpComplexCase j(cb->peekCode<Jump>(codePos), r);
         memcpy(cb->m_code.data() + codePos, &j, sizeof(JumpComplexCase));
         m_complexCaseStatementPositions.erase(iter);
@@ -97,10 +97,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
     }
     ParserContextInformation info(isEvalMode, isGlobalScope, codeBlock->isStrict(), codeBlock->isInWithScope());
 
-    // nData points interior pointer of ASTScopeContext
-    // it is prohibited in Escargot, but this pointer is safe
-    // because, lifetime of AST and ASTScopeContext is same in here
-    Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>>* nData = &scopeCtx->m_numeralLiteralData;
+    Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>>* nData = scopeCtx->m_numeralLiteralData;
 
     if (scopeCtx->m_hasManyNumeralLiteral) {
         nData = nullptr;
@@ -135,8 +132,6 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
         block->m_numeralLiteralData.resizeWithUninitializedValues(nData->size());
         memcpy(block->m_numeralLiteralData.data(), nData->data(), sizeof(Value) * nData->size());
     }
-
-    scopeCtx->m_numeralLiteralData.clear();
 
     // ESCARGOT_LOG_INFO("codeSize %lf, %lf\n", block->m_code.size() / 1024.0 / 1024.0, block->m_code.capacity() / 1024.0 / 1024.0);
     block->m_code.shrinkToFit();
