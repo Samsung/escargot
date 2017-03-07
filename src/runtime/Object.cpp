@@ -34,7 +34,9 @@ void* ObjectRareData::operator new(size_t size)
         GC_word obj_bitmap[GC_BITMAP_SIZE(ObjectRareData)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectRareData, m_prototype));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectRareData, m_extraData));
+#ifdef ESCARGOT_ENABLE_PROMISE
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectRareData, m_internalSlot));
+#endif
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ObjectRareData));
         typeInited = true;
     }

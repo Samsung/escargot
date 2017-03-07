@@ -1,4 +1,6 @@
 #include "Escargot.h"
+#include "runtime/Context.h"
+#include "runtime/GlobalObject.h"
 #include "shell/DefaultJobQueue.h"
 
 namespace Escargot {

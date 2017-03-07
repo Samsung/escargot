@@ -238,6 +238,14 @@ x86.interpreter.debug: $(OUTDIR)/$(BIN)
 	cp -f $< .
 x86.interpreter.release: $(OUTDIR)/$(BIN)
 	cp -f $< .
+x86.interpreter.debug.shared: $(OUTDIR)/$(SHARED_LIB)
+	cp -f $< .
+x86.interpreter.release.shared: $(OUTDIR)/$(SHARED_LIB)
+	cp -f $< .
+x86.interpreter.debug.static: $(OUTDIR)/$(STATIC_LIB)
+	cp -f $< .
+x86.interpreter.release.static: $(OUTDIR)/$(STATIC_LIB)
+	cp -f $< .
 x64.interpreter.debug: $(OUTDIR)/$(BIN)
 	cp -f $< .
 x64.interpreter.release: $(OUTDIR)/$(BIN)

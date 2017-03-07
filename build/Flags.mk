@@ -12,7 +12,10 @@ ESCARGOT_CXXFLAGS_COMMON += -Wno-unused-but-set-variable -Wno-unused-but-set-par
 ESCARGOT_CXXFLAGS_COMMON += -Wno-type-limits -Wno-unused-result -Wno-unused-variable -Wno-invalid-offsetof
 ESCARGOT_CXXFLAGS_COMMON += -Wno-deprecated-declarations
 
-ESCARGOT_CXXFLAGS_COMMON += -DESCARGOT_ENABLE_PROMISE
+ifeq (,$(findstring cctest, $(MAKECMDGOALS)))
+  ESCARGOT_CXXFLAGS_COMMON += -DESCARGOT_ENABLE_PROMISE
+endif
+
 ESCARGOT_CXXFLAGS_COMMON += -DESCARGOT_ENABLE_TYPEDARRAY
 
 #ESCARGOT_CXXFLAGS_COMMON += -DPROFILE_MASSIF
