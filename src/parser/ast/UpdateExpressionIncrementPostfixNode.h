@@ -38,7 +38,6 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::UpdateExpressionIncrementPostfix; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        // size_t baseRegister = dstRegister;
         m_argument->generateResolveAddressByteCode(codeBlock, context);
         m_argument->generateReferenceResolvedAddressByteCode(codeBlock, context);
         size_t srcIndex = context->getLastRegisterIndex();
@@ -48,17 +47,6 @@ public:
         context->giveUpRegister();
         context->giveUpRegister();
         m_argument->generateStoreByteCode(codeBlock, context, tmpR, false);
-        /*
-        size_t srcIndex = context->getLastRegisterIndex();
-        context->giveUpRegister();
-        size_t dstIndex = context->getRegister();
-        codeBlock->pushCode(ToNumber(ByteCodeLOC(m_loc.index), srcIndex, dstIndex), context, this);
-        size_t resultRegisterIndex = context->getLastRegisterIndex();
-        codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), resultRegisterIndex, baseRegister), context, this);
-        codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), resultRegisterIndex, resultRegisterIndex), context, this);
-        context->giveUpRegister();
-        m_argument->generateStoreByteCode(codeBlock, context, resultRegisterIndex, false);
-        */
     }
 
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)

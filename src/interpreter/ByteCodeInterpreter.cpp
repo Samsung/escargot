@@ -847,8 +847,8 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
                     break;
                 }
             }
-            auto currentLength = data->m_object->length(state);
-            if (currentLength != data->m_originalLength) {
+
+            if (data->m_object->isArrayObject() && data->m_object->length(state) != data->m_originalLength) {
                 shouldUpdateEnumerateObjectData = true;
             }
 
@@ -857,7 +857,7 @@ void ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCo
                 data = (EnumerateObjectData*)registerFile[code->m_registerIndex].asPointerValue();
             }
 
-            if (data->m_keys.size() == data->m_idx) {
+            if (data->m_keys.size() <= data->m_idx) {
                 programCounter = jumpTo(codeBuffer, code->m_forInEndPosition);
             } else {
                 ADD_PROGRAM_COUNTER(CheckIfKeyIsLast);
@@ -1532,7 +1532,9 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
 {
     EnumerateObjectData* data = new EnumerateObjectData();
     data->m_object = obj;
-    data->m_originalLength = obj->length(state);
+    data->m_originalLength = 0;
+    if (obj->isArrayObject())
+        data->m_originalLength = obj->length(state);
     Value target = data->m_object;
 
     size_t ownKeyCount = 0;
