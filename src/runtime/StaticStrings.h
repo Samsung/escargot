@@ -246,6 +246,8 @@ namespace Escargot {
     F(ArrayBuffer)                \
     F(isView)                     \
     F(DataView)                   \
+    F(BYTES_PER_ELEMENT)          \
+    F(copyWithin)                 \
     F(byteOffset)                 \
     F(getFloat32)                 \
     F(getFloat64)                 \

@@ -1,6 +1,12 @@
 # ES6 spec
 ecma/Date/15.9.5.js
 ecma_5/strict/11.1.5.js
+ecma_6/TypedArray/subarray-species.js
+js1_8_5/regress/regress-553778.js
+js1_8_5/extensions/regress-650753.js
+js1_8_5/regress/regress-646820-1.js
+js1_8_5/regress/regress-646820-2.js
+js1_8_5/regress/regress-646820-3.js
 
 
 # Error message differs
@@ -258,6 +264,7 @@ ecma_6/TypedArray/of.js
 js1_7/extensions/regress-396326.js
 js1_7/extensions/regress-470300-01.js
 js1_7/extensions/regress-470300-02.js
+js1_8_5/regress/regress-698028-1.js
 
 
 # const keyword not supported
@@ -551,6 +558,9 @@ js1_8_5/reflect-parse/stackOverflow.js
 js1_8_5/reflect-parse/destructuring__proto__.js
 js1_8_5/reflect-parse/computedPropNames.js
 js1_8_5/reflect-parse/builderExceptions.js
+js1_8_5/reflect-parse/expressionClosures.js
+js1_8_5/reflect-parse/destructuring-array-holes-reflect-as-null.js
+js1_8_5/reflect-parse/methodDefn.js
 js1_8_5/extensions/regress-696109.js
 
 
@@ -725,4 +735,13 @@ ecma_3/extensions/regress-220367-002.js
 
 # usage of deprecated RegExp function
 ecma_3/extensions/regress-327170.js
+
+# Unsupported mozjs shell functions
+## serialize/deserialize
+js1_8_5/extensions/clone-object-deep.js
+## detachArrayBuffer
+js1_8_5/extensions/typedarray-set-neutering.js
+## setGCCallback
+shell/gcstats.js
+shell/os.js
 

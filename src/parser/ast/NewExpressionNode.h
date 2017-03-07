@@ -45,7 +45,7 @@ public:
         ByteCodeRegisterIndex ret = context->getRegister();
         context->giveUpRegister();
 
-        const int smallAmountOfArguments = 16;
+        const unsigned smallAmountOfArguments = 16;
         if (m_arguments.size() && m_arguments.size() < smallAmountOfArguments) {
             ByteCodeRegisterIndex regs[smallAmountOfArguments];
             for (size_t i = 0; i < m_arguments.size(); i++) {

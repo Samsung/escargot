@@ -134,4 +134,20 @@
   <test id="built-ins/TypedArray/prototype/set/this-is-not-object"><reason>Symbol</reason></test>
   <test id="built-ins/TypedArray/prototype/set/this-is-not-typedarray-instance"><reason>DataView</reason></test>
   <test id="built-ins/TypedArray/prototype/set/this-is-not-typedarray-instance"><reason>DataView</reason></test>
+  <test id="built-ins/TypedArray/prototype/indexOf/length"><reason>Function.length.configurable</reason></test>
+  <test id="built-ins/TypedArray/prototype/indexOf/length"><reason>Function.length.configurable</reason></test>
+  <test id="built-ins/TypedArray/prototype/indexOf/return-abrupt-tointeger-fromindex-symbol"><reason>Symbol</reason></test>
+  <test id="built-ins/TypedArray/prototype/indexOf/return-abrupt-tointeger-fromindex-symbol"><reason>Symbol</reason></test>
+  <test id="built-ins/TypedArray/prototype/indexOf/this-is-not-object"><reason>Symbol</reason></test>
+  <test id="built-ins/TypedArray/prototype/indexOf/this-is-not-object"><reason>Symbol</reason></test>
+  <test id="built-ins/TypedArray/prototype/indexOf/this-is-not-typedarray-instance"><reason>DataView</reason></test>
+  <test id="built-ins/TypedArray/prototype/indexOf/this-is-not-typedarray-instance"><reason>DataView</reason></test>
+  <test id="built-ins/TypedArray/prototype/lastIndexOf/length"><reason>Function.length.configurable</reason></test>
+  <test id="built-ins/TypedArray/prototype/lastIndexOf/length"><reason>Function.length.configurable</reason></test>
+  <test id="built-ins/TypedArray/prototype/lastIndexOf/this-is-not-object"><reason>Symbol</reason></test>
+  <test id="built-ins/TypedArray/prototype/lastIndexOf/this-is-not-object"><reason>Symbol</reason></test>
+  <test id="built-ins/TypedArray/prototype/lastIndexOf/this-is-not-typedarray-instance"><reason>DataView</reason></test>
+  <test id="built-ins/TypedArray/prototype/lastIndexOf/this-is-not-typedarray-instance"><reason>DataView</reason></test>
+  <test id="built-ins/TypedArray/prototype/lastIndexOf/return-abrupt-tointeger-fromindex-symbol"><reason>Symbol</reason></test>
+  <test id="built-ins/TypedArray/prototype/lastIndexOf/return-abrupt-tointeger-fromindex-symbol"><reason>Symbol</reason></test>
 </excludeList>

@@ -206,6 +206,145 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
     return obj;
 }
 
+Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // TODO
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // NOTE: Same algorithm as Array.prototype.indexOf
+    // Let O be the result of calling ToObject passing the this value as the argument.
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, indexOf);
+    if (!O->isTypedArrayObject()) {
+        const StaticStrings* strings = &state.context()->staticStrings();
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, strings->indexOf.string(), errorMessage_GlobalObject_ThisNotTypedArrayObject);
+    }
+    // Let lenValue be this object's [[ArrayLength]] internal slot.
+    // Let len be ToUint32(lenValue).
+    int64_t len = O->asArrayBufferView()->arraylength();
+
+    // If len is 0, return -1.
+    if (len == 0) {
+        return Value(-1);
+    }
+
+    // If argument fromIndex was passed let n be ToInteger(fromIndex); else let n be 0.
+    double n = 0;
+    if (argc > 1) {
+        n = argv[1].toInteger(state);
+    }
+
+    // If n ≥ len, return -1.
+    if (n >= len) {
+        return Value(-1);
+    }
+
+    double k;
+    // If n ≥ 0, then
+    if (n >= 0) {
+        // Let k be n.
+        k = (n == -0) ? 0 : n;
+    } else {
+        // Else, n<0
+        // Let k be len - abs(n).
+        k = len - std::abs(n);
+
+        // If k is less than 0, then let k be 0.
+        if (k < 0) {
+            k = 0;
+        }
+    }
+
+    // Repeat, while k<len
+    while (k < len) {
+        // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument ToString(k).
+        ObjectGetResult kPresent = O->getIndexedProperty(state, Value(k));
+        // If kPresent is true, then
+        if (kPresent.hasValue()) {
+            // Let elementK be the result of calling the [[Get]] internal method of O with the argument ToString(k).
+            Value elementK = kPresent.value(state, O);
+
+            // Let same be the result of applying the Strict Equality Comparison Algorithm to searchElement and elementK.
+            if (elementK.equalsTo(state, argv[0])) {
+                // If same is true, return k.
+                return Value(k);
+            }
+        } else {
+            k = Object::nextIndexForward(state, O, k, len, false);
+            continue;
+        }
+        // Increase k by 1.
+        k++;
+    }
+
+    // Return -1.
+    return Value(-1);
+}
+
+Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // NOTE: Same algorithm as Array.prototype.lastIndexOf
+    // Let O be the result of calling ToObject passing the this value as the argument.
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, lastIndexOf);
+    if (!O->isTypedArrayObject()) {
+        const StaticStrings* strings = &state.context()->staticStrings();
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, strings->lastIndexOf.string(), errorMessage_GlobalObject_ThisNotTypedArrayObject);
+    }
+    // Let lenValue be this object's [[ArrayLength]] internal slot.
+    // Let len be ToUint32(lenValue).
+    int64_t len = O->asArrayBufferView()->arraylength();
+
+    // If len is 0, return -1.
+    if (len == 0) {
+        return Value(-1);
+    }
+
+    // If argument fromIndex was passed let n be ToInteger(fromIndex); else let n be len-1.
+    double n;
+    if (argc > 1) {
+        n = argv[1].toInteger(state);
+    } else {
+        n = len - 1;
+    }
+
+    // If n ≥ 0, then let k be min(n, len – 1).
+    double k;
+    if (n >= 0) {
+        k = (n == -0) ? 0 : std::min(n, len - 1.0);
+    } else {
+        // Else, n < 0
+        // Let k be len - abs(n).
+        k = len - std::abs(n);
+    }
+
+    // Repeat, while k≥ 0
+    while (k >= 0) {
+        // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument ToString(k).
+        ObjectGetResult kPresent = O->getIndexedProperty(state, Value(k));
+        // If kPresent is true, then
+        if (kPresent.hasValue()) {
+            // Let elementK be the result of calling the [[Get]] internal method of O with the argument ToString(k).
+            Value elementK = kPresent.value(state, O);
+
+            // Let same be the result of applying the Strict Equality Comparison Algorithm to searchElement and elementK.
+            if (elementK.equalsTo(state, argv[0])) {
+                // If same is true, return k.
+                return Value(k);
+            }
+        } else {
+            k = Object::nextIndexBackward(state, O, k, -1, false);
+            continue;
+        }
+        // Decrease k by 1.
+        k--;
+    }
+
+    // Return -1.
+    return Value(-1);
+}
+
 Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, TypedArray, set);
@@ -336,6 +475,13 @@ FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicStr
     taConstructor->setPrototype(state, typedArrayFunction); // %TypedArray%
     taConstructor->setFunctionPrototype(state, taPrototype);
 
+    // 22.2.5.1 /TypedArray/.BYTES_PER_ELEMENT
+    taConstructor->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().BYTES_PER_ELEMENT), ObjectPropertyDescriptor(Value(elementSize), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ValuePresent)));
+
+    // 22.2.6.1 /TypedArray/.prototype.BYTES_PER_ELEMENT
+    taPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().BYTES_PER_ELEMENT), ObjectPropertyDescriptor(Value(elementSize), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ValuePresent)));
+
+    // 22.2.6.2 /TypedArray/.prototype.constructor
     taPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(taConstructor, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(taName),
@@ -385,6 +531,12 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->subarray, builtinTypedArraySubArray, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->set),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->set, builtinTypedArraySet, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->copyWithin),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->copyWithin, builtinTypedArrayCopyWithin, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->indexOf),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->indexOf, builtinTypedArrayIndexOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->lastIndexOf),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->lastIndexOf, builtinTypedArrayLastIndexOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     {
         JSGetterSetter gs(

@@ -50,7 +50,7 @@ public:
         context->giveUpRegister();
         size_t jPos = codeBlock->lastCodePosition<JumpIfFalse>();
         m_consequente->generateStatementByteCode(codeBlock, context);
-        size_t jPos2;
+        size_t jPos2 = 0;
         if (m_alternate) {
             codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index)), context, this);
             jPos2 = codeBlock->lastCodePosition<Jump>();

@@ -68,6 +68,8 @@ export ESCARGOT_ARCH=arm64
 export ESCARGOT_ARCH=x64
 %endif
 
+export GC_PATH=third_party/GCutil/bdwgc
+
 rm -rf %{buildroot}
 
 # License (FIXME: it should be updated before release)
@@ -77,11 +79,11 @@ touch %{buildroot}%{_datadir}/license/%{name}
 # Archive
 mkdir -p %{buildroot}%{_libdir}/%{name}/release
 cp out/tizen_obs/${ESCARGOT_ARCH}/interpreter/release/libescargot.a              %{buildroot}%{_libdir}/%{name}/release
-cp third_party/bdwgc/out/tizen_obs/${ESCARGOT_ARCH}/release.shared/.libs/libgc.a %{buildroot}%{_libdir}/%{name}/release
+cp ${GC_PATH}/out/tizen_obs/${ESCARGOT_ARCH}/release.shared/.libs/libgc.a %{buildroot}%{_libdir}/%{name}/release
 
 mkdir -p %{buildroot}%{_libdir}/%{name}/debug
 cp out/tizen_obs/${ESCARGOT_ARCH}/interpreter/debug/libescargot.a              %{buildroot}%{_libdir}/%{name}/debug
-cp third_party/bdwgc/out/tizen_obs/${ESCARGOT_ARCH}/debug.shared/.libs/libgc.a %{buildroot}%{_libdir}/%{name}/debug
+cp ${GC_PATH}/out/tizen_obs/${ESCARGOT_ARCH}/debug.shared/.libs/libgc.a %{buildroot}%{_libdir}/%{name}/debug
 
 # Binary
 mkdir -p %{buildroot}%{_bindir}/%{name}/release
@@ -104,7 +106,8 @@ mkdir -p %{buildroot}%{_includedir}/%{name}/src/parser/ast
 mkdir -p %{buildroot}%{_includedir}/%{name}/src/runtime
 mkdir -p %{buildroot}%{_includedir}/%{name}/src/shell
 mkdir -p %{buildroot}%{_includedir}/%{name}/src/util
-mkdir -p %{buildroot}%{_includedir}/%{name}/third_party/bdwgc
+mkdir -p %{buildroot}%{_includedir}/%{name}/third_party/GCutil
+mkdir -p %{buildroot}%{_includedir}/%{name}/third_party/GCutil/bdwgc
 mkdir -p %{buildroot}%{_includedir}/%{name}/third_party/checked_arithmetic
 mkdir -p %{buildroot}%{_includedir}/%{name}/third_party/double_conversion
 mkdir -p %{buildroot}%{_includedir}/%{name}/third_party/rapidjson
@@ -119,7 +122,8 @@ cp src/parser/ast/*.h %{buildroot}%{_includedir}/%{name}/src/parser/ast
 cp src/runtime/*.h %{buildroot}%{_includedir}/%{name}/src/runtime
 cp src/shell/*.h %{buildroot}%{_includedir}/%{name}/src/shell
 cp src/util/*.h %{buildroot}%{_includedir}/%{name}/src/util
-cp -r third_party/bdwgc/include %{buildroot}%{_includedir}/%{name}/third_party/bdwgc
+cp third_party/GCutil/*.h %{buildroot}%{_includedir}/%{name}/third_party/GCutil
+cp -r ${GC_PATH}/include %{buildroot}%{_includedir}/%{name}/third_party/GCutil/bdwgc
 cp third_party/checked_arithmetic/*.h %{buildroot}%{_includedir}/%{name}/third_party/checked_arithmetic
 cp third_party/double_conversion/*.h %{buildroot}%{_includedir}/%{name}/third_party/double_conversion
 cp -r third_party/rapidjson/include %{buildroot}%{_includedir}/%{name}/third_party/rapidjson

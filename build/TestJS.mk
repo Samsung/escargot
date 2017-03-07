@@ -3,7 +3,7 @@
 OPT_MASTER_PROMISE=built-ins/Promise
 OPT_MASTER_ARRAYBUFFER=#built-ins/ArrayBuffer
 OPT_MASTER_DATAVIEW=#built-ins/DataView
-OPT_MASTER_TYPEDARRAY=built-ins/TypedArray/prototype/set #built-ins/TypedArray built-ins/TypedArrays
+OPT_MASTER_TYPEDARRAY=built-ins/TypedArray/prototype/set built-ins/TypedArray/prototype/indexOf built-ins/TypedArray/prototype/lastIndexOf #built-ins/TypedArray built-ins/TypedArrays
 
 check:
 	make tidy-update
@@ -51,6 +51,8 @@ run-spidermonkey:
 	ln -s `pwd`/tools/vendortest/spidermonkey.js1_8_1.jit.shell.js test/vendortest/SpiderMonkey/js1_8_1/jit/shell.js
 	rm test/vendortest/SpiderMonkey/ecma_6/shell.js
 	ln -s `pwd`/tools/vendortest/spidermonkey.ecma_6.shell.js test/vendortest/SpiderMonkey/ecma_6/shell.js
+	rm test/vendortest/SpiderMonkey/ecma_6/TypedArray/shell.js
+	ln -s `pwd`/tools/vendortest/spidermonkey.ecma_6.TypedArray.shell.js test/vendortest/SpiderMonkey/ecma_6/TypedArray/shell.js
 	$(eval BIN_ARCH:=$(shell [[ "$(shell file escargot)" == *"32-bit"* ]] && echo "x86" || echo "x86_64"))
 	(./test/vendortest/SpiderMonkey/jstests.py -s --xul-info=$(BIN_ARCH)-gcc3:Linux:false \
         --exclude-file=./tools/vendortest/spidermonkey.excludelist.txt ./escargot \

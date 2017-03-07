@@ -40,7 +40,7 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        ByteCodeRegisterIndex r;
+        ByteCodeRegisterIndex r = 0;
         for (size_t i = 0; i < m_expressions.size(); i++) {
             r = m_expressions[i]->getRegister(codeBlock, context);
             m_expressions[i]->generateExpressionByteCode(codeBlock, context, r);

@@ -476,7 +476,7 @@ static Value builtinArrayIndexOf(ExecutionState& state, Value thisValue, size_t 
     // If n ≥ 0, then
     if (n >= 0) {
         // Let k be n.
-        k = n;
+        k = (n == -0) ? 0 : n;
     } else {
         // Else, n<0
         // Let k be len - abs(n).
@@ -538,7 +538,7 @@ static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, siz
     // If n ≥ 0, then let k be min(n, len – 1).
     double k;
     if (n >= 0) {
-        k = std::min(n, len - 1.0);
+        k = (n == -0) ? 0 : std::min(n, len - 1.0);
     } else {
         // Else, n < 0
         // Let k be len - abs(n).

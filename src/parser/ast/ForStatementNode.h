@@ -55,8 +55,8 @@ public:
 
         size_t forStart = codeBlock->currentCodeSize();
 
-        size_t testIndex;
-        size_t testPos;
+        size_t testIndex = 0;
+        size_t testPos = 0;
         if (m_test) {
             testIndex = m_test->getRegister(codeBlock, &newContext);
             m_test->generateExpressionByteCode(codeBlock, &newContext, testIndex);
