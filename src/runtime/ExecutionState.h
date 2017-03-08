@@ -25,21 +25,27 @@ class ExecutionState : public gc {
     friend class ByteCodeInterpreter;
 
 public:
-    ExecutionState(Context* context, ExecutionContext* executionContext = nullptr, Value* exeuctionResult = nullptr)
+    ExecutionState(Context* context, ExecutionContext* executionContext = nullptr)
         : m_context(context)
         , m_executionContext(executionContext)
-        , m_exeuctionResult(exeuctionResult)
         , m_rareData(nullptr)
     {
         volatile int sp;
         m_stackBase = (size_t)&sp;
     }
 
-    ExecutionState(ExecutionState* parent, ExecutionContext* executionContext = nullptr, Value* exeuctionResult = nullptr)
+    ExecutionState(Context* context, ExecutionState* parent, ExecutionContext* executionContext)
+        : m_context(context)
+        , m_executionContext(executionContext)
+        , m_stackBase(parent->stackBase())
+        , m_rareData(nullptr)
+    {
+    }
+
+    ExecutionState(ExecutionState* parent, ExecutionContext* executionContext)
         : m_context(parent->context())
         , m_executionContext(executionContext)
         , m_stackBase(parent->stackBase())
-        , m_exeuctionResult(exeuctionResult)
         , m_rareData(nullptr)
     {
     }
@@ -52,11 +58,6 @@ public:
     ExecutionContext* executionContext()
     {
         return m_executionContext;
-    }
-
-    Value* exeuctionResult()
-    {
-        return m_exeuctionResult;
     }
 
     size_t stackBase()
@@ -87,7 +88,6 @@ protected:
     Context* m_context;
     ExecutionContext* m_executionContext;
     size_t m_stackBase;
-    Value* m_exeuctionResult;
     ExecutionStateRareData* m_rareData;
 };
 }

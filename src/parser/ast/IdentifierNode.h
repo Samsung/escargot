@@ -101,7 +101,7 @@ public:
                 }
 
                 if (info.m_isStackAllocated) {
-                    if (context->m_canUseDisalignedRegister && context->m_canSkipCopyToRegister) {
+                    if (context->m_canSkipCopyToRegister) {
                         if (dstRegister != (REGULAR_REGISTER_LIMIT + info.m_index)) {
                             codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + info.m_index, dstRegister), context, this);
                         }
@@ -143,7 +143,7 @@ public:
                 }
 
                 if (info.m_isStackAllocated) {
-                    if (context->m_canUseDisalignedRegister && context->m_canSkipCopyToRegister)
+                    if (context->m_canSkipCopyToRegister)
                         return std::make_pair(true, REGULAR_REGISTER_LIMIT + info.m_index);
                     else
                         return std::make_pair(false, std::numeric_limits<ByteCodeRegisterIndex>::max());

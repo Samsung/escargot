@@ -42,7 +42,7 @@ union ValueDescriptor {
 #endif
     struct {
         int32_t payload;
-        int32_t tag;
+        uint32_t tag;
     } asBits;
 };
 

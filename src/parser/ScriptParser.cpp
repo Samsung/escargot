@@ -150,7 +150,7 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(CodeBlock* cb)
         generateCodeBlockTreeFromASTWalkerPostProcess(cb->m_childBlocks[i]);
     }
     cb->computeVariables();
-    if (cb->m_identifierOnStackCount > VARIABLE_LIMIT) {
+    if (cb->m_identifierOnStackCount > VARIABLE_LIMIT || cb->m_identifierOnHeapCount > VARIABLE_LIMIT) {
         auto err = new esprima::Error(new ASCIIString("variable limit exceeded"));
         err->errorCode = ErrorObject::SyntaxError;
         err->lineNumber = cb->m_sourceElementStart.line;
@@ -195,7 +195,7 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
     }
 
                 PRINT_TAB()
-                printf("CodeBlock %s %s (%d:%d -> %d:%d)(%s, %s) (E:%d, W:%d, C:%d, Y:%d, A:%d) Name:%d\n", cb->m_functionName.string()->toUTF8StringData().data(),
+                printf("CodeBlock %s %s (%d:%d -> %d:%d)(%s, %s) (E:%d, W:%d, C:%d, Y:%d, A:%d)\n", cb->m_functionName.string()->toUTF8StringData().data(),
                        cb->m_isStrict ? "Strict" : "",
                        (int)cb->m_locStart.line,
                        (int)cb->m_locStart.column,
@@ -203,7 +203,7 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
                        (int)cb->m_locEnd.column,
                        cb->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap",
                        cb->m_canUseIndexedVariableStorage ? "Indexed" : "Named",
-                       (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasCatch, (int)cb->m_hasYield, (int)cb->m_usesArgumentsObject, (int)cb->m_functionNameIndex);
+                       (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasCatch, (int)cb->m_hasYield, (int)cb->m_usesArgumentsObject);
 
                 PRINT_TAB()
                 printf("Names: ");

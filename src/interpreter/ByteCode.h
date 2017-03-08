@@ -20,6 +20,7 @@ class Node;
     F(LoadByHeapIndex, 1, 0)                          \
     F(StoreByHeapIndex, 0, 0)                         \
     F(DeclareFunctionDeclaration, 1, 0)               \
+    F(DeclareFunctionDeclarationsInGlobal, 0, 0)      \
     F(DeclareFunctionExpression, 1, 0)                \
     F(NewOperation, 1, 0)                             \
     F(BinaryPlus, 1, 2)                               \
@@ -71,6 +72,7 @@ class Node;
     F(CallFunctionWithReceiver, -1, 0)                \
     F(ReturnFunction, 0, 0)                           \
     F(ReturnFunctionWithValue, 0, 0)                  \
+    F(ReturnFunctionSlowCase, 0, 0)                   \
     F(TryOperation, 0, 0)                             \
     F(TryCatchWithBodyEnd, 0, 0)                      \
     F(FinallyEnd, 0, 0)                               \
@@ -302,8 +304,8 @@ public:
     {
     }
     ByteCodeRegisterIndex m_registerIndex;
-    uint16_t m_upperIndex;
-    size_t m_index;
+    ByteCodeRegisterIndex m_upperIndex;
+    ByteCodeRegisterIndex m_index;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -323,8 +325,8 @@ public:
     {
     }
     ByteCodeRegisterIndex m_registerIndex;
-    uint16_t m_upperIndex;
-    size_t m_index;
+    ByteCodeRegisterIndex m_upperIndex;
+    ByteCodeRegisterIndex m_index;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -347,6 +349,23 @@ public:
     virtual void dump()
     {
         printf("function declaration %s", m_codeBlock->functionName().string()->toUTF8StringData().data());
+    }
+#endif
+};
+
+class DeclareFunctionDeclarationsInGlobal : public ByteCode {
+public:
+    DeclareFunctionDeclarationsInGlobal(CodeBlock* cb)
+        : ByteCode(Opcode::DeclareFunctionDeclarationsInGlobalOpcode, ByteCodeLOC(SIZE_MAX))
+        , m_codeBlock(cb)
+    {
+    }
+    CodeBlock* m_codeBlock;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("function declarations in global");
     }
 #endif
 };
@@ -545,24 +564,27 @@ public:
 #endif
 };
 
+#define ARRAY_DEFINE_OPERATION_MERGE_COUNT 8
+
 class ArrayDefineOwnPropertyOperation : public ByteCode {
 public:
-    ArrayDefineOwnPropertyOperation(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, const uint32_t& arrayIndex, const size_t& loadRegisterIndex)
+    ArrayDefineOwnPropertyOperation(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, const uint32_t& baseIndex, uint8_t count)
         : ByteCode(Opcode::ArrayDefineOwnPropertyOperationOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
-        , m_loadRegisterIndex(loadRegisterIndex)
-        , m_arrayIndex(arrayIndex)
+        , m_count(count)
+        , m_baseIndex(baseIndex)
     {
     }
 
     ByteCodeRegisterIndex m_objectRegisterIndex;
-    ByteCodeRegisterIndex m_loadRegisterIndex;
-    uint32_t m_arrayIndex;
+    uint8_t m_count;
+    uint32_t m_baseIndex;
+    ByteCodeRegisterIndex m_loadRegisterIndexs[ARRAY_DEFINE_OPERATION_MERGE_COUNT];
 
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("array define own property r%d[r%d] <- r%d", (int)m_objectRegisterIndex, (int)m_arrayIndex, (int)m_loadRegisterIndex);
+        printf("array define own property r%d[%d - %d] <- r<--->", (int)m_objectRegisterIndex, (int)m_baseIndex, (int)m_count);
     }
 #endif
 };
@@ -1235,6 +1257,23 @@ class ReturnFunctionWithValue : public ByteCode {
 public:
     ReturnFunctionWithValue(const ByteCodeLOC& loc, const size_t& registerIndex)
         : ByteCode(Opcode::ReturnFunctionWithValueOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+    ByteCodeRegisterIndex m_registerIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("return r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class ReturnFunctionSlowCase : public ByteCode {
+public:
+    ReturnFunctionSlowCase(const ByteCodeLOC& loc, const size_t& registerIndex)
+        : ByteCode(Opcode::ReturnFunctionSlowCaseOpcode, loc)
         , m_registerIndex(registerIndex)
     {
     }

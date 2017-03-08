@@ -66,9 +66,9 @@ run-spidermonkey-full:
 		OPT="ecma/ ecma_2/ ecma_3/ ecma_3_1/ ecma_5/ ecma_6/Promise ecma_6/TypedArray ecma_6/ArrayBuffer \
 			js1_1/ js1_2/ js1_3/ js1_4/ js1_5/ js1_6/ js1_7/ js1_8/ js1_8_1/ js1_8_5/ shell/ supporting/"
 	$(eval BIN_ARCH:=$(shell [[ "$(shell file escargot)" == *"32-bit"* ]] && echo "x86" || echo "x86_64"))
-	sort tools/vendortest/spidermonkey.$(BIN_ARCH).orig.txt -o tools/vendortest/spidermonkey.$(BIN_ARCH).orig.txt
-	sort tools/vendortest/spidermonkey.$(BIN_ARCH).gen.txt -o tools/vendortest/spidermonkey.$(BIN_ARCH).gen.txt
-	diff tools/vendortest/spidermonkey.$(BIN_ARCH).orig.txt tools/vendortest/spidermonkey.$(BIN_ARCH).gen.txt
+	sort tools/vendortest/spidermonkey.$(BIN_ARCH).orig.txt -o tools/vendortest/spidermonkey.$(BIN_ARCH).orig.sort.txt
+	sort tools/vendortest/spidermonkey.$(BIN_ARCH).gen.txt -o tools/vendortest/spidermonkey.$(BIN_ARCH).gen.sort.txt
+	diff tools/vendortest/spidermonkey.$(BIN_ARCH).orig.sort.txt tools/vendortest/spidermonkey.$(BIN_ARCH).gen.sort.txt
 
 run-jsc-stress:
 	cp tools/vendortest/jsc.stress.resource.typedarray-constructor-helper-functions.js test/vendortest/JavaScriptCore/stress/resources/typedarray-constructor-helper-functions.js

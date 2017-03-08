@@ -37,7 +37,6 @@ struct ByteCodeGenerateContext {
         , m_isEvalCode(parserContextInformation.m_isEvalCode)
         , m_isOutermostContext(true)
         , m_isWithScope(parserContextInformation.m_isWithScope)
-        , m_canUseDisalignedRegister(true)
         , m_canSkipCopyToRegister(true)
         , m_keepNumberalLiteralsInRegisterFile(numeralLiteralData)
         , m_catchScopeCount(0)
@@ -62,7 +61,6 @@ struct ByteCodeGenerateContext {
         , m_isEvalCode(contextBefore.m_isEvalCode)
         , m_isOutermostContext(false)
         , m_isWithScope(false)
-        , m_canUseDisalignedRegister(contextBefore.m_canUseDisalignedRegister)
         , m_canSkipCopyToRegister(contextBefore.m_canSkipCopyToRegister)
         , m_keepNumberalLiteralsInRegisterFile(contextBefore.m_keepNumberalLiteralsInRegisterFile)
         , m_catchScopeCount(contextBefore.m_catchScopeCount)
@@ -216,7 +214,6 @@ struct ByteCodeGenerateContext {
     bool m_isEvalCode;
     bool m_isOutermostContext;
     bool m_isWithScope;
-    bool m_canUseDisalignedRegister;
     bool m_canSkipCopyToRegister;
     bool m_keepNumberalLiteralsInRegisterFile;
 

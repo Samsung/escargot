@@ -44,8 +44,8 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ForInStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
     {
-        bool canUseDisalignedRegisterBefore = context->m_canUseDisalignedRegister;
-        context->m_canUseDisalignedRegister = false;
+        bool canSkipCopyToRegisterBefore = context->m_canSkipCopyToRegister;
+        context->m_canSkipCopyToRegister = false;
 
         ByteCodeGenerateContext newContext(*context);
 
@@ -85,6 +85,8 @@ public:
         m_left->generateStoreByteCode(codeBlock, &newContext, newContext.getLastRegisterIndex(), true);
         newContext.giveUpRegister();
 
+        context->m_canSkipCopyToRegister = canSkipCopyToRegisterBefore;
+
         ASSERT(newContext.m_registerStack->size() == baseCountBefore);
         m_body->generateStatementByteCode(codeBlock, &newContext);
         size_t forInIndex = codeBlock->m_requiredRegisterFileSizeInValueSize;
@@ -113,8 +115,6 @@ public:
         codeBlock->peekCode<Jump>(jPos)->m_jumpPosition = codeBlock->currentCodeSize();
 
         newContext.propagateInformationTo(*context);
-
-        context->m_canUseDisalignedRegister = canUseDisalignedRegisterBefore;
     }
 
 protected:

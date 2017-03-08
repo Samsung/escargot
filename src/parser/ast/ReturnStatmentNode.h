@@ -38,13 +38,24 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ReturnStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        if (m_argument) {
-            ByteCodeRegisterIndex index = m_argument->getRegister(codeBlock, context);
-            m_argument->generateExpressionByteCode(codeBlock, context, index);
-            codeBlock->pushCode(ReturnFunctionWithValue(ByteCodeLOC(m_loc.index), index), context, this);
-            context->giveUpRegister();
+        if (context->m_tryStatementScopeCount) {
+            if (m_argument) {
+                ByteCodeRegisterIndex index = m_argument->getRegister(codeBlock, context);
+                m_argument->generateExpressionByteCode(codeBlock, context, index);
+                codeBlock->pushCode(ReturnFunctionSlowCase(ByteCodeLOC(m_loc.index), index), context, this);
+                context->giveUpRegister();
+            } else {
+                codeBlock->pushCode(ReturnFunctionSlowCase(ByteCodeLOC(m_loc.index), std::numeric_limits<ByteCodeRegisterIndex>::max()), context, this);
+            }
         } else {
-            codeBlock->pushCode(ReturnFunction(ByteCodeLOC(m_loc.index)), context, this);
+            if (m_argument) {
+                ByteCodeRegisterIndex index = m_argument->getRegister(codeBlock, context);
+                m_argument->generateExpressionByteCode(codeBlock, context, index);
+                codeBlock->pushCode(ReturnFunctionWithValue(ByteCodeLOC(m_loc.index), index), context, this);
+                context->giveUpRegister();
+            } else {
+                codeBlock->pushCode(ReturnFunction(ByteCodeLOC(m_loc.index)), context, this);
+            }
         }
     }
 

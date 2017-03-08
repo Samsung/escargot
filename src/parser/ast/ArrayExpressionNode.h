@@ -45,18 +45,29 @@ public:
         size_t arrLen = 0;
         codeBlock->pushCode(CreateArray(ByteCodeLOC(m_loc.index), dstRegister), context, this);
         size_t objIndex = dstRegister;
-        for (unsigned i = 0; i < m_elements.size(); i++) {
-            arrLen = i + 1;
-            size_t valueIndex;
-            if (m_elements[i]) {
-                valueIndex = m_elements[i]->getRegister(codeBlock, context);
-                m_elements[i]->generateExpressionByteCode(codeBlock, context, valueIndex);
-            } else {
-                continue;
+        for (size_t i = 0; i < m_elements.size(); i += ARRAY_DEFINE_OPERATION_MERGE_COUNT) {
+            size_t fillCount = 0;
+            size_t regCount = 0;
+            ByteCodeRegisterIndex regs[ARRAY_DEFINE_OPERATION_MERGE_COUNT];
+            for (size_t j = 0; j < ARRAY_DEFINE_OPERATION_MERGE_COUNT && ((i + j) < m_elements.size()); j++) {
+                arrLen = j + i + 1;
+
+                ByteCodeRegisterIndex valueIndex = std::numeric_limits<ByteCodeRegisterIndex>::max();
+                if (m_elements[i + j]) {
+                    valueIndex = m_elements[i + j]->getRegister(codeBlock, context);
+                    m_elements[i + j]->generateExpressionByteCode(codeBlock, context, valueIndex);
+                    regCount++;
+                }
+                fillCount++;
+                regs[j] = valueIndex;
             }
-            codeBlock->pushCode(ArrayDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, i, valueIndex), context, this);
-            // drop value register
-            context->giveUpRegister();
+            codeBlock->pushCode(ArrayDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, i, fillCount), context, this);
+            memcpy(codeBlock->peekCode<ArrayDefineOwnPropertyOperation>(codeBlock->lastCodePosition<ArrayDefineOwnPropertyOperation>())->m_loadRegisterIndexs,
+                   regs, sizeof(regs));
+            for (size_t j = 0; j < regCount; j++) {
+                // drop value register
+                context->giveUpRegister();
+            }
         }
         codeBlock->peekCode<CreateArray>(arrayIndex)->m_length = arrLen;
 

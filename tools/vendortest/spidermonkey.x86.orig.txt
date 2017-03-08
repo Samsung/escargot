@@ -27,7 +27,6 @@ ecma_5/Exceptions/error-property-enumerability.js
 ecma_5/Expressions/nested-delete-name-in-evalcode.js
 ecma_5/Function/10.2.1.1.6.js
 ecma_5/Function/arguments-caller-callee.js
-ecma_5/Function/strict-arguments.js
 ecma_5/Global/eval-in-strict-eval-in-normal-function.js
 ecma_5/JSON/parse-mega-huge-array.js
 ecma_5/JSON/parse-reviver-array-delete.js

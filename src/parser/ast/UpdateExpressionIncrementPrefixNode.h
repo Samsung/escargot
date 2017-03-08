@@ -38,21 +38,12 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::UpdateExpressionIncrementPrefix; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        size_t resultRegisterExpect = dstRegister;
-
         m_argument->generateResolveAddressByteCode(codeBlock, context);
         m_argument->generateReferenceResolvedAddressByteCode(codeBlock, context);
         size_t srcIndex = context->getLastRegisterIndex();
+        codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), srcIndex, dstRegister), context, this);
         context->giveUpRegister();
-        size_t dstIndex = context->getRegister();
-        codeBlock->pushCode(ToNumber(ByteCodeLOC(m_loc.index), srcIndex, dstIndex), context, this);
-        size_t resultRegisterIndex = context->getLastRegisterIndex();
-        codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), resultRegisterIndex, resultRegisterIndex), context, this);
-        context->giveUpRegister();
-        m_argument->generateStoreByteCode(codeBlock, context, resultRegisterIndex, false);
-        if (resultRegisterIndex != dstRegister) {
-            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), resultRegisterIndex, dstRegister), context, this);
-        }
+        m_argument->generateStoreByteCode(codeBlock, context, dstRegister, false);
     }
 
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
@@ -67,7 +58,7 @@ public:
         size_t src = m_argument->getRegister(codeBlock, context);
         m_argument->generateExpressionByteCode(codeBlock, context, src);
         context->giveUpRegister();
-        size_t dst = context->getRegister();
+        size_t dst = m_argument->getRegister(codeBlock, context);
         codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), src, dst), context, this);
         m_argument->generateStoreByteCode(codeBlock, context, dst);
         context->giveUpRegister();

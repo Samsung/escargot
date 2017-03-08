@@ -438,9 +438,9 @@ protected:
 
     size_t m_identifierOnStackCount;
     size_t m_identifierOnHeapCount;
-    size_t m_functionNameIndex;
     size_t m_thisSymbolIndex;
     struct FunctionNameSaveInfo {
+        bool m_isAllocated;
         bool m_isAllocatedOnStack;
         size_t m_index;
     } m_functionNameSaveInfo;

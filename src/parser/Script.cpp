@@ -42,9 +42,8 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     }
 
     ExecutionContext ec(state.context(), prevEc, env, m_topCodeBlock->isStrict());
-    Value resultValue;
     Value thisValue(state.context()->globalObject());
-    ExecutionState newState(&state, &ec, &resultValue);
+    ExecutionState newState(&state, &ec);
 
     size_t literalStorageSize = m_topCodeBlock->byteCodeBlock()->m_numeralLiteralData.size();
     Value* registerFile = (Value*)alloca((m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize + 1 + literalStorageSize) * sizeof(Value));
@@ -55,8 +54,9 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     for (size_t i = 0; i < literalStorageSize; i++) {
         literalStorage[i] = src[i];
     }
+
     clearStack<512>();
-    ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
+    Value resultValue = ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
 
     return resultValue;
 }
@@ -86,13 +86,13 @@ Script::ScriptSandboxExecuteResult Script::sandboxExecute(Context* ctx)
 }
 
 // NOTE: eval by direct call
-Value Script::executeLocal(ExecutionState& state, Value thisValue, bool isEvalMode, bool needNewRecord)
+Value Script::executeLocal(ExecutionState& state, Value thisValue, CodeBlock* parentCodeBlock, bool isEvalMode, bool needNewRecord)
 {
     Node* programNode = m_topCodeBlock->cachedASTNode();
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
 
     ByteCodeGenerator g;
-    m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode, ((ProgramNode*)programNode)->scopeContext(), isEvalMode);
+    m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode, ((ProgramNode*)programNode)->scopeContext(), isEvalMode, parentCodeBlock->isGlobalScopeCodeBlock());
 
     delete m_topCodeBlock->m_cachedASTNode;
     m_topCodeBlock->m_cachedASTNode = nullptr;
@@ -114,8 +114,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, bool isEvalMo
     LexicalEnvironment* newEnvironment = new LexicalEnvironment(record, state.executionContext()->lexicalEnvironment());
 
     ExecutionContext ec(state.context(), state.executionContext(), newEnvironment, m_topCodeBlock->isStrict());
-    Value resultValue;
-    ExecutionState newState(&state, &ec, &resultValue);
+    ExecutionState newState(&state, &ec);
 
     size_t stackStorageSize = m_topCodeBlock->identifierOnStackCount();
     size_t literalStorageSize = m_topCodeBlock->byteCodeBlock()->m_numeralLiteralData.size();
@@ -133,7 +132,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, bool isEvalMo
     stackStorage[m_topCodeBlock->thisSymbolIndex()] = thisValue;
 
     clearStack<512>();
-    ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
+    Value resultValue = ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
 
     return resultValue;
 }

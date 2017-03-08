@@ -155,17 +155,8 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
     }
 
-    Value receiver = receiverSrc;
     Context* ctx = state.context();
     bool isStrict = m_codeBlock->isStrict();
-    // prepare receiver
-    if (!isStrict) {
-        if (receiver.isUndefinedOrNull()) {
-            receiver = ctx->globalObject();
-        } else {
-            receiver = receiver.toObject(state);
-        }
-    }
 
     if (m_codeBlock->hasCallNativeFunctionCode()) {
         const CodeBlock::FunctionParametersInfoVector& info = m_codeBlock->parametersInfomation();
@@ -187,6 +178,16 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
             argv = newArgv;
         }
 
+        Value receiver = receiverSrc;
+        // prepare receiver
+        if (UNLIKELY(!isStrict)) {
+            if (receiver.isUndefinedOrNull()) {
+                receiver = ctx->globalObject();
+            } else {
+                receiver = receiver.toObject(state);
+            }
+        }
+
         try {
             return code->m_fn(newState, receiver, argc, argv, isNewExpression);
         } catch (const Value& v) {
@@ -204,6 +205,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
     size_t registerSize = blk->m_requiredRegisterFileSizeInValueSize;
     size_t stackStorageSize = m_codeBlock->identifierOnStackCount();
     size_t literalStorageSize = blk->m_numeralLiteralData.size();
+    Value* literalStorageSrc = blk->m_numeralLiteralData.data();
     size_t parameterCopySize = std::min(argc, m_codeBlock->functionParameters().size());
 
     // prepare env, ec
@@ -227,23 +229,21 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
 
     Value* registerFile = ALLOCA((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value), Value, state);
     Value* stackStorage = registerFile + registerSize;
-    Value* literalStorage = stackStorage + stackStorageSize;
 
     for (size_t i = 0; i < stackStorageSize; i++) {
         stackStorage[i] = Value();
     }
 
-    Value* src = blk->m_numeralLiteralData.data();
+    Value* literalStorage = stackStorage + stackStorageSize;
     for (size_t i = 0; i < literalStorageSize; i++) {
-        literalStorage[i] = src[i];
+        literalStorage[i] = literalStorageSrc[i];
     }
 
-    Value resultValue;
-    ExecutionState newState(&state, ec, &resultValue);
+    ExecutionState newState(ctx, &state, ec);
 
     // binding function name
-    if (m_codeBlock->m_functionNameIndex != SIZE_MAX) {
-        const CodeBlock::FunctionNameSaveInfo& info = m_codeBlock->m_functionNameSaveInfo;
+    const CodeBlock::FunctionNameSaveInfo& info = m_codeBlock->m_functionNameSaveInfo;
+    if (info.m_isAllocated) {
         if (LIKELY(info.m_isAllocatedOnStack)) {
             ASSERT(m_codeBlock->canUseIndexedVariableStorage());
             stackStorage[info.m_index] = this;
@@ -288,7 +288,16 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
         }
     }
 
-    stackStorage[m_codeBlock->thisSymbolIndex()] = receiver;
+    // prepare receiver
+    if (!isStrict) {
+        if (receiverSrc.isUndefinedOrNull()) {
+            stackStorage[m_codeBlock->thisSymbolIndex()] = ctx->globalObject();
+        } else {
+            stackStorage[m_codeBlock->thisSymbolIndex()] = receiverSrc.toObject(state);
+        }
+    } else {
+        stackStorage[m_codeBlock->thisSymbolIndex()] = receiverSrc;
+    }
 
     if (UNLIKELY(m_codeBlock->hasArgumentsBinding())) {
         ASSERT(m_codeBlock->usesArgumentsObject());
@@ -298,10 +307,10 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
     }
 
     // run function
-    ByteCodeInterpreter::interpret(newState, blk, 0, registerFile);
+    const Value returnValue = ByteCodeInterpreter::interpret(newState, blk, 0, registerFile);
     if (blk->m_shouldClearStack)
         clearStack<512>();
 
-    return resultValue;
+    return returnValue;
 }
 }

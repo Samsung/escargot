@@ -106,23 +106,39 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
     ctx.m_shouldGenerateLOCData = shouldGenerateLOCData;
 
     // generate init function decls first
-    size_t len = codeBlock->childBlocks().size();
-    for (size_t i = 0; i < len; i++) {
-        CodeBlock* b = codeBlock->childBlocks()[i];
-        if (b->isFunctionDeclaration()) {
-            ctx.getRegister();
-            block->pushCode(DeclareFunctionDeclaration(b), &ctx, nullptr);
-            IdentifierNode idNode(b->m_functionName);
-            idNode.generateStoreByteCode(block, &ctx, 0, false);
-            ctx.giveUpRegister();
+    if (isOnGlobal && !isEvalMode) {
+        size_t len = codeBlock->childBlocks().size();
+        for (size_t i = 0; i < len; i++) {
+            CodeBlock* b = codeBlock->childBlocks()[i];
+            if (b->isFunctionDeclaration()) {
+                block->pushCode(DeclareFunctionDeclarationsInGlobal(codeBlock), &ctx, nullptr);
+                break;
+            }
+        }
+    } else {
+        size_t len = codeBlock->childBlocks().size();
+        for (size_t i = 0; i < len; i++) {
+            CodeBlock* b = codeBlock->childBlocks()[i];
+            if (b->isFunctionDeclaration()) {
+                ctx.getRegister();
+                block->pushCode(DeclareFunctionDeclaration(b), &ctx, nullptr);
+                IdentifierNode idNode(b->m_functionName);
+                idNode.generateStoreByteCode(block, &ctx, 0, false);
+                ctx.giveUpRegister();
+            }
         }
     }
 
     // generate common codes
     try {
         ast->generateStatementByteCode(block, &ctx);
-        if (!codeBlock->isGlobalScopeCodeBlock())
-            block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
+        if (!isGlobalScope && !isEvalMode) {
+            ASSERT(ast->type() == ASTNodeType::BlockStatement);
+            if (((BlockStatementNode*)ast)->body().size() && ((BlockStatementNode*)ast)->body().back()->type() == ASTNodeType::ReturnStatement) {
+            } else {
+                block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
+            }
+        }
     } catch (const char* err) {
         // TODO
         RELEASE_ASSERT_NOT_REACHED();
@@ -131,6 +147,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
     if (ctx.m_keepNumberalLiteralsInRegisterFile) {
         block->m_numeralLiteralData.resizeWithUninitializedValues(nData->size());
         memcpy(block->m_numeralLiteralData.data(), nData->data(), sizeof(Value) * nData->size());
+        nData->clear();
     }
 
     // ESCARGOT_LOG_INFO("codeSize %lf, %lf\n", block->m_code.size() / 1024.0 / 1024.0, block->m_code.capacity() / 1024.0 / 1024.0);
@@ -240,7 +257,8 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
             case ArrayDefineOwnPropertyOperationOpcode: {
                 ArrayDefineOwnPropertyOperation* cd = (ArrayDefineOwnPropertyOperation*)currentCode;
                 assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                for (size_t i = 0; i < cd->m_count; i++)
+                    assignStackIndexIfNeeded(cd->m_loadRegisterIndexs[i], stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case GetObjectPreComputedCaseOpcode: {
@@ -257,6 +275,11 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
             }
             case ReturnFunctionWithValueOpcode: {
                 ReturnFunctionWithValue* cd = (ReturnFunctionWithValue*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
+            case ReturnFunctionSlowCaseOpcode: {
+                ReturnFunctionSlowCase* cd = (ReturnFunctionSlowCase*)currentCode;
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }

@@ -41,7 +41,6 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_astNodeStartIndex(0)
     , m_identifierOnStackCount(info.m_argumentCount + (info.m_name.string()->length() ? 1 : 0))
     , m_identifierOnHeapCount(0)
-    , m_functionNameIndex(info.m_name.string()->length() ? info.m_argumentCount : SIZE_MAX)
     , m_parentCodeBlock(nullptr)
     , m_cachedASTNode(nullptr)
     , m_byteCodeBlock(nullptr)
@@ -52,10 +51,6 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_scopeContext(nullptr)
 #endif
 {
-    if (m_functionNameIndex != SIZE_MAX) {
-        m_functionNameSaveInfo.m_isAllocatedOnStack = true;
-        m_functionNameSaveInfo.m_index = m_functionNameIndex;
-    }
     m_thisSymbolIndex = SIZE_MAX;
     m_isNativeFunction = true;
     m_hasCallNativeFunctionCode = true;
@@ -98,7 +93,6 @@ CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundT
     , m_astNodeStartIndex(0)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
-    , m_functionNameIndex(SIZE_MAX)
     , m_parentCodeBlock(targetFunction->codeBlock()->parentCodeBlock())
     , m_cachedASTNode(nullptr)
     , m_byteCodeBlock(nullptr)
@@ -159,7 +153,6 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
     , m_astNodeStartIndex(sourceElementStart.index)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
-    , m_functionNameIndex(SIZE_MAX)
     , m_parentCodeBlock(nullptr)
     , m_cachedASTNode(nullptr)
     , m_byteCodeBlock(nullptr)
@@ -241,7 +234,6 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeL
     , m_astNodeStartIndex(astNodeStartIndex)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
-    , m_functionNameIndex(SIZE_MAX)
     , m_functionName(functionName)
     , m_parameterNames(parameterNames)
     , m_parentCodeBlock(parentBlock)
@@ -369,13 +361,7 @@ void CodeBlock::computeVariables()
     }
 
     if (m_functionName.string()->length()) {
-        for (size_t i = 0; i < m_identifierInfos.size(); i++) {
-            if (m_identifierInfos[i].m_name == m_functionName) {
-                m_functionNameIndex = i;
-                break;
-            }
-        }
-        ASSERT(m_functionNameIndex != SIZE_MAX);
+        m_functionNameSaveInfo.m_isAllocated = true;
     }
 
     if (canUseIndexedVariableStorage()) {

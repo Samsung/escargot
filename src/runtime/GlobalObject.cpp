@@ -172,7 +172,7 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
             state.throwException(err);
         }
         bool needNewEnv = parserResult.m_script->topCodeBlock()->isStrict();
-        return parserResult.m_script->executeLocal(state, thisValue, true, needNewEnv);
+        return parserResult.m_script->executeLocal(state, thisValue, parentCodeBlock, true, needNewEnv);
     }
     return arg;
 }
@@ -852,8 +852,7 @@ void GlobalObject::installOthers(ExecutionState& state)
                                                                       puts("dbgBreak");
                                                                       return Value();
                                                                   },
-                                                                                     0, nullptr, NativeFunctionInfo::Strict),
-                                                                  false),
+                                                                                     0, nullptr, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 */
 #endif

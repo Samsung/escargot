@@ -31,13 +31,9 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ThisExpression; }
     virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        if (context->m_canUseDisalignedRegister) {
-            size_t i = context->m_codeBlock->thisSymbolIndex();
-            context->pushRegister(REGULAR_REGISTER_LIMIT + i);
-            return REGULAR_REGISTER_LIMIT + i;
-        } else {
-            return context->getRegister();
-        }
+        size_t i = context->m_codeBlock->thisSymbolIndex();
+        context->pushRegister(REGULAR_REGISTER_LIMIT + i);
+        return REGULAR_REGISTER_LIMIT + i;
     }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
