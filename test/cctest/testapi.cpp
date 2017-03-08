@@ -15,10 +15,6 @@
  */
 
 #include "Escargot.h"
-#include "runtime/VMInstance.h"
-#include "runtime/ExecutionContext.h"
-#include "runtime/Value.h"
-#include "util/Vector.h"
 #include "api/EscargotPublic.h"
 
 int main(int argc, char* argv[])
