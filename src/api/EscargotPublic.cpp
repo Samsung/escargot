@@ -6,12 +6,18 @@
 #include "EscargotPublic.h"
 #include "parser/ScriptParser.h"
 #include "runtime/Context.h"
-#include "runtime/FunctionObject.h"
 #include "runtime/ExecutionContext.h"
+#include "runtime/FunctionObject.h"
 #include "runtime/VMInstance.h"
 #include "EscargotAPICast.h"
 
 namespace Escargot {
+
+StringRef* StringRef::fromASCII(const char* s)
+{
+    return toRef(String::fromASCII(s));
+}
+
 
 void Globals::initialize()
 {

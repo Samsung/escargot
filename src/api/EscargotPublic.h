@@ -6,6 +6,8 @@
 namespace Escargot {
 
 class StringRef {
+public:
+    static StringRef* fromASCII(const char* s);
 };
 
 class Globals {
@@ -36,7 +38,7 @@ public:
     static ASCIIStringRef* create(const char16_t* str, size_t len);
 };
 
-bool evaluateScript(ContextRef* ctx, StringRef* str, StringRef* fileName);
+bool evaluateScript(ContextRef* ctx, StringRef* script, StringRef* fileName);
 
 } // namespace Escargot
 #endif

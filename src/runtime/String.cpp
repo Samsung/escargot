@@ -438,6 +438,11 @@ ASCIIStringData dtoa(double number)
     return ASCIIStringData(str.data(), str.length());
 }
 
+String* String::fromASCII(const char* src)
+{
+    return new ASCIIString(src, strlen(src));
+}
+
 String* String::fromDouble(double v)
 {
     return new ASCIIString(std::move(dtoa(v)));

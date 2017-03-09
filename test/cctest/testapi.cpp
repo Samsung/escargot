@@ -26,9 +26,13 @@ int main(int argc, char* argv[])
 
     printf("BEGIN testapi\n");
     Escargot::Globals::initialize();
-    Escargot::VMInstanceRef* instance = Escargot::VMInstanceRef::create();
-    Escargot::ContextRef* context = Escargot::ContextRef::create(instance);
-    Escargot::ExecutionStateRef* stateForInit = Escargot::ExecutionStateRef::create(context);
+    Escargot::VMInstanceRef* vm = Escargot::VMInstanceRef::create();
+    Escargot::ContextRef* ctx = Escargot::ContextRef::create(vm);
+    Escargot::ExecutionStateRef* es
+        = Escargot::ExecutionStateRef::create(ctx);
+    Escargot::StringRef* scriptstr = Escargot::StringRef::fromASCII("4+3");
+    Escargot::StringRef* filestr = Escargot::StringRef::fromASCII("scgt.js");
+    Escargot::evaluateScript(ctx, scriptstr, filestr);
     Escargot::Globals::finalize();
     printf(" PASS testapi\n");
 
