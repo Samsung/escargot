@@ -613,7 +613,13 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             ObjectDefineOwnPropertyOperation* code = (ObjectDefineOwnPropertyOperation*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_propertyRegisterIndex];
-            willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(state, property), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptor::AllPresent));
+            ObjectPropertyName objPropName = ObjectPropertyName(state, property);
+            // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
+            if (property.toString(state)->equals("__proto__")) {
+                willBeObject.asObject()->setPrototype(state, registerFile[code->m_loadRegisterIndex]);
+            } else {
+                willBeObject.asObject()->defineOwnProperty(state, objPropName, ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptor::AllPresent));
+            }
             ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyOperation);
             NEXT_INSTRUCTION();
         }
@@ -621,7 +627,12 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
         ObjectDefineOwnPropertyWithNameOperationOpcodeLbl : {
             ObjectDefineOwnPropertyWithNameOperation* code = (ObjectDefineOwnPropertyWithNameOperation*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptor::AllPresent));
+            // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
+            if (code->m_propertyName == state.context()->staticStrings().__proto__) {
+                willBeObject.asObject()->setPrototype(state, registerFile[code->m_loadRegisterIndex]);
+            } else {
+                willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptor::AllPresent));
+            }
             ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyWithNameOperation);
             NEXT_INSTRUCTION();
         }

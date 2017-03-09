@@ -2,6 +2,46 @@ import sys;
 import math;
 
 savedNames = ['3d-cube', '3d-raytrace', 'base64', 'crypto-aes', 'crypto-md5', 'crypto-sha1', 'date-format-tofte', 'date-format-xparb', 'n-body', 'regex-dna', 'tagcloud', 'towers.c', 'container.cpp', 'dry.c', 'n-body.c', 'quicksort.c', 'gcc-loops.cpp', 'hash-map', 'float-mm.c', 'bigfib.cpp', 'code-multi-load', 'richards', 'delta-blue', 'crypto', 'proto-raytracer', 'earley-boyer', 'regexp-2010', 'splay', 'splay-latency', 'navier-stokes', 'pdfjs', 'mandreel', 'mandreel-latency', 'gbemu', 'code-first-load', 'box2d', 'zlib', 'typescript', 'cdjs'];
+category = {'3d-cube'       : 'Latency',
+            '3d-raytrace'   : 'Latency',
+            'base64'        : 'Latency',
+            'cdjs'          : 'Latency',
+            'code-first-load' : 'Latency',
+            'code-multi-load' : 'Latency',
+            'crypto-aes'    : 'Latency',
+            'crypto-md5'    : 'Latency',
+            'crypto-sha1'   : 'Latency',
+            'date-format-tofte' : 'Latency',
+            'date-format-xparb' : 'Latency',
+            'mandreel-latency'  : 'Latency',
+            'n-body'        : 'Latency',
+            'regex-dna'     : 'Latency',
+            'splay-latency' : 'Latency',
+            'tagcloud'      : 'Latency',
+            'typescript'    : 'Latency',
+            'bigfib.cpp'    : 'Throughput',
+            'box2d'         : 'Throughput',
+            'container.cpp' : 'Throughput',
+            'crypto'        : 'Throughput',
+            'delta-blue'    : 'Throughput',
+            'dry.c'         : 'Throughput',
+            'earley-boyer'  : 'Throughput',
+            'float-mm.c'    : 'Throughput',
+            'gbemu'         : 'Throughput',
+            'gcc-loops.cpp' : 'Throughput',
+            'hash-map'      : 'Throughput',
+            'mandreel'      : 'Throughput',
+            'n-body.c'      : 'Throughput',
+            'navier-stokes' : 'Throughput',
+            'pdfjs'         : 'Throughput',
+            'proto-raytracer' : 'Throughput',
+            'quicksort.c'   : 'Throughput',
+            'regexp-2010'   : 'Throughput',
+            'richards'      : 'Throughput',
+            'splay'         : 'Throughput',
+            'towers.c'      : 'Throughput',
+            'zlib'          : 'Throughput',
+           };
 
 SUNSPIDER_RANGE = [0, 10];
 SIMPLE_RANGE = [11, 19];
@@ -11,7 +51,7 @@ CDJS_RANGE = [38, 38];
 def compute_geomean(result):
     totalSum = 0.0;
     numDone = 0;
-    for i in range(0, 39):
+    for i in range(0, len(result)):
         if (result[i][0] != "" and result[i][1] != "NaN"):
             totalSum += math.log(result[i][1]);
             numDone += 1;
@@ -22,17 +62,16 @@ def compute_geomean(result):
 
 def print_formatted(result):
     i = 0;
-    for i in range(0, 39):
+    for i in range(0, len(result)):
         if (result[i][0] != ""):
             print(result[i][0] + ' : ' + str(result[i][1]));
-    print("------------------------");
-    print("GeoMean: " + compute_geomean(result));
 
 # argv[0] : res file name
 def main(argv):
     resfile = open(argv[0], 'r');
     li = [[0 for i in range(10)] for j in range(39)];
     result = [[0 for i in range(2)] for j in range(39)];
+    category_result = {};
     i = 0;
 
     while True:
@@ -84,7 +123,23 @@ def main(argv):
             result[i][1] = "NaN";
         result[i][0] = savedNames[i];
 
-    print_formatted(result);
+        if (result[i][0] not in category):
+            print("ERROR: Add category for TC " + result[i][0]);
+            return;
+
+        category_name = category[result[i][0]];
+        if (category_name not in category_result):
+            category_result[category_name] = [];
+        category_result[category_name].append([result[i][0], result[i][1]]);
+
+    for category_name in category_result:
+        print(" [ " + category_name + " ]");
+        values = category_result[category_name];
+        print_formatted(values);
+        print("------------------------------------");
+        print("- " + category_name + " GeoMean: " + compute_geomean(values));
+        print("------------------------------------");
+    print("# Total GeoMean: " + compute_geomean(result));
 
     resfile.close();
 

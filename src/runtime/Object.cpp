@@ -327,6 +327,14 @@ void Object::setPrototype(ExecutionState& state, const Value& value)
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't set prototype of this object");
     }
 
+    Value it = value;
+    while (it.isObject()) {
+        if (it.isObject() && it.asObject() == this)
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "cyclic __proto__");
+        Value proto = it.asObject()->getPrototype(state);
+        it = proto;
+    }
+
     Object* o = nullptr;
     if (value.isObject()) {
         value.asObject()->markAsPrototypeObject(state);

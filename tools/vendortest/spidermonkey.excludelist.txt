@@ -701,6 +701,7 @@ js1_7/regress/regress-407957.js
 js1_5/Function/regress-222029-001.js
 js1_5/Function/regress-222029-002.js
 ecma_5/extensions/function-caller-skips-eval-frames.js
+js1_8_5/regress/regress-584355.js
 
 # deprecated function.arguments
 ecma/FunctionObjects/15.3.1.1-1.js
@@ -764,6 +765,7 @@ js1_2/regexp/compile.js
 ## serialize/deserialize
 js1_8_5/extensions/clone-object-deep.js
 ## detachArrayBuffer
+js1_8_5/extensions/typedarray-copyWithin-arguments-detaching.js
 js1_8_5/extensions/typedarray-set-neutering.js
 ## setGCCallback
 shell/gcstats.js

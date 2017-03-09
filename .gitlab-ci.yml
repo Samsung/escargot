@@ -21,10 +21,13 @@ build_x64_release:
 test_x64_release_sunspider:
     stage: test
     before_script:
-        - rm -f test/testRepo/.git/index.lock
-        - git clone --depth 1 git@10.113.64.74:webtf/js_full_tc.git test/testRepo
+        - rm -f .git/index.lock
+        - rm -f .git/modules/test/vendortest/index.lock
+        - git submodule deinit -f test/vendortest
+        - git submodule init
+        - git submodule update test/vendortest
         - cp out/linux/x64/interpreter/release/escargot ./escargot
-    script: ./escargot test/testRepo/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
+    script: ./escargot test/vendortest/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
     dependencies:
         - build_x64_release
 
@@ -161,10 +164,13 @@ build_x86_release:
 test_x86_release_sunspider:
     stage: test
     before_script:
-        - rm -f test/testRepo/.git/index.lock
-        - git clone --depth 1 git@10.113.64.74:webtf/js_full_tc.git test/testRepo
+        - rm -f .git/index.lock
+        - rm -f .git/modules/test/vendortest/index.lock
+        - git submodule deinit -f test/vendortest
+        - git submodule init
+        - git submodule update test/vendortest
         - cp out/linux/x86/interpreter/release/escargot ./escargot
-    script: ./escargot test/testRepo/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
+    script: ./escargot test/vendortest/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
     dependencies:
         - build_x86_release
 
@@ -301,10 +307,13 @@ build_x64_debug:
 test_x64_debug_sunspider:
     stage: test
     before_script:
-        - rm -f test/testRepo/.git/index.lock
-        - git clone --depth 1 git@10.113.64.74:webtf/js_full_tc.git test/testRepo
+        - rm -f .git/index.lock
+        - rm -f .git/modules/test/vendortest/index.lock
+        - git submodule deinit -f test/vendortest
+        - git submodule init
+        - git submodule update test/vendortest
         - cp out/linux/x64/interpreter/debug/escargot ./escargot
-    script: ./escargot test/testRepo/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
+    script: ./escargot test/vendortest/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
     dependencies:
         - build_x64_debug
 
@@ -354,10 +363,13 @@ build_x86_debug:
 test_x86_debug_sunspider:
     stage: test
     before_script:
-        - rm -f test/testRepo/.git/index.lock
-        - git clone --depth 1 git@10.113.64.74:webtf/js_full_tc.git test/testRepo
+        - rm -f .git/index.lock
+        - rm -f .git/modules/test/vendortest/index.lock
+        - git submodule deinit -f test/vendortest
+        - git submodule init
+        - git submodule update test/vendortest
         - cp out/linux/x86/interpreter/debug/escargot ./escargot
-    script: ./escargot test/testRepo/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
+    script: ./escargot test/vendortest/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
     dependencies:
         - build_x86_debug
 
