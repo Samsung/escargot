@@ -5,6 +5,8 @@ build_x64_release:
         - escargot_main_build
     before_script:
         - unset TIZEN_SDK_HOME
+        - rm -f .git/index.lock
+        - rm -f .git/modules/third_party/GCutil/index.lock
         - git submodule deinit -f third_party/GCutil
         - git submodule init
         - git submodule update third_party/GCutil
@@ -19,6 +21,7 @@ build_x64_release:
 test_x64_release_sunspider:
     stage: test
     before_script:
+        - rm -f test/testRepo/.git/index.lock
         - git clone --depth 1 git@10.113.64.74:webtf/js_full_tc.git test/testRepo
         - cp out/linux/x64/interpreter/release/escargot ./escargot
     script: ./escargot test/testRepo/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
@@ -28,6 +31,8 @@ test_x64_release_sunspider:
 test_x64_release_octane:
     stage: test
     before_script:
+        - rm -f .git/index.lock
+        - rm -f .git/modules/test/octane/index.lock
         - git submodule deinit -f test/octane
         - git submodule init
         - git submodule update test/octane
@@ -39,6 +44,8 @@ test_x64_release_octane:
 test_x64_release_test262:
     stage: test
     before_script:
+        - rm -f .git/index.lock
+        - rm -f .git/modules/test/test262/index.lock
         - git submodule deinit -f test/test262
         - git submodule init
         - git submodule update test/test262
@@ -50,6 +57,8 @@ test_x64_release_test262:
 test_x64_release_jetstream_only_cdjs:
     stage: test
     before_script:
+        - rm -f .git/index.lock
+        - rm -f .git/modules/test/vendortest/index.lock
         - git submodule deinit -f test/vendortest
         - git submodule init
         - git submodule update test/vendortest
@@ -61,6 +70,8 @@ test_x64_release_jetstream_only_cdjs:
 test_x64_release_jetstream_only_simple:
     stage: test
     before_script:
+        - rm -f .git/index.lock
+        - rm -f .git/modules/test/vendortest/index.lock
         - git submodule deinit -f test/vendortest
         - git submodule init
         - git submodule update test/vendortest
@@ -74,6 +85,8 @@ test_x64_release_spidermonkey:
     tags:
         - escargot_allow_slow
     before_script:
+        - rm -f .git/index.lock
+        - rm -f .git/modules/test/vendortest/index.lock
         - git submodule deinit -f test/vendortest
         - git submodule init
         - git submodule update test/vendortest
@@ -132,6 +145,8 @@ build_x86_release:
         - escargot_main_build
     before_script:
         - unset TIZEN_SDK_HOME
+        - rm -f .git/index.lock
+        - rm -f .git/modules/third_party/GCutil/index.lock
         - git submodule deinit -f third_party/GCutil
         - git submodule init
         - git submodule update third_party/GCutil
@@ -146,6 +161,7 @@ build_x86_release:
 test_x86_release_sunspider:
     stage: test
     before_script:
+        - rm -f test/testRepo/.git/index.lock
         - git clone --depth 1 git@10.113.64.74:webtf/js_full_tc.git test/testRepo
         - cp out/linux/x86/interpreter/release/escargot ./escargot
     script: ./escargot test/testRepo/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
@@ -155,6 +171,8 @@ test_x86_release_sunspider:
 test_x86_release_octane:
     stage: test
     before_script:
+        - rm -f .git/index.lock
+        - rm -f .git/modules/test/octane/index.lock
         - git submodule deinit -f test/octane
         - git submodule init
         - git submodule update test/octane
@@ -166,6 +184,8 @@ test_x86_release_octane:
 test_x86_release_test262:
     stage: test
     before_script:
+        - rm -f .git/index.lock
+        - rm -f .git/modules/test/test262/index.lock
         - git submodule deinit -f test/test262
         - git submodule init
         - git submodule update test/test262
@@ -177,6 +197,8 @@ test_x86_release_test262:
 test_x86_release_jetstream_only_cdjs:
     stage: test
     before_script:
+        - rm -f .git/index.lock
+        - rm -f .git/modules/test/vendortest/index.lock
         - git submodule deinit -f test/vendortest
         - git submodule init
         - git submodule update test/vendortest
@@ -188,6 +210,8 @@ test_x86_release_jetstream_only_cdjs:
 test_x86_release_jetstream_only_simple:
     stage: test
     before_script:
+        - rm -f .git/index.lock
+        - rm -f .git/modules/test/vendortest/index.lock
         - git submodule deinit -f test/vendortest
         - git submodule init
         - git submodule update test/vendortest
@@ -201,6 +225,8 @@ test_x86_release_spidermonkey:
     tags:
         - escargot_allow_slow
     before_script:
+        - rm -f .git/index.lock
+        - rm -f .git/modules/test/vendortest/index.lock
         - git submodule deinit -f test/vendortest
         - git submodule init
         - git submodule update test/vendortest
@@ -259,6 +285,8 @@ build_x64_debug:
         - escargot_main_build
     before_script:
         - unset TIZEN_SDK_HOME
+        - rm -f .git/index.lock
+        - rm -f .git/modules/third_party/GCutil/index.lock
         - git submodule deinit -f third_party/GCutil
         - git submodule init
         - git submodule update third_party/GCutil
@@ -273,6 +301,7 @@ build_x64_debug:
 test_x64_debug_sunspider:
     stage: test
     before_script:
+        - rm -f test/testRepo/.git/index.lock
         - git clone --depth 1 git@10.113.64.74:webtf/js_full_tc.git test/testRepo
         - cp out/linux/x64/interpreter/debug/escargot ./escargot
     script: ./escargot test/testRepo/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
@@ -308,6 +337,8 @@ build_x86_debug:
     tags:
         - escargot_main_build
     before_script:
+        - rm -f .git/index.lock
+        - rm -f .git/modules/third_party/GCutil/index.lock
         - unset TIZEN_SDK_HOME
         - git submodule deinit -f third_party/GCutil
         - git submodule init
@@ -323,6 +354,7 @@ build_x86_debug:
 test_x86_debug_sunspider:
     stage: test
     before_script:
+        - rm -f test/testRepo/.git/index.lock
         - git clone --depth 1 git@10.113.64.74:webtf/js_full_tc.git test/testRepo
         - cp out/linux/x86/interpreter/debug/escargot ./escargot
     script: ./escargot test/testRepo/SunSpider/tests/sunspider-1.0.2/*.js; exit $?;
