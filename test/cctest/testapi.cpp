@@ -24,17 +24,29 @@ int main(int argc, char* argv[])
     setbuf(stderr, NULL);
 #endif
 
-    printf("BEGIN testapi\n");
+    printf("testapi begins\n");
+
     Escargot::Globals::initialize();
     Escargot::VMInstanceRef* vm = Escargot::VMInstanceRef::create();
     Escargot::ContextRef* ctx = Escargot::ContextRef::create(vm);
     Escargot::ExecutionStateRef* es
         = Escargot::ExecutionStateRef::create(ctx);
-    Escargot::StringRef* scriptstr = Escargot::StringRef::fromASCII("4+3");
-    Escargot::StringRef* filestr = Escargot::StringRef::fromASCII("scgt.js");
-    Escargot::evaluateScript(ctx, scriptstr, filestr);
+
+    const char* script = "4+3";
+    const char* filename = "FileName.js";
+    printf("%s=", script);
+
+    Escargot::evaluateScript(ctx,
+        Escargot::StringRef::fromASCII(script),
+        Escargot::StringRef::fromASCII(filename)
+    );
+
     Escargot::Globals::finalize();
-    printf(" PASS testapi\n");
+    es->destroy();
+    ctx->destroy();
+    vm->destroy();
+
+    printf("testapi ended\n");
 
     return 0;
 }

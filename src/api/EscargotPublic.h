@@ -19,16 +19,23 @@ public:
 class VMInstanceRef {
 public:
     static VMInstanceRef* create();
+    void destroy();
+};
+
+class ObjectRef {
 };
 
 class ContextRef {
 public:
     static ContextRef* create(VMInstanceRef* vminstance);
+    void destroy();
+    ObjectRef* globalObject();
 };
 
 class ExecutionStateRef {
 public:
     static ExecutionStateRef* create(ContextRef* ctx);
+    void destroy();
 };
 
 class ASCIIStringRef {

@@ -66,16 +66,45 @@ VMInstanceRef* VMInstanceRef::create()
 }
 
 
+void VMInstanceRef::destroy()
+{
+    VMInstance* imp = toImpl(this);
+    delete imp;
+}
+
+
 ContextRef* ContextRef::create(VMInstanceRef* vminstanceref)
 {
     VMInstance* vminstance = toImpl(vminstanceref);
     return toRef(new Context(vminstance));
 }
 
+
+void ContextRef::destroy()
+{
+    Context* imp = toImpl(this);
+    delete imp;
+}
+
+
+ObjectRef* ContextRef::globalObject()
+{
+    Context* ctx = toImpl(this);
+    return toRef(ctx->globalObject());
+}
+
+
 ExecutionStateRef* ExecutionStateRef::create(ContextRef* ctxref)
 {
     Context* ctx = toImpl(ctxref);
     return toRef(new ExecutionState(ctx));
+}
+
+
+void ExecutionStateRef::destroy()
+{
+    ExecutionState* imp = toImpl(this);
+    delete imp;
 }
 
 

@@ -43,5 +43,15 @@ inline StringRef* toRef(String* v)
     return reinterpret_cast<StringRef*>(v);
 }
 
+inline Object* toImpl(ObjectRef* v)
+{
+    return reinterpret_cast<Object*>(v);
+}
+
+inline ObjectRef* toRef(Object* v)
+{
+    return reinterpret_cast<ObjectRef*>(v);
+}
+
 } // namespace Escargot
 #endif
