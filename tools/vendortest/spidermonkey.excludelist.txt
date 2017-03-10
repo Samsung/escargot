@@ -10,9 +10,12 @@ js1_8_5/regress/regress-646820-3.js
 
 
 # Error message differs
+ecma_3/Exceptions/15.11.5.js
 ecma_3/Array/15.4.5.1-01.js
 ecma_3/extensions/regress-274152.js
 ecma_3/LexicalConventions/7.8.3-01.js
+ecma_5/String/string-object-length.js
+js1_5/LexicalConventions/regress-469940.js
 
 # Arrow function expression not supported
 ecma_5/JSON/stringify-replacer-array-trailing-holes.js
@@ -396,6 +399,7 @@ ecma_5/extensions/proxy-array-target-length-definition.js
 ecma_5/extensions/proxy-strict.js
 ecma_5/extensions/reviver-mutates-holder-array.js
 ecma_5/extensions/reviver-mutates-holder-object.js
+ecma_5/extensions/proxy-enumeration.js
 ecma_6/TypedArray/constructor-ArrayBuffer-species.js
 ecma_6/TypedArray/detached-array-buffer-checks.js
 ecma_6/TypedArray/entries.js
@@ -418,10 +422,13 @@ js1_5/Error/constructor-ordering.js
 
 # evaluate() not supported
 ecma_5/misc/function-definition-evaluate.js
-
+ecma_5/extensions/function-definition-with.js
 
 # some formats in Date.parse() are not supported
 ecma_5/Date/15.9.4.2.js
+js1_5/Date/regress-301738-01.js
+js1_5/Date/regress-309925-02.js
+
 
 
 # needs newGlobal()
@@ -693,6 +700,7 @@ js1_7/regress/regress-407957.js
 # deprecated function.caller
 js1_5/Function/regress-222029-001.js
 js1_5/Function/regress-222029-002.js
+ecma_5/extensions/function-caller-skips-eval-frames.js
 
 # deprecated function.arguments
 ecma/FunctionObjects/15.3.1.1-1.js
@@ -702,10 +710,12 @@ ecma/FunctionObjects/15.3.5.3.js
 ecma/FunctionObjects/15.3.2.1-1.js
 ecma/FunctionObjects/15.3.2.1-2.js
 ecma_5/extensions/function-properties.js
-
+ecma_5/extensions/arguments-property-access-in-function.js
+js1_4/Functions/function-001.js
 
 # implementation-dependent Arguments.caller
 ecma_5/Function/arguments-property-attributes.js
+ecma_5/Function/arguments-caller-callee.js
 
 
 # for..of statement not supported
@@ -726,15 +736,29 @@ js1_8_5/extensions/decompile-for-of.js
 # TC causes strange behavior which is out of spec
 ecma/ExecutionContexts/10.2.2-2.js
 ecma_3/Array/15.5.4.8-01.js
+ecma_5/JSON/stringify.js
+ecma_5/extensions/eval-native-callback-is-indirect.js
+js1_5/Array/regress-313153.js
+js1_5/Array/regress-474529.js
+js1_5/Expressions/regress-96526-delelem.js
 
-# RegExp.lastMatch not supported
+# non-standard RegExp properties ($1-$9, lastMatch, lastParen, leftContext, rightContext)
+js1_2/regexp/RegExp_dollar_number.js
+js1_2/regexp/RegExp_lastMatch.js
+js1_2/regexp/RegExp_lastMatch_as_array.js
+js1_2/regexp/RegExp_lastParen.js
+js1_2/regexp/RegExp_lastParen_as_array.js
+js1_2/regexp/RegExp_leftContext.js
+js1_2/regexp/RegExp_leftContext_as_array.js
+js1_2/regexp/RegExp_rightContext.js
+js1_2/regexp/RegExp_rightContext_as_array.js
 ecma_3/Statements/regress-642975.js
-
-# RegExp.$1-$9 not supported
 ecma_3/extensions/regress-220367-002.js
+
 
 # usage of deprecated RegExp function
 ecma_3/extensions/regress-327170.js
+js1_2/regexp/compile.js
 
 # Unsupported mozjs shell functions
 ## serialize/deserialize
@@ -744,4 +768,17 @@ js1_8_5/extensions/typedarray-set-neutering.js
 ## setGCCallback
 shell/gcstats.js
 shell/os.js
+
+# Object pattern not supported
+ecma_5/extensions/destructuring-__proto__-shorthand-assignment.js
+ecma_5/extensions/destructuring-__proto__-shorthand-assignment-before-var.js
+ecma_5/extensions/destructuring-__proto__-target-assignment.js
+
+# parse[Int|Float] do not work well for large numbers
+ecma/TypeConversion/9.3.1-3.js
+ecma/GlobalObject/15.1.2.2-2.js
+
+# Function.prototype.toString do not have to convert full source code
+ecma_3/ExecutionContexts/10.1.3-1.js
+js1_4/Regress/function-002.js
 

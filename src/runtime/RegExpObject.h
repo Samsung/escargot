@@ -74,9 +74,11 @@ public:
     double computedLastIndex(ExecutionState& state)
     {
         // NOTE(ES6): if global is false and sticy is false, let lastIndex be 0
+        // Compute the result first with toInteger() and then examine if it is global or sticky
+        double res = lastIndex().toInteger(state);
         if (!(option() & (Option::Global | Option::Sticky)))
             return 0;
-        return lastIndex().toInteger(state);
+        return res;
     }
 
     bool match(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);

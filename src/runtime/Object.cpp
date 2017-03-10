@@ -416,7 +416,13 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
         }
 
         bool shouldDelete = false;
-        ObjectPropertyDescriptor newDesc = ObjectPropertyDescriptor::fromObjectStructurePropertyDescriptor(item.m_descriptor, m_values[idx]);
+        Value v;
+        if (item.m_descriptor.isNativeAccessorProperty()) {
+            v = this->get(state, ObjectPropertyName(state, propertyName)).value(state, this);
+        } else {
+            v = m_values[idx];
+        }
+        ObjectPropertyDescriptor newDesc = ObjectPropertyDescriptor::fromObjectStructurePropertyDescriptor(item.m_descriptor, v);
 
         // If IsGenericDescriptor(Desc) is true, then
         if (desc.isGenericDescriptor()) {

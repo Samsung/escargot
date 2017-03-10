@@ -131,16 +131,16 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
             Walk = [&](Value holder, const ObjectPropertyName& name) -> Value {
                 Value val = holder.asPointerValue()->asObject()->get(state, name).value(state, holder);
                 if (val.isObject()) {
-                    if (val.asObject()->isArrayObject()) {
+                    if (val.asObject()->isArrayObject() || val.asObject()->isTypedArrayObject()) {
                         ArrayObject* arrObject = val.asObject()->asArrayObject();
                         uint32_t i = 0;
                         uint32_t len = arrObject->length(state);
                         while (i < len) {
-                            Value newElement = Walk(val, ObjectPropertyName(state, Value(i)));
+                            Value newElement = Walk(val, ObjectPropertyName(state, Value(i).toString(state)));
                             if (newElement.isUndefined()) {
-                                arrObject->deleteOwnProperty(state, ObjectPropertyName(state, Value(i)));
+                                arrObject->deleteOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)));
                             } else {
-                                arrObject->defineOwnProperty(state, ObjectPropertyName(state, Value(i)), ObjectPropertyDescriptor(newElement, ObjectPropertyDescriptor::AllPresent));
+                                arrObject->defineOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)), ObjectPropertyDescriptor(newElement, ObjectPropertyDescriptor::AllPresent));
                             }
                             i++;
                         }
@@ -317,7 +317,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         }
         if (value.isObject()) {
             if (!value.isFunction()) {
-                if (value.asObject()->isArrayObject()) {
+                if (value.asObject()->isArrayObject() || value.asObject()->isTypedArrayObject()) {
                     return JA(value.asObject()->asArrayObject());
                 } else {
                     return JO(value.asObject());
@@ -390,7 +390,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         uint32_t index = 0;
         // 8
         while (index < len) {
-            Value strP = Str(ObjectPropertyName(state, Value(index)), arrayObj);
+            Value strP = Str(ObjectPropertyName(state, Value(index).toString(state)), arrayObj);
             if (strP.isUndefined()) {
                 partial.push_back(strings->null.string());
             } else {

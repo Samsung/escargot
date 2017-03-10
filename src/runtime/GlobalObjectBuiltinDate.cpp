@@ -280,6 +280,11 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
         ASSERT(d->isValid());
     }
 
+    if (argc < 1) {
+        d->setTimeValueAsNaN();
+        return Value(d->primitiveValue());
+    }
+
     double year, month, date, hour, minute, second, millisecond;
 
     if (d->isValid()) {

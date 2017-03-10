@@ -1702,7 +1702,12 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalObjectSlowCase(ExecutionState& 
 {
     size_t idx = go->structure()->findProperty(state, code->m_propertyName);
     if (UNLIKELY(idx == SIZE_MAX)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, code->m_propertyName.string(), false, String::emptyString, errorMessage_IsNotDefined);
+        ObjectGetResult res = go->get(state, ObjectPropertyName(state, code->m_propertyName));
+        if (res.hasValue()) {
+            return res.value(state, go);
+        } else {
+            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, code->m_propertyName.string(), false, String::emptyString, errorMessage_IsNotDefined);
+        }
     } else {
         const ObjectStructureItem& item = go->structure()->readProperty(state, idx);
         if (!item.m_descriptor.isPlainDataProperty()) {
@@ -1718,6 +1723,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalObjectSlowCase(ExecutionState& 
             code->m_cachedAddress = (void*)((size_t)1);
         }
     }
+
     return go->getOwnPropertyUtilForObject(state, idx, go);
 }
 
