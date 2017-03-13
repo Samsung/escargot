@@ -42,11 +42,6 @@ public:
 
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf = true)
     {
-        if (m_name.string()->equals("arguments") && !context->isGlobalScope() && context->m_codeBlock->usesArgumentsObject()) {
-            codeBlock->pushCode(StoreArgumentsObject(ByteCodeLOC(m_loc.index), srcRegister), context, this);
-            return;
-        }
-
         if ((context->m_codeBlock->canUseIndexedVariableStorage() || context->m_codeBlock->isGlobalScopeCodeBlock())) {
             CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {
@@ -78,14 +73,6 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        if (m_name.string()->equals("arguments") && !context->isGlobalScope() && context->m_codeBlock->usesArgumentsObject()) {
-            if (UNLIKELY(context->m_isWithScope))
-                codeBlock->pushCode(LoadArgumentsInWithScope(ByteCodeLOC(m_loc.index), dstRegister), context, this);
-            else
-                codeBlock->pushCode(LoadArgumentsObject(ByteCodeLOC(m_loc.index), dstRegister), context, this);
-            return;
-        }
-
         if ((context->m_codeBlock->canUseIndexedVariableStorage() || context->m_codeBlock->isGlobalScopeCodeBlock())) {
             CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {
@@ -130,9 +117,6 @@ public:
 
     std::pair<bool, ByteCodeRegisterIndex> isAllocatedOnStack(ByteCodeGenerateContext* context)
     {
-        if (m_name.string()->equals("arguments") && !context->isGlobalScope() && context->m_codeBlock->usesArgumentsObject()) {
-            return std::make_pair(false, std::numeric_limits<ByteCodeRegisterIndex>::max());
-        }
         if ((context->m_codeBlock->canUseIndexedVariableStorage() || context->m_codeBlock->isGlobalScopeCodeBlock())) {
             CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {

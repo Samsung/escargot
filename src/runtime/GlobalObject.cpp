@@ -150,7 +150,15 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
         const char* s = "eval input";
         ExecutionContext* pec = state.executionContext();
         bool strictFromOutside = false;
-        ScriptParser::ScriptParserResult parserResult = parser.parse(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), nullptr, strictFromOutside);
+
+        volatile int sp;
+        size_t currentStackBase = (size_t)&sp;
+#ifdef STACK_GROWS_DOWN
+        size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (state.stackBase() - currentStackBase);
+#else
+        size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
+#endif
+        ScriptParser::ScriptParserResult parserResult = parser.parse(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), nullptr, strictFromOutside, stackRemainApprox);
         if (parserResult.m_error) {
             ErrorObject* err = ErrorObject::createError(state, parserResult.m_error->errorCode, parserResult.m_error->message);
             state.throwException(err);
@@ -182,7 +190,14 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
             }
             pec = pec->parent();
         }
-        ScriptParser::ScriptParserResult parserResult = parser.parse(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), parentCodeBlock, strictFromOutside);
+        volatile int sp;
+        size_t currentStackBase = (size_t)&sp;
+#ifdef STACK_GROWS_DOWN
+        size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (state.stackBase() - currentStackBase);
+#else
+        size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
+#endif
+        ScriptParser::ScriptParserResult parserResult = parser.parse(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), parentCodeBlock, strictFromOutside, !callInGlobal, stackRemainApprox);
         if (parserResult.m_error) {
             ErrorObject* err = ErrorObject::createError(state, parserResult.m_error->errorCode, parserResult.m_error->message);
             state.throwException(err);

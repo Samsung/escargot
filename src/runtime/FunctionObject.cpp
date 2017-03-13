@@ -143,7 +143,15 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
     }
     ASSERT(!m_codeBlock->isNativeFunction());
 
-    auto ret = state.context()->scriptParser().parseFunction(m_codeBlock);
+    volatile int sp;
+    size_t currentStackBase = (size_t)&sp;
+#ifdef STACK_GROWS_DOWN
+    size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (state.stackBase() - currentStackBase);
+#else
+    size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
+#endif
+
+    auto ret = state.context()->scriptParser().parseFunction(m_codeBlock, stackRemainApprox);
     Node* ast = ret.first;
 
     ByteCodeGenerator g;
@@ -177,7 +185,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
     if (m_codeBlock->hasCallNativeFunctionCode()) {
         const CodeBlock::FunctionParametersInfoVector& info = m_codeBlock->parametersInfomation();
         CallNativeFunction* code = (CallNativeFunction*)&m_codeBlock->byteCodeBlock()->m_code[0];
-        FunctionEnvironmentRecordOnStack record(state, this, argc, argv);
+        FunctionEnvironmentRecordSimple record(state, this);
         LexicalEnvironment env(&record, outerEnvironment());
         ExecutionContext ec(ctx, state.executionContext(), &env, isStrict);
         ExecutionState newState(&state, &ec);
@@ -230,7 +238,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
     ExecutionContext* ec;
     if (LIKELY(m_codeBlock->canAllocateEnvironmentOnStack())) {
         // no capture, very simple case
-        record = new (alloca(sizeof(FunctionEnvironmentRecordOnStack))) FunctionEnvironmentRecordOnStack(state, this, argc, argv);
+        record = new (alloca(sizeof(FunctionEnvironmentRecordSimple))) FunctionEnvironmentRecordSimple(state, this);
         env = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, outerEnvironment());
         ec = new (alloca(sizeof(ExecutionContext))) ExecutionContext(ctx, state.executionContext(), env, isStrict);
     } else {
@@ -304,6 +312,10 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
         }
     }
 
+    if (UNLIKELY(m_codeBlock->usesArgumentsObject())) {
+        generateArgumentsObject(newState, record, stackStorage);
+    }
+
     // prepare receiver
     if (!isStrict) {
         if (receiverSrc.isUndefinedOrNull()) {
@@ -315,18 +327,33 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
         stackStorage[m_codeBlock->thisSymbolIndex()] = receiverSrc;
     }
 
-    if (UNLIKELY(m_codeBlock->hasArgumentsBinding())) {
-        ASSERT(m_codeBlock->usesArgumentsObject());
-        if (m_codeBlock->hasArgumentsBindingInParameterOrChildFD()) {
-            record->asFunctionEnvironmentRecord()->m_isArgumentObjectCreated = true;
-        }
-    }
-
     // run function
     const Value returnValue = ByteCodeInterpreter::interpret(newState, blk, 0, registerFile);
     if (blk->m_shouldClearStack)
         clearStack<512>();
 
     return returnValue;
+}
+
+void FunctionObject::generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage)
+{
+    AtomicString arguments = state.context()->staticStrings().arguments;
+    if (fnRecord->isFunctionEnvironmentRecordNotIndexed()) {
+        auto result = fnRecord->hasBinding(state, arguments);
+        if (UNLIKELY(result.m_index == SIZE_MAX)) {
+            fnRecord->createMutableBinding(state, arguments, false);
+            result = fnRecord->hasBinding(state, arguments);
+        }
+        fnRecord->setMutableBindingByIndex(state, result.m_index, arguments, fnRecord->createArgumentsObject(state, state.executionContext()));
+    } else {
+        const CodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->identifierInfos();
+        for (size_t i = 0; i < v.size(); i++) {
+            if (v[i].m_name == arguments) {
+                ASSERT(v[i].m_needToAllocateOnStack);
+                stackStorage[v[i].m_indexForIndexedStorage] = fnRecord->createArgumentsObject(state, state.executionContext());
+                break;
+            }
+        }
+    }
 }
 }

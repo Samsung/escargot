@@ -66,10 +66,10 @@ struct Error : public gc {
     }
 };
 
-#define ESPRIMA_RECURSIVE_LIMIT 512
+#define ESPRIMA_RECURSIVE_LIMIT 1024
 
-ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler astHandler, bool strictFromOutside);
-std::pair<Node*, ASTScopeContext*> parseSingleFunction(::Escargot::Context* ctx, CodeBlock* codeBlock);
+ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler astHandler, bool strictFromOutside, size_t stackRemain);
+std::pair<Node*, ASTScopeContext*> parseSingleFunction(::Escargot::Context* ctx, CodeBlock* codeBlock, size_t stackRemain);
 }
 }
 

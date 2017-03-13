@@ -25,8 +25,11 @@ namespace Escargot {
 
 extern size_t g_functionObjectTag;
 
+class FunctionEnvironmentRecord;
+
 class FunctionObject : public Object {
     friend class GlobalObject;
+    friend class Script;
     enum ForBuiltin { __ForBuiltin__ };
     FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltin);
     void initFunctionObject(ExecutionState& state);
@@ -87,6 +90,7 @@ public:
     }
 
 protected:
+    void generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage);
     void generateBytecodeBlock(ExecutionState& state);
     CodeBlock* m_codeBlock;
     LexicalEnvironment* m_outerEnvironment;

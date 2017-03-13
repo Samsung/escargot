@@ -139,7 +139,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
                 ctx.getRegister();
                 block->pushCode(DeclareFunctionDeclaration(b), &ctx, nullptr);
                 IdentifierNode idNode(b->m_functionName);
-                idNode.generateStoreByteCode(block, &ctx, 0, false);
+                idNode.generateStoreByteCode(block, &ctx, 1, false);
                 ctx.giveUpRegister();
             }
         }
@@ -214,16 +214,6 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
             }
             case StoreByHeapIndexOpcode: {
                 StoreByHeapIndex* cd = (StoreByHeapIndex*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                break;
-            }
-            case LoadArgumentsObjectOpcode: {
-                LoadArgumentsObject* cd = (LoadArgumentsObject*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                break;
-            }
-            case StoreArgumentsObjectOpcode: {
-                StoreArgumentsObject* cd = (StoreArgumentsObject*)currentCode;
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }

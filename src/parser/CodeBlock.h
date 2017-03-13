@@ -299,11 +299,6 @@ public:
         return m_hasArgumentsBinding;
     }
 
-    bool hasArgumentsBindingInParameterOrChildFD() const
-    {
-        return m_hasArgumentsBindingInParameterOrChildFD;
-    }
-
     const IdentifierInfoVector& identifierInfos() const
     {
         return m_identifierInfos;
@@ -439,13 +434,13 @@ protected:
     bool m_inWith : 1;
     bool m_usesArgumentsObject : 1;
     bool m_hasArgumentsBinding : 1;
-    bool m_hasArgumentsBindingInParameterOrChildFD : 1;
     bool m_canUseIndexedVariableStorage : 1;
     bool m_canAllocateEnvironmentOnStack : 1;
     bool m_isFunctionExpression : 1;
     bool m_isFunctionDeclaration : 1;
     bool m_needsComplexParameterCopy : 1;
     bool m_isInWithScope : 1;
+    bool m_isEvalCodeInFunction : 1;
 
     Script* m_script;
     StringView m_src; // function source elements src

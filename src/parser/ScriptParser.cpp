@@ -106,21 +106,6 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
                             }
                         }
                     }
-
-                    for (size_t i = 0; i < b->functionParameters().size(); i++) {
-                        if (UNLIKELY(b->functionParameters()[i] == arguments)) {
-                            b->m_hasArgumentsBindingInParameterOrChildFD = true;
-                            break;
-                        }
-                    }
-
-                    for (size_t i = 0; i < b->childBlocks().size(); i++) {
-                        CodeBlock* cb = b->childBlocks()[i];
-                        if (cb->isFunctionDeclaration() && cb->functionName() == arguments) {
-                            b->m_hasArgumentsBindingInParameterOrChildFD = true;
-                            break;
-                        }
-                    }
                 }
             } else if (!codeBlock->hasName(uname)) {
                 CodeBlock* c = codeBlock->parentCodeBlock();
@@ -176,12 +161,12 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(CodeBlock* cb)
     }
 }
 
-ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, String* fileName, CodeBlock* parentCodeBlock, bool strictFromOutside)
+ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, String* fileName, CodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, size_t stackSizeRemain)
 {
     Script* script = nullptr;
     ScriptParseError* error = nullptr;
     try {
-        ProgramNode* program = esprima::parseProgram(m_context, scriptSource, nullptr, strictFromOutside);
+        ProgramNode* program = esprima::parseProgram(m_context, scriptSource, nullptr, strictFromOutside, stackSizeRemain);
 
         script = new Script(fileName, new StringView(scriptSource));
         CodeBlock* topCodeBlock;
@@ -191,9 +176,12 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
             program->scopeContext()->m_hasCatch = parentCodeBlock->hasCatch();
             program->scopeContext()->m_hasYield = parentCodeBlock->hasYield();
             topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, scriptSource, script, program->scopeContext(), parentCodeBlock);
+            topCodeBlock->m_isEvalCodeInFunction = true;
         } else {
             topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, program);
         }
+
+        topCodeBlock->m_isEvalCodeInFunction = isEvalCodeInFunction;
 
         generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
 
@@ -261,10 +249,10 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
     return result;
 }
 
-std::pair<Node*, ASTScopeContext*> ScriptParser::parseFunction(CodeBlock* codeBlock)
+std::pair<Node*, ASTScopeContext*> ScriptParser::parseFunction(CodeBlock* codeBlock, size_t stackSizeRemain)
 {
     try {
-        std::pair<Node*, ASTScopeContext*> body = esprima::parseSingleFunction(m_context, codeBlock);
+        std::pair<Node*, ASTScopeContext*> body = esprima::parseSingleFunction(m_context, codeBlock, stackSizeRemain);
         return body;
     } catch (esprima::Error* orgError) {
         puts(orgError->message->toUTF8StringData().data());

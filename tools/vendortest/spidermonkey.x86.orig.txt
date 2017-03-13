@@ -53,7 +53,6 @@ js1_5/Regress/regress-104077.js
 js1_5/Regress/regress-168347.js
 js1_5/Regress/regress-211590.js
 js1_5/Regress/regress-234389.js
-js1_5/Regress/regress-256501.js
 js1_5/Regress/regress-290575.js
 js1_5/Regress/regress-294302.js
 js1_5/Regress/regress-303213.js
@@ -71,7 +70,6 @@ js1_5/Regress/regress-416737-02.js
 js1_5/Regress/regress-420919.js
 js1_5/Regress/regress-422348.js
 js1_5/Regress/regress-452346.js
-js1_5/Regress/regress-452742-02.js
 js1_5/Regress/regress-462292.js
 js1_5/Regress/regress-68498-002.js
 js1_5/Regress/regress-68498-003.js

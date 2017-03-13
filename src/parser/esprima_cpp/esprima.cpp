@@ -2279,6 +2279,7 @@ public:
     Vector<ASTScopeContext*, gc_allocator_ignore_off_page<ASTScopeContext*>> scopeContexts;
     bool trackUsingNames;
     size_t recursiveDepth;
+    size_t stackLimit;
 
     ASTScopeContext* popScopeContext(const MetaNode& node)
     {
@@ -2314,10 +2315,20 @@ public:
         }
     }
 
-    Parser(::Escargot::Context* escargotContext, StringView code, ParserASTNodeHandler delegate, size_t startLine = 0, size_t startColumn = 0 /*, options: any = {}, delegate*/)
+    Parser(::Escargot::Context* escargotContext, StringView code, ParserASTNodeHandler delegate, size_t stackRemain, size_t startLine = 0, size_t startColumn = 0)
         : errorHandler(&errorHandlerInstance)
         , scannerInstance(code, this->errorHandler, startLine, startColumn)
     {
+        if (stackRemain >= STACK_LIMIT_FROM_BASE) {
+            stackRemain = STACK_LIMIT_FROM_BASE;
+        }
+        volatile int sp;
+        volatile size_t currentStackBase = (size_t)&sp;
+#ifdef STACK_GROWS_DOWN
+        this->stackLimit = currentStackBase - stackRemain;
+#else
+        this->stackLimit = currentStackBase + stackRemain;
+#endif
         this->escargotContext = escargotContext;
         trackUsingNames = true;
         config.range = false;
@@ -2755,6 +2766,15 @@ public:
     void checkResursiveLimit()
     {
         if (this->recursiveDepth > ESPRIMA_RECURSIVE_LIMIT) {
+            this->throwError("too many recursion in script");
+        }
+        volatile int sp;
+        size_t currentStackBase = (size_t)&sp;
+#ifdef STACK_GROWS_DOWN
+        if (currentStackBase < stackLimit) {
+#else
+        if (currentStackBase > stackLimit) {
+#endif
             this->throwError("too many recursion in script");
         }
     }
@@ -6277,16 +6297,16 @@ public:
 };
 
 
-ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler handler, bool strictFromOutside)
+ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler handler, bool strictFromOutside, size_t stackRemain)
 {
-    Parser parser(ctx, source, handler);
+    Parser parser(ctx, source, handler, stackRemain);
     parser.context->strict = strictFromOutside;
     return parser.parseProgram();
 }
 
-std::pair<Node*, ASTScopeContext*> parseSingleFunction(::Escargot::Context* ctx, CodeBlock* codeBlock)
+std::pair<Node*, ASTScopeContext*> parseSingleFunction(::Escargot::Context* ctx, CodeBlock* codeBlock, size_t stackRemain)
 {
-    Parser parser(ctx, codeBlock->src(), nullptr, codeBlock->sourceElementStart().line, codeBlock->sourceElementStart().column);
+    Parser parser(ctx, codeBlock->src(), nullptr, stackRemain, codeBlock->sourceElementStart().line, codeBlock->sourceElementStart().column);
     parser.config.parseSingleFunction = true;
     auto scopeCtx = new ASTScopeContext(codeBlock->isStrict(), nullptr);
     parser.scopeContexts.pushBack(scopeCtx);

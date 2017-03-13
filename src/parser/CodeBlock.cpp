@@ -18,6 +18,8 @@
 #include "CodeBlock.h"
 #include "runtime/Context.h"
 #include "interpreter/ByteCode.h"
+#include "runtime/Environment.h"
+#include "runtime/EnvironmentRecord.h"
 
 namespace Escargot {
 
@@ -81,11 +83,11 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     m_inWith = false;
     m_usesArgumentsObject = false;
     m_hasArgumentsBinding = false;
-    m_hasArgumentsBindingInParameterOrChildFD = false;
     m_canUseIndexedVariableStorage = true;
     m_canAllocateEnvironmentOnStack = true;
     m_needsComplexParameterCopy = false;
     m_isInWithScope = false;
+    m_isEvalCodeInFunction = false;
 
     m_parametersInfomation.resize(info.m_argumentCount);
 
@@ -99,6 +101,22 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
         m_byteCodeBlock->m_code[start++] = *first;
         first++;
     }
+}
+
+static Value functionBindImpl(ExecutionState& state, Value thisValue, size_t calledArgc, Value* calledArgv, bool isNewExpression)
+{
+    CodeBlock* dataCb = state.executionContext()->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock();
+    CallBoundFunction* code = (CallBoundFunction*)(dataCb->byteCodeBlock()->m_code.data() + sizeof(CallNativeFunction));
+
+    // Collect arguments info when current function is called.
+    int mergedArgc = code->m_boundArgumentsCount + calledArgc;
+    Value* mergedArgv = ALLOCA(mergedArgc * sizeof(Value), Value, state);
+    if (code->m_boundArgumentsCount)
+        memcpy(mergedArgv, code->m_boundArguments, sizeof(Value) * code->m_boundArgumentsCount);
+    if (calledArgc)
+        memcpy(mergedArgv + code->m_boundArgumentsCount, calledArgv, sizeof(Value) * calledArgc);
+
+    return FunctionObject::call(state, code->m_boundTargetFunction, code->m_boundThis, mergedArgc, mergedArgv);
 }
 
 CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv)
@@ -121,7 +139,7 @@ CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundT
 {
     const CodeBlock* targetCodeBlock = targetFunction->codeBlock();
 
-    m_hasCallNativeFunctionCode = false;
+    m_hasCallNativeFunctionCode = true;
     m_thisSymbolIndex = SIZE_MAX;
     m_isConsturctor = targetCodeBlock->isConsturctor();
     m_isNativeFunction = targetCodeBlock->isNativeFunction();
@@ -138,11 +156,23 @@ CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundT
     m_canAllocateEnvironmentOnStack = targetCodeBlock->canAllocateEnvironmentOnStack();
     m_needsComplexParameterCopy = targetCodeBlock->needsComplexParameterCopy();
     m_isInWithScope = targetCodeBlock->isInWithScope();
+    m_isEvalCodeInFunction = false;
 
     size_t targetFunctionLength = targetCodeBlock->parametersInfomation().size();
     m_parametersInfomation.resize(targetFunctionLength > boundArgc ? targetFunctionLength - boundArgc : 0);
 
     m_byteCodeBlock = new ByteCodeBlock(this);
+
+    CallNativeFunction nativeFnCode(functionBindImpl);
+    nativeFnCode.assignOpcodeInAddress();
+    char* first = (char*)&nativeFnCode;
+    size_t start = 0;
+    m_byteCodeBlock->m_code.resize(sizeof(CallNativeFunction) + sizeof(CallBoundFunction));
+    for (size_t i = 0; i < sizeof(CallNativeFunction); i++) {
+        m_byteCodeBlock->m_code[start++] = *first;
+        first++;
+    }
+
     CallBoundFunction code(ByteCodeLOC(0));
     code.assignOpcodeInAddress();
     code.m_boundTargetFunction = targetFunction;
@@ -155,10 +185,11 @@ CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundT
         m_byteCodeBlock->m_literalData.pushBack(boundThis.asPointerValue());
     m_byteCodeBlock->m_literalData.pushBack(code.m_boundArguments);
 
-    ParserContextInformation defaultInfo;
-    ByteCodeGenerateContext context(this, m_byteCodeBlock, defaultInfo, nullptr);
-    m_byteCodeBlock->pushCode(code, &context, nullptr);
-    m_byteCodeBlock->m_code.shrinkToFit();
+    first = (char*)&code;
+    for (size_t i = 0; i < sizeof(CallBoundFunction); i++) {
+        m_byteCodeBlock->m_code[start++] = *first;
+        first++;
+    }
 }
 
 CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const AtomicStringVector& innerIdentifiers, CodeBlockInitFlag initFlags)
@@ -224,11 +255,11 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
 
     m_usesArgumentsObject = false;
     m_hasArgumentsBinding = false;
-    m_hasArgumentsBindingInParameterOrChildFD = false;
     m_canUseIndexedVariableStorage = false;
     m_canAllocateEnvironmentOnStack = false;
     m_needsComplexParameterCopy = false;
     m_isInWithScope = false;
+    m_isEvalCodeInFunction = false;
 
     for (size_t i = 0; i < innerIdentifiers.size(); i++) {
         IdentifierInfo info;
@@ -304,7 +335,6 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeL
 
     m_usesArgumentsObject = false;
     m_hasArgumentsBinding = false;
-    m_hasArgumentsBindingInParameterOrChildFD = false;
 
     if (initFlags & CodeBlockInitFlag::CodeBlockIsFunctionDeclaration) {
         m_isFunctionDeclaration = true;
@@ -341,6 +371,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeL
     m_thisSymbolIndex = SIZE_MAX;
     m_needsComplexParameterCopy = false;
     m_isInWithScope = false;
+    m_isEvalCodeInFunction = false;
 }
 
 bool CodeBlock::tryCaptureIdentifiersFromChildCodeBlock(AtomicString name)
@@ -408,6 +439,16 @@ void CodeBlock::computeVariables()
         m_identifierOnHeapCount = h;
     } else {
         m_needsComplexParameterCopy = true;
+
+        if (m_isEvalCodeInFunction) {
+            AtomicString arguments = m_context->staticStrings().arguments;
+            for (size_t i = 0; i < m_identifierInfos.size(); i++) {
+                if (m_identifierInfos[i].m_name == arguments) {
+                    m_identifierInfos.erase(i);
+                    break;
+                }
+            }
+        }
 
         size_t s = 0;
         size_t h = 0;

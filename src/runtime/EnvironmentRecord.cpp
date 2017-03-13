@@ -86,15 +86,19 @@ EnvironmentRecord::BindingSlot GlobalEnvironmentRecord::hasBinding(ExecutionStat
 }
 
 FunctionEnvironmentRecordOnHeap::FunctionEnvironmentRecordOnHeap(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv)
-    : FunctionEnvironmentRecord(state, function, argc, argv)
+    : FunctionEnvironmentRecord(state, function)
     , m_heapStorage(function->codeBlock()->identifierOnHeapCount())
 {
+    m_argc = argc;
+    m_argv = argv;
 }
 
 FunctionEnvironmentRecordNotIndexed::FunctionEnvironmentRecordNotIndexed(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv)
-    : FunctionEnvironmentRecord(state, function, argc, argv)
+    : FunctionEnvironmentRecord(state, function)
     , m_heapStorage()
 {
+    m_argc = argc;
+    m_argv = argv;
     const CodeBlock::IdentifierInfoVector& vec = function->codeBlock()->identifierInfos();
     size_t len = vec.size();
     m_recordVector.resizeWithUninitializedValues(len);

@@ -63,6 +63,7 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
 
     size_t literalStorageSize = m_topCodeBlock->byteCodeBlock()->m_numeralLiteralData.size();
     Value* registerFile = (Value*)alloca((m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize + 1 + literalStorageSize) * sizeof(Value));
+    registerFile[0] = Value();
     Value* stackStorage = registerFile + m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize;
     stackStorage[0] = thisValue;
     Value* literalStorage = stackStorage + 1;
@@ -107,8 +108,22 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, CodeBlock* pa
     Node* programNode = m_topCodeBlock->cachedASTNode();
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
 
+    bool isOnGlobal = true;
+    FunctionEnvironmentRecord* fnRecord;
+    {
+        LexicalEnvironment* env = state.executionContext()->lexicalEnvironment();
+        while (env) {
+            if (env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+                isOnGlobal = false;
+                fnRecord = env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+                break;
+            }
+            env = env->outerEnvironment();
+        }
+    }
+
     ByteCodeGenerator g;
-    m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode, ((ProgramNode*)programNode)->scopeContext(), isEvalMode, parentCodeBlock->isGlobalScopeCodeBlock());
+    m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode, ((ProgramNode*)programNode)->scopeContext(), isEvalMode, isOnGlobal);
 
     delete m_topCodeBlock->m_cachedASTNode;
     m_topCodeBlock->m_cachedASTNode = nullptr;
@@ -120,6 +135,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, CodeBlock* pa
     } else {
         record = state.executionContext()->lexicalEnvironment()->record();
     }
+
     const CodeBlock::IdentifierInfoVector& vec = m_topCodeBlock->identifierInfos();
     size_t len = vec.size();
     for (size_t i = 0; i < len; i++) {
@@ -135,6 +151,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, CodeBlock* pa
     size_t stackStorageSize = m_topCodeBlock->identifierOnStackCount();
     size_t literalStorageSize = m_topCodeBlock->byteCodeBlock()->m_numeralLiteralData.size();
     Value* registerFile = ALLOCA((m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize + stackStorageSize + literalStorageSize) * sizeof(Value), Value, state);
+    registerFile[0] = Value();
     Value* stackStorage = registerFile + m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize;
     for (size_t i = 0; i < stackStorageSize; i++) {
         stackStorage[i] = Value();
@@ -146,6 +163,13 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, CodeBlock* pa
     }
 
     stackStorage[m_topCodeBlock->thisSymbolIndex()] = thisValue;
+
+    if (!isOnGlobal && m_topCodeBlock->usesArgumentsObject()) {
+        AtomicString arguments = state.context()->staticStrings().arguments;
+        if (fnRecord->hasBinding(newState, arguments).m_index == SIZE_MAX) {
+            fnRecord->functionObject()->generateArgumentsObject(newState, fnRecord, nullptr);
+        }
+    }
 
     clearStack<512>();
     Value resultValue = ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);

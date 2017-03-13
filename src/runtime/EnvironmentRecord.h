@@ -363,23 +363,15 @@ class FunctionEnvironmentRecord : public DeclarativeEnvironmentRecord {
     friend class ByteCodeInterpreter;
 
 public:
-    ALWAYS_INLINE FunctionEnvironmentRecord(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv)
+    ALWAYS_INLINE FunctionEnvironmentRecord(ExecutionState& state, FunctionObject* function)
         : DeclarativeEnvironmentRecord(state, function->codeBlock())
-        , m_isArgumentObjectCreated(false)
         , m_functionObject(function)
-        , m_argc(argc)
-        , m_argv(argv)
     {
     }
 
     virtual bool isFunctionEnvironmentRecord()
     {
         return true;
-    }
-
-    virtual bool isFunctionEnvironmentRecordOnStack()
-    {
-        return false;
     }
 
     virtual bool isFunctionEnvironmentRecordOnHeap()
@@ -402,52 +394,32 @@ public:
         return m_functionObject;
     }
 
-    size_t argc()
+    virtual size_t argc()
     {
-        return m_argc;
+        RELEASE_ASSERT_NOT_REACHED();
     }
 
-    Value* argv()
+    virtual Value* argv()
     {
-        return m_argv;
+        RELEASE_ASSERT_NOT_REACHED();
     }
 
     Value createArgumentsObject(ExecutionState& state, ExecutionContext* ec)
     {
-        ASSERT(m_isArgumentObjectCreated == false);
-        m_isArgumentObjectCreated = true;
         return new ArgumentsObject(state, this, ec);
     }
 
-    void setArgumentsCreated()
-    {
-        m_isArgumentObjectCreated = true;
-    }
-
-    bool isArgumentObjectCreated()
-    {
-        return m_isArgumentObjectCreated;
-    }
-
 protected:
-    bool m_isArgumentObjectCreated : 1;
     FunctionObject* m_functionObject;
-    size_t m_argc;
-    Value* m_argv;
 };
 
-class FunctionEnvironmentRecordOnStack : public FunctionEnvironmentRecord {
+class FunctionEnvironmentRecordSimple : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
 
 public:
-    ALWAYS_INLINE FunctionEnvironmentRecordOnStack(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv)
-        : FunctionEnvironmentRecord(state, function, argc, argv)
+    ALWAYS_INLINE FunctionEnvironmentRecordSimple(ExecutionState& state, FunctionObject* function)
+        : FunctionEnvironmentRecord(state, function)
     {
-    }
-
-    virtual bool isFunctionEnvironmentRecordOnStack()
-    {
-        return true;
     }
 };
 
@@ -473,7 +445,19 @@ public:
         return m_heapStorage[idx];
     }
 
+    virtual size_t argc()
+    {
+        return m_argc;
+    }
+
+    virtual Value* argv()
+    {
+        return m_argv;
+    }
+
 protected:
+    size_t m_argc;
+    Value* m_argv;
     SmallValueVector m_heapStorage;
 };
 
@@ -525,7 +509,19 @@ public:
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
 
+    virtual size_t argc()
+    {
+        return m_argc;
+    }
+
+    virtual Value* argv()
+    {
+        return m_argv;
+    }
+
 protected:
+    size_t m_argc;
+    Value* m_argv;
     SmallValueVector m_heapStorage;
     IdentifierRecordVector m_recordVector;
 };

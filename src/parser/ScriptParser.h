@@ -53,12 +53,12 @@ public:
         ScriptParseError* m_error;
     };
 
-    ScriptParserResult parse(String* script, String* fileName = String::emptyString, bool strictFromOutside = false)
+    ScriptParserResult parse(String* script, String* fileName = String::emptyString, bool strictFromOutside = false, bool isEvalCodeInFunction = false, size_t stackSizeRemain = SIZE_MAX)
     {
-        return parse(StringView(script, 0, script->length()), fileName, nullptr, strictFromOutside);
+        return parse(StringView(script, 0, script->length()), fileName, nullptr, strictFromOutside, isEvalCodeInFunction, stackSizeRemain);
     }
-    ScriptParserResult parse(StringView script, String* fileName = String::emptyString, CodeBlock* parentCodeBlock = nullptr, bool strictFromOutside = false);
-    std::pair<Node*, ASTScopeContext*> parseFunction(CodeBlock* codeBlock);
+    ScriptParserResult parse(StringView script, String* fileName = String::emptyString, CodeBlock* parentCodeBlock = nullptr, bool strictFromOutside = false, bool isEvalCodeInFunction = false, size_t stackSizeRemain = SIZE_MAX);
+    std::pair<Node*, ASTScopeContext*> parseFunction(CodeBlock* codeBlock, size_t stackSizeRemain);
 
 protected:
     CodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program);

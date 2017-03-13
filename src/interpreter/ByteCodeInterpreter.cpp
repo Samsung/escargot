@@ -177,7 +177,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             if (left.isInt32() && right.isInt32()) {
                 int32_t a = left.asInt32();
                 int32_t b = right.asInt32();
-                if ((!a || !b) && (a >> 31 || b >> 31)) { // -1 * 0 should be treated as -0, not +0
+                if (UNLIKELY((!a || !b) && (a >> 31 || b >> 31))) { // -1 * 0 should be treated as -0, not +0
                     ret = Value(left.asNumber() * right.asNumber());
                 } else {
                     int32_t c = right.asInt32();
@@ -717,7 +717,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
 
         DeclareFunctionDeclarationOpcodeLbl : {
             DeclareFunctionDeclaration* code = (DeclareFunctionDeclaration*)programCounter;
-            registerFile[0] = new FunctionObject(state, code->m_codeBlock, ec->lexicalEnvironment());
+            registerFile[1] = new FunctionObject(state, code->m_codeBlock, ec->lexicalEnvironment());
             ADD_PROGRAM_COUNTER(DeclareFunctionDeclaration);
             NEXT_INSTRUCTION();
         }
@@ -752,22 +752,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             }
             ADD_PROGRAM_COUNTER(CallEvalFunction);
             NEXT_INSTRUCTION();
-        }
-
-        CallBoundFunctionOpcodeLbl : {
-            CallBoundFunction* code = (CallBoundFunction*)programCounter;
-            // Collect arguments info when current function is called.
-            size_t calledArgc = ec->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->argc();
-            Value* calledArgv = ec->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->argv();
-
-            int mergedArgc = code->m_boundArgumentsCount + calledArgc;
-            Value* mergedArgv = ALLOCA(mergedArgc * sizeof(Value), Value, state);
-            if (code->m_boundArgumentsCount)
-                memcpy(mergedArgv, code->m_boundArguments, sizeof(Value) * code->m_boundArgumentsCount);
-            if (calledArgc)
-                memcpy(mergedArgv + code->m_boundArgumentsCount, calledArgv, sizeof(Value) * calledArgc);
-
-            return FunctionObject::call(state, code->m_boundTargetFunction, code->m_boundThis, mergedArgc, mergedArgv);
         }
 
         TryOperationOpcodeLbl : {
@@ -939,56 +923,10 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        LoadArgumentsObjectOpcodeLbl : {
-            LoadArgumentsObject* code = (LoadArgumentsObject*)programCounter;
-            Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-            registerFile[code->m_registerIndex] = loadArgumentsObject(state, ec, stackStorage);
-            ADD_PROGRAM_COUNTER(LoadArgumentsObject);
-            NEXT_INSTRUCTION();
-        }
-
-        StoreArgumentsObjectOpcodeLbl : {
-            StoreArgumentsObject* code = (StoreArgumentsObject*)programCounter;
-            Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-            storeArgumentsObject(state, ec, stackStorage, registerFile[code->m_registerIndex]);
-            ADD_PROGRAM_COUNTER(StoreArgumentsObject);
-            NEXT_INSTRUCTION();
-        }
-
-        ResetExecuteResultOpcodeLbl : {
-            registerFile[0] = Value();
-            ADD_PROGRAM_COUNTER(ResetExecuteResult);
-            NEXT_INSTRUCTION();
-        }
-
         CallFunctionInWithScopeOpcodeLbl : {
             CallFunctionInWithScope* code = (CallFunctionInWithScope*)programCounter;
             registerFile[code->m_resultIndex] = callFunctionInWithScope(state, code, ec, ec->lexicalEnvironment(), &registerFile[code->m_argumentsStartIndex]);
             ADD_PROGRAM_COUNTER(CallFunctionInWithScope);
-            NEXT_INSTRUCTION();
-        }
-
-        LoadArgumentsInWithScopeOpcodeLbl : {
-            LoadArgumentsInWithScope* code = (LoadArgumentsInWithScope*)programCounter;
-            Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-            Value val;
-            LexicalEnvironment* envTmp = ec->lexicalEnvironment();
-            while (envTmp) {
-                if (envTmp->record()->isObjectEnvironmentRecord()) {
-                    EnvironmentRecord::GetBindingValueResult result = envTmp->record()->getBindingValue(state, state.context()->staticStrings().arguments);
-                    if (result.m_hasBindingValue)
-                        val = result.m_value;
-                    else
-                        val = loadArgumentsObject(state, ec, stackStorage);
-                    break;
-                } else if (envTmp->record()->isDeclarativeEnvironmentRecord() && envTmp->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-                    val = loadArgumentsObject(state, ec, stackStorage);
-                    break;
-                }
-                envTmp = envTmp->outerEnvironment();
-            }
-            registerFile[code->m_registerIndex] = val;
-            ADD_PROGRAM_COUNTER(LoadArgumentsInWithScope);
             NEXT_INSTRUCTION();
         }
 
@@ -1030,6 +968,11 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             return Value();
         }
 
+        CallBoundFunctionOpcodeLbl : {
+            CallBoundFunction* code = (CallBoundFunction*)programCounter;
+            return Value(Value::Null);
+        }
+
         } catch (const Value& v) {
             processException(state, v, ec, programCounter);
         }
@@ -1041,80 +984,6 @@ FillOpcodeTable : {
 #undef REGISTER_TABLE
     return Value();
 }
-}
-
-NEVER_INLINE Value ByteCodeInterpreter::loadArgumentsObject(ExecutionState& state, ExecutionContext* e, Value* stackStorage)
-{
-    while (!(e->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord())) {
-        e = e->parent();
-    }
-    Value val(Value::ForceUninitialized);
-    auto fnRecord = e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-    AtomicString arguments = state.context()->staticStrings().arguments;
-    if (e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isArgumentObjectCreated()) {
-        if (fnRecord->isFunctionEnvironmentRecordNotIndexed()) {
-            val = fnRecord->getBindingValue(state, arguments).m_value;
-        } else {
-            const CodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->identifierInfos();
-            for (size_t i = 0; i < v.size(); i++) {
-                if (v[i].m_name == arguments) {
-                    ASSERT(v[i].m_needToAllocateOnStack);
-                    val = stackStorage[v[i].m_indexForIndexedStorage];
-                    break;
-                }
-            }
-        }
-    } else {
-        val = fnRecord->createArgumentsObject(state, e);
-        if (fnRecord->isFunctionEnvironmentRecordNotIndexed()) {
-            auto result = fnRecord->hasBinding(state, arguments);
-            if (UNLIKELY(result.m_index == SIZE_MAX)) {
-                fnRecord->createMutableBinding(state, arguments, false);
-                result = fnRecord->hasBinding(state, arguments);
-            }
-            fnRecord->setMutableBindingByIndex(state, result.m_index, arguments, val);
-        } else {
-            const CodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->identifierInfos();
-            for (size_t i = 0; i < v.size(); i++) {
-                if (v[i].m_name == arguments) {
-                    ASSERT(v[i].m_needToAllocateOnStack);
-                    stackStorage[v[i].m_indexForIndexedStorage] = val;
-                    break;
-                }
-            }
-        }
-    }
-    return val;
-}
-
-NEVER_INLINE void ByteCodeInterpreter::storeArgumentsObject(ExecutionState& state, ExecutionContext* ec, Value* stackStorage, Value val)
-{
-    ExecutionContext* e = ec;
-    while (!(e->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord())) {
-        e = e->parent();
-    }
-    auto fnRecord = e->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-    fnRecord->m_isArgumentObjectCreated = true;
-
-    AtomicString arguments = state.context()->staticStrings().arguments;
-    if (fnRecord->isFunctionEnvironmentRecordNotIndexed()) {
-        auto result = fnRecord->hasBinding(state, arguments);
-        if (UNLIKELY(result.m_index == SIZE_MAX)) {
-            fnRecord->createMutableBinding(state, arguments, false);
-            result = fnRecord->hasBinding(state, arguments);
-        }
-        fnRecord->setMutableBindingByIndex(state, result.m_index, arguments, val);
-    } else {
-        const CodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->identifierInfos();
-        size_t idx;
-        for (size_t i = 0; i < v.size(); i++) {
-            if (v[i].m_name == arguments) {
-                ASSERT(v[i].m_needToAllocateOnStack);
-                stackStorage[v[i].m_indexForIndexedStorage] = val;
-                break;
-            }
-        }
-    }
 }
 
 NEVER_INLINE EnvironmentRecord* ByteCodeInterpreter::getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue, bool throwException)

@@ -46,11 +46,13 @@ void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
 
     ByteCodeGenerator g;
     ByteCodeBlock* block;
+    // TODO
+    // give correct stack limit to parser
     if (m_codeBlock->isGlobalScopeCodeBlock()) {
-        ProgramNode* nd = esprima::parseProgram(m_codeBlock->context(), m_codeBlock->src(), nullptr, m_codeBlock->isStrict());
+        ProgramNode* nd = esprima::parseProgram(m_codeBlock->context(), m_codeBlock->src(), nullptr, m_codeBlock->isStrict(), SIZE_MAX);
         block = g.generateByteCode(c, m_codeBlock, nd, nd->scopeContext(), m_isEvalMode, m_isOnGlobal, true);
     } else {
-        auto ret = c->scriptParser().parseFunction(m_codeBlock);
+        auto ret = c->scriptParser().parseFunction(m_codeBlock, SIZE_MAX);
         block = g.generateByteCode(c, m_codeBlock, ret.first, ret.second, m_isEvalMode, m_isOnGlobal, true);
     }
     m_locData = std::move(block->m_locData);

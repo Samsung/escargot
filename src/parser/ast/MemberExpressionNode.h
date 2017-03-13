@@ -112,7 +112,7 @@ public:
                 valueIndex = src;
                 objectIndex = m_object->getRegister(codeBlock, context);
                 m_object->generateExpressionByteCode(codeBlock, context, objectIndex);
-                propertyIndex = m_object->getRegister(codeBlock, context);
+                propertyIndex = m_property->getRegister(codeBlock, context);
                 m_property->generateExpressionByteCode(codeBlock, context, propertyIndex);
                 propertyIndex = context->getLastRegisterIndex();
             } else {

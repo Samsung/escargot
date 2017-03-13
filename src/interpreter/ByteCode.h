@@ -100,14 +100,10 @@ class Node;
     F(WithOperation, 0, 0)                            \
     F(ObjectDefineGetter, 0, 0)                       \
     F(ObjectDefineSetter, 0, 0)                       \
-    F(LoadArgumentsObject, 0, 0)                      \
-    F(LoadArgumentsInWithScope, 0, 0)                 \
-    F(StoreArgumentsObject, 0, 0)                     \
     F(CallNativeFunction, 0, 0)                       \
     F(CallEvalFunction, 0, 0)                         \
     F(CallBoundFunction, 0, 0)                        \
     F(CallFunctionInWithScope, 0, 0)                  \
-    F(ResetExecuteResult, 0, 0)                       \
     F(End, 0, 0)
 
 enum Opcode {
@@ -1532,57 +1528,6 @@ public:
 #endif
 };
 
-class LoadArgumentsObject : public ByteCode {
-public:
-    LoadArgumentsObject(const ByteCodeLOC& loc, size_t registerIndex)
-        : ByteCode(Opcode::LoadArgumentsObjectOpcode, loc)
-        , m_registerIndex(registerIndex)
-    {
-    }
-
-    ByteCodeRegisterIndex m_registerIndex;
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("load arguments r%d", (int)m_registerIndex);
-    }
-#endif
-};
-
-class LoadArgumentsInWithScope : public ByteCode {
-public:
-    LoadArgumentsInWithScope(const ByteCodeLOC& loc, size_t registerIndex)
-        : ByteCode(Opcode::LoadArgumentsInWithScopeOpcode, loc)
-        , m_registerIndex(registerIndex)
-    {
-    }
-
-    ByteCodeRegisterIndex m_registerIndex;
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("load arguments in with r%d", (int)m_registerIndex);
-    }
-#endif
-};
-
-class StoreArgumentsObject : public ByteCode {
-public:
-    StoreArgumentsObject(const ByteCodeLOC& loc, size_t registerIndex)
-        : ByteCode(Opcode::StoreArgumentsObjectOpcode, loc)
-        , m_registerIndex(registerIndex)
-    {
-    }
-
-    ByteCodeRegisterIndex m_registerIndex;
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("store arguments r%d", (int)m_registerIndex);
-    }
-#endif
-};
-
 class CallNativeFunction : public ByteCode {
 public:
     CallNativeFunction(NativeFunctionPointer fn)
@@ -1592,21 +1537,6 @@ public:
     }
 
     NativeFunctionPointer m_fn;
-};
-
-class ResetExecuteResult : public ByteCode {
-public:
-    ResetExecuteResult(const ByteCodeLOC& loc)
-        : ByteCode(Opcode::ResetExecuteResultOpcode, loc)
-    {
-    }
-
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("reset execute result");
-    }
-#endif
 };
 
 class End : public ByteCode {
@@ -1634,7 +1564,7 @@ class ByteCodeBlock : public gc {
 public:
     ByteCodeBlock(CodeBlock* codeBlock)
     {
-        m_requiredRegisterFileSizeInValueSize = 1;
+        m_requiredRegisterFileSizeInValueSize = 2;
         m_codeBlock = codeBlock;
         m_isEvalMode = false;
         m_isOnGlobal = false;
