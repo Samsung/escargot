@@ -1162,8 +1162,13 @@ NEVER_INLINE void ByteCodeInterpreter::deleteOperation(ExecutionState& state, Le
 {
     if (code->m_id.string()->length()) {
         bool result;
-        if (UNLIKELY(code->m_id == state.context()->staticStrings().arguments && !env->record()->isGlobalEnvironmentRecord())) {
-            result = false;
+        AtomicString arguments = state.context()->staticStrings().arguments;
+        if (UNLIKELY(code->m_id == arguments && !env->record()->isGlobalEnvironmentRecord())) {
+            if (UNLIKELY(env->record()->isObjectEnvironmentRecord() && env->record()->hasBinding(state, arguments).m_index != SIZE_MAX)) {
+                result = env->deleteBinding(state, code->m_id);
+            } else {
+                result = false;
+            }
         } else {
             result = env->deleteBinding(state, code->m_id);
         }

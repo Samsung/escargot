@@ -3645,6 +3645,36 @@ public:
         return expr;
     }
 */
+    void reinterpretExpressionAsPattern(Node* expr)
+    {
+        switch (expr->type()) {
+        case ArrayExpression:
+            this->throwError("Array pattern is not supported yet");
+            RELEASE_ASSERT_NOT_REACHED();
+            /* TODO(ES6) this part is only for es6
+            expr.type = Syntax.ArrayPattern;
+            for (let i = 0; i < expr.elements.length; i++) {
+                if (expr.elements[i] !== null) {
+                    this->reinterpretExpressionAsPattern(expr.elements[i]);
+                }
+            }
+            */
+            break;
+        case ObjectExpression:
+            this->throwError("Object pattern is not supported yet");
+            RELEASE_ASSERT_NOT_REACHED();
+            /* TODO(ES6) this part is only for es6
+            expr.type = Syntax.ObjectPattern;
+            for (let i = 0; i < expr.properties.length; i++) {
+                this->reinterpretExpressionAsPattern(expr.properties[i].value);
+            }
+            */
+            break;
+        default:
+            break;
+        }
+    }
+
     Node* parseGroupExpression()
     {
         Node* expr;
@@ -4439,8 +4469,7 @@ public:
                     this->context->isAssignmentTarget = false;
                     this->context->isBindingElement = false;
                 } else {
-                    // TODO
-                    // this->reinterpretExpressionAsPattern(expr);
+                    this->reinterpretExpressionAsPattern(expr);
                 }
 
                 token = this->nextToken();
