@@ -54,14 +54,24 @@ public:
     void destroy();
 };
 
-class ASCIIStringRef {
+
+class ValueRef {
 public:
-    static ASCIIStringRef* create(const char* str);
-    static ASCIIStringRef* create(const char* str, size_t len);
-    static ASCIIStringRef* create(const char16_t* str, size_t len);
+    ValueRef(intptr_t val);
+    static ValueRef makeBoolean(ExecutionStateRef* ctx, bool value);
+    static ValueRef makeNumber(ExecutionStateRef* ctx, double value);
+    static ValueRef makeNull(ExecutionStateRef* ctx);
+    static ValueRef makeUndefined(ExecutionStateRef* ctx);
+    bool isBoolean(ExecutionStateRef* ctx);
+    bool isNumber(ExecutionStateRef* ctx);
+    bool isNull(ExecutionStateRef* ctx);
+    bool isUndefined(ExecutionStateRef* ctx);
+private:
+    intptr_t v;
 };
 
-bool evaluateScript(ContextRef* ctx, StringRef* script, StringRef* fileName);
+bool evaluateScript(ExecutionStateRef* es, StringRef* script,
+                    StringRef* fileName);
 
 } // namespace Escargot
 #endif

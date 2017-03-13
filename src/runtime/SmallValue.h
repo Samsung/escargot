@@ -193,6 +193,16 @@ public:
         }
     }
 
+    intptr_t payload()
+    {
+        return m_data.payload;
+    }
+
+    static SmallValue fromPayload(uintptr_t p)
+    {
+        return SmallValue(SmallValueData((void*)p));
+    }
+
     bool isEmpty() const
     {
         if (HAS_OBJECT_TAG(m_data.payload)) {
@@ -285,6 +295,12 @@ protected:
         }
         ASSERT(m_data.payload);
     }
+
+    SmallValue(SmallValueData v)
+    {
+        m_data = v;
+    }
+
 
     SmallValueData m_data;
 };

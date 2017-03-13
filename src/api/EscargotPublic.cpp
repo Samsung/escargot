@@ -24,6 +24,7 @@
 #include "runtime/Context.h"
 #include "runtime/ExecutionContext.h"
 #include "runtime/FunctionObject.h"
+#include "runtime/Value.h"
 #include "runtime/VMInstance.h"
 #include "EscargotAPICast.h"
 
@@ -34,44 +35,52 @@ StringRef* StringRef::fromASCII(const char* s)
     return toRef(String::fromASCII(s));
 }
 
-
 void Globals::initialize()
 {
     Heap::initialize();
 }
-
 
 void Globals::finalize()
 {
     Heap::finalize();
 }
 
-bool evaluateScript(ContextRef* context, StringRef* str, StringRef* filename)
+bool evaluateScript(ExecutionStateRef* es, StringRef* str, StringRef* filename)
 {
-    Context* ctx = toImpl(context);
+    ASSERT(es);
+    ASSERT(str);
+    ASSERT(filename);
+    ExecutionState* esi = toImpl(es);
+    Context* ctx = esi->context();
+    ASSERT(ctx);
     String* script = toImpl(str);
     String* file = toImpl(filename);
     bool shouldPrintScriptResult = true;
-    auto result = ctx->scriptParser().parse(script, file);
-    if (result.m_error) {
+
+    auto parseRet = ctx->scriptParser().parse(script, file);
+    if (parseRet.m_error) {
         static char msg[10240];
-        auto err = result.m_error->message->toUTF8StringData();
+        auto err = parseRet.m_error->message->toUTF8StringData();
         puts(err.data());
         return false;
-    } else {
-        Escargot::Script::ScriptSandboxExecuteResult resultValue = result.m_script->sandboxExecute(ctx);
-        Escargot::ExecutionState state(ctx);
-        if (!resultValue.result.isEmpty()) {
-            if (shouldPrintScriptResult)
-                puts(resultValue.msgStr->toUTF8StringData().data());
-        } else {
-            printf("Uncaught %s:\n", resultValue.msgStr->toUTF8StringData().data());
-            for (size_t i = 0; i < resultValue.error.stackTrace.size(); i++) {
-                printf("%s (%d:%d)\n", resultValue.error.stackTrace[i].fileName->toUTF8StringData().data(), (int)resultValue.error.stackTrace[i].line, (int)resultValue.error.stackTrace[i].column);
-            }
-            return false;
-        }
     }
+
+    auto execRet = parseRet.m_script->sandboxExecute(ctx);
+    Escargot::ExecutionState state(ctx);
+    if (execRet.result.isEmpty()) {
+        printf("Uncaught %s:\n",
+               execRet.msgStr->toUTF8StringData().data());
+        for (size_t i = 0; i < execRet.error.stackTrace.size(); i++) {
+            auto stacktrace = execRet.error.stackTrace[i];
+            printf("%s (%d:%d)\n",
+                   stacktrace.fileName->toUTF8StringData().data(),
+                   (int)stacktrace.line, (int)stacktrace.column);
+        }
+        return false;
+    }
+    if (shouldPrintScriptResult)
+        puts(execRet.msgStr->toUTF8StringData().data());
+
     return true;
 }
 
@@ -123,21 +132,56 @@ void ExecutionStateRef::destroy()
     delete imp;
 }
 
-
-ASCIIStringRef* ASCIIStringRef::create(const char* str)
+ValueRef::ValueRef(intptr_t val)
 {
-    return nullptr;
+    v = val;
 }
 
-
-ASCIIStringRef* ASCIIStringRef::create(const char* str, size_t len)
+ValueRef ValueRef::makeBoolean(ExecutionStateRef* es, bool value)
 {
-    return nullptr;
+    UNUSED_PARAMETER(es);
+    return ValueRef(SmallValue(Value(value)).payload());
 }
 
-
-ASCIIStringRef* ASCIIStringRef::create(const char16_t* str, size_t len)
+ValueRef ValueRef::makeNumber(ExecutionStateRef* es, double value)
 {
-    return nullptr;
+    UNUSED_PARAMETER(es);
+    return ValueRef(SmallValue(Value(value)).payload());
+}
+
+ValueRef ValueRef::makeNull(ExecutionStateRef* es)
+{
+    UNUSED_PARAMETER(es);
+    return ValueRef(SmallValue(Value(Value::Null)).payload());
+}
+
+ValueRef ValueRef::makeUndefined(ExecutionStateRef* es)
+{
+    UNUSED_PARAMETER(es);
+    return ValueRef(SmallValue(Value(Value::Undefined)).payload());
+}
+
+bool ValueRef::isBoolean(ExecutionStateRef* es)
+{
+    UNUSED_PARAMETER(es);
+    return Value(SmallValue::fromPayload(v)).isBoolean();
+}
+
+bool ValueRef::isNumber(ExecutionStateRef* es)
+{
+    UNUSED_PARAMETER(es);
+    return Value(SmallValue::fromPayload(v)).isNumber();
+}
+
+bool ValueRef::isNull(ExecutionStateRef* es)
+{
+    UNUSED_PARAMETER(es);
+    return Value(SmallValue::fromPayload(v)).isNull();
+}
+
+bool ValueRef::isUndefined(ExecutionStateRef* es)
+{
+    UNUSED_PARAMETER(es);
+    return Value(SmallValue::fromPayload(v)).isUndefined();
 }
 }

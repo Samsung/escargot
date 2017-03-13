@@ -59,6 +59,16 @@ inline StringRef* toRef(String* v)
     return reinterpret_cast<StringRef*>(v);
 }
 
+inline Value* toImpl(ValueRef* v)
+{
+    return reinterpret_cast<Value*>(v);
+}
+
+inline ValueRef* toRef(Value* v)
+{
+    return reinterpret_cast<ValueRef*>(v);
+}
+
 inline Object* toImpl(ObjectRef* v)
 {
     return reinterpret_cast<Object*>(v);

@@ -194,6 +194,16 @@
 #define WARN_UNUSED_RETURN
 #endif
 
+/* UNUSED_PARAMETER */
+
+#if !defined(UNUSED_PARAMETER) && COMPILER(MSVC)
+#define UNUSED_PARAMETER(variable) (void)&variable
+#endif
+
+#if !defined(UNUSED_PARAM)
+#define UNUSED_PARAMETER(variable) (void)variable
+#endif
+
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER == __BIG_ENDIAN || defined(__BIG_ENDIAN__) || defined(__ARMEB__) || defined(__THUMBEB__) || defined(__AARCH64EB__) || defined(_MIBSEB) || defined(__MIBSEB) || defined(__MIBSEB__)
 #define ESCARGOT_BIG_ENDIAN
 // #pragma message "big endian"
