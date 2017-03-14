@@ -1689,6 +1689,8 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
                 programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
             } catch (const Value& val) {
                 state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
+                // NOTE: consider throw within catch clause
+                state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
                 programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
             }
         }

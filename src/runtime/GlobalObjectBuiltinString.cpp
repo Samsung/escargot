@@ -213,8 +213,6 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
     Value replaceValue = argv[1];
     String* replaceString = nullptr;
     bool replaceValueIsFunction = replaceValue.isFunction();
-    if (!replaceValueIsFunction)
-        replaceString = replaceValue.toString(state);
     RegexMatchResult result;
 
     if (searchValue.isPointerValue() && searchValue.asPointerValue()->isRegExpObject()) {
@@ -243,6 +241,11 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             piece.push_back(std::move(p));
             result.m_matchResults.push_back(std::move(piece));
         }
+    }
+
+    // NOTE: replaceValue.toString should be called after searchValue.toString
+    if (!replaceValueIsFunction) {
+        replaceString = replaceValue.toString(state);
     }
 
     if (result.m_matchResults.size() == 0) {

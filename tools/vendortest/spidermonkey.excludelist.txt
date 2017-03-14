@@ -18,7 +18,14 @@ ecma_3/Array/15.4.5.1-01.js
 ecma_3/extensions/regress-274152.js
 ecma_3/LexicalConventions/7.8.3-01.js
 ecma_5/String/string-object-length.js
+js1_5/Regress/regress-234389.js
+js1_5/extensions/regress-355497.js
+js1_5/extensions/regress-420869-01.js
+js1_5/extensions/regress-424683-01.js
+js1_5/extensions/regress-429739.js
 js1_5/LexicalConventions/regress-469940.js
+js1_6/Array/regress-304828.js
+js1_6/extensions/regress-470310.js
 js1_7/regress/regress-363040-01.js
 js1_8/extensions/regress-353116.js
 js1_8/extensions/regress-469625.js
@@ -437,7 +444,9 @@ ecma_5/Date/15.9.4.2.js
 js1_5/Date/regress-301738-01.js
 js1_5/Date/regress-309925-02.js
 
-
+# Date.prototype.toLocaleFormat not supported
+js1_5/extensions/toLocaleFormat-01.js
+js1_5/extensions/toLocaleFormat-02.js
 
 # needs newGlobal()
 ecma_5/Global/cross-global-implicit-this.js
@@ -666,6 +675,8 @@ js1_8_5/regress/regress-621814.js
 
 # evalcx() not supported
 ecma_5/extensions/regress-bug607284.js
+js1_5/extensions/regress-394967.js
+js1_5/extensions/regress-543839.js
 js1_8_1/extensions/regress-466905-04.js
 js1_8_5/extensions/proxy-proto-setter.js
 js1_8_5/extensions/regress-636818.js
@@ -674,8 +685,12 @@ js1_8_5/regress/regress-607863.js
 js1_8_5/regress/regress-555246-0.js
 js1_8_5/regress/regress-555246-1.js
 
+# iterator not supported
+js1_7/extensions/regress-354945-02.js
 
-# Error.prototype.[lineNumber|stack|fileName] not supported (Non-standard)
+
+# Error.prototype.[lineNumber|columnNumber|stack|fileName] not supported (Non-standard)
+ecma/extensions/errorcolumnblame.js
 ecma_5/Object/15.2.3.6-function-length.js
 ecma_5/Object/15.2.3.6-new-definition.js
 ecma_5/Object/15.2.3.6-redefinition-1-of-4.js
@@ -713,6 +728,7 @@ js1_7/regress/regress-407957.js
 js1_5/Function/regress-222029-001.js
 js1_5/Function/regress-222029-002.js
 ecma_5/extensions/function-caller-skips-eval-frames.js
+js1_8_5/extensions/censor-strict-caller.js
 js1_8_5/regress/regress-577648-2.js
 js1_8_5/regress/regress-584355.js
 js1_8_5/regress/regress-586482-1.js
@@ -790,6 +806,11 @@ js1_8_5/extensions/typedarray-set-neutering.js
 shell/gcstats.js
 shell/os.js
 
+# String/Array static methods not supported
+js1_6/extensions/regress-312385-01.js
+js1_6/String/generics-deprecated.js
+js1_6/String/regress-306591.js
+
 # Object pattern not supported
 ecma_5/extensions/destructuring-__proto__-shorthand-assignment.js
 ecma_5/extensions/destructuring-__proto__-shorthand-assignment-before-var.js
@@ -807,6 +828,9 @@ js1_8/regress/regress-455981-02.js
 js1_8/regress/regress-459185.js
 
 # Array pattern not supported
+js1_5/extensions/regress-469625.js
+js1_5/Regress/regress-416737-01.js
+js1_5/Regress/regress-416737-02.js
 js1_7/extensions/regress-355410.js
 js1_7/extensions/regress-368213.js
 js1_7/extensions/regress-591450.js
@@ -819,6 +843,7 @@ js1_8/regress/regress-459186.js
 js1_8/regress/regress-469625-02.js
 js1_8/regress/regress-469625-03.js
 js1_8_1/regress/regress-509354.js
+js1_8_5/extensions/destructure-accessor.js
 js1_8_5/regress/regress-619003-1.js
 js1_8_5/regress/regress-619003-2.js
 
@@ -829,6 +854,7 @@ ecma/GlobalObject/15.1.2.2-2.js
 # Function.prototype.toString do not have to convert full source code
 ecma_3/ExecutionContexts/10.1.3-1.js
 js1_4/Regress/function-002.js
+js1_5/Regress/regress-168347.js
 js1_8_5/regress/regress-541455.js
 js1_8_5/regress/regress-559438.js
 

@@ -369,12 +369,13 @@ Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, 
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, strings->set.string(), errorMessage_GlobalObject_ThisNotTypedArrayObject);
     }
     auto wrapper = thisBinded->asArrayBufferView();
-    int offset = 0;
-    if (argc >= 2)
-        offset = argv[1].toInt32(state);
+    double offset = 0;
+    if (argc >= 2) {
+        offset = argv[1].toInteger(state);
+    }
     if (offset < 0) {
         const StaticStrings* strings = &state.context()->staticStrings();
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->TypedArray.string(), true, strings->set.string(), "");
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), "Start offset is negative");
     }
     auto arg0 = argv[0].toObject(state);
     ArrayBufferObject* targetBuffer = wrapper->buffer();
