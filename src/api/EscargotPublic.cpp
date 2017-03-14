@@ -132,10 +132,7 @@ void ExecutionStateRef::destroy()
     delete imp;
 }
 
-ValueRef::ValueRef(intptr_t val)
-{
-    v = val;
-}
+ValueRef::ValueRef(intptr_t val) : v(val) { }
 
 ValueRef ValueRef::makeBoolean(ExecutionStateRef* es, bool value)
 {
@@ -183,5 +180,36 @@ bool ValueRef::isUndefined(ExecutionStateRef* es)
 {
     UNUSED_PARAMETER(es);
     return Value(SmallValue::fromPayload(v)).isUndefined();
+}
+
+bool ValueRef::isObject(ExecutionStateRef* es)
+{
+    UNUSED_PARAMETER(es);
+    return Value(SmallValue::fromPayload(v)).isObject();
+}
+
+bool ValueRef::toBoolean(ExecutionStateRef* es)
+{
+    ExecutionState* esi = toImpl(es);
+    return Value(SmallValue::fromPayload(v)).toBoolean(*esi);
+}
+
+double ValueRef::toNumber(ExecutionStateRef* es)
+{
+    ExecutionState* esi = toImpl(es);
+    return Value(SmallValue::fromPayload(v)).toNumber(*esi);
+}
+
+ObjectRef::ObjectRef(intptr_t val) : v(val) { }
+
+ObjectRef ObjectRef::makeObject(ExecutionStateRef* es)
+{
+    Object* o = new Object(*toImpl(es));
+    return ObjectRef(reinterpret_cast<intptr_t>(o));
+}
+
+ObjectRef::operator ValueRef()
+{
+    return ValueRef(v);
 }
 }

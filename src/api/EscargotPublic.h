@@ -38,9 +38,7 @@ public:
     void destroy();
 };
 
-class ObjectRef {
-};
-
+class ObjectRef;
 class ContextRef {
 public:
     static ContextRef* create(VMInstanceRef* vminstance);
@@ -54,21 +52,33 @@ public:
     void destroy();
 };
 
-
 class ValueRef {
 public:
     ValueRef(intptr_t val);
-    static ValueRef makeBoolean(ExecutionStateRef* ctx, bool value);
-    static ValueRef makeNumber(ExecutionStateRef* ctx, double value);
-    static ValueRef makeNull(ExecutionStateRef* ctx);
-    static ValueRef makeUndefined(ExecutionStateRef* ctx);
-    bool isBoolean(ExecutionStateRef* ctx);
-    bool isNumber(ExecutionStateRef* ctx);
-    bool isNull(ExecutionStateRef* ctx);
-    bool isUndefined(ExecutionStateRef* ctx);
+    static ValueRef makeBoolean(ExecutionStateRef* es, bool value);
+    static ValueRef makeNumber(ExecutionStateRef* es, double value);
+    static ValueRef makeNull(ExecutionStateRef* es);
+    static ValueRef makeUndefined(ExecutionStateRef* es);
+    bool isBoolean(ExecutionStateRef* es);
+    bool isNumber(ExecutionStateRef* es);
+    bool isNull(ExecutionStateRef* es);
+    bool isUndefined(ExecutionStateRef* es);
+    bool isObject(ExecutionStateRef* es);
+    bool toBoolean(ExecutionStateRef* es);
+    double toNumber(ExecutionStateRef* es);
 private:
     intptr_t v;
 };
+
+class ObjectRef {
+public:
+    ObjectRef(intptr_t val);
+    static ObjectRef makeObject(ExecutionStateRef* es);
+    operator ValueRef();
+private:
+    intptr_t v;
+};
+
 
 bool evaluateScript(ExecutionStateRef* es, StringRef* script,
                     StringRef* fileName);
