@@ -140,7 +140,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, CodeBlock* pa
     size_t len = vec.size();
     for (size_t i = 0; i < len; i++) {
         if (record->hasBinding(state, vec[i].m_name).m_index == SIZE_MAX) {
-            record->createMutableBinding(state, vec[i].m_name, false);
+            record->createMutableBinding(state, vec[i].m_name, true);
         }
     }
     LexicalEnvironment* newEnvironment = new LexicalEnvironment(record, state.executionContext()->lexicalEnvironment());

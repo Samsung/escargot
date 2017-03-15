@@ -1,7 +1,5 @@
 ecma/Statements/12.6.3-2.js
-ecma_3/ExecutionContexts/10.1.4-1.js
 ecma_3/FunExpr/fe-001.js
-ecma_3/Function/regress-131964.js
 ecma_3/Function/regress-85880.js
 ecma_3/Function/scope-001.js
 ecma_3/LexicalConventions/7.9.1.js
@@ -27,8 +25,6 @@ ecma_5/JSON/parse-mega-huge-array.js
 ecma_5/String/string-upper-lower-mapping.js
 ecma_5/String/match-throws-nonwritable-lastIndex-global.js
 ecma_5/String/replace-throws-nonwritable-lastIndex-global.js
-ecma_5/eval/exhaustive-fun-normalcaller-direct-normalcode.js
-ecma_5/eval/exhaustive-global-normalcaller-direct-normalcode.js
 ecma_5/eval/exhaustive-global-normalcaller-indirect-normalcode.js
 ecma_5/eval/exhaustive-global-strictcaller-indirect-normalcode.js
 ecma_5/extensions/array-toString-recursion.js
@@ -75,17 +71,10 @@ js1_5/Regress/regress-420919.js
 js1_5/Regress/regress-422348.js
 js1_5/Regress/regress-452346.js
 js1_5/Regress/regress-462292.js
-js1_5/Regress/regress-68498-002.js
 js1_5/Regress/regress-68498-003.js
 js1_5/Regress/regress-68498-004.js
-js1_5/Scope/regress-181834.js
 js1_5/Scope/regress-184107.js
-js1_5/extensions/getset-006.js
-js1_5/extensions/regress-231518.js
-js1_5/extensions/regress-254375.js
 js1_5/extensions/regress-367501-03.js
 js1_5/extensions/regress-367501-04.js
-js1_5/extensions/regress-369696-02.js
-js1_5/extensions/regress-406572.js
 js1_8_5/regress/regress-609617.js
 js1_8_5/regress/regress-665355.js

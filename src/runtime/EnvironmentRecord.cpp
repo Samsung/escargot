@@ -148,10 +148,10 @@ void DeclarativeEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& s
 
 void FunctionEnvironmentRecordNotIndexed::createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete)
 {
-    ASSERT(canDelete == false);
     ASSERT(hasBinding(state, name).m_index == SIZE_MAX);
     IdentifierRecord record;
     record.m_name = name;
+    record.m_canDelete = canDelete;
     m_recordVector.pushBack(record);
     m_heapStorage.pushBack(Value());
 }

@@ -37,6 +37,7 @@ class ArgumentsObject;
 
 struct IdentifierRecord {
     AtomicString m_name;
+    bool m_canDelete;
 };
 
 typedef Vector<IdentifierRecord, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<IdentifierRecord>> IdentifierRecordVector;
@@ -487,9 +488,19 @@ public:
         return m_heapStorage[idx];
     }
 
-    virtual bool deleteBinding(ExecutionState& state, const AtomicString& name)
+    virtual bool deleteBinding(ExecutionState& state, const AtomicString& atomicName)
     {
-        // can not delete any binding in this record now
+        size_t len = m_recordVector.size();
+        for (size_t i = 0; i < len; i++) {
+            if (m_recordVector[i].m_name == atomicName) {
+                if (!m_recordVector[i].m_canDelete) {
+                    return false;
+                }
+                m_recordVector.erase(i);
+                m_heapStorage.erase(i);
+                return true;
+            }
+        }
         return false;
     }
 

@@ -9,6 +9,7 @@ js1_8_5/regress/regress-646820-2.js
 js1_8_5/regress/regress-646820-3.js
 
 # Function declaration inside block not supported
+js1_5/extensions/regress-406572.js
 js1_8/regress/regress-467495-03.js
 js1_8/regress/regress-467495-06.js
 
@@ -632,6 +633,7 @@ js1_5/extensions/regress-322957.js
 js1_5/extensions/regress-333541.js
 js1_5/extensions/regress-351973.js
 js1_5/extensions/regress-369696-01.js
+js1_5/extensions/regress-369696-02.js
 js1_5/extensions/regress-369696-03.js
 js1_5/extensions/regress-375801.js
 js1_5/extensions/regress-381304.js
@@ -651,13 +653,19 @@ js1_8_5/regress/regress-yarr-regexp.js
 ecma_3/Array/regress-387501.js
 
 
+# Object.prototype.toSource not supported
+js1_5/extensions/getset-006.js
+
+
 # uneval() not supported
 ecma_3/extensions/7.9.1.js
 ecma_3/extensions/regress-385393-03.js
 ecma_5/extensions/bug496985.js
 ecma_5/extensions/bug566661.js
 js1_5/Error/regress-465377.js
+js1_5/extensions/regress-231518.js
 js1_5/extensions/regress-245795.js
+js1_5/extensions/regress-254375.js
 js1_5/extensions/regress-304897.js
 js1_5/extensions/regress-306738.js
 js1_5/extensions/regress-311583.js
@@ -805,6 +813,9 @@ js1_8_5/extensions/typedarray-set-neutering.js
 ## setGCCallback
 shell/gcstats.js
 shell/os.js
+
+# Mozilla Rhino-dependent functions not supported
+js1_5/Scope/regress-181834.js
 
 # String/Array static methods not supported
 js1_6/extensions/regress-312385-01.js
