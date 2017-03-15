@@ -25,7 +25,7 @@
 namespace Escargot {
 
 GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock, GlobalObject* global)
-    : EnvironmentRecord(state, codeBlock)
+    : EnvironmentRecord()
     , m_globalCodeBlock(codeBlock)
 {
     ASSERT(codeBlock == nullptr || codeBlock->parentCodeBlock() == nullptr);
@@ -85,16 +85,16 @@ EnvironmentRecord::BindingSlot GlobalEnvironmentRecord::hasBinding(ExecutionStat
     }
 }
 
-FunctionEnvironmentRecordOnHeap::FunctionEnvironmentRecordOnHeap(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv)
-    : FunctionEnvironmentRecord(state, function)
+FunctionEnvironmentRecordOnHeap::FunctionEnvironmentRecordOnHeap(FunctionObject* function, size_t argc, Value* argv)
+    : FunctionEnvironmentRecord(function)
     , m_heapStorage(function->codeBlock()->identifierOnHeapCount())
 {
     m_argc = argc;
     m_argv = argv;
 }
 
-FunctionEnvironmentRecordNotIndexed::FunctionEnvironmentRecordNotIndexed(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv)
-    : FunctionEnvironmentRecord(state, function)
+FunctionEnvironmentRecordNotIndexed::FunctionEnvironmentRecordNotIndexed(FunctionObject* function, size_t argc, Value* argv)
+    : FunctionEnvironmentRecord(function)
     , m_heapStorage()
 {
     m_argc = argc;

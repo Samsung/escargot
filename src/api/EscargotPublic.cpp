@@ -132,7 +132,10 @@ void ExecutionStateRef::destroy()
     delete imp;
 }
 
-ValueRef::ValueRef(intptr_t val) : v(val) { }
+ValueRef::ValueRef(intptr_t val)
+    : v(val)
+{
+}
 
 ValueRef ValueRef::makeBoolean(ExecutionStateRef* es, bool value)
 {
@@ -200,7 +203,10 @@ double ValueRef::toNumber(ExecutionStateRef* es)
     return Value(SmallValue::fromPayload(v)).toNumber(*esi);
 }
 
-ObjectRef::ObjectRef(intptr_t val) : v(val) { }
+ObjectRef::ObjectRef(intptr_t val)
+    : v(val)
+{
+}
 
 ObjectRef ObjectRef::makeObject(ExecutionStateRef* es)
 {

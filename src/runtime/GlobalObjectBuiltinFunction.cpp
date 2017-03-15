@@ -40,13 +40,12 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
         }
     }
 
-    src.appendString("){\n");
+    src.appendString("){ ");
     if (argc > 0) {
         src.appendString(argv[argc - 1].toString(state));
     }
-    src.appendString("\n}");
+    src.appendString(" }");
 
-    // TODO user should get line - 1
     ScriptParser parser(state.context());
     auto parserResult = parser.parse(src.finalize(&state), new ASCIIString("Function Constructor input"));
 
@@ -70,10 +69,25 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
     StringBuilder builder;
     builder.appendString("function ");
     builder.appendString(fn->codeBlock()->functionName().string());
-    builder.appendString("() {");
-    if (fn->codeBlock()->isNativeFunction())
-        builder.appendString(" [native code] ");
-    builder.appendString("}");
+    builder.appendString("(");
+
+    for (size_t i = 0; i < fn->codeBlock()->functionParameters().size(); i++) {
+        builder.appendString(fn->codeBlock()->functionParameters()[i].string());
+        if (i < (fn->codeBlock()->functionParameters().size() - 1)) {
+            builder.appendString(",");
+        }
+    }
+
+    builder.appendString(") ");
+    if (fn->codeBlock()->script()) {
+        StringView src = fn->codeBlock()->src();
+        while (src[src.length() - 1] != '}') {
+            src = StringView(src.string(), src.start(), src.end() - 1);
+        }
+        builder.appendString(&src);
+    } else {
+        builder.appendString("{ [native code] }");
+    }
 
     return builder.finalize(&state);
 }

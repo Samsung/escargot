@@ -466,13 +466,15 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
         for (size_t i = 0; i < block->m_requiredRegisterFileSizeInValueSize; i++) {
             printf("X,");
         }
-        size_t b = block->m_requiredRegisterFileSizeInValueSize;
+
+        size_t b = block->m_requiredRegisterFileSizeInValueSize + 1;
+        printf("this,");
+
         for (size_t i = 0; i < block->m_codeBlock->identifierInfos().size(); i++) {
             if (block->m_codeBlock->identifierInfos()[i].m_needToAllocateOnStack) {
                 printf("(%d,%s),", (int)b++, block->m_codeBlock->identifierInfos()[i].m_name.string()->toUTF8StringData().data());
             }
         }
-        printf("this,");
 
         ExecutionState tempState(c);
         for (size_t i = 0; i < block->m_numeralLiteralData.size(); i++) {
@@ -488,14 +490,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
         while (&code[idx] < end) {
             ByteCode* currentCode = (ByteCode*)(&code[idx]);
 
-            Opcode opcode = EndOpcode;
-            for (size_t i = 0; i < OpcodeKindEnd; i++) {
-                if (g_opcodeTable.m_reverseTable[i].first == currentCode->m_opcodeInAddress) {
-                    opcode = g_opcodeTable.m_reverseTable[i].second;
-                    break;
-                }
-            }
-
+            Opcode opcode = currentCode->m_orgOpcode;
             switch (opcode) {
 #define DUMP_BYTE_CODE(code, pushCount, popCount) \
     case code##Opcode:                            \

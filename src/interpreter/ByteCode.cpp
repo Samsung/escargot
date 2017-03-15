@@ -28,14 +28,35 @@ OpcodeTable g_opcodeTable;
 
 OpcodeTable::OpcodeTable()
 {
-    ExecutionState state((Context*)nullptr);
-    ByteCodeInterpreter::interpret(state, nullptr, 0, nullptr);
+    Context c;
+    ExecutionState state(&c);
+    ByteCodeBlock block;
+
+    block.m_code.resize(sizeof(FillOpcodeTable));
+
+    size_t* addr = (size_t*)(block.m_code.data() + offsetof(FillOpcodeTable, m_opcodeInAddress));
+    ByteCodeInterpreter::interpret(state, &block, 0, nullptr, addr);
 }
 
 // ECMA-262 11.3 Line Terminators
 ALWAYS_INLINE bool isLineTerminator(char16_t ch)
 {
     return (ch == 0x0A) || (ch == 0x0D) || (ch == 0x2028) || (ch == 0x2029);
+}
+
+void* ByteCodeBlock::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(ByteCodeBlock)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_literalData));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_codeBlock));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_objectStructuresInUse));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ByteCodeBlock));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
 void ByteCodeBlock::fillLocDataIfNeeded(Context* c)

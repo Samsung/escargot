@@ -31,16 +31,14 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ThisExpression; }
     virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        size_t i = context->m_codeBlock->thisSymbolIndex();
-        context->pushRegister(REGULAR_REGISTER_LIMIT + i);
-        return REGULAR_REGISTER_LIMIT + i;
+        context->pushRegister(REGULAR_REGISTER_LIMIT);
+        return REGULAR_REGISTER_LIMIT;
     }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        size_t i = context->m_codeBlock->thisSymbolIndex();
-        if (dstRegister != REGULAR_REGISTER_LIMIT + i) {
-            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + i, dstRegister), context, this);
+        if (dstRegister != REGULAR_REGISTER_LIMIT) {
+            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT, dstRegister), context, this);
         }
     }
 

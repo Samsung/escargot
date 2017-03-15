@@ -144,7 +144,7 @@ void GlobalObject::installError(ExecutionState& state)
     // http://www.ecma-international.org/ecma-262/5.1/#sec-13.2.3
     // 13.2.3 The [[ThrowTypeError]] Function Object
     m_throwTypeError = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().ThrowTypeError, builtinErrorThrowTypeError, 0, nullptr, NativeFunctionInfo::Strict));
-
+    m_throwerGetterSetterData = new JSGetterSetter(m_throwTypeError, m_throwTypeError);
 
 #define DEFINE_ERROR(errorname, bname)                                                                                                                                                                                                                                                                                                  \
     m_##errorname##Error = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bname##Error, builtin##bname##ErrorConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {                                                                                                            \

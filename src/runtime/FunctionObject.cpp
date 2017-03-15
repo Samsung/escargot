@@ -33,25 +33,33 @@ size_t g_functionObjectTag;
 
 void FunctionObject::initFunctionObject(ExecutionState& state)
 {
+    // If Strict is true, then
+    // Let thrower be the [[ThrowTypeError]] function Object (13.2.3).
+    // Call the [[DefineOwnProperty]] internal method of F with arguments "caller", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
+    // Call the [[DefineOwnProperty]] internal method of F with arguments "arguments", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
+    bool isStrict = m_codeBlock->isStrict() && !m_codeBlock->hasCallNativeFunctionCode();
+
     if (isConstructor()) {
         m_structure = state.context()->defaultStructureForFunctionObject();
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(Object::createFunctionPrototypeObject(state, this)));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionName().string()));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = (Value(m_codeBlock->parametersInfomation().size()));
+        if (isStrict) {
+            m_structure = state.context()->defaultStructureForFunctionObjectInStrictMode();
+            auto data = state.context()->globalObject()->throwerGetterSetterData();
+            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3] = Value(data);
+            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 4] = Value(data);
+        }
     } else {
         m_structure = state.context()->defaultStructureForNotConstructorFunctionObject();
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->parametersInfomation().size()));
-    }
-
-    // If Strict is true, then
-    if (m_codeBlock && m_codeBlock->isStrict() && !m_codeBlock->isNativeFunction()) {
-        // Let thrower be the [[ThrowTypeError]] function Object (13.2.3).
-        FunctionObject* thrower = state.context()->globalObject()->throwTypeError();
-        // Call the [[DefineOwnProperty]] internal method of F with arguments "caller", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
-        defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().caller), ObjectPropertyDescriptor(JSGetterSetter(thrower, thrower), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
-        // Call the [[DefineOwnProperty]] internal method of F with arguments "arguments", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
-        defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().arguments), ObjectPropertyDescriptor(JSGetterSetter(thrower, thrower), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+        if (isStrict) {
+            m_structure = state.context()->defaultStructureForNotConstructorFunctionObjectInStrictMode();
+            auto data = state.context()->globalObject()->throwerGetterSetterData();
+            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(data);
+            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3] = Value(data);
+        }
     }
 }
 
@@ -85,7 +93,9 @@ FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, F
 }
 
 FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnv)
-    : Object(state, codeBlock->isConsturctor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
+    : Object(state,
+             (codeBlock->isConsturctor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)) + ((codeBlock->isStrict() && !codeBlock->hasCallNativeFunctionCode()) ? 2 : 0),
+             false)
     , m_codeBlock(codeBlock)
     , m_outerEnvironment(outerEnv)
 {
@@ -102,7 +112,7 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
         currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_code.size();
         currentCodeSizeTotal += (v[i]->m_byteCodeBlock->m_locData.size() * sizeof(std::pair<size_t, size_t>));
         currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_literalData.size() * sizeof(size_t);
-        currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_objectStructuresInUse.size() * sizeof(size_t);
+        currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_objectStructuresInUse->size() * sizeof(size_t);
         currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_getObjectCodePositions.size() * sizeof(size_t);
     }
     // ESCARGOT_LOG_INFO("codeSizeTotal %lfMB\n", (int)currentCodeSizeTotal / 1024.0 / 1024.0);
@@ -141,7 +151,7 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
             }
         }
     }
-    ASSERT(!m_codeBlock->isNativeFunction());
+    ASSERT(!m_codeBlock->hasCallNativeFunctionCode());
 
     volatile int sp;
     size_t currentStackBase = (size_t)&sp;
@@ -156,15 +166,9 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
 
     ByteCodeGenerator g;
     m_codeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_codeBlock, ast, ret.second, false, false, false);
+    delete ast;
 
     v.pushBack(m_codeBlock);
-
-    if (m_codeBlock->cachedASTNode()) {
-        m_codeBlock->m_cachedASTNode = nullptr;
-        delete ast;
-    } else {
-        delete ast;
-    }
 }
 
 Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, const size_t& argc, Value* argv, bool isNewExpression)
@@ -185,7 +189,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
     if (m_codeBlock->hasCallNativeFunctionCode()) {
         const CodeBlock::FunctionParametersInfoVector& info = m_codeBlock->parametersInfomation();
         CallNativeFunction* code = (CallNativeFunction*)&m_codeBlock->byteCodeBlock()->m_code[0];
-        FunctionEnvironmentRecordSimple record(state, this);
+        FunctionEnvironmentRecordSimple record(this);
         LexicalEnvironment env(&record, outerEnvironment());
         ExecutionContext ec(ctx, state.executionContext(), &env, isStrict);
         ExecutionState newState(&state, &ec);
@@ -234,67 +238,73 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
 
     // prepare env, ec
     FunctionEnvironmentRecord* record;
-    LexicalEnvironment* env;
     ExecutionContext* ec;
+
     if (LIKELY(m_codeBlock->canAllocateEnvironmentOnStack())) {
         // no capture, very simple case
-        record = new (alloca(sizeof(FunctionEnvironmentRecordSimple))) FunctionEnvironmentRecordSimple(state, this);
-        env = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, outerEnvironment());
-        ec = new (alloca(sizeof(ExecutionContext))) ExecutionContext(ctx, state.executionContext(), env, isStrict);
+        record = new (alloca(sizeof(FunctionEnvironmentRecordSimple))) FunctionEnvironmentRecordSimple(this);
+        ec = new (alloca(sizeof(ExecutionContext))) ExecutionContext(ctx, state.executionContext(), new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, outerEnvironment()), isStrict);
     } else {
         if (LIKELY(m_codeBlock->canUseIndexedVariableStorage())) {
-            record = new FunctionEnvironmentRecordOnHeap(state, this, argc, argv);
+            record = new FunctionEnvironmentRecordOnHeap(this, argc, argv);
         } else {
-            record = new FunctionEnvironmentRecordNotIndexed(state, this, argc, argv);
+            record = new FunctionEnvironmentRecordNotIndexed(this, argc, argv);
         }
-        env = new LexicalEnvironment(record, outerEnvironment());
-        ec = new ExecutionContext(ctx, state.executionContext(), env, isStrict);
-    }
-
-    Value* registerFile = ALLOCA((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value), Value, state);
-    Value* stackStorage = registerFile + registerSize;
-
-    for (size_t i = 0; i < stackStorageSize; i++) {
-        stackStorage[i] = Value();
-    }
-
-    Value* literalStorage = stackStorage + stackStorageSize;
-    for (size_t i = 0; i < literalStorageSize; i++) {
-        literalStorage[i] = literalStorageSrc[i];
+        ec = new ExecutionContext(ctx, state.executionContext(), new LexicalEnvironment(record, outerEnvironment()), isStrict);
     }
 
     ExecutionState newState(ctx, &state, ec);
 
-    // binding function name
-    const CodeBlock::FunctionNameSaveInfo& info = m_codeBlock->m_functionNameSaveInfo;
-    if (info.m_isAllocated) {
-        if (LIKELY(info.m_isAllocatedOnStack)) {
-            ASSERT(m_codeBlock->canUseIndexedVariableStorage());
-            stackStorage[info.m_index] = this;
+    Value* registerFile = (Value*)alloca((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
+    Value* stackStorage = registerFile + registerSize;
+
+    {
+        Value* literalStorage = stackStorage + stackStorageSize;
+        for (size_t i = 0; i < literalStorageSize; i++) {
+            literalStorage[i] = literalStorageSrc[i];
+        }
+    }
+
+    // prepare receiver
+    if (!isStrict) {
+        if (receiverSrc.isUndefinedOrNull()) {
+            stackStorage[0] = ctx->globalObject();
         } else {
-            if (m_codeBlock->canUseIndexedVariableStorage()) {
-                ASSERT(record->isFunctionEnvironmentRecordOnHeap());
-                ((FunctionEnvironmentRecordOnHeap*)record)->FunctionEnvironmentRecordOnHeap::setHeapValueByIndex(info.m_index, this);
-            } else {
-                record->setMutableBinding(state, m_codeBlock->functionName(), this);
-            }
+            stackStorage[0] = receiverSrc.toObject(state);
+        }
+    } else {
+        stackStorage[0] = receiverSrc;
+    }
+
+    // binding function name
+    stackStorage[1] = this;
+    if (UNLIKELY(m_codeBlock->m_isFunctionNameSaveOnHeap)) {
+        if (m_codeBlock->canUseIndexedVariableStorage()) {
+            ASSERT(record->isFunctionEnvironmentRecordOnHeap());
+            ((FunctionEnvironmentRecordOnHeap*)record)->FunctionEnvironmentRecordOnHeap::setHeapValueByIndex(0, this);
+        } else {
+            record->setMutableBinding(state, m_codeBlock->functionName(), this);
         }
     }
 
     // prepare parameters
     if (UNLIKELY(m_codeBlock->needsComplexParameterCopy())) {
+        for (size_t i = 2; i < stackStorageSize; i++) {
+            stackStorage[i] = Value();
+        }
         if (!m_codeBlock->canUseIndexedVariableStorage()) {
             for (size_t i = 0; i < parameterCopySize; i++) {
                 record->setMutableBinding(state, m_codeBlock->functionParameters()[i], argv[i]);
             }
         } else {
+            Value* parameterStorageInStack = stackStorage + 2;
             const CodeBlock::FunctionParametersInfoVector& info = m_codeBlock->parametersInfomation();
             for (size_t i = 0; i < info.size(); i++) {
                 Value val(Value::ForceUninitialized);
                 // NOTE: consider the special case with duplicated parameter names (**test262: S10.2.1_A3)
                 if (i < argc)
                     val = argv[i];
-                else if (info[i].m_index >= argc)
+                else if (info[i].m_index >= (int32_t)argc)
                     continue;
                 else
                     val = Value();
@@ -302,13 +312,18 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
                     ASSERT(record->isFunctionEnvironmentRecordOnHeap());
                     ((FunctionEnvironmentRecordOnHeap*)record)->FunctionEnvironmentRecordOnHeap::setHeapValueByIndex(info[i].m_index, val);
                 } else {
-                    stackStorage[info[i].m_index] = val;
+                    parameterStorageInStack[info[i].m_index] = val;
                 }
             }
         }
     } else {
+        Value* parameterStorageInStack = stackStorage + 2;
         for (size_t i = 0; i < parameterCopySize; i++) {
-            stackStorage[i] = argv[i];
+            parameterStorageInStack[i] = argv[i];
+        }
+
+        for (size_t i = parameterCopySize + 2; i < stackStorageSize; i++) {
+            stackStorage[i] = Value();
         }
     }
 
@@ -316,20 +331,10 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
         generateArgumentsObject(newState, record, stackStorage);
     }
 
-    // prepare receiver
-    if (!isStrict) {
-        if (receiverSrc.isUndefinedOrNull()) {
-            stackStorage[m_codeBlock->thisSymbolIndex()] = ctx->globalObject();
-        } else {
-            stackStorage[m_codeBlock->thisSymbolIndex()] = receiverSrc.toObject(state);
-        }
-    } else {
-        stackStorage[m_codeBlock->thisSymbolIndex()] = receiverSrc;
-    }
-
     // run function
-    const Value returnValue = ByteCodeInterpreter::interpret(newState, blk, 0, registerFile);
-    if (blk->m_shouldClearStack)
+    size_t unused;
+    const Value returnValue = ByteCodeInterpreter::interpret(newState, blk, 0, registerFile, &unused);
+    if (UNLIKELY(blk->m_shouldClearStack))
         clearStack<512>();
 
     return returnValue;

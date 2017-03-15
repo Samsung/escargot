@@ -9,7 +9,6 @@ ecma_3/RegExp/regress-375711.js
 ecma_3/RegExp/regress-375715-04.js
 ecma_3/Statements/12.10-01.js
 ecma_3/Unicode/regress-352044-01.js
-ecma_3/Unicode/uc-005.js
 ecma_3/extensions/regress-368516.js
 ecma_5/Array/length-nonwritable-redefine-nop.js
 ecma_5/Array/redefine-length-frozen-dictionarymode-array.js
@@ -34,7 +33,6 @@ ecma_5/extensions/extension-methods-reject-null-undefined-this.js
 ecma_5/extensions/inc-dec-functioncall.js
 ecma_5/extensions/String-methods-infinite-recursion.js
 ecma_5/extensions/strict-function-statements.js
-ecma_5/extensions/string-literal-getter-setter-decompilation.js
 ecma_5/extensions/toLocaleString-infinite-recursion.js
 ecma_5/extensions/toSource-infinite-recursion.js
 ecma_5/misc/function-definition-eval.js

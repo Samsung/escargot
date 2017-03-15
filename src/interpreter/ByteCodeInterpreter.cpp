@@ -33,24 +33,6 @@
 
 namespace Escargot {
 
-NEVER_INLINE void registerOpcode(Opcode opcode, void* opcodeAddress)
-{
-    static std::unordered_set<void*> labelAddressChecker;
-    if (labelAddressChecker.find(opcodeAddress) != labelAddressChecker.end()) {
-        ESCARGOT_LOG_ERROR("%d\n", opcode);
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-
-    static int cnt = 0;
-    g_opcodeTable.m_table[opcode] = opcodeAddress;
-    g_opcodeTable.m_reverseTable[labelAddressChecker.size()] = std::make_pair(opcodeAddress, opcode);
-    labelAddressChecker.insert(opcodeAddress);
-
-    if (opcode == EndOpcode) {
-        labelAddressChecker.clear();
-    }
-}
-
 #define ADD_PROGRAM_COUNTER(CodeType) programCounter += sizeof(CodeType);
 
 ALWAYS_INLINE size_t jumpTo(char* codeBuffer, const size_t& jumpPosition)
@@ -63,11 +45,9 @@ ALWAYS_INLINE size_t resolveProgramCounter(char* codeBuffer, const size_t progra
     return programCounter - (size_t)codeBuffer;
 }
 
-Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCodeBlock, register size_t programCounter, Value* registerFile)
+Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCodeBlock, register size_t programCounter, Value* registerFile, void* initAddressFiller)
 {
-    if (UNLIKELY(byteCodeBlock == nullptr)) {
-        goto FillOpcodeTable;
-    }
+    *((size_t*)initAddressFiller) = ((size_t) && FillOpcodeTableOpcodeLbl);
     {
         ExecutionContext* ec = state.executionContext();
         GlobalObject* globalObject = state.context()->globalObject();
@@ -746,7 +726,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                     arg = registerFile[code->m_argumentsStartIndex];
                 }
                 Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-                registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, stackStorage[byteCodeBlock->m_codeBlock->thisSymbolIndex()], byteCodeBlock->m_codeBlock);
+                registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, stackStorage[0], byteCodeBlock->m_codeBlock);
             } else {
                 registerFile[code->m_resultIndex] = FunctionObject::call(state, eval, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
             }
@@ -944,10 +924,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        EndOpcodeLbl : {
-            return registerFile[0];
-        }
-
         ReturnFunctionSlowCaseOpcodeLbl : {
             ReturnFunctionSlowCase* code = (ReturnFunctionSlowCase*)programCounter;
             Value ret;
@@ -962,24 +938,17 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             return ret;
         }
 
-        CallNativeFunctionOpcodeLbl : {
-            CallNativeFunction* code = (CallNativeFunction*)programCounter;
-            RELEASE_ASSERT_NOT_REACHED();
-            return Value();
-        }
-
-        CallBoundFunctionOpcodeLbl : {
-            CallBoundFunction* code = (CallBoundFunction*)programCounter;
-            return Value(Value::Null);
-        }
+        EndOpcodeLbl:
+        CallNativeFunctionOpcodeLbl:
+        CallBoundFunctionOpcodeLbl:
+            return registerFile[0];
 
         } catch (const Value& v) {
             processException(state, v, ec, programCounter);
         }
     }
-FillOpcodeTable : {
-#define REGISTER_TABLE(opcode, pushCount, popCount) \
-    registerOpcode(opcode##Opcode, &&opcode##OpcodeLbl);
+FillOpcodeTableOpcodeLbl : {
+#define REGISTER_TABLE(opcode, pushCount, popCount) g_opcodeTable.m_table[opcode##Opcode] = &&opcode##OpcodeLbl;
     FOR_EACH_BYTECODE_OP(REGISTER_TABLE);
 #undef REGISTER_TABLE
     return Value();
@@ -1115,7 +1084,7 @@ NEVER_INLINE Object* ByteCodeInterpreter::newOperation(ExecutionState& state, co
     }
     Object* receiver;
     CodeBlock* cb = function->codeBlock();
-    if (cb->isNativeFunction()) {
+    if (cb->hasCallNativeFunctionCode()) {
         receiver = cb->nativeFunctionConstructor()(state, argc, argv);
     } else {
         receiver = new Object(state);
@@ -1140,8 +1109,6 @@ NEVER_INLINE Value ByteCodeInterpreter::instanceOfOperation(ExecutionState& stat
     }
     if (left.isObject()) {
         FunctionObject* C = right.asFunction();
-        // while (C->isBoundFunc())
-        //     C = C->codeBlock()->peekCode<CallBoundFunction>(0)->m_boundTargetFunction;
         Value P = C->getFunctionPrototype(state);
         Value O = left.asObject()->getPrototype(state);
         if (P.isObject()) {
@@ -1330,7 +1297,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
         cachedHiddenClassChain->push_back(newItem);
         size_t idx = obj->structure()->findProperty(state, name);
         if (obj->structure()->isStructureWithFastAccess()) {
-            block->m_objectStructuresInUse.insert(obj->structure());
+            block->m_objectStructuresInUse->insert(obj->structure());
         }
         if (idx != SIZE_MAX) {
             inlineCache.m_cache[0].m_cachedIndex = idx;
@@ -1619,7 +1586,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalObjectSlowCase(ExecutionState& 
         if ((size_t)code->m_cachedAddress) {
             code->m_cachedAddress = &go->m_values.data()[idx];
             code->m_cachedStructure = go->structure();
-            block->m_objectStructuresInUse.insert(go->structure());
+            block->m_objectStructuresInUse->insert(go->structure());
         } else {
             code->m_cachedAddress = (void*)((size_t)1);
         }
@@ -1647,7 +1614,7 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalObjectSlowCase(ExecutionState& s
         if ((size_t)code->m_cachedAddress) {
             code->m_cachedAddress = &go->m_values.data()[idx];
             code->m_cachedStructure = go->structure();
-            block->m_objectStructuresInUse.insert(go->structure());
+            block->m_objectStructuresInUse->insert(go->structure());
         } else {
             code->m_cachedAddress = (void*)((size_t)1);
         }
@@ -1666,7 +1633,8 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
         state.ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
         size_t newPc = programCounter + sizeof(TryOperation);
         clearStack<386>();
-        interpret(state, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
+        size_t unused;
+        interpret(state, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile, &unused);
         programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
     } catch (const Value& val) {
         state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
@@ -1675,7 +1643,7 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
             programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
         } else {
             // setup new env
-            EnvironmentRecord* newRecord = new DeclarativeEnvironmentRecordNotIndexed(state);
+            EnvironmentRecord* newRecord = new DeclarativeEnvironmentRecordNotIndexed();
             newRecord->createMutableBinding(state, code->m_catchVariableName);
             newRecord->setMutableBinding(state, code->m_catchVariableName, val);
             LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
@@ -1685,7 +1653,8 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
                 ExecutionState newState(&state, newEc);
                 newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
                 clearStack<386>();
-                interpret(newState, byteCodeBlock, code->m_catchPosition, registerFile);
+                size_t unused;
+                interpret(newState, byteCodeBlock, code->m_catchPosition, registerFile, &unused);
                 programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
             } catch (const Value& val) {
                 state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
@@ -1708,13 +1677,14 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, Wit
     char* codeBuffer = byteCodeBlock->m_code.data();
 
     // setup new env
-    EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(state, obj);
+    EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(obj);
     LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
     ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
     ExecutionState newState(&state, newEc);
     newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
 
-    interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
+    size_t unused;
+    interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile, &unused);
 
     ControlFlowRecord* record = state.rareData()->m_controlFlowRecord->back();
     state.rareData()->m_controlFlowRecord->erase(state.rareData()->m_controlFlowRecord->size() - 1);

@@ -41,7 +41,7 @@ class GlobalObject;
 
 class ByteCodeInterpreter {
 public:
-    static Value interpret(ExecutionState& state, ByteCodeBlock* byteCodeBlock, register size_t programCounter, Value* registerFile);
+    static Value interpret(ExecutionState& state, ByteCodeBlock* byteCodeBlock, register size_t programCounter, Value* registerFile, void* initAddressFiller);
     static Value loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool throwException = true);
     static EnvironmentRecord* getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue, bool throwException = true);
     static void storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value);

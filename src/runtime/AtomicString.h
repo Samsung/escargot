@@ -20,6 +20,7 @@
 #include "runtime/ExecutionState.h"
 #include "runtime/String.h"
 #include "util/Vector.h"
+#include "util/TightVector.h"
 
 namespace Escargot {
 
@@ -114,6 +115,7 @@ inline bool operator!=(const AtomicString& a, const AtomicString& b)
 }
 
 typedef Vector<AtomicString, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<AtomicString> > AtomicStringVector;
+typedef TightVector<AtomicString, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<AtomicString> > AtomicStringTightVector;
 }
 
 

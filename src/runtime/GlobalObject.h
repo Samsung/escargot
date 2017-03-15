@@ -50,6 +50,8 @@ public:
         setPrototype(state, m_objectPrototype);
 
         m_structure = m_structure->convertToWithFastAccess(state);
+        m_throwTypeError = nullptr;
+        m_throwerGetterSetterData = nullptr;
     }
 
     virtual bool isGlobalObject() const
@@ -350,7 +352,14 @@ public:
     // 13.2.3 The [[ThrowTypeError]] Function Object
     FunctionObject* throwTypeError()
     {
+        ASSERT(m_throwTypeError);
         return m_throwTypeError;
+    }
+
+    JSGetterSetter* throwerGetterSetterData()
+    {
+        ASSERT(m_throwerGetterSetterData);
+        return m_throwerGetterSetterData;
     }
 
     StringObject* stringProxyObject()
@@ -421,6 +430,7 @@ protected:
     FunctionObject* m_eval;
 
     FunctionObject* m_throwTypeError;
+    JSGetterSetter* m_throwerGetterSetterData;
 
     StringObject* m_stringProxyObject;
     NumberObject* m_numberProxyObject;

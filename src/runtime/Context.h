@@ -42,6 +42,11 @@ class Context : public gc {
     friend class AtomicString;
     friend class SandBox;
     friend class ByteCodeInterpreter;
+    friend class OpcodeTable;
+
+    Context()
+    {
+    }
 
 public:
     Context(VMInstance* instance);
@@ -81,14 +86,24 @@ public:
         return m_defaultStructureForFunctionObject;
     }
 
-    ObjectStructure* defaultStructureForBuiltinFunctionObject()
-    {
-        return m_defaultStructureForBuiltinFunctionObject;
-    }
-
     ObjectStructure* defaultStructureForNotConstructorFunctionObject()
     {
         return m_defaultStructureForNotConstructorFunctionObject;
+    }
+
+    ObjectStructure* defaultStructureForFunctionObjectInStrictMode()
+    {
+        return m_defaultStructureForFunctionObjectInStrictMode;
+    }
+
+    ObjectStructure* defaultStructureForNotConstructorFunctionObjectInStrictMode()
+    {
+        return m_defaultStructureForNotConstructorFunctionObjectInStrictMode;
+    }
+
+    ObjectStructure* defaultStructureForBuiltinFunctionObject()
+    {
+        return m_defaultStructureForBuiltinFunctionObject;
     }
 
     ObjectStructure* defaultStructureForFunctionPrototypeObject()
@@ -188,8 +203,10 @@ protected:
 
     ObjectStructure* m_defaultStructureForObject;
     ObjectStructure* m_defaultStructureForFunctionObject;
-    ObjectStructure* m_defaultStructureForBuiltinFunctionObject;
     ObjectStructure* m_defaultStructureForNotConstructorFunctionObject;
+    ObjectStructure* m_defaultStructureForFunctionObjectInStrictMode;
+    ObjectStructure* m_defaultStructureForNotConstructorFunctionObjectInStrictMode;
+    ObjectStructure* m_defaultStructureForBuiltinFunctionObject;
     ObjectStructure* m_defaultStructureForFunctionPrototypeObject;
     ObjectStructure* m_defaultStructureForArrayObject;
     ObjectStructure* m_defaultStructureForStringObject;

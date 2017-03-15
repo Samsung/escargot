@@ -5682,8 +5682,9 @@ public:
         this->scopeContexts.back()->insertName(id->name());
 
         pushScopeContext(params, id->name());
-        extractNamesFromFunctionParams(params);
+
         scopeContexts.back()->insertName(id->name());
+        extractNamesFromFunctionParams(params);
 
         bool previousStrict = this->context->strict;
         BlockStatementNode* body = this->parseFunctionSourceElements();
@@ -5748,11 +5749,13 @@ public:
         AtomicString fnName;
         if (id)
             fnName = id->name();
+
         pushScopeContext(params, fnName);
-        extractNamesFromFunctionParams(params);
+
         if (id)
             scopeContexts.back()->insertName(fnName);
 
+        extractNamesFromFunctionParams(params);
         bool previousStrict = this->context->strict;
         BlockStatementNode* body = this->parseFunctionSourceElements();
         if (this->context->strict && firstRestricted) {

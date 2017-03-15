@@ -42,7 +42,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
     } else {
         codeBlock = new CodeBlock(ctx, script, StringView(source, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index),
                                   scopeCtx->m_locStart,
-                                  scopeCtx->m_isStrict, scopeCtx->m_nodeStartIndex,
+                                  scopeCtx->m_isStrict,
                                   scopeCtx->m_functionName, scopeCtx->m_parameters, scopeCtx->m_names, parentCodeBlock,
                                   (CodeBlock::CodeBlockInitFlag)((scopeCtx->m_hasEval ? CodeBlock::CodeBlockHasEval : 0)
                                                                  | (scopeCtx->m_hasWith ? CodeBlock::CodeBlockHasWith : 0)
@@ -74,7 +74,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
         for (size_t i = 0; i < scopeCtx->m_usingNames.size(); i++) {
             AtomicString uname = scopeCtx->m_usingNames[i];
             if (uname == arguments) {
-                AtomicStringVector& pv = codeBlock->m_parameterNames;
+                AtomicStringTightVector& pv = codeBlock->m_parameterNames;
                 bool hasArgumentsParameter = false;
                 for (size_t i = 0; i < pv.size(); i++) {
                     if (pv[i] == arguments) {
@@ -90,8 +90,6 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
                         info.m_name = arguments;
                         info.m_needToAllocateOnStack = true;
                         codeBlock->m_identifierInfos.pushBack(info);
-                    } else {
-                        codeBlock->m_hasArgumentsBinding = true;
                     }
 
                     CodeBlock* b = codeBlock;
@@ -128,8 +126,9 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
         }
     }
 
+    codeBlock->m_childBlocks.resizeWithUninitializedValues(scopeCtx->m_childScopes.size());
     for (size_t i = 0; i < scopeCtx->m_childScopes.size(); i++) {
-        codeBlock->appendChildBlock(generateCodeBlockTreeFromASTWalker(ctx, source, script, scopeCtx->m_childScopes[i], codeBlock));
+        codeBlock->m_childBlocks[i] = generateCodeBlockTreeFromASTWalker(ctx, source, script, scopeCtx->m_childScopes[i], codeBlock);
     }
 
 #ifdef NDEBUG

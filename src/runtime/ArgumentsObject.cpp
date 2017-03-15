@@ -143,13 +143,13 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
     } else {
         // Else, strict is true so
         // Let thrower be the [[ThrowTypeError]] function Object (13.2.3).
-        FunctionObject* thrower = state.context()->globalObject()->throwTypeError();
+        auto thrower = state.context()->globalObject()->throwerGetterSetterData();
         // Call the [[DefineOwnProperty]] internal method of obj with arguments "callee", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
         // obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().callee), ObjectPropertyDescriptor(JSGetterSetter(thrower, thrower), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = Value(new JSGetterSetter(thrower, thrower));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = Value(thrower);
         // Call the [[DefineOwnProperty]] internal method of obj with arguments "caller", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
         // obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().caller), ObjectPropertyDescriptor(JSGetterSetter(thrower, thrower), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(new JSGetterSetter(thrower, thrower));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(thrower);
     }
 }
 

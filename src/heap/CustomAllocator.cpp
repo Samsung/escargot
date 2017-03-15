@@ -92,16 +92,14 @@ int getValidValueInCodeBlock(void* ptr, GC_mark_custom_result* arr)
     arr[5].to = (GC_word*)current->m_parentCodeBlock;
     arr[6].from = (GC_word*)&current->m_childBlocks;
     arr[6].to = (GC_word*)current->m_childBlocks.data();
-    arr[7].from = (GC_word*)&current->m_cachedASTNode;
-    arr[7].to = (GC_word*)current->m_cachedASTNode;
-    arr[8].from = (GC_word*)&current->m_byteCodeBlock;
-    arr[8].to = (GC_word*)current->m_byteCodeBlock;
+    arr[7].from = (GC_word*)&current->m_byteCodeBlock;
+    arr[7].to = (GC_word*)current->m_byteCodeBlock;
 #ifdef NDEBUG
-    arr[9].from = (GC_word*)&current->m_context;
-    arr[9].to = (GC_word*)nullptr;
+    arr[8].from = (GC_word*)&current->m_context;
+    arr[8].to = (GC_word*)nullptr;
 #else
-    arr[9].from = (GC_word*)&current->m_scopeContext;
-    arr[9].to = (GC_word*)current->m_scopeContext;
+    arr[8].from = (GC_word*)&current->m_scopeContext;
+    arr[8].to = (GC_word*)current->m_scopeContext;
 #endif
     return 0;
 }
@@ -132,7 +130,7 @@ void initializeCustomAllocators()
                                                                         TRUE);
 #endif
     s_gcKinds[HeapObjectKind::CodeBlockKind] = GC_new_kind_enumerable(GC_new_free_list(),
-                                                                      GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInCodeBlock, 10>), 0),
+                                                                      GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInCodeBlock, 9>), 0),
                                                                       FALSE,
                                                                       TRUE);
 

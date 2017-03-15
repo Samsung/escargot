@@ -33,13 +33,12 @@ namespace Escargot {
 Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, bool isOnGlobal)
 {
     Node* programNode = m_topCodeBlock->cachedASTNode();
+    m_topCodeBlock->m_cachedASTNode = nullptr;
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
 
     ByteCodeGenerator g;
     m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode, ((ProgramNode*)programNode)->scopeContext(), isEvalMode, isOnGlobal);
-
-    delete m_topCodeBlock->m_cachedASTNode;
-    m_topCodeBlock->m_cachedASTNode = nullptr;
+    delete programNode;
 
     LexicalEnvironment* env;
     ExecutionContext* prevEc;
@@ -72,8 +71,9 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
         literalStorage[i] = src[i];
     }
 
+    size_t unused;
+    Value resultValue = ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile, &unused);
     clearStack<512>();
-    Value resultValue = ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
 
     return resultValue;
 }
@@ -107,6 +107,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, CodeBlock* pa
 {
     Node* programNode = m_topCodeBlock->cachedASTNode();
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
+    m_topCodeBlock->m_cachedASTNode = nullptr;
 
     bool isOnGlobal = true;
     FunctionEnvironmentRecord* fnRecord;
@@ -125,8 +126,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, CodeBlock* pa
     ByteCodeGenerator g;
     m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode, ((ProgramNode*)programNode)->scopeContext(), isEvalMode, isOnGlobal);
 
-    delete m_topCodeBlock->m_cachedASTNode;
-    m_topCodeBlock->m_cachedASTNode = nullptr;
+    delete programNode;
 
     EnvironmentRecord* record;
     if (UNLIKELY(needNewRecord)) {
@@ -162,7 +162,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, CodeBlock* pa
         literalStorage[i] = src[i];
     }
 
-    stackStorage[m_topCodeBlock->thisSymbolIndex()] = thisValue;
+    stackStorage[0] = thisValue;
 
     if (!isOnGlobal && m_topCodeBlock->usesArgumentsObject()) {
         AtomicString arguments = state.context()->staticStrings().arguments;
@@ -171,8 +171,9 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, CodeBlock* pa
         }
     }
 
+    size_t unused;
+    Value resultValue = ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile, &unused);
     clearStack<512>();
-    Value resultValue = ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
 
     return resultValue;
 }

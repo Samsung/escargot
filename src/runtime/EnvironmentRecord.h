@@ -45,7 +45,7 @@ typedef Vector<IdentifierRecord, GCUtil::gc_malloc_atomic_ignore_off_page_alloca
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-environment-records
 class EnvironmentRecord : public gc {
 protected:
-    EnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock)
+    EnvironmentRecord()
     {
     }
 
@@ -171,8 +171,8 @@ protected:
 
 class ObjectEnvironmentRecord : public EnvironmentRecord {
 public:
-    ObjectEnvironmentRecord(ExecutionState& state, Object* O)
-        : EnvironmentRecord(state, nullptr)
+    ObjectEnvironmentRecord(Object* O)
+        : EnvironmentRecord()
         , m_bindingObject(O)
     {
     }
@@ -261,8 +261,8 @@ protected:
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-declarative-environment-records
 class DeclarativeEnvironmentRecord : public EnvironmentRecord {
 public:
-    DeclarativeEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock)
-        : EnvironmentRecord(state, codeBlock)
+    DeclarativeEnvironmentRecord()
+        : EnvironmentRecord()
     {
     }
 
@@ -302,15 +302,15 @@ public:
 // this record is for catch statement and strict eval now
 class DeclarativeEnvironmentRecordNotIndexed : public DeclarativeEnvironmentRecord {
 public:
-    DeclarativeEnvironmentRecordNotIndexed(ExecutionState& state)
-        : DeclarativeEnvironmentRecord(state, nullptr)
+    DeclarativeEnvironmentRecordNotIndexed()
+        : DeclarativeEnvironmentRecord()
         , m_heapStorage()
     {
     }
 
     // this constructor is for strict eval
     DeclarativeEnvironmentRecordNotIndexed(ExecutionState& state, const CodeBlock::IdentifierInfoVector& vec)
-        : DeclarativeEnvironmentRecord(state, nullptr)
+        : DeclarativeEnvironmentRecord()
         , m_heapStorage()
     {
         for (size_t i = 0; i < vec.size(); i++) {
@@ -364,8 +364,8 @@ class FunctionEnvironmentRecord : public DeclarativeEnvironmentRecord {
     friend class ByteCodeInterpreter;
 
 public:
-    ALWAYS_INLINE FunctionEnvironmentRecord(ExecutionState& state, FunctionObject* function)
-        : DeclarativeEnvironmentRecord(state, function->codeBlock())
+    ALWAYS_INLINE FunctionEnvironmentRecord(FunctionObject* function)
+        : DeclarativeEnvironmentRecord()
         , m_functionObject(function)
     {
     }
@@ -418,8 +418,8 @@ class FunctionEnvironmentRecordSimple : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
 
 public:
-    ALWAYS_INLINE FunctionEnvironmentRecordSimple(ExecutionState& state, FunctionObject* function)
-        : FunctionEnvironmentRecord(state, function)
+    ALWAYS_INLINE FunctionEnvironmentRecordSimple(FunctionObject* function)
+        : FunctionEnvironmentRecord(function)
     {
     }
 };
@@ -429,7 +429,7 @@ class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecord {
     friend class ByteCodeInterpreter;
 
 public:
-    FunctionEnvironmentRecordOnHeap(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv);
+    FunctionEnvironmentRecordOnHeap(FunctionObject* function, size_t argc, Value* argv);
 
     virtual bool isFunctionEnvironmentRecordOnHeap()
     {
@@ -466,7 +466,7 @@ class FunctionEnvironmentRecordNotIndexed : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
 
 public:
-    FunctionEnvironmentRecordNotIndexed(ExecutionState& state, FunctionObject* function, size_t argc, Value* argv);
+    FunctionEnvironmentRecordNotIndexed(FunctionObject* function, size_t argc, Value* argv);
 
     virtual bool isFunctionEnvironmentRecordNotIndexed()
     {

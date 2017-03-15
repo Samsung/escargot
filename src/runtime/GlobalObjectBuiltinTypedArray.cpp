@@ -214,9 +214,13 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             }
         } else {
             // TODO
+            state.throwException(new ASCIIString(errorMessage_NotImplemented));
             RELEASE_ASSERT_NOT_REACHED();
         }
         // TODO
+        if (obj->arraylength() >= 210000000) {
+            state.throwException(new ASCIIString(errorMessage_NotImplemented));
+        }
         RELEASE_ASSERT(obj->arraylength() < 210000000);
     }
     return obj;
@@ -224,7 +228,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
 
 Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // TODO
+    state.throwException(new ASCIIString(errorMessage_NotImplemented));
     RELEASE_ASSERT_NOT_REACHED();
 }
 

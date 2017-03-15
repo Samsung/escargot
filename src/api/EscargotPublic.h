@@ -66,6 +66,7 @@ public:
     bool isObject(ExecutionStateRef* es);
     bool toBoolean(ExecutionStateRef* es);
     double toNumber(ExecutionStateRef* es);
+
 private:
     intptr_t v;
 };
@@ -75,6 +76,7 @@ public:
     ObjectRef(intptr_t val);
     static ObjectRef makeObject(ExecutionStateRef* es);
     operator ValueRef();
+
 private:
     intptr_t v;
 };

@@ -104,6 +104,7 @@ class Node;
     F(CallEvalFunction, 0, 0)                         \
     F(CallBoundFunction, 0, 0)                        \
     F(CallFunctionInWithScope, 0, 0)                  \
+    F(FillOpcodeTable, 0, 0)                          \
     F(End, 0, 0)
 
 enum Opcode {
@@ -115,7 +116,6 @@ enum Opcode {
 
 struct OpcodeTable {
     void* m_table[OpcodeKindEnd];
-    std::pair<void*, Opcode> m_reverseTable[OpcodeKindEnd];
     OpcodeTable();
 };
 
@@ -135,43 +135,6 @@ inline const char* getByteCodeName(Opcode opcode)
     }
 }
 #endif
-
-#ifndef NDEBUG
-inline const char* getByteCodeNameFromAddress(void* opcodeInAddress)
-{
-    for (size_t i = 0; i < OpcodeKindEnd; i++) {
-        if (g_opcodeTable.m_reverseTable[i].first == opcodeInAddress)
-            return getByteCodeName(g_opcodeTable.m_reverseTable[i].second);
-    }
-    ASSERT_NOT_REACHED();
-}
-#endif
-
-inline size_t getByteCodePushCount(Opcode code)
-{
-    switch (code) {
-#define RETURN_BYTECODE_CNT(name, pushCount, popCount) \
-    case name##Opcode:                                 \
-        return pushCount;
-        FOR_EACH_BYTECODE_OP(RETURN_BYTECODE_CNT)
-#undef RETURN_BYTECODE_CNT
-    default:
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-}
-
-inline size_t getByteCodePopCount(Opcode code)
-{
-    switch (code) {
-#define RETURN_BYTECODE_CNT(name, pushCount, popCount) \
-    case name##Opcode:                                 \
-        return popCount;
-        FOR_EACH_BYTECODE_OP(RETURN_BYTECODE_CNT)
-#undef RETURN_BYTECODE_CNT
-    default:
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-}
 
 
 struct ByteCodeLOC {
@@ -220,7 +183,7 @@ public:
     {
         printf("%d\t\t", (int)pos);
         dump();
-        printf(" | %s ", getByteCodeNameFromAddress(m_opcodeInAddress));
+        printf(" | %s ", getByteCodeName(m_orgOpcode));
         printf("(line: %d:%d)\n", (int)m_loc.line, (int)m_loc.column);
     }
 
@@ -1530,13 +1493,15 @@ public:
 
 class CallNativeFunction : public ByteCode {
 public:
-    CallNativeFunction(NativeFunctionPointer fn)
+    CallNativeFunction(NativeFunctionPointer fn, NativeFunctionConstructor ctorFn)
         : ByteCode(Opcode::CallNativeFunctionOpcode, ByteCodeLOC(SIZE_MAX))
         , m_fn(fn)
+        , m_ctorFn(ctorFn)
     {
     }
 
     NativeFunctionPointer m_fn;
+    NativeFunctionConstructor m_ctorFn;
 };
 
 class End : public ByteCode {
@@ -1554,13 +1519,28 @@ public:
 #endif
 };
 
+class FillOpcodeTable : public ByteCode {
+public:
+    FillOpcodeTable()
+        : ByteCode(Opcode::FillOpcodeTableOpcode, ByteCodeLOC(0))
+    {
+    }
+};
+
 
 typedef Vector<char, std::allocator<char>, 200> ByteCodeBlockData;
 typedef Vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>> ByteCodeLOCData;
 typedef Vector<void*, GCUtil::gc_malloc_ignore_off_page_allocator<void*>> ByteCodeLiteralData;
 typedef Vector<Value, std::allocator<Value>> ByteCodeNumeralLiteralData;
-
+typedef std::unordered_set<ObjectStructure*, std::hash<ObjectStructure*>, std::equal_to<ObjectStructure*>,
+                           GCUtil::gc_malloc_ignore_off_page_allocator<ObjectStructure*>>
+    ObjectStructuresInUse;
 class ByteCodeBlock : public gc {
+    friend class OpcodeTable;
+    ByteCodeBlock()
+    {
+    }
+
 public:
     ByteCodeBlock(CodeBlock* codeBlock)
     {
@@ -1569,6 +1549,12 @@ public:
         m_isEvalMode = false;
         m_isOnGlobal = false;
         m_shouldClearStack = false;
+
+        if (!codeBlock->hasCallNativeFunctionCode()) {
+            m_objectStructuresInUse = new (GC) ObjectStructuresInUse();
+        } else {
+            m_objectStructuresInUse = nullptr;
+        }
 
         GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
                                                 void*) {
@@ -1614,7 +1600,7 @@ public:
             first++;
         }
 
-        m_requiredRegisterFileSizeInValueSize = std::max(m_requiredRegisterFileSizeInValueSize, (size_t)context->m_baseRegisterCount);
+        m_requiredRegisterFileSizeInValueSize = std::max(m_requiredRegisterFileSizeInValueSize, (ByteCodeRegisterIndex)context->m_baseRegisterCount);
 
         // TODO throw exception
         RELEASE_ASSERT(m_requiredRegisterFileSizeInValueSize < std::numeric_limits<ByteCodeRegisterIndex>::max());
@@ -1642,23 +1628,23 @@ public:
     ExtendedNodeLOC computeNodeLOC(StringView src, ExtendedNodeLOC sourceElementStart, size_t index);
     void fillLocDataIfNeeded(Context* c);
 
-    bool m_isEvalMode;
-    bool m_isOnGlobal;
-    bool m_shouldClearStack;
+    bool m_isEvalMode : 1;
+    bool m_isOnGlobal : 1;
+    bool m_shouldClearStack : 1;
+    ByteCodeRegisterIndex m_requiredRegisterFileSizeInValueSize;
 
     ByteCodeBlockData m_code;
     ByteCodeNumeralLiteralData m_numeralLiteralData;
     ByteCodeLiteralData m_literalData;
-    std::unordered_set<ObjectStructure*, std::hash<ObjectStructure*>, std::equal_to<ObjectStructure*>,
-                       GCUtil::gc_malloc_ignore_off_page_allocator<ObjectStructure*>>
-        m_objectStructuresInUse;
+    ObjectStructuresInUse* m_objectStructuresInUse;
 
 
     ByteCodeLOCData m_locData;
-    size_t m_requiredRegisterFileSizeInValueSize;
     CodeBlock* m_codeBlock;
 
     std::vector<size_t> m_getObjectCodePositions;
+
+    void* operator new(size_t size);
 };
 }
 

@@ -30,7 +30,7 @@ class LexicalEnvironment;
 class CodeBlock;
 class Script;
 
-typedef Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>> CodeBlockVector;
+typedef TightVector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>> CodeBlockVector;
 
 // length of argv is same with NativeFunctionInfo.m_argumentCount
 typedef Value (*NativeFunctionPointer)(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
@@ -224,7 +224,7 @@ public:
         return m_cachedASTNode;
     }
 
-    StringView src()
+    const StringView& src()
     {
         return m_src;
     }
@@ -234,25 +234,12 @@ public:
         return m_sourceElementStart;
     }
 
-    size_t astNodeStartIndex()
-    {
-        return m_astNodeStartIndex;
-    }
-
-    size_t thisSymbolIndex()
-    {
-        return m_thisSymbolIndex;
-    }
-
     ByteCodeBlock* byteCodeBlock()
     {
         return m_byteCodeBlock;
     }
 
-    NativeFunctionConstructor nativeFunctionConstructor()
-    {
-        return m_nativeFunctionConstructor;
-    }
+    NativeFunctionConstructor nativeFunctionConstructor();
 
     bool isStrict() const
     {
@@ -279,11 +266,6 @@ public:
         return m_isFunctionExpression;
     }
 
-    bool isNativeFunction() const
-    {
-        return m_isNativeFunction;
-    }
-
     bool hasCallNativeFunctionCode() const
     {
         return m_hasCallNativeFunctionCode;
@@ -292,11 +274,6 @@ public:
     bool usesArgumentsObject() const
     {
         return m_usesArgumentsObject;
-    }
-
-    bool hasArgumentsBinding() const
-    {
-        return m_hasArgumentsBinding;
     }
 
     const IdentifierInfoVector& identifierInfos() const
@@ -320,7 +297,7 @@ public:
         return m_functionName;
     }
 
-    const AtomicStringVector& functionParameters() const
+    const AtomicStringTightVector& functionParameters() const
     {
         // check function
         return m_parameterNames;
@@ -343,16 +320,16 @@ public:
 
     struct FunctionParametersInfo {
         bool m_isHeapAllocated;
-        size_t m_index;
+        int32_t m_index;
         AtomicString m_name;
     };
-    typedef Vector<FunctionParametersInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<FunctionParametersInfo>> FunctionParametersInfoVector;
+    typedef TightVector<FunctionParametersInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<FunctionParametersInfo>> FunctionParametersInfoVector;
     const FunctionParametersInfoVector& parametersInfomation() const
     {
         return m_parametersInfomation;
     }
 
-    const AtomicStringVector& parameterNames() const
+    const AtomicStringTightVector& parameterNames() const
     {
         return m_parameterNames;
     }
@@ -402,7 +379,7 @@ protected:
     CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const AtomicStringVector& innerIdentifiers, CodeBlockInitFlag initFlags);
 
     // init function codeBlock
-    CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, size_t astNodeStartIndex, AtomicString functionName, const AtomicStringVector& parameterNames, const AtomicStringVector& innerIdentifiers, CodeBlock* parentBlock, CodeBlockInitFlag initFlags);
+    CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringVector& parameterNames, const AtomicStringVector& innerIdentifiers, CodeBlock* parentBlock, CodeBlockInitFlag initFlags);
 
     void computeVariables();
     void appendChildBlock(CodeBlock* cb)
@@ -422,10 +399,13 @@ protected:
 
     Context* m_context;
 
-    bool m_isNativeFunction : 1;
     bool m_isConsturctor : 1;
-    bool m_hasCallNativeFunctionCode : 1;
     bool m_isStrict : 1;
+    bool m_hasCallNativeFunctionCode : 1;
+    bool m_isFunctionNameSaveOnHeap : 1;
+    bool m_canUseIndexedVariableStorage : 1;
+    bool m_canAllocateEnvironmentOnStack : 1;
+    bool m_needsComplexParameterCopy : 1;
     bool m_hasEval : 1;
     bool m_hasWith : 1;
     bool m_hasCatch : 1;
@@ -433,41 +413,31 @@ protected:
     bool m_inCatch : 1;
     bool m_inWith : 1;
     bool m_usesArgumentsObject : 1;
-    bool m_hasArgumentsBinding : 1;
-    bool m_canUseIndexedVariableStorage : 1;
-    bool m_canAllocateEnvironmentOnStack : 1;
     bool m_isFunctionExpression : 1;
     bool m_isFunctionDeclaration : 1;
-    bool m_needsComplexParameterCopy : 1;
     bool m_isInWithScope : 1;
     bool m_isEvalCodeInFunction : 1;
 
     Script* m_script;
     StringView m_src; // function source elements src
     ExtendedNodeLOC m_sourceElementStart;
-    size_t m_astNodeStartIndex;
 
-    size_t m_identifierOnStackCount;
-    size_t m_identifierOnHeapCount;
-    size_t m_thisSymbolIndex;
-    struct FunctionNameSaveInfo {
-        bool m_isAllocated;
-        bool m_isAllocatedOnStack;
-        size_t m_index;
-    } m_functionNameSaveInfo;
+    uint16_t m_identifierOnStackCount;
+    uint16_t m_identifierOnHeapCount;
     IdentifierInfoVector m_identifierInfos;
 
     // function info
     AtomicString m_functionName;
-    AtomicStringVector m_parameterNames;
+    AtomicStringTightVector m_parameterNames;
     FunctionParametersInfoVector m_parametersInfomation;
 
     CodeBlock* m_parentCodeBlock;
     CodeBlockVector m_childBlocks;
 
-    Node* m_cachedASTNode;
-    ByteCodeBlock* m_byteCodeBlock;
-    NativeFunctionConstructor m_nativeFunctionConstructor;
+    union {
+        Node* m_cachedASTNode;
+        ByteCodeBlock* m_byteCodeBlock;
+    };
 
 #ifndef NDEBUG
     ExtendedNodeLOC m_locStart;

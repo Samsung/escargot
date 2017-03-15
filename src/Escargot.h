@@ -236,7 +236,7 @@ typedef uint16_t ByteCodeRegisterIndex;
 #endif
 
 #ifndef STACK_LIMIT_FROM_BASE
-#define STACK_LIMIT_FROM_BASE (1024 * 1024 * 4) // 4MB
+#define STACK_LIMIT_FROM_BASE (1024 * 1024 * 3) // 3MB
 #endif
 
 #ifndef STRING_MAXIMUM_LENGTH
