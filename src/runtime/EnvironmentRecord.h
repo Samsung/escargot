@@ -234,7 +234,7 @@ protected:
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-global-environment-records
 class GlobalEnvironmentRecord : public EnvironmentRecord {
 public:
-    GlobalEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock, GlobalObject* global);
+    GlobalEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock, GlobalObject* global, bool isEvalMode = false);
     ~GlobalEnvironmentRecord() {}
     virtual bool isGlobalEnvironmentRecord()
     {

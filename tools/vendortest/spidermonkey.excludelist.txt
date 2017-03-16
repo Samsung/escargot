@@ -20,6 +20,7 @@ ecma_3/extensions/regress-274152.js
 ecma_3/LexicalConventions/7.8.3-01.js
 ecma_5/String/string-object-length.js
 js1_5/Regress/regress-234389.js
+js1_5/Regress/regress-355556.js
 js1_5/extensions/regress-355497.js
 js1_5/extensions/regress-420869-01.js
 js1_5/extensions/regress-424683-01.js
@@ -794,6 +795,7 @@ js1_2/regexp/RegExp_leftContext.js
 js1_2/regexp/RegExp_leftContext_as_array.js
 js1_2/regexp/RegExp_rightContext.js
 js1_2/regexp/RegExp_rightContext_as_array.js
+js1_5/Regress/regress-330352.js
 ecma_3/Statements/regress-642975.js
 ecma_3/extensions/regress-220367-002.js
 
@@ -813,6 +815,9 @@ js1_8_5/extensions/typedarray-set-neutering.js
 ## setGCCallback
 shell/gcstats.js
 shell/os.js
+
+# Number.prototype.toPrecision argument should be 1~21
+js1_5/Regress/regress-452346.js
 
 # Mozilla Rhino-dependent functions not supported
 js1_5/Scope/regress-181834.js

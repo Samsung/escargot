@@ -44,7 +44,7 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     ExecutionContext* prevEc;
     {
         CodeBlock* globalCodeBlock = (needNewEnv) ? nullptr : m_topCodeBlock;
-        LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, globalCodeBlock, state.context()->globalObject()), nullptr);
+        LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, globalCodeBlock, state.context()->globalObject(), isEvalMode), nullptr);
         if (UNLIKELY(needNewEnv)) {
             // NOTE: ES5 10.4.2.1 eval in strict mode
             prevEc = new ExecutionContext(state.context(), state.executionContext(), globalEnvironment, m_topCodeBlock->isStrict());

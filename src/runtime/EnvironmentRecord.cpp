@@ -24,7 +24,7 @@
 
 namespace Escargot {
 
-GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock, GlobalObject* global)
+GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock, GlobalObject* global, bool isEvalMode)
     : EnvironmentRecord()
     , m_globalCodeBlock(codeBlock)
 {
@@ -36,7 +36,9 @@ GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBloc
     const CodeBlock::IdentifierInfoVector& vec = codeBlock->identifierInfos();
     size_t len = vec.size();
     for (size_t i = 0; i < len; i++) {
-        createMutableBinding(state, vec[i].m_name, false);
+        // https://www.ecma-international.org/ecma-262/5.1/#sec-10.5
+        // Step 2. If code is eval code, then let configurableBindings be true.
+        createMutableBinding(state, vec[i].m_name, isEvalMode);
     }
 }
 
