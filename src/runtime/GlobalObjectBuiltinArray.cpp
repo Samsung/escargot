@@ -53,9 +53,15 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
     if (interpretArgumentsAsElements) {
         Value val = argv[0];
         if (argc > 1 || !val.isInt32()) {
-            for (size_t idx = 0; idx < argc; idx++) {
-                array->ArrayObject::defineOwnProperty(state, ObjectPropertyName(state, Value(idx)), ObjectPropertyDescriptor(val, ObjectPropertyDescriptor::AllPresent));
-                val = argv[idx + 1];
+            if (array->isFastModeArray()) {
+                for (size_t idx = 0; idx < argc; idx++) {
+                    array->m_fastModeData[idx] = argv[idx];
+                }
+            } else {
+                for (size_t idx = 0; idx < argc; idx++) {
+                    array->ArrayObject::defineOwnProperty(state, ObjectPropertyName(state, Value(idx)), ObjectPropertyDescriptor(val, ObjectPropertyDescriptor::AllPresent));
+                    val = argv[idx + 1];
+                }
             }
         }
     }
@@ -386,11 +392,13 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
             // Repeat, while k < len
             while (k < len) {
                 // Let exists be the result of calling the [[HasProperty]] internal method of E with P.
-                ObjectGetResult exists = arr->get(state, ObjectPropertyName(state, Value(k)));
+                ObjectGetResult exists = arr->getIndexedProperty(state, Value(k));
                 if (exists.hasValue()) {
                     array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n + k)), ObjectPropertyDescriptor(exists.value(state, arr), ObjectPropertyDescriptor::AllPresent));
+                    k++;
+                } else {
+                    k = Object::nextIndexForward(state, arr, k, len, false);
                 }
-                k = Object::nextIndexForward(state, arr, k, len, false);
             }
 
             n += len;

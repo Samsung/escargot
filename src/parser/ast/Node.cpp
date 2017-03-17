@@ -18,6 +18,7 @@
 #include "Node.h"
 #include "interpreter/ByteCode.h"
 #include "interpreter/ByteCodeGenerator.h"
+#include "runtime/ErrorObject.h"
 
 namespace Escargot {
 
@@ -34,6 +35,20 @@ void Node::generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock,
     generateExpressionByteCode(codeBlock, context, getRegister(codeBlock, context));
     context->giveUpRegister();
     ASSERT(context->m_registerStack->size() == before);
+}
+
+void Node::generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
+{
+    generateExpressionByteCode(codeBlock, context, context->getRegister());
+    context->giveUpRegister();
+    codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::ReferenceError, "Invalid assignment left-hand side"), context, this);
+}
+
+void Node::generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+{
+    context->getRegister();
+    codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::ReferenceError, "Invalid assignment left-hand side"), context, this);
+    return;
 }
 
 void* ASTScopeContext::operator new(size_t size)

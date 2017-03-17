@@ -94,7 +94,7 @@ extern size_t g_objectTag;
 
 inline Value::Value(PointerValue* ptr)
 {
-    if (ptr->hasTag(g_objectTag) || ptr->isObject()) {
+    if (!ptr->hasTagInFirstDataArea(POINTER_VALUE_STRING_TAG_IN_DATA)) {
         u.asBits.tag = ObjectPointerTag;
     } else {
         u.asBits.tag = OtherPointerTag;

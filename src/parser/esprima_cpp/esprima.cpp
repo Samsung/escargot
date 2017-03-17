@@ -3909,7 +3909,7 @@ public:
             if (this->context->strict && expr->type() == Identifier && this->scanner->isRestrictedWord(((IdentifierNode*)expr)->name())) {
                 this->tolerateError(Messages::StrictLHSPrefix);
             }
-            if (!this->context->isAssignmentTarget) {
+            if (!this->context->isAssignmentTarget && this->context->strict) {
                 this->tolerateError(Messages::InvalidLHSInAssignment);
             }
             bool prefix = true;
@@ -3929,7 +3929,7 @@ public:
                     if (this->context->strict && expr->isIdentifier() && this->scanner->isRestrictedWord(((IdentifierNode*)expr)->name())) {
                         this->tolerateError(Messages::StrictLHSPostfix);
                     }
-                    if (!this->context->isAssignmentTarget) {
+                    if (!this->context->isAssignmentTarget && this->context->strict) {
                         this->tolerateError(Messages::InvalidLHSInAssignment);
                     }
                     this->context->isAssignmentTarget = false;
@@ -4451,7 +4451,7 @@ public:
                  }
              }*/
             if (this->matchAssign()) {
-                if (!this->context->isAssignmentTarget) {
+                if (!this->context->isAssignmentTarget && this->context->strict) {
                     this->tolerateError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
                 }
 

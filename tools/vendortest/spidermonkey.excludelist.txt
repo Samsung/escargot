@@ -33,6 +33,7 @@ js1_8/extensions/regress-353116.js
 js1_8/extensions/regress-469625.js
 js1_8/regress/regress-384758.js
 js1_8_5/regress/regress-618572.js
+js1_8_5/regress/regress-609617.js
 
 # Arrow function expression not supported
 ecma_5/JSON/stringify-replacer-array-trailing-holes.js
@@ -866,3 +867,6 @@ js1_8_5/regress/regress-619003-2.js
 # parse[Int|Float] do not work well for large numbers
 ecma/TypeConversion/9.3.1-3.js
 ecma/GlobalObject/15.1.2.2-2.js
+
+# Test case is not compatible with standard
+js1_8_5/regress/regress-665355.js

@@ -173,15 +173,13 @@ public:
         if (LIKELY(SmallValueImpl::PlatformSmiTagging::IsValidSmi(from))) {
             m_data.payload = SmallValueImpl::PlatformSmiTagging::IntToSmi(from);
         } else {
-            m_data.payload = 1;
-            fromValue(Value(from));
+            fromValueForCtor(Value(from));
         }
     }
 
     SmallValue(const Value& from)
     {
-        m_data.payload = 1;
-        fromValue(from);
+        fromValueForCtor(from);
     }
 
     SmallValue(PointerValue* v)
@@ -254,18 +252,18 @@ public:
 
     void operator=(const Value& from)
     {
-        fromValue(from);
-    }
-
-protected:
-    void fromValue(const Value& from)
-    {
         if (from.isPointerValue()) {
-            if (UNLIKELY(from.isEmpty())) {
+#ifdef ESCARGOT_32
+            ASSERT(!from.isEmpty());
+            m_data.payload = (intptr_t)from.asPointerValue();
+#else
+            if (from.isEmpty()) {
                 m_data.payload = (intptr_t)(smallValueEmpty);
             } else {
                 m_data.payload = (intptr_t)from.asPointerValue();
             }
+
+#endif
         } else {
             int32_t i32;
             if (from.isInt32() && SmallValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
@@ -293,12 +291,48 @@ protected:
                 m_data.payload = (intptr_t)(smallValueEmpty);
             }
         }
+    }
+
+protected:
+    void fromValueForCtor(const Value& from)
+    {
+        if (from.isPointerValue()) {
+#ifdef ESCARGOT_32
+            ASSERT(!from.isEmpty());
+            m_data.payload = (intptr_t)from.asPointerValue();
+#else
+            if (from.isEmpty()) {
+                m_data.payload = (intptr_t)(smallValueEmpty);
+            } else {
+                m_data.payload = (intptr_t)from.asPointerValue();
+            }
+
+#endif
+        } else {
+            int32_t i32;
+            if (from.isInt32() && SmallValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
+                m_data.payload = SmallValueImpl::PlatformSmiTagging::IntToSmi(i32);
+            } else if (from.isNumber()) {
+                m_data.payload = reinterpret_cast<intptr_t>(new DoubleInSmallValue(from.asNumber()));
+            } else if (from.isUndefined()) {
+                m_data.payload = (intptr_t)(smallValueUndefined);
+            } else if (from.isTrue()) {
+                m_data.payload = (intptr_t)(smallValueTrue);
+            } else if (from.isFalse()) {
+                m_data.payload = (intptr_t)(smallValueFalse);
+            } else if (from.isNull()) {
+                m_data.payload = (intptr_t)(smallValueNull);
+            } else {
+                ASSERT(from.isEmpty());
+                m_data.payload = (intptr_t)(smallValueEmpty);
+            }
+        }
         ASSERT(m_data.payload);
     }
 
     SmallValue(SmallValueData v)
+        : m_data(v)
     {
-        m_data = v;
     }
 
 

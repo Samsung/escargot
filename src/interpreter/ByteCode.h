@@ -93,6 +93,7 @@ class Node;
     F(TryCatchWithBodyEnd, 0, 0)                      \
     F(FinallyEnd, 0, 0)                               \
     F(ThrowOperation, 0, 0)                           \
+    F(ThrowStaticErrorOperation, 0, 0)                \
     F(EnumerateObject, 1, 0)                          \
     F(EnumerateObjectKey, 1, 0)                       \
     F(CheckIfKeyIsLast, 0, 0)                         \
@@ -1329,6 +1330,25 @@ public:
     virtual void dump()
     {
         printf("throw r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class ThrowStaticErrorOperation : public ByteCode {
+public:
+    ThrowStaticErrorOperation(const ByteCodeLOC& loc, char errorKind, const char* errorMessage)
+        : ByteCode(Opcode::ThrowStaticErrorOperationOpcode, loc)
+        , m_errorKind(errorKind)
+        , m_errorMessage(errorMessage)
+    {
+    }
+    char m_errorKind;
+    const char* m_errorMessage;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("throw static error %s", m_errorMessage);
     }
 #endif
 };

@@ -28,7 +28,6 @@ ecma_5/extensions/array-toString-recursion.js
 ecma_5/extensions/builtin-function-arguments-caller.js
 ecma_5/extensions/error-tostring-function.js
 ecma_5/extensions/extension-methods-reject-null-undefined-this.js
-ecma_5/extensions/inc-dec-functioncall.js
 ecma_5/extensions/String-methods-infinite-recursion.js
 ecma_5/extensions/strict-function-statements.js
 ecma_5/extensions/toLocaleString-infinite-recursion.js
@@ -53,18 +52,13 @@ js1_5/Regress/regress-104077.js
 js1_5/Regress/regress-211590.js
 js1_5/Regress/regress-290575.js
 js1_5/Regress/regress-303213.js
-js1_5/Regress/regress-319391.js
 js1_5/Regress/regress-328664.js
 js1_5/Regress/regress-343713.js
-js1_5/Regress/regress-350253.js
 js1_5/Regress/regress-350268.js
 js1_5/Regress/regress-352208.js
 js1_5/Regress/regress-372364.js
 js1_5/Regress/regress-420919.js
-js1_5/Regress/regress-462292.js
 js1_5/Regress/regress-68498-004.js
 js1_5/Scope/regress-184107.js
 js1_5/extensions/regress-367501-03.js
 js1_5/extensions/regress-367501-04.js
-js1_8_5/regress/regress-609617.js
-js1_8_5/regress/regress-665355.js

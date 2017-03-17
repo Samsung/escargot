@@ -44,12 +44,6 @@ class UTF16String;
 class RopeString;
 class StringView;
 
-extern size_t g_asciiStringTag;
-extern size_t g_latin1StringTag;
-extern size_t g_utf16StringTag;
-extern size_t g_ropeStringTag;
-extern size_t g_stringViewTag;
-
 struct StringBufferAccessData {
     bool has8BitContent;
     size_t length;
@@ -60,6 +54,10 @@ class String : public PointerValue {
     friend class AtomicString;
 
 public:
+    String()
+    {
+        m_tag = POINTER_VALUE_STRING_TAG_IN_DATA;
+    }
     virtual Type type()
     {
         return StringType;
@@ -199,6 +197,7 @@ public:
     }
 
 protected:
+    size_t m_tag;
     static int stringCompare(size_t l1, size_t l2, const String* c1, const String* c2);
 
     template <typename T>
@@ -217,6 +216,8 @@ protected:
         return true;
     }
 };
+
+COMPILE_ASSERT(sizeof(String) == sizeof(size_t) * 2, "");
 
 inline bool operator<(const String& a, const String& b)
 {

@@ -318,7 +318,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_propertyRegisterIndex];
             PointerValue* v;
-            if (LIKELY(willBeObject.isPointerValue() && (v = willBeObject.asPointerValue())->hasTag(g_arrayObjectTag))) {
+            if (LIKELY(willBeObject.isObject() && (v = willBeObject.asPointerValue())->hasTag(g_arrayObjectTag))) {
                 ArrayObject* arr = (ArrayObject*)v;
                 if (LIKELY(arr->isFastModeArray())) {
                     uint32_t idx;
@@ -339,22 +339,14 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                     }
                 }
             }
-            Object* obj;
-            if (LIKELY(willBeObject.isObject())) {
-                obj = willBeObject.asObject();
-            } else {
-                obj = fastToObject(state, willBeObject);
-            }
-            registerFile[code->m_storeRegisterIndex] = obj->getIndexedProperty(state, property).value(state, obj);
-            ADD_PROGRAM_COUNTER(GetObject);
-            NEXT_INSTRUCTION();
+            goto GetObjectOpcodeSlowCase;
         }
 
         SetObjectOpcodeLbl : {
             SetObject* code = (SetObject*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_propertyRegisterIndex];
-            if (LIKELY(willBeObject.isPointerValue() && (willBeObject.asPointerValue())->hasTag(g_arrayObjectTag))) {
+            if (LIKELY(willBeObject.isObject() && (willBeObject.asPointerValue())->hasTag(g_arrayObjectTag))) {
                 ArrayObject* arr = willBeObject.asObject()->asArrayObject();
                 if (LIKELY(arr->isFastModeArray())) {
                     uint32_t idx;
@@ -678,6 +670,21 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
+        GetObjectOpcodeSlowCase : {
+            GetObject* code = (GetObject*)programCounter;
+            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+            const Value& property = registerFile[code->m_propertyRegisterIndex];
+            Object* obj;
+            if (LIKELY(willBeObject.isObject())) {
+                obj = willBeObject.asObject();
+            } else {
+                obj = fastToObject(state, willBeObject);
+            }
+            registerFile[code->m_storeRegisterIndex] = obj->getIndexedProperty(state, property).value(state, obj);
+            ADD_PROGRAM_COUNTER(GetObject);
+            NEXT_INSTRUCTION();
+        }
+
         SetObjectOpcodeSlowCase : {
             SetObject* code = (SetObject*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
@@ -936,6 +943,11 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 }
             }
             return ret;
+        }
+
+        ThrowStaticErrorOperationOpcodeLbl : {
+            ThrowStaticErrorOperation* code = (ThrowStaticErrorOperation*)programCounter;
+            ErrorObject::throwBuiltinError(state, (ErrorObject::Code)code->m_errorKind, code->m_errorMessage);
         }
 
         EndOpcodeLbl:

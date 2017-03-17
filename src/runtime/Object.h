@@ -859,6 +859,8 @@ protected:
         }
     }
 };
+
+COMPILE_ASSERT(sizeof(Object) >= sizeof(String), "");
 }
 
 #endif

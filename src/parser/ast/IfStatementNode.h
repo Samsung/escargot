@@ -48,6 +48,7 @@ public:
         codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testReg), context, this);
         context->giveUpRegister();
         context->giveUpRegister();
+
         size_t jPos = codeBlock->lastCodePosition<JumpIfFalse>();
         m_consequente->generateStatementByteCode(codeBlock, context);
         size_t jPos2 = 0;

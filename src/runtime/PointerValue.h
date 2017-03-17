@@ -34,6 +34,8 @@ class PromiseObject;
 class DoubleInSmallValue;
 class JSGetterSetter;
 
+#define POINTER_VALUE_STRING_TAG_IN_DATA 0x3
+
 class PointerValue : public gc {
 public:
     enum Type {
@@ -201,6 +203,11 @@ public:
     bool hasTag(const size_t tag) const
     {
         return tag == *((size_t*)(this));
+    }
+
+    bool hasTagInFirstDataArea(const size_t tag) const
+    {
+        return tag == *((size_t*)(this) + 1);
     }
 };
 }
