@@ -138,9 +138,15 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, CodeBlock* pa
 
     const CodeBlock::IdentifierInfoVector& vec = m_topCodeBlock->identifierInfos();
     size_t len = vec.size();
+    EnvironmentRecord* recordToAddVariable = record;
+    LexicalEnvironment* e = state.executionContext()->lexicalEnvironment();
+    while (recordToAddVariable->isObjectEnvironmentRecord()) {
+        e = e->outerEnvironment();
+        recordToAddVariable = e->record();
+    }
     for (size_t i = 0; i < len; i++) {
-        if (record->hasBinding(state, vec[i].m_name).m_index == SIZE_MAX) {
-            record->createMutableBinding(state, vec[i].m_name, true);
+        if (recordToAddVariable->hasBinding(state, vec[i].m_name).m_index == SIZE_MAX) {
+            recordToAddVariable->createMutableBinding(state, vec[i].m_name, true);
         }
     }
     LexicalEnvironment* newEnvironment = new LexicalEnvironment(record, state.executionContext()->lexicalEnvironment());

@@ -1,0 +1,2 @@
+escargot/infinite-recursion.js
+SpiderMonkey/regress-609617.js

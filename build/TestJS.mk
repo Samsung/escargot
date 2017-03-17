@@ -7,10 +7,12 @@ OPT_MASTER_TYPEDARRAY=built-ins/TypedArray/prototype/set built-ins/TypedArray/pr
 
 check:
 	make tidy-update
-	make x64.interpreter.release -j$(NPROCS)
+	make x86.interpreter.release -j$(NPROCS)
 	# make run-sunspider | tee out/sunspider_result
 	make run-test262
-	make run-test262-master OPT="$(OPT_MASTER_PROMISE) $(OPT_MASTER_ARRAYBUFFER) $(OPT_MASTER_DATAVIEW) $(OPT_MASTER_TYPEDARRAY)"
+	# make run-test262-master OPT="$(OPT_MASTER_PROMISE) $(OPT_MASTER_ARRAYBUFFER) $(OPT_MASTER_DATAVIEW) $(OPT_MASTER_TYPEDARRAY)"
+	make run-spidermonkey-full
+	make run-internal-test
 
 tidy-install:
 	apt-get install clang-format-3.8
@@ -32,6 +34,13 @@ run-octane:
 	../../escargot run.js
 
 # Targets : Regression test
+
+run-internal-test:
+	cp ./tools/vendortest/internal-test-cases.txt ./test/vendortest/internal/internal-test-cases.txt ; \
+	cp ./tools/vendortest/internal-test-driver.py ./test/vendortest/internal/driver.py ; \
+	cd ./test/vendortest/internal/ ; \
+	python ./driver.py ../../../escargot internal-test-cases.txt \
+	cd -
 
 run-test262:
 	cp excludelist.orig.xml test/test262/test/config/excludelist.xml

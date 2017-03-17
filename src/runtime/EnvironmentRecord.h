@@ -189,7 +189,6 @@ public:
 
     virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false)
     {
-        RELEASE_ASSERT_NOT_REACHED();
     }
 
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name)

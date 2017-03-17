@@ -135,11 +135,11 @@ public:
         return false;
     }
 
-    bool inEvalScope()
+    bool inEvalWithScope()
     {
         CodeBlock* cb = this;
         while (cb) {
-            if (cb->hasEval()) {
+            if (cb->hasEval() || cb->hasWith()) {
                 return true;
             }
             cb = cb->parentCodeBlock();
@@ -347,7 +347,7 @@ public:
         IndexedIdentifierInfo info;
 
         CodeBlock* blk = this;
-        while (!blk->isGlobalScopeCodeBlock()) {
+        while (!blk->isGlobalScopeCodeBlock() && blk->canUseIndexedVariableStorage()) {
             size_t index = blk->findName(name);
             if (index != SIZE_MAX) {
                 info.m_isResultSaved = true;

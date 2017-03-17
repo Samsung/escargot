@@ -624,29 +624,44 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
         size_t len = str->length();
         newStr.resizeWithUninitializedValues(len);
         const LChar* buf = str->characters8();
+        bool result = true;
         for (size_t i = 0; i < len; i++) {
-            newStr[i] = u_tolower(buf[i]);
-        }
-        return new Latin1String(std::move(newStr));
-    } else {
-        size_t len = str->length();
-        UTF16StringData newStr(str->characters16(), len);
-        char16_t* buf = newStr.data();
-        for (size_t i = 0; i < len;) {
-            char32_t c;
-            size_t iBefore = i;
-            U16_NEXT(buf, i, len, c);
-            c = u_tolower(c);
-            if (c <= 0x10000) {
-                char16_t c2 = (char16_t)c;
-                buf[iBefore] = c2;
-            } else {
-                buf[iBefore] = (char16_t)(0xD800 + ((c - 0x10000) >> 10));
-                buf[iBefore + 1] = (char16_t)(0xDC00 + ((c - 0x10000) & 1023));
+            char32_t u2 = u_tolower(buf[i]);
+            if (UNLIKELY(u2 > 255)) {
+                result = false;
+                break;
             }
+            newStr[i] = u2;
         }
-        return new UTF16String(std::move(newStr));
+        if (result)
+            return new Latin1String(std::move(newStr));
     }
+
+    size_t len = str->length();
+    UTF16StringData newStr;
+    if (str->has8BitContent()) {
+        const LChar* buf = str->characters8();
+        newStr.resizeWithUninitializedValues(len);
+        for (size_t i = 0; i < len; i++) {
+            newStr[i] = buf[i];
+        }
+    } else
+        newStr = UTF16StringData(str->characters16(), len);
+    char16_t* buf = newStr.data();
+    for (size_t i = 0; i < len;) {
+        char32_t c;
+        size_t iBefore = i;
+        U16_NEXT(buf, i, len, c);
+        c = u_tolower(c);
+        if (c <= 0x10000) {
+            char16_t c2 = (char16_t)c;
+            buf[iBefore] = c2;
+        } else {
+            buf[iBefore] = (char16_t)(0xD800 + ((c - 0x10000) >> 10));
+            buf[iBefore + 1] = (char16_t)(0xDC00 + ((c - 0x10000) & 1023));
+        }
+    }
+    return new UTF16String(std::move(newStr));
 }
 
 static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -657,29 +672,44 @@ static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, si
         size_t len = str->length();
         newStr.resizeWithUninitializedValues(len);
         const LChar* buf = str->characters8();
+        bool result = true;
         for (size_t i = 0; i < len; i++) {
-            newStr[i] = u_toupper(buf[i]);
-        }
-        return new Latin1String(std::move(newStr));
-    } else {
-        size_t len = str->length();
-        UTF16StringData newStr(str->characters16(), len);
-        char16_t* buf = newStr.data();
-        for (size_t i = 0; i < len;) {
-            char32_t c;
-            size_t iBefore = i;
-            U16_NEXT(buf, i, len, c);
-            c = u_toupper(c);
-            if (c <= 0x10000) {
-                char16_t c2 = (char16_t)c;
-                buf[iBefore] = c2;
-            } else {
-                buf[iBefore] = (char16_t)(0xD800 + ((c - 0x10000) >> 10));
-                buf[iBefore + 1] = (char16_t)(0xDC00 + ((c - 0x10000) & 1023));
+            char32_t u2 = u_toupper(buf[i]);
+            if (UNLIKELY(u2 > 255)) {
+                result = false;
+                break;
             }
+            newStr[i] = u2;
         }
-        return new UTF16String(std::move(newStr));
+        if (result)
+            return new Latin1String(std::move(newStr));
     }
+
+    size_t len = str->length();
+    UTF16StringData newStr;
+    if (str->has8BitContent()) {
+        const LChar* buf = str->characters8();
+        newStr.resizeWithUninitializedValues(len);
+        for (size_t i = 0; i < len; i++) {
+            newStr[i] = buf[i];
+        }
+    } else
+        newStr = UTF16StringData(str->characters16(), len);
+    char16_t* buf = newStr.data();
+    for (size_t i = 0; i < len;) {
+        char32_t c;
+        size_t iBefore = i;
+        U16_NEXT(buf, i, len, c);
+        c = u_toupper(c);
+        if (c <= 0x10000) {
+            char16_t c2 = (char16_t)c;
+            buf[iBefore] = c2;
+        } else {
+            buf[iBefore] = (char16_t)(0xD800 + ((c - 0x10000) >> 10));
+            buf[iBefore + 1] = (char16_t)(0xDC00 + ((c - 0x10000) & 1023));
+        }
+    }
+    return new UTF16String(std::move(newStr));
 }
 
 static Value builtinStringToLocaleLowerCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
