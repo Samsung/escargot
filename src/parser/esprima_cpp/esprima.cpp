@@ -2763,7 +2763,7 @@ public:
 
     typedef Node* (Parser::*ParseFunction)();
 
-    void checkResursiveLimit()
+    void checkRecursiveLimit()
     {
         if (this->recursiveDepth > ESPRIMA_RECURSIVE_LIMIT) {
             this->throwError("too many recursion in script");
@@ -2791,7 +2791,7 @@ public:
         this->context->firstCoverInitializedNameError = nullptr;
 
         this->recursiveDepth++;
-        this->checkResursiveLimit();
+        this->checkRecursiveLimit();
         Node* result = (this->*parseFunction)();
         this->recursiveDepth--;
         if (this->context->firstCoverInitializedNameError != nullptr) {
@@ -2817,7 +2817,7 @@ public:
         this->context->firstCoverInitializedNameError = nullptr;
 
         this->recursiveDepth++;
-        this->checkResursiveLimit();
+        this->checkRecursiveLimit();
         Node* result = (this->*parseFunction)();
         this->recursiveDepth--;
 
@@ -5497,6 +5497,7 @@ public:
 
     StatementNode* parseStatement()
     {
+        checkRecursiveLimit();
         StatementNode* statement = nullptr;
         switch (this->lookahead->type) {
         case Token::BooleanLiteralToken:

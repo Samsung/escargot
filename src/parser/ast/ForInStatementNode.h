@@ -49,6 +49,7 @@ public:
 
         ByteCodeGenerateContext newContext(*context);
 
+        newContext.getRegister(); // ExecutionResult of m_right should not overwrite any reserved value
         size_t baseCountBefore = newContext.m_registerStack->size();
         size_t rightIdx = m_right->getRegister(codeBlock, &newContext);
         m_right->generateExpressionByteCode(codeBlock, &newContext, rightIdx);
@@ -88,6 +89,7 @@ public:
         context->m_canSkipCopyToRegister = canSkipCopyToRegisterBefore;
 
         ASSERT(newContext.m_registerStack->size() == baseCountBefore);
+        newContext.giveUpRegister();
         m_body->generateStatementByteCode(codeBlock, &newContext);
         size_t forInIndex = codeBlock->m_requiredRegisterFileSizeInValueSize;
         codeBlock->m_requiredRegisterFileSizeInValueSize++;
