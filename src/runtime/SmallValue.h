@@ -196,7 +196,7 @@ public:
         return m_data.payload;
     }
 
-    static SmallValue fromPayload(uintptr_t p)
+    static SmallValue fromPayload(void* p)
     {
         return SmallValue(SmallValueData((void*)p));
     }

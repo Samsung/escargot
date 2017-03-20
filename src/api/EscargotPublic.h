@@ -24,6 +24,7 @@ namespace Escargot {
 class StringRef {
 public:
     static StringRef* fromASCII(const char* s);
+    static StringRef* fromUTF8(const char* s, size_t len);
 };
 
 class Globals {
@@ -54,11 +55,10 @@ public:
 
 class ValueRef {
 public:
-    ValueRef(intptr_t val);
-    static ValueRef makeBoolean(ExecutionStateRef* es, bool value);
-    static ValueRef makeNumber(ExecutionStateRef* es, double value);
-    static ValueRef makeNull(ExecutionStateRef* es);
-    static ValueRef makeUndefined(ExecutionStateRef* es);
+    static ValueRef* makeBoolean(ExecutionStateRef* es, bool value);
+    static ValueRef* makeNumber(ExecutionStateRef* es, double value);
+    static ValueRef* makeNull(ExecutionStateRef* es);
+    static ValueRef* makeUndefined(ExecutionStateRef* es);
     bool isBoolean(ExecutionStateRef* es);
     bool isNumber(ExecutionStateRef* es);
     bool isNull(ExecutionStateRef* es);
@@ -66,19 +66,12 @@ public:
     bool isObject(ExecutionStateRef* es);
     bool toBoolean(ExecutionStateRef* es);
     double toNumber(ExecutionStateRef* es);
-
-private:
-    intptr_t v;
 };
 
-class ObjectRef {
+class ObjectRef : public ValueRef {
 public:
-    ObjectRef(intptr_t val);
-    static ObjectRef makeObject(ExecutionStateRef* es);
-    operator ValueRef();
-
-private:
-    intptr_t v;
+    static ObjectRef* makeObject(ExecutionStateRef* es);
+    ValueRef* getProperty(ExecutionStateRef* es, StringRef* propertyName);
 };
 
 

@@ -35,6 +35,11 @@ StringRef* StringRef::fromASCII(const char* s)
     return toRef(String::fromASCII(s));
 }
 
+StringRef* StringRef::fromUTF8(const char* s, size_t len)
+{
+    return toRef(String::fromUTF8(s, len));
+}
+
 void Globals::initialize()
 {
     Heap::initialize();
@@ -132,90 +137,92 @@ void ExecutionStateRef::destroy()
     delete imp;
 }
 
-ValueRef::ValueRef(intptr_t val)
-    : v(val)
-{
-}
 
-ValueRef ValueRef::makeBoolean(ExecutionStateRef* es, bool value)
+ValueRef* ValueRef::makeBoolean(ExecutionStateRef* es, bool value)
 {
     UNUSED_PARAMETER(es);
-    return ValueRef(SmallValue(Value(value)).payload());
+    return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
 }
 
-ValueRef ValueRef::makeNumber(ExecutionStateRef* es, double value)
+ValueRef* ValueRef::makeNumber(ExecutionStateRef* es, double value)
 {
     UNUSED_PARAMETER(es);
-    return ValueRef(SmallValue(Value(value)).payload());
+    return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
 }
 
-ValueRef ValueRef::makeNull(ExecutionStateRef* es)
+ValueRef* ValueRef::makeNull(ExecutionStateRef* es)
 {
     UNUSED_PARAMETER(es);
-    return ValueRef(SmallValue(Value(Value::Null)).payload());
+    return reinterpret_cast<ValueRef*>(SmallValue(Value(Value::Null))
+                                       .payload());
 }
 
-ValueRef ValueRef::makeUndefined(ExecutionStateRef* es)
+ValueRef* ValueRef::makeUndefined(ExecutionStateRef* es)
 {
     UNUSED_PARAMETER(es);
-    return ValueRef(SmallValue(Value(Value::Undefined)).payload());
+    return reinterpret_cast<ValueRef*>(SmallValue(Value(Value::Undefined))
+                                       .payload());
 }
 
 bool ValueRef::isBoolean(ExecutionStateRef* es)
 {
     UNUSED_PARAMETER(es);
-    return Value(SmallValue::fromPayload(v)).isBoolean();
+    return Value(SmallValue::fromPayload(this)).isBoolean();
 }
 
 bool ValueRef::isNumber(ExecutionStateRef* es)
 {
     UNUSED_PARAMETER(es);
-    return Value(SmallValue::fromPayload(v)).isNumber();
+    return Value(SmallValue::fromPayload(this)).isNumber();
 }
 
 bool ValueRef::isNull(ExecutionStateRef* es)
 {
     UNUSED_PARAMETER(es);
-    return Value(SmallValue::fromPayload(v)).isNull();
+    return Value(SmallValue::fromPayload(this)).isNull();
 }
 
 bool ValueRef::isUndefined(ExecutionStateRef* es)
 {
     UNUSED_PARAMETER(es);
-    return Value(SmallValue::fromPayload(v)).isUndefined();
+    return Value(SmallValue::fromPayload(this)).isUndefined();
 }
 
 bool ValueRef::isObject(ExecutionStateRef* es)
 {
     UNUSED_PARAMETER(es);
-    return Value(SmallValue::fromPayload(v)).isObject();
+    return Value(SmallValue::fromPayload(this)).isObject();
 }
 
 bool ValueRef::toBoolean(ExecutionStateRef* es)
 {
     ExecutionState* esi = toImpl(es);
-    return Value(SmallValue::fromPayload(v)).toBoolean(*esi);
+    return Value(SmallValue::fromPayload(this)).toBoolean(*esi);
 }
 
 double ValueRef::toNumber(ExecutionStateRef* es)
 {
     ExecutionState* esi = toImpl(es);
-    return Value(SmallValue::fromPayload(v)).toNumber(*esi);
+    return Value(SmallValue::fromPayload(this)).toNumber(*esi);
 }
 
-ObjectRef::ObjectRef(intptr_t val)
-    : v(val)
+
+// v is pointer to Object;
+ObjectRef* ObjectRef::makeObject(ExecutionStateRef* es)
 {
+    return reinterpret_cast<ObjectRef*>(new Object(*toImpl(es)));
 }
 
-ObjectRef ObjectRef::makeObject(ExecutionStateRef* es)
+ValueRef* ObjectRef::getProperty(ExecutionStateRef* es, StringRef* propertyName)
 {
-    Object* o = new Object(*toImpl(es));
-    return ObjectRef(reinterpret_cast<intptr_t>(o));
+    ASSERT(es);
+    ASSERT(propertyName);
+
+    ExecutionState* esi = toImpl(es);
+    PropertyName propname(*esi, toImpl(propertyName));
+    Object* obj = toImpl(this);
+    Value v = obj->get(*esi, ObjectPropertyName(*esi, propname)).value(*esi, obj);
+    return reinterpret_cast<ValueRef*>(SmallValue(Value(v)).payload());
 }
 
-ObjectRef::operator ValueRef()
-{
-    return ValueRef(v);
-}
 }
