@@ -33,71 +33,117 @@
 
 namespace Escargot {
 
+template <typename Encoding>
+struct JSONStringStream {
+    typedef typename Encoding::Ch Ch;
+
+    JSONStringStream(const Ch* src, size_t length)
+        : src_(src)
+        , head_(src)
+        , tail_(src + length)
+    {
+    }
+
+    Ch Peek() const
+    {
+        if (UNLIKELY(tail_ <= src_)) {
+            return 0;
+        }
+        return *src_;
+    }
+    Ch Take()
+    {
+        if (UNLIKELY(tail_ <= src_)) {
+            return 0;
+        }
+        return *src_++;
+    }
+    size_t Tell() const { return static_cast<size_t>(src_ - head_); }
+    Ch* PutBegin()
+    {
+        RAPIDJSON_ASSERT(false);
+        return 0;
+    }
+    void Put(Ch) { RAPIDJSON_ASSERT(false); }
+    void Flush() { RAPIDJSON_ASSERT(false); }
+    size_t PutEnd(Ch*)
+    {
+        RAPIDJSON_ASSERT(false);
+        return 0;
+    }
+
+    const Ch* src_; //!< Current read position.
+    const Ch* head_; //!< Original head of the string.
+    const Ch* tail_;
+};
+
 template <typename CharType, typename JSONCharType>
-Value parseJSON(ExecutionState& state, const CharType* data)
+static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSONCharType>& value)
+{
+    if (value.IsBool()) {
+        return Value(value.GetBool());
+    } else if (value.IsInt()) {
+        return Value(value.GetInt());
+    } else if (value.IsUint()) {
+        return Value(value.GetUint());
+    } else if (value.IsInt64()) {
+        return Value(value.GetInt64());
+    } else if (value.IsUint64()) {
+        return Value(value.GetUint64());
+    } else if (value.IsDouble()) {
+        return Value(value.GetDouble());
+    } else if (value.IsNull()) {
+        return Value(Value::Null);
+    } else if (value.IsString()) {
+        if (std::is_same<CharType, char16_t>::value) {
+            const char16_t* chars = (const char16_t*)value.GetString();
+            unsigned len = value.GetStringLength();
+            return new UTF16String(chars, len);
+        } else {
+            const char* valueAsString = (const char*)value.GetString();
+            if (isAllASCII(valueAsString, strlen(valueAsString))) {
+                return new ASCIIString(valueAsString);
+            } else {
+                return new UTF16String(utf8StringToUTF16String(valueAsString, strlen(valueAsString)));
+            }
+        }
+    } else if (value.IsArray()) {
+        ArrayObject* arr = new ArrayObject(state);
+        size_t i = 0;
+        auto iter = value.Begin();
+        while (iter != value.End()) {
+            arr->defineOwnProperty(state, ObjectPropertyName(state, Value(i++)), ObjectPropertyDescriptor(parseJSONWorker<CharType, JSONCharType>(state, *iter), ObjectPropertyDescriptor::AllPresent));
+            iter++;
+        }
+        return arr;
+    } else if (value.IsObject()) {
+        Object* obj = new Object(state);
+        auto iter = value.MemberBegin();
+        while (iter != value.MemberEnd()) {
+            Value propertyName = parseJSONWorker<CharType, JSONCharType>(state, iter->name);
+            ASSERT(propertyName.isString());
+            obj->defineOwnProperty(state, ObjectPropertyName(state, propertyName), ObjectPropertyDescriptor(parseJSONWorker<CharType, JSONCharType>(state, iter->value), ObjectPropertyDescriptor::AllPresent));
+            iter++;
+        }
+        return obj;
+    } else {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+}
+
+template <typename CharType, typename JSONCharType>
+Value parseJSON(ExecutionState& state, const CharType* data, size_t length)
 {
     auto strings = &state.context()->staticStrings();
     rapidjson::GenericDocument<JSONCharType> jsonDocument;
 
-    rapidjson::GenericStringStream<JSONCharType> stringStream(data);
+    JSONStringStream<JSONCharType> stringStream(data, length);
     jsonDocument.ParseStream(stringStream);
     if (jsonDocument.HasParseError()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, strings->JSON.string(), true, strings->parse.string(), rapidjson::GetParseError_En(jsonDocument.GetParseError()));
     }
-    std::function<Value(rapidjson::GenericValue<JSONCharType> & value)> fn;
-    fn = [&](rapidjson::GenericValue<JSONCharType>& value) -> Value {
-        if (value.IsBool()) {
-            return Value(value.GetBool());
-        } else if (value.IsInt()) {
-            return Value(value.GetInt());
-        } else if (value.IsUint()) {
-            return Value(value.GetUint());
-        } else if (value.IsInt64()) {
-            return Value(value.GetInt64());
-        } else if (value.IsUint64()) {
-            return Value(value.GetUint64());
-        } else if (value.IsDouble()) {
-            return Value(value.GetDouble());
-        } else if (value.IsNull()) {
-            return Value(Value::Null);
-        } else if (value.IsString()) {
-            if (std::is_same<CharType, char16_t>::value) {
-                const char16_t* chars = (const char16_t*)value.GetString();
-                unsigned len = value.GetStringLength();
-                return new UTF16String(chars, len);
-            } else {
-                const char* valueAsString = (const char*)value.GetString();
-                if (isAllASCII(valueAsString, strlen(valueAsString))) {
-                    return new ASCIIString(valueAsString);
-                } else {
-                    return new UTF16String(utf8StringToUTF16String(valueAsString, strlen(valueAsString)));
-                }
-            }
-        } else if (value.IsArray()) {
-            ArrayObject* arr = new ArrayObject(state);
-            size_t i = 0;
-            auto iter = value.Begin();
-            while (iter != value.End()) {
-                arr->defineOwnProperty(state, ObjectPropertyName(state, Value(i++)), ObjectPropertyDescriptor(fn(*iter), ObjectPropertyDescriptor::AllPresent));
-                iter++;
-            }
-            return arr;
-        } else if (value.IsObject()) {
-            Object* obj = new Object(state);
-            auto iter = value.MemberBegin();
-            while (iter != value.MemberEnd()) {
-                Value propertyName = fn(iter->name);
-                ASSERT(propertyName.isString());
-                obj->defineOwnProperty(state, ObjectPropertyName(state, propertyName), ObjectPropertyDescriptor(fn(iter->value), ObjectPropertyDescriptor::AllPresent));
-                iter++;
-            }
-            return obj;
-        } else {
-            RELEASE_ASSERT_NOT_REACHED();
-        }
-    };
 
-    return fn(jsonDocument);
+    return parseJSONWorker<CharType, JSONCharType>(state, jsonDocument);
 }
 
 String* codePointTo4digitString(int codepoint)
@@ -132,9 +178,16 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
     Value unfiltered;
 
     if (JText->has8BitContent()) {
-        unfiltered = parseJSON<char, rapidjson::UTF8<char>>(state, JText->toUTF8StringData().data());
+        size_t len = JText->length();
+        char16_t* char16Buf = new char16_t[len];
+        std::unique_ptr<char16_t> buf(char16Buf);
+        const LChar* srcBuf = JText->characters8();
+        for (size_t i = 0; i < len; i++) {
+            char16Buf[i] = srcBuf[i];
+        }
+        unfiltered = parseJSON<char16_t, rapidjson::UTF16<char16_t>>(state, buf.get(), JText->length());
     } else {
-        unfiltered = parseJSON<char16_t, rapidjson::UTF16<char16_t>>(state, JText->toUTF16StringData().data());
+        unfiltered = parseJSON<char16_t, rapidjson::UTF16<char16_t>>(state, JText->characters16(), JText->length());
     }
 
     // 4

@@ -1715,10 +1715,8 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, Wit
             record->m_count--;
             if (record->count()) {
                 state.rareData()->m_controlFlowRecord->back() = record;
-                return Value();
-            } else {
-                return record->value();
             }
+            return record->value();
         }
     } else {
         programCounter = jumpTo(codeBuffer, code->m_withEndPostion);
