@@ -45,11 +45,11 @@ GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBloc
 void GlobalEnvironmentRecord::createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete)
 {
     auto desc = m_globalObject->getOwnProperty(state, name);
+    ObjectPropertyDescriptor::PresentAttribute attribute = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent);
+    if (canDelete)
+        attribute = (ObjectPropertyDescriptor::PresentAttribute)(attribute | ObjectPropertyDescriptor::ConfigurablePresent);
     if (!desc.hasValue()) {
-        ObjectPropertyDescriptor::PresentAttribute attribute = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent);
-        if (canDelete)
-            attribute = (ObjectPropertyDescriptor::PresentAttribute)(attribute | ObjectPropertyDescriptor::ConfigurablePresent);
-        m_globalObject->defineOwnPropertyThrowsExceptionWhenStrictMode(state, name, ObjectPropertyDescriptor(Value(), attribute));
+        m_globalObject->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(Value(), attribute));
     }
 }
 
@@ -70,6 +70,21 @@ void GlobalEnvironmentRecord::setMutableBinding(ExecutionState& state, const Ato
 void GlobalEnvironmentRecord::setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& V)
 {
     m_globalObject->setThrowsExceptionWhenStrictMode(state, name, V, m_globalObject);
+}
+
+void GlobalEnvironmentRecord::initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+{
+    size_t t = m_globalObject->structure()->findProperty(name);
+    auto desc = m_globalObject->structure()->readProperty(state, t).m_descriptor;
+    if (desc.isDataProperty()) {
+        if (desc.isConfigurable() || !desc.isEnumerable()) {
+            m_globalObject->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(V, ObjectPropertyDescriptor::AllPresent));
+        } else {
+            m_globalObject->setThrowsException(state, name, V, m_globalObject);
+        }
+    } else {
+        m_globalObject->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(V, ObjectPropertyDescriptor::AllPresent));
+    }
 }
 
 bool GlobalEnvironmentRecord::deleteBinding(ExecutionState& state, const AtomicString& name)
@@ -144,9 +159,19 @@ void DeclarativeEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& s
             return;
         }
     }
-    RELEASE_ASSERT_NOT_REACHED();
+    ASSERT_NOT_REACHED();
 }
 
+void DeclarativeEnvironmentRecordNotIndexed::initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+{
+    for (size_t i = 0; i < m_recordVector.size(); i++) {
+        if (m_recordVector[i].m_name == name) {
+            m_heapStorage[i] = V;
+            return;
+        }
+    }
+    ASSERT_NOT_REACHED();
+}
 
 void FunctionEnvironmentRecordNotIndexed::createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete)
 {
@@ -177,6 +202,17 @@ void FunctionEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& stat
             return;
         }
     }
-    RELEASE_ASSERT_NOT_REACHED();
+    ASSERT_NOT_REACHED();
+}
+
+void FunctionEnvironmentRecordNotIndexed::initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+{
+    for (size_t i = 0; i < m_recordVector.size(); i++) {
+        if (m_recordVector[i].m_name == name) {
+            m_heapStorage[i] = V;
+            return;
+        }
+    }
+    ASSERT_NOT_REACHED();
 }
 }

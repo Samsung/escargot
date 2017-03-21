@@ -122,26 +122,12 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
     ctx.m_shouldGenerateLOCData = shouldGenerateLOCData;
 
     // generate init function decls first
-    if (isOnGlobal && !isEvalMode) {
-        size_t len = codeBlock->childBlocks().size();
-        for (size_t i = 0; i < len; i++) {
-            CodeBlock* b = codeBlock->childBlocks()[i];
-            if (b->isFunctionDeclaration()) {
-                block->pushCode(DeclareFunctionDeclarationsInGlobal(codeBlock), &ctx, nullptr);
-                break;
-            }
-        }
-    } else {
-        size_t len = codeBlock->childBlocks().size();
-        for (size_t i = 0; i < len; i++) {
-            CodeBlock* b = codeBlock->childBlocks()[i];
-            if (b->isFunctionDeclaration()) {
-                ctx.getRegister();
-                block->pushCode(DeclareFunctionDeclaration(b), &ctx, nullptr);
-                IdentifierNode idNode(b->m_functionName);
-                idNode.generateStoreByteCode(block, &ctx, 1, false);
-                ctx.giveUpRegister();
-            }
+    size_t len = codeBlock->childBlocks().size();
+    for (size_t i = 0; i < len; i++) {
+        CodeBlock* b = codeBlock->childBlocks()[i];
+        if (b->isFunctionDeclaration()) {
+            block->pushCode(DeclareFunctionDeclarations(codeBlock), &ctx, nullptr);
+            break;
         }
     }
 
@@ -460,7 +446,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
     }
 
 #ifndef NDEBUG
-    if (getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) {
+    if (!shouldGenerateLOCData && getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) {
         printf("dumpBytecode %s (%d:%d)>>>>>>>>>>>>>>>>>>>>>>\n", codeBlock->m_functionName.string()->toUTF8StringData().data(), (int)codeBlock->sourceElementStart().line, (int)codeBlock->sourceElementStart().column);
         printf("register info.. [");
         for (size_t i = 0; i < block->m_requiredRegisterFileSizeInValueSize; i++) {

@@ -35,8 +35,7 @@ class Node;
     F(StoreByName, 0, 0)                              \
     F(LoadByHeapIndex, 1, 0)                          \
     F(StoreByHeapIndex, 0, 0)                         \
-    F(DeclareFunctionDeclaration, 1, 0)               \
-    F(DeclareFunctionDeclarationsInGlobal, 0, 0)      \
+    F(DeclareFunctionDeclarations, 1, 0)              \
     F(DeclareFunctionExpression, 1, 0)                \
     F(NewOperation, 1, 0)                             \
     F(BinaryPlus, 1, 2)                               \
@@ -312,10 +311,10 @@ public:
 #endif
 };
 
-class DeclareFunctionDeclaration : public ByteCode {
+class DeclareFunctionDeclarations : public ByteCode {
 public:
-    DeclareFunctionDeclaration(CodeBlock* cb)
-        : ByteCode(Opcode::DeclareFunctionDeclarationOpcode, ByteCodeLOC(SIZE_MAX))
+    DeclareFunctionDeclarations(CodeBlock* cb)
+        : ByteCode(Opcode::DeclareFunctionDeclarationsOpcode, ByteCodeLOC(SIZE_MAX))
         , m_codeBlock(cb)
     {
     }
@@ -324,24 +323,7 @@ public:
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("function declaration %s", m_codeBlock->functionName().string()->toUTF8StringData().data());
-    }
-#endif
-};
-
-class DeclareFunctionDeclarationsInGlobal : public ByteCode {
-public:
-    DeclareFunctionDeclarationsInGlobal(CodeBlock* cb)
-        : ByteCode(Opcode::DeclareFunctionDeclarationsInGlobalOpcode, ByteCodeLOC(SIZE_MAX))
-        , m_codeBlock(cb)
-    {
-    }
-    CodeBlock* m_codeBlock;
-
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("function declarations in global");
+        printf("function declarations");
     }
 #endif
 };

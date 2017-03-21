@@ -154,14 +154,14 @@ ValueRef* ValueRef::makeNull(ExecutionStateRef* es)
 {
     UNUSED_PARAMETER(es);
     return reinterpret_cast<ValueRef*>(SmallValue(Value(Value::Null))
-                                       .payload());
+                                           .payload());
 }
 
 ValueRef* ValueRef::makeUndefined(ExecutionStateRef* es)
 {
     UNUSED_PARAMETER(es);
     return reinterpret_cast<ValueRef*>(SmallValue(Value(Value::Undefined))
-                                       .payload());
+                                           .payload());
 }
 
 bool ValueRef::isBoolean(ExecutionStateRef* es)
@@ -224,5 +224,4 @@ ValueRef* ObjectRef::getProperty(ExecutionStateRef* es, StringRef* propertyName)
     Value v = obj->get(*esi, ObjectPropertyName(*esi, propname)).value(*esi, obj);
     return reinterpret_cast<ValueRef*>(SmallValue(Value(v)).payload());
 }
-
 }

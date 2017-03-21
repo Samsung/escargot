@@ -35,6 +35,15 @@ class DoubleInSmallValue;
 class JSGetterSetter;
 
 #define POINTER_VALUE_STRING_TAG_IN_DATA 0x3
+// finding what is type of PointerValue operation is used in SmallValue <-> Value and interpreter
+// Only Object, String are seen in regular runtime-code
+// We figure what type of PointerValue by POINTER_VALUE_STRING_TAG_IN_DATA
+//   - Every data area of Object starts with [<vtable>, m_structure...]
+//   - Every data area of String starts with [<vtable>, POINTER_VALUE_STRING_TAG_IN_DATA ...]
+// finding what is type of PointerValue(Object, String) without accessing vtable provides gives better performance
+// but, it uses more memory for String type
+// POINTER_VALUE_STRING_TAG_IN_DATA is not essential thing for implementing figure type(we can use isObject, isString)
+// so, we can remove POINTER_VALUE_STRING_TAG_IN_DATA in very small device future
 
 class PointerValue : public gc {
 public:

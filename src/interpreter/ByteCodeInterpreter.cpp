@@ -702,13 +702,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DeclareFunctionDeclarationOpcodeLbl : {
-            DeclareFunctionDeclaration* code = (DeclareFunctionDeclaration*)programCounter;
-            registerFile[1] = new FunctionObject(state, code->m_codeBlock, ec->lexicalEnvironment());
-            ADD_PROGRAM_COUNTER(DeclareFunctionDeclaration);
-            NEXT_INSTRUCTION();
-        }
-
         LoadByNameOpcodeLbl : {
             LoadByName* code = (LoadByName*)programCounter;
             registerFile[code->m_registerIndex] = loadByName(state, ec->lexicalEnvironment(), code->m_name);
@@ -924,10 +917,11 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DeclareFunctionDeclarationsInGlobalOpcodeLbl : {
-            DeclareFunctionDeclarationsInGlobal* code = (DeclareFunctionDeclarationsInGlobal*)programCounter;
-            declareFunctionDeclarationsInGlobal(state, code, globalObject, ec->lexicalEnvironment());
-            ADD_PROGRAM_COUNTER(DeclareFunctionDeclarationsInGlobal);
+        DeclareFunctionDeclarationsOpcodeLbl : {
+            DeclareFunctionDeclarations* code = (DeclareFunctionDeclarations*)programCounter;
+            Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
+            declareFunctionDeclarations(state, code, ec->lexicalEnvironment(), stackStorage);
+            ADD_PROGRAM_COUNTER(DeclareFunctionDeclarations);
             NEXT_INSTRUCTION();
         }
 
@@ -1087,11 +1081,11 @@ NEVER_INLINE Value ByteCodeInterpreter::modOperation(ExecutionState& state, cons
 
 NEVER_INLINE Object* ByteCodeInterpreter::newOperation(ExecutionState& state, const Value& callee, size_t argc, Value* argv)
 {
-    if (!callee.isFunction()) {
+    if (UNLIKELY(!callee.isFunction())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
     }
     FunctionObject* function = callee.asFunction();
-    if (!function->isConstructor()) {
+    if (UNLIKELY(!function->isConstructor())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, function->codeBlock()->functionName().string(), false, String::emptyString, errorMessage_New_NotConstructor);
     }
     Object* receiver;
@@ -1741,13 +1735,34 @@ NEVER_INLINE Value ByteCodeInterpreter::callFunctionInWithScope(ExecutionState& 
     return FunctionObject::call(state, callee, receiverObj, code->m_argumentCount, argv);
 }
 
-NEVER_INLINE void ByteCodeInterpreter::declareFunctionDeclarationsInGlobal(ExecutionState& state, DeclareFunctionDeclarationsInGlobal* code, GlobalObject* globalObject, LexicalEnvironment* lexicalEnvironment)
+NEVER_INLINE void ByteCodeInterpreter::declareFunctionDeclarations(ExecutionState& state, DeclareFunctionDeclarations* code, LexicalEnvironment* lexicalEnvironment, Value* stackStorage)
 {
-    const CodeBlockVector& v = code->m_codeBlock->childBlocks();
+    CodeBlock* cb = code->m_codeBlock;
+    const CodeBlockVector& v = cb->childBlocks();
     size_t l = v.size();
-    for (size_t i = 0; i < l; i++) {
-        if (v[i]->isFunctionDeclaration())
-            globalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(v[i]->functionName()), new FunctionObject(state, v[i], lexicalEnvironment), globalObject);
+    if (LIKELY(cb->canUseIndexedVariableStorage())) {
+        for (size_t i = 0; i < l; i++) {
+            if (v[i]->isFunctionDeclaration()) {
+                AtomicString name = v[i]->functionName();
+                FunctionObject* fn = new FunctionObject(state, v[i], lexicalEnvironment);
+                const CodeBlock::IdentifierInfo& info = cb->identifierInfos()[cb->findName(name)];
+                if (info.m_needToAllocateOnStack) {
+                    stackStorage[info.m_indexForIndexedStorage] = fn;
+                } else {
+                    FunctionEnvironmentRecord* record = lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+                    ASSERT(record->isFunctionEnvironmentRecordOnHeap() || record->isFunctionEnvironmentRecordNotIndexed());
+                    ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[info.m_indexForIndexedStorage] = fn;
+                }
+            }
+        }
+    } else {
+        for (size_t i = 0; i < l; i++) {
+            if (v[i]->isFunctionDeclaration()) {
+                AtomicString name = v[i]->functionName();
+                FunctionObject* fn = new FunctionObject(state, v[i], lexicalEnvironment);
+                lexicalEnvironment->record()->initializeBinding(state, name, fn);
+            }
+        }
     }
 }
 

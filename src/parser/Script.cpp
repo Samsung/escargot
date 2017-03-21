@@ -85,7 +85,7 @@ Script::ScriptSandboxExecuteResult Script::sandboxExecute(Context* ctx)
     ExecutionState stateForInit(ctx);
 
     auto sandBoxResult = sb.run([&]() -> Value {
-        return execute(stateForInit);
+        return execute(stateForInit, false, false, true);
     });
     result.result = sandBoxResult.result;
     result.msgStr = sandBoxResult.msgStr;

@@ -892,6 +892,7 @@ ecma/GlobalObject/15.1.2.2-2.js
 ecma_3/Function/scope-001.js
 ecma_3/Statements/12.10-01.js
 ecma_3/extensions/regress-368516.js
+ecma_5/Function/10.2.1.1.6.js
 js1_5/Scope/regress-184107.js
 js1_5/Regress/regress-422348.js
 js1_8_5/regress/regress-665355.js

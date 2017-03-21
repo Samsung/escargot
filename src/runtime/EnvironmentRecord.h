@@ -72,11 +72,14 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
+    // curretly not using anywhere
+    // this function is defined in ES6
     virtual void createImmutableBinding(ExecutionState& state, const AtomicString& name)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
 
+    // curretly this function is used only in initialize function decls
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
     {
         RELEASE_ASSERT_NOT_REACHED();
@@ -198,6 +201,11 @@ public:
         }
     }
 
+    virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+    {
+        m_bindingObject->defineOwnPropertyThrowsExceptionWhenStrictMode(state, name, ObjectPropertyDescriptor(V, ObjectPropertyDescriptor::AllPresent));
+    }
+
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name)
     {
         auto result = m_bindingObject->get(state, ObjectPropertyName(name));
@@ -253,6 +261,7 @@ public:
     virtual bool deleteBinding(ExecutionState& state, const AtomicString& name);
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName);
     virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v);
+    virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V);
 
     CodeBlock* globalCodeBlock()
     {
@@ -357,6 +366,8 @@ public:
         // Currently 'canDelete' is always false in DeclarativeEnvironmentRecordNotIndexed::createMutableBinding
         return false;
     }
+
+    virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V);
 
 protected:
     SmallValueVector m_heapStorage;
@@ -535,6 +546,8 @@ public:
     {
         return m_argv;
     }
+
+    virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V);
 
 protected:
     size_t m_argc;

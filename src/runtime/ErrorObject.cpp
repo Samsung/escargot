@@ -126,8 +126,10 @@ void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, String* ob
 ErrorObject::ErrorObject(ExecutionState& state, String* errorMessage)
     : Object(state)
 {
-    if (errorMessage->length())
-        set(state, ObjectPropertyName(state.context()->staticStrings().message), errorMessage, this);
+    if (errorMessage->length()) {
+        defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,
+                                                       ObjectPropertyDescriptor(errorMessage, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+    }
     setPrototype(state, state.context()->globalObject()->errorPrototype());
 }
 

@@ -3,8 +3,6 @@ ecma_5/Array/redefine-length-frozen-dictionarymode-array.js
 ecma_5/Array/redefine-nonwritable-length-custom-conversion-call-counts.js
 ecma_5/Array/redefine-nonwritable-length-custom-conversion-throw.js
 ecma_5/Array/redefine-nonwritable-length-nonnumeric.js
-ecma_5/Exceptions/error-property-enumerability.js
-ecma_5/Function/10.2.1.1.6.js
 ecma_5/Global/eval-in-strict-eval-in-normal-function.js
 ecma_5/String/match-throws-nonwritable-lastIndex-global.js
 ecma_5/String/replace-throws-nonwritable-lastIndex-global.js
@@ -16,7 +14,6 @@ ecma_5/extensions/extension-methods-reject-null-undefined-this.js
 ecma_5/extensions/strict-function-statements.js
 ecma_5/extensions/toLocaleString-infinite-recursion.js
 ecma_5/extensions/toSource-infinite-recursion.js
-ecma_5/misc/function-definition-eval.js
 ecma_5/misc/future-reserved-words.js
 ecma_5/strict/10.4.2.js
 ecma_5/strict/12.14.1.js

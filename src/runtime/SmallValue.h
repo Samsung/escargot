@@ -250,6 +250,12 @@ public:
         }
     }
 
+    void operator=(PointerValue* from)
+    {
+        ASSERT(from);
+        m_data.payload = (intptr_t)from;
+    }
+
     void operator=(const Value& from)
     {
         if (from.isPointerValue()) {
