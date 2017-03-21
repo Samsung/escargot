@@ -145,9 +145,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, CodeBlock* pa
         recordToAddVariable = e->record();
     }
     for (size_t i = 0; i < len; i++) {
-        if (recordToAddVariable->hasBinding(state, vec[i].m_name).m_index == SIZE_MAX) {
-            recordToAddVariable->createMutableBinding(state, vec[i].m_name, true);
-        }
+        recordToAddVariable->createMutableBinding(state, vec[i].m_name, true);
     }
     LexicalEnvironment* newEnvironment = new LexicalEnvironment(record, state.executionContext()->lexicalEnvironment());
 

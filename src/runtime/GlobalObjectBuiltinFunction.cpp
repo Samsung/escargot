@@ -18,6 +18,7 @@
 #include "GlobalObject.h"
 #include "Context.h"
 #include "parser/ScriptParser.h"
+#include "parser/esprima_cpp/esprima.h"
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
 
@@ -40,9 +41,32 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
         }
     }
 
+    Value sourceValue = argc >= 1 ? argv[argc - 1] : Value();
+    String* source = sourceValue.toString(state);
+
+    auto data = source->bufferAccessData();
+    char16_t firstCharMet = ' ';
+
+    for (size_t i = 0; i < data.length; i++) {
+        char16_t c;
+        if (data.has8BitContent) {
+            c = ((LChar*)data.buffer)[i];
+        } else {
+            c = ((char16_t*)data.buffer)[i];
+        }
+        if (!esprima::isWhiteSpace(c)) {
+            firstCharMet = c;
+            break;
+        }
+    }
+
+    if (firstCharMet == '}') {
+        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is unbalanced braces(}) in Function Constructor input");
+    }
+
     src.appendString("){ ");
     if (argc > 0) {
-        src.appendString(argv[argc - 1].toString(state));
+        src.appendString(source);
     }
     src.appendString(" }");
 

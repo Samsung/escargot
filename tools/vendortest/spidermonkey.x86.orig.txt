@@ -1,17 +1,11 @@
-ecma_3/LexicalConventions/7.9.1.js
-ecma_3/Statements/12.10-01.js
-ecma_3/Unicode/regress-352044-01.js
-ecma_3/extensions/regress-368516.js
 ecma_5/Array/length-nonwritable-redefine-nop.js
 ecma_5/Array/redefine-length-frozen-dictionarymode-array.js
 ecma_5/Array/redefine-nonwritable-length-custom-conversion-call-counts.js
 ecma_5/Array/redefine-nonwritable-length-custom-conversion-throw.js
 ecma_5/Array/redefine-nonwritable-length-nonnumeric.js
-ecma_5/Array/unshift-01.js
 ecma_5/Exceptions/error-property-enumerability.js
 ecma_5/Function/10.2.1.1.6.js
 ecma_5/Global/eval-in-strict-eval-in-normal-function.js
-ecma_5/Object/freeze-global-eval-const.js
 ecma_5/String/match-throws-nonwritable-lastIndex-global.js
 ecma_5/String/replace-throws-nonwritable-lastIndex-global.js
 ecma_5/extensions/String-methods-infinite-recursion.js
@@ -24,7 +18,6 @@ ecma_5/extensions/toLocaleString-infinite-recursion.js
 ecma_5/extensions/toSource-infinite-recursion.js
 ecma_5/misc/function-definition-eval.js
 ecma_5/misc/future-reserved-words.js
-ecma_5/misc/regress-bug632003.js
 ecma_5/strict/10.4.2.js
 ecma_5/strict/12.14.1.js
 ecma_5/strict/13.1.js
@@ -32,8 +25,3 @@ ecma_5/strict/8.12.7-2.js
 ecma_5/strict/B.1.2.js
 ecma_5/strict/assign-to-callee-name.js
 ecma_5/strict/eval-variable-environment.js
-js1_5/Regress/regress-290575.js
-js1_5/Regress/regress-350268.js
-js1_5/Regress/regress-352208.js
-js1_5/Regress/regress-420919.js
-js1_5/Regress/regress-422348.js

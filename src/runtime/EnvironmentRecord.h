@@ -189,6 +189,13 @@ public:
 
     virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false)
     {
+        auto desc = m_bindingObject->getOwnProperty(state, name);
+        if (!desc.hasValue()) {
+            ObjectPropertyDescriptor::PresentAttribute attribute = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent);
+            if (canDelete)
+                attribute = (ObjectPropertyDescriptor::PresentAttribute)(attribute | ObjectPropertyDescriptor::ConfigurablePresent);
+            m_bindingObject->defineOwnPropertyThrowsExceptionWhenStrictMode(state, name, ObjectPropertyDescriptor(Value(), attribute));
+        }
     }
 
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name)
