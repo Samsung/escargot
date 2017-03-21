@@ -56,9 +56,10 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
     } else {
         idx = P.string(state)->tryToUseAsArrayIndex();
     }
+    auto oldLenDesc = structure()->readProperty(state, (size_t)0);
+    uint32_t oldLen = getArrayLength(state);
+
     if (idx != Value::InvalidArrayIndexValue) {
-        auto oldLenDesc = structure()->readProperty(state, (size_t)0);
-        uint32_t oldLen = getArrayLength(state);
         if ((idx >= oldLen) && !oldLenDesc.m_descriptor.isWritable())
             return false;
         bool succeeded = Object::defineOwnProperty(state, P, desc);
@@ -68,6 +69,79 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
             return setArrayLength(state, idx + 1);
         }
         return true;
+    } else if (P.string(state)->equals(state.context()->staticStrings().length.string())) {
+        // See 3.a ~ 3.n on http://www.ecma-international.org/ecma-262/5.1/#sec-15.4.5.1
+        if (desc.isValuePresent()) {
+            ObjectPropertyDescriptor newLenDesc(desc);
+
+            uint32_t newLen = desc.value().toLength(state);
+            bool newWritable = false;
+
+            if (newLen != desc.value().toNumber(state)) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
+            }
+
+            newLenDesc.setValue(Value(newLen));
+
+            if (newLen >= oldLen) {
+                return Object::defineOwnProperty(state, P, newLenDesc);
+            }
+
+            if (!(oldLenDesc.m_descriptor.isWritable())) {
+                return false;
+            }
+
+            if (!(newLenDesc.isWritablePresent()) || newLenDesc.isWritable()) {
+                newWritable = true;
+            } else {
+                // In this case, even if an element of this array cannot be deleted,
+                // it should not throw any error.
+                // Object::defineOwnProperty() below can make call to ArrayObject::setArrayLength()
+                // so, we set this variable to give the information to ArrayObject::setArrayLength()
+                // not to throw error.
+                ensureObjectRareData()->m_isInArrayObjectDefineOwnProperty = true;
+                newWritable = false;
+                newLenDesc.setWritable(true);
+            }
+
+            if (!(Object::defineOwnProperty(state, P, newLenDesc))) {
+                if (isInArrayObjectDefineOwnProperty()) {
+                    ASSERT(rareData());
+                    rareData()->m_isInArrayObjectDefineOwnProperty = false;
+                }
+                return false;
+            }
+
+            while (newLen < oldLen) {
+                oldLen--;
+                bool deleteSucceeded = Object::deleteOwnProperty(state, ObjectPropertyName(state, Value(oldLen).toString(state)));
+                if (!deleteSucceeded) {
+                    newLenDesc.setValue(Value(oldLen + 1));
+                    if (!newWritable) {
+                        newLenDesc.setWritable(false);
+                    }
+                    Object::defineOwnProperty(state, P, newLenDesc);
+                    if (isInArrayObjectDefineOwnProperty()) {
+                        ASSERT(rareData());
+                        rareData()->m_isInArrayObjectDefineOwnProperty = false;
+                    }
+                    return false;
+                }
+            }
+
+            if (!newWritable) {
+                ObjectPropertyDescriptor tmpDesc(ObjectPropertyDescriptor::NonWritablePresent);
+                Object::defineOwnProperty(state, P, tmpDesc);
+            }
+
+            if (isInArrayObjectDefineOwnProperty()) {
+                ASSERT(rareData());
+                rareData()->m_isInArrayObjectDefineOwnProperty = false;
+            }
+            return true;
+        } else {
+            return Object::defineOwnProperty(state, P, desc);
+        }
     }
 
     return Object::defineOwnProperty(state, P, desc);
@@ -174,36 +248,37 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t& newLengt
         m_fastModeData.resize(oldSize, newLength, Value(Value::EmptyValue));
         return true;
     } else {
-        auto oldLenDesc = structure()->readProperty(state, (size_t)0);
+        if (!isInArrayObjectDefineOwnProperty()) {
+            auto oldLenDesc = structure()->readProperty(state, (size_t)0);
 
-        int64_t oldLen = length(state);
-        int64_t newLen = newLength;
+            int64_t oldLen = length(state);
+            int64_t newLen = newLength;
 
-        while (newLen < oldLen) {
-            oldLen--;
-            ObjectPropertyName key(state, Value(oldLen));
+            while (newLen < oldLen) {
+                oldLen--;
+                ObjectPropertyName key(state, Value(oldLen));
 
-            if (!getOwnProperty(state, key).hasValue()) {
-                oldLen = Object::nextIndexBackward(state, this, oldLen, -1, false);
+                if (!getOwnProperty(state, key).hasValue()) {
+                    oldLen = Object::nextIndexBackward(state, this, oldLen, -1, false);
 
-                if (oldLen < newLen) {
-                    break;
+                    if (oldLen < newLen) {
+                        break;
+                    }
+
+                    key = ObjectPropertyName(state, Value(oldLen));
                 }
 
-                key = ObjectPropertyName(state, Value(oldLen));
+                bool deleteSucceeded = deleteOwnProperty(state, key);
+                if (!deleteSucceeded) {
+                    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(oldLen + 1);
+                    return false;
+                }
             }
 
-            bool deleteSucceeded = deleteOwnProperty(state, key);
-            if (!deleteSucceeded) {
-                m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(oldLen + 1);
+            if (!oldLenDesc.m_descriptor.isWritable()) {
                 return false;
             }
         }
-
-        if (!oldLenDesc.m_descriptor.isWritable()) {
-            return false;
-        }
-
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(newLength);
         return true;
     }

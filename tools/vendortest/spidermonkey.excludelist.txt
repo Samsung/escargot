@@ -9,6 +9,7 @@ js1_8_5/extensions/regress-650753.js
 js1_8_5/regress/regress-646820-1.js
 js1_8_5/regress/regress-646820-2.js
 js1_8_5/regress/regress-646820-3.js
+ecma_5/extensions/extension-methods-reject-null-undefined-this.js
 
 # Function declaration inside block not supported
 js1_5/extensions/regress-406572.js
@@ -665,6 +666,7 @@ js1_8_5/extensions/symbol-uneval.js
 js1_8_5/extensions/toSource-0.js
 js1_8_5/regress/regress-yarr-regexp.js
 ecma_3/Array/regress-387501.js
+ecma_5/extensions/toSource-infinite-recursion.js
 
 
 # Object.prototype.toSource not supported
@@ -769,6 +771,7 @@ ecma_5/extensions/function-properties.js
 ecma_5/extensions/arguments-property-access-in-function.js
 js1_4/Functions/function-001.js
 ecma_3/Function/regress-85880.js
+ecma_5/extensions/builtin-function-arguments-caller.js
 
 # implementation-dependent Arguments.caller
 ecma_5/Function/arguments-property-attributes.js
@@ -796,6 +799,7 @@ ecma_3/FunExpr/fe-001.js
 ecma_3/Array/15.5.4.8-01.js
 ecma_5/JSON/stringify.js
 ecma_5/extensions/eval-native-callback-is-indirect.js
+ecma_5/extensions/error-tostring-function.js
 js1_5/Array/regress-313153.js
 js1_5/Array/regress-474529.js
 js1_5/Expressions/regress-96526-delelem.js
@@ -836,6 +840,9 @@ ecma_6/Promise/get-wait-for-all-promise.js
 ## setPromiseRejectionTrackerCallback
 ecma_6/Promise/promise-rejection-tracking.js
 
+# Unsupported mozjs InternalError
+ecma_5/extensions/toLocaleString-infinite-recursion.js
+ecma_5/extensions/array-toString-recursion.js
 
 # Number.prototype.toPrecision argument should be 1~21
 js1_5/Regress/regress-452346.js

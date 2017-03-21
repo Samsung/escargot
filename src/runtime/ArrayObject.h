@@ -83,6 +83,14 @@ protected:
         return rareData()->m_isFastModeArrayObject;
     }
 
+    ALWAYS_INLINE bool isInArrayObjectDefineOwnProperty()
+    {
+        if (LIKELY(rareData() == nullptr)) {
+            return false;
+        }
+        return rareData()->m_isInArrayObjectDefineOwnProperty;
+    }
+
     ALWAYS_INLINE uint32_t getArrayLength(ExecutionState& state)
     {
         return m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER].toUint32(state);

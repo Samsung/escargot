@@ -39,9 +39,10 @@ class TypedArrayObject;
 extern size_t g_objectRareDataTag;
 
 struct ObjectRareData : public PointerValue {
-    bool m_isExtensible;
-    bool m_isEverSetAsPrototypeObject;
-    bool m_isFastModeArrayObject;
+    bool m_isExtensible : 1;
+    bool m_isEverSetAsPrototypeObject : 1;
+    bool m_isFastModeArrayObject : 1;
+    bool m_isInArrayObjectDefineOwnProperty : 1;
     const char* m_internalClassName;
     void* m_extraData;
     Object* m_prototype;

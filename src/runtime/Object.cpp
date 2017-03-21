@@ -35,6 +35,7 @@ ObjectRareData::ObjectRareData(Object* obj)
     m_isExtensible = true;
     m_isEverSetAsPrototypeObject = false;
     m_isFastModeArrayObject = true;
+    m_isInArrayObjectDefineOwnProperty = false;
     m_internalClassName = nullptr;
     m_extraData = nullptr;
 #ifdef ESCARGOT_ENABLE_PROMISE
@@ -501,8 +502,10 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
                 if (!item.m_descriptor.isWritable()) {
                     // Reject, if the [[Value]] field of Desc is present and SameValue(Desc.[[Value]], current.[[Value]]) is false.
                     Value val = desc.isValuePresent() ? desc.value() : Value();
-                    if (!val.equalsToByTheSameValueAlgorithm(state, getOwnDataPropertyUtilForObject(state, idx, this))) {
-                        return false;
+                    if (desc.isValuePresent()) {
+                        if (!val.equalsToByTheSameValueAlgorithm(state, getOwnDataPropertyUtilForObject(state, idx, this))) {
+                            return false;
+                        }
                     }
                 }
             }
@@ -581,9 +584,9 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
         }
 
         if (!shouldDelete) {
-            if (newDesc.isDataDescriptor()) {
+            if (newDesc.isDataDescriptor() && desc.isValuePresent()) {
                 return setOwnDataPropertyUtilForObjectInner(state, idx, item, newDesc.value());
-            } else {
+            } else if (!newDesc.isDataDescriptor()) {
                 m_values[idx] = Value(new JSGetterSetter(newDesc.getterSetter()));
             }
         } else {
