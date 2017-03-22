@@ -45,7 +45,7 @@ public:
         if ((context->m_codeBlock->canUseIndexedVariableStorage() || context->m_codeBlock->isGlobalScopeCodeBlock())) {
             CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {
-                if (!context->m_codeBlock->inCatchWith() && !context->m_codeBlock->inEvalWithScope() && !context->m_catchScopeCount && !context->m_isEvalCode && !context->m_codeBlock->hasWith()) {
+                if (!context->m_codeBlock->inNotIndexedCodeBlockScope() && !context->m_codeBlock->inCatchWith() && !context->m_codeBlock->inEvalWithScope() && !context->m_catchScopeCount && !context->m_isEvalCode && !context->m_codeBlock->hasWith()) {
                     codeBlock->pushCode(SetGlobalObject(ByteCodeLOC(m_loc.index), srcRegister, PropertyName(m_name)), context, this);
                 } else {
                     codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
@@ -76,7 +76,7 @@ public:
         if ((context->m_codeBlock->canUseIndexedVariableStorage() || context->m_codeBlock->isGlobalScopeCodeBlock())) {
             CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {
-                if (!context->m_codeBlock->inCatchWith() && !context->m_codeBlock->inEvalWithScope() && !context->m_catchScopeCount && !context->m_isEvalCode && !context->m_codeBlock->hasWith()) {
+                if (!context->m_codeBlock->inNotIndexedCodeBlockScope() && !context->m_codeBlock->inCatchWith() && !context->m_codeBlock->inEvalWithScope() && !context->m_catchScopeCount && !context->m_isEvalCode && !context->m_codeBlock->hasWith()) {
                     codeBlock->pushCode(GetGlobalObject(ByteCodeLOC(m_loc.index), dstRegister, PropertyName(m_name)), context, this);
                 } else {
                     codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
