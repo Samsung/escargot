@@ -23,6 +23,7 @@ namespace Escargot {
 
 extern const char* errorMessage_NotImplemented; // FIXME to be removed
 extern const char* errorMessage_IsNotDefined;
+extern const char* errorMessage_AssignmentToConstantVariable;
 extern const char* errorMessage_DefineProperty_Default;
 extern const char* errorMessage_DefineProperty_LengthNotWritable;
 extern const char* errorMessage_DefineProperty_NotWritable;

@@ -21,6 +21,7 @@
 namespace Escargot {
 const char* errorMessage_NotImplemented = "Not implemented";
 const char* errorMessage_IsNotDefined = "%s is not defined";
+const char* errorMessage_AssignmentToConstantVariable = "Assignment to constant variable";
 const char* errorMessage_DefineProperty_Default = "Cannot define property '%s'";
 const char* errorMessage_DefineProperty_LengthNotWritable = "Cannot modify property '%s': 'length' is not writable";
 const char* errorMessage_DefineProperty_NotWritable = "Cannot modify non-writable property '%s'";

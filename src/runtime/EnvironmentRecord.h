@@ -38,6 +38,7 @@ class ArgumentsObject;
 struct IdentifierRecord {
     AtomicString m_name;
     bool m_canDelete;
+    bool m_isMutable;
 };
 
 typedef Vector<IdentifierRecord, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<IdentifierRecord>> IdentifierRecordVector;
@@ -67,19 +68,11 @@ public:
         return BindingSlot(this, SIZE_MAX);
     }
 
-    virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false)
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    // curretly not using anywhere
-    // this function is defined in ES6
-    virtual void createImmutableBinding(ExecutionState& state, const AtomicString& name)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-
-    // curretly this function is used only in initialize function decls
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
     {
         RELEASE_ASSERT_NOT_REACHED();
@@ -151,6 +144,11 @@ public:
         return false;
     }
 
+    virtual bool isEvalTarget()
+    {
+        return false;
+    }
+
     GlobalEnvironmentRecord* asGlobalEnvironmentRecord()
     {
         ASSERT(isGlobalEnvironmentRecord());
@@ -190,7 +188,7 @@ public:
         return true;
     }
 
-    virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false)
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true)
     {
         auto desc = m_bindingObject->getOwnProperty(state, name);
         if (!desc.hasValue()) {
@@ -255,12 +253,17 @@ public:
         return true;
     }
 
-    virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false);
+    virtual bool isEvalTarget()
+    {
+        return true;
+    }
+
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true);
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v);
     virtual bool deleteBinding(ExecutionState& state, const AtomicString& name);
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName);
-    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v);
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V);
 
     CodeBlock* globalCodeBlock()
@@ -329,7 +332,7 @@ public:
         , m_heapStorage()
     {
         for (size_t i = 0; i < vec.size(); i++) {
-            createMutableBinding(state, vec[i].m_name, false);
+            createBinding(state, vec[i].m_name, false, vec[i].m_isMutable);
         }
     }
 
@@ -338,6 +341,11 @@ public:
     }
 
     virtual bool isDeclarativeEnvironmentRecordNotIndexed()
+    {
+        return true;
+    }
+
+    virtual bool isEvalTarget()
     {
         return true;
     }
@@ -352,18 +360,14 @@ public:
         return BindingSlot(this, SIZE_MAX);
     }
 
-    virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false);
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true);
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
-
-    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
-    {
-        m_heapStorage[idx] = v;
-    }
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v);
 
     virtual bool deleteBinding(ExecutionState& state, const AtomicString& name)
     {
-        // Currently 'canDelete' is always false in DeclarativeEnvironmentRecordNotIndexed::createMutableBinding
+        // Currently 'canDelete' is always false in DeclarativeEnvironmentRecordNotIndexed::createBinding
         return false;
     }
 
@@ -444,6 +448,7 @@ public:
 class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
     friend class ByteCodeInterpreter;
+    friend class FunctionObject;
 
 public:
     FunctionEnvironmentRecordOnHeap(FunctionObject* function, size_t argc, Value* argv);
@@ -490,11 +495,6 @@ public:
         return true;
     }
 
-    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
-    {
-        m_heapStorage[idx] = v;
-    }
-
     virtual void setHeapValueByIndex(const size_t& idx, const Value& v)
     {
         m_heapStorage[idx] = v;
@@ -503,6 +503,11 @@ public:
     virtual Value getHeapValueByIndex(const size_t& idx)
     {
         return m_heapStorage[idx];
+    }
+
+    virtual bool isEvalTarget()
+    {
+        return true;
     }
 
     virtual bool deleteBinding(ExecutionState& state, const AtomicString& atomicName)
@@ -533,9 +538,10 @@ public:
     }
 
 
-    virtual void createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false);
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true);
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v);
 
     virtual size_t argc()
     {

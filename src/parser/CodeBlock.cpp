@@ -188,7 +188,7 @@ CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundT
     }
 }
 
-CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const AtomicStringVector& innerIdentifiers, CodeBlockInitFlag initFlags)
+CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const ASTScoptContextNameInfoVector& innerIdentifiers, CodeBlockInitFlag initFlags)
     : m_context(ctx)
     , m_script(script)
     , m_src(src)
@@ -254,8 +254,10 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
 
     for (size_t i = 0; i < innerIdentifiers.size(); i++) {
         IdentifierInfo info;
-        info.m_name = innerIdentifiers[i];
+        info.m_name = innerIdentifiers[i].m_name;
         info.m_needToAllocateOnStack = false;
+        info.m_isMutable = true;
+        info.m_isExplicitlyDeclaredOrParameterName = innerIdentifiers[i].m_isExplicitlyDeclaredOrParameterName;
         info.m_indexForIndexedStorage = SIZE_MAX;
         m_identifierInfos.push_back(info);
     }
@@ -263,7 +265,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
     m_isFunctionNameSaveOnHeap = false;
 }
 
-CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringVector& parameterNames, const AtomicStringVector& innerIdentifiers,
+CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringVector& parameterNames, const ASTScoptContextNameInfoVector& innerIdentifiers,
                      CodeBlock* parentBlock, CodeBlockInitFlag initFlags)
     : m_context(ctx)
     , m_script(script)
@@ -352,8 +354,10 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeL
 
     for (size_t i = 0; i < innerIdentifiers.size(); i++) {
         IdentifierInfo info;
-        info.m_name = innerIdentifiers[i];
+        info.m_name = innerIdentifiers[i].m_name;
         info.m_needToAllocateOnStack = m_canUseIndexedVariableStorage;
+        info.m_isMutable = true;
+        info.m_isExplicitlyDeclaredOrParameterName = innerIdentifiers[i].m_isExplicitlyDeclaredOrParameterName;
         info.m_indexForIndexedStorage = SIZE_MAX;
         m_identifierInfos.push_back(info);
     }
@@ -403,6 +407,16 @@ void CodeBlock::computeVariables()
     }
 
     if (m_functionName.string()->length()) {
+        if (m_isFunctionExpression && m_isStrict) {
+            // name of function expression is immuable on strict mode
+            for (size_t i = 0; i < m_identifierInfos.size(); i++) {
+                if (m_identifierInfos[i].m_name == m_functionName && !m_identifierInfos[i].m_isExplicitlyDeclaredOrParameterName) {
+                    m_identifierInfos[i].m_isMutable = false;
+                    break;
+                }
+            }
+        }
+
         for (size_t i = 0; i < m_parameterNames.size(); i++) {
             AtomicString name = m_parameterNames[i];
             if (name == m_functionName) {

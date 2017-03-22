@@ -38,12 +38,13 @@ GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBloc
     for (size_t i = 0; i < len; i++) {
         // https://www.ecma-international.org/ecma-262/5.1/#sec-10.5
         // Step 2. If code is eval code, then let configurableBindings be true.
-        createMutableBinding(state, vec[i].m_name, isEvalMode);
+        createBinding(state, vec[i].m_name, isEvalMode, vec[i].m_isMutable);
     }
 }
 
-void GlobalEnvironmentRecord::createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete)
+void GlobalEnvironmentRecord::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable)
 {
+    ASSERT(isMutable);
     auto desc = m_globalObject->getOwnProperty(state, name);
     ObjectPropertyDescriptor::PresentAttribute attribute = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent);
     if (canDelete)
@@ -124,17 +125,22 @@ FunctionEnvironmentRecordNotIndexed::FunctionEnvironmentRecordNotIndexed(Functio
     for (size_t i = 0; i < len; i++) {
         IdentifierRecord record;
         record.m_name = vec[i].m_name;
+        record.m_canDelete = false;
+        record.m_isMutable = vec[i].m_isMutable;
         m_recordVector[i] = record;
         m_heapStorage[i] = Value();
     }
 }
 
-void DeclarativeEnvironmentRecordNotIndexed::createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete)
+void DeclarativeEnvironmentRecordNotIndexed::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable)
 {
-    ASSERT(canDelete == false);
+    ASSERT(!canDelete);
+    ASSERT(isMutable);
     ASSERT(hasBinding(state, name).m_index == SIZE_MAX);
     IdentifierRecord record;
     record.m_name = name;
+    record.m_canDelete = false;
+    record.m_isMutable = isMutable;
     m_recordVector.pushBack(record);
     m_heapStorage.pushBack(Value());
 }
@@ -162,6 +168,11 @@ void DeclarativeEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& s
     ASSERT_NOT_REACHED();
 }
 
+void DeclarativeEnvironmentRecordNotIndexed::setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
+{
+    m_heapStorage[idx] = v;
+}
+
 void DeclarativeEnvironmentRecordNotIndexed::initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
 {
     for (size_t i = 0; i < m_recordVector.size(); i++) {
@@ -173,12 +184,14 @@ void DeclarativeEnvironmentRecordNotIndexed::initializeBinding(ExecutionState& s
     ASSERT_NOT_REACHED();
 }
 
-void FunctionEnvironmentRecordNotIndexed::createMutableBinding(ExecutionState& state, const AtomicString& name, bool canDelete)
+void FunctionEnvironmentRecordNotIndexed::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable)
 {
+    ASSERT(isMutable);
     ASSERT(hasBinding(state, name).m_index == SIZE_MAX);
     IdentifierRecord record;
     record.m_name = name;
     record.m_canDelete = canDelete;
+    record.m_isMutable = true;
     m_recordVector.pushBack(record);
     m_heapStorage.pushBack(Value());
 }
@@ -198,11 +211,22 @@ void FunctionEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& stat
     size_t len = m_recordVector.size();
     for (size_t i = 0; i < len; i++) {
         if (m_recordVector[i].m_name == name) {
+            if (UNLIKELY(!m_recordVector[i].m_isMutable)) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable);
+            }
             m_heapStorage[i] = V;
             return;
         }
     }
     ASSERT_NOT_REACHED();
+}
+
+void FunctionEnvironmentRecordNotIndexed::setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
+{
+    if (UNLIKELY(!m_recordVector[idx].m_isMutable)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable);
+    }
+    m_heapStorage[idx] = v;
 }
 
 void FunctionEnvironmentRecordNotIndexed::initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)

@@ -7,10 +7,15 @@ ecma_6/TypedArray/subarray-species.js
 ecma_6/Promise/promise-species.js
 js1_8_5/regress/regress-553778.js
 js1_8_5/extensions/regress-650753.js
+
+# ES6 object, array pattern
+ecma_5/strict/10.4.2.js
+ecma_5/strict/13.1.js
+ecma_5/strict/12.14.1.js
+ecma_5/extensions/extension-methods-reject-null-undefined-this.js
 js1_8_5/regress/regress-646820-1.js
 js1_8_5/regress/regress-646820-2.js
 js1_8_5/regress/regress-646820-3.js
-ecma_5/extensions/extension-methods-reject-null-undefined-this.js
 
 # Function declaration inside block not supported
 js1_5/extensions/regress-406572.js
@@ -905,6 +910,7 @@ ecma_5/Function/10.2.1.1.6.js
 ecma_5/extensions/toSource-infinite-recursion.js
 ecma_5/extensions/error-tostring-function.js
 ecma_5/extensions/extension-methods-reject-null-undefined-this.js
+ecma_5/strict/B.1.2.js
 js1_5/Scope/regress-184107.js
 js1_5/Regress/regress-422348.js
 js1_8_5/regress/regress-665355.js

@@ -56,6 +56,11 @@ public:
                     return;
                 }
 
+                if (!info.m_isMutable) {
+                    codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable), context, this);
+                    return;
+                }
+
                 if (info.m_isStackAllocated) {
                     if (srcRegister != REGULAR_REGISTER_LIMIT + info.m_index) {
                         codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), srcRegister, REGULAR_REGISTER_LIMIT + info.m_index), context, this);
@@ -126,7 +131,7 @@ public:
                     return std::make_pair(false, std::numeric_limits<ByteCodeRegisterIndex>::max());
                 }
 
-                if (info.m_isStackAllocated) {
+                if (info.m_isStackAllocated && info.m_isMutable) {
                     if (context->m_canSkipCopyToRegister)
                         return std::make_pair(true, REGULAR_REGISTER_LIMIT + info.m_index);
                     else

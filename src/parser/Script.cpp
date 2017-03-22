@@ -129,9 +129,11 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, CodeBlock* pa
     delete programNode;
 
     EnvironmentRecord* record;
+    bool inStrict = false;
     if (UNLIKELY(needNewRecord)) {
         // NOTE: ES5 10.4.2.1 eval in strict mode
-        record = new DeclarativeEnvironmentRecordNotIndexed(state, m_topCodeBlock->identifierInfos());
+        inStrict = true;
+        record = new DeclarativeEnvironmentRecordNotIndexed();
     } else {
         record = state.executionContext()->lexicalEnvironment()->record();
     }
@@ -140,12 +142,12 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, CodeBlock* pa
     size_t len = vec.size();
     EnvironmentRecord* recordToAddVariable = record;
     LexicalEnvironment* e = state.executionContext()->lexicalEnvironment();
-    while (recordToAddVariable->isObjectEnvironmentRecord()) {
+    while (!recordToAddVariable->isEvalTarget()) {
         e = e->outerEnvironment();
         recordToAddVariable = e->record();
     }
     for (size_t i = 0; i < len; i++) {
-        recordToAddVariable->createMutableBinding(state, vec[i].m_name, true);
+        recordToAddVariable->createBinding(state, vec[i].m_name, inStrict ? false : true, true);
     }
     LexicalEnvironment* newEnvironment = new LexicalEnvironment(record, state.executionContext()->lexicalEnvironment());
 

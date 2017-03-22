@@ -281,9 +281,9 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
     if (UNLIKELY(m_codeBlock->m_isFunctionNameSaveOnHeap)) {
         if (m_codeBlock->canUseIndexedVariableStorage()) {
             ASSERT(record->isFunctionEnvironmentRecordOnHeap());
-            ((FunctionEnvironmentRecordOnHeap*)record)->FunctionEnvironmentRecordOnHeap::setHeapValueByIndex(0, this);
+            ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[0] = this;
         } else {
-            record->setMutableBinding(state, m_codeBlock->functionName(), this);
+            record->initializeBinding(state, m_codeBlock->functionName(), this);
         }
     }
 
@@ -294,7 +294,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
         }
         if (!m_codeBlock->canUseIndexedVariableStorage()) {
             for (size_t i = 0; i < parameterCopySize; i++) {
-                record->setMutableBinding(state, m_codeBlock->functionParameters()[i], argv[i]);
+                record->initializeBinding(state, m_codeBlock->functionParameters()[i], argv[i]);
             }
         } else {
             Value* parameterStorageInStack = stackStorage + 2;
@@ -310,7 +310,7 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
                     val = Value();
                 if (info[i].m_isHeapAllocated) {
                     ASSERT(record->isFunctionEnvironmentRecordOnHeap());
-                    ((FunctionEnvironmentRecordOnHeap*)record)->FunctionEnvironmentRecordOnHeap::setHeapValueByIndex(info[i].m_index, val);
+                    ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[info[i].m_index] = val;
                 } else {
                     parameterStorageInStack[info[i].m_index] = val;
                 }
@@ -346,7 +346,7 @@ void FunctionObject::generateArgumentsObject(ExecutionState& state, FunctionEnvi
     if (fnRecord->isFunctionEnvironmentRecordNotIndexed()) {
         auto result = fnRecord->hasBinding(state, arguments);
         if (UNLIKELY(result.m_index == SIZE_MAX)) {
-            fnRecord->createMutableBinding(state, arguments, false);
+            fnRecord->createBinding(state, arguments, false, true);
             result = fnRecord->hasBinding(state, arguments);
         }
         fnRecord->setMutableBindingByIndex(state, result.m_index, arguments, fnRecord->createArgumentsObject(state, state.executionContext()));

@@ -278,6 +278,7 @@ const char* StrictParamName = "Parameter name eval or arguments is not allowed i
 const char* StrictParamDupe = "Strict mode function may not have duplicate parameter names";
 const char* StrictFunctionName = "Function name may not be eval or arguments in strict mode";
 const char* StrictOctalLiteral = "Octal literals are not allowed in strict mode.";
+const char* StrictLeadingZeroLiteral = "Decimals with leading zeros are not allowed in strict mode.";
 const char* StrictDelete = "Delete of an unqualified identifier in strict mode.";
 const char* StrictLHSAssignment = "Assignment to eval or arguments is not allowed in strict mode";
 const char* StrictLHSPostfix = "Postfix increment/decrement may not have eval or arguments operand in strict mode";
@@ -349,6 +350,7 @@ class Scanner;
 struct ScannerResult {
     Scanner* scanner;
     Token type;
+    bool startWithZero;
     bool octal;
     bool plain;
     bool head;
@@ -386,7 +388,7 @@ struct ScannerResult {
     {
         this->scanner = scanner;
         this->type = type;
-        this->octal = false;
+        this->startWithZero = this->octal = false;
         this->plain = false;
         this->head = false;
         this->prec = -1;
@@ -402,7 +404,7 @@ struct ScannerResult {
     {
         this->scanner = scanner;
         this->type = type;
-        this->octal = false;
+        this->startWithZero = this->octal = false;
         this->plain = false;
         this->head = false;
         this->prec = -1;
@@ -419,7 +421,7 @@ struct ScannerResult {
     {
         this->scanner = scanner;
         this->type = type;
-        this->octal = false;
+        this->startWithZero = this->octal = false;
         this->plain = false;
         this->head = false;
         this->valueKeywordKind = NotKeyword;
@@ -437,7 +439,7 @@ struct ScannerResult {
     {
         this->scanner = scanner;
         this->type = type;
-        this->octal = false;
+        this->startWithZero = this->octal = false;
         this->plain = false;
         this->head = false;
         this->prec = -1;
@@ -1629,6 +1631,7 @@ public:
     {
         const size_t start = this->index;
         char16_t ch = this->source.bufferedCharAt(start);
+        char16_t startChar = ch;
         ASSERT(isDecimalDigit(ch) || (ch == '.'));
         // 'Numeric literal must start with a decimal digit or a decimal point');
 
@@ -1706,7 +1709,11 @@ public:
                                                              "Infinity", "NaN");
         double ll = converter.StringToDouble(number.data(), length, &length_dummy);
 
-        return std::shared_ptr<ScannerResult>(new (createScannerResult()) ScannerResult(this, Token::NumericLiteralToken, ll, this->lineNumber, this->lineStart, start, this->index));
+        auto ret = std::shared_ptr<ScannerResult>(new (createScannerResult()) ScannerResult(this, Token::NumericLiteralToken, ll, this->lineNumber, this->lineStart, start, this->index));
+        if (startChar == '0' && length >= 2 && ll >= 1) {
+            ret->startWithZero = true;
+        }
+        return ret;
     }
 
     // ECMA-262 11.8.4 String Literals
@@ -2284,7 +2291,6 @@ public:
     ASTScopeContext* popScopeContext(const MetaNode& node)
     {
         auto ret = scopeContexts.back();
-        ret->m_nodeStartIndex = node.index;
         scopeContexts.pop_back();
         return ret;
     }
@@ -2294,7 +2300,7 @@ public:
         for (size_t i = 0; i < vector.size(); i++) {
             ASSERT(vector[i]->isIdentifier());
             IdentifierNode* id = (IdentifierNode*)vector[i];
-            scopeContexts.back()->insertName(id->name());
+            scopeContexts.back()->insertName(id->name(), true);
         }
     }
 
@@ -2913,6 +2919,9 @@ public:
             if (this->context->strict && this->lookahead->octal) {
                 this->tolerateUnexpectedToken(this->lookahead, Messages::StrictOctalLiteral);
             }
+            if (this->context->strict && this->lookahead->startWithZero) {
+                this->tolerateUnexpectedToken(this->lookahead, Messages::StrictLeadingZeroLiteral);
+            }
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
             token = this->nextToken();
@@ -3260,6 +3269,9 @@ public:
         case Token::StringLiteralToken:
             if (this->context->strict && token->octal) {
                 this->tolerateUnexpectedToken(token, Messages::StrictOctalLiteral);
+            }
+            if (this->context->strict && this->lookahead->startWithZero) {
+                this->tolerateUnexpectedToken(this->lookahead, Messages::StrictLeadingZeroLiteral);
             }
             // const raw = this->getTokenRaw(token);
             {
@@ -4875,7 +4887,7 @@ public:
         }
 
         if (id->type() == Identifier) {
-            this->scopeContexts.back()->insertName(((IdentifierNode*)id)->name());
+            this->scopeContexts.back()->insertName(((IdentifierNode*)id)->name(), true);
         }
 
         Node* init = nullptr;
@@ -5710,11 +5722,8 @@ public:
             message = formalParameters.message;
         }
 
-        this->scopeContexts.back()->insertName(id->name());
-
+        scopeContexts.back()->insertName(id->name(), true);
         pushScopeContext(params, id->name());
-
-        scopeContexts.back()->insertName(id->name());
         extractNamesFromFunctionParams(params);
 
         bool previousStrict = this->context->strict;
@@ -5784,7 +5793,7 @@ public:
         pushScopeContext(params, fnName);
 
         if (id)
-            scopeContexts.back()->insertName(fnName);
+            scopeContexts.back()->insertName(fnName, false);
 
         extractNamesFromFunctionParams(params);
         bool previousStrict = this->context->strict;

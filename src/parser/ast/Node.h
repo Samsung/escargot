@@ -243,19 +243,26 @@ class Pattern {
 public:
 };
 
+struct ASTScoptContextNameInfo {
+    bool m_isExplicitlyDeclaredOrParameterName;
+    AtomicString m_name;
+};
+
+typedef Vector<ASTScoptContextNameInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<ASTScoptContextNameInfo>> ASTScoptContextNameInfoVector;
+
 struct ASTScopeContext : public gc {
-    bool m_isStrict;
-    bool m_hasEval;
-    bool m_hasWith;
-    bool m_hasCatch;
-    bool m_hasYield;
-    bool m_inCatch;
-    bool m_inWith;
-    bool m_hasManyNumeralLiteral;
+    bool m_isStrict : 1;
+    bool m_hasEval : 1;
+    bool m_hasWith : 1;
+    bool m_hasCatch : 1;
+    bool m_hasYield : 1;
+    bool m_inCatch : 1;
+    bool m_inWith : 1;
+    bool m_hasManyNumeralLiteral : 1;
     ASTNodeType m_nodeType;
     ASTScopeContext *m_parentContext;
     Node *m_associateNode;
-    AtomicStringVector m_names;
+    ASTScoptContextNameInfoVector m_names;
     AtomicStringVector m_usingNames;
     AtomicStringVector m_parameters;
     AtomicString m_functionName;
@@ -263,16 +270,25 @@ struct ASTScopeContext : public gc {
     Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>> *m_numeralLiteralData;
     ExtendedNodeLOC m_locStart;
     ExtendedNodeLOC m_locEnd;
-    size_t m_nodeStartIndex;
 
     void *operator new(size_t size);
     void *operator new[](size_t size) = delete;
 
-    void insertName(AtomicString name)
+    void insertName(AtomicString name, bool isExplicitlyDeclaredOrParameterName)
     {
-        if (VectorUtil::findInVector(m_names, name) == VectorUtil::invalidIndex) {
-            m_names.push_back(name);
+        for (size_t i = 0; i < m_names.size(); i++) {
+            if (m_names[i].m_name == name) {
+                if (isExplicitlyDeclaredOrParameterName) {
+                    m_names[i].m_isExplicitlyDeclaredOrParameterName = isExplicitlyDeclaredOrParameterName;
+                }
+                return;
+            }
         }
+
+        ASTScoptContextNameInfo info;
+        info.m_name = name;
+        info.m_isExplicitlyDeclaredOrParameterName = isExplicitlyDeclaredOrParameterName;
+        m_names.push_back(info);
     }
 
     void insertUsingName(AtomicString name)
@@ -300,7 +316,6 @@ struct ASTScopeContext : public gc {
     ASTScopeContext(bool isStrict, ASTScopeContext *parentContext)
         : m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
         , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
-        , m_nodeStartIndex(SIZE_MAX)
     {
         m_isStrict = isStrict;
         m_hasYield = m_hasCatch = m_hasWith = m_hasEval = false;

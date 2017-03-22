@@ -178,9 +178,9 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
         ExecutionContext* pec = state.executionContext();
         bool isDirectCall = true;
         bool callInGlobal = true;
-        bool strictFromOutside = false;
+        bool strictFromOutside = state.inStrictMode();
         while (pec) {
-            if (pec->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && pec->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            if (pec->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord()) {
                 strictFromOutside = pec->inStrictMode();
                 callInGlobal = false;
                 break;

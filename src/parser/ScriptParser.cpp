@@ -89,6 +89,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
                         info.m_indexForIndexedStorage = SIZE_MAX;
                         info.m_name = arguments;
                         info.m_needToAllocateOnStack = true;
+                        info.m_isMutable = true;
                         codeBlock->m_identifierInfos.pushBack(info);
                     }
 
@@ -211,8 +212,10 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
                 PRINT_TAB()
                 printf("Names: ");
                 for (size_t i = 0; i < cb->m_identifierInfos.size(); i++) {
-                    printf("%s(%s, %d), ", cb->m_identifierInfos[i].m_name.string()->toUTF8StringData().data(),
-                           cb->m_identifierInfos[i].m_needToAllocateOnStack ? "Stack" : "Heap", (int)cb->m_identifierInfos[i].m_indexForIndexedStorage);
+                    printf("%s(%s, %s, %d), ", cb->m_identifierInfos[i].m_name.string()->toUTF8StringData().data(),
+                           cb->m_identifierInfos[i].m_needToAllocateOnStack ? "Stack" : "Heap",
+                           cb->m_identifierInfos[i].m_isMutable ? "Mutable" : "Inmmutable",
+                           (int)cb->m_identifierInfos[i].m_indexForIndexedStorage);
                 }
                 puts("");
 

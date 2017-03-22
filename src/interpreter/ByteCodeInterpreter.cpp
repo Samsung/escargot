@@ -1150,9 +1150,10 @@ NEVER_INLINE void ByteCodeInterpreter::deleteOperation(ExecutionState& state, Le
         const Value& o = registerFile[code->m_srcIndex0];
         const Value& p = registerFile[code->m_srcIndex1];
         Object* obj = o.toObject(state);
-        bool result = obj->deleteOwnProperty(state, ObjectPropertyName(state, p));
+        auto name = ObjectPropertyName(state, p);
+        bool result = obj->deleteOwnProperty(state, name);
         if (!result && state.inStrictMode())
-            Object::throwCannotDeleteError(state, ObjectPropertyName(state, p).toPropertyName(state));
+            Object::throwCannotDeleteError(state, name.toPropertyName(state));
         registerFile[code->m_dstIndex] = Value(result);
     }
 }
@@ -1650,7 +1651,7 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
         } else {
             // setup new env
             EnvironmentRecord* newRecord = new DeclarativeEnvironmentRecordNotIndexed();
-            newRecord->createMutableBinding(state, code->m_catchVariableName);
+            newRecord->createBinding(state, code->m_catchVariableName);
             newRecord->setMutableBinding(state, code->m_catchVariableName, val);
             LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
             ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());

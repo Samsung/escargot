@@ -97,6 +97,8 @@ public:
 
     struct IdentifierInfo {
         bool m_needToAllocateOnStack;
+        bool m_isMutable;
+        bool m_isExplicitlyDeclaredOrParameterName;
         size_t m_indexForIndexedStorage;
         AtomicString m_name;
     };
@@ -337,6 +339,7 @@ public:
     struct IndexedIdentifierInfo {
         bool m_isResultSaved;
         bool m_isStackAllocated;
+        bool m_isMutable;
         size_t m_upperIndex;
         size_t m_index;
     };
@@ -353,6 +356,7 @@ public:
                 info.m_isResultSaved = true;
                 info.m_isStackAllocated = blk->m_identifierInfos[index].m_needToAllocateOnStack;
                 info.m_upperIndex = upperIndex;
+                info.m_isMutable = blk->m_identifierInfos[index].m_isMutable;
                 if (blk->canUseIndexedVariableStorage()) {
                     info.m_index = blk->m_identifierInfos[index].m_indexForIndexedStorage;
                 } else {
@@ -376,10 +380,10 @@ public:
 #endif
 protected:
     // init global codeBlock
-    CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const AtomicStringVector& innerIdentifiers, CodeBlockInitFlag initFlags);
+    CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const ASTScoptContextNameInfoVector& innerIdentifiers, CodeBlockInitFlag initFlags);
 
     // init function codeBlock
-    CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringVector& parameterNames, const AtomicStringVector& innerIdentifiers, CodeBlock* parentBlock, CodeBlockInitFlag initFlags);
+    CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringVector& parameterNames, const ASTScoptContextNameInfoVector& innerIdentifiers, CodeBlock* parentBlock, CodeBlockInitFlag initFlags);
 
     void computeVariables();
     void appendChildBlock(CodeBlock* cb)
@@ -388,14 +392,6 @@ protected:
     }
     bool tryCaptureIdentifiersFromChildCodeBlock(AtomicString name);
     void notifySelfOrChildHasEvalWithCatchYield();
-    void appendIdentifier(AtomicString name, bool onStack = false)
-    {
-        ASSERT(!hasName(name));
-        IdentifierInfo info;
-        info.m_name = name;
-        info.m_needToAllocateOnStack = onStack;
-        m_identifierInfos.push_back(info);
-    }
 
     Context* m_context;
 
