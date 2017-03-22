@@ -36,6 +36,7 @@ ObjectRareData::ObjectRareData(Object* obj)
     m_isEverSetAsPrototypeObject = false;
     m_isFastModeArrayObject = true;
     m_isInArrayObjectDefineOwnProperty = false;
+    m_hasNonWritableLastIndexRegexpObject = false;
     m_internalClassName = nullptr;
     m_extraData = nullptr;
 #ifdef ESCARGOT_ENABLE_PROMISE

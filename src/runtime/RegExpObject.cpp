@@ -122,6 +122,29 @@ void RegExpObject::init(ExecutionState& state, const Value& source, const Value&
     m_bytecodePattern = entry.m_bytecodePattern;
 }
 
+void RegExpObject::setLastIndex(ExecutionState& state, const Value& v)
+{
+    if (UNLIKELY(rareData() && rareData()->m_hasNonWritableLastIndexRegexpObject)) {
+        Object::throwCannotWriteError(state, PropertyName(state.context()->staticStrings().lastIndex));
+    }
+    m_lastIndex = v;
+}
+
+bool RegExpObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
+{
+    bool returnValue = Object::defineOwnProperty(state, P, desc);
+    if (!P.isUIntType() && returnValue) {
+        if (P.propertyName() == PropertyName(state.context()->staticStrings().lastIndex)) {
+            if (!structure()->readProperty(state, (size_t)ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER).m_descriptor.isWritable()) {
+                ensureObjectRareData()->m_hasNonWritableLastIndexRegexpObject = true;
+            } else {
+                ensureObjectRareData()->m_hasNonWritableLastIndexRegexpObject = false;
+            }
+        }
+    }
+    return returnValue;
+}
+
 RegExpObject::Option RegExpObject::parseOption(ExecutionState& state, const String* optionString)
 {
     RegExpObject::Option option = RegExpObject::Option::None;
@@ -241,7 +264,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
             if (UNLIKELY(testOnly)) {
                 // outputBuf[1] should be set to lastIndex
                 if (isGlobal) {
-                    setLastIndex(Value(outputBuf[1]));
+                    setLastIndex(state, Value(outputBuf[1]));
                 }
                 return true;
             }
@@ -269,7 +292,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
         }
     } while (result != JSC::Yarr::offsetNoMatch);
     if (UNLIKELY(testOnly)) {
-        setLastIndex(Value(0));
+        setLastIndex(state, Value(0));
     }
     return matchResult.m_matchResults.size();
 }
@@ -288,7 +311,7 @@ void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, Re
         }
 
         if (lastIndex().toIndex(state) == previousLastIndex) {
-            setLastIndex(Value(previousLastIndex++));
+            setLastIndex(state, Value(previousLastIndex++));
         } else {
             previousLastIndex = lastIndex().toIndex(state);
         }

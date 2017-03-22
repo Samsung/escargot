@@ -125,10 +125,8 @@ public:
         return m_lastIndex;
     }
 
-    void setLastIndex(const Value& v)
-    {
-        m_lastIndex = v;
-    }
+    void setLastIndex(ExecutionState& state, const Value& v);
+    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
 
     virtual bool isRegExpObject() const
     {

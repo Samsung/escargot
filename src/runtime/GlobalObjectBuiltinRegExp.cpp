@@ -51,18 +51,18 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
     String* str = argv[0].toString(state);
     double lastIndex = regexp->computedLastIndex(state);
     if (lastIndex < 0 || lastIndex > str->length()) {
-        regexp->setLastIndex(Value(0));
+        regexp->setLastIndex(state, Value(0));
         return Value(Value::Null);
     }
     RegexMatchResult result;
     if (regexp->matchNonGlobally(state, str, result, false, lastIndex)) {
         // TODO(ES6): consider Sticky and Unicode
         if (regexp->option() & RegExpObject::Option::Global)
-            regexp->setLastIndex(Value(result.m_matchResults[0][0].m_end));
+            regexp->setLastIndex(state, Value(result.m_matchResults[0][0].m_end));
         return regexp->createRegExpMatchedArray(state, result, str);
     }
 
-    regexp->setLastIndex(Value(0));
+    regexp->setLastIndex(state, Value(0));
     return Value(Value::Null);
 }
 
@@ -76,7 +76,7 @@ static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t ar
     String* str = argv[0].toString(state);
     double lastIndex = regexp->computedLastIndex(state);
     if (lastIndex < 0 || lastIndex > str->length()) {
-        regexp->setLastIndex(Value(0));
+        regexp->setLastIndex(state, Value(0));
         return Value(false);
     }
     RegexMatchResult result;

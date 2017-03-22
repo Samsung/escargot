@@ -2806,6 +2806,32 @@ public:
     }
 
     template <typename T>
+    Node* isolateCoverGrammarWithFunctor(T parseFunction)
+    {
+        const bool previousIsBindingElement = this->context->isBindingElement;
+        const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
+        std::shared_ptr<ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+
+        this->context->isBindingElement = true;
+        this->context->isAssignmentTarget = true;
+        this->context->firstCoverInitializedNameError = nullptr;
+
+        this->recursiveDepth++;
+        this->checkRecursiveLimit();
+        Node* result = parseFunction();
+        this->recursiveDepth--;
+        if (this->context->firstCoverInitializedNameError != nullptr) {
+            this->throwUnexpectedToken(this->context->firstCoverInitializedNameError);
+        }
+
+        this->context->isBindingElement = previousIsBindingElement;
+        this->context->isAssignmentTarget = previousIsAssignmentTarget;
+        this->context->firstCoverInitializedNameError = previousFirstCoverInitializedNameError;
+
+        return result;
+    }
+
+    template <typename T>
     Node* inheritCoverGrammar(T parseFunction)
     {
         const bool previousIsBindingElement = this->context->isBindingElement;
@@ -4926,7 +4952,7 @@ public:
             consequent = this->finalize(this->createNode(), new EmptyStatementNode());
         } else {
             this->expect(RightParenthesis);
-            consequent = this->parseStatement();
+            consequent = this->parseStatement(this->context->strict ? false : true);
             if (this->matchKeyword(Else)) {
                 this->nextToken();
                 alternate = this->parseStatement();
@@ -4945,7 +4971,7 @@ public:
 
         bool previousInIteration = this->context->inIteration;
         this->context->inIteration = true;
-        Node* body = this->parseStatement();
+        Node* body = this->parseStatement(false);
         this->context->inIteration = previousInIteration;
 
         this->expectKeyword(While);
@@ -4981,7 +5007,7 @@ public:
 
             bool previousInIteration = this->context->inIteration;
             this->context->inIteration = true;
-            body = this->parseStatement();
+            body = this->parseStatement(false);
             this->context->inIteration = previousInIteration;
         }
 
@@ -5150,7 +5176,8 @@ public:
 
             bool previousInIteration = this->context->inIteration;
             this->context->inIteration = true;
-            body = this->isolateCoverGrammar(&Parser::parseStatement);
+            auto functor = std::bind(&Parser::parseStatement, std::ref(*this), false);
+            body = this->isolateCoverGrammarWithFunctor(functor);
             this->context->inIteration = previousInIteration;
         }
 
@@ -5287,7 +5314,7 @@ public:
 
         bool prevInWith = this->context->inWith;
         this->context->inWith = true;
-        StatementNode* body = this->parseStatement();
+        StatementNode* body = this->parseStatement(false);
         this->context->inWith = prevInWith;
 
         return this->finalize(node, new WithStatementNode(object, body));
@@ -5379,7 +5406,7 @@ public:
             }
 
             this->context->labelSet.push_back(std::make_pair(id->name().string(), true));
-            StatementNode* labeledBody = this->parseStatement();
+            StatementNode* labeledBody = this->parseStatement(this->context->strict ? false : true);
             removeLabel(id->name().string());
 
             statement = new LabeledStatementNode(labeledBody, id->name().string());
@@ -5494,8 +5521,7 @@ public:
     }
 
     // ECMA-262 13 Statements
-
-    StatementNode* parseStatement()
+    StatementNode* parseStatement(bool allowFunctionDeclaration = true)
     {
         checkRecursiveLimit();
         StatementNode* statement = nullptr;
@@ -5543,9 +5569,13 @@ public:
             case For:
                 statement = asStatementNode(this->parseForStatement());
                 break;
-            case Function:
+            case Function: {
+                if (!allowFunctionDeclaration) {
+                    this->throwUnexpectedToken(this->lookahead);
+                }
                 statement = asStatementNode(this->parseFunctionDeclaration());
                 break;
+            }
             case If:
                 statement = asStatementNode(this->parseIfStatement());
                 break;

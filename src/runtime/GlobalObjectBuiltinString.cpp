@@ -187,13 +187,13 @@ static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t a
     (void)regexp->lastIndex().toInteger(state);
     bool isGlobal = regexp->option() & RegExpObject::Option::Global;
     if (isGlobal) {
-        regexp->setLastIndex(Value(0));
+        regexp->setLastIndex(state, Value(0));
     }
 
     RegexMatchResult result;
     bool testResult = regexp->matchNonGlobally(state, str, result, false, 0);
     if (!testResult) {
-        regexp->setLastIndex(Value(0));
+        regexp->setLastIndex(state, Value(0));
         return Value(Value::Null);
     }
 
@@ -220,7 +220,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
         bool isGlobal = regexp->option() & RegExpObject::Option::Global;
 
         if (isGlobal) {
-            regexp->setLastIndex(Value(0));
+            regexp->setLastIndex(state, Value(0));
         }
         bool testResult = regexp->matchNonGlobally(state, string, result, false, 0);
         if (testResult) {
@@ -228,7 +228,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
                 regexp->createRegexMatchResult(state, string, result);
             }
         } else {
-            regexp->setLastIndex(Value(0));
+            regexp->setLastIndex(state, Value(0));
         }
     } else {
         String* searchString = searchValue.toString(state);

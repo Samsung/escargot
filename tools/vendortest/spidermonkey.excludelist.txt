@@ -1,6 +1,7 @@
 # ES6 spec
 ecma/Date/15.9.5.js
 ecma_5/strict/11.1.5.js
+ecma_5/misc/future-reserved-words.js
 ecma_6/ArrayBuffer/getter-name.js
 ecma_6/TypedArray/subarray-species.js
 ecma_6/Promise/promise-species.js
@@ -27,6 +28,7 @@ ecma_3/Unicode/regress-352044-01.js
 ecma_3/LexicalConventions/7.8.3-01.js
 ecma_3/LexicalConventions/7.9.1.js
 ecma_5/String/string-object-length.js
+ecma_5/extensions/String-methods-infinite-recursion.js
 js1_5/Regress/regress-234389.js
 js1_5/Regress/regress-355556.js
 js1_5/Regress/regress-303213.js
@@ -900,6 +902,9 @@ ecma_3/Function/scope-001.js
 ecma_3/Statements/12.10-01.js
 ecma_3/extensions/regress-368516.js
 ecma_5/Function/10.2.1.1.6.js
+ecma_5/extensions/toSource-infinite-recursion.js
+ecma_5/extensions/error-tostring-function.js
+ecma_5/extensions/extension-methods-reject-null-undefined-this.js
 js1_5/Scope/regress-184107.js
 js1_5/Regress/regress-422348.js
 js1_8_5/regress/regress-665355.js

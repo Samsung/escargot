@@ -131,7 +131,7 @@ Value Context::regexpLastIndexNativeGetter(ExecutionState& state, Object* self)
 bool Context::regexpLastIndexNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData)
 {
     ASSERT(self->isRegExpObject());
-    self->asRegExpObject()->setLastIndex(setterInputData);
+    self->asRegExpObject()->setLastIndex(state, setterInputData);
     return true;
 }
 
