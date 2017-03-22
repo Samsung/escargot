@@ -72,6 +72,8 @@ test_x64_release_jetstream_only_cdjs:
 
 test_x64_release_jetstream_only_simple:
     stage: test
+    tags:
+        - escargot_allow_slow
     before_script:
         - rm -f .git/index.lock
         - rm -f .git/modules/test/vendortest/index.lock
@@ -85,8 +87,6 @@ test_x64_release_jetstream_only_simple:
 
 test_x64_release_spidermonkey:
     stage: test
-    tags:
-        - escargot_allow_slow
     before_script:
         - rm -f .git/index.lock
         - rm -f .git/modules/test/vendortest/index.lock
@@ -230,6 +230,8 @@ test_x86_release_jetstream_only_cdjs:
 
 test_x86_release_jetstream_only_simple:
     stage: test
+    tags:
+        - escargot_allow_slow
     before_script:
         - rm -f .git/index.lock
         - rm -f .git/modules/test/vendortest/index.lock
@@ -243,8 +245,6 @@ test_x86_release_jetstream_only_simple:
 
 test_x86_release_spidermonkey:
     stage: test
-    tags:
-        - escargot_allow_slow
     before_script:
         - rm -f .git/index.lock
         - rm -f .git/modules/test/vendortest/index.lock
