@@ -219,8 +219,8 @@ public:
     }
 
     // Generic descriptor
-    explicit ObjectPropertyDescriptor(PresentAttribute attribute)
-        : m_isDataProperty(false)
+    explicit ObjectPropertyDescriptor(PresentAttribute attribute, bool isDataProperty = false)
+        : m_isDataProperty(isDataProperty)
         , m_property(attribute)
     {
         ASSERT(!isValuePresent());

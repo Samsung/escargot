@@ -130,7 +130,7 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
             }
 
             if (!newWritable) {
-                ObjectPropertyDescriptor tmpDesc(ObjectPropertyDescriptor::NonWritablePresent);
+                ObjectPropertyDescriptor tmpDesc(ObjectPropertyDescriptor::NonWritablePresent, true);
                 Object::defineOwnProperty(state, P, tmpDesc);
             }
 

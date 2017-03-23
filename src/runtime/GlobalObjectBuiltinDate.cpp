@@ -329,22 +329,22 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
 
     switch (setterType) {
     case DateSetterType::Day:
-        if ((length >= 1) && (argc > length - 1))
-            date = argv[length - 1].toNumber(state);
-        if ((length >= 2) && (argc > length - 2))
-            month = argv[length - 2].toNumber(state);
         if ((length >= 3) && (argc > length - 3))
             year = argv[length - 3].toNumber(state);
+        if ((length >= 2) && (argc > length - 2))
+            month = argv[length - 2].toNumber(state);
+        if ((length >= 1) && (argc > length - 1))
+            date = argv[length - 1].toNumber(state);
         break;
     case DateSetterType::Time:
-        if ((length >= 1) && (argc > length - 1))
-            millisecond = argv[length - 1].toNumber(state);
-        if ((length >= 2) && (argc > length - 2))
-            second = argv[length - 2].toNumber(state);
-        if ((length >= 3) && (argc > length - 3))
-            minute = argv[length - 3].toNumber(state);
         if ((length >= 4) && (argc > length - 4))
             hour = argv[length - 4].toNumber(state);
+        if ((length >= 3) && (argc > length - 3))
+            minute = argv[length - 3].toNumber(state);
+        if ((length >= 2) && (argc > length - 2))
+            second = argv[length - 2].toNumber(state);
+        if ((length >= 1) && (argc > length - 1))
+            millisecond = argv[length - 1].toNumber(state);
         break;
     default:
         RELEASE_ASSERT_NOT_REACHED();
