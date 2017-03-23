@@ -56,7 +56,7 @@ void GlobalEnvironmentRecord::createBinding(ExecutionState& state, const AtomicS
 
 EnvironmentRecord::GetBindingValueResult GlobalEnvironmentRecord::getBindingValue(ExecutionState& state, const AtomicString& name)
 {
-    auto result = m_globalObject->get(state, name, m_globalObject);
+    auto result = m_globalObject->get(state, name);
     if (result.hasValue())
         return EnvironmentRecord::GetBindingValueResult(true, result.value(state, m_globalObject));
     else

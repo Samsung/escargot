@@ -640,7 +640,7 @@ void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState&
     }
 }
 
-ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& receiver)
+ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& propertyName)
 {
     Object* target = this;
     while (true) {
@@ -759,7 +759,7 @@ void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
 
 uint64_t Object::length(ExecutionState& state)
 {
-    return get(state, state.context()->staticStrings().length, this).value(state, this).toUint32(state);
+    return get(state, state.context()->staticStrings().length).value(state, this).toUint32(state);
 }
 
 double Object::nextIndexForward(ExecutionState& state, Object* obj, const double cur, const double end, const bool skipUndefined)

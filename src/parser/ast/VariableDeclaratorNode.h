@@ -46,7 +46,6 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         ASSERT(m_id->isIdentifier());
-        ASSERT(context->m_codeBlock->hasName(m_id->asIdentifier()->name()));
         AtomicString name = m_id->asIdentifier()->name();
         if (m_init) {
             context->getRegister();

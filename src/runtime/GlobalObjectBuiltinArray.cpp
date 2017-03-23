@@ -154,12 +154,12 @@ static Value builtinArrayReverse(ExecutionState& state, Value thisValue, size_t 
         bool lowerExists = O->hasProperty(state, lowerP);
         Value lowerValue;
         if (lowerExists) {
-            lowerValue = O->get(state, lowerP, O).value(state, O);
+            lowerValue = O->get(state, lowerP).value(state, O);
         }
         bool upperExists = O->hasProperty(state, upperP);
         Value upperValue;
         if (upperExists) {
-            upperValue = O->get(state, upperP, O).value(state, O);
+            upperValue = O->get(state, upperP).value(state, O);
         }
         if (lowerExists && upperExists) {
             O->setThrowsException(state, lowerP, upperValue, O);
@@ -627,7 +627,7 @@ static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t ar
         // If kPresent is true, then
         if (kPresent) {
             // Let kValue be the result of calling the [[Get]] internal method of O with argument Pk.
-            Value kValue = O->get(state, ObjectPropertyName(state, pk), O).value(state, O);
+            Value kValue = O->get(state, ObjectPropertyName(state, pk)).value(state, O);
             // Let testResult be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
             Value args[] = { kValue, Value(k), O };
             Value testResult = callbackfn.asFunction()->call(state, T, 3, args);
@@ -1091,7 +1091,7 @@ static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t ar
         return Value();
     }
     // Let first be the result of calling the [[Get]] internal method of O with argument "0".
-    Value first = O->get(state, ObjectPropertyName(state, Value(0)), O).value(state, O);
+    Value first = O->get(state, ObjectPropertyName(state, Value(0))).value(state, O);
     // Let k be 1.
     int64_t k = 1;
     // Repeat, while k < len

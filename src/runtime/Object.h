@@ -600,14 +600,10 @@ public:
 
     bool hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
     {
-        return get(state, propertyName, this).hasValue();
+        return get(state, propertyName).hasValue();
     }
 
-    ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P, const Value& receiver);
-    ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P)
-    {
-        return get(state, P, this);
-    }
+    ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P);
 
     bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
     void setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
