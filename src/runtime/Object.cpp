@@ -18,6 +18,7 @@
 #include "Object.h"
 #include "ExecutionContext.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "ErrorObject.h"
 #include "FunctionObject.h"
 #include "ArrayObject.h"
@@ -359,9 +360,9 @@ void Object::markAsPrototypeObject(ExecutionState& state)
     ensureObjectRareData();
     rareData()->m_isEverSetAsPrototypeObject = true;
 
-    if (!state.context()->didSomePrototypeObjectDefineIndexedProperty()) {
+    if (!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty()) {
         if (structure()->hasIndexPropertyName()) {
-            state.context()->somePrototypeObjectDefineIndexedProperty(state);
+            state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
         }
     }
 }
@@ -395,9 +396,9 @@ ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectProper
 
 bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
-    if (isEverSetAsPrototypeObject()) {
-        if (!state.context()->didSomePrototypeObjectDefineIndexedProperty() && isIndexString(P.string(state))) {
-            state.context()->somePrototypeObjectDefineIndexedProperty(state);
+    if (UNLIKELY(isEverSetAsPrototypeObject())) {
+        if (UNLIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && isIndexString(P.string(state)))) {
+            state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
         }
     }
 

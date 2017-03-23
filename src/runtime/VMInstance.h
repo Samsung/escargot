@@ -18,10 +18,21 @@
 #define __EscargotVMInstance__
 
 #include "runtime/Context.h"
+#include "runtime/AtomicString.h"
+#include "runtime/GlobalObject.h"
+#include "runtime/RegExpObject.h"
+#include "runtime/StaticStrings.h"
+#include "runtime/String.h"
 
 namespace Escargot {
 
+class SandBox;
+class CodeBlock;
+class JobQueue;
+
 class VMInstance : public gc {
+    friend class Context;
+
 public:
     VMInstance();
 
@@ -56,25 +67,76 @@ public:
         m_cachedUTC = d;
     }
 
-    void* operator new(size_t size)
+    // object
+    // []
+
+    // function
+    // [name, length] or [prototype, name, length]
+    static Value functionPrototypeNativeGetter(ExecutionState& state, Object* self);
+    static bool functionPrototypeNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData);
+
+    // array
+    // [length]
+    static Value arrayLengthNativeGetter(ExecutionState& state, Object* self);
+    static bool arrayLengthNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData);
+
+    // string
+    // [length]
+    static Value stringLengthNativeGetter(ExecutionState& state, Object* self);
+    static bool stringLengthNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData);
+
+    // regexp
+    // [lastIndex, source, global, ignoreCase, multiline]
+    static bool regexpLastIndexNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData);
+    static Value regexpLastIndexNativeGetter(ExecutionState& state, Object* self);
+    static Value regexpSourceNativeGetter(ExecutionState& state, Object* self);
+    static Value regexpGlobalNativeGetter(ExecutionState& state, Object* self);
+    static Value regexpIgnoreCaseNativeGetter(ExecutionState& state, Object* self);
+    static Value regexpMultilineNativeGetter(ExecutionState& state, Object* self);
+
+    bool didSomePrototypeObjectDefineIndexedProperty()
     {
-        static bool typeInited = false;
-        static GC_descr descr;
-        if (!typeInited) {
-            GC_word obj_bitmap[GC_BITMAP_SIZE(VMInstance)] = { 0 };
-            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(VMInstance, m_cachedUTC));
-            descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(VMInstance));
-            typeInited = true;
-        }
-        return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+        return m_didSomePrototypeObjectDefineIndexedProperty;
     }
-    void* operator new[](size_t size) = delete;
+
+    void somePrototypeObjectDefineIndexedProperty(ExecutionState& state);
 
 protected:
-    icu::Locale m_locale;
+    StaticStrings m_staticStrings;
+    AtomicStringMap m_atomicStringMap;
+    Vector<SandBox*, GCUtil::gc_malloc_allocator<SandBox*>> m_sandBoxStack;
+
+    // this flag should affect VM-wide array object
+    bool m_didSomePrototypeObjectDefineIndexedProperty;
+
+    ObjectStructure* m_defaultStructureForObject;
+    ObjectStructure* m_defaultStructureForFunctionObject;
+    ObjectStructure* m_defaultStructureForNotConstructorFunctionObject;
+    ObjectStructure* m_defaultStructureForFunctionObjectInStrictMode;
+    ObjectStructure* m_defaultStructureForNotConstructorFunctionObjectInStrictMode;
+    ObjectStructure* m_defaultStructureForBuiltinFunctionObject;
+    ObjectStructure* m_defaultStructureForFunctionPrototypeObject;
+    ObjectStructure* m_defaultStructureForArrayObject;
+    ObjectStructure* m_defaultStructureForStringObject;
+    ObjectStructure* m_defaultStructureForRegExpObject;
+    ObjectStructure* m_defaultStructureForArgumentsObject;
+    ObjectStructure* m_defaultStructureForArgumentsObjectInStrictMode;
+
+    Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>> m_compiledCodeBlocks;
+
+    // regexp object data
+    WTF::BumpPointerAllocator* m_bumpPointerAllocator;
+    RegExpCacheMap m_regexpCache;
+
+    // date object data
     icu::TimeZone* m_timezone;
     icu::UnicodeString m_timezoneID;
     DateObject* m_cachedUTC;
+
+// promise data
+#if ESCARGOT_ENABLE_PROMISE
+    JobQueue* m_jobQueue;
+#endif
 };
 }
 

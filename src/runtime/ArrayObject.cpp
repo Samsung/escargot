@@ -17,6 +17,7 @@
 #include "Escargot.h"
 #include "ArrayObject.h"
 #include "Context.h"
+#include "VMInstance.h"
 
 namespace Escargot {
 
@@ -29,7 +30,7 @@ ArrayObject::ArrayObject(ExecutionState& state)
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(0);
     setPrototype(state, state.context()->globalObject()->arrayPrototype());
 
-    if (UNLIKELY(state.context()->didSomePrototypeObjectDefineIndexedProperty())) {
+    if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
         ensureObjectRareData()->m_isFastModeArrayObject = false;
     }
 }

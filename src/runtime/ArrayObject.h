@@ -28,6 +28,7 @@ namespace Escargot {
 extern size_t g_arrayObjectTag;
 
 class ArrayObject : public Object {
+    friend class VMInstance;
     friend class Context;
     friend class Object;
     friend class ByteCodeInterpreter;

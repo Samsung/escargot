@@ -105,7 +105,7 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Lexi
 
 NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
 {
-    Vector<CodeBlock*, gc_allocator<CodeBlock*>>& v = state.context()->compiledCodeBlocks();
+    Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& v = state.context()->compiledCodeBlocks();
 
     size_t currentCodeSizeTotal = 0;
     for (size_t i = 0; i < v.size(); i++) {

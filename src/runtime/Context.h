@@ -44,10 +44,6 @@ class Context : public gc {
     friend class ByteCodeInterpreter;
     friend class OpcodeTable;
 
-    Context()
-    {
-    }
-
 public:
     Context(VMInstance* instance);
 
@@ -61,6 +57,11 @@ public:
         return m_staticStrings;
     }
 
+    AtomicStringMap* atomicStringMap()
+    {
+        return m_atomicStringMap;
+    }
+
     ScriptParser& scriptParser()
     {
         return *m_scriptParser;
@@ -68,7 +69,7 @@ public:
 
     RegExpCacheMap* regexpCache()
     {
-        return &m_regexpCache;
+        return m_regexpCache;
     }
 
     WTF::BumpPointerAllocator* bumpPointerAllocator()
@@ -141,39 +142,6 @@ public:
         return m_globalObject;
     }
 
-    // object
-    // []
-
-    // function
-    // [name, length] or [prototype, name, length]
-    static Value functionPrototypeNativeGetter(ExecutionState& state, Object* self);
-    static bool functionPrototypeNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData);
-
-    // array
-    // [length]
-    static Value arrayLengthNativeGetter(ExecutionState& state, Object* self);
-    static bool arrayLengthNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData);
-
-    // string
-    // [length]
-    static Value stringLengthNativeGetter(ExecutionState& state, Object* self);
-    static bool stringLengthNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData);
-
-    // regexp
-    // [lastIndex, source, global, ignoreCase, multiline]
-    static bool regexpLastIndexNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData);
-    static Value regexpLastIndexNativeGetter(ExecutionState& state, Object* self);
-    static Value regexpSourceNativeGetter(ExecutionState& state, Object* self);
-    static Value regexpGlobalNativeGetter(ExecutionState& state, Object* self);
-    static Value regexpIgnoreCaseNativeGetter(ExecutionState& state, Object* self);
-    static Value regexpMultilineNativeGetter(ExecutionState& state, Object* self);
-
-    bool didSomePrototypeObjectDefineIndexedProperty()
-    {
-        return m_didSomePrototypeObjectDefineIndexedProperty;
-    }
-
-    void somePrototypeObjectDefineIndexedProperty(ExecutionState& state);
     void throwException(ExecutionState& state, const Value& exception);
 
 #if ESCARGOT_ENABLE_PROMISE
@@ -183,24 +151,23 @@ public:
     }
 #endif
 
-    Vector<CodeBlock*, gc_allocator<CodeBlock*>>& compiledCodeBlocks()
+    Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& compiledCodeBlocks()
     {
         return m_compiledCodeBlocks;
     }
 
 protected:
-    bool m_didSomePrototypeObjectDefineIndexedProperty;
     VMInstance* m_instance;
-    StaticStrings m_staticStrings;
+
+    // these data actually store in VMInstance
+    // we can store pointers of these data for reducing memory dereference to VMInstance
+    AtomicStringMap* m_atomicStringMap;
+    StaticStrings& m_staticStrings;
     GlobalObject* m_globalObject;
-    AtomicStringMap m_atomicStringMap;
     ScriptParser* m_scriptParser;
-    Vector<CodeBlock*, gc_allocator<CodeBlock*>> m_compiledCodeBlocks;
-
-    // To support Yarr
+    Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& m_compiledCodeBlocks;
     WTF::BumpPointerAllocator* m_bumpPointerAllocator;
-    RegExpCacheMap m_regexpCache;
-
+    RegExpCacheMap* m_regexpCache;
     ObjectStructure* m_defaultStructureForObject;
     ObjectStructure* m_defaultStructureForFunctionObject;
     ObjectStructure* m_defaultStructureForNotConstructorFunctionObject;
@@ -213,9 +180,7 @@ protected:
     ObjectStructure* m_defaultStructureForRegExpObject;
     ObjectStructure* m_defaultStructureForArgumentsObject;
     ObjectStructure* m_defaultStructureForArgumentsObjectInStrictMode;
-
-    Vector<SandBox*, GCUtil::gc_malloc_allocator<SandBox*>> m_sandBoxStack;
-
+    Vector<SandBox*, GCUtil::gc_malloc_allocator<SandBox*>>& m_sandBoxStack;
 #if ESCARGOT_ENABLE_PROMISE
     JobQueue* m_jobQueue;
 #endif

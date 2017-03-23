@@ -490,7 +490,7 @@ protected:
 extern size_t g_objectTag;
 
 class Object : public PointerValue {
-    friend class Context;
+    friend class VMInstance;
     friend class GlobalObject;
     friend class ByteCodeInterpreter;
     friend class ObjectRareData;

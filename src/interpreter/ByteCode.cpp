@@ -28,8 +28,7 @@ OpcodeTable g_opcodeTable;
 
 OpcodeTable::OpcodeTable()
 {
-    Context c;
-    ExecutionState state(&c);
+    ExecutionState state((Context*)nullptr);
     ByteCodeBlock block;
 
     block.m_code.resize(sizeof(FillOpcodeTable));

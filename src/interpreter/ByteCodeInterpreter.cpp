@@ -50,7 +50,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
     *((size_t*)initAddressFiller) = ((size_t) && FillOpcodeTableOpcodeLbl);
     {
         ExecutionContext* ec = state.executionContext();
-        GlobalObject* globalObject = state.context()->globalObject();
         char* codeBuffer = byteCodeBlock->m_code.data();
         programCounter = (size_t)(&codeBuffer[programCounter]);
 
@@ -77,6 +76,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
 
         GetGlobalObjectOpcodeLbl : {
             GetGlobalObject* code = (GetGlobalObject*)programCounter;
+            GlobalObject* globalObject = state.context()->globalObject();
             if (LIKELY(globalObject->structure() == code->m_cachedStructure)) {
                 ASSERT(globalObject->m_values.data() <= code->m_cachedAddress);
                 ASSERT(code->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
@@ -90,6 +90,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
 
         SetGlobalObjectOpcodeLbl : {
             SetGlobalObject* code = (SetGlobalObject*)programCounter;
+            GlobalObject* globalObject = state.context()->globalObject();
             if (LIKELY(globalObject->structure() == code->m_cachedStructure)) {
                 ASSERT(globalObject->m_values.data() <= code->m_cachedAddress);
                 ASSERT(code->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
