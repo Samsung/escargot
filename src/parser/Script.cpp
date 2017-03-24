@@ -78,11 +78,11 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     return resultValue;
 }
 
-Script::ScriptSandboxExecuteResult Script::sandboxExecute(Context* ctx)
+Script::ScriptSandboxExecuteResult Script::sandboxExecute(ExecutionState& state)
 {
     ScriptSandboxExecuteResult result;
-    SandBox sb(ctx);
-    ExecutionState stateForInit(ctx);
+    SandBox sb(state.context());
+    ExecutionState stateForInit(state.context(), &state, nullptr);
 
     auto sandBoxResult = sb.run([&]() -> Value {
         return execute(stateForInit, false, false, true);

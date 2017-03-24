@@ -138,9 +138,21 @@ static Value builtinGc(ExecutionState& state, Value thisValue, size_t argc, Valu
     return Value();
 }
 
+class EvalFunctionObject : public FunctionObject {
+public:
+    EvalFunctionObject(ExecutionState& state, NativeFunctionInfo info)
+        : FunctionObject(state, info)
+    {
+        m_globalObject = state.context()->globalObject();
+    }
+
+    GlobalObject* m_globalObject;
+};
+
 static Value builtinEval(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    return state.context()->globalObject()->eval(state, argv[0]);
+    EvalFunctionObject* fn = (EvalFunctionObject*)state.executionContext()->resolveCallee();
+    return fn->m_globalObject->eval(state, argv[0]);
 }
 
 Value GlobalObject::eval(ExecutionState& state, const Value& arg)
@@ -165,7 +177,8 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
         }
         bool needNewEnv = parserResult.m_script->topCodeBlock()->isStrict();
         // In case of indirect call, use global execution context
-        return parserResult.m_script->execute(state, true, needNewEnv, true);
+        ExecutionState stateForNewGlobal(m_context);
+        return parserResult.m_script->execute(stateForNewGlobal, true, needNewEnv, true);
     }
     return arg;
 }
@@ -804,8 +817,8 @@ void GlobalObject::installOthers(ExecutionState& state)
     defineOwnProperty(state, strings->undefined, ObjectPropertyDescriptor(Value(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ValuePresent)));
 
     // $18.2.1 eval (x)
-    m_eval = new FunctionObject(state,
-                                NativeFunctionInfo(strings->eval, builtinEval, 1, nullptr, NativeFunctionInfo::Strict));
+    m_eval = new EvalFunctionObject(state,
+                                    NativeFunctionInfo(strings->eval, builtinEval, 1, nullptr, NativeFunctionInfo::Strict));
     defineOwnProperty(state, ObjectPropertyName(strings->eval),
                       ObjectPropertyDescriptor(m_eval, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $18.2.2 isFinite(number)

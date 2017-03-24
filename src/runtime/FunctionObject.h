@@ -78,8 +78,7 @@ public:
         if (LIKELY(callee.isObject() && callee.asPointerValue()->hasTag(g_functionObjectTag))) {
             return callee.asFunction()->call(state, receiver, argc, argv, isNewExpression);
         } else {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
-            RELEASE_ASSERT_NOT_REACHED();
+            return callSlowCase(state, callee, receiver, argc, argv, isNewExpression);
         }
     }
 
@@ -90,6 +89,7 @@ public:
     }
 
 protected:
+    static Value callSlowCase(ExecutionState& state, const Value& callee, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression);
     void generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage);
     void generateBytecodeBlock(ExecutionState& state);
     CodeBlock* m_codeBlock;

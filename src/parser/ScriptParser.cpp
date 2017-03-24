@@ -132,10 +132,6 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
         codeBlock->m_childBlocks[i] = generateCodeBlockTreeFromASTWalker(ctx, source, script, scopeCtx->m_childScopes[i], codeBlock);
     }
 
-#ifdef NDEBUG
-    delete scopeCtx;
-#endif
-
     return codeBlock;
 }
 
@@ -245,6 +241,7 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
         error->message = orgError->message;
         error->name = orgError->name;
         error->errorCode = orgError->errorCode;
+        delete orgError;
     }
 
     ScriptParser::ScriptParserResult result(script, error);

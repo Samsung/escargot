@@ -37,8 +37,8 @@ NEVER_INLINE bool eval(Escargot::Context* context, Escargot::String* str, Escarg
         puts(err.data());
         return false;
     } else {
-        Escargot::Script::ScriptSandboxExecuteResult resultValue = result.m_script->sandboxExecute(context);
         Escargot::ExecutionState state(context);
+        Escargot::Script::ScriptSandboxExecuteResult resultValue = result.m_script->sandboxExecute(state);
         if (!resultValue.result.isEmpty()) {
             if (shouldPrintScriptResult)
                 puts(resultValue.msgStr->toUTF8StringData().data());

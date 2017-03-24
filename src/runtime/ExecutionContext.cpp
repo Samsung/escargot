@@ -21,12 +21,12 @@
 
 namespace Escargot {
 
-#if ESCARGOT_ENABLE_PROMISE
 FunctionObject* ExecutionContext::resolveCallee()
 {
-    ASSERT(m_lexicalEnvironment->record()->isDeclarativeEnvironmentRecord());
-    ASSERT(m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
+    LexicalEnvironment* env = m_lexicalEnvironment;
+    while (!env->record()->isDeclarativeEnvironmentRecord() && !m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+        env = env->outerEnvironment();
+    }
     return m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
 }
-#endif
 }

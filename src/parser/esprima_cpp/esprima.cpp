@@ -484,7 +484,7 @@ public:
 
     Error* constructError(String* msg, size_t column)
     {
-        Error* error = new Error(msg);
+        Error* error = new (NoGC) Error(msg);
         error->column = column;
         return error;
         // try {

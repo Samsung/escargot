@@ -44,6 +44,7 @@ public:
 
     GlobalObject(ExecutionState& state)
         : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, false)
+        , m_context(state.context())
     {
         m_objectPrototype = Object::createBuiltinObjectPrototype(state);
         m_objectPrototype->markThisObjectDontNeedStructureTransitionTable(state);
@@ -385,6 +386,8 @@ public:
     void* operator new[](size_t size) = delete;
 
 protected:
+    Context* m_context;
+
     FunctionObject* m_object;
     Object* m_objectPrototype;
     FunctionObject* m_objectPrototypeToString;

@@ -50,7 +50,7 @@ public:
         } error;
     };
     Value execute(ExecutionState& state, bool isEvalMode = false, bool needNewEnv = false, bool isOnGlobal = false);
-    ScriptSandboxExecuteResult sandboxExecute(Context* ctx); // execute using sandbox
+    ScriptSandboxExecuteResult sandboxExecute(ExecutionState& state); // execute using sandbox
     String* fileName()
     {
         return m_fileName;

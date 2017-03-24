@@ -45,6 +45,14 @@ static Value builtinAddPromiseReactions(ExecutionState& state, Value thisValue, 
 #endif
 #endif
 
+#ifdef ESCARGOT_ENABLE_VENDORTEST
+static Value builtinCreateNewGlobalObject(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    Context* ctx = new Context(state.context()->vmInstance());
+    return ctx->globalObject();
+}
+#endif
+
 
 void installTestFunctions(ExecutionState& state)
 {
@@ -64,6 +72,11 @@ void installTestFunctions(ExecutionState& state)
                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 #endif // ESCARGOT_ENABLE_PROMISE
 
+    AtomicString createNewGlobalObject(state, "createNewGlobalObject");
+    globalObject->defineOwnProperty(state, ObjectPropertyName(createNewGlobalObject),
+                                    ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                                NativeFunctionInfo(createNewGlobalObject, builtinCreateNewGlobalObject, 0, nullptr, NativeFunctionInfo::Strict)),
+                                                             (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 #else // ESCARGOT_ENABLE_VENDORTEST
 /* Do nothong */
 #endif // ESCARGOT_ENABLE_VENDORTEST

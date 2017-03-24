@@ -509,3 +509,21 @@ Object.defineProperty(Object.prototype, "__lookupSetter__", {
     configurable: true
 });
 
+function Realm()
+{
+    this.global = createNewGlobalObject();
+}
+
+Realm.create = function()
+{
+    return new Realm()
+}
+
+Realm.eval = function(rm, code) {
+    try {
+        return rm.global.eval(code);
+    } catch(e) {
+        return e;
+    }
+}
+

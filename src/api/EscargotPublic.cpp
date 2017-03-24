@@ -70,8 +70,8 @@ bool evaluateScript(ExecutionStateRef* es, StringRef* str, StringRef* filename)
         return false;
     }
 
-    auto execRet = parseRet.m_script->sandboxExecute(ctx);
     Escargot::ExecutionState state(ctx);
+    auto execRet = parseRet.m_script->sandboxExecute(state);
     if (execRet.result.isEmpty()) {
         printf("Uncaught %s:\n",
                execRet.msgStr->toUTF8StringData().data());
