@@ -6,7 +6,7 @@ import multiprocessing
 import subprocess
 
 def CaseRunner(Case):
-  Case["CommandLine"].append(Case["TestCase"])
+  Case["CommandLine"] = Case["CommandLine"] + Case["TestCaseCommandline"].split()
   Process = subprocess.Popen(Case["CommandLine"], shell = False, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   ResultCode = Process.wait()
 
@@ -21,12 +21,12 @@ def CaseRunner(Case):
 
   if ResultCode == 0:
     ResultCode = True
-    print(Case["TestCase"] + " - success")
+    print(Case["TestCaseCommandline"] + " - success")
   else:
     ResultCode = False
-    print(Case["TestCase"] + " fail")
+    print(Case["TestCaseCommandline"] + " fail")
 
-  return { "Index": Case["Index"], "Result": ResultCode, "Case": Case["TestCase"], "Out": Out, "Err": Err, "CommandLine": ' '.join(Case["CommandLine"]) }
+  return { "Index": Case["Index"], "Result": ResultCode, "Case": Case["TestCaseCommandline"], "Out": Out, "Err": Err, "CommandLine": ' '.join(Case["CommandLine"]) }
 
 def Main(JSShellFile, TestDataFile):
   TestCases = []
@@ -39,7 +39,7 @@ def Main(JSShellFile, TestDataFile):
     C = Case
     Case = {}
     Case["CommandLine"] = [JSShellFile, "util.js"]
-    Case["TestCase"] = C
+    Case["TestCaseCommandline"] = C
     Case["Index"] = len(CasesV)
     CasesV.append(Case)
 

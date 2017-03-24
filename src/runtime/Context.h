@@ -37,6 +37,7 @@ class ControlFlowRecord;
 class SandBox;
 class JobQueue;
 class ByteCodeBlock;
+class ToStringRecursionPreventer;
 
 class Context : public gc {
     friend class AtomicString;
@@ -142,6 +143,11 @@ public:
         return m_globalObject;
     }
 
+    ToStringRecursionPreventer* toStringRecursionPreventer()
+    {
+        return m_toStringRecursionPreventer;
+    }
+
     void throwException(ExecutionState& state, const Value& exception);
 
 #if ESCARGOT_ENABLE_PROMISE
@@ -181,6 +187,7 @@ protected:
     ObjectStructure* m_defaultStructureForArgumentsObject;
     ObjectStructure* m_defaultStructureForArgumentsObjectInStrictMode;
     Vector<SandBox*, GCUtil::gc_malloc_allocator<SandBox*>>& m_sandBoxStack;
+    ToStringRecursionPreventer* m_toStringRecursionPreventer;
 #if ESCARGOT_ENABLE_PROMISE
     JobQueue* m_jobQueue;
 #endif

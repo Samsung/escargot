@@ -18,6 +18,7 @@
 #include "GlobalObject.h"
 #include "Context.h"
 #include "ErrorObject.h"
+#include "ToStringRecursionPreventer.h"
 
 namespace Escargot {
 
@@ -84,12 +85,10 @@ static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t
 
     Object* o = thisValue.toObject(state);
 
-    // TODO
-    /*
-    StringRecursionChecker checker(o);
-    if (checker.recursionCheck()) {
-        return ESValue(strings->emptyString.string());
-    }*/
+    if (!state.context()->toStringRecursionPreventer()->canInvokeToString(o)) {
+        return String::emptyString;
+    }
+    ToStringRecursionPreventerItemAutoHolder holder(state, o);
 
     Value name = o->get(state, state.context()->staticStrings().name).value(state, o);
     String* nameStr;

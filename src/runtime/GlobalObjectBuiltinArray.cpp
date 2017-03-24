@@ -18,6 +18,7 @@
 #include "GlobalObject.h"
 #include "Context.h"
 #include "ArrayObject.h"
+#include "ToStringRecursionPreventer.h"
 
 namespace Escargot {
 
@@ -83,9 +84,7 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
     RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, Array, join);
     int64_t len = thisBinded->length(state);
     Value separator = argv[0];
-    // TODO
-    // size_t lenMax = ESString::maxLength();
-    size_t lenMax = std::numeric_limits<uint32_t>::max();
+    size_t lenMax = STRING_MAXIMUM_LENGTH;
     String* sep;
 
     if (separator.isUndefined()) {
@@ -93,13 +92,12 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
     } else {
         sep = separator.toString(state);
     }
-    // TODO
-    /*
-    StringRecursionChecker checker(thisBinded);
-    if (checker.recursionCheck()) {
-        return ESValue(strings->emptyString.string());
+
+    if (!state.context()->toStringRecursionPreventer()->canInvokeToString(thisBinded)) {
+        return String::emptyString;
     }
-*/
+    ToStringRecursionPreventerItemAutoHolder holder(state, thisBinded);
+
     StringBuilder builder;
     double prevIndex = 0;
     double curIndex = 0;
@@ -814,6 +812,11 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
 {
     // Let array be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(array, Array, toLocaleString);
+
+    if (!state.context()->toStringRecursionPreventer()->canInvokeToString(array)) {
+        return String::emptyString;
+    }
+    ToStringRecursionPreventerItemAutoHolder holder(state, array);
 
     // Let arrayLen be the result of calling the [[Get]] internal method of array with argument "length".
     // Let len be ToUint32(arrayLen).

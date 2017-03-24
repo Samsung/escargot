@@ -662,6 +662,10 @@
   'regress/regress-595319': [SKIP],
   'regress/regress-crbug-451770': [SKIP],
   'regress/regress-crbug-592340': [SKIP],
+  # array
+  'array-indexing': [SKIP],
+  'array-isarray': [SKIP], #Proxy
+  'array-join': [SKIP], #Proxy
   # const
   'const*': [SKIP],
   'global-const-var-conflicts': [SKIP],

@@ -23,6 +23,7 @@
 #include "runtime/RegExpObject.h"
 #include "runtime/StaticStrings.h"
 #include "runtime/String.h"
+#include "runtime/ToStringRecursionPreventer.h"
 
 namespace Escargot {
 
@@ -101,6 +102,11 @@ public:
 
     void somePrototypeObjectDefineIndexedProperty(ExecutionState& state);
 
+    ToStringRecursionPreventer& toStringRecursionPreventer()
+    {
+        return m_toStringRecursionPreventer;
+    }
+
 protected:
     StaticStrings m_staticStrings;
     AtomicStringMap m_atomicStringMap;
@@ -123,6 +129,8 @@ protected:
     ObjectStructure* m_defaultStructureForArgumentsObjectInStrictMode;
 
     Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>> m_compiledCodeBlocks;
+
+    ToStringRecursionPreventer m_toStringRecursionPreventer;
 
     // regexp object data
     WTF::BumpPointerAllocator* m_bumpPointerAllocator;

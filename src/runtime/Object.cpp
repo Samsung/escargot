@@ -760,6 +760,9 @@ void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
 
 uint64_t Object::length(ExecutionState& state)
 {
+    // ES6
+    // return get(state, state.context()->staticStrings().length).value(state, this).toLength(state);
+    // ES5
     return get(state, state.context()->staticStrings().length).value(state, this).toUint32(state);
 }
 

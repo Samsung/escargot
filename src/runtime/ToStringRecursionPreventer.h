@@ -1,0 +1,67 @@
+/*
+ * Copyright (c) 2016-present Samsung Electronics Co., Ltd
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
+#ifndef __EscargotToStringRecursionPreventer__
+#define __EscargotToStringRecursionPreventer__
+
+#include "util/Vector.h"
+#include "runtime/String.h"
+#include "runtime/Object.h"
+#include "runtime/ExecutionState.h"
+
+namespace Escargot {
+
+class ToStringRecursionPreventer : public gc {
+public:
+    void pushItem(Object* obj)
+    {
+        ASSERT(canInvokeToString(obj));
+        m_registeredItems.push_back(obj);
+    }
+
+    Object* pop() // returns item for debug
+    {
+        Object* ret = m_registeredItems.back();
+        m_registeredItems.pop_back();
+        return ret;
+    }
+
+    bool canInvokeToString(Object* obj)
+    {
+        if (VectorUtil::findInVector(m_registeredItems, obj) == VectorUtil::invalidIndex) {
+            return true;
+        }
+        return false;
+    }
+
+protected:
+    Vector<Object*, GCUtil::gc_malloc_ignore_off_page_allocator<Object*>> m_registeredItems;
+};
+
+class ToStringRecursionPreventerItemAutoHolder {
+public:
+    ToStringRecursionPreventerItemAutoHolder(ExecutionState& state, Object* obj);
+    ~ToStringRecursionPreventerItemAutoHolder();
+
+protected:
+    ToStringRecursionPreventer* m_preventer;
+#ifndef NDEBUG
+    Object* m_object;
+#endif
+};
+}
+
+#endif
