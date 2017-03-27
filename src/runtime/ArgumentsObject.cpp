@@ -216,7 +216,15 @@ bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPrope
                         newDesc.setConfigurable(desc.isConfigurable());
                     }
 
-                    return Object::defineOwnProperty(state, P, newDesc);
+                    bool extensibleBefore = isExtensible();
+                    if (!extensibleBefore) {
+                        rareData()->m_isExtensible = true;
+                    }
+                    bool ret = Object::defineOwnProperty(state, P, newDesc);
+                    if (!extensibleBefore) {
+                        preventExtensions();
+                    }
+                    return ret;
                 }
             }
         }

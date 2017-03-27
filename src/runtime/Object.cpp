@@ -766,15 +766,19 @@ uint64_t Object::length(ExecutionState& state)
     return get(state, state.context()->staticStrings().length).value(state, this).toUint32(state);
 }
 
-double Object::nextIndexForward(ExecutionState& state, Object* obj, const double cur, const double end, const bool skipUndefined)
+
+bool Object::nextIndexForward(ExecutionState& state, Object* obj, const double cur, const double end, const bool skipUndefined, double& nextIndex)
 {
     Value ptr = obj;
     double ret = end;
+    bool exists = false;
     struct Data {
+        bool* exists;
         const bool* skipUndefined;
         const double* cur;
         double* ret;
     } data;
+    data.exists = &exists;
     data.skipUndefined = &skipUndefined;
     data.cur = &cur;
     data.ret = &ret;
@@ -792,6 +796,7 @@ double Object::nextIndexForward(ExecutionState& state, Object* obj, const double
                 if (index > *e->cur) {
                     if (*ret > index) {
                         *ret = std::min(static_cast<double>(index), *ret);
+                        *e->exists = true;
                     }
                 }
             }
@@ -800,20 +805,22 @@ double Object::nextIndexForward(ExecutionState& state, Object* obj, const double
                                     &data);
         ptr = ptr.asObject()->getPrototype(state);
     }
-    return ret;
+    nextIndex = ret;
+    return exists;
 }
 
-double Object::nextIndexBackward(ExecutionState& state, Object* obj, const double cur, const double end, const bool skipUndefined)
+bool Object::nextIndexBackward(ExecutionState& state, Object* obj, const double cur, const double end, const bool skipUndefined, double& nextIndex)
 {
     Value ptr = obj;
     double ret = end;
-
+    bool exists = false;
     struct Data {
+        bool* exists;
         const bool* skipUndefined;
         const double* cur;
         double* ret;
     } data;
-
+    data.exists = &exists;
     data.skipUndefined = &skipUndefined;
     data.cur = &cur;
     data.ret = &ret;
@@ -830,6 +837,7 @@ double Object::nextIndexBackward(ExecutionState& state, Object* obj, const doubl
                 }
                 if (index < *e->cur) {
                     *ret = std::max(static_cast<double>(index), *ret);
+                    *e->exists = true;
                 }
             }
             return true;
@@ -837,7 +845,8 @@ double Object::nextIndexBackward(ExecutionState& state, Object* obj, const doubl
                                     &data);
         ptr = ptr.asObject()->getPrototype(state);
     }
-    return ret;
+    nextIndex = ret;
+    return exists;
 }
 
 void Object::sort(ExecutionState& state, std::function<bool(const Value& a, const Value& b)> comp)
@@ -855,7 +864,9 @@ void Object::sort(ExecutionState& state, std::function<bool(const Value& a, cons
             n++;
             k++;
         } else {
-            k = nextIndexForward(state, this, k, len, false);
+            double result;
+            nextIndexForward(state, this, k, len, false, result);
+            k = result;
         }
     }
 
@@ -872,7 +883,9 @@ void Object::sort(ExecutionState& state, std::function<bool(const Value& a, cons
             deleteOwnProperty(state, ObjectPropertyName(state, Value(i)));
             i++;
         } else {
-            i = nextIndexForward(state, this, i, len, false);
+            double result;
+            nextIndexForward(state, this, i, len, false, result);
+            i = result;
         }
     }
 }

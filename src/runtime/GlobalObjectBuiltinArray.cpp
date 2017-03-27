@@ -121,7 +121,9 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
         }
         prevIndex = curIndex;
         if (elem.isUndefined()) {
-            curIndex = Object::nextIndexForward(state, thisBinded, prevIndex, len, true);
+            double result;
+            Object::nextIndexForward(state, thisBinded, prevIndex, len, true, result);
+            curIndex = result;
         } else {
             curIndex++;
         }
@@ -169,8 +171,11 @@ static Value builtinArrayReverse(ExecutionState& state, Value thisValue, size_t 
             O->deleteOwnPropertyThrowsException(state, lowerP);
             O->setThrowsException(state, upperP, lowerValue, O);
         } else {
-            unsigned nextLower = Object::nextIndexForward(state, O, lower, middle, false);
-            unsigned nextUpper = Object::nextIndexBackward(state, O, upper, middle, false);
+            double result;
+            Object::nextIndexForward(state, O, lower, middle, false, result);
+            unsigned nextLower = result;
+            Object::nextIndexBackward(state, O, upper, middle, false, result);
+            unsigned nextUpper = result;
             unsigned x = middle - nextLower;
             unsigned y = nextUpper - middle;
             unsigned lowerCandidate;
@@ -245,7 +250,15 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
     int64_t actualStart = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, (double)len);
 
     // Let actualDeleteCount be min(max(ToInteger(deleteCount),0), len – actualStart).
-    int64_t actualDeleteCount = std::min(std::max(argv[1].toInteger(state), 0.0), (double)len - actualStart);
+    // below code does not follow ECMA-262, but SpiderMonkey, v8 and JSC to this..
+    // int64_t actualDeleteCount = std::min(std::max(argv[1].toInteger(state), 0.0), (double)len - actualStart); // org code
+    int64_t actualDeleteCount;
+    double deleteCount = argv[1].toInteger(state);
+    if (argc != 1) {
+        actualDeleteCount = std::min(std::max(argv[1].toInteger(state), 0.0), (double)len - actualStart);
+    } else {
+        actualDeleteCount = len - actualStart;
+    }
 
     // Let k be 0.
     int64_t k = 0;
@@ -265,7 +278,15 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
             // Increment k by 1.
             k++;
         } else {
-            k = Object::nextIndexForward(state, O, k, len, false);
+            double result;
+            bool exist = Object::nextIndexForward(state, O, k, len, false, result);
+            if (!exist) {
+                k = k + 1;
+                A->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(k), A);
+                break;
+            } else {
+                k = result - actualStart;
+            }
         }
     }
 
@@ -395,7 +416,9 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
                     array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n + k)), ObjectPropertyDescriptor(exists.value(state, arr), ObjectPropertyDescriptor::AllPresent));
                     k++;
                 } else {
-                    k = Object::nextIndexForward(state, arr, k, len, false);
+                    double result;
+                    Object::nextIndexForward(state, arr, k, len, false, result);
+                    k = result;
                 }
             }
 
@@ -411,14 +434,15 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
 
 static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, concat);
-    uint32_t len = thisObject->length(state);
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, slice);
+    int64_t len = thisObject->length(state);
     double relativeStart = argv[0].toInteger(state);
-    uint32_t k = (relativeStart < 0) ? std::max((double)len + relativeStart, 0.0) : std::min(relativeStart, (double)len);
+    int64_t k = (relativeStart < 0) ? std::max((double)len + relativeStart, 0.0) : std::min(relativeStart, (double)len);
+    int64_t kStart = k;
     double relativeEnd = (argv[1].isUndefined()) ? len : argv[1].toInteger(state);
     uint32_t finalEnd = (relativeEnd < 0) ? std::max((double)len + relativeEnd, 0.0) : std::min(relativeEnd, (double)len);
 
-    uint32_t n = 0;
+    int64_t n = 0;
     ArrayObject* array = new ArrayObject(state);
     while (k < finalEnd) {
         ObjectGetResult exists = thisObject->get(state, ObjectPropertyName(state, Value(k)));
@@ -428,7 +452,12 @@ static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t ar
             k++;
             n++;
         } else {
-            double tmp = Object::nextIndexForward(state, thisObject, k, len, false);
+            double tmp;
+            bool exist = Object::nextIndexForward(state, thisObject, k, len, false, tmp);
+            if (!exist) {
+                n = finalEnd - kStart;
+                break;
+            }
             n += tmp - k;
             k = tmp;
         }
@@ -463,7 +492,9 @@ static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t 
             callbackfn.asFunction()->call(state, T, 3, args, false);
             k++;
         } else {
-            k = Object::nextIndexForward(state, thisObject, k, len, false);
+            double result;
+            Object::nextIndexForward(state, thisObject, k, len, false, result);
+            k = result;
             continue;
         }
     }
@@ -525,7 +556,9 @@ static Value builtinArrayIndexOf(ExecutionState& state, Value thisValue, size_t 
                 return Value(k);
             }
         } else {
-            k = Object::nextIndexForward(state, O, k, len, false);
+            double result;
+            Object::nextIndexForward(state, O, k, len, false, result);
+            k = result;
             continue;
         }
         // Increase k by 1.
@@ -582,7 +615,9 @@ static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, siz
                 return Value(k);
             }
         } else {
-            k = Object::nextIndexBackward(state, O, k, -1, false);
+            double result;
+            Object::nextIndexBackward(state, O, k, -1, false, result);
+            k = result;
             continue;
         }
         // Decrease k by 1.
@@ -637,7 +672,9 @@ static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t ar
             // Increae k by 1.
             k++;
         } else {
-            k = Object::nextIndexForward(state, O, k, len, false);
+            double result;
+            Object::nextIndexForward(state, O, k, len, false, result);
+            k = result;
         }
     }
     return Value(true);
@@ -696,7 +733,9 @@ static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t a
 
             k++;
         } else {
-            k = Object::nextIndexForward(state, O, k, len, false);
+            double result;
+            Object::nextIndexForward(state, O, k, len, false, result);
+            k = result;
         }
         // Increase k by 1.
     }
@@ -747,7 +786,9 @@ static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc
             A->defineOwnProperty(state, Pk, ObjectPropertyDescriptor(mappedValue, ObjectPropertyDescriptor::AllPresent));
             k++;
         } else {
-            k = Object::nextIndexForward(state, O, k, len, false);
+            double result;
+            Object::nextIndexForward(state, O, k, len, false, result);
+            k = result;
         }
         // Increase k by 1.
     }
@@ -798,7 +839,9 @@ static Value builtinArraySome(ExecutionState& state, Value thisValue, size_t arg
                 return Value(true);
             }
         } else {
-            k = Object::nextIndexForward(state, O, k, len, false);
+            double result;
+            Object::nextIndexForward(state, O, k, len, false, result);
+            k = result;
             continue;
         }
         // Increase k by 1.
@@ -935,7 +978,9 @@ static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t a
             accumulator = FunctionObject::call(state, callbackfn, Value(), fnargc, fnargs);
             k++;
         } else {
-            k = Object::nextIndexForward(state, O, k, len, false);
+            double result;
+            Object::nextIndexForward(state, O, k, len, false, result);
+            k = result;
         }
     }
     return accumulator;
@@ -990,7 +1035,9 @@ static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, siz
             }
 
             // Decrease k by 1.
-            k = Object::nextIndexBackward(state, O, k, -1, false);
+            double result;
+            Object::nextIndexBackward(state, O, k, -1, false, result);
+            k = result;
         }
         // If kPresent is false, throw a TypeError exception.
         if (kPresent == false) {
@@ -1016,7 +1063,9 @@ static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, siz
         }
 
         // Decrease k by 1.
-        k = Object::nextIndexBackward(state, O, k, -1, false);
+        double result;
+        Object::nextIndexBackward(state, O, k, -1, false, result);
+        k = result;
     }
 
     // Return accumulator.
@@ -1117,8 +1166,20 @@ static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t ar
             // Call the [[Delete]] internal method of O with arguments to and true.
             O->deleteOwnPropertyThrowsException(state, to);
         }
+
         // Increase k by 1.
-        k++;
+        if (fromPresent.hasValue()) {
+            k++;
+        } else {
+            double result;
+            Object::nextIndexForward(state, O, k, len, false, result);
+            double r = result;
+            if (r > k) {
+                k = r;
+            } else {
+                k--;
+            }
+        }
     }
     // Call the [[Delete]] internal method of O with arguments ToString(len–1) and true.
     O->deleteOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(len - 1)));
@@ -1141,44 +1202,61 @@ static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t 
     // Let k be len.
     int64_t k = len;
 
-    // Repeat, while k > 0,
-    while (k > 0) {
-        // Let from be ToString(k–1).
-        ObjectPropertyName from(state, Value(k - 1));
-        // Let to be ToString(k+argCount –1).
-        ObjectPropertyName to(state, Value(k + argCount - 1));
+    // If argCount > 0, then
+    // this line add in newer version ECMAScript than ECMAScript 5.1
+    // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-array.prototype.unshift
+    // http://www.ecma-international.org/ecma-262/5.1/#sec-15.4.4.13
+    if (argCount) {
+        // Repeat, while k > 0,
+        while (k > 0) {
+            // Let from be ToString(k–1).
+            ObjectPropertyName from(state, Value(k - 1));
+            // Let to be ToString(k+argCount –1).
+            ObjectPropertyName to(state, Value(k + argCount - 1));
 
-        // Let fromPresent be the result of calling the [[HasProperty]] internal method of O with argument from.
-        ObjectGetResult fromPresent = O->get(state, from);
-        // If fromPresent is true, then
-        if (fromPresent.hasValue()) {
-            // Let fromValue be the result of calling the [[Get]] internal method of O with argument from.
-            Value fromValue = fromPresent.value(state, O);
-            // Call the [[Put]] internal method of O with arguments to, fromValue, and true.
-            O->setThrowsException(state, to, fromValue, O);
-        } else {
-            // Else, fromPresent is false
-            // Call the [[Delete]] internal method of O with arguments to, and true.
-            O->deleteOwnPropertyThrowsException(state, to);
+            // Let fromPresent be the result of calling the [[HasProperty]] internal method of O with argument from.
+            ObjectGetResult fromPresent = O->get(state, from);
+            // If fromPresent is true, then
+            if (fromPresent.hasValue()) {
+                // Let fromValue be the result of calling the [[Get]] internal method of O with argument from.
+                Value fromValue = fromPresent.value(state, O);
+                // Call the [[Put]] internal method of O with arguments to, fromValue, and true.
+                O->setThrowsException(state, to, fromValue, O);
+            } else {
+                // Else, fromPresent is false
+                // Call the [[Delete]] internal method of O with arguments to, and true.
+                O->deleteOwnPropertyThrowsException(state, to);
+            }
+
+            if (fromPresent.hasValue()) {
+                // Decrease k by 1.
+                k--;
+            } else {
+                double result;
+                Object::nextIndexBackward(state, O, k, -1, false, result);
+                double r = std::max(result + 1, result - argCount + 1);
+                if (r < k && std::abs(r - k) > argCount) {
+                    k = r;
+                } else {
+                    k--;
+                }
+            }
         }
 
-        // Decrease k by 1.
-        k--;
-    }
+        // Let j be 0.
+        size_t j = 0;
+        // Let items be an internal List whose elements are, in left to right order, the arguments that were passed to this function invocation.
+        Value* items = argv;
 
-    // Let j be 0.
-    size_t j = 0;
-    // Let items be an internal List whose elements are, in left to right order, the arguments that were passed to this function invocation.
-    Value* items = argv;
-
-    // Repeat, while items is not empty
-    while (j < argCount) {
-        // Remove the first element from items and let E be the value of that element.
-        Value E = items[j];
-        // Call the [[Put]] internal method of O with arguments ToString(j), E, and true.
-        O->setThrowsException(state, ObjectPropertyName(state, Value(j)), E, O);
-        // Increase j by 1.
-        j++;
+        // Repeat, while items is not empty
+        while (j < argCount) {
+            // Remove the first element from items and let E be the value of that element.
+            Value E = items[j];
+            // Call the [[Put]] internal method of O with arguments ToString(j), E, and true.
+            O->setThrowsException(state, ObjectPropertyName(state, Value(j)), E, O);
+            // Increase j by 1.
+            j++;
+        }
     }
 
     // Call the [[Put]] internal method of O with arguments "length", len+argCount, and true.

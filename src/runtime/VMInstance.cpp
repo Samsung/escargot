@@ -55,6 +55,12 @@ bool VMInstance::arrayLengthNativeSetter(ExecutionState& state, Object* self, co
 {
     ASSERT(self->isArrayObject());
 
+    bool isPrimitiveValue;
+    if (LIKELY(setterInputData.isPrimitive())) {
+        isPrimitiveValue = true;
+    } else {
+        isPrimitiveValue = false;
+    }
     // Let newLen be ToUint32(Desc.[[Value]]).
     auto newLen = setterInputData.toUint32(state);
     // If newLen is not equal to ToNumber( Desc.[[Value]]), throw a RangeError exception.
@@ -62,7 +68,12 @@ bool VMInstance::arrayLengthNativeSetter(ExecutionState& state, Object* self, co
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
     }
 
-    bool ret = self->asArrayObject()->setArrayLength(state, newLen);
+    bool ret;
+    if (UNLIKELY(!isPrimitiveValue && !self->structure()->readProperty(state, (size_t)0).m_descriptor.isWritable())) {
+        ret = false;
+    } else {
+        ret = self->asArrayObject()->setArrayLength(state, newLen);
+    }
     return ret;
 }
 

@@ -666,6 +666,7 @@
   'array-indexing': [SKIP],
   'array-isarray': [SKIP], #Proxy
   'array-join': [SKIP], #Proxy
+  'array-length': [SKIP], #arrow function
   # const
   'const*': [SKIP],
   'global-const-var-conflicts': [SKIP],
@@ -684,6 +685,10 @@
   'regress/regress-4377': [SKIP],
   'regress/regress-crbug-498811': [SKIP],
   'regress/regress-eval-context': [SKIP],
+  'array-push11': [SKIP],
+  'array-push13': [SKIP],
+  'array-push14': [SKIP],
+  'array-tostring': [SKIP],
   # builtins
   'html-string-funcs': [SKIP],
   'number-is': [SKIP],
@@ -770,8 +775,7 @@
   'regress/regress-function-constructor-receiver': [SKIP],
   'regress/regress-2564': [SKIP],
   'regress/regress-crbug-435825': [SKIP],
-  # Print inner code of function when function.toString() is called
-  'error-tostring-omit': [SKIP],
+
   # etc
   'contextual-calls': [SKIP],
   'cross-realm-filtering': [SKIP],
@@ -793,6 +797,20 @@
   'regress/regress-wasm-crbug-599413': [SKIP],
   'regress/regress-wasm-crbug-618602': [SKIP],
 
+  ## 8. Error message differ
+  'array-reduce': [SKIP],
+
+  ## 9. Runs successfully but takes too much time
+  'ascii-regexp-subject': [SKIP],
+
+  ## 10. asm.js
+  'asm-directive': [SKIP],
+
+  ## 11. Script is too long to run
+  'big-object-literal': [SKIP],
+
+  ## 12. Date.parese can be differ
+  'date-parse': [SKIP],
 }],  # 'escargot == True'
 
 ]

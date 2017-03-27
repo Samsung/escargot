@@ -292,7 +292,9 @@ Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, size_t ar
                 return Value(k);
             }
         } else {
-            k = Object::nextIndexForward(state, O, k, len, false);
+            double result;
+            Object::nextIndexForward(state, O, k, len, false, result);
+            k = result;
             continue;
         }
         // Increase k by 1.
@@ -354,7 +356,9 @@ Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue, size_
                 return Value(k);
             }
         } else {
-            k = Object::nextIndexBackward(state, O, k, -1, false);
+            double result;
+            Object::nextIndexBackward(state, O, k, -1, false, result);
+            k = result;
             continue;
         }
         // Decrease k by 1.

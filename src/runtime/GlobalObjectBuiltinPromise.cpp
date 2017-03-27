@@ -148,7 +148,9 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
                 index++;
                 k++;
             } else {
-                k = Object::nextIndexForward(state, iterableArray, k, len, true);
+                double result;
+                Object::nextIndexForward(state, iterableArray, k, len, true, result);
+                k = result;
             }
         }
 
@@ -229,7 +231,9 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
 
                 k++;
             } else {
-                k = Object::nextIndexForward(state, iterableArray, k, len, true);
+                double result;
+                Object::nextIndexForward(state, iterableArray, k, len, true, result);
+                k = result;
             }
         }
 

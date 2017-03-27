@@ -644,8 +644,9 @@ public:
         m_structure = m_structure->convertToWithFastAccess(state);
     }
 
-    static double nextIndexForward(ExecutionState& state, Object* obj, const double cur, const double len, const bool skipUndefined);
-    static double nextIndexBackward(ExecutionState& state, Object* obj, const double cur, const double end, const bool skipUndefined);
+    // returns existence of index
+    static bool nextIndexForward(ExecutionState& state, Object* obj, const double cur, const double len, const bool skipUndefined, double& nextIndex);
+    static bool nextIndexBackward(ExecutionState& state, Object* obj, const double cur, const double end, const bool skipUndefined, double& nextIndex);
 
     virtual void sort(ExecutionState& state, std::function<bool(const Value& a, const Value& b)> comp);
 
@@ -783,8 +784,7 @@ protected:
             m_values[idx] = newValue;
             return true;
         } else {
-            bool ret = item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, newValue);
-            return ret;
+            return item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, newValue);
         }
     }
 
