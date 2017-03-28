@@ -84,8 +84,8 @@ public:
         if (m_test)
             codeBlock->peekCode<JumpIfFalse>(testPos)->m_jumpPosition = forEnd;
 
-        newContext.consumeBreakPositions(codeBlock, forEnd);
-        newContext.consumeContinuePositions(codeBlock, updatePosition);
+        newContext.consumeBreakPositions(codeBlock, forEnd, context->m_tryStatementScopeCount);
+        newContext.consumeContinuePositions(codeBlock, updatePosition, context->m_tryStatementScopeCount);
         newContext.m_positionToContinue = updatePosition;
         newContext.propagateInformationTo(*context);
     }

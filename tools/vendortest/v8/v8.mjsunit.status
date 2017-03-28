@@ -650,6 +650,7 @@
 ['escargot == True', {
 
   ## 1. ES6 spec
+  'es6/proxies-*': [SKIP],
   # object/class (FIXME: check after conversion to ES5)
   'accessors-no-prototype': [SKIP],
   'regress/regress-4255-4': [SKIP],
@@ -680,6 +681,7 @@
   'regress/regress-410030': [SKIP],
   'regress/regress-1182832': [SKIP],
   'regress/regress-1213575': [SKIP],
+  'regress/regress-1528': [SKIP],
   # let
   'compiler/regress-451012': [SKIP],
   'regress/regress-4377': [SKIP],
@@ -709,6 +711,7 @@
   'regress/regress-425551': [SKIP],
   'regress/regress-95920': [SKIP],
   'regress/regress-crbug-109362': [SKIP],
+  'to_number_order': [SKIP],
   # Symbol
   'regress/regress-539875': [SKIP],
   'regress/regress-5780': [SKIP],
@@ -717,7 +720,9 @@
   'regress/regress-crbug-580584': [SKIP],
   'regress/regress-crbug-612142': [SKIP],
   'regress/regress-crbug-668414': [SKIP],
+  'es6/array-tostring': [SKIP],
   # Proxy
+  'array-isarray': [SKIP],
   'regress/regress-5174': [SKIP],
   'regress/regress-5181': [SKIP],
   'regress/regress-578775': [SKIP],
@@ -725,6 +730,7 @@
   'regress/regress-crbug-603463': [SKIP],
   'regress/regress-crbug-664802': [SKIP],
   'regress/regress-v8-4972': [SKIP],
+  'regress/regress-crbug-599067': [SKIP],
   # Realm
   'call-cross-realm': [SKIP],
   'realm-property-access': [SKIP],
@@ -752,6 +758,8 @@
   'regexp-cache-replace': [SKIP],
   # Error
   'error-tostring-omit': [SKIP],
+  'string-match': [SKIP],
+  # RegExp properties (lastMatch, lastParen, leftContext, rightContext)
 
   ## 3. Deprecated
   # function.[arguments|caller|callee]
@@ -779,7 +787,14 @@
   'regress/regress-function-constructor-receiver': [SKIP],
   'regress/regress-2564': [SKIP],
   'regress/regress-crbug-435825': [SKIP],
-
+  # Print inner code of function when function.toString() is called
+  'error-tostring-omit': [SKIP],
+  # Different error message
+  'array-reduce': [SKIP],
+  'object-define-properties': [SKIP],
+  'regress/regress-136048': [SKIP],
+  'regress/regress-1980': [SKIP],
+  'regress/regress-633998': [SKIP],
   # etc
   'contextual-calls': [SKIP],
   'cross-realm-filtering': [SKIP],

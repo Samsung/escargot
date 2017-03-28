@@ -115,6 +115,7 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
 
             while (newLen < oldLen) {
                 oldLen--;
+
                 bool deleteSucceeded = Object::deleteOwnProperty(state, ObjectPropertyName(state, Value(oldLen).toString(state)));
                 if (!deleteSucceeded) {
                     newLenDesc.setValue(Value(oldLen + 1));

@@ -211,11 +211,11 @@ struct ByteCodeGenerateContext {
         m_registerStack->pop_back();
     }
 
-    void consumeBreakPositions(ByteCodeBlock* cb, size_t position);
-    void consumeLabeledBreakPositions(ByteCodeBlock* cb, size_t position, String* lbl);
-    void consumeContinuePositions(ByteCodeBlock* cb, size_t position);
-    void consumeLabeledContinuePositions(ByteCodeBlock* cb, size_t position, String* lbl);
-    void morphJumpPositionIntoComplexCase(ByteCodeBlock* cb, size_t codePos);
+    void consumeBreakPositions(ByteCodeBlock* cb, size_t position, int outerLimitCount);
+    void consumeLabeledBreakPositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount);
+    void consumeContinuePositions(ByteCodeBlock* cb, size_t position, int outerLimitCount);
+    void consumeLabeledContinuePositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount);
+    void morphJumpPositionIntoComplexCase(ByteCodeBlock* cb, size_t codePos, size_t outerLimitCount = SIZE_MAX);
     bool isGlobalScope()
     {
         return m_isGlobalScope;

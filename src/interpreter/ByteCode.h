@@ -938,18 +938,20 @@ public:
         NeedsThrow,
     };
 
-    ControlFlowRecord(const ControlFlowReason& reason, const Value& value, size_t count = 0)
+    ControlFlowRecord(const ControlFlowReason& reason, const Value& value, size_t count = 0, size_t outerLimitCount = SIZE_MAX)
     {
         m_reason = reason;
         m_value = value;
         m_count = count;
+        m_outerLimitCount = outerLimitCount;
     }
 
-    ControlFlowRecord(const ControlFlowReason& reason, const size_t& value, size_t count = 0)
+    ControlFlowRecord(const ControlFlowReason& reason, const size_t& value, size_t count = 0, size_t outerLimitCount = SIZE_MAX)
     {
         m_reason = reason;
         m_wordValue = value;
         m_count = count;
+        m_outerLimitCount = outerLimitCount;
     }
 
     const ControlFlowReason& reason()
@@ -982,9 +984,14 @@ public:
         return m_count;
     }
 
+    size_t outerLimitCount()
+    {
+        return m_outerLimitCount;
+    }
+
     ControlFlowRecord* clone()
     {
-        return new ControlFlowRecord(m_reason, m_value, m_count);
+        return new ControlFlowRecord(m_reason, m_value, m_count, m_outerLimitCount);
     }
 
 protected:
@@ -993,7 +1000,12 @@ protected:
         Value m_value;
         size_t m_wordValue;
     };
+    // m_count is for saving tryStatementScopeCount of the context which contains
+    // the occurrence(departure point) of this controlflow (e.g. break;)
     size_t m_count;
+    // m_outerLimitCount is for saving tryStatementScopeCount of the context which contains
+    // the destination of this controlflow
+    size_t m_outerLimitCount;
 };
 
 class JumpComplexCase : public ByteCode {

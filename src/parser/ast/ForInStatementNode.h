@@ -102,8 +102,8 @@ public:
         size_t forInEnd = codeBlock->currentCodeSize();
         ASSERT(codeBlock->peekCode<CheckIfKeyIsLast>(continuePosition)->m_orgOpcode == CheckIfKeyIsLastOpcode);
 
-        newContext.consumeBreakPositions(codeBlock, forInEnd);
-        newContext.consumeContinuePositions(codeBlock, continuePosition);
+        newContext.consumeBreakPositions(codeBlock, forInEnd, context->m_tryStatementScopeCount);
+        newContext.consumeContinuePositions(codeBlock, continuePosition, context->m_tryStatementScopeCount);
         newContext.m_positionToContinue = continuePosition;
 
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index)), &newContext, this);

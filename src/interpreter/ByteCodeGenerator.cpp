@@ -21,63 +21,63 @@
 
 namespace Escargot {
 
-void ByteCodeGenerateContext::consumeLabeledContinuePositions(ByteCodeBlock* cb, size_t position, String* lbl)
+void ByteCodeGenerateContext::consumeLabeledContinuePositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount)
 {
     for (size_t i = 0; i < m_labeledContinueStatmentPositions.size(); i++) {
         if (*m_labeledContinueStatmentPositions[i].first == *lbl) {
             Jump* shouldBeJump = cb->peekCode<Jump>(m_labeledContinueStatmentPositions[i].second);
             ASSERT(shouldBeJump->m_orgOpcode == JumpOpcode);
             shouldBeJump->m_jumpPosition = position;
-            morphJumpPositionIntoComplexCase(cb, m_labeledContinueStatmentPositions[i].second);
+            morphJumpPositionIntoComplexCase(cb, m_labeledContinueStatmentPositions[i].second, outerLimitCount);
             m_labeledContinueStatmentPositions.erase(m_labeledContinueStatmentPositions.begin() + i);
             i = -1;
         }
     }
 }
 
-void ByteCodeGenerateContext::consumeBreakPositions(ByteCodeBlock* cb, size_t position)
+void ByteCodeGenerateContext::consumeBreakPositions(ByteCodeBlock* cb, size_t position, int outerLimitCount)
 {
     for (size_t i = 0; i < m_breakStatementPositions.size(); i++) {
         Jump* shouldBeJump = cb->peekCode<Jump>(m_breakStatementPositions[i]);
         ASSERT(shouldBeJump->m_orgOpcode == JumpOpcode);
         shouldBeJump->m_jumpPosition = position;
 
-        morphJumpPositionIntoComplexCase(cb, m_breakStatementPositions[i]);
+        morphJumpPositionIntoComplexCase(cb, m_breakStatementPositions[i], outerLimitCount);
     }
     m_breakStatementPositions.clear();
 }
 
-void ByteCodeGenerateContext::consumeLabeledBreakPositions(ByteCodeBlock* cb, size_t position, String* lbl)
+void ByteCodeGenerateContext::consumeLabeledBreakPositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount)
 {
     for (size_t i = 0; i < m_labeledBreakStatmentPositions.size(); i++) {
         if (*m_labeledBreakStatmentPositions[i].first == *lbl) {
             Jump* shouldBeJump = cb->peekCode<Jump>(m_labeledBreakStatmentPositions[i].second);
             ASSERT(shouldBeJump->m_orgOpcode == JumpOpcode);
             shouldBeJump->m_jumpPosition = position;
-            morphJumpPositionIntoComplexCase(cb, m_labeledBreakStatmentPositions[i].second);
+            morphJumpPositionIntoComplexCase(cb, m_labeledBreakStatmentPositions[i].second, outerLimitCount);
             m_labeledBreakStatmentPositions.erase(m_labeledBreakStatmentPositions.begin() + i);
             i = -1;
         }
     }
 }
 
-void ByteCodeGenerateContext::consumeContinuePositions(ByteCodeBlock* cb, size_t position)
+void ByteCodeGenerateContext::consumeContinuePositions(ByteCodeBlock* cb, size_t position, int outerLimitCount)
 {
     for (size_t i = 0; i < m_continueStatementPositions.size(); i++) {
         Jump* shouldBeJump = cb->peekCode<Jump>(m_continueStatementPositions[i]);
         ASSERT(shouldBeJump->m_orgOpcode == JumpOpcode);
         shouldBeJump->m_jumpPosition = position;
 
-        morphJumpPositionIntoComplexCase(cb, m_continueStatementPositions[i]);
+        morphJumpPositionIntoComplexCase(cb, m_continueStatementPositions[i], outerLimitCount);
     }
     m_continueStatementPositions.clear();
 }
 
-void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb, size_t codePos)
+void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb, size_t codePos, size_t outerLimitCount)
 {
     auto iter = m_complexCaseStatementPositions.find(codePos);
     if (iter != m_complexCaseStatementPositions.end()) {
-        ControlFlowRecord* r = new ControlFlowRecord(ControlFlowRecord::ControlFlowReason::NeedsJump, (cb->peekCode<Jump>(codePos)->m_jumpPosition), iter->second);
+        ControlFlowRecord* r = new ControlFlowRecord(ControlFlowRecord::ControlFlowReason::NeedsJump, (cb->peekCode<Jump>(codePos)->m_jumpPosition), iter->second, outerLimitCount);
         m_byteCodeBlock->m_literalData.pushBack(r);
         JumpComplexCase j(cb->peekCode<Jump>(codePos), r);
         memcpy(cb->m_code.data() + codePos, &j, sizeof(JumpComplexCase));

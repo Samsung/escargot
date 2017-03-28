@@ -397,7 +397,7 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, concat);
     ArrayObject* array = new ArrayObject(state);
-    uint32_t n = 0;
+    uint64_t n = 0;
     for (size_t i = 0; i < argc + 1; i++) {
         Value argi = (i == 0) ? thisObject : argv[i - 1];
         if (argi.isObject() && argi.asObject()->isArrayObject()) {

@@ -106,7 +106,7 @@ public:
             caseNode->generateStatementByteCode(codeBlock, &newContext);
         }
         size_t breakPos = codeBlock->currentCodeSize();
-        newContext.consumeBreakPositions(codeBlock, breakPos);
+        newContext.consumeBreakPositions(codeBlock, breakPos, context->m_tryStatementScopeCount);
         newContext.m_positionToContinue = context->m_positionToContinue;
         newContext.propagateInformationTo(*context);
         if (!m_default) {

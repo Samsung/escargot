@@ -347,6 +347,7 @@ void Object::setPrototype(ExecutionState& state, const Value& value)
     } else if (value.isUndefined()) {
         o = (Object*)1;
     } else {
+        return;
     }
     if (rareData()) {
         rareData()->m_prototype = o;

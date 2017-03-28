@@ -754,7 +754,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 if (record->reason() == ControlFlowRecord::NeedsJump) {
                     size_t pos = record->wordValue();
                     record->m_count--;
-                    if (record->count()) {
+                    if (record->count() && (record->outerLimitCount() < record->count())) {
                         state.rareData()->m_controlFlowRecord->back() = record;
                         return Value();
                     } else
@@ -788,6 +788,9 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             Value v = withOperation(state, code, registerFile[code->m_registerIndex].toObject(state), ec, ec->lexicalEnvironment(), newPc, byteCodeBlock, registerFile, stackStorage);
             if (!v.isEmpty()) {
                 return v;
+            }
+            if (programCounter == newPc) {
+                return Value();
             }
             programCounter = newPc;
             NEXT_INSTRUCTION();
@@ -1705,7 +1708,7 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, Wit
         if (record->reason() == ControlFlowRecord::NeedsJump) {
             size_t pos = record->wordValue();
             record->m_count--;
-            if (record->count()) {
+            if (record->count() && (record->outerLimitCount() < record->count())) {
                 state.rareData()->m_controlFlowRecord->back() = record;
             } else
                 programCounter = jumpTo(codeBuffer, pos);
