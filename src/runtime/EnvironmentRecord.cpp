@@ -186,14 +186,14 @@ void DeclarativeEnvironmentRecordNotIndexed::initializeBinding(ExecutionState& s
 
 void FunctionEnvironmentRecordNotIndexed::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable)
 {
-    ASSERT(isMutable);
-    ASSERT(hasBinding(state, name).m_index == SIZE_MAX);
-    IdentifierRecord record;
-    record.m_name = name;
-    record.m_canDelete = canDelete;
-    record.m_isMutable = true;
-    m_recordVector.pushBack(record);
-    m_heapStorage.pushBack(Value());
+    if (hasBinding(state, name).m_index == SIZE_MAX) {
+        IdentifierRecord record;
+        record.m_name = name;
+        record.m_canDelete = canDelete;
+        record.m_isMutable = isMutable;
+        m_recordVector.pushBack(record);
+        m_heapStorage.pushBack(Value());
+    }
 }
 EnvironmentRecord::GetBindingValueResult FunctionEnvironmentRecordNotIndexed::getBindingValue(ExecutionState& state, const AtomicString& name)
 {
@@ -212,7 +212,9 @@ void FunctionEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& stat
     for (size_t i = 0; i < len; i++) {
         if (m_recordVector[i].m_name == name) {
             if (UNLIKELY(!m_recordVector[i].m_isMutable)) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable);
+                if (state.inStrictMode())
+                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable);
+                return;
             }
             m_heapStorage[i] = V;
             return;
@@ -224,7 +226,9 @@ void FunctionEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& stat
 void FunctionEnvironmentRecordNotIndexed::setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
 {
     if (UNLIKELY(!m_recordVector[idx].m_isMutable)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable);
+        if (state.inStrictMode())
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable);
+        return;
     }
     m_heapStorage[idx] = v;
 }

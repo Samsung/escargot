@@ -40,7 +40,7 @@ public:
         return m_name;
     }
 
-    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf = true)
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf, bool isInitializeBinding)
     {
         if ((context->m_codeBlock->canUseIndexedVariableStorage() || context->m_codeBlock->isGlobalScopeCodeBlock())) {
             CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
@@ -48,16 +48,17 @@ public:
                 if (!context->m_codeBlock->inNotIndexedCodeBlockScope() && !context->m_codeBlock->inCatchWith() && !context->m_codeBlock->inEvalWithScope() && !context->m_catchScopeCount && !context->m_isEvalCode && !context->m_codeBlock->hasWith()) {
                     codeBlock->pushCode(SetGlobalObject(ByteCodeLOC(m_loc.index), srcRegister, PropertyName(m_name)), context, this);
                 } else {
-                    codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
+                    codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name, isInitializeBinding), context, this);
                 }
             } else {
                 if (context->m_isWithScope || (context->m_catchScopeCount && m_name == context->m_lastCatchVariableName)) {
-                    codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
+                    codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name, isInitializeBinding), context, this);
                     return;
                 }
 
-                if (!info.m_isMutable) {
-                    codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable), context, this);
+                if (!info.m_isMutable && !isInitializeBinding) {
+                    if (codeBlock->m_codeBlock->isStrict())
+                        codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable), context, this);
                     return;
                 }
 
@@ -72,7 +73,7 @@ public:
             }
         } else {
             ASSERT(!context->m_codeBlock->canAllocateEnvironmentOnStack());
-            codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
+            codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name, isInitializeBinding), context, this);
         }
     }
 

@@ -738,6 +738,8 @@
   'regress/regress-679727': [SKIP],
   'regress/regress-crbug-613905': [SKIP],
   'regress/regress-crbug-615774': [SKIP],
+  'error-constructors': [SKIP],
+  'error-tostring': [SKIP],
   # etc
   'harmony/*': [SKIP],
   'es7/*': [SKIP],
@@ -748,6 +750,8 @@
   'enumeration-order': [SKIP],
   # RegExp.$1-$9
   'regexp-cache-replace': [SKIP],
+  # Error
+  'error-tostring-omit': [SKIP],
 
   ## 3. Deprecated
   # function.[arguments|caller|callee]
@@ -783,7 +787,7 @@
   'regress/regress-crbug-501808': [SKIP],
 
   ## 5. Accepted timeout (due to yarr performance limitation)
-  'ascii-regexp-subject': [TIMEOUT], # 50s
+  'ascii-regexp-subject': [SKIP], # 50s
   'regress/regress-crbug-482998': [TIMEOUT], # 10m~
 
   ## 6. YARR lookahead problem
@@ -800,16 +804,13 @@
   ## 8. Error message differ
   'array-reduce': [SKIP],
 
-  ## 9. Runs successfully but takes too much time
-  'ascii-regexp-subject': [SKIP],
-
-  ## 10. asm.js
+  ## 9. asm.js
   'asm-directive': [SKIP],
 
-  ## 11. Script is too long to run
+  ## 10. Script is too long to run
   'big-object-literal': [SKIP],
 
-  ## 12. Date.parese can be differ
+  ## 11. Date.parese can be differ
   'date-parse': [SKIP],
 }],  # 'escargot == True'
 

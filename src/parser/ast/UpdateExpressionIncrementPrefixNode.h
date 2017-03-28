@@ -60,7 +60,7 @@ public:
         context->giveUpRegister();
         size_t dst = m_argument->getRegister(codeBlock, context);
         codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), src, dst), context, this);
-        m_argument->generateStoreByteCode(codeBlock, context, dst);
+        m_argument->generateStoreByteCode(codeBlock, context, dst, true);
         context->giveUpRegister();
     }
 

@@ -37,7 +37,7 @@ void Node::generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock,
     ASSERT(context->m_registerStack->size() == before);
 }
 
-void Node::generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
+void Node::generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf, bool isInitializeBinding)
 {
     generateExpressionByteCode(codeBlock, context, context->getRegister());
     context->giveUpRegister();

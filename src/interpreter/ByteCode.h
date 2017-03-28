@@ -252,12 +252,14 @@ public:
 
 class StoreByName : public ByteCode {
 public:
-    StoreByName(const ByteCodeLOC& loc, const size_t& registerIndex, const AtomicString& name)
+    StoreByName(const ByteCodeLOC& loc, const size_t& registerIndex, const AtomicString& name, bool isInitializeBinding)
         : ByteCode(Opcode::StoreByNameOpcode, loc)
+        , m_isInitializeBinding(isInitializeBinding)
         , m_registerIndex(registerIndex)
         , m_name(name)
     {
     }
+    bool m_isInitializeBinding;
     ByteCodeRegisterIndex m_registerIndex;
     AtomicString m_name;
 

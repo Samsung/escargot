@@ -407,8 +407,8 @@ void CodeBlock::computeVariables()
     }
 
     if (m_functionName.string()->length()) {
-        if (m_isFunctionExpression && m_isStrict) {
-            // name of function expression is immuable on strict mode
+        if (m_isFunctionExpression) {
+            // name of function expression is immuable
             for (size_t i = 0; i < m_identifierInfos.size(); i++) {
                 if (m_identifierInfos[i].m_name == m_functionName && !m_identifierInfos[i].m_isExplicitlyDeclaredOrParameterName) {
                     m_identifierInfos[i].m_isMutable = false;

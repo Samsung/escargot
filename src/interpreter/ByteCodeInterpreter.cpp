@@ -712,7 +712,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
 
         StoreByNameOpcodeLbl : {
             StoreByName* code = (StoreByName*)programCounter;
-            storeByName(state, ec->lexicalEnvironment(), code->m_name, registerFile[code->m_registerIndex]);
+            storeByName(state, ec->lexicalEnvironment(), code->m_name, registerFile[code->m_registerIndex], code->m_isInitializeBinding);
             ADD_PROGRAM_COUNTER(StoreByName);
             NEXT_INSTRUCTION();
         }
@@ -995,12 +995,16 @@ NEVER_INLINE Value ByteCodeInterpreter::loadByName(ExecutionState& state, Lexica
     return Value();
 }
 
-NEVER_INLINE void ByteCodeInterpreter::storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value)
+NEVER_INLINE void ByteCodeInterpreter::storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value, bool isInitializeBinding)
 {
     while (env) {
         auto result = env->record()->hasBinding(state, name);
         if (result.m_index != SIZE_MAX) {
-            env->record()->setMutableBindingByIndex(state, result.m_index, name, value);
+            if (isInitializeBinding) {
+                env->record()->initializeBinding(state, name, value);
+            } else {
+                env->record()->setMutableBindingByIndex(state, result.m_index, name, value);
+            }
             return;
         }
         env = env->outerEnvironment();
