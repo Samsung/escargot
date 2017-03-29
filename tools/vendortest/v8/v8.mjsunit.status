@@ -735,6 +735,7 @@
   'call-cross-realm': [SKIP],
   'realm-property-access': [SKIP],
   'regress/regress-4509-Class-constructor-typeerror-realm': [SKIP],
+
   # Map
   'regress/regress-crbug-416558': [SKIP],
   'regress/regress-crbug-664974': [SKIP],
@@ -746,14 +747,30 @@
   'regress/regress-crbug-615774': [SKIP],
   'error-constructors': [SKIP],
   'error-tostring': [SKIP],
+  'global-arrow-delete-this': [SKIP],
+  'has-own-property-evaluation-order': [SKIP],
+  'json-replacer-order': [SKIP],
+  'json-stringify-holder': [SKIP],
+  'json-stringify-stack': [SKIP],
+  'json': [SKIP],
+  'lookup-behind-property': [SKIP],
+
+  # const
+  'int32-ops': [SKIP],
+  'negate': [SKIP],
+
   # etc
   'harmony/*': [SKIP],
   'es7/*': [SKIP],
   'es8/*': [SKIP],
+  'get-prototype-of': [SKIP],
+  'global-properties': [SKIP],
 
   ## 2. Non-standard
   # enumeration order
   'enumeration-order': [SKIP],
+  'for-in': [SKIP],
+
   # RegExp.$1-$9
   'regexp-cache-replace': [SKIP],
   # Error
@@ -768,6 +785,8 @@
   'function-arguments-null': [SKIP],
   'function-caller': [SKIP],
   'regress/regress-1548': [SKIP],
+  # old string functions
+  'function-names': [SKIP],
 
   ## 4. v8-only
   # Worker
@@ -800,6 +819,7 @@
   'cross-realm-filtering': [SKIP],
   'regress/regress-280531': [SKIP],
   'regress/regress-crbug-501808': [SKIP],
+  'number-tostring-big-integer': [SKIP],
 
   ## 5. Accepted timeout (due to yarr performance limitation)
   'ascii-regexp-subject': [SKIP], # 50s
@@ -818,6 +838,7 @@
 
   ## 8. Error message differ
   'array-reduce': [SKIP],
+  'function-call': [SKIP],
 
   ## 9. asm.js
   'asm-directive': [SKIP],

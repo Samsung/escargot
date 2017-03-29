@@ -186,13 +186,16 @@ void DeclarativeEnvironmentRecordNotIndexed::initializeBinding(ExecutionState& s
 
 void FunctionEnvironmentRecordNotIndexed::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable)
 {
-    if (hasBinding(state, name).m_index == SIZE_MAX) {
+    size_t idx = hasBinding(state, name).m_index;
+    if (idx == SIZE_MAX) {
         IdentifierRecord record;
         record.m_name = name;
         record.m_canDelete = canDelete;
         record.m_isMutable = isMutable;
         m_recordVector.pushBack(record);
         m_heapStorage.pushBack(Value());
+    } else {
+        m_recordVector[idx].m_isMutable = isMutable;
     }
 }
 EnvironmentRecord::GetBindingValueResult FunctionEnvironmentRecordNotIndexed::getBindingValue(ExecutionState& state, const AtomicString& name)

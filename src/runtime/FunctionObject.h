@@ -39,17 +39,24 @@ public:
     FunctionObject(ExecutionState& state, NativeFunctionInfo info);
     FunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment);
 
+    // getter of internal [[Prototype]]
     Value getFunctionPrototype(ExecutionState& state)
     {
-        ASSERT(isConstructor());
-        return m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER];
+        if (LIKELY(isConstructor()))
+            return m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER];
+        else
+            return Value();
     }
 
+    // setter of internal [[Prototype]]
     bool setFunctionPrototype(ExecutionState& state, const Value& v)
     {
-        ASSERT(isConstructor());
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = v;
-        return true;
+        if (LIKELY(isConstructor())) {
+            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = v;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     bool isConstructor()
@@ -89,6 +96,19 @@ public:
     }
 
 protected:
+    Value getFunctionPrototypeKnownAsConstructor(ExecutionState& state)
+    {
+        ASSERT(isConstructor());
+        return m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER];
+    }
+
+    bool setFunctionPrototypeKnownAsConstructor(ExecutionState& state, const Value& v)
+    {
+        ASSERT(isConstructor());
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = v;
+        return true;
+    }
+
     static Value callSlowCase(ExecutionState& state, const Value& callee, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression);
     void generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage);
     void generateBytecodeBlock(ExecutionState& state);

@@ -19,6 +19,10 @@
 #include "Context.h"
 #include "NumberObject.h"
 
+// dtoa
+#include "ieee.h"
+#include "double-conversion.h"
+
 namespace Escargot {
 
 static int itoa(int64_t value, char* sp, int radix)
@@ -112,14 +116,10 @@ static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t
             return Value(round(number)).toString(state);
         }
 
-        std::basic_ostringstream<char> stream;
-        if (number < 0)
-            stream << "-";
-        stream << "%." << digit << "lf";
-        std::string fstr = stream.str();
-        char buf[512];
-        snprintf(buf, sizeof(buf), fstr.c_str(), std::abs(number));
-        return Value(new ASCIIString(buf));
+        char buffer[512];
+        double_conversion::StringBuilder builder(buffer, 512);
+        double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToFixed(number, digit, &builder);
+        return Value(new ASCIIString(builder.Finalize()));
     }
     return Value();
 }
@@ -245,26 +245,10 @@ static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, si
             if (p < 1 || p > 21) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toPrecision.string(), errorMessage_GlobalObject_RangeError);
             }
-            if (LIKELY(x != 0)) {
-                int log10_num = trunc(log10(x));
-                if (log10_num + 1 <= p && log10_num > -6) {
-                    if (std::abs(x) >= 1) {
-                        stream << "%" << log10_num + 1 << "." << (p - log10_num - 1) << "lf";
-                    } else {
-                        stream << "%" << log10_num << "." << (p - log10_num) << "lf";
-                    }
-                } else {
-                    x = x / pow(10, log10_num);
-                    if (std::abs(x) < 1) {
-                        x *= 10;
-                        log10_num--;
-                    }
-                    stream << "%1." << (p - 1) << "lf"
-                           << "e" << ((log10_num >= 0) ? "+" : "") << log10_num;
-                }
-            } else {
-                stream << "%1." << (p - 1) << "lf";
-            }
+            char buffer[512];
+            double_conversion::StringBuilder builder(buffer, 512);
+            double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToPrecision(number, p, &builder);
+            return Value(new ASCIIString(builder.Finalize()));
         }
         std::string fstr = stream.str();
         char buf[512];

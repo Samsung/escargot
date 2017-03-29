@@ -78,7 +78,7 @@ String* RopeString::createRopeString(String* lstr, String* rstr, ExecutionState*
     rope->m_contentLength = llen + rlen;
     rope->m_left = lstr;
     rope->m_right = rstr;
-
+    rope->m_has8BitContent = lstr->has8BitContent() && rstr->has8BitContent();
     return rope;
 }
 

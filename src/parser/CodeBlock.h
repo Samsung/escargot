@@ -81,7 +81,7 @@ public:
     CodeBlock(Context* ctx, const NativeFunctionInfo& info);
 
     // init bound CodeBlock
-    CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv);
+    CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv);
 
     enum CodeBlockInitFlag {
         CodeBlockInitDefault = 0,
@@ -413,6 +413,7 @@ protected:
     bool m_isFunctionDeclaration : 1;
     bool m_isInWithScope : 1;
     bool m_isEvalCodeInFunction : 1;
+    bool m_isBindedFunction : 1;
 
     Script* m_script;
     StringView m_src; // function source elements src

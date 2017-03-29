@@ -31,6 +31,7 @@ public:
         m_left = String::emptyString;
         m_right = String::emptyString;
         m_contentLength = 0;
+        m_has8BitContent = true;
     }
 
     // this function not always create RopeString.
@@ -58,17 +59,7 @@ public:
 
     virtual bool has8BitContent() const
     {
-        if (m_right) {
-            bool a = m_left->has8BitContent();
-            if (!a)
-                return false;
-            bool b = m_right->has8BitContent();
-            if (!b) {
-                return false;
-            }
-            return true;
-        }
-        return m_left->has8BitContent();
+        return m_has8BitContent;
     }
 
     virtual bool isRopeString()
@@ -106,8 +97,19 @@ protected:
 
     String* m_left;
     String* m_right;
-    size_t m_contentLength;
+    struct {
+        bool m_has8BitContent : 1;
+#if ESCARGOT_32
+        size_t m_contentLength : 31;
+#else
+        size_t m_contentLength : 63;
+#endif
+    };
+
+    static_assert(STRING_MAXIMUM_LENGTH < (std::numeric_limits<size_t>::max() / 2), "");
 };
+
+static_assert(sizeof(RopeString) <= (sizeof(size_t) * 5), "");
 }
 
 #endif

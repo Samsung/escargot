@@ -49,7 +49,7 @@ public:
         AtomicString name = m_id->asIdentifier()->name();
         if (m_init) {
             context->getRegister();
-            if (!name.string()->equals("arguments") && context->m_codeBlock->canUseIndexedVariableStorage()) {
+            if (!name.string()->equals("arguments")) {
                 // check canUseIndexedVariableStorage for give right value to generateStoreByteCode(isInit..) with eval
                 AssignmentExpressionSimpleNode assign(m_id, m_init);
                 assign.m_loc = m_loc;
@@ -59,7 +59,7 @@ public:
             } else {
                 auto r = m_init->getRegister(codeBlock, context);
                 m_init->generateExpressionByteCode(codeBlock, context, r);
-                m_id->generateStoreByteCode(codeBlock, context, r, false, true);
+                m_id->generateStoreByteCode(codeBlock, context, r, false);
                 context->giveUpRegister();
             }
             context->giveUpRegister();

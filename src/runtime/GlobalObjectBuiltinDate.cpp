@@ -249,15 +249,6 @@ static Value builtinDateToJSON(ExecutionState& state, Value thisValue, size_t ar
     return FunctionObject::call(state, isoFunc, thisObject, 0, nullptr, false);
 }
 
-static Value builtinDateToGMTString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toGMTString);
-    if (!(thisObject->isDateObject())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toGMTString.string(), errorMessage_GlobalObject_ThisNotDateObject);
-    }
-    return thisObject->asDateObject()->toUTCString(state, state.context()->staticStrings().toGMTString.string());
-}
-
 #define DECLARE_STATIC_DATE_GETTER(Name, unused1, unused2, unused3)                                                                                                                                                                \
     static Value builtinDateGet##Name(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)                                                                                                      \
     {                                                                                                                                                                                                                              \
@@ -495,18 +486,17 @@ void GlobalObject::installDate(ExecutionState& state)
     m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toLocaleTimeString),
                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toLocaleTimeString, builtinDateToLocaleTimeString, 0, nullptr, NativeFunctionInfo::Strict)),
                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toUTCString),
-                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toUTCString, builtinDateToUTCString, 0, nullptr, NativeFunctionInfo::Strict)),
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toISOString),
                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toISOString, builtinDateToISOString, 0, nullptr, NativeFunctionInfo::Strict)),
                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toJSON),
                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toJSON, builtinDateToJSON, 1, nullptr, NativeFunctionInfo::Strict)),
                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    FunctionObject* toUTCString = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toUTCString, builtinDateToUTCString, 0, nullptr, NativeFunctionInfo::Strict));
+    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toUTCString),
+                                       ObjectPropertyDescriptor(toUTCString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toGMTString),
-                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toGMTString, builtinDateToGMTString, 0, nullptr, NativeFunctionInfo::Strict)),
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                       ObjectPropertyDescriptor(toUTCString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getYear),
                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getYear, builtinDateGetYear, 0, nullptr, NativeFunctionInfo::Strict)),
                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

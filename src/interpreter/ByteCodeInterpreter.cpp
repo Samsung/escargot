@@ -712,14 +712,14 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
 
         StoreByNameOpcodeLbl : {
             StoreByName* code = (StoreByName*)programCounter;
-            storeByName(state, ec->lexicalEnvironment(), code->m_name, registerFile[code->m_registerIndex], code->m_isInitializeBinding);
+            storeByName(state, ec->lexicalEnvironment(), code->m_name, registerFile[code->m_registerIndex]);
             ADD_PROGRAM_COUNTER(StoreByName);
             NEXT_INSTRUCTION();
         }
 
         CallEvalFunctionOpcodeLbl : {
             CallEvalFunction* code = (CallEvalFunction*)programCounter;
-            Value eval = loadByName(state, ec->lexicalEnvironment(), state.context()->staticStrings().eval);
+            Value eval = registerFile[code->m_evalIndex];
             if (eval.equalsTo(state, state.context()->globalObject()->eval())) {
                 // do eval
                 Value arg;
@@ -998,16 +998,12 @@ NEVER_INLINE Value ByteCodeInterpreter::loadByName(ExecutionState& state, Lexica
     return Value();
 }
 
-NEVER_INLINE void ByteCodeInterpreter::storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value, bool isInitializeBinding)
+NEVER_INLINE void ByteCodeInterpreter::storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value)
 {
     while (env) {
         auto result = env->record()->hasBinding(state, name);
         if (result.m_index != SIZE_MAX) {
-            if (isInitializeBinding) {
-                env->record()->initializeBinding(state, name, value);
-            } else {
-                env->record()->setMutableBindingByIndex(state, result.m_index, name, value);
-            }
+            env->record()->setMutableBindingByIndex(state, result.m_index, name, value);
             return;
         }
         env = env->outerEnvironment();
@@ -1126,8 +1122,8 @@ NEVER_INLINE Value ByteCodeInterpreter::instanceOfOperation(ExecutionState& stat
         Value P = C->getFunctionPrototype(state);
         Value O = left.asObject()->getPrototype(state);
         if (P.isObject()) {
-            while (!O.isUndefinedOrNull()) {
-                if (P == O) {
+            while (O.isObject()) {
+                if (P.asObject() == O.asObject()) {
                     return Value(true);
                 }
                 O = O.asObject()->getPrototype(state);

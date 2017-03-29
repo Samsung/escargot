@@ -252,14 +252,12 @@ public:
 
 class StoreByName : public ByteCode {
 public:
-    StoreByName(const ByteCodeLOC& loc, const size_t& registerIndex, const AtomicString& name, bool isInitializeBinding)
+    StoreByName(const ByteCodeLOC& loc, const size_t& registerIndex, const AtomicString& name)
         : ByteCode(Opcode::StoreByNameOpcode, loc)
-        , m_isInitializeBinding(isInitializeBinding)
         , m_registerIndex(registerIndex)
         , m_name(name)
     {
     }
-    bool m_isInitializeBinding;
     ByteCodeRegisterIndex m_registerIndex;
     AtomicString m_name;
 
@@ -1126,13 +1124,15 @@ public:
 
 class CallEvalFunction : public ByteCode {
 public:
-    CallEvalFunction(const ByteCodeLOC& loc, const size_t& argumentsStartIndex, size_t argumentCount, const size_t& resultIndex)
+    CallEvalFunction(const ByteCodeLOC& loc, const size_t& evalIndex, const size_t& argumentsStartIndex, size_t argumentCount, const size_t& resultIndex)
         : ByteCode(Opcode::CallEvalFunctionOpcode, loc)
+        , m_evalIndex(evalIndex)
         , m_argumentsStartIndex(argumentsStartIndex)
         , m_argumentCount(argumentCount)
         , m_resultIndex(resultIndex)
     {
     }
+    ByteCodeRegisterIndex m_evalIndex;
     ByteCodeRegisterIndex m_argumentsStartIndex;
     uint16_t m_argumentCount;
     ByteCodeRegisterIndex m_resultIndex;
@@ -1140,7 +1140,7 @@ public:
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("call eval r%d <- r%d-r%d", (int)m_resultIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
+        printf("call eval r%d <- r%d, r%d-r%d", (int)m_resultIndex, (int)m_evalIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
     }
 #endif
 };

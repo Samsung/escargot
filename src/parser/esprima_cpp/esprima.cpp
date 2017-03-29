@@ -1805,6 +1805,8 @@ public:
                     ++this->lineNumber;
                     if (ch == '\r' && this->source.bufferedCharAt(this->index) == '\n') {
                         ++this->index;
+                    } else if (ch == '\n' && this->source.bufferedCharAt(this->index) == '\r') {
+                        ++this->index;
                     }
                     this->lineStart = this->index;
                 }
@@ -3944,6 +3946,9 @@ public:
             MetaNode node = this->startNode(startToken);
             std::shared_ptr<ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+            if (expr->isLiteral() || expr->type() == ASTNodeType::ThisExpression) {
+                this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+            }
             if (this->context->strict && expr->type() == Identifier && this->scanner->isRestrictedWord(((IdentifierNode*)expr)->name())) {
                 this->tolerateError(Messages::StrictLHSPrefix);
             }
@@ -3973,6 +3978,11 @@ public:
                     this->context->isAssignmentTarget = false;
                     this->context->isBindingElement = false;
                     this->nextToken();
+
+                    if (expr->isLiteral() || expr->type() == ASTNodeType::ThisExpression) {
+                        this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                    }
+
                     if (isPlus) {
                         expr = this->finalize(this->startNode(startToken), new UpdateExpressionIncrementPostfixNode(expr));
                     } else {
@@ -4510,9 +4520,12 @@ public:
                     this->reinterpretExpressionAsPattern(expr);
                 }
 
+                if (expr->isLiteral() || expr->type() == ASTNodeType::ThisExpression) {
+                    this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                }
+
                 token = this->nextToken();
                 Node* right = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
-                // Node* expr;
                 if (token->valuePunctuatorsKind == Substitution) {
                     expr = new AssignmentExpressionSimpleNode(expr, right);
                 } else if (token->valuePunctuatorsKind == PlusEqual) {
@@ -5129,7 +5142,7 @@ public:
                 this->context->allowIn = previousAllowIn;
 
                 if (this->matchKeyword(In)) {
-                    if (!this->context->isAssignmentTarget || init->type() == AssignmentExpression) {
+                    if (init->isLiteral() || init->type() == ASTNodeType::AssignmentExpression || init->type() == ASTNodeType::ThisExpression) {
                         this->tolerateError(Messages::InvalidLHSInForIn);
                     }
 

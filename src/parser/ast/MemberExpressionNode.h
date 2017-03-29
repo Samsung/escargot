@@ -87,7 +87,7 @@ public:
         }
     }
 
-    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex src, bool needToReferenceSelf, bool isInitializeBinding)
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex src, bool needToReferenceSelf)
     {
         if (isPreComputedCase()) {
             size_t valueIndex;

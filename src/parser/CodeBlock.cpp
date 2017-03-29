@@ -81,6 +81,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     m_needsComplexParameterCopy = false;
     m_isInWithScope = false;
     m_isEvalCodeInFunction = false;
+    m_isBindedFunction = false;
 
     m_parametersInfomation.resize(info.m_argumentCount);
 
@@ -112,8 +113,8 @@ static Value functionBindImpl(ExecutionState& state, Value thisValue, size_t cal
     return FunctionObject::call(state, code->m_boundTargetFunction, code->m_boundThis, mergedArgc, mergedArgv);
 }
 
-CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv)
-    : m_context(ctx)
+CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv)
+    : m_context(state.context())
     , m_script(nullptr)
     , m_src()
     , m_sourceElementStart(0, 0, 0)
@@ -132,7 +133,16 @@ CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundT
     m_hasCallNativeFunctionCode = true;
     m_isFunctionNameSaveOnHeap = false;
     m_isConsturctor = targetCodeBlock->isConsturctor();
-    m_functionName = targetCodeBlock->functionName();
+    StringBuilder builder;
+    builder.appendString("bound ");
+    ObjectGetResult r = targetFunction->getOwnProperty(state, m_context->staticStrings().name);
+    Value fn;
+    if (r.hasValue()) {
+        fn = r.value(state, targetFunction);
+    }
+    if (fn.isString())
+        builder.appendString(fn.asString());
+    m_functionName = AtomicString(state.context(), builder.finalize());
     m_isStrict = targetCodeBlock->isStrict();
     m_hasEval = targetCodeBlock->hasEval();
     m_hasWith = targetCodeBlock->hasWith();
@@ -146,6 +156,7 @@ CodeBlock::CodeBlock(Context* ctx, FunctionObject* targetFunction, Value& boundT
     m_needsComplexParameterCopy = targetCodeBlock->needsComplexParameterCopy();
     m_isInWithScope = targetCodeBlock->isInWithScope();
     m_isEvalCodeInFunction = false;
+    m_isBindedFunction = true;
 
     size_t targetFunctionLength = targetCodeBlock->parametersInfomation().size();
     m_parametersInfomation.resize(targetFunctionLength > boundArgc ? targetFunctionLength - boundArgc : 0);
@@ -251,6 +262,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
     m_needsComplexParameterCopy = false;
     m_isInWithScope = false;
     m_isEvalCodeInFunction = false;
+    m_isBindedFunction = false;
 
     for (size_t i = 0; i < innerIdentifiers.size(); i++) {
         IdentifierInfo info;
@@ -366,6 +378,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeL
     m_needsComplexParameterCopy = false;
     m_isInWithScope = false;
     m_isEvalCodeInFunction = false;
+    m_isBindedFunction = false;
 }
 
 bool CodeBlock::tryCaptureIdentifiersFromChildCodeBlock(AtomicString name)

@@ -68,7 +68,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     if (argc > 0) {
         src.appendString(source);
     }
-    src.appendString(" }");
+    src.appendString("\r\n }");
 
     ScriptParser parser(state.context());
     auto parserResult = parser.parse(src.finalize(&state), new ASCIIString("Function Constructor input"));
@@ -173,7 +173,7 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     Value boundThis = argv[0];
     size_t boundArgc = (argc >= 1) ? argc - 1 : argc;
     Value* boundArgv = (boundArgc == 0) ? nullptr : argv + 1;
-    CodeBlock* cb = new CodeBlock(state.context(), targetFunction, boundThis, boundArgc, boundArgv);
+    CodeBlock* cb = new CodeBlock(state, targetFunction, boundThis, boundArgc, boundArgv);
 
     FunctionObject* fn = new FunctionObject(state, cb, targetFunction->outerEnvironment());
 

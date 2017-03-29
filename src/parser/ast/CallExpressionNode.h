@@ -96,8 +96,11 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
+            size_t evalIndex = context->getRegister();
+            codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), evalIndex, codeBlock->m_codeBlock->context()->staticStrings().eval), context, this);
             size_t startIndex = generateArguments(codeBlock, context, false);
-            codeBlock->pushCode(CallEvalFunction(ByteCodeLOC(m_loc.index), startIndex, m_arguments.size(), dstRegister), context, this);
+            context->giveUpRegister();
+            codeBlock->pushCode(CallEvalFunction(ByteCodeLOC(m_loc.index), evalIndex, startIndex, m_arguments.size(), dstRegister), context, this);
             return;
         }
 
