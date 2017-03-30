@@ -781,7 +781,7 @@ time64_t DateObject::parseStringToDate_2(ExecutionState& state, String* istr, bo
         seconds = 60;
     }
 
-    time64_t date = timeinfoToMs(state, year, month - 1, day, hours, minutes, (int)seconds, (seconds - (int)seconds) * const_Date_msPerSecond) - timeZoneSeconds * const_Date_msPerSecond;
+    time64_t date = timeinfoToMs(state, year, month - 1, day, hours, minutes, (int)seconds, (int64_t)(seconds * const_Date_msPerSecond) % const_Date_msPerSecond) - timeZoneSeconds * const_Date_msPerSecond;
     return date;
 }
 

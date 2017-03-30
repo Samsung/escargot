@@ -691,11 +691,13 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_propertyRegisterIndex];
             Object* obj = willBeObject.toObject(state);
+            if (willBeObject.isPrimitive()) {
+                obj->ensureObjectRareData()->m_isExtensible = false;
+            }
+
             bool result = obj->setIndexedProperty(state, property, registerFile[code->m_loadRegisterIndex]);
             if (UNLIKELY(!result)) {
                 if (state.inStrictMode()) {
-                    // copy assignee for generating right execution result
-                    registerFile[code->m_objectRegisterIndex] = registerFile[code->m_loadRegisterIndex];
                     Object::throwCannotWriteError(state, PropertyName(state, property.toString(state)));
                 }
             }

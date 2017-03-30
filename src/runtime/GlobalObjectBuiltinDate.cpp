@@ -282,7 +282,7 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
         // setFullYear, setUTCFullYear case
         if (!(d->isValid())) {
             d->setTimeValue(DateObject::timeClip(state, 0));
-            d->setTimeValue(d->getTimezoneOffset(state) * const_Date_msPerSecond);
+            d->setTimeValue(d->getTimezoneOffset(state) * const_Date_msPerMinute);
         }
         ASSERT(d->isValid());
     }
@@ -394,26 +394,41 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().setYear.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
 
-    DateObject* thisDateObject = thisObject->asDateObject();
-    double args[1] = { 0.0 };
-    if (argc < 1) {
-        thisDateObject->setTimeValueAsNaN();
-        return Value(thisDateObject->primitiveValue());
+    DateObject* d = thisObject->asDateObject();
+
+    if (!(d->isValid())) {
+        d->setTimeValue(DateObject::timeClip(state, 0));
+        d->setTimeValue(d->getTimezoneOffset(state) * const_Date_msPerMinute);
     }
-    if (std::isnan(thisDateObject->primitiveValue())) {
-        thisDateObject->setTimeValue(state, 1970, 0, 1, 0, 0, 0, 0, true);
+    ASSERT(d->isValid());
+
+    if (argc < 1) {
+        d->setTimeValueAsNaN();
+        return Value(d->primitiveValue());
     }
 
-    double d = argv[0].toNumber(state);
-    if (std::isnan(d)) {
-        thisDateObject->setTimeValueAsNaN();
-        return Value(thisDateObject->primitiveValue());
+    double year;
+    int month, date, hour, minute, second, millisecond;
+
+    year = argv[0].toNumber(state);
+    month = d->getMonth(state);
+    date = d->getDate(state);
+    hour = d->getHours(state);
+    minute = d->getMinutes(state);
+    second = d->getSeconds(state);
+    millisecond = d->getMilliseconds(state);
+
+    if (0 <= year && year <= 99) {
+        year += 1900;
     }
-    if (0 <= args[0] && args[0] <= 99) {
-        args[0] += 1900;
+
+    if (std::isnan(year)) {
+        d->setTimeValueAsNaN();
+    } else if (d->isValid()) {
+        d->setTimeValue(state, year, month, date, hour, minute, second, millisecond);
     }
-    thisDateObject->setTimeValue(state, (int)args[0], thisDateObject->getMonth(state), thisDateObject->getDate(state), thisDateObject->getHours(state), thisDateObject->getMinutes(state), thisDateObject->getSeconds(state), thisDateObject->getMilliseconds(state));
-    return Value(thisDateObject->primitiveValue());
+
+    return Value(d->primitiveValue());
 }
 
 static Value builtinDateGetTimezoneOffset(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

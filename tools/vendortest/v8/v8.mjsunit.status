@@ -650,7 +650,6 @@
 ['escargot == True', {
 
   ## 1. ES6 spec
-  'es6/proxies-*': [SKIP],
   # object/class (FIXME: check after conversion to ES5)
   'accessors-no-prototype': [SKIP],
   'regress/regress-4255-4': [SKIP],
@@ -663,6 +662,8 @@
   'regress/regress-595319': [SKIP],
   'regress/regress-crbug-451770': [SKIP],
   'regress/regress-crbug-592340': [SKIP],
+  # object pattern
+  'regress/regress-crbug-669540': [SKIP],
   # array
   'array-indexing': [SKIP],
   'array-isarray': [SKIP], #Proxy
@@ -683,7 +684,8 @@
   'regress/regress-1213575': [SKIP],
   'regress/regress-1528': [SKIP],
   'object-literal': [SKIP],
-
+  'regress/regress-crbug-648740': [SKIP],
+  'regress/regress-crbug-658528': [SKIP],
   # let
   'compiler/regress-451012': [SKIP],
   'regress/regress-4377': [SKIP],
@@ -714,11 +716,17 @@
   'regress/regress-95920': [SKIP],
   'regress/regress-crbug-109362': [SKIP],
   'to_number_order': [SKIP],
-
+  'regress/regress-object-assign-deprecated': [SKIP],
+  'regress/regress-object-assign-deprecated-2': [SKIP],
+  'regress/regress-r3391': [SKIP],
+  'regress/regress-crbug-621611': [SKIP],
+  'regress/regress-crbug-627934': [SKIP],
+  'third_party/object-keys/object-keys': [SKIP],
   # ES5-ES6 differ
   'object-get-own-property-names': [SKIP],
   'object-literal-multiple-fields': [SKIP],
-
+  'regress/regress-function-length-strict': [SKIP],
+  'regress/regress-crbug-626715': [SKIP],
   # Symbol
   'regress/regress-539875': [SKIP],
   'regress/regress-5780': [SKIP],
@@ -764,13 +772,15 @@
   'json-stringify-stack': [SKIP],
   'json': [SKIP],
   'lookup-behind-property': [SKIP],
-
+  'regress/regress-677055.js': [SKIP],
+  'regress/regress-crbug-580934': [SKIP],
+  'regress/regress-crbug-662854': [SKIP],
   # const
   'int32-ops': [SKIP],
   'negate': [SKIP],
-
   # etc
   'harmony/*': [SKIP],
+  'es6/proxies-*': [SKIP],
   'es7/*': [SKIP],
   'es8/*': [SKIP],
   'get-prototype-of': [SKIP],
@@ -818,12 +828,6 @@
   'regress/regress-crbug-435825': [SKIP],
   # Print inner code of function when function.toString() is called
   'error-tostring-omit': [SKIP],
-  # Different error message
-  'array-reduce': [SKIP],
-  'object-define-properties': [SKIP],
-  'regress/regress-136048': [SKIP],
-  'regress/regress-1980': [SKIP],
-  'regress/regress-633998': [SKIP],
   # etc
   'contextual-calls': [SKIP],
   'cross-realm-filtering': [SKIP],
@@ -831,6 +835,7 @@
   'regress/regress-crbug-501808': [SKIP],
   'number-tostring-big-integer': [SKIP],
   'print': [SKIP],
+  'regress/regress-integer-indexed-element': [SKIP],
 
   ## 5. Accepted timeout (due to yarr performance limitation)
   'ascii-regexp-subject': [SKIP], # 50s
@@ -851,6 +856,10 @@
   'array-reduce': [SKIP],
   'function-call': [SKIP],
   'object-create': [SKIP],
+  'object-define-properties': [SKIP],
+  'regress/regress-136048': [SKIP],
+  'regress/regress-1980': [SKIP],
+  'regress/regress-633998': [SKIP],
 
   ## 9. asm.js
   'asm-directive': [SKIP],
