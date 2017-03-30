@@ -682,6 +682,8 @@
   'regress/regress-1182832': [SKIP],
   'regress/regress-1213575': [SKIP],
   'regress/regress-1528': [SKIP],
+  'object-literal': [SKIP],
+
   # let
   'compiler/regress-451012': [SKIP],
   'regress/regress-4377': [SKIP],
@@ -712,6 +714,11 @@
   'regress/regress-95920': [SKIP],
   'regress/regress-crbug-109362': [SKIP],
   'to_number_order': [SKIP],
+
+  # ES5-ES6 differ
+  'object-get-own-property-names': [SKIP],
+  'object-literal-multiple-fields': [SKIP],
+
   # Symbol
   'regress/regress-539875': [SKIP],
   'regress/regress-5780': [SKIP],
@@ -721,8 +728,11 @@
   'regress/regress-crbug-612142': [SKIP],
   'regress/regress-crbug-668414': [SKIP],
   'es6/array-tostring': [SKIP],
+  'object-toprimitive': [SKIP],
+
   # Proxy
   'array-isarray': [SKIP],
+  'object-literal': [SKIP],
   'regress/regress-5174': [SKIP],
   'regress/regress-5181': [SKIP],
   'regress/regress-578775': [SKIP],
@@ -820,6 +830,7 @@
   'regress/regress-280531': [SKIP],
   'regress/regress-crbug-501808': [SKIP],
   'number-tostring-big-integer': [SKIP],
+  'print': [SKIP],
 
   ## 5. Accepted timeout (due to yarr performance limitation)
   'ascii-regexp-subject': [SKIP], # 50s
@@ -839,6 +850,7 @@
   ## 8. Error message differ
   'array-reduce': [SKIP],
   'function-call': [SKIP],
+  'object-create': [SKIP],
 
   ## 9. asm.js
   'asm-directive': [SKIP],

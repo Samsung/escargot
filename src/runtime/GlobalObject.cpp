@@ -832,15 +832,23 @@ void GlobalObject::installOthers(ExecutionState& state)
                                                                   NativeFunctionInfo(strings->isNaN, builtinIsNaN, 1, nullptr, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    FunctionObject* parseInt = new FunctionObject(state, NativeFunctionInfo(strings->parseInt, builtinParseInt, 2, nullptr, NativeFunctionInfo::Strict));
     defineOwnProperty(state, ObjectPropertyName(strings->parseInt),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->parseInt, builtinParseInt, 2, nullptr, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(parseInt,
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    m_number->defineOwnProperty(state, ObjectPropertyName(strings->parseInt),
+                                ObjectPropertyDescriptor(parseInt,
+                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    FunctionObject* parseFloat = new FunctionObject(state, NativeFunctionInfo(strings->parseFloat, builtinParseFloat, 1, nullptr, NativeFunctionInfo::Strict));
     defineOwnProperty(state, ObjectPropertyName(strings->parseFloat),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->parseFloat, builtinParseFloat, 1, nullptr, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(parseFloat,
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_number->defineOwnProperty(state, ObjectPropertyName(strings->parseFloat),
+                                ObjectPropertyDescriptor(parseFloat,
+                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(strings->encodeURI),
                       ObjectPropertyDescriptor(new FunctionObject(state,

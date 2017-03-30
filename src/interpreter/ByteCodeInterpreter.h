@@ -37,6 +37,8 @@ class WithOperation;
 class TryOperation;
 class UnaryDelete;
 class DeclareFunctionDeclarations;
+class ObjectDefineGetter;
+class ObjectDefineSetter;
 class GlobalObject;
 
 class ByteCodeInterpreter {
@@ -76,6 +78,8 @@ public:
     static Value callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, ExecutionContext* ec, LexicalEnvironment* env, Value* argv);
 
     static void declareFunctionDeclarations(ExecutionState& state, DeclareFunctionDeclarations* code, LexicalEnvironment* lexicalEnvironment, Value* stackStorage);
+    static void defineObjectGetter(ExecutionState& state, ObjectDefineGetter* code, Value* registerFile);
+    static void defineObjectSetter(ExecutionState& state, ObjectDefineSetter* code, Value* registerFile);
 
     static void processException(ExecutionState& state, const Value& value, ExecutionContext* ec, size_t programCounter);
 };

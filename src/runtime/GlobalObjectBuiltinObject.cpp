@@ -28,7 +28,8 @@ static Value builtinObject__proto__Getter(ExecutionState& state, Value thisValue
 
 static Value builtinObject__proto__Setter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    thisValue.toObject(state)->setPrototype(state, argv[0]);
+    if (!argv[0].isUndefined())
+        thisValue.toObject(state)->setPrototype(state, argv[0]);
     return Value();
 }
 

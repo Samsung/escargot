@@ -122,18 +122,18 @@ ObjectPropertyDescriptor::ObjectPropertyDescriptor(ExecutionState& state, Object
     if (desc.hasValue())
         setConfigurable(desc.value(state, obj).toBoolean(state));
 
-    bool hasWritable = false;
-    desc = obj->get(state, ObjectPropertyName(strings->writable));
-    if (desc.hasValue()) {
-        setWritable(desc.value(state, obj).toBoolean(state));
-        hasWritable = true;
-    }
-
     bool hasValue = false;
     desc = obj->get(state, ObjectPropertyName(strings->value));
     if (desc.hasValue()) {
         setValue(desc.value(state, obj));
         hasValue = true;
+    }
+
+    bool hasWritable = false;
+    desc = obj->get(state, ObjectPropertyName(strings->writable));
+    if (desc.hasValue()) {
+        setWritable(desc.value(state, obj).toBoolean(state));
+        hasWritable = true;
     }
 
     desc = obj->get(state, ObjectPropertyName(strings->get));
