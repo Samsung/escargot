@@ -36,7 +36,6 @@ class Node;
     F(LoadByHeapIndex, 1, 0)                          \
     F(StoreByHeapIndex, 0, 0)                         \
     F(DeclareFunctionDeclarations, 1, 0)              \
-    F(DeclareFunctionExpression, 1, 0)                \
     F(NewOperation, 1, 0)                             \
     F(BinaryPlus, 1, 2)                               \
     F(BinaryMinus, 1, 2)                              \
@@ -61,6 +60,7 @@ class Node;
     F(BinaryInstanceOfOperation, 1, 2)                \
     F(CreateObject, 1, 0)                             \
     F(CreateArray, 1, 0)                              \
+    F(CreateFunction, 1, 0)                           \
     F(ObjectDefineOwnPropertyOperation, 0, 0)         \
     F(ObjectDefineOwnPropertyWithNameOperation, 0, 0) \
     F(ArrayDefineOwnPropertyOperation, 0, 0)          \
@@ -328,10 +328,10 @@ public:
 #endif
 };
 
-class DeclareFunctionExpression : public ByteCode {
+class CreateFunction : public ByteCode {
 public:
-    DeclareFunctionExpression(const ByteCodeLOC& loc, const size_t& registerIndex, CodeBlock* cb)
-        : ByteCode(Opcode::DeclareFunctionExpressionOpcode, loc)
+    CreateFunction(const ByteCodeLOC& loc, const size_t& registerIndex, CodeBlock* cb)
+        : ByteCode(Opcode::CreateFunctionOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_codeBlock(cb)
     {
@@ -342,7 +342,7 @@ public:
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("function expression %s -> r%d", m_codeBlock->functionName().string()->toUTF8StringData().data(), (int)m_registerIndex);
+        printf("create function %s -> r%d", m_codeBlock->functionName().string()->toUTF8StringData().data(), (int)m_registerIndex);
     }
 #endif
 };

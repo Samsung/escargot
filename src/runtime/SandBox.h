@@ -49,6 +49,8 @@ public:
         }
     };
 
+    typedef Vector<std::pair<ExecutionContext*, StackTraceData>, GCUtil::gc_malloc_allocator<std::pair<ExecutionContext*, StackTraceData>>> StackTraceDataVector;
+
     struct SandBoxResult {
         Value result;
         Value error;
@@ -67,7 +69,7 @@ public:
 
 protected:
     Context* m_context;
-    Vector<std::pair<ExecutionContext*, StackTraceData>, GCUtil::gc_malloc_allocator<std::pair<ExecutionContext*, StackTraceData>>> m_stackTraceData;
+    StackTraceDataVector m_stackTraceData;
     Value m_exception; // To avoid accidential GC of exception value
 };
 }

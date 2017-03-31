@@ -66,6 +66,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
 #endif
 {
     m_hasCallNativeFunctionCode = true;
+    m_isFunctionNameSaveOnHeap = m_isFunctionExpression = m_isFunctionDeclaration = m_isFunctionDeclarationWithSpecialBinding = false;
     m_functionName = info.m_name;
     m_isStrict = info.m_isStrict;
     m_isConsturctor = info.m_isConsturctor;
@@ -132,6 +133,7 @@ CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Valu
 
     m_hasCallNativeFunctionCode = true;
     m_isFunctionNameSaveOnHeap = false;
+    m_isFunctionExpression = m_isFunctionDeclaration = m_isFunctionDeclarationWithSpecialBinding = false;
     m_isConsturctor = targetCodeBlock->isConsturctor();
     StringBuilder builder;
     builder.appendString("bound ");
@@ -217,6 +219,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
     m_isConsturctor = false;
     m_hasCallNativeFunctionCode = false;
     m_isFunctionDeclaration = false;
+    m_isFunctionDeclarationWithSpecialBinding = false;
     m_isFunctionExpression = false;
     m_isStrict = isStrict;
     m_hasEval = false;
@@ -344,6 +347,12 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeL
         m_isFunctionDeclaration = true;
     } else {
         m_isFunctionDeclaration = false;
+    }
+
+    if (initFlags & CodeBlockInitFlag::CodeBlockIsFunctionDeclarationWithSpecialBinding) {
+        m_isFunctionDeclarationWithSpecialBinding = true;
+    } else {
+        m_isFunctionDeclarationWithSpecialBinding = false;
     }
 
     if (initFlags & CodeBlockInitFlag::CodeBlockIsFunctionExpression) {

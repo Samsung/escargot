@@ -391,8 +391,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
 
         SetObjectPreComputedCaseOpcodeLbl : {
             SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)programCounter;
-            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            setObjectPreComputedCaseOperation(state, willBeObject.toObject(state), code->m_propertyName, registerFile[code->m_loadRegisterIndex], *code->m_inlineCache, byteCodeBlock);
+            setObjectPreComputedCaseOperation(state, registerFile[code->m_objectRegisterIndex], code->m_propertyName, registerFile[code->m_loadRegisterIndex], *code->m_inlineCache, byteCodeBlock);
             ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
             NEXT_INSTRUCTION();
         }
@@ -719,6 +718,13 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
+        CreateFunctionOpcodeLbl : {
+            CreateFunction* code = (CreateFunction*)programCounter;
+            registerFile[code->m_registerIndex] = new FunctionObject(state, code->m_codeBlock, ec->lexicalEnvironment());
+            ADD_PROGRAM_COUNTER(CreateFunction);
+            NEXT_INSTRUCTION();
+        }
+
         CallEvalFunctionOpcodeLbl : {
             CallEvalFunction* code = (CallEvalFunction*)programCounter;
             Value eval = registerFile[code->m_evalIndex];
@@ -909,13 +915,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             CallFunctionInWithScope* code = (CallFunctionInWithScope*)programCounter;
             registerFile[code->m_resultIndex] = callFunctionInWithScope(state, code, ec, ec->lexicalEnvironment(), &registerFile[code->m_argumentsStartIndex]);
             ADD_PROGRAM_COUNTER(CallFunctionInWithScope);
-            NEXT_INSTRUCTION();
-        }
-
-        DeclareFunctionExpressionOpcodeLbl : {
-            DeclareFunctionExpression* code = (DeclareFunctionExpression*)programCounter;
-            registerFile[code->m_registerIndex] = new FunctionObject(state, code->m_codeBlock, ec->lexicalEnvironment());
-            ADD_PROGRAM_COUNTER(DeclareFunctionExpression);
             NEXT_INSTRUCTION();
         }
 
@@ -1319,14 +1318,15 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
     }
 
     if (inlineCache.m_cache[0].m_cachedIndex != SIZE_MAX) {
-        return obj->getOwnPropertyUtilForObject(state, inlineCache.m_cache[0].m_cachedIndex, orgObj);
+        return obj->getOwnPropertyUtilForObject(state, inlineCache.m_cache[0].m_cachedIndex, receiver);
     } else {
         return Value();
     }
 }
 
-ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, Object* obj, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, ByteCodeBlock* block)
+ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, ByteCodeBlock* block)
 {
+    Object* obj = willBeObject.toObject(state);
     Object* originalObject = obj;
 
     ObjectStructureChainItem testItem;
@@ -1366,14 +1366,14 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
         }
     }
 
-    setObjectPreComputedCaseOperationCacheMiss(state, originalObject, name, value, inlineCache, block);
+    setObjectPreComputedCaseOperationCacheMiss(state, originalObject, willBeObject, name, value, inlineCache, block);
 }
 
-NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* originalObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, ByteCodeBlock* block)
+NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* originalObject, const Value& willBeObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, ByteCodeBlock* block)
 {
     // cache miss
     if (inlineCache.m_cacheMissCount > 16) {
-        originalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, originalObject);
+        originalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, willBeObject);
         return;
     }
 
@@ -1388,7 +1388,7 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
         ObjectStructureChainItem newItem;
         newItem.m_objectStructure = obj->structure();
 
-        obj->setOwnPropertyThrowsExceptionWhenStrictMode(state, idx, value);
+        obj->setOwnPropertyThrowsExceptionWhenStrictMode(state, idx, value, willBeObject);
         auto desc = obj->structure()->readProperty(state, idx).m_descriptor;
         if (desc.isPlainDataProperty() && desc.isWritable()) {
             inlineCache.m_cachedIndex = idx;
@@ -1398,7 +1398,7 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
         Object* orgObject = obj;
         if (UNLIKELY(obj->structure()->isStructureWithFastAccess())) {
             inlineCache.invalidateCache();
-            orgObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, orgObject);
+            orgObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, willBeObject);
             return;
         }
 
@@ -1412,7 +1412,7 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
             inlineCache.m_cachedhiddenClassChain.push_back(newItem);
             proto = obj->getPrototype(state);
         }
-        bool s = orgObject->set(state, ObjectPropertyName(state, name), value, orgObject);
+        bool s = orgObject->set(state, ObjectPropertyName(state, name), value, willBeObject);
         if (UNLIKELY(!s)) {
             if (state.inStrictMode())
                 orgObject->throwCannotWriteError(state, name);
@@ -1628,7 +1628,7 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalObjectSlowCase(ExecutionState& s
             code->m_cachedAddress = (void*)((size_t)1);
         }
 
-        go->setOwnPropertyThrowsExceptionWhenStrictMode(state, idx, value);
+        go->setOwnPropertyThrowsExceptionWhenStrictMode(state, idx, value, go);
     }
 }
 
@@ -1666,8 +1666,6 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
                 interpret(newState, byteCodeBlock, code->m_catchPosition, registerFile, &unused);
                 programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
             } catch (const Value& val) {
-                state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
-                // NOTE: consider throw within catch clause
                 state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
                 programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
             }
@@ -1795,47 +1793,70 @@ NEVER_INLINE void ByteCodeInterpreter::defineObjectSetter(ExecutionState& state,
     registerFile[code->m_objectRegisterIndex].toObject(state)->defineOwnPropertyThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, pName), desc);
 }
 
-NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, const Value& value, ExecutionContext* ec, size_t programCounter)
+NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, const Value& value, ExecutionContext* ecInput, size_t programCounter)
 {
     ASSERT(state.context()->m_sandBoxStack.size());
     SandBox* sb = state.context()->m_sandBoxStack.back();
-    if (ec->m_lexicalEnvironment->record()->isDeclarativeEnvironmentRecord()) {
-        if (ec->m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-            FunctionObject* fn = ec->m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
+
+    LexicalEnvironment* env = ecInput->lexicalEnvironment();
+    ExecutionContext* ec = ecInput;
+
+    while (true) {
+        if (env->record()->isGlobalEnvironmentRecord()) {
+            break;
+        } else if (env->record()->isDeclarativeEnvironmentRecord()) {
+            if (env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+                break;
+            }
+        }
+        env = env->outerEnvironment();
+        ec = ecInput->parent();
+    }
+
+    bool alreadyExists = false;
+
+    for (size_t i = 0; i < sb->m_stackTraceData.size(); i++) {
+        if (sb->m_stackTraceData[i].first == ec) {
+            alreadyExists = true;
+            break;
+        }
+    }
+
+    if (!alreadyExists) {
+        if (env->record()->isGlobalEnvironmentRecord()) {
+            CodeBlock* cb = env->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
+            ByteCodeBlock* b = cb->byteCodeBlock();
+            ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
+            if (programCounter != SIZE_MAX) {
+                loc = b->computeNodeLOCFromByteCode(state.context(), programCounter - (size_t)b->m_code.data(), cb);
+            }
+            SandBox::StackTraceData data;
+            data.loc = loc;
+            data.fileName = cb->script()->fileName();
+            sb->m_stackTraceData.pushBack(std::make_pair(ec, data));
+        } else {
+            FunctionObject* fn = env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
             CodeBlock* cb = fn->codeBlock();
             ByteCodeBlock* b = cb->byteCodeBlock();
             ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
             if (programCounter != SIZE_MAX) {
                 loc = b->computeNodeLOCFromByteCode(state.context(), programCounter - (size_t)b->m_code.data(), cb);
             }
-            if (sb->m_stackTraceData.size() == 0 || sb->m_stackTraceData.back().first != ec) {
-                SandBox::StackTraceData data;
-                data.loc = loc;
-                if (cb->script())
-                    data.fileName = cb->script()->fileName();
-                else {
-                    StringBuilder builder;
-                    builder.appendString("function ");
-                    builder.appendString(cb->functionName().string());
-                    builder.appendString("() { ");
-                    builder.appendString("[native function]");
-                    builder.appendString(" } ");
-                    data.fileName = builder.finalize();
-                }
-                sb->m_stackTraceData.pushBack(std::make_pair(ec, data));
+            SandBox::StackTraceData data;
+            data.loc = loc;
+            if (cb->script())
+                data.fileName = cb->script()->fileName();
+            else {
+                StringBuilder builder;
+                builder.appendString("function ");
+                builder.appendString(cb->functionName().string());
+                builder.appendString("() { ");
+                builder.appendString("[native function]");
+                builder.appendString(" } ");
+                data.fileName = builder.finalize();
             }
+            sb->m_stackTraceData.pushBack(std::make_pair(ec, data));
         }
-    } else if (ec->m_lexicalEnvironment->record()->isGlobalEnvironmentRecord()) {
-        CodeBlock* cb = ec->m_lexicalEnvironment->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
-        ByteCodeBlock* b = cb->byteCodeBlock();
-        ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
-        if (programCounter != SIZE_MAX) {
-            loc = b->computeNodeLOCFromByteCode(state.context(), programCounter - (size_t)b->m_code.data(), cb);
-        }
-        SandBox::StackTraceData data;
-        data.loc = loc;
-        data.fileName = cb->script()->fileName();
-        sb->m_stackTraceData.pushBack(std::make_pair(ec, data));
     }
     sb->throwException(state, value);
 }

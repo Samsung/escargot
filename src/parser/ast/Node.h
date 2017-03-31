@@ -259,6 +259,7 @@ struct ASTScopeContext : public gc {
     bool m_inCatch : 1;
     bool m_inWith : 1;
     bool m_hasManyNumeralLiteral : 1;
+    bool m_needsSpecialInitialize : 1; // flag for fd in catch
     ASTNodeType m_nodeType;
     ASTScopeContext *m_parentContext;
     Node *m_associateNode;
@@ -319,7 +320,7 @@ struct ASTScopeContext : public gc {
     {
         m_isStrict = isStrict;
         m_hasYield = m_hasCatch = m_hasWith = m_hasEval = false;
-        m_hasManyNumeralLiteral = m_inCatch = m_inWith = false;
+        m_needsSpecialInitialize = m_hasManyNumeralLiteral = m_inCatch = m_inWith = false;
         m_parentContext = parentContext;
         m_associateNode = nullptr;
         m_numeralLiteralData = nullptr;

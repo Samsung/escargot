@@ -24,16 +24,19 @@
 
 namespace Escargot {
 
+class FunctionDeclarationNode;
+
 // interface CatchClause <: Node {
 class CatchClauseNode : public Node {
 public:
     friend class ScriptParser;
-    CatchClauseNode(Node *param, Node *guard, Node *body)
+    CatchClauseNode(Node *param, Node *guard, Node *body, std::vector<FunctionDeclarationNode *, GCUtil::gc_malloc_ignore_off_page_allocator<FunctionDeclarationNode *>> &fd)
         : Node()
     {
         m_param = (IdentifierNode *)param;
         m_guard = (ExpressionNode *)guard;
         m_body = (BlockStatementNode *)body;
+        m_innerFDs = std::move(fd);
     }
 
     virtual ~CatchClauseNode()
@@ -53,11 +56,17 @@ public:
         return m_body;
     }
 
+    std::vector<FunctionDeclarationNode *, GCUtil::gc_malloc_ignore_off_page_allocator<FunctionDeclarationNode *>> &innerFDs()
+    {
+        return m_innerFDs;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::CatchClause; }
 protected:
     IdentifierNode *m_param;
     ExpressionNode *m_guard;
     BlockStatementNode *m_body;
+    std::vector<FunctionDeclarationNode *, GCUtil::gc_malloc_ignore_off_page_allocator<FunctionDeclarationNode *>> m_innerFDs;
 };
 
 typedef Vector<Node *, GCUtil::gc_malloc_ignore_off_page_allocator<Node *>> CatchClauseNodeVector;

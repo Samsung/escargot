@@ -64,7 +64,11 @@ void* ObjectRareData::operator new(size_t size)
 
 Value ObjectGetResult::valueSlowCase(ExecutionState& state, const Value& receiver) const
 {
+#ifdef ESCARGOT_32
+    if (m_jsGetterSetter->getter().isFunction()) {
+#else
     if (m_jsGetterSetter->hasGetter() && m_jsGetterSetter->getter().isFunction()) {
+#endif
         return m_jsGetterSetter->getter().asFunction()->call(state, receiver, 0, nullptr);
     }
     return Value();
@@ -895,19 +899,27 @@ Value Object::getOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t i
 {
     Value v = m_values[idx];
     auto gs = v.asPointerValue()->asJSGetterSetter();
-    if (gs->hasGetter() && gs->getter().isFunction()) {
+#ifdef ESCARGOT_32
+    if (gs->getter().isFunction()) {
+#else
+    if (!gs->getter().isEmpty() && gs->getter().isFunction()) {
+#endif
         return gs->getter().asFunction()->call(state, receiver, 0, nullptr);
     }
     return Value();
 }
 
-bool Object::setOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, const Value& newValue)
+bool Object::setOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, const Value& newValue, const Value& receiver)
 {
     Value v = m_values[idx];
     auto gs = v.asPointerValue()->asJSGetterSetter();
-    if (gs->hasSetter() && gs->setter().isFunction()) {
+#ifdef ESCARGOT_32
+    if (gs->setter().isFunction()) {
+#else
+    if (!gs->setter().isEmpty() && gs->setter().isFunction()) {
+#endif
         Value arg = newValue;
-        gs->setter().asFunction()->call(state, this, 1, &arg);
+        gs->setter().asFunction()->call(state, receiver, 1, &arg);
         return true;
     }
     return false;

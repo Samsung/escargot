@@ -813,20 +813,20 @@ protected:
         }
     }
 
-    bool setOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, const Value& newValue);
-    ALWAYS_INLINE bool setOwnPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& newValue)
+    bool setOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, const Value& newValue, const Value& receiver);
+    ALWAYS_INLINE bool setOwnPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& newValue, const Value& receiver)
     {
         const ObjectStructureItem& item = m_structure->readProperty(state, idx);
         if (LIKELY(item.m_descriptor.isDataProperty())) {
             return setOwnDataPropertyUtilForObject(state, idx, newValue);
         } else {
-            return setOwnPropertyUtilForObjectAccCase(state, idx, newValue);
+            return setOwnPropertyUtilForObjectAccCase(state, idx, newValue, receiver);
         }
     }
 
-    ALWAYS_INLINE void setOwnPropertyThrowsExceptionWhenStrictMode(ExecutionState& state, size_t idx, const Value& newValue)
+    ALWAYS_INLINE void setOwnPropertyThrowsExceptionWhenStrictMode(ExecutionState& state, size_t idx, const Value& newValue, const Value& receiver)
     {
-        if (UNLIKELY(!setOwnPropertyUtilForObject(state, idx, newValue) && state.inStrictMode())) {
+        if (UNLIKELY(!setOwnPropertyUtilForObject(state, idx, newValue, receiver) && state.inStrictMode())) {
             throwCannotWriteError(state, m_structure->readProperty(state, idx).m_propertyName);
         }
     }

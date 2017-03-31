@@ -28,6 +28,9 @@ static Value ArgumentsObjectNativeGetter(ExecutionState& state, Object* self, Fu
 {
     CodeBlock::IdentifierInfo info = codeBlock->identifierInfos()[codeBlock->findName(name)];
     ASSERT(!info.m_needToAllocateOnStack);
+    if (info.m_indexForIndexedStorage == SIZE_MAX) {
+        return targetRecord->getBindingValue(state, name).m_value;
+    }
     return targetRecord->getHeapValueByIndex(info.m_indexForIndexedStorage);
 }
 
@@ -35,6 +38,10 @@ static void ArgumentsObjectNativeSetter(ExecutionState& state, Object* self, con
 {
     CodeBlock::IdentifierInfo info = codeBlock->identifierInfos()[codeBlock->findName(name)];
     ASSERT(!info.m_needToAllocateOnStack);
+    if (info.m_indexForIndexedStorage == SIZE_MAX) {
+        targetRecord->setMutableBinding(state, name, setterInputData);
+        return;
+    }
     targetRecord->setHeapValueByIndex(info.m_indexForIndexedStorage, setterInputData);
 }
 

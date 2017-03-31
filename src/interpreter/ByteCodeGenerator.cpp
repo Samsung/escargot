@@ -203,8 +203,8 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
-            case DeclareFunctionExpressionOpcode: {
-                DeclareFunctionExpression* cd = (DeclareFunctionExpression*)currentCode;
+            case CreateFunctionOpcode: {
+                CreateFunction* cd = (CreateFunction*)currentCode;
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }

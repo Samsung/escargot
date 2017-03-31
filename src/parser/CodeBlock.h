@@ -92,7 +92,8 @@ public:
         CodeBlockInCatch = 1 << 4,
         CodeBlockInWith = 1 << 5,
         CodeBlockIsFunctionDeclaration = 1 << 6,
-        CodeBlockIsFunctionExpression = 1 << 7,
+        CodeBlockIsFunctionDeclarationWithSpecialBinding = 1 << 7,
+        CodeBlockIsFunctionExpression = 1 << 8,
     };
 
     struct IdentifierInfo {
@@ -263,6 +264,11 @@ public:
         return m_isFunctionDeclaration;
     }
 
+    bool isFunctionDeclarationWithSpecialBinding() const
+    {
+        return m_isFunctionDeclarationWithSpecialBinding;
+    }
+
     bool isFunctionExpression() const
     {
         return m_isFunctionExpression;
@@ -411,6 +417,7 @@ protected:
     bool m_usesArgumentsObject : 1;
     bool m_isFunctionExpression : 1;
     bool m_isFunctionDeclaration : 1;
+    bool m_isFunctionDeclarationWithSpecialBinding : 1;
     bool m_isInWithScope : 1;
     bool m_isEvalCodeInFunction : 1;
     bool m_isBindedFunction : 1;

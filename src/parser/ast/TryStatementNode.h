@@ -55,6 +55,28 @@ public:
             context->m_catchScopeCount++;
             context->m_lastCatchVariableName = m_handler->param()->name();
             codeBlock->peekCode<TryOperation>(pos)->m_catchPosition = codeBlock->currentCodeSize();
+            auto &innerFDs = m_handler->innerFDs();
+            for (size_t i = 0; i < innerFDs.size(); i++) {
+                size_t r = context->getRegister();
+
+                CodeBlock *blk = nullptr;
+                size_t cnt = 0;
+                for (size_t j = 0; j < context->m_codeBlock->childBlocks().size(); j++) {
+                    CodeBlock *c = context->m_codeBlock->childBlocks()[j];
+                    if (c->isFunctionDeclarationWithSpecialBinding()) {
+                        if (cnt == i) {
+                            blk = c;
+                            break;
+                        }
+                        cnt++;
+                    }
+                }
+                codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), r, blk), context, this);
+                IdentifierNode node(blk->functionName());
+                node.generateStoreByteCode(codeBlock, context, r, false);
+                context->giveUpRegister();
+            }
+
             m_handler->body()->generateStatementByteCode(codeBlock, context);
             codeBlock->peekCode<TryOperation>(pos)->m_hasCatch = true;
             codeBlock->peekCode<TryOperation>(pos)->m_catchVariableName = m_handler->param()->name();

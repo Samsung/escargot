@@ -52,7 +52,7 @@ public:
         ASSERT(blk);
         if (context->m_isWithScope)
             blk->setInWithScope();
-        codeBlock->pushCode(DeclareFunctionExpression(ByteCodeLOC(m_loc.index), dstIndex, blk), context, this);
+        codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, blk), context, this);
         context->m_feCounter++;
     }
 

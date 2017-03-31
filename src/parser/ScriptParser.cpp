@@ -40,6 +40,12 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
                                                                  | (scopeCtx->m_hasCatch ? CodeBlock::CodeBlockHasCatch : 0)
                                                                  | (scopeCtx->m_hasYield ? CodeBlock::CodeBlockHasYield : 0)));
     } else {
+        bool isFE = scopeCtx->m_nodeType == FunctionExpression;
+        bool isFD = scopeCtx->m_nodeType == FunctionDeclaration;
+
+        if (scopeCtx->m_needsSpecialInitialize)
+            isFD = false;
+
         codeBlock = new CodeBlock(ctx, script, StringView(source, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index),
                                   scopeCtx->m_locStart,
                                   scopeCtx->m_isStrict,
@@ -50,8 +56,9 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
                                                                  | (scopeCtx->m_hasYield ? CodeBlock::CodeBlockHasYield : 0)
                                                                  | (scopeCtx->m_inCatch ? CodeBlock::CodeBlockInCatch : 0)
                                                                  | (scopeCtx->m_inWith ? CodeBlock::CodeBlockInWith : 0)
-                                                                 | (scopeCtx->m_nodeType == FunctionExpression ? CodeBlock::CodeBlockIsFunctionExpression : 0)
-                                                                 | (scopeCtx->m_nodeType == FunctionDeclaration ? CodeBlock::CodeBlockIsFunctionDeclaration : 0)));
+                                                                 | (isFE ? CodeBlock::CodeBlockIsFunctionExpression : 0)
+                                                                 | (isFD ? CodeBlock::CodeBlockIsFunctionDeclaration : 0)
+                                                                 | (scopeCtx->m_needsSpecialInitialize ? CodeBlock::CodeBlockIsFunctionDeclarationWithSpecialBinding : 0)));
     }
 
 #ifndef NDEBUG
@@ -61,7 +68,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
 #endif
 
     if (parentCodeBlock) {
-        if (codeBlock->hasEvalWithCatchYield()) {
+        if (codeBlock->hasEvalWithCatchYield() || codeBlock->isFunctionDeclarationWithSpecialBinding()) {
             CodeBlock* c = codeBlock;
             while (c) {
                 c->notifySelfOrChildHasEvalWithCatchYield();

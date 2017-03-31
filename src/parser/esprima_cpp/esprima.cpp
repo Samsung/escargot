@@ -2229,6 +2229,8 @@ struct Context : public gc {
     bool inIteration;
     bool inSwitch;
     bool inCatch;
+    bool inDirectCatchScope;
+    std::vector<FunctionDeclarationNode*, GCUtil::gc_malloc_ignore_off_page_allocator<FunctionDeclarationNode*>> functionDeclarationsInDirectCatchScope;
     bool inWith;
     bool inLoop;
     std::vector<std::pair<String*, bool>> labelSet;
@@ -2287,7 +2289,6 @@ public:
 
     Vector<ASTScopeContext*, gc_allocator_ignore_off_page<ASTScopeContext*>> scopeContexts;
     bool trackUsingNames;
-    size_t recursiveDepth;
     size_t stackLimit;
 
     ASTScopeContext* popScopeContext(const MetaNode& node)
@@ -2378,6 +2379,7 @@ public:
         this->context->inIteration = false;
         this->context->inSwitch = false;
         this->context->inCatch = false;
+        this->context->inDirectCatchScope = false;
         this->context->inWith = false;
         this->context->inLoop = false;
         this->context->strict = this->sourceType == Module;
@@ -2394,7 +2396,6 @@ public:
         this->lastMarker.index = this->scanner->index;
         this->lastMarker.lineNumber = this->scanner->lineNumber;
         this->lastMarker.lineStart = this->scanner->lineStart;
-        this->recursiveDepth = 0;
     }
 
     void throwError(const char* messageFormat, String* arg0 = String::emptyString, String* arg1 = String::emptyString, ErrorObject::Code code = ErrorObject::SyntaxError)
@@ -2773,9 +2774,6 @@ public:
 
     void checkRecursiveLimit()
     {
-        if (this->recursiveDepth > ESPRIMA_RECURSIVE_LIMIT) {
-            this->throwError("too many recursion in script");
-        }
         volatile int sp;
         size_t currentStackBase = (size_t)&sp;
 #ifdef STACK_GROWS_DOWN
@@ -2783,7 +2781,7 @@ public:
 #else
         if (currentStackBase > stackLimit) {
 #endif
-            this->throwError("too many recursion in script");
+            this->throwError("too many recursion in script", String::emptyString, String::emptyString, ErrorObject::RangeError);
         }
     }
 
@@ -2798,10 +2796,8 @@ public:
         this->context->isAssignmentTarget = true;
         this->context->firstCoverInitializedNameError = nullptr;
 
-        this->recursiveDepth++;
         this->checkRecursiveLimit();
         Node* result = (this->*parseFunction)();
-        this->recursiveDepth--;
         if (this->context->firstCoverInitializedNameError != nullptr) {
             this->throwUnexpectedToken(this->context->firstCoverInitializedNameError);
         }
@@ -2824,10 +2820,8 @@ public:
         this->context->isAssignmentTarget = true;
         this->context->firstCoverInitializedNameError = nullptr;
 
-        this->recursiveDepth++;
         this->checkRecursiveLimit();
         Node* result = parseFunction();
-        this->recursiveDepth--;
         if (this->context->firstCoverInitializedNameError != nullptr) {
             this->throwUnexpectedToken(this->context->firstCoverInitializedNameError);
         }
@@ -2850,10 +2844,8 @@ public:
         this->context->isAssignmentTarget = true;
         this->context->firstCoverInitializedNameError = nullptr;
 
-        this->recursiveDepth++;
         this->checkRecursiveLimit();
         Node* result = (this->*parseFunction)();
-        this->recursiveDepth--;
 
         this->context->isBindingElement = this->context->isBindingElement && previousIsBindingElement;
         this->context->isAssignmentTarget = this->context->isAssignmentTarget && previousIsAssignmentTarget;
@@ -5476,6 +5468,10 @@ public:
         bool prevInCatch = this->context->inCatch;
         this->context->inCatch = true;
 
+        std::vector<FunctionDeclarationNode*, GCUtil::gc_malloc_ignore_off_page_allocator<FunctionDeclarationNode*>> vecBefore = std::move(this->context->functionDeclarationsInDirectCatchScope);
+        bool prevInDirectCatchScope = this->context->inDirectCatchScope;
+        this->context->inDirectCatchScope = true;
+
         std::vector<std::shared_ptr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>> params;
         Node* param = this->parsePattern(params);
 
@@ -5506,7 +5502,13 @@ public:
 
         this->context->inCatch = prevInCatch;
 
-        return this->finalize(node, new CatchClauseNode(param, nullptr, body));
+        this->context->inDirectCatchScope = prevInDirectCatchScope;
+
+        std::vector<FunctionDeclarationNode*, GCUtil::gc_malloc_ignore_off_page_allocator<FunctionDeclarationNode*>> vec = std::move(this->context->functionDeclarationsInDirectCatchScope);
+
+        this->context->functionDeclarationsInDirectCatchScope = std::move(vecBefore);
+
+        return this->finalize(node, new CatchClauseNode(param, nullptr, body, vec));
     }
 
     BlockStatementNode* parseFinallyClause()
@@ -5644,6 +5646,10 @@ public:
     {
         bool parseSingleFunction = this->config.parseSingleFunction;
         this->config.parseSingleFunction = false;
+
+        bool prevInDirectCatchScope = this->context->inDirectCatchScope;
+        this->context->inDirectCatchScope = false;
+
         MetaNode nodeStart = this->createNode();
 
         this->expect(LeftBrace);
@@ -5681,6 +5687,8 @@ public:
         scopeContexts.back()->m_locEnd.line = nodeEnd.line;
         scopeContexts.back()->m_locEnd.column = nodeEnd.column;
         scopeContexts.back()->m_locEnd.index = nodeEnd.index;
+
+        this->context->inDirectCatchScope = prevInDirectCatchScope;
 
         if (parseSingleFunction) {
             return this->finalize(nodeStart, new BlockStatementNode(std::move(body)));
@@ -5751,7 +5759,15 @@ public:
         this->context->strict = previousStrict;
         this->context->allowYield = previousAllowYield;
 
+        if (this->context->inDirectCatchScope) {
+            scopeContexts.back()->m_needsSpecialInitialize = true;
+        }
+
         FunctionDeclarationNode* fd = this->finalize(node, new FunctionDeclarationNode(id->name(), std::move(params), body, popScopeContext(node), isGenerator));
+
+        if (this->context->inDirectCatchScope) {
+            this->context->functionDeclarationsInDirectCatchScope.push_back(fd);
+        }
 
         return fd;
     }

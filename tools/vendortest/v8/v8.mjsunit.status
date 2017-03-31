@@ -685,6 +685,7 @@
   'regress/regress-1182832': [SKIP],
   'regress/regress-1213575': [SKIP],
   'regress/regress-1528': [SKIP],
+  'regress/regress-1170': [SKIP],
   'object-literal': [SKIP],
   'regress/regress-crbug-648740': [SKIP],
   'regress/regress-crbug-658528': [SKIP],
@@ -701,6 +702,7 @@
   'array-tostring': [SKIP],
   'string-indexof-1': [SKIP],
   'substr': [SKIP],
+  'regress/redeclaration-error-types': [SKIP],
 
   # builtins
   'html-string-funcs': [SKIP],
@@ -736,6 +738,8 @@
   'object-get-own-property-names': [SKIP],
   'object-literal-multiple-fields': [SKIP],
   'strict-mode': [SKIP],
+  'regress/regress-1419': [SKIP],
+  'regress/regress-1530': [SKIP],
 
   # Symbol
   'regress/regress-539875': [SKIP],
@@ -787,6 +791,7 @@
   'regress/regress-crbug-662854': [SKIP],
   'regexp': [SKIP],
   'string-wrapper': [SKIP],
+  'regress/regress-1403': [SKIP],
 
   # const
   'int32-ops': [SKIP],
@@ -831,6 +836,8 @@
   'function-arguments-null': [SKIP],
   'function-caller': [SKIP],
   'regress/regress-1548': [SKIP],
+  'regress/regress-105': [SKIP],
+
   # old string functions
   'function-names': [SKIP],
 
@@ -863,6 +870,9 @@
   'print': [SKIP],
   'regress/regress-integer-indexed-element': [SKIP],
   'string-split': [SKIP],
+  'regress/regress-114': [SKIP],
+  'regress/regress-1151': [SKIP],
+  'regress/regress-1591': [SKIP],
 
   ## 5. Accepted timeout (due to yarr performance limitation)
   'ascii-regexp-subject': [SKIP], # 50s
@@ -900,6 +910,14 @@
 
   ## 12. Variable limit excceed
   'compiler/regress-625966': [SKIP],
+  'regress/regress-1122': [SKIP],
+
+  ## 13. Yarr oom
+  'regress/regress-1472': [SKIP],
+
+  ## try-catch implemention limit
+  'regress/regress-148378': [SKIP],
+
 }],  # 'escargot == True'
 
 ]
