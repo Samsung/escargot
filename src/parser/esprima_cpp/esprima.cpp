@@ -3463,7 +3463,7 @@ public:
         }
 
         // return this->finalize(node, new PropertyNode(kind, key, computed, value, method, shorthand));
-        return this->finalize(node, new PropertyNode(key, value, kind));
+        return this->finalize(node, new PropertyNode(key, value, kind, computed));
     }
 
     Node* parseObjectInitializer()
@@ -5147,7 +5147,7 @@ public:
                     }
 
                     this->nextToken();
-                    // this->reinterpretExpressionAsPattern(init);
+                    this->reinterpretExpressionAsPattern(init);
                     left = init;
                     right = this->parseExpression();
                     init = nullptr;

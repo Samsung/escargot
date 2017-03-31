@@ -31,10 +31,11 @@ public:
         Set
     };
 
-    PropertyNode(Node* key, Node* value, Kind kind)
+    PropertyNode(Node* key, Node* value, Kind kind, bool computed)
         : Node()
     {
         m_kind = kind;
+        m_computed = computed;
         m_key = key;
         m_value = value;
     }
@@ -61,6 +62,11 @@ public:
         return m_kind;
     }
 
+    bool computed()
+    {
+        return m_computed;
+    }
+
     bool isValidPropertyNode()
     {
         return m_key->isIdentifier() || m_key->isLiteral();
@@ -68,6 +74,7 @@ public:
 
 protected:
     Kind m_kind; // kind: "init" | "get" | "set";
+    bool m_computed;
     Node* m_key; // key: Literal | Identifier;
     Node* m_value; // value: Expression;
 };

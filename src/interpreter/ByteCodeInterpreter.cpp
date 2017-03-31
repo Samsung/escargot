@@ -1652,7 +1652,7 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
             programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
         } else {
             // setup new env
-            EnvironmentRecord* newRecord = new DeclarativeEnvironmentRecordNotIndexed();
+            EnvironmentRecord* newRecord = new DeclarativeEnvironmentRecordNotIndexedForCatch();
             newRecord->createBinding(state, code->m_catchVariableName);
             newRecord->setMutableBinding(state, code->m_catchVariableName, val);
             LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);

@@ -650,6 +650,8 @@
 ['escargot == True', {
 
   ## 1. ES6 spec
+  'es6/*': [SKIP],
+
   # object/class (FIXME: check after conversion to ES5)
   'accessors-no-prototype': [SKIP],
   'regress/regress-4255-4': [SKIP],
@@ -686,6 +688,8 @@
   'object-literal': [SKIP],
   'regress/regress-crbug-648740': [SKIP],
   'regress/regress-crbug-658528': [SKIP],
+  'smi-ops': [SKIP],
+
   # let
   'compiler/regress-451012': [SKIP],
   'regress/regress-4377': [SKIP],
@@ -695,6 +699,9 @@
   'array-push13': [SKIP],
   'array-push14': [SKIP],
   'array-tostring': [SKIP],
+  'string-indexof-1': [SKIP],
+  'substr': [SKIP],
+
   # builtins
   'html-string-funcs': [SKIP],
   'number-is': [SKIP],
@@ -722,11 +729,14 @@
   'regress/regress-crbug-621611': [SKIP],
   'regress/regress-crbug-627934': [SKIP],
   'third_party/object-keys/object-keys': [SKIP],
+  'regress/regress-function-length-strict': [SKIP],
+  'regress/regress-crbug-626715': [SKIP],
+
   # ES5-ES6 differ
   'object-get-own-property-names': [SKIP],
   'object-literal-multiple-fields': [SKIP],
-  'regress/regress-function-length-strict': [SKIP],
-  'regress/regress-crbug-626715': [SKIP],
+  'strict-mode': [SKIP],
+
   # Symbol
   'regress/regress-539875': [SKIP],
   'regress/regress-5780': [SKIP],
@@ -775,6 +785,9 @@
   'regress/regress-677055.js': [SKIP],
   'regress/regress-crbug-580934': [SKIP],
   'regress/regress-crbug-662854': [SKIP],
+  'regexp': [SKIP],
+  'string-wrapper': [SKIP],
+
   # const
   'int32-ops': [SKIP],
   'negate': [SKIP],
@@ -791,12 +804,25 @@
   'enumeration-order': [SKIP],
   'for-in': [SKIP],
 
+  ## Limit of string length differ
+  'string-oom-array-join': [SKIP],
+  'string-oom-replace-global-regexp-with-string': [SKIP],
+  'string-oom-replace-regexp-global-with-function': [SKIP],
+
   # RegExp.$1-$9
   'regexp-cache-replace': [SKIP],
   # Error
   'error-tostring-omit': [SKIP],
   'string-match': [SKIP],
   # RegExp properties (lastMatch, lastParen, leftContext, rightContext)
+  'regexp-global': [SKIP],
+  'regexp-capture-3': [SKIP],
+  'regexp-indexof': [SKIP],
+  'regexp-lastIndex': [SKIP],
+  'regexp-static': [SKIP],
+  'string-replace': [SKIP],
+  'string-slices-regexp': [SKIP],
+ 
 
   ## 3. Deprecated
   # function.[arguments|caller|callee]
@@ -836,6 +862,7 @@
   'number-tostring-big-integer': [SKIP],
   'print': [SKIP],
   'regress/regress-integer-indexed-element': [SKIP],
+  'string-split': [SKIP],
 
   ## 5. Accepted timeout (due to yarr performance limitation)
   'ascii-regexp-subject': [SKIP], # 50s
@@ -863,12 +890,16 @@
 
   ## 9. asm.js
   'asm-directive': [SKIP],
+  'asm/*': [SKIP],
 
   ## 10. Script is too long to run
   'big-object-literal': [SKIP],
 
   ## 11. Date.parese can be differ
   'date-parse': [SKIP],
+
+  ## 12. Variable limit excceed
+  'compiler/regress-625966': [SKIP],
 }],  # 'escargot == True'
 
 ]

@@ -50,7 +50,7 @@ public:
             AtomicString propertyAtomicName;
             bool hasKey = false;
             size_t propertyIndex = SIZE_MAX;
-            if (p->key()->isIdentifier()) {
+            if (p->key()->isIdentifier() && !p->computed()) {
                 if (p->kind() == PropertyNode::Kind::Init) {
                     // skip
                     propertyAtomicName = p->key()->asIdentifier()->name();

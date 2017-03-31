@@ -170,7 +170,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
 #else
         size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
 #endif
-        ScriptParser::ScriptParserResult parserResult = parser.parse(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), nullptr, strictFromOutside, stackRemainApprox);
+        ScriptParser::ScriptParserResult parserResult = parser.parse(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), nullptr, strictFromOutside, false, stackRemainApprox);
         if (parserResult.m_error) {
             ErrorObject* err = ErrorObject::createError(state, parserResult.m_error->errorCode, parserResult.m_error->message);
             state.throwException(err);

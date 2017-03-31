@@ -317,7 +317,7 @@ public:
 
 // NOTE
 // DeclarativeEnvironmentRecordNotIndexed record does not create binding self likes FunctionEnvironmentRecord
-// this record is for catch statement and strict eval now
+// this record is for strict eval now
 class DeclarativeEnvironmentRecordNotIndexed : public DeclarativeEnvironmentRecord {
 public:
     DeclarativeEnvironmentRecordNotIndexed()
@@ -376,6 +376,23 @@ public:
 protected:
     SmallValueVector m_heapStorage;
     IdentifierRecordVector m_recordVector;
+};
+
+// NOTE
+// this record is for catch statement
+class DeclarativeEnvironmentRecordNotIndexedForCatch : public DeclarativeEnvironmentRecordNotIndexed {
+public:
+    DeclarativeEnvironmentRecordNotIndexedForCatch()
+        : DeclarativeEnvironmentRecordNotIndexed()
+    {
+    }
+
+    virtual bool isEvalTarget()
+    {
+        return false;
+    }
+
+protected:
 };
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-function-environment-records
