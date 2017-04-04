@@ -31,14 +31,26 @@ static Value builtinFunctionEmptyFunction(ExecutionState& state, Value thisValue
 
 static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    StringBuilder src;
+    StringBuilder src, srcToTest;
     src.appendString("function anonymous(");
+    srcToTest.appendString("function anonymous(");
 
     for (size_t i = 1; i < argc; i++) {
-        src.appendString(argv[i - 1].toString(state));
+        String* p = argv[i - 1].toString(state);
+        src.appendString(p);
+        srcToTest.appendString(p);
         if (i != argc - 1) {
-            src.appendChar(',');
+            src.appendString(",");
+            srcToTest.appendString(",");
         }
+    }
+
+    try {
+        srcToTest.appendString("\r\n){ }");
+        String* cur = srcToTest.finalize(&state);
+        esprima::parseProgram(state.context(), StringView(cur, 0, cur->length()), nullptr, false, SIZE_MAX);
+    } catch (esprima::Error* orgError) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is a script parse error in parameter name");
     }
 
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value();
@@ -64,11 +76,11 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is unbalanced braces(}) in Function Constructor input");
     }
 
-    src.appendString("){ ");
+    src.appendString("\n){\n");
     if (argc > 0) {
         src.appendString(source);
     }
-    src.appendString("\r\n }");
+    src.appendString("\n}");
 
     ScriptParser parser(state.context());
     auto parserResult = parser.parse(src.finalize(&state), new ASCIIString("Function Constructor input"));
@@ -79,6 +91,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     }
 
     CodeBlock* cb = parserResult.m_script->topCodeBlock()->childBlocks()[0];
+    cb->updateSourceElementStart(2, 1);
 
     LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, parserResult.m_script->topCodeBlock(), state.context()->globalObject()), nullptr);
     return new FunctionObject(state, cb, globalEnvironment);

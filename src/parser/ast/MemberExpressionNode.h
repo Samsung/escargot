@@ -66,7 +66,19 @@ public:
         bool prevHead = context->m_isHeadOfMemberExpression;
         context->m_isHeadOfMemberExpression = false;
 
-        size_t objectIndex = m_object->getRegister(codeBlock, context);
+        bool isSimple = true;
+
+        if (!m_object->isIdentifier() || (!m_property->isLiteral() && !m_property->isIdentifier())) {
+            isSimple = false;
+        }
+
+        size_t objectIndex;
+        if (isSimple || isPreComputedCase()) {
+            objectIndex = m_object->getRegister(codeBlock, context);
+        } else {
+            objectIndex = context->getRegister();
+        }
+
         m_object->generateExpressionByteCode(codeBlock, context, objectIndex);
 
         if (isPreComputedCase()) {

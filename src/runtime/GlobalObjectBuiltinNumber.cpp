@@ -308,6 +308,9 @@ static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue,
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Number, toLocaleString);
 
+    if (!thisObject->isNumberObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ThisNotNumber);
+    }
 
     ObjectGetResult toStrFuncGetResult = thisObject->get(state, ObjectPropertyName(state.context()->staticStrings().toString));
     if (toStrFuncGetResult.hasValue()) {

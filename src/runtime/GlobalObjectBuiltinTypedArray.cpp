@@ -412,7 +412,7 @@ Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, 
         ArrayBufferObject* srcBuffer = arg0Wrapper->buffer();
         unsigned srcLength = arg0Wrapper->arraylength();
         int srcByteOffset = arg0Wrapper->byteoffset();
-        if (srcLength + (unsigned)offset > targetLength) {
+        if (((double)srcLength + (double)offset) > (double)targetLength) {
             const StaticStrings* strings = &state.context()->staticStrings();
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), "");
         }

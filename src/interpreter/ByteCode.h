@@ -1124,7 +1124,7 @@ public:
 
 class CallEvalFunction : public ByteCode {
 public:
-    CallEvalFunction(const ByteCodeLOC& loc, const size_t& evalIndex, const size_t& argumentsStartIndex, size_t argumentCount, const size_t& resultIndex)
+    CallEvalFunction(const ByteCodeLOC& loc, const size_t& evalIndex, const size_t& argumentsStartIndex, size_t argumentCount, const size_t& resultIndex, bool inWithScope)
         : ByteCode(Opcode::CallEvalFunctionOpcode, loc)
         , m_evalIndex(evalIndex)
         , m_argumentsStartIndex(argumentsStartIndex)
@@ -1136,6 +1136,8 @@ public:
     ByteCodeRegisterIndex m_argumentsStartIndex;
     uint16_t m_argumentCount;
     ByteCodeRegisterIndex m_resultIndex;
+
+    bool m_inWithScope;
 
 #ifndef NDEBUG
     virtual void dump()

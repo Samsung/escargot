@@ -66,7 +66,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
 #endif
 {
     m_hasCallNativeFunctionCode = true;
-    m_isFunctionNameSaveOnHeap = m_isFunctionExpression = m_isFunctionDeclaration = m_isFunctionDeclarationWithSpecialBinding = false;
+    m_isFunctionNameExplicitlyDeclared = m_isFunctionNameSaveOnHeap = m_isFunctionExpression = m_isFunctionDeclaration = m_isFunctionDeclarationWithSpecialBinding = false;
     m_functionName = info.m_name;
     m_isStrict = info.m_isStrict;
     m_isConsturctor = info.m_isConsturctor;
@@ -132,7 +132,7 @@ CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Valu
     CodeBlock* targetCodeBlock = targetFunction->codeBlock();
 
     m_hasCallNativeFunctionCode = true;
-    m_isFunctionNameSaveOnHeap = false;
+    m_isFunctionNameExplicitlyDeclared = m_isFunctionNameSaveOnHeap = false;
     m_isFunctionExpression = m_isFunctionDeclaration = m_isFunctionDeclarationWithSpecialBinding = false;
     m_isConsturctor = targetCodeBlock->isConsturctor();
     StringBuilder builder;
@@ -201,7 +201,7 @@ CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Valu
     }
 }
 
-CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const ASTScoptContextNameInfoVector& innerIdentifiers, CodeBlockInitFlag initFlags)
+CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const ASTScopeContextNameInfoVector& innerIdentifiers, CodeBlockInitFlag initFlags)
     : m_context(ctx)
     , m_script(script)
     , m_src(src)
@@ -277,10 +277,10 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
         m_identifierInfos.push_back(info);
     }
 
-    m_isFunctionNameSaveOnHeap = false;
+    m_isFunctionNameExplicitlyDeclared = m_isFunctionNameSaveOnHeap = false;
 }
 
-CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringVector& parameterNames, const ASTScoptContextNameInfoVector& innerIdentifiers,
+CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringVector& parameterNames, const ASTScopeContextNameInfoVector& innerIdentifiers,
                      CodeBlock* parentBlock, CodeBlockInitFlag initFlags)
     : m_context(ctx)
     , m_script(script)
@@ -383,7 +383,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeL
         m_identifierInfos.push_back(info);
     }
 
-    m_isFunctionNameSaveOnHeap = false;
+    m_isFunctionNameExplicitlyDeclared = m_isFunctionNameSaveOnHeap = false;
     m_needsComplexParameterCopy = false;
     m_isInWithScope = false;
     m_isEvalCodeInFunction = false;
@@ -455,6 +455,10 @@ void CodeBlock::computeVariables()
         size_t h = 0;
         for (size_t i = 0; i < m_identifierInfos.size(); i++) {
             if (m_identifierInfos[i].m_name == m_functionName) {
+                if (m_identifierInfos[i].m_isExplicitlyDeclaredOrParameterName) {
+                    m_isFunctionNameExplicitlyDeclared = true;
+                }
+
                 if (!m_identifierInfos[i].m_needToAllocateOnStack) {
                     m_isFunctionNameSaveOnHeap = true;
                     functionNameHeapBase = 1;
@@ -493,7 +497,11 @@ void CodeBlock::computeVariables()
         size_t h = 0;
         for (size_t i = 0; i < m_identifierInfos.size(); i++) {
             m_identifierInfos[i].m_needToAllocateOnStack = false;
+
             if (m_identifierInfos[i].m_name == m_functionName) {
+                if (m_identifierInfos[i].m_isExplicitlyDeclaredOrParameterName) {
+                    m_isFunctionNameExplicitlyDeclared = true;
+                }
                 m_isFunctionNameSaveOnHeap = true;
                 m_identifierInfos[i].m_indexForIndexedStorage = h;
                 h++;

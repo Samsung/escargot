@@ -243,12 +243,12 @@ class Pattern {
 public:
 };
 
-struct ASTScoptContextNameInfo {
+struct ASTScopeContextNameInfo {
     bool m_isExplicitlyDeclaredOrParameterName;
     AtomicString m_name;
 };
 
-typedef Vector<ASTScoptContextNameInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<ASTScoptContextNameInfo>> ASTScoptContextNameInfoVector;
+typedef Vector<ASTScopeContextNameInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<ASTScopeContextNameInfo>> ASTScopeContextNameInfoVector;
 
 struct ASTScopeContext : public gc {
     bool m_isStrict : 1;
@@ -263,7 +263,7 @@ struct ASTScopeContext : public gc {
     ASTNodeType m_nodeType;
     ASTScopeContext *m_parentContext;
     Node *m_associateNode;
-    ASTScoptContextNameInfoVector m_names;
+    ASTScopeContextNameInfoVector m_names;
     AtomicStringVector m_usingNames;
     AtomicStringVector m_parameters;
     AtomicString m_functionName;
@@ -286,7 +286,7 @@ struct ASTScopeContext : public gc {
             }
         }
 
-        ASTScoptContextNameInfo info;
+        ASTScopeContextNameInfo info;
         info.m_name = name;
         info.m_isExplicitlyDeclaredOrParameterName = isExplicitlyDeclaredOrParameterName;
         m_names.push_back(info);

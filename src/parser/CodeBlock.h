@@ -378,6 +378,12 @@ public:
         return info;
     }
 
+    void updateSourceElementStart(size_t line, size_t column)
+    {
+        m_sourceElementStart.line = line;
+        m_sourceElementStart.column = column;
+    }
+
 #ifndef NDEBUG
     ASTScopeContext* scopeContext()
     {
@@ -386,10 +392,10 @@ public:
 #endif
 protected:
     // init global codeBlock
-    CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const ASTScoptContextNameInfoVector& innerIdentifiers, CodeBlockInitFlag initFlags);
+    CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const ASTScopeContextNameInfoVector& innerIdentifiers, CodeBlockInitFlag initFlags);
 
     // init function codeBlock
-    CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringVector& parameterNames, const ASTScoptContextNameInfoVector& innerIdentifiers, CodeBlock* parentBlock, CodeBlockInitFlag initFlags);
+    CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringVector& parameterNames, const ASTScopeContextNameInfoVector& innerIdentifiers, CodeBlock* parentBlock, CodeBlockInitFlag initFlags);
 
     void computeVariables();
     void appendChildBlock(CodeBlock* cb)
@@ -405,6 +411,7 @@ protected:
     bool m_isStrict : 1;
     bool m_hasCallNativeFunctionCode : 1;
     bool m_isFunctionNameSaveOnHeap : 1;
+    bool m_isFunctionNameExplicitlyDeclared : 1;
     bool m_canUseIndexedVariableStorage : 1;
     bool m_canAllocateEnvironmentOnStack : 1;
     bool m_needsComplexParameterCopy : 1;

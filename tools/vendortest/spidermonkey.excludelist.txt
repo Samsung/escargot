@@ -938,3 +938,7 @@ js1_5/Regress/regress-290575.js
 
 # length limit of ES6 and ES5 are differ
 ecma_5/Array/unshift-01.js
+
+# test case is wrong..
+ecma_5/RegExp/exec.js
+ecma_5/RegExp/exec-lastIndex-ToInteger.js

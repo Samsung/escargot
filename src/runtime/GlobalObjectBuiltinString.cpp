@@ -181,7 +181,7 @@ static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t a
     if (argument.isPointerValue() && argument.asPointerValue()->isRegExpObject()) {
         regexp = argument.asPointerValue()->asRegExpObject();
     } else {
-        regexp = new RegExpObject(state, argument, String::emptyString);
+        regexp = new RegExpObject(state, argument.isUndefined() ? String::emptyString : argument.toString(state), String::emptyString);
     }
 
     (void)regexp->lastIndex().toInteger(state);
@@ -193,7 +193,8 @@ static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t a
     RegexMatchResult result;
     bool testResult = regexp->matchNonGlobally(state, str, result, false, 0);
     if (!testResult) {
-        regexp->setLastIndex(state, Value(0));
+        if (isGlobal)
+            regexp->setLastIndex(state, Value(0));
         return Value(Value::Null);
     }
 
@@ -383,7 +384,7 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
         rx = regexp.asPointerValue()->asRegExpObject();
     } else {
         // Else, let rx be a new RegExp object created as if by the expression new RegExp(regexp) where RegExp is the standard built-in constructor with that name.
-        rx = new RegExpObject(state, regexp, String::emptyString);
+        rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString : regexp.toString(state), String::emptyString);
     }
 
     // Search the value string from its beginning for an occurrence of the regular expression pattern rx.

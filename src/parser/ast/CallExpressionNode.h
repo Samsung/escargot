@@ -100,7 +100,7 @@ public:
             codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), evalIndex, codeBlock->m_codeBlock->context()->staticStrings().eval), context, this);
             size_t startIndex = generateArguments(codeBlock, context, false);
             context->giveUpRegister();
-            codeBlock->pushCode(CallEvalFunction(ByteCodeLOC(m_loc.index), evalIndex, startIndex, m_arguments.size(), dstRegister), context, this);
+            codeBlock->pushCode(CallEvalFunction(ByteCodeLOC(m_loc.index), evalIndex, startIndex, m_arguments.size(), dstRegister, context->m_isWithScope), context, this);
             return;
         }
 

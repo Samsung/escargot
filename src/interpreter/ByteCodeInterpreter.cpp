@@ -737,7 +737,21 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
                 registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, stackStorage[0], byteCodeBlock->m_codeBlock);
             } else {
-                registerFile[code->m_resultIndex] = FunctionObject::call(state, eval, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+                Value thisValue;
+                if (code->m_inWithScope) {
+                    LexicalEnvironment* env = ec->lexicalEnvironment();
+                    while (env) {
+                        EnvironmentRecord::GetBindingValueResult result = env->record()->getBindingValue(state, state.context()->staticStrings().eval);
+                        if (result.m_hasBindingValue) {
+                            break;
+                        }
+                        env = env->outerEnvironment();
+                    }
+                    if (env->record()->isObjectEnvironmentRecord()) {
+                        thisValue = env->record()->asObjectEnvironmentRecord()->bindingObject();
+                    }
+                }
+                registerFile[code->m_resultIndex] = FunctionObject::call(state, eval, thisValue, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
             }
             ADD_PROGRAM_COUNTER(CallEvalFunction);
             NEXT_INSTRUCTION();
@@ -1761,7 +1775,16 @@ NEVER_INLINE void ByteCodeInterpreter::declareFunctionDeclarations(ExecutionStat
             if (v[i]->isFunctionDeclaration()) {
                 AtomicString name = v[i]->functionName();
                 FunctionObject* fn = new FunctionObject(state, v[i], lexicalEnvironment);
-                lexicalEnvironment->record()->initializeBinding(state, name, fn);
+                LexicalEnvironment* env = lexicalEnvironment;
+                while (env) {
+                    auto result = env->record()->hasBinding(state, name);
+                    if (result.m_index != SIZE_MAX) {
+                        env->record()->initializeBinding(state, name, fn);
+                        break;
+                    }
+                    env = env->outerEnvironment();
+                }
+                ASSERT(env);
             }
         }
     }

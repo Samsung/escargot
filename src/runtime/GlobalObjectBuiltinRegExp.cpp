@@ -37,7 +37,11 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
     } else {
         regexp = new RegExpObject(state);
     }
-    regexp->init(state, argv[0], argv[1]);
+    String* source = argv[0].isUndefined() ? String::emptyString : argv[0].toString(state);
+    String* option = argv[1].isUndefined() ? String::emptyString : argv[1].toString(state);
+
+    // TODO http://www.ecma-international.org/ecma-262/6.0/index.html#sec-escaperegexppattern
+    regexp->init(state, source, option);
     return regexp;
 }
 
@@ -49,11 +53,15 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
     }
     RegExpObject* regexp = thisObject->asRegExpObject();
     String* str = argv[0].toString(state);
-    double lastIndex = regexp->computedLastIndex(state);
-    if (lastIndex < 0 || lastIndex > str->length()) {
-        regexp->setLastIndex(state, Value(0));
-        return Value(Value::Null);
+    double lastIndex = 0;
+    if (regexp->option() & (RegExpObject::Global | RegExpObject::Sticky)) {
+        lastIndex = regexp->computedLastIndex(state);
+        if (lastIndex < 0 || lastIndex > str->length()) {
+            regexp->setLastIndex(state, Value(0));
+            return Value(Value::Null);
+        }
     }
+
     RegexMatchResult result;
     if (regexp->matchNonGlobally(state, str, result, false, lastIndex)) {
         // TODO(ES6): consider Sticky and Unicode
@@ -62,7 +70,6 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
         return regexp->createRegExpMatchedArray(state, result, str);
     }
 
-    regexp->setLastIndex(state, Value(0));
     return Value(Value::Null);
 }
 
@@ -74,10 +81,14 @@ static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t ar
     }
     RegExpObject* regexp = thisObject->asRegExpObject();
     String* str = argv[0].toString(state);
-    double lastIndex = regexp->computedLastIndex(state);
-    if (lastIndex < 0 || lastIndex > str->length()) {
-        regexp->setLastIndex(state, Value(0));
-        return Value(false);
+
+    double lastIndex = 0;
+    if (regexp->option() & (RegExpObject::Global | RegExpObject::Sticky)) {
+        lastIndex = regexp->computedLastIndex(state);
+        if (lastIndex < 0 || lastIndex > str->length()) {
+            regexp->setLastIndex(state, Value(0));
+            return Value(false);
+        }
     }
     RegexMatchResult result;
     bool testResult = regexp->match(state, str, result, true, lastIndex);

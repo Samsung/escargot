@@ -297,6 +297,19 @@ Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, cons
         }
     }
 
+    if (UNLIKELY(m_codeBlock->m_isFunctionNameExplicitlyDeclared)) {
+        if (m_codeBlock->canUseIndexedVariableStorage()) {
+            if (UNLIKELY(m_codeBlock->m_isFunctionNameSaveOnHeap)) {
+                ASSERT(record->isFunctionEnvironmentRecordOnHeap());
+                ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[0] = Value();
+            } else {
+                stackStorage[1] = Value();
+            }
+        } else {
+            record->initializeBinding(state, m_codeBlock->functionName(), Value());
+        }
+    }
+
     // prepare parameters
     if (UNLIKELY(m_codeBlock->needsComplexParameterCopy())) {
         for (size_t i = 2; i < stackStorageSize; i++) {

@@ -83,9 +83,9 @@ public:
     };
 
     RegExpObject(ExecutionState& state);
-    RegExpObject(ExecutionState& state, const Value& source, const Value& option);
+    RegExpObject(ExecutionState& state, String* source, String* option);
 
-    void init(ExecutionState& state, const Value& source, const Value& option);
+    void init(ExecutionState& state, String* source, String* option);
 
     double computedLastIndex(ExecutionState& state)
     {
@@ -100,7 +100,7 @@ public:
     bool match(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);
     bool matchNonGlobally(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);
 
-    const String* source()
+    String* source()
     {
         return m_source;
     }

@@ -23,7 +23,7 @@
 
 namespace Escargot {
 
-RegExpObject::RegExpObject(ExecutionState& state, const Value& source, const Value& option)
+RegExpObject::RegExpObject(ExecutionState& state, String* source, String* option)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5, true)
     , m_lastIndex(Value(0))
     , m_lastExecutedString(NULL)
@@ -69,7 +69,7 @@ void* RegExpObject::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-String* escapeSlashInPattern(String* patternStr)
+static String* escapeSlashInPattern(String* patternStr)
 {
     if (patternStr->length() == 0)
         return patternStr;
@@ -104,15 +104,14 @@ String* escapeSlashInPattern(String* patternStr)
         return builder.finalize();
 }
 
-void RegExpObject::init(ExecutionState& state, const Value& source, const Value& option)
+void RegExpObject::init(ExecutionState& state, String* source, String* option)
 {
     String* defaultRegExpString = state.context()->staticStrings().defaultRegExpString.string();
 
-    m_source = (source.isUndefined()) ? defaultRegExpString : source.toString(state);
-    m_source = m_source->length() ? m_source : defaultRegExpString;
+    m_source = source->length() ? source : defaultRegExpString;
     m_source = escapeSlashInPattern(m_source);
 
-    m_option = parseOption(state, option.isUndefined() ? String::emptyString : option.toString(state));
+    m_option = parseOption(state, option);
 
     auto entry = getCacheEntryAndCompileIfNeeded(state, m_source, m_option);
     if (entry.m_yarrError)
@@ -253,19 +252,23 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     size_t start = startIndex;
     unsigned result = 0;
     bool isGlobal = option() & RegExpObject::Option::Global;
+    bool gotResult = false;
+    bool reachToEnd = false;
     unsigned* outputBuf = ALLOCA(sizeof(unsigned) * 2 * (subPatternNum + 1), unsigned int, state);
     outputBuf[1] = start;
     do {
         start = outputBuf[1];
         memset(outputBuf, -1, sizeof(unsigned) * 2 * (subPatternNum + 1));
-        if (start > length)
+        if (start > length) {
             break;
+        }
         if (LIKELY(str->has8BitContent()))
             result = JSC::Yarr::interpret(m_bytecodePattern, str->characters8(), length, start, outputBuf);
         else
             result = JSC::Yarr::interpret(m_bytecodePattern, (const UChar*)str->characters16(), length, start, outputBuf);
 
         if (result != JSC::Yarr::offsetNoMatch) {
+            gotResult = true;
             if (UNLIKELY(testOnly)) {
                 // outputBuf[1] should be set to lastIndex
                 if (isGlobal) {
@@ -293,12 +296,21 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
                 }
             }
         } else {
+            if (start) {
+                reachToEnd = true;
+            }
             break;
         }
     } while (result != JSC::Yarr::offsetNoMatch);
-    if (UNLIKELY(testOnly)) {
+
+    if (!gotResult && ((option() & RegExpObject::Global) || (option() & RegExpObject::Sticky))) {
         setLastIndex(state, Value(0));
     }
+
+    if (!(option() & RegExpObject::Global) && reachToEnd) {
+        setLastIndex(state, Value(0));
+    }
+
     return matchResult.m_matchResults.size();
 }
 

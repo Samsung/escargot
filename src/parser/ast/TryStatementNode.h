@@ -88,7 +88,9 @@ public:
 
         codeBlock->peekCode<TryOperation>(pos)->m_tryCatchEndPosition = codeBlock->currentCodeSize();
         if (m_finalizer) {
+            context->getRegister();
             m_finalizer->generateStatementByteCode(codeBlock, context);
+            context->giveUpRegister();
         }
         codeBlock->pushCode(FinallyEnd(ByteCodeLOC(m_loc.index)), context, this);
         codeBlock->peekCode<FinallyEnd>(codeBlock->lastCodePosition<FinallyEnd>())->m_tryDupCount = context->m_tryStatementScopeCount;

@@ -686,6 +686,7 @@
   'regress/regress-1213575': [SKIP],
   'regress/regress-1528': [SKIP],
   'regress/regress-1170': [SKIP],
+  'regress/regress-2438': [SKIP],
   'object-literal': [SKIP],
   'regress/regress-crbug-648740': [SKIP],
   'regress/regress-crbug-658528': [SKIP],
@@ -703,6 +704,7 @@
   'string-indexof-1': [SKIP],
   'substr': [SKIP],
   'regress/redeclaration-error-types': [SKIP],
+  'regress/regress-3926': [SKIP],
 
   # builtins
   'html-string-funcs': [SKIP],
@@ -827,7 +829,7 @@
   'regexp-static': [SKIP],
   'string-replace': [SKIP],
   'string-slices-regexp': [SKIP],
- 
+  'regress/regress-2058': [SKIP], 
 
   ## 3. Deprecated
   # function.[arguments|caller|callee]
