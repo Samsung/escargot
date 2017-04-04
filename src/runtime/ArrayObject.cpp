@@ -246,8 +246,13 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t& newLengt
 
     if (LIKELY(isFastModeArray())) {
         auto oldSize = getArrayLength(state);
+        auto oldLenDesc = structure()->readProperty(state, (size_t)0);
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(newLength);
         m_fastModeData.resize(oldSize, newLength, Value(Value::EmptyValue));
+
+        if (UNLIKELY(!oldLenDesc.m_descriptor.isWritable())) {
+            convertIntoNonFastMode(state);
+        }
         return true;
     } else {
         if (!isInArrayObjectDefineOwnProperty()) {
@@ -277,10 +282,6 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t& newLengt
                     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(oldLen + 1);
                     return false;
                 }
-            }
-
-            if (!oldLenDesc.m_descriptor.isWritable()) {
-                return false;
             }
         }
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(newLength);

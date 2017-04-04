@@ -80,15 +80,31 @@ static String* escapeSlashInPattern(String* patternStr)
     StringBuilder builder;
     while (true) {
         for (i = 0; start + i < len; i++) {
-            if (UNLIKELY(patternStr->charAt(start + i) == '/' && (i == 0 || patternStr->charAt(start + i - 1) != '\\'))) {
-                slashFlag = true;
-                builder.appendSubString(patternStr, start, start + i);
-                builder.appendChar('\\');
-                builder.appendChar('/');
+            if (UNLIKELY(patternStr->charAt(start + i) == '/')) {
+                size_t backSlashCount = 0;
+                size_t s = start + i - 1;
+                while (true) {
+                    if (patternStr->charAt(s) == '\\') {
+                        backSlashCount++;
+                        if (s == 0) {
+                            break;
+                        }
+                        s--;
+                    } else {
+                        break;
+                    }
+                }
+                if (backSlashCount % 2 == 0) {
+                    slashFlag = true;
+                    builder.appendSubString(patternStr, start, start + i);
+                    builder.appendChar('\\');
+                    builder.appendChar('/');
 
-                start = start + i + 1;
-                i = 0;
-                break;
+                    start = start + i + 1;
+                    i = 0;
+                    backSlashCount = 0;
+                    break;
+                }
             }
         }
         if (start + i >= len) {
