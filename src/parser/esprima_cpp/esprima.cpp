@@ -3058,6 +3058,8 @@ public:
     {
         MetaNode node = this->createNode();
 
+        this->throwError("Rest element is not supported yet");
+
         this->nextToken();
         if (this->match(LeftBrace)) {
             this->throwError(Messages::ObjectPatternAsRestParameter);
@@ -3104,6 +3106,8 @@ public:
 
         Node* pattern = this->parsePattern(params, kind);
         if (this->match(PunctuatorsKind::Substitution)) {
+            this->throwError("Assignment in parameter is not supported yet");
+
             this->nextToken();
             const bool previousAllowYield = this->context->allowYield;
             this->context->allowYield = true;

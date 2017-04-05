@@ -664,6 +664,7 @@
   'regress/regress-595319': [SKIP],
   'regress/regress-crbug-451770': [SKIP],
   'regress/regress-crbug-592340': [SKIP],
+
   # object pattern
   'regress/regress-crbug-669540': [SKIP],
   # array
@@ -735,6 +736,10 @@
   'third_party/object-keys/object-keys': [SKIP],
   'regress/regress-function-length-strict': [SKIP],
   'regress/regress-crbug-626715': [SKIP],
+  'regress/regress-4654': [SKIP],
+  'regress/regress-4870': [SKIP],
+  'regress/regress-4962': [SKIP],
+  'regress/regress-4815': [SKIP],
 
   # ES5-ES6 differ
   'object-get-own-property-names': [SKIP],
@@ -742,6 +747,7 @@
   'strict-mode': [SKIP],
   'regress/regress-1419': [SKIP],
   'regress/regress-1530': [SKIP],
+  'regress/regress-447561': [SKIP],
 
   # Symbol
   'regress/regress-539875': [SKIP],
@@ -794,10 +800,22 @@
   'regexp': [SKIP],
   'string-wrapper': [SKIP],
   'regress/regress-1403': [SKIP],
+  'regress/regress-4595': [SKIP],
+  'regress/regress-4769': [SKIP],
 
   # const
   'int32-ops': [SKIP],
   'negate': [SKIP],
+
+  # class
+  'regress/regress-4967': [SKIP],
+
+  # yield
+  'regress/regress-4945': [SKIP],
+
+  # dataview
+  'regress/regress-5018': [SKIP],
+
   # etc
   'harmony/*': [SKIP],
   'es6/proxies-*': [SKIP],
@@ -805,6 +823,8 @@
   'es8/*': [SKIP],
   'get-prototype-of': [SKIP],
   'global-properties': [SKIP],
+  'regress/regress-4577': [SKIP],
+  'regress/regress-4693': [SKIP],
 
   ## 2. Non-standard
   # enumeration order
@@ -875,6 +895,11 @@
   'regress/regress-114': [SKIP],
   'regress/regress-1151': [SKIP],
   'regress/regress-1591': [SKIP],
+  'regress/regress-4255-1': [SKIP],
+  'regress/regress-4255-2': [SKIP],
+  'regress/regress-4255-3': [SKIP],
+  'regress/regress-4665': [SKIP],
+  'regress/regress-4825': [SKIP],
 
   ## 5. Accepted timeout (due to yarr performance limitation)
   'ascii-regexp-subject': [SKIP], # 50s
@@ -899,6 +924,7 @@
   'regress/regress-136048': [SKIP],
   'regress/regress-1980': [SKIP],
   'regress/regress-633998': [SKIP],
+  'regress/regress-4769': [SKIP],
 
   ## 9. asm.js
   'asm-directive': [SKIP],

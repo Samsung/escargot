@@ -757,6 +757,13 @@ time64_t DateObject::parseStringToDate_2(ExecutionState& state, String* istr, bo
             return TIME64NAN;
     }
     // Check that we have parsed all characters in the string.
+    while (*currentPosition) {
+        if (std::isspace(*currentPosition)) {
+            currentPosition++;
+        } else {
+            break;
+        }
+    }
     if (*currentPosition)
         return TIME64NAN;
 
