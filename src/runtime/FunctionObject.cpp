@@ -372,7 +372,7 @@ void FunctionObject::generateArgumentsObject(ExecutionState& state, FunctionEnvi
             fnRecord->createBinding(state, arguments, false, true);
             result = fnRecord->hasBinding(state, arguments);
         }
-        fnRecord->setMutableBindingByIndex(state, result.m_index, arguments, fnRecord->createArgumentsObject(state, state.executionContext()));
+        fnRecord->initializeBinding(state, arguments, fnRecord->createArgumentsObject(state, state.executionContext()));
     } else {
         const CodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->identifierInfos();
         for (size_t i = 0; i < v.size(); i++) {

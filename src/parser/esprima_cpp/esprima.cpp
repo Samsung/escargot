@@ -5751,6 +5751,7 @@ public:
         }
 
         scopeContexts.back()->insertName(id->name(), true);
+        scopeContexts.back()->insertUsingName(id->name());
         pushScopeContext(params, id->name());
         extractNamesFromFunctionParams(params);
 
@@ -5828,8 +5829,10 @@ public:
 
         pushScopeContext(params, fnName);
 
-        if (id)
+        if (id) {
             scopeContexts.back()->insertName(fnName, false);
+            scopeContexts.back()->insertUsingName(fnName);
+        }
 
         extractNamesFromFunctionParams(params);
         bool previousStrict = this->context->strict;
