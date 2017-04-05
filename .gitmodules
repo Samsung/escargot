@@ -12,7 +12,7 @@
 	url = https://github.com/chromium/octane.git
 [submodule "test/vendortest"]
 	path = test/vendortest
-    url = http://coding.sec.samsung.net/RS7-webtf/js_vendor_tc.git
+    url = git@coding.sec.samsung.net:RS7-webtf/js_vendor_tc.git
 [submodule "third_party/GCutil"]
 	path = third_party/GCutil
 	url = git@10.113.64.74:webtf/GCutil.git
