@@ -4037,6 +4037,9 @@ public:
             if (this->context->strict && exprOld->isIdentifier()) {
                 this->tolerateError(Messages::StrictDelete);
             }
+            if (exprOld->isIdentifier()) {
+                this->scopeContexts.back()->m_hasDeleteId = true;
+            }
         } else if (this->matchKeyword(Void)) {
             MetaNode node = this->startNode(this->lookahead);
             std::shared_ptr<ScannerResult> token = this->nextToken();

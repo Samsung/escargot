@@ -68,6 +68,15 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
 #endif
 
     if (parentCodeBlock) {
+
+        if (scopeCtx->m_hasDeleteId) {
+            CodeBlock* c = codeBlock;
+            while (c) {
+                c->m_canAllocateEnvironmentOnStack = false;
+                c = c->parentCodeBlock();
+            }
+        }
+
         if (codeBlock->hasEvalWithCatchYield() || codeBlock->isFunctionDeclarationWithSpecialBinding()) {
             CodeBlock* c = codeBlock;
             while (c) {

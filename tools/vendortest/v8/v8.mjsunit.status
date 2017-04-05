@@ -707,6 +707,9 @@
   'regress/redeclaration-error-types': [SKIP],
   'regress/regress-3926': [SKIP],
 
+  # RegExp
+  'regress/regress-crbug-592343': [SKIP],
+
   # builtins
   'html-string-funcs': [SKIP],
   'number-is': [SKIP],
@@ -775,6 +778,7 @@
   'call-cross-realm': [SKIP],
   'realm-property-access': [SKIP],
   'regress/regress-4509-Class-constructor-typeerror-realm': [SKIP],
+  'regress/regress-cr-344285': [SKIP],
 
   # Map
   'regress/regress-crbug-416558': [SKIP],
@@ -802,6 +806,7 @@
   'regress/regress-1403': [SKIP],
   'regress/regress-4595': [SKIP],
   'regress/regress-4769': [SKIP],
+  'regress/regress-recurse-patch-binary-op': [SKIP],
 
   # const
   'int32-ops': [SKIP],
@@ -813,8 +818,15 @@
   # yield
   'regress/regress-4945': [SKIP],
 
+  # rest
+  'regress/regress-crbug-614727': [SKIP],
+
   # dataview
   'regress/regress-5018': [SKIP],
+
+  # Intl
+  'regress/regress-crbug-364374': [SKIP],
+  'regress/regress-crbug-487322': [SKIP],
 
   # etc
   'harmony/*': [SKIP],
@@ -900,6 +912,15 @@
   'regress/regress-4255-3': [SKIP],
   'regress/regress-4665': [SKIP],
   'regress/regress-4825': [SKIP],
+  'regress/regress-crbug-100859': [SKIP],
+  'regress/regress-crbug-352586': [SKIP],
+  'regress/regress-crbug-422858': [SKIP],
+  'regress/regress-crbug-596394': [SKIP],
+  'regress/regress-crbug-515897': [SKIP],
+  'regress/regress-v8-5009': [SKIP],
+
+  # splice optimize
+  'regress/regress-splice-large-index': [SKIP],
 
   ## 5. Accepted timeout (due to yarr performance limitation)
   'ascii-regexp-subject': [SKIP], # 50s
