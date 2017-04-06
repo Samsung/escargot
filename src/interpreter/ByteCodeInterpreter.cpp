@@ -1099,28 +1099,7 @@ NEVER_INLINE Object* ByteCodeInterpreter::newOperation(ExecutionState& state, co
     if (UNLIKELY(!callee.isFunction())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
     }
-    FunctionObject* function = callee.asFunction();
-    if (UNLIKELY(!function->isConstructor())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, function->codeBlock()->functionName().string(), false, String::emptyString, errorMessage_New_NotConstructor);
-    }
-    Object* receiver;
-    CodeBlock* cb = function->codeBlock();
-    if (cb->hasCallNativeFunctionCode()) {
-        receiver = cb->nativeFunctionConstructor()(state, argc, argv);
-    } else {
-        receiver = new Object(state);
-    }
-
-    if (function->getFunctionPrototype(state).isObject())
-        receiver->setPrototype(state, function->getFunctionPrototype(state));
-    else
-        receiver->setPrototype(state, new Object(state));
-
-    Value res = function->call(state, receiver, argc, argv, true);
-    if (res.isObject())
-        return res.asObject();
-    else
-        return receiver;
+    return callee.asFunction()->newInstance(state, argc, argv);
 }
 
 NEVER_INLINE Value ByteCodeInterpreter::instanceOfOperation(ExecutionState& state, const Value& left, const Value& right)

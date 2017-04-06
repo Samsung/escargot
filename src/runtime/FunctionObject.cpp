@@ -174,14 +174,46 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
 Value FunctionObject::callSlowCase(ExecutionState& state, const Value& callee, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression)
 {
     if (LIKELY(callee.isObject() && callee.asPointerValue()->isFunctionObject())) {
-        return callee.asFunction()->call(state, receiver, argc, argv, isNewExpression);
+        return callee.asFunction()->processCall(state, receiver, argc, argv, isNewExpression);
     } else {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
         return Value();
     }
 }
 
-Value FunctionObject::call(ExecutionState& state, const Value& receiverSrc, const size_t& argc, Value* argv, bool isNewExpression)
+Object* FunctionObject::newInstance(ExecutionState& state, const size_t& argc, Value* argv)
+{
+    CodeBlock* cb = codeBlock();
+    FunctionObject* targetFunction = this;
+    if (UNLIKELY(!isConstructor())) {
+        if (cb->isBindedFunction()) {
+            targetFunction = cb->boundFunctionInfo()->m_boundTargetFunction;
+            cb = targetFunction->codeBlock();
+        }
+        if (!cb->isConsturctor()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, codeBlock()->functionName().string(), false, String::emptyString, errorMessage_New_NotConstructor);
+        }
+    }
+    Object* receiver;
+    if (cb->hasCallNativeFunctionCode()) {
+        receiver = cb->nativeFunctionConstructor()(state, argc, argv);
+    } else {
+        receiver = new Object(state);
+    }
+
+    if (targetFunction->getFunctionPrototype(state).isObject())
+        receiver->setPrototype(state, targetFunction->getFunctionPrototype(state));
+    else
+        receiver->setPrototype(state, new Object(state));
+
+    Value res = processCall(state, receiver, argc, argv, true);
+    if (res.isObject())
+        return res.asObject();
+    else
+        return receiver;
+}
+
+Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSrc, const size_t& argc, Value* argv, bool isNewExpression)
 {
     volatile int sp;
     size_t currentStackBase = (size_t)&sp;

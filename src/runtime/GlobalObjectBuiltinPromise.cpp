@@ -31,7 +31,7 @@ static SandBox::SandBoxResult tryCallMethodAndCatchError(ExecutionState& state, 
     SandBox sb(state.context());
     return sb.run([&]() -> Value {
         Value callee = receiver.toObject(state)->get(state, name).value(state, receiver);
-        return FunctionObject::call(state, callee, receiver, argumentCount, arguments, isNewExpression);
+        return FunctionObject::call(state, callee, receiver, argumentCount, arguments);
     });
 }
 
@@ -56,12 +56,12 @@ static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, s
     SandBox sb(state.context());
     auto res = sb.run([&]() -> Value {
         Value arguments[] = { capability.m_resolveFunction, capability.m_rejectFunction };
-        FunctionObject::call(state, executor, Value(), 2, arguments, false);
+        FunctionObject::call(state, executor, Value(), 2, arguments);
         return Value();
     });
     if (!res.error.isEmpty()) {
         Value arguments[] = { res.error };
-        return FunctionObject::call(state, capability.m_rejectFunction, Value(), 1, arguments, false);
+        return FunctionObject::call(state, capability.m_rejectFunction, Value(), 1, arguments);
     }
     return promise;
 }
@@ -77,7 +77,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
 
     if (!iterableValue.isIterable()) {
         Value arguments[] = { new TypeErrorObject(state, String::emptyString) };
-        FunctionObject::call(state, capability.m_rejectFunction, Value(), 1, arguments, false);
+        FunctionObject::call(state, capability.m_rejectFunction, Value(), 1, arguments);
     } else {
         Object* iterable = iterableValue.toObject(state);
         bool done = false;
@@ -163,7 +163,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
                 SandBox sb(state.context());
                 auto res = sb.run([&]() -> Value {
                     Value arguments[] = { values };
-                    FunctionObject::call(state, capability.m_resolveFunction, Value(), 1, arguments, false);
+                    FunctionObject::call(state, capability.m_resolveFunction, Value(), 1, arguments);
                     return Value();
                 });
                 if (!res.error.isEmpty()) {
@@ -175,7 +175,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
         // If result is an abrupt completion && If iteratorRecord.[[done]] is false
         if (!error.isEmpty() && !done) {
             Value arguments[] = { error };
-            FunctionObject::call(state, capability.m_rejectFunction, Value(), 1, arguments, false);
+            FunctionObject::call(state, capability.m_rejectFunction, Value(), 1, arguments);
         }
     }
     return capability.m_promise;
@@ -191,7 +191,7 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
 
     if (!iterableValue.isIterable()) {
         Value arguments[] = { new TypeErrorObject(state, String::emptyString) };
-        FunctionObject::call(state, capability.m_rejectFunction, Value(), 1, arguments, false);
+        FunctionObject::call(state, capability.m_rejectFunction, Value(), 1, arguments);
     } else {
         Object* iterable = iterableValue.toObject(state);
         bool done = false;
@@ -244,7 +244,7 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
         // If result is an abrupt completion && If iteratorRecord.[[done]] is false
         if (!error.isEmpty() && !done) {
             Value arguments[] = { error };
-            FunctionObject::call(state, capability.m_rejectFunction, Value(), 1, arguments, false);
+            FunctionObject::call(state, capability.m_rejectFunction, Value(), 1, arguments);
         }
     }
     return capability.m_promise;
@@ -257,7 +257,7 @@ static Value builtinPromiseReject(ExecutionState& state, Value thisValue, size_t
     PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, thisObject);
 
     Value arguments[] = { argv[0] };
-    FunctionObject::call(state, capability.m_rejectFunction, Value(), 1, arguments, false);
+    FunctionObject::call(state, capability.m_rejectFunction, Value(), 1, arguments);
     return capability.m_promise;
 }
 
@@ -273,7 +273,7 @@ static Value builtinPromiseResolve(ExecutionState& state, Value thisValue, size_
     PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, thisObject);
 
     Value arguments[] = { x };
-    FunctionObject::call(state, capability.m_resolveFunction, Value(), 1, arguments, false);
+    FunctionObject::call(state, capability.m_resolveFunction, Value(), 1, arguments);
     return capability.m_promise;
 }
 
@@ -284,7 +284,7 @@ static Value builtinPromiseCatch(ExecutionState& state, Value thisValue, size_t 
     Value onRejected = argv[0];
     Value then = thisObject->get(state, strings->then).value(state, thisObject);
     Value arguments[] = { Value(), onRejected };
-    return FunctionObject::call(state, then, thisObject, 2, arguments, false);
+    return FunctionObject::call(state, then, thisObject, 2, arguments);
 }
 
 
@@ -427,7 +427,7 @@ Value promiseAllResolveElementFunction(ExecutionState& state, Value thisValue, s
     remainingElementsCount->setThrowsException(state, strings->value, Value(remainingElements - 1), remainingElementsCount);
     if (remainingElements == 1) {
         Value arguments[] = { values };
-        FunctionObject::call(state, resolveFunction, Value(), 1, arguments, false);
+        FunctionObject::call(state, resolveFunction, Value(), 1, arguments);
     }
     return Value();
 }

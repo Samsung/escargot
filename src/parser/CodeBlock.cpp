@@ -134,7 +134,7 @@ CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Valu
     m_hasCallNativeFunctionCode = true;
     m_isFunctionNameExplicitlyDeclared = m_isFunctionNameSaveOnHeap = false;
     m_isFunctionExpression = m_isFunctionDeclaration = m_isFunctionDeclarationWithSpecialBinding = false;
-    m_isConsturctor = targetCodeBlock->isConsturctor();
+    m_isConsturctor = false;
     StringBuilder builder;
     builder.appendString("bound ");
     ObjectGetResult r = targetFunction->getOwnProperty(state, m_context->staticStrings().name);
@@ -581,5 +581,11 @@ NativeFunctionConstructor CodeBlock::nativeFunctionConstructor()
     ASSERT(hasCallNativeFunctionCode());
     CallNativeFunction* code = (CallNativeFunction*)m_byteCodeBlock->m_code.data();
     return code->m_ctorFn;
+}
+
+CallBoundFunction* CodeBlock::boundFunctionInfo()
+{
+    ASSERT(isBindedFunction());
+    return ((CallBoundFunction*)(m_byteCodeBlock->m_code.data() + sizeof(CallNativeFunction)));
 }
 }

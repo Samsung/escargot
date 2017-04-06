@@ -246,7 +246,7 @@ static Value builtinDateToJSON(ExecutionState& state, Value thisValue, size_t ar
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toJSON.string(), errorMessage_GlobalObject_ToISOStringNotCallable);
     }
 
-    return FunctionObject::call(state, isoFunc, thisObject, 0, nullptr, false);
+    return FunctionObject::call(state, isoFunc, thisObject, 0, nullptr);
 }
 
 #define DECLARE_STATIC_DATE_GETTER(Name, unused1, unused2, unused3)                                                                                                                                                                \

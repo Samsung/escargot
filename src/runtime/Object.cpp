@@ -902,7 +902,7 @@ Value Object::getOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t i
 #ifdef ESCARGOT_32
     if (gs->getter().isFunction()) {
 #else
-    if (!gs->getter().isEmpty() && gs->getter().isFunction()) {
+    if (gs->hasGetter() && gs->getter().isFunction()) {
 #endif
         return gs->getter().asFunction()->call(state, receiver, 0, nullptr);
     }
@@ -916,7 +916,7 @@ bool Object::setOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t id
 #ifdef ESCARGOT_32
     if (gs->setter().isFunction()) {
 #else
-    if (!gs->setter().isEmpty() && gs->setter().isFunction()) {
+    if (gs->hasSetter() && gs->setter().isFunction()) {
 #endif
         Value arg = newValue;
         gs->setter().asFunction()->call(state, receiver, 1, &arg);

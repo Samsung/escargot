@@ -489,7 +489,7 @@ static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t 
         if (res.hasValue()) {
             Value kValue = res.value(state, thisObject);
             Value args[3] = { kValue, Pk, thisObject };
-            callbackfn.asFunction()->call(state, T, 3, args, false);
+            callbackfn.asFunction()->call(state, T, 3, args);
             k++;
         } else {
             double result;

@@ -29,6 +29,7 @@ class ByteCodeBlock;
 class LexicalEnvironment;
 class CodeBlock;
 class Script;
+class CallBoundFunction;
 
 typedef TightVector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>> CodeBlockVector;
 
@@ -325,6 +326,13 @@ public:
     {
         return m_isInWithScope;
     }
+
+    bool isBindedFunction()
+    {
+        return m_isBindedFunction;
+    }
+
+    CallBoundFunction* boundFunctionInfo();
 
     struct FunctionParametersInfo {
         bool m_isHeapAllocated;

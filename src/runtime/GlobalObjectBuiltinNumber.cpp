@@ -317,7 +317,7 @@ static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue,
         Value toStrFunc = toStrFuncGetResult.value(state, thisObject);
         if (toStrFunc.isFunction()) {
             // toLocaleString() ignores the first argument, unlike toString()
-            return FunctionObject::call(state, toStrFunc, thisObject, 0, argv, isNewExpression);
+            return FunctionObject::call(state, toStrFunc, thisObject, 0, argv);
         }
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLocaleStringNotCallable);

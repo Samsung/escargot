@@ -79,13 +79,19 @@ public:
         return m_outerEnvironment;
     }
 
-    Value call(ExecutionState& state, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression = false);
-    ALWAYS_INLINE static Value call(ExecutionState& state, const Value& callee, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression = false)
+    Value call(ExecutionState& state, const Value& receiver, const size_t& argc, Value* argv)
+    {
+        return processCall(state, receiver, argc, argv, false);
+    }
+    // ECMAScript new operation
+    Object* newInstance(ExecutionState& state, const size_t& argc, Value* argv);
+
+    ALWAYS_INLINE static Value call(ExecutionState& state, const Value& callee, const Value& receiver, const size_t& argc, Value* argv)
     {
         if (LIKELY(callee.isObject() && callee.asPointerValue()->hasTag(g_functionObjectTag))) {
-            return callee.asFunction()->call(state, receiver, argc, argv, isNewExpression);
+            return callee.asFunction()->processCall(state, receiver, argc, argv, false);
         } else {
-            return callSlowCase(state, callee, receiver, argc, argv, isNewExpression);
+            return callSlowCase(state, callee, receiver, argc, argv, false);
         }
     }
 
@@ -109,6 +115,7 @@ protected:
         return true;
     }
 
+    Value processCall(ExecutionState& state, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression);
     static Value callSlowCase(ExecutionState& state, const Value& callee, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression);
     void generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage);
     void generateBytecodeBlock(ExecutionState& state);
