@@ -80,7 +80,6 @@ run-spidermonkey-full:
 	diff tools/vendortest/spidermonkey.$(BIN_ARCH).orig.sort.txt tools/vendortest/spidermonkey.$(BIN_ARCH).gen.sort.txt
 
 run-jsc-stress:
-	cp tools/vendortest/jsc.stress.resource.typedarray-constructor-helper-functions.js test/vendortest/JavaScriptCore/stress/resources/typedarray-constructor-helper-functions.js
 	$(eval BIN_ARCH:=$(shell [[ "$(shell file escargot)" == *"32-bit"* ]] && echo "x86" || echo "x86_64"))
 	PYTHONPATH=. ./tools/vendortest/driver.py -s stress -a $(BIN_ARCH);
 
