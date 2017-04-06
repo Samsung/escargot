@@ -112,12 +112,12 @@ test_x64_release_internal:
     dependencies:
         - build_x64_release
 
-
 test_x64_release_v8:
     stage: test
     tags:
-        - escargot_allow_slow
     before_script:
+        - rm -f .git/index.lock
+        - rm -f .git/modules/test/vendortest/index.lock
         - git submodule deinit -f test/vendortest
         - git submodule init
         - git submodule update test/vendortest
@@ -269,12 +269,13 @@ test_x86_release_internal:
     dependencies:
         - build_x86_release
 
-
 test_x86_release_v8:
     stage: test
     tags:
         - escargot_allow_slow
     before_script:
+        - rm -f .git/index.lock
+        - rm -f .git/modules/test/vendortest/index.lock
         - git submodule deinit -f test/vendortest
         - git submodule init
         - git submodule update test/vendortest

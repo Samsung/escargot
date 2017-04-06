@@ -25,5 +25,6 @@ android/libs
 tools/vendortest/chakracore/chakracorelog.verbose.txt
 *.gen.txt
 *.log.txt
+*.sort.txt
 bdwgcUsage.dat
 node_modules

@@ -1,18 +1,18 @@
 [submodule "test/test262"]
-	path = test/test262
-	url = https://github.com/tc39/test262.git
+    path = test/test262
+    url = https://github.com/tc39/test262.git
 [submodule "test/test262-master"]
-	path = test/test262-master
-	url = https://github.com/tc39/test262.git
+    path = test/test262-master
+    url = https://github.com/tc39/test262.git
 [submodule "test/test262-harness-py"]
-	path = test/test262-harness-py
-	url = https://github.com/test262-utils/test262-harness-py
+    path = test/test262-harness-py
+    url = https://github.com/test262-utils/test262-harness-py
 [submodule "test/octane"]
-	path = test/octane
-	url = https://github.com/chromium/octane.git
+    path = test/octane
+    url = https://github.com/chromium/octane.git
 [submodule "test/vendortest"]
-	path = test/vendortest
+    path = test/vendortest
     url = git@coding.sec.samsung.net:RS7-webtf/js_vendor_tc.git
 [submodule "third_party/GCutil"]
-	path = third_party/GCutil
-	url = git@10.113.64.74:webtf/GCutil.git
+    path = third_party/GCutil
+    url = git@10.113.64.74:webtf/GCutil.git
