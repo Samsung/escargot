@@ -1,13 +1,13 @@
 >>> Running tests for x64.release
 Total: 3102 tests
- *  826 tests will be skipped
+ *  860 tests will be skipped
  *    3 tests are expected to timeout sometimes
  *    2 tests are expected to be flaky but not crash
- * 2247 tests are expected to pass
+ * 2214 tests are expected to pass
  *    0 tests are expected to fail that we won't fix
  *    6 tests are expected to fail that we should fix
 No connection to distribution server; running tests locally.
-Running 2270 tests
+Running 2236 tests
 Done running mjsunit/accessors-on-global-object: pass
 Done running mjsunit/api-call-after-bypassed-exception: pass
 Done running mjsunit/argument-assigned: pass
@@ -616,9 +616,6 @@ Done running mjsunit/regress/regress-416416: pass
 Done running mjsunit/regress/regress-4169: pass
 Done running mjsunit/regress/regress-4214: pass
 Done running mjsunit/regress/regress-423633: pass
-Done running mjsunit/regress/regress-4255-1: FAIL
-Done running mjsunit/regress/regress-4255-2: FAIL
-Done running mjsunit/regress/regress-4255-3: FAIL
 Done running mjsunit/regress/regress-4271: pass
 Done running mjsunit/regress/regress-4279: pass
 Done running mjsunit/regress/regress-4296: pass
@@ -630,48 +627,33 @@ Done running mjsunit/regress/regress-4399-02: pass
 Done running mjsunit/regress/regress-441099: pass
 Done running mjsunit/regress/regress-444805: pass
 Done running mjsunit/regress/regress-4450: pass
-Done running mjsunit/regress/regress-447561: FAIL
 Done running mjsunit/regress/regress-4495: pass
 Done running mjsunit/regress/regress-45469: pass
 Done running mjsunit/regress/regress-455207: pass
 Done running mjsunit/regress/regress-455212: pass
-Done running mjsunit/regress/regress-4577: FAIL
 Done running mjsunit/regress/regress-458876: pass
 Done running mjsunit/regress/regress-458987: pass
-Done running mjsunit/regress/regress-4595: FAIL
 Done running mjsunit/regress/regress-459955: pass
-Done running mjsunit/regress/regress-4640: FAIL
-Done running mjsunit/regress/regress-4654: FAIL
+Done running mjsunit/regress/regress-4640: pass
 Done running mjsunit/regress/regress-4659: pass
-Done running mjsunit/regress/regress-4665: FAIL
-Done running mjsunit/regress/regress-4693: FAIL
 Done running mjsunit/regress/regress-469605: pass
 Done running mjsunit/regress/regress-469605b: pass
 Done running mjsunit/regress/regress-472504: pass
 Done running mjsunit/regress/regress-475: pass
-Done running mjsunit/regress/regress-4769: FAIL
-Done running mjsunit/regress/regress-4815: FAIL
-Done running mjsunit/regress/regress-4825: FAIL
 Done running mjsunit/regress/regress-483: pass
 Done running mjsunit/regress/regress-485: pass
 Done running mjsunit/regress/regress-486: pass
-Done running mjsunit/regress/regress-4870: FAIL
 Done running mjsunit/regress/regress-489151: pass
 Done running mjsunit/regress/regress-490: pass
 Done running mjsunit/regress/regress-491: pass
 Done running mjsunit/regress/regress-492: pass
-Done running mjsunit/regress/regress-4945: FAIL
 Done running mjsunit/regress/regress-496: pass
-Done running mjsunit/regress/regress-4962: FAIL
-Done running mjsunit/regress/regress-4967: FAIL
 Done running mjsunit/regress/regress-500173: pass
 Done running mjsunit/regress/regress-500176: pass
 Done running mjsunit/regress/regress-500980: pass
-Done running mjsunit/regress/regress-5018: FAIL
 Done running mjsunit/regress/regress-502: pass
 Done running mjsunit/regress/regress-503: pass
 Done running mjsunit/regress/regress-503565: pass
-Done running mjsunit/regress/regress-5036: FAIL
 Done running mjsunit/regress/regress-507980: pass
 Done running mjsunit/regress/regress-509961: pass
 Done running mjsunit/regress/regress-515: pass
@@ -686,16 +668,13 @@ Done running mjsunit/regress/regress-543994: pass
 Done running mjsunit/regress/regress-545: pass
 Done running mjsunit/regress/regress-5669: pass
 Done running mjsunit/regress/regress-57: pass
-Done running mjsunit/regress/regress-5736: FAIL
 Done running mjsunit/regress/regress-580: pass
 Done running mjsunit/regress/regress-581: pass
 Done running mjsunit/regress/regress-58740: pass
 Done running mjsunit/regress/regress-588599: pass
 Done running mjsunit/regress/regress-599089-array-push: pass
-Done running mjsunit/regress/regress-599414-array-concat-fast-path: FAIL
 Done running mjsunit/regress/regress-6-9-regexp: pass
 Done running mjsunit/regress/regress-603: pass
-Done running mjsunit/regress/regress-604044: pass
 Done running mjsunit/regress/regress-610633: pass
 Done running mjsunit/regress/regress-612: pass
 Done running mjsunit/regress/regress-618: pass
@@ -704,9 +683,7 @@ Done running mjsunit/regress/regress-636: pass
 Done running mjsunit/regress/regress-638134: pass
 Done running mjsunit/regress/regress-643: pass
 Done running mjsunit/regress/regress-646: pass
-Done running mjsunit/regress/regress-649067: FAIL
-Done running mjsunit/regress/regress-649078: FAIL
-Done running mjsunit/regress/regress-655573: FAIL
+Done running mjsunit/regress/regress-649067: pass
 Done running mjsunit/regress/regress-662254: pass
 Done running mjsunit/regress/regress-666721: pass
 Done running mjsunit/regress/regress-667061: pass
@@ -739,7 +716,7 @@ Done running mjsunit/regress/regress-760-2: pass
 Done running mjsunit/regress/regress-780423: pass
 Done running mjsunit/regress/regress-78270: pass
 Done running mjsunit/regress/regress-784: pass
-Done running mjsunit/regress/regress-794: FAIL
+Done running mjsunit/regress/regress-794: pass
 Done running mjsunit/regress/regress-806: pass
 Done running mjsunit/regress/regress-815: pass
 Done running mjsunit/regress/regress-842: pass
@@ -792,9 +769,7 @@ Done running mjsunit/regress/regress-context-osr: pass
 Done running mjsunit/regress/regress-convert-enum2: pass
 Done running mjsunit/regress/regress-convert-function-to-double: pass
 Done running mjsunit/regress/regress-convert-transition: pass
-Done running mjsunit/regress/regress-cr-344285: FAIL
 Done running mjsunit/regress/regress-cr-658267: pass
-Done running mjsunit/regress/regress-crbug-100859: FAIL
 Done running mjsunit/regress/regress-crbug-126414: pass
 Done running mjsunit/regress/regress-crbug-135008: pass
 Done running mjsunit/regress/regress-crbug-135066: pass
@@ -815,17 +790,14 @@ Done running mjsunit/regress/regress-crbug-3184: pass
 Done running mjsunit/regress/regress-crbug-325225: pass
 Done running mjsunit/regress/regress-crbug-350867: pass
 Done running mjsunit/regress/regress-crbug-351262: pass
-Done running mjsunit/regress/regress-crbug-352586: FAIL
 Done running mjsunit/regress/regress-crbug-357052: pass
 Done running mjsunit/regress/regress-crbug-357137: pass
-Done running mjsunit/regress/regress-crbug-364374: FAIL
 Done running mjsunit/regress/regress-crbug-37853: pass
 Done running mjsunit/regress/regress-crbug-382143: pass
 Done running mjsunit/regress/regress-crbug-3867: pass
 Done running mjsunit/regress/regress-crbug-39160: pass
 Done running mjsunit/regress/regress-crbug-403409: pass
 Done running mjsunit/regress/regress-crbug-40931: pass
-Done running mjsunit/regress/regress-crbug-422858: FAIL
 Done running mjsunit/regress/regress-crbug-425585: pass
 Done running mjsunit/regress/regress-crbug-429159: pass
 Done running mjsunit/regress/regress-crbug-433766: pass
@@ -839,7 +811,6 @@ Done running mjsunit/regress/regress-crbug-477924: pass
 Done running mjsunit/regress/regress-crbug-478011: pass
 Done running mjsunit/regress/regress-crbug-482998: pass
 Done running mjsunit/regress/regress-crbug-487105: pass
-Done running mjsunit/regress/regress-crbug-487322: FAIL
 Done running mjsunit/regress/regress-crbug-490680: pass
 Done running mjsunit/regress/regress-crbug-493290: pass
 Done running mjsunit/regress/regress-crbug-502930: pass
@@ -856,7 +827,6 @@ Done running mjsunit/regress/regress-crbug-510426: pass
 Done running mjsunit/regress/regress-crbug-513472: pass
 Done running mjsunit/regress/regress-crbug-513602: pass
 Done running mjsunit/regress/regress-crbug-514081: pass
-Done running mjsunit/regress/regress-crbug-515897: pass
 Done running mjsunit/regress/regress-crbug-516592: pass
 Done running mjsunit/regress/regress-crbug-518747: pass
 Done running mjsunit/regress/regress-crbug-522380: pass
@@ -876,10 +846,8 @@ Done running mjsunit/regress/regress-crbug-571517: pass
 Done running mjsunit/regress/regress-crbug-575082: pass
 Done running mjsunit/regress/regress-crbug-583257: pass
 Done running mjsunit/regress/regress-crbug-584188: pass
-Done running mjsunit/regress/regress-crbug-592343: FAIL
 Done running mjsunit/regress/regress-crbug-594955: pass
 Done running mjsunit/regress/regress-crbug-595738: pass
-Done running mjsunit/regress/regress-crbug-596394: pass
 Done running mjsunit/regress/regress-crbug-599073-1: pass
 Done running mjsunit/regress/regress-crbug-599073-2: pass
 Done running mjsunit/regress/regress-crbug-599073-3: pass
@@ -891,7 +859,6 @@ Done running mjsunit/regress/regress-crbug-605862: pass
 Done running mjsunit/regress/regress-crbug-610207: pass
 Done running mjsunit/regress/regress-crbug-612109: pass
 Done running mjsunit/regress/regress-crbug-613570: pass
-Done running mjsunit/regress/regress-crbug-614727: pass
 Done running mjsunit/regress/regress-crbug-619476: pass
 Done running mjsunit/regress/regress-crbug-620650: pass
 Done running mjsunit/regress/regress-crbug-627935: pass
@@ -931,9 +898,8 @@ Done running mjsunit/regress/regress-reset-dictionary-elements: pass
 Done running mjsunit/regress/regress-shift-enumerable: pass
 Done running mjsunit/regress/regress-smi-scanning: pass
 Done running mjsunit/regress/regress-sort-arguments: pass
-Done running mjsunit/regress/regress-splice-large-index: FAIL
 Done running mjsunit/regress/regress-store-global-proxy: pass
-Done running mjsunit/regress/regress-swapelements: CRASH
+Done running mjsunit/regress/regress-swapelements: pass
 Done running mjsunit/regress/regress-undefined-nan2: pass
 Done running mjsunit/regress/regress-unsigned-mul-add: pass
 Done running mjsunit/regress/regress-update-field-type-attributes: pass
@@ -944,8 +910,6 @@ Done running mjsunit/regress/string-fromcharcode-sideeffect: pass
 Done running mjsunit/regress/string-split-monkey-patching: pass
 Done running mjsunit/third_party/regexp-pcre/regexp-pcre: pass
 
-
 ===
-=== 34 tests failed
-=== 1 tests CRASHED
+=== All tests succeeded
 ===

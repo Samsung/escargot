@@ -113,20 +113,19 @@ test_x64_release_internal:
         - build_x64_release
 
 
-#test_x64_release_v8:
-#    stage: test
-#    tags:
-#        - escargot_allow_slow
-#    before_script:
-#        - git submodule deinit -f test/vendortest
-#        - git submodule init
-#        - git submodule update test/vendortest
-#        - cp out/linux/x64/interpreter/release/escargot ./escargot
-#    script: make run-v8; exit $?;
-#    dependencies:
-#        - build_x64_release
-#    allow_failure: true
-#
+test_x64_release_v8:
+    stage: test
+    tags:
+        - escargot_allow_slow
+    before_script:
+        - git submodule deinit -f test/vendortest
+        - git submodule init
+        - git submodule update test/vendortest
+        - cp out/linux/x64/interpreter/release/escargot ./escargot
+    script: make run-v8; exit $?;
+    dependencies:
+        - build_x64_release
+
 #test_x64_release_chakracore:
 #    stage: test
 #    tags:
@@ -271,20 +270,19 @@ test_x86_release_internal:
         - build_x86_release
 
 
-#test_x86_release_v8:
-#    stage: test
-#    tags:
-#        - escargot_allow_slow
-#    before_script:
-#        - git submodule deinit -f test/vendortest
-#        - git submodule init
-#        - git submodule update test/vendortest
-#        - cp out/linux/x86/interpreter/release/escargot ./escargot
-#    script: make run-v8; exit $?;
-#    dependencies:
-#        - build_x86_release
-#    allow_failure: true
-#
+test_x86_release_v8:
+    stage: test
+    tags:
+        - escargot_allow_slow
+    before_script:
+        - git submodule deinit -f test/vendortest
+        - git submodule init
+        - git submodule update test/vendortest
+        - cp out/linux/x86/interpreter/release/escargot ./escargot
+    script: make run-v8; exit $?;
+    dependencies:
+        - build_x86_release
+
 #test_x86_release_chakracore:
 #    stage: test
 #    tags:
