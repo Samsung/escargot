@@ -20,9 +20,16 @@ ESCARGOT_CXXFLAGS_COMMON += -DESCARGOT_ENABLE_TYPEDARRAY
 
 #ESCARGOT_CXXFLAGS_COMMON += -DPROFILE_MASSIF
 #ESCARGOT_CXXFLAGS_COMMON += -DPROFILE_BDWGC
-
-ESCARGOT_LDFLAGS_COMMON += -lpthread
-ESCARGOT_LDFLAGS_COMMON += -lrt
+ifeq ($(HOST), linux)
+  ESCARGOT_LDFLAGS_COMMON += -lpthread
+  ESCARGOT_LDFLAGS_COMMON += -lrt
+else ifeq ($(HOST), tizen_obs)
+  ESCARGOT_LDFLAGS_COMMON += -lpthread
+  ESCARGOT_LDFLAGS_COMMON += -lrt
+else ifneq (,$(findstring tizen_,$(HOST)))
+  ESCARGOT_LDFLAGS_COMMON += -lpthread
+  ESCARGOT_LDFLAGS_COMMON += -lrt
+endif
 
 #######################################################
 # flags for $(HOST) : linux / tizen*
@@ -91,6 +98,7 @@ ESCARGOT_CXXFLAGS_VENDORTEST += -DESCARGOT_ENABLE_VENDORTEST
 #######################################################
 # icu
 ifeq ($(HOST), linux)
+  ESCARGOT_CXXFLAGS_COMMON += -DENABLE_ICU
   ifeq ($(ARCH), x64)
 	ESCARGOT_CXXFLAGS_THIRD_PARTY += $(shell pkg-config --cflags icu-i18n)
 	ESCARGOT_LDFLAGS_THIRD_PARTY += $(shell pkg-config --libs icu-i18n)
@@ -100,9 +108,11 @@ ifeq ($(HOST), linux)
 	ESCARGOT_LDFLAGS_THIRD_PARTY += -licuio -licui18n -licuuc -licudata
   endif
 else ifeq ($(HOST), tizen_obs)
+  ESCARGOT_CXXFLAGS_COMMON += -DENABLE_ICU
 	ESCARGOT_CXXFLAGS_THIRD_PARTY += $(shell pkg-config --cflags icu-uc icu-i18n)
 	ESCARGOT_LDFLAGS_THIRD_PARTY += $(shell pkg-config --libs icu-uc icu-i18n)
 else ifneq (,$(findstring tizen_,$(HOST)))
+  ESCARGOT_CXXFLAGS_COMMON += -DENABLE_ICU
   ifeq ($(ARCH), arm)
 	ESCARGOT_CXXFLAGS_THIRD_PARTY += -I$(ESCARGOT_ROOT)/deps/tizen/include
 	ESCARGOT_LDFLAGS_THIRD_PARTY += -Ldeps/tizen/lib/tizen-wearable-$(VERSION)-target-arm

@@ -89,6 +89,9 @@ else ifneq (,$(findstring tizen_obs_arm,$(MAKECMDGOALS)))
 else ifneq (,$(findstring tizen_obs_i386,$(MAKECMDGOALS)))
   HOST=tizen_obs
   ARCH=i386
+else ifneq (,$(findstring android,$(MAKECMDGOALS)))
+  HOST=android
+  ARCH=arm
 endif
 
 ifneq (,$(findstring tizen,$(HOST)))
@@ -329,6 +332,16 @@ tizen3_wearable_emulator.interpreter.debug.static: $(OUTDIR)/$(STATIC_LIB)
 	cp -f $< .
 tizen3_wearable_emulator.interpreter.release.static: $(OUTDIR)/$(STATIC_LIB)
 	cp -f $< .
+
+android.interpreter.debug: $(OUTDIR)/$(BIN)
+	cp -f $< .
+android.interpreter.release: $(OUTDIR)/$(BIN)
+	cp -f $< .
+android.interpreter.debug.shared: $(OUTDIR)/$(SHARED_LIB)
+	cp -f $< .
+android.interpreter.release.shared: $(OUTDIR)/$(SHARED_LIB)
+	cp -f $< .
+
 
 DEPENDENCY_MAKEFILE = Makefile $(BUILDDIR)/Toolchain.mk $(BUILDDIR)/Flags.mk
 

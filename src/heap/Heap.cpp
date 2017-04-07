@@ -25,8 +25,12 @@ namespace Escargot {
 
 void Heap::initialize()
 {
+#ifdef M_MMAP_THRESHOLD
     mallopt(M_MMAP_THRESHOLD, 2048);
+#endif
+#ifdef M_MMAP_MAX
     mallopt(M_MMAP_MAX, 1024 * 1024);
+#endif
 
     GC_set_free_space_divisor(24);
     GC_set_force_unmap_on_gcollect(1);

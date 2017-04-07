@@ -36,7 +36,7 @@ class VMInstance : public gc {
 
 public:
     VMInstance();
-
+#ifdef ENABLE_ICU
     icu::TimeZone* timezone() const
     {
         return m_timezone;
@@ -57,7 +57,7 @@ public:
     {
         m_timezoneID = id;
     }
-
+#endif
     DateObject* cachedUTC() const
     {
         return m_cachedUTC;
@@ -137,8 +137,10 @@ protected:
     RegExpCacheMap m_regexpCache;
 
     // date object data
+#ifdef ENABLE_ICU
     icu::TimeZone* m_timezone;
     icu::UnicodeString m_timezoneID;
+#endif
     DateObject* m_cachedUTC;
 
 // promise data

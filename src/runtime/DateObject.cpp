@@ -179,15 +179,23 @@ static int equivalentYearForDST(int year)
 // e.g. return (t - 32400*1000) on KST zone
 time64_t DateObject::applyLocalTimezoneOffset(ExecutionState& state, time64_t t)
 {
+#ifdef ENABLE_ICU
     if (state.context()->vmInstance()->timezone() == NULL) {
         state.context()->vmInstance()->setTimezone();
     }
+#endif
 
+#ifdef ENABLE_ICU
     UErrorCode succ = U_ZERO_ERROR;
+#endif
     int32_t stdOffset, dstOffset;
 
     // roughly check range before calling yearFromTime function
+#ifdef ENABLE_ICU
     stdOffset = state.context()->vmInstance()->timezone()->getRawOffset();
+#else
+    stdOffset = 0;
+#endif
     if (!IS_IN_TIME_RANGE(t - stdOffset)) {
         return TIME64NAN;
     }
@@ -203,14 +211,21 @@ time64_t DateObject::applyLocalTimezoneOffset(ExecutionState& state, time64_t t)
     time64_t msBetweenYears = (realYear != equivalentYear) ? (timeFromYear(equivalentYear) - timeFromYear(realYear)) : 0;
 
     t += msBetweenYears;
+#ifdef ENABLE_ICU
     state.context()->vmInstance()->timezone()->getOffset(t, true, stdOffset, dstOffset, succ);
+#else
+    dstOffset = 0;
+#endif
     t -= msBetweenYears;
-
+#ifdef ENABLE_ICU
     // range check should be completed by caller function
     if (succ == U_ZERO_ERROR) {
         return t - (stdOffset + dstOffset);
     }
     return TIME64NAN;
+#else
+    return t - (stdOffset + dstOffset);
+#endif
 }
 
 
@@ -921,9 +936,11 @@ int DateObject::daysFromTime(time64_t t)
 // This function expects m_primitiveValue is valid.
 void DateObject::resolveCache(ExecutionState& state)
 {
+#ifdef ENABLE_ICU
     if (state.context()->vmInstance()->timezone() == NULL) {
         state.context()->vmInstance()->setTimezone();
     }
+#endif
 
     time64_t t = m_primitiveValue;
     int realYear = yearFromTime(t);
@@ -933,9 +950,13 @@ void DateObject::resolveCache(ExecutionState& state)
 
     t += msBetweenYears;
 
+#ifdef ENABLE_ICU
     UErrorCode succ = U_ZERO_ERROR;
-    int32_t stdOffset, dstOffset;
+#endif
+    int32_t stdOffset = 0, dstOffset = 0;
+#ifdef ENABLE_ICU
     state.context()->vmInstance()->timezone()->getOffset(t, false, stdOffset, dstOffset, succ);
+#endif
 
     m_cachedLocal.isdst = dstOffset == 0 ? 0 : 1;
     m_cachedLocal.gmtoff = -1 * (stdOffset + dstOffset) / const_Date_msPerMinute;

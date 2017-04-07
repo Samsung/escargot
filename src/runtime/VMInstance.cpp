@@ -157,12 +157,14 @@ VMInstance::VMInstance()
     // TODO call destructor
     m_bumpPointerAllocator = new (GC) WTF::BumpPointerAllocator();
 
+#ifdef ENABLE_ICU
     m_timezone = nullptr;
     if (getenv("TZ")) { // Usually used by StarFish
         m_timezoneID = getenv("TZ");
     } else { // Used by escargot standalone
         m_timezoneID = "";
     }
+#endif
 
     DoubleInSmallValue temp(0);
     g_doubleInSmallValueTag = *((size_t*)&temp);

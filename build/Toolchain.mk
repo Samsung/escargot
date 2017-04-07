@@ -2,6 +2,17 @@ ifeq ($(HOST), linux)
   CC           = gcc
   CXX          = g++
   ARFLAGS      =
+else ifeq ($(HOST), android)
+  COMPILER_PREFIX=arm-linux-androideabi
+  CC    = $(ANDROID_NDK_STANDALONE)/bin/$(COMPILER_PREFIX)-gcc
+  CXX   = $(ANDROID_NDK_STANDALONE)/bin/$(COMPILER_PREFIX)-g++
+  LINK  = $(ANDROID_NDK_STANDALONE)/bin/$(COMPILER_PREFIX)-g++
+  LD    = $(ANDROID_NDK_STANDALONE)/bin/$(COMPILER_PREFIX)-ld
+  AR    = $(ANDROID_NDK_STANDALONE)/bin/$(COMPILER_PREFIX)-ar
+
+  CXXFLAGS += --sysroot=$(ANDROID_NDK_STANDALONE)/sysroot
+  LDFLAGS  += --sysroot=$(ANDROID_NDK_STANDALONE)/sysroot
+
 else ifeq ($(HOST), tizen_obs)
   CC=gcc
   CXX=g++

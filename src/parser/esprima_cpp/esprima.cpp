@@ -503,7 +503,9 @@ public:
     Error* createError(size_t index, size_t line, size_t col, String* description, ErrorObject::Code code)
     {
         UTF16StringDataNonGCStd msg = u"Line ";
-        std::string lineString = std::to_string(line);
+        char lineStringBuf[512];
+        snprintf(lineStringBuf, sizeof(lineStringBuf), "%zu", line);
+        std::string lineString = lineStringBuf;
         msg += UTF16StringDataNonGCStd(lineString.begin(), lineString.end());
         msg += u": ";
         if (description->length()) {

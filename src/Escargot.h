@@ -40,9 +40,44 @@
 #include <unordered_set>
 #include <vector>
 
+#ifdef ENABLE_ICU
 #include <unicode/locid.h>
 #include <unicode/uchar.h>
 #include <unicode/datefmt.h>
+#else
+typedef char16_t UChar;
+typedef unsigned char LChar;
+typedef int32_t UChar32;
+
+// macros from icu
+#define U16_IS_LEAD(c) (((c)&0xfffffc00)==0xd800)
+#define U16_IS_TRAIL(c) (((c)&0xfffffc00)==0xdc00)
+#define U16_SURROGATE_OFFSET ((0xd800<<10UL)+0xdc00-0x10000)
+#define U16_GET_SUPPLEMENTARY(lead, trail) \
+    (((UChar32)(lead)<<10UL)+(UChar32)(trail)-U16_SURROGATE_OFFSET)
+
+#define U16_NEXT(s, i, length, c) { \
+    (c)=(s)[(i)++]; \
+    if(U16_IS_LEAD(c)) { \
+        uint16_t __c2; \
+        if((i)!=(length) && U16_IS_TRAIL(__c2=(s)[(i)])) { \
+            ++(i); \
+            (c)=U16_GET_SUPPLEMENTARY((c), __c2); \
+        } \
+    } \
+}
+#define u_tolower tolower
+#define u_toupper toupper
+#ifndef TRUE
+#define TRUE 1
+#endif
+
+#ifndef FALSE
+#define FALSE 0
+#endif
+
+#endif
+
 
 /* COMPILER() - the compiler being used to build the project */
 #define COMPILER(FEATURE) (defined COMPILER_##FEATURE && COMPILER_##FEATURE)
