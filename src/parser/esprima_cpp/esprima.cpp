@@ -3186,6 +3186,7 @@ public:
         MetaNode node = this->createNode();
         this->expect(PunctuatorsKind::PeriodPeriodPeriod);
         Node* arg = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
+        this->throwError("Spread element is not supported yet");
         return this->finalize(node, new SpreadElementNode(arg));
     }
 
