@@ -29,6 +29,9 @@ else ifeq ($(HOST), tizen_obs)
 else ifneq (,$(findstring tizen_,$(HOST)))
   ESCARGOT_LDFLAGS_COMMON += -lpthread
   ESCARGOT_LDFLAGS_COMMON += -lrt
+else ifeq ($(HOST), android)
+  ESCARGOT_CXXFLAGS_COMMON +=  -fPIE -march=armv7-a -mfloat-abi=softfp -mfpu=neon
+  ESCARGOT_LDFLAGS_COMMON +=  -fPIE -pie  -march=armv7-a -Wl,--fix-cortex-a8
 endif
 
 #######################################################
