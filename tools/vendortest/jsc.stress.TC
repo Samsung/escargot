@@ -533,16 +533,16 @@ type-of-functions-and-objects.js
 typed-array-byte-offset.js
 typed-array-get-by-val-profiling.js
 typed-array-put-by-val-profiling.js
-typeof-symbol.js
+// typeof-symbol.js // Symbol
 uint32-to-number-fold-constant-with-do-overflow.js
 uint32array-unsigned-load.js
-unscopables.js
+// unscopables.js // Symbol
 untyped-equality.js
 untyped-less-than.js
 use-arguments-as-object-pointer.js
 value-to-int32-undefined-constant.js
 value-to-int32-undefined.js
-values-unscopables.js
+// values-unscopables.js // Symbol
 varargs-closure-inlined-exit-strict-mode.js
 varargs-closure-inlined-exit.js
 varargs-exit.js
@@ -556,12 +556,12 @@ varargs-too-few-arguments.js
 varargs-varargs-closure-inlined-exit.js
 varargs-varargs-inlined-exit-strict-mode.js
 varargs-varargs-inlined-exit.js
-weak-map-constructor-adder.js
-weak-map-constructor.js
-weak-set-constructor-adder.js
-weak-set-constructor.js
+// weak-map-constructor-adder.js // ES6 WeakMap
+// weak-map-constructor.js // ES6 WeakMap
+// weak-set-constructor-adder.js // ES6 WeakSet
+// weak-set-constructor.js // ES6 WeakSet
 weird-equality-folding-cases.js
 weird-getter-counter.js
-weird-put-stack-varargs.js
+// weird-put-stack-varargs.js // function.arguments
 weird-setter-counter-syntactic.js
 weird-setter-counter.js

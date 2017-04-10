@@ -418,7 +418,18 @@ public:
     {
         m_stringData.append(str, len);
     }
-
+#ifdef ENABLE_ICU
+    UTF16String(icu::UnicodeString& src)
+        : String()
+    {
+        UTF16StringData str;
+        size_t srclen = src.length();
+        for (size_t i = 0; i < srclen; i++) {
+            str.push_back(src.charAt(i));
+        }
+        m_stringData = std::move(str);
+    }
+#endif
     virtual char16_t charAt(const size_t& idx) const
     {
         return m_stringData[idx];

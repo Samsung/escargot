@@ -924,6 +924,8 @@ js1_5/Regress/regress-422348.js
 js1_8_5/regress/regress-665355.js
 
 # ICU returns wrong result
+ecma_3/Date/15.9.5.7.js
+ecma_3/Date/15.9.5.5-02.js
 ecma_5/String/string-upper-lower-mapping.js
 
 # Case takes too long time to run, escargot has no meaning to running these cases

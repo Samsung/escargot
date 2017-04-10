@@ -159,10 +159,16 @@ VMInstance::VMInstance()
 
 #ifdef ENABLE_ICU
     m_timezone = nullptr;
-    if (getenv("TZ")) { // Usually used by StarFish
+    if (getenv("TZ")) {
         m_timezoneID = getenv("TZ");
-    } else { // Used by escargot standalone
+    } else {
         m_timezoneID = "";
+    }
+
+    if (getenv("LOCALE")) {
+        m_locale = icu::Locale::createFromName(getenv("LOCALE"));
+    } else {
+        m_locale = icu::Locale::getDefault();
     }
 #endif
 

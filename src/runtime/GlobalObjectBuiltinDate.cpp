@@ -177,6 +177,7 @@ static Value builtinDateToTimeString(ExecutionState& state, Value thisValue, siz
     if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
+
     return thisObject->asDateObject()->toTimeString(state);
 }
 
@@ -186,7 +187,8 @@ static Value builtinDateToLocaleString(ExecutionState& state, Value thisValue, s
     if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
-    return thisObject->asDateObject()->toFullString(state);
+
+    return thisObject->asDateObject()->toLocaleFullString(state);
 }
 
 static Value builtinDateToLocaleDateString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -195,7 +197,8 @@ static Value builtinDateToLocaleDateString(ExecutionState& state, Value thisValu
     if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
-    return thisObject->asDateObject()->toDateString(state);
+
+    return thisObject->asDateObject()->toLocaleDateString(state);
 }
 
 static Value builtinDateToLocaleTimeString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -204,7 +207,8 @@ static Value builtinDateToLocaleTimeString(ExecutionState& state, Value thisValu
     if (!(thisObject->isDateObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
-    return thisObject->asDateObject()->toTimeString(state);
+
+    return thisObject->asDateObject()->toLocaleTimeString(state);
 }
 
 static Value builtinDateToUTCString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

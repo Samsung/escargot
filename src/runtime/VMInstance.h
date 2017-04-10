@@ -37,6 +37,17 @@ class VMInstance : public gc {
 public:
     VMInstance();
 #ifdef ENABLE_ICU
+    icu::Locale& locale()
+    {
+        return m_locale;
+    }
+
+    // The function below will be used by StarFish
+    void setLocale(icu::Locale locale)
+    {
+        m_locale = locale;
+    }
+
     icu::TimeZone* timezone() const
     {
         return m_timezone;
@@ -138,6 +149,7 @@ protected:
 
     // date object data
 #ifdef ENABLE_ICU
+    icu::Locale m_locale;
     icu::TimeZone* m_timezone;
     icu::UnicodeString m_timezoneID;
 #endif

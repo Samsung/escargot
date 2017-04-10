@@ -96,6 +96,9 @@ public:
     String* toFullString(ExecutionState& state);
     String* toISOString(ExecutionState& state);
     String* toUTCString(ExecutionState& state, String* functionName);
+    String* toLocaleDateString(ExecutionState& state);
+    String* toLocaleTimeString(ExecutionState& state);
+    String* toLocaleFullString(ExecutionState& state);
     int getDate(ExecutionState& state);
     int getDay(ExecutionState& state);
     int getFullYear(ExecutionState& state);

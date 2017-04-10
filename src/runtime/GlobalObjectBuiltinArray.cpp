@@ -279,7 +279,7 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
             k++;
         } else {
             double result;
-            bool exist = Object::nextIndexForward(state, O, k, len, false, result);
+            bool exist = Object::nextIndexForward(state, O, actualStart + k, len, false, result);
             if (!exist) {
                 k = k + 1;
                 A->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(k), A);

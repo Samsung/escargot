@@ -901,11 +901,10 @@ void DateObject::getYMDFromTime(time64_t t, struct timeinfo& cachedLocal)
     cachedLocal.year = estimate;
 
     int dayWithinYear = daysFromTime(t) - daysFromYear(cachedLocal.year);
+    ASSERT(0 <= dayWithinYear && dayWithinYear < const_Date_daysPerLeapYear);
+
     int leap = (int)inLeapYear(cachedLocal.year);
 
-    if (dayWithinYear < 0 || dayWithinYear >= const_Date_daysPerLeapYear) {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
     for (int i = 1; i <= 12; i++) {
         if (dayWithinYear < firstDayOfMonth[leap][i]) {
             cachedLocal.month = i - 1;
@@ -1067,6 +1066,58 @@ String* DateObject::toUTCString(ExecutionState& state, String* functionName)
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Date.string(), true, functionName, errorMessage_GlobalObject_InvalidDate);
     }
     RELEASE_ASSERT_NOT_REACHED();
+}
+
+String* DateObject::toLocaleDateString(ExecutionState& state)
+{
+    if (IS_VALID_TIME(m_primitiveValue)) {
+#ifdef ENABLE_ICU
+        icu::UnicodeString myString;
+        icu::DateFormat *df = icu::DateFormat::createDateInstance(icu::DateFormat::MEDIUM, state.context()->vmInstance()->locale());
+        df->format(primitiveValue(), myString);
+
+        delete df;
+
+        return new UTF16String(myString);
+#else
+        return toDateString(state);
+#endif
+    } else {
+        return new ASCIIString(invalidDate);
+    }
+}
+
+String* DateObject::toLocaleTimeString(ExecutionState& state)
+{
+    if (IS_VALID_TIME(m_primitiveValue)) {
+#ifdef ENABLE_ICU
+        icu::UnicodeString myString;
+        icu::DateFormat *tf = icu::DateFormat::createTimeInstance(icu::DateFormat::MEDIUM, state.context()->vmInstance()->locale());
+        tf->format(primitiveValue(), myString);
+
+        delete tf;
+
+        return new UTF16String(myString);
+#else
+        return toTimeString(state);
+#endif
+    } else {
+        return new ASCIIString(invalidDate);
+    }
+}
+
+String* DateObject::toLocaleFullString(ExecutionState& state)
+{
+
+    if (IS_VALID_TIME(m_primitiveValue)) {
+        StringBuilder builder;
+        builder.appendString(toLocaleDateString(state));
+        builder.appendChar(' ');
+        builder.appendString(toLocaleTimeString(state));
+        return builder.finalize();
+    } else {
+        return new ASCIIString(invalidDate);
+    }
 }
 
 

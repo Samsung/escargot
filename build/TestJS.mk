@@ -63,7 +63,7 @@ run-spidermonkey:
 	rm test/vendortest/SpiderMonkey/ecma_6/TypedArray/shell.js
 	ln -s `pwd`/tools/vendortest/spidermonkey.ecma_6.TypedArray.shell.js test/vendortest/SpiderMonkey/ecma_6/TypedArray/shell.js
 	$(eval BIN_ARCH:=$(shell [[ "$(shell file escargot)" == *"32-bit"* ]] && echo "x86" || echo "x86_64"))
-	(./test/vendortest/SpiderMonkey/jstests.py -s --xul-info=$(BIN_ARCH)-gcc3:Linux:false \
+	(LOCALE="en_US" ./test/vendortest/SpiderMonkey/jstests.py -s --xul-info=$(BIN_ARCH)-gcc3:Linux:false \
         --exclude-file=./tools/vendortest/spidermonkey.excludelist.txt ./escargot \
 		--output-file=./tools/vendortest/spidermonkey.$(BIN_ARCH).log.txt \
 		--failure-file=../../../tools/vendortest/spidermonkey.$(BIN_ARCH).gen.txt $(OPT) ) || (echo done)
