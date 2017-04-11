@@ -618,12 +618,14 @@ void GlobalObject::installJSON(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().JSON),
                       ObjectPropertyDescriptor(m_json, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    m_jsonParse = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().parse, builtinJSONParse, 2, nullptr, NativeFunctionInfo::Strict));
     m_json->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().parse),
-                              ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().parse, builtinJSONParse, 2, nullptr, NativeFunctionInfo::Strict)),
+                              ObjectPropertyDescriptor(m_jsonParse,
                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    m_jsonStringify = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringify, builtinJSONStringify, 3, nullptr, NativeFunctionInfo::Strict));
     m_json->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringify),
-                              ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringify, builtinJSONStringify, 3, nullptr, NativeFunctionInfo::Strict)),
+                              ObjectPropertyDescriptor(m_jsonStringify,
                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 }

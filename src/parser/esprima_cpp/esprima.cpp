@@ -4041,7 +4041,7 @@ public:
                 this->tolerateError(Messages::StrictDelete);
             }
             if (exprOld->isIdentifier()) {
-                this->scopeContexts.back()->m_hasDeleteId = true;
+                this->scopeContexts.back()->m_hasEvaluateBindingId = true;
             }
         } else if (this->matchKeyword(Void)) {
             MetaNode node = this->startNode(this->lookahead);
@@ -4054,9 +4054,17 @@ public:
             MetaNode node = this->startNode(this->lookahead);
             std::shared_ptr<ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+            Node* exprOld = expr;
             expr = this->finalize(node, new UnaryExpressionTypeOfNode(expr));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
+
+            if (exprOld->isIdentifier()) {
+                AtomicString s = exprOld->asIdentifier()->name();
+                if (!this->scopeContexts.back()->hasName(s)) {
+                    this->scopeContexts.back()->m_hasEvaluateBindingId = true;
+                }
+            }
         } else {
             expr = this->parseUpdateExpression();
         }

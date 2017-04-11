@@ -30,8 +30,15 @@ else ifneq (,$(findstring tizen_,$(HOST)))
   ESCARGOT_LDFLAGS_COMMON += -lpthread
   ESCARGOT_LDFLAGS_COMMON += -lrt
 else ifeq ($(HOST), android)
-  ESCARGOT_CXXFLAGS_COMMON +=  -fPIE -march=armv7-a -mfloat-abi=softfp -mfpu=neon
-  ESCARGOT_LDFLAGS_COMMON +=  -fPIE -pie  -march=armv7-a -Wl,--fix-cortex-a8
+  ESCARGOT_CXXFLAGS_COMMON += -fPIE -march=armv7-a -mfloat-abi=softfp -mfpu=neon -DANDROID=1
+  ESCARGOT_LDFLAGS_COMMON += -fPIE -pie  -march=armv7-a -Wl,--fix-cortex-a8 -llog
+  ifeq ($(OUTPUT), shared_lib)
+    ESCARGOT_LDFLAGS_COMMON += -shared
+  endif
+  ifeq ($(REACT_NATIVE), 1)
+    ESCARGOT_CXXFLAGS_COMMON += -UESCARGOT_ENABLE_PROMISE
+    ESCARGOT_CXXFLAGS_COMMON += -frtti -std=c++11
+  endif
 endif
 
 #######################################################
@@ -79,11 +86,11 @@ endif
 ESCARGOT_CXXFLAGS_BIN += -fvisibility=hidden -DESCARGOT_STANDALONE
 ESCARGOT_LDFLAGS_BIN += -Wl,--gc-sections
 
-ESCARGOT_CXXFLAGS_SHAREDLIB += -fPIC
-ESCARGOT_LDFLAGS_SHAREDLIB += -ldl
+ESCARGOT_CXXFLAGS_SHAREDLIB += -fPIC -fvisibility=default
+ESCARGOT_LDFLAGS_SHAREDLIB += -ldl -fvisibility=default
 
-ESCARGOT_CXXFLAGS_STATICLIB += -fPIC
-ESCARGOT_LDFLAGS_STATICLIB += -Wl,--gc-sections
+ESCARGOT_CXXFLAGS_STATICLIB += -fPIC -fvisibility=default
+ESCARGOT_LDFLAGS_STATICLIB += -Wl,--gc-sections -fvisibility=default
 
 #######################################################
 # flags for LTO

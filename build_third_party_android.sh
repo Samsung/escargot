@@ -32,11 +32,11 @@ fi
 
 # Common flags --------------------------------------------
 
-GCCONFFLAGS_COMMON=" --enable-munmap --disable-parallel-mark --enable-large-config --disable-pthread --disable-parallel-mark --disable-threads " # --enable-large-config --enable-cplusplus"
-CFLAGS_COMMON=" -g3 "
+GCCONFFLAGS_COMMON=" --enable-munmap --disable-parallel-mark --enable-large-config --disable-parallel-mark " # --enable-thread --enable-pthread --enable-large-config --enable-cplusplus"
+CFLAGS_COMMON=" -g3 -march=armv7-a -mfloat-abi=softfp -mfpu=neon -DGC_ANDROID_LOG=1 "
 CFLAGS_COMMON+=" -DESCARGOT "
 CFLAGS_COMMON+=" -fdata-sections -ffunction-sections " # To exclude unused code from final binary
-CFLAGS_COMMON+=" -DIGNORE_DYNAMIC_LOADING -DGC_DONT_REGISTER_MAIN_STATIC_DATA " # Everything in global data is false reference
+FLAGS_COMMON+=" -DIGNORE_DYNAMIC_LOADING -DGC_DONT_REGISTER_MAIN_STATIC_DATA " # Everything in global data is false reference
 LDFLAGS_COMMON=
 
 # HOST flags : linux / wearable / mobile / tv -------------
@@ -53,7 +53,7 @@ CFLAGS_x86=" -m32 "
 LDFLAGS_x86=" -m32 "
 
 GCCONFFLAGS_arm=
-CFLAGS_arm=" -march=armv7-a -mthumb -finline-limit=64 "
+CFLAGS_arm=" -march=armv7-a -mfloat-abi=softfp -mfpu=neon -mthumb "
 LDFLAGS_arm=
 
 # MODE flags : debug / release ----------------------------
@@ -67,7 +67,7 @@ CFLAGS_debug=' -O0 '
 
 GCCONFFLAGS_static=
 GCCONFFLAGS_shared=
-CFLAGS_static=
+CFLAGS_static=' -fPIC'
 CFLAGS_shared=' -fPIC'
 
 NDK=$ANDROID_NDK_STANDALONE
@@ -78,7 +78,7 @@ function build_gc_for_tizen() {
 
     for arch in arm; do
     for mode in debug release; do
-    for libtype in shared static; do
+    for libtype in static shared; do
 
 
         TIZEN_SYSROOT=$NDK/sysroot

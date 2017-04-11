@@ -147,7 +147,7 @@ protected:
     WTF::BumpPointerAllocator* m_bumpPointerAllocator;
     RegExpCacheMap m_regexpCache;
 
-    // date object data
+// date object data
 #ifdef ENABLE_ICU
     icu::Locale m_locale;
     icu::TimeZone* m_timezone;

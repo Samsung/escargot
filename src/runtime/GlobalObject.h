@@ -250,6 +250,16 @@ public:
         return m_json;
     }
 
+    FunctionObject* jsonStringify()
+    {
+        return m_jsonStringify;
+    }
+
+    FunctionObject* jsonParse()
+    {
+        return m_jsonParse;
+    }
+
 #if ESCARGOT_ENABLE_PROMISE
     FunctionObject* promise()
     {
@@ -439,6 +449,8 @@ protected:
     NumberObject* m_numberProxyObject;
 
     Object* m_json;
+    FunctionObject* m_jsonStringify;
+    FunctionObject* m_jsonParse;
 
 #if ESCARGOT_ENABLE_PROMISE
     FunctionObject* m_promise;

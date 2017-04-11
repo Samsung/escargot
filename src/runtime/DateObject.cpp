@@ -190,7 +190,7 @@ time64_t DateObject::applyLocalTimezoneOffset(ExecutionState& state, time64_t t)
 #endif
     int32_t stdOffset, dstOffset;
 
-    // roughly check range before calling yearFromTime function
+// roughly check range before calling yearFromTime function
 #ifdef ENABLE_ICU
     stdOffset = state.context()->vmInstance()->timezone()->getRawOffset();
 #else
@@ -1073,7 +1073,7 @@ String* DateObject::toLocaleDateString(ExecutionState& state)
     if (IS_VALID_TIME(m_primitiveValue)) {
 #ifdef ENABLE_ICU
         icu::UnicodeString myString;
-        icu::DateFormat *df = icu::DateFormat::createDateInstance(icu::DateFormat::MEDIUM, state.context()->vmInstance()->locale());
+        icu::DateFormat* df = icu::DateFormat::createDateInstance(icu::DateFormat::MEDIUM, state.context()->vmInstance()->locale());
         df->format(primitiveValue(), myString);
 
         delete df;
@@ -1092,7 +1092,7 @@ String* DateObject::toLocaleTimeString(ExecutionState& state)
     if (IS_VALID_TIME(m_primitiveValue)) {
 #ifdef ENABLE_ICU
         icu::UnicodeString myString;
-        icu::DateFormat *tf = icu::DateFormat::createTimeInstance(icu::DateFormat::MEDIUM, state.context()->vmInstance()->locale());
+        icu::DateFormat* tf = icu::DateFormat::createTimeInstance(icu::DateFormat::MEDIUM, state.context()->vmInstance()->locale());
         tf->format(primitiveValue(), myString);
 
         delete tf;
@@ -1108,7 +1108,6 @@ String* DateObject::toLocaleTimeString(ExecutionState& state)
 
 String* DateObject::toLocaleFullString(ExecutionState& state)
 {
-
     if (IS_VALID_TIME(m_primitiveValue)) {
         StringBuilder builder;
         builder.appendString(toLocaleDateString(state));

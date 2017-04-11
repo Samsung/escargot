@@ -190,10 +190,12 @@ public:
     virtual const LChar* characters8() const
     {
         RELEASE_ASSERT_NOT_REACHED();
+        return nullptr;
     }
     virtual const char16_t* characters16() const
     {
         RELEASE_ASSERT_NOT_REACHED();
+        return nullptr;
     }
 
 protected:

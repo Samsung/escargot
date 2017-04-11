@@ -256,7 +256,7 @@ struct ASTScopeContext : public gc {
     bool m_hasWith : 1;
     bool m_hasCatch : 1;
     bool m_hasYield : 1;
-    bool m_hasDeleteId : 1;
+    bool m_hasEvaluateBindingId : 1;
     bool m_inCatch : 1;
     bool m_inWith : 1;
     bool m_hasManyNumeralLiteral : 1;
@@ -275,6 +275,17 @@ struct ASTScopeContext : public gc {
 
     void *operator new(size_t size);
     void *operator new[](size_t size) = delete;
+
+    bool hasName(AtomicString name)
+    {
+        for (size_t i = 0; i < m_names.size(); i++) {
+            if (m_names[i].m_name == name) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     void insertName(AtomicString name, bool isExplicitlyDeclaredOrParameterName)
     {
@@ -320,7 +331,7 @@ struct ASTScopeContext : public gc {
         , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     {
         m_isStrict = isStrict;
-        m_hasDeleteId = m_hasYield = m_hasCatch = m_hasWith = m_hasEval = false;
+        m_hasEvaluateBindingId = m_hasYield = m_hasCatch = m_hasWith = m_hasEval = false;
         m_needsSpecialInitialize = m_hasManyNumeralLiteral = m_inCatch = m_inWith = false;
         m_parentContext = parentContext;
         m_associateNode = nullptr;
