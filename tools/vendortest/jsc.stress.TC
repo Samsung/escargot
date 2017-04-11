@@ -440,7 +440,7 @@ repeated-arity-check-fail.js
 repeated-put-by-id-reallocating-transition.js
 reserved-word-with-escape.js
 rest-elements.js
-runtime-array.js
+// runtime-array.js // JSC only function
 runtime-throw-through-optimized-code.js
 scoped-arguments-array-length.js
 scoped-then-direct-arguments-get-by-val-in-baseline.js
@@ -475,10 +475,10 @@ sparse_splice.js
 static-function-delete.js
 static-function-put.js
 static-getter-delete.js
-static-getter-descriptors.js
+// static-getter-descriptors.js // Different results of ES5 and ES6
 static-getter-enumeration.js
 static-getter-get.js
-static-getter-in-names.js
+// static-getter-in-names.js // Different results of ES5 and ES6
 static-getter-names.js
 static-getter-put.js
 strict-to-this-int.js
@@ -491,24 +491,24 @@ sub-overflows-after-not-equal.js
 switch-typeof-indirect.js
 switch-typeof-slightly-indirect.js
 switch-typeof.js
-symbol-and-string-constructor.js
-symbol-define-property.js
-symbol-registry.js
-symbol-seal-and-freeze.js
-symbol-with-json.js
+// symbol-and-string-constructor.js // Symbol
+// symbol-define-property.js // Symbol
+// symbol-registry.js // Symbol
+// symbol-seal-and-freeze.js // Symbol
+// symbol-with-json.js // Symbol
 tagged-templates-identity.js
 tagged-templates-raw-strings.js
 tagged-templates-syntax.js
 tagged-templates-template-object.js
 tagged-templates-this.js
-tagged-templates.js
+// tagged-templates.js // ES6 Syntax
 template-literal-line-terminators.js
 template-literal-syntax.js
 template-literal.js
 test-spec-misc.js
-throw-from-ftl-call-ic-slow-path-cells.js
-throw-from-ftl-call-ic-slow-path-undefined.js
-throw-from-ftl-call-ic-slow-path.js
+// throw-from-ftl-call-ic-slow-path-cells.js // different error message
+// throw-from-ftl-call-ic-slow-path-undefined.js // different error message
+// throw-from-ftl-call-ic-slow-path.js // different error message
 throw-from-ftl-in-loop.js
 throw-from-ftl.js
 throw-through-optimized-code.js
@@ -521,15 +521,15 @@ to-string-on-string-or-string-object.js
 to-string-on-value-or-string.js
 to-string-on-value.js
 to-this-polymorphic.js
-toprimitive-speculated-types.js
-trailing-comma-in-patterns.js
+// toprimitive-speculated-types.js // ES6 Syntax
+// trailing-comma-in-patterns.js // Symbol
 tricky-array-bounds-checks.js
 tricky-indirectly-inferred-infinite-loop-that-uses-captured-variables-and-creates-the-activation-outside-the-loop.js
 tricky-inferred-infinite-loop-that-uses-captured-variables-and-creates-the-activation-outside-the-loop.js
 tricky-infinite-loop-that-uses-captured-variables-and-creates-the-activation-outside-the-loop.js
 tricky-infinite-loop-that-uses-captured-variables.js
 trivially-foldable-reflective-arguments-access.js
-type-of-functions-and-objects.js
+// type-of-functions-and-objects.js // ES6 Map
 typed-array-byte-offset.js
 typed-array-get-by-val-profiling.js
 typed-array-put-by-val-profiling.js

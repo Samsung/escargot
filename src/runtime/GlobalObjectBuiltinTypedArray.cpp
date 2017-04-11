@@ -63,7 +63,7 @@ Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValue, size
     return obj;
 }
 
-static Value builtinArrayBufferByteLenthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinArrayBufferByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isArrayBufferObject())) {
         return Value(thisValue.asObject()->asArrayBufferObject()->bytelength());
@@ -122,7 +122,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
     return Value();
 }
 
-static Value builtinTypedArrayByteLenthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
         return Value(thisValue.asObject()->asArrayBufferView()->bytelength());
@@ -532,7 +532,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     const StaticStrings* strings = &state.context()->staticStrings();
 
     JSGetterSetter gs(
-        new FunctionObject(state, NativeFunctionInfo(strings->getbyteLength, builtinArrayBufferByteLenthGetter, 0, nullptr, NativeFunctionInfo::Strict)),
+        new FunctionObject(state, NativeFunctionInfo(strings->getbyteLength, builtinArrayBufferByteLengthGetter, 0, nullptr, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor byteLengthDesc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
     m_arrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc);
@@ -565,7 +565,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
 
     {
         JSGetterSetter gs(
-            new FunctionObject(state, NativeFunctionInfo(strings->getbyteLength, builtinTypedArrayByteLenthGetter, 0, nullptr, NativeFunctionInfo::Strict)),
+            new FunctionObject(state, NativeFunctionInfo(strings->getbyteLength, builtinTypedArrayByteLengthGetter, 0, nullptr, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor byteLengthDesc2(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         typedArrayFunction->getFunctionPrototype(state).asObject()->defineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc2);

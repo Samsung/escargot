@@ -496,6 +496,11 @@ inline Value::Value(double d)
 {
     const int32_t asInt32 = static_cast<int32_t>(d);
     if (asInt32 != d || (!asInt32 && std::signbit(d))) { // true for -0.0
+#ifdef ESCARGOT_64
+        if (UNLIKELY((bitwise_cast<int64_t>(d) & DoubleInvalidBeginning) == DoubleInvalidBeginning)) {
+            d = std::numeric_limits<double>::quiet_NaN();
+        }
+#endif
         *this = Value(EncodeAsDouble, d);
         return;
     }
