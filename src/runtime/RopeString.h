@@ -88,7 +88,8 @@ public:
 protected:
     String* normalString() const
     {
-        const_cast<RopeString*>(this)->flattenRopeString();
+        if (m_right)
+            const_cast<RopeString*>(this)->flattenRopeString();
         return m_left;
     }
     template <typename A, typename B>

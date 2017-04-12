@@ -87,6 +87,8 @@ int main(int argc, char* argv[])
 
     bool runShell = true;
 
+    Escargot::FunctionObject* fnRead = context->globalObject()->getOwnProperty(stateForInit, Escargot::ObjectPropertyName(stateForInit, Escargot::String::fromUTF8("read", 4))).value(stateForInit, context->globalObject()).asFunction();
+
     for (int i = 1; i < argc; i++) {
         if (strlen(argv[i]) >= 2 && argv[i][0] == '-') { // parse command line option
             if (argv[i][1] == '-') { // `--option` case
@@ -116,29 +118,8 @@ int main(int argc, char* argv[])
         FILE* fp = fopen(argv[i], "r");
         if (fp) {
             runShell = false;
-            std::string str;
-            static char buf[512];
-            bool hasNonASCIIContent = false;
-            while (fgets(buf, sizeof buf, fp) != NULL) {
-                str += buf;
-                if (!hasNonASCIIContent) {
-                    char* check = buf;
-                    while (*check) {
-                        if (*check < 0) {
-                            hasNonASCIIContent = true;
-                            break;
-                        }
-                        check++;
-                    }
-                }
-            }
-            fclose(fp);
-
-            Escargot::String* src;
-            if (hasNonASCIIContent)
-                src = new Escargot::UTF16String(std::move(Escargot::utf8StringToUTF16String(str.data(), str.length())));
-            else
-                src = new Escargot::ASCIIString(str.data(), str.length());
+            Escargot::Value arg(Escargot::String::fromUTF8(argv[i], strlen(argv[i])));
+            Escargot::String* src = Escargot::FunctionObject::call(stateForInit, fnRead, Escargot::Value(), 1, &arg).asString();
 
             if (!eval(context, src, Escargot::String::fromUTF8(argv[i], strlen(argv[i])), false))
                 return 3;

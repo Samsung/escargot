@@ -32,7 +32,6 @@ enum TextCaseSensitivity {
 namespace JSC { namespace Yarr {
 class Unicode {
   public:
-    //TODO use ICU!
     static UChar toUpper(UChar c) { return toupper(c); }
     static UChar toLower(UChar c) { return tolower(c); }
 };
@@ -259,7 +258,9 @@ template<typename T> PassRef<T>::~PassRef()
 
 template<typename T> inline void PassRef<T>::dropRef()
 {
+#ifndef NDEBUG
     ASSERT(!m_gaveUpReference);
+#endif
     m_reference.deref();
 #ifndef NDEBUG
     m_gaveUpReference = true;
@@ -268,13 +269,17 @@ template<typename T> inline void PassRef<T>::dropRef()
 
 template<typename T> inline const T& PassRef<T>::get() const
 {
+#ifndef NDEBUG
     ASSERT(!m_gaveUpReference);
+#endif
     return m_reference;
 }
 
 template<typename T> inline T& PassRef<T>::get()
 {
+#ifndef NDEBUG
     ASSERT(!m_gaveUpReference);
+#endif
     return m_reference;
 }
 

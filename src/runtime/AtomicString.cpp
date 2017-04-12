@@ -60,10 +60,16 @@ AtomicString::AtomicString(ExecutionState& ec, String* name)
 
 AtomicString::AtomicString(Context* c, const StringView& sv)
 {
-    if (sv.has8BitContent()) {
-        init(c->m_atomicStringMap, sv.characters8(), sv.length());
+    AtomicStringMap* ec = c->atomicStringMap();
+    String* name = &(const_cast<StringView&>(sv));
+    auto iter = ec->find(name);
+    if (ec->end() == iter) {
+        StringView* newSv = new StringView(sv);
+        ec->insert(newSv);
+        ASSERT(ec->find(newSv) != ec->end());
+        m_string = newSv;
     } else {
-        init(c->m_atomicStringMap, sv.characters16(), sv.length());
+        m_string = iter.operator*();
     }
 }
 

@@ -81,6 +81,11 @@ public:
         return true;
     }
 
+    StringBufferAccessData bufferAccessData() const
+    {
+        return m_string->bufferAccessData();
+    }
+
 protected:
     void init(AtomicStringMap* ec, String* name);
     void init(AtomicStringMap* ec, const LChar* str, size_t len)

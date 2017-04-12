@@ -48,6 +48,30 @@ struct StringBufferAccessData {
     bool has8BitContent;
     size_t length;
     const void* buffer;
+
+    char16_t charAt(size_t idx) const
+    {
+        if (has8BitContent) {
+            return ((LChar*)buffer)[idx];
+        } else {
+            return ((char16_t*)buffer)[idx];
+        }
+    }
+
+    bool equalsSameLength(const char* str) const
+    {
+        ASSERT(strlen(str) == length);
+        if (LIKELY(has8BitContent)) {
+            return strncmp(str, (char*)buffer, length) == 0;
+        } else {
+            for (size_t i = 0; i < length; i++) {
+                if (str[i] != ((char16_t*)buffer)[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
 };
 
 class String : public PointerValue {
@@ -358,6 +382,16 @@ public:
         m_stringData.append(str, len);
     }
 
+    Latin1String(const char16_t* str, size_t len)
+        : String()
+    {
+        m_stringData.resizeWithUninitializedValues(len);
+        for (size_t i = 0; i < len; i++) {
+            ASSERT(str[i] < 256);
+            m_stringData[i] = str[i];
+        }
+    }
+
     virtual char16_t charAt(const size_t& idx) const
     {
         return m_stringData[idx];
@@ -468,6 +502,7 @@ protected:
 
 bool isAllASCII(const char* buf, const size_t& len);
 bool isAllASCII(const char16_t* buf, const size_t& len);
+bool isAllLatin1(const char16_t* buf, const size_t& len);
 bool isIndexString(String* str);
 char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen);
 UTF16StringData utf8StringToUTF16String(const char* buf, const size_t& len);

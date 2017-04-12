@@ -22,7 +22,9 @@
 #include "double-conversion.h"
 #include "ieee.h"
 
-#include <memory>
+#include "wtfbridge.h"
+
+using namespace JSC::Yarr;
 
 namespace Escargot {
 
@@ -347,13 +349,14 @@ struct ScanRegExpResult {
 
 class Scanner;
 
-struct ScannerResult {
+class ScannerResult : public RefCounted<ScannerResult> {
+public:
     Scanner* scanner;
-    Token type;
-    bool startWithZero;
-    bool octal;
-    bool plain;
-    bool head;
+    Token type : 4;
+    bool startWithZero : 1;
+    bool octal : 1;
+    bool plain : 1;
+    bool head : 1;
 
     int prec;
     size_t lineNumber;
@@ -551,7 +554,7 @@ public:
     std::vector<Curly> curlyStack;
     bool isPoolEnabled;
     std::vector<ScannerResult*, gc_allocator<ScannerResult*>> resultMemoryPool;
-    ScannerResult scannerResultInnerPool[4];
+    char scannerResultInnerPool[4 * sizeof(ScannerResult)];
 
     ~Scanner()
     {
@@ -571,9 +574,10 @@ public:
         lineNumber = ((length > 0) ? 1 : 0) + startLine;
         lineStart = startColumn;
 
+        ScannerResult* ptr = (ScannerResult*)scannerResultInnerPool;
         for (size_t i = 0; i < 4; i++) {
-            scannerResultInnerPool[i].scanner = this;
-            resultMemoryPool.push_back(&scannerResultInnerPool[i]);
+            ptr[i].scanner = this;
+            resultMemoryPool.push_back(&ptr[i]);
         }
     }
 
@@ -814,8 +818,9 @@ public:
             } else if (ch == 0x3C) { // U+003C is '<'
                 // if (this->source.slice(this->index + 1, this->index + 4) == '!--') {
                 if (this->source.length() > this->index + 4) {
-                    StringView sv(this->source.src(), this->index + 1, this->index + 4);
-                    if (sv == "!--") {
+                    if (this->source.bufferedCharAt(this->index + 1) == '!'
+                        && this->source.bufferedCharAt(this->index + 2) == '-'
+                        && this->source.bufferedCharAt(this->index + 3) == '-') {
                         this->index += 4; // `<!--`
                         /*
                         const comment = this->skipSingleLineComment(4);
@@ -839,14 +844,45 @@ public:
         return;
     }
 
-    // ECMA-262 11.6.2.2 Future Reserved Words
+    static bool equals(const char16_t* c1, const char* c2, size_t len)
+    {
+        for (size_t i = 0; i < len; i++) {
+            if (c1[i] != c2[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+// ECMA-262 11.6.2.2 Future Reserved Words
+#define STRING_CMP(str, len)                               \
+    if (LIKELY(data.has8BitContent)) {                     \
+        return strncmp(str, (char*)data.buffer, len) == 0; \
+    } else {                                               \
+        return equals((char16_t*)data.buffer, str, len);   \
+    }
+
+#define STRING_CMP2(str1, str2, len)                                                                   \
+    if (LIKELY(data.has8BitContent)) {                                                                 \
+        if (strncmp(str1, (char*)data.buffer, len) == 0) {                                             \
+            return true;                                                                               \
+        } else if (strncmp(str2, (char*)data.buffer, len) == 0) {                                      \
+            return true;                                                                               \
+        }                                                                                              \
+    } else {                                                                                           \
+        return equals((char16_t*)data.buffer, str1, len) || equals((char16_t*)data.buffer, str2, len); \
+    }
 
     bool isFutureReservedWord(const StringView& id)
     {
-        if (id.length() == 4 || id.length() == 5) {
-            if (id == "enum" || id == "export" || id == "import" || id == "super") {
-                return true;
-            }
+        StringBufferAccessData data = id.bufferAccessData();
+        if (data.length == 4) {
+            STRING_CMP("enum", 4)
+        } else if (data.length == 5) {
+            STRING_CMP("super", 5)
+        } else if (data.length == 6) {
+            STRING_CMP2("export", "import", 6)
         }
         return false;
     }
@@ -854,145 +890,158 @@ public:
     template <typename T>
     bool isStrictModeReservedWord(const T& id)
     {
-        if (id == "let") {
-            return true;
-        } else if (id == "yield") {
-            return true;
-        } else if (id == "static") {
-            return true;
-        } else if (id == "public") {
-            return true;
-        } else if (id == "protected") {
-            return true;
-        } else if (id == "private") {
-            return true;
-        } else if (id == "package") {
-            return true;
-        } else if (id == "implements") {
-            return true;
-        } else if (id == "interface") {
-            return true;
+        StringBufferAccessData data = id.bufferAccessData();
+        switch (data.length) {
+        case 3: // let
+            STRING_CMP("let", 3)
+            break;
+        case 5: // yield
+            STRING_CMP("yield", 3)
+            break;
+        case 6: // static public
+            STRING_CMP2("static", "public", 6)
+            break;
+        case 7: // private package
+            STRING_CMP2("private", "package", 7)
+            break;
+        case 9: // protected interface
+            STRING_CMP2("protected", "interface", 9)
+            break;
+        case 10: // implements
+            STRING_CMP("implements", 10)
+            break;
         }
+
+#undef STRING_CMP
+#undef STRING_CMP2
+
         return false;
     }
 
     template <typename T>
     bool isRestrictedWord(const T& id)
     {
-        return id == "eval" || id == "arguments";
+        StringBufferAccessData data = id.bufferAccessData();
+        if (data.length == 4) {
+            return data.equalsSameLength("eval");
+        } else if (data.length == 9) {
+            return data.equalsSameLength("arguments");
+        } else {
+            return false;
+        }
     }
 
     // ECMA-262 11.6.2.1 Keywords
-    ALWAYS_INLINE KeywordKind isKeyword(const StringView& id)
+    ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
     {
         // 'const' is specialized as Keyword in V8.
         // 'yield' and 'let' are for compatibility with SpiderMonkey and ES.next.
         // Some others are from future reserved words.
 
-        char16_t first = id[0];
+        char16_t first = data.charAt(0);
 
-        switch (id.length()) {
+        switch (data.length) {
         case 2:
             if (first == 'i') {
-                if (id == "if") {
+                if (data.equalsSameLength("if")) {
                     return If;
-                } else if (id == "in") {
+                } else if (data.equalsSameLength("in")) {
                     return In;
                 }
 
-            } else if (first == 'd' && id == "do") {
+            } else if (first == 'd' && data.equalsSameLength("do")) {
                 return Do;
             }
             break;
         case 3:
-            if (first == 'v' && id == "var") {
+            if (first == 'v' && data.equalsSameLength("var")) {
                 return Var;
-            } else if (first == 'f' && id == "for") {
+            } else if (first == 'f' && data.equalsSameLength("for")) {
                 return For;
-            } else if (first == 'n' && id == "new") {
+            } else if (first == 'n' && data.equalsSameLength("new")) {
                 return New;
-            } else if (first == 't' && id == "try") {
+            } else if (first == 't' && data.equalsSameLength("try")) {
                 return Try;
-            } else if (first == 'l' && id == "let") {
+            } else if (first == 'l' && data.equalsSameLength("let")) {
                 return Let;
             }
 
             break;
         case 4:
-            if (first == 't' && id == "this") {
+            if (first == 't' && data.equalsSameLength("this")) {
                 return This;
-            } else if (first == 'e' && id == "else") {
+            } else if (first == 'e' && data.equalsSameLength("else")) {
                 return Else;
-            } else if (first == 'c' && id == "case") {
+            } else if (first == 'c' && data.equalsSameLength("case")) {
                 return Case;
-            } else if (first == 'v' && id == "void") {
+            } else if (first == 'v' && data.equalsSameLength("void")) {
                 return Void;
-            } else if (first == 'w' && id == "with") {
+            } else if (first == 'w' && data.equalsSameLength("with")) {
                 return With;
-            } else if (first == 'e' && id == "enum") {
+            } else if (first == 'e' && data.equalsSameLength("enum")) {
                 return Enum;
             }
             break;
         case 5:
-            if (first == 'w' && id == "while") {
+            if (first == 'w' && data.equalsSameLength("while")) {
                 return While;
-            } else if (first == 'b' && id == "break") {
+            } else if (first == 'b' && data.equalsSameLength("break")) {
                 return Break;
             } else if (first == 'c') {
-                if (id == "catch") {
+                if (data.equalsSameLength("catch")) {
                     return Catch;
-                } else if (id == "const") {
+                } else if (data.equalsSameLength("const")) {
                     return Const;
-                } else if (id == "class") {
+                } else if (data.equalsSameLength("class")) {
                     return Class;
                 }
-            } else if (first == 't' && id == "throw") {
+            } else if (first == 't' && data.equalsSameLength("throw")) {
                 return Throw;
-            } else if (first == 'y' && id == "yield") {
+            } else if (first == 'y' && data.equalsSameLength("yield")) {
                 return Yield;
-            } else if (first == 's' && id == "super") {
+            } else if (first == 's' && data.equalsSameLength("super")) {
                 return Super;
                 /*
-            } else if (first == 'a' && id == "await") {
+            } else if (first == 'a' && data.equalsSameLength("await")) {
                 return Await;
                 */
             }
             break;
         case 6:
-            if (first == 'r' && id == "return") {
+            if (first == 'r' && data.equalsSameLength("return")) {
                 return Return;
-            } else if (first == 't' && id == "typeof") {
+            } else if (first == 't' && data.equalsSameLength("typeof")) {
                 return Typeof;
-            } else if (first == 'd' && id == "delete") {
+            } else if (first == 'd' && data.equalsSameLength("delete")) {
                 return Delete;
-            } else if (first == 's' && id == "switch") {
+            } else if (first == 's' && data.equalsSameLength("switch")) {
                 return Switch;
-            } else if (first == 'e' && id == "export") {
+            } else if (first == 'e' && data.equalsSameLength("export")) {
                 return Export;
-            } else if (first == 'i' && id == "import") {
+            } else if (first == 'i' && data.equalsSameLength("import")) {
                 return Import;
             }
             break;
         case 7:
-            if (first == 'd' && id == "default") {
+            if (first == 'd' && data.equalsSameLength("default")) {
                 return Default;
-            } else if (first == 'f' && id == "finally") {
+            } else if (first == 'f' && data.equalsSameLength("finally")) {
                 return Finally;
-            } else if (first == 'e' && id == "extends") {
+            } else if (first == 'e' && data.equalsSameLength("extends")) {
                 return Extends;
             }
             break;
         case 8:
-            if (first == 'f' && id == "function") {
+            if (first == 'f' && data.equalsSameLength("function")) {
                 return Function;
-            } else if (first == 'c' && id == "continue") {
+            } else if (first == 'c' && data.equalsSameLength("continue")) {
                 return Continue;
-            } else if (first == 'd' && id == "debugger") {
+            } else if (first == 'd' && data.equalsSameLength("debugger")) {
                 return Debugger;
             }
             break;
         case 10:
-            if (first == 'i' && id == "instanceof") {
+            if (first == 'i' && data.equalsSameLength("instanceof")) {
                 return InstanceofKeyword;
             }
             break;
@@ -1208,7 +1257,7 @@ public:
 
     // ECMA-262 11.6 Names and Keywords
 
-    std::shared_ptr<ScannerResult> scanIdentifier()
+    RefPtr<ScannerResult> scanIdentifier()
     {
         Token type;
         const size_t start = this->index;
@@ -1223,31 +1272,32 @@ public:
         // There is no keyword or literal with only one character.
         // Thus, it must be an identifier.
         KeywordKind keywordKind = NotKeyword;
-        if (id.length() == 1) {
+        auto data = id.bufferAccessData();
+        if (data.length == 1) {
             type = Token::IdentifierToken;
-        } else if ((keywordKind = this->isKeyword(id))) {
+        } else if ((keywordKind = this->isKeyword(data))) {
             type = Token::KeywordToken;
-        } else if (id == "null") {
+        } else if (data.length == 4 && data.equalsSameLength("null")) {
             type = Token::NullLiteralToken;
-        } else if (id == "true" || id == "false") {
+        } else if ((data.length == 4 && data.equalsSameLength("true")) || (data.length == 5 && data.equalsSameLength("false"))) {
             type = Token::BooleanLiteralToken;
         } else {
             type = Token::IdentifierToken;
         }
 
         if (keywordKind) {
-            std::shared_ptr<ScannerResult> r = std::shared_ptr<ScannerResult>(new (createScannerResult()) ScannerResult(this, type, id, this->lineNumber, this->lineStart, start, this->index));
+            RefPtr<ScannerResult> r = adoptRef(new (createScannerResult()) ScannerResult(this, type, id, this->lineNumber, this->lineStart, start, this->index));
             r->valueKeywordKind = keywordKind;
             return r;
         } else {
-            return std::shared_ptr<ScannerResult>(new (createScannerResult()) ScannerResult(this, type, id, this->lineNumber, this->lineStart, start, this->index));
+            return adoptRef(new (createScannerResult()) ScannerResult(this, type, id, this->lineNumber, this->lineStart, start, this->index));
         }
     }
 
     // ECMA-262 11.7 Punctuators
-    std::shared_ptr<ScannerResult> scanPunctuator()
+    RefPtr<ScannerResult> scanPunctuator()
     {
-        std::shared_ptr<ScannerResult> token = std::shared_ptr<ScannerResult>(new (createScannerResult()) ScannerResult(this, Token::PunctuatorToken, StringView(), this->lineNumber, this->lineStart, this->index, this->index));
+        RefPtr<ScannerResult> token = adoptRef(new (createScannerResult()) ScannerResult(this, Token::PunctuatorToken, StringView(), this->lineNumber, this->lineStart, this->index, this->index));
 
         PunctuatorsKind kind;
         // Check for most common single-character punctuators.
@@ -1503,12 +1553,12 @@ public:
         token->end = this->index;
         token->valuePunctuatorsKind = kind;
         token->valueString = StringView(this->source.src(), start, this->index);
-        return std::shared_ptr<ScannerResult>(token);
+        return RefPtr<ScannerResult>(token);
     }
 
     // ECMA-262 11.8.3 Numeric Literals
 
-    std::shared_ptr<ScannerResult> scanHexLiteral(size_t start)
+    RefPtr<ScannerResult> scanHexLiteral(size_t start)
     {
         uint64_t number = 0;
         double numberDouble = 0.0;
@@ -1545,14 +1595,14 @@ public:
 
         if (shouldUseDouble) {
             ASSERT(number == 0);
-            return std::shared_ptr<ScannerResult>(new (createScannerResult()) ScannerResult(this, Token::NumericLiteralToken, numberDouble, this->lineNumber, this->lineStart, start, this->index));
+            return adoptRef(new (createScannerResult()) ScannerResult(this, Token::NumericLiteralToken, numberDouble, this->lineNumber, this->lineStart, start, this->index));
         } else {
             ASSERT(numberDouble == 0.0);
-            return std::shared_ptr<ScannerResult>(new (createScannerResult()) ScannerResult(this, Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index));
+            return adoptRef(new (createScannerResult()) ScannerResult(this, Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index));
         }
     }
 
-    std::shared_ptr<ScannerResult> scanBinaryLiteral(size_t start)
+    RefPtr<ScannerResult> scanBinaryLiteral(size_t start)
     {
         uint64_t number = 0;
         bool scanned = false;
@@ -1580,10 +1630,10 @@ public:
             }
         }
 
-        return std::shared_ptr<ScannerResult>(new (createScannerResult()) ScannerResult(this, Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index));
+        return adoptRef(new (createScannerResult()) ScannerResult(this, Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index));
     }
 
-    std::shared_ptr<ScannerResult> scanOctalLiteral(char16_t prefix, size_t start)
+    RefPtr<ScannerResult> scanOctalLiteral(char16_t prefix, size_t start)
     {
         uint64_t number = 0;
         bool scanned = false;
@@ -1607,7 +1657,7 @@ public:
         if (isIdentifierStart(this->source.bufferedCharAt(this->index)) || isDecimalDigit(this->source.bufferedCharAt(this->index))) {
             throwUnexpectedToken();
         }
-        std::shared_ptr<ScannerResult> ret = std::shared_ptr<ScannerResult>(new (createScannerResult()) ScannerResult(this, Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index));
+        RefPtr<ScannerResult> ret = adoptRef(new (createScannerResult()) ScannerResult(this, Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index));
         ret->octal = octal;
 
         return ret;
@@ -1629,7 +1679,7 @@ public:
         return true;
     }
 
-    std::shared_ptr<ScannerResult> scanNumericLiteral()
+    RefPtr<ScannerResult> scanNumericLiteral()
     {
         const size_t start = this->index;
         char16_t ch = this->source.bufferedCharAt(start);
@@ -1711,7 +1761,7 @@ public:
                                                              "Infinity", "NaN");
         double ll = converter.StringToDouble(number.data(), length, &length_dummy);
 
-        auto ret = std::shared_ptr<ScannerResult>(new (createScannerResult()) ScannerResult(this, Token::NumericLiteralToken, ll, this->lineNumber, this->lineStart, start, this->index));
+        auto ret = adoptRef(new (createScannerResult()) ScannerResult(this, Token::NumericLiteralToken, ll, this->lineNumber, this->lineStart, start, this->index));
         if (startChar == '0' && length >= 2 && ll >= 1) {
             ret->startWithZero = true;
         }
@@ -1720,7 +1770,7 @@ public:
 
     // ECMA-262 11.8.4 String Literals
 
-    std::shared_ptr<ScannerResult> scanStringLiteral()
+    RefPtr<ScannerResult> scanStringLiteral()
     {
         // TODO apply rope-string
         const size_t start = this->index;
@@ -1730,7 +1780,7 @@ public:
 
         ++this->index;
         bool octal = false;
-
+        bool stringViewAllLatin1 = true;
         bool isPlainCase = true;
 
         UTF16StringDataNonGCStd stringUTF16;
@@ -1816,6 +1866,9 @@ public:
                 break;
             } else {
                 if (isPlainCase) {
+                    if (ch >= 256) {
+                        stringViewAllLatin1 = false;
+                    }
                     str = StringView(this->source.src(), start + 1, start + 1 + str.length() + 1);
                 } else {
                     stringUTF16 += ch;
@@ -1828,17 +1881,20 @@ public:
             this->throwUnexpectedToken();
         }
 
-        std::shared_ptr<ScannerResult> ret;
+        RefPtr<ScannerResult> ret;
         if (isPlainCase) {
-            ret = std::shared_ptr<ScannerResult>(new (createScannerResult()) ScannerResult(this, Token::StringLiteralToken, str, /*octal, */ this->lineNumber, this->lineStart, start, this->index));
+            if (!str.string()->has8BitContent() && stringViewAllLatin1) {
+                str = StringView(new Latin1String((char16_t*)str.bufferAccessData().buffer, str.length()), 0, str.length());
+            }
+            ret = adoptRef(new (createScannerResult()) ScannerResult(this, Token::StringLiteralToken, str, /*octal, */ this->lineNumber, this->lineStart, start, this->index));
         } else {
             String* newStr;
-            if (isAllASCII(stringUTF16.data(), stringUTF16.length())) {
-                newStr = new ASCIIString(stringUTF16.data(), stringUTF16.length());
+            if (isAllLatin1(stringUTF16.data(), stringUTF16.length())) {
+                newStr = new Latin1String(stringUTF16.data(), stringUTF16.length());
             } else {
                 newStr = new UTF16String(stringUTF16.data(), stringUTF16.length());
             }
-            ret = std::shared_ptr<ScannerResult>(new (createScannerResult()) ScannerResult(this, Token::StringLiteralToken, StringView(newStr, 0, newStr->length()), /*octal, */ this->lineNumber, this->lineStart, start, this->index));
+            ret = adoptRef(new (createScannerResult()) ScannerResult(this, Token::StringLiteralToken, StringView(newStr, 0, newStr->length()), /*octal, */ this->lineNumber, this->lineStart, start, this->index));
         }
         ret->octal = octal;
         ret->plain = isPlainCase;
@@ -1848,7 +1904,7 @@ public:
 
     // ECMA-262 11.8.6 Template Literal Lexical Components
 
-    std::shared_ptr<ScannerResult> scanTemplate()
+    RefPtr<ScannerResult> scanTemplate()
     {
         // TODO apply rope-string
         UTF16StringDataNonGCStd cooked;
@@ -1966,7 +2022,7 @@ public:
         result.raw = StringView(this->source.src(), start + 1, this->index - rawOffset);
         result.valueCooked = UTF16StringData(cooked.data(), cooked.length());
 
-        return std::shared_ptr<ScannerResult>(new (createScannerResult()) ScannerResult(this, Token::TemplateToken, result, this->lineNumber, this->lineStart, start, this->index));
+        return adoptRef(new (createScannerResult()) ScannerResult(this, Token::TemplateToken, result, this->lineNumber, this->lineStart, start, this->index));
     }
 
     // ECMA-262 11.8.5 Regular Expression Literals
@@ -2136,7 +2192,7 @@ public:
         }
     }
 
-    std::shared_ptr<ScannerResult> scanRegExp()
+    RefPtr<ScannerResult> scanRegExp()
     {
         const size_t start = this->index;
 
@@ -2147,15 +2203,15 @@ public:
         ScanRegExpResult result;
         result.body = body;
         result.flags = flags;
-        std::shared_ptr<ScannerResult> res = std::shared_ptr<ScannerResult>(new (createScannerResult()) ScannerResult(this, Token::RegularExpressionToken, StringView(), this->lineNumber, this->lineStart, start, this->index));
+        RefPtr<ScannerResult> res = adoptRef(new (createScannerResult()) ScannerResult(this, Token::RegularExpressionToken, StringView(), this->lineNumber, this->lineStart, start, this->index));
         res->valueRegexp = result;
         return res;
     };
 
-    std::shared_ptr<ScannerResult> lex()
+    RefPtr<ScannerResult> lex()
     {
         if (this->eof()) {
-            return std::shared_ptr<ScannerResult>(new (createScannerResult()) ScannerResult(this, Token::EOFToken, this->lineNumber, this->lineStart, this->index, this->index));
+            return adoptRef(new (createScannerResult()) ScannerResult(this, Token::EOFToken, this->lineNumber, this->lineStart, this->index, this->index));
         }
 
         const char16_t cp = this->source.bufferedCharAt(this->index);
@@ -2211,32 +2267,33 @@ ScannerResult::~ScannerResult()
 }
 
 struct Config : public gc {
-    bool range;
-    bool loc;
-    // String* source;
-    bool tokens;
-    bool comment;
-    bool tolerant;
-    bool parseSingleFunction;
+    bool range : 1;
+    bool loc : 1;
+    bool tokens : 1;
+    bool comment : 1;
+    bool tolerant : 1;
+    bool parseSingleFunction : 1;
+    CodeBlock* parseSingleFunctionTarget;
+    SmallValue parseSingleFunctionChildIndex; // use SmallValue for saving index. this reduce memory leak from stack
 };
 
 
 struct Context : public gc {
-    bool allowIn;
-    bool allowYield;
-    std::shared_ptr<ScannerResult> firstCoverInitializedNameError;
-    bool isAssignmentTarget;
-    bool isBindingElement;
-    bool inFunctionBody;
-    bool inIteration;
-    bool inSwitch;
-    bool inCatch;
-    bool inDirectCatchScope;
-    std::vector<FunctionDeclarationNode*, GCUtil::gc_malloc_ignore_off_page_allocator<FunctionDeclarationNode*>> functionDeclarationsInDirectCatchScope;
-    bool inWith;
-    bool inLoop;
+    bool allowIn : 1;
+    bool allowYield : 1;
+    bool isAssignmentTarget : 1;
+    bool isBindingElement : 1;
+    bool inFunctionBody : 1;
+    bool inIteration : 1;
+    bool inSwitch : 1;
+    bool inCatch : 1;
+    bool inDirectCatchScope : 1;
+    bool inWith : 1;
+    bool inLoop : 1;
+    bool strict : 1;
+    RefPtr<ScannerResult> firstCoverInitializedNameError;
     std::vector<std::pair<String*, bool>> labelSet;
-    bool strict;
+    std::vector<FunctionDeclarationNode*, GCUtil::gc_malloc_ignore_off_page_allocator<FunctionDeclarationNode*>> functionDeclarationsInDirectCatchScope;
 };
 
 struct Marker : public gc {
@@ -2271,8 +2328,8 @@ public:
     Scanner scannerInstance;
     Scanner* scanner;
     /*
-    std::unordered_map<IdentifierNode*, std::shared_ptr<ScannerResult>,
-                       std::hash<IdentifierNode*>, std::equal_to<IdentifierNode*>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<IdentifierNode*, std::shared_ptr<ScannerResult>>>>
+    std::unordered_map<IdentifierNode*, RefPtr<ScannerResult>,
+                       std::hash<IdentifierNode*>, std::equal_to<IdentifierNode*>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<IdentifierNode*, RefPtr<ScannerResult>>>>
         nodeExtraInfo;
      */
     enum SourceType {
@@ -2280,12 +2337,12 @@ public:
         Module
     };
     SourceType sourceType;
-    std::shared_ptr<ScannerResult> lookahead;
+    RefPtr<ScannerResult> lookahead;
     bool hasLineTerminator;
 
     Context contextInstance;
     Context* context;
-    std::vector<std::shared_ptr<ScannerResult>, gc_allocator_ignore_off_page<std::shared_ptr<ScannerResult>>> tokens;
+    std::vector<RefPtr<ScannerResult>, gc_allocator_ignore_off_page<RefPtr<ScannerResult>>> tokens;
     Marker startMarker;
     Marker lastMarker;
 
@@ -2349,6 +2406,8 @@ public:
         config.comment = false;
         config.tolerant = false;
         config.parseSingleFunction = false;
+        config.parseSingleFunctionTarget = nullptr;
+        config.parseSingleFunctionChildIndex = SmallValue((uint32_t)0);
         /*
         this->config = {
             range: (typeof options.range == 'boolean') && options.range,
@@ -2443,7 +2502,7 @@ public:
     }
 
     // Throw an exception because of the token.
-    Error* unexpectedTokenError(std::shared_ptr<ScannerResult> token = nullptr, const char* message = nullptr)
+    Error* unexpectedTokenError(RefPtr<ScannerResult> token = nullptr, const char* message = nullptr)
     {
         const char* msg;
         if (message)
@@ -2490,12 +2549,12 @@ public:
         }
     }
 
-    void throwUnexpectedToken(std::shared_ptr<ScannerResult> token, const char* message = nullptr)
+    void throwUnexpectedToken(RefPtr<ScannerResult> token, const char* message = nullptr)
     {
         throw this->unexpectedTokenError(token, message);
     }
 
-    void tolerateUnexpectedToken(std::shared_ptr<ScannerResult> token, const char* message = nullptr)
+    void tolerateUnexpectedToken(RefPtr<ScannerResult> token, const char* message = nullptr)
     {
         // this->errorHandler.tolerate(this->unexpectedTokenError(token, message));
         throwUnexpectedToken(token, message);
@@ -2541,9 +2600,9 @@ public:
         }*/
     }
 
-    std::shared_ptr<ScannerResult> nextToken()
+    RefPtr<ScannerResult> nextToken()
     {
-        std::shared_ptr<ScannerResult> token = this->lookahead;
+        RefPtr<ScannerResult> token = this->lookahead;
 
         this->lastMarker.index = this->scanner->index;
         this->lastMarker.lineNumber = this->scanner->lineNumber;
@@ -2555,7 +2614,7 @@ public:
         this->startMarker.lineNumber = this->scanner->lineNumber;
         this->startMarker.lineStart = this->scanner->lineStart;
 
-        std::shared_ptr<ScannerResult> next;
+        RefPtr<ScannerResult> next;
         next = this->scanner->lex();
         this->hasLineTerminator = (token && next) ? (token->lineNumber != next->lineNumber) : false;
 
@@ -2575,11 +2634,11 @@ public:
         return token;
     }
 
-    std::shared_ptr<ScannerResult> nextRegexToken()
+    RefPtr<ScannerResult> nextRegexToken()
     {
         this->collectComments();
 
-        std::shared_ptr<ScannerResult> token = this->scanner->scanRegExp();
+        RefPtr<ScannerResult> token = this->scanner->scanRegExp();
         /*
         if (this->config.tokens) {
             // Pop the previous token, '/' or '/='
@@ -2605,7 +2664,7 @@ public:
         return n;
     }
 
-    MetaNode startNode(std::shared_ptr<ScannerResult> token)
+    MetaNode startNode(RefPtr<ScannerResult> token)
     {
         MetaNode n;
         n.index = token->start;
@@ -2665,7 +2724,7 @@ public:
 
     void expect(PunctuatorsKind value)
     {
-        std::shared_ptr<ScannerResult> token = this->nextToken();
+        RefPtr<ScannerResult> token = this->nextToken();
         if (token->type != Token::PunctuatorToken || token->valuePunctuatorsKind != value) {
             this->throwUnexpectedToken(token);
         }
@@ -2697,7 +2756,7 @@ public:
 
     void expectKeyword(KeywordKind keyword)
     {
-        std::shared_ptr<ScannerResult> token = this->nextToken();
+        RefPtr<ScannerResult> token = this->nextToken();
         if (token->type != Token::KeywordToken || token->valueKeywordKind != keyword) {
             this->throwUnexpectedToken(token);
         }
@@ -2792,7 +2851,7 @@ public:
     {
         const bool previousIsBindingElement = this->context->isBindingElement;
         const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
-        std::shared_ptr<ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+        RefPtr<ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
 
         this->context->isBindingElement = true;
         this->context->isAssignmentTarget = true;
@@ -2816,7 +2875,7 @@ public:
     {
         const bool previousIsBindingElement = this->context->isBindingElement;
         const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
-        std::shared_ptr<ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+        RefPtr<ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
 
         this->context->isBindingElement = true;
         this->context->isAssignmentTarget = true;
@@ -2840,7 +2899,7 @@ public:
     {
         const bool previousIsBindingElement = this->context->isBindingElement;
         const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
-        std::shared_ptr<ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+        RefPtr<ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
 
         this->context->isBindingElement = true;
         this->context->isAssignmentTarget = true;
@@ -2871,7 +2930,7 @@ public:
         }
     }
 
-    IdentifierNode* finishIdentifier(std::shared_ptr<ScannerResult> token, bool isScopeVariableName)
+    IdentifierNode* finishIdentifier(RefPtr<ScannerResult> token, bool isScopeVariableName)
     {
         auto ret = new IdentifierNode(AtomicString(this->escargotContext, token->valueString));
         // nodeExtraInfo.insert(std::make_pair(ret, token));
@@ -2900,7 +2959,7 @@ public:
 
         Node* expr;
         // let value, token, raw;
-        std::shared_ptr<ScannerResult> token;
+        RefPtr<ScannerResult> token;
 
         switch (this->lookahead->type) {
         case Token::IdentifierToken:
@@ -3018,9 +3077,9 @@ public:
     struct ParseParameterOptions {
         PatternNodeVector params;
         std::vector<AtomicString, gc_allocator<AtomicString>> paramSet;
-        std::shared_ptr<ScannerResult> stricted;
+        RefPtr<ScannerResult> stricted;
         const char* message;
-        std::shared_ptr<ScannerResult> firstRestricted;
+        RefPtr<ScannerResult> firstRestricted;
         ParseParameterOptions()
         {
             firstRestricted = nullptr;
@@ -3030,7 +3089,7 @@ public:
     };
 
 
-    void validateParam(ParseParameterOptions& options, std::shared_ptr<ScannerResult> param, AtomicString name)
+    void validateParam(ParseParameterOptions& options, RefPtr<ScannerResult> param, AtomicString name)
     {
         if (this->context->strict) {
             if (this->scanner->isRestrictedWord(name)) {
@@ -3056,7 +3115,7 @@ public:
         options.paramSet.push_back(name);
     }
 
-    RestElementNode* parseRestElement(std::vector<std::shared_ptr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>>& params)
+    RestElementNode* parseRestElement(std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>>& params)
     {
         MetaNode node = this->createNode();
 
@@ -3079,7 +3138,7 @@ public:
         return this->finalize(node, new RestElementNode(param));
     }
 
-    Node* parsePattern(std::vector<std::shared_ptr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>>& params, String* kind = String::emptyString)
+    Node* parsePattern(std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>>& params, String* kind = String::emptyString)
     {
         Node* pattern;
 
@@ -3102,9 +3161,9 @@ public:
         return pattern;
     }
 
-    Node* parsePatternWithDefault(std::vector<std::shared_ptr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>>& params, String* kind = String::emptyString)
+    Node* parsePatternWithDefault(std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>>& params, String* kind = String::emptyString)
     {
-        std::shared_ptr<ScannerResult> startToken = this->lookahead;
+        RefPtr<ScannerResult> startToken = this->lookahead;
 
         Node* pattern = this->parsePattern(params, kind);
         if (this->match(PunctuatorsKind::Substitution)) {
@@ -3125,8 +3184,8 @@ public:
     {
         Node* param;
         trackUsingNames = false;
-        std::vector<std::shared_ptr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>> params;
-        std::shared_ptr<ScannerResult> token = this->lookahead;
+        std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> params;
+        RefPtr<ScannerResult> token = this->lookahead;
         if (token->type == Token::PunctuatorToken && token->valuePunctuatorsKind == PunctuatorsKind::PeriodPeriodPeriod) {
             RestElementNode* param = this->parseRestElement(params);
             this->validateParam(options, params.back(), param->argument()->name());
@@ -3137,8 +3196,7 @@ public:
 
         param = this->parsePatternWithDefault(params);
         for (size_t i = 0; i < params.size(); i++) {
-            UTF16StringData data = params[i]->valueString.toUTF16StringData();
-            AtomicString as(this->escargotContext, data.data(), data.length());
+            AtomicString as(this->escargotContext, params[i]->valueString);
             this->validateParam(options, params[i], as);
         }
         options.params.push_back(param);
@@ -3148,10 +3206,10 @@ public:
 
     struct ParseFormalParametersResult {
         PatternNodeVector params;
-        std::shared_ptr<ScannerResult> stricted;
-        std::shared_ptr<ScannerResult> firstRestricted;
+        RefPtr<ScannerResult> stricted;
+        RefPtr<ScannerResult> firstRestricted;
         const char* message;
-        ParseFormalParametersResult(PatternNodeVector params, std::shared_ptr<ScannerResult> stricted, std::shared_ptr<ScannerResult> firstRestricted, const char* message)
+        ParseFormalParametersResult(PatternNodeVector params, RefPtr<ScannerResult> stricted, RefPtr<ScannerResult> firstRestricted, const char* message)
         {
             this->params = std::move(params);
             this->stricted = stricted;
@@ -3160,7 +3218,7 @@ public:
         }
     };
 
-    ParseFormalParametersResult parseFormalParameters(std::shared_ptr<ScannerResult> firstRestricted = nullptr)
+    ParseFormalParametersResult parseFormalParameters(RefPtr<ScannerResult> firstRestricted = nullptr)
     {
         ParseParameterOptions options;
 
@@ -3262,7 +3320,7 @@ public:
     Node* parseObjectPropertyKey()
     {
         MetaNode node = this->createNode();
-        std::shared_ptr<ScannerResult> token = this->nextToken();
+        RefPtr<ScannerResult> token = this->nextToken();
 
         Node* key = nullptr;
         switch (token->type) {
@@ -3313,7 +3371,7 @@ public:
         return key;
     }
 
-    bool qualifiedPropertyName(std::shared_ptr<ScannerResult> token)
+    bool qualifiedPropertyName(RefPtr<ScannerResult> token)
     {
         switch (token->type) {
         case Token::IdentifierToken:
@@ -3347,7 +3405,7 @@ public:
     PropertyNode* parseObjectProperty(bool& hasProto, std::vector<std::pair<AtomicString, size_t>>& usedNames) //: Node.Property
     {
         MetaNode node = this->createNode();
-        std::shared_ptr<ScannerResult> token = this->lookahead;
+        RefPtr<ScannerResult> token = this->lookahead;
 
         PropertyNode::Kind kind;
         Node* key = nullptr; //'': Node.PropertyKey;
@@ -3723,7 +3781,7 @@ public:
             this->throwError("Arrow function is not supported yet");
             RELEASE_ASSERT_NOT_REACHED();
         } else {
-            std::shared_ptr<ScannerResult> startToken = this->lookahead;
+            RefPtr<ScannerResult> startToken = this->lookahead;
             this->context->isBindingElement = true;
             expr = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
 
@@ -3768,7 +3826,7 @@ public:
         return args;
     }
 
-    bool isIdentifierName(std::shared_ptr<ScannerResult> token)
+    bool isIdentifierName(RefPtr<ScannerResult> token)
     {
         return token->type == Token::IdentifierToken || token->type == Token::KeywordToken || token->type == Token::BooleanLiteralToken || token->type == Token::NullLiteralToken;
     }
@@ -3776,7 +3834,7 @@ public:
     IdentifierNode* parseIdentifierName()
     {
         MetaNode node = this->createNode();
-        std::shared_ptr<ScannerResult> token = this->nextToken();
+        RefPtr<ScannerResult> token = this->nextToken();
         if (!this->isIdentifierName(token)) {
             this->throwUnexpectedToken(token);
         }
@@ -3820,7 +3878,7 @@ public:
 
     Node* parseLeftHandSideExpressionAllowCall()
     {
-        std::shared_ptr<ScannerResult> startToken = this->lookahead;
+        RefPtr<ScannerResult> startToken = this->lookahead;
         bool previousAllowIn = this->context->allowIn;
         this->context->allowIn = true;
 
@@ -3938,12 +3996,12 @@ public:
     Node* parseUpdateExpression()
     {
         Node* expr;
-        std::shared_ptr<ScannerResult> startToken = this->lookahead;
+        RefPtr<ScannerResult> startToken = this->lookahead;
 
         if (this->match(PlusPlus) || this->match(MinusMinus)) {
             bool isPlus = this->match(PlusPlus);
             MetaNode node = this->startNode(startToken);
-            std::shared_ptr<ScannerResult> token = this->nextToken();
+            RefPtr<ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
             if (expr->isLiteral() || expr->type() == ASTNodeType::ThisExpression) {
                 this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
@@ -4002,35 +4060,35 @@ public:
 
         if (this->match(Plus)) {
             MetaNode node = this->startNode(this->lookahead);
-            std::shared_ptr<ScannerResult> token = this->nextToken();
+            RefPtr<ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
             expr = this->finalize(node, new UnaryExpressionPlusNode(expr));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         } else if (this->match(Minus)) {
             MetaNode node = this->startNode(this->lookahead);
-            std::shared_ptr<ScannerResult> token = this->nextToken();
+            RefPtr<ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
             expr = this->finalize(node, new UnaryExpressionMinusNode(expr));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         } else if (this->match(Wave)) {
             MetaNode node = this->startNode(this->lookahead);
-            std::shared_ptr<ScannerResult> token = this->nextToken();
+            RefPtr<ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
             expr = this->finalize(node, new UnaryExpressionBitwiseNotNode(expr));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         } else if (this->match(ExclamationMark)) {
             MetaNode node = this->startNode(this->lookahead);
-            std::shared_ptr<ScannerResult> token = this->nextToken();
+            RefPtr<ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
             expr = this->finalize(node, new UnaryExpressionLogicalNotNode(expr));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         } else if (this->matchKeyword(Delete)) {
             MetaNode node = this->startNode(this->lookahead);
-            std::shared_ptr<ScannerResult> token = this->nextToken();
+            RefPtr<ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
             Node* exprOld = expr;
             expr = this->finalize(node, new UnaryExpressionDeleteNode(expr));
@@ -4045,14 +4103,14 @@ public:
             }
         } else if (this->matchKeyword(Void)) {
             MetaNode node = this->startNode(this->lookahead);
-            std::shared_ptr<ScannerResult> token = this->nextToken();
+            RefPtr<ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
             expr = this->finalize(node, new UnaryExpressionVoidNode(expr));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         } else if (this->matchKeyword(Typeof)) {
             MetaNode node = this->startNode(this->lookahead);
-            std::shared_ptr<ScannerResult> token = this->nextToken();
+            RefPtr<ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
             Node* exprOld = expr;
             expr = this->finalize(node, new UnaryExpressionTypeOfNode(expr));
@@ -4074,7 +4132,7 @@ public:
 
     Node* parseExponentiationExpression()
     {
-        std::shared_ptr<ScannerResult> startToken = this->lookahead;
+        RefPtr<ScannerResult> startToken = this->lookahead;
         Node* expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
         // TODO
         /*
@@ -4099,7 +4157,7 @@ public:
     // ECMA-262 12.12 Binary Bitwise Operators
     // ECMA-262 12.13 Binary Logical Operators
 
-    int binaryPrecedence(std::shared_ptr<ScannerResult> token)
+    int binaryPrecedence(RefPtr<ScannerResult> token)
     {
         if (token->type == Token::PunctuatorToken) {
             if (token->valuePunctuatorsKind == Substitution) {
@@ -4162,12 +4220,12 @@ public:
 
     Node* parseBinaryExpression()
     {
-        std::shared_ptr<ScannerResult> startToken = this->lookahead;
+        RefPtr<ScannerResult> startToken = this->lookahead;
 
         Node* expr = this->inheritCoverGrammar(&Parser::parseExponentiationExpression);
 
-        std::shared_ptr<ScannerResult> token = this->lookahead;
-        std::vector<std::shared_ptr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>> tokenKeeper;
+        RefPtr<ScannerResult> token = this->lookahead;
+        std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> tokenKeeper;
         int prec = this->binaryPrecedence(token);
         if (prec > 0) {
             this->nextToken();
@@ -4176,7 +4234,7 @@ public:
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
 
-            std::vector<std::shared_ptr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>> markers;
+            std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> markers;
             markers.push_back(startToken);
             markers.push_back(this->lookahead);
             Node* left = expr;
@@ -4305,7 +4363,7 @@ public:
 
     Node* parseConditionalExpression()
     {
-        std::shared_ptr<ScannerResult> startToken = this->lookahead;
+        RefPtr<ScannerResult> startToken = this->lookahead;
 
         Node* expr = this->inheritCoverGrammar(&Parser::parseBinaryExpression);
         if (this->match(GuessMark)) {
@@ -4440,8 +4498,8 @@ public:
         if (!this->context->allowYield && this->matchKeyword(Yield)) {
             expr = this->parseYieldExpression();
         } else {
-            std::shared_ptr<ScannerResult> startToken = this->lookahead;
-            std::shared_ptr<ScannerResult> token = startToken;
+            RefPtr<ScannerResult> startToken = this->lookahead;
+            RefPtr<ScannerResult> token = startToken;
             expr = this->parseConditionalExpression();
             /*
              if (expr->type() == ArrowParameterPlaceHolder || this->match('=>')) {
@@ -4575,7 +4633,7 @@ public:
 
     Node* parseExpression()
     {
-        std::shared_ptr<ScannerResult> startToken = this->lookahead;
+        RefPtr<ScannerResult> startToken = this->lookahead;
         Node* expr = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
 
         if (this->match(Comma)) {
@@ -4868,7 +4926,7 @@ public:
     {
         MetaNode node = this->createNode();
 
-        std::shared_ptr<ScannerResult> token = this->nextToken();
+        RefPtr<ScannerResult> token = this->nextToken();
         if (token->type == Token::KeywordToken && token->valueKeywordKind == Yield) {
             if (this->context->strict) {
                 this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
@@ -4899,7 +4957,7 @@ public:
     {
         MetaNode node = this->createNode();
 
-        std::vector<std::shared_ptr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>> params;
+        std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> params;
         Node* id = this->parsePattern(params, new ASCIIString("var"));
 
         // ECMA-262 12.2.1
@@ -5145,7 +5203,7 @@ public:
                 }
                 */
             } else {
-                std::shared_ptr<ScannerResult> initStartToken = this->lookahead;
+                RefPtr<ScannerResult> initStartToken = this->lookahead;
                 bool previousAllowIn = this->context->allowIn;
                 this->context->allowIn = false;
                 init = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
@@ -5490,7 +5548,7 @@ public:
         bool prevInDirectCatchScope = this->context->inDirectCatchScope;
         this->context->inDirectCatchScope = true;
 
-        std::vector<std::shared_ptr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<std::shared_ptr<ScannerResult>>> params;
+        std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> params;
         Node* param = this->parsePattern(params);
 
         std::vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> paramMap;
@@ -5662,9 +5720,28 @@ public:
 
     BlockStatementNode* parseFunctionSourceElements()
     {
-        bool parseSingleFunction = this->config.parseSingleFunction;
-        this->config.parseSingleFunction = false;
+        if (this->config.parseSingleFunction) {
+            if (this->config.parseSingleFunctionChildIndex.asUint32()) {
+                size_t realIndex = this->config.parseSingleFunctionChildIndex.asUint32() - 1;
+                this->config.parseSingleFunctionChildIndex = SmallValue(this->config.parseSingleFunctionChildIndex.asUint32() + 1);
+                CodeBlock* currentTarget = this->config.parseSingleFunctionTarget;
+                size_t orgIndex = this->lookahead->index;
+                this->expect(LeftBrace);
 
+                StringView src = currentTarget->childBlocks()[realIndex]->src();
+                this->scanner->index = src.length() + orgIndex;
+
+                this->scanner->lineNumber = currentTarget->childBlocks()[realIndex]->sourceElementStart().line;
+                this->scanner->lineStart = currentTarget->childBlocks()[realIndex]->sourceElementStart().index - currentTarget->childBlocks()[realIndex]->sourceElementStart().column;
+                this->lookahead->lineNumber = this->scanner->lineNumber;
+                this->lookahead->lineNumber = this->scanner->lineStart;
+                this->lookahead->type = Token::PunctuatorToken;
+                this->lookahead->valuePunctuatorsKind = PunctuatorsKind::RightBrace;
+                this->expect(RightBrace);
+                return this->finalize(this->createNode(), new BlockStatementNode(std::move(StatementNodeVector())));
+            }
+            this->config.parseSingleFunctionChildIndex = SmallValue(this->config.parseSingleFunctionChildIndex.asUint32() + 1);
+        }
         bool prevInDirectCatchScope = this->context->inDirectCatchScope;
         this->context->inDirectCatchScope = false;
 
@@ -5691,7 +5768,6 @@ public:
         }
 
         this->expect(RightBrace);
-        MetaNode nodeEnd = this->createNode();
 
         this->context->labelSet = previousLabelSet;
         this->context->inIteration = previousInIteration;
@@ -5702,13 +5778,13 @@ public:
         scopeContexts.back()->m_locStart.column = nodeStart.column;
         scopeContexts.back()->m_locStart.index = nodeStart.index;
 
-        scopeContexts.back()->m_locEnd.line = nodeEnd.line;
-        scopeContexts.back()->m_locEnd.column = nodeEnd.column;
-        scopeContexts.back()->m_locEnd.index = nodeEnd.index;
+        scopeContexts.back()->m_locEnd.line = this->lastMarker.lineNumber;
+        scopeContexts.back()->m_locEnd.column = this->lastMarker.index - this->lastMarker.lineStart;
+        scopeContexts.back()->m_locEnd.index = this->lastMarker.index;
 
         this->context->inDirectCatchScope = prevInDirectCatchScope;
 
-        if (parseSingleFunction) {
+        if (this->config.parseSingleFunction) {
             return this->finalize(nodeStart, new BlockStatementNode(std::move(body)));
         } else {
             for (size_t i = 0; i < body.size(); i++) {
@@ -5730,10 +5806,10 @@ public:
 
         const char* message = nullptr;
         IdentifierNode* id = nullptr;
-        std::shared_ptr<ScannerResult> firstRestricted = nullptr;
+        RefPtr<ScannerResult> firstRestricted = nullptr;
 
         if (!identifierIsOptional || !this->match(LeftParenthesis)) {
-            std::shared_ptr<ScannerResult> token = this->lookahead;
+            RefPtr<ScannerResult> token = this->lookahead;
             id = this->parseVariableIdentifier();
             if (this->context->strict) {
                 if (this->scanner->isRestrictedWord(token->valueString)) {
@@ -5755,7 +5831,7 @@ public:
 
         ParseFormalParametersResult formalParameters = this->parseFormalParameters(firstRestricted);
         PatternNodeVector params = std::move(formalParameters.params);
-        std::shared_ptr<ScannerResult> stricted = formalParameters.stricted;
+        RefPtr<ScannerResult> stricted = formalParameters.stricted;
         firstRestricted = formalParameters.firstRestricted;
         if (formalParameters.message) {
             message = formalParameters.message;
@@ -5803,13 +5879,13 @@ public:
 
         const char* message = nullptr;
         IdentifierNode* id = nullptr;
-        std::shared_ptr<ScannerResult> firstRestricted = nullptr;
+        RefPtr<ScannerResult> firstRestricted = nullptr;
 
         bool previousAllowYield = this->context->allowYield;
         this->context->allowYield = !isGenerator;
 
         if (!this->match(LeftParenthesis)) {
-            std::shared_ptr<ScannerResult> token = this->lookahead;
+            RefPtr<ScannerResult> token = this->lookahead;
             id = (!this->context->strict && !isGenerator && this->matchKeyword(Yield)) ? this->parseIdentifierName() : this->parseVariableIdentifier();
             if (this->context->strict) {
                 if (this->scanner->isRestrictedWord(token->valueString)) {
@@ -5828,7 +5904,7 @@ public:
 
         ParseFormalParametersResult formalParameters = this->parseFormalParameters(firstRestricted);
         PatternNodeVector params = std::move(formalParameters.params);
-        std::shared_ptr<ScannerResult> stricted = formalParameters.stricted;
+        RefPtr<ScannerResult> stricted = formalParameters.stricted;
         firstRestricted = formalParameters.firstRestricted;
         if (formalParameters.message) {
             message = formalParameters.message;
@@ -5864,7 +5940,7 @@ public:
 
     Node* parseDirective()
     {
-        std::shared_ptr<ScannerResult> token = this->lookahead;
+        RefPtr<ScannerResult> token = this->lookahead;
         StringView directiveValue;
         bool isLiteral = false;
 
@@ -5885,11 +5961,11 @@ public:
 
     StatementNodeVector parseDirectivePrologues()
     {
-        std::shared_ptr<ScannerResult> firstRestricted = nullptr;
+        RefPtr<ScannerResult> firstRestricted = nullptr;
 
         StatementNodeVector body;
         while (true) {
-            std::shared_ptr<ScannerResult> token = this->lookahead;
+            RefPtr<ScannerResult> token = this->lookahead;
             if (token->type != StringLiteralToken) {
                 break;
             }
@@ -6430,6 +6506,7 @@ std::pair<Node*, ASTScopeContext*> parseSingleFunction(::Escargot::Context* ctx,
 {
     Parser parser(ctx, codeBlock->src(), nullptr, stackRemain, codeBlock->sourceElementStart().line, codeBlock->sourceElementStart().column);
     parser.config.parseSingleFunction = true;
+    parser.config.parseSingleFunctionTarget = codeBlock;
     auto scopeCtx = new ASTScopeContext(codeBlock->isStrict(), nullptr);
     parser.scopeContexts.pushBack(scopeCtx);
     return std::make_pair(parser.parseFunctionSourceElements(), scopeCtx);

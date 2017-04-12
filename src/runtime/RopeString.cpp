@@ -87,7 +87,7 @@ void RopeString::flattenRopeStringWorker()
 {
     A result;
     result.resizeWithUninitializedValues(length());
-    std::vector<String*, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<String*>> queue;
+    std::vector<String*> queue;
     queue.push_back(m_left);
     queue.push_back(m_right);
     size_t pos = result.size();
@@ -129,12 +129,11 @@ void RopeString::flattenRopeStringWorker()
 
 void RopeString::flattenRopeString()
 {
-    if (m_right) {
-        if (has8BitContent()) {
-            flattenRopeStringWorker<Latin1StringData, Latin1String>();
-        } else {
-            flattenRopeStringWorker<UTF16StringData, UTF16String>();
-        }
+    ASSERT(m_right);
+    if (has8BitContent()) {
+        flattenRopeStringWorker<Latin1StringData, Latin1String>();
+    } else {
+        flattenRopeStringWorker<UTF16StringData, UTF16String>();
     }
 }
 }

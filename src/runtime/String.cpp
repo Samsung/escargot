@@ -51,6 +51,16 @@ bool isAllASCII(const char16_t* buf, const size_t& len)
     return true;
 }
 
+bool isAllLatin1(const char16_t* buf, const size_t& len)
+{
+    for (unsigned i = 0; i < len; i++) {
+        if (buf[i] >= 256) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool isIndexString(String* str)
 {
     size_t len = str->length();
