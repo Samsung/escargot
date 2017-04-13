@@ -99,7 +99,7 @@ ALWAYS_INLINE void assignStackIndexIfNeeded(ByteCodeRegisterIndex& registerIndex
     }
 }
 
-ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBlock, Node* ast, ASTScopeContext* scopeCtx, bool isEvalMode, bool isOnGlobal, bool shouldGenerateLOCData)
+ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBlock* codeBlock, Node* ast, ASTScopeContext* scopeCtx, bool isEvalMode, bool isOnGlobal, bool shouldGenerateLOCData)
 {
     ByteCodeBlock* block = new ByteCodeBlock(codeBlock);
     block->m_isEvalMode = isEvalMode;
@@ -456,9 +456,9 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, CodeBlock* codeBl
         size_t b = block->m_requiredRegisterFileSizeInValueSize + 1;
         printf("this,");
 
-        for (size_t i = 0; i < block->m_codeBlock->identifierInfos().size(); i++) {
-            if (block->m_codeBlock->identifierInfos()[i].m_needToAllocateOnStack) {
-                printf("(%d,%s),", (int)b++, block->m_codeBlock->identifierInfos()[i].m_name.string()->toUTF8StringData().data());
+        for (size_t i = 0; i < block->m_codeBlock->asInterpretedCodeBlock()->identifierInfos().size(); i++) {
+            if (block->m_codeBlock->asInterpretedCodeBlock()->identifierInfos()[i].m_needToAllocateOnStack) {
+                printf("(%d,%s),", (int)b++, block->m_codeBlock->asInterpretedCodeBlock()->identifierInfos()[i].m_name.string()->toUTF8StringData().data());
             }
         }
 

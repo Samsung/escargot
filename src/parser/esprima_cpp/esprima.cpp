@@ -540,7 +540,7 @@ public:
     }
 };
 
-
+#define SCANNER_RESULT_POOL_INITIAL_SIZE 128
 class Scanner : public gc {
 public:
     BufferedStringView source;
@@ -554,7 +554,7 @@ public:
     std::vector<Curly> curlyStack;
     bool isPoolEnabled;
     std::vector<ScannerResult*, gc_allocator<ScannerResult*>> resultMemoryPool;
-    char scannerResultInnerPool[4 * sizeof(ScannerResult)];
+    char scannerResultInnerPool[SCANNER_RESULT_POOL_INITIAL_SIZE * sizeof(ScannerResult)];
 
     ~Scanner()
     {
@@ -574,8 +574,9 @@ public:
         lineNumber = ((length > 0) ? 1 : 0) + startLine;
         lineStart = startColumn;
 
+        resultMemoryPool.reserve(SCANNER_RESULT_POOL_INITIAL_SIZE);
         ScannerResult* ptr = (ScannerResult*)scannerResultInnerPool;
-        for (size_t i = 0; i < 4; i++) {
+        for (size_t i = 0; i < SCANNER_RESULT_POOL_INITIAL_SIZE; i++) {
             ptr[i].scanner = this;
             resultMemoryPool.push_back(&ptr[i]);
         }
@@ -758,12 +759,6 @@ public:
 
     void scanComments()
     {
-        /*
-        let comments;
-        if (this->trackComment) {
-            comments = [];
-        }*/
-
         bool start = (this->index == 0);
         while (!this->eof()) {
             char16_t ch = this->source.bufferedCharAt(this->index);
@@ -782,21 +777,10 @@ public:
                 ch = this->source.bufferedCharAt(this->index + 1);
                 if (ch == 0x2F) {
                     this->index += 2;
-                    /*
-                    const comment = this->skipSingleLineComment(2);
-                    if (this->trackComment) {
-                        comments = comments.concat(comment);
-                    }
-                    */
                     this->skipSingleLineComment(2);
                     start = true;
                 } else if (ch == 0x2A) { // U+002A is '*'
                     this->index += 2;
-                    /*
-                    const comment = this->skipMultiLineComment();
-                    if (this->trackComment) {
-                        comments = comments.concat(comment);
-                    }*/
                     this->skipMultiLineComment();
                 } else {
                     break;
@@ -806,27 +790,16 @@ public:
                 if ((this->source.bufferedCharAt(this->index + 1) == 0x2D) && (this->source.bufferedCharAt(this->index + 2) == 0x3E)) {
                     // '-->' is a single-line comment
                     this->index += 3;
-                    /*
-                    const comment = this->skipSingleLineComment(3);
-                    if (this->trackComment) {
-                        comments = comments.concat(comment);
-                    }*/
                     this->skipSingleLineComment(3);
                 } else {
                     break;
                 }
             } else if (ch == 0x3C) { // U+003C is '<'
-                // if (this->source.slice(this->index + 1, this->index + 4) == '!--') {
-                if (this->source.length() > this->index + 4) {
+                if (this->length > this->index + 4) {
                     if (this->source.bufferedCharAt(this->index + 1) == '!'
                         && this->source.bufferedCharAt(this->index + 2) == '-'
                         && this->source.bufferedCharAt(this->index + 3) == '-') {
                         this->index += 4; // `<!--`
-                        /*
-                        const comment = this->skipSingleLineComment(4);
-                        if (this->trackComment) {
-                            comments = comments.concat(comment);
-                        }*/
                         this->skipSingleLineComment(4);
                     } else {
                         break;
@@ -840,7 +813,6 @@ public:
             }
         }
 
-        // return comments;
         return;
     }
 
@@ -1277,9 +1249,15 @@ public:
             type = Token::IdentifierToken;
         } else if ((keywordKind = this->isKeyword(data))) {
             type = Token::KeywordToken;
-        } else if (data.length == 4 && data.equalsSameLength("null")) {
-            type = Token::NullLiteralToken;
-        } else if ((data.length == 4 && data.equalsSameLength("true")) || (data.length == 5 && data.equalsSameLength("false"))) {
+        } else if (data.length == 4) {
+            if (data.equalsSameLength("null")) {
+                type = Token::NullLiteralToken;
+            } else if (data.equalsSameLength("true")) {
+                type = Token::BooleanLiteralToken;
+            } else {
+                type = Token::IdentifierToken;
+            }
+        } else if ((data.length == 5 && data.equalsSameLength("false"))) {
             type = Token::BooleanLiteralToken;
         } else {
             type = Token::IdentifierToken;
@@ -2369,7 +2347,7 @@ public:
     void pushScopeContext(const PatternNodeVector& params, AtomicString functionName)
     {
         auto parentContext = scopeContexts.back();
-        scopeContexts.push_back(new ASTScopeContext(this->context->strict, scopeContexts.back()));
+        scopeContexts.push_back(new ASTScopeContext(this->context->strict));
         scopeContexts.back()->m_functionName = functionName;
         scopeContexts.back()->m_inCatch = this->context->inCatch;
         scopeContexts.back()->m_inWith = this->context->inWith;
@@ -5724,7 +5702,7 @@ public:
             if (this->config.parseSingleFunctionChildIndex.asUint32()) {
                 size_t realIndex = this->config.parseSingleFunctionChildIndex.asUint32() - 1;
                 this->config.parseSingleFunctionChildIndex = SmallValue(this->config.parseSingleFunctionChildIndex.asUint32() + 1);
-                CodeBlock* currentTarget = this->config.parseSingleFunctionTarget;
+                InterpretedCodeBlock* currentTarget = this->config.parseSingleFunctionTarget->asInterpretedCodeBlock();
                 size_t orgIndex = this->lookahead->index;
                 this->expect(LeftBrace);
 
@@ -5778,9 +5756,11 @@ public:
         scopeContexts.back()->m_locStart.column = nodeStart.column;
         scopeContexts.back()->m_locStart.index = nodeStart.index;
 
+        scopeContexts.back()->m_locEnd.index = this->lastMarker.index;
+#ifndef NDEBUG
         scopeContexts.back()->m_locEnd.line = this->lastMarker.lineNumber;
         scopeContexts.back()->m_locEnd.column = this->lastMarker.index - this->lastMarker.lineStart;
-        scopeContexts.back()->m_locEnd.index = this->lastMarker.index;
+#endif
 
         this->context->inDirectCatchScope = prevInDirectCatchScope;
 
@@ -6245,7 +6225,7 @@ public:
     ProgramNode* parseProgram()
     {
         MetaNode node = this->createNode();
-        scopeContexts.push_back(new ASTScopeContext(this->context->strict, nullptr));
+        scopeContexts.push_back(new ASTScopeContext(this->context->strict));
         StatementNodeVector body = this->parseDirectivePrologues();
         while (this->startMarker.index < this->scanner->length) {
             body.push_back(this->parseStatementListItem());
@@ -6255,8 +6235,10 @@ public:
         scopeContexts.back()->m_locStart.index = node.index;
 
         MetaNode endNode = this->createNode();
+#ifndef NDEBUG
         scopeContexts.back()->m_locEnd.line = endNode.line;
         scopeContexts.back()->m_locEnd.column = endNode.column;
+#endif
         scopeContexts.back()->m_locEnd.index = endNode.index;
         return this->finalize(node, new ProgramNode(std::move(body), scopeContexts.back() /*, this->sourceType*/));
     }
@@ -6502,12 +6484,12 @@ ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserAST
     return parser.parseProgram();
 }
 
-std::pair<Node*, ASTScopeContext*> parseSingleFunction(::Escargot::Context* ctx, CodeBlock* codeBlock, size_t stackRemain)
+std::pair<Node*, ASTScopeContext*> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, size_t stackRemain)
 {
     Parser parser(ctx, codeBlock->src(), nullptr, stackRemain, codeBlock->sourceElementStart().line, codeBlock->sourceElementStart().column);
     parser.config.parseSingleFunction = true;
     parser.config.parseSingleFunctionTarget = codeBlock;
-    auto scopeCtx = new ASTScopeContext(codeBlock->isStrict(), nullptr);
+    auto scopeCtx = new ASTScopeContext(codeBlock->isStrict());
     parser.scopeContexts.pushBack(scopeCtx);
     return std::make_pair(parser.parseFunctionSourceElements(), scopeCtx);
 }

@@ -80,26 +80,34 @@ int getValidValueInCodeBlock(void* ptr, GC_mark_custom_result* arr)
     CodeBlock* current = (CodeBlock*)ptr;
     arr[0].from = (GC_word*)&current->m_context;
     arr[0].to = (GC_word*)current->m_context;
+    arr[1].from = (GC_word*)&current->m_byteCodeBlock;
+    arr[1].to = (GC_word*)current->m_byteCodeBlock;
+    return 0;
+}
+
+int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr)
+{
+    InterpretedCodeBlock* current = (InterpretedCodeBlock*)ptr;
+    arr[0].from = (GC_word*)&current->m_context;
+    arr[0].to = (GC_word*)current->m_context;
     arr[1].from = (GC_word*)&current->m_script;
     arr[1].to = (GC_word*)current->m_script;
     arr[2].from = (GC_word*)&current->m_identifierInfos;
     arr[2].to = (GC_word*)current->m_identifierInfos.data();
-    arr[3].from = (GC_word*)&current->m_parameterNames;
-    arr[3].to = (GC_word*)current->m_parameterNames.data();
-    arr[4].from = (GC_word*)&current->m_parametersInfomation;
-    arr[4].to = (GC_word*)current->m_parametersInfomation.data();
-    arr[5].from = (GC_word*)&current->m_parentCodeBlock;
-    arr[5].to = (GC_word*)current->m_parentCodeBlock;
-    arr[6].from = (GC_word*)&current->m_childBlocks;
-    arr[6].to = (GC_word*)current->m_childBlocks.data();
-    arr[7].from = (GC_word*)&current->m_byteCodeBlock;
-    arr[7].to = (GC_word*)current->m_byteCodeBlock;
+    arr[3].from = (GC_word*)&current->m_parametersInfomation;
+    arr[3].to = (GC_word*)current->m_parametersInfomation.data();
+    arr[4].from = (GC_word*)&current->m_parentCodeBlock;
+    arr[4].to = (GC_word*)current->m_parentCodeBlock;
+    arr[5].from = (GC_word*)&current->m_childBlocks;
+    arr[5].to = (GC_word*)current->m_childBlocks.data();
+    arr[6].from = (GC_word*)&current->m_byteCodeBlock;
+    arr[6].to = (GC_word*)current->m_byteCodeBlock;
 #ifdef NDEBUG
-    arr[8].from = (GC_word*)&current->m_context;
-    arr[8].to = (GC_word*)nullptr;
+    arr[7].from = (GC_word*)&current->m_context;
+    arr[7].to = (GC_word*)nullptr;
 #else
-    arr[8].from = (GC_word*)&current->m_scopeContext;
-    arr[8].to = (GC_word*)current->m_scopeContext;
+    arr[7].from = (GC_word*)&current->m_scopeContext;
+    arr[7].to = (GC_word*)current->m_scopeContext;
 #endif
     return 0;
 }
@@ -130,9 +138,14 @@ void initializeCustomAllocators()
                                                                         TRUE);
 #endif
     s_gcKinds[HeapObjectKind::CodeBlockKind] = GC_new_kind_enumerable(GC_new_free_list(),
-                                                                      GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInCodeBlock, 9>), 0),
+                                                                      GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInCodeBlock, 2>), 0),
                                                                       FALSE,
                                                                       TRUE);
+
+    s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind] = GC_new_kind_enumerable(GC_new_free_list(),
+                                                                                 GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 8>), 0),
+                                                                                 FALSE,
+                                                                                 TRUE);
 
 #ifdef PROFILE_MASSIF
     GC_is_valid_displacement_print_proc = [](void* ptr) {
@@ -218,5 +231,15 @@ CodeBlock* CustomAllocator<CodeBlock>::allocate(size_type GC_n, const void*)
     ASSERT(GC_n == 1);
     int kind = s_gcKinds[HeapObjectKind::CodeBlockKind];
     return (CodeBlock*)GC_GENERIC_MALLOC(sizeof(CodeBlock), kind);
+}
+
+template <>
+InterpretedCodeBlock* CustomAllocator<InterpretedCodeBlock>::allocate(size_type GC_n, const void*)
+{
+    // Un-comment this to use default allocator
+    // return (InterpretedCodeBlock*)GC_MALLOC(sizeof(InterpretedCodeBlock));
+    ASSERT(GC_n == 1);
+    int kind = s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind];
+    return (InterpretedCodeBlock*)GC_GENERIC_MALLOC(sizeof(InterpretedCodeBlock), kind);
 }
 }

@@ -29,16 +29,16 @@ ScriptParser::ScriptParser(Context* c)
 {
 }
 
-CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, CodeBlock* parentCodeBlock)
+InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock)
 {
-    CodeBlock* codeBlock;
+    InterpretedCodeBlock* codeBlock;
     if (parentCodeBlock == nullptr) {
         // globalBlock
-        codeBlock = new CodeBlock(ctx, script, source, scopeCtx->m_isStrict, ExtendedNodeLOC(1, 1, 0), scopeCtx->m_names,
-                                  (CodeBlock::CodeBlockInitFlag)((scopeCtx->m_hasEval ? CodeBlock::CodeBlockHasEval : 0)
-                                                                 | (scopeCtx->m_hasWith ? CodeBlock::CodeBlockHasWith : 0)
-                                                                 | (scopeCtx->m_hasCatch ? CodeBlock::CodeBlockHasCatch : 0)
-                                                                 | (scopeCtx->m_hasYield ? CodeBlock::CodeBlockHasYield : 0)));
+        codeBlock = new InterpretedCodeBlock(ctx, script, source, scopeCtx->m_isStrict, ExtendedNodeLOC(1, 1, 0), scopeCtx->m_names,
+                                             (CodeBlock::CodeBlockInitFlag)((scopeCtx->m_hasEval ? CodeBlock::CodeBlockHasEval : 0)
+                                                                            | (scopeCtx->m_hasWith ? CodeBlock::CodeBlockHasWith : 0)
+                                                                            | (scopeCtx->m_hasCatch ? CodeBlock::CodeBlockHasCatch : 0)
+                                                                            | (scopeCtx->m_hasYield ? CodeBlock::CodeBlockHasYield : 0)));
     } else {
         bool isFE = scopeCtx->m_nodeType == FunctionExpression;
         bool isFD = scopeCtx->m_nodeType == FunctionDeclaration;
@@ -46,19 +46,19 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
         if (scopeCtx->m_needsSpecialInitialize)
             isFD = false;
 
-        codeBlock = new CodeBlock(ctx, script, StringView(source, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index),
-                                  scopeCtx->m_locStart,
-                                  scopeCtx->m_isStrict,
-                                  scopeCtx->m_functionName, scopeCtx->m_parameters, scopeCtx->m_names, parentCodeBlock,
-                                  (CodeBlock::CodeBlockInitFlag)((scopeCtx->m_hasEval ? CodeBlock::CodeBlockHasEval : 0)
-                                                                 | (scopeCtx->m_hasWith ? CodeBlock::CodeBlockHasWith : 0)
-                                                                 | (scopeCtx->m_hasCatch ? CodeBlock::CodeBlockHasCatch : 0)
-                                                                 | (scopeCtx->m_hasYield ? CodeBlock::CodeBlockHasYield : 0)
-                                                                 | (scopeCtx->m_inCatch ? CodeBlock::CodeBlockInCatch : 0)
-                                                                 | (scopeCtx->m_inWith ? CodeBlock::CodeBlockInWith : 0)
-                                                                 | (isFE ? CodeBlock::CodeBlockIsFunctionExpression : 0)
-                                                                 | (isFD ? CodeBlock::CodeBlockIsFunctionDeclaration : 0)
-                                                                 | (scopeCtx->m_needsSpecialInitialize ? CodeBlock::CodeBlockIsFunctionDeclarationWithSpecialBinding : 0)));
+        codeBlock = new InterpretedCodeBlock(ctx, script, StringView(source, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index),
+                                             scopeCtx->m_locStart,
+                                             scopeCtx->m_isStrict,
+                                             scopeCtx->m_functionName, scopeCtx->m_parameters, scopeCtx->m_names, parentCodeBlock,
+                                             (CodeBlock::CodeBlockInitFlag)((scopeCtx->m_hasEval ? CodeBlock::CodeBlockHasEval : 0)
+                                                                            | (scopeCtx->m_hasWith ? CodeBlock::CodeBlockHasWith : 0)
+                                                                            | (scopeCtx->m_hasCatch ? CodeBlock::CodeBlockHasCatch : 0)
+                                                                            | (scopeCtx->m_hasYield ? CodeBlock::CodeBlockHasYield : 0)
+                                                                            | (scopeCtx->m_inCatch ? CodeBlock::CodeBlockInCatch : 0)
+                                                                            | (scopeCtx->m_inWith ? CodeBlock::CodeBlockInWith : 0)
+                                                                            | (isFE ? CodeBlock::CodeBlockIsFunctionExpression : 0)
+                                                                            | (isFD ? CodeBlock::CodeBlockIsFunctionDeclaration : 0)
+                                                                            | (scopeCtx->m_needsSpecialInitialize ? CodeBlock::CodeBlockIsFunctionDeclarationWithSpecialBinding : 0)));
     }
 
 #ifndef NDEBUG
@@ -69,7 +69,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
 
     if (parentCodeBlock) {
         if (scopeCtx->m_hasEvaluateBindingId) {
-            CodeBlock* c = codeBlock;
+            InterpretedCodeBlock* c = codeBlock;
             while (c) {
                 c->m_canAllocateEnvironmentOnStack = false;
                 c = c->parentCodeBlock();
@@ -77,7 +77,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
         }
 
         if (codeBlock->hasEvalWithCatchYield() || codeBlock->isFunctionDeclarationWithSpecialBinding()) {
-            CodeBlock* c = codeBlock;
+            InterpretedCodeBlock* c = codeBlock;
             while (c) {
                 c->notifySelfOrChildHasEvalWithCatchYield();
                 c = c->parentCodeBlock();
@@ -89,10 +89,10 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
         for (size_t i = 0; i < scopeCtx->m_usingNames.size(); i++) {
             AtomicString uname = scopeCtx->m_usingNames[i];
             if (uname == arguments) {
-                AtomicStringTightVector& pv = codeBlock->m_parameterNames;
+                const InterpretedCodeBlock::FunctionParametersInfoVector& pv = codeBlock->parametersInfomation();
                 bool hasArgumentsParameter = false;
                 for (size_t i = 0; i < pv.size(); i++) {
-                    if (pv[i] == arguments) {
+                    if (pv[i].m_name == arguments) {
                         hasArgumentsParameter = true;
                         break;
                     }
@@ -108,12 +108,12 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
                         codeBlock->m_identifierInfos.pushBack(info);
                     }
 
-                    CodeBlock* b = codeBlock;
-                    if (b->parameterNames().size()) {
+                    InterpretedCodeBlock* b = codeBlock;
+                    if (b->parameterCount()) {
                         b->m_canAllocateEnvironmentOnStack = false;
-                        for (size_t j = 0; j < b->parameterNames().size(); j++) {
+                        for (size_t j = 0; j < b->parametersInfomation().size(); j++) {
                             for (size_t k = 0; k < b->identifierInfos().size(); k++) {
-                                if (b->identifierInfos()[k].m_name == b->parameterNames()[j]) {
+                                if (b->identifierInfos()[k].m_name == b->parametersInfomation()[j].m_name) {
                                     b->m_identifierInfos[k].m_needToAllocateOnStack = false;
                                     break;
                                 }
@@ -122,7 +122,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
                     }
                 }
             } else if (!codeBlock->hasName(uname)) {
-                CodeBlock* c = codeBlock->parentCodeBlock();
+                InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
                 while (c) {
                     if (c->tryCaptureIdentifiersFromChildCodeBlock(uname)) {
                         hasCapturedIdentifier = true;
@@ -134,7 +134,7 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
         }
 
         if (hasCapturedIdentifier) {
-            CodeBlock* c = codeBlock->parentCodeBlock();
+            InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
             while (c && c->m_canAllocateEnvironmentOnStack) {
                 c->m_canAllocateEnvironmentOnStack = false;
                 c = c->parentCodeBlock();
@@ -151,12 +151,12 @@ CodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, String
 }
 
 // generate code blocks from AST
-CodeBlock* ScriptParser::generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program)
+InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program)
 {
     return generateCodeBlockTreeFromASTWalker(ctx, source, script, program->scopeContext(), nullptr);
 }
 
-void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(CodeBlock* cb)
+void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb)
 {
     for (size_t i = 0; i < cb->m_childBlocks.size(); i++) {
         generateCodeBlockTreeFromASTWalkerPostProcess(cb->m_childBlocks[i]);
@@ -172,7 +172,7 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(CodeBlock* cb)
     }
 }
 
-ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, String* fileName, CodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, size_t stackSizeRemain)
+ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, String* fileName, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, size_t stackSizeRemain)
 {
     Script* script = nullptr;
     ScriptParseError* error = nullptr;
@@ -180,7 +180,7 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
         ProgramNode* program = esprima::parseProgram(m_context, scriptSource, nullptr, strictFromOutside, stackSizeRemain);
 
         script = new Script(fileName, new StringView(scriptSource));
-        CodeBlock* topCodeBlock;
+        InterpretedCodeBlock* topCodeBlock;
         if (parentCodeBlock) {
             program->scopeContext()->m_hasEval = parentCodeBlock->hasEval();
             program->scopeContext()->m_hasWith = parentCodeBlock->hasWith();
@@ -202,7 +202,7 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
 // dump Code Block
 #ifndef NDEBUG
         if (getenv("DUMP_CODEBLOCK_TREE") && strlen(getenv("DUMP_CODEBLOCK_TREE"))) {
-            std::function<void(CodeBlock*, size_t depth)> fn = [&fn](CodeBlock* cb, size_t depth) {
+            std::function<void(InterpretedCodeBlock*, size_t depth)> fn = [&fn](InterpretedCodeBlock* cb, size_t depth) {
 
 #define PRINT_TAB()                      \
     for (size_t i = 0; i < depth; i++) { \
@@ -263,7 +263,7 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
     return result;
 }
 
-std::pair<Node*, ASTScopeContext*> ScriptParser::parseFunction(CodeBlock* codeBlock, size_t stackSizeRemain)
+std::pair<Node*, ASTScopeContext*> ScriptParser::parseFunction(InterpretedCodeBlock* codeBlock, size_t stackSizeRemain)
 {
     try {
         std::pair<Node*, ASTScopeContext*> body = esprima::parseSingleFunction(m_context, codeBlock, stackSizeRemain);

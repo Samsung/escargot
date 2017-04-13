@@ -25,6 +25,7 @@ namespace Escargot {
 
 class ASTScopeContext;
 class CodeBlock;
+class InterpretedCodeBlock;
 class Context;
 class ProgramNode;
 class Node;
@@ -57,13 +58,13 @@ public:
     {
         return parse(StringView(script, 0, script->length()), fileName, nullptr, strictFromOutside, isEvalCodeInFunction, stackSizeRemain);
     }
-    ScriptParserResult parse(StringView script, String* fileName = String::emptyString, CodeBlock* parentCodeBlock = nullptr, bool strictFromOutside = false, bool isEvalCodeInFunction = false, size_t stackSizeRemain = SIZE_MAX);
-    std::pair<Node*, ASTScopeContext*> parseFunction(CodeBlock* codeBlock, size_t stackSizeRemain);
+    ScriptParserResult parse(StringView script, String* fileName = String::emptyString, InterpretedCodeBlock* parentCodeBlock = nullptr, bool strictFromOutside = false, bool isEvalCodeInFunction = false, size_t stackSizeRemain = SIZE_MAX);
+    std::pair<Node*, ASTScopeContext*> parseFunction(InterpretedCodeBlock* codeBlock, size_t stackSizeRemain);
 
 protected:
-    CodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program);
-    CodeBlock* generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, CodeBlock* parentCodeBlock);
-    void generateCodeBlockTreeFromASTWalkerPostProcess(CodeBlock* cb);
+    InterpretedCodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program);
+    InterpretedCodeBlock* generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock);
+    void generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb);
 
     Context* m_context;
 };

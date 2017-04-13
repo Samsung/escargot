@@ -292,6 +292,7 @@ namespace Escargot {
     F(resolve)                    \
     F(then)                       \
     F(gc)                         \
+    F(boundFunction)              \
     F(load)
 
 

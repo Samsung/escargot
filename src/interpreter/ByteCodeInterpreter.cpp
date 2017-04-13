@@ -68,7 +68,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
 
         MoveOpcodeLbl : {
             Move* code = (Move*)programCounter;
-            ASSERT(code->m_registerIndex1 < (byteCodeBlock->m_requiredRegisterFileSizeInValueSize + byteCodeBlock->m_codeBlock->identifierOnStackCount() + 1));
+            ASSERT(code->m_registerIndex1 < (byteCodeBlock->m_requiredRegisterFileSizeInValueSize + byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->identifierOnStackCount() + 1));
             registerFile[code->m_registerIndex1] = registerFile[code->m_registerIndex0];
             ADD_PROGRAM_COUNTER(Move);
             NEXT_INSTRUCTION();
@@ -735,7 +735,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                     arg = registerFile[code->m_argumentsStartIndex];
                 }
                 Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-                registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, stackStorage[0], byteCodeBlock->m_codeBlock);
+                registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, stackStorage[0], byteCodeBlock->m_codeBlock->asInterpretedCodeBlock());
             } else {
                 Value thisValue;
                 if (code->m_inWithScope) {
@@ -960,8 +960,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
         }
 
         EndOpcodeLbl:
-        CallNativeFunctionOpcodeLbl:
-        CallBoundFunctionOpcodeLbl:
             return registerFile[0];
 
         } catch (const Value& v) {
@@ -1731,7 +1729,7 @@ NEVER_INLINE Value ByteCodeInterpreter::callFunctionInWithScope(ExecutionState& 
 
 NEVER_INLINE void ByteCodeInterpreter::declareFunctionDeclarations(ExecutionState& state, DeclareFunctionDeclarations* code, LexicalEnvironment* lexicalEnvironment, Value* stackStorage)
 {
-    CodeBlock* cb = code->m_codeBlock;
+    InterpretedCodeBlock* cb = code->m_codeBlock;
     const CodeBlockVector& v = cb->childBlocks();
     size_t l = v.size();
     if (LIKELY(cb->canUseIndexedVariableStorage())) {
@@ -1827,27 +1825,29 @@ NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, c
     if (!alreadyExists) {
         if (env->record()->isGlobalEnvironmentRecord()) {
             CodeBlock* cb = env->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
-            ByteCodeBlock* b = cb->byteCodeBlock();
+            ByteCodeBlock* b = cb->asInterpretedCodeBlock()->byteCodeBlock();
             ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
             if (programCounter != SIZE_MAX) {
                 loc = b->computeNodeLOCFromByteCode(state.context(), programCounter - (size_t)b->m_code.data(), cb);
             }
             SandBox::StackTraceData data;
             data.loc = loc;
-            data.fileName = cb->script()->fileName();
+            data.fileName = cb->asInterpretedCodeBlock()->script()->fileName();
             sb->m_stackTraceData.pushBack(std::make_pair(ec, data));
         } else {
             FunctionObject* fn = env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
             CodeBlock* cb = fn->codeBlock();
-            ByteCodeBlock* b = cb->byteCodeBlock();
             ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
-            if (programCounter != SIZE_MAX) {
-                loc = b->computeNodeLOCFromByteCode(state.context(), programCounter - (size_t)b->m_code.data(), cb);
+            if (cb->isInterpretedCodeBlock()) {
+                ByteCodeBlock* b = cb->asInterpretedCodeBlock()->byteCodeBlock();
+                if (programCounter != SIZE_MAX) {
+                    loc = b->computeNodeLOCFromByteCode(state.context(), programCounter - (size_t)b->m_code.data(), cb);
+                }
             }
             SandBox::StackTraceData data;
             data.loc = loc;
-            if (cb->script())
-                data.fileName = cb->script()->fileName();
+            if (cb->isInterpretedCodeBlock() && cb->asInterpretedCodeBlock()->script())
+                data.fileName = cb->asInterpretedCodeBlock()->script()->fileName();
             else {
                 StringBuilder builder;
                 builder.appendString("function ");

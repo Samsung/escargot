@@ -24,7 +24,7 @@ namespace Escargot {
 
 class ExecutionContext;
 class FunctionEnvironmentRecord;
-class CodeBlock;
+class InterpretedCodeBlock;
 
 extern size_t g_argumentsObjectTag;
 
@@ -48,7 +48,7 @@ public:
 
 protected:
     FunctionEnvironmentRecord* m_targetRecord;
-    CodeBlock* m_codeBlock;
+    InterpretedCodeBlock* m_codeBlock;
     TightVector<std::pair<SmallValue, AtomicString>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<SmallValue, AtomicString>>> m_argumentPropertyInfo;
 };
 }

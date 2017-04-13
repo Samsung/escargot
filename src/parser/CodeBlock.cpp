@@ -33,12 +33,6 @@ void* CodeBlock::operator new(size_t size)
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(CodeBlock)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_context));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_script));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_identifierInfos));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_parameterNames));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_parametersInfomation));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_parentCodeBlock));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_childBlocks));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_byteCodeBlock));
 #ifndef NDEBUG
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_scopeContext));
@@ -50,20 +44,35 @@ void* CodeBlock::operator new(size_t size)
 #endif
 }
 
+void* InterpretedCodeBlock::operator new(size_t size)
+{
+#ifdef GC_DEBUG
+    return CustomAllocator<InterpretedCodeBlock>().allocate(1);
+#else
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(InterpretedCodeBlock)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_context));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_script));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_identifierInfos));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parametersInfomation));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parentCodeBlock));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_childBlocks));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_byteCodeBlock));
+#ifndef NDEBUG
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_scopeContext));
+#endif
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(InterpretedCodeBlock));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
+}
+
 CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     : m_context(ctx)
-    , m_script(nullptr)
-    , m_src()
-    , m_sourceElementStart(0, 0, 0)
-    , m_identifierOnStackCount(info.m_argumentCount + (info.m_name.string()->length() ? 1 : 0))
-    , m_identifierOnHeapCount(0)
-    , m_parentCodeBlock(nullptr)
-    , m_byteCodeBlock(nullptr)
-#ifndef NDEBUG
-    , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
-    , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
-    , m_scopeContext(nullptr)
-#endif
+    , m_nativeFunctionData(nullptr)
 {
     m_hasCallNativeFunctionCode = true;
     m_isFunctionNameExplicitlyDeclared = m_isFunctionNameSaveOnHeap = m_isFunctionExpression = m_isFunctionDeclaration = m_isFunctionDeclarationWithSpecialBinding = false;
@@ -84,24 +93,19 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     m_isEvalCodeInFunction = false;
     m_isBindedFunction = false;
 
-    m_parametersInfomation.resize(info.m_argumentCount);
+    m_parameterCount = info.m_argumentCount;
 
-    m_byteCodeBlock = new ByteCodeBlock(this);
-    CallNativeFunction code(info.m_nativeFunction, info.m_nativeFunctionConstructor);
-    code.assignOpcodeInAddress();
-    char* first = (char*)&code;
-    size_t start = m_byteCodeBlock->m_code.size();
-    m_byteCodeBlock->m_code.resize(m_byteCodeBlock->m_code.size() + sizeof(CallNativeFunction));
-    for (size_t i = 0; i < sizeof(CallNativeFunction); i++) {
-        m_byteCodeBlock->m_code[start++] = *first;
-        first++;
-    }
+    auto data = new CallNativeFunctionData();
+    m_nativeFunctionData = (CallNativeFunctionData*)data;
+
+    data->m_ctorFn = info.m_nativeFunctionConstructor;
+    data->m_fn = info.m_nativeFunction;
 }
 
 static Value functionBindImpl(ExecutionState& state, Value thisValue, size_t calledArgc, Value* calledArgv, bool isNewExpression)
 {
     CodeBlock* dataCb = state.executionContext()->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock();
-    CallBoundFunction* code = (CallBoundFunction*)(dataCb->byteCodeBlock()->m_code.data() + sizeof(CallNativeFunction));
+    CallBoundFunctionData* code = (CallBoundFunctionData*)(dataCb->nativeFunctionData());
 
     // Collect arguments info when current function is called.
     int mergedArgc = code->m_boundArgumentsCount + calledArgc;
@@ -116,106 +120,64 @@ static Value functionBindImpl(ExecutionState& state, Value thisValue, size_t cal
 
 CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv)
     : m_context(state.context())
-    , m_script(nullptr)
-    , m_src()
-    , m_sourceElementStart(0, 0, 0)
-    , m_identifierOnStackCount(0)
-    , m_identifierOnHeapCount(0)
-    , m_parentCodeBlock(targetFunction->codeBlock()->parentCodeBlock())
-    , m_byteCodeBlock(nullptr)
-#ifndef NDEBUG
-    , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
-    , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
-    , m_scopeContext(nullptr)
-#endif
+    , m_nativeFunctionData(nullptr)
 {
     CodeBlock* targetCodeBlock = targetFunction->codeBlock();
 
+    m_functionName = state.context()->staticStrings().boundFunction;
     m_hasCallNativeFunctionCode = true;
     m_isFunctionNameExplicitlyDeclared = m_isFunctionNameSaveOnHeap = false;
     m_isFunctionExpression = m_isFunctionDeclaration = m_isFunctionDeclarationWithSpecialBinding = false;
     m_isConsturctor = false;
-    StringBuilder builder;
-    builder.appendString("bound ");
-    ObjectGetResult r = targetFunction->getOwnProperty(state, m_context->staticStrings().name);
-    Value fn;
-    if (r.hasValue()) {
-        fn = r.value(state, targetFunction);
-    }
-    if (fn.isString())
-        builder.appendString(fn.asString());
-    m_functionName = AtomicString(state.context(), builder.finalize());
-    m_isStrict = targetCodeBlock->isStrict();
-    m_hasEval = targetCodeBlock->hasEval();
-    m_hasWith = targetCodeBlock->hasWith();
-    m_hasCatch = targetCodeBlock->hasCatch();
-    m_hasYield = targetCodeBlock->hasYield();
+    m_isStrict = false;
+    m_hasEval = false;
+    m_hasWith = false;
+    m_hasCatch = false;
+    m_hasYield = false;
     m_inCatch = false;
     m_inWith = false;
-    m_usesArgumentsObject = targetCodeBlock->usesArgumentsObject();
-    m_canUseIndexedVariableStorage = targetCodeBlock->canUseIndexedVariableStorage();
-    m_canAllocateEnvironmentOnStack = targetCodeBlock->canAllocateEnvironmentOnStack();
-    m_needsComplexParameterCopy = targetCodeBlock->needsComplexParameterCopy();
-    m_isInWithScope = targetCodeBlock->isInWithScope();
+    m_usesArgumentsObject = false;
+    m_canUseIndexedVariableStorage = false;
+    m_canAllocateEnvironmentOnStack = false;
+    m_needsComplexParameterCopy = false;
+    m_isInWithScope = false;
     m_isEvalCodeInFunction = false;
     m_isBindedFunction = true;
 
-    size_t targetFunctionLength = targetCodeBlock->parametersInfomation().size();
-    m_parametersInfomation.resize(targetFunctionLength > boundArgc ? targetFunctionLength - boundArgc : 0);
+    size_t targetFunctionLength = targetCodeBlock->parameterCount();
+    m_parameterCount = targetFunctionLength > boundArgc ? targetFunctionLength - boundArgc : 0;
 
-    m_byteCodeBlock = new ByteCodeBlock(this);
+    auto data = new CallBoundFunctionData();
+    m_nativeFunctionData = (CallBoundFunctionData*)data;
 
-    NativeFunctionConstructor ctor = [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
-        return new Object(state);
-    };
-    if (targetCodeBlock->hasCallNativeFunctionCode()) {
-        ctor = targetCodeBlock->nativeFunctionConstructor();
-    }
+    NativeFunctionConstructor ctor;
+    data->m_ctorFn = nullptr;
+    data->m_fn = functionBindImpl;
 
-    CallNativeFunction nativeFnCode(functionBindImpl, ctor);
-    nativeFnCode.assignOpcodeInAddress();
-    char* first = (char*)&nativeFnCode;
-    size_t start = 0;
-    m_byteCodeBlock->m_code.resize(sizeof(CallNativeFunction) + sizeof(CallBoundFunction));
-    for (size_t i = 0; i < sizeof(CallNativeFunction); i++) {
-        m_byteCodeBlock->m_code[start++] = *first;
-        first++;
-    }
-
-    CallBoundFunction code(ByteCodeLOC(0));
-    code.assignOpcodeInAddress();
-    code.m_boundTargetFunction = targetFunction;
-    code.m_boundThis = boundThis;
-    code.m_boundArgumentsCount = boundArgc;
-    code.m_boundArguments = (Value*)GC_MALLOC(boundArgc * sizeof(Value));
-    memcpy(code.m_boundArguments, boundArgv, boundArgc * sizeof(Value));
-    m_byteCodeBlock->m_literalData.pushBack(targetFunction);
-    if (boundThis.isPointerValue())
-        m_byteCodeBlock->m_literalData.pushBack(boundThis.asPointerValue());
-    m_byteCodeBlock->m_literalData.pushBack(code.m_boundArguments);
-
-    first = (char*)&code;
-    for (size_t i = 0; i < sizeof(CallBoundFunction); i++) {
-        m_byteCodeBlock->m_code[start++] = *first;
-        first++;
-    }
+    data->m_boundTargetFunction = targetFunction;
+    data->m_boundThis = boundThis;
+    data->m_boundArgumentsCount = boundArgc;
+    data->m_boundArguments = (Value*)GC_MALLOC(boundArgc * sizeof(Value));
+    memcpy(data->m_boundArguments, boundArgv, boundArgc * sizeof(Value));
 }
 
-CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const ASTScopeContextNameInfoVector& innerIdentifiers, CodeBlockInitFlag initFlags)
-    : m_context(ctx)
-    , m_script(script)
-    , m_src(src)
-    , m_sourceElementStart(sourceElementStart)
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const ASTScopeContextNameInfoVector& innerIdentifiers, CodeBlockInitFlag initFlags)
+    : m_sourceElementStart(sourceElementStart)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
     , m_parentCodeBlock(nullptr)
-    , m_byteCodeBlock(nullptr)
 #ifndef NDEBUG
     , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_scopeContext(nullptr)
 #endif
 {
+    m_context = ctx;
+    m_script = script;
+    m_src = src;
+    m_byteCodeBlock = nullptr;
+
+    m_parameterCount = 0;
     m_isConsturctor = false;
     m_hasCallNativeFunctionCode = false;
     m_isFunctionDeclaration = false;
@@ -280,28 +242,29 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict
     m_isFunctionNameExplicitlyDeclared = m_isFunctionNameSaveOnHeap = false;
 }
 
-CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringVector& parameterNames, const ASTScopeContextNameInfoVector& innerIdentifiers,
-                     CodeBlock* parentBlock, CodeBlockInitFlag initFlags)
-    : m_context(ctx)
-    , m_script(script)
-    , m_src(src)
-    , m_sourceElementStart(sourceElementStart)
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringVector& parameterNames, const ASTScopeContextNameInfoVector& innerIdentifiers,
+                                           InterpretedCodeBlock* parentBlock, CodeBlockInitFlag initFlags)
+    : m_sourceElementStart(sourceElementStart)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
-    , m_functionName(functionName)
-    , m_parameterNames()
     , m_parentCodeBlock(parentBlock)
-    , m_byteCodeBlock(nullptr)
 #ifndef NDEBUG
     , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_scopeContext(nullptr)
 #endif
 {
-    m_parameterNames.resizeWithUninitializedValues(parameterNames.size());
+    m_context = ctx;
+    m_script = script;
+    m_src = src;
+    m_byteCodeBlock = nullptr;
+
+    m_functionName = functionName;
+    m_parametersInfomation.resizeWithUninitializedValues(parameterNames.size());
     for (size_t i = 0; i < parameterNames.size(); i++) {
-        m_parameterNames[i] = parameterNames[i];
+        m_parametersInfomation[i].m_name = parameterNames[i];
     }
+    m_parameterCount = parameterNames.size();
     m_isConsturctor = true;
     m_hasCallNativeFunctionCode = false;
     m_isStrict = isStrict;
@@ -390,7 +353,7 @@ CodeBlock::CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeL
     m_isBindedFunction = false;
 }
 
-bool CodeBlock::tryCaptureIdentifiersFromChildCodeBlock(AtomicString name)
+bool InterpretedCodeBlock::tryCaptureIdentifiersFromChildCodeBlock(AtomicString name)
 {
     for (size_t i = 0; i < m_identifierInfos.size(); i++) {
         if (m_identifierInfos[i].m_name == name) {
@@ -402,7 +365,7 @@ bool CodeBlock::tryCaptureIdentifiersFromChildCodeBlock(AtomicString name)
     return false;
 }
 
-void CodeBlock::notifySelfOrChildHasEvalWithCatchYield()
+void InterpretedCodeBlock::notifySelfOrChildHasEvalWithCatchYield()
 {
     m_canAllocateEnvironmentOnStack = false;
     m_canUseIndexedVariableStorage = false;
@@ -418,7 +381,7 @@ void CodeBlock::notifySelfOrChildHasEvalWithCatchYield()
 // function block id map
 // [this, functionName, arg0, arg1...]
 
-void CodeBlock::computeVariables()
+void InterpretedCodeBlock::computeVariables()
 {
     if (m_usesArgumentsObject) {
         m_canAllocateEnvironmentOnStack = false;
@@ -439,8 +402,8 @@ void CodeBlock::computeVariables()
             }
         }
 
-        for (size_t i = 0; i < m_parameterNames.size(); i++) {
-            AtomicString name = m_parameterNames[i];
+        for (size_t i = 0; i < m_parametersInfomation.size(); i++) {
+            AtomicString name = m_parametersInfomation[i].m_name;
             if (name == m_functionName) {
                 m_needsComplexParameterCopy = true;
                 break;
@@ -511,11 +474,9 @@ void CodeBlock::computeVariables()
             h++;
         }
 
-        size_t siz = m_parameterNames.size();
-        m_parametersInfomation.resizeWithUninitializedValues(siz);
+        size_t siz = m_parametersInfomation.size();
         for (size_t i = 0; i < siz; i++) {
             m_parametersInfomation[i].m_isHeapAllocated = true;
-            m_parametersInfomation[i].m_name = m_parameterNames[i];
             m_parametersInfomation[i].m_index = std::numeric_limits<int32_t>::max();
         }
 
@@ -523,15 +484,14 @@ void CodeBlock::computeVariables()
         m_identifierOnHeapCount = h;
     }
 
-    size_t siz = m_parameterNames.size();
-    m_parametersInfomation.resizeWithUninitializedValues(siz);
+    size_t siz = m_parametersInfomation.size();
     size_t heapCount = 0;
     size_t stackCount = isGlobalScopeCodeBlock() ? 1 : 2;
 
     std::vector<std::pair<AtomicString, size_t>> computedNameIndex;
 
     for (size_t i = 0; i < siz; i++) {
-        AtomicString name = m_parameterNames[i];
+        AtomicString name = m_parametersInfomation[i].m_name;
         bool isHeap = !m_identifierInfos[findName(name)].m_needToAllocateOnStack;
         m_parametersInfomation[i].m_isHeapAllocated = isHeap;
         m_parametersInfomation[i].m_name = name;
@@ -574,18 +534,5 @@ void CodeBlock::computeVariables()
             m_parametersInfomation[i].m_index = computedNameIndex[computedIndex].second;
         }
     }
-}
-
-NativeFunctionConstructor CodeBlock::nativeFunctionConstructor()
-{
-    ASSERT(hasCallNativeFunctionCode());
-    CallNativeFunction* code = (CallNativeFunction*)m_byteCodeBlock->m_code.data();
-    return code->m_ctorFn;
-}
-
-CallBoundFunction* CodeBlock::boundFunctionInfo()
-{
-    ASSERT(isBindedFunction());
-    return ((CallBoundFunction*)(m_byteCodeBlock->m_code.data() + sizeof(CallNativeFunction)));
 }
 }

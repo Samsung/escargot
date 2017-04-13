@@ -38,6 +38,18 @@ public:
         delete m_body;
     }
 
+    AtomicStringVector paramsToAtomicStringVector()
+    {
+        AtomicStringVector ret;
+
+        ret.resizeWithUninitializedValues(m_params.size());
+        for (size_t i = 0; i < m_params.size(); i++) {
+            ret[i] = m_params[i]->asIdentifier()->name();
+        }
+
+        return ret;
+    }
+
     inline const PatternNodeVector& params() { return m_params; }
     inline Node* body() { return m_body; }
     inline const AtomicString& id() { return m_id; }

@@ -39,8 +39,8 @@ public:
     {
         CodeBlock* blk = nullptr;
         size_t cnt = 0;
-        for (size_t i = 0; i < context->m_codeBlock->childBlocks().size(); i++) {
-            CodeBlock* c = context->m_codeBlock->childBlocks()[i];
+        for (size_t i = 0; i < context->m_codeBlock->asInterpretedCodeBlock()->childBlocks().size(); i++) {
+            CodeBlock* c = context->m_codeBlock->asInterpretedCodeBlock()->childBlocks()[i];
             if (c->isFunctionExpression()) {
                 if (cnt == context->m_feCounter) {
                     blk = c;

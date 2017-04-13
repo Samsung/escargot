@@ -24,9 +24,9 @@ namespace Escargot {
 
 size_t g_argumentsObjectTag;
 
-static Value ArgumentsObjectNativeGetter(ExecutionState& state, Object* self, FunctionEnvironmentRecord* targetRecord, CodeBlock* codeBlock, AtomicString name)
+static Value ArgumentsObjectNativeGetter(ExecutionState& state, Object* self, FunctionEnvironmentRecord* targetRecord, InterpretedCodeBlock* codeBlock, AtomicString name)
 {
-    CodeBlock::IdentifierInfo info = codeBlock->identifierInfos()[codeBlock->findName(name)];
+    InterpretedCodeBlock::IdentifierInfo info = codeBlock->identifierInfos()[codeBlock->findName(name)];
     ASSERT(!info.m_needToAllocateOnStack);
     if (info.m_indexForIndexedStorage == SIZE_MAX) {
         return targetRecord->getBindingValue(state, name).m_value;
@@ -34,9 +34,9 @@ static Value ArgumentsObjectNativeGetter(ExecutionState& state, Object* self, Fu
     return targetRecord->getHeapValueByIndex(info.m_indexForIndexedStorage);
 }
 
-static void ArgumentsObjectNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData, FunctionEnvironmentRecord* targetRecord, CodeBlock* codeBlock, AtomicString name)
+static void ArgumentsObjectNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData, FunctionEnvironmentRecord* targetRecord, InterpretedCodeBlock* codeBlock, AtomicString name)
 {
-    CodeBlock::IdentifierInfo info = codeBlock->identifierInfos()[codeBlock->findName(name)];
+    InterpretedCodeBlock::IdentifierInfo info = codeBlock->identifierInfos()[codeBlock->findName(name)];
     ASSERT(!info.m_needToAllocateOnStack);
     if (info.m_indexForIndexedStorage == SIZE_MAX) {
         targetRecord->setMutableBinding(state, name, setterInputData);
@@ -68,7 +68,7 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
 {
     g_argumentsObjectTag = *((size_t*)this);
 
-    CodeBlock* blk = record->functionObject()->codeBlock();
+    InterpretedCodeBlock* blk = record->functionObject()->codeBlock()->asInterpretedCodeBlock();
     bool isStrict = blk->isStrict();
 
     if (isStrict) {

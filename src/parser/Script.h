@@ -21,7 +21,7 @@
 
 namespace Escargot {
 
-class CodeBlock;
+class InterpretedCodeBlock;
 class Context;
 
 class Script : public gc {
@@ -56,16 +56,16 @@ public:
         return m_fileName;
     }
 
-    CodeBlock* topCodeBlock()
+    InterpretedCodeBlock* topCodeBlock()
     {
         return m_topCodeBlock;
     }
 
 protected:
-    Value executeLocal(ExecutionState& state, Value thisValue, CodeBlock* parentCodeBlock, bool isEvalMode = false, bool needNewEnv = false);
+    Value executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isEvalMode = false, bool needNewEnv = false);
     String* m_fileName;
     String* m_src;
-    CodeBlock* m_topCodeBlock;
+    InterpretedCodeBlock* m_topCodeBlock;
 };
 }
 

@@ -261,9 +261,7 @@ struct ASTScopeContext : public gc {
     bool m_inWith : 1;
     bool m_hasManyNumeralLiteral : 1;
     bool m_needsSpecialInitialize : 1; // flag for fd in catch
-    ASTNodeType m_nodeType;
-    ASTScopeContext *m_parentContext;
-    Node *m_associateNode;
+    ASTNodeType m_nodeType : 12;
     ASTScopeContextNameInfoVector m_names;
     AtomicStringVector m_usingNames;
     AtomicStringVector m_parameters;
@@ -271,7 +269,11 @@ struct ASTScopeContext : public gc {
     Vector<ASTScopeContext *, GCUtil::gc_malloc_ignore_off_page_allocator<ASTScopeContext *>> m_childScopes;
     Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>> *m_numeralLiteralData;
     ExtendedNodeLOC m_locStart;
+#ifndef NDEBUG
     ExtendedNodeLOC m_locEnd;
+#else
+    NodeLOC m_locEnd;
+#endif
 
     void *operator new(size_t size);
     void *operator new[](size_t size) = delete;
@@ -326,15 +328,17 @@ struct ASTScopeContext : public gc {
         }
     }
 
-    ASTScopeContext(bool isStrict, ASTScopeContext *parentContext)
+    ASTScopeContext(bool isStrict)
         : m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+#ifndef NDEBUG
         , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+#else
+        , m_locEnd(SIZE_MAX)
+#endif
     {
         m_isStrict = isStrict;
         m_hasEvaluateBindingId = m_hasYield = m_hasCatch = m_hasWith = m_hasEval = false;
         m_needsSpecialInitialize = m_hasManyNumeralLiteral = m_inCatch = m_inWith = false;
-        m_parentContext = parentContext;
-        m_associateNode = nullptr;
         m_numeralLiteralData = nullptr;
     }
 };

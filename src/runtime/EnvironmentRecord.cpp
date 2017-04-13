@@ -24,7 +24,7 @@
 
 namespace Escargot {
 
-GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBlock* codeBlock, GlobalObject* global, bool isEvalMode)
+GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, InterpretedCodeBlock* codeBlock, GlobalObject* global, bool isEvalMode)
     : EnvironmentRecord()
     , m_globalCodeBlock(codeBlock)
 {
@@ -33,7 +33,7 @@ GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, CodeBloc
 
     if (!codeBlock)
         return;
-    const CodeBlock::IdentifierInfoVector& vec = codeBlock->identifierInfos();
+    const InterpretedCodeBlock::IdentifierInfoVector& vec = codeBlock->identifierInfos();
     size_t len = vec.size();
     for (size_t i = 0; i < len; i++) {
         // https://www.ecma-international.org/ecma-262/5.1/#sec-10.5
@@ -105,7 +105,7 @@ EnvironmentRecord::BindingSlot GlobalEnvironmentRecord::hasBinding(ExecutionStat
 
 FunctionEnvironmentRecordOnHeap::FunctionEnvironmentRecordOnHeap(FunctionObject* function, size_t argc, Value* argv)
     : FunctionEnvironmentRecord(function)
-    , m_heapStorage(function->codeBlock()->identifierOnHeapCount())
+    , m_heapStorage(function->codeBlock()->asInterpretedCodeBlock()->identifierOnHeapCount())
 {
     m_argc = argc;
     m_argv = argv;
@@ -117,7 +117,7 @@ FunctionEnvironmentRecordNotIndexed::FunctionEnvironmentRecordNotIndexed(Functio
 {
     m_argc = argc;
     m_argv = argv;
-    const CodeBlock::IdentifierInfoVector& vec = function->codeBlock()->identifierInfos();
+    const InterpretedCodeBlock::IdentifierInfoVector& vec = function->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
     size_t len = vec.size();
     m_recordVector.resizeWithUninitializedValues(len);
     m_heapStorage.resizeWithUninitializedValues(len);

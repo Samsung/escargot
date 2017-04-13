@@ -28,15 +28,14 @@ class Node;
 class ByteCodeBlock;
 class LexicalEnvironment;
 class CodeBlock;
+class InterpretedCodeBlock;
 class Script;
-class CallBoundFunction;
 
-typedef TightVector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>> CodeBlockVector;
+typedef TightVector<InterpretedCodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<InterpretedCodeBlock*>> CodeBlockVector;
 
 // length of argv is same with NativeFunctionInfo.m_argumentCount
 typedef Value (*NativeFunctionPointer)(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
 typedef Object* (*NativeFunctionConstructor)(ExecutionState& state, size_t argc, Value* argv);
-
 
 struct NativeFunctionInfo {
     enum Flags {
@@ -66,6 +65,21 @@ struct NativeFunctionInfo {
     }
 };
 
+class CallNativeFunctionData : public gc {
+public:
+    NativeFunctionPointer m_fn;
+    NativeFunctionConstructor m_ctorFn;
+};
+
+class CallBoundFunctionData : public CallNativeFunctionData {
+public:
+    FunctionObject* m_boundTargetFunction;
+    Value m_boundThis;
+    Value* m_boundArguments;
+    size_t m_boundArgumentsCount;
+};
+
+class InterpretedCodeBlock;
 
 class CodeBlock : public gc {
     friend class Script;
@@ -112,60 +126,14 @@ public:
         return m_context;
     }
 
-    Script* script()
-    {
-        return m_script;
-    }
-
     bool isConsturctor() const
     {
         return m_isConsturctor;
     }
 
-    bool isGlobalScopeCodeBlock() const
-    {
-        return m_parentCodeBlock == nullptr;
-    }
-
-    bool inEvalWithCatchYieldScope()
-    {
-        CodeBlock* cb = this;
-        while (cb) {
-            if (cb->hasEvalWithCatchYield()) {
-                return true;
-            }
-            cb = cb->parentCodeBlock();
-        }
-        return false;
-    }
-
-    bool inEvalWithScope()
-    {
-        CodeBlock* cb = this;
-        while (cb) {
-            if (cb->hasEval() || cb->hasWith()) {
-                return true;
-            }
-            cb = cb->parentCodeBlock();
-        }
-        return false;
-    }
-
     bool inCatchWith()
     {
         return m_inCatch || m_inWith;
-    }
-
-    bool inNotIndexedCodeBlockScope()
-    {
-        CodeBlock* cb = this;
-        while (!cb->isGlobalScopeCodeBlock()) {
-            if (!cb->canUseIndexedVariableStorage()) {
-                return true;
-            }
-            cb = cb->parentCodeBlock();
-        }
-        return false;
     }
 
     bool hasEval() const
@@ -192,58 +160,6 @@ public:
     {
         return m_hasEval || m_hasWith || m_hasCatch || m_hasYield;
     }
-
-    CodeBlock* parentCodeBlock()
-    {
-        return m_parentCodeBlock;
-    }
-
-    const CodeBlockVector& childBlocks()
-    {
-        return m_childBlocks;
-    }
-
-    bool hasName(const AtomicString& name)
-    {
-        for (size_t i = 0; i < m_identifierInfos.size(); i++) {
-            if (m_identifierInfos[i].m_name == name) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    size_t findName(const AtomicString& name)
-    {
-        for (size_t i = 0; i < m_identifierInfos.size(); i++) {
-            if (m_identifierInfos[i].m_name == name) {
-                return i;
-            }
-        }
-        return SIZE_MAX;
-    }
-
-    Node* cachedASTNode()
-    {
-        return m_cachedASTNode;
-    }
-
-    const StringView& src()
-    {
-        return m_src;
-    }
-
-    ExtendedNodeLOC sourceElementStart()
-    {
-        return m_sourceElementStart;
-    }
-
-    ByteCodeBlock* byteCodeBlock()
-    {
-        return m_byteCodeBlock;
-    }
-
-    NativeFunctionConstructor nativeFunctionConstructor();
 
     bool isStrict() const
     {
@@ -285,31 +201,9 @@ public:
         return m_usesArgumentsObject;
     }
 
-    const IdentifierInfoVector& identifierInfos() const
-    {
-        return m_identifierInfos;
-    }
-
-    size_t identifierOnStackCount() const
-    {
-        return m_identifierOnStackCount;
-    }
-
-    size_t identifierOnHeapCount() const
-    {
-        return m_identifierOnHeapCount;
-    }
-
     AtomicString functionName() const
     {
-        // check function
         return m_functionName;
-    }
-
-    const AtomicStringTightVector& functionParameters() const
-    {
-        // check function
-        return m_parameterNames;
     }
 
     bool needsComplexParameterCopy() const
@@ -332,87 +226,35 @@ public:
         return m_isBindedFunction;
     }
 
-    CallBoundFunction* boundFunctionInfo();
-
-    struct FunctionParametersInfo {
-        bool m_isHeapAllocated;
-        int32_t m_index;
-        AtomicString m_name;
-    };
-    typedef TightVector<FunctionParametersInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<FunctionParametersInfo>> FunctionParametersInfoVector;
-    const FunctionParametersInfoVector& parametersInfomation() const
+    uint16_t parameterCount()
     {
-        return m_parametersInfomation;
+        return m_parameterCount;
     }
 
-    const AtomicStringTightVector& parameterNames() const
+    bool isInterpretedCodeBlock()
     {
-        return m_parameterNames;
+        return !m_hasCallNativeFunctionCode;
     }
 
-    struct IndexedIdentifierInfo {
-        bool m_isResultSaved;
-        bool m_isStackAllocated;
-        bool m_isMutable;
-        size_t m_upperIndex;
-        size_t m_index;
-    };
-
-    IndexedIdentifierInfo indexedIdentifierInfo(const AtomicString& name)
+    InterpretedCodeBlock* asInterpretedCodeBlock()
     {
-        size_t upperIndex = 0;
-        IndexedIdentifierInfo info;
-
-        CodeBlock* blk = this;
-        while (!blk->isGlobalScopeCodeBlock() && blk->canUseIndexedVariableStorage()) {
-            size_t index = blk->findName(name);
-            if (index != SIZE_MAX) {
-                info.m_isResultSaved = true;
-                info.m_isStackAllocated = blk->m_identifierInfos[index].m_needToAllocateOnStack;
-                info.m_upperIndex = upperIndex;
-                info.m_isMutable = blk->m_identifierInfos[index].m_isMutable;
-                if (blk->canUseIndexedVariableStorage()) {
-                    info.m_index = blk->m_identifierInfos[index].m_indexForIndexedStorage;
-                } else {
-                    info.m_index = index;
-                }
-                return info;
-            }
-            upperIndex++;
-            blk = blk->parentCodeBlock();
-        }
-
-        info.m_isResultSaved = false;
-        return info;
+        ASSERT(!m_hasCallNativeFunctionCode);
+        return (InterpretedCodeBlock*)this;
     }
 
-    void updateSourceElementStart(size_t line, size_t column)
+    CallNativeFunctionData* nativeFunctionData()
     {
-        m_sourceElementStart.line = line;
-        m_sourceElementStart.column = column;
+        return m_nativeFunctionData;
     }
 
-#ifndef NDEBUG
-    ASTScopeContext* scopeContext()
+    CallBoundFunctionData* boundFunctionInfo()
     {
-        return m_scopeContext;
+        ASSERT(isBindedFunction());
+        return (CallBoundFunctionData*)m_nativeFunctionData;
     }
-#endif
+
 protected:
-    // init global codeBlock
-    CodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const ASTScopeContextNameInfoVector& innerIdentifiers, CodeBlockInitFlag initFlags);
-
-    // init function codeBlock
-    CodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringVector& parameterNames, const ASTScopeContextNameInfoVector& innerIdentifiers, CodeBlock* parentBlock, CodeBlockInitFlag initFlags);
-
-    void computeVariables();
-    void appendChildBlock(CodeBlock* cb)
-    {
-        m_childBlocks.push_back(cb);
-    }
-    bool tryCaptureIdentifiersFromChildCodeBlock(AtomicString name);
-    void notifySelfOrChildHasEvalWithCatchYield();
-
+    CodeBlock() {}
     Context* m_context;
 
     bool m_isConsturctor : 1;
@@ -436,27 +278,225 @@ protected:
     bool m_isInWithScope : 1;
     bool m_isEvalCodeInFunction : 1;
     bool m_isBindedFunction : 1;
+    uint16_t m_parameterCount;
+
+    AtomicString m_functionName;
+
+    union {
+        Node* m_cachedASTNode;
+        ByteCodeBlock* m_byteCodeBlock;
+        CallNativeFunctionData* m_nativeFunctionData;
+    };
+};
+
+class InterpretedCodeBlock : public CodeBlock {
+    friend class Script;
+    friend class ScriptParser;
+    friend class ByteCodeGenerator;
+    friend class FunctionObject;
+
+    friend int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr);
+
+public:
+    void computeVariables();
+    void appendChildBlock(InterpretedCodeBlock* cb)
+    {
+        m_childBlocks.push_back(cb);
+    }
+    bool tryCaptureIdentifiersFromChildCodeBlock(AtomicString name);
+    void notifySelfOrChildHasEvalWithCatchYield();
+
+    struct FunctionParametersInfo {
+        bool m_isHeapAllocated;
+        int32_t m_index;
+        AtomicString m_name;
+    };
+    typedef TightVector<FunctionParametersInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<FunctionParametersInfo>> FunctionParametersInfoVector;
+    const FunctionParametersInfoVector& parametersInfomation() const
+    {
+        return m_parametersInfomation;
+    }
+
+    struct IndexedIdentifierInfo {
+        bool m_isResultSaved;
+        bool m_isStackAllocated;
+        bool m_isMutable;
+        size_t m_upperIndex;
+        size_t m_index;
+    };
+
+    const IdentifierInfoVector& identifierInfos() const
+    {
+        return m_identifierInfos;
+    }
+
+    size_t identifierOnStackCount() const
+    {
+        return m_identifierOnStackCount;
+    }
+
+    size_t identifierOnHeapCount() const
+    {
+        return m_identifierOnHeapCount;
+    }
+
+    Script* script()
+    {
+        return m_script;
+    }
+
+    bool inNotIndexedCodeBlockScope()
+    {
+        CodeBlock* cb = this;
+        while (!cb->asInterpretedCodeBlock()->isGlobalScopeCodeBlock()) {
+            if (!cb->canUseIndexedVariableStorage()) {
+                return true;
+            }
+            cb = cb->asInterpretedCodeBlock()->parentCodeBlock();
+        }
+        return false;
+    }
+
+    bool isGlobalScopeCodeBlock() const
+    {
+        return m_parentCodeBlock == nullptr;
+    }
+
+    bool inEvalWithCatchYieldScope()
+    {
+        CodeBlock* cb = this;
+        while (cb) {
+            if (cb->hasEvalWithCatchYield()) {
+                return true;
+            }
+            cb = cb->asInterpretedCodeBlock()->parentCodeBlock();
+        }
+        return false;
+    }
+
+    bool inEvalWithScope()
+    {
+        CodeBlock* cb = this;
+        while (cb) {
+            if (cb->hasEval() || cb->hasWith()) {
+                return true;
+            }
+            cb = cb->asInterpretedCodeBlock()->parentCodeBlock();
+        }
+        return false;
+    }
+
+    IndexedIdentifierInfo indexedIdentifierInfo(const AtomicString& name)
+    {
+        size_t upperIndex = 0;
+        IndexedIdentifierInfo info;
+
+        CodeBlock* blk = this;
+        while (!blk->asInterpretedCodeBlock()->isGlobalScopeCodeBlock() && blk->canUseIndexedVariableStorage()) {
+            size_t index = blk->asInterpretedCodeBlock()->findName(name);
+            if (index != SIZE_MAX) {
+                info.m_isResultSaved = true;
+                info.m_isStackAllocated = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_needToAllocateOnStack;
+                info.m_upperIndex = upperIndex;
+                info.m_isMutable = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_isMutable;
+                if (blk->canUseIndexedVariableStorage()) {
+                    info.m_index = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_indexForIndexedStorage;
+                } else {
+                    info.m_index = index;
+                }
+                return info;
+            }
+            upperIndex++;
+            blk = blk->asInterpretedCodeBlock()->parentCodeBlock();
+        }
+
+        info.m_isResultSaved = false;
+        return info;
+    }
+
+    void updateSourceElementStart(size_t line, size_t column)
+    {
+        m_sourceElementStart.line = line;
+        m_sourceElementStart.column = column;
+    }
+
+    InterpretedCodeBlock* parentCodeBlock()
+    {
+        return m_parentCodeBlock;
+    }
+
+    const CodeBlockVector& childBlocks()
+    {
+        return m_childBlocks;
+    }
+
+    bool hasName(const AtomicString& name)
+    {
+        for (size_t i = 0; i < m_identifierInfos.size(); i++) {
+            if (m_identifierInfos[i].m_name == name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    size_t findName(const AtomicString& name)
+    {
+        for (size_t i = 0; i < m_identifierInfos.size(); i++) {
+            if (m_identifierInfos[i].m_name == name) {
+                return i;
+            }
+        }
+        return SIZE_MAX;
+    }
+
+    const StringView& src()
+    {
+        return m_src;
+    }
+
+    ExtendedNodeLOC sourceElementStart()
+    {
+        return m_sourceElementStart;
+    }
+
+#ifndef NDEBUG
+    ASTScopeContext* scopeContext()
+    {
+        return m_scopeContext;
+    }
+#endif
+
+    ByteCodeBlock* byteCodeBlock()
+    {
+        return m_byteCodeBlock;
+    }
+
+    Node* cachedASTNode()
+    {
+        return m_cachedASTNode;
+    }
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+protected:
+    // init global codeBlock
+    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const ASTScopeContextNameInfoVector& innerIdentifiers, CodeBlockInitFlag initFlags);
+    // init function codeBlock
+    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringVector& parameterNames, const ASTScopeContextNameInfoVector& innerIdentifiers, InterpretedCodeBlock* parentBlock, CodeBlockInitFlag initFlags);
 
     Script* m_script;
     StringView m_src; // function source elements src
     ExtendedNodeLOC m_sourceElementStart;
 
+    FunctionParametersInfoVector m_parametersInfomation;
     uint16_t m_identifierOnStackCount;
     uint16_t m_identifierOnHeapCount;
     IdentifierInfoVector m_identifierInfos;
 
-    // function info
-    AtomicString m_functionName;
-    AtomicStringTightVector m_parameterNames;
-    FunctionParametersInfoVector m_parametersInfomation;
-
-    CodeBlock* m_parentCodeBlock;
+    InterpretedCodeBlock* m_parentCodeBlock;
     CodeBlockVector m_childBlocks;
-
-    union {
-        Node* m_cachedASTNode;
-        ByteCodeBlock* m_byteCodeBlock;
-    };
 
 #ifndef NDEBUG
     ExtendedNodeLOC m_locStart;

@@ -94,10 +94,11 @@ extern size_t g_objectTag;
 
 inline Value::Value(PointerValue* ptr)
 {
-    if (!ptr->hasTagInFirstDataArea(POINTER_VALUE_STRING_TAG_IN_DATA)) {
-        u.asBits.tag = ObjectPointerTag;
-    } else {
+    // other type of PointerValue(Object) has pointer in first data area
+    if (ptr->getTagInFirstDataArea() & POINTER_VALUE_STRING_TAG_IN_DATA) {
         u.asBits.tag = OtherPointerTag;
+    } else {
+        u.asBits.tag = ObjectPointerTag;
     }
     u.asBits.payload = reinterpret_cast<int32_t>(const_cast<PointerValue*>(ptr));
 }

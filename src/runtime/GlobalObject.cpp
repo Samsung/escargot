@@ -183,7 +183,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
     return arg;
 }
 
-Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thisValue, CodeBlock* parentCodeBlock)
+Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thisValue, InterpretedCodeBlock* parentCodeBlock)
 {
     if (arg.isString()) {
         ScriptParser parser(state.context());

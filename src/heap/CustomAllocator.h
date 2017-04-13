@@ -25,6 +25,7 @@ enum HeapObjectKind {
     ValueVectorKind = 0,
     ArrayObjectKind,
     CodeBlockKind,
+    InterpretedCodeBlockKind,
     NumberOfKind,
 };
 

@@ -30,7 +30,7 @@ else ifneq (,$(findstring tizen_,$(HOST)))
   ESCARGOT_LDFLAGS_COMMON += -lpthread
   ESCARGOT_LDFLAGS_COMMON += -lrt
 else ifeq ($(HOST), android)
-  ESCARGOT_CXXFLAGS_COMMON += -fPIE -march=armv7-a -mfloat-abi=softfp -mfpu=neon -DANDROID=1
+  ESCARGOT_CXXFLAGS_COMMON += -fPIE -mthumb -march=armv7-a -mfloat-abi=softfp -mfpu=neon -DANDROID=1
   ESCARGOT_LDFLAGS_COMMON += -fPIE -pie  -march=armv7-a -Wl,--fix-cortex-a8 -llog
   ifeq ($(OUTPUT), shared_lib)
     ESCARGOT_LDFLAGS_COMMON += -shared

@@ -43,17 +43,26 @@ void FunctionObject::initFunctionObject(ExecutionState& state)
         m_structure = state.context()->defaultStructureForFunctionObject();
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(Object::createFunctionPrototypeObject(state, this)));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionName().string()));
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = (Value(m_codeBlock->parametersInfomation().size()));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = (Value(m_codeBlock->parameterCount()));
         if (isStrict) {
             m_structure = state.context()->defaultStructureForFunctionObjectInStrictMode();
             auto data = state.context()->globalObject()->throwerGetterSetterData();
             m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3] = Value(data);
             m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 4] = Value(data);
         }
+    } else if (m_codeBlock->isBindedFunction()) {
+        m_structure = state.context()->defaultStructureForBindedFunctionObject();
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->parameterCount()));
+        // Let thrower be the [[ThrowTypeError]] function Object (13.2.3).
+        // Call the [[DefineOwnProperty]] internal method of F with arguments "caller", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
+        // Call the [[DefineOwnProperty]] internal method of F with arguments "arguments", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
+        auto data = state.context()->globalObject()->throwerGetterSetterData();
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(data);
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3] = Value(data);
     } else {
         m_structure = state.context()->defaultStructureForNotConstructorFunctionObject();
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->parametersInfomation().size()));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->parameterCount()));
         if (isStrict) {
             m_structure = state.context()->defaultStructureForNotConstructorFunctionObjectInStrictMode();
             auto data = state.context()->globalObject()->throwerGetterSetterData();
@@ -103,6 +112,18 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Lexi
     setPrototype(state, state.context()->globalObject()->functionPrototype());
 }
 
+FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, String* name, ForBind)
+    : Object(state,
+             ((ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2 + 2 /* for bind */)),
+             false)
+    , m_codeBlock(codeBlock)
+    , m_outerEnvironment(nullptr)
+{
+    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = Value(name);
+    initFunctionObject(state);
+    setPrototype(state, state.context()->globalObject()->functionPrototype());
+}
+
 NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
 {
     Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& v = state.context()->compiledCodeBlocks();
@@ -117,18 +138,19 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
     }
     // ESCARGOT_LOG_INFO("codeSizeTotal %lfMB\n", (int)currentCodeSizeTotal / 1024.0 / 1024.0);
 
-    const size_t codeSizeMax = 1024 * 1024 * 2;
-    if (currentCodeSizeTotal > codeSizeMax) {
+    if (currentCodeSizeTotal > FUNCTION_OBJECT_BYTECODE_SIZE_MAX) {
         std::vector<CodeBlock*, gc_allocator<CodeBlock*>> codeBlocksInCurrentStack;
 
         ExecutionContext* ec = state.executionContext();
         while (ec) {
             auto env = ec->lexicalEnvironment();
             if (env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-                auto cblk = env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock();
-                if (cblk->script() && cblk->byteCodeBlock()) {
-                    if (std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), cblk) == codeBlocksInCurrentStack.end()) {
-                        codeBlocksInCurrentStack.push_back(cblk);
+                if (env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->isInterpretedCodeBlock()) {
+                    InterpretedCodeBlock* cblk = env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->asInterpretedCodeBlock();
+                    if (cblk->script() && cblk->byteCodeBlock()) {
+                        if (std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), cblk) == codeBlocksInCurrentStack.end()) {
+                            codeBlocksInCurrentStack.push_back(cblk);
+                        }
                     }
                 }
             }
@@ -161,11 +183,11 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
     size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
 #endif
 
-    auto ret = state.context()->scriptParser().parseFunction(m_codeBlock, stackRemainApprox);
+    auto ret = state.context()->scriptParser().parseFunction(m_codeBlock->asInterpretedCodeBlock(), stackRemainApprox);
     Node* ast = ret.first;
 
     ByteCodeGenerator g;
-    m_codeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_codeBlock, ast, ret.second, false, false, false);
+    m_codeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_codeBlock->asInterpretedCodeBlock(), ast, ret.second, false, false, false);
     delete ast;
 
     v.pushBack(m_codeBlock);
@@ -196,7 +218,7 @@ Object* FunctionObject::newInstance(ExecutionState& state, const size_t& argc, V
     }
     Object* receiver;
     if (cb->hasCallNativeFunctionCode()) {
-        receiver = cb->nativeFunctionConstructor()(state, argc, argv);
+        receiver = cb->nativeFunctionData()->m_ctorFn(state, argc, argv);
     } else {
         receiver = new Object(state);
     }
@@ -228,15 +250,14 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
     Context* ctx = m_codeBlock->context();
     bool isStrict = m_codeBlock->isStrict();
 
-    if (m_codeBlock->hasCallNativeFunctionCode()) {
-        const CodeBlock::FunctionParametersInfoVector& info = m_codeBlock->parametersInfomation();
-        CallNativeFunction* code = (CallNativeFunction*)&m_codeBlock->byteCodeBlock()->m_code[0];
+    if (!m_codeBlock->isInterpretedCodeBlock()) {
+        CallNativeFunctionData* code = m_codeBlock->nativeFunctionData();
         FunctionEnvironmentRecordSimple record(this);
         LexicalEnvironment env(&record, outerEnvironment());
         ExecutionContext ec(ctx, state.executionContext(), &env, isStrict);
         ExecutionState newState(ctx, &state, &ec);
 
-        size_t len = info.size();
+        size_t len = m_codeBlock->parameterCount();
         if (argc < len) {
             Value* newArgv = (Value*)alloca(sizeof(Value) * len);
             for (size_t i = 0; i < argc; i++) {
@@ -266,17 +287,17 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
     }
 
     // prepare ByteCodeBlock if needed
-    if (UNLIKELY(m_codeBlock->byteCodeBlock() == nullptr)) {
+    if (UNLIKELY(m_codeBlock->asInterpretedCodeBlock()->byteCodeBlock() == nullptr)) {
         generateBytecodeBlock(state);
     }
 
-    ByteCodeBlock* blk = m_codeBlock->byteCodeBlock();
+    ByteCodeBlock* blk = m_codeBlock->asInterpretedCodeBlock()->byteCodeBlock();
 
     size_t registerSize = blk->m_requiredRegisterFileSizeInValueSize;
-    size_t stackStorageSize = m_codeBlock->identifierOnStackCount();
+    size_t stackStorageSize = m_codeBlock->asInterpretedCodeBlock()->identifierOnStackCount();
     size_t literalStorageSize = blk->m_numeralLiteralData.size();
     Value* literalStorageSrc = blk->m_numeralLiteralData.data();
-    size_t parameterCopySize = std::min(argc, m_codeBlock->functionParameters().size());
+    size_t parameterCopySize = std::min(argc, (size_t)m_codeBlock->parameterCount());
 
     // prepare env, ec
     FunctionEnvironmentRecord* record;
@@ -349,11 +370,11 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
         }
         if (!m_codeBlock->canUseIndexedVariableStorage()) {
             for (size_t i = 0; i < parameterCopySize; i++) {
-                record->initializeBinding(state, m_codeBlock->functionParameters()[i], argv[i]);
+                record->initializeBinding(state, m_codeBlock->asInterpretedCodeBlock()->parametersInfomation()[i].m_name, argv[i]);
             }
         } else {
             Value* parameterStorageInStack = stackStorage + 2;
-            const CodeBlock::FunctionParametersInfoVector& info = m_codeBlock->parametersInfomation();
+            const InterpretedCodeBlock::FunctionParametersInfoVector& info = m_codeBlock->asInterpretedCodeBlock()->parametersInfomation();
             for (size_t i = 0; i < info.size(); i++) {
                 Value val(Value::ForceUninitialized);
                 // NOTE: consider the special case with duplicated parameter names (**test262: S10.2.1_A3)
@@ -406,7 +427,7 @@ void FunctionObject::generateArgumentsObject(ExecutionState& state, FunctionEnvi
         }
         fnRecord->initializeBinding(state, arguments, fnRecord->createArgumentsObject(state, state.executionContext()));
     } else {
-        const CodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->identifierInfos();
+        const CodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == arguments) {
                 ASSERT(v[i].m_needToAllocateOnStack);

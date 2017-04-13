@@ -90,7 +90,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
         state.throwException(err);
     }
 
-    CodeBlock* cb = parserResult.m_script->topCodeBlock()->childBlocks()[0];
+    InterpretedCodeBlock* cb = parserResult.m_script->topCodeBlock()->childBlocks()[0];
     cb->updateSourceElementStart(2, 1);
 
     LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, parserResult.m_script->topCodeBlock(), state.context()->globalObject()), nullptr);
@@ -108,16 +108,18 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
     builder.appendString(fn->codeBlock()->functionName().string());
     builder.appendString("(");
 
-    for (size_t i = 0; i < fn->codeBlock()->functionParameters().size(); i++) {
-        builder.appendString(fn->codeBlock()->functionParameters()[i].string());
-        if (i < (fn->codeBlock()->functionParameters().size() - 1)) {
-            builder.appendString(",");
+    if (fn->codeBlock()->isInterpretedCodeBlock()) {
+        for (size_t i = 0; i < fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation().size(); i++) {
+            builder.appendString(fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation()[i].m_name.string());
+            if (i < (fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation().size() - 1)) {
+                builder.appendString(",");
+            }
         }
     }
 
     builder.appendString(") ");
-    if (fn->codeBlock()->script()) {
-        StringView src = fn->codeBlock()->src();
+    if (fn->codeBlock()->isInterpretedCodeBlock() && fn->codeBlock()->asInterpretedCodeBlock()->script()) {
+        StringView src = fn->codeBlock()->asInterpretedCodeBlock()->src();
         while (src[src.length() - 1] != '}') {
             src = StringView(src.string(), src.start(), src.end() - 1);
         }
@@ -188,16 +190,17 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     Value* boundArgv = (boundArgc == 0) ? nullptr : argv + 1;
     CodeBlock* cb = new CodeBlock(state, targetFunction, boundThis, boundArgc, boundArgv);
 
-    FunctionObject* fn = new FunctionObject(state, cb, targetFunction->outerEnvironment());
+    StringBuilder builder;
+    builder.appendString("bound ");
+    ObjectGetResult r = targetFunction->getOwnProperty(state, state.context()->staticStrings().name);
+    Value fn;
+    if (r.hasValue()) {
+        fn = r.value(state, targetFunction);
+    }
+    if (fn.isString())
+        builder.appendString(fn.asString());
 
-    // Let thrower be the [[ThrowTypeError]] function Object (13.2.3).
-    FunctionObject* thrower = state.context()->globalObject()->throwTypeError();
-    // Call the [[DefineOwnProperty]] internal method of F with arguments "caller", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
-    fn->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().caller), ObjectPropertyDescriptor(JSGetterSetter(thrower, thrower), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
-    // Call the [[DefineOwnProperty]] internal method of F with arguments "arguments", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
-    fn->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().arguments), ObjectPropertyDescriptor(JSGetterSetter(thrower, thrower), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
-
-    return fn;
+    return new FunctionObject(state, cb, builder.finalize(&state), FunctionObject::ForBind::__ForBind__);
 }
 
 void GlobalObject::installFunction(ExecutionState& state)

@@ -181,20 +181,15 @@ public:
 
     void init()
     {
-        m_has8BitContent = m_src.has8BitContent();
-        if (m_has8BitContent) {
-            m_buffer = m_src.characters8();
-        } else {
-            m_buffer = m_src.characters16();
-        }
+        m_data = m_src.bufferAccessData();
     }
 
     char16_t bufferedCharAt(const size_t& idx) const
     {
-        if (LIKELY(m_has8BitContent)) {
-            return ((const LChar*)m_buffer)[idx];
+        if (m_data.has8BitContent) {
+            return ((const LChar*)m_data.buffer)[idx];
         } else {
-            return ((const char16_t*)m_buffer)[idx];
+            return ((const char16_t*)m_data.buffer)[idx];
         }
     }
 
@@ -230,7 +225,7 @@ public:
 
     virtual bool has8BitContent() const
     {
-        return m_has8BitContent;
+        return m_data.has8BitContent;
     }
 
     virtual const LChar* characters8() const
@@ -254,8 +249,7 @@ public:
     }
 
 protected:
-    bool m_has8BitContent;
-    const void* m_buffer;
+    StringBufferAccessData m_data;
     StringView m_src;
 };
 }

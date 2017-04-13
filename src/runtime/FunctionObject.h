@@ -38,6 +38,8 @@ class FunctionObject : public Object {
 public:
     FunctionObject(ExecutionState& state, NativeFunctionInfo info);
     FunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment);
+    enum ForBind { __ForBind__ };
+    FunctionObject(ExecutionState& state, CodeBlock* codeBlock, String* functionName, ForBind);
 
     // getter of internal [[Prototype]]
     Value getFunctionPrototype(ExecutionState& state)
@@ -74,11 +76,6 @@ public:
         return m_codeBlock;
     }
 
-    LexicalEnvironment* outerEnvironment()
-    {
-        return m_outerEnvironment;
-    }
-
     Value call(ExecutionState& state, const Value& receiver, const size_t& argc, Value* argv)
     {
         return processCall(state, receiver, argc, argv, false);
@@ -102,6 +99,11 @@ public:
     }
 
 protected:
+    LexicalEnvironment* outerEnvironment()
+    {
+        return m_outerEnvironment;
+    }
+
     Value getFunctionPrototypeKnownAsConstructor(ExecutionState& state)
     {
         ASSERT(isConstructor());

@@ -218,6 +218,11 @@ public:
     {
         return tag == *((size_t*)(this) + 1);
     }
+
+    size_t getTagInFirstDataArea() const
+    {
+        return *((size_t*)(this) + 1);
+    }
 };
 }
 

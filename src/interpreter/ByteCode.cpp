@@ -60,7 +60,7 @@ void* ByteCodeBlock::operator new(size_t size)
 
 void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
 {
-    if (m_locData.size() || (m_codeBlock->src().length() == 0)) {
+    if (!m_codeBlock->isInterpretedCodeBlock() || m_locData.size() || (m_codeBlock->isInterpretedCodeBlock() && m_codeBlock->asInterpretedCodeBlock()->src().length() == 0)) {
         return;
     }
 
@@ -68,12 +68,12 @@ void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
     ByteCodeBlock* block;
     // TODO
     // give correct stack limit to parser
-    if (m_codeBlock->isGlobalScopeCodeBlock()) {
-        ProgramNode* nd = esprima::parseProgram(m_codeBlock->context(), m_codeBlock->src(), nullptr, m_codeBlock->isStrict(), SIZE_MAX);
-        block = g.generateByteCode(c, m_codeBlock, nd, nd->scopeContext(), m_isEvalMode, m_isOnGlobal, true);
+    if (m_codeBlock->asInterpretedCodeBlock()->isGlobalScopeCodeBlock()) {
+        ProgramNode* nd = esprima::parseProgram(m_codeBlock->asInterpretedCodeBlock()->context(), m_codeBlock->asInterpretedCodeBlock()->src(), nullptr, m_codeBlock->asInterpretedCodeBlock()->isStrict(), SIZE_MAX);
+        block = g.generateByteCode(c, m_codeBlock->asInterpretedCodeBlock(), nd, nd->scopeContext(), m_isEvalMode, m_isOnGlobal, true);
     } else {
-        auto ret = c->scriptParser().parseFunction(m_codeBlock, SIZE_MAX);
-        block = g.generateByteCode(c, m_codeBlock, ret.first, ret.second, m_isEvalMode, m_isOnGlobal, true);
+        auto ret = c->scriptParser().parseFunction(m_codeBlock->asInterpretedCodeBlock(), SIZE_MAX);
+        block = g.generateByteCode(c, m_codeBlock->asInterpretedCodeBlock(), ret.first, ret.second, m_isEvalMode, m_isOnGlobal, true);
     }
     m_locData = std::move(block->m_locData);
     // prevent infinate fillLocDataIfNeeded if m_locData.size() == 0 in here
@@ -99,7 +99,7 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
         }
     }
 
-    return computeNodeLOC(cb->src(), cb->sourceElementStart(), index);
+    return computeNodeLOC(cb->asInterpretedCodeBlock()->src(), cb->asInterpretedCodeBlock()->sourceElementStart(), index);
 }
 
 ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(StringView src, ExtendedNodeLOC sourceElementStart, size_t index)

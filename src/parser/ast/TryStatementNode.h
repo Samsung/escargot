@@ -61,8 +61,8 @@ public:
 
                 CodeBlock *blk = nullptr;
                 size_t cnt = 0;
-                for (size_t j = 0; j < context->m_codeBlock->childBlocks().size(); j++) {
-                    CodeBlock *c = context->m_codeBlock->childBlocks()[j];
+                for (size_t j = 0; j < context->m_codeBlock->asInterpretedCodeBlock()->childBlocks().size(); j++) {
+                    CodeBlock *c = context->m_codeBlock->asInterpretedCodeBlock()->childBlocks()[j];
                     if (c->isFunctionDeclarationWithSpecialBinding()) {
                         if (cnt == i) {
                             blk = c;

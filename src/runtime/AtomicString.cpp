@@ -60,16 +60,25 @@ AtomicString::AtomicString(ExecutionState& ec, String* name)
 
 AtomicString::AtomicString(Context* c, const StringView& sv)
 {
+    size_t v = sv.getTagInFirstDataArea();
+    if (v > POINTER_VALUE_STRING_TAG_IN_DATA) {
+        m_string = (String*)(v & ~POINTER_VALUE_STRING_TAG_IN_DATA);
+        return;
+    }
+
     AtomicStringMap* ec = c->atomicStringMap();
-    String* name = &(const_cast<StringView&>(sv));
+    StringView& str = const_cast<StringView&>(sv);
+    String* name = &str;
     auto iter = ec->find(name);
     if (ec->end() == iter) {
         StringView* newSv = new StringView(sv);
         ec->insert(newSv);
         ASSERT(ec->find(newSv) != ec->end());
         m_string = newSv;
+        str.m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
     } else {
         m_string = iter.operator*();
+        str.m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
     }
 }
 
@@ -80,13 +89,20 @@ AtomicString::AtomicString(Context* c, String* name)
 
 void AtomicString::init(AtomicStringMap* ec, String* name)
 {
+    size_t v = name->getTagInFirstDataArea();
+    if (v > POINTER_VALUE_STRING_TAG_IN_DATA) {
+        m_string = (String*)(v & ~POINTER_VALUE_STRING_TAG_IN_DATA);
+        return;
+    }
     auto iter = ec->find(name);
     if (ec->end() == iter) {
         ec->insert(name);
         ASSERT(ec->find(name) != ec->end());
         m_string = name;
+        name->m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
     } else {
         m_string = iter.operator*();
+        name->m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
     }
 }
 }

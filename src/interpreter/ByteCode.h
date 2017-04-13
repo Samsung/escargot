@@ -100,9 +100,7 @@ class Node;
     F(WithOperation, 0, 0)                            \
     F(ObjectDefineGetter, 0, 0)                       \
     F(ObjectDefineSetter, 0, 0)                       \
-    F(CallNativeFunction, 0, 0)                       \
     F(CallEvalFunction, 0, 0)                         \
-    F(CallBoundFunction, 0, 0)                        \
     F(CallFunctionInWithScope, 0, 0)                  \
     F(FillOpcodeTable, 0, 0)                          \
     F(End, 0, 0)
@@ -313,12 +311,12 @@ public:
 
 class DeclareFunctionDeclarations : public ByteCode {
 public:
-    DeclareFunctionDeclarations(CodeBlock* cb)
+    DeclareFunctionDeclarations(InterpretedCodeBlock* cb)
         : ByteCode(Opcode::DeclareFunctionDeclarationsOpcode, ByteCodeLOC(SIZE_MAX))
         , m_codeBlock(cb)
     {
     }
-    CodeBlock* m_codeBlock;
+    InterpretedCodeBlock* m_codeBlock;
 
 #ifndef NDEBUG
     virtual void dump()
@@ -1130,38 +1128,19 @@ public:
         , m_argumentsStartIndex(argumentsStartIndex)
         , m_argumentCount(argumentCount)
         , m_resultIndex(resultIndex)
+        , m_inWithScope(inWithScope)
     {
     }
     ByteCodeRegisterIndex m_evalIndex;
     ByteCodeRegisterIndex m_argumentsStartIndex;
     uint16_t m_argumentCount;
     ByteCodeRegisterIndex m_resultIndex;
-
     bool m_inWithScope;
 
 #ifndef NDEBUG
     virtual void dump()
     {
         printf("call eval r%d <- r%d, r%d-r%d", (int)m_resultIndex, (int)m_evalIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
-    }
-#endif
-};
-
-class CallBoundFunction : public ByteCode {
-public:
-    CallBoundFunction(const ByteCodeLOC& loc)
-        : ByteCode(Opcode::CallBoundFunctionOpcode, loc)
-    {
-    }
-    FunctionObject* m_boundTargetFunction;
-    Value m_boundThis;
-    Value* m_boundArguments;
-    size_t m_boundArgumentsCount;
-
-#ifndef NDEBUG
-    virtual void dump()
-    {
-        printf("call bound (bound args: %zu)", m_boundArgumentsCount);
     }
 #endif
 };
@@ -1509,19 +1488,6 @@ public:
 #endif
 };
 
-class CallNativeFunction : public ByteCode {
-public:
-    CallNativeFunction(NativeFunctionPointer fn, NativeFunctionConstructor ctorFn)
-        : ByteCode(Opcode::CallNativeFunctionOpcode, ByteCodeLOC(SIZE_MAX))
-        , m_fn(fn)
-        , m_ctorFn(ctorFn)
-    {
-    }
-
-    NativeFunctionPointer m_fn;
-    NativeFunctionConstructor m_ctorFn;
-};
-
 class End : public ByteCode {
 public:
     End(const ByteCodeLOC& loc)
@@ -1560,7 +1526,7 @@ class ByteCodeBlock : public gc {
     }
 
 public:
-    ByteCodeBlock(CodeBlock* codeBlock)
+    ByteCodeBlock(InterpretedCodeBlock* codeBlock)
     {
         m_requiredRegisterFileSizeInValueSize = 2;
         m_codeBlock = codeBlock;
@@ -1597,8 +1563,8 @@ public:
         {
             CodeType& t = const_cast<CodeType&>(code);
             if ((getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) || (getenv("DUMP_CODEBLOCK_TREE") && strlen(getenv("DUMP_CODEBLOCK_TREE")))) {
-                if (idx != SIZE_MAX) {
-                    auto loc = computeNodeLOC(m_codeBlock->src(), m_codeBlock->sourceElementStart(), idx);
+                if (idx != SIZE_MAX && !m_codeBlock->hasCallNativeFunctionCode()) {
+                    auto loc = computeNodeLOC(m_codeBlock->asInterpretedCodeBlock()->src(), m_codeBlock->asInterpretedCodeBlock()->sourceElementStart(), idx);
                     t.m_loc.line = loc.line;
                     t.m_loc.column = loc.column;
                 }
@@ -1658,7 +1624,7 @@ public:
 
 
     ByteCodeLOCData m_locData;
-    CodeBlock* m_codeBlock;
+    InterpretedCodeBlock* m_codeBlock;
 
     std::vector<size_t> m_getObjectCodePositions;
 

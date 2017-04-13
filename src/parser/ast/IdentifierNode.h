@@ -42,10 +42,10 @@ public:
 
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
     {
-        if ((context->m_codeBlock->canUseIndexedVariableStorage() || context->m_codeBlock->isGlobalScopeCodeBlock())) {
-            CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
+        if ((context->m_codeBlock->asInterpretedCodeBlock()->canUseIndexedVariableStorage() || context->m_codeBlock->asInterpretedCodeBlock()->isGlobalScopeCodeBlock())) {
+            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {
-                if (!context->m_codeBlock->inNotIndexedCodeBlockScope() && !context->m_codeBlock->inCatchWith() && !context->m_codeBlock->inEvalWithScope() && !context->m_catchScopeCount && !context->m_isEvalCode && !context->m_codeBlock->hasWith()) {
+                if (!context->m_codeBlock->asInterpretedCodeBlock()->inNotIndexedCodeBlockScope() && !context->m_codeBlock->asInterpretedCodeBlock()->inCatchWith() && !context->m_codeBlock->asInterpretedCodeBlock()->inEvalWithScope() && !context->m_catchScopeCount && !context->m_isEvalCode && !context->m_codeBlock->asInterpretedCodeBlock()->hasWith()) {
                     codeBlock->pushCode(SetGlobalObject(ByteCodeLOC(m_loc.index), srcRegister, PropertyName(m_name)), context, this);
                 } else {
                     codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
@@ -72,17 +72,17 @@ public:
                 }
             }
         } else {
-            ASSERT(!context->m_codeBlock->canAllocateEnvironmentOnStack());
+            ASSERT(!context->m_codeBlock->asInterpretedCodeBlock()->canAllocateEnvironmentOnStack());
             codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
         }
     }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        if ((context->m_codeBlock->canUseIndexedVariableStorage() || context->m_codeBlock->isGlobalScopeCodeBlock())) {
-            CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
+        if ((context->m_codeBlock->asInterpretedCodeBlock()->canUseIndexedVariableStorage() || context->m_codeBlock->asInterpretedCodeBlock()->isGlobalScopeCodeBlock())) {
+            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {
-                if (!context->m_codeBlock->inNotIndexedCodeBlockScope() && !context->m_codeBlock->inCatchWith() && !context->m_codeBlock->inEvalWithScope() && !context->m_catchScopeCount && !context->m_isEvalCode && !context->m_codeBlock->hasWith()) {
+                if (!context->m_codeBlock->asInterpretedCodeBlock()->inNotIndexedCodeBlockScope() && !context->m_codeBlock->asInterpretedCodeBlock()->inCatchWith() && !context->m_codeBlock->asInterpretedCodeBlock()->inEvalWithScope() && !context->m_catchScopeCount && !context->m_isEvalCode && !context->m_codeBlock->asInterpretedCodeBlock()->hasWith()) {
                     codeBlock->pushCode(GetGlobalObject(ByteCodeLOC(m_loc.index), dstRegister, PropertyName(m_name)), context, this);
                 } else {
                     codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
@@ -106,7 +106,7 @@ public:
                 }
             }
         } else {
-            ASSERT(!context->m_codeBlock->canAllocateEnvironmentOnStack());
+            ASSERT(!context->m_codeBlock->asInterpretedCodeBlock()->canAllocateEnvironmentOnStack());
             codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
         }
     }
@@ -123,8 +123,8 @@ public:
 
     std::pair<bool, ByteCodeRegisterIndex> isAllocatedOnStack(ByteCodeGenerateContext* context)
     {
-        if ((context->m_codeBlock->canUseIndexedVariableStorage() || context->m_codeBlock->isGlobalScopeCodeBlock())) {
-            CodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name);
+        if ((context->m_codeBlock->asInterpretedCodeBlock()->canUseIndexedVariableStorage() || context->m_codeBlock->asInterpretedCodeBlock()->isGlobalScopeCodeBlock())) {
+            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {
                 return std::make_pair(false, std::numeric_limits<ByteCodeRegisterIndex>::max());
             } else {

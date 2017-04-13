@@ -104,7 +104,7 @@ public:
     void installOthers(ExecutionState& state);
 
     Value eval(ExecutionState& state, const Value& arg);
-    Value evalLocal(ExecutionState& state, const Value& arg, Value thisValue, CodeBlock* parentCodeBlock);
+    Value evalLocal(ExecutionState& state, const Value& arg, Value thisValue, InterpretedCodeBlock* parentCodeBlock);
 
     FunctionObject* object()
     {

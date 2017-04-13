@@ -43,7 +43,7 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     LexicalEnvironment* env;
     ExecutionContext* prevEc;
     {
-        CodeBlock* globalCodeBlock = (needNewEnv) ? nullptr : m_topCodeBlock;
+        InterpretedCodeBlock* globalCodeBlock = (needNewEnv) ? nullptr : m_topCodeBlock;
         LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, globalCodeBlock, state.context()->globalObject(), isEvalMode), nullptr);
         if (UNLIKELY(needNewEnv)) {
             // NOTE: ES5 10.4.2.1 eval in strict mode
@@ -103,7 +103,7 @@ Script::ScriptSandboxExecuteResult Script::sandboxExecute(ExecutionState& state)
 }
 
 // NOTE: eval by direct call
-Value Script::executeLocal(ExecutionState& state, Value thisValue, CodeBlock* parentCodeBlock, bool isEvalMode, bool needNewRecord)
+Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isEvalMode, bool needNewRecord)
 {
     Node* programNode = m_topCodeBlock->cachedASTNode();
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
