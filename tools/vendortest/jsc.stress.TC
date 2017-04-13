@@ -29,9 +29,9 @@ arith-add-with-constants.js
 arith-modulo-node-behaviors.js
 arith-mul-with-constants.js
 array-copywithin.js
-array-fill-put-by-val.js
-array-filter-put-by-val-direct.js
-array-find-does-not-lookup-twice.js
+// array-fill-put-by-val.js // ES6 Syntax
+// array-filter-put-by-val-direct.js // ES6 Syntax
+// array-find-does-not-lookup-twice.js // ES6 Syntax
 array-from-abs-and-floor.js
 array-from-put-by-val-direct.js
 array-from-set-length.js
@@ -54,7 +54,7 @@ array-push.js
 arrayify-fires-watchpoint.js
 arrayify-structure-bad-test.js
 arrayify-to-structure-contradiction.js
-assign-argument-in-inlined-call.js
+// assign-argument-in-inlined-call.js // function.arguments
 assign-captured-argument-in-inlined-call.js
 assignment-in-function-call-bracket-node.js
 bit-op-value-to-int32-input-liveness.js
@@ -62,7 +62,7 @@ branch-check-int32-on-boolean-to-number-untyped.js
 branch-check-number-on-boolean-to-number-untyped.js
 branch-may-exit-due-to-object-or-other-use-kind.js
 bug-131764.js
-builtin-function-is-construct-type-none.js
+// builtin-function-is-construct-type-none.js // different error message
 cached-prototype-setter.js
 call-forward-varargs-for-inlined-escaped-arguments.js
 call-varargs-from-inlined-code-with-odd-number-of-arguments.js
@@ -71,21 +71,21 @@ call-varargs-length-effects.js
 call-varargs-with-different-arguments-length-after-warmup.js
 capture-escape-and-throw.js
 captured-arguments-variable.js
-class-syntax-derived-default-constructor.js
-class-syntax-no-loop-tdz.js
-class-syntax-no-tdz-in-catch.js
-class-syntax-no-tdz-in-conditional.js
-class-syntax-no-tdz-in-eval.js
-class-syntax-no-tdz-in-loop-no-inline-super.js
-class-syntax-no-tdz-in-loop.js
-class-syntax-no-tdz.js
-class-syntax-tdz-in-catch.js
-class-syntax-tdz-in-conditional.js
-class-syntax-tdz-in-eval.js
-class-syntax-tdz-in-loop.js
-class-syntax-tdz.js
+// class-syntax-derived-default-constructor.js // class
+// class-syntax-no-loop-tdz.js // class
+// class-syntax-no-tdz-in-catch.js // class
+// class-syntax-no-tdz-in-conditional.js // class
+// class-syntax-no-tdz-in-eval.js // class
+// class-syntax-no-tdz-in-loop-no-inline-super.js // class
+// class-syntax-no-tdz-in-loop.js // class
+// class-syntax-no-tdz.js // class
+// class-syntax-tdz-in-catch.js // class
+// class-syntax-tdz-in-conditional.js // class
+// class-syntax-tdz-in-eval.js // class
+// class-syntax-tdz-in-loop.js // class
+// class-syntax-tdz.js
 cloned-arguments-get-by-val-double-array.js
-cloned-arguments-should-visit-callee-during-gc.js
+// cloned-arguments-should-visit-callee-during-gc.js // function.arguments
 closure-call-exit.js
 compare-eq-object-or-other-to-object.js
 compare-eq-object-to-object-or-other.js
@@ -96,7 +96,7 @@ construct-forward-varargs-for-inlined-escaped-arguments.js
 construct-varargs-inline-smaller-Foo.js
 construct-varargs-inline.js
 construct-varargs-no-inline.js
-constructor-with-return.js
+// constructor-with-return.js // Symbol
 create-this-with-callee-variants.js
 custom-iterators.js
 dead-access-to-captured-variable-preceded-by-a-live-store-in-function-with-multiple-basic-blocks.js
@@ -119,7 +119,7 @@ dfg-create-arguments-inline-alloc.js
 dfg-put-by-val-direct-with-edge-numbers.js
 dfg-rare-data.js
 dfg-to-primitive-pass-symbol.js
-disable-function-dot-arguments.js
+// disable-function-dot-arguments.js // function.arguments
 double-as-int32.js
 double-rep-with-non-cell.js
 double-rep-with-null.js
@@ -128,7 +128,7 @@ elidable-new-object-roflcopter-then-exit.js
 elide-new-object-dag-then-exit.js
 empty-function.js
 empty_eos_regex_split.js
-equality-type-checking.js
+// equality-type-checking.js // JSC specific function
 equals-masquerader.js
 escape-object-in-diamond-then-exit.js
 eval-script-contains-null-character.js
@@ -253,7 +253,7 @@ get-stack-identity-due-to-sinking.js
 get-stack-mapping-with-dead-get-stack.js
 get-stack-mapping.js
 getter.js
-global-environment-does-not-trap-unscopables.js
+// global-environment-does-not-trap-unscopables.js // Symbol
 goofy-function-reentry-incorrect-inference.js
 has-custom-properties.js
 ic-throw-through-optimized-code.js
@@ -272,7 +272,7 @@ inline-call-varargs-and-call.js
 inline-call-varargs.js
 inline-closure-call.js
 inline-llint-with-switch.js
-inline-varargs-get-arguments.js
+// inline-varargs-get-arguments.js // function.arguments
 inlined-constructor-this-liveness.js
 inlined-function-this-liveness.js
 instanceof-not-cell.js
@@ -299,9 +299,9 @@ inverted-additive-subsumption.js
 is-undefined-exit-on-masquerader.js
 is-undefined-jettison-on-masquerader.js
 is-undefined-masquerader.js
-iterator-functions.js
-iterator-names.js
-iterator-prototype.js
+// iterator-functions.js // Symbol
+// iterator-names.js // ES6 Map, Set
+// iterator-prototype.js // Symbol
 iterator-return-beyond-multiple-iteration-scopes.js
 iterators-shape.js
 jit-cache-poly-replace-then-cache-get-and-fold-then-invalidate.js
@@ -333,7 +333,7 @@ map-iterators-next.js
 materialize-past-butterfly-allocation.js
 materialize-past-put-structure.js
 math-abs-positive.js
-math-clz32-basics.js
+// math-clz32-basics.js // ES6 Math.clz32
 math-log-basics.js
 math-log-with-constants.js
 math-pow-basics.js
@@ -364,7 +364,7 @@ new-contiguous-array-with-size.js
 new-double-array-with-size.js
 new-function-expression-has-structures.js
 new-int32-array-with-size.js
-new-largeish-contiguous-array-with-size.js
+new-largeish-contiguous-array-with-size.js // JSC specific function
 new-undecided-array-with-size.js
 no-abc-skippy-loop.js
 no-abc-skippy-paired-loop.js
@@ -375,7 +375,7 @@ object-freeze-accept-non-object.js
 object-get-own-property-descriptor-perform-to-object.js
 object-get-own-property-names-perform-to-object.js
 object-get-own-property-symbols-perform-to-object.js
-object-get-own-property-symbols.js
+// object-get-own-property-symbols.js // Symbol
 object-get-prototype-of-perform-to-object.js
 object-is-extensible-accept-non-object.js
 object-is-frozen-accept-non-object.js

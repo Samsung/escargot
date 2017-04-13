@@ -96,6 +96,10 @@ function createProxy(arg) {
     return arg;
 }
 
+function makeMasquerader() {
+
+}
+
 Object.defineProperty(Object.prototype, "__defineGetter__", {
     value : function(prop, func) { Object.defineProperty(this, prop, {get: func, enumerable : true, configurable : true}); },
     enumerable : false

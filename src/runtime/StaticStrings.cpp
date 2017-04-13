@@ -36,6 +36,7 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     get__proto__.init(atomicStringMap, "get __proto__", strlen("get __proto__"));
     set__proto__.init(atomicStringMap, "set __proto__", strlen("set __proto__"));
     getbyteLength.init(atomicStringMap, "get byteLength", strlen("get byteLength"));
+    getbyteOffset.init(atomicStringMap, "get byteOffset", strlen("get byteOffset"));
     getLength.init(atomicStringMap, "get length", strlen("get length"));
     getBuffer.init(atomicStringMap, "get buffer", strlen("get buffer"));
 

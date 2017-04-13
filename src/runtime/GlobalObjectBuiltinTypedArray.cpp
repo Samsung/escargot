@@ -131,6 +131,15 @@ static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value this
     RELEASE_ASSERT_NOT_REACHED();
 }
 
+static Value builtinTypedArrayByteOffsetGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
+        return Value(thisValue.asObject()->asArrayBufferView()->byteoffset());
+    }
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get TypedArray.prototype.byteOffset called on incompatible receiver");
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
 static Value builtinTypedArrayLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
@@ -493,7 +502,7 @@ FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicStr
     taConstructor->markThisObjectDontNeedStructureTransitionTable(state);
 
     *proto = m_objectPrototype;
-    Object* taPrototype = new TA(state);
+    Object* taPrototype = new Object(state);
     taPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     taPrototype->setPrototype(state, typedArrayFunction->getFunctionPrototype(state));
 
@@ -569,6 +578,13 @@ void GlobalObject::installTypedArray(ExecutionState& state)
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor byteLengthDesc2(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         typedArrayFunction->getFunctionPrototype(state).asObject()->defineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc2);
+    }
+    {
+        JSGetterSetter gs(
+            new FunctionObject(state, NativeFunctionInfo(strings->getbyteOffset, builtinTypedArrayByteOffsetGetter, 0, nullptr, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor byteOffsetDesc2(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        typedArrayFunction->getFunctionPrototype(state).asObject()->defineOwnProperty(state, ObjectPropertyName(strings->byteOffset), byteOffsetDesc2);
     }
     {
         JSGetterSetter gs(

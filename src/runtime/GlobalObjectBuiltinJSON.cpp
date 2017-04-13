@@ -19,6 +19,7 @@
 #include "Context.h"
 #include "StringObject.h"
 #include "ArrayObject.h"
+#include "TypedArrayObject.h"
 #include "BooleanObject.h"
 
 #define RAPIDJSON_PARSE_DEFAULT_FLAGS kParseFullPrecisionFlag
@@ -210,10 +211,23 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
             Walk = [&](Value holder, const ObjectPropertyName& name) -> Value {
                 Value val = holder.asPointerValue()->asObject()->get(state, name).value(state, holder);
                 if (val.isObject()) {
-                    if (val.asObject()->isArrayObject() || val.asObject()->isTypedArrayObject()) {
+                    if (val.asObject()->isArrayObject()) {
                         ArrayObject* arrObject = val.asObject()->asArrayObject();
                         uint32_t i = 0;
                         uint32_t len = arrObject->length(state);
+                        while (i < len) {
+                            Value newElement = Walk(val, ObjectPropertyName(state, Value(i).toString(state)));
+                            if (newElement.isUndefined()) {
+                                arrObject->deleteOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)));
+                            } else {
+                                arrObject->defineOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)), ObjectPropertyDescriptor(newElement, ObjectPropertyDescriptor::AllPresent));
+                            }
+                            i++;
+                        }
+                    } else if (val.asObject()->isTypedArrayObject()) {
+                        ArrayBufferView* arrObject = val.asObject()->asArrayBufferView();
+                        uint32_t i = 0;
+                        uint32_t len = arrObject->arraylength();
                         while (i < len) {
                             Value newElement = Walk(val, ObjectPropertyName(state, Value(i).toString(state)));
                             if (newElement.isUndefined()) {

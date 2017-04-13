@@ -314,6 +314,7 @@ public:
     AtomicString get__proto__;
     AtomicString set__proto__;
     AtomicString getbyteLength;
+    AtomicString getbyteOffset;
     AtomicString getLength;
     AtomicString getBuffer;
 
