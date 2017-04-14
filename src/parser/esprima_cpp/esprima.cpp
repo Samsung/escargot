@@ -2328,6 +2328,8 @@ public:
     bool trackUsingNames;
     size_t stackLimit;
 
+    ASTScopeContext fakeContext;
+
     ASTScopeContext* popScopeContext(const MetaNode& node)
     {
         auto ret = scopeContexts.back();
@@ -2337,6 +2339,8 @@ public:
 
     void extractNamesFromFunctionParams(const PatternNodeVector& vector)
     {
+        if (this->config.parseSingleFunction)
+            return;
         for (size_t i = 0; i < vector.size(); i++) {
             ASSERT(vector[i]->isIdentifier());
             IdentifierNode* id = (IdentifierNode*)vector[i];
@@ -2346,6 +2350,11 @@ public:
 
     void pushScopeContext(const PatternNodeVector& params, AtomicString functionName)
     {
+        if (this->config.parseSingleFunction) {
+            fakeContext = ASTScopeContext();
+            scopeContexts.push_back(&fakeContext);
+            return;
+        }
         auto parentContext = scopeContexts.back();
         scopeContexts.push_back(new ASTScopeContext(this->context->strict));
         scopeContexts.back()->m_functionName = functionName;
@@ -2816,9 +2825,9 @@ public:
         volatile int sp;
         size_t currentStackBase = (size_t)&sp;
 #ifdef STACK_GROWS_DOWN
-        if (currentStackBase < stackLimit) {
+        if (UNLIKELY(currentStackBase < stackLimit)) {
 #else
-        if (currentStackBase > stackLimit) {
+        if (UNLIKELY(currentStackBase > stackLimit)) {
 #endif
             this->throwError("too many recursion in script", String::emptyString, String::emptyString, ErrorObject::RangeError);
         }
@@ -3161,6 +3170,7 @@ public:
     bool parseFormalParameter(ParseParameterOptions& options)
     {
         Node* param;
+        bool trackUsingNamesBefore = trackUsingNames;
         trackUsingNames = false;
         std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> params;
         RefPtr<ScannerResult> token = this->lookahead;
@@ -3178,7 +3188,7 @@ public:
             this->validateParam(options, params[i], as);
         }
         options.params.push_back(param);
-        trackUsingNames = true;
+        trackUsingNames = trackUsingNamesBefore;
         return !this->match(PunctuatorsKind::RightParenthesis);
     }
 
@@ -3327,12 +3337,13 @@ public:
         case Token::IdentifierToken:
         case Token::BooleanLiteralToken:
         case Token::NullLiteralToken:
-        case Token::KeywordToken:
+        case Token::KeywordToken: {
+            bool trackUsingNamesBefore = this->trackUsingNames;
             this->trackUsingNames = false;
             key = this->finalize(node, finishIdentifier(token, false));
-            this->trackUsingNames = true;
+            this->trackUsingNames = trackUsingNamesBefore;
             break;
-
+        }
         case Token::PunctuatorToken:
             if (token->valuePunctuatorsKind == LeftSquareBracket) {
                 key = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
@@ -3879,9 +3890,10 @@ public:
                 this->context->isBindingElement = false;
                 this->context->isAssignmentTarget = true;
                 this->expect(Period);
+                bool trackUsingNamesBefore = this->trackUsingNames;
                 this->trackUsingNames = false;
                 IdentifierNode* property = this->parseIdentifierName();
-                this->trackUsingNames = true;
+                this->trackUsingNames = trackUsingNamesBefore;
                 expr = this->finalize(this->startNode(startToken), new MemberExpressionNode(expr, property, true));
 
             } else if (this->match(LeftParenthesis)) {
@@ -3950,9 +3962,10 @@ public:
                 this->context->isBindingElement = false;
                 this->context->isAssignmentTarget = true;
                 this->expect(Period);
+                bool trackUsingNamesBefore = this->trackUsingNames;
                 this->trackUsingNames = false;
                 IdentifierNode* property = this->parseIdentifierName();
-                this->trackUsingNames = true;
+                this->trackUsingNames = trackUsingNamesBefore;
                 expr = this->finalize(node, new MemberExpressionNode(expr, property, true));
 
             } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->head) {
@@ -4945,7 +4958,7 @@ public:
             }
         }
 
-        if (id->type() == Identifier) {
+        if (id->type() == Identifier && !this->config.parseSingleFunction) {
             this->scopeContexts.back()->insertName(((IdentifierNode*)id)->name(), true);
         }
 
@@ -6487,6 +6500,7 @@ ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserAST
 std::pair<Node*, ASTScopeContext*> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, size_t stackRemain)
 {
     Parser parser(ctx, codeBlock->src(), nullptr, stackRemain, codeBlock->sourceElementStart().line, codeBlock->sourceElementStart().column);
+    parser.trackUsingNames = false;
     parser.config.parseSingleFunction = true;
     parser.config.parseSingleFunctionTarget = codeBlock;
     auto scopeCtx = new ASTScopeContext(codeBlock->isStrict());

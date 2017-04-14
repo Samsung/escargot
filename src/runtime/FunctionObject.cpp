@@ -209,7 +209,7 @@ Object* FunctionObject::newInstance(ExecutionState& state, const size_t& argc, V
     FunctionObject* targetFunction = this;
     if (UNLIKELY(!isConstructor())) {
         if (cb->isBindedFunction()) {
-            targetFunction = cb->boundFunctionInfo()->m_boundTargetFunction;
+            targetFunction = (FunctionObject*)cb->boundFunctionInfo()->m_ctorFn;
             cb = targetFunction->codeBlock();
         }
         if (!cb->isConsturctor()) {

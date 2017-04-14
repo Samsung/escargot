@@ -78,7 +78,24 @@ String* RopeString::createRopeString(String* lstr, String* rstr, ExecutionState*
     rope->m_contentLength = llen + rlen;
     rope->m_left = lstr;
     rope->m_right = rstr;
+
     rope->m_has8BitContent = lstr->has8BitContent() && rstr->has8BitContent();
+    /*
+    bool has8 = true;
+    if (!lstr->has8BitContent()) {
+        if (!isAllLatin1((char16_t*)lstr->bufferAccessData().buffer, llen)) {
+            has8 = false;
+        }
+    }
+
+    if (has8 && !rstr->has8BitContent()) {
+        if (!isAllLatin1((char16_t*)rstr->bufferAccessData().buffer, rlen)) {
+            has8 = false;
+        }
+    }
+
+    rope->m_has8BitContent = has8;
+    */
     return rope;
 }
 

@@ -110,12 +110,15 @@ static Value functionBindImpl(ExecutionState& state, Value thisValue, size_t cal
     // Collect arguments info when current function is called.
     int mergedArgc = code->m_boundArgumentsCount + calledArgc;
     Value* mergedArgv = ALLOCA(mergedArgc * sizeof(Value), Value, state);
-    if (code->m_boundArgumentsCount)
-        memcpy(mergedArgv, code->m_boundArguments, sizeof(Value) * code->m_boundArgumentsCount);
+    if (code->m_boundArgumentsCount) {
+        for (size_t i = 0; i < code->m_boundArgumentsCount; i++) {
+            mergedArgv[i] = code->m_boundArguments[i];
+        }
+    }
     if (calledArgc)
         memcpy(mergedArgv + code->m_boundArgumentsCount, calledArgv, sizeof(Value) * calledArgc);
 
-    return FunctionObject::call(state, code->m_boundTargetFunction, code->m_boundThis, mergedArgc, mergedArgv);
+    return FunctionObject::call(state, (FunctionObject*)code->m_ctorFn, code->m_boundThis, mergedArgc, mergedArgv);
 }
 
 CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv)
@@ -148,17 +151,20 @@ CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Valu
     m_parameterCount = targetFunctionLength > boundArgc ? targetFunctionLength - boundArgc : 0;
 
     auto data = new CallBoundFunctionData();
-    m_nativeFunctionData = (CallBoundFunctionData*)data;
+    m_nativeFunctionData = data;
 
-    NativeFunctionConstructor ctor;
-    data->m_ctorFn = nullptr;
     data->m_fn = functionBindImpl;
-
-    data->m_boundTargetFunction = targetFunction;
+    data->m_ctorFn = (NativeFunctionConstructor)targetFunction;
     data->m_boundThis = boundThis;
     data->m_boundArgumentsCount = boundArgc;
-    data->m_boundArguments = (Value*)GC_MALLOC(boundArgc * sizeof(Value));
-    memcpy(data->m_boundArguments, boundArgv, boundArgc * sizeof(Value));
+    if (boundArgc) {
+        data->m_boundArguments = (SmallValue*)GC_MALLOC(boundArgc * sizeof(SmallValue));
+        for (size_t i = 0; i < boundArgc; i++) {
+            data->m_boundArguments[i] = boundArgv[i];
+        }
+    } else {
+        data->m_boundArguments = nullptr;
+    }
 }
 
 InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const ASTScopeContextNameInfoVector& innerIdentifiers, CodeBlockInitFlag initFlags)

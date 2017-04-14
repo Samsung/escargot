@@ -27,10 +27,24 @@ class ExecutionState;
 class StringBuilder {
     MAKE_STACK_ALLOCATED();
     struct StringBuilderPiece {
-        String* m_string;
+        enum Type {
+            Latin1StringPiece,
+            UTF16StringStringPiece,
+            UTF16StringStringButLatin1ContentPiece,
+            ConstChar,
+            Char,
+        };
+        Type m_type;
+        union {
+            String* m_string;
+            const char* m_raw;
+            char16_t m_ch;
+        };
         size_t m_start, m_end;
     };
 
+    void appendPiece(char16_t ch);
+    void appendPiece(const char* str);
     void appendPiece(String* str, size_t s, size_t e);
 
 public:
@@ -44,19 +58,17 @@ public:
     size_t contentLength() { return m_contentLength; }
     void appendString(const char* str)
     {
-        appendPiece(new ASCIIString(str), 0, strlen(str));
+        appendPiece(str);
     }
 
     void appendChar(char16_t ch)
     {
-        char16_t s = ch;
-        appendString(new UTF16String(&s, 1));
+        appendPiece(ch);
     }
 
     void appendChar(char ch)
     {
-        char s = ch;
-        appendString(new ASCIIString(&s, 1));
+        appendPiece(ch);
     }
 
     void appendString(String* str)

@@ -328,7 +328,7 @@ struct ASTScopeContext : public gc {
         }
     }
 
-    ASTScopeContext(bool isStrict)
+    ASTScopeContext(bool isStrict = false)
         : m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 #ifndef NDEBUG
         , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)

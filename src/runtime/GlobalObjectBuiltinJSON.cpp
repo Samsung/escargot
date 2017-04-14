@@ -109,7 +109,11 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
         if (std::is_same<CharType, char16_t>::value) {
             const char16_t* chars = (const char16_t*)value.GetString();
             unsigned len = value.GetStringLength();
-            return new UTF16String(chars, len);
+            if (isAllLatin1(chars, len)) {
+                return new Latin1String(chars, len);
+            } else {
+                return new UTF16String(chars, len);
+            }
         } else {
             const char* valueAsString = (const char*)value.GetString();
             if (isAllASCII(valueAsString, strlen(valueAsString))) {

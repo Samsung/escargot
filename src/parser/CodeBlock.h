@@ -73,9 +73,8 @@ public:
 
 class CallBoundFunctionData : public CallNativeFunctionData {
 public:
-    FunctionObject* m_boundTargetFunction;
-    Value m_boundThis;
-    Value* m_boundArguments;
+    SmallValue m_boundThis;
+    SmallValue* m_boundArguments;
     size_t m_boundArgumentsCount;
 };
 

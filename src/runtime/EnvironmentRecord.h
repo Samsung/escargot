@@ -498,7 +498,7 @@ public:
 protected:
     size_t m_argc;
     Value* m_argv;
-    SmallValueVector m_heapStorage;
+    SmallValueTightVector m_heapStorage;
 };
 
 class FunctionEnvironmentRecordNotIndexed : public FunctionEnvironmentRecord {
@@ -575,7 +575,7 @@ public:
 protected:
     size_t m_argc;
     Value* m_argv;
-    SmallValueVector m_heapStorage;
+    SmallValueTightVector m_heapStorage;
     IdentifierRecordVector m_recordVector;
 };
 }

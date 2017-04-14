@@ -353,6 +353,7 @@ protected:
 };
 
 typedef Vector<SmallValue, GCUtil::gc_malloc_ignore_off_page_allocator<SmallValue>> SmallValueVector;
+typedef TightVector<SmallValue, GCUtil::gc_malloc_ignore_off_page_allocator<SmallValue>> SmallValueTightVector;
 }
 
 

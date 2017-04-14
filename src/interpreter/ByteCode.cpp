@@ -69,7 +69,7 @@ void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
     // TODO
     // give correct stack limit to parser
     if (m_codeBlock->asInterpretedCodeBlock()->isGlobalScopeCodeBlock()) {
-        ProgramNode* nd = esprima::parseProgram(m_codeBlock->asInterpretedCodeBlock()->context(), m_codeBlock->asInterpretedCodeBlock()->src(), nullptr, m_codeBlock->asInterpretedCodeBlock()->isStrict(), SIZE_MAX);
+        ProgramNode* nd = esprima::parseProgram(c, m_codeBlock->asInterpretedCodeBlock()->src(), nullptr, m_codeBlock->asInterpretedCodeBlock()->isStrict(), SIZE_MAX);
         block = g.generateByteCode(c, m_codeBlock->asInterpretedCodeBlock(), nd, nd->scopeContext(), m_isEvalMode, m_isOnGlobal, true);
     } else {
         auto ret = c->scriptParser().parseFunction(m_codeBlock->asInterpretedCodeBlock(), SIZE_MAX);
