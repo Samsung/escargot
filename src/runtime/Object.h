@@ -42,6 +42,7 @@ struct ObjectRareData : public PointerValue {
     bool m_isExtensible : 1;
     bool m_isEverSetAsPrototypeObject : 1;
     bool m_isFastModeArrayObject : 1;
+    bool m_shouldUpdateEnumerateObjectData : 1;
     bool m_isInArrayObjectDefineOwnProperty : 1;
     bool m_hasNonWritableLastIndexRegexpObject : 1;
     const char* m_internalClassName;

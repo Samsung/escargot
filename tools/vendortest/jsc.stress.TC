@@ -10,7 +10,7 @@ add-overflow-recovery.js
 add-overflows-after-not-equal.js
 add-small-constant-overflow-recovery.js
 arguments-bizarre-behavior.js
-arguments-bizarre-behaviour-disable-enumerability.js
+// arguments-bizarre-behaviour-disable-enumerability.js // TC causes weird result (webkit issue #141952)
 arguments-callee-uninitialized.js
 arguments-captured.js
 arguments-copy-register-array-backing-store.js
@@ -24,25 +24,25 @@ arguments-inlined-exit-strict-mode.js
 arguments-inlined-exit.js
 arguments-interference-cfg.js
 arguments-interference.js
-arguments-iterator.js
+// arguments-iterator.js // for-of
 arith-add-with-constants.js
 arith-modulo-node-behaviors.js
 arith-mul-with-constants.js
-array-copywithin.js
+// array-copywithin.js // ES6 Syntax
 // array-fill-put-by-val.js // ES6 Syntax
 // array-filter-put-by-val-direct.js // ES6 Syntax
 // array-find-does-not-lookup-twice.js // ES6 Syntax
-array-from-abs-and-floor.js
-array-from-put-by-val-direct.js
-array-from-set-length.js
-array-from-with-accessors.js
-array-from-with-iterable.js
-array-from-with-iterator.js
-array-iterators-next-with-call.js
-array-iterators-next.js
+// array-from-abs-and-floor.js // Array.from()
+// array-from-put-by-val-direct.js // Array.from()
+// array-from-set-length.js // Array.from()
+// array-from-with-accessors.js // Array.from()
+// array-from-with-iterable.js // Array.from()
+// array-from-with-iterator.js // Array.from()
+// array-iterators-next-with-call.js // Symbol
+// array-iterators-next.js // Symbol
 array-length-array-storage-plain-object.js
 array-length-plain-object.js
-array-map-put-by-val-direct.js
+// array-map-put-by-val-direct.js // ES6 Syntax
 array-pop-contiguous.js
 array-pop-double-hole.js
 array-pop-double.js
@@ -61,14 +61,14 @@ bit-op-value-to-int32-input-liveness.js
 branch-check-int32-on-boolean-to-number-untyped.js
 branch-check-number-on-boolean-to-number-untyped.js
 branch-may-exit-due-to-object-or-other-use-kind.js
-bug-131764.js
+// bug-131764.js // Array.of()
 // builtin-function-is-construct-type-none.js // different error message
 cached-prototype-setter.js
 call-forward-varargs-for-inlined-escaped-arguments.js
 call-varargs-from-inlined-code-with-odd-number-of-arguments.js
 call-varargs-from-inlined-code.js
 call-varargs-length-effects.js
-call-varargs-with-different-arguments-length-after-warmup.js
+// call-varargs-with-different-arguments-length-after-warmup.js // ES6 Syntax (Spread element)
 capture-escape-and-throw.js
 captured-arguments-variable.js
 // class-syntax-derived-default-constructor.js // class
@@ -92,13 +92,13 @@ compare-eq-object-to-object-or-other.js
 compare-strict-eq-integer-to-misc.js
 constant-closure-var-with-dynamic-invalidation.js
 constant-folding-osr-exit.js
-construct-forward-varargs-for-inlined-escaped-arguments.js
-construct-varargs-inline-smaller-Foo.js
-construct-varargs-inline.js
-construct-varargs-no-inline.js
+// construct-forward-varargs-for-inlined-escaped-arguments.js // ES6 Syntax (Spread element)
+// construct-varargs-inline-smaller-Foo.js // ES6 Syntax (Spread element)
+// construct-varargs-inline.js // ES6 Syntax (Spread element)
+// construct-varargs-no-inline.js // ES6 Syntax (Spread element)
 // constructor-with-return.js // Symbol
 create-this-with-callee-variants.js
-custom-iterators.js
+// custom-iterators.js // Symbol
 dead-access-to-captured-variable-preceded-by-a-live-store-in-function-with-multiple-basic-blocks.js
 dead-access-to-captured-variable-preceded-by-a-live-store.js
 dead-fiat-double-to-int52-then-exit-not-int52.js
@@ -113,12 +113,12 @@ dead-int32-to-double.js
 dead-speculating-argument-use.js
 dead-uint32-to-number.js
 dead-value-with-mov-hint-in-another-block.js
-deleteAllCompiledCode.js
-destructuring-assignment-accepts-iterables.js
+// deleteAllCompiledCode.js // JSC only function
+// destructuring-assignment-accepts-iterables.js // Array pattern
 dfg-create-arguments-inline-alloc.js
-dfg-put-by-val-direct-with-edge-numbers.js
+// dfg-put-by-val-direct-with-edge-numbers.js // Number.EPSILON
 dfg-rare-data.js
-dfg-to-primitive-pass-symbol.js
+// dfg-to-primitive-pass-symbol.js // Symbol
 // disable-function-dot-arguments.js // function.arguments
 double-as-int32.js
 double-rep-with-non-cell.js
@@ -128,18 +128,18 @@ elidable-new-object-roflcopter-then-exit.js
 elide-new-object-dag-then-exit.js
 empty-function.js
 empty_eos_regex_split.js
-// equality-type-checking.js // JSC specific function
-equals-masquerader.js
+// equality-type-checking.js // JSC only function
+// equals-masquerader.js // JSC only function
 escape-object-in-diamond-then-exit.js
-eval-script-contains-null-character.js
+// eval-script-contains-null-character.js // Template literal
 eval-that-is-not-eval.js
-exception-in-to-property-key-should-be-handled-early-in-object-methods.js
-exception-in-to-property-key-should-be-handled-early.js
+// exception-in-to-property-key-should-be-handled-early-in-object-methods.js // Different error message
+// exception-in-to-property-key-should-be-handled-early.js // ES6 Syntax
 exit-after-int32-to-double.js
 exit-after-int52-to-double.js
 exit-after-int52-to-value.js
 exit-after-llvm-folds-large-int-constant.js
-exit-from-ftl-when-caller-passed-extra-args-then-use-function-dot-arguments.js
+// exit-from-ftl-when-caller-passed-extra-args-then-use-function-dot-arguments.js // function.arguments
 exit-from-ftl-with-arity-check-fail.js
 exit-from-getter.js
 exit-from-setter.js
@@ -178,7 +178,7 @@ fold-to-double-constant-then-exit.js
 fold-to-int52-constant-then-exit.js
 fold-to-primitive-in-cfa.js
 fold-to-primitive-to-identity-in-cfa.js
-fold-typed-array-properties.js
+// fold-typed-array-properties.js // JSC only function
 for-in-array-mode.js
 for-in-base-reassigned-later-and-change-structure.js
 for-in-base-reassigned-later.js
@@ -192,7 +192,7 @@ for-in-proxy-target-changed-structure.js
 for-in-proxy.js
 for-in-shadow-prototype-property.js
 for-in-string.js
-for-in-tests.js
+// for-in-tests.js // implementation-dependent feature
 for-in-typed-array.js
 forward-varargs-for-inlined-escaped-arguments.js
 freeze_leek.js
@@ -228,7 +228,7 @@ function-sinking-no-double-allocate.js
 function-sinking-osrexit.js
 function-sinking-put.js
 fuzz-bug-16399949.js
-generational-opaque-roots.js
+// generational-opaque-roots.js // JSC only function
 get-argument-by-val-in-inlined-varargs-call-out-of-bounds.js
 get-argument-by-val-safe-in-inlined-varargs-call-out-of-bounds.js
 get-by-id-throw-from-getter-through-optimized-code.js
@@ -250,14 +250,14 @@ get-my-argument-by-val-safe-wrap-around.js
 get-my-argument-by-val-wrap-around-no-warm-up.js
 get-my-argument-by-val-wrap-around.js
 get-stack-identity-due-to-sinking.js
-get-stack-mapping-with-dead-get-stack.js
-get-stack-mapping.js
+// get-stack-mapping-with-dead-get-stack.js // function.arguments
+// get-stack-mapping.js // function.arguments
 getter.js
 // global-environment-does-not-trap-unscopables.js // Symbol
 goofy-function-reentry-incorrect-inference.js
-has-custom-properties.js
+// has-custom-properties.js // JSC only function
 ic-throw-through-optimized-code.js
-impure-get-own-property-slot-inline-cache.js
+// impure-get-own-property-slot-inline-cache.js // JSC only function
 infer-constant-global-property.js
 infer-constant-property.js
 infer-uninitialized-closure-var.js
@@ -302,8 +302,8 @@ is-undefined-masquerader.js
 // iterator-functions.js // Symbol
 // iterator-names.js // ES6 Map, Set
 // iterator-prototype.js // Symbol
-iterator-return-beyond-multiple-iteration-scopes.js
-iterators-shape.js
+// iterator-return-beyond-multiple-iteration-scopes.js // Symbol
+// iterators-shape.js // Symbol
 jit-cache-poly-replace-then-cache-get-and-fold-then-invalidate.js
 jit-cache-replace-then-cache-get-and-fold-then-invalidate.js
 jit-put-to-scope-global-cache-watchpoint-invalidate.js
@@ -320,16 +320,16 @@ load-varargs-then-inlined-call-exit-in-foo.js
 load-varargs-then-inlined-call-inlined.js
 load-varargs-then-inlined-call.js
 logical-not-masquerades.js
-make-large-string-jit-strcat.js
-make-large-string-jit.js
-make-large-string-strcat.js
-make-large-string.js
+// make-large-string-jit-strcat.js // different error message
+// make-large-string-jit.js // different error message
+// make-large-string-strcat.js // different error message
+// make-large-string.js // different error message
 make-rope-2.js
 make-rope-3.js
 many-sunken-locals.js
-map-constructor-adder.js
-map-constructor.js
-map-iterators-next.js
+// map-constructor-adder.js // ES6 Map
+// map-constructor.js // ES6 Map
+// map-iterators-next.js // ES6 Map
 materialize-past-butterfly-allocation.js
 materialize-past-put-structure.js
 math-abs-positive.js
@@ -347,8 +347,8 @@ math-round-basics.js
 math-sqrt-basics-disable-architecture-specific-optimizations.js
 math-sqrt-basics.js
 max-boolean-exit.js
-modify-map-during-iteration.js
-modify-set-during-iteration.js
+// modify-map-during-iteration.js // ES6 Map
+// modify-set-during-iteration.js // ES6 Set
 mul-boolean-exit.js
 multi-get-by-offset-dce.js
 multi-get-by-offset-proto-and-self.js
@@ -364,25 +364,25 @@ new-contiguous-array-with-size.js
 new-double-array-with-size.js
 new-function-expression-has-structures.js
 new-int32-array-with-size.js
-new-largeish-contiguous-array-with-size.js // JSC specific function
+// new-largeish-contiguous-array-with-size.js // JSC only function
 new-undecided-array-with-size.js
 no-abc-skippy-loop.js
 no-abc-skippy-paired-loop.js
 not-cell-use.js
 object-allocation-sinking-with-uninitialized-property-on-one-path.js
 object-escapes-in-loop.js
-object-freeze-accept-non-object.js
-object-get-own-property-descriptor-perform-to-object.js
-object-get-own-property-names-perform-to-object.js
-object-get-own-property-symbols-perform-to-object.js
+// object-freeze-accept-non-object.js // Different results between ES5 and ES6
+// object-get-own-property-descriptor-perform-to-object.js // Different results between ES5 and ES6
+// object-get-own-property-names-perform-to-object.js // Different results between ES5 and ES6
+// object-get-own-property-symbols-perform-to-object.js // Symbol
 // object-get-own-property-symbols.js // Symbol
-object-get-prototype-of-perform-to-object.js
-object-is-extensible-accept-non-object.js
-object-is-frozen-accept-non-object.js
-object-is-sealed-accept-non-object.js
-object-keys-perform-to-object.js
-object-prevent-extensions-accept-non-object.js
-object-seal-accept-non-object.js
+// object-get-prototype-of-perform-to-object.js // Different results between ES5 and ES6
+// object-is-extensible-accept-non-object.js // Different results between ES5 and ES6
+// object-is-frozen-accept-non-object.js // Different results between ES5 and ES6
+// object-is-sealed-accept-non-object.js // Different results between ES5 and ES6
+// object-keys-perform-to-object.js // Different results between ES5 and ES6
+// object-prevent-extensions-accept-non-object.js // Different results between ES5 and ES6
+// object-seal-accept-non-object.js // Different results between ES5 and ES6
 obviously-elidable-new-object-then-exit.js
 op-push-name-scope-crashes-profiler.js
 phantom-arguments-set-local-then-exit-in-same-block.js
@@ -420,7 +420,7 @@ put-by-id-throw-through-optimized-code.js
 put-by-id-transition-null-prototype.js
 put-by-val-out-of-bounds-basics.js
 put-local-conservative.js
-raise-error-in-iterator-close.js
+// raise-error-in-iterator-close.js // Symbol
 real-forward-varargs-for-inlined-escaped-arguments.js
 recurse-infinitely-on-getter.js
 recursive_property_redefine_during_inline_caching.js
@@ -438,15 +438,15 @@ remove-phantom-after-setlocal.js
 repeat-put-to-scope-global-with-same-value-watchpoint-invalidate.js
 repeated-arity-check-fail.js
 repeated-put-by-id-reallocating-transition.js
-reserved-word-with-escape.js
-rest-elements.js
+// reserved-word-with-escape.js // ES6 Syntax
+// rest-elements.js // Template literal
 // runtime-array.js // JSC only function
 runtime-throw-through-optimized-code.js
 scoped-arguments-array-length.js
 scoped-then-direct-arguments-get-by-val-in-baseline.js
-set-constructor-adder.js
-set-constructor.js
-set-iterators-next.js
+// set-constructor-adder.js // ES6 Set
+// set-constructor.js // ES6 Set
+// set-iterators-next.js // Object pattern
 setter.js
 simple-polyvariant-call-inlining-example.js
 simple-polyvariant-get-by-id-inlining-example.js
@@ -474,19 +474,19 @@ sparse-array-entry-update-144067.js
 sparse_splice.js
 static-function-delete.js
 static-function-put.js
-static-getter-delete.js
-// static-getter-descriptors.js // Different results of ES5 and ES6
+// static-getter-delete.js // Different results between ES5 and ES6
+// static-getter-descriptors.js // Different results between ES5 and ES6
 static-getter-enumeration.js
 static-getter-get.js
-// static-getter-in-names.js // Different results of ES5 and ES6
-static-getter-names.js
-static-getter-put.js
+// static-getter-in-names.js // Different results between ES5 and ES6
+// static-getter-names.js // Different results between ES5 and ES6
+// static-getter-put.js // Different results between ES5 and ES6
 strict-to-this-int.js
-string-from-code-point.js
+// string-from-code-point.js // for-of
 string-ident-to-not-string-var-equality.js
-string-iterators.js
+// string-iterators.js // Object pattern
 string-out-of-bounds-negative-proto-value.js
-string-raw.js
+// string-raw.js // String.raw()
 sub-overflows-after-not-equal.js
 switch-typeof-indirect.js
 switch-typeof-slightly-indirect.js
@@ -496,15 +496,15 @@ switch-typeof.js
 // symbol-registry.js // Symbol
 // symbol-seal-and-freeze.js // Symbol
 // symbol-with-json.js // Symbol
-tagged-templates-identity.js
-tagged-templates-raw-strings.js
-tagged-templates-syntax.js
-tagged-templates-template-object.js
-tagged-templates-this.js
+// tagged-templates-identity.js // Template literal
+// tagged-templates-raw-strings.js // Template literal
+// tagged-templates-syntax.js // Template literal
+// tagged-templates-template-object.js // Template literal
+// tagged-templates-this.js // Template literal
 // tagged-templates.js // ES6 Syntax
-template-literal-line-terminators.js
-template-literal-syntax.js
-template-literal.js
+// template-literal-line-terminators.js // Template literal
+// template-literal-syntax.js // Template literal
+// template-literal.js // Template literal
 test-spec-misc.js
 // throw-from-ftl-call-ic-slow-path-cells.js // different error message
 // throw-from-ftl-call-ic-slow-path-undefined.js // different error message
@@ -531,8 +531,8 @@ tricky-infinite-loop-that-uses-captured-variables.js
 trivially-foldable-reflective-arguments-access.js
 // type-of-functions-and-objects.js // ES6 Map
 typed-array-byte-offset.js
-typed-array-get-by-val-profiling.js
-typed-array-put-by-val-profiling.js
+// typed-array-get-by-val-profiling.js // Template literal
+// typed-array-put-by-val-profiling.js // Template literal
 // typeof-symbol.js // Symbol
 uint32-to-number-fold-constant-with-do-overflow.js
 uint32array-unsigned-load.js

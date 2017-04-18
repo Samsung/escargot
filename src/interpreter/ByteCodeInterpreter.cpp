@@ -853,7 +853,10 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 }
             }
 
-            if (data->m_object->isArrayObject() && data->m_object->length(state) != data->m_originalLength) {
+            if (!shouldUpdateEnumerateObjectData && data->m_object->isArrayObject() && data->m_object->length(state) != data->m_originalLength) {
+                shouldUpdateEnumerateObjectData = true;
+            }
+            if (!shouldUpdateEnumerateObjectData && data->m_object->rareData() && data->m_object->rareData()->m_shouldUpdateEnumerateObjectData) {
                 shouldUpdateEnumerateObjectData = true;
             }
 
@@ -1364,6 +1367,7 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
 {
     // cache miss
     if (inlineCache.m_cacheMissCount > 16) {
+        inlineCache.invalidateCache();
         originalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, willBeObject);
         return;
     }
@@ -1521,6 +1525,9 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
         ASSERT(ownKeyCount == idx);
     }
 
+    if (obj->rareData()) {
+        obj->rareData()->m_shouldUpdateEnumerateObjectData = false;
+    }
     return data;
 }
 
