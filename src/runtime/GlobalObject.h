@@ -77,6 +77,7 @@ public:
         installPromise(state);
 #endif
 #if ESCARGOT_ENABLE_TYPEDARRAY
+        installDataView(state);
         installTypedArray(state);
 #endif
         installOthers(state);
@@ -97,6 +98,7 @@ public:
     void installPromise(ExecutionState& state);
 #endif
 #if ESCARGOT_ENABLE_TYPEDARRAY
+    void installDataView(ExecutionState& state);
     void installTypedArray(ExecutionState& state);
     template <typename TA, int elementSize>
     FunctionObject* installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction);
@@ -280,6 +282,14 @@ public:
     {
         return m_arrayBufferPrototype;
     }
+    FunctionObject* dataView()
+    {
+        return m_dataView;
+    }
+    Object* dataViewPrototype()
+    {
+        return m_dataViewPrototype;
+    }
     Object* int8Array()
     {
         return m_int8Array;
@@ -460,6 +470,8 @@ protected:
 #if ESCARGOT_ENABLE_TYPEDARRAY
     FunctionObject* m_arrayBuffer;
     Object* m_arrayBufferPrototype;
+    FunctionObject* m_dataView;
+    Object* m_dataViewPrototype;
     FunctionObject* m_typedArray;
     Object* m_typedArrayPrototype;
     FunctionObject* m_int8Array;

@@ -32,6 +32,7 @@ class ErrorObject;
 #if ESCARGOT_ENABLE_TYPEDARRAY
 class ArrayBufferObject;
 class ArrayBufferView;
+class DataViewObject;
 template <typename TypeArg, int elementSize>
 class TypedArrayObject;
 #endif
@@ -541,8 +542,14 @@ public:
 
     ArrayBufferView* asArrayBufferView()
     {
-        ASSERT(isTypedArrayObject());
+        ASSERT(isArrayBufferView());
         return (ArrayBufferView*)this;
+    }
+
+    DataViewObject* asDataViewObject()
+    {
+        ASSERT(isDataViewObject());
+        return (DataViewObject*)this;
     }
 
     template <typename TypedArrayType>

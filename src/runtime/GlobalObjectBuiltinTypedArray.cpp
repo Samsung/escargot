@@ -25,26 +25,6 @@
 
 namespace Escargot {
 
-static int getElementSize(TypedArrayType type)
-{
-    switch (type) {
-    case TypedArrayType::Int8:
-    case TypedArrayType::Uint8:
-    case TypedArrayType::Uint8Clamped:
-        return 1;
-    case TypedArrayType::Int16:
-    case TypedArrayType::Uint16:
-        return 2;
-    case TypedArrayType::Int32:
-    case TypedArrayType::Uint32:
-    case TypedArrayType::Float32:
-        return 4;
-    case TypedArrayType::Float64:
-        return 8;
-    }
-    RELEASE_ASSERT_NOT_REACHED();
-}
-
 Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (!isNewExpression)
@@ -55,7 +35,7 @@ Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValue, size
         double numberLength = val.toNumber(state);
         double byteLength = Value(numberLength).toLength(state);
         if (numberLength != byteLength)
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, errorMessage_GlobalObject_FirstArgumentInvalidLength);
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, errorMessage_GlobalObject_FirstArgumentInvalidLength);
         obj->allocateBuffer(byteLength);
     } else {
         obj->allocateBuffer(0);
@@ -80,7 +60,7 @@ static Value builtinArrayBufferByteSlice(ExecutionState& state, Value thisValue,
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), errorMessage_GlobalObject_ThisNotArrayBufferObject);
     ArrayBufferObject* obj = thisObject->asArrayBufferObject();
     if (obj->isDetachedBuffer())
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: ArrayBuffer is detached buffer");
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), errorMessage_GlobalObject_DetachedBuffer);
     double len = obj->bytelength();
     double relativeStart = argv[0].toInteger(state);
     unsigned first = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, len);
@@ -115,6 +95,18 @@ static Value builtinArrayBufferByteSlice(ExecutionState& state, Value thisValue,
 
     newObject->fillData(obj->data() + first, newLen);
     return newObject;
+}
+
+static Value builtinArrayBufferIsView(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (!argv[0].isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), false, state.context()->staticStrings().isView.string(), errorMessage_GlobalObject_ThisNotObject);
+    }
+    Object* thisObject = argv[0].toObject(state);
+    if (thisObject->isTypedArrayObject() || thisObject->isDataViewObject()) {
+        return Value(true);
+    }
+    return Value(false);
 }
 
 Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -184,10 +176,10 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             if (argc >= 2)
                 offset = argv[1].toInt32(state);
             if (offset < 0) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
             }
             if (offset % elementSize != 0) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
             }
             ArrayBufferObject* buffer = val.asObject()->asArrayBufferObject();
             unsigned bufferByteLength = buffer->bytelength();
@@ -197,15 +189,15 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             unsigned newByteLength;
             if (lenVal.isUndefined()) {
                 if (bufferByteLength % elementSize != 0)
-                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+                    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
                 if (bufferByteLength < offset)
-                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+                    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
                 newByteLength = bufferByteLength - offset;
             } else {
                 int length = lenVal.toLength(state);
                 newByteLength = length * elementSize;
                 if (offset + newByteLength > bufferByteLength)
-                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+                    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
             }
             obj->setBuffer(buffer, offset, newByteLength, newByteLength / elementSize);
         } else if (val.isObject()) {
@@ -394,11 +386,15 @@ Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, 
         const StaticStrings* strings = &state.context()->staticStrings();
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), "Start offset is negative");
     }
+    if (!(argv[0].isObject())) {
+        const StaticStrings* strings = &state.context()->staticStrings();
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->TypedArray.string(), true, strings->set.string(), "Invalid argument");
+    }
     auto arg0 = argv[0].toObject(state);
     ArrayBufferObject* targetBuffer = wrapper->buffer();
     unsigned targetLength = wrapper->arraylength();
     int targetByteOffset = wrapper->byteoffset();
-    int targetElementSize = getElementSize(wrapper->typedArrayType());
+    int targetElementSize = ArrayBufferView::getElementSize(wrapper->typedArrayType());
     if (!arg0->isTypedArrayObject()) {
         Object* src = arg0;
         uint64_t srcLength = src->length(state);
@@ -467,27 +463,25 @@ Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t a
     auto wrapper = thisBinded->asArrayBufferView();
     ArrayBufferObject* buffer = wrapper->buffer();
     unsigned srcLength = wrapper->arraylength();
-    int64_t relativeBegin = 0;
+    int64_t relativeBegin = argv[0].toInt32(state);
     unsigned beginIndex;
-    if (argc >= 1)
-        relativeBegin = argv[0].toInt32(state);
     if (relativeBegin < 0)
         beginIndex = (srcLength + relativeBegin) > 0 ? (srcLength + relativeBegin) : 0;
     else
         beginIndex = (unsigned)relativeBegin < srcLength ? relativeBegin : srcLength;
     int64_t relativeEnd = srcLength;
     unsigned endIndex;
-    if (argc >= 2)
+    if (argc >= 2 && !argv[1].isUndefined())
         relativeEnd = argv[1].toInt32(state);
     if (relativeEnd < 0)
         endIndex = (srcLength + relativeEnd) > 0 ? (srcLength + relativeEnd) : 0;
     else
         endIndex = relativeEnd < srcLength ? relativeEnd : srcLength;
     unsigned newLength = 0;
-    if (endIndex - beginIndex > 0)
+    if (endIndex > beginIndex)
         newLength = endIndex - beginIndex;
     int srcByteOffset = wrapper->byteoffset();
-    Value arg[3] = { buffer, Value(srcByteOffset + beginIndex * (wrapper->bytelength() / wrapper->arraylength())), Value(newLength) };
+    Value arg[3] = { buffer, Value(srcByteOffset + beginIndex * ((wrapper->arraylength() == 0) ? 0 : (wrapper->bytelength() / wrapper->arraylength()))), Value(newLength) };
     return ByteCodeInterpreter::newOperation(state, thisBinded->get(state, strings->constructor).value(state, thisBinded), 3, arg);
 }
 
@@ -532,6 +526,9 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                        FunctionObject::__ForBuiltin__);
     m_arrayBuffer->markThisObjectDontNeedStructureTransitionTable(state);
     m_arrayBuffer->setPrototype(state, m_functionPrototype);
+    m_arrayBuffer->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().isView),
+                                     ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isView, builtinArrayBufferIsView, 1, nullptr, NativeFunctionInfo::Strict)),
+                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_arrayBufferPrototype = m_objectPrototype;
     m_arrayBufferPrototype = new ArrayBufferObject(state);

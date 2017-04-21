@@ -120,6 +120,16 @@ public:
 #endif
 
 #if ESCARGOT_ENABLE_TYPEDARRAY
+    virtual bool isArrayBufferView() const
+    {
+        return false;
+    }
+
+    virtual bool isDataViewObject() const
+    {
+        return false;
+    }
+
     virtual bool isTypedArrayObject() const
     {
         return false;

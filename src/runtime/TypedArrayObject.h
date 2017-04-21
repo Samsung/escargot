@@ -62,6 +62,76 @@ public:
         m_rawBuffer = (uint8_t*)(bo->data() + m_byteoffset);
     }
 
+    ALWAYS_INLINE void setBuffer(ArrayBufferObject* bo, unsigned byteOffset, unsigned byteLength)
+    {
+        m_buffer = bo;
+        m_byteoffset = byteOffset;
+        m_bytelength = byteLength;
+        m_rawBuffer = (uint8_t*)(bo->data() + m_byteoffset);
+    }
+
+    virtual bool isArrayBufferView() const
+    {
+        return true;
+    }
+
+    static int getElementSize(TypedArrayType type)
+    {
+        switch (type) {
+        case TypedArrayType::Int8:
+        case TypedArrayType::Uint8:
+        case TypedArrayType::Uint8Clamped:
+            return 1;
+        case TypedArrayType::Int16:
+        case TypedArrayType::Uint16:
+            return 2;
+        case TypedArrayType::Int32:
+        case TypedArrayType::Uint32:
+        case TypedArrayType::Float32:
+            return 4;
+        case TypedArrayType::Float64:
+            return 8;
+        }
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    template <typename Type>
+    Value getValueFromBuffer(ExecutionState& state, unsigned byteindex, bool isLittleEndian = 1)
+    {
+        // If isLittleEndian is not present, set isLittleEndian to either true or false.
+        ASSERT(bytelength());
+        size_t elementSize = sizeof(Type);
+        ASSERT(byteindex + elementSize <= bytelength());
+        uint8_t* rawStart = rawBuffer() + byteindex;
+        Type res;
+        if (isLittleEndian != 1) { // bigEndian
+            for (size_t i = 0; i < elementSize; i++) {
+                ((uint8_t*)&res)[elementSize - i - 1] = rawStart[i];
+            }
+        } else { // littleEndian
+            res = *((Type*)rawStart);
+        }
+        return Value(res);
+    }
+
+    template <typename Type>
+    void setValueInBuffer(ExecutionState& state, unsigned byteindex, const Value& val, bool isLittleEndian = 1)
+    {
+        // If isLittleEndian is not present, set isLittleEndian to either true or false.
+        ASSERT(bytelength());
+        size_t elementSize = sizeof(typename Type::Type);
+        ASSERT(byteindex + elementSize <= bytelength());
+        uint8_t* rawStart = rawBuffer() + byteindex;
+        typename Type::Type littleEndianVal = Type::toNative(state, val);
+        if (isLittleEndian != 1) {
+            for (size_t i = 0; i < elementSize; i++) {
+                rawStart[i] = ((uint8_t*)&littleEndianVal)[elementSize - i - 1];
+            }
+        } else {
+            *((typename Type::Type*)rawStart) = littleEndianVal;
+        }
+    }
+
     void* operator new(size_t size)
     {
         static bool typeInited = false;
@@ -163,42 +233,6 @@ public:
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
     virtual const char* internalClassProperty();
 
-    template <typename Type>
-    Value getValueFromBuffer(ExecutionState& state, unsigned byteindex, bool isLittleEndian = 1)
-    {
-        // If isLittleEndian is not present, set isLittleEndian to either true or false.
-        ASSERT(bytelength());
-        size_t elementSize = sizeof(Type);
-        ASSERT(byteindex + elementSize <= bytelength());
-        uint8_t* rawStart = rawBuffer() + byteindex;
-        Type res;
-        if (isLittleEndian != 1) { // bigEndian
-            for (size_t i = 0; i < elementSize; i++) {
-                ((uint8_t*)&res)[elementSize - i - 1] = rawStart[i];
-            }
-        } else { // littleEndian
-            res = *((Type*)rawStart);
-        }
-        return Value(res);
-    }
-
-    template <typename Type>
-    void setValueInBuffer(ExecutionState& state, unsigned byteindex, const Value& val, bool isLittleEndian = 1)
-    {
-        // If isLittleEndian is not present, set isLittleEndian to either true or false.
-        ASSERT(bytelength());
-        size_t elementSize = sizeof(typename Type::Type);
-        ASSERT(byteindex + elementSize <= bytelength());
-        uint8_t* rawStart = rawBuffer() + byteindex;
-        typename Type::Type littleEndianVal = Type::toNative(state, val);
-        if (isLittleEndian != 1) {
-            for (size_t i = 0; i < elementSize; i++) {
-                rawStart[i] = ((uint8_t*)&littleEndianVal)[elementSize - i - 1];
-            }
-        } else {
-            *((typename Type::Type*)rawStart) = littleEndianVal;
-        }
-    }
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
     {
