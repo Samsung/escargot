@@ -1533,6 +1533,7 @@ public:
         m_isEvalMode = false;
         m_isOnGlobal = false;
         m_shouldClearStack = false;
+        m_locData = nullptr;
 
         if (!codeBlock->hasCallNativeFunctionCode()) {
             m_objectStructuresInUse = new (GC) ObjectStructuresInUse();
@@ -1550,7 +1551,8 @@ public:
 
             self->m_numeralLiteralData.clear();
             self->m_code.clear();
-            self->m_locData.clear();
+            if (self->m_locData)
+                self->m_locData->clear();
         },
                                        nullptr, nullptr, nullptr);
     }
@@ -1572,11 +1574,10 @@ public:
         }
 #endif
 
-        // const_cast<CodeType&>(code).assignOpcodeInAddress();
         char* first = (char*)&code;
         size_t start = m_code.size();
         if (context->m_shouldGenerateLOCData)
-            m_locData.pushBack(std::make_pair(start, idx));
+            m_locData->pushBack(std::make_pair(start, idx));
 
         m_code.resize(m_code.size() + sizeof(CodeType));
         for (size_t i = 0; i < sizeof(CodeType); i++) {
@@ -1615,15 +1616,14 @@ public:
     bool m_isEvalMode : 1;
     bool m_isOnGlobal : 1;
     bool m_shouldClearStack : 1;
-    ByteCodeRegisterIndex m_requiredRegisterFileSizeInValueSize;
+    ByteCodeRegisterIndex m_requiredRegisterFileSizeInValueSize : REGISTER_INDEX_IN_BIT;
 
     ByteCodeBlockData m_code;
     ByteCodeNumeralLiteralData m_numeralLiteralData;
     ByteCodeLiteralData m_literalData;
     ObjectStructuresInUse* m_objectStructuresInUse;
 
-
-    ByteCodeLOCData m_locData;
+    ByteCodeLOCData* m_locData;
     InterpretedCodeBlock* m_codeBlock;
 
     std::vector<size_t> m_getObjectCodePositions;

@@ -243,12 +243,41 @@ class Pattern {
 public:
 };
 
-struct ASTScopeContextNameInfo {
-    bool m_isExplicitlyDeclaredOrParameterName;
-    AtomicString m_name;
+class ASTScopeContextNameInfo {
+public:
+    ASTScopeContextNameInfo()
+    {
+        m_value = (size_t)AtomicString().string();
+    }
+
+    AtomicString name() const
+    {
+        return AtomicString((String *)((size_t)m_value & ~1));
+    }
+
+    void setName(AtomicString name)
+    {
+        m_value = (size_t)name.string() | isExplicitlyDeclaredOrParameterName();
+    }
+
+    bool isExplicitlyDeclaredOrParameterName() const
+    {
+        return m_value & 1;
+    }
+
+    void setIsExplicitlyDeclaredOrParameterName(bool v)
+    {
+        if (v)
+            m_value = m_value | 1;
+        else
+            m_value = m_value & ~1;
+    }
+
+private:
+    size_t m_value;
 };
 
-typedef Vector<ASTScopeContextNameInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<ASTScopeContextNameInfo>> ASTScopeContextNameInfoVector;
+typedef TightVector<ASTScopeContextNameInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<ASTScopeContextNameInfo>> ASTScopeContextNameInfoVector;
 
 struct ASTScopeContext : public gc {
     bool m_isStrict : 1;
@@ -264,9 +293,9 @@ struct ASTScopeContext : public gc {
     ASTNodeType m_nodeType : 12;
     ASTScopeContextNameInfoVector m_names;
     AtomicStringVector m_usingNames;
-    AtomicStringVector m_parameters;
+    AtomicStringTightVector m_parameters;
     AtomicString m_functionName;
-    Vector<ASTScopeContext *, GCUtil::gc_malloc_ignore_off_page_allocator<ASTScopeContext *>> m_childScopes;
+    TightVector<ASTScopeContext *, GCUtil::gc_malloc_ignore_off_page_allocator<ASTScopeContext *>> m_childScopes;
     Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>> *m_numeralLiteralData;
     ExtendedNodeLOC m_locStart;
 #ifndef NDEBUG
@@ -281,7 +310,7 @@ struct ASTScopeContext : public gc {
     bool hasName(AtomicString name)
     {
         for (size_t i = 0; i < m_names.size(); i++) {
-            if (m_names[i].m_name == name) {
+            if (m_names[i].name() == name) {
                 return true;
             }
         }
@@ -292,17 +321,17 @@ struct ASTScopeContext : public gc {
     void insertName(AtomicString name, bool isExplicitlyDeclaredOrParameterName)
     {
         for (size_t i = 0; i < m_names.size(); i++) {
-            if (m_names[i].m_name == name) {
+            if (m_names[i].name() == name) {
                 if (isExplicitlyDeclaredOrParameterName) {
-                    m_names[i].m_isExplicitlyDeclaredOrParameterName = isExplicitlyDeclaredOrParameterName;
+                    m_names[i].setIsExplicitlyDeclaredOrParameterName(isExplicitlyDeclaredOrParameterName);
                 }
                 return;
             }
         }
 
         ASTScopeContextNameInfo info;
-        info.m_name = name;
-        info.m_isExplicitlyDeclaredOrParameterName = isExplicitlyDeclaredOrParameterName;
+        info.setName(name);
+        info.setIsExplicitlyDeclaredOrParameterName(isExplicitlyDeclaredOrParameterName);
         m_names.push_back(info);
     }
 
@@ -343,15 +372,15 @@ struct ASTScopeContext : public gc {
     }
 };
 
-typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>> NodeVector;
-typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>> ArgumentVector;
-typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>> ExpressionNodeVector;
-typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>> StatementNodeVector;
-typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>> PatternNodeVector;
+typedef std::vector<Node *, gc_allocator_ignore_off_page<Node *>> NodeVector;
+typedef std::vector<Node *, gc_allocator_ignore_off_page<Node *>> ArgumentVector;
+typedef std::vector<Node *, gc_allocator_ignore_off_page<Node *>> ExpressionNodeVector;
+typedef std::vector<Node *, gc_allocator_ignore_off_page<Node *>> StatementNodeVector;
+typedef std::vector<Node *, gc_allocator_ignore_off_page<Node *>> PatternNodeVector;
 class PropertyNode;
-typedef Vector<PropertyNode *, gc_allocator_ignore_off_page<PropertyNode *>> PropertiesNodeVector;
+typedef std::vector<PropertyNode *, gc_allocator_ignore_off_page<PropertyNode *>> PropertiesNodeVector;
 class VariableDeclaratorNode;
-typedef Vector<VariableDeclaratorNode *, gc_allocator_ignore_off_page<VariableDeclaratorNode *>> VariableDeclaratorVector;
+typedef std::vector<VariableDeclaratorNode *, gc_allocator_ignore_off_page<VariableDeclaratorNode *>> VariableDeclaratorVector;
 }
 
 #endif

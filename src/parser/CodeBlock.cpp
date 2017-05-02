@@ -237,10 +237,10 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
 
     for (size_t i = 0; i < innerIdentifiers.size(); i++) {
         IdentifierInfo info;
-        info.m_name = innerIdentifiers[i].m_name;
+        info.m_name = innerIdentifiers[i].name();
         info.m_needToAllocateOnStack = false;
         info.m_isMutable = true;
-        info.m_isExplicitlyDeclaredOrParameterName = innerIdentifiers[i].m_isExplicitlyDeclaredOrParameterName;
+        info.m_isExplicitlyDeclaredOrParameterName = innerIdentifiers[i].isExplicitlyDeclaredOrParameterName();
         info.m_indexForIndexedStorage = SIZE_MAX;
         m_identifierInfos.push_back(info);
     }
@@ -248,7 +248,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isFunctionNameExplicitlyDeclared = m_isFunctionNameSaveOnHeap = false;
 }
 
-InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringVector& parameterNames, const ASTScopeContextNameInfoVector& innerIdentifiers,
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringTightVector& parameterNames, const ASTScopeContextNameInfoVector& innerIdentifiers,
                                            InterpretedCodeBlock* parentBlock, CodeBlockInitFlag initFlags)
     : m_sourceElementStart(sourceElementStart)
     , m_identifierOnStackCount(0)
@@ -344,10 +344,10 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
 
     for (size_t i = 0; i < innerIdentifiers.size(); i++) {
         IdentifierInfo info;
-        info.m_name = innerIdentifiers[i].m_name;
+        info.m_name = innerIdentifiers[i].name();
         info.m_needToAllocateOnStack = m_canUseIndexedVariableStorage;
         info.m_isMutable = true;
-        info.m_isExplicitlyDeclaredOrParameterName = innerIdentifiers[i].m_isExplicitlyDeclaredOrParameterName;
+        info.m_isExplicitlyDeclaredOrParameterName = innerIdentifiers[i].isExplicitlyDeclaredOrParameterName();
         info.m_indexForIndexedStorage = SIZE_MAX;
         m_identifierInfos.push_back(info);
     }

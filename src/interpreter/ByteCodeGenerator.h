@@ -56,7 +56,7 @@ struct ByteCodeGenerateContext {
         , m_canSkipCopyToRegister(true)
         , m_keepNumberalLiteralsInRegisterFile(numeralLiteralData)
         , m_catchScopeCount(0)
-        , m_shouldGenerateLOCData(true)
+        , m_shouldGenerateLOCData(false)
         , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
         , m_offsetToBasePointer(0)
         , m_positionToContinue(0)

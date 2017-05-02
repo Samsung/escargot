@@ -483,7 +483,7 @@ protected:
     // init global codeBlock
     InterpretedCodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const ASTScopeContextNameInfoVector& innerIdentifiers, CodeBlockInitFlag initFlags);
     // init function codeBlock
-    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringVector& parameterNames, const ASTScopeContextNameInfoVector& innerIdentifiers, InterpretedCodeBlock* parentBlock, CodeBlockInitFlag initFlags);
+    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringTightVector& parameterNames, const ASTScopeContextNameInfoVector& innerIdentifiers, InterpretedCodeBlock* parentBlock, CodeBlockInitFlag initFlags);
 
     Script* m_script;
     StringView m_src; // function source elements src

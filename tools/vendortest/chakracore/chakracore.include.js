@@ -16,6 +16,7 @@ var WScript = {
         nativePrint(finalResult);
     },
     LoadScriptFile : function(path) {
+        path = path.replace(/\\/g, "/");
         try {
             load(path);
         } catch (e) {

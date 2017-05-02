@@ -131,7 +131,7 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
     size_t currentCodeSizeTotal = 0;
     for (size_t i = 0; i < v.size(); i++) {
         currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_code.size();
-        currentCodeSizeTotal += (v[i]->m_byteCodeBlock->m_locData.size() * sizeof(std::pair<size_t, size_t>));
+        currentCodeSizeTotal += (v[i]->m_byteCodeBlock->m_locData ? (v[i]->m_byteCodeBlock->m_locData->size() * sizeof(std::pair<size_t, size_t>)) : 0);
         currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_literalData.size() * sizeof(size_t);
         currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_objectStructuresInUse->size() * sizeof(size_t);
         currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_getObjectCodePositions.size() * sizeof(size_t);
@@ -168,9 +168,6 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
 
         for (size_t i = 0; i < codeBlocksInCurrentStack.size(); i++) {
             v[i] = codeBlocksInCurrentStack[i];
-            if (v[i]->m_byteCodeBlock) {
-                v[i]->m_byteCodeBlock->m_locData.clear();
-            }
         }
     }
     ASSERT(!m_codeBlock->hasCallNativeFunctionCode());

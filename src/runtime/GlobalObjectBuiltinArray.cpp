@@ -255,7 +255,7 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
     int64_t actualDeleteCount;
     double deleteCount = argv[1].toInteger(state);
     if (argc != 1) {
-        actualDeleteCount = std::min(std::max(argv[1].toInteger(state), 0.0), (double)len - actualStart);
+        actualDeleteCount = std::min(std::max(deleteCount, 0.0), (double)len - actualStart);
     } else {
         actualDeleteCount = len - actualStart;
     }
@@ -281,11 +281,11 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
             double result;
             bool exist = Object::nextIndexForward(state, O, actualStart + k, len, false, result);
             if (!exist) {
-                k = k + 1;
-                A->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(k), A);
+                A->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(actualDeleteCount), A);
                 break;
             } else {
                 k = result - actualStart;
+                A->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(k), A);
             }
         }
     }

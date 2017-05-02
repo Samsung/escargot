@@ -553,6 +553,8 @@ public:
     size_t lineStart;
     std::vector<Curly> curlyStack;
     bool isPoolEnabled;
+    ScannerResult* initialResultMemoryPool[SCANNER_RESULT_POOL_INITIAL_SIZE];
+    size_t initialResultMemoryPoolSize;
     std::vector<ScannerResult*, gc_allocator<ScannerResult*>> resultMemoryPool;
     char scannerResultInnerPool[SCANNER_RESULT_POOL_INITIAL_SIZE * sizeof(ScannerResult)];
 
@@ -574,17 +576,20 @@ public:
         lineNumber = ((length > 0) ? 1 : 0) + startLine;
         lineStart = startColumn;
 
-        resultMemoryPool.reserve(SCANNER_RESULT_POOL_INITIAL_SIZE);
+        initialResultMemoryPoolSize = SCANNER_RESULT_POOL_INITIAL_SIZE;
         ScannerResult* ptr = (ScannerResult*)scannerResultInnerPool;
         for (size_t i = 0; i < SCANNER_RESULT_POOL_INITIAL_SIZE; i++) {
             ptr[i].scanner = this;
-            resultMemoryPool.push_back(&ptr[i]);
+            initialResultMemoryPool[i] = &ptr[i];
         }
     }
 
     ScannerResult* createScannerResult()
     {
-        if (resultMemoryPool.size() == 0) {
+        if (initialResultMemoryPoolSize) {
+            initialResultMemoryPoolSize--;
+            return initialResultMemoryPool[initialResultMemoryPoolSize];
+        } else if (resultMemoryPool.size() == 0) {
             auto ret = (ScannerResult*)GC_MALLOC(sizeof(ScannerResult));
             return ret;
         } else {
@@ -760,7 +765,7 @@ public:
     void scanComments()
     {
         bool start = (this->index == 0);
-        while (!this->eof()) {
+        while (LIKELY(!this->eof())) {
             char16_t ch = this->source.bufferedCharAt(this->index);
 
             if (isWhiteSpace(ch)) {
@@ -2240,6 +2245,10 @@ public:
 ScannerResult::~ScannerResult()
 {
     if (this->scanner->isPoolEnabled) {
+        if (this->scanner->initialResultMemoryPoolSize < SCANNER_RESULT_POOL_INITIAL_SIZE) {
+            this->scanner->initialResultMemoryPool[this->scanner->initialResultMemoryPoolSize++] = this;
+            return;
+        }
         this->scanner->resultMemoryPool.push_back(this);
     }
 }
@@ -2303,8 +2312,8 @@ public:
     ParserASTNodeHandler delegate;
     ErrorHandler errorHandlerInstance;
     ErrorHandler* errorHandler;
-    Scanner scannerInstance;
     Scanner* scanner;
+    Scanner scannerInstance;
     /*
     std::unordered_map<IdentifierNode*, RefPtr<ScannerResult>,
                        std::hash<IdentifierNode*>, std::equal_to<IdentifierNode*>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<IdentifierNode*, RefPtr<ScannerResult>>>>
@@ -2360,10 +2369,11 @@ public:
         scopeContexts.back()->m_functionName = functionName;
         scopeContexts.back()->m_inCatch = this->context->inCatch;
         scopeContexts.back()->m_inWith = this->context->inWith;
+        scopeContexts.back()->m_parameters.resizeWithUninitializedValues(params.size());
         for (size_t i = 0; i < params.size(); i++) {
             ASSERT(params[i]->isIdentifier());
             IdentifierNode* id = (IdentifierNode*)params[i];
-            scopeContexts.back()->m_parameters.pushBack(id->name());
+            scopeContexts.back()->m_parameters[i] = id->name();
         }
         if (parentContext) {
             parentContext->m_childScopes.push_back(scopeContexts.back());
@@ -2411,6 +2421,9 @@ public:
         this->delegate = delegate;
 
         this->scanner = &scannerInstance;
+        if (stackRemain >= STACK_LIMIT_FROM_BASE) {
+            stackRemain = STACK_LIMIT_FROM_BASE;
+        }
 
         // this->sourceType = (options && options.sourceType == 'module') ? 'module' : 'script';
         this->sourceType = Script;
@@ -6488,7 +6501,6 @@ public:
     }
     */
 };
-
 
 ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler handler, bool strictFromOutside, size_t stackRemain)
 {

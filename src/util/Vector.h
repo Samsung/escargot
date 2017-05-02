@@ -420,8 +420,8 @@ class VectorUtil {
 public:
     static const size_t invalidIndex;
 
-    template <typename T, typename Allocator>
-    static size_t findInVector(const Vector<T, Allocator>& vector, const T& target)
+    template <typename T, typename E>
+    static size_t findInVector(const T& vector, const E& target)
     {
         size_t len = vector.size();
         for (size_t i = 0; i < len; i++) {

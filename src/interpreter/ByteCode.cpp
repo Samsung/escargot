@@ -51,6 +51,7 @@ void* ByteCodeBlock::operator new(size_t size)
         GC_word obj_bitmap[GC_BITMAP_SIZE(ByteCodeBlock)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_literalData));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_codeBlock));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_locData));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_objectStructuresInUse));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ByteCodeBlock));
         typeInited = true;
@@ -60,7 +61,7 @@ void* ByteCodeBlock::operator new(size_t size)
 
 void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
 {
-    if (!m_codeBlock->isInterpretedCodeBlock() || m_locData.size() || (m_codeBlock->isInterpretedCodeBlock() && m_codeBlock->asInterpretedCodeBlock()->src().length() == 0)) {
+    if (!m_codeBlock->isInterpretedCodeBlock() || m_locData || (m_codeBlock->isInterpretedCodeBlock() && m_codeBlock->asInterpretedCodeBlock()->src().length() == 0)) {
         return;
     }
 
@@ -75,9 +76,10 @@ void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
         auto ret = c->scriptParser().parseFunction(m_codeBlock->asInterpretedCodeBlock(), SIZE_MAX);
         block = g.generateByteCode(c, m_codeBlock->asInterpretedCodeBlock(), ret.first, ret.second, m_isEvalMode, m_isOnGlobal, true);
     }
-    m_locData = std::move(block->m_locData);
+    m_locData = block->m_locData;
+    block->m_locData = nullptr;
     // prevent infinate fillLocDataIfNeeded if m_locData.size() == 0 in here
-    m_locData.pushBack(std::make_pair(SIZE_MAX, SIZE_MAX));
+    m_locData->pushBack(std::make_pair(SIZE_MAX, SIZE_MAX));
 }
 
 ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t codePosition, CodeBlock* cb)
@@ -89,9 +91,9 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
     fillLocDataIfNeeded(c);
 
     size_t index = 0;
-    for (size_t i = 0; i < m_locData.size(); i++) {
-        if (m_locData[i].first == codePosition) {
-            index = m_locData[i].second;
+    for (size_t i = 0; i < m_locData->size(); i++) {
+        if ((*m_locData)[i].first == codePosition) {
+            index = (*m_locData)[i].second;
             if (index == SIZE_MAX) {
                 return ExtendedNodeLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX);
             }

@@ -120,6 +120,9 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
     }
     ByteCodeGenerateContext ctx(codeBlock, block, info, nData);
     ctx.m_shouldGenerateLOCData = shouldGenerateLOCData;
+    if (shouldGenerateLOCData) {
+        block->m_locData = new (GC_MALLOC(sizeof(ByteCodeLOCData))) ByteCodeLOCData();
+    }
 
     // generate init function decls first
     size_t len = codeBlock->childBlocks().size();

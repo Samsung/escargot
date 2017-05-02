@@ -32,6 +32,7 @@ typedef std::unordered_set<String*,
 class AtomicString : public gc {
     friend class StaticStrings;
     friend class PropertyName;
+    friend class ASTScopeContextNameInfo;
     inline AtomicString(String* str)
     {
         m_string = str;
