@@ -10,8 +10,7 @@
 [10] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/add-overflows-after-not-equal.js .... Success
 [11] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/add-small-constant-overflow-recovery.js .... Success
 [12] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/arguments-bizarre-behavior.js .... Success
-[13] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/arguments-bizarre-behaviour-disable-enumerability.js .... Fail (Uncaught Error:
-test/vendortest/JavaScriptCore/stress/arguments-bizarre-behaviour-disable-enumerability.js (22:5))
+[13] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/arguments-bizarre-behaviour-disable-enumerability.js  .... Excluded (TC causes weird result (webkit issue #141952))
 [14] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/arguments-callee-uninitialized.js .... Success
 [15] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/arguments-captured.js .... Success
 [16] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/arguments-copy-register-array-backing-store.js .... Success
@@ -25,27 +24,25 @@ test/vendortest/JavaScriptCore/stress/arguments-bizarre-behaviour-disable-enumer
 [24] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/arguments-inlined-exit.js .... Success
 [25] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/arguments-interference-cfg.js .... Success
 [26] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/arguments-interference.js .... Success
-[27] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/arguments-iterator.js .... Fail (Line 42: For of is not supported yet)
+[27] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/arguments-iterator.js  .... Excluded (for-of)
 [28] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/arith-add-with-constants.js .... Success
 [29] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/arith-modulo-node-behaviors.js .... Success
 [30] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/arith-mul-with-constants.js .... Success
-[31] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-copywithin.js .... Fail (Line 30: Template literal is not supported yet)
-[32] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-fill-put-by-val.js .... Fail (Line 21: Unexpected token ()
-[33] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-filter-put-by-val-direct.js .... Fail (Line 8: Unexpected token ()
-[34] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-find-does-not-lookup-twice.js .... Fail (Line 25: Unexpected token ()
-[35] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-from-abs-and-floor.js .... Fail (Uncaught TypeError: Callee is not a function object:
-test/vendortest/JavaScriptCore/stress/array-from-abs-and-floor.js (2:12)
-test/vendortest/JavaScriptCore/stress/array-from-abs-and-floor.js (38:5))
-[36] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-from-put-by-val-direct.js .... Fail (Line 8: Unexpected token ()
-[37] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-from-set-length.js .... Fail (Line 8: Unexpected token ()
-[38] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-from-with-accessors.js .... Fail (Line 8: Unexpected token ()
-[39] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-from-with-iterable.js .... Fail (Line 69: For of is not supported yet)
-[40] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-from-with-iterator.js .... Fail (Line 92: Unexpected token ()
-[41] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-iterators-next-with-call.js .... Fail (Line 91: For of is not supported yet)
-[42] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-iterators-next.js .... Fail (Line 7: Object pattern is not supported yet)
+[31] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-copywithin.js  .... Excluded (ES6 Syntax)
+[32] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-fill-put-by-val.js  .... Excluded (ES6 Syntax)
+[33] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-filter-put-by-val-direct.js  .... Excluded (ES6 Syntax)
+[34] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-find-does-not-lookup-twice.js  .... Excluded (ES6 Syntax)
+[35] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-from-abs-and-floor.js  .... Excluded (Array.from())
+[36] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-from-put-by-val-direct.js  .... Excluded (Array.from())
+[37] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-from-set-length.js  .... Excluded (Array.from())
+[38] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-from-with-accessors.js  .... Excluded (Array.from())
+[39] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-from-with-iterable.js  .... Excluded (Array.from())
+[40] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-from-with-iterator.js  .... Excluded (Array.from())
+[41] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-iterators-next-with-call.js  .... Excluded (Symbol)
+[42] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-iterators-next.js  .... Excluded (Symbol)
 [43] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-length-array-storage-plain-object.js .... Success
 [44] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-length-plain-object.js .... Success
-[45] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-map-put-by-val-direct.js .... Fail (Line 8: Unexpected token ()
+[45] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-map-put-by-val-direct.js  .... Excluded (ES6 Syntax)
 [46] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-pop-contiguous.js .... Success
 [47] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-pop-double-hole.js .... Success
 [48] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/array-pop-double.js .... Success
@@ -57,60 +54,51 @@ test/vendortest/JavaScriptCore/stress/array-from-abs-and-floor.js (38:5))
 [54] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/arrayify-fires-watchpoint.js .... Success
 [55] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/arrayify-structure-bad-test.js .... Success
 [56] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/arrayify-to-structure-contradiction.js .... Success
-[57] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/assign-argument-in-inlined-call.js .... Fail (Uncaught TypeError: cannot convert undefined into object:
-test/vendortest/JavaScriptCore/stress/assign-argument-in-inlined-call.js (2:12)
-test/vendortest/JavaScriptCore/stress/assign-argument-in-inlined-call.js (12:9)
-test/vendortest/JavaScriptCore/stress/assign-argument-in-inlined-call.js (17:12)
-test/vendortest/JavaScriptCore/stress/assign-argument-in-inlined-call.js (23:18))
+[57] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/assign-argument-in-inlined-call.js  .... Excluded (function.arguments)
 [58] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/assign-captured-argument-in-inlined-call.js .... Success
 [59] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/assignment-in-function-call-bracket-node.js .... Success
 [60] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/bit-op-value-to-int32-input-liveness.js .... Success
 [61] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/branch-check-int32-on-boolean-to-number-untyped.js .... Success
 [62] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/branch-check-number-on-boolean-to-number-untyped.js .... Success
-[63] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/branch-may-exit-due-to-object-or-other-use-kind.js .... Fail (Uncaught ReferenceError: makeMasquerader is not defined:
-test/vendortest/JavaScriptCore/stress/branch-may-exit-due-to-object-or-other-use-kind.js (44:1))
-[64] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/bug-131764.js .... Fail ()
-[65] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/builtin-function-is-construct-type-none.js .... Fail (Uncaught Error: bad error: TypeError: forEach is not a constructor:
-test/vendortest/JavaScriptCore/stress/builtin-function-is-construct-type-none.js (11:9)
-test/vendortest/JavaScriptCore/stress/builtin-function-is-construct-type-none.js (15:5))
+[63] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/branch-may-exit-due-to-object-or-other-use-kind.js .... Success
+[64] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/bug-131764.js  .... Excluded (Array.of())
+[65] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/builtin-function-is-construct-type-none.js  .... Excluded (different error message)
 [66] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/cached-prototype-setter.js .... Success
 [67] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/call-forward-varargs-for-inlined-escaped-arguments.js .... Success
 [68] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/call-varargs-from-inlined-code-with-odd-number-of-arguments.js .... Success
 [69] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/call-varargs-from-inlined-code.js .... Success
 [70] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/call-varargs-length-effects.js .... Success
-[71] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/call-varargs-with-different-arguments-length-after-warmup.js .... Fail ()
+[71] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/call-varargs-with-different-arguments-length-after-warmup.js  .... Excluded (ES6 Syntax (Spread element))
 [72] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/capture-escape-and-throw.js .... Success
 [73] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/captured-arguments-variable.js .... Success
-[74] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-derived-default-constructor.js .... Fail (Line 2: Unexpected token class)
-[75] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-no-loop-tdz.js .... Fail (Line 2: Unexpected token class)
-[76] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-no-tdz-in-catch.js .... Fail (Line 2: Unexpected token class)
-[77] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-no-tdz-in-conditional.js .... Fail (Line 2: Unexpected token class)
-[78] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-no-tdz-in-eval.js .... Fail (Line 2: Unexpected token class)
-[79] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-no-tdz-in-loop-no-inline-super.js .... Fail (Line 2: Unexpected token class)
-[80] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-no-tdz-in-loop.js .... Fail (Line 2: Unexpected token class)
-[81] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-no-tdz.js .... Fail (Line 2: Unexpected token class)
-[82] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-tdz-in-catch.js .... Fail (Line 2: Unexpected token class)
-[83] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-tdz-in-conditional.js .... Fail (Line 2: Unexpected token class)
-[84] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-tdz-in-eval.js .... Fail (Line 2: Unexpected token class)
-[85] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-tdz-in-loop.js .... Fail (Line 2: Unexpected token class)
-[86] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-tdz.js .... Fail (Line 2: Unexpected token class)
+[74] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-derived-default-constructor.js  .... Excluded (class)
+[75] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-no-loop-tdz.js  .... Excluded (class)
+[76] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-no-tdz-in-catch.js  .... Excluded (class)
+[77] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-no-tdz-in-conditional.js  .... Excluded (class)
+[78] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-no-tdz-in-eval.js  .... Excluded (class)
+[79] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-no-tdz-in-loop-no-inline-super.js  .... Excluded (class)
+[80] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-no-tdz-in-loop.js  .... Excluded (class)
+[81] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-no-tdz.js  .... Excluded (class)
+[82] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-tdz-in-catch.js  .... Excluded (class)
+[83] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-tdz-in-conditional.js  .... Excluded (class)
+[84] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-tdz-in-eval.js  .... Excluded (class)
+[85] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/class-syntax-tdz-in-loop.js  .... Excluded (class)
+[86] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ .... Excluded (class-syntax-tdz.js)
 [87] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/cloned-arguments-get-by-val-double-array.js .... Success
-[88] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/cloned-arguments-should-visit-callee-during-gc.js .... Fail (Uncaught TypeError: cannot convert undefined into object:
-test/vendortest/JavaScriptCore/stress/cloned-arguments-should-visit-callee-during-gc.js (31:18))
+[88] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/cloned-arguments-should-visit-callee-during-gc.js  .... Excluded (function.arguments)
 [89] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/closure-call-exit.js .... Success
 [90] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/compare-eq-object-or-other-to-object.js .... Success
 [91] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/compare-eq-object-to-object-or-other.js .... Success
 [92] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/compare-strict-eq-integer-to-misc.js .... Success
 [93] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/constant-closure-var-with-dynamic-invalidation.js .... Success
 [94] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/constant-folding-osr-exit.js .... Success
-[95] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/construct-forward-varargs-for-inlined-escaped-arguments.js .... Fail ()
-[96] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/construct-varargs-inline-smaller-Foo.js .... Fail ()
-[97] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/construct-varargs-inline.js .... Fail ()
-[98] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/construct-varargs-no-inline.js .... Fail ()
-[99] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/constructor-with-return.js .... Fail (Uncaught ReferenceError: Symbol is not defined:
-test/vendortest/JavaScriptCore/stress/constructor-with-return.js (14:14))
+[95] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/construct-forward-varargs-for-inlined-escaped-arguments.js  .... Excluded (ES6 Syntax (Spread element))
+[96] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/construct-varargs-inline-smaller-Foo.js  .... Excluded (ES6 Syntax (Spread element))
+[97] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/construct-varargs-inline.js  .... Excluded (ES6 Syntax (Spread element))
+[98] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/construct-varargs-no-inline.js  .... Excluded (ES6 Syntax (Spread element))
+[99] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/constructor-with-return.js  .... Excluded (Symbol)
 [100] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/create-this-with-callee-variants.js .... Success
-[101] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/custom-iterators.js .... Fail (Line 23: For of is not supported yet)
+[101] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/custom-iterators.js  .... Excluded (Symbol)
 [102] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/dead-access-to-captured-variable-preceded-by-a-live-store-in-function-with-multiple-basic-blocks.js .... Success
 [103] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/dead-access-to-captured-variable-preceded-by-a-live-store.js .... Success
 [104] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/dead-fiat-double-to-int52-then-exit-not-int52.js .... Success
@@ -125,20 +113,13 @@ test/vendortest/JavaScriptCore/stress/constructor-with-return.js (14:14))
 [113] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/dead-speculating-argument-use.js .... Success
 [114] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/dead-uint32-to-number.js .... Success
 [115] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/dead-value-with-mov-hint-in-another-block.js .... Success
-[116] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/deleteAllCompiledCode.js .... Fail (Uncaught ReferenceError: optimizeNextInvocation is not defined:
-test/vendortest/JavaScriptCore/stress/deleteAllCompiledCode.js (1020:9)
-test/vendortest/JavaScriptCore/stress/deleteAllCompiledCode.js (1032:5))
-[117] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/destructuring-assignment-accepts-iterables.js .... Fail (Line 18: Template literal is not supported yet)
+[116] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/deleteAllCompiledCode.js  .... Excluded (JSC only function)
+[117] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/destructuring-assignment-accepts-iterables.js  .... Excluded (Array pattern)
 [118] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/dfg-create-arguments-inline-alloc.js .... Success
-[119] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/dfg-put-by-val-direct-with-edge-numbers.js .... Fail (Uncaught TypeError: cannot convert undefined into object:
-test/vendortest/JavaScriptCore/stress/dfg-put-by-val-direct-with-edge-numbers.js (64:9))
+[119] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/dfg-put-by-val-direct-with-edge-numbers.js  .... Excluded (Number.EPSILON)
 [120] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/dfg-rare-data.js .... Success
-[121] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/dfg-to-primitive-pass-symbol.js .... Fail (Uncaught Error: didn't throw or threw wrong exception: ReferenceError: Symbol is not defined:
-test/vendortest/JavaScriptCore/stress/dfg-to-primitive-pass-symbol.js (35:5))
-[122] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/disable-function-dot-arguments.js .... Fail (Uncaught TypeError: cannot convert undefined into object:
-test/vendortest/JavaScriptCore/stress/disable-function-dot-arguments.js (5:9)
-test/vendortest/JavaScriptCore/stress/disable-function-dot-arguments.js (14:5)
-test/vendortest/JavaScriptCore/stress/disable-function-dot-arguments.js (17:1))
+[121] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/dfg-to-primitive-pass-symbol.js  .... Excluded (Symbol)
+[122] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/disable-function-dot-arguments.js  .... Excluded (function.arguments)
 [123] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/double-as-int32.js .... Success
 [124] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/double-rep-with-non-cell.js .... Success
 [125] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/double-rep-with-null.js .... Success
@@ -147,24 +128,18 @@ test/vendortest/JavaScriptCore/stress/disable-function-dot-arguments.js (17:1))
 [128] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/elide-new-object-dag-then-exit.js .... Success
 [129] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/empty-function.js .... Success
 [130] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/empty_eos_regex_split.js .... Success
-[131] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/equality-type-checking.js .... Fail (Uncaught ReferenceError: addressOf is not defined:
-test/vendortest/JavaScriptCore/stress/equality-type-checking.js (21:15))
-[132] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/equals-masquerader.js .... Fail (Uncaught ReferenceError: makeMasquerader is not defined:
-test/vendortest/JavaScriptCore/stress/equals-masquerader.js (66:25))
+[131] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/equality-type-checking.js  .... Excluded (JSC only function)
+[132] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/equals-masquerader.js  .... Excluded (JSC only function)
 [133] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/escape-object-in-diamond-then-exit.js .... Success
-[134] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/eval-script-contains-null-character.js .... Fail (Uncaught SyntaxError: Line 1: Template literal is not supported yet:
-test/vendortest/JavaScriptCore/stress/eval-script-contains-null-character.js (7:14)
-test/vendortest/JavaScriptCore/stress/eval-script-contains-null-character.js (13:5))
+[134] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/eval-script-contains-null-character.js  .... Excluded (Template literal)
 [135] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/eval-that-is-not-eval.js .... Success
-[136] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/exception-in-to-property-key-should-be-handled-early-in-object-methods.js .... Fail (Line 3: Unexpected token ()
-[137] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/exception-in-to-property-key-should-be-handled-early.js .... Fail (Line 3: Unexpected token ()
+[136] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/exception-in-to-property-key-should-be-handled-early-in-object-methods.js  .... Excluded (Different error message)
+[137] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/exception-in-to-property-key-should-be-handled-early.js  .... Excluded (ES6 Syntax)
 [138] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/exit-after-int32-to-double.js .... Success
 [139] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/exit-after-int52-to-double.js .... Success
 [140] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/exit-after-int52-to-value.js .... Success
 [141] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/exit-after-llvm-folds-large-int-constant.js .... Success
-[142] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/exit-from-ftl-when-caller-passed-extra-args-then-use-function-dot-arguments.js .... Fail (Uncaught TypeError: cannot convert undefined into object:
-test/vendortest/JavaScriptCore/stress/exit-from-ftl-when-caller-passed-extra-args-then-use-function-dot-arguments.js (16:9)
-test/vendortest/JavaScriptCore/stress/exit-from-ftl-when-caller-passed-extra-args-then-use-function-dot-arguments.js (29:10))
+[142] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/exit-from-ftl-when-caller-passed-extra-args-then-use-function-dot-arguments.js  .... Excluded (function.arguments)
 [143] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/exit-from-ftl-with-arity-check-fail.js .... Success
 [144] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/exit-from-getter.js .... Success
 [145] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/exit-from-setter.js .... Success
@@ -180,14 +155,13 @@ test/vendortest/JavaScriptCore/stress/exit-from-ftl-when-caller-passed-extra-arg
 [155] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/fiat-value-to-int52-then-fold.js .... Success
 [156] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/fiat-value-to-int52.js .... Success
 [157] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/flatten-oversize-dictionary-object.js .... Success
-[158] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/float32-array-nan-inlined.js .... Fail ()
-[159] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/float32-array-nan.js .... Fail ()
+[158] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/float32-array-nan-inlined.js .... Success
+[159] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/float32-array-nan.js .... Success
 [160] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/float32-array-out-of-bounds.js .... Success
 [161] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/float32-repeat-out-of-bounds.js .... Success
-[162] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/float32array-out-of-bounds.js .... Fail (Uncaught Error: bad result: undefined:
-test/vendortest/JavaScriptCore/stress/float32array-out-of-bounds.js (29:5))
-[163] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/float64-array-nan-inlined.js .... Fail ()
-[164] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/float64-array-nan.js .... Fail ()
+[162] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/float32array-out-of-bounds.js .... Success
+[163] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/float64-array-nan-inlined.js .... Success
+[164] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/float64-array-nan.js .... Success
 [165] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/fold-based-on-int32-proof-mul-branch.js .... Success
 [166] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/fold-based-on-int32-proof-mul.js .... Success
 [167] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/fold-based-on-int32-proof-or-zero.js .... Success
@@ -204,16 +178,13 @@ test/vendortest/JavaScriptCore/stress/float32array-out-of-bounds.js (29:5))
 [178] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/fold-to-int52-constant-then-exit.js .... Success
 [179] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/fold-to-primitive-in-cfa.js .... Success
 [180] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/fold-to-primitive-to-identity-in-cfa.js .... Success
-[181] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/fold-typed-array-properties.js .... Fail (Uncaught Error: bad offset (start): undefined:
-test/vendortest/JavaScriptCore/stress/fold-typed-array-properties.js (6:5))
+[181] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/fold-typed-array-properties.js  .... Excluded (JSC only function)
 [182] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/for-in-array-mode.js .... Success
 [183] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/for-in-base-reassigned-later-and-change-structure.js .... Success
 [184] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/for-in-base-reassigned-later.js .... Success
 [185] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/for-in-base-reassigned.js .... Success
 [186] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/for-in-capture-string-loop-var.js .... Success
-[187] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/for-in-delete-during-iteration.js .... Fail (Uncaught Error: bad result:
-test/vendortest/JavaScriptCore/stress/for-in-delete-during-iteration.js (16:13)
-test/vendortest/JavaScriptCore/stress/for-in-delete-during-iteration.js (1:1))
+[187] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/for-in-delete-during-iteration.js .... Success
 [188] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/for-in-modify-int-loop-var.js .... Success
 [189] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/for-in-modify-string-loop-var.js .... Success
 [190] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/for-in-prototype.js .... Success
@@ -221,9 +192,7 @@ test/vendortest/JavaScriptCore/stress/for-in-delete-during-iteration.js (1:1))
 [192] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/for-in-proxy.js .... Success
 [193] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/for-in-shadow-prototype-property.js .... Success
 [194] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/for-in-string.js .... Success
-[195] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/for-in-tests.js .... Fail (Uncaught Error: bad result:
-test/vendortest/JavaScriptCore/stress/for-in-tests.js (55:13)
-test/vendortest/JavaScriptCore/stress/for-in-tests.js (37:1))
+[195] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/for-in-tests.js  .... Excluded (implementation-dependent feature)
 [196] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/for-in-typed-array.js .... Success
 [197] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/forward-varargs-for-inlined-escaped-arguments.js .... Success
 [198] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/freeze_leek.js .... Success
@@ -237,19 +206,14 @@ test/vendortest/JavaScriptCore/stress/for-in-tests.js (37:1))
 [206] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-get-my-argument-by-val.js .... Success
 [207] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-getmyargumentslength-inline.js .... Success
 [208] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-getmyargumentslength.js .... Success
-[209] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-gettypedarrayoffset-simple.js .... Fail (Uncaught error:
-test/vendortest/JavaScriptCore/stress/ftl-gettypedarrayoffset-simple.js (10:9))
-[210] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-gettypedarrayoffset-wasteful.js .... Fail (Uncaught error:
-test/vendortest/JavaScriptCore/stress/ftl-gettypedarrayoffset-wasteful.js (10:9))
+[209] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-gettypedarrayoffset-simple.js .... Success
+[210] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-gettypedarrayoffset-wasteful.js .... Success
 [211] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-in-overflow.js .... Success
 [212] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-library-exception.js .... Success
 [213] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-library-inline-gettimezoneoffset.js .... Success
-[214] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-library-inlining-exceptions-dataview.js .... Fail (Uncaught ReferenceError: DataView is not defined:
-test/vendortest/JavaScriptCore/stress/ftl-library-inlining-exceptions-dataview.js (7:13))
+[214] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-library-inlining-exceptions-dataview.js  .... Excluded (Error message differ)
 [215] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-library-inlining-exceptions.js .... Success
-[216] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-library-inlining-loops.js .... Fail (Uncaught ReferenceError: DataView is not defined:
-test/vendortest/JavaScriptCore/stress/ftl-library-inlining-loops.js (3:17)
-test/vendortest/JavaScriptCore/stress/ftl-library-inlining-loops.js (23:10))
+[216] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-library-inlining-loops.js .... Success
 [217] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-library-inlining-random.js .... Success
 [218] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-library-substring.js .... Success
 [219] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ftl-putbyid.js .... Success
@@ -264,8 +228,7 @@ test/vendortest/JavaScriptCore/stress/ftl-library-inlining-loops.js (23:10))
 [228] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/function-sinking-osrexit.js .... Success
 [229] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/function-sinking-put.js .... Success
 [230] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/fuzz-bug-16399949.js .... Success
-[231] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/generational-opaque-roots.js .... Fail (Uncaught ReferenceError: Root is not defined:
-test/vendortest/JavaScriptCore/stress/generational-opaque-roots.js (4:16))
+[231] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/generational-opaque-roots.js  .... Excluded (JSC only function)
 [232] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/get-argument-by-val-in-inlined-varargs-call-out-of-bounds.js .... Success
 [233] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/get-argument-by-val-safe-in-inlined-varargs-call-out-of-bounds.js .... Success
 [234] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/get-by-id-throw-from-getter-through-optimized-code.js .... Success
@@ -287,24 +250,14 @@ test/vendortest/JavaScriptCore/stress/generational-opaque-roots.js (4:16))
 [250] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/get-my-argument-by-val-wrap-around-no-warm-up.js .... Success
 [251] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/get-my-argument-by-val-wrap-around.js .... Success
 [252] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/get-stack-identity-due-to-sinking.js .... Success
-[253] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/get-stack-mapping-with-dead-get-stack.js .... Fail (Uncaught TypeError: cannot convert undefined into object:
-test/vendortest/JavaScriptCore/stress/get-stack-mapping-with-dead-get-stack.js (2:9)
-test/vendortest/JavaScriptCore/stress/get-stack-mapping-with-dead-get-stack.js (12:9)
-test/vendortest/JavaScriptCore/stress/get-stack-mapping-with-dead-get-stack.js (24:18))
-[254] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/get-stack-mapping.js .... Fail (Uncaught TypeError: cannot convert undefined into object:
-test/vendortest/JavaScriptCore/stress/get-stack-mapping.js (2:9)
-test/vendortest/JavaScriptCore/stress/get-stack-mapping.js (11:9)
-test/vendortest/JavaScriptCore/stress/get-stack-mapping.js (23:18))
+[253] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/get-stack-mapping-with-dead-get-stack.js  .... Excluded (function.arguments)
+[254] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/get-stack-mapping.js  .... Excluded (function.arguments)
 [255] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/getter.js .... Success
-[256] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/global-environment-does-not-trap-unscopables.js .... Fail (Uncaught ReferenceError: Symbol is not defined:
-test/vendortest/JavaScriptCore/stress/global-environment-does-not-trap-unscopables.js (9:8))
+[256] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/global-environment-does-not-trap-unscopables.js  .... Excluded (Symbol)
 [257] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/goofy-function-reentry-incorrect-inference.js .... Success
-[258] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/has-custom-properties.js .... Fail (Uncaught ReferenceError: hasCustomProperties is not defined:
-test/vendortest/JavaScriptCore/stress/has-custom-properties.js (5:13)
-test/vendortest/JavaScriptCore/stress/has-custom-properties.js (1:1))
+[258] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/has-custom-properties.js  .... Excluded (JSC only function)
 [259] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/ic-throw-through-optimized-code.js .... Success
-[260] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/impure-get-own-property-slot-inline-cache.js .... Fail (Uncaught ReferenceError: createImpureGetter is not defined:
-test/vendortest/JavaScriptCore/stress/impure-get-own-property-slot-inline-cache.js (3:10))
+[260] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/impure-get-own-property-slot-inline-cache.js  .... Excluded (JSC only function)
 [261] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/infer-constant-global-property.js .... Success
 [262] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/infer-constant-property.js .... Success
 [263] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/infer-uninitialized-closure-var.js .... Success
@@ -319,12 +272,7 @@ test/vendortest/JavaScriptCore/stress/impure-get-own-property-slot-inline-cache.
 [272] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/inline-call-varargs.js .... Success
 [273] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/inline-closure-call.js .... Success
 [274] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/inline-llint-with-switch.js .... Success
-[275] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/inline-varargs-get-arguments.js .... Fail (Uncaught TypeError: cannot convert undefined into object:
-test/vendortest/JavaScriptCore/stress/inline-varargs-get-arguments.js (10:12)
-test/vendortest/JavaScriptCore/stress/inline-varargs-get-arguments.js (6:12)
-function apply() { [native function] }  (-1:-1)
-test/vendortest/JavaScriptCore/stress/inline-varargs-get-arguments.js (2:12)
-test/vendortest/JavaScriptCore/stress/inline-varargs-get-arguments.js (19:18))
+[275] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/inline-varargs-get-arguments.js  .... Excluded (function.arguments)
 [276] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/inlined-constructor-this-liveness.js .... Success
 [277] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/inlined-function-this-liveness.js .... Success
 [278] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/instanceof-not-cell.js .... Success
@@ -348,22 +296,14 @@ test/vendortest/JavaScriptCore/stress/inline-varargs-get-arguments.js (19:18))
 [296] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/int8-repeat-out-of-bounds.js .... Success
 [297] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/invalidation-point.js .... Success
 [298] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/inverted-additive-subsumption.js .... Success
-[299] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/is-undefined-exit-on-masquerader.js .... Fail (Uncaught ReferenceError: makeMasquerader is not defined:
-test/vendortest/JavaScriptCore/stress/is-undefined-exit-on-masquerader.js (5:16)
-test/vendortest/JavaScriptCore/stress/is-undefined-exit-on-masquerader.js (12:9)
-test/vendortest/JavaScriptCore/stress/is-undefined-exit-on-masquerader.js (19:18)
-test/vendortest/JavaScriptCore/stress/is-undefined-exit-on-masquerader.js (33:1))
-[300] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/is-undefined-jettison-on-masquerader.js .... Fail (Uncaught ReferenceError: makeMasquerader is not defined:
-test/vendortest/JavaScriptCore/stress/is-undefined-jettison-on-masquerader.js (21:6))
-[301] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/is-undefined-masquerader.js .... Fail (Uncaught ReferenceError: makeMasquerader is not defined:
-test/vendortest/JavaScriptCore/stress/is-undefined-masquerader.js (19:10))
-[302] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/iterator-functions.js .... Fail (Uncaught ReferenceError: Symbol is not defined:
-test/vendortest/JavaScriptCore/stress/iterator-functions.js (6:22))
-[303] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/iterator-names.js .... Fail (Line 3: Unexpected token ,)
-[304] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/iterator-prototype.js .... Fail (Uncaught ReferenceError: Symbol is not defined:
-test/vendortest/JavaScriptCore/stress/iterator-prototype.js (7:33))
-[305] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/iterator-return-beyond-multiple-iteration-scopes.js .... Fail (Line 21: For of is not supported yet)
-[306] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/iterators-shape.js .... Fail (Line 51: Array pattern is not supported yet)
+[299] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/is-undefined-exit-on-masquerader.js .... Success
+[300] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/is-undefined-jettison-on-masquerader.js .... Success
+[301] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/is-undefined-masquerader.js .... Success
+[302] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/iterator-functions.js  .... Excluded (Symbol)
+[303] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/iterator-names.js  .... Excluded (ES6 Map, Set)
+[304] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/iterator-prototype.js  .... Excluded (Symbol)
+[305] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/iterator-return-beyond-multiple-iteration-scopes.js  .... Excluded (Symbol)
+[306] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/iterators-shape.js  .... Excluded (Symbol)
 [307] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/jit-cache-poly-replace-then-cache-get-and-fold-then-invalidate.js .... Success
 [308] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/jit-cache-replace-then-cache-get-and-fold-then-invalidate.js .... Success
 [309] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/jit-put-to-scope-global-cache-watchpoint-invalidate.js .... Success
@@ -379,30 +319,21 @@ test/vendortest/JavaScriptCore/stress/iterator-prototype.js (7:33))
 [319] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/load-varargs-then-inlined-call-exit-in-foo.js .... Success
 [320] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/load-varargs-then-inlined-call-inlined.js .... Success
 [321] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/load-varargs-then-inlined-call.js .... Success
-[322] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/logical-not-masquerades.js .... Fail (Uncaught ReferenceError: makeMasquerader is not defined:
-test/vendortest/JavaScriptCore/stress/logical-not-masquerades.js (22:6))
-[323] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/make-large-string-jit-strcat.js .... Fail (Uncaught Wrong error: RangeError: Invalid string length:
-test/vendortest/JavaScriptCore/stress/make-large-string-jit-strcat.js (23:9))
-[324] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/make-large-string-jit.js .... Fail (Uncaught Wrong error: RangeError: Invalid string length:
-test/vendortest/JavaScriptCore/stress/make-large-string-jit.js (22:9))
-[325] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/make-large-string-strcat.js .... Fail (Uncaught Wrong error: RangeError: Invalid string length:
-test/vendortest/JavaScriptCore/stress/make-large-string-strcat.js (11:9))
-[326] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/make-large-string.js .... Fail (Uncaught Wrong error: RangeError: Invalid string length:
-test/vendortest/JavaScriptCore/stress/make-large-string.js (11:9))
+[322] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/logical-not-masquerades.js .... Success
+[323] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/make-large-string-jit-strcat.js  .... Excluded (different error message)
+[324] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/make-large-string-jit.js  .... Excluded (different error message)
+[325] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/make-large-string-strcat.js  .... Excluded (different error message)
+[326] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/make-large-string.js  .... Excluded (different error message)
 [327] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/make-rope-2.js .... Success
 [328] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/make-rope-3.js .... Success
 [329] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/many-sunken-locals.js .... Success
-[330] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/map-constructor-adder.js .... Fail (Uncaught ReferenceError: Map is not defined:
-test/vendortest/JavaScriptCore/stress/map-constructor-adder.js (3:21))
-[331] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/map-constructor.js .... Fail (Line 87: For of is not supported yet)
-[332] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/map-iterators-next.js .... Fail (Line 5: Array pattern is not supported yet)
+[330] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/map-constructor-adder.js  .... Excluded (ES6 Map)
+[331] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/map-constructor.js  .... Excluded (ES6 Map)
+[332] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/map-iterators-next.js  .... Excluded (ES6 Map)
 [333] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/materialize-past-butterfly-allocation.js .... Success
 [334] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/materialize-past-put-structure.js .... Success
 [335] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/math-abs-positive.js .... Success
-[336] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/math-clz32-basics.js .... Fail (Uncaught TypeError: Callee is not a function object:
-test/vendortest/JavaScriptCore/stress/math-clz32-basics.js (3:12)
-test/vendortest/JavaScriptCore/stress/math-clz32-basics.js (11:19)
-test/vendortest/JavaScriptCore/stress/math-clz32-basics.js (39:5))
+[336] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/math-clz32-basics.js  .... Excluded (ES6 Math.clz32)
 [337] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/math-log-basics.js .... Success
 [338] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/math-log-with-constants.js .... Success
 [339] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/math-pow-basics.js .... Success
@@ -416,8 +347,8 @@ test/vendortest/JavaScriptCore/stress/math-clz32-basics.js (39:5))
 [347] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/math-sqrt-basics-disable-architecture-specific-optimizations.js .... Success
 [348] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/math-sqrt-basics.js .... Success
 [349] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/max-boolean-exit.js .... Success
-[350] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/modify-map-during-iteration.js .... Fail (Line 13: Array pattern is not supported yet)
-[351] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/modify-set-during-iteration.js .... Fail (Line 16: For of is not supported yet)
+[350] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/modify-map-during-iteration.js  .... Excluded (ES6 Map)
+[351] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/modify-set-during-iteration.js  .... Excluded (ES6 Set)
 [352] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/mul-boolean-exit.js .... Success
 [353] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/multi-get-by-offset-dce.js .... Success
 [354] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/multi-get-by-offset-proto-and-self.js .... Success
@@ -433,27 +364,25 @@ test/vendortest/JavaScriptCore/stress/math-clz32-basics.js (39:5))
 [364] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/new-double-array-with-size.js .... Success
 [365] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/new-function-expression-has-structures.js .... Success
 [366] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/new-int32-array-with-size.js .... Success
-[367] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/new-largeish-contiguous-array-with-size.js .... Fail (Uncaught ReferenceError: gcHeapSize is not defined:
-test/vendortest/JavaScriptCore/stress/new-largeish-contiguous-array-with-size.js (26:14))
+[367] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/new-largeish-contiguous-array-with-size.js  .... Excluded (JSC only function)
 [368] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/new-undecided-array-with-size.js .... Success
 [369] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/no-abc-skippy-loop.js .... Success
 [370] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/no-abc-skippy-paired-loop.js .... Success
 [371] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/not-cell-use.js .... Success
 [372] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-allocation-sinking-with-uninitialized-property-on-one-path.js .... Success
 [373] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-escapes-in-loop.js .... Success
-[374] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-freeze-accept-non-object.js .... Fail (Line 15: For of is not supported yet)
-[375] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-get-own-property-descriptor-perform-to-object.js .... Fail (Line 9: Array pattern is not supported yet)
-[376] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-get-own-property-names-perform-to-object.js .... Fail (Line 19: Array pattern is not supported yet)
-[377] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-get-own-property-symbols-perform-to-object.js .... Fail (Line 19: Array pattern is not supported yet)
-[378] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-get-own-property-symbols.js .... Fail (Uncaught TypeError: Callee is not a function object:
-test/vendortest/JavaScriptCore/stress/object-get-own-property-symbols.js (6:5))
-[379] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-get-prototype-of-perform-to-object.js .... Fail (Line 9: Array pattern is not supported yet)
-[380] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-is-extensible-accept-non-object.js .... Fail (Line 15: For of is not supported yet)
-[381] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-is-frozen-accept-non-object.js .... Fail (Line 15: For of is not supported yet)
-[382] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-is-sealed-accept-non-object.js .... Fail (Line 15: For of is not supported yet)
-[383] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-keys-perform-to-object.js .... Fail (Line 19: Array pattern is not supported yet)
-[384] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-prevent-extensions-accept-non-object.js .... Fail (Line 15: For of is not supported yet)
-[385] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-seal-accept-non-object.js .... Fail (Line 15: For of is not supported yet)
+[374] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-freeze-accept-non-object.js  .... Excluded (Different results between ES5 and ES6)
+[375] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-get-own-property-descriptor-perform-to-object.js  .... Excluded (Different results between ES5 and ES6)
+[376] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-get-own-property-names-perform-to-object.js  .... Excluded (Different results between ES5 and ES6)
+[377] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-get-own-property-symbols-perform-to-object.js  .... Excluded (Symbol)
+[378] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-get-own-property-symbols.js  .... Excluded (Symbol)
+[379] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-get-prototype-of-perform-to-object.js  .... Excluded (Different results between ES5 and ES6)
+[380] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-is-extensible-accept-non-object.js  .... Excluded (Different results between ES5 and ES6)
+[381] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-is-frozen-accept-non-object.js  .... Excluded (Different results between ES5 and ES6)
+[382] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-is-sealed-accept-non-object.js  .... Excluded (Different results between ES5 and ES6)
+[383] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-keys-perform-to-object.js  .... Excluded (Different results between ES5 and ES6)
+[384] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-prevent-extensions-accept-non-object.js  .... Excluded (Different results between ES5 and ES6)
+[385] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/object-seal-accept-non-object.js  .... Excluded (Different results between ES5 and ES6)
 [386] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/obviously-elidable-new-object-then-exit.js .... Success
 [387] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/op-push-name-scope-crashes-profiler.js .... Success
 [388] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/phantom-arguments-set-local-then-exit-in-same-block.js .... Success
@@ -482,7 +411,7 @@ test/vendortest/JavaScriptCore/stress/object-get-own-property-symbols.js (6:5))
 [411] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/prototype-getter.js .... Success
 [412] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/proxy-inline-cache.js .... Success
 [413] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/prune-multi-put-by-offset-replace-or-transition-variant.js .... Success
-[414] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/put-by-id-build-list-order-recurse.js .... Fail ()
+[414] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/put-by-id-build-list-order-recurse.js .... Success
 [415] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/put-by-id-direct-should-be-done-for-non-index-property.js .... Success
 [416] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/put-by-id-on-new-object-after-prototype-transition-non-strict.js .... Success
 [417] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/put-by-id-on-new-object-after-prototype-transition-strict.js .... Success
@@ -491,7 +420,7 @@ test/vendortest/JavaScriptCore/stress/object-get-own-property-symbols.js (6:5))
 [420] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/put-by-id-transition-null-prototype.js .... Success
 [421] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/put-by-val-out-of-bounds-basics.js .... Success
 [422] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/put-local-conservative.js .... Success
-[423] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/raise-error-in-iterator-close.js .... Fail (Line 25: For of is not supported yet)
+[423] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/raise-error-in-iterator-close.js  .... Excluded (Symbol)
 [424] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/real-forward-varargs-for-inlined-escaped-arguments.js .... Success
 [425] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/recurse-infinitely-on-getter.js .... Success
 [426] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/recursive_property_redefine_during_inline_caching.js .... Success
@@ -509,18 +438,15 @@ test/vendortest/JavaScriptCore/stress/object-get-own-property-symbols.js (6:5))
 [438] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/repeat-put-to-scope-global-with-same-value-watchpoint-invalidate.js .... Success
 [439] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/repeated-arity-check-fail.js .... Success
 [440] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/repeated-put-by-id-reallocating-transition.js .... Success
-[441] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/reserved-word-with-escape.js .... Fail (Line 27: Unexpected token var var)
-[442] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/rest-elements.js .... Fail (Line 18: Template literal is not supported yet)
-[443] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/runtime-array.js .... Fail (Uncaught ReferenceError: createRuntimeArray is not defined:
-test/vendortest/JavaScriptCore/stress/runtime-array.js (2:17)
-test/vendortest/JavaScriptCore/stress/runtime-array.js (13:1))
+[441] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/reserved-word-with-escape.js  .... Excluded (ES6 Syntax)
+[442] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/rest-elements.js  .... Excluded (Template literal)
+[443] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/runtime-array.js  .... Excluded (JSC only function)
 [444] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/runtime-throw-through-optimized-code.js .... Success
 [445] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/scoped-arguments-array-length.js .... Success
 [446] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/scoped-then-direct-arguments-get-by-val-in-baseline.js .... Success
-[447] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/set-constructor-adder.js .... Fail (Uncaught ReferenceError: Set is not defined:
-test/vendortest/JavaScriptCore/stress/set-constructor-adder.js (3:21))
-[448] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/set-constructor.js .... Fail (Line 39: For of is not supported yet)
-[449] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/set-iterators-next.js .... Fail (Line 5: Array pattern is not supported yet)
+[447] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/set-constructor-adder.js  .... Excluded (ES6 Set)
+[448] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/set-constructor.js  .... Excluded (ES6 Set)
+[449] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/set-iterators-next.js  .... Excluded (Object pattern)
 [450] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/setter.js .... Success
 [451] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/simple-polyvariant-call-inlining-example.js .... Success
 [452] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/simple-polyvariant-get-by-id-inlining-example.js .... Success
@@ -548,56 +474,41 @@ test/vendortest/JavaScriptCore/stress/set-constructor-adder.js (3:21))
 [474] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/sparse_splice.js .... Success
 [475] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/static-function-delete.js .... Success
 [476] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/static-function-put.js .... Success
-[477] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/static-getter-delete.js .... Fail (Line 18: Template literal is not supported yet)
-[478] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/static-getter-descriptors.js .... Fail (Uncaught Error: bad value: {"value":false,"writable":false,"enumerable":false,"configurable":false}:
-test/vendortest/JavaScriptCore/stress/static-getter-descriptors.js (3:9)
-test/vendortest/JavaScriptCore/stress/static-getter-descriptors.js (7:1))
+[477] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/static-getter-delete.js  .... Excluded (Different results between ES5 and ES6)
+[478] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/static-getter-descriptors.js  .... Excluded (Different results between ES5 and ES6)
 [479] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/static-getter-enumeration.js .... Success
 [480] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/static-getter-get.js .... Success
-[481] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/static-getter-in-names.js .... Fail (Uncaught Error: bad value: ["compile","constructor","exec","global","ignoreCase","lastIndex","multiline","source","test","toString"]:
-test/vendortest/JavaScriptCore/stress/static-getter-in-names.js (3:9)
-test/vendortest/JavaScriptCore/stress/static-getter-in-names.js (6:1))
-[482] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/static-getter-names.js .... Fail (Line 16: For of is not supported yet)
-[483] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/static-getter-put.js .... Fail (Line 18: Template literal is not supported yet)
+[481] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/static-getter-in-names.js  .... Excluded (Different results between ES5 and ES6)
+[482] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/static-getter-names.js  .... Excluded (Different results between ES5 and ES6)
+[483] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/static-getter-put.js  .... Excluded (Different results between ES5 and ES6)
 [484] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/strict-to-this-int.js .... Success
-[485] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/string-from-code-point.js .... Fail (Line 23: For of is not supported yet)
+[485] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/string-from-code-point.js  .... Excluded (for-of)
 [486] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/string-ident-to-not-string-var-equality.js .... Success
-[487] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/string-iterators.js .... Fail (Line 16: Object pattern is not supported yet)
+[487] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/string-iterators.js  .... Excluded (Object pattern)
 [488] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/string-out-of-bounds-negative-proto-value.js .... Success
-[489] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/string-raw.js .... Fail (Line 3: Template literal is not supported yet)
+[489] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/string-raw.js  .... Excluded (String.raw())
 [490] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/sub-overflows-after-not-equal.js .... Success
 [491] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/switch-typeof-indirect.js .... Success
 [492] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/switch-typeof-slightly-indirect.js .... Success
 [493] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/switch-typeof.js .... Success
-[494] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/symbol-and-string-constructor.js .... Fail (Uncaught ReferenceError: Symbol is not defined:
-test/vendortest/JavaScriptCore/stress/symbol-and-string-constructor.js (7:32))
-[495] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/symbol-define-property.js .... Fail (Uncaught ReferenceError: Symbol is not defined:
-test/vendortest/JavaScriptCore/stress/symbol-define-property.js (17:6))
-[496] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/symbol-registry.js .... Fail (Line 16: For of is not supported yet)
-[497] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/symbol-seal-and-freeze.js .... Fail (Uncaught ReferenceError: Symbol is not defined:
-test/vendortest/JavaScriptCore/stress/symbol-seal-and-freeze.js (4:6))
-[498] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/symbol-with-json.js .... Fail (Uncaught ReferenceError: Symbol is not defined:
-test/vendortest/JavaScriptCore/stress/symbol-with-json.js (3:20))
-[499] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/tagged-templates-identity.js .... Fail (Line 11: Unexpected token Hello)
-[500] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/tagged-templates-raw-strings.js .... Fail (Line 15: Unexpected token )
-[501] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/tagged-templates-syntax.js .... Fail (Uncaught Error: Bad error: SyntaxError: Line 1: Unexpected token :
-test/vendortest/JavaScriptCore/stress/tagged-templates-syntax.js (9:13)
-test/vendortest/JavaScriptCore/stress/tagged-templates-syntax.js (27:1))
-[502] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/tagged-templates-template-object.js .... Fail (Line 31: Unexpected token ()
-[503] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/tagged-templates-this.js .... Fail (Line 12: Unexpected token ()
-[504] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/tagged-templates.js .... Fail (Line 31: Unexpected token ()
-[505] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/template-literal-line-terminators.js .... Fail (Line 24: Template literal is not supported yet)
-[506] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/template-literal-syntax.js .... Fail (Uncaught Error: Bad error: SyntaxError: Line 1: Template literal is not supported yet:
-test/vendortest/JavaScriptCore/stress/template-literal-syntax.js (7:13)
-test/vendortest/JavaScriptCore/stress/template-literal-syntax.js (25:1))
-[507] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/template-literal.js .... Fail (Line 12: Template literal is not supported yet)
+[494] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/symbol-and-string-constructor.js  .... Excluded (Symbol)
+[495] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/symbol-define-property.js  .... Excluded (Symbol)
+[496] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/symbol-registry.js  .... Excluded (Symbol)
+[497] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/symbol-seal-and-freeze.js  .... Excluded (Symbol)
+[498] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/symbol-with-json.js  .... Excluded (Symbol)
+[499] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/tagged-templates-identity.js  .... Excluded (Template literal)
+[500] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/tagged-templates-raw-strings.js  .... Excluded (Template literal)
+[501] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/tagged-templates-syntax.js  .... Excluded (Template literal)
+[502] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/tagged-templates-template-object.js  .... Excluded (Template literal)
+[503] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/tagged-templates-this.js  .... Excluded (Template literal)
+[504] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/tagged-templates.js  .... Excluded (ES6 Syntax)
+[505] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/template-literal-line-terminators.js  .... Excluded (Template literal)
+[506] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/template-literal-syntax.js  .... Excluded (Template literal)
+[507] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/template-literal.js  .... Excluded (Template literal)
 [508] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/test-spec-misc.js .... Success
-[509] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/throw-from-ftl-call-ic-slow-path-cells.js .... Fail (Uncaught Error: bad exception message: TypedArray: Constructor TypedArray requires 'new':
-test/vendortest/JavaScriptCore/stress/throw-from-ftl-call-ic-slow-path-cells.js (176:13))
-[510] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/throw-from-ftl-call-ic-slow-path-undefined.js .... Fail (Uncaught Error: bad exception message: TypedArray: Constructor TypedArray requires 'new':
-test/vendortest/JavaScriptCore/stress/throw-from-ftl-call-ic-slow-path-undefined.js (176:13))
-[511] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/throw-from-ftl-call-ic-slow-path.js .... Fail (Uncaught Error: bad exception message: TypedArray: Constructor TypedArray requires 'new':
-test/vendortest/JavaScriptCore/stress/throw-from-ftl-call-ic-slow-path.js (176:13))
+[509] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/throw-from-ftl-call-ic-slow-path-cells.js  .... Excluded (different error message)
+[510] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/throw-from-ftl-call-ic-slow-path-undefined.js  .... Excluded (different error message)
+[511] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/throw-from-ftl-call-ic-slow-path.js  .... Excluded (different error message)
 [512] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/throw-from-ftl-in-loop.js .... Success
 [513] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/throw-from-ftl.js .... Success
 [514] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/throw-through-optimized-code.js .... Success
@@ -610,35 +521,28 @@ test/vendortest/JavaScriptCore/stress/throw-from-ftl-call-ic-slow-path.js (176:1
 [521] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/to-string-on-value-or-string.js .... Success
 [522] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/to-string-on-value.js .... Success
 [523] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/to-this-polymorphic.js .... Success
-[524] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/toprimitive-speculated-types.js .... Fail (Line 17: Unexpected token ()
-[525] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/trailing-comma-in-patterns.js .... Fail (Line 11: Unexpected token ()
+[524] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/toprimitive-speculated-types.js  .... Excluded (ES6 Syntax)
+[525] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/trailing-comma-in-patterns.js  .... Excluded (Symbol)
 [526] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/tricky-array-bounds-checks.js .... Success
 [527] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/tricky-indirectly-inferred-infinite-loop-that-uses-captured-variables-and-creates-the-activation-outside-the-loop.js .... Success
 [528] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/tricky-inferred-infinite-loop-that-uses-captured-variables-and-creates-the-activation-outside-the-loop.js .... Success
 [529] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/tricky-infinite-loop-that-uses-captured-variables-and-creates-the-activation-outside-the-loop.js .... Success
 [530] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/tricky-infinite-loop-that-uses-captured-variables.js .... Success
 [531] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/trivially-foldable-reflective-arguments-access.js .... Success
-[532] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/type-of-functions-and-objects.js .... Fail (Uncaught ReferenceError: Map is not defined:
-test/vendortest/JavaScriptCore/stress/type-of-functions-and-objects.js (72:15)
-test/vendortest/JavaScriptCore/stress/type-of-functions-and-objects.js (85:5))
-[533] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/typed-array-byte-offset.js .... Fail (Uncaught Error: bad result for fast typed array: undefined:
-test/vendortest/JavaScriptCore/stress/typed-array-byte-offset.js (10:9))
-[534] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/typed-array-get-by-val-profiling.js .... Fail (Line 3: Template literal is not supported yet)
-[535] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/typed-array-put-by-val-profiling.js .... Fail (Line 3: Template literal is not supported yet)
-[536] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/typeof-symbol.js .... Fail (Line 4: Template literal is not supported yet)
+[532] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/type-of-functions-and-objects.js  .... Excluded (ES6 Map)
+[533] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/typed-array-byte-offset.js .... Success
+[534] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/typed-array-get-by-val-profiling.js  .... Excluded (Template literal)
+[535] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/typed-array-put-by-val-profiling.js  .... Excluded (Template literal)
+[536] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/typeof-symbol.js  .... Excluded (Symbol)
 [537] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/uint32-to-number-fold-constant-with-do-overflow.js .... Success
 [538] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/uint32array-unsigned-load.js .... Success
-[539] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/unscopables.js .... Fail (Uncaught ReferenceError: Symbol is not defined:
-test/vendortest/JavaScriptCore/stress/unscopables.js (8:29)
-test/vendortest/JavaScriptCore/stress/unscopables.js (6:2))
+[539] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/unscopables.js  .... Excluded (Symbol)
 [540] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/untyped-equality.js .... Success
 [541] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/untyped-less-than.js .... Success
 [542] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/use-arguments-as-object-pointer.js .... Success
 [543] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/value-to-int32-undefined-constant.js .... Success
 [544] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/value-to-int32-undefined.js .... Success
-[545] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/values-unscopables.js .... Fail (Uncaught ReferenceError: Symbol is not defined:
-test/vendortest/JavaScriptCore/stress/values-unscopables.js (14:11)
-test/vendortest/JavaScriptCore/stress/values-unscopables.js (6:2))
+[545] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/values-unscopables.js  .... Excluded (Symbol)
 [546] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/varargs-closure-inlined-exit-strict-mode.js .... Success
 [547] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/varargs-closure-inlined-exit.js .... Success
 [548] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/varargs-exit.js .... Success
@@ -652,24 +556,17 @@ test/vendortest/JavaScriptCore/stress/values-unscopables.js (6:2))
 [556] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/varargs-varargs-closure-inlined-exit.js .... Success
 [557] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/varargs-varargs-inlined-exit-strict-mode.js .... Success
 [558] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/varargs-varargs-inlined-exit.js .... Success
-[559] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/weak-map-constructor-adder.js .... Fail (Uncaught ReferenceError: WeakMap is not defined:
-test/vendortest/JavaScriptCore/stress/weak-map-constructor-adder.js (3:21))
-[560] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/weak-map-constructor.js .... Fail (Line 71: For of is not supported yet)
-[561] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/weak-set-constructor-adder.js .... Fail (Uncaught ReferenceError: WeakSet is not defined:
-test/vendortest/JavaScriptCore/stress/weak-set-constructor-adder.js (3:21))
-[562] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/weak-set-constructor.js .... Fail (Line 89: For of is not supported yet)
+[559] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/weak-map-constructor-adder.js  .... Excluded (ES6 WeakMap)
+[560] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/weak-map-constructor.js  .... Excluded (ES6 WeakMap)
+[561] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/weak-set-constructor-adder.js  .... Excluded (ES6 WeakSet)
+[562] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/weak-set-constructor.js  .... Excluded (ES6 WeakSet)
 [563] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/weird-equality-folding-cases.js .... Success
 [564] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/weird-getter-counter.js .... Success
-[565] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/weird-put-stack-varargs.js .... Fail (Uncaught TypeError: cannot convert undefined into object:
-test/vendortest/JavaScriptCore/stress/weird-put-stack-varargs.js (2:10)
-test/vendortest/JavaScriptCore/stress/weird-put-stack-varargs.js (11:5)
-function apply() { [native function] }  (-1:-1)
-test/vendortest/JavaScriptCore/stress/weird-put-stack-varargs.js (20:5)
-test/vendortest/JavaScriptCore/stress/weird-put-stack-varargs.js (26:5))
+[565] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/weird-put-stack-varargs.js  .... Excluded (function.arguments)
 [566] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/weird-setter-counter-syntactic.js .... Success
 [567] tools/vendortest/jsc.stress.base.js test/vendortest/JavaScriptCore/stress/weird-setter-counter.js .... Success
 total : 567
-succ : 418
-fail : 149
-ignore : 0
+succ : 434
+fail : 0
+ignore : 133
 timeout : 0

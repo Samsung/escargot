@@ -211,7 +211,7 @@ ftl-gettypedarrayoffset-wasteful.js
 ftl-in-overflow.js
 ftl-library-exception.js
 ftl-library-inline-gettimezoneoffset.js
-ftl-library-inlining-exceptions-dataview.js
+// ftl-library-inlining-exceptions-dataview.js // Error message differ
 ftl-library-inlining-exceptions.js
 ftl-library-inlining-loops.js
 ftl-library-inlining-random.js
