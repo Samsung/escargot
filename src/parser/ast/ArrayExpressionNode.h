@@ -74,6 +74,14 @@ public:
         codeBlock->m_shouldClearStack = true;
     }
 
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    {
+        for (size_t i = 0; i < m_elements.size(); i++) {
+            if (m_elements[i])
+                m_elements[i]->iterateChildrenIdentifier(fn);
+        }
+    }
+
 protected:
     ExpressionNodeVector m_elements;
 };

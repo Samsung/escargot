@@ -102,6 +102,14 @@ public:
         codeBlock->m_shouldClearStack = true;
     }
 
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    {
+        m_callee->iterateChildrenIdentifier(fn);
+        for (size_t i = 0; i < m_arguments.size(); i++) {
+            m_arguments[i]->iterateChildrenIdentifier(fn);
+        }
+    }
+
 protected:
     Node* m_callee;
     ArgumentVector m_arguments;

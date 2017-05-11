@@ -50,6 +50,12 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionIn; }
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    {
+        m_left->iterateChildrenIdentifier(fn);
+        m_right->iterateChildrenIdentifier(fn);
+    }
+
 protected:
     ExpressionNode* m_left;
     ExpressionNode* m_right;

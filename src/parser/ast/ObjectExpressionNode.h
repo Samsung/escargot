@@ -96,6 +96,17 @@ public:
         }
     }
 
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    {
+        for (size_t i = 0; i < m_properties.size(); i++) {
+            PropertyNode* p = m_properties[i];
+            if (p->key()->isIdentifier() && !p->computed()) {
+            } else {
+                p->key()->iterateChildrenIdentifier(fn);
+            }
+        }
+    }
+
 protected:
     PropertiesNodeVector m_properties;
 };

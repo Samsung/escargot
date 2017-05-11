@@ -236,6 +236,10 @@ public:
 
     virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context);
 
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)> &fn)
+    {
+    }
+
     NodeLOC m_loc;
 };
 

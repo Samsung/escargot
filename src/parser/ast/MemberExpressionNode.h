@@ -165,6 +165,13 @@ public:
         }
     }
 
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    {
+        m_object->iterateChildrenIdentifier(fn);
+        if (!isPreComputedCase()) {
+            m_property->iterateChildrenIdentifier(fn);
+        }
+    }
 
 protected:
     Node* m_object; // object: Expression;

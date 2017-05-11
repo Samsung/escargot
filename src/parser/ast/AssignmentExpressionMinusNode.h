@@ -45,7 +45,8 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionMinus; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        bool slowMode = AssignmentExpressionSimpleNode::hasSlowAssigmentOperation(m_left, m_right);;
+        bool slowMode = AssignmentExpressionSimpleNode::hasSlowAssigmentOperation(m_left, m_right);
+        ;
         bool flagBefore;
         if (slowMode) {
             flagBefore = context->m_canSkipCopyToRegister;
@@ -70,6 +71,12 @@ public:
     virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         return m_left->getRegister(codeBlock, context);
+    }
+
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    {
+        m_left->iterateChildrenIdentifier(fn);
+        m_right->iterateChildrenIdentifier(fn);
     }
 
 protected:

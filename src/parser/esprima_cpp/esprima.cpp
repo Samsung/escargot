@@ -5337,7 +5337,7 @@ public:
         }
 
         if (label) {
-            for (size_t i = 0; i < this->context->labelSet.size(); i ++) {
+            for (size_t i = 0; i < this->context->labelSet.size(); i++) {
                 if (this->context->labelSet[i].first == label->name() && this->context->labelSet[i].second == 1) {
                     this->throwError(Messages::UnknownLabel, label->name().string());
                 }
@@ -5420,14 +5420,14 @@ public:
         bool prevInWith = this->context->inWith;
         this->context->inWith = true;
 
-        for (size_t i = 0; i < this->context->labelSet.size(); i ++) {
+        for (size_t i = 0; i < this->context->labelSet.size(); i++) {
             this->context->labelSet[i].second++;
         }
 
         StatementNode* body = this->parseStatement(false);
         this->context->inWith = prevInWith;
 
-        for (size_t i = 0; i < this->context->labelSet.size(); i ++) {
+        for (size_t i = 0; i < this->context->labelSet.size(); i++) {
             this->context->labelSet[i].second--;
         }
 

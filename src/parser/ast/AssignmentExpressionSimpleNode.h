@@ -55,28 +55,23 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionSimple; }
     static bool hasSlowAssigmentOperation(Node* left, Node* right)
     {
-        bool isSlowMode = true;
+        std::vector<AtomicString> leftNames;
+        left->iterateChildrenIdentifier([&leftNames](AtomicString name) {
+            leftNames.push_back(name);
+        });
 
-        if (right->isLiteral()) {
-            isSlowMode = false;
-        }
-
-        bool isLeftSimple = left->isIdentifier() || left->isLiteral();
-        if (left->isMemberExpression()) {
-            isLeftSimple = (left->asMemberExpression()->object()->isIdentifier() || left->asMemberExpression()->object()->isLiteral()) && (left->asMemberExpression()->property()->isIdentifier() || left->asMemberExpression()->property()->isLiteral());
-        }
-
-        bool isRightSimple = right->isIdentifier() || right->isLiteral();
-        if (right->isMemberExpression()) {
-            isRightSimple = (right->asMemberExpression()->object()->isIdentifier() || right->asMemberExpression()->object()->isLiteral()) && (right->asMemberExpression()->property()->isIdentifier() || right->asMemberExpression()->property()->isLiteral());
-        }
-
-        if (isLeftSimple && isRightSimple) {
-            isSlowMode = false;
-        }
+        bool isSlowMode = false;
+        right->iterateChildrenIdentifier([&leftNames, &isSlowMode](AtomicString name) {
+            for (size_t i = 0; i < leftNames.size(); i++) {
+                if (leftNames[i] == name) {
+                    isSlowMode = true;
+                }
+            }
+        });
 
         return isSlowMode;
     }
+
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         bool isSlowMode = hasSlowAssigmentOperation(m_left, m_right);
@@ -142,9 +137,10 @@ public:
         }
     }
 
-    virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
     {
-        return m_left->getRegister(codeBlock, context);
+        m_left->iterateChildrenIdentifier(fn);
+        m_right->iterateChildrenIdentifier(fn);
     }
 
 protected:

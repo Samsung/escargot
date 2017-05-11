@@ -63,6 +63,13 @@ public:
         jumpForEndOfConsequence->m_jumpPosition = codeBlock->currentCodeSize();
     }
 
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    {
+        m_test->iterateChildrenIdentifier(fn);
+        m_consequente->iterateChildrenIdentifier(fn);
+        m_alternate->iterateChildrenIdentifier(fn);
+    }
+
 protected:
     ExpressionNode* m_test;
     ExpressionNode* m_consequente;

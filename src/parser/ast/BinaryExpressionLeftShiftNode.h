@@ -50,6 +50,12 @@ public:
         codeBlock->pushCode(BinaryLeftShift(ByteCodeLOC(m_loc.index), src0, src1, dstRegister), context, this);
     }
 
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    {
+        m_left->iterateChildrenIdentifier(fn);
+        m_right->iterateChildrenIdentifier(fn);
+    }
+
 protected:
     ExpressionNode* m_left;
     ExpressionNode* m_right;

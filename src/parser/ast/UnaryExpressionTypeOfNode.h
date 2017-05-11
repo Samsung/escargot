@@ -66,6 +66,11 @@ public:
         codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), srcIndex, dstRegister, AtomicString()), context, this);
     }
 
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    {
+        m_argument->iterateChildrenIdentifier(fn);
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionTypeOf; }
 protected:
     Node* m_argument;

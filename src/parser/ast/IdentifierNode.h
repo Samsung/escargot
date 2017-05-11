@@ -157,6 +157,12 @@ public:
         }
     }
 
+
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    {
+        fn(m_name);
+    }
+
 protected:
     AtomicString m_name;
 };

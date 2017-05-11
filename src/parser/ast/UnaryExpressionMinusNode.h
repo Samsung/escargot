@@ -44,6 +44,11 @@ public:
         codeBlock->pushCode(UnaryMinus(ByteCodeLOC(m_loc.index), srcIndex, dstRegister), context, this);
     }
 
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    {
+        m_argument->iterateChildrenIdentifier(fn);
+    }
+
 protected:
     Node* m_argument;
 };

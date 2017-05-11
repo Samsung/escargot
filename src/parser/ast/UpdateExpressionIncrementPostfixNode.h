@@ -67,6 +67,11 @@ public:
         context->giveUpRegister();
     }
 
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    {
+        m_argument->iterateChildrenIdentifier(fn);
+    }
+
 protected:
     ExpressionNode* m_argument;
 };

@@ -153,6 +153,14 @@ public:
         context->m_inCallingExpressionScope = prevInCallingExpressionScope;
     }
 
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    {
+        m_callee->iterateChildrenIdentifier(fn);
+        for (size_t i = 0; i < m_arguments.size(); i++) {
+            m_arguments[i]->iterateChildrenIdentifier(fn);
+        }
+    }
+
 protected:
     Node* m_callee; // callee: Expression;
     ArgumentVector m_arguments; // arguments: [ Expression ];

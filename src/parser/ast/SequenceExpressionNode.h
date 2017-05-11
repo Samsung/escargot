@@ -51,6 +51,13 @@ public:
         }
     }
 
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    {
+        for (size_t i = 0; i < m_expressions.size(); i++) {
+            m_expressions[i]->iterateChildrenIdentifier(fn);
+        }
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::SequenceExpression; }
     const ExpressionNodeVector& expressions() { return m_expressions; }
 protected:
