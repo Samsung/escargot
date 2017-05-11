@@ -188,6 +188,7 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
             program->scopeContext()->m_hasYield = parentCodeBlock->hasYield();
             topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, scriptSource, script, program->scopeContext(), parentCodeBlock);
             topCodeBlock->m_isEvalCodeInFunction = true;
+            topCodeBlock->m_isInWithScope = parentCodeBlock->m_isInWithScope;
         } else {
             topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, program);
         }

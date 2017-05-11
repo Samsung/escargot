@@ -215,6 +215,11 @@ public:
         m_isInWithScope = true;
     }
 
+    void clearInWithScope()
+    {
+        m_isInWithScope = false;
+    }
+
     bool isInWithScope() const
     {
         return m_isInWithScope;

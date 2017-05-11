@@ -112,7 +112,7 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
         for (size_t i = 0; i < fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation().size(); i++) {
             builder.appendString(fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation()[i].m_name.string());
             if (i < (fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation().size() - 1)) {
-                builder.appendString(",");
+                builder.appendString(", ");
             }
         }
     }

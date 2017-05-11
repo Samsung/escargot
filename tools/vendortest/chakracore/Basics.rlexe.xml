@@ -10,7 +10,7 @@
   <!--
   <test>
     <default>
-      <escargot-skip>different function print format</escargot-skip>
+      <escargot-skip>FIXME: class</escargot-skip>
       <files>ie12ScriptFunctionToStrings.js</files>
       <compile-flags>-ES6Generators -ES6Classes -args summary -endargs</compile-flags>
     </default>
@@ -317,7 +317,7 @@
   </test>
   <test>
     <default>
-      <escargot-skip>Implementation-dependent case</escargot-skip>
+      <escargot-skip>Result is same, but key order in for-in statement differ</escargot-skip>
       <files>DeleteProperty1.js</files>
       <baseline>DeleteProperty1.baseline</baseline>
       <compile-flags>-Intl-</compile-flags>
@@ -343,7 +343,7 @@
   </test>
   <test>
     <default>
-      <escargot-skip>Implementation-dependent case</escargot-skip>
+      <escargot-skip>Value of Math.LOG2E is differ</escargot-skip>
       <files>flags.js</files>
       <baseline>flagsES5.baseline</baseline>
     </default>
@@ -378,7 +378,6 @@
   </test>
   <test>
     <default>
-      <escargot-skip>different print format</escargot-skip>
       <files>with3.js</files>
       <baseline>with3.baseline</baseline>
       <tags>fail_mutators</tags>
@@ -405,12 +404,13 @@
   -->
   <test>
     <default>
+      <escargot-skip>Not standards</escargot-skip>
       <files>cross_site_accessor_main.js</files>
     </default>
   </test>
   <test>
     <default>
-      <escargot-skip>different error message</escargot-skip>
+      <escargot-skip>Not standards</escargot-skip>
       <files>bug650104.js</files>
       <baseline>bug650104.baseline</baseline>
     </default>

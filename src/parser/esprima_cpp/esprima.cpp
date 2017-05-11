@@ -2279,7 +2279,7 @@ struct Context : public gc {
     bool inLoop : 1;
     bool strict : 1;
     RefPtr<ScannerResult> firstCoverInitializedNameError;
-    std::vector<std::pair<String*, bool>> labelSet;
+    std::vector<std::pair<AtomicString, size_t>> labelSet; // <LabelString, with statement count>
     std::vector<FunctionDeclarationNode*, GCUtil::gc_malloc_ignore_off_page_allocator<FunctionDeclarationNode*>> functionDeclarationsInDirectCatchScope;
 };
 
@@ -5300,10 +5300,10 @@ public:
 */
     }
 
-    void removeLabel(String* label)
+    void removeLabel(AtomicString label)
     {
         for (size_t i = 0; i < this->context->labelSet.size(); i++) {
-            if (this->context->labelSet[i].first->equals(label)) {
+            if (this->context->labelSet[i].first == label) {
                 this->context->labelSet.erase(this->context->labelSet.begin() + i);
                 return;
             }
@@ -5311,10 +5311,10 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    bool hasLabel(String* label)
+    bool hasLabel(AtomicString label)
     {
         for (size_t i = 0; i < this->context->labelSet.size(); i++) {
-            if (this->context->labelSet[i].first->equals(label)) {
+            if (this->context->labelSet[i].first == label) {
                 return true;
             }
         }
@@ -5331,8 +5331,16 @@ public:
         if (this->lookahead->type == IdentifierToken && !this->hasLineTerminator) {
             label = this->parseVariableIdentifier();
 
-            if (!hasLabel(label->name().string())) {
+            if (!hasLabel(label->name())) {
                 this->throwError(Messages::UnknownLabel, label->name().string());
+            }
+        }
+
+        if (label) {
+            for (size_t i = 0; i < this->context->labelSet.size(); i ++) {
+                if (this->context->labelSet[i].first == label->name() && this->context->labelSet[i].second == 1) {
+                    this->throwError(Messages::UnknownLabel, label->name().string());
+                }
             }
         }
 
@@ -5358,7 +5366,7 @@ public:
         if (this->lookahead->type == IdentifierToken && !this->hasLineTerminator) {
             label = this->parseVariableIdentifier();
 
-            if (!hasLabel(label->name().string())) {
+            if (!hasLabel(label->name())) {
                 this->throwError(Messages::UnknownLabel, label->name().string());
             }
         }
@@ -5411,8 +5419,17 @@ public:
 
         bool prevInWith = this->context->inWith;
         this->context->inWith = true;
+
+        for (size_t i = 0; i < this->context->labelSet.size(); i ++) {
+            this->context->labelSet[i].second++;
+        }
+
         StatementNode* body = this->parseStatement(false);
         this->context->inWith = prevInWith;
+
+        for (size_t i = 0; i < this->context->labelSet.size(); i ++) {
+            this->context->labelSet[i].second--;
+        }
 
         return this->finalize(node, new WithStatementNode(object, body));
     }
@@ -5498,13 +5515,13 @@ public:
             this->nextToken();
 
             IdentifierNode* id = (IdentifierNode*)expr;
-            if (hasLabel(id->name().string())) {
+            if (hasLabel(id->name())) {
                 this->throwError(Messages::Redeclaration, new ASCIIString("Label"), id->name().string());
             }
 
-            this->context->labelSet.push_back(std::make_pair(id->name().string(), true));
+            this->context->labelSet.push_back(std::make_pair(id->name(), 0));
             StatementNode* labeledBody = this->parseStatement(this->context->strict ? false : true);
-            removeLabel(id->name().string());
+            removeLabel(id->name());
 
             statement = new LabeledStatementNode(labeledBody, id->name().string());
         } else {

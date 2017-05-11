@@ -54,8 +54,11 @@ public:
 
         newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by caseNode->m_test
 
+        bool canSkipCopyToRegister = newContext.m_canSkipCopyToRegister;
+        newContext.m_canSkipCopyToRegister = false;
         size_t rIndex0 = m_discriminant->getRegister(codeBlock, &newContext);
         m_discriminant->generateExpressionByteCode(codeBlock, &newContext, rIndex0);
+        newContext.m_canSkipCopyToRegister = canSkipCopyToRegister;
 
         std::vector<size_t> jumpCodePerCaseNodePosition;
         for (unsigned i = 0; i < m_casesB.size(); i++) {

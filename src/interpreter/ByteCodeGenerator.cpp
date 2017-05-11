@@ -451,13 +451,17 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
 #ifndef NDEBUG
     if (!shouldGenerateLOCData && getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) {
         printf("dumpBytecode %s (%d:%d)>>>>>>>>>>>>>>>>>>>>>>\n", codeBlock->m_functionName.string()->toUTF8StringData().data(), (int)codeBlock->sourceElementStart().line, (int)codeBlock->sourceElementStart().column);
-        printf("register info.. [");
+        printf("register info.. (stack variable size(%d)) [", (int)codeBlock->identifierOnStackCount());
         for (size_t i = 0; i < block->m_requiredRegisterFileSizeInValueSize; i++) {
             printf("X,");
         }
 
         size_t b = block->m_requiredRegisterFileSizeInValueSize + 1;
-        printf("this,");
+        printf("`this`,");
+        if (!codeBlock->isGlobalScopeCodeBlock()) {
+            printf("`function`,");
+            b++;
+        }
 
         for (size_t i = 0; i < block->m_codeBlock->asInterpretedCodeBlock()->identifierInfos().size(); i++) {
             if (block->m_codeBlock->asInterpretedCodeBlock()->identifierInfos()[i].m_needToAllocateOnStack) {

@@ -53,37 +53,33 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionSimple; }
-    bool hasSlowAssigmentOperation()
+    static bool hasSlowAssigmentOperation(Node* left, Node* right)
     {
         bool isSlowMode = true;
 
-        if (m_right->isLiteral()) {
+        if (right->isLiteral()) {
             isSlowMode = false;
         }
 
-        if (m_left->isIdentifier()) {
+        bool isLeftSimple = left->isIdentifier() || left->isLiteral();
+        if (left->isMemberExpression()) {
+            isLeftSimple = (left->asMemberExpression()->object()->isIdentifier() || left->asMemberExpression()->object()->isLiteral()) && (left->asMemberExpression()->property()->isIdentifier() || left->asMemberExpression()->property()->isLiteral());
+        }
+
+        bool isRightSimple = right->isIdentifier() || right->isLiteral();
+        if (right->isMemberExpression()) {
+            isRightSimple = (right->asMemberExpression()->object()->isIdentifier() || right->asMemberExpression()->object()->isLiteral()) && (right->asMemberExpression()->property()->isIdentifier() || right->asMemberExpression()->property()->isLiteral());
+        }
+
+        if (isLeftSimple && isRightSimple) {
             isSlowMode = false;
-        } else {
-            bool isLeftSimple = m_left->isIdentifier() || m_left->isLiteral();
-            if (m_left->isMemberExpression()) {
-                isLeftSimple = (m_left->asMemberExpression()->object()->isIdentifier() || m_left->asMemberExpression()->object()->isLiteral()) && (m_left->asMemberExpression()->property()->isIdentifier() || m_left->asMemberExpression()->property()->isLiteral());
-            }
-
-            bool isRightSimple = m_right->isIdentifier() || m_right->isLiteral();
-            if (m_right->isMemberExpression()) {
-                isRightSimple = (m_right->asMemberExpression()->object()->isIdentifier() || m_right->asMemberExpression()->object()->isLiteral()) && (m_right->asMemberExpression()->property()->isIdentifier() || m_right->asMemberExpression()->property()->isLiteral());
-            }
-
-            if (isLeftSimple && isRightSimple) {
-                isSlowMode = false;
-            }
         }
 
         return isSlowMode;
     }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        bool isSlowMode = hasSlowAssigmentOperation();
+        bool isSlowMode = hasSlowAssigmentOperation(m_left, m_right);
 
         bool isBase = context->m_registerStack->size() == 0;
         size_t rightRegister = dstRegister;
@@ -105,7 +101,7 @@ public:
 
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        bool isSlowMode = hasSlowAssigmentOperation();
+        bool isSlowMode = hasSlowAssigmentOperation(m_left, m_right);
 
         if (isSlowMode) {
             size_t rightRegister = m_right->getRegister(codeBlock, context);

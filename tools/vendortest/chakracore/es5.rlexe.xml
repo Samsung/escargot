@@ -9,6 +9,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <compile-flags>-ES6Unicode-</compile-flags>
       <files>Lex_u3.js</files>
       <baseline>Lex_u3.baseline</baseline>
@@ -66,12 +67,14 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>SemicolonAfterBlockEs5.js</files>
       <baseline>SemicolonAfterBlockEs5.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>exceptions.js</files>
       <baseline>exceptions3.baseline</baseline>
       <tags>fail_mutators</tags>
@@ -79,6 +82,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>ObjLitGetSet.js</files>
       <baseline>ObjLitGetSet.baseline</baseline>
       <tags>fail_mutators</tags>
@@ -86,12 +90,14 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Non standards</escargot-skip>
       <files>ObjLitGetSetParseOnly.js</files>
       <baseline>ObjLitGetSetParseOnly.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>Non standards</escargot-skip>
       <compile-flags>-Force:Deferparse</compile-flags>
       <files>ObjLitGetSetParseOnly.js</files>
       <baseline>ObjLitGetSetParseOnlyFdp.baseline</baseline>
@@ -124,12 +130,14 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>array_length.js</files>
       <baseline>array_length.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <compile-flags>-ForceES5Array</compile-flags>
       <tags>exclude_fre</tags>
       <files>array_length.js</files>
@@ -138,6 +146,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: engine is too slow to pass testcase</escargot-skip>
       <files>ES5ArrayIndexList.js</files>
       <tags>exclude_chk,Slow</tags>
       <timeout>900</timeout>
@@ -165,12 +174,14 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Test case wrong</escargot-skip>
       <files>defineIndexProperty.js</files>
       <baseline>defineIndexProperty.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>Test case wrong</escargot-skip>
       <compile-flags>-Serialized</compile-flags>
       <files>defineIndexProperty.js</files>
       <baseline>defineIndexProperty.baseline</baseline>
@@ -179,6 +190,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ, for-in order</escargot-skip>
       <files>enumerable.js</files>
       <baseline>enumerable.baseline</baseline>
     </default>
@@ -191,6 +203,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: Yarr unicode problem</escargot-skip>
       <files>regexSpace.js</files>
       <baseline>regexSpace.baseline</baseline>
     </default>
@@ -215,6 +228,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>valueof.js</files>
       <baseline>valueof5.baseline</baseline>
     </default>
@@ -249,18 +263,21 @@
   </test>
   <test>
     <default>
+      <escargot-skip>old RegExp features($1, $2...)</escargot-skip>
       <files>RegExpStrictDelete.js</files>
       <baseline>RegExpStrictDelete.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>settersArguments.js</files>
       <baseline>settersArguments.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <compile-flags>-Force:Deferparse</compile-flags>
       <files>settersArguments.js</files>
       <baseline>settersArguments.baseline</baseline>
@@ -287,6 +304,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Non standards</escargot-skip>
       <files>es5array_objproto_builtin.js</files>
     </default>
   </test>

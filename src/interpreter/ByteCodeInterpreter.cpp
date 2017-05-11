@@ -680,7 +680,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             } else {
                 obj = fastToObject(state, willBeObject);
             }
-            registerFile[code->m_storeRegisterIndex] = obj->getIndexedProperty(state, property).value(state, obj);
+            registerFile[code->m_storeRegisterIndex] = obj->getIndexedProperty(state, property).value(state, willBeObject);
             ADD_PROGRAM_COUNTER(GetObject);
             NEXT_INSTRUCTION();
         }
@@ -727,32 +727,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
 
         CallEvalFunctionOpcodeLbl : {
             CallEvalFunction* code = (CallEvalFunction*)programCounter;
-            Value eval = registerFile[code->m_evalIndex];
-            if (eval.equalsTo(state, state.context()->globalObject()->eval())) {
-                // do eval
-                Value arg;
-                if (code->m_argumentCount) {
-                    arg = registerFile[code->m_argumentsStartIndex];
-                }
-                Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-                registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, stackStorage[0], byteCodeBlock->m_codeBlock->asInterpretedCodeBlock());
-            } else {
-                Value thisValue;
-                if (code->m_inWithScope) {
-                    LexicalEnvironment* env = ec->lexicalEnvironment();
-                    while (env) {
-                        EnvironmentRecord::GetBindingValueResult result = env->record()->getBindingValue(state, state.context()->staticStrings().eval);
-                        if (result.m_hasBindingValue) {
-                            break;
-                        }
-                        env = env->outerEnvironment();
-                    }
-                    if (env->record()->isObjectEnvironmentRecord()) {
-                        thisValue = env->record()->asObjectEnvironmentRecord()->bindingObject();
-                    }
-                }
-                registerFile[code->m_resultIndex] = FunctionObject::call(state, eval, thisValue, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
-            }
+            evalOperation(state, code, registerFile, byteCodeBlock, ec);
             ADD_PROGRAM_COUNTER(CallEvalFunction);
             NEXT_INSTRUCTION();
         }
@@ -1664,7 +1639,6 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
             newRecord->setMutableBinding(state, code->m_catchVariableName, val);
             LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
             ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
-
             try {
                 ExecutionState newState(&state, newEc);
                 newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
@@ -1679,6 +1653,60 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
         }
     }
     return programCounter;
+}
+
+class EvalCodeBlockWithFlagSetter {
+public:
+    EvalCodeBlockWithFlagSetter(InterpretedCodeBlock* b, bool inWith)
+        : blk(b)
+    {
+        inWithBefore = blk->isInWithScope();
+        if (inWith)
+            blk->setInWithScope();
+    }
+
+    ~EvalCodeBlockWithFlagSetter()
+    {
+        if (inWithBefore) {
+            blk->setInWithScope();
+        } else {
+            blk->clearInWithScope();
+        }
+    }
+
+    bool inWithBefore;
+    InterpretedCodeBlock* blk;
+};
+
+NEVER_INLINE void ByteCodeInterpreter::evalOperation(ExecutionState& state, CallEvalFunction* code, Value* registerFile, ByteCodeBlock* byteCodeBlock, ExecutionContext* ec)
+{
+    Value eval = registerFile[code->m_evalIndex];
+    if (eval.equalsTo(state, state.context()->globalObject()->eval())) {
+        // do eval
+        Value arg;
+        if (code->m_argumentCount) {
+            arg = registerFile[code->m_argumentsStartIndex];
+        }
+        Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
+        EvalCodeBlockWithFlagSetter s(byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(), code->m_inWithScope);
+        registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, stackStorage[0], byteCodeBlock->m_codeBlock->asInterpretedCodeBlock());
+    } else {
+        Value thisValue;
+        if (code->m_inWithScope) {
+            LexicalEnvironment* env = ec->lexicalEnvironment();
+            while (env) {
+                EnvironmentRecord::GetBindingValueResult result = env->record()->getBindingValue(state, state.context()->staticStrings().eval);
+                if (result.m_hasBindingValue) {
+                    break;
+                }
+                env = env->outerEnvironment();
+            }
+            if (env->record()->isObjectEnvironmentRecord()) {
+                thisValue = env->record()->asObjectEnvironmentRecord()->bindingObject();
+            }
+        }
+        registerFile[code->m_resultIndex] = FunctionObject::call(state, eval, thisValue, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+    }
 }
 
 NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, WithOperation* code, Object* obj, ExecutionContext* ec, LexicalEnvironment* env, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage)

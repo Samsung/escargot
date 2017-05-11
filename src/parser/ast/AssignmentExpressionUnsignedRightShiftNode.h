@@ -20,6 +20,7 @@
 #include "ExpressionNode.h"
 #include "IdentifierNode.h"
 #include "PatternNode.h"
+#include "AssignmentExpressionSimpleNode.h"
 
 namespace Escargot {
 
@@ -43,6 +44,13 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionUnsignedRightShift; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
+        bool slowMode = AssignmentExpressionSimpleNode::hasSlowAssigmentOperation(m_left, m_right);;
+        bool flagBefore;
+        if (slowMode) {
+            flagBefore = context->m_canSkipCopyToRegister;
+            context->m_canSkipCopyToRegister = false;
+        }
+
         m_left->generateResolveAddressByteCode(codeBlock, context);
         m_left->generateReferenceResolvedAddressByteCode(codeBlock, context);
         size_t src0 = context->getLastRegisterIndex();
@@ -52,6 +60,10 @@ public:
         context->giveUpRegister();
         codeBlock->pushCode(BinaryUnsignedRightShift(ByteCodeLOC(m_loc.index), src0, src1, dstRegister), context, this);
         m_left->generateStoreByteCode(codeBlock, context, dstRegister, false);
+
+        if (slowMode) {
+            context->m_canSkipCopyToRegister = flagBefore;
+        }
     }
 
     virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
