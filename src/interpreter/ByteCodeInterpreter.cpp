@@ -691,7 +691,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             const Value& property = registerFile[code->m_propertyRegisterIndex];
             Object* obj = willBeObject.toObject(state);
             if (willBeObject.isPrimitive()) {
-                obj->ensureObjectRareData()->m_isExtensible = false;
+                obj->preventExtensions();
             }
 
             bool result = obj->setIndexedProperty(state, property, registerFile[code->m_loadRegisterIndex]);
@@ -1320,8 +1320,17 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
 
 ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, ByteCodeBlock* block)
 {
-    Object* obj = willBeObject.toObject(state);
+    Object* obj = nullptr;
+    if (UNLIKELY(!willBeObject.isObject())) {
+        obj = willBeObject.toObject(state);
+        if (willBeObject.isPrimitive()) {
+            obj->preventExtensions();
+        }
+    } else {
+        obj = willBeObject.asObject();
+    }
     Object* originalObject = obj;
+    ASSERT(originalObject != nullptr);
 
     ObjectStructureChainItem testItem;
     testItem.m_objectStructure = obj->structure();

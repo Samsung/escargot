@@ -11,7 +11,7 @@ fi
 if [[ "$ARM" == "1" ]]; then
 	DIFF_CMD=$TEST_ROOT/diff.py
 else
-	DIFF_CMD="diff -Z -i -a"
+	DIFF_CMD="diff -Z -B -i -a"
 fi
 
 TOOL_PATH=$TEST_ROOT/../../../tools/vendortest/chakracore
@@ -90,6 +90,10 @@ run_test() {
 			fi
 			if [[ "$DIFF_EXIT_CODE" != "0" ]]; then
 				$($DIFF_CMD $TEMPORARY_OUTPUT_FILE $BASELINE_PATH/baseline5 2>&1 > $TEMPORARY_DIFF_FILE)
+				DIFF_EXIT_CODE=$?
+			fi
+			if [[ "$DIFF_EXIT_CODE" != "0" ]]; then
+				$($DIFF_CMD $TEMPORARY_OUTPUT_FILE $BASELINE_PATH/baseline6 2>&1 > $TEMPORARY_DIFF_FILE)
 				DIFF_EXIT_CODE=$?
 			fi
 		fi

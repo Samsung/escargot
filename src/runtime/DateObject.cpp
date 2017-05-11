@@ -1175,16 +1175,21 @@ int DateObject::getTimezoneOffset(ExecutionState& state)
 }
 
 
-#define DECLARE_DATE_UTC_GETTER(Name)                                                      \
-    int DateObject::getUTC##Name(ExecutionState& state)                                    \
-    {                                                                                      \
-        DateObject* cachedUTC = state.context()->vmInstance()->cachedUTC();                \
-        time64_t primitiveValueUTC                                                         \
-            = m_primitiveValue + getTimezoneOffset(state) * const_Date_msPerMinute;        \
-        if (!(cachedUTC->isValid()) || cachedUTC->primitiveValue() != primitiveValueUTC) { \
-            cachedUTC->setTimeValue(primitiveValueUTC);                                    \
-        }                                                                                  \
-        return cachedUTC->get##Name(state);                                                \
+#define DECLARE_DATE_UTC_GETTER(Name)                                                        \
+    int DateObject::getUTC##Name(ExecutionState& state)                                      \
+    {                                                                                        \
+        DateObject* cachedUTC = state.context()->vmInstance()->cachedUTC();                  \
+        time64_t primitiveValueUTC                                                           \
+            = m_primitiveValue + getTimezoneOffset(state) * const_Date_msPerMinute;          \
+        if (!(cachedUTC->isValid()) || cachedUTC->primitiveValue() != primitiveValueUTC) {   \
+            cachedUTC->setTimeValue(primitiveValueUTC);                                      \
+            if (UNLIKELY(cachedUTC->getTimezoneOffset(state) != getTimezoneOffset(state))) { \
+                primitiveValueUTC = m_primitiveValue                                         \
+                    + cachedUTC->getTimezoneOffset(state) * const_Date_msPerMinute;          \
+                cachedUTC->setTimeValue(primitiveValueUTC);                                  \
+            }                                                                                \
+        }                                                                                    \
+        return cachedUTC->get##Name(state);                                                  \
     }
 
 DECLARE_DATE_UTC_GETTER(Date);

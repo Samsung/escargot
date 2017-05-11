@@ -58,8 +58,10 @@ public:
         if (m_timezoneID == "") {
             icu::TimeZone* tz = icu::TimeZone::createDefault();
             ASSERT(tz != nullptr);
-            tz->getID(m_timezoneID);
+            tz->getDisplayName(m_timezoneID);
             delete tz;
+        } else {
+            tzset();
         }
         m_timezone = (icu::TimeZone::createTimeZone(m_timezoneID))->clone();
     }

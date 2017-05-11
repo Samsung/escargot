@@ -40,6 +40,23 @@ namespace Escargot {
     F(UTCFullYear, Day, 3, true)
 
 
+bool isInValidRange(double year, double month, double date, double hour, double minute, double second, double millisecond)
+{
+    if (std::isnan(year) || std::isnan(month) || std::isnan(date) || std::isnan(hour) || std::isnan(minute) || std::isnan(second) || std::isnan(millisecond)) {
+        return false;
+    }
+    if (std::isinf(year) || std::isinf(month) || std::isinf(date) || std::isinf(hour) || std::isinf(minute) || std::isinf(second) || std::isinf(millisecond)) {
+        return false;
+    }
+
+    int32_t max32 = std::numeric_limits<int32_t>::max();
+    int64_t max64 = std::numeric_limits<int64_t>::max();
+    if (year > max32 || month > max32 || date > max32 || hour > max32 || minute > max32 || second > max64 || millisecond > max64) {
+        return false;
+    }
+    return true;
+}
+
 static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     DateObject* thisObject;
@@ -58,6 +75,7 @@ static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size
             }
         } else {
             double args[7] = { 0, 0, 1, 0, 0, 0, 0 }; // default value of year, month, date, hour, minute, second, millisecond
+            argc = (argc > 7) ? 7 : argc; // trim arguments so that they don't corrupt stack
             for (size_t i = 0; i < argc; i++) {
                 args[i] = argv[i].toNumber(state);
             }
@@ -71,7 +89,7 @@ static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size
             if ((int)year >= 0 && (int)year <= 99) {
                 year += 1900;
             }
-            if (std::isnan(year) || std::isnan(month) || std::isnan(date) || std::isnan(hour) || std::isnan(minute) || std::isnan(second) || std::isnan(millisecond)) {
+            if (UNLIKELY(!isInValidRange(year, month, date, hour, minute, second, millisecond))) {
                 thisObject->setTimeValueAsNaN();
                 return new ASCIIString("Invalid Date");
             }
@@ -105,6 +123,7 @@ static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc,
 {
     DateObject d(state);
     double args[7] = { 0, 0, 1, 0, 0, 0, 0 }; // default value of year, month, date, hour, minute, second, millisecond
+    argc = (argc > 7) ? 7 : argc; // trim arguments so that they don't corrupt stack
     for (size_t i = 0; i < argc; i++) {
         args[i] = argv[i].toNumber(state);
     }
@@ -122,11 +141,7 @@ static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc,
 
     if (argc < 2) {
         d.setTimeValueAsNaN();
-    } else if (std::isnan(year) || std::isnan(month) || std::isnan(date) || std::isnan(hour)
-               || std::isnan(minute) || std::isnan(second) || std::isnan(millisecond)) {
-        d.setTimeValueAsNaN();
-    } else if (std::isinf(year) || std::isinf(month) || std::isinf(date) || std::isinf(hour)
-               || std::isinf(minute) || std::isinf(second) || std::isinf(millisecond)) {
+    } else if (UNLIKELY(!isInValidRange(year, month, date, hour, minute, second, millisecond))) {
         d.setTimeValueAsNaN();
     } else {
         d.setTimeValue(state, year, month, date, hour, minute, second, millisecond, false);
@@ -345,7 +360,7 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    if (std::isnan(year) || std::isnan(month) || std::isnan(date) || std::isnan(hour) || std::isnan(minute) || std::isnan(second) || std::isnan(millisecond)) {
+    if (UNLIKELY(!isInValidRange(year, month, date, hour, minute, second, millisecond))) {
         d->setTimeValueAsNaN();
     } else if (d->isValid()) {
         d->setTimeValue(state, year, month, date, hour, minute, second, millisecond, convertToUTC);

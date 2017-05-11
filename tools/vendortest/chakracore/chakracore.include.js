@@ -21,13 +21,16 @@ var WScript = {
             load(path);
         } catch (e) {
             if (e.message == "GlobalObject.load: cannot load file")
-                load("test\\chakracore\\UnitTestFramework\\" + path);
+                load("test/chakracore/UnitTestFramework/" + path);
             else
                 throw e;
         }
         return nativeGlobal;
     },
-    Arguments : ["summary"]
+    Arguments : ["summary"],
+    Quit : function(code) {
+        throw Error(code);
+    },
 };
 
 function CollectGarbage() {

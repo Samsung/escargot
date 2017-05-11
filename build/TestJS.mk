@@ -117,12 +117,9 @@ run-chakracore:
 	cp tools/vendortest/chakracore/chakracore.run.sh test/vendortest/ChakraCore/run.sh
 	cp tools/vendortest/chakracore/chakracore.include.js test/vendortest/ChakraCore/include.js
 	cp tools/vendortest/chakracore/chakracore.rlexedirs.xml test/vendortest/ChakraCore/rlexedirs.xml
-	cp tools/vendortest/chakracore/Array.rlexe.xml test/vendortest/ChakraCore/Array/rlexe.xml
-	cp tools/vendortest/chakracore/Error.rlexe.xml test/vendortest/ChakraCore/Error/rlexe.xml
-	cp tools/vendortest/chakracore/Function.rlexe.xml test/vendortest/ChakraCore/Function/rlexe.xml
-	cp tools/vendortest/chakracore/Miscellaneous.rlexe.xml test/vendortest/ChakraCore/Miscellaneous/rlexe.xml
-	cp tools/vendortest/chakracore/Strings.rlexe.xml test/vendortest/ChakraCore/Strings/rlexe.xml
-	cp tools/vendortest/chakracore/es6.rlexe.xml test/vendortest/ChakraCore/es6/rlexe.xml
+	for i in tools/vendortest/chakracore/*.rlexe.xml; do dir=`echo $$i | cut -d'/' -f4 | cut -d'.' -f1`; \
+		echo "cp tools/vendortest/chakracore/$$dir.rlexe.xml test/vendortest/ChakraCore/$$dir/rlexe.xml"; \
+		cp tools/vendortest/chakracore/$$dir.rlexe.xml test/vendortest/ChakraCore/$$dir/rlexe.xml; done
 	$(eval BIN_ARCH:=$(shell [[ "$(shell file escargot)" == *"32-bit"* ]] && echo "x86" || echo "x86_64"))
 	test/vendortest/ChakraCore/run.sh ./escargot | tee tools/vendortest/chakracore.$(BIN_ARCH).gen.txt; \
 	diff tools/vendortest/chakracore.$(BIN_ARCH).orig.txt tools/vendortest/chakracore.$(BIN_ARCH).gen.txt

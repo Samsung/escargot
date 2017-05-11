@@ -2,6 +2,7 @@
 <regress-exe>
   <test>
     <default>
+      <escargot-skip>Non-standard feature</escargot-skip>
       <files>errorProps.js</files>
       <baseline>errorProps_v4.baseline</baseline>
       <compile-flags>-ExtendedErrorStackForTestHost</compile-flags>
@@ -9,12 +10,14 @@
   </test>
   <test>
     <default>
+      <escargot-skip>different error message</escargot-skip>
       <files>ErrorCtorProps.js</files>
       <baseline>ErrorCtorProps_v3.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>Non-standard feature</escargot-skip>
       <files>NativeErrors.js</files>
       <baseline>NativeErrors_v4.baseline</baseline>
       <compile-flags>-ExtendedErrorStackForTestHost</compile-flags>
@@ -34,12 +37,14 @@
   </test>
   <test>
     <default>
+      <escargot-skip>different error message</escargot-skip>
       <files>stack2.js</files>
       <baseline>stack2.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>Non-standard feature</escargot-skip>
       <files>errorCtor.js</files>
       <baseline>errorCtor_v4.baseline</baseline>
       <compile-flags>-ExtendedErrorStackForTestHost</compile-flags>
@@ -47,12 +52,14 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Non-standard feature</escargot-skip>
       <files>errorNum.js</files>
       <baseline>errorNum.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>different error message</escargot-skip>
       <files>CallNonFunction.js</files>
       <baseline>CallNonFunction_3.baseline</baseline>
       <tags>exclude_native,exclude_dynapogo</tags>
@@ -61,6 +68,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>different error message</escargot-skip>
       <files>sourceInfo_00.js</files>
       <baseline>sourceInfo_00.baseline</baseline>
       <tags>fail</tags>
@@ -68,6 +76,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>different error message</escargot-skip>
       <files>sourceInfo_01.js</files>
       <baseline>sourceInfo_01.baseline</baseline>
       <tags>fail</tags>
@@ -75,6 +84,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>different error message</escargot-skip>
       <files>sourceInfo_10.js</files>
       <baseline>sourceInfo_10.baseline</baseline>
       <tags>fail</tags>
@@ -82,6 +92,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>different error message</escargot-skip>
       <files>sourceInfo_11.js</files>
       <baseline>sourceInfo_11.baseline</baseline>
       <tags>fail</tags>
@@ -89,6 +100,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>different error message</escargot-skip>
       <files>sourceInfo_12.js</files>
       <baseline>sourceInfo_12.baseline</baseline>
       <tags>fail</tags>
@@ -96,6 +108,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>different error message</escargot-skip>
       <files>sourceInfo_13.js</files>
       <baseline>sourceInfo_13.baseline</baseline>
       <tags>fail</tags>
@@ -103,6 +116,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>different error message</escargot-skip>
       <files>sourceInfo_20.js</files>
       <baseline>sourceInfo_20.baseline</baseline>
       <tags>fail</tags>
@@ -137,6 +151,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Variable limit excceed</escargot-skip>
       <files>stackoverflow.js</files>
       <baseline>stackoverflow.baseline</baseline>
       <tags>Slow</tags>
@@ -144,6 +159,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Non-standard feature</escargot-skip>
       <files>inlineSameFunc.js</files>
       <baseline>inlineSameFunc.baseline</baseline>
       <compile-flags>-ExtendedErrorStackForTestHost -maxinterpretcount:1 -off:simpleJit</compile-flags>
@@ -158,6 +174,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Non-standard feature</escargot-skip>
       <files>validate_line_column.js</files>
       <baseline>validate_line_column.baseline</baseline>
       <compile-flags>-ExtendedErrorStackForTestHost</compile-flags>
@@ -165,6 +182,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Non-standard feature</escargot-skip>
       <files>validate_line_column.js</files>
       <baseline>validate_line_column.baseline</baseline>
       <compile-flags>-ExtendedErrorStackForTestHost -force:DeferParse</compile-flags>
