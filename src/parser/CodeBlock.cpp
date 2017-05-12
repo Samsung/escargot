@@ -141,7 +141,7 @@ CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Valu
     m_inWith = false;
     m_usesArgumentsObject = false;
     m_canUseIndexedVariableStorage = false;
-    m_canAllocateEnvironmentOnStack = false;
+    m_canAllocateEnvironmentOnStack = true;
     m_needsComplexParameterCopy = false;
     m_isInWithScope = false;
     m_isEvalCodeInFunction = false;
@@ -396,6 +396,14 @@ void InterpretedCodeBlock::computeVariables()
 
     if (inEvalWithCatchYieldScope() || inNotIndexedCodeBlockScope()) {
         m_canAllocateEnvironmentOnStack = false;
+    }
+
+    if (!m_canAllocateEnvironmentOnStack) {
+        CodeBlock* cb = parentCodeBlock();
+        while (cb && cb->isInterpretedCodeBlock()) {
+            cb->m_canAllocateEnvironmentOnStack = false;
+            cb = cb->asInterpretedCodeBlock()->parentCodeBlock();
+        }
     }
 
     if (m_functionName.string()->length()) {

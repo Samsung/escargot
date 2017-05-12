@@ -16,6 +16,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>charCodeAt.js</files>
       <baseline>charCodeAt.baseline</baseline>
     </default>

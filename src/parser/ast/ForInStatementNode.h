@@ -50,6 +50,9 @@ public:
         ByteCodeGenerateContext newContext(*context);
 
         newContext.getRegister(); // ExecutionResult of m_right should not overwrite any reserved value
+        if (m_left->type() == ASTNodeType::VariableDeclaration)
+            m_left->generateResultNotRequiredExpressionByteCode(codeBlock, &newContext);
+
         size_t baseCountBefore = newContext.m_registerStack->size();
         size_t rightIdx = m_right->getRegister(codeBlock, &newContext);
         m_right->generateExpressionByteCode(codeBlock, &newContext, rightIdx);

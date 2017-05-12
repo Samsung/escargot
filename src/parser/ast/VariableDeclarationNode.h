@@ -69,6 +69,14 @@ public:
         generateExpressionByteCode(codeBlock, context, context->getRegister());
     }
 
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    {
+        size_t len = m_declarations.size();
+        for (size_t i = 0; i < len; i++) {
+            m_declarations[i]->generateStatementByteCode(codeBlock, context);
+        }
+    }
+
 protected:
     VariableDeclaratorVector m_declarations; // declarations: [ VariableDeclarator ];
     // kind: "var" | "let" | "const";

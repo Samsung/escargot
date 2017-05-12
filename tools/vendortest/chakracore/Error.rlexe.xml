@@ -32,6 +32,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>different error message</escargot-skip>
       <files>stack.js</files>
     </default>
   </test>
@@ -130,6 +131,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>different error message</escargot-skip>
       <files>RuntimeCompileStackOverflow.js</files>
       <baseline>RuntimeCompileStackOverflow.baseline</baseline>
       <tags>exclude_forceundodefer,exclude_arm,exclude_xplat</tags>
@@ -167,6 +169,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Non-standard feature</escargot-skip>
       <files>PartInitStackFrame.js</files>
       <baseline>PartInitStackFrame.baseline</baseline>
       <compile-flags>-ExtendedErrorStackForTestHost -nonative -InjectPartiallyInitializedInterpreterFrameError:3 -InjectPartiallyInitializedInterpreterFrameErrorType:1</compile-flags>
