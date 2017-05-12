@@ -190,6 +190,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Chakracore-only</escargot-skip>
       <files>blue_1096569.js</files>
       <compile-flags>-MaxinterpretCount:2 -off:simplejit -force:Inline -off:insertnops</compile-flags>
       <baseline>blue_1096569.baseline</baseline>
@@ -289,6 +290,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>ES6 spec ([g|s]etPrototypeOf())</escargot-skip>
       <files>HasOnlyWritableDataProperties-cross-context.js</files>
       <compile-flags>-nonative</compile-flags>
     </default>

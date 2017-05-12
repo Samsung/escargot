@@ -202,6 +202,7 @@
 </dir>
 <dir>
   <default>
+    <escargot-skip>Chakracore-only</escargot-skip>
     <files>StackTrace</files>
   </default>
 </dir>
@@ -411,6 +412,7 @@
 </dir>
 <dir>
   <default>
+    <escargot-skip>Chakracore-only</escargot-skip>
     <files>Debugger</files>
     <tags>exclude_serialized,exclude_jshost,exclude_snap,require_debugger</tags>
   </default>

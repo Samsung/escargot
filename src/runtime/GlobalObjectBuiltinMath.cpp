@@ -70,6 +70,9 @@ static Value builtinMathMin(ExecutionState& state, Value thisValue, size_t argc,
 static Value builtinMathRound(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     double x = argv[0].toNumber(state);
+    if (x == static_cast<int64_t>(x)) {
+        return Value(x);
+    }
     if (x == -0.5)
         return Value(-0.0);
     else if (x > -0.5)

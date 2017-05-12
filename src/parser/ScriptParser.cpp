@@ -264,13 +264,13 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
     return result;
 }
 
-std::pair<Node*, ASTScopeContext*> ScriptParser::parseFunction(InterpretedCodeBlock* codeBlock, size_t stackSizeRemain)
+std::pair<Node*, ASTScopeContext*> ScriptParser::parseFunction(InterpretedCodeBlock* codeBlock, size_t stackSizeRemain, ExecutionState* state)
 {
     try {
         std::pair<Node*, ASTScopeContext*> body = esprima::parseSingleFunction(m_context, codeBlock, stackSizeRemain);
         return body;
     } catch (esprima::Error* orgError) {
-        ESCARGOT_LOG_ERROR("%s", orgError->message->toUTF8StringData().data());
+        ErrorObject::throwBuiltinError(*state, ErrorObject::SyntaxError, orgError->message->toUTF8StringData().data());
         RELEASE_ASSERT_NOT_REACHED();
     }
 }

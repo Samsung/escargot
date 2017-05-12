@@ -180,7 +180,7 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
     size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
 #endif
 
-    auto ret = state.context()->scriptParser().parseFunction(m_codeBlock->asInterpretedCodeBlock(), stackRemainApprox);
+    auto ret = state.context()->scriptParser().parseFunction(m_codeBlock->asInterpretedCodeBlock(), stackRemainApprox, &state);
     Node* ast = ret.first;
 
     ByteCodeGenerator g;

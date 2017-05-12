@@ -43,6 +43,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Implementation-dependent case</escargot-skip>
       <files>parseISO.js</files>
       <baseline>parseISO.baseline</baseline>
       <!-- test is timezone-sensitive; remove exclude_jenkins after fix -->
@@ -76,6 +77,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Implementation-dependent case</escargot-skip>
       <files>Conversions.js</files>
       <baseline>Conversions.baseline</baseline>
       <compile-flags>-Intl-</compile-flags>
@@ -91,6 +93,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Implementation-dependent case</escargot-skip>
       <files>formatting.js</files>
       <baseline>formatting.baseline</baseline>
       <compile-flags>-ForceOldDateAPI</compile-flags>

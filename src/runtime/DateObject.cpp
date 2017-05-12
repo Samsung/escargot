@@ -636,7 +636,7 @@ static char* parseES5DatePortion(const char* currentPosition, int& year, long& m
         return 0;
     return postParsePosition;
 }
-static char* parseES5TimePortion(char* currentPosition, long& hours, long& minutes, double& seconds, long& timeZoneSeconds, bool& haveTZ)
+static char* parseES5TimePortion(char* currentPosition, long& hours, long& minutes, long& milliSeconds, long& timeZoneSeconds, bool& haveTZ)
 {
     char* postParsePosition;
     if (!isASCIIDigit(*currentPosition))
@@ -666,7 +666,7 @@ static char* parseES5TimePortion(char* currentPosition, long& hours, long& minut
             return 0;
         if ((postParsePosition - currentPosition) != 2)
             return 0;
-        seconds = intSeconds;
+        milliSeconds = intSeconds * const_Date_msPerSecond;
         if (*postParsePosition == '.') {
             currentPosition = postParsePosition + 1;
 
@@ -681,7 +681,7 @@ static char* parseES5TimePortion(char* currentPosition, long& hours, long& minut
                 return 0;
 
             long numFracDigits = std::min((long)(postParsePosition - currentPosition), 3L);
-            seconds += fracSeconds * pow(10.0, static_cast<double>(-numFracDigits));
+            milliSeconds += fracSeconds * pow(10.0, static_cast<double>(3 - numFracDigits));
         }
         currentPosition = postParsePosition;
     }
@@ -756,7 +756,7 @@ time64_t DateObject::parseStringToDate_2(ExecutionState& state, String* istr, bo
     long day = 1;
     long hours = 0;
     long minutes = 0;
-    double seconds = 0;
+    long milliSeconds = 0;
     long timeZoneSeconds = 0;
 
     // Parse the date YYYY[-MM[-DD]]
@@ -767,7 +767,7 @@ time64_t DateObject::parseStringToDate_2(ExecutionState& state, String* istr, bo
     if (*currentPosition == 'T') {
         haveTZ = false;
         // Parse the time HH:mm[:ss[.sss]][Z|(+|-)00:00]
-        currentPosition = parseES5TimePortion(currentPosition + 1, hours, minutes, seconds, timeZoneSeconds, haveTZ);
+        currentPosition = parseES5TimePortion(currentPosition + 1, hours, minutes, milliSeconds, timeZoneSeconds, haveTZ);
         if (!currentPosition)
             return TIME64NAN;
     }
@@ -792,18 +792,17 @@ time64_t DateObject::parseStringToDate_2(ExecutionState& state, String* istr, bo
         return TIME64NAN;
     if (hours < 0 || hours > 24)
         return TIME64NAN;
-    if (hours == 24 && (minutes || seconds))
+    if (hours == 24 && (minutes || milliSeconds))
         return TIME64NAN;
     if (minutes < 0 || minutes > 59)
         return TIME64NAN;
-    if (seconds < 0 || seconds >= 61)
+    if (milliSeconds < 0 || milliSeconds >= const_Date_msPerMinute + const_Date_msPerSecond)
         return TIME64NAN;
-    if (seconds > 60) {
+    if (milliSeconds > const_Date_msPerMinute) {
         // Discard leap seconds by clamping to the end of a minute.
-        seconds = 60;
+        milliSeconds = const_Date_msPerMinute;
     }
-
-    time64_t date = timeinfoToMs(state, year, month - 1, day, hours, minutes, (int)seconds, (int64_t)(seconds * const_Date_msPerSecond) % const_Date_msPerSecond) - timeZoneSeconds * const_Date_msPerSecond;
+    time64_t date = timeinfoToMs(state, year, month - 1, day, hours, minutes, (int64_t)(milliSeconds / const_Date_msPerSecond), milliSeconds % const_Date_msPerSecond) - timeZoneSeconds * const_Date_msPerSecond;
     return date;
 }
 

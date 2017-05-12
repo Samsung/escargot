@@ -51,7 +51,8 @@ bool isInValidRange(double year, double month, double date, double hour, double 
 
     int32_t max32 = std::numeric_limits<int32_t>::max();
     int64_t max64 = std::numeric_limits<int64_t>::max();
-    if (year > max32 || month > max32 || date > max32 || hour > max32 || minute > max32 || second > max64 || millisecond > max64) {
+    if (std::abs(year) > max32 || std::abs(month) > max32 || std::abs(date) > max32
+        || std::abs(hour) > max32 || std::abs(minute) > max32 || std::abs(second) > max64 || std::abs(millisecond) > max64) {
         return false;
     }
     return true;

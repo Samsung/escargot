@@ -2,6 +2,7 @@
 <regress-exe>
   <test>
     <default>
+      <escargot-skip>different error message</escargot-skip>
       <files>HasOnlyWritableDataPropertiesCache.js</files>
       <baseline>HasOnlyWritableDataPropertiesCache.baseline</baseline>
     </default>
@@ -30,6 +31,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Test case is not compatible with standard</escargot-skip>
       <files>SetTimeout.js</files>
       <baseline>SetTimeout.baseline</baseline>
     </default>
