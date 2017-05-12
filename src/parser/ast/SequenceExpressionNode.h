@@ -51,7 +51,7 @@ public:
         }
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
         for (size_t i = 0; i < m_expressions.size(); i++) {
             m_expressions[i]->iterateChildrenIdentifier(fn);

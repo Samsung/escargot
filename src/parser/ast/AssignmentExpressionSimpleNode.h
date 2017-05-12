@@ -56,12 +56,12 @@ public:
     static bool hasSlowAssigmentOperation(Node* left, Node* right)
     {
         std::vector<AtomicString> leftNames;
-        left->iterateChildrenIdentifier([&leftNames](AtomicString name) {
+        left->iterateChildrenIdentifier([&leftNames](AtomicString name, bool isAssgnment) {
             leftNames.push_back(name);
         });
 
         bool isSlowMode = false;
-        right->iterateChildrenIdentifier([&leftNames, &isSlowMode](AtomicString name) {
+        right->iterateChildrenIdentifier([&leftNames, &isSlowMode](AtomicString name, bool isAssgnment) {
             for (size_t i = 0; i < leftNames.size(); i++) {
                 if (leftNames[i] == name) {
                     isSlowMode = true;
@@ -137,9 +137,9 @@ public:
         }
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
-        m_left->iterateChildrenIdentifier(fn);
+        m_left->iterateChildrenIdentifierAssigmentCase(fn);
         m_right->iterateChildrenIdentifier(fn);
     }
 

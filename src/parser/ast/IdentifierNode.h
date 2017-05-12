@@ -158,9 +158,14 @@ public:
     }
 
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
-        fn(m_name);
+        fn(m_name, false);
+    }
+
+    virtual void iterateChildrenIdentifierAssigmentCase(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    {
+        fn(m_name, true);
     }
 
 protected:

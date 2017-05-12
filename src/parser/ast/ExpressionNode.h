@@ -42,6 +42,48 @@ public:
         context->giveUpRegister();
     }
 
+    // for binary expressions
+    static bool canUseDirectRegister(ByteCodeGenerateContext* context, Node* left, Node* right)
+    {
+        if (!context->m_canSkipCopyToRegister) {
+            return false;
+        }
+
+        std::vector<AtomicString> assignmentNames;
+        std::vector<AtomicString> names;
+
+        std::function<void(AtomicString name, bool isAssignment)> fn = [&assignmentNames, &names](AtomicString name, bool isAssignment) {
+            if (isAssignment) {
+                for (size_t i = 0; i < assignmentNames.size(); i++) {
+                    if (assignmentNames[i] == name) {
+                        return;
+                    }
+                }
+                assignmentNames.push_back(name);
+            } else {
+                for (size_t i = 0; i < names.size(); i++) {
+                    if (names[i] == name) {
+                        return;
+                    }
+                }
+                names.push_back(name);
+            }
+        };
+
+        left->iterateChildrenIdentifier(fn);
+        right->iterateChildrenIdentifier(fn);
+
+        for (size_t i = 0; i < names.size(); i++) {
+            for (size_t j = 0; j < assignmentNames.size(); j++) {
+                if (names[i] == assignmentNames[j]) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
 
 protected:
 };

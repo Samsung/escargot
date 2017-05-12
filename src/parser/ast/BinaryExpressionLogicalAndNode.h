@@ -39,6 +39,12 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionLogicalAnd; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
+        bool isSlow = !canUseDirectRegister(context, m_left, m_right);
+        bool directBefore = context->m_canSkipCopyToRegister;
+        if (isSlow) {
+            context->m_canSkipCopyToRegister = false;
+        }
+
         size_t resultRegisterExpected = dstRegister;
 
         m_left->generateExpressionByteCode(codeBlock, context, resultRegisterExpected);
@@ -49,9 +55,11 @@ public:
         m_right->generateExpressionByteCode(codeBlock, context, resultRegisterExpected);
 
         codeBlock->peekCode<JumpIfFalse>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
+
+        context->m_canSkipCopyToRegister = directBefore;
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
         m_left->iterateChildrenIdentifier(fn);
         m_right->iterateChildrenIdentifier(fn);

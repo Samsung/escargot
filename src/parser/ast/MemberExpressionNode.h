@@ -165,11 +165,19 @@ public:
         }
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
         m_object->iterateChildrenIdentifier(fn);
         if (!isPreComputedCase()) {
             m_property->iterateChildrenIdentifier(fn);
+        }
+    }
+
+    virtual void iterateChildrenIdentifierAssigmentCase(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    {
+        m_object->iterateChildrenIdentifierAssigmentCase(fn);
+        if (!isPreComputedCase()) {
+            m_property->iterateChildrenIdentifierAssigmentCase(fn);
         }
     }
 

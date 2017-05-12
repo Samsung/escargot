@@ -39,6 +39,11 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionMultiply; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
+        bool isSlow = !canUseDirectRegister(context, m_left, m_right);
+        bool directBefore = context->m_canSkipCopyToRegister;
+        if (isSlow) {
+            context->m_canSkipCopyToRegister = false;
+        }
         size_t src0 = m_left->getRegister(codeBlock, context);
         size_t src1 = m_right->getRegister(codeBlock, context);
         m_left->generateExpressionByteCode(codeBlock, context, src0);
@@ -48,9 +53,10 @@ public:
         context->giveUpRegister();
 
         codeBlock->pushCode(BinaryMultiply(ByteCodeLOC(m_loc.index), src0, src1, dstRegister), context, this);
-    }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+        context->m_canSkipCopyToRegister = directBefore;
+    }
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
         m_left->iterateChildrenIdentifier(fn);
         m_right->iterateChildrenIdentifier(fn);

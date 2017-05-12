@@ -67,9 +67,9 @@ public:
         context->giveUpRegister();
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
-        m_argument->iterateChildrenIdentifier(fn);
+        m_argument->iterateChildrenIdentifierAssigmentCase(fn);
     }
 
 protected:

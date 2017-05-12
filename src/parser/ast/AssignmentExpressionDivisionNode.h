@@ -73,9 +73,9 @@ public:
         return m_left->getRegister(codeBlock, context);
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
-        m_left->iterateChildrenIdentifier(fn);
+        m_left->iterateChildrenIdentifierAssigmentCase(fn);
         m_right->iterateChildrenIdentifier(fn);
     }
 

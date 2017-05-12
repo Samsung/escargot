@@ -312,6 +312,7 @@ public:
 
     struct FunctionParametersInfo {
         bool m_isHeapAllocated;
+        bool m_isDuplicated;
         int32_t m_index;
         AtomicString m_name;
     };

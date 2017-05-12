@@ -236,7 +236,11 @@ public:
 
     virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context);
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)> &fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)> &fn)
+    {
+    }
+
+    virtual void iterateChildrenIdentifierAssigmentCase(const std::function<void(AtomicString name, bool isAssignment)> &fn)
     {
     }
 

@@ -102,7 +102,7 @@ public:
         codeBlock->m_shouldClearStack = true;
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
         m_callee->iterateChildrenIdentifier(fn);
         for (size_t i = 0; i < m_arguments.size(); i++) {

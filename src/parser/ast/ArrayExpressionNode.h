@@ -74,7 +74,7 @@ public:
         codeBlock->m_shouldClearStack = true;
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
         for (size_t i = 0; i < m_elements.size(); i++) {
             if (m_elements[i])

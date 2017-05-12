@@ -269,6 +269,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_parametersInfomation.resizeWithUninitializedValues(parameterNames.size());
     for (size_t i = 0; i < parameterNames.size(); i++) {
         m_parametersInfomation[i].m_name = parameterNames[i];
+        m_parametersInfomation[i].m_isDuplicated = false;
     }
     m_parameterCount = parameterNames.size();
     m_isConsturctor = true;
@@ -521,6 +522,14 @@ void InterpretedCodeBlock::computeVariables()
                 m_needsComplexParameterCopy = true;
                 computed = true;
                 computedIndex = computedNameIndex[j].second;
+
+                for (size_t k = i - 1;; k--) {
+                    if (m_parametersInfomation[k].m_name == name) {
+                        m_parametersInfomation[k].m_isDuplicated = true;
+                        break;
+                    }
+                }
+
                 break;
             }
         }

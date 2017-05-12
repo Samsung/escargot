@@ -96,7 +96,7 @@ public:
         }
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
         for (size_t i = 0; i < m_properties.size(); i++) {
             PropertyNode* p = m_properties[i];
