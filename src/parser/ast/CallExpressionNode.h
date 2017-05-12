@@ -93,6 +93,48 @@ public:
         return ret;
     }
 
+    static bool canUseDirectRegister(ByteCodeGenerateContext* context, Node* callee, const ArgumentVector& args)
+    {
+        if (!context->m_canSkipCopyToRegister) {
+            return false;
+        }
+
+        std::vector<AtomicString> assignmentNames;
+        std::vector<AtomicString> names;
+
+        std::function<void(AtomicString name, bool isAssignment)> fn = [&assignmentNames, &names](AtomicString name, bool isAssignment) {
+            if (isAssignment) {
+                for (size_t i = 0; i < assignmentNames.size(); i++) {
+                    if (assignmentNames[i] == name) {
+                        return;
+                    }
+                }
+                assignmentNames.push_back(name);
+            } else {
+                for (size_t i = 0; i < names.size(); i++) {
+                    if (names[i] == name) {
+                        return;
+                    }
+                }
+                names.push_back(name);
+            }
+        };
+
+        callee->iterateChildrenIdentifier(fn);
+        for (size_t i = 0; i < args.size(); i++) {
+            args[i]->iterateChildrenIdentifier(fn);
+        }
+
+        for (size_t i = 0; i < names.size(); i++) {
+            for (size_t j = 0; j < assignmentNames.size(); j++) {
+                if (names[i] == assignmentNames[j]) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
@@ -102,6 +144,12 @@ public:
             context->giveUpRegister();
             codeBlock->pushCode(CallEvalFunction(ByteCodeLOC(m_loc.index), evalIndex, startIndex, m_arguments.size(), dstRegister, context->m_isWithScope), context, this);
             return;
+        }
+
+        bool isSlow = !canUseDirectRegister(context, m_callee, m_arguments);
+        bool directBefore = context->m_canSkipCopyToRegister;
+        if (isSlow) {
+            context->m_canSkipCopyToRegister = false;
         }
 
         bool prevInCallingExpressionScope = context->m_inCallingExpressionScope;
@@ -151,6 +199,8 @@ public:
         }
 
         context->m_inCallingExpressionScope = prevInCallingExpressionScope;
+
+        context->m_canSkipCopyToRegister = directBefore;
     }
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)

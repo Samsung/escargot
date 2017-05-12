@@ -18,6 +18,7 @@
 #define NewExpressionNode_h
 
 #include "ExpressionNode.h"
+#include "CallExpressionNode.h"
 
 namespace Escargot {
 
@@ -89,6 +90,12 @@ public:
     }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
+        bool isSlow = !CallExpressionNode::canUseDirectRegister(context, m_callee, m_arguments);
+        bool directBefore = context->m_canSkipCopyToRegister;
+        if (isSlow) {
+            context->m_canSkipCopyToRegister = false;
+        }
+
         size_t callee = m_callee->getRegister(codeBlock, context);
         m_callee->generateExpressionByteCode(codeBlock, context, callee);
 
@@ -100,6 +107,8 @@ public:
         codeBlock->pushCode(NewOperation(ByteCodeLOC(m_loc.index), callee, argumentsStartIndex, m_arguments.size(), dstRegister), context, this);
 
         codeBlock->m_shouldClearStack = true;
+
+        context->m_canSkipCopyToRegister = directBefore;
     }
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)

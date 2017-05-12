@@ -21,12 +21,14 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Function.arguments</escargot-skip>
       <files>arguments1.js</files>
       <baseline>arguments1.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>for-in order differ</escargot-skip>
       <files>arguments2.js</files>
       <baseline>arguments2.baseline</baseline>
       <tags>fail_mutators</tags>
@@ -34,6 +36,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>test case is wrong</escargot-skip>
       <files>arguments3.js</files>
       <baseline>arguments3.baseline</baseline>
     </default>
@@ -45,12 +48,14 @@
   </test>
   <test>
     <default>
+      <escargot-skip>old Function.arguments</escargot-skip>
       <files>argumentsMisc.js</files>
       <baseline>argumentsMisc_3.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>for-in order</escargot-skip>
       <files>arguments.es5.js</files>
       <baseline>arguments.es5.baseline</baseline>
     </default>
@@ -63,6 +68,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Chakracore only</escargot-skip>
       <files>argumentsLimits.js</files>
       <baseline>argumentsLimits.baseline</baseline>
       <!-- this test takes a long time with dynapogo on chk build -->
@@ -77,12 +83,14 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Test case is wrong</escargot-skip>
       <files>bind.js</files>
       <baseline>bind.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>call1.js</files>
       <baseline>call1.baseline</baseline>
     </default>
@@ -95,12 +103,14 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Function.caller</escargot-skip>
       <files>CallerArgs.js</files>
       <baseline>CallerArgsES5.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: Array pattern</escargot-skip>
       <files>callsideeffects.js</files>
       <baseline>callsideeffects_3.baseline</baseline>
     </default>
@@ -132,6 +142,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>defernested.js</files>
       <baseline>defernested.baseline</baseline>
     </default>
@@ -215,6 +226,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>prototype.js</files>
       <baseline>prototype.baseline</baseline>
     </default>
@@ -234,6 +246,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>funcExpr.js</files>
       <baseline>funcExpr5.baseline</baseline>
       <tags>fail_mutators</tags>
@@ -241,6 +254,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Function.prototype.toString format differ</escargot-skip>
       <files>moreFuncExpr.js</files>
       <baseline>moreFuncExpr3.baseline</baseline>
       <tags>fail_mutators</tags>
@@ -248,6 +262,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Function.prototype.toString format differ</escargot-skip>
       <files>moreFuncExpr.js</files>
       <baseline>moreFuncExpr3.baseline</baseline>
       <compile-flags>-forceundodefer</compile-flags>
@@ -263,6 +278,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>someMoreFuncExpr.js</files>
       <baseline>someMoreFuncExpr3.baseline</baseline>
       <tags>fail_mutators</tags>
@@ -282,6 +298,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Function.caller</escargot-skip>
       <files>typeErrorAccessor.js</files>
       <baseline>typeErrorAccessor.baseline</baseline>
     </default>

@@ -195,7 +195,7 @@ bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPrope
         if (idx < m_argumentPropertyInfo.size()) {
             Value val = m_argumentPropertyInfo[idx].first;
             if (!val.isEmpty()) {
-                if (desc.isDataWritableEnumerableConfigurable()) {
+                if (desc.isDataWritableEnumerableConfigurable() || desc.isValuePresentAlone()) {
                     if (m_argumentPropertyInfo[idx].second.string()->length()) {
                         ArgumentsObjectNativeSetter(state, this, desc.value(), m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second);
                         return true;
@@ -205,10 +205,20 @@ bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPrope
                     }
                 } else {
                     if (m_argumentPropertyInfo[idx].second.string()->length() && desc.isDataDescriptor()) {
-                        ArgumentsObjectNativeSetter(state, this, desc.value(), m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second);
+                        if (desc.isValuePresent())
+                            ArgumentsObjectNativeSetter(state, this, desc.value(), m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second);
                     }
+                    ObjectPropertyDescriptor descCpy(desc);
+                    if (!desc.isAccessorDescriptor() && !desc.isValuePresent()) {
+                        if (m_argumentPropertyInfo[idx].second.string()->length())
+                            descCpy.setValue(ArgumentsObjectNativeGetter(state, this, m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second));
+                        else
+                            descCpy.setValue(m_argumentPropertyInfo[idx].first);
+                    }
+
                     m_argumentPropertyInfo[idx].first = Value(Value::EmptyValue);
-                    ObjectPropertyDescriptor newDesc(desc);
+
+                    ObjectPropertyDescriptor newDesc(descCpy);
                     newDesc.setWritable(true);
                     newDesc.setConfigurable(true);
                     newDesc.setEnumerable(true);
