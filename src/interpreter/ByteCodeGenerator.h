@@ -44,6 +44,11 @@ struct ParserContextInformation {
     bool m_isWithScope : 1;
 };
 
+struct ByteCodeGenerateError {
+    size_t m_index;
+    std::string m_message;
+};
+
 struct ByteCodeGenerateContext {
     ByteCodeGenerateContext(CodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, ParserContextInformation& parserContextInformation, Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>>* numeralLiteralData)
         : m_baseRegisterCount(0)
@@ -58,6 +63,7 @@ struct ByteCodeGenerateContext {
         , m_catchScopeCount(0)
         , m_shouldGenerateLOCData(false)
         , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
+        , m_currentLabels(new std::vector<std::pair<String*, size_t>>())
         , m_offsetToBasePointer(0)
         , m_positionToContinue(0)
         , m_tryStatementScopeCount(0)
@@ -84,6 +90,7 @@ struct ByteCodeGenerateContext {
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
         , m_shouldGenerateLOCData(contextBefore.m_shouldGenerateLOCData)
         , m_registerStack(contextBefore.m_registerStack)
+        , m_currentLabels(contextBefore.m_currentLabels)
         , m_offsetToBasePointer(contextBefore.m_offsetToBasePointer)
         , m_positionToContinue(contextBefore.m_positionToContinue)
         , m_tryStatementScopeCount(contextBefore.m_tryStatementScopeCount)
@@ -245,6 +252,7 @@ struct ByteCodeGenerateContext {
     std::shared_ptr<std::vector<ByteCodeRegisterIndex>> m_registerStack;
     std::vector<size_t> m_breakStatementPositions;
     std::vector<size_t> m_continueStatementPositions;
+    std::shared_ptr<std::vector<std::pair<String*, size_t>>> m_currentLabels;
     std::vector<std::pair<String*, size_t>> m_labeledBreakStatmentPositions;
     std::vector<std::pair<String*, size_t>> m_labeledContinueStatmentPositions;
     std::vector<size_t> m_getObjectCodePositions;

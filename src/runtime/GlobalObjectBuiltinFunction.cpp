@@ -42,6 +42,13 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
         if (i != argc - 1) {
             src.appendString(",");
             srcToTest.appendString(",");
+
+            for (size_t j = 0; j < p->length(); j++) {
+                char16_t c = p->charAt(j);
+                if (c == '}' || c == '{' || c == ')' || c == '(') {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is a script parse error in parameter name");
+                }
+            }
         }
     }
 
@@ -57,7 +64,6 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     String* source = sourceValue.toString(state);
 
     auto data = source->bufferAccessData();
-    char16_t firstCharMet = ' ';
 
     for (size_t i = 0; i < data.length; i++) {
         char16_t c;
@@ -66,14 +72,11 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
         } else {
             c = ((char16_t*)data.buffer)[i];
         }
-        if (!esprima::isWhiteSpace(c)) {
-            firstCharMet = c;
+        if (c == '{') {
             break;
+        } else if (c == '}') {
+            ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is unbalanced braces(}) in Function Constructor input");
         }
-    }
-
-    if (firstCharMet == '}') {
-        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is unbalanced braces(}) in Function Constructor input");
     }
 
     src.appendString("\n){\n");

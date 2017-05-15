@@ -51,7 +51,6 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         ByteCodeGenerateContext newContext(*context);
-
         newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by caseNode->m_test
 
         bool canSkipCopyToRegister = newContext.m_canSkipCopyToRegister;
@@ -111,6 +110,7 @@ public:
         size_t breakPos = codeBlock->currentCodeSize();
         newContext.consumeBreakPositions(codeBlock, breakPos, context->m_tryStatementScopeCount);
         newContext.m_positionToContinue = context->m_positionToContinue;
+
         newContext.propagateInformationTo(*context);
         if (!m_default) {
             codeBlock->peekCode<Jump>(jmpToDefault)->m_jumpPosition = codeBlock->currentCodeSize();

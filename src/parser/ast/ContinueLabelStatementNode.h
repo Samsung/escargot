@@ -35,6 +35,20 @@ public:
     {
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this);
         context->pushLabeledContinuePositions(codeBlock->lastCodePosition<Jump>(), m_label);
+
+        for (size_t i = 0; i < context->m_currentLabels->size(); i++) {
+            if (m_label->equals(context->m_currentLabels->at(i).first)) {
+                if (context->m_currentLabels->at(i).second) {
+                    ByteCodeGenerateError err;
+                    err.m_index = m_loc.index;
+                    auto ret = codeBlock->computeNodeLOC(codeBlock->m_codeBlock->src(), codeBlock->m_codeBlock->sourceElementStart(), m_loc.index);
+                    char message[512];
+                    snprintf(message, sizeof(message), "Line %zu: Undefined label %s", ret.line, m_label->toUTF8StringData().data());
+                    err.m_message = message;
+                    throw err;
+                }
+            }
+        }
     }
 
 protected:

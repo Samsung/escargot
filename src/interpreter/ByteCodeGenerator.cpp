@@ -144,6 +144,17 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
             }
         }
+    } catch (const ByteCodeGenerateError& err) {
+        block->m_code.clear();
+        char* data = (char*)GC_MALLOC_ATOMIC(err.m_message.size());
+        memcpy(data, err.m_message.data(), err.m_message.size());
+        data[err.m_message.size()] = 0;
+        block->m_literalData.pushBack(data);
+        ThrowStaticErrorOperation code(ByteCodeLOC(err.m_index), ErrorObject::SyntaxError, data);
+        block->m_code.resize(sizeof(ThrowStaticErrorOperation));
+        memcpy(block->m_code.data(), &code, sizeof(ThrowStaticErrorOperation));
+        block->m_locData = new (GC_MALLOC(sizeof(ByteCodeLOCData))) ByteCodeLOCData();
+        block->m_locData->pushBack(std::make_pair(0, err.m_index));
     } catch (const char* err) {
         // TODO
         RELEASE_ASSERT_NOT_REACHED();

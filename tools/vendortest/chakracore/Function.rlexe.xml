@@ -149,6 +149,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>defernested.js</files>
       <compile-flags>-Force:Deferparse -DeferNested</compile-flags>
       <baseline>defernested.baseline</baseline>
@@ -189,6 +190,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>deferredBadContinue.js</files>
       <baseline>deferredBadContinue.baseline</baseline>
       <tags>exclude_dynapogo</tags>
@@ -196,6 +198,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>deferredBadContinue.js</files>
       <baseline>deferredBadContinue.baseline</baseline>
       <compile-flags>-Force:Deferparse</compile-flags>
@@ -305,12 +308,14 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>FuncBody.js</files>
       <baseline>FuncBodyES5.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>Chakracore only</escargot-skip>
       <files>FuncBody.bug133933.js</files>
       <baseline>FuncBody.bug133933.baseline</baseline>
       <compile-flags>-trace:FunctionSourceInfoParse -off:deferparse</compile-flags>
@@ -319,6 +324,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>FuncBody.bug227901.js</files>
       <baseline>FuncBody.bug227901.baseline</baseline>
       <compile-flags>-off:deferparse</compile-flags>
@@ -326,6 +332,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>FuncBody.bug232281.js</files>
       <baseline>FuncBody.bug232281.baseline</baseline>
       <compile-flags>-off:deferparse</compile-flags>
@@ -348,6 +355,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Chakracore only</escargot-skip>
       <files>bug_258259.js</files>
       <baseline>bug_258259.baseline</baseline>
       <compile-flags>-ExtendedErrorStackForTestHost</compile-flags>
@@ -355,6 +363,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Not standards</escargot-skip>
       <files>sameNamePara.js</files>
       <baseline>sameNamePara.baseline</baseline>
     </default>
@@ -367,36 +376,42 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>undefThis.js</files>
       <baseline>undefThis.v10.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>Function.arguments</escargot-skip>
       <files>stackargs.js</files>
       <baseline>stackargs.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 Syntax</escargot-skip>
       <files>StackArgsWithFormals.js</files>
       <compile-flags>-mic:1 -off:simpleJit</compile-flags>
     </default>
   </test>
    <test>
     <default>
+      <escargot-skip>FIXME: ES6 Syntax</escargot-skip>
       <files>StackArgsWithFormals.js</files>
       <compile-flags>-mic:1 -off:simpleJit -forceserialized</compile-flags>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 Syntax</escargot-skip>
       <files>StackArgsWithFormals.js</files>
       <compile-flags>-mic:1 -off:simpleJit -forcedeferparse</compile-flags>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 Syntax</escargot-skip>
       <files>StackArgsWithFormals.js</files>
       <compile-flags>-mic:1 -off:simpleJit -trace:stackargformalsopt</compile-flags>
       <tags>exclude_dynapogo,exclude_ship,exclude_fre,exclude_nonative,require_backend,exclude_forceserialized</tags>
@@ -412,6 +427,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Chakracore only</escargot-skip>
       <files>childCallsEvalJitLoopBody.js</files>
       <baseline />
       <compile-flags>-prejit</compile-flags>
@@ -458,6 +474,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 Syntax</escargot-skip>
       <files>redefer-recursive-inlinees.js</files>
       <baseline>redefer-recursive-inlinees.baseline</baseline>
     </default>
