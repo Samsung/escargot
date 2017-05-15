@@ -99,6 +99,7 @@
 </dir>
 <dir>
   <default>
+    <escargot-skip>Implementation-dependent case</escargot-skip>
     <files>TaggedFloats</files>
   </default>
 </dir>

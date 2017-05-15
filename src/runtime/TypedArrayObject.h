@@ -330,11 +330,15 @@ public:
 
     virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)
     {
-        uint64_t index;
-        if (LIKELY(property.isUInt32())) {
-            index = property.asUInt32();
+        int64_t index;
+        if (LIKELY(property.isInt32())) {
+            index = property.asInt32();
+
         } else {
             index = property.toString(state)->tryToUseAsIndex();
+        }
+        if (index < 0) {
+            return true;
         }
         if (LIKELY(Value::InvalidIndexValue != index)) {
             if (LIKELY((unsigned)index < arraylength())) {

@@ -215,10 +215,10 @@ public:
 // This value is 2^48, used to encode doubles such that the encoded value will begin
 // with a 16-bit pattern within the range 0x0001..0xFFFE.
 #define DoubleEncodeOffset 0x1000000000000ll
-// DoubleEncodeOffset assumes that double value will begin with 0x0001..0xFFFE,
-// but there can be invalid inputs start with 0xFFFF.
+// DoubleEncodeOffset assumes that double value will begin with 0x0000..0xFFFD,
+// but there can be invalid inputs start with 0xFFFE or 0xFFFF.
 // So it is used to filter those values.
-#define DoubleInvalidBeginning 0xffff000000000000ll
+#define DoubleInvalidBeginning 0xfffe000000000000ll
 // If all bits in the mask are set, this indicates an integer number,
 // if any but not all are set this value is a double precision number.
 #define TagTypeNumber 0xffff000000000000ll

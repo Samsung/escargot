@@ -96,6 +96,10 @@ run_test() {
 				$($DIFF_CMD $TEMPORARY_OUTPUT_FILE $BASELINE_PATH/baseline6 2>&1 > $TEMPORARY_DIFF_FILE)
 				DIFF_EXIT_CODE=$?
 			fi
+			if [[ "$DIFF_EXIT_CODE" != "0" ]]; then
+				$($DIFF_CMD $TEMPORARY_OUTPUT_FILE $BASELINE_PATH/baseline7 2>&1 > $TEMPORARY_DIFF_FILE)
+				DIFF_EXIT_CODE=$?
+			fi
 		fi
 		if [[ $TZSET != "" ]]; then
 			TZ=Asia/Seoul;

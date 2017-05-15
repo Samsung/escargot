@@ -70,9 +70,11 @@ Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t 
 
     if (argc >= 3) {
         Value& val = argv[2];
-        byteLength = val.toLength(state);
-        if (byteOffset + byteLength > bufferByteLength) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+        if (!val.isUndefined()) {
+            byteLength = val.toLength(state);
+            if (byteOffset + byteLength > bufferByteLength) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+            }
         }
     }
 

@@ -43,6 +43,11 @@ public:
         return true;
     }
 
+    virtual const char* internalClassProperty()
+    {
+        return "DataView";
+    }
+
     // 24.2.1.1
     Value getViewValue(ExecutionState& state, Value index, Value _isLittleEndian, TypedArrayType type)
     {

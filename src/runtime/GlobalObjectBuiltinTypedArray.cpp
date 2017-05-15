@@ -400,7 +400,7 @@ Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, 
         uint64_t srcLength = src->length(state);
         if (srcLength + (uint64_t)offset > targetLength) {
             const StaticStrings* strings = &state.context()->staticStrings();
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), "");
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), errorMessage_GlobalObject_InvalidArrayLength);
         }
         int targetByteIndex = offset * targetElementSize + targetByteOffset;
         int k = 0;
@@ -419,7 +419,7 @@ Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, 
         int srcByteOffset = arg0Wrapper->byteoffset();
         if (((double)srcLength + (double)offset) > (double)targetLength) {
             const StaticStrings* strings = &state.context()->staticStrings();
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), "");
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), errorMessage_GlobalObject_InvalidArrayLength);
         }
         int srcByteIndex = 0;
         ArrayBufferObject* oldSrcBuffer = srcBuffer;
