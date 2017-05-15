@@ -82,7 +82,7 @@ struct ByteCodeGenerateContext {
         , m_isGlobalScope(contextBefore.m_isGlobalScope)
         , m_isEvalCode(contextBefore.m_isEvalCode)
         , m_isOutermostContext(false)
-        , m_isWithScope(false)
+        , m_isWithScope(contextBefore.m_isWithScope)
         , m_canSkipCopyToRegister(contextBefore.m_canSkipCopyToRegister)
         , m_keepNumberalLiteralsInRegisterFile(contextBefore.m_keepNumberalLiteralsInRegisterFile)
         , m_catchScopeCount(contextBefore.m_catchScopeCount)

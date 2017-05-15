@@ -24,21 +24,21 @@
 
 namespace Escargot {
 
-GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, InterpretedCodeBlock* codeBlock, GlobalObject* global, bool isEvalMode)
+GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, InterpretedCodeBlock* codeBlock, GlobalObject* global, bool isEvalMode, bool createBinding)
     : EnvironmentRecord()
     , m_globalCodeBlock(codeBlock)
 {
     ASSERT(codeBlock == nullptr || codeBlock->parentCodeBlock() == nullptr);
     m_globalObject = global;
 
-    if (!codeBlock)
-        return;
-    const InterpretedCodeBlock::IdentifierInfoVector& vec = codeBlock->identifierInfos();
-    size_t len = vec.size();
-    for (size_t i = 0; i < len; i++) {
-        // https://www.ecma-international.org/ecma-262/5.1/#sec-10.5
-        // Step 2. If code is eval code, then let configurableBindings be true.
-        createBinding(state, vec[i].m_name, isEvalMode, vec[i].m_isMutable);
+    if (createBinding) {
+        const InterpretedCodeBlock::IdentifierInfoVector& vec = codeBlock->identifierInfos();
+        size_t len = vec.size();
+        for (size_t i = 0; i < len; i++) {
+            // https://www.ecma-international.org/ecma-262/5.1/#sec-10.5
+            // Step 2. If code is eval code, then let configurableBindings be true.
+            this->createBinding(state, vec[i].m_name, isEvalMode, vec[i].m_isMutable);
+        }
     }
 }
 

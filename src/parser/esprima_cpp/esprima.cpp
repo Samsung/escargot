@@ -2708,6 +2708,8 @@ public:
             scopeContexts.back()->m_hasWith = true;
         } else if (type == YieldExpression) {
             scopeContexts.back()->m_hasYield = true;
+        } else if (type == CatchClause) {
+            scopeContexts.back()->m_hasCatch = true;
         }
 
         node->m_loc = NodeLOC(meta.index);

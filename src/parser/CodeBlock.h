@@ -156,9 +156,9 @@ public:
         return m_hasYield;
     }
 
-    bool hasEvalWithCatchYield() const
+    bool hasEvalWithYield() const
     {
-        return m_hasEval || m_hasWith || m_hasCatch || m_hasYield;
+        return m_hasEval || m_hasWith || m_hasYield;
     }
 
     bool isStrict() const
@@ -309,7 +309,7 @@ public:
         m_childBlocks.push_back(cb);
     }
     bool tryCaptureIdentifiersFromChildCodeBlock(AtomicString name);
-    void notifySelfOrChildHasEvalWithCatchYield();
+    void notifySelfOrChildHasEvalWithYield();
 
     struct FunctionParametersInfo {
         bool m_isHeapAllocated;
@@ -368,11 +368,11 @@ public:
         return m_parentCodeBlock == nullptr;
     }
 
-    bool inEvalWithCatchYieldScope()
+    bool inEvalWithYieldScope()
     {
         CodeBlock* cb = this;
         while (cb) {
-            if (cb->hasEvalWithCatchYield()) {
+            if (cb->hasEvalWithYield()) {
                 return true;
             }
             cb = cb->asInterpretedCodeBlock()->parentCodeBlock();

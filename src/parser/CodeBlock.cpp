@@ -331,7 +331,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
         m_isFunctionExpression = false;
     }
 
-    m_canUseIndexedVariableStorage = !hasEvalWithCatchYield();
+    m_canUseIndexedVariableStorage = !hasEvalWithYield();
 
     if (m_inWith) {
         m_canUseIndexedVariableStorage = false;
@@ -372,7 +372,7 @@ bool InterpretedCodeBlock::tryCaptureIdentifiersFromChildCodeBlock(AtomicString 
     return false;
 }
 
-void InterpretedCodeBlock::notifySelfOrChildHasEvalWithCatchYield()
+void InterpretedCodeBlock::notifySelfOrChildHasEvalWithYield()
 {
     m_canAllocateEnvironmentOnStack = false;
     m_canUseIndexedVariableStorage = false;
@@ -394,7 +394,7 @@ void InterpretedCodeBlock::computeVariables()
         m_canAllocateEnvironmentOnStack = false;
     }
 
-    if (inEvalWithCatchYieldScope() || inNotIndexedCodeBlockScope()) {
+    if (inEvalWithYieldScope() || inNotIndexedCodeBlockScope() || hasCatch()) {
         m_canAllocateEnvironmentOnStack = false;
     }
 

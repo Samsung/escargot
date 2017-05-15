@@ -65,12 +65,13 @@ void StringBuilder::appendPiece(const char* str)
     piece.m_end = strlen(str);
     piece.m_raw = str;
     piece.m_type = StringBuilderPiece::Type::ConstChar;
-
-    m_contentLength += piece.m_end;
-    if (m_piecesInlineStorageUsage < STRING_BUILDER_INLINE_STORAGE_MAX) {
-        m_piecesInlineStorage[m_piecesInlineStorageUsage++] = piece;
-    } else
-        m_pieces.push_back(piece);
+    if (piece.m_end) {
+        m_contentLength += piece.m_end;
+        if (m_piecesInlineStorageUsage < STRING_BUILDER_INLINE_STORAGE_MAX) {
+            m_piecesInlineStorage[m_piecesInlineStorageUsage++] = piece;
+        } else
+            m_pieces.push_back(piece);
+    }
 }
 
 void StringBuilder::appendPiece(char16_t ch)

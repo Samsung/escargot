@@ -76,10 +76,10 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
             }
         }
 
-        if (codeBlock->hasEvalWithCatchYield() || codeBlock->isFunctionDeclarationWithSpecialBinding()) {
+        if (codeBlock->hasEvalWithYield() || codeBlock->isFunctionDeclarationWithSpecialBinding()) {
             InterpretedCodeBlock* c = codeBlock;
             while (c) {
-                c->notifySelfOrChildHasEvalWithCatchYield();
+                c->notifySelfOrChildHasEvalWithYield();
                 c = c->parentCodeBlock();
             }
         }
