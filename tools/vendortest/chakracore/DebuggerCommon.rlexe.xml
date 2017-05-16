@@ -91,6 +91,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>es6_forof_decl.js</files>
       <compile-flags>-debuglaunch -ES6 -dbgbaseline:es6_forof_decl.js.dbg.baseline</compile-flags>
       <baseline>es6_forof_decl.js.baseline</baseline>
@@ -99,6 +100,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>es6_forof_decl-2.js</files>
       <compile-flags>-debuglaunch -ES6 -dbgbaseline:es6_forof_decl-2.js.dbg.baseline</compile-flags>
       <baseline>es6_forof_decl-2.js.baseline</baseline>
@@ -107,6 +109,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>es6_forof_decl-3.js</files>
       <compile-flags>-debuglaunch -ES6 -dbgbaseline:es6_forof_decl-3.js.dbg.baseline</compile-flags>
       <baseline>es6_forof_decl-3.js.baseline</baseline>
@@ -115,6 +118,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>es6_forof_decl-4.js</files>
       <compile-flags>-debuglaunch -ES6 -dbgbaseline:es6_forof_decl-4.js.dbg.baseline</compile-flags>
       <baseline>es6_forof_decl-4.js.baseline</baseline>
@@ -123,6 +127,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>es6_forof_decl-5.js</files>
       <compile-flags>-debuglaunch -ES6 -dbgbaseline:es6_forof_decl-5.js.dbg.baseline</compile-flags>
       <baseline>es6_forof_decl-5.js.baseline</baseline>
@@ -131,6 +136,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>es6_forof_decl-6.js</files>
       <compile-flags>-debuglaunch -ES6 -dbgbaseline:es6_forof_decl-6.js.dbg.baseline</compile-flags>
       <baseline>es6_forof_decl-6.js.baseline</baseline>
@@ -255,6 +261,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>TempStrExpr.js</files>
       <compile-flags>-debuglaunch -ES6 -ES6ObjectLiterals -dbgbaseline:TempStrExpr.js.dbg.baseline</compile-flags>
       <baseline>TempStrExpr.js.baseline</baseline>
@@ -288,6 +295,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockscope_func_declaration_ES6.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:blockscope_func_declaration_ES6.js.dbg.baseline -Intl-</compile-flags>
       <baseline>blockscope_func_declaration_ES6.js.baseline</baseline>
@@ -304,6 +312,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>ES6_letconst_eval_nonstrict.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:ES6_letconst_eval_nonstrict.js.dbg.baseline -Intl-</compile-flags>
       <baseline>ES6_letconst_eval_nonstrict.js.baseline</baseline>
@@ -312,6 +321,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>ES6_letconst_for.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:ES6_letconst_for.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators</tags>
@@ -319,6 +329,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>ES6_letconst_trycatch_simple_fast.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:ES6_letconst_trycatch_simple_fast.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators</tags>
@@ -347,6 +358,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 function</escargot-skip>
       <files>ES6_intl_stepinto_libexpandos.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:ES6_intl_stepinto_libexpandos.js.dbg.baseline -Intl</compile-flags>
       <tags>fail_mutators,exclude_winglob</tags>
@@ -354,6 +366,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>ES6_letconst_forin.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:ES6_letconst_forin.js.dbg.baseline -Intl</compile-flags>
       <tags>fail_mutators</tags>
@@ -361,6 +374,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>ES6_letconst_const_usebeforedeclaration.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:ES6_letconst_const_usebeforedeclaration.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -375,6 +389,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>frames_letconst_reassignobjects_ES6.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:frames_letconst_reassignobjects_ES6.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -382,6 +397,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>ES6_letconst_const_reassignment_globalscope.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:ES6_letconst_const_reassignment_globalscope.js.dbg.baseline -Intl-</compile-flags>
       <baseline>ES6_letconst_const_reassignment_globalscope.js.baseline</baseline>
@@ -390,6 +406,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>ES6_letconst_redcl.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:ES6_letconst_redcl.js.dbg.baseline -Intl-</compile-flags>
       <baseline>ES6_letconst_redcl.js.baseline</baseline>
@@ -406,6 +423,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>old Function.caller</escargot-skip>
       <files>argument_disp.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:argument_disp.js.dbg.baseline -Intl-</compile-flags>
       <baseline>argument_disp.js.baseline</baseline>
@@ -414,6 +432,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>old Function.caller</escargot-skip>
       <files>multiple_argumentsdisp_safeguard.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:multiple_argumentsdisp_safeguard.js.dbg.baseline -Intl-</compile-flags>
       <baseline>multiple_argumentsdisp_safeguard.js.baseline</baseline>
@@ -422,6 +441,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>level_1.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:level_1.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -429,6 +449,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>ES6_spread.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:ES6_spread.js.dbg.baseline -es6spread -nonative</compile-flags>
       <tags>fail_mutators,exclude_dynapogo</tags>
@@ -436,6 +457,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>specialproperties_fn.js</files>
       <compile-flags>-debuglaunch -inspectmaxstringlength:100 -dbgbaseline:specialproperties_fn.js.dbg.baseline</compile-flags>
       <tags>fail_mutators,exclude_dynapogo</tags>
@@ -504,6 +526,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Chakracore only</escargot-skip>
       <files>protoTest2.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:protoTest2.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -511,6 +534,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Chakracore only</escargot-skip>
       <files>testdynamicattach2.js</files>
       <compile-flags>-dbgbaseline:testdynamicattach2.js.dbg.baseline</compile-flags>
       <baseline>testdynamicattach2.baseline</baseline>
@@ -557,6 +581,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 function</escargot-skip>
       <files>indexprop.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:indexprop.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -623,6 +648,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeSlotArrayCapture.js</files>
       <compile-flags>-InspectMaxStringLength:33 -debuglaunch -dbgbaseline:blockScopeSlotArrayCapture.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -630,6 +656,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeActivationObjectCapture.js</files>
       <compile-flags>-InspectMaxStringLength:33 -debuglaunch -dbgbaseline:blockScopeActivationObjectCapture.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -637,6 +664,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeBasicLetConstTest.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:blockScopeBasicLetConstTest.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -644,6 +672,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeActivationObjectAsSlotArray.js</files>
       <compile-flags>-InspectMaxStringLength:150 -debuglaunch -dbgbaseline:blockScopeActivationObjectAsSlotArray.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -651,6 +680,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeBasicScopingTest.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:blockScopeBasicScopingTest.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -658,6 +688,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeForTest.bug183991.js</files>
       <compile-flags>-InspectMaxStringLength:33 -debuglaunch -dbgbaseline:blockScopeForTest.bug183991.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -665,6 +696,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeNestedFunctionTest.js</files>
       <compile-flags>-InspectMaxStringLength:33 -debuglaunch -dbgbaseline:blockScopeNestedFunctionTest.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -672,6 +704,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeDeadZoneTest.js</files>
       <compile-flags>-InspectMaxStringLength:33 -debuglaunch -dbgbaseline:blockScopeDeadZoneTest.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -679,6 +712,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeEvalTest.js</files>
       <compile-flags>-InspectMaxStringLength:33 -debuglaunch -dbgbaseline:emptyJson.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -686,6 +720,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeGlobalTest.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:blockScopeGlobalTest.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -693,6 +728,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeForTest.js</files>
       <compile-flags>-InspectMaxStringLength:33 -debuglaunch -dbgbaseline:blockScopeForTest.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators</tags>
@@ -700,6 +736,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeWithTest.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:blockScopeWithTest.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators</tags>
@@ -707,6 +744,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeSwitchTest.js</files>
       <compile-flags>-InspectMaxStringLength:33 -debuglaunch -dbgbaseline:blockScopeSwitchTest.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators</tags>
@@ -714,6 +752,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeActivationObjectDeadZoneTest.js</files>
       <compile-flags>-InspectMaxStringLength:33 -debuglaunch -dbgbaseline:blockScopeActivationObjectDeadZoneTest.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators</tags>
@@ -721,6 +760,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeRegSlotDeadZoneTest.js</files>
       <compile-flags>-InspectMaxStringLength:33 -debuglaunch -dbgbaseline:blockScopeRegSlotDeadZoneTest.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators</tags>
@@ -728,6 +768,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeSlotArrayDeadZoneTest.js</files>
       <compile-flags>-InspectMaxStringLength:33 -debuglaunch -dbgbaseline:blockScopeSlotArrayDeadZoneTest.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators</tags>
@@ -735,6 +776,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeGlobalDeadZoneTest.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:blockScopeGlobalDeadZoneTest.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators</tags>
@@ -742,6 +784,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeGlobalBlockTest.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:blockScopeGlobalBlockTest.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators</tags>
@@ -765,6 +808,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeSlotArraySiblingTest.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:blockScopeSlotArraySiblingTest.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -772,6 +816,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeGlobalSlotArrayTest.bug222631.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:blockScopeGlobalSlotArrayTest.bug222631.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators</tags>
@@ -779,6 +824,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeSibling.bug263635.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:blockScopeSibling.bug263635.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -822,6 +868,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeFunctionDeclarationGlobalShadowingTest.bug305562.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:blockScopeFunctionDeclarationGlobalShadowingTest.bug305562.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators</tags>
@@ -997,6 +1044,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeExpressionNoWriteOfConst.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:blockScopeExpressionNoWriteOfConst.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -1004,6 +1052,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeRegSlotShadowingExpressionEvaluationTest.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:blockScopeRegSlotShadowingExpressionEvaluationTest.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators</tags>
@@ -1011,6 +1060,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeExpressionSimpleDeadZoneTest.js</files>
       <compile-flags>-InspectMaxStringLength:33 -debuglaunch -dbgbaseline:blockScopeExpressionSimpleDeadZoneTest.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -1018,6 +1068,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeExpressionEquationDeadZoneTest.js</files>
       <compile-flags>-InspectMaxStringLength:33 -debuglaunch -dbgbaseline:blockScopeExpressionEquationDeadZoneTest.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -1025,6 +1076,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>blockScopeTryCatchTest.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:blockScopeTryCatchTest.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators</tags>
@@ -1032,13 +1084,15 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>localsInspectionOnNonTopFrameInBlockTest.bug163347.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:localsInspectionOnNonTopFrameInBlockTest.bug163347.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators</tags>
     </default>
   </test>
   <test>
-    <default>     
+    <default>
+      <escargot-skip>Chakracore only</escargot-skip>
       <files>jitAttach.js</files>
       <compile-flags> -maxinterpretcount:1 -off:simpleJit -EnableJitInDiagMode -dbgbaseline:jitAttach.js.dbg.baseline</compile-flags>
       <tags>fail_mutators,exclude_dynapogo</tags>
@@ -1061,6 +1115,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>bug_222633.js</files>
       <compile-flags> -debuglaunch -dbgbaseline:emptyJson.dbg.baseline</compile-flags>
       <tags>fail_mutators,exclude_dynapogo</tags>
@@ -1092,6 +1147,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>old Function.caller, Function.arguments</escargot-skip>
       <files>bug_177146.js</files>
       <compile-flags> -debuglaunch -dbgbaseline:bug_177146.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators,exclude_dynapogo</tags>
@@ -1099,6 +1155,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>old Function.caller, Function.arguments</escargot-skip>
       <files>bug_177146.js</files>
       <compile-flags> -debuglaunch -dbgbaseline:bug_177146.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators,exclude_dynapogo</tags>
@@ -1106,6 +1163,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>bug_256729.js</files>
       <compile-flags> -debuglaunch -dbgbaseline:bug_256729.js.dbg.baseline</compile-flags>
       <tags>fail_mutators,exclude_dynapogo,exclude_nonative</tags>
@@ -1135,6 +1193,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>var_shadow.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:var_shadow.js.dbg.baseline</compile-flags>
       <tags>fail_mutators,exclude_dynapogo</tags>
@@ -1164,6 +1223,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>bug_291582.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:bug_291582.js.dbg.baseline -Intl-</compile-flags>
       <tags>fail_mutators,exclude_dynapogo</tags>
@@ -1211,6 +1271,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>qualified_names2.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:qualified_names2.js.dbg.baseline -es6classes -Intl-</compile-flags>
       <tags>fail_mutators</tags>
@@ -1226,6 +1287,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Chakracore-only</escargot-skip>
       <files>bug_507528.js</files>
       <compile-flags>-debuglaunch -Intl- -dbgbaseline:emptyJson.dbg.baseline</compile-flags>
       <baseline>bug_507528.baseline</baseline>
@@ -1234,6 +1296,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 function</escargot-skip>
       <files>bug_543550.js</files>
       <compile-flags>-debuglaunch -inspectmaxstringlength:110 -dbgbaseline:bug_543550.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -1248,6 +1311,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 function</escargot-skip>
       <files>symbols.js</files>
       <compile-flags>-ES6Species -debuglaunch -dbgbaseline:symbols.js.dbg.baseline</compile-flags>
       <tags>fail_mutators,exclude_dynapogo</tags>
@@ -1305,6 +1369,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>spread_debugging.js</files>
       <compile-flags>-ES6Spread -DebugLaunch -InspectMaxStringLength:100 -dbgbaseline:spread_debugging.js.dbg.baseline</compile-flags>
       <tags>exclude_serialized</tags>
@@ -1334,6 +1399,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Chakracore-only</escargot-skip>
       <files>returnedvaluetests2.js</files>
       <compile-flags>-debugLaunch -dbgbaseline:returnedvaluetests2.js.dbg.baseline</compile-flags>
       <tags>exclude_dynapogo,exclude_serialized</tags>
@@ -1349,6 +1415,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Chakracore-only</escargot-skip>
       <files>returnedvaluetests3.js</files>
       <compile-flags>-debugLaunch -dbgbaseline:returnedvaluetests3.js.dbg.baseline</compile-flags>
       <tags>exclude_dynapogo,exclude_serialized</tags>
@@ -1386,6 +1453,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>ObjLit_step_into_more.js</files>
       <baseline>ObjLit_step_into_more.js.baseline</baseline>
       <compile-flags>-debuglaunch -dbgbaseline:ObjLit_step_into_more.js.dbg.baseline</compile-flags>
@@ -1407,30 +1475,35 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>generators.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:generators.js.dbg.baseline -ES6Generators -InspectMaxStringLength:200</compile-flags>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>async.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:async.js.dbg.baseline</compile-flags>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>async_step_out.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:async_step_out.js.dbg.baseline</compile-flags>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>async_step_over.js</files>
       <compile-flags>-debuglaunch -dbgbaseline:async_step_over.js.dbg.baseline</compile-flags>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 function</escargot-skip>
       <files>TypedArray.js</files>
       <compile-flags>-ES6Species -debuglaunch -dbgbaseline:typedarray.js.dbg.baseline -InspectMaxStringLength:200</compile-flags>
     </default>
@@ -1467,6 +1540,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>ConsoleScope.js</files>
       <baseline>ConsoleScope.js.baseline</baseline>
       <compile-flags>-debuglaunch -es6classes -dbgbaseline:consolescope.js.dbg.baseline</compile-flags>
@@ -1475,6 +1549,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>ConsoleScopePMSpec.js</files>
       <baseline>ConsoleScopePMSpec.js.baseline</baseline>
       <compile-flags>-debuglaunch -dbgbaseline:consolescopepmspec.js.dbg.baseline</compile-flags>
@@ -1489,6 +1564,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>destructuring-debug.js</files>
       <compile-flags>-es6defaultargs -es6destructuring -debuglaunch -InspectMaxStringLength:100 -dbgbaseline:destructuring-debug.js.dbg.baseline</compile-flags>
       <tags>fail_mutators</tags>
@@ -1496,12 +1572,14 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 function</escargot-skip>
       <files>regex-symbols.js</files>
       <compile-flags>-ES6RegExSymbols -ES6RegExPrototypeProperties -debuglaunch -dbgbaseline:regex-symbols.js.dbg.baseline</compile-flags>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>default.js</files>
       <compile-flags>-debugLaunch -dbgbaseline:default.js.dbg.baseline</compile-flags>
     </default>

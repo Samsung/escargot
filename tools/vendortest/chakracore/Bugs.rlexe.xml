@@ -58,6 +58,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Non standard</escargot-skip>
       <files>randombug.js</files>
       <baseline>randombug.baseline</baseline>
       <compile-flags>-ExtendedErrorStackForTestHost</compile-flags>
@@ -179,6 +180,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>vso_os_1091425.js</files>
     </default>
   </test>

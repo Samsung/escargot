@@ -89,11 +89,6 @@
 </dir>
 <dir>
   <default>
-    <files>Array</files>
-  </default>
-</dir>
-<dir>
-  <default>
     <files>TaggedIntegers</files>
   </default>
 </dir>
@@ -236,11 +231,13 @@
 </dir>
 <dir>
   <default>
+    <escargot-skip>Not in scope</escargot-skip>
     <files>es6</files>
   </default>
 </dir>
 <dir>
   <default>
+    <escargot-skip>Not in scope</escargot-skip>
     <files>es7</files>
   </default>
 </dir>

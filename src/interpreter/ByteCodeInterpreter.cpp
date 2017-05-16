@@ -1797,11 +1797,19 @@ NEVER_INLINE void ByteCodeInterpreter::declareFunctionDeclarations(ExecutionStat
                 AtomicString name = v[i]->functionName();
                 FunctionObject* fn = new FunctionObject(state, v[i], lexicalEnvironment);
                 LexicalEnvironment* env = lexicalEnvironment;
+
+                while (!env->record()->isEvalTarget()) {
+                    env = env->outerEnvironment();
+                }
+
                 while (env) {
-                    auto result = env->record()->hasBinding(state, name);
-                    if (result.m_index != SIZE_MAX) {
-                        env->record()->initializeBinding(state, name, fn);
-                        break;
+                    auto record = env->record();
+                    if (record->isEvalTarget()) {
+                        auto result = env->record()->hasBinding(state, name);
+                        if (result.m_index != SIZE_MAX) {
+                            env->record()->initializeBinding(state, name, fn);
+                            break;
+                        }
                     }
                     env = env->outerEnvironment();
                 }

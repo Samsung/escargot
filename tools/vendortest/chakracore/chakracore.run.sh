@@ -1,4 +1,4 @@
-#TEST_ROOT=$(pwd)
+
 TEST_ROOT=$(dirname $(readlink -f $0))
 BIN=
 
@@ -71,34 +71,28 @@ run_test() {
 			CMD="env TZ=US/Pacific $CMD";
 		fi
 		$($CMD \
-			| sed 's/\[object global\]/[object Object]/g' \
 			> $TEMPORARY_OUTPUT_FILE 2>> $LOG_FILE)
+		ESCARGOT_EXIT_CODE=$?
+		sed -i 's/\[object global\]/[object Object]/g' "$TEMPORARY_OUTPUT_FILE"
+		#cat $TEMPORARY_OUTPUT_FILE
+
 		$($DIFF_CMD $TEMPORARY_OUTPUT_FILE $BASELINE 2>&1 > $TEMPORARY_DIFF_FILE)
 		DIFF_EXIT_CODE=$?
+		#echo $DIFF_EXIT_CODE
+
 		if [[ $BASELINE == $BASELINE_PATH/baseline1 ]]; then
-			if [[ "$DIFF_EXIT_CODE" != "0" ]]; then
-				$($DIFF_CMD $TEMPORARY_OUTPUT_FILE $BASELINE_PATH/baseline2 2>&1 > $TEMPORARY_DIFF_FILE)
-				DIFF_EXIT_CODE=$?
-			fi
-			if [[ "$DIFF_EXIT_CODE" != "0" ]]; then
-				$($DIFF_CMD $TEMPORARY_OUTPUT_FILE $BASELINE_PATH/baseline3 2>&1 > $TEMPORARY_DIFF_FILE)
-				DIFF_EXIT_CODE=$?
-			fi
-			if [[ "$DIFF_EXIT_CODE" != "0" ]]; then
-				$($DIFF_CMD $TEMPORARY_OUTPUT_FILE $BASELINE_PATH/baseline4 2>&1 > $TEMPORARY_DIFF_FILE)
-				DIFF_EXIT_CODE=$?
-			fi
-			if [[ "$DIFF_EXIT_CODE" != "0" ]]; then
-				$($DIFF_CMD $TEMPORARY_OUTPUT_FILE $BASELINE_PATH/baseline5 2>&1 > $TEMPORARY_DIFF_FILE)
-				DIFF_EXIT_CODE=$?
-			fi
-			if [[ "$DIFF_EXIT_CODE" != "0" ]]; then
-				$($DIFF_CMD $TEMPORARY_OUTPUT_FILE $BASELINE_PATH/baseline6 2>&1 > $TEMPORARY_DIFF_FILE)
-				DIFF_EXIT_CODE=$?
-			fi
-			if [[ "$DIFF_EXIT_CODE" != "0" ]]; then
-				$($DIFF_CMD $TEMPORARY_OUTPUT_FILE $BASELINE_PATH/baseline7 2>&1 > $TEMPORARY_DIFF_FILE)
-				DIFF_EXIT_CODE=$?
+			#echo $ESCARGOT_EXIT_CODE
+			if [[ $ESCARGOT_EXIT_CODE == 0 ]]; then
+				#cat $TEMPORARY_OUTPUT_FILE
+				grep FAIL "$TEMPORARY_OUTPUT_FILE" > /dev/null
+				if [[ $? == 0 ]]
+				then
+					DIFF_EXIT_CODE=1
+				else
+					DIFF_EXIT_CODE=0
+				fi
+			else
+				DIFF_EXIT_CODE=1
 			fi
 		fi
 		if [[ $TZSET != "" ]]; then

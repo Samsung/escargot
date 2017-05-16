@@ -130,18 +130,21 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Chakracore only</escargot-skip>
       <files>proto_disable.js</files>
       <baseline>proto_disable.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>Not standards</escargot-skip>
       <files>proto_initializer.js</files>
       <baseline>proto_initializer.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>Not standards</escargot-skip>
       <files>proto_initializer.js</files>
       <baseline>proto_initializer.baseline</baseline>
       <compile-flags>-ForceSerialized</compile-flags>
@@ -215,12 +218,14 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Not standards</escargot-skip>
       <files>blockscope-deferred.js</files>
       <baseline>blockscope-deferred.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>Not standards</escargot-skip>
       <files>blockscope-deferred.js</files>
       <compile-flags>-force:deferparse</compile-flags>
       <baseline>blockscope-deferred.baseline</baseline>
@@ -228,12 +233,14 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: let</escargot-skip>
       <files>blockscope-functionbinding.js</files>
       <baseline>blockscope-functionbinding.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: let</escargot-skip>
       <files>blockscope-functionbinding.js</files>
       <compile-flags>-force:deferparse</compile-flags>
       <baseline>blockscope-functionbinding.baseline</baseline>
@@ -241,6 +248,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: let</escargot-skip>
       <files>blockscope-functionbinding.js</files>
       <compile-flags>-lic:1 -InitializeInterpreterSlotsWithInvalidStackVar</compile-flags>
       <baseline>blockscope-functionbinding.baseline</baseline>
@@ -249,53 +257,62 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: let, const</escargot-skip>
       <files>letconst_global.js</files>
       <baseline>letconst_global.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: let, const</escargot-skip>
       <files>letconst_global_shadowing.js</files>
       <baseline>letconst_global_shadowing.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: let, const</escargot-skip>
       <files>letconst_global_shadow_builtins.js</files>
       <baseline>letconst_global_shadow_builtins.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: let, const</escargot-skip>
       <files>letconst_global_shadow_builtins_nonconfigurable.js</files>
       <baseline>letconst_global_shadow_builtins_nonconfigurable.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: let, const</escargot-skip>
       <files>letconst_global_shadow_deleted.js</files>
       <baseline>letconst_global_shadow_deleted.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: let, const</escargot-skip>
       <files>letconst_global_shadow_accessor.js</files>
       <baseline>letconst_global_shadow_accessor.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: let, const</escargot-skip>
       <files>letconst_global_bug.js</files>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: let, const</escargot-skip>
       <files>letconst_eval_redecl.js</files>
       <baseline>letconst_eval_redecl.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: let, const</escargot-skip>
       <files>letconst_eval_redecl.js</files>
       <baseline>letconst_eval_redecl.strictmode.baseline</baseline>
       <compile-flags>-forcestrictmode</compile-flags>
@@ -303,6 +320,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Not standards(ES5)</escargot-skip>
       <files>definegettersetter.js</files>
       <baseline>definegettersetter.baseline</baseline>
     </default>
@@ -386,6 +404,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: class</escargot-skip>
       <files>ES6SubclassableAsync.js</files>
       <compile-flags>-ES6Classes -ES6Spread -ES6Generators -Off:Deferparse</compile-flags>
       <baseline>ES6SubclassableAsync.baseline</baseline>
@@ -393,6 +412,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: class</escargot-skip>
       <files>ES6SubclassableAsync.js</files>
       <compile-flags>-ES6Classes -ES6Spread -ES6Generators -Force:Deferparse</compile-flags>
       <baseline>ES6SubclassableAsync.baseline</baseline>
@@ -424,6 +444,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 function</escargot-skip>
       <files>codePointAt.js</files>
       <baseline>codePointAt.baseline</baseline>
       <compile-flags> -ES6Unicode</compile-flags>
@@ -431,6 +452,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 syntax</escargot-skip>
       <files>stringtemplate_basic.js</files>
       <baseline>stringtemplate_basic.baseline</baseline>
     </default>
@@ -493,6 +515,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 Syntax</escargot-skip>
       <files>ES6PromiseAsync.js</files>
       <baseline>ES6PromiseAsync.baseline</baseline>
       <compile-flags> -ES6 -ES6Promise</compile-flags>
@@ -500,6 +523,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 Syntax</escargot-skip>
       <files>es6_stable.js</files>
       <!-- Disable OOP JIT which would cause output to print twice. -->
       <compile-flags>-verbose -es6 -ES6DefaultArgs -oopjit- -WERExceptionSupport</compile-flags>
@@ -509,6 +533,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 Syntax</escargot-skip>
       <files>es6_stable.js</files>
       <!-- Disable OOP JIT which would cause output to print twice. -->
       <compile-flags>-verbose -es6 -es6- -ES6DefaultArgs -oopjit- -WERExceptionSupport</compile-flags>
@@ -518,6 +543,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 Syntax</escargot-skip>
       <files>es6_all.js</files>
       <!-- Disable OOP JIT which would cause output to print twice. -->
       <compile-flags>-verbose -es6all -oopjit- -WERExceptionSupport</compile-flags>
@@ -527,6 +553,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 function</escargot-skip>
       <files>normalize.js</files>
       <baseline>normalize.baseline</baseline>
       <compile-flags> -ES6Unicode</compile-flags>
@@ -534,12 +561,14 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: ES6 function</escargot-skip>
       <files>normalizeProp.js</files>
       <baseline>normalizeProp.baseline</baseline>
     </default>
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: Yarr unicode problem</escargot-skip>
       <files>unicode_escape_sequences.js</files>
       <baseline>unicode_escape_sequences.baseline</baseline>
       <compile-flags> -ES6Unicode -ES6RegExSticky</compile-flags>
@@ -548,6 +577,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Chakracore only</escargot-skip>
       <files>unicode_6_identifiers_utf8.js</files>
       <baseline>unicode_6_identifiers_utf8.baseline</baseline>
       <compile-flags> -ES6Unicode</compile-flags>
@@ -556,6 +586,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Chakracore only</escargot-skip>
       <files>unicode_regex_surrogate_atoms.js</files>
       <baseline>unicode_regex_surrogate_atoms.baseline</baseline>
       <compile-flags> -ES6Unicode -ES6RegExSticky</compile-flags>
@@ -619,6 +650,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>unicode_6_identifier_Blue511452.js</files>
       <baseline>unicode_6_identifier_Blue511452.baseline</baseline>
       <compile-flags> -ES6Unicode</compile-flags>
@@ -633,6 +665,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Error message differ</escargot-skip>
       <files>unicode_6_identifier_Blue524737.js</files>
       <baseline>unicode_6_identifier_Blue524737.baseline</baseline>
       <compile-flags> -ES6Unicode</compile-flags>
@@ -641,6 +674,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: class</escargot-skip>
       <files>supersyntax02.js</files>
       <baseline>supersyntax02.baseline</baseline>
       <tags>exclude_dynapogo</tags>
@@ -648,6 +682,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: class</escargot-skip>
       <files>supersyntax05.js</files>
       <baseline>supersyntax05.baseline</baseline>
       <compile-flags> -ES6Classes</compile-flags>
@@ -656,6 +691,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>FIXME: class</escargot-skip>
       <files>supersyntax06.js</files>
       <baseline>supersyntax06.baseline</baseline>
       <compile-flags> -ES6Classes</compile-flags>
@@ -670,6 +706,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Chakracore only</escargot-skip>
       <files>unicode_regex_surrogate_utf8.js</files>
       <baseline>unicode_regex_surrogate_utf8.baseline</baseline>
       <compile-flags> -ES6Unicode -ES6RegExSticky</compile-flags>
@@ -679,6 +716,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>Chakracore only</escargot-skip>
       <files>unicode_blue_533163_utf8.js</files>
       <baseline>unicode_blue_533163_utf8.baseline</baseline>
       <compile-flags> -ES6Unicode</compile-flags>

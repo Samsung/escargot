@@ -180,6 +180,12 @@ public:
         fn(m_name, true);
     }
 
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        generateExpressionByteCode(codeBlock, context, context->getRegister());
+        context->giveUpRegister();
+    }
+
 protected:
     AtomicString m_name;
 };
