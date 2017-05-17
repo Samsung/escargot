@@ -113,11 +113,12 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
     }
     ParserContextInformation info(isEvalMode, isGlobalScope, codeBlock->isStrict(), codeBlock->isInWithScope());
 
-    Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>>* nData = scopeCtx->m_numeralLiteralData;
+    Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>>* nData = &scopeCtx->m_numeralLiteralData;
 
     if (scopeCtx->m_hasManyNumeralLiteral) {
         nData = nullptr;
     }
+
     ByteCodeGenerateContext ctx(codeBlock, block, info, nData);
     ctx.m_shouldGenerateLOCData = shouldGenerateLOCData;
     if (shouldGenerateLOCData) {
@@ -163,7 +164,6 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
     if (ctx.m_keepNumberalLiteralsInRegisterFile) {
         block->m_numeralLiteralData.resizeWithUninitializedValues(nData->size());
         memcpy(block->m_numeralLiteralData.data(), nData->data(), sizeof(Value) * nData->size());
-        nData->clear();
     }
 
     // ESCARGOT_LOG_INFO("codeSize %lf, %lf\n", block->m_code.size() / 1024.0 / 1024.0, block->m_code.capacity() / 1024.0 / 1024.0);

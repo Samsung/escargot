@@ -304,7 +304,7 @@ struct ASTScopeContext : public gc {
     AtomicStringTightVector m_parameters;
     AtomicString m_functionName;
     TightVector<ASTScopeContext *, GCUtil::gc_malloc_ignore_off_page_allocator<ASTScopeContext *>> m_childScopes;
-    Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>> *m_numeralLiteralData;
+    Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>> m_numeralLiteralData;
     ExtendedNodeLOC m_locStart;
 #ifndef NDEBUG
     ExtendedNodeLOC m_locEnd;
@@ -353,13 +353,14 @@ struct ASTScopeContext : public gc {
     void insertNumeralLiteral(Value v)
     {
         ASSERT(!v.isPointerValue());
-        if (!m_numeralLiteralData)
-            m_numeralLiteralData = new (GC) Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>>();
-        if (VectorUtil::findInVector(*m_numeralLiteralData, v) == VectorUtil::invalidIndex) {
-            if (m_numeralLiteralData->size() < KEEP_NUMERAL_LITERDATA_IN_REGISTERFILE_LIMIT)
-                m_numeralLiteralData->push_back(v);
+        if (m_hasManyNumeralLiteral) {
+            return;
+        }
+        if (VectorUtil::findInVector(m_numeralLiteralData, v) == VectorUtil::invalidIndex) {
+            if (m_numeralLiteralData.size() < KEEP_NUMERAL_LITERDATA_IN_REGISTERFILE_LIMIT)
+                m_numeralLiteralData.push_back(v);
             else {
-                m_numeralLiteralData->clear();
+                m_numeralLiteralData.clear();
                 m_hasManyNumeralLiteral = true;
             }
         }
@@ -376,7 +377,6 @@ struct ASTScopeContext : public gc {
         m_isStrict = isStrict;
         m_hasEvaluateBindingId = m_hasYield = m_hasCatch = m_hasWith = m_hasEval = false;
         m_needsSpecialInitialize = m_hasManyNumeralLiteral = m_inCatch = m_inWith = false;
-        m_numeralLiteralData = nullptr;
     }
 };
 

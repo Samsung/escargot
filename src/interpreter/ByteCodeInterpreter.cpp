@@ -1262,7 +1262,6 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
     }
 
     Object* orgObj = obj;
-    // inlineCache.m_cache.insert(0, GetObjectInlineCacheData());
     inlineCache.m_cache.insert(inlineCache.m_cache.begin(), GetObjectInlineCacheData());
 
     ObjectStructureChain* cachedHiddenClassChain = &inlineCache.m_cache[0].m_cachedhiddenClassChain;
@@ -1273,9 +1272,11 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
 
         cachedHiddenClassChain->push_back(newItem);
         size_t idx = obj->structure()->findProperty(state, name);
-        if (obj->structure()->isStructureWithFastAccess()) {
+
+        if (!obj->structure()->isProtectedByTransitionTable()) {
             block->m_objectStructuresInUse->insert(obj->structure());
         }
+
         if (idx != SIZE_MAX) {
             inlineCache.m_cache[0].m_cachedIndex = idx;
             break;

@@ -63,6 +63,7 @@ public:
     ObjectStructure(ExecutionState& state, bool needsTransitionTable = true)
     {
         m_needsTransitionTable = needsTransitionTable;
+        m_isProtectedByTransitionTable = false;
         m_hasIndexPropertyName = false;
         m_isStructureWithFastAccess = false;
     }
@@ -71,6 +72,7 @@ public:
         : m_properties(std::move(properties))
     {
         m_needsTransitionTable = needsTransitionTable;
+        m_isProtectedByTransitionTable = false;
         m_hasIndexPropertyName = hasIndexPropertyName;
         m_isStructureWithFastAccess = false;
     }
@@ -137,6 +139,11 @@ public:
         return m_isStructureWithFastAccess;
     }
 
+    bool isProtectedByTransitionTable()
+    {
+        return m_isProtectedByTransitionTable;
+    }
+
     size_t propertyCount() const
     {
         return m_properties.size();
@@ -146,6 +153,7 @@ public:
     void* operator new[](size_t size) = delete;
 
 protected:
+    bool m_isProtectedByTransitionTable;
     bool m_needsTransitionTable;
     bool m_hasIndexPropertyName;
     bool m_isStructureWithFastAccess;
@@ -259,6 +267,7 @@ inline ObjectStructure* ObjectStructure::addProperty(ExecutionState& state, cons
 
     if (m_needsTransitionTable && !newObjectStructure->isStructureWithFastAccess()) {
         ObjectStructureTransitionItem newTransitionItem(name, desc, newObjectStructure);
+        newObjectStructure->m_isProtectedByTransitionTable = true;
         m_transitionTable.pushBack(newTransitionItem);
     }
 
