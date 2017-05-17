@@ -809,6 +809,114 @@ static Value builtinUnescape(ExecutionState& state, Value thisValue, size_t argc
     }
 }
 
+// Object.prototype.__defineGetter__ ( P, getter )
+static Value builtinDefineGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ? ToObject(this value).
+    Object* O = thisValue.toObject(state);
+    // If IsCallable(getter) is false, throw a TypeError exception.
+    if (!argv[1].isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, String::emptyString, true, state.context()->staticStrings().__defineGetter__.string(), errorMessage_GlobalObject_CallbackNotCallable);
+    }
+    // Let desc be PropertyDescriptor{[[Get]]: getter, [[Enumerable]]: true, [[Configurable]]: true}.
+    ObjectPropertyDescriptor desc(JSGetterSetter(argv[1].asFunction(), Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
+
+    // Let key be ? ToPropertyKey(P).
+    ObjectPropertyName key(state, argv[0]);
+
+    // Perform ? DefinePropertyOrThrow(O, key, desc).
+    // https://tc39.github.io/ecma262/#sec-object.prototype.__defineGetter__
+    // says we should use 'Object::defineOwnPropertyThrowsException'
+    // but, other engines not follow that clause
+    O->defineOwnProperty(state, key, desc);
+
+    // Return undefined.
+    return Value();
+}
+
+// Object.prototype.__defineSetter__ ( P, getter )
+static Value builtinDefineSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ? ToObject(this value).
+    Object* O = thisValue.toObject(state);
+    // If IsCallable(getter) is false, throw a TypeError exception.
+    if (!argv[1].isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, String::emptyString, true, state.context()->staticStrings().__defineSetter__.string(), errorMessage_GlobalObject_CallbackNotCallable);
+    }
+    // Let desc be PropertyDescriptor{[[Get]]: getter, [[Enumerable]]: true, [[Configurable]]: true}.
+    ObjectPropertyDescriptor desc(JSGetterSetter(Value(Value::EmptyValue), argv[1].asFunction()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
+
+    // Let key be ? ToPropertyKey(P).
+    ObjectPropertyName key(state, argv[0]);
+
+    // Perform ? DefinePropertyOrThrow(O, key, desc).
+    // https://tc39.github.io/ecma262/#sec-object.prototype.__defineSetter__
+    // says we should use 'Object::defineOwnPropertyThrowsException'
+    // but, other engines not follow that clause
+    O->defineOwnProperty(state, key, desc);
+
+    // Return undefined.
+    return Value();
+}
+
+// Object.prototype.__lookupGetter__ ( P, getter )
+static Value builtinLookupGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ? ToObject(this value).
+    Object* O = thisValue.toObject(state);
+    // Let key be ? ToPropertyKey(P).
+    ObjectPropertyName key(state, argv[0]);
+
+    // Repeat,
+    while (O) {
+        // Let desc be ? O.[[GetOwnProperty]](key).
+        auto desc = O->getOwnProperty(state, key);
+
+        // If desc is not undefined, then
+        if (desc.hasValue()) {
+            // If IsAccessorDescriptor(desc) is true, return desc.[[Get]].
+            if (!desc.isDataProperty() && desc.jsGetterSetter()->hasGetter()) {
+                return desc.jsGetterSetter()->getter();
+            }
+            // Return undefined.
+            return Value();
+        }
+        // Set O to ? O.[[GetPrototypeOf]]().
+        O = O->getPrototypeObject();
+        // If O is null, return undefined.
+    }
+    return Value();
+}
+
+// Object.prototype.__lookupSetter__ ( P, getter )
+static Value builtinLookupSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ? ToObject(this value).
+    Object* O = thisValue.toObject(state);
+    // Let key be ? ToPropertyKey(P).
+    ObjectPropertyName key(state, argv[0]);
+
+    // Repeat,
+    while (O) {
+        // Let desc be ? O.[[GetOwnProperty]](key).
+        auto desc = O->getOwnProperty(state, key);
+
+        // If desc is not undefined, then
+        if (desc.hasValue()) {
+            // If IsAccessorDescriptor(desc) is true, return desc.[[Set]].
+            if (!desc.isDataProperty() && desc.jsGetterSetter()->hasSetter()) {
+                return desc.jsGetterSetter()->setter();
+            }
+            // Return undefined.
+            return Value();
+        }
+        // Set O to ? O.[[GetPrototypeOf]]().
+        O = O->getPrototypeObject();
+        // If O is null, return undefined.
+    }
+    return Value();
+}
+
 void GlobalObject::installOthers(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
@@ -878,6 +986,26 @@ void GlobalObject::installOthers(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(strings->unescape),
                       ObjectPropertyDescriptor(new FunctionObject(state,
                                                                   NativeFunctionInfo(strings->unescape, builtinUnescape, 1, nullptr, NativeFunctionInfo::Strict)),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__defineGetter__),
+                      ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                  NativeFunctionInfo(strings->__defineGetter__, builtinDefineGetter, 2, nullptr, 0)),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__defineSetter__),
+                      ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                  NativeFunctionInfo(strings->__defineSetter__, builtinDefineSetter, 2, nullptr, 0)),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__lookupGetter__),
+                      ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                  NativeFunctionInfo(strings->__lookupGetter__, builtinLookupGetter, 1, nullptr, 0)),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__lookupSetter__),
+                      ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                  NativeFunctionInfo(strings->__lookupSetter__, builtinLookupSetter, 1, nullptr, 0)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 #ifdef ESCARGOT_SHELL

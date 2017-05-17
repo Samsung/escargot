@@ -1296,7 +1296,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
 
 ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, ByteCodeBlock* block)
 {
-    Object* obj = nullptr;
+    Object* obj;
     if (UNLIKELY(!willBeObject.isObject())) {
         obj = willBeObject.toObject(state);
         if (willBeObject.isPrimitive()) {

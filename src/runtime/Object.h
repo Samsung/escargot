@@ -595,6 +595,29 @@ public:
         }
     }
 
+    Object* getPrototypeObject()
+    {
+        if (LIKELY((size_t)m_prototype > 2)) {
+            if (UNLIKELY(g_objectRareDataTag == *((size_t*)(m_prototype)))) {
+                Object* e = rareData()->m_prototype;
+                if ((size_t)e > 2) {
+                    return e;
+                } else if (e == nullptr) {
+                    return nullptr;
+                } else {
+                    ASSERT((size_t)e == 1);
+                    return nullptr;
+                }
+            }
+            return m_prototype;
+        } else if (m_prototype == nullptr) {
+            return nullptr;
+        } else {
+            ASSERT((size_t)m_prototype == 1);
+            return nullptr;
+        }
+    }
+
     void setPrototype(ExecutionState& state, const Value& value);
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
@@ -845,29 +868,6 @@ protected:
 
     void markAsPrototypeObject(ExecutionState& state);
     void deleteOwnProperty(ExecutionState& state, size_t idx);
-
-    Object* getPrototypeObject()
-    {
-        if (LIKELY((size_t)m_prototype > 2)) {
-            if (UNLIKELY(g_objectRareDataTag == *((size_t*)(m_prototype)))) {
-                Object* e = rareData()->m_prototype;
-                if ((size_t)e > 2) {
-                    return e;
-                } else if (e == nullptr) {
-                    return nullptr;
-                } else {
-                    ASSERT((size_t)e == 1);
-                    return nullptr;
-                }
-            }
-            return m_prototype;
-        } else if (m_prototype == nullptr) {
-            return nullptr;
-        } else {
-            ASSERT((size_t)m_prototype == 1);
-            return nullptr;
-        }
-    }
 };
 
 COMPILE_ASSERT(sizeof(Object) >= sizeof(String), "");

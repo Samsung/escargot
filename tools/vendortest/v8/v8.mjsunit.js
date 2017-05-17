@@ -476,39 +476,6 @@ var assertMatches;
 // FIX FOR ESCARGOT
 /////////////////////////////////////////////////////////////////////////////
 
-Object.defineProperty(Object.prototype, "__defineGetter__", {
-    value : function __defineGetter__(prop, func) {
-        try {
-            Object.defineProperty(this, prop, {get: func, enumerable : true, configurable : true});
-        } catch (e) {
-        }
-    },
-    writable: true,
-    enumerable : false,
-    configurable: true
-});
-
-Object.defineProperty(Object.prototype, "__defineSetter__", {
-    value : function __defineSetter__(prop, func) { Object.defineProperty(this, prop, {set: func, enumerable : true, configurable : true}); },
-    writable: true,
-    enumerable : false,
-    configurable: true
-});
-
-Object.defineProperty(Object.prototype, "__lookupGetter__", {
-    value : function __lookupGetter__(prop, func) { return Object.getOwnPropertyDescriptor(this, prop).get; },
-    writable: true,
-    enumerable : false,
-    configurable: true
-});
-
-Object.defineProperty(Object.prototype, "__lookupSetter__", {
-    value : function __lookupSetter__(prop, func) { return Object.getOwnPropertyDescriptor(this, prop).set; },
-    writable: true,
-    enumerable : false,
-    configurable: true
-});
-
 function Realm()
 {
     this.global = createNewGlobalObject();

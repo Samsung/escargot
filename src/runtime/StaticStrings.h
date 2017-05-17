@@ -32,6 +32,10 @@ namespace Escargot {
     F(callee)                     \
     F(length)                     \
     F(__proto__)                  \
+    F(__defineGetter__)           \
+    F(__defineSetter__)           \
+    F(__lookupGetter__)           \
+    F(__lookupSetter__)           \
     F(value)                      \
     F(writable)                   \
     F(enumerable)                 \
