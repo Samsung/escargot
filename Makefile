@@ -225,7 +225,10 @@ OBJS += $(SRC_C:%.c= $(OUTDIR)/%.o)
 ifeq ($(OUTPUT), bin)
   OBJS_GC=third_party/GCutil/bdwgc/out/$(HOST)/$(ARCH)/$(MODE).static/.libs/libgc.a
 else
-  OBJS_GC=third_party/GCutil/bdwgc/out/$(HOST)/$(ARCH)/$(MODE).shared/.libs/libgc.a
+  OBJS_GC=
+  ifneq (,$(findstring standalone,$(MAKECMDGOALS)))
+    OBJS_GC=third_party/GCutil/bdwgc/out/$(HOST)/$(ARCH)/$(MODE).shared/.libs/libgc.a
+  endif
 endif
 
 #######################################################
@@ -235,12 +238,11 @@ endif
 # pull in dependency info for *existing* .o files
 -include $(OBJS:.o=.d)
 
-.DEFAULT_GOAL:=x64.interpreter.debug
-
 x86.interpreter.debug: $(OUTDIR)/$(BIN)
 	cp -f $< .
 x86.interpreter.release: $(OUTDIR)/$(BIN)
 	cp -f $< .
+
 x86.interpreter.debug.shared: $(OUTDIR)/$(SHARED_LIB)
 	cp -f $< .
 x86.interpreter.release.shared: $(OUTDIR)/$(SHARED_LIB)
@@ -249,10 +251,21 @@ x86.interpreter.debug.static: $(OUTDIR)/$(STATIC_LIB)
 	cp -f $< .
 x86.interpreter.release.static: $(OUTDIR)/$(STATIC_LIB)
 	cp -f $< .
+
+x86.interpreter.debug.shared.standalone: $(OUTDIR)/$(SHARED_LIB)
+	cp -f $< .
+x86.interpreter.release.shared.standalone: $(OUTDIR)/$(SHARED_LIB)
+	cp -f $< .
+x86.interpreter.debug.static.standalone: $(OUTDIR)/$(STATIC_LIB)
+	cp -f $< .
+x86.interpreter.release.static.standalone: $(OUTDIR)/$(STATIC_LIB)
+	cp -f $< .
+
 x64.interpreter.debug: $(OUTDIR)/$(BIN)
 	cp -f $< .
 x64.interpreter.release: $(OUTDIR)/$(BIN)
 	cp -f $< .
+
 x64.interpreter.debug.shared: $(OUTDIR)/$(SHARED_LIB)
 	cp -f $< .
 x64.interpreter.release.shared: $(OUTDIR)/$(SHARED_LIB)
@@ -261,6 +274,16 @@ x64.interpreter.debug.static: $(OUTDIR)/$(STATIC_LIB)
 	cp -f $< .
 x64.interpreter.release.static: $(OUTDIR)/$(STATIC_LIB)
 	cp -f $< .
+
+x64.interpreter.debug.shared.standalone: $(OUTDIR)/$(SHARED_LIB)
+	cp -f $< .
+x64.interpreter.release.shared.standalone: $(OUTDIR)/$(SHARED_LIB)
+	cp -f $< .
+x64.interpreter.debug.static.standalone: $(OUTDIR)/$(STATIC_LIB)
+	cp -f $< .
+x64.interpreter.release.static.standalone: $(OUTDIR)/$(STATIC_LIB)
+	cp -f $< .
+
 #tizen_mobile_arm.interpreter.debug: $(OUTDIR)/$(BIN)
 #	cp -f $< .
 #tizen_mobile_arm.interpreter.release: $(OUTDIR)/$(BIN)
