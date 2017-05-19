@@ -685,6 +685,11 @@ public:
 
     virtual void sort(ExecutionState& state, std::function<bool(const Value& a, const Value& b)> comp);
 
+    virtual bool isInlineCacheable()
+    {
+        return true;
+    }
+
     ObjectRareData* ensureObjectRareData()
     {
         if (rareData() == nullptr) {
@@ -710,7 +715,7 @@ public:
         return rareData()->m_internalClassName;
     }
 
-    void giveInternalClassProperty(const char* name)
+    virtual void giveInternalClassProperty(const char* name)
     {
         ensureObjectRareData()->m_internalClassName = name;
     }
@@ -753,13 +758,9 @@ public:
     static void throwCannotWriteError(ExecutionState& state, const PropertyName& P);
     static void throwCannotDeleteError(ExecutionState& state, const PropertyName& P);
 
-    // this function is always success
-    // conditon of useing this function is
-    // ASSERT(!hasOwnProperty(state, P));
-    // ASSERT(isExtensible());
-    // ASSERT(!isArrayObject());
-    // ASSERT(!isStringObject());
-    void defineNativeGetterSetterDataProperty(ExecutionState& state, const ObjectPropertyName& P, ObjectPropertyNativeGetterSetterData* data, const Value& objectInternalData);
+    // this function differ with defineOwnProperty.
+    // !hasOwnProperty(state, P) is needed for success
+    bool defineNativeDataAccessorProperty(ExecutionState& state, const ObjectPropertyName& P, ObjectPropertyNativeGetterSetterData* data, const Value& objectInternalData);
 
 protected:
     Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);
@@ -809,7 +810,7 @@ protected:
         if (LIKELY(item.m_descriptor.isPlainDataProperty())) {
             return m_values[idx];
         } else {
-            return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this);
+            return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this, m_values[idx]);
         }
     }
 
@@ -819,7 +820,7 @@ protected:
             m_values[idx] = newValue;
             return true;
         } else {
-            return item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, newValue);
+            return item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, m_values[idx], newValue);
         }
     }
 
@@ -841,7 +842,7 @@ protected:
             if (LIKELY(item.m_descriptor.isPlainDataProperty())) {
                 return m_values[idx];
             } else {
-                return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this);
+                return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this, m_values[idx]);
             }
         } else {
             return getOwnPropertyUtilForObjectAccCase(state, idx, receiver);

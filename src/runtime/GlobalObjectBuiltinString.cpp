@@ -755,7 +755,7 @@ static Value builtinStringValueOf(ExecutionState& state, Value thisValue, size_t
 void GlobalObject::installString(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    m_string = new FunctionObject(state, NativeFunctionInfo(strings->String, builtinStringConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+    m_string = new FunctionObject(state, NativeFunctionInfo(strings->String, builtinStringConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
                                       return new StringObject(state);
                                   }),
                                   FunctionObject::__ForBuiltin__);

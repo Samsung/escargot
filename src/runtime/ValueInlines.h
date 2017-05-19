@@ -90,6 +90,12 @@ inline Value::Value(bool b)
     u.asBits.payload = b;
 }
 
+inline Value::Value(FromPayloadTag, intptr_t ptr)
+{
+    u.asBits.tag = OtherPointerTag;
+    u.asBits.payload = reinterpret_cast<int32_t>(ptr);
+}
+
 extern size_t g_objectTag;
 
 inline Value::Value(PointerValue* ptr)
@@ -319,6 +325,11 @@ inline Value::Value(TrueInitTag)
 inline Value::Value(FalseInitTag)
 {
     u.asInt64 = ValueFalse;
+}
+
+inline Value::Value(FromPayloadTag, intptr_t ptr)
+{
+    u.ptr = (PointerValue*)ptr;
 }
 
 inline Value::Value(bool b)

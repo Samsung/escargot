@@ -26,16 +26,16 @@ namespace Escargot {
 extern size_t g_doubleInSmallValueTag;
 extern size_t g_objectRareDataTag;
 
-Value VMInstance::functionPrototypeNativeGetter(ExecutionState& state, Object* self)
+Value VMInstance::functionPrototypeNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isFunctionObject());
-    return self->m_values[0];
+    return privateDataFromObjectPrivateArea;
 }
 
-bool VMInstance::functionPrototypeNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData)
+bool VMInstance::functionPrototypeNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
     ASSERT(self->isFunctionObject());
-    self->m_values[0] = setterInputData;
+    privateDataFromObjectPrivateArea = setterInputData;
     return true;
 }
 
@@ -45,13 +45,13 @@ static ObjectPropertyNativeGetterSetterData functionPrototypeNativeGetterSetterD
 static ObjectPropertyNativeGetterSetterData builtinFunctionPrototypeNativeGetterSetterData(
     false, false, false, &VMInstance::functionPrototypeNativeGetter, &VMInstance::functionPrototypeNativeSetter);
 
-Value VMInstance::arrayLengthNativeGetter(ExecutionState& state, Object* self)
+Value VMInstance::arrayLengthNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isArrayObject());
-    return self->m_values[0];
+    return privateDataFromObjectPrivateArea;
 }
 
-bool VMInstance::arrayLengthNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData)
+bool VMInstance::arrayLengthNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
     ASSERT(self->isArrayObject());
 
@@ -80,13 +80,13 @@ bool VMInstance::arrayLengthNativeSetter(ExecutionState& state, Object* self, co
 static ObjectPropertyNativeGetterSetterData arrayLengthGetterSetterData(
     true, false, false, &VMInstance::arrayLengthNativeGetter, &VMInstance::arrayLengthNativeSetter);
 
-Value VMInstance::stringLengthNativeGetter(ExecutionState& state, Object* self)
+Value VMInstance::stringLengthNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isStringObject());
     return Value(self->asStringObject()->primitiveValue()->length());
 }
 
-bool VMInstance::stringLengthNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData)
+bool VMInstance::stringLengthNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
     return false;
 }
@@ -94,7 +94,7 @@ bool VMInstance::stringLengthNativeSetter(ExecutionState& state, Object* self, c
 static ObjectPropertyNativeGetterSetterData stringLengthGetterSetterData(
     false, false, false, &VMInstance::stringLengthNativeGetter, &VMInstance::stringLengthNativeSetter);
 
-Value VMInstance::regexpSourceNativeGetter(ExecutionState& state, Object* self)
+Value VMInstance::regexpSourceNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isRegExpObject());
     return Value(self->asRegExpObject()->source());
@@ -102,7 +102,7 @@ Value VMInstance::regexpSourceNativeGetter(ExecutionState& state, Object* self)
 static ObjectPropertyNativeGetterSetterData regexpSourceGetterData(
     false, false, false, &VMInstance::regexpSourceNativeGetter, nullptr);
 
-Value VMInstance::regexpGlobalNativeGetter(ExecutionState& state, Object* self)
+Value VMInstance::regexpGlobalNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isRegExpObject());
     return Value((bool)(self->asRegExpObject()->option() & RegExpObject::Option::Global));
@@ -111,7 +111,7 @@ Value VMInstance::regexpGlobalNativeGetter(ExecutionState& state, Object* self)
 static ObjectPropertyNativeGetterSetterData regexpGlobalGetterData(
     false, false, false, &VMInstance::regexpGlobalNativeGetter, nullptr);
 
-Value VMInstance::regexpIgnoreCaseNativeGetter(ExecutionState& state, Object* self)
+Value VMInstance::regexpIgnoreCaseNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isRegExpObject());
     return Value((bool)(self->asRegExpObject()->option() & RegExpObject::Option::IgnoreCase));
@@ -120,7 +120,7 @@ Value VMInstance::regexpIgnoreCaseNativeGetter(ExecutionState& state, Object* se
 static ObjectPropertyNativeGetterSetterData regexpIgnoreCaseGetterData(
     false, false, false, &VMInstance::regexpIgnoreCaseNativeGetter, nullptr);
 
-Value VMInstance::regexpMultilineNativeGetter(ExecutionState& state, Object* self)
+Value VMInstance::regexpMultilineNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isRegExpObject());
     return Value((bool)(self->asRegExpObject()->option() & RegExpObject::Option::MultiLine));
@@ -129,13 +129,13 @@ Value VMInstance::regexpMultilineNativeGetter(ExecutionState& state, Object* sel
 static ObjectPropertyNativeGetterSetterData regexpMultilineGetterData(
     false, false, false, &VMInstance::regexpMultilineNativeGetter, nullptr);
 
-Value VMInstance::regexpLastIndexNativeGetter(ExecutionState& state, Object* self)
+Value VMInstance::regexpLastIndexNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isRegExpObject());
     return self->asRegExpObject()->lastIndex();
 }
 
-bool VMInstance::regexpLastIndexNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData)
+bool VMInstance::regexpLastIndexNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
     ASSERT(self->isRegExpObject());
     self->asRegExpObject()->setLastIndex(state, setterInputData);

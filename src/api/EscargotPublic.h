@@ -21,16 +21,41 @@
 
 namespace Escargot {
 
-class StringRef {
-public:
-    static StringRef* fromASCII(const char* s);
-    static StringRef* fromUTF8(const char* s, size_t len);
-};
+class ValueRef;
+class PointerValueRef;
+class ObjectRef;
+class FunctionObjectRef;
+class ScriptRef;
+class ScriptParserRef;
+class ExecutionStateRef;
 
 class Globals {
 public:
-    static void initialize();
+    static void initialize(bool applyMallOpt = false, bool applyGcOpt = false);
     static void finalize();
+};
+
+// TODO
+class GCRef {
+public:
+    static void addRoot(void* ptr);
+    static void removeRoot(void* ptr);
+};
+
+class PointerValueRef {
+};
+
+class StringRef : public PointerValueRef {
+public:
+    static StringRef* fromASCII(const char* s);
+    static StringRef* fromASCII(const char* s, size_t len);
+    static StringRef* fromUTF8(const char* s, size_t len);
+    static StringRef* emptyString();
+
+    char16_t charAt(size_t idx);
+    size_t length();
+
+    std::string toStdUTF8String();
 };
 
 class VMInstanceRef {
@@ -39,44 +64,292 @@ public:
     void destroy();
 };
 
-class ObjectRef;
 class ContextRef {
 public:
-    static ContextRef* create(VMInstanceRef* vminstance);
+    static ContextRef* create(VMInstanceRef* vmInstance);
     void destroy();
+
+    ScriptParserRef* scriptParser();
     ObjectRef* globalObject();
+};
+
+class AtomicStringRef {
+public:
+    static AtomicStringRef* create(ContextRef* c, const char* src);
+    static AtomicStringRef* create(ContextRef* c, StringRef* src);
+    StringRef* string();
 };
 
 class ExecutionStateRef {
 public:
     static ExecutionStateRef* create(ContextRef* ctx);
     void destroy();
+
+    ContextRef* context();
 };
 
 class ValueRef {
 public:
-    static ValueRef* makeBoolean(ExecutionStateRef* es, bool value);
-    static ValueRef* makeNumber(ExecutionStateRef* es, double value);
-    static ValueRef* makeNull(ExecutionStateRef* es);
-    static ValueRef* makeUndefined(ExecutionStateRef* es);
-    bool isBoolean(ExecutionStateRef* es);
-    bool isNumber(ExecutionStateRef* es);
-    bool isNull(ExecutionStateRef* es);
-    bool isUndefined(ExecutionStateRef* es);
-    bool isObject(ExecutionStateRef* es);
+    union PublicValueDescriptor {
+        int64_t asInt64;
+    };
+
+    static ValueRef* create(bool value);
+    static ValueRef* create(int32_t value);
+    static ValueRef* create(uint32_t value);
+    static ValueRef* create(double value);
+    static ValueRef* create(PointerValueRef* value);
+    static ValueRef* createNull();
+    static ValueRef* createUndefined();
+    static ValueRef* createEmpty();
+
+    bool isBoolean() const;
+    bool isNumber() const;
+    bool isNull() const;
+    bool isUndefined() const;
+    bool isInt32() const;
+    bool isUInt32() const;
+    bool isDouble() const;
+    bool isTrue() const;
+    bool isFalse() const;
+    bool isEmpty() const;
+    bool isObject() const;
+    bool isFunction() const;
+    bool isUndefinedOrNull() const
+    {
+        return isUndefined() || isNull();
+    }
+
     bool toBoolean(ExecutionStateRef* es);
     double toNumber(ExecutionStateRef* es);
+    double toInteger(ExecutionStateRef* es);
+    double toLength(ExecutionStateRef* es);
+    int32_t toInt32(ExecutionStateRef* es);
+    uint32_t toUint32(ExecutionStateRef* es);
+    StringRef* toString(ExecutionStateRef* es);
+    ObjectRef* toObject(ExecutionStateRef* es);
+
+protected:
 };
 
-class ObjectRef : public ValueRef {
+class ValueVectorRef {
 public:
-    static ObjectRef* makeObject(ExecutionStateRef* es);
-    ValueRef* getProperty(ExecutionStateRef* es, StringRef* propertyName);
+    static ValueVectorRef* create(size_t size = 0);
+
+    size_t size();
+    void pushBack(ValueRef* val);
+    void insert(size_t pos, ValueRef* val);
+    void erase(size_t pos);
+    void erase(size_t start, size_t end);
+    ValueRef* at(const size_t& idx);
+    void set(const size_t& idx, ValueRef* newValue);
+    void resize(size_t newSize);
 };
 
+// return EmptyValue means there is no property with that name in this object
+typedef ValueRef* (*ExposableObjectGetOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* propertyName);
+typedef void (*ExposableObjectDefineOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* propertyName, ValueRef* value);
+typedef ValueVectorRef* (*ExposableObjectEnumerationCallback)(ExecutionStateRef* state, ObjectRef* self);
 
-bool evaluateScript(ExecutionStateRef* es, StringRef* script,
-                    StringRef* fileName);
+class ObjectRef : public PointerValueRef {
+public:
+    static ObjectRef* create(ExecutionStateRef* state);
+    // can not redefine or delete virtual property
+    // virtual property does not follow every rule of ECMAScript
+    static ObjectRef* createExposableObject(ExecutionStateRef* state,
+                                            ExposableObjectGetOwnPropertyCallback getOwnPropertyCallback, ExposableObjectDefineOwnPropertyCallback defineOwnPropertyCallback,
+                                            ExposableObjectEnumerationCallback enumerationCallback, bool isWritable, bool isEnumerable, bool isConfigurable);
+
+    ValueRef* get(ExecutionStateRef* state, ValueRef* propertyName);
+    ValueRef* getOwnProperty(ExecutionStateRef* state, ValueRef* propertyName);
+    bool set(ExecutionStateRef* state, ValueRef* propertyName, ValueRef* value);
+
+    enum PresentAttribute {
+        NotPresent = 0,
+        WritablePresent = 1 << 1,
+        EnumerablePresent = 1 << 2,
+        ConfigurablePresent = 1 << 3,
+        NonWritablePresent = 1 << 4,
+        NonEnumerablePresent = 1 << 5,
+        NonConfigurablePresent = 1 << 6,
+        AllPresent = WritablePresent | EnumerablePresent | ConfigurablePresent
+    };
+
+    class DataPropertyDescriptor {
+    public:
+        DataPropertyDescriptor(ValueRef* value, PresentAttribute attr)
+            : m_value(value)
+            , m_attribute(attr)
+        {
+        }
+
+        ValueRef* m_value;
+        PresentAttribute m_attribute;
+    };
+
+    class AccessorPropertyDescriptor {
+    public:
+        // only undefined, empty, function are allowed to getter, setter parameter
+        // empty means unspecified state
+        // undefined means truely undefined -> ex) { get: undefined }
+        AccessorPropertyDescriptor(ValueRef* getter, ValueRef* setter, PresentAttribute attr)
+            : m_getter(getter)
+            , m_setter(setter)
+            , m_attribute(attr)
+        {
+        }
+
+        ValueRef* m_getter;
+        ValueRef* m_setter;
+        PresentAttribute m_attribute;
+    };
+
+    bool defineDataPropety(ExecutionStateRef* state, ValueRef* propertyName, const DataPropertyDescriptor& desc);
+    bool defineAccessorPropety(ExecutionStateRef* state, ValueRef* propertyName, const AccessorPropertyDescriptor& desc);
+
+    struct NativeDataAccessorPropertyData;
+    typedef ValueRef* (*NativeDataAccessorPropertyGetter)(ExecutionStateRef* state, ObjectRef* self, NativeDataAccessorPropertyData* data);
+    typedef bool (*NativeDataAccessorPropertySetter)(ExecutionStateRef* state, ObjectRef* self, NativeDataAccessorPropertyData* data, ValueRef* setterInputData);
+    // client extend this struct to give data for getter, setter if needs
+    // this struct must allocated in gc-heap
+    // only setter can be null
+    struct NativeDataAccessorPropertyData : public gc {
+        bool m_isWritable : 1;
+        bool m_isEnumerable : 1;
+        bool m_isConfigurable : 1;
+        NativeDataAccessorPropertyGetter m_getter;
+        NativeDataAccessorPropertySetter m_setter;
+
+        NativeDataAccessorPropertyData(bool isWritable, bool isEnumerable, bool isConfigurable,
+                                       NativeDataAccessorPropertyGetter getter, NativeDataAccessorPropertySetter setter)
+            : m_isWritable(isWritable)
+            , m_isEnumerable(isEnumerable)
+            , m_isConfigurable(isConfigurable)
+            , m_getter(getter)
+            , m_setter(setter)
+        {
+        }
+
+        void* operator new(size_t size)
+        {
+            return GC_MALLOC_ATOMIC(size);
+        }
+        void* operator new[](size_t size) = delete;
+    };
+    // this function differ with defineDataPropety and defineAccessorPropety.
+    // !hasOwnProperty(state, P) is needed for success
+    bool defineNativeDataAccessorProperty(ExecutionStateRef* state, ValueRef* P, NativeDataAccessorPropertyData* data);
+
+    bool deleteOwnProperty(ExecutionStateRef* state, ValueRef* propertyName);
+    bool hasOwnProperty(ExecutionStateRef* state, ValueRef* propertyName);
+
+    ValueRef* getPrototype(ExecutionStateRef* state);
+    ObjectRef* getPrototypeObject(); // if __proto__ is not object(undefined or null), this function returns nullptr instead of orginal value.
+    void setPrototype(ExecutionStateRef* state, ValueRef* value);
+
+    bool isExtensible();
+    void preventExtensions();
+
+    // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
+    const char* internalClassProperty();
+    void giveInternalClassProperty(const char* name);
+
+    void* extraData();
+    void setExtraData(void* e);
+};
+
+class FunctionObjectRef : public ObjectRef {
+public:
+    typedef ValueRef* (*NativeFunctionPointer)(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isNewExpression);
+    typedef ObjectRef* (*NativeFunctionConstructor)(ExecutionStateRef* state, size_t argc, ValueRef** argv);
+
+    struct NativeFunctionInfo {
+        bool m_isStrict;
+        bool m_isConstructor;
+        AtomicStringRef* m_name;
+        NativeFunctionPointer m_nativeFunction;
+        NativeFunctionConstructor m_nativeFunctionConstructor;
+        size_t m_argumentCount;
+
+        NativeFunctionInfo(AtomicStringRef* name, NativeFunctionPointer fn, size_t argc, NativeFunctionConstructor ctor = nullptr, bool isStrict = true, bool isConstructor = true)
+            : m_isStrict(isStrict)
+            , m_isConstructor(isConstructor)
+            , m_name(name)
+            , m_nativeFunction(fn)
+            , m_nativeFunctionConstructor(ctor)
+            , m_argumentCount(argc)
+        {
+        }
+    };
+
+    static FunctionObjectRef* create(ExecutionStateRef* state, NativeFunctionInfo info);
+
+    // getter of internal [[Prototype]]
+    ValueRef* getFunctionPrototype(ExecutionStateRef* state);
+    // setter of internal [[Prototype]]
+    bool setFunctionPrototype(ExecutionStateRef* state, ValueRef* v);
+
+    bool isConstructor();
+    ValueRef* call(ExecutionStateRef* state, ValueRef* receiver, const size_t& argc, ValueRef** argv);
+    // ECMAScript new operation
+    ObjectRef* newInstance(ExecutionStateRef* state, const size_t& argc, ValueRef** argv);
+};
+
+class SandBoxRef {
+public:
+    static SandBoxRef* create(ContextRef* ctxRef);
+    void destroy();
+
+    struct LOC {
+        size_t line;
+        size_t column;
+        size_t index;
+
+        LOC(size_t line, size_t column, size_t index)
+        {
+            this->line = line;
+            this->column = column;
+            this->index = index;
+        }
+    };
+
+    struct StackTraceData : public gc {
+        StringRef* fileName;
+        LOC loc;
+        StackTraceData();
+    };
+
+    struct SandBoxResult {
+        ValueRef* result;
+        ValueRef* error;
+        StringRef* msgStr;
+        Vector<StackTraceData, GCUtil::gc_malloc_allocator<StackTraceData>> stackTraceData;
+        SandBoxResult();
+    };
+
+    SandBoxResult run(const std::function<ValueRef*(ExecutionStateRef* state)>& scriptRunner); // for capsule script executing with try-catch
+};
+
+class ScriptParserRef {
+public:
+    struct ScriptParserResult : public gc {
+        ScriptParserResult(ScriptRef* script, StringRef* error)
+            : m_script(script)
+            , m_error(error)
+        {
+        }
+
+        ScriptRef* m_script;
+        StringRef* m_error;
+    };
+
+    ScriptParserResult parse(StringRef* script, StringRef* fileName);
+};
+
+class ScriptRef {
+public:
+    ValueRef* execute(ExecutionStateRef* state);
+};
 
 } // namespace Escargot
 #endif

@@ -33,6 +33,7 @@ class AtomicString : public gc {
     friend class StaticStrings;
     friend class PropertyName;
     friend class ASTScopeContextNameInfo;
+    friend class AtomicStringRef;
     inline AtomicString(String* str)
     {
         m_string = str;
@@ -47,6 +48,11 @@ public:
     inline AtomicString(const AtomicString& src)
     {
         m_string = src.m_string;
+    }
+
+    static AtomicString fromPayload(void* payload)
+    {
+        return AtomicString((String*)payload);
     }
 
     AtomicString(ExecutionState& ec, String* name);

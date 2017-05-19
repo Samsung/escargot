@@ -147,7 +147,7 @@ static Value builtinDataViewByteOffsetGetter(ExecutionState& state, Value thisVa
 
 void GlobalObject::installDataView(ExecutionState& state)
 {
-    m_dataView = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().DataView, builtinDataViewConstructor, 3, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+    m_dataView = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().DataView, builtinDataViewConstructor, 3, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
                                         return new DataViewObject(state);
                                     }),
                                     FunctionObject::__ForBuiltin__);

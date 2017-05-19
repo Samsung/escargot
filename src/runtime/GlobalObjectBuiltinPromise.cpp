@@ -440,7 +440,7 @@ static Value builtinPromiseToString(ExecutionState& state, Value thisValue, size
 void GlobalObject::installPromise(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    m_promise = new FunctionObject(state, NativeFunctionInfo(strings->Promise, builtinPromiseConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+    m_promise = new FunctionObject(state, NativeFunctionInfo(strings->Promise, builtinPromiseConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
                                        return new PromiseObject(state);
                                    }),
                                    FunctionObject::__ForBuiltin__);

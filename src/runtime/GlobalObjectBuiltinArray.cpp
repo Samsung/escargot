@@ -1269,7 +1269,7 @@ static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t 
 
 void GlobalObject::installArray(ExecutionState& state)
 {
-    m_array = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Array, builtinArrayConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+    m_array = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Array, builtinArrayConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
                                      return new ArrayObject(state);
                                  }),
                                  FunctionObject::__ForBuiltin__);

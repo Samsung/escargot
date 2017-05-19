@@ -58,7 +58,7 @@ static Value builtinBooleanToString(ExecutionState& state, Value thisValue, size
 void GlobalObject::installBoolean(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    m_boolean = new FunctionObject(state, NativeFunctionInfo(strings->Boolean, builtinBooleanConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+    m_boolean = new FunctionObject(state, NativeFunctionInfo(strings->Boolean, builtinBooleanConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
                                        return new BooleanObject(state);
                                    }),
                                    FunctionObject::__ForBuiltin__);

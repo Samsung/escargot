@@ -338,7 +338,7 @@ static Value builtinNumberValueOf(ExecutionState& state, Value thisValue, size_t
 void GlobalObject::installNumber(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    m_number = new FunctionObject(state, NativeFunctionInfo(strings->Number, builtinNumberConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+    m_number = new FunctionObject(state, NativeFunctionInfo(strings->Number, builtinNumberConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
                                       return new NumberObject(state);
                                   }),
                                   FunctionObject::__ForBuiltin__);

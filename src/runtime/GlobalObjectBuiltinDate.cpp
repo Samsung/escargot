@@ -470,7 +470,7 @@ static Value builtinDateGetTimezoneOffset(ExecutionState& state, Value thisValue
 
 void GlobalObject::installDate(ExecutionState& state)
 {
-    m_date = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Date, builtinDateConstructor, 7, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+    m_date = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Date, builtinDateConstructor, 7, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
                                     return new DateObject(state);
                                 }),
                                 FunctionObject::__ForBuiltin__);

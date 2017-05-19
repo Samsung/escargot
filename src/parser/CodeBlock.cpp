@@ -95,11 +95,37 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
 
     m_parameterCount = info.m_argumentCount;
 
-    auto data = new CallNativeFunctionData();
+    auto data = new (PointerFreeGC) CallNativeFunctionData();
     m_nativeFunctionData = (CallNativeFunctionData*)data;
 
     data->m_ctorFn = info.m_nativeFunctionConstructor;
     data->m_fn = info.m_nativeFunction;
+}
+
+CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict, bool isCtor, CallNativeFunctionData* info)
+    : m_context(ctx)
+    , m_nativeFunctionData(nullptr)
+{
+    m_hasCallNativeFunctionCode = true;
+    m_isFunctionNameExplicitlyDeclared = m_isFunctionNameSaveOnHeap = m_isFunctionExpression = m_isFunctionDeclaration = m_isFunctionDeclarationWithSpecialBinding = false;
+    m_functionName = name;
+    m_isStrict = isStrict;
+    m_isConsturctor = isCtor;
+    m_hasEval = false;
+    m_hasWith = false;
+    m_hasCatch = false;
+    m_hasYield = false;
+    m_inCatch = false;
+    m_inWith = false;
+    m_usesArgumentsObject = false;
+    m_canUseIndexedVariableStorage = true;
+    m_canAllocateEnvironmentOnStack = true;
+    m_needsComplexParameterCopy = false;
+    m_isInWithScope = false;
+    m_isEvalCodeInFunction = false;
+    m_isBindedFunction = false;
+    m_parameterCount = argc;
+    m_nativeFunctionData = info;
 }
 
 static Value functionBindImpl(ExecutionState& state, Value thisValue, size_t calledArgc, Value* calledArgv, bool isNewExpression)
@@ -140,7 +166,7 @@ CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Valu
     m_inCatch = false;
     m_inWith = false;
     m_usesArgumentsObject = false;
-    m_canUseIndexedVariableStorage = false;
+    m_canUseIndexedVariableStorage = true;
     m_canAllocateEnvironmentOnStack = true;
     m_needsComplexParameterCopy = false;
     m_isInWithScope = false;

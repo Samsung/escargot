@@ -98,6 +98,7 @@ public:
     enum FalseInitTag { False };
     enum EncodeAsDoubleTag { EncodeAsDouble };
     enum ForceUninitializedTag { ForceUninitialized };
+    enum FromPayloadTag { FromPayload };
 
     Value();
     Value(ForceUninitializedTag);
@@ -106,6 +107,7 @@ public:
     Value(EmptyValueInitTag);
     Value(TrueInitTag);
     Value(FalseInitTag);
+    explicit Value(FromPayloadTag, intptr_t ptr);
 #ifdef ESCARGOT_64
     Value(PointerValue* ptr);
     Value(const PointerValue* ptr);
@@ -191,8 +193,7 @@ public:
         return toStringSlowCase(ec);
     }
     Object* toObject(ExecutionState& ec) const; // $7.1.13 ToObject
-    Object* toTransientObject(ExecutionState& ec) const; // ES5 $8.7.2 transient object
-    Object* toTransientObjectSlowPath(ExecutionState& ec) const; // ES5 $8.7.2 transient object
+
     enum { InvalidIndexValue = std::numeric_limits<uint32_t>::max() };
     typedef uint64_t ValueIndex;
     ValueIndex toIndex(ExecutionState& ec) const;

@@ -23,16 +23,26 @@
 
 namespace Escargot {
 
-void Heap::initialize()
+static bool g_isInited = false;
+
+void Heap::initialize(bool applyMallOpt, bool applyGcOpt)
 {
+    if (g_isInited)
+        return;
+
+    g_isInited = true;
+    if (applyMallOpt) {
 #ifdef M_MMAP_THRESHOLD
-    mallopt(M_MMAP_THRESHOLD, 2048);
+        mallopt(M_MMAP_THRESHOLD, 2048);
 #endif
 #ifdef M_MMAP_MAX
-    mallopt(M_MMAP_MAX, 1024 * 1024);
+        mallopt(M_MMAP_MAX, 1024 * 1024);
 #endif
+    }
 
-    GC_set_free_space_divisor(24);
+    if (applyGcOpt) {
+        GC_set_free_space_divisor(24);
+    }
     GC_set_force_unmap_on_gcollect(1);
     // GC_set_full_freq(1);
     // GC_set_time_limit(GC_TIME_UNLIMITED);

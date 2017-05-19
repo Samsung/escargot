@@ -191,12 +191,12 @@ public:
         }
     }
 
-    intptr_t payload()
+    intptr_t payload() const
     {
         return m_data.payload;
     }
 
-    static SmallValue fromPayload(void* p)
+    static SmallValue fromPayload(const void* p)
     {
         return SmallValue(SmallValueData((void*)p));
     }
@@ -212,7 +212,7 @@ public:
         return false;
     }
 
-    operator Value()
+    operator Value() const
     {
         if (HAS_OBJECT_TAG(m_data.payload)) {
             PointerValue* v = (PointerValue*)m_data.payload;

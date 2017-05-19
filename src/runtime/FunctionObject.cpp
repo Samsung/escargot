@@ -215,7 +215,7 @@ Object* FunctionObject::newInstance(ExecutionState& state, const size_t& argc, V
     }
     Object* receiver;
     if (cb->hasCallNativeFunctionCode()) {
-        receiver = cb->nativeFunctionData()->m_ctorFn(state, argc, argv);
+        receiver = cb->nativeFunctionData()->m_ctorFn(state, cb, argc, argv);
     } else {
         receiver = new Object(state);
     }

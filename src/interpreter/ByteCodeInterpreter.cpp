@@ -1261,6 +1261,10 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
         return obj->get(state, ObjectPropertyName(state, name)).value(state, receiver);
     }
 
+    if (UNLIKELY(!obj->isInlineCacheable())) {
+        return obj->get(state, ObjectPropertyName(state, name)).value(state, receiver);
+    }
+
     Object* orgObj = obj;
     inlineCache.m_cache.insert(inlineCache.m_cache.begin(), GetObjectInlineCacheData());
 
@@ -1353,6 +1357,11 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
     // cache miss
     if (inlineCache.m_cacheMissCount > 16) {
         inlineCache.invalidateCache();
+        originalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, willBeObject);
+        return;
+    }
+
+    if (UNLIKELY(!originalObject->isInlineCacheable())) {
         originalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, willBeObject);
         return;
     }

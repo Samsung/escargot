@@ -482,7 +482,7 @@ void GlobalObject::installObject(ExecutionState& state)
     const StaticStrings& strings = state.context()->staticStrings();
 
     FunctionObject* emptyFunction = m_functionPrototype;
-    m_object = new FunctionObject(state, NativeFunctionInfo(strings.Object, builtinObjectConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+    m_object = new FunctionObject(state, NativeFunctionInfo(strings.Object, builtinObjectConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
                                       return new Object(state);
                                   }),
                                   FunctionObject::__ForBuiltin__);

@@ -19,11 +19,12 @@
 
 #include "runtime/ExecutionState.h"
 #include "runtime/Value.h"
+#include "runtime/SmallValue.h"
 
 namespace Escargot {
 
-typedef Value (*ObjectPropertyNativeGetter)(ExecutionState& state, Object* self);
-typedef bool (*ObjectPropertyNativeSetter)(ExecutionState& state, Object* self, const Value& setterInputData);
+typedef Value (*ObjectPropertyNativeGetter)(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea);
+typedef bool (*ObjectPropertyNativeSetter)(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData);
 
 struct ObjectPropertyNativeGetterSetterData {
     bool m_isWritable : 1;

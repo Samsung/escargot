@@ -35,7 +35,7 @@ typedef TightVector<InterpretedCodeBlock*, GCUtil::gc_malloc_ignore_off_page_all
 
 // length of argv is same with NativeFunctionInfo.m_argumentCount
 typedef Value (*NativeFunctionPointer)(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
-typedef Object* (*NativeFunctionConstructor)(ExecutionState& state, size_t argc, Value* argv);
+typedef Object* (*NativeFunctionConstructor)(ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv);
 
 struct NativeFunctionInfo {
     enum Flags {
@@ -97,6 +97,9 @@ public:
 
     // init bound CodeBlock
     CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv);
+
+    // init for public api
+    CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict, bool isCtor, CallNativeFunctionData* info);
 
     enum CodeBlockInitFlag {
         CodeBlockInitDefault = 0,

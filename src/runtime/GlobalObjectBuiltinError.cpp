@@ -122,7 +122,7 @@ static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t
 
 void GlobalObject::installError(ExecutionState& state)
 {
-    m_error = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Error, builtinErrorConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {
+    m_error = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Error, builtinErrorConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
                                      return new ErrorObject(state, String::emptyString);
                                  }),
                                  FunctionObject::__ForBuiltin__);
@@ -148,7 +148,7 @@ void GlobalObject::installError(ExecutionState& state)
     m_throwerGetterSetterData = new JSGetterSetter(m_throwTypeError, m_throwTypeError);
 
 #define DEFINE_ERROR(errorname, bname)                                                                                                                                                                                                                                                                                                  \
-    m_##errorname##Error = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bname##Error, builtin##bname##ErrorConstructor, 1, [](ExecutionState& state, size_t argc, Value* argv) -> Object* {                                                                                                            \
+    m_##errorname##Error = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bname##Error, builtin##bname##ErrorConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {                                                                                      \
                                                   return new bname##ErrorObject(state, String::emptyString);                                                                                                                                                                                                                            \
                                               }),                                                                                                                                                                                                                                                                                       \
                                               FunctionObject::__ForBuiltin__);                                                                                                                                                                                                                                                          \

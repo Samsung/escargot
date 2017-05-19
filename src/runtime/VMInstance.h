@@ -86,27 +86,27 @@ public:
 
     // function
     // [name, length] or [prototype, name, length]
-    static Value functionPrototypeNativeGetter(ExecutionState& state, Object* self);
-    static bool functionPrototypeNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData);
+    static Value functionPrototypeNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea);
+    static bool functionPrototypeNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData);
 
     // array
     // [length]
-    static Value arrayLengthNativeGetter(ExecutionState& state, Object* self);
-    static bool arrayLengthNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData);
+    static Value arrayLengthNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea);
+    static bool arrayLengthNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData);
 
     // string
     // [length]
-    static Value stringLengthNativeGetter(ExecutionState& state, Object* self);
-    static bool stringLengthNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData);
+    static Value stringLengthNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea);
+    static bool stringLengthNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData);
 
     // regexp
     // [lastIndex, source, global, ignoreCase, multiline]
-    static bool regexpLastIndexNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData);
-    static Value regexpLastIndexNativeGetter(ExecutionState& state, Object* self);
-    static Value regexpSourceNativeGetter(ExecutionState& state, Object* self);
-    static Value regexpGlobalNativeGetter(ExecutionState& state, Object* self);
-    static Value regexpIgnoreCaseNativeGetter(ExecutionState& state, Object* self);
-    static Value regexpMultilineNativeGetter(ExecutionState& state, Object* self);
+    static bool regexpLastIndexNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData);
+    static Value regexpLastIndexNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea);
+    static Value regexpSourceNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea);
+    static Value regexpGlobalNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea);
+    static Value regexpIgnoreCaseNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea);
+    static Value regexpMultilineNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea);
 
     bool didSomePrototypeObjectDefineIndexedProperty()
     {

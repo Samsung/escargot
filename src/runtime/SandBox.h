@@ -22,8 +22,7 @@
 
 namespace Escargot {
 
-class SandBox {
-    MAKE_STACK_ALLOCATED();
+class SandBox : public gc {
     friend class ByteCodeInterpreter;
 
 public:
@@ -66,6 +65,11 @@ public:
 
     SandBoxResult run(const std::function<Value()>& scriptRunner); // for capsule script executing with try-catch
     void throwException(ExecutionState& state, Value exception);
+
+    Context* context()
+    {
+        return m_context;
+    }
 
 protected:
     Context* m_context;

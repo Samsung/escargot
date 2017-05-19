@@ -12,11 +12,8 @@ ESCARGOT_CXXFLAGS_COMMON += -Wno-unused-but-set-variable -Wno-unused-but-set-par
 ESCARGOT_CXXFLAGS_COMMON += -Wno-type-limits -Wno-unused-result -Wno-unused-variable -Wno-invalid-offsetof
 ESCARGOT_CXXFLAGS_COMMON += -Wno-deprecated-declarations
 
-ifeq (,$(findstring cctest, $(MAKECMDGOALS)))
-  ESCARGOT_CXXFLAGS_COMMON += -DESCARGOT_ENABLE_PROMISE
-endif
-
 ESCARGOT_CXXFLAGS_COMMON += -DESCARGOT_ENABLE_TYPEDARRAY
+ESCARGOT_CXXFLAGS_COMMON += -DESCARGOT_ENABLE_PROMISE
 
 #ESCARGOT_CXXFLAGS_COMMON += -DPROFILE_MASSIF
 #ESCARGOT_CXXFLAGS_COMMON += -DPROFILE_BDWGC
@@ -114,7 +111,7 @@ ifeq ($(HOST), linux)
 	ESCARGOT_LDFLAGS_THIRD_PARTY += $(shell pkg-config --libs icu-i18n)
   else ifeq ($(ARCH), x86)
 	ESCARGOT_CXXFLAGS_THIRD_PARTY += -I$(ESCARGOT_ROOT)/deps/x86-linux/include
-	ESCARGOT_LDFLAGS_THIRD_PARTY += -Ldeps/x86-linux/lib -Wl,-rpath,'$$ORIGIN/deps/x86-linux/lib/'
+	ESCARGOT_LDFLAGS_THIRD_PARTY += -Ldeps/x86-linux/lib -Wl,-rpath='deps/x86-linux/lib/' -Wl,-rpath,'$$ORIGIN/deps/x86-linux/lib/'
 	ESCARGOT_LDFLAGS_THIRD_PARTY += -licuio -licui18n -licuuc -licudata
   endif
 else ifeq ($(HOST), tizen_obs)

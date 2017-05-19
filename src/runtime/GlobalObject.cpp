@@ -989,24 +989,24 @@ void GlobalObject::installOthers(ExecutionState& state)
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__defineGetter__),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->__defineGetter__, builtinDefineGetter, 2, nullptr, 0)),
-                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                         ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                                     NativeFunctionInfo(strings->__defineGetter__, builtinDefineGetter, 2, nullptr, 0)),
+                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__defineSetter__),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->__defineSetter__, builtinDefineSetter, 2, nullptr, 0)),
-                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                         ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                                     NativeFunctionInfo(strings->__defineSetter__, builtinDefineSetter, 2, nullptr, 0)),
+                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__lookupGetter__),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->__lookupGetter__, builtinLookupGetter, 1, nullptr, 0)),
-                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                         ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                                     NativeFunctionInfo(strings->__lookupGetter__, builtinLookupGetter, 1, nullptr, 0)),
+                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__lookupSetter__),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->__lookupSetter__, builtinLookupSetter, 1, nullptr, 0)),
-                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                         ObjectPropertyDescriptor(new FunctionObject(state,
+                                                                                     NativeFunctionInfo(strings->__lookupSetter__, builtinLookupSetter, 1, nullptr, 0)),
+                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 #ifdef ESCARGOT_SHELL
     defineOwnProperty(state, ObjectPropertyName(strings->print),
