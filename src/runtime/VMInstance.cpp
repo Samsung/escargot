@@ -279,4 +279,39 @@ void VMInstance::somePrototypeObjectDefineIndexedProperty(ExecutionState& state)
         allOfArrayRooted[i]->convertIntoNonFastMode(state);
     }
 }
+
+void VMInstance::addRoot(void* ptr)
+{
+    auto iter = m_rootSet.find(ptr);
+    if (iter == m_rootSet.end()) {
+        m_rootSet.insert(std::make_pair(ptr, 1));
+    } else {
+        iter->second++;
+    }
+}
+
+bool VMInstance::removeRoot(void* ptr)
+{
+    auto iter = m_rootSet.find(ptr);
+    if (iter == m_rootSet.end()) {
+        return false;
+    } else {
+        iter->second++;
+        if (iter->second == 0) {
+            m_rootSet.erase(iter);
+        }
+    }
+    return true;
+}
+
+Value VMInstance::drainJobQueue(ExecutionState& state)
+{
+    DefaultJobQueue* jobQueue = DefaultJobQueue::get(this->jobQueue());
+    while (jobQueue->hasNextJob()) {
+        auto jobResult = jobQueue->nextJob()->run(state);
+        if (!jobResult.error.isEmpty())
+            return jobResult.error;
+    }
+    return Value(Value::EmptyValue);
+}
 }

@@ -28,56 +28,12 @@
 #include "runtime/VMInstance.h"
 #include "runtime/SandBox.h"
 #include "runtime/Environment.h"
+#ifdef ESCARGOT_ENABLE_PROMISE
 #include "runtime/Job.h"
 #include "runtime/JobQueue.h"
+#endif
 
 namespace Escargot {
-
-/////////// TODO (implement platform layer)
-class DefaultJobQueue : public JobQueue {
-private:
-    DefaultJobQueue() {}
-public:
-    static DefaultJobQueue* create()
-    {
-        return new DefaultJobQueue();
-    }
-
-    size_t enqueueJob(Job* job)
-    {
-        m_jobs.push_back(job);
-        return 0;
-    }
-
-    bool hasNextJob()
-    {
-        return !m_jobs.empty();
-    }
-
-    Job* nextJob()
-    {
-        ASSERT(!m_jobs.empty());
-        Job* job = m_jobs.front();
-        m_jobs.pop_front();
-        return job;
-    }
-
-    static DefaultJobQueue* get(JobQueue* jobQueue)
-    {
-        return (DefaultJobQueue*)jobQueue;
-    }
-
-private:
-    std::list<Job*, gc_allocator<Job*> > m_jobs;
-};
-
-#ifndef ESCARGOT_SHELL
-JobQueue* JobQueue::create()
-{
-    return DefaultJobQueue::create();
-}
-#endif
-///////////
 
 #define DEFINE_CAST(ClassName)                       \
     inline ClassName* toImpl(ClassName##Ref* v)      \
@@ -96,6 +52,7 @@ DEFINE_CAST(ExecutionState);
 DEFINE_CAST(String);
 DEFINE_CAST(PointerValue);
 DEFINE_CAST(Object);
+DEFINE_CAST(GlobalObject);
 DEFINE_CAST(FunctionObject);
 DEFINE_CAST(Script);
 DEFINE_CAST(ScriptParser);
@@ -172,6 +129,11 @@ size_t StringRef::length()
     return toImpl(this)->length();
 }
 
+bool StringRef::equals(StringRef* src)
+{
+    return toImpl(this)->equals(toImpl(src));
+}
+
 std::string StringRef::toStdUTF8String()
 {
     auto ret = toImpl(this)->toUTF8StringData();
@@ -180,7 +142,7 @@ std::string StringRef::toStdUTF8String()
 
 VMInstanceRef* VMInstanceRef::create()
 {
-    return toRef(new VMInstance());
+    return toRef(new (NoGC) VMInstance());
 }
 
 void VMInstanceRef::destroy()
@@ -188,6 +150,35 @@ void VMInstanceRef::destroy()
     VMInstance* imp = toImpl(this);
     delete imp;
 }
+
+bool VMInstanceRef::addRoot(VMInstanceRef* instanceRef, ValueRef* ptr)
+{
+    auto value = SmallValue::fromPayload(ptr);
+    if (!value.isStoredInHeap()) {
+        return false;
+    }
+    void* vptr = reinterpret_cast<void*>(value.payload());
+    toImpl(this)->addRoot(vptr);
+    return true;
+}
+
+bool VMInstanceRef::removeRoot(VMInstanceRef* instanceRef, ValueRef* ptr)
+{
+    auto value = SmallValue::fromPayload(ptr);
+    if (!value.isStoredInHeap()) {
+        return false;
+    }
+    void* vptr = reinterpret_cast<void*>(value.payload());
+    return toImpl(this)->removeRoot(vptr);
+}
+
+#ifdef ESCARGOT_ENABLE_PROMISE
+ValueRef* VMInstanceRef::drainJobQueue(ExecutionStateRef* state)
+{
+    VMInstance* imp = toImpl(this);
+    return toRef(imp->drainJobQueue(*toImpl(state)));
+}
+#endif
 
 ContextRef* ContextRef::create(VMInstanceRef* vminstanceref)
 {
@@ -380,6 +371,11 @@ ValueRef* ObjectRef::getOwnProperty(ExecutionStateRef* state, ValueRef* property
     return ValueRef::createUndefined();
 }
 
+void* ObjectRef::NativeDataAccessorPropertyData::operator new(size_t size)
+{
+    return GC_MALLOC_ATOMIC(size);
+}
+
 COMPILE_ASSERT((int)ObjectRef::PresentAttribute::NotPresent == (int)ObjectPropertyDescriptor::NotPresent, "");
 COMPILE_ASSERT((int)ObjectRef::PresentAttribute::WritablePresent == (int)ObjectPropertyDescriptor::WritablePresent, "");
 COMPILE_ASSERT((int)ObjectRef::PresentAttribute::EnumerablePresent == (int)ObjectPropertyDescriptor::EnumerablePresent, "");
@@ -486,6 +482,307 @@ void ObjectRef::setExtraData(void* e)
     toImpl(this)->setExtraData(e);
 }
 
+FunctionObjectRef* GlobalObjectRef::object()
+{
+    return toRef(toImpl(this)->object());
+}
+
+ObjectRef* GlobalObjectRef::objectPrototype()
+{
+    return toRef(toImpl(this)->objectPrototype());
+}
+
+FunctionObjectRef* GlobalObjectRef::objectPrototypeToString()
+{
+    return toRef(toImpl(this)->objectPrototypeToString());
+}
+
+FunctionObjectRef* GlobalObjectRef::function()
+{
+    return toRef(toImpl(this)->function());
+}
+
+FunctionObjectRef* GlobalObjectRef::functionPrototype()
+{
+    return toRef(toImpl(this)->functionPrototype());
+}
+
+FunctionObjectRef* GlobalObjectRef::error()
+{
+    return toRef(toImpl(this)->error());
+}
+
+ObjectRef* GlobalObjectRef::errorPrototype()
+{
+    return toRef(toImpl(this)->errorPrototype());
+}
+
+FunctionObjectRef* GlobalObjectRef::referenceError()
+{
+    return toRef(toImpl(this)->referenceError());
+}
+
+ObjectRef* GlobalObjectRef::referenceErrorPrototype()
+{
+    return toRef(toImpl(this)->referenceErrorPrototype());
+}
+
+FunctionObjectRef* GlobalObjectRef::typeError()
+{
+    return toRef(toImpl(this)->typeError());
+}
+
+ObjectRef* GlobalObjectRef::typeErrorPrototype()
+{
+    return toRef(toImpl(this)->typeErrorPrototype());
+}
+
+FunctionObjectRef* GlobalObjectRef::rangeError()
+{
+    return toRef(toImpl(this)->rangeError());
+}
+
+ObjectRef* GlobalObjectRef::rangeErrorPrototype()
+{
+    return toRef(toImpl(this)->rangeErrorPrototype());
+}
+
+FunctionObjectRef* GlobalObjectRef::syntaxError()
+{
+    return toRef(toImpl(this)->syntaxError());
+}
+
+ObjectRef* GlobalObjectRef::syntaxErrorPrototype()
+{
+    return toRef(toImpl(this)->syntaxErrorPrototype());
+}
+
+FunctionObjectRef* GlobalObjectRef::uriError()
+{
+    return toRef(toImpl(this)->uriError());
+}
+
+ObjectRef* GlobalObjectRef::uriErrorPrototype()
+{
+    return toRef(toImpl(this)->uriErrorPrototype());
+}
+
+FunctionObjectRef* GlobalObjectRef::evalError()
+{
+    return toRef(toImpl(this)->evalError());
+}
+
+ObjectRef* GlobalObjectRef::evalErrorPrototype()
+{
+    return toRef(toImpl(this)->evalErrorPrototype());
+}
+
+FunctionObjectRef* GlobalObjectRef::string()
+{
+    return toRef(toImpl(this)->string());
+}
+
+ObjectRef* GlobalObjectRef::stringPrototype()
+{
+    return toRef(toImpl(this)->stringPrototype());
+}
+
+FunctionObjectRef* GlobalObjectRef::number()
+{
+    return toRef(toImpl(this)->number());
+}
+
+ObjectRef* GlobalObjectRef::numberPrototype()
+{
+    return toRef(toImpl(this)->numberPrototype());
+}
+
+FunctionObjectRef* GlobalObjectRef::array()
+{
+    return toRef(toImpl(this)->array());
+}
+
+ObjectRef* GlobalObjectRef::arrayPrototype()
+{
+    return toRef(toImpl(this)->arrayPrototype());
+}
+
+FunctionObjectRef* GlobalObjectRef::boolean()
+{
+    return toRef(toImpl(this)->boolean());
+}
+
+ObjectRef* GlobalObjectRef::booleanPrototype()
+{
+    return toRef(toImpl(this)->booleanPrototype());
+}
+
+FunctionObjectRef* GlobalObjectRef::date()
+{
+    return toRef(toImpl(this)->date());
+}
+
+ObjectRef* GlobalObjectRef::datePrototype()
+{
+    return toRef(toImpl(this)->datePrototype());
+}
+
+ObjectRef* GlobalObjectRef::math()
+{
+    return toRef(toImpl(this)->math());
+}
+
+FunctionObjectRef* GlobalObjectRef::regexp()
+{
+    return toRef(toImpl(this)->regexp());
+}
+
+ObjectRef* GlobalObjectRef::regexpPrototype()
+{
+    return toRef(toImpl(this)->regexpPrototype());
+}
+
+ObjectRef* GlobalObjectRef::json()
+{
+    return toRef(toImpl(this)->json());
+}
+
+FunctionObjectRef* GlobalObjectRef::jsonStringify()
+{
+    return toRef(toImpl(this)->jsonStringify());
+}
+
+FunctionObjectRef* GlobalObjectRef::jsonParse()
+{
+    return toRef(toImpl(this)->jsonParse());
+}
+
+
+#if ESCARGOT_ENABLE_PROMISE
+FunctionObjectRef* GlobalObjectRef::promise()
+{
+    return toRef(toImpl(this)->promise());
+}
+
+ObjectRef* GlobalObjectRef::promisePrototype()
+{
+    return toRef(toImpl(this)->promisePrototype());
+}
+
+#endif
+
+#if ESCARGOT_ENABLE_TYPEDARRAY
+FunctionObjectRef* GlobalObjectRef::arrayBuffer()
+{
+    return toRef(toImpl(this)->arrayBuffer());
+}
+
+ObjectRef* GlobalObjectRef::arrayBufferPrototype()
+{
+    return toRef(toImpl(this)->arrayBufferPrototype());
+}
+
+FunctionObjectRef* GlobalObjectRef::dataView()
+{
+    return toRef(toImpl(this)->dataView());
+}
+
+ObjectRef* GlobalObjectRef::dataViewPrototype()
+{
+    return toRef(toImpl(this)->dataViewPrototype());
+}
+
+ObjectRef* GlobalObjectRef::int8Array()
+{
+    return toRef(toImpl(this)->int8Array());
+}
+
+ObjectRef* GlobalObjectRef::int8ArrayPrototype()
+{
+    return toRef(toImpl(this)->int8ArrayPrototype());
+}
+
+ObjectRef* GlobalObjectRef::uint8Array()
+{
+    return toRef(toImpl(this)->uint8Array());
+}
+
+ObjectRef* GlobalObjectRef::uint8ArrayPrototype()
+{
+    return toRef(toImpl(this)->uint8ArrayPrototype());
+}
+
+ObjectRef* GlobalObjectRef::int16Array()
+{
+    return toRef(toImpl(this)->int16Array());
+}
+
+ObjectRef* GlobalObjectRef::int16ArrayPrototype()
+{
+    return toRef(toImpl(this)->int16ArrayPrototype());
+}
+
+ObjectRef* GlobalObjectRef::uint16Array()
+{
+    return toRef(toImpl(this)->uint16Array());
+}
+
+ObjectRef* GlobalObjectRef::uint16ArrayPrototype()
+{
+    return toRef(toImpl(this)->uint16ArrayPrototype());
+}
+
+ObjectRef* GlobalObjectRef::int32Array()
+{
+    return toRef(toImpl(this)->int32Array());
+}
+
+ObjectRef* GlobalObjectRef::int32ArrayPrototype()
+{
+    return toRef(toImpl(this)->int32ArrayPrototype());
+}
+
+ObjectRef* GlobalObjectRef::uint32Array()
+{
+    return toRef(toImpl(this)->uint32Array());
+}
+
+ObjectRef* GlobalObjectRef::uint32ArrayPrototype()
+{
+    return toRef(toImpl(this)->uint32ArrayPrototype());
+}
+
+ObjectRef* GlobalObjectRef::uint8ClampedArray()
+{
+    return toRef(toImpl(this)->uint8ClampedArray());
+}
+
+ObjectRef* GlobalObjectRef::uint8ClampedArrayPrototype()
+{
+    return toRef(toImpl(this)->uint8ClampedArrayPrototype());
+}
+
+ObjectRef* GlobalObjectRef::float32Array()
+{
+    return toRef(toImpl(this)->float32Array());
+}
+
+ObjectRef* GlobalObjectRef::float32ArrayPrototype()
+{
+    return toRef(toImpl(this)->float32ArrayPrototype());
+}
+
+ObjectRef* GlobalObjectRef::float64Array()
+{
+    return toRef(toImpl(this)->float64Array());
+}
+
+ObjectRef* GlobalObjectRef::float64ArrayPrototype()
+{
+    return toRef(toImpl(this)->float64ArrayPrototype());
+}
+
+#endif
 
 class CallPublicFunctionData : public CallNativeFunctionData {
 public:
@@ -614,17 +911,53 @@ SandBoxRef::SandBoxResult SandBoxRef::run(const std::function<ValueRef*(Executio
             t.fileName = toRef(result.stackTraceData[i].fileName);
             t.loc.line = result.stackTraceData[i].loc.line;
             t.loc.column = result.stackTraceData[i].loc.column;
-            r.stackTraceData.pushBack(t);
+            r.stackTraceData.push_back(t);
         }
     }
 
     return r;
 }
 
-ObjectRef* ContextRef::globalObject()
+GlobalObjectRef* ContextRef::globalObject()
 {
     Context* ctx = toImpl(this);
     return toRef(ctx->globalObject());
+}
+
+void ContextRef::setVirtualIdentifierCallback(VirtualIdentifierCallback cb)
+{
+    Context* ctx = toImpl(this);
+    ctx->m_virtualIdentifierCallbackPublic = (void*)cb;
+    ctx->setVirtualIdentifierCallback([](ExecutionState& state, Value name) -> Value {
+        if (state.context()->m_virtualIdentifierCallbackPublic) {
+            return toImpl(((VirtualIdentifierCallback)state.context()->m_virtualIdentifierCallbackPublic)(toRef(&state), toRef(name)));
+        }
+        return Value(Value::EmptyValue);
+    });
+}
+
+ContextRef::VirtualIdentifierCallback ContextRef::virtualIdentifierCallback()
+{
+    Context* ctx = toImpl(this);
+    return ((VirtualIdentifierCallback)ctx->m_virtualIdentifierCallbackPublic);
+}
+
+void ContextRef::setVirtualIdentifierInGlobalCallback(VirtualIdentifierCallback cb)
+{
+    Context* ctx = toImpl(this);
+    ctx->m_virtualIdentifierInGlobalCallbackPublic = (void*)cb;
+    ctx->setVirtualIdentifierInGlobalCallback([](ExecutionState& state, Value name) -> Value {
+        if (state.context()->m_virtualIdentifierInGlobalCallbackPublic) {
+            return toImpl(((VirtualIdentifierCallback)state.context()->m_virtualIdentifierInGlobalCallbackPublic)(toRef(&state), toRef(name)));
+        }
+        return Value(Value::EmptyValue);
+    });
+}
+
+ContextRef::VirtualIdentifierCallback ContextRef::virtualIdentifierInGlobalCallback()
+{
+    Context* ctx = toImpl(this);
+    return ((VirtualIdentifierCallback)ctx->m_virtualIdentifierInGlobalCallbackPublic);
 }
 
 ExecutionStateRef* ExecutionStateRef::create(ContextRef* ctxref)
@@ -689,6 +1022,15 @@ bool ValueRef::isBoolean() const
     return Value(SmallValue::fromPayload(this)).isBoolean();
 }
 
+bool ValueRef::isStoreInHeap() const
+{
+    auto value = SmallValue::fromPayload(this);
+    if (value.isStoredInHeap()) {
+        return true;
+    }
+    return false;
+}
+
 bool ValueRef::isNumber() const
 {
     return Value(SmallValue::fromPayload(this)).isNumber();
@@ -702,6 +1044,11 @@ bool ValueRef::isNull() const
 bool ValueRef::isUndefined() const
 {
     return Value(SmallValue::fromPayload(this)).isUndefined();
+}
+
+bool ValueRef::isString() const
+{
+    return Value(SmallValue::fromPayload(this)).isString();
 }
 
 bool ValueRef::isObject() const

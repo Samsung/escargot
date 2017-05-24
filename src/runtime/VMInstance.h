@@ -120,10 +120,27 @@ public:
         return m_toStringRecursionPreventer;
     }
 
+#if ESCARGOT_ENABLE_PROMISE
+    JobQueue* jobQueue()
+    {
+        return m_jobQueue;
+    }
+
+    // if there is an error, executing will be stopped and returns ErrorValue
+    // if thres is no job or no error, returns EmptyValue
+    Value drainJobQueue(ExecutionState& state);
+#endif
+
+    void addRoot(void* ptr);
+    bool removeRoot(void* ptr);
+
 protected:
     StaticStrings m_staticStrings;
     AtomicStringMap m_atomicStringMap;
     Vector<SandBox*, GCUtil::gc_malloc_allocator<SandBox*>> m_sandBoxStack;
+    std::unordered_map<void*, size_t, std::hash<void*>, std::equal_to<void*>,
+                       GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<void*, size_t>>>
+        m_rootSet;
 
     // this flag should affect VM-wide array object
     bool m_didSomePrototypeObjectDefineIndexedProperty;

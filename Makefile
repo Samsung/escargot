@@ -392,20 +392,23 @@ $(OUTDIR)/%.o: %.cc $(DEPENDENCY_MAKEFILE)
 	$(QUIET) @$(CXX) -c $(CXXFLAGS) $< -o $@
 	@$(CXX) -MM $(CXXFLAGS) -MT $@ $< > $(OUTDIR)/$*.d
 
-full:
-	make x64.interpreter.debug -j$(NPROCS)
-	ln -sf out/x64/interpreter/debug/$(BIN) $(BIN).x64.id
-	make x64.interpreter.release -j$(NPROCS)
-	ln -sf out/x64/interpreter/release/$(BIN) $(BIN).x64.ir
-	make x86.interpreter.debug -j$(NPROCS)
-	ln -sf out/x86/interpreter/debug/$(BIN) $(BIN).x86.id
-	make x86.interpreter.release -j$(NPROCS)
-	ln -sf out/x86/interpreter/release/$(BIN) $(BIN).x86.ir
+install_header_to_include:
+	cp src/api/EscargotPublic.h ./include/
+	cp third_party/GCutil/GCUtil.h ./include/
+	cp third_party/GCutil/Allocator.h ./include/
+	cp third_party/GCutil/GCUtil.h ./include/
+	cp third_party/GCutil/bdwgc/include/gc.h ./include/
+	cp third_party/GCutil/bdwgc/include/gc_mark.h ./include/
+	cp third_party/GCutil/bdwgc/include/gc_typed.h ./include/
+	cp third_party/GCutil/bdwgc/include/gc_allocator.h ./include/
+	cp third_party/GCutil/bdwgc/include/gc_cpp.h ./include/
+	cp third_party/GCutil/bdwgc/include/gc_version.h ./include/
+	cp third_party/GCutil/bdwgc/include/gc_config_macros.h ./include/
 
 clean:
 	rm -rf out
 
-.PHONY: clean
+.PHONY: clean install_header_to_include
 
 #######################################################
 # Test

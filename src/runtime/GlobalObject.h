@@ -36,6 +36,7 @@ class FunctionObject;
     }                                                                                                                                                                                                                                 \
     String* NAME = thisValue.toString(state);
 
+
 class GlobalObject : public Object {
 public:
     friend class ByteCodeInterpreter;
@@ -53,6 +54,9 @@ public:
         m_structure = m_structure->convertToWithFastAccess(state);
         m_throwTypeError = nullptr;
         m_throwerGetterSetterData = nullptr;
+
+        // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
+        giveInternalClassProperty("global");
     }
 
     virtual bool isGlobalObject() const
@@ -393,11 +397,12 @@ public:
         return m_numberProxyObject;
     }
 
-    // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-    virtual const char* internalClassProperty()
+    virtual bool isInlineCacheable()
     {
-        return "global";
+        return false;
     }
+
+    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
 
     void* operator new(size_t size)
     {

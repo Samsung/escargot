@@ -979,6 +979,12 @@ NEVER_INLINE Value ByteCodeInterpreter::loadByName(ExecutionState& state, Lexica
         env = env->outerEnvironment();
     }
 
+    if (UNLIKELY((bool)state.context()->virtualIdentifierCallback())) {
+        Value virtialIdResult = state.context()->virtualIdentifierCallback()(state, name.string());
+        if (!virtialIdResult.isEmpty())
+            return virtialIdResult;
+    }
+
     if (throwException)
         ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
 
@@ -1575,6 +1581,11 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalObjectSlowCase(ExecutionState& 
         if (res.hasValue()) {
             return res.value(state, go);
         } else {
+            if (UNLIKELY((bool)state.context()->virtualIdentifierCallback())) {
+                Value virtialIdResult = state.context()->virtualIdentifierCallback()(state, code->m_propertyName.string());
+                if (!virtialIdResult.isEmpty())
+                    return virtialIdResult;
+            }
             ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, code->m_propertyName.string(), false, String::emptyString, errorMessage_IsNotDefined);
         }
     } else {

@@ -56,6 +56,8 @@ Context::Context(VMInstance* instance)
 #if ESCARGOT_ENABLE_PROMISE
     m_jobQueue = instance->m_jobQueue;
 #endif
+    m_virtualIdentifierInGlobalCallback = m_virtualIdentifierCallback = nullptr;
+    m_virtualIdentifierInGlobalCallbackPublic = m_virtualIdentifierCallbackPublic = nullptr;
 
     ExecutionState stateForInit(this);
     m_globalObject = new GlobalObject(stateForInit);

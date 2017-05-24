@@ -26,7 +26,7 @@ namespace Escargot {
 typedef Value (*ObjectPropertyNativeGetter)(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea);
 typedef bool (*ObjectPropertyNativeSetter)(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData);
 
-struct ObjectPropertyNativeGetterSetterData {
+struct ObjectPropertyNativeGetterSetterData : public gc {
     bool m_isWritable : 1;
     bool m_isEnumerable : 1;
     bool m_isConfigurable : 1;

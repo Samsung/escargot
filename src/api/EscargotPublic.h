@@ -17,13 +17,22 @@
 #ifndef __ESCARGOT_PUBLIC__
 #define __ESCARGOT_PUBLIC__
 
-#include <cstdlib> // size_t
+#include <string>
+#include <cstdlib>
+#include <vector>
+#include <functional>
+
+#include <GCUtil.h>
+
+#pragma GCC visibility push(default)
 
 namespace Escargot {
 
+class VMInstanceRef;
 class ValueRef;
 class PointerValueRef;
 class ObjectRef;
+class GlobalObjectRef;
 class FunctionObjectRef;
 class ScriptRef;
 class ScriptParserRef;
@@ -33,13 +42,6 @@ class Globals {
 public:
     static void initialize(bool applyMallOpt = false, bool applyGcOpt = false);
     static void finalize();
-};
-
-// TODO
-class GCRef {
-public:
-    static void addRoot(void* ptr);
-    static void removeRoot(void* ptr);
 };
 
 class PointerValueRef {
@@ -54,6 +56,7 @@ public:
 
     char16_t charAt(size_t idx);
     size_t length();
+    bool equals(StringRef* src);
 
     std::string toStdUTF8String();
 };
@@ -62,6 +65,15 @@ class VMInstanceRef {
 public:
     static VMInstanceRef* create();
     void destroy();
+
+    bool addRoot(VMInstanceRef* instanceRef, ValueRef* ptr);
+    bool removeRoot(VMInstanceRef* instanceRef, ValueRef* ptr);
+
+#ifdef ESCARGOT_ENABLE_PROMISE
+    // if there is an error, executing will be stopped and returns ErrorValue
+    // if thres is no job or no error, returns EmptyValue
+    ValueRef* drainJobQueue(ExecutionStateRef* state);
+#endif
 };
 
 class ContextRef {
@@ -70,12 +82,22 @@ public:
     void destroy();
 
     ScriptParserRef* scriptParser();
-    ObjectRef* globalObject();
+    GlobalObjectRef* globalObject();
+
+    typedef ValueRef* (*VirtualIdentifierCallback)(ExecutionStateRef* state, ValueRef* name);
+
+    // this is not compatible with ECMAScript
+    // but this callback is needed for browser-implementation
+    // if there is a Identifier with that value, callback should return non-empty value
+    void setVirtualIdentifierCallback(VirtualIdentifierCallback cb);
+    VirtualIdentifierCallback virtualIdentifierCallback();
+    void setVirtualIdentifierInGlobalCallback(VirtualIdentifierCallback cb);
+    VirtualIdentifierCallback virtualIdentifierInGlobalCallback();
 };
 
 class AtomicStringRef {
 public:
-    static AtomicStringRef* create(ContextRef* c, const char* src);
+    static AtomicStringRef* create(ContextRef* c, const char* src); // from ASCII string
     static AtomicStringRef* create(ContextRef* c, StringRef* src);
     StringRef* string();
 };
@@ -88,6 +110,8 @@ public:
     ContextRef* context();
 };
 
+// double, PointerValueRef are stored in heap
+// client should root heap values
 class ValueRef {
 public:
     union PublicValueDescriptor {
@@ -103,6 +127,7 @@ public:
     static ValueRef* createUndefined();
     static ValueRef* createEmpty();
 
+    bool isStoreInHeap() const;
     bool isBoolean() const;
     bool isNumber() const;
     bool isNull() const;
@@ -113,6 +138,7 @@ public:
     bool isTrue() const;
     bool isFalse() const;
     bool isEmpty() const;
+    bool isString() const;
     bool isObject() const;
     bool isFunction() const;
     bool isUndefinedOrNull() const
@@ -213,7 +239,7 @@ public:
     // client extend this struct to give data for getter, setter if needs
     // this struct must allocated in gc-heap
     // only setter can be null
-    struct NativeDataAccessorPropertyData : public gc {
+    struct NativeDataAccessorPropertyData {
         bool m_isWritable : 1;
         bool m_isEnumerable : 1;
         bool m_isConfigurable : 1;
@@ -230,10 +256,7 @@ public:
         {
         }
 
-        void* operator new(size_t size)
-        {
-            return GC_MALLOC_ATOMIC(size);
-        }
+        void* operator new(size_t size);
         void* operator new[](size_t size) = delete;
     };
     // this function differ with defineDataPropety and defineAccessorPropety.
@@ -256,6 +279,75 @@ public:
 
     void* extraData();
     void setExtraData(void* e);
+};
+
+class GlobalObjectRef : public ObjectRef {
+public:
+    FunctionObjectRef* object();
+    ObjectRef* objectPrototype();
+    FunctionObjectRef* objectPrototypeToString();
+    FunctionObjectRef* function();
+    FunctionObjectRef* functionPrototype();
+    FunctionObjectRef* error();
+    ObjectRef* errorPrototype();
+    FunctionObjectRef* referenceError();
+    ObjectRef* referenceErrorPrototype();
+    FunctionObjectRef* typeError();
+    ObjectRef* typeErrorPrototype();
+    FunctionObjectRef* rangeError();
+    ObjectRef* rangeErrorPrototype();
+    FunctionObjectRef* syntaxError();
+    ObjectRef* syntaxErrorPrototype();
+    FunctionObjectRef* uriError();
+    ObjectRef* uriErrorPrototype();
+    FunctionObjectRef* evalError();
+    ObjectRef* evalErrorPrototype();
+    FunctionObjectRef* string();
+    ObjectRef* stringPrototype();
+    FunctionObjectRef* number();
+    ObjectRef* numberPrototype();
+    FunctionObjectRef* array();
+    ObjectRef* arrayPrototype();
+    FunctionObjectRef* boolean();
+    ObjectRef* booleanPrototype();
+    FunctionObjectRef* date();
+    ObjectRef* datePrototype();
+    ObjectRef* math();
+    FunctionObjectRef* regexp();
+    ObjectRef* regexpPrototype();
+    ObjectRef* json();
+    FunctionObjectRef* jsonStringify();
+    FunctionObjectRef* jsonParse();
+
+#if ESCARGOT_ENABLE_PROMISE
+    FunctionObjectRef* promise();
+    ObjectRef* promisePrototype();
+#endif
+
+#if ESCARGOT_ENABLE_TYPEDARRAY
+    FunctionObjectRef* arrayBuffer();
+    ObjectRef* arrayBufferPrototype();
+    FunctionObjectRef* dataView();
+    ObjectRef* dataViewPrototype();
+    ObjectRef* int8Array();
+    ObjectRef* int8ArrayPrototype();
+    ObjectRef* uint8Array();
+    ObjectRef* uint8ArrayPrototype();
+    ObjectRef* int16Array();
+    ObjectRef* int16ArrayPrototype();
+    ObjectRef* uint16Array();
+    ObjectRef* uint16ArrayPrototype();
+    ObjectRef* int32Array();
+    ObjectRef* int32ArrayPrototype();
+    ObjectRef* uint32Array();
+    ObjectRef* uint32ArrayPrototype();
+    ObjectRef* uint8ClampedArray();
+    ObjectRef* uint8ClampedArrayPrototype();
+    ObjectRef* float32Array();
+    ObjectRef* float32ArrayPrototype();
+    ObjectRef* float64Array();
+    ObjectRef* float64ArrayPrototype();
+#endif
 };
 
 class FunctionObjectRef : public ObjectRef {
@@ -313,7 +405,7 @@ public:
         }
     };
 
-    struct StackTraceData : public gc {
+    struct StackTraceData {
         StringRef* fileName;
         LOC loc;
         StackTraceData();
@@ -323,7 +415,7 @@ public:
         ValueRef* result;
         ValueRef* error;
         StringRef* msgStr;
-        Vector<StackTraceData, GCUtil::gc_malloc_allocator<StackTraceData>> stackTraceData;
+        std::vector<StackTraceData, GCUtil::gc_malloc_allocator<StackTraceData>> stackTraceData;
         SandBoxResult();
     };
 
@@ -332,7 +424,7 @@ public:
 
 class ScriptParserRef {
 public:
-    struct ScriptParserResult : public gc {
+    struct ScriptParserResult {
         ScriptParserResult(ScriptRef* script, StringRef* error)
             : m_script(script)
             , m_error(error)
@@ -352,4 +444,7 @@ public:
 };
 
 } // namespace Escargot
+
+#pragma GCC visibility pop
+
 #endif

@@ -17,7 +17,7 @@
 #include "Escargot.h"
 #include "runtime/Context.h"
 #include "runtime/GlobalObject.h"
-#include "shell/DefaultJobQueue.h"
+#include "runtime/JobQueue.h"
 
 namespace Escargot {
 

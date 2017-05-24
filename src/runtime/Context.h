@@ -39,11 +39,14 @@ class JobQueue;
 class ByteCodeBlock;
 class ToStringRecursionPreventer;
 
+typedef Value (*VirtualIdentifierCallback)(ExecutionState& state, Value name);
+
 class Context : public gc {
     friend class AtomicString;
     friend class SandBox;
     friend class ByteCodeInterpreter;
     friend class OpcodeTable;
+    friend class ContextRef;
 
 public:
     Context(VMInstance* instance);
@@ -167,6 +170,29 @@ public:
         return m_compiledCodeBlocks;
     }
 
+    // this is not compatible with ECMAScript
+    // but this callback is needed for browser-implementation
+    // if there is a Identifier with that value, callback should return non-empty value
+    void setVirtualIdentifierCallback(VirtualIdentifierCallback cb)
+    {
+        m_virtualIdentifierCallback = cb;
+    }
+
+    VirtualIdentifierCallback virtualIdentifierCallback()
+    {
+        return m_virtualIdentifierCallback;
+    }
+
+    void setVirtualIdentifierInGlobalCallback(VirtualIdentifierCallback cb)
+    {
+        m_virtualIdentifierInGlobalCallback = cb;
+    }
+
+    VirtualIdentifierCallback virtualIdentifierInGlobalCallback()
+    {
+        return m_virtualIdentifierInGlobalCallback;
+    }
+
 protected:
     VMInstance* m_instance;
 
@@ -194,6 +220,11 @@ protected:
     ObjectStructure* m_defaultStructureForArgumentsObjectInStrictMode;
     Vector<SandBox*, GCUtil::gc_malloc_allocator<SandBox*>>& m_sandBoxStack;
     ToStringRecursionPreventer* m_toStringRecursionPreventer;
+    VirtualIdentifierCallback m_virtualIdentifierCallback;
+    VirtualIdentifierCallback m_virtualIdentifierInGlobalCallback;
+    // public helper variables
+    void* m_virtualIdentifierCallbackPublic;
+    void* m_virtualIdentifierInGlobalCallbackPublic;
 #if ESCARGOT_ENABLE_PROMISE
     JobQueue* m_jobQueue;
 #endif

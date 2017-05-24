@@ -7,6 +7,7 @@ ESCARGOT_CXXFLAGS_COMMON += -fno-rtti -fno-math-errno -I$(ESCARGOT_ROOT)/src/
 ESCARGOT_CXXFLAGS_COMMON += -fdata-sections -ffunction-sections
 ESCARGOT_CXXFLAGS_COMMON += -frounding-math -fsignaling-nans
 ESCARGOT_CXXFLAGS_COMMON += -fno-omit-frame-pointer
+ESCARGOT_CXXFLAGS_COMMON += -fvisibility=hidden
 
 ESCARGOT_CXXFLAGS_COMMON += -Wno-unused-but-set-variable -Wno-unused-but-set-parameter -Wno-unused-parameter
 ESCARGOT_CXXFLAGS_COMMON += -Wno-type-limits -Wno-unused-result -Wno-unused-variable -Wno-invalid-offsetof
@@ -17,6 +18,7 @@ ESCARGOT_CXXFLAGS_COMMON += -DESCARGOT_ENABLE_PROMISE
 
 #ESCARGOT_CXXFLAGS_COMMON += -DPROFILE_MASSIF
 #ESCARGOT_CXXFLAGS_COMMON += -DPROFILE_BDWGC
+ESCARGOT_LDFLAGS_COMMON = -fvisibility=hidden
 ifeq ($(HOST), linux)
   ESCARGOT_LDFLAGS_COMMON += -lpthread
   ESCARGOT_LDFLAGS_COMMON += -lrt
@@ -77,17 +79,18 @@ ifneq (,$(findstring tizen,$(HOST)))
   endif
 endif
 
+
 #######################################################
 # flags for $(OUTPUT) : bin/shared_lib/static_lib
 #######################################################
-ESCARGOT_CXXFLAGS_BIN += -fvisibility=hidden -DESCARGOT_STANDALONE
+ESCARGOT_CXXFLAGS_BIN += -DESCARGOT_STANDALONE
 ESCARGOT_LDFLAGS_BIN += -Wl,--gc-sections
 
-ESCARGOT_CXXFLAGS_SHAREDLIB += -fPIC -fvisibility=default
-ESCARGOT_LDFLAGS_SHAREDLIB += -ldl -fvisibility=default
+ESCARGOT_CXXFLAGS_SHAREDLIB += -fPIC
+ESCARGOT_LDFLAGS_SHAREDLIB += -ldl
 
-ESCARGOT_CXXFLAGS_STATICLIB += -fPIC -fvisibility=default
-ESCARGOT_LDFLAGS_STATICLIB += -Wl,--gc-sections -fvisibility=default
+ESCARGOT_CXXFLAGS_STATICLIB += -fPIC
+ESCARGOT_LDFLAGS_STATICLIB += -Wl,--gc-sections
 
 #######################################################
 # flags for LTO

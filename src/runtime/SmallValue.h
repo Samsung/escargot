@@ -191,6 +191,17 @@ public:
         }
     }
 
+    bool isStoredInHeap()
+    {
+        if (HAS_OBJECT_TAG(m_data.payload)) {
+            PointerValue* v = (PointerValue*)m_data.payload;
+            if (((size_t)v) > smallValueEmpty) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     intptr_t payload() const
     {
         return m_data.payload;

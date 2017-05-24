@@ -17,7 +17,7 @@
 #ifdef ESCARGOT_ENABLE_PROMISE
 
 #include "Escargot.h"
-#include "DefaultJobQueue.h"
+#include "JobQueue.h"
 #include "runtime/Job.h"
 #include "runtime/Context.h"
 #include "runtime/SandBox.h"

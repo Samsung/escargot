@@ -14,8 +14,8 @@
  *    limitations under the License.
  */
 
-#include "Escargot.h"
-#include "api/EscargotPublic.h"
+#include <EscargotPublic.h>
+#include <string.h>
 
 #define CHECK(name, cond) \
     printf(name" | %s\n", (cond) ? "pass" : "fail");
@@ -32,6 +32,7 @@ int main(int argc, char* argv[])
     Escargot::Globals::initialize();
     Escargot::VMInstanceRef* vm = Escargot::VMInstanceRef::create();
     Escargot::ContextRef* ctx = Escargot::ContextRef::create(vm);
+    Escargot::ObjectRef* globalObject = ctx->globalObject();
 
     const char* script = "4+3";
     const char* filename = "FileName.js";
@@ -48,6 +49,14 @@ int main(int argc, char* argv[])
 
     Escargot::ExecutionStateRef* es = Escargot::ExecutionStateRef::create(ctx);
     puts(evalResult->toString(es)->toStdUTF8String().c_str());
+
+    Escargot::FunctionObjectRef::NativeFunctionInfo printInfo(Escargot::AtomicStringRef::create(ctx, "print"), [](Escargot::ExecutionStateRef* state, Escargot::ValueRef* thisValue, size_t argc, Escargot::ValueRef** argv, bool isNewExpression) -> Escargot::ValueRef* {
+        puts(argv[0]->toString(state)->toStdUTF8String().data());
+        return Escargot::ValueRef::createUndefined();
+    }, 1, nullptr, true, false);
+
+    Escargot::FunctionObjectRef* printFn = Escargot::FunctionObjectRef::create(es, printInfo);
+    globalObject->set(es, Escargot::ValueRef::create(Escargot::StringRef::fromASCII("print")), Escargot::ValueRef::create(printFn));
 
     Escargot::ValueRef* jsbool = Escargot::ValueRef::create(true);
     Escargot::ValueRef* jsnumber = Escargot::ValueRef::create(123);
@@ -93,7 +102,6 @@ int main(int argc, char* argv[])
     CHECK("ValueRef type conversion 1", jsbool->toBoolean(es));
     CHECK("ValueRef type conversion 2", jsnumber->toNumber(es) == 123);
 
-    Escargot::ObjectRef* globalObject = ctx->globalObject();
     CHECK("globalObject() is not null", !Escargot::ValueRef::create(globalObject)->isNull());
     CHECK("globalObject() is object", Escargot::ValueRef::create(globalObject)->isObject());
     Escargot::ValueRef* jsmath
@@ -102,7 +110,7 @@ int main(int argc, char* argv[])
         = jsmath->toObject(es)->get(es, Escargot::ValueRef::create(Escargot::StringRef::fromASCII("PI")));
     printf("Math.PI = %f\n", jspi->toNumber(es));
 
-    // custom function & NativeDataAccessorProperty test
+    // custom function & NativeDataAccessorProperty & virtal-id test & ExposableObject test
     {
         Escargot::FunctionObjectRef::NativeFunctionInfo info(Escargot::AtomicStringRef::create(ctx, "Custom"), [](Escargot::ExecutionStateRef* state, Escargot::ValueRef* thisValue, size_t argc, Escargot::ValueRef** argv, bool isNewExpression) -> Escargot::ValueRef* {
             puts("custom function called");
@@ -124,7 +132,34 @@ int main(int argc, char* argv[])
 
         globalObject->set(es, Escargot::ValueRef::create(Escargot::StringRef::fromASCII("Custom")), Escargot::ValueRef::create(fn));
 
-        const char* script = "this.Custom.native = this.Custom.native; this.Custom(); new Custom();";
+        ctx->setVirtualIdentifierCallback([](Escargot::ExecutionStateRef* state, Escargot::ValueRef* name) -> Escargot::ValueRef* {
+            if (name->toString(state)->equals(Escargot::StringRef::fromASCII("virtualid"))) {
+                return Escargot::ValueRef::create(32);
+            }
+            return Escargot::ValueRef::createEmpty();
+        });
+
+        ctx->setVirtualIdentifierInGlobalCallback([](Escargot::ExecutionStateRef* state, Escargot::ValueRef* name) -> Escargot::ValueRef* {
+            if (name->toString(state)->equals(Escargot::StringRef::fromASCII("virtualidglobal"))) {
+                return Escargot::ValueRef::create(64);
+            }
+            return Escargot::ValueRef::createEmpty();
+        });
+
+        Escargot::ObjectRef* exp = Escargot::ObjectRef::createExposableObject(es, [](Escargot::ExecutionStateRef* state, Escargot::ObjectRef* self, Escargot::ValueRef* propertyName) -> Escargot::ValueRef* {
+            if (propertyName->toString(state)->equals(Escargot::StringRef::fromASCII("virtualid"))) {
+                return Escargot::ValueRef::create(Escargot::StringRef::fromASCII("virtualidvalue"));
+            }
+            return Escargot::ValueRef::createEmpty();
+        }, [](Escargot::ExecutionStateRef* state, Escargot::ObjectRef* self, Escargot::ValueRef* propertyName, Escargot::ValueRef* value) {
+
+        }, [](Escargot::ExecutionStateRef* state, Escargot::ObjectRef* self) -> Escargot::ValueVectorRef* {
+            return Escargot::ValueVectorRef::create(0);
+        }, true, true, true);
+
+        globalObject->set(es, Escargot::ValueRef::create(Escargot::StringRef::fromASCII("exposableObject")), Escargot::ValueRef::create(exp));
+
+        const char* script = "print(virtualid); print(this.virtualidglobal); this.Custom.native = this.Custom.native; this.Custom(); new Custom(); print(exposableObject.virtualid);";
         const char* filename = "FileName.js";
         printf("evaluateScript %s\n", script);
 

@@ -21,7 +21,7 @@
 #include "runtime/Value.h"
 #include "parser/ScriptParser.h"
 #ifdef ESCARGOT_ENABLE_PROMISE
-#include "DefaultJobQueue.h"
+#include "runtime/JobQueue.h"
 #endif
 
 namespace Escargot {

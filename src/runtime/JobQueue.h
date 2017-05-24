@@ -32,6 +32,43 @@ public:
     static JobQueue* create();
     virtual size_t enqueueJob(Job* job) = 0;
 };
+
+class DefaultJobQueue : public JobQueue {
+private:
+    DefaultJobQueue() {}
+public:
+    static DefaultJobQueue* create()
+    {
+        return new DefaultJobQueue();
+    }
+
+    size_t enqueueJob(Job* job)
+    {
+        m_jobs.push_back(job);
+        return 0;
+    }
+
+    bool hasNextJob()
+    {
+        return !m_jobs.empty();
+    }
+
+    Job* nextJob()
+    {
+        ASSERT(!m_jobs.empty());
+        Job* job = m_jobs.front();
+        m_jobs.pop_front();
+        return job;
+    }
+
+    static DefaultJobQueue* get(JobQueue* jobQueue)
+    {
+        return (DefaultJobQueue*)jobQueue;
+    }
+
+private:
+    std::list<Job*, gc_allocator<Job*> > m_jobs;
+};
 }
 #endif // ESCARGOT_ENABLE_PROMISE
 #endif // __EscargotJobQueue__
