@@ -24,6 +24,13 @@
 
 namespace Escargot {
 
+typedef void* (*ArrayBufferObjectBufferMallocFunction)(size_t siz);
+typedef void (*ArrayBufferObjectBufferFreeFunction)(void* buffer);
+
+extern ArrayBufferObjectBufferMallocFunction g_arrayBufferObjectBufferMallocFunction;
+extern bool g_arrayBufferObjectBufferMallocFunctionNeedsZeroFill;
+extern ArrayBufferObjectBufferFreeFunction g_arrayBufferObjectBufferFreeFunction;
+
 class ArrayBufferObject : public Object {
 public:
     ArrayBufferObject(ExecutionState& state);
@@ -38,6 +45,7 @@ public:
     // Clone srcBuffer's srcByteOffset ~ (srcByteOffset + cloneLength).
     bool cloneBuffer(ArrayBufferObject* srcBuffer, size_t srcByteOffset, size_t cloneLength);
     void allocateBuffer(size_t bytelength);
+    void attachBuffer(void* buffer, size_t bytelength);
 
     virtual bool isArrayBufferObject() const
     {

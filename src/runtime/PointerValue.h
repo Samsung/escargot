@@ -28,8 +28,14 @@ class NumberObject;
 class BooleanObject;
 class RegExpObject;
 class DateObject;
+class ErrorObject;
+class GlobalObject;
 #if ESCARGOT_ENABLE_PROMISE
 class PromiseObject;
+#endif
+#if ESCARGOT_ENABLE_TYPEDARRAY
+class ArrayBufferObject;
+class ArrayBufferView;
 #endif
 class DoubleInSmallValue;
 class JSGetterSetter;
@@ -163,6 +169,12 @@ public:
         return (Object*)this;
     }
 
+    ArrayObject* asArrayObject()
+    {
+        ASSERT(isArrayObject());
+        return (ArrayObject*)this;
+    }
+
     FunctionObject* asFunctionObject()
     {
         ASSERT(isFunctionObject());
@@ -199,11 +211,36 @@ public:
         return (DateObject*)this;
     }
 
+    ErrorObject* asErrorObject()
+    {
+        ASSERT(isErrorObject());
+        return (ErrorObject*)this;
+    }
+
+    GlobalObject* asGlobalObject()
+    {
+        ASSERT(isGlobalObject());
+        return (GlobalObject*)this;
+    }
+
 #if ESCARGOT_ENABLE_PROMISE
     PromiseObject* asPromiseObject()
     {
         ASSERT(isPromiseObject());
         return (PromiseObject*)this;
+    }
+#endif
+#if ESCARGOT_ENABLE_TYPEDARRAY
+    ArrayBufferObject* asArrayBufferObject()
+    {
+        ASSERT(isArrayBufferObject());
+        return (ArrayBufferObject*)this;
+    }
+
+    ArrayBufferView* asArrayBufferView()
+    {
+        ASSERT(isArrayBufferView());
+        return (ArrayBufferView*)this;
     }
 #endif
 

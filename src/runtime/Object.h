@@ -186,8 +186,8 @@ public:
     }
 
 protected:
-    Value m_getter;
-    Value m_setter;
+    SmallValue m_getter;
+    SmallValue m_setter;
 };
 
 class ObjectPropertyDescriptor {

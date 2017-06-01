@@ -37,14 +37,14 @@ void FunctionObject::initFunctionObject(ExecutionState& state)
     // Let thrower be the [[ThrowTypeError]] function Object (13.2.3).
     // Call the [[DefineOwnProperty]] internal method of F with arguments "caller", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
     // Call the [[DefineOwnProperty]] internal method of F with arguments "arguments", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
-    bool isStrict = m_codeBlock->isStrict() && !m_codeBlock->hasCallNativeFunctionCode();
+    bool needsThrower = m_codeBlock->isStrict() && !m_codeBlock->hasCallNativeFunctionCode();
 
     if (isConstructor()) {
         m_structure = state.context()->defaultStructureForFunctionObject();
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(Object::createFunctionPrototypeObject(state, this)));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionName().string()));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = (Value(m_codeBlock->parameterCount()));
-        if (isStrict) {
+        if (needsThrower) {
             m_structure = state.context()->defaultStructureForFunctionObjectInStrictMode();
             auto data = state.context()->globalObject()->throwerGetterSetterData();
             m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3] = Value(data);
@@ -63,7 +63,7 @@ void FunctionObject::initFunctionObject(ExecutionState& state)
         m_structure = state.context()->defaultStructureForNotConstructorFunctionObject();
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->parameterCount()));
-        if (isStrict) {
+        if (needsThrower) {
             m_structure = state.context()->defaultStructureForNotConstructorFunctionObjectInStrictMode();
             auto data = state.context()->globalObject()->throwerGetterSetterData();
             m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(data);
@@ -72,13 +72,24 @@ void FunctionObject::initFunctionObject(ExecutionState& state)
     }
 }
 
-FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltin)
+FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForGlobalBuiltin)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2, false)
     , m_codeBlock(codeBlock)
     , m_outerEnvironment(nullptr)
 {
     ASSERT(!isConstructor());
     initFunctionObject(state);
+}
+
+FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltin)
+    : Object(state, codeBlock->isConsturctor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
+    , m_codeBlock(codeBlock)
+    , m_outerEnvironment(nullptr)
+{
+    initFunctionObject(state);
+    setPrototype(state, state.context()->globalObject()->functionPrototype());
+    if (isConstructor())
+        m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
 }
 
 FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info)

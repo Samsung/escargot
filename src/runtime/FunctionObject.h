@@ -30,16 +30,18 @@ class FunctionEnvironmentRecord;
 class FunctionObject : public Object {
     friend class GlobalObject;
     friend class Script;
-    enum ForBuiltin { __ForBuiltin__ };
-    FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltin);
     void initFunctionObject(ExecutionState& state);
-    FunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltin);
 
+    enum ForGlobalBuiltin { __ForGlobalBuiltin__ };
+    FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForGlobalBuiltin);
 public:
     FunctionObject(ExecutionState& state, NativeFunctionInfo info);
     FunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment);
     enum ForBind { __ForBind__ };
     FunctionObject(ExecutionState& state, CodeBlock* codeBlock, String* functionName, ForBind);
+    enum ForBuiltin { __ForBuiltin__ };
+    FunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltin);
+    FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltin);
 
     // getter of internal [[Prototype]]
     Value getFunctionPrototype(ExecutionState& state)

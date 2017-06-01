@@ -21,6 +21,16 @@
 
 namespace Escargot {
 
+static void* callocWrapper(size_t siz)
+{
+    return calloc(1, siz);
+}
+
+ArrayBufferObjectBufferMallocFunction g_arrayBufferObjectBufferMallocFunction = callocWrapper;
+bool g_arrayBufferObjectBufferMallocFunctionNeedsZeroFill = false;
+ArrayBufferObjectBufferFreeFunction g_arrayBufferObjectBufferFreeFunction = free;
+
+
 ArrayBufferObject::ArrayBufferObject(ExecutionState& state)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, true)
     , m_data(nullptr)
@@ -29,22 +39,32 @@ ArrayBufferObject::ArrayBufferObject(ExecutionState& state)
     setPrototype(state, state.context()->globalObject()->arrayBufferPrototype());
 }
 
-// static int callocTotal;
-
 void ArrayBufferObject::allocateBuffer(size_t bytelength)
 {
     ASSERT(isDetachedBuffer());
 
-    m_data = (uint8_t*)calloc(1, bytelength);
+    m_data = (uint8_t*)g_arrayBufferObjectBufferMallocFunction(bytelength);
+    if (g_arrayBufferObjectBufferMallocFunctionNeedsZeroFill) {
+        memset(m_data, 0, bytelength);
+    }
     m_bytelength = bytelength;
-    // callocTotal += bytelength;
-    // ESCARGOT_LOG_INFO("callocTotal %lf\n", callocTotal / 1024.0 / 1024.0);
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
                                             void*) {
         ArrayBufferObject* self = (ArrayBufferObject*)obj;
-        free(self->m_data);
-        // callocTotal -= self->m_bytelength;
-        // ESCARGOT_LOG_INFO("callocTotal %lf\n", callocTotal / 1024.0 / 1024.0);
+        g_arrayBufferObjectBufferFreeFunction(self->m_data);
+    },
+                                   nullptr, nullptr, nullptr);
+}
+
+void ArrayBufferObject::attachBuffer(void* buffer, size_t bytelength)
+{
+    ASSERT(isDetachedBuffer());
+    m_data = (uint8_t*)buffer;
+    m_bytelength = bytelength;
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
+                                            void*) {
+        ArrayBufferObject* self = (ArrayBufferObject*)obj;
+        g_arrayBufferObjectBufferFreeFunction(self->m_data);
     },
                                    nullptr, nullptr, nullptr);
 }

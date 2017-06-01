@@ -29,11 +29,17 @@
 namespace Escargot {
 
 class VMInstanceRef;
+class StringRef;
 class ValueRef;
 class PointerValueRef;
 class ObjectRef;
 class GlobalObjectRef;
 class FunctionObjectRef;
+class ArrayObjectRef;
+class ArrayBufferObjectRef;
+class ArrayBufferViewRef;
+class PromiseObjectRef;
+class ErrorObjectRef;
 class ScriptRef;
 class ScriptParserRef;
 class ExecutionStateRef;
@@ -44,7 +50,31 @@ public:
     static void finalize();
 };
 
+// `double` value is not presented in PointerValue, but it is stored in heap
 class PointerValueRef {
+public:
+    bool isString();
+    StringRef* asString();
+    bool isObject();
+    ObjectRef* asObject();
+    bool isFunctionObject();
+    ObjectRef* asFunctionObject();
+    bool isArrayObject();
+    ArrayObjectRef* asArrayObject();
+    bool isGlobalObject();
+    GlobalObjectRef* asGlobalObject();
+    bool isErrorObject();
+    ErrorObjectRef* asErrorObject();
+#if ESCARGOT_ENABLE_TYPEDARRAY
+    bool isArrayBufferObject();
+    ArrayBufferObjectRef* asArrayBufferObject();
+    bool isArrayBufferView();
+    ArrayBufferViewRef* asArrayBufferView();
+#endif
+#if ESCARGOT_ENABLE_PROMISE
+    bool isPromiseObject();
+    PromiseObjectRef* asPromiseObject();
+#endif
 };
 
 class StringRef : public PointerValueRef {
@@ -52,6 +82,7 @@ public:
     static StringRef* fromASCII(const char* s);
     static StringRef* fromASCII(const char* s, size_t len);
     static StringRef* fromUTF8(const char* s, size_t len);
+    static StringRef* fromUTF16(const char16_t* s, size_t len);
     static StringRef* emptyString();
 
     char16_t charAt(size_t idx);
@@ -99,6 +130,7 @@ class AtomicStringRef {
 public:
     static AtomicStringRef* create(ContextRef* c, const char* src); // from ASCII string
     static AtomicStringRef* create(ContextRef* c, StringRef* src);
+    static AtomicStringRef* emptyAtomicString();
     StringRef* string();
 };
 
@@ -106,6 +138,8 @@ class ExecutionStateRef {
 public:
     static ExecutionStateRef* create(ContextRef* ctx);
     void destroy();
+
+    void throwException(ValueRef* value);
 
     ContextRef* context();
 };
@@ -118,11 +152,19 @@ public:
         int64_t asInt64;
     };
 
-    static ValueRef* create(bool value);
-    static ValueRef* create(int32_t value);
-    static ValueRef* create(uint32_t value);
-    static ValueRef* create(double value);
-    static ValueRef* create(PointerValueRef* value);
+    static ValueRef* create(bool);
+    static ValueRef* create(int);
+    static ValueRef* create(unsigned);
+    static ValueRef* create(float);
+    static ValueRef* create(double);
+    static ValueRef* create(long);
+    static ValueRef* create(unsigned long);
+    static ValueRef* create(long long);
+    static ValueRef* create(unsigned long long);
+    static ValueRef* create(PointerValueRef* value)
+    {
+        return reinterpret_cast<ValueRef*>(value);
+    }
     static ValueRef* createNull();
     static ValueRef* createUndefined();
     static ValueRef* createEmpty();
@@ -146,14 +188,26 @@ public:
         return isUndefined() || isNull();
     }
 
-    bool toBoolean(ExecutionStateRef* es);
-    double toNumber(ExecutionStateRef* es);
-    double toInteger(ExecutionStateRef* es);
-    double toLength(ExecutionStateRef* es);
-    int32_t toInt32(ExecutionStateRef* es);
-    uint32_t toUint32(ExecutionStateRef* es);
-    StringRef* toString(ExecutionStateRef* es);
-    ObjectRef* toObject(ExecutionStateRef* es);
+    bool toBoolean(ExecutionStateRef* state);
+    double toNumber(ExecutionStateRef* state);
+    double toInteger(ExecutionStateRef* state);
+    double toLength(ExecutionStateRef* state);
+    int32_t toInt32(ExecutionStateRef* state);
+    uint32_t toUint32(ExecutionStateRef* state);
+    StringRef* toString(ExecutionStateRef* state);
+    ObjectRef* toObject(ExecutionStateRef* state);
+
+    enum { InvalidIndexValue = std::numeric_limits<uint32_t>::max() };
+    typedef uint64_t ValueIndex;
+    ValueIndex toIndex(ExecutionStateRef* state);
+
+    bool asBoolean();
+    double asNumber();
+    int32_t asInt32();
+    uint32_t asUint32();
+    StringRef* asString();
+    ObjectRef* asObject();
+    FunctionObjectRef* asFunction();
 
 protected:
 };
@@ -230,8 +284,9 @@ public:
         PresentAttribute m_attribute;
     };
 
-    bool defineDataPropety(ExecutionStateRef* state, ValueRef* propertyName, const DataPropertyDescriptor& desc);
-    bool defineAccessorPropety(ExecutionStateRef* state, ValueRef* propertyName, const AccessorPropertyDescriptor& desc);
+    bool defineDataProperty(ExecutionStateRef* state, ValueRef* propertyName, const DataPropertyDescriptor& desc);
+    bool defineDataProperty(ExecutionStateRef* state, ValueRef* propertyName, ValueRef* value, bool isWritable, bool isEnumerable, bool isConfigurable);
+    bool defineAccessorProperty(ExecutionStateRef* state, ValueRef* propertyName, const AccessorPropertyDescriptor& desc);
 
     struct NativeDataAccessorPropertyData;
     typedef ValueRef* (*NativeDataAccessorPropertyGetter)(ExecutionStateRef* state, ObjectRef* self, NativeDataAccessorPropertyData* data);
@@ -279,6 +334,8 @@ public:
 
     void* extraData();
     void setExtraData(void* e);
+
+    void removeFromHiddenClassChain(ExecutionStateRef* state);
 };
 
 class GlobalObjectRef : public ObjectRef {
@@ -375,6 +432,7 @@ public:
     };
 
     static FunctionObjectRef* create(ExecutionStateRef* state, NativeFunctionInfo info);
+    static FunctionObjectRef* createBuiltinFunction(ExecutionStateRef* state, NativeFunctionInfo info);
 
     // getter of internal [[Prototype]]
     ValueRef* getFunctionPrototype(ExecutionStateRef* state);
@@ -386,6 +444,94 @@ public:
     // ECMAScript new operation
     ObjectRef* newInstance(ExecutionStateRef* state, const size_t& argc, ValueRef** argv);
 };
+
+class ArrayObjectRef : public ObjectRef {
+public:
+    static ArrayObjectRef* create(ExecutionStateRef* state);
+};
+
+class ErrorObjectRef : public ObjectRef {
+public:
+    enum Code {
+        None,
+        ReferenceError,
+        TypeError,
+        SyntaxError,
+        RangeError,
+        URIError,
+        EvalError
+    };
+    static ErrorObjectRef* create(ExecutionStateRef* state, ErrorObjectRef::Code code, StringRef* errorMessage);
+
+protected:
+};
+
+class ReferenceErrorObjectRef : public ErrorObjectRef {
+public:
+    static ReferenceErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
+};
+
+class TypeErrorObjectRef : public ErrorObjectRef {
+public:
+    static TypeErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
+};
+
+class SyntaxErrorObjectRef : public ErrorObjectRef {
+public:
+    static SyntaxErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
+};
+
+class RangeErrorObjectRef : public ErrorObjectRef {
+public:
+    static RangeErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
+};
+
+class URIErrorObjectRef : public ErrorObjectRef {
+public:
+    static URIErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
+};
+
+class EvalErrorObjectRef : public ErrorObjectRef {
+public:
+    static EvalErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
+};
+
+
+#ifdef ESCARGOT_ENABLE_TYPEDARRAY
+class ArrayBufferObjectRef : public ObjectRef {
+public:
+    typedef void* (*ArrayBufferObjectBufferMallocFunction)(size_t siz);
+    typedef void (*ArrayBufferObjectBufferFreeFunction)(void* buffer);
+
+    static void setMallocFunction(ArrayBufferObjectBufferMallocFunction fn);
+    static void setFreeFunction(ArrayBufferObjectBufferFreeFunction fn);
+    static void setMallocFunctionNeedsZeroFill(bool n);
+
+    static ArrayBufferObjectRef* create(ExecutionStateRef* state);
+    void allocateBuffer(size_t bytelength);
+    void attachBuffer(void* buffer, size_t bytelength);
+    void detachArrayBuffer();
+    uint8_t* rawBuffer();
+    unsigned bytelength();
+};
+
+class ArrayBufferViewRef : public ObjectRef {
+public:
+    ArrayBufferObjectRef* buffer();
+    uint8_t* rawBuffer();
+    unsigned bytelength();
+};
+
+#endif
+
+#ifdef ESCARGOT_ENABLE_PROMISE
+class PromiseObjectRef : public ObjectRef {
+public:
+    static PromiseObjectRef* create(ExecutionStateRef* state);
+    void fulfill(ExecutionStateRef* state, ValueRef* value);
+    void reject(ExecutionStateRef* state, ValueRef* reason);
+};
+#endif
 
 class SandBoxRef {
 public:

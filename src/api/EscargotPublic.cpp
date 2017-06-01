@@ -28,9 +28,16 @@
 #include "runtime/VMInstance.h"
 #include "runtime/SandBox.h"
 #include "runtime/Environment.h"
+#include "runtime/ArrayObject.h"
+#include "runtime/ErrorObject.h"
 #ifdef ESCARGOT_ENABLE_PROMISE
 #include "runtime/Job.h"
 #include "runtime/JobQueue.h"
+#include "runtime/PromiseObject.h"
+#endif
+#ifdef ESCARGOT_ENABLE_TYPEDARRAY
+#include "runtime/ArrayBufferObject.h"
+#include "runtime/TypedArrayObject.h"
 #endif
 
 namespace Escargot {
@@ -52,10 +59,26 @@ DEFINE_CAST(ExecutionState);
 DEFINE_CAST(String);
 DEFINE_CAST(PointerValue);
 DEFINE_CAST(Object);
+DEFINE_CAST(ArrayObject)
+DEFINE_CAST(ErrorObject)
+DEFINE_CAST(ReferenceErrorObject);
+DEFINE_CAST(TypeErrorObject);
+DEFINE_CAST(SyntaxErrorObject);
+DEFINE_CAST(RangeErrorObject);
+DEFINE_CAST(URIErrorObject);
+DEFINE_CAST(EvalErrorObject);
 DEFINE_CAST(GlobalObject);
 DEFINE_CAST(FunctionObject);
+#ifdef ESCARGOT_ENABLE_PROMISE
+DEFINE_CAST(PromiseObject);
+#endif
 DEFINE_CAST(Script);
 DEFINE_CAST(ScriptParser);
+
+#if ESCARGOT_ENABLE_TYPEDARRAY
+DEFINE_CAST(ArrayBufferObject);
+DEFINE_CAST(ArrayBufferView);
+#endif
 
 #undef DEFINE_CAST
 
@@ -114,6 +137,11 @@ StringRef* StringRef::fromUTF8(const char* s, size_t len)
     return toRef(String::fromUTF8(s, len));
 }
 
+StringRef* StringRef::fromUTF16(const char16_t* s, size_t len)
+{
+    return toRef(new UTF16String(s, len));
+}
+
 StringRef* StringRef::emptyString()
 {
     return toRef(String::emptyString);
@@ -139,6 +167,99 @@ std::string StringRef::toStdUTF8String()
     auto ret = toImpl(this)->toUTF8StringData();
     return std::string(ret.data(), ret.length());
 }
+
+bool PointerValueRef::isString()
+{
+    return toImpl(this)->isString();
+}
+
+StringRef* PointerValueRef::asString()
+{
+    return toRef(toImpl(this)->asString());
+}
+
+bool PointerValueRef::isObject()
+{
+    return toImpl(this)->isString();
+}
+
+ObjectRef* PointerValueRef::asObject()
+{
+    return toRef(toImpl(this)->asObject());
+}
+
+bool PointerValueRef::isFunctionObject()
+{
+    return toImpl(this)->isFunctionObject();
+}
+
+ObjectRef* PointerValueRef::asFunctionObject()
+{
+    return toRef(toImpl(this)->asFunctionObject());
+}
+
+bool PointerValueRef::isArrayObject()
+{
+    return toImpl(this)->isArrayObject();
+}
+
+ArrayObjectRef* PointerValueRef::asArrayObject()
+{
+    return toRef(toImpl(this)->asArrayObject());
+}
+
+bool PointerValueRef::isGlobalObject()
+{
+    return toImpl(this)->isGlobalObject();
+}
+
+GlobalObjectRef* PointerValueRef::asGlobalObject()
+{
+    return toRef(toImpl(this)->asGlobalObject());
+}
+
+bool PointerValueRef::isErrorObject()
+{
+    return toImpl(this)->isErrorObject();
+}
+
+ErrorObjectRef* PointerValueRef::asErrorObject()
+{
+    return toRef(toImpl(this)->asErrorObject());
+}
+
+#if ESCARGOT_ENABLE_TYPEDARRAY
+bool PointerValueRef::isArrayBufferObject()
+{
+    return toImpl(this)->isArrayBufferObject();
+}
+
+ArrayBufferObjectRef* PointerValueRef::asArrayBufferObject()
+{
+    return toRef(toImpl(this)->asArrayBufferObject());
+}
+
+bool PointerValueRef::isArrayBufferView()
+{
+    return toImpl(this)->isArrayBufferObject();
+}
+
+ArrayBufferViewRef* PointerValueRef::asArrayBufferView()
+{
+    return toRef(toImpl(this)->asArrayBufferView());
+}
+
+#endif
+#if ESCARGOT_ENABLE_PROMISE
+bool PointerValueRef::isPromiseObject()
+{
+    return toImpl(this)->isPromiseObject();
+}
+PromiseObjectRef* PointerValueRef::asPromiseObject()
+{
+    return toRef(toImpl(this)->asPromiseObject());
+}
+#endif
 
 VMInstanceRef* VMInstanceRef::create()
 {
@@ -209,6 +330,12 @@ AtomicStringRef* AtomicStringRef::create(ContextRef* c, StringRef* src)
     return toRef(a);
 }
 
+AtomicStringRef* AtomicStringRef::emptyAtomicString()
+{
+    AtomicString a;
+    return toRef(a);
+}
+
 StringRef* AtomicStringRef::string()
 {
     return toRef(toImpl(this).string());
@@ -271,7 +398,7 @@ ObjectRef* ObjectRef::create(ExecutionStateRef* state)
 }
 
 
-// can not redefine or delete virtual object
+// can not redefine or delete virtual property
 class ExposableObject : public Object {
 public:
     ExposableObject(ExecutionState& state, bool isWritable, bool isEnumerable, bool isConfigurable, ExposableObjectGetOwnPropertyCallback getOwnPropetyCallback, ExposableObjectDefineOwnPropertyCallback defineOwnPropertyCallback, ExposableObjectEnumerationCallback enumerationCallback)
@@ -384,13 +511,34 @@ COMPILE_ASSERT((int)ObjectRef::PresentAttribute::NonWritablePresent == (int)Obje
 COMPILE_ASSERT((int)ObjectRef::PresentAttribute::NonEnumerablePresent == (int)ObjectPropertyDescriptor::NonEnumerablePresent, "");
 COMPILE_ASSERT((int)ObjectRef::PresentAttribute::NonConfigurablePresent == (int)ObjectPropertyDescriptor::NonConfigurablePresent, "");
 
-bool ObjectRef::defineDataPropety(ExecutionStateRef* state, ValueRef* propertyName, const DataPropertyDescriptor& desc)
+bool ObjectRef::defineDataProperty(ExecutionStateRef* state, ValueRef* propertyName, const DataPropertyDescriptor& desc)
 {
     return toImpl(this)->defineOwnProperty(*toImpl(state),
                                            ObjectPropertyName(*toImpl(state), toImpl(propertyName)), ObjectPropertyDescriptor(toImpl(desc.m_value), (ObjectPropertyDescriptor::PresentAttribute)desc.m_attribute));
 }
 
-bool ObjectRef::defineAccessorPropety(ExecutionStateRef* state, ValueRef* propertyName, const AccessorPropertyDescriptor& desc)
+bool ObjectRef::defineDataProperty(ExecutionStateRef* state, ValueRef* propertyName, ValueRef* value, bool isWritable, bool isEnumerable, bool isConfigurable)
+{
+    int attr = 0;
+    if (isWritable)
+        attr = attr | ObjectPropertyDescriptor::WritablePresent;
+    else
+        attr = attr | ObjectPropertyDescriptor::NonWritablePresent;
+
+    if (isEnumerable)
+        attr = attr | ObjectPropertyDescriptor::EnumerablePresent;
+    else
+        attr = attr | ObjectPropertyDescriptor::NonEnumerablePresent;
+
+    if (isConfigurable)
+        attr = attr | ObjectPropertyDescriptor::ConfigurablePresent;
+    else
+        attr = attr | ObjectPropertyDescriptor::NonConfigurablePresent;
+    return toImpl(this)->defineOwnProperty(*toImpl(state),
+                                           ObjectPropertyName(*toImpl(state), toImpl(propertyName)), ObjectPropertyDescriptor(toImpl(value), (ObjectPropertyDescriptor::PresentAttribute)attr));
+}
+
+bool ObjectRef::defineAccessorProperty(ExecutionStateRef* state, ValueRef* propertyName, const AccessorPropertyDescriptor& desc)
 {
     return toImpl(this)->defineOwnProperty(*toImpl(state),
                                            ObjectPropertyName(*toImpl(state), toImpl(propertyName)), ObjectPropertyDescriptor(JSGetterSetter(toImpl(desc.m_getter), toImpl(desc.m_setter)), (ObjectPropertyDescriptor::PresentAttribute)desc.m_attribute));
@@ -480,6 +628,11 @@ void* ObjectRef::extraData()
 void ObjectRef::setExtraData(void* e)
 {
     toImpl(this)->setExtraData(e);
+}
+
+void ObjectRef::removeFromHiddenClassChain(ExecutionStateRef* state)
+{
+    toImpl(this)->markThisObjectDontNeedStructureTransitionTable(*toImpl(state));
 }
 
 FunctionObjectRef* GlobalObjectRef::object()
@@ -801,7 +954,7 @@ static Value publicFunctionBridge(ExecutionState& state, Value thisValue, size_t
     return toImpl(code->m_publicFn(toRef(&state), toRef(thisValue), calledArgc, newArgv, isNewExpression));
 }
 
-FunctionObjectRef* FunctionObjectRef::create(ExecutionStateRef* state, FunctionObjectRef::NativeFunctionInfo info)
+static FunctionObjectRef* createFunction(ExecutionStateRef* state, FunctionObjectRef::NativeFunctionInfo info, bool isBuiltin)
 {
     CallPublicFunctionData* data = new CallPublicFunctionData();
     data->m_fn = publicFunctionBridge;
@@ -826,8 +979,22 @@ FunctionObjectRef* FunctionObjectRef::create(ExecutionStateRef* state, FunctionO
     }
 
     CodeBlock* cb = new CodeBlock(toImpl(state)->context(), toImpl(info.m_name), info.m_argumentCount, info.m_isStrict, info.m_isConstructor, data);
-    FunctionObject* f = new FunctionObject(*toImpl(state), cb, nullptr);
+    FunctionObject* f;
+    if (isBuiltin)
+        f = new FunctionObject(*toImpl(state), cb, FunctionObject::__ForBuiltin__);
+    else
+        f = new FunctionObject(*toImpl(state), cb, nullptr);
     return toRef(f);
+}
+
+FunctionObjectRef* FunctionObjectRef::create(ExecutionStateRef* state, FunctionObjectRef::NativeFunctionInfo info)
+{
+    return createFunction(state, info, false);
+}
+
+FunctionObjectRef* FunctionObjectRef::createBuiltinFunction(ExecutionStateRef* state, FunctionObjectRef::NativeFunctionInfo info)
+{
+    return createFunction(state, info, true);
 }
 
 ValueRef* FunctionObjectRef::getFunctionPrototype(ExecutionStateRef* state)
@@ -972,23 +1139,53 @@ void ExecutionStateRef::destroy()
     delete imp;
 }
 
+void ExecutionStateRef::throwException(ValueRef* value)
+{
+    ExecutionState* imp = toImpl(this);
+    imp->throwException(toImpl(value));
+}
 
 ValueRef* ValueRef::create(bool value)
 {
     return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
 }
 
-ValueRef* ValueRef::create(int32_t value)
+ValueRef* ValueRef::create(int value)
 {
     return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
 }
 
-ValueRef* ValueRef::create(uint32_t value)
+ValueRef* ValueRef::create(unsigned value)
+{
+    return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
+}
+
+ValueRef* ValueRef::create(float value)
 {
     return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
 }
 
 ValueRef* ValueRef::create(double value)
+{
+    return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
+}
+
+ValueRef* ValueRef::create(long value)
+{
+    return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
+}
+
+ValueRef* ValueRef::create(unsigned long value)
+{
+    return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
+}
+
+ValueRef* ValueRef::create(long long value)
+{
+    return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
+}
+
+ValueRef* ValueRef::create(unsigned long long value)
 {
     return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
 }
@@ -1008,12 +1205,6 @@ ValueRef* ValueRef::createEmpty()
 ValueRef* ValueRef::createUndefined()
 {
     return reinterpret_cast<ValueRef*>(SmallValue(Value(Value::Undefined))
-                                           .payload());
-}
-
-ValueRef* ValueRef::create(PointerValueRef* value)
-{
-    return reinterpret_cast<ValueRef*>(SmallValue(Value(toImpl(value)))
                                            .payload());
 }
 
@@ -1132,6 +1323,175 @@ ObjectRef* ValueRef::toObject(ExecutionStateRef* es)
     ExecutionState* esi = toImpl(es);
     return toRef(Value(SmallValue::fromPayload(this)).toObject(*esi));
 }
+
+ValueRef::ValueIndex ValueRef::toIndex(ExecutionStateRef* state)
+{
+    ExecutionState* esi = toImpl(state);
+    return Value(SmallValue::fromPayload(this)).toIndex(*esi);
+}
+
+bool ValueRef::asBoolean()
+{
+    return Value(SmallValue::fromPayload(this)).asBoolean();
+}
+
+double ValueRef::asNumber()
+{
+    return Value(SmallValue::fromPayload(this)).asNumber();
+}
+
+int32_t ValueRef::asInt32()
+{
+    return Value(SmallValue::fromPayload(this)).asInt32();
+}
+
+uint32_t ValueRef::asUint32()
+{
+    return Value(SmallValue::fromPayload(this)).asUInt32();
+}
+
+StringRef* ValueRef::asString()
+{
+    return toRef(Value(SmallValue::fromPayload(this)).asString());
+}
+
+ObjectRef* ValueRef::asObject()
+{
+    return toRef(Value(SmallValue::fromPayload(this)).asObject());
+}
+
+FunctionObjectRef* ValueRef::asFunction()
+{
+    return toRef(Value(SmallValue::fromPayload(this)).asFunction());
+}
+
+ArrayObjectRef* ArrayObjectRef::create(ExecutionStateRef* state)
+{
+    return toRef(new ArrayObject(*toImpl(state)));
+}
+
+COMPILE_ASSERT((int)ErrorObject::Code::None == (int)ErrorObjectRef::Code::None, "");
+COMPILE_ASSERT((int)ErrorObject::Code::ReferenceError == (int)ErrorObjectRef::Code::ReferenceError, "");
+COMPILE_ASSERT((int)ErrorObject::Code::TypeError == (int)ErrorObjectRef::Code::TypeError, "");
+COMPILE_ASSERT((int)ErrorObject::Code::SyntaxError == (int)ErrorObjectRef::Code::SyntaxError, "");
+COMPILE_ASSERT((int)ErrorObject::Code::RangeError == (int)ErrorObjectRef::Code::RangeError, "");
+COMPILE_ASSERT((int)ErrorObject::Code::URIError == (int)ErrorObjectRef::Code::URIError, "");
+COMPILE_ASSERT((int)ErrorObject::Code::EvalError == (int)ErrorObjectRef::Code::EvalError, "");
+
+ErrorObjectRef* ErrorObjectRef::create(ExecutionStateRef* state, ErrorObjectRef::Code code, StringRef* errorMessage)
+{
+    return toRef(ErrorObject::createError(*toImpl(state), (ErrorObject::Code)code, toImpl(errorMessage)));
+}
+
+ReferenceErrorObjectRef* ReferenceErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
+{
+    return toRef(new ReferenceErrorObject(*toImpl(state), toImpl(errorMessage)));
+}
+
+TypeErrorObjectRef* TypeErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
+{
+    return toRef(new TypeErrorObject(*toImpl(state), toImpl(errorMessage)));
+}
+
+SyntaxErrorObjectRef* SyntaxErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
+{
+    return toRef(new SyntaxErrorObject(*toImpl(state), toImpl(errorMessage)));
+}
+
+RangeErrorObjectRef* RangeErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
+{
+    return toRef(new RangeErrorObject(*toImpl(state), toImpl(errorMessage)));
+}
+
+URIErrorObjectRef* URIErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
+{
+    return toRef(new URIErrorObject(*toImpl(state), toImpl(errorMessage)));
+}
+
+EvalErrorObjectRef* EvalErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
+{
+    return toRef(new EvalErrorObject(*toImpl(state), toImpl(errorMessage)));
+}
+
+#ifdef ESCARGOT_ENABLE_TYPEDARRAY
+
+void ArrayBufferObjectRef::setMallocFunction(ArrayBufferObjectBufferMallocFunction fn)
+{
+    g_arrayBufferObjectBufferMallocFunction = fn;
+}
+
+void ArrayBufferObjectRef::setFreeFunction(ArrayBufferObjectBufferFreeFunction fn)
+{
+    g_arrayBufferObjectBufferFreeFunction = fn;
+}
+
+void ArrayBufferObjectRef::setMallocFunctionNeedsZeroFill(bool n)
+{
+    g_arrayBufferObjectBufferMallocFunctionNeedsZeroFill = n;
+}
+
+ArrayBufferObjectRef* ArrayBufferObjectRef::create(ExecutionStateRef* state)
+{
+    return toRef(new ArrayBufferObject(*toImpl(state)));
+}
+
+void ArrayBufferObjectRef::allocateBuffer(size_t bytelength)
+{
+    toImpl(this)->allocateBuffer(bytelength);
+}
+
+void ArrayBufferObjectRef::attachBuffer(void* buffer, size_t bytelength)
+{
+    toImpl(this)->attachBuffer(buffer, bytelength);
+}
+
+void ArrayBufferObjectRef::detachArrayBuffer()
+{
+    toImpl(this)->detachArrayBuffer();
+}
+
+uint8_t* ArrayBufferObjectRef::rawBuffer()
+{
+    return (uint8_t*)toImpl(this)->data();
+}
+
+unsigned ArrayBufferObjectRef::bytelength()
+{
+    return toImpl(this)->bytelength();
+}
+
+ArrayBufferObjectRef* ArrayBufferViewRef::buffer()
+{
+    return toRef(toImpl(this)->buffer());
+}
+
+uint8_t* ArrayBufferViewRef::rawBuffer()
+{
+    return toImpl(this)->rawBuffer();
+}
+
+unsigned ArrayBufferViewRef::bytelength()
+{
+    return toImpl(this)->bytelength();
+}
+
+#endif
+
+#ifdef ESCARGOT_ENABLE_PROMISE
+PromiseObjectRef* PromiseObjectRef::create(ExecutionStateRef* state)
+{
+    return toRef(new PromiseObject(*toImpl(state)));
+}
+void PromiseObjectRef::fulfill(ExecutionStateRef* state, ValueRef* value)
+{
+    toImpl(this)->fulfillPromise(*toImpl(state), toImpl(value));
+}
+
+void PromiseObjectRef::reject(ExecutionStateRef* state, ValueRef* reason)
+{
+    toImpl(this)->rejectPromise(*toImpl(state), toImpl(reason));
+}
+#endif
 
 ScriptParserRef::ScriptParserResult ScriptParserRef::parse(StringRef* script, StringRef* fileName)
 {
