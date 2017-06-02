@@ -43,6 +43,7 @@ class ErrorObjectRef;
 class ScriptRef;
 class ScriptParserRef;
 class ExecutionStateRef;
+class ValueVectorRef;
 
 class Globals {
 public:
@@ -136,8 +137,13 @@ public:
 
 class ExecutionStateRef {
 public:
+    // this can not create sandbox
+    // use this function only non-exececption area
     static ExecutionStateRef* create(ContextRef* ctx);
     void destroy();
+
+    FunctionObjectRef* resolveCallee(); // resolve nearest callee if exists
+    ValueVectorRef* resolveCallstack(); // resolve callees
 
     void throwException(ValueRef* value);
 
@@ -162,6 +168,10 @@ public:
     static ValueRef* create(long long);
     static ValueRef* create(unsigned long long);
     static ValueRef* create(PointerValueRef* value)
+    {
+        return reinterpret_cast<ValueRef*>(value);
+    }
+    static ValueRef* create(ValueRef* value)
     {
         return reinterpret_cast<ValueRef*>(value);
     }

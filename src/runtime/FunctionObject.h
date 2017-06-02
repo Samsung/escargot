@@ -34,6 +34,7 @@ class FunctionObject : public Object {
 
     enum ForGlobalBuiltin { __ForGlobalBuiltin__ };
     FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForGlobalBuiltin);
+
 public:
     FunctionObject(ExecutionState& state, NativeFunctionInfo info);
     FunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment);

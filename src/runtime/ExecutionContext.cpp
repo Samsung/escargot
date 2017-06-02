@@ -24,9 +24,12 @@ namespace Escargot {
 FunctionObject* ExecutionContext::resolveCallee()
 {
     LexicalEnvironment* env = m_lexicalEnvironment;
-    while (!env->record()->isDeclarativeEnvironmentRecord() && !m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+    while (env) {
+        if (env->record()->isDeclarativeEnvironmentRecord() && m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            return m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
+        }
         env = env->outerEnvironment();
     }
-    return m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
+    return nullptr;
 }
 }

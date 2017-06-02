@@ -69,6 +69,11 @@ Context::Context(VMInstance* instance)
 
 void Context::throwException(ExecutionState& state, const Value& exception)
 {
-    m_sandBoxStack.back()->throwException(state, exception);
+    if (m_sandBoxStack.size()) {
+        m_sandBoxStack.back()->throwException(state, exception);
+    } else {
+        ESCARGOT_LOG_ERROR("there is no sandbox but exception occurred");
+        RELEASE_ASSERT_NOT_REACHED();
+    }
 }
 }

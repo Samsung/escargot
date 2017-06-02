@@ -442,19 +442,22 @@ public:
     virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
     {
         ValueVectorRef* names = m_enumerationCallback(toRef(&state), toRef(this));
-        int attr = 0;
-        if (m_isWritable) {
-            attr = attr | ObjectStructurePropertyDescriptor::PresentAttribute::WritablePresent;
-        }
-        if (m_isEnumerable) {
-            attr = attr | ObjectStructurePropertyDescriptor::PresentAttribute::EnumerablePresent;
-        }
-        if (m_isConfigurable) {
-            attr = attr | ObjectStructurePropertyDescriptor::PresentAttribute::ConfigurablePresent;
-        }
-        ObjectStructurePropertyDescriptor desc = ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)attr);
-        for (size_t i = 0; i < names->size(); i++) {
-            callback(state, this, ObjectPropertyName(state, toImpl(names->at(i))), desc, data);
+        if (names) {
+            int attr = 0;
+            if (m_isWritable) {
+                attr = attr | ObjectStructurePropertyDescriptor::PresentAttribute::WritablePresent;
+            }
+            if (m_isEnumerable) {
+                attr = attr | ObjectStructurePropertyDescriptor::PresentAttribute::EnumerablePresent;
+            }
+            if (m_isConfigurable) {
+                attr = attr | ObjectStructurePropertyDescriptor::PresentAttribute::ConfigurablePresent;
+            }
+            ObjectStructurePropertyDescriptor desc = ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)attr);
+
+            for (size_t i = 0; i < names->size(); i++) {
+                callback(state, this, ObjectPropertyName(state, toImpl(names->at(i))), desc, data);
+            }
         }
         Object::enumeration(state, callback, data);
     }
@@ -1137,6 +1140,37 @@ void ExecutionStateRef::destroy()
 {
     ExecutionState* imp = toImpl(this);
     delete imp;
+}
+
+FunctionObjectRef* ExecutionStateRef::resolveCallee()
+{
+    return toRef(toImpl(this)->executionContext()->resolveCallee());
+}
+
+ValueVectorRef* ExecutionStateRef::resolveCallstack()
+{
+    ExecutionContext* ctx = toImpl(this)->executionContext();
+
+    std::vector<FunctionObject*> callees;
+    while (ctx) {
+        FunctionObject* callee = ctx->resolveCallee();
+        if (callee) {
+            if (callees.size() && callees.back() != callee) {
+                callees.push_back(callee);
+            } else if (callees.size() == 0) {
+                callees.push_back(callee);
+            }
+        }
+        ctx = ctx->parent();
+    }
+
+    ValueVectorRef* vec = ValueVectorRef::create(callees.size());
+
+    for (size_t i = 0; i < callees.size(); i++) {
+        vec->set(i, ValueRef::create(toRef(callees[i])));
+    }
+
+    return vec;
 }
 
 void ExecutionStateRef::throwException(ValueRef* value)
