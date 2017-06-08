@@ -146,7 +146,7 @@ static ObjectPropertyNativeGetterSetterData regexpLastIndexGetterSetterData(
     true, false, false, &VMInstance::regexpLastIndexNativeGetter, &VMInstance::regexpLastIndexNativeSetter);
 
 
-VMInstance::VMInstance()
+VMInstance::VMInstance(const char* locale, const char* timezone)
     : m_didSomePrototypeObjectDefineIndexedProperty(false)
 {
     if (!String::emptyString) {
@@ -159,13 +159,17 @@ VMInstance::VMInstance()
 
 #ifdef ENABLE_ICU
     m_timezone = nullptr;
-    if (getenv("TZ")) {
+    if (timezone) {
+        m_timezoneID = timezone;
+    } else if (getenv("TZ")) {
         m_timezoneID = getenv("TZ");
     } else {
         m_timezoneID = "";
     }
 
-    if (getenv("LOCALE")) {
+    if (locale) {
+        m_locale = icu::Locale::createFromName(locale);
+    } else if (getenv("LOCALE")) {
         m_locale = icu::Locale::createFromName(getenv("LOCALE"));
     } else {
         m_locale = icu::Locale::getDefault();
@@ -256,6 +260,8 @@ VMInstance::VMInstance()
 
 #if ESCARGOT_ENABLE_PROMISE
     m_jobQueue = JobQueue::create();
+    m_jobQueueListener = nullptr;
+    m_publicJobQueueListenerPointer = nullptr;
 #endif
 }
 
@@ -313,5 +319,10 @@ Value VMInstance::drainJobQueue(ExecutionState& state)
             return jobResult.error;
     }
     return Value(Value::EmptyValue);
+}
+
+void VMInstance::setNewPromiseJobListener(NewPromiseJobListener l)
+{
+    m_jobQueueListener = l;
 }
 }

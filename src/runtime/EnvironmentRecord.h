@@ -578,5 +578,15 @@ protected:
     SmallValueTightVector m_heapStorage;
     IdentifierRecordVector m_recordVector;
 };
+
+class FunctionEnvironmentRecordNotIndexedWithVirtualID : public FunctionEnvironmentRecordNotIndexed {
+public:
+    FunctionEnvironmentRecordNotIndexedWithVirtualID(FunctionObject* function, size_t argc, Value* argv)
+        : FunctionEnvironmentRecordNotIndexed(function, argc, argv)
+    {
+    }
+
+    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
+};
 }
 #endif

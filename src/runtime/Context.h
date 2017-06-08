@@ -183,16 +183,6 @@ public:
         return m_virtualIdentifierCallback;
     }
 
-    void setVirtualIdentifierInGlobalCallback(VirtualIdentifierCallback cb)
-    {
-        m_virtualIdentifierInGlobalCallback = cb;
-    }
-
-    VirtualIdentifierCallback virtualIdentifierInGlobalCallback()
-    {
-        return m_virtualIdentifierInGlobalCallback;
-    }
-
 protected:
     VMInstance* m_instance;
 
@@ -221,10 +211,8 @@ protected:
     Vector<SandBox*, GCUtil::gc_malloc_allocator<SandBox*>>& m_sandBoxStack;
     ToStringRecursionPreventer* m_toStringRecursionPreventer;
     VirtualIdentifierCallback m_virtualIdentifierCallback;
-    VirtualIdentifierCallback m_virtualIdentifierInGlobalCallback;
-    // public helper variables
+    // public helper variable
     void* m_virtualIdentifierCallbackPublic;
-    void* m_virtualIdentifierInGlobalCallbackPublic;
 #if ESCARGOT_ENABLE_PROMISE
     JobQueue* m_jobQueue;
 #endif

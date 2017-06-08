@@ -245,4 +245,15 @@ void FunctionEnvironmentRecordNotIndexed::initializeBinding(ExecutionState& stat
     }
     ASSERT_NOT_REACHED();
 }
+
+EnvironmentRecord::GetBindingValueResult FunctionEnvironmentRecordNotIndexedWithVirtualID::getBindingValue(ExecutionState& state, const AtomicString& name)
+{
+    if (UNLIKELY((bool)state.context()->virtualIdentifierCallback())) {
+        Value virtialIdResult = state.context()->virtualIdentifierCallback()(state, name.string());
+        if (!virtialIdResult.isEmpty())
+            return EnvironmentRecord::GetBindingValueResult(virtialIdResult);
+    }
+
+    return FunctionEnvironmentRecordNotIndexed::getBindingValue(state, name);
+}
 }

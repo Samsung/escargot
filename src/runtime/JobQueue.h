@@ -30,7 +30,7 @@ protected:
     JobQueue() {}
 public:
     static JobQueue* create();
-    virtual size_t enqueueJob(Job* job) = 0;
+    virtual size_t enqueueJob(ExecutionState& state, Job* job) = 0;
 };
 
 class DefaultJobQueue : public JobQueue {
@@ -42,12 +42,7 @@ public:
         return new DefaultJobQueue();
     }
 
-    size_t enqueueJob(Job* job)
-    {
-        m_jobs.push_back(job);
-        return 0;
-    }
-
+    size_t enqueueJob(ExecutionState& state, Job* job);
     bool hasNextJob()
     {
         return !m_jobs.empty();

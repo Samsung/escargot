@@ -21,6 +21,7 @@
 #include "util/Vector.h"
 #include "EscargotPublic.h"
 #include "parser/ScriptParser.h"
+#include "parser/CodeBlock.h"
 #include "runtime/Context.h"
 #include "runtime/ExecutionContext.h"
 #include "runtime/FunctionObject.h"
@@ -261,9 +262,9 @@ PromiseObjectRef* PointerValueRef::asPromiseObject()
 }
 #endif
 
-VMInstanceRef* VMInstanceRef::create()
+VMInstanceRef* VMInstanceRef::create(const char* locale, const char* timezone)
 {
-    return toRef(new (NoGC) VMInstance());
+    return toRef(new (NoGC) VMInstance(locale, timezone));
 }
 
 void VMInstanceRef::destroy()
@@ -299,6 +300,16 @@ ValueRef* VMInstanceRef::drainJobQueue(ExecutionStateRef* state)
     VMInstance* imp = toImpl(this);
     return toRef(imp->drainJobQueue(*toImpl(state)));
 }
+
+void VMInstanceRef::setNewPromiseJobListener(NewPromiseJobListener l)
+{
+    VMInstance* imp = toImpl(this);
+    imp->m_publicJobQueueListenerPointer = (void*)l;
+    imp->setNewPromiseJobListener([](ExecutionState& state) {
+        ((NewPromiseJobListener)state.context()->vmInstance()->m_publicJobQueueListenerPointer)(toRef(&state));
+    });
+}
+
 #endif
 
 ContextRef* ContextRef::create(VMInstanceRef* vminstanceref)
@@ -1038,6 +1049,25 @@ ObjectRef* FunctionObjectRef::newInstance(ExecutionStateRef* state, const size_t
     return toRef(o->newInstance(*toImpl(state), argc, newArgv));
 }
 
+static void markEvalToCodeblock(InterpretedCodeBlock* cb)
+{
+    cb->setHasEval();
+    cb->computeVariables();
+
+    for (size_t i = 0; i < cb->childBlocks().size(); i++) {
+        markEvalToCodeblock(cb->childBlocks()[i]->asInterpretedCodeBlock());
+    }
+}
+
+void FunctionObjectRef::markFunctionNeedsSlowVirtualIdentifierOperation()
+{
+    FunctionObject* o = toImpl(this);
+    if (o->codeBlock()->isInterpretedCodeBlock()) {
+        markEvalToCodeblock(o->codeBlock()->asInterpretedCodeBlock());
+        o->codeBlock()->setNeedsVirtualIDOperation();
+    }
+}
+
 SandBoxRef* SandBoxRef::create(ContextRef* contextRef)
 {
     Context* ctx = toImpl(contextRef);
@@ -1094,6 +1124,12 @@ GlobalObjectRef* ContextRef::globalObject()
     return toRef(ctx->globalObject());
 }
 
+VMInstanceRef* ContextRef::vmInstance()
+{
+    Context* ctx = toImpl(this);
+    return toRef(ctx->vmInstance());
+}
+
 void ContextRef::setVirtualIdentifierCallback(VirtualIdentifierCallback cb)
 {
     Context* ctx = toImpl(this);
@@ -1110,24 +1146,6 @@ ContextRef::VirtualIdentifierCallback ContextRef::virtualIdentifierCallback()
 {
     Context* ctx = toImpl(this);
     return ((VirtualIdentifierCallback)ctx->m_virtualIdentifierCallbackPublic);
-}
-
-void ContextRef::setVirtualIdentifierInGlobalCallback(VirtualIdentifierCallback cb)
-{
-    Context* ctx = toImpl(this);
-    ctx->m_virtualIdentifierInGlobalCallbackPublic = (void*)cb;
-    ctx->setVirtualIdentifierInGlobalCallback([](ExecutionState& state, Value name) -> Value {
-        if (state.context()->m_virtualIdentifierInGlobalCallbackPublic) {
-            return toImpl(((VirtualIdentifierCallback)state.context()->m_virtualIdentifierInGlobalCallbackPublic)(toRef(&state), toRef(name)));
-        }
-        return Value(Value::EmptyValue);
-    });
-}
-
-ContextRef::VirtualIdentifierCallback ContextRef::virtualIdentifierInGlobalCallback()
-{
-    Context* ctx = toImpl(this);
-    return ((VirtualIdentifierCallback)ctx->m_virtualIdentifierInGlobalCallbackPublic);
 }
 
 ExecutionStateRef* ExecutionStateRef::create(ContextRef* ctxref)
@@ -1147,30 +1165,24 @@ FunctionObjectRef* ExecutionStateRef::resolveCallee()
     return toRef(toImpl(this)->executionContext()->resolveCallee());
 }
 
-ValueVectorRef* ExecutionStateRef::resolveCallstack()
+std::vector<std::pair<FunctionObjectRef*, ValueRef*>> ExecutionStateRef::resolveCallstack()
 {
-    ExecutionContext* ctx = toImpl(this)->executionContext();
+    ExecutionState* state = toImpl(this);
 
-    std::vector<FunctionObject*> callees;
-    while (ctx) {
-        FunctionObject* callee = ctx->resolveCallee();
-        if (callee) {
-            if (callees.size() && callees.back() != callee) {
-                callees.push_back(callee);
-            } else if (callees.size() == 0) {
-                callees.push_back(callee);
-            }
+    std::vector<std::pair<FunctionObjectRef*, ValueRef*>> result;
+
+    while (state) {
+        if (state->executionContext() && state->executionContext()->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord()
+            && state->executionContext()->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            auto r = state->executionContext()->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+            FunctionObject* callee = r->functionObject();
+            Value thisValue = state->registerFile()[0];
+            result.push_back(std::make_pair(toRef(callee), toRef(thisValue)));
         }
-        ctx = ctx->parent();
+        state = state->parent();
     }
 
-    ValueVectorRef* vec = ValueVectorRef::create(callees.size());
-
-    for (size_t i = 0; i < callees.size(); i++) {
-        vec->set(i, ValueRef::create(toRef(callees[i])));
-    }
-
-    return vec;
+    return result;
 }
 
 void ExecutionStateRef::throwException(ValueRef* value)
@@ -1362,6 +1374,18 @@ ValueRef::ValueIndex ValueRef::toIndex(ExecutionStateRef* state)
 {
     ExecutionState* esi = toImpl(state);
     return Value(SmallValue::fromPayload(this)).toIndex(*esi);
+}
+
+uint32_t ValueRef::toArrayIndex(ExecutionStateRef* state)
+{
+    uint32_t idx;
+    SmallValue s = SmallValue::fromPayload(this);
+    if (LIKELY(s.isInt32()))
+        return s.asInt32();
+    else {
+        ExecutionState* esi = toImpl(state);
+        return Value(s).toString(*esi)->tryToUseAsArrayIndex();
+    }
 }
 
 bool ValueRef::asBoolean()

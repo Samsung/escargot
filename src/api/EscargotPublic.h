@@ -21,6 +21,7 @@
 #include <cstdlib>
 #include <vector>
 #include <functional>
+#include <limits>
 
 #include <GCUtil.h>
 
@@ -95,7 +96,7 @@ public:
 
 class VMInstanceRef {
 public:
-    static VMInstanceRef* create();
+    static VMInstanceRef* create(const char* locale = nullptr, const char* timezone = nullptr);
     void destroy();
 
     bool addRoot(VMInstanceRef* instanceRef, ValueRef* ptr);
@@ -105,6 +106,9 @@ public:
     // if there is an error, executing will be stopped and returns ErrorValue
     // if thres is no job or no error, returns EmptyValue
     ValueRef* drainJobQueue(ExecutionStateRef* state);
+
+    typedef void (*NewPromiseJobListener)(ExecutionStateRef* state);
+    void setNewPromiseJobListener(NewPromiseJobListener l);
 #endif
 };
 
@@ -115,6 +119,7 @@ public:
 
     ScriptParserRef* scriptParser();
     GlobalObjectRef* globalObject();
+    VMInstanceRef* vmInstance();
 
     typedef ValueRef* (*VirtualIdentifierCallback)(ExecutionStateRef* state, ValueRef* name);
 
@@ -123,8 +128,6 @@ public:
     // if there is a Identifier with that value, callback should return non-empty value
     void setVirtualIdentifierCallback(VirtualIdentifierCallback cb);
     VirtualIdentifierCallback virtualIdentifierCallback();
-    void setVirtualIdentifierInGlobalCallback(VirtualIdentifierCallback cb);
-    VirtualIdentifierCallback virtualIdentifierInGlobalCallback();
 };
 
 class AtomicStringRef {
@@ -143,7 +146,7 @@ public:
     void destroy();
 
     FunctionObjectRef* resolveCallee(); // resolve nearest callee if exists
-    ValueVectorRef* resolveCallstack(); // resolve callees
+    std::vector<std::pair<FunctionObjectRef*, ValueRef*>> resolveCallstack(); // resolve callee, this value
 
     void throwException(ValueRef* value);
 
@@ -210,6 +213,9 @@ public:
     enum { InvalidIndexValue = std::numeric_limits<uint32_t>::max() };
     typedef uint64_t ValueIndex;
     ValueIndex toIndex(ExecutionStateRef* state);
+
+    enum { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() };
+    uint32_t toArrayIndex(ExecutionStateRef* state);
 
     bool asBoolean();
     double asNumber();
@@ -453,6 +459,8 @@ public:
     ValueRef* call(ExecutionStateRef* state, ValueRef* receiver, const size_t& argc, ValueRef** argv);
     // ECMAScript new operation
     ObjectRef* newInstance(ExecutionStateRef* state, const size_t& argc, ValueRef** argv);
+
+    void markFunctionNeedsSlowVirtualIdentifierOperation();
 };
 
 class ArrayObjectRef : public ObjectRef {

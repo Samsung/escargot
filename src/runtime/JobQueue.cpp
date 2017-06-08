@@ -21,12 +21,24 @@
 #include "runtime/Job.h"
 #include "runtime/Context.h"
 #include "runtime/SandBox.h"
+#include "runtime/VMInstance.h"
 
 namespace Escargot {
 
 JobQueue* JobQueue::create()
 {
     return DefaultJobQueue::create();
+}
+
+size_t DefaultJobQueue::enqueueJob(ExecutionState& state, Job* job)
+{
+    m_jobs.push_back(job);
+
+    if (state.context()->vmInstance()->m_jobQueueListener) {
+        state.context()->vmInstance()->m_jobQueueListener(state);
+    }
+
+    return 0;
 }
 }
 

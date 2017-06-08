@@ -33,16 +33,17 @@ class JobQueue;
 
 class VMInstance : public gc {
     friend class Context;
+    friend class VMInstanceRef;
+    friend class DefaultJobQueue;
 
 public:
-    VMInstance();
+    VMInstance(const char* locale = nullptr, const char* timezone = nullptr);
 #ifdef ENABLE_ICU
     icu::Locale& locale()
     {
         return m_locale;
     }
 
-    // The function below will be used by StarFish
     void setLocale(icu::Locale locale)
     {
         m_locale = locale;
@@ -129,6 +130,9 @@ public:
     // if there is an error, executing will be stopped and returns ErrorValue
     // if thres is no job or no error, returns EmptyValue
     Value drainJobQueue(ExecutionState& state);
+
+    typedef void (*NewPromiseJobListener)(ExecutionState& state);
+    void setNewPromiseJobListener(NewPromiseJobListener l);
 #endif
 
     void addRoot(void* ptr);
@@ -178,6 +182,8 @@ protected:
 // promise data
 #if ESCARGOT_ENABLE_PROMISE
     JobQueue* m_jobQueue;
+    NewPromiseJobListener m_jobQueueListener;
+    void* m_publicJobQueueListenerPointer;
 #endif
 };
 }

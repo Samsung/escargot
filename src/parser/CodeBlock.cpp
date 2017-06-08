@@ -92,6 +92,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     m_isInWithScope = false;
     m_isEvalCodeInFunction = false;
     m_isBindedFunction = false;
+    m_needsVirtualIDOperation = false;
 
     m_parameterCount = info.m_argumentCount;
 
@@ -124,6 +125,7 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     m_isInWithScope = false;
     m_isEvalCodeInFunction = false;
     m_isBindedFunction = false;
+    m_needsVirtualIDOperation = false;
     m_parameterCount = argc;
     m_nativeFunctionData = info;
 }
@@ -172,6 +174,7 @@ CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Valu
     m_isInWithScope = false;
     m_isEvalCodeInFunction = false;
     m_isBindedFunction = true;
+    m_needsVirtualIDOperation = false;
 
     size_t targetFunctionLength = targetCodeBlock->parameterCount();
     m_parameterCount = targetFunctionLength > boundArgc ? targetFunctionLength - boundArgc : 0;
@@ -260,6 +263,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isInWithScope = false;
     m_isEvalCodeInFunction = false;
     m_isBindedFunction = false;
+    m_needsVirtualIDOperation = false;
 
     for (size_t i = 0; i < innerIdentifiers.size(); i++) {
         IdentifierInfo info;
@@ -384,6 +388,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isInWithScope = false;
     m_isEvalCodeInFunction = false;
     m_isBindedFunction = false;
+    m_needsVirtualIDOperation = false;
 }
 
 bool InterpretedCodeBlock::tryCaptureIdentifiersFromChildCodeBlock(AtomicString name)

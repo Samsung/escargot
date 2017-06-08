@@ -30,10 +30,11 @@ typedef Vector<ControlFlowRecord*, GCUtil::gc_malloc_ignore_off_page_allocator<C
 
 struct ExecutionStateRareData : public gc {
     Vector<ControlFlowRecord*, GCUtil::gc_malloc_ignore_off_page_allocator<ControlFlowRecord*>>* m_controlFlowRecord;
-
+    ExecutionState* m_parent;
     ExecutionStateRareData()
     {
         m_controlFlowRecord = nullptr;
+        m_parent = nullptr;
     }
 };
 
@@ -44,7 +45,8 @@ public:
     ExecutionState(Context* context, ExecutionContext* executionContext = nullptr)
         : m_context(context)
         , m_executionContext(executionContext)
-        , m_rareData(nullptr)
+        , m_registerFile(nullptr)
+        , m_parent(1)
     {
         volatile int sp;
         m_stackBase = (size_t)&sp;
@@ -54,7 +56,17 @@ public:
         : m_context(context)
         , m_executionContext(executionContext)
         , m_stackBase(parent->stackBase())
-        , m_rareData(nullptr)
+        , m_registerFile(nullptr)
+        , m_parent((size_t)parent + 1)
+    {
+    }
+
+    ExecutionState(Context* context, ExecutionState* parent, ExecutionContext* executionContext, Value* registerFile)
+        : m_context(context)
+        , m_executionContext(executionContext)
+        , m_stackBase(parent->stackBase())
+        , m_registerFile(registerFile)
+        , m_parent((size_t)parent + 1)
     {
     }
 
@@ -62,7 +74,8 @@ public:
         : m_context(parent->context())
         , m_executionContext(executionContext)
         , m_stackBase(parent->stackBase())
-        , m_rareData(nullptr)
+        , m_registerFile(nullptr)
+        , m_parent((size_t)parent + 1)
     {
     }
 
@@ -81,6 +94,11 @@ public:
         return m_stackBase;
     }
 
+    Value* registerFile()
+    {
+        return m_registerFile;
+    }
+
     bool inStrictMode()
     {
         return m_executionContext->inStrictMode();
@@ -88,12 +106,8 @@ public:
 
     void throwException(const Value& e);
 
-    ExecutionStateRareData* ensureRareData()
-    {
-        if (m_rareData == nullptr)
-            m_rareData = new ExecutionStateRareData();
-        return m_rareData;
-    }
+    ExecutionState* parent();
+    ExecutionStateRareData* ensureRareData();
 
     ExecutionStateRareData* rareData()
     {
@@ -104,7 +118,11 @@ protected:
     Context* m_context;
     ExecutionContext* m_executionContext;
     size_t m_stackBase;
-    ExecutionStateRareData* m_rareData;
+    Value* m_registerFile;
+    union {
+        size_t m_parent;
+        ExecutionStateRareData* m_rareData;
+    };
 };
 }
 

@@ -251,6 +251,22 @@ public:
         return Value();
     }
 
+    bool isInt32()
+    {
+        if (HAS_OBJECT_TAG(m_data.payload)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    uint32_t asInt32()
+    {
+        ASSERT(!HAS_OBJECT_TAG(m_data.payload));
+        int32_t value = SmallValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
+        return (uint32_t)value;
+    }
+
     uint32_t asUint32()
     {
         ASSERT(!HAS_OBJECT_TAG(m_data.payload));

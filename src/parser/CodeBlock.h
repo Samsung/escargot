@@ -229,6 +229,23 @@ public:
         return m_isInWithScope;
     }
 
+    void setHasEval()
+    {
+        m_hasEval = true;
+        m_canUseIndexedVariableStorage = false;
+    }
+
+    void setNeedsVirtualIDOperation()
+    {
+        ASSERT(isInterpretedCodeBlock());
+        m_needsVirtualIDOperation = true;
+    }
+
+    bool needsVirtualIDOperation()
+    {
+        return m_needsVirtualIDOperation;
+    }
+
     bool isBindedFunction()
     {
         return m_isBindedFunction;
@@ -286,6 +303,7 @@ protected:
     bool m_isInWithScope : 1;
     bool m_isEvalCodeInFunction : 1;
     bool m_isBindedFunction : 1;
+    bool m_needsVirtualIDOperation : 1;
     uint16_t m_parameterCount;
 
     AtomicString m_functionName;

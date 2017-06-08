@@ -263,7 +263,6 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
         FunctionEnvironmentRecordSimple record(this);
         LexicalEnvironment env(&record, outerEnvironment());
         ExecutionContext ec(ctx, state.executionContext(), &env, isStrict);
-        ExecutionState newState(ctx, &state, &ec);
 
         size_t len = m_codeBlock->parameterCount();
         if (argc < len) {
@@ -286,6 +285,8 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
                 receiver = receiver.toObject(state);
             }
         }
+
+        ExecutionState newState(ctx, &state, &ec, &receiver);
 
         try {
             return code->m_fn(newState, receiver, argc, argv, isNewExpression);
@@ -319,12 +320,14 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
         if (LIKELY(m_codeBlock->canUseIndexedVariableStorage())) {
             record = new FunctionEnvironmentRecordOnHeap(this, argc, argv);
         } else {
-            record = new FunctionEnvironmentRecordNotIndexed(this, argc, argv);
+            if (LIKELY(!m_codeBlock->needsVirtualIDOperation())) {
+                record = new FunctionEnvironmentRecordNotIndexed(this, argc, argv);
+            } else {
+                record = new FunctionEnvironmentRecordNotIndexedWithVirtualID(this, argc, argv);
+            }
         }
         ec = new ExecutionContext(ctx, state.executionContext(), new LexicalEnvironment(record, outerEnvironment()), isStrict);
     }
-
-    ExecutionState newState(ctx, &state, ec);
 
     Value* registerFile = (Value*)alloca((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
     Value* stackStorage = registerFile + registerSize;
@@ -414,6 +417,8 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
             stackStorage[i] = Value();
         }
     }
+
+    ExecutionState newState(ctx, &state, ec, registerFile);
 
     if (UNLIKELY(m_codeBlock->usesArgumentsObject())) {
         generateArgumentsObject(newState, record, stackStorage);

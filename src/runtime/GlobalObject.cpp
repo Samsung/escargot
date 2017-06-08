@@ -1063,17 +1063,4 @@ void GlobalObject::installOthers(ExecutionState& state)
     m_stringProxyObject = new StringObject(state);
     m_numberProxyObject = new NumberObject(state);
 }
-
-ObjectGetResult GlobalObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
-{
-    ObjectGetResult result = Object::getOwnProperty(state, P);
-    if (!result.hasValue()) {
-        if (UNLIKELY((bool)state.context()->virtualIdentifierInGlobalCallback())) {
-            Value virtialIdResult = state.context()->virtualIdentifierInGlobalCallback()(state, P.string(state));
-            if (!virtialIdResult.isEmpty())
-                return ObjectGetResult(virtialIdResult, true, true, true);
-        }
-    }
-    return result;
-}
 }
