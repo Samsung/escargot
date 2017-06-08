@@ -242,10 +242,47 @@ public:
     void resize(size_t newSize);
 };
 
-// return EmptyValue means there is no property with that name in this object
-typedef ValueRef* (*ExposableObjectGetOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* propertyName);
+struct ExposableObjectGetOwnPropertyCallbackResult {
+    ExposableObjectGetOwnPropertyCallbackResult()
+    {
+        m_value = ValueRef::createEmpty();
+        m_isWritable = m_isEnumerable = m_isConfigurable = false;
+    }
+
+    ExposableObjectGetOwnPropertyCallbackResult(ValueRef* value, bool isWritable, bool isEnumerable, bool isConfigurable)
+    {
+        m_value = value;
+        m_isWritable = isWritable;
+        m_isEnumerable = isEnumerable;
+        m_isConfigurable = isConfigurable;
+    }
+
+    ValueRef* m_value;
+    bool m_isWritable;
+    bool m_isEnumerable;
+    bool m_isConfigurable;
+};
+
+struct ExposableObjectEnumerationCallbackResult {
+    ExposableObjectEnumerationCallbackResult(ValueRef* name, bool isWritable, bool isEnumerable, bool isConfigurable)
+    {
+        m_name = name;
+        m_isWritable = isWritable;
+        m_isEnumerable = isEnumerable;
+        m_isConfigurable = isConfigurable;
+    }
+
+    ExposableObjectEnumerationCallbackResult() {} // for std vector
+    ValueRef* m_name;
+    bool m_isWritable;
+    bool m_isEnumerable;
+    bool m_isConfigurable;
+};
+
+typedef ExposableObjectGetOwnPropertyCallbackResult (*ExposableObjectGetOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* propertyName);
 typedef void (*ExposableObjectDefineOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* propertyName, ValueRef* value);
-typedef ValueVectorRef* (*ExposableObjectEnumerationCallback)(ExecutionStateRef* state, ObjectRef* self);
+typedef std::vector<ExposableObjectEnumerationCallbackResult, GCUtil::gc_malloc_ignore_off_page_allocator<ExposableObjectEnumerationCallbackResult>> ExposableObjectEnumerationCallbackResultVector;
+typedef ExposableObjectEnumerationCallbackResultVector (*ExposableObjectEnumerationCallback)(ExecutionStateRef* state, ObjectRef* self);
 
 class ObjectRef : public PointerValueRef {
 public:
@@ -254,7 +291,7 @@ public:
     // virtual property does not follow every rule of ECMAScript
     static ObjectRef* createExposableObject(ExecutionStateRef* state,
                                             ExposableObjectGetOwnPropertyCallback getOwnPropertyCallback, ExposableObjectDefineOwnPropertyCallback defineOwnPropertyCallback,
-                                            ExposableObjectEnumerationCallback enumerationCallback, bool isWritable, bool isEnumerable, bool isConfigurable);
+                                            ExposableObjectEnumerationCallback enumerationCallback);
 
     ValueRef* get(ExecutionStateRef* state, ValueRef* propertyName);
     ValueRef* getOwnProperty(ExecutionStateRef* state, ValueRef* propertyName);

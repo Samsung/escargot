@@ -412,11 +412,8 @@ ObjectRef* ObjectRef::create(ExecutionStateRef* state)
 // can not redefine or delete virtual property
 class ExposableObject : public Object {
 public:
-    ExposableObject(ExecutionState& state, bool isWritable, bool isEnumerable, bool isConfigurable, ExposableObjectGetOwnPropertyCallback getOwnPropetyCallback, ExposableObjectDefineOwnPropertyCallback defineOwnPropertyCallback, ExposableObjectEnumerationCallback enumerationCallback)
+    ExposableObject(ExecutionState& state, ExposableObjectGetOwnPropertyCallback getOwnPropetyCallback, ExposableObjectDefineOwnPropertyCallback defineOwnPropertyCallback, ExposableObjectEnumerationCallback enumerationCallback)
         : Object(state)
-        , m_isWritable(isWritable)
-        , m_isEnumerable(isEnumerable)
-        , m_isConfigurable(isConfigurable)
         , m_getOwnPropetyCallback(getOwnPropetyCallback)
         , m_defineOwnPropertyCallback(defineOwnPropertyCallback)
         , m_enumerationCallback(enumerationCallback)
@@ -425,16 +422,16 @@ public:
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
     {
-        Value result = toImpl(m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(P.toValue(state))));
-        if (!result.isEmpty()) {
-            return ObjectGetResult(result, m_isWritable, m_isEnumerable, m_isConfigurable);
+        auto result = m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)));
+        if (!result.m_value->isEmpty()) {
+            return ObjectGetResult(toImpl(result.m_value), result.m_isWritable, result.m_isEnumerable, result.m_isConfigurable);
         }
         return Object::getOwnProperty(state, P);
     }
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
     {
-        Value result = toImpl(m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(P.toValue(state))));
-        if (!result.isEmpty()) {
+        auto result = m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)));
+        if (!result.m_value->isEmpty()) {
             if (desc.isValuePresent()) {
                 m_defineOwnPropertyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)), toRef(desc.value()));
             }
@@ -444,31 +441,29 @@ public:
     }
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
     {
-        Value result = toImpl(m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(P.toValue(state))));
-        if (!result.isEmpty()) {
+        auto result = m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)));
+        if (!result.m_value->isEmpty()) {
             return false;
         }
         return Object::deleteOwnProperty(state, P);
     }
     virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
     {
-        ValueVectorRef* names = m_enumerationCallback(toRef(&state), toRef(this));
-        if (names) {
+        auto names = m_enumerationCallback(toRef(&state), toRef(this));
+        for (size_t i = 0; i < names.size(); i++) {
             int attr = 0;
-            if (m_isWritable) {
+            if (names[i].m_isWritable) {
                 attr = attr | ObjectStructurePropertyDescriptor::PresentAttribute::WritablePresent;
             }
-            if (m_isEnumerable) {
+            if (names[i].m_isEnumerable) {
                 attr = attr | ObjectStructurePropertyDescriptor::PresentAttribute::EnumerablePresent;
             }
-            if (m_isConfigurable) {
+            if (names[i].m_isConfigurable) {
                 attr = attr | ObjectStructurePropertyDescriptor::PresentAttribute::ConfigurablePresent;
             }
             ObjectStructurePropertyDescriptor desc = ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)attr);
 
-            for (size_t i = 0; i < names->size(); i++) {
-                callback(state, this, ObjectPropertyName(state, toImpl(names->at(i))), desc, data);
-            }
+            callback(state, this, ObjectPropertyName(state, toImpl(names[i].m_name)), desc, data);
         }
         Object::enumeration(state, callback, data);
     }
@@ -479,9 +474,6 @@ public:
     }
 
 protected:
-    bool m_isWritable : 1;
-    bool m_isEnumerable : 1;
-    bool m_isConfigurable : 1;
     ExposableObjectGetOwnPropertyCallback m_getOwnPropetyCallback;
     ExposableObjectDefineOwnPropertyCallback m_defineOwnPropertyCallback;
     ExposableObjectEnumerationCallback m_enumerationCallback;
@@ -489,9 +481,9 @@ protected:
 
 ObjectRef* ObjectRef::createExposableObject(ExecutionStateRef* state,
                                             ExposableObjectGetOwnPropertyCallback getOwnPropertyCallback, ExposableObjectDefineOwnPropertyCallback defineOwnPropertyCallback,
-                                            ExposableObjectEnumerationCallback enumerationCallback, bool isWritable, bool isEnumerable, bool isConfigurable)
+                                            ExposableObjectEnumerationCallback enumerationCallback)
 {
-    return toRef(new ExposableObject(*toImpl(state), isWritable, isEnumerable, isConfigurable, getOwnPropertyCallback, defineOwnPropertyCallback, enumerationCallback));
+    return toRef(new ExposableObject(*toImpl(state), getOwnPropertyCallback, defineOwnPropertyCallback, enumerationCallback));
 }
 
 ValueRef* ObjectRef::get(ExecutionStateRef* state, ValueRef* propertyName)
