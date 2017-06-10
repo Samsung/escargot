@@ -8,8 +8,8 @@ apt-get install autoconf automake libtool libc++-dev libicu-dev gcc-multilib g++
 ## Building
 
 ``` sh
-git clone git@10.113.64.74:webtf/escargot2.git
-cd escargot2
+git clone git@github.sec.samsung.net:RS7-webtf/escargot.git
+cd escargot
 ./build_third_party.sh
 make [x86|x64].interpreter.[debug|release] -j
 ```
