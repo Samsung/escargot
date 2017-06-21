@@ -35,6 +35,9 @@ SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner)
     } catch (const Value& err) {
         result.error = err;
         result.msgStr = result.error.toString(state);
+
+        fillStackDataIntoErrorObject(err);
+
         for (size_t i = 0; i < m_stackTraceData.size(); i++) {
             result.stackTraceData.pushBack(m_stackTraceData[i].second);
         }
@@ -46,5 +49,43 @@ void SandBox::throwException(ExecutionState& state, Value exception)
 {
     m_exception = exception;
     throw exception;
+}
+
+void SandBox::fillStackDataIntoErrorObject(const Value& e)
+{
+    if (e.isObject() && e.asObject()->isErrorObject()) {
+        SandBox sb(m_context);
+        ExecutionState state(m_context);
+        ErrorObject* obj = e.asObject()->asErrorObject();
+        sb.run([&]() -> Value {
+            StringBuilder builder;
+
+            auto getResult = obj->get(state, state.context()->staticStrings().name);
+            if (getResult.hasValue()) {
+                builder.appendString(getResult.value(state, obj).toString(state));
+                builder.appendString(": ");
+            }
+            getResult = obj->get(state, state.context()->staticStrings().message);
+            if (getResult.hasValue()) {
+                builder.appendString(getResult.value(state, obj).toString(state));
+                if (m_stackTraceData.size()) {
+                    builder.appendChar('\n');
+                }
+            }
+            for (size_t i = 0; i < m_stackTraceData.size(); i++) {
+                builder.appendString("at ");
+                builder.appendString(m_stackTraceData[i].second.fileName);
+                builder.appendChar(':');
+                builder.appendString(String::fromDouble(m_stackTraceData[i].second.loc.line));
+                builder.appendChar(':');
+                builder.appendString(String::fromDouble(m_stackTraceData[i].second.loc.column));
+                if (i != m_stackTraceData.size() - 1) {
+                    builder.appendChar('\n');
+                }
+            }
+            obj->defineOwnProperty(state, state.context()->staticStrings().stack, ObjectPropertyDescriptor(builder.finalize(), ObjectPropertyDescriptor::AllPresent));
+            return Value();
+        });
+    }
 }
 }

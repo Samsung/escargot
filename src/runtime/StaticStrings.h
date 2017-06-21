@@ -62,6 +62,7 @@ namespace Escargot {
     F(URIError)                   \
     F(EvalError)                  \
     F(message)                    \
+    F(stack)                      \
     F(valueOf)                    \
     F(Array)                      \
     F(isArray)                    \

@@ -382,10 +382,10 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
         if (!m_codeBlock->canUseIndexedVariableStorage()) {
             const InterpretedCodeBlock::FunctionParametersInfoVector& info = m_codeBlock->asInterpretedCodeBlock()->parametersInfomation();
             for (size_t i = 0; i < parameterCopySize; i++) {
-                if (UNLIKELY(info[i].m_isDuplicated)) {
-                    continue;
-                }
-                record->initializeBinding(state, m_codeBlock->asInterpretedCodeBlock()->parametersInfomation()[i].m_name, argv[i]);
+                record->initializeBinding(state, info[i].m_name, argv[i]);
+            }
+            for (size_t i = parameterCopySize; i < info.size(); i++) {
+                record->initializeBinding(state, info[i].m_name, Value());
             }
         } else {
             Value* parameterStorageInStack = stackStorage + 2;

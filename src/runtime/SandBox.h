@@ -72,6 +72,7 @@ public:
     }
 
 protected:
+    void fillStackDataIntoErrorObject(const Value& e);
     Context* m_context;
     StackTraceDataVector m_stackTraceData;
     Value m_exception; // To avoid accidential GC of exception value

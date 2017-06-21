@@ -1649,6 +1649,7 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
         interpret(state, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile, &unused);
         programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
     } catch (const Value& val) {
+        state.context()->m_sandBoxStack.back()->fillStackDataIntoErrorObject(val);
         state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
         if (code->m_hasCatch == false) {
             state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);

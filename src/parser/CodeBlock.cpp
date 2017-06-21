@@ -143,10 +143,14 @@ static Value functionBindImpl(ExecutionState& state, Value thisValue, size_t cal
             mergedArgv[i] = code->m_boundArguments[i];
         }
     }
-    if (calledArgc)
+    if (calledArgc) {
         memcpy(mergedArgv + code->m_boundArgumentsCount, calledArgv, sizeof(Value) * calledArgc);
-
-    return FunctionObject::call(state, (FunctionObject*)code->m_ctorFn, code->m_boundThis, mergedArgc, mergedArgv);
+    }
+    if (!isNewExpression) {
+        return FunctionObject::call(state, (FunctionObject*)code->m_ctorFn, code->m_boundThis, mergedArgc, mergedArgv);
+    } else {
+        return FunctionObject::call(state, (FunctionObject*)code->m_ctorFn, thisValue, mergedArgc, mergedArgv);
+    }
 }
 
 CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv)
@@ -443,6 +447,7 @@ void InterpretedCodeBlock::computeVariables()
             for (size_t i = 0; i < m_identifierInfos.size(); i++) {
                 if (m_identifierInfos[i].m_name == m_functionName && !m_identifierInfos[i].m_isExplicitlyDeclaredOrParameterName) {
                     m_identifierInfos[i].m_isMutable = false;
+                    m_needsComplexParameterCopy = true;
                     break;
                 }
             }
@@ -457,23 +462,24 @@ void InterpretedCodeBlock::computeVariables()
         }
     }
 
-    size_t functionNameHeapBase = 0;
-
     if (canUseIndexedVariableStorage()) {
         size_t s = isGlobalScopeCodeBlock() ? 1 : 2;
         size_t h = 0;
         for (size_t i = 0; i < m_identifierInfos.size(); i++) {
             if (m_identifierInfos[i].m_name == m_functionName) {
+                m_needsComplexParameterCopy = true;
                 if (m_identifierInfos[i].m_isExplicitlyDeclaredOrParameterName) {
                     m_isFunctionNameExplicitlyDeclared = true;
                 }
 
                 if (!m_identifierInfos[i].m_needToAllocateOnStack) {
                     m_isFunctionNameSaveOnHeap = true;
-                    functionNameHeapBase = 1;
                     m_identifierInfos[i].m_indexForIndexedStorage = h;
                     h++;
                 } else {
+                    if (m_isFunctionNameExplicitlyDeclared) {
+                        s++;
+                    }
                     m_identifierInfos[i].m_indexForIndexedStorage = 1;
                 }
                 continue;
@@ -489,6 +495,66 @@ void InterpretedCodeBlock::computeVariables()
 
         m_identifierOnStackCount = s;
         m_identifierOnHeapCount = h;
+
+        size_t siz = m_parametersInfomation.size();
+
+        std::vector<std::pair<AtomicString, size_t>> computedNameIndex;
+
+        for (size_t i = 0; i < siz; i++) {
+            AtomicString name = m_parametersInfomation[i].m_name;
+            size_t idIndex = findName(name);
+            bool isHeap = !m_identifierInfos[idIndex].m_needToAllocateOnStack;
+            size_t indexInIdInfo = m_identifierInfos[idIndex].m_indexForIndexedStorage;
+            if (!isHeap) {
+                indexInIdInfo -= 2;
+            }
+            m_parametersInfomation[i].m_isHeapAllocated = isHeap;
+            m_parametersInfomation[i].m_name = name;
+
+            if (name == m_functionName) {
+                if (m_identifierInfos[0].m_needToAllocateOnStack) {
+                    m_parametersInfomation[i].m_index = -1;
+                    m_parametersInfomation[i].m_isHeapAllocated = false;
+                } else {
+                    m_parametersInfomation[i].m_index = 0;
+                    m_parametersInfomation[i].m_isHeapAllocated = true;
+                }
+                continue;
+            }
+
+            bool computed = false;
+            size_t computedIndex = SIZE_MAX;
+            for (size_t j = 0; j < computedNameIndex.size(); j++) {
+                if (computedNameIndex[j].first == name) {
+                    // found dup parameter name!
+                    m_needsComplexParameterCopy = true;
+                    computed = true;
+                    computedIndex = computedNameIndex[j].second;
+
+                    for (size_t k = i - 1;; k--) {
+                        if (m_parametersInfomation[k].m_name == name) {
+                            m_parametersInfomation[k].m_isDuplicated = true;
+                            break;
+                        }
+                    }
+
+                    break;
+                }
+            }
+
+            if (!computed) {
+                if (isHeap) {
+                    m_parametersInfomation[i].m_index = indexInIdInfo;
+                    m_needsComplexParameterCopy = true;
+                    computedNameIndex.push_back(std::make_pair(name, indexInIdInfo));
+                } else {
+                    m_parametersInfomation[i].m_index = indexInIdInfo;
+                    computedNameIndex.push_back(std::make_pair(name, indexInIdInfo));
+                }
+            } else {
+                m_parametersInfomation[i].m_index = computedNameIndex[computedIndex].second;
+            }
+        }
     } else {
         m_needsComplexParameterCopy = true;
 
@@ -528,65 +594,6 @@ void InterpretedCodeBlock::computeVariables()
 
         m_identifierOnStackCount = s;
         m_identifierOnHeapCount = h;
-    }
-
-    size_t siz = m_parametersInfomation.size();
-    size_t heapCount = 0;
-    size_t stackCount = isGlobalScopeCodeBlock() ? 1 : 2;
-
-    std::vector<std::pair<AtomicString, size_t>> computedNameIndex;
-
-    for (size_t i = 0; i < siz; i++) {
-        AtomicString name = m_parametersInfomation[i].m_name;
-        bool isHeap = !m_identifierInfos[findName(name)].m_needToAllocateOnStack;
-        m_parametersInfomation[i].m_isHeapAllocated = isHeap;
-        m_parametersInfomation[i].m_name = name;
-
-        if (name == m_functionName) {
-            if (m_identifierInfos[0].m_needToAllocateOnStack) {
-                m_parametersInfomation[i].m_index = -1;
-                m_parametersInfomation[i].m_isHeapAllocated = false;
-            } else {
-                m_parametersInfomation[i].m_index = 0;
-                m_parametersInfomation[i].m_isHeapAllocated = true;
-            }
-            continue;
-        }
-
-        bool computed = false;
-        size_t computedIndex = SIZE_MAX;
-        for (size_t j = 0; j < computedNameIndex.size(); j++) {
-            if (computedNameIndex[j].first == name) {
-                // found dup parameter name!
-                m_needsComplexParameterCopy = true;
-                computed = true;
-                computedIndex = computedNameIndex[j].second;
-
-                for (size_t k = i - 1;; k--) {
-                    if (m_parametersInfomation[k].m_name == name) {
-                        m_parametersInfomation[k].m_isDuplicated = true;
-                        break;
-                    }
-                }
-
-                break;
-            }
-        }
-
-        if (!computed) {
-            if (isHeap) {
-                m_parametersInfomation[i].m_index = i - (stackCount - 2) + functionNameHeapBase;
-                m_needsComplexParameterCopy = true;
-                computedNameIndex.push_back(std::make_pair(name, i - (stackCount - 2)));
-                heapCount++;
-            } else {
-                m_parametersInfomation[i].m_index = i - heapCount;
-                computedNameIndex.push_back(std::make_pair(name, i - heapCount));
-                stackCount++;
-            }
-        } else {
-            m_parametersInfomation[i].m_index = computedNameIndex[computedIndex].second;
-        }
     }
 }
 }
