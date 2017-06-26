@@ -41,6 +41,7 @@ class ArrayBufferObjectRef;
 class ArrayBufferViewRef;
 class PromiseObjectRef;
 class ErrorObjectRef;
+class DateObjectRef;
 class ScriptRef;
 class ScriptParserRef;
 class ExecutionStateRef;
@@ -551,6 +552,13 @@ public:
     static EvalErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
 };
 
+class DateObjectRef : public ObjectRef {
+public:
+    static DateObjectRef* create(ExecutionStateRef* state);
+
+    void setTimeValue(ExecutionStateRef* state, ValueRef* str);
+    double primitiveValue();
+};
 
 #ifdef ESCARGOT_ENABLE_TYPEDARRAY
 class ArrayBufferObjectRef : public ObjectRef {

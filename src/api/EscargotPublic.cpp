@@ -31,6 +31,7 @@
 #include "runtime/Environment.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/ErrorObject.h"
+#include "runtime/DateObject.h"
 #ifdef ESCARGOT_ENABLE_PROMISE
 #include "runtime/Job.h"
 #include "runtime/JobQueue.h"
@@ -70,6 +71,7 @@ DEFINE_CAST(URIErrorObject);
 DEFINE_CAST(EvalErrorObject);
 DEFINE_CAST(GlobalObject);
 DEFINE_CAST(FunctionObject);
+DEFINE_CAST(DateObject);
 #ifdef ESCARGOT_ENABLE_PROMISE
 DEFINE_CAST(PromiseObject);
 #endif
@@ -1461,6 +1463,21 @@ URIErrorObjectRef* URIErrorObjectRef::create(ExecutionStateRef* state, StringRef
 EvalErrorObjectRef* EvalErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
 {
     return toRef(new EvalErrorObject(*toImpl(state), toImpl(errorMessage)));
+}
+
+DateObjectRef* DateObjectRef::create(ExecutionStateRef* state)
+{
+    return toRef(new DateObject(*toImpl(state)));
+}
+
+void DateObjectRef::setTimeValue(ExecutionStateRef* state, ValueRef* str)
+{
+    toImpl(this)->setTimeValue(*toImpl(state), toImpl(str));
+}
+
+double DateObjectRef::primitiveValue()
+{
+    return toImpl(this)->primitiveValue();
 }
 
 #ifdef ESCARGOT_ENABLE_TYPEDARRAY
