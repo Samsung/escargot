@@ -39,3 +39,9 @@ git submodule update
 ```sh
 make run-sunspider
 ```
+
+## Misc.
+
+### CI Infrastructure
+
+http://10.113.64.74:8080/job/escargot2_daily_measure/
