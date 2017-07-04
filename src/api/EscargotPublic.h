@@ -281,7 +281,7 @@ struct ExposableObjectEnumerationCallbackResult {
 };
 
 typedef ExposableObjectGetOwnPropertyCallbackResult (*ExposableObjectGetOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* propertyName);
-typedef void (*ExposableObjectDefineOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* propertyName, ValueRef* value);
+typedef bool (*ExposableObjectDefineOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* propertyName, ValueRef* value);
 typedef std::vector<ExposableObjectEnumerationCallbackResult, GCUtil::gc_malloc_ignore_off_page_allocator<ExposableObjectEnumerationCallbackResult>> ExposableObjectEnumerationCallbackResultVector;
 typedef ExposableObjectEnumerationCallbackResultVector (*ExposableObjectEnumerationCallback)(ExecutionStateRef* state, ObjectRef* self);
 

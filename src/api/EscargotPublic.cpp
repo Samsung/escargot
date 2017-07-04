@@ -435,7 +435,7 @@ public:
         auto result = m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)));
         if (!result.m_value->isEmpty()) {
             if (desc.isValuePresent()) {
-                m_defineOwnPropertyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)), toRef(desc.value()));
+                return m_defineOwnPropertyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)), toRef(desc.value()));
             }
             return false;
         }
