@@ -559,6 +559,7 @@ struct ObjectStructureChainItem : public gc {
 };
 
 typedef std::vector<ObjectStructureChainItem, std::allocator<ObjectStructureChainItem>> ObjectStructureChain;
+typedef std::vector<ObjectStructureChainItem, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectStructureChainItem>> ObjectStructureChainWithGC;
 
 struct GetObjectInlineCacheData {
     GetObjectInlineCacheData()
@@ -1341,7 +1342,7 @@ struct EnumerateObjectData : public PointerValue {
         return EnumerateObjectDataType;
     }
 
-    ObjectStructureChain m_hiddenClassChain;
+    ObjectStructureChainWithGC m_hiddenClassChain;
     Object* m_object;
     uint64_t m_originalLength;
     size_t m_idx;
