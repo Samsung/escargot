@@ -39,6 +39,7 @@ export ESCARGOT_ARCH=arm64
 export ESCARGOT_ARCH=x64
 %endif
 
+make install_header_to_include
 %if 0%{?devel_mode}
 ./build_third_party.sh tizen_obs_${ESCARGOT_ARCH}
 make tizen_obs_${ESCARGOT_ARCH}.interpreter.debug.static %{?jobs:-j%jobs}
@@ -112,6 +113,7 @@ mkdir -p %{buildroot}%{_includedir}/%{name}/third_party/checked_arithmetic
 mkdir -p %{buildroot}%{_includedir}/%{name}/third_party/double_conversion
 mkdir -p %{buildroot}%{_includedir}/%{name}/third_party/rapidjson
 mkdir -p %{buildroot}%{_includedir}/%{name}/third_party/yarr
+mkdir -p %{buildroot}%{_includedir}/%{name}/include
 cp build/*.mk %{buildroot}%{_includedir}/%{name}/build/
 cp src/*.h %{buildroot}%{_includedir}/%{name}/src
 cp src/heap/*.h %{buildroot}%{_includedir}/%{name}/src/heap
@@ -120,7 +122,6 @@ cp src/parser/*.h %{buildroot}%{_includedir}/%{name}/src/parser
 cp src/parser/esprima_cpp/*.h %{buildroot}%{_includedir}/%{name}/src/parser/esprima_cpp
 cp src/parser/ast/*.h %{buildroot}%{_includedir}/%{name}/src/parser/ast
 cp src/runtime/*.h %{buildroot}%{_includedir}/%{name}/src/runtime
-cp src/shell/*.h %{buildroot}%{_includedir}/%{name}/src/shell
 cp src/util/*.h %{buildroot}%{_includedir}/%{name}/src/util
 cp third_party/GCutil/*.h %{buildroot}%{_includedir}/%{name}/third_party/GCutil
 cp -r ${GC_PATH}/include %{buildroot}%{_includedir}/%{name}/third_party/GCutil/bdwgc
@@ -128,6 +129,7 @@ cp third_party/checked_arithmetic/*.h %{buildroot}%{_includedir}/%{name}/third_p
 cp third_party/double_conversion/*.h %{buildroot}%{_includedir}/%{name}/third_party/double_conversion
 cp -r third_party/rapidjson/include %{buildroot}%{_includedir}/%{name}/third_party/rapidjson
 cp third_party/yarr/*.h %{buildroot}%{_includedir}/%{name}/third_party/yarr
+cp include/*.h %{buildroot}%{_includedir}/%{name}/include
 
 %files
 %{_datadir}/license/%{name}

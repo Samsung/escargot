@@ -211,6 +211,7 @@ function build_gc_for_tizen_obs() {
         GCCONFFLAGS="$GCCONFFLAGS_COMMON ${!GCCONFFLAGS_HOST} ${!GCCONFFLAGS_MODE} ${!GCCONFFLAGS_LIBTYPE}"
         CFLAGS="$CFLAGS_COMMON ${!CFLAGS_HOST} ${!CFLAGS_MODE} ${!CFLAGS_LIBTYPE}"
         LDFLAGS="$LDFLAGS_COMMON ${!LDFLAGS_HOST} ${!LDFLAGS_MODE} ${!LDFLAGS_LIBTYPE}"
+        CFLAGS+= "-DTIZEN"
         if [[ $LTO == true ]]; then
             CFLAGS+= "-flto -ffat-lto-objects"
             LDFLAGS+= "-flto -ffat-lto-objects"
