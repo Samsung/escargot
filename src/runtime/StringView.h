@@ -23,6 +23,12 @@ namespace Escargot {
 
 class StringView : public String {
 public:
+    inline static String* createStringView(const StringView& v)
+    {
+        return createStringView(v.string(), v.start(), v.end());
+    }
+    inline static String* createStringView(String* str, const size_t& s, const size_t& e);
+
     StringView(String* str, const size_t& s, const size_t& e)
         : m_string(str)
         , m_start(s)
@@ -44,11 +50,6 @@ public:
         m_string = String::emptyString;
         m_start = 0;
         m_end = 0;
-    }
-
-    virtual bool isStringView()
-    {
-        return true;
     }
 
     virtual char16_t charAt(const size_t& idx) const
@@ -252,6 +253,137 @@ protected:
     StringBufferAccessData m_data;
     StringView m_src;
 };
+
+class ShortStringView : public String {
+public:
+    ShortStringView(String* str, const uint16_t& s, const uint16_t& e)
+        : m_string(str)
+        , m_start(s)
+        , m_end(e)
+    {
+        ASSERT(s <= e);
+        ASSERT(e <= m_string->length());
+    }
+
+    virtual char16_t charAt(const size_t& idx) const
+    {
+        return m_string->charAt(idx + m_start);
+    }
+
+    virtual size_t length() const
+    {
+        return m_end - m_start;
+    }
+
+    bool operator==(const char* src) const
+    {
+        size_t srcLen = strlen(src);
+        if (srcLen != length()) {
+            return false;
+        }
+
+        auto data = bufferAccessData();
+        if (data.has8BitContent) {
+            for (size_t i = 0; i < srcLen; i++) {
+                if (src[i] != ((const LChar*)data.buffer)[i]) {
+                    return false;
+                }
+            }
+        } else {
+            for (size_t i = 0; i < srcLen; i++) {
+                if (src[i] != ((const char16_t*)data.buffer)[i]) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    bool operator!=(const char* src) const
+    {
+        return !operator==(src);
+    }
+
+    virtual UTF16StringData toUTF16StringData() const
+    {
+        UTF16StringData ret;
+        size_t len = length();
+        ret.resizeWithUninitializedValues(len);
+
+        for (size_t i = 0; i < len; i++) {
+            ret[i] = charAt(i);
+        }
+
+        return ret;
+    }
+
+    virtual UTF8StringData toUTF8StringData() const
+    {
+        // FIXME optimze this function
+        UTF16StringData s = toUTF16StringData();
+        return utf16StringToUTF8String(s.data(), s.length());
+    }
+
+    String* string() const
+    {
+        return m_string;
+    }
+
+    size_t start() const
+    {
+        return m_start;
+    }
+
+    size_t end() const
+    {
+        return m_end;
+    }
+
+    virtual bool has8BitContent() const
+    {
+        return m_string->has8BitContent();
+    }
+
+    virtual const LChar* characters8() const
+    {
+        return m_string->characters8() + m_start;
+    }
+
+    virtual const char16_t* characters16() const
+    {
+        return m_string->characters16() + m_start;
+    }
+
+    virtual StringBufferAccessData bufferAccessData() const
+    {
+        auto srcData = m_string->bufferAccessData();
+        StringBufferAccessData data;
+        data.has8BitContent = srcData.has8BitContent;
+        data.length = m_end - m_start;
+        if (srcData.has8BitContent) {
+            data.buffer = ((LChar*)srcData.buffer) + m_start;
+        } else {
+            data.buffer = ((char16_t*)srcData.buffer) + m_start;
+        }
+        return data;
+    }
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+protected:
+    String* m_string;
+    uint16_t m_start, m_end;
+};
+
+inline String* StringView::createStringView(String* str, const size_t& s, const size_t& e)
+{
+    if (s <= std::numeric_limits<uint16_t>::max() && e <= std::numeric_limits<uint16_t>::max()) {
+        return new ShortStringView(str, s, e);
+    }
+    return new StringView(str, s, e);
+}
 }
 
 #endif

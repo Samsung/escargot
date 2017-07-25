@@ -97,11 +97,6 @@ public:
         return false;
     }
 
-    virtual bool isStringView()
-    {
-        return false;
-    }
-
     virtual bool has8BitContent() const
     {
         return false;

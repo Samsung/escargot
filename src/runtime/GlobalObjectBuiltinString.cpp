@@ -737,7 +737,7 @@ static Value builtinStringTrim(ExecutionState& state, Value thisValue, size_t ar
         if (!esprima::isWhiteSpace((*str)[e]) && !esprima::isLineTerminator((*str)[e]))
             break;
     }
-    return new StringView(str, s, e + 1);
+    return StringView::createStringView(str, s, e + 1);
 }
 
 static Value builtinStringValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

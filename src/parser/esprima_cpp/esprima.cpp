@@ -2987,8 +2987,9 @@ public:
                 if (this->context->inLoop || token->valueNumber == 0)
                     this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
                 expr = this->finalize(node, new LiteralNode(Value(token->valueNumber)));
-            } else
-                expr = this->finalize(node, new LiteralNode(Value(new StringView(token->valueString))));
+            } else {
+                expr = this->finalize(node, new LiteralNode(Value(StringView::createStringView(token->valueString))));
+            }
             break;
 
         case Token::BooleanLiteralToken:
@@ -3343,7 +3344,7 @@ public:
                         this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
                     v = Value(token->valueNumber);
                 } else {
-                    v = Value(new StringView(token->valueString));
+                    v = Value(StringView::createStringView(token->valueString));
                 }
                 key = this->finalize(node, new LiteralNode(v));
             }
@@ -5585,7 +5586,7 @@ public:
             if (has) {
                 this->tolerateError(Messages::DuplicateBinding, &params[i]->valueString);
             } else {
-                paramMap.push_back(new StringView(params[i]->valueString));
+                paramMap.push_back(StringView::createStringView(params[i]->valueString));
             }
         }
 

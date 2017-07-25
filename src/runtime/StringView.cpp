@@ -31,4 +31,17 @@ void* StringView::operator new(size_t size)
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
+
+void* ShortStringView::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(ShortStringView)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ShortStringView, m_string));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ShortStringView));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
 }
