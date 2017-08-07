@@ -100,6 +100,7 @@ public:
     static VMInstanceRef* create(const char* locale = nullptr, const char* timezone = nullptr);
     void destroy();
 
+    void clearCachesRelatedWithContext();
     bool addRoot(VMInstanceRef* instanceRef, ValueRef* ptr);
     bool removeRoot(VMInstanceRef* instanceRef, ValueRef* ptr);
 

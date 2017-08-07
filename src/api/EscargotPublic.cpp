@@ -275,6 +275,14 @@ void VMInstanceRef::destroy()
     delete imp;
 }
 
+void VMInstanceRef::clearCachesRelatedWithContext()
+{
+    VMInstance* imp = toImpl(this);
+    imp->m_compiledCodeBlocks.clear();
+    imp->m_regexpCache.clear();
+    imp->m_cachedUTC = nullptr;
+}
+
 bool VMInstanceRef::addRoot(VMInstanceRef* instanceRef, ValueRef* ptr)
 {
     auto value = SmallValue::fromPayload(ptr);
