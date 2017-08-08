@@ -365,7 +365,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
         m_isFunctionExpression = false;
     }
 
-    m_canUseIndexedVariableStorage = !hasEvalWithYield();
+    m_canUseIndexedVariableStorage = !hasEvalWithYield() && !m_inCatch;
 
     if (m_inWith) {
         m_canUseIndexedVariableStorage = false;
