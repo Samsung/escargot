@@ -32,6 +32,10 @@
 #include "runtime/ArrayObject.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/DateObject.h"
+#include "runtime/StringObject.h"
+#include "runtime/NumberObject.h"
+#include "runtime/BooleanObject.h"
+#include "runtime/RegExpObject.h"
 #ifdef ESCARGOT_ENABLE_PROMISE
 #include "runtime/Job.h"
 #include "runtime/JobQueue.h"
@@ -62,6 +66,10 @@ DEFINE_CAST(String);
 DEFINE_CAST(PointerValue);
 DEFINE_CAST(Object);
 DEFINE_CAST(ArrayObject)
+DEFINE_CAST(StringObject)
+DEFINE_CAST(NumberObject)
+DEFINE_CAST(BooleanObject)
+DEFINE_CAST(RegExpObject)
 DEFINE_CAST(ErrorObject)
 DEFINE_CAST(ReferenceErrorObject);
 DEFINE_CAST(TypeErrorObject);
@@ -209,6 +217,56 @@ bool PointerValueRef::isArrayObject()
 ArrayObjectRef* PointerValueRef::asArrayObject()
 {
     return toRef(toImpl(this)->asArrayObject());
+}
+
+bool PointerValueRef::isStringObject()
+{
+    return toImpl(this)->isStringObject();
+}
+
+StringObjectRef* PointerValueRef::asStringObject()
+{
+    return toRef(toImpl(this)->asStringObject());
+}
+
+bool PointerValueRef::isNumberObject()
+{
+    return toImpl(this)->isNumberObject();
+}
+
+NumberObjectRef* PointerValueRef::asNumberObject()
+{
+    return toRef(toImpl(this)->asNumberObject());
+}
+
+bool PointerValueRef::isBooleanObject()
+{
+    return toImpl(this)->isBooleanObject();
+}
+
+BooleanObjectRef* PointerValueRef::asBooleanObject()
+{
+    return toRef(toImpl(this)->asBooleanObject());
+}
+
+bool PointerValueRef::isRegExpObject()
+{
+    return toImpl(this)->isRegExpObject();
+}
+
+RegExpObjectRef* PointerValueRef::asRegExpObject()
+{
+    return toRef(toImpl(this)->asRegExpObject());
+}
+
+bool PointerValueRef::isDateObject()
+{
+    return toImpl(this)->isDateObject();
+}
+
+DateObjectRef* PointerValueRef::asDateObject()
+{
+    return toRef(toImpl(this)->asDateObject());
 }
 
 bool PointerValueRef::isGlobalObject()
@@ -613,6 +671,18 @@ ObjectRef* ObjectRef::getPrototypeObject()
 void ObjectRef::setPrototype(ExecutionStateRef* state, ValueRef* value)
 {
     toImpl(this)->setPrototype(*toImpl(state), toImpl(value));
+}
+
+ValueVectorRef* ObjectRef::getOwnPropertyKeys(ExecutionStateRef* state)
+{
+    ValueVector v = toImpl(this)->getOwnPropertyKeys(*toImpl(state));
+
+    ValueVectorRef* result = ValueVectorRef::create(v.size());
+    for (size_t i = 0; i < v.size(); i++) {
+        result->set(i, toRef(v[i]));
+    }
+
+    return result;
 }
 
 bool ObjectRef::isExtensible()
@@ -1486,6 +1556,56 @@ void DateObjectRef::setTimeValue(ExecutionStateRef* state, ValueRef* str)
 double DateObjectRef::primitiveValue()
 {
     return toImpl(this)->primitiveValue();
+}
+
+StringObjectRef* StringObjectRef::create(ExecutionStateRef* state)
+{
+    return toRef(new StringObject(*toImpl(state)));
+}
+
+void StringObjectRef::setPrimitiveValue(ExecutionStateRef* state, ValueRef* str)
+{
+    toImpl(this)->setPrimitiveValue(*toImpl(state), toImpl(str).toString(*toImpl(state)));
+}
+
+StringRef* StringObjectRef::primitiveValue()
+{
+    return toRef(toImpl(this)->primitiveValue());
+}
+
+NumberObjectRef* NumberObjectRef::create(ExecutionStateRef* state)
+{
+    return toRef(new NumberObject(*toImpl(state)));
+}
+
+void NumberObjectRef::setPrimitiveValue(ExecutionStateRef* state, ValueRef* str)
+{
+    toImpl(this)->setPrimitiveValue(*toImpl(state), toImpl(str).toNumber(*toImpl(state)));
+}
+
+double NumberObjectRef::primitiveValue()
+{
+    return toImpl(this)->primitiveValue();
+}
+
+BooleanObjectRef* BooleanObjectRef::create(ExecutionStateRef* state)
+{
+    return toRef(new BooleanObject(*toImpl(state)));
+}
+
+void BooleanObjectRef::setPrimitiveValue(ExecutionStateRef* state, ValueRef* str)
+{
+    toImpl(this)->setPrimitiveValue(*toImpl(state), toImpl(str).toBoolean(*toImpl(state)));
+}
+
+bool BooleanObjectRef::primitiveValue()
+{
+    return toImpl(this)->primitiveValue();
+}
+
+RegExpObjectRef* RegExpObjectRef::create(ExecutionStateRef* state, ValueRef* source, ValueRef* option)
+{
+    return toRef(new RegExpObject(*toImpl(state), toImpl(source).toString(*toImpl(state)), toImpl(option).toString(*toImpl(state))));
 }
 
 #ifdef ESCARGOT_ENABLE_TYPEDARRAY

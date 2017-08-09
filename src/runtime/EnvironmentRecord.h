@@ -485,6 +485,48 @@ public:
         return m_heapStorage[idx];
     }
 
+    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name)
+    {
+        const auto& v = m_functionObject->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
+
+        for (size_t i = 0; i < v.size(); i++) {
+            if (v[i].m_name == name) {
+                return GetBindingValueResult(m_heapStorage[v[i].m_indexForIndexedStorage]);
+            }
+        }
+        return GetBindingValueResult();
+    }
+
+    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& name)
+    {
+        const auto& v = m_functionObject->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
+
+        for (size_t i = 0; i < v.size(); i++) {
+            if (v[i].m_name == name) {
+                return BindingSlot(this, v[i].m_indexForIndexedStorage);
+            }
+        }
+        return BindingSlot(this, SIZE_MAX);
+    }
+
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
+    {
+        m_heapStorage[idx] = v;
+    }
+
+    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+    {
+        const auto& v = m_functionObject->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
+
+        for (size_t i = 0; i < v.size(); i++) {
+            if (v[i].m_name == name) {
+                m_heapStorage[v[i].m_indexForIndexedStorage] = V;
+                return;
+            }
+        }
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
     virtual size_t argc()
     {
         return m_argc;

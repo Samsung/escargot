@@ -42,6 +42,10 @@ class ArrayBufferViewRef;
 class PromiseObjectRef;
 class ErrorObjectRef;
 class DateObjectRef;
+class StringObjectRef;
+class NumberObjectRef;
+class BooleanObjectRef;
+class RegExpObjectRef;
 class ScriptRef;
 class ScriptParserRef;
 class ExecutionStateRef;
@@ -64,6 +68,16 @@ public:
     ObjectRef* asFunctionObject();
     bool isArrayObject();
     ArrayObjectRef* asArrayObject();
+    bool isStringObject();
+    StringObjectRef* asStringObject();
+    bool isNumberObject();
+    NumberObjectRef* asNumberObject();
+    bool isBooleanObject();
+    BooleanObjectRef* asBooleanObject();
+    bool isRegExpObject();
+    RegExpObjectRef* asRegExpObject();
+    bool isDateObject();
+    DateObjectRef* asDateObject();
     bool isGlobalObject();
     GlobalObjectRef* asGlobalObject();
     bool isErrorObject();
@@ -380,6 +394,8 @@ public:
     ObjectRef* getPrototypeObject(); // if __proto__ is not object(undefined or null), this function returns nullptr instead of orginal value.
     void setPrototype(ExecutionStateRef* state, ValueRef* value);
 
+    ValueVectorRef* getOwnPropertyKeys(ExecutionStateRef* state);
+
     bool isExtensible();
     void preventExtensions();
 
@@ -559,6 +575,35 @@ public:
 
     void setTimeValue(ExecutionStateRef* state, ValueRef* str);
     double primitiveValue();
+};
+
+class StringObjectRef : public ObjectRef {
+public:
+    static StringObjectRef* create(ExecutionStateRef* state);
+
+    void setPrimitiveValue(ExecutionStateRef* state, ValueRef* value);
+    StringRef* primitiveValue();
+};
+
+class NumberObjectRef : public ObjectRef {
+public:
+    static NumberObjectRef* create(ExecutionStateRef* state);
+
+    void setPrimitiveValue(ExecutionStateRef* state, ValueRef* value);
+    double primitiveValue();
+};
+
+class BooleanObjectRef : public ObjectRef {
+public:
+    static BooleanObjectRef* create(ExecutionStateRef* state);
+
+    void setPrimitiveValue(ExecutionStateRef* state, ValueRef* value);
+    bool primitiveValue();
+};
+
+class RegExpObjectRef : public ObjectRef {
+public:
+    static RegExpObjectRef* create(ExecutionStateRef* state, ValueRef* source, ValueRef* option);
 };
 
 #ifdef ESCARGOT_ENABLE_TYPEDARRAY

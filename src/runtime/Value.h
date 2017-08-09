@@ -255,15 +255,13 @@ private:
     Value toPrimitiveSlowCase(ExecutionState& ec, PrimitiveTypeHint) const; // $7.1.1 ToPrimitive
     int32_t toInt32SlowCase(ExecutionState& ec) const; // $7.1.5 ToInt32
 };
+
+typedef Vector<Value, CustomAllocator<Value>> ValueVector;
 }
 
 #include "runtime/Object.h"
 #include "runtime/PointerValue.h"
 #include "runtime/String.h"
 #include "runtime/ValueInlines.h"
-
-namespace Escargot {
-typedef Vector<Value, CustomAllocator<Value>> ValueVector;
-}
 
 #endif

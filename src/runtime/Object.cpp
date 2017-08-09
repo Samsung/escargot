@@ -647,6 +647,18 @@ void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState&
     }
 }
 
+ValueVector Object::getOwnPropertyKeys(ExecutionState& state)
+{
+    ValueVector result;
+    enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+        ValueVector* result = (ValueVector*)data;
+        result->pushBack(name.toValue(state));
+        return true;
+    },
+                &result);
+    return result;
+}
+
 ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& propertyName)
 {
     Object* target = this;

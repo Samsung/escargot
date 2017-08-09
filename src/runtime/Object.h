@@ -638,6 +638,8 @@ public:
         return get(state, propertyName).hasValue();
     }
 
+    ValueVector getOwnPropertyKeys(ExecutionState& state);
+
     ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P);
 
     bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);

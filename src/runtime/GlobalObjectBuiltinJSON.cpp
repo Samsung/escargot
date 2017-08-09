@@ -195,7 +195,7 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
     if (JText->has8BitContent()) {
         size_t len = JText->length();
         char16_t* char16Buf = new char16_t[len];
-        std::unique_ptr<char16_t> buf(char16Buf);
+        std::unique_ptr<char16_t[]> buf(char16Buf);
         const LChar* srcBuf = JText->characters8();
         for (size_t i = 0; i < len; i++) {
             char16Buf[i] = srcBuf[i];
