@@ -108,17 +108,20 @@ time64_t DateObject::currentTime()
 void DateObject::setTimeValue(time64_t t)
 {
     m_primitiveValue = t;
-    m_isCacheDirty = true;
+    if (IS_VALID_TIME(m_primitiveValue)) {
+        m_isCacheDirty = true;
+    }
 }
 
 
-void DateObject::setTimeValue(ExecutionState& state, const Value& str)
+void DateObject::setTimeValue(ExecutionState& state, const Value& v)
 {
-    String* istr = str.toString(state);
-
-    m_primitiveValue = parseStringToDate(state, istr);
-    if (IS_VALID_TIME(m_primitiveValue)) {
-        m_isCacheDirty = true;
+    Value pv = v.toPrimitive(state);
+    if (pv.isNumber()) {
+        setTimeValue(DateObject::timeClip(state, pv.asNumber()));
+    } else {
+        String* istr = v.toString(state);
+        setTimeValue(parseStringToDate(state, istr));
     }
 }
 
