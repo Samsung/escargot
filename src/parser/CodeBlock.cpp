@@ -516,7 +516,7 @@ void InterpretedCodeBlock::computeVariables()
                     m_parametersInfomation[i].m_index = -1;
                     m_parametersInfomation[i].m_isHeapAllocated = false;
                 } else {
-                    m_parametersInfomation[i].m_index = 0;
+                    m_parametersInfomation[i].m_index = indexInIdInfo;
                     m_parametersInfomation[i].m_isHeapAllocated = true;
                 }
                 continue;

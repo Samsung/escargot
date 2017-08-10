@@ -572,6 +572,13 @@ ValueRef* ObjectRef::getOwnProperty(ExecutionStateRef* state, ValueRef* property
     return ValueRef::createUndefined();
 }
 
+ValueRef* ObjectRef::getOwnPropertyDescriptor(ExecutionStateRef* state, ValueRef* propertyName)
+{
+    Value name = toImpl(propertyName).toString(*toImpl(state));
+    ObjectGetResult desc = toImpl(this)->getOwnProperty(*toImpl(state), ObjectPropertyName(*toImpl(state), name));
+    return toRef(desc.toPropertyDescriptor(*toImpl(state), toImpl(this)));
+}
+
 void* ObjectRef::NativeDataAccessorPropertyData::operator new(size_t size)
 {
     return GC_MALLOC_ATOMIC(size);
@@ -1606,6 +1613,16 @@ bool BooleanObjectRef::primitiveValue()
 RegExpObjectRef* RegExpObjectRef::create(ExecutionStateRef* state, ValueRef* source, ValueRef* option)
 {
     return toRef(new RegExpObject(*toImpl(state), toImpl(source).toString(*toImpl(state)), toImpl(option).toString(*toImpl(state))));
+}
+
+StringRef* RegExpObjectRef::source()
+{
+    return toRef(toImpl(this)->source());
+}
+
+RegExpObjectRef::RegExpObjectOption RegExpObjectRef::option()
+{
+    return (RegExpObjectRef::RegExpObjectOption)toImpl(this)->option();
 }
 
 #ifdef ESCARGOT_ENABLE_TYPEDARRAY

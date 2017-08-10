@@ -311,6 +311,8 @@ public:
 
     ValueRef* get(ExecutionStateRef* state, ValueRef* propertyName);
     ValueRef* getOwnProperty(ExecutionStateRef* state, ValueRef* propertyName);
+    ValueRef* getOwnPropertyDescriptor(ExecutionStateRef* state, ValueRef* propertyName);
+
     bool set(ExecutionStateRef* state, ValueRef* propertyName, ValueRef* value);
 
     enum PresentAttribute {
@@ -603,7 +605,19 @@ public:
 
 class RegExpObjectRef : public ObjectRef {
 public:
+    enum RegExpObjectOption {
+        None = 1,
+        Global = 1 << 1,
+        IgnoreCase = 1 << 2,
+        MultiLine = 1 << 3,
+        // NOTE(ES6): Sticky and Unicode option is added in ES6
+        Sticky = 1 << 4,
+        Unicode = 1 << 5,
+    };
+
     static RegExpObjectRef* create(ExecutionStateRef* state, ValueRef* source, ValueRef* option);
+    StringRef* source();
+    RegExpObjectOption option();
 };
 
 #ifdef ESCARGOT_ENABLE_TYPEDARRAY
