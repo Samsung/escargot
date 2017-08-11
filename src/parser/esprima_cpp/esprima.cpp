@@ -968,6 +968,10 @@ public:
                 if (data.equalsSameLength("catch")) {
                     return Catch;
                 } else if (data.equalsSameLength("const")) {
+                    const char* env = getenv("ESCARGOT_TREAT_CONST_AS_VAR");
+                    if (env && strlen(env)) {
+                        return Var;
+                    }
                     return Const;
                 } else if (data.equalsSameLength("class")) {
                     return Class;

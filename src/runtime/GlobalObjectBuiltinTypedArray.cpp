@@ -100,7 +100,7 @@ static Value builtinArrayBufferByteSlice(ExecutionState& state, Value thisValue,
 static Value builtinArrayBufferIsView(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (!argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), false, state.context()->staticStrings().isView.string(), errorMessage_GlobalObject_ThisNotObject);
+        return Value(false);
     }
     Object* thisObject = argv[0].toObject(state);
     if (thisObject->isTypedArrayObject() || thisObject->isDataViewObject()) {
