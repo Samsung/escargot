@@ -12,6 +12,7 @@ if [[ $1 == incremental ]]; then
     INCREMENTAL=true
 fi
 
+PORT=STARFISH_EFL
 #LTO=true
 LTO=false
 #COMPILER_VERSION_MAJOR=4.9
@@ -32,7 +33,10 @@ fi
 
 # Common flags --------------------------------------------
 
-GCCONFFLAGS_COMMON=" --enable-munmap --disable-parallel-mark --enable-large-config --disable-pthread --disable-parallel-mark --disable-threads " # --enable-large-config --enable-cplusplus"
+GCCONFFLAGS_COMMON=" --enable-munmap --disable-parallel-mark --enable-large-config " # --enable-large-config --enable-cplusplus"
+if [[ $PORT == STARFISH_EFL ]]; then
+    GCCONFFLAGS_COMMON+=" --disable-pthread --disable-threads "
+fi
 CFLAGS_COMMON=" -g3 "
 CFLAGS_COMMON+=" -DESCARGOT "
 CFLAGS_COMMON+=" -fdata-sections -ffunction-sections " # To exclude unused code from final binary
