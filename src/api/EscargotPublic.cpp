@@ -302,7 +302,7 @@ ArrayBufferObjectRef* PointerValueRef::asArrayBufferObject()
 
 bool PointerValueRef::isArrayBufferView()
 {
-    return toImpl(this)->isArrayBufferObject();
+    return toImpl(this)->isArrayBufferView();
 }
 
 ArrayBufferViewRef* PointerValueRef::asArrayBufferView()
