@@ -544,4 +544,20 @@ struct equal_to<Escargot::String*> {
 #include "runtime/RopeString.h"
 #include "runtime/StringBuilder.h"
 #include "runtime/StringView.h"
+
+namespace Escargot {
+typedef std::unordered_map<String*, String*, std::hash<String*>, std::equal_to<String*>, gc_allocator<std::pair<String*, String*>>> StringMapStd;
+class StringMap : public StringMapStd, public gc {
+public:
+    String* at(String* s) const
+    {
+        auto iter = find(s);
+        if (iter != end()) {
+            return iter->second;
+        }
+        return String::emptyString;
+    }
+};
+}
+
 #endif

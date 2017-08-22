@@ -162,6 +162,13 @@ namespace Escargot {
     F(parse)                      \
     F(stringify)                  \
     F(toJSON)                     \
+    F(Intl)                       \
+    F(Collator)                   \
+    F(DateTimeFormat)             \
+    F(format)                     \
+    F(NumberFormat)               \
+    F(supportedLocalesOf)         \
+    F(resolvedOptions)            \
     F(getPrototypeOf)             \
     F(isPrototypeOf)              \
     F(propertyIsEnumerable)       \
@@ -224,6 +231,7 @@ namespace Escargot {
     F(isSealed)                   \
     F(keys)                       \
     F(localeCompare)              \
+    F(compare)                    \
     F(map)                        \
     F(match)                      \
     F(now)                        \

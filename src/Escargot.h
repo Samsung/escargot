@@ -44,6 +44,12 @@
 #include <unicode/locid.h>
 #include <unicode/uchar.h>
 #include <unicode/datefmt.h>
+#include <unicode/ucol.h> // for Intl
+#include <unicode/urename.h> // for Intl
+#include <unicode/unumsys.h> // for Intl
+#include <unicode/udat.h> // for Intl
+#include <unicode/udatpg.h> // for Intl
+#include <unicode/unum.h> // for Intl
 #else
 typedef char16_t UChar;
 typedef unsigned char LChar;

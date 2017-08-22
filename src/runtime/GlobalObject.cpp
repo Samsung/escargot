@@ -1063,4 +1063,56 @@ void GlobalObject::installOthers(ExecutionState& state)
     m_stringProxyObject = new StringObject(state);
     m_numberProxyObject = new NumberObject(state);
 }
+
+static String* icuLocaleToBCP47Tag(String* string)
+{
+    StringBuilder sb;
+    for (size_t i = 0; i < string->length(); i++) {
+        char16_t ch = string->charAt(i);
+        if (ch == '_')
+            ch = '-';
+        sb.appendChar(ch);
+    }
+    return sb.finalize();
+}
+#ifdef ENABLE_ICU
+const Vector<String*, gc_allocator<String*>>& GlobalObject::intlCollatorAvailableLocales()
+{
+    if (m_intlCollatorAvailableLocales.size() == 0) {
+        auto count = ucol_countAvailable();
+        for (int32_t i = 0; i < count; ++i) {
+            String* locale = String::fromASCII(ucol_getAvailable(i));
+            locale = icuLocaleToBCP47Tag(locale);
+            m_intlCollatorAvailableLocales.pushBack(locale);
+        }
+    }
+    return m_intlCollatorAvailableLocales;
+}
+
+const Vector<String*, gc_allocator<String*>>& GlobalObject::intlDateTimeFormatAvailableLocales()
+{
+    if (m_intlDateTimeFormatAvailableLocales.size() == 0) {
+        auto count = udat_countAvailable();
+        for (int32_t i = 0; i < count; ++i) {
+            String* locale = String::fromASCII(udat_getAvailable(i));
+            locale = icuLocaleToBCP47Tag(locale);
+            m_intlDateTimeFormatAvailableLocales.pushBack(locale);
+        }
+    }
+    return m_intlDateTimeFormatAvailableLocales;
+}
+
+const Vector<String*, gc_allocator<String*>>& GlobalObject::intlNumberFormatAvailableLocales()
+{
+    if (m_intlNumberFormatAvailableLocales.size() == 0) {
+        auto count = unum_countAvailable();
+        for (int32_t i = 0; i < count; ++i) {
+            String* locale = String::fromASCII(unum_getAvailable(i));
+            locale = icuLocaleToBCP47Tag(locale);
+            m_intlNumberFormatAvailableLocales.pushBack(locale);
+        }
+    }
+    return m_intlNumberFormatAvailableLocales;
+}
+#endif
 }

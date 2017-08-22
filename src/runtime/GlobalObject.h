@@ -77,6 +77,9 @@ public:
         installDate(state);
         installRegExp(state);
         installJSON(state);
+#ifdef ENABLE_ICU
+        installIntl(state);
+#endif
 #if ESCARGOT_ENABLE_PROMISE
         installPromise(state);
 #endif
@@ -98,6 +101,9 @@ public:
     void installDate(ExecutionState& state);
     void installRegExp(ExecutionState& state);
     void installJSON(ExecutionState& state);
+#ifdef ENABLE_ICU
+    void installIntl(ExecutionState& state);
+#endif
 #if ESCARGOT_ENABLE_PROMISE
     void installPromise(ExecutionState& state);
 #endif
@@ -123,6 +129,10 @@ public:
     FunctionObject* objectPrototypeToString()
     {
         return m_objectPrototypeToString;
+    }
+    FunctionObject* objectCreate()
+    {
+        return m_objectCreate;
     }
 
     FunctionObject* function()
@@ -265,7 +275,33 @@ public:
     {
         return m_jsonParse;
     }
+#ifdef ENABLE_ICU
+    Object* intl()
+    {
+        return m_intl;
+    }
 
+    FunctionObject* intlCollator()
+    {
+        return m_intlCollator;
+    }
+
+    const Vector<String*, gc_allocator<String*>>& intlCollatorAvailableLocales();
+
+    FunctionObject* intlDateTimeFormat()
+    {
+        return m_intlDateTimeFormat;
+    }
+
+    const Vector<String*, gc_allocator<String*>>& intlDateTimeFormatAvailableLocales();
+
+    FunctionObject* intlNumberFormat()
+    {
+        return m_intlNumberFormat;
+    }
+
+    const Vector<String*, gc_allocator<String*>>& intlNumberFormatAvailableLocales();
+#endif
 #if ESCARGOT_ENABLE_PROMISE
     FunctionObject* promise()
     {
@@ -414,6 +450,7 @@ protected:
     FunctionObject* m_object;
     Object* m_objectPrototype;
     FunctionObject* m_objectPrototypeToString;
+    FunctionObject* m_objectCreate;
 
     FunctionObject* m_function;
     FunctionObject* m_functionPrototype;
@@ -464,6 +501,15 @@ protected:
     Object* m_json;
     FunctionObject* m_jsonStringify;
     FunctionObject* m_jsonParse;
+#ifdef ENABLE_ICU
+    Object* m_intl;
+    FunctionObject* m_intlCollator;
+    Vector<String*, gc_allocator<String*>> m_intlCollatorAvailableLocales;
+    FunctionObject* m_intlDateTimeFormat;
+    Vector<String*, gc_allocator<String*>> m_intlDateTimeFormatAvailableLocales;
+    FunctionObject* m_intlNumberFormat;
+    Vector<String*, gc_allocator<String*>> m_intlNumberFormatAvailableLocales;
+#endif
 
 #if ESCARGOT_ENABLE_PROMISE
     FunctionObject* m_promise;

@@ -735,12 +735,13 @@ public:
         ensureObjectRareData()->m_extraData = e;
     }
 
-#ifdef ESCARGOT_ENABLE_PROMISE
     Object* ensureInternalSlot(ExecutionState& state)
     {
         ensureObjectRareData();
-        if (!internalSlot())
+        if (!internalSlot()) {
             setInternalSlot(new Object(state));
+            internalSlot()->setPrototype(state, Value());
+        }
         return internalSlot();
     }
 
@@ -750,11 +751,15 @@ public:
         return rareData()->m_internalSlot;
     }
 
+    bool hasInternalSlot()
+    {
+        return rareData() && rareData()->m_internalSlot;
+    }
+
     void setInternalSlot(Object* object)
     {
         ensureObjectRareData()->m_internalSlot = object;
     }
-#endif
 
     static void throwCannotDefineError(ExecutionState& state, const PropertyName& P);
     static void throwCannotWriteError(ExecutionState& state, const PropertyName& P);
