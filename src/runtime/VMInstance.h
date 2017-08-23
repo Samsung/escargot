@@ -30,6 +30,7 @@ namespace Escargot {
 class SandBox;
 class CodeBlock;
 class JobQueue;
+class Job;
 
 class VMInstance : public gc {
     friend class Context;
@@ -131,7 +132,7 @@ public:
     // if thres is no job or no error, returns EmptyValue
     Value drainJobQueue(ExecutionState& state);
 
-    typedef void (*NewPromiseJobListener)(ExecutionState& state);
+    typedef void (*NewPromiseJobListener)(ExecutionState& state, Job* job);
     void setNewPromiseJobListener(NewPromiseJobListener l);
 #endif
 

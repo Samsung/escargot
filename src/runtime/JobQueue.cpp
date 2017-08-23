@@ -32,12 +32,11 @@ JobQueue* JobQueue::create()
 
 size_t DefaultJobQueue::enqueueJob(ExecutionState& state, Job* job)
 {
-    m_jobs.push_back(job);
-
     if (state.context()->vmInstance()->m_jobQueueListener) {
-        state.context()->vmInstance()->m_jobQueueListener(state);
+        state.context()->vmInstance()->m_jobQueueListener(state, job);
+    } else {
+        m_jobs.push_back(job);
     }
-
     return 0;
 }
 }

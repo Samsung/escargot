@@ -50,6 +50,7 @@ class ScriptRef;
 class ScriptParserRef;
 class ExecutionStateRef;
 class ValueVectorRef;
+class JobRef;
 
 class Globals {
 public:
@@ -123,7 +124,7 @@ public:
     // if thres is no job or no error, returns EmptyValue
     ValueRef* drainJobQueue(ExecutionStateRef* state);
 
-    typedef void (*NewPromiseJobListener)(ExecutionStateRef* state);
+    typedef void (*NewPromiseJobListener)(ExecutionStateRef* state, JobRef* job);
     void setNewPromiseJobListener(NewPromiseJobListener l);
 #endif
 };
@@ -689,6 +690,11 @@ public:
     };
 
     SandBoxResult run(const std::function<ValueRef*(ExecutionStateRef* state)>& scriptRunner); // for capsule script executing with try-catch
+};
+
+class JobRef {
+public:
+    SandBoxRef::SandBoxResult run(ExecutionStateRef* state);
 };
 
 class ScriptParserRef {

@@ -312,6 +312,8 @@ bool VMInstance::removeRoot(void* ptr)
 
 Value VMInstance::drainJobQueue(ExecutionState& state)
 {
+    ASSERT(!m_jobQueueListener);
+
     DefaultJobQueue* jobQueue = DefaultJobQueue::get(this->jobQueue());
     while (jobQueue->hasNextJob()) {
         auto jobResult = jobQueue->nextJob()->run(state);

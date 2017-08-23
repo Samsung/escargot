@@ -82,6 +82,7 @@ DEFINE_CAST(FunctionObject);
 DEFINE_CAST(DateObject);
 #ifdef ESCARGOT_ENABLE_PROMISE
 DEFINE_CAST(PromiseObject);
+DEFINE_CAST(Job);
 #endif
 DEFINE_CAST(Script);
 DEFINE_CAST(ScriptParser);
@@ -373,8 +374,8 @@ void VMInstanceRef::setNewPromiseJobListener(NewPromiseJobListener l)
 {
     VMInstance* imp = toImpl(this);
     imp->m_publicJobQueueListenerPointer = (void*)l;
-    imp->setNewPromiseJobListener([](ExecutionState& state) {
-        ((NewPromiseJobListener)state.context()->vmInstance()->m_publicJobQueueListenerPointer)(toRef(&state));
+    imp->setNewPromiseJobListener([](ExecutionState& state, Job* job) {
+        ((NewPromiseJobListener)state.context()->vmInstance()->m_publicJobQueueListenerPointer)(toRef(&state), toRef(job));
     });
 }
 
@@ -1172,13 +1173,8 @@ SandBoxRef::SandBoxResult::SandBoxResult()
 {
 }
 
-SandBoxRef::SandBoxResult SandBoxRef::run(const std::function<ValueRef*(ExecutionStateRef* state)>& scriptRunner)
+static SandBoxRef::SandBoxResult toSandBoxResultRef(SandBox::SandBoxResult& result)
 {
-    auto result = toImpl(this)->run([&]() -> Value {
-        ExecutionState state(toImpl(this)->context());
-        return toImpl(scriptRunner(toRef(&state)));
-    });
-
     SandBoxRef::SandBoxResult r;
     r.error = toRef(result.error);
     r.msgStr = toRef(result.msgStr);
@@ -1195,6 +1191,21 @@ SandBoxRef::SandBoxResult SandBoxRef::run(const std::function<ValueRef*(Executio
     }
 
     return r;
+}
+
+SandBoxRef::SandBoxResult SandBoxRef::run(const std::function<ValueRef*(ExecutionStateRef* state)>& scriptRunner)
+{
+    auto result = toImpl(this)->run([&]() -> Value {
+        ExecutionState state(toImpl(this)->context());
+        return toImpl(scriptRunner(toRef(&state)));
+    });
+    return toSandBoxResultRef(result);
+}
+
+SandBoxRef::SandBoxResult JobRef::run(ExecutionStateRef* state)
+{
+    auto result = toImpl(this)->run(*toImpl(state));
+    return toSandBoxResultRef(result);
 }
 
 GlobalObjectRef* ContextRef::globalObject()
