@@ -66,7 +66,7 @@ public:
     bool isObject();
     ObjectRef* asObject();
     bool isFunctionObject();
-    ObjectRef* asFunctionObject();
+    FunctionObjectRef* asFunctionObject();
     bool isArrayObject();
     ArrayObjectRef* asArrayObject();
     bool isStringObject();
@@ -300,6 +300,7 @@ typedef ExposableObjectGetOwnPropertyCallbackResult (*ExposableObjectGetOwnPrope
 typedef bool (*ExposableObjectDefineOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* propertyName, ValueRef* value);
 typedef std::vector<ExposableObjectEnumerationCallbackResult, GCUtil::gc_malloc_ignore_off_page_allocator<ExposableObjectEnumerationCallbackResult>> ExposableObjectEnumerationCallbackResultVector;
 typedef ExposableObjectEnumerationCallbackResultVector (*ExposableObjectEnumerationCallback)(ExecutionStateRef* state, ObjectRef* self);
+typedef bool (*ExposableObjectDeleteOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* propertyName);
 
 class ObjectRef : public PointerValueRef {
 public:
@@ -308,7 +309,7 @@ public:
     // virtual property does not follow every rule of ECMAScript
     static ObjectRef* createExposableObject(ExecutionStateRef* state,
                                             ExposableObjectGetOwnPropertyCallback getOwnPropertyCallback, ExposableObjectDefineOwnPropertyCallback defineOwnPropertyCallback,
-                                            ExposableObjectEnumerationCallback enumerationCallback);
+                                            ExposableObjectEnumerationCallback enumerationCallback, ExposableObjectDeleteOwnPropertyCallback deleteOwnPropertyCallback);
 
     ValueRef* get(ExecutionStateRef* state, ValueRef* propertyName);
     ValueRef* getOwnProperty(ExecutionStateRef* state, ValueRef* propertyName);

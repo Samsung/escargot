@@ -465,6 +465,7 @@ void InterpretedCodeBlock::computeVariables()
     if (canUseIndexedVariableStorage()) {
         size_t s = isGlobalScopeCodeBlock() ? 1 : 2;
         size_t h = 0;
+
         for (size_t i = 0; i < m_identifierInfos.size(); i++) {
             if (m_identifierInfos[i].m_name == m_functionName) {
                 m_needsComplexParameterCopy = true;
@@ -512,7 +513,7 @@ void InterpretedCodeBlock::computeVariables()
             m_parametersInfomation[i].m_name = name;
 
             if (name == m_functionName) {
-                if (m_identifierInfos[0].m_needToAllocateOnStack) {
+                if (m_identifierInfos[idIndex].m_needToAllocateOnStack) {
                     m_parametersInfomation[i].m_index = -1;
                     m_parametersInfomation[i].m_isHeapAllocated = false;
                 } else {

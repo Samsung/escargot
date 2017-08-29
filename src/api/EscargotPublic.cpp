@@ -205,7 +205,7 @@ bool PointerValueRef::isFunctionObject()
     return toImpl(this)->isFunctionObject();
 }
 
-ObjectRef* PointerValueRef::asFunctionObject()
+FunctionObjectRef* PointerValueRef::asFunctionObject()
 {
     return toRef(toImpl(this)->asFunctionObject());
 }
@@ -481,11 +481,12 @@ ObjectRef* ObjectRef::create(ExecutionStateRef* state)
 // can not redefine or delete virtual property
 class ExposableObject : public Object {
 public:
-    ExposableObject(ExecutionState& state, ExposableObjectGetOwnPropertyCallback getOwnPropetyCallback, ExposableObjectDefineOwnPropertyCallback defineOwnPropertyCallback, ExposableObjectEnumerationCallback enumerationCallback)
+    ExposableObject(ExecutionState& state, ExposableObjectGetOwnPropertyCallback getOwnPropetyCallback, ExposableObjectDefineOwnPropertyCallback defineOwnPropertyCallback, ExposableObjectEnumerationCallback enumerationCallback, ExposableObjectDeleteOwnPropertyCallback deleteOwnPropertyCallback)
         : Object(state)
         , m_getOwnPropetyCallback(getOwnPropetyCallback)
         , m_defineOwnPropertyCallback(defineOwnPropertyCallback)
         , m_enumerationCallback(enumerationCallback)
+        , m_deleteOwnPropertyCallback(deleteOwnPropertyCallback)
     {
     }
 
@@ -501,7 +502,7 @@ public:
     {
         auto result = m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)));
         if (!result.m_value->isEmpty()) {
-            if (desc.isValuePresent()) {
+            if (desc.isValuePresent() && result.m_isWritable) {
                 return m_defineOwnPropertyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)), toRef(desc.value()));
             }
             return false;
@@ -512,6 +513,9 @@ public:
     {
         auto result = m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)));
         if (!result.m_value->isEmpty()) {
+            if (result.m_isConfigurable) {
+                return m_deleteOwnPropertyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)));
+            }
             return false;
         }
         return Object::deleteOwnProperty(state, P);
@@ -546,13 +550,14 @@ protected:
     ExposableObjectGetOwnPropertyCallback m_getOwnPropetyCallback;
     ExposableObjectDefineOwnPropertyCallback m_defineOwnPropertyCallback;
     ExposableObjectEnumerationCallback m_enumerationCallback;
+    ExposableObjectDeleteOwnPropertyCallback m_deleteOwnPropertyCallback;
 };
 
 ObjectRef* ObjectRef::createExposableObject(ExecutionStateRef* state,
                                             ExposableObjectGetOwnPropertyCallback getOwnPropertyCallback, ExposableObjectDefineOwnPropertyCallback defineOwnPropertyCallback,
-                                            ExposableObjectEnumerationCallback enumerationCallback)
+                                            ExposableObjectEnumerationCallback enumerationCallback, ExposableObjectDeleteOwnPropertyCallback deleteOwnPropertyCallback)
 {
-    return toRef(new ExposableObject(*toImpl(state), getOwnPropertyCallback, defineOwnPropertyCallback, enumerationCallback));
+    return toRef(new ExposableObject(*toImpl(state), getOwnPropertyCallback, defineOwnPropertyCallback, enumerationCallback, deleteOwnPropertyCallback));
 }
 
 ValueRef* ObjectRef::get(ExecutionStateRef* state, ValueRef* propertyName)
