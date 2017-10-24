@@ -176,6 +176,10 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
 {
     Script* script = nullptr;
     ScriptParseError* error = nullptr;
+
+    int orgFreeSpaceDivisor = GC_get_free_space_divisor();
+    GC_set_free_space_divisor(1);
+
     try {
         ProgramNode* program = esprima::parseProgram(m_context, scriptSource, nullptr, strictFromOutside, stackSizeRemain);
 
@@ -259,6 +263,8 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
         error->errorCode = orgError->errorCode;
         delete orgError;
     }
+
+    GC_set_free_space_divisor(orgFreeSpaceDivisor);
 
     ScriptParser::ScriptParserResult result(script, error);
     return result;
