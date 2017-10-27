@@ -396,7 +396,7 @@ install_header_to_include:
 	cp src/api/EscargotPublic.h ./include/
 	cp third_party/GCutil/GCUtil.h ./include/
 	cp third_party/GCutil/Allocator.h ./include/
-	cp third_party/GCutil/GCUtil.h ./include/
+	cp third_party/GCutil/LeakChecker.h ./include/
 	cp third_party/GCutil/bdwgc/include/gc.h ./include/
 	cp third_party/GCutil/bdwgc/include/gc_mark.h ./include/
 	cp third_party/GCutil/bdwgc/include/gc_typed.h ./include/
