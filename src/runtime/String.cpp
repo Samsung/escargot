@@ -285,10 +285,9 @@ UTF8StringData Latin1String::toUTF8StringData() const
         if (ch < 0x80) {
             ret.append((char*)&ch, 1);
         } else {
-            ch = (0xc0 | (ch & 0xc0) >> 6);
-            ret.append((char*)&ch, 1);
-            ch = (0x80 | (ch & 0x3f));
-            ret.append((char*)&ch, 1);
+            char buf[8];
+            auto len = utf32ToUtf8(ch, buf);
+            ret.append(buf, len);
         }
     }
     return ret;
