@@ -380,15 +380,15 @@ struct ASTScopeContext : public gc {
     }
 };
 
-typedef std::vector<Node *, gc_allocator_ignore_off_page<Node *>> NodeVector;
-typedef std::vector<Node *, gc_allocator_ignore_off_page<Node *>> ArgumentVector;
-typedef std::vector<Node *, gc_allocator_ignore_off_page<Node *>> ExpressionNodeVector;
-typedef std::vector<Node *, gc_allocator_ignore_off_page<Node *>> StatementNodeVector;
-typedef std::vector<Node *, gc_allocator_ignore_off_page<Node *>> PatternNodeVector;
+typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>, 150> NodeVector;
+typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>, 150> ArgumentVector;
+typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>, 150> ExpressionNodeVector;
+typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>, 150> StatementNodeVector;
+typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>, 150> PatternNodeVector;
 class PropertyNode;
-typedef std::vector<PropertyNode *, gc_allocator_ignore_off_page<PropertyNode *>> PropertiesNodeVector;
+typedef Vector<PropertyNode *, gc_allocator_ignore_off_page<PropertyNode *>, 150> PropertiesNodeVector;
 class VariableDeclaratorNode;
-typedef std::vector<VariableDeclaratorNode *, gc_allocator_ignore_off_page<VariableDeclaratorNode *>> VariableDeclaratorVector;
+typedef Vector<VariableDeclaratorNode *, gc_allocator_ignore_off_page<VariableDeclaratorNode *>, 150> VariableDeclaratorVector;
 }
 
 #endif

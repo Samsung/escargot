@@ -559,7 +559,7 @@ struct ObjectStructureChainItem : public gc {
 };
 
 typedef std::vector<ObjectStructureChainItem, std::allocator<ObjectStructureChainItem>> ObjectStructureChain;
-typedef std::vector<ObjectStructureChainItem, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectStructureChainItem>> ObjectStructureChainWithGC;
+typedef Vector<ObjectStructureChainItem, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectStructureChainItem>, 200> ObjectStructureChainWithGC;
 
 struct GetObjectInlineCacheData {
     GetObjectInlineCacheData()
