@@ -576,8 +576,9 @@ public:
 class DateObjectRef : public ObjectRef {
 public:
     static DateObjectRef* create(ExecutionStateRef* state);
-
     void setTimeValue(ExecutionStateRef* state, ValueRef* str);
+    void setTimeValue(int64_t value);
+    StringRef* toUTCString(ExecutionStateRef* state);
     double primitiveValue();
 };
 

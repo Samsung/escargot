@@ -1576,6 +1576,16 @@ void DateObjectRef::setTimeValue(ExecutionStateRef* state, ValueRef* str)
     toImpl(this)->setTimeValue(*toImpl(state), toImpl(str));
 }
 
+void DateObjectRef::setTimeValue(int64_t value)
+{
+    toImpl(this)->setTimeValue(value);
+}
+
+StringRef* DateObjectRef::toUTCString(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->toUTCString(*toImpl(state), toImpl(state->context())->staticStrings().toUTCString.string()));
+}
+
 double DateObjectRef::primitiveValue()
 {
     return toImpl(this)->primitiveValue();
