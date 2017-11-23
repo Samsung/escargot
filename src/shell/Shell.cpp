@@ -46,7 +46,7 @@ NEVER_INLINE bool eval(Escargot::Context* context, Escargot::String* str, Escarg
 #ifdef ESCARGOT_ENABLE_PROMISE
             Escargot::DefaultJobQueue* jobQueue = Escargot::DefaultJobQueue::get(context->jobQueue());
             while (jobQueue->hasNextJob()) {
-                auto jobResult = jobQueue->nextJob()->run(state);
+                auto jobResult = jobQueue->nextJob()->run();
                 if (shouldPrintScriptResult) {
                     if (!jobResult.result.isEmpty()) {
                         printf("%s\n", jobResult.result.toString(state)->toUTF8StringData().data());

@@ -309,12 +309,12 @@ static Value builtinPromiseThen(ExecutionState& state, Value thisValue, size_t a
         break;
     }
     case PromiseObject::PromiseState::FulFilled: {
-        Job* job = new PromiseReactionJob(PromiseReaction(onFulfilled, capability), promise->promiseResult());
+        Job* job = new PromiseReactionJob(state.context(), PromiseReaction(onFulfilled, capability), promise->promiseResult());
         state.context()->jobQueue()->enqueueJob(state, job);
         break;
     }
     case PromiseObject::PromiseState::Rejected: {
-        Job* job = new PromiseReactionJob(PromiseReaction(onRejected, capability), promise->promiseResult());
+        Job* job = new PromiseReactionJob(state.context(), PromiseReaction(onRejected, capability), promise->promiseResult());
         state.context()->jobQueue()->enqueueJob(state, job);
         break;
     }
@@ -379,7 +379,7 @@ Value promiseResolveFunction(ExecutionState& state, Value thisValue, size_t argc
     Value then = res.result;
 
     if (then.isFunction()) {
-        state.context()->jobQueue()->enqueueJob(state, new PromiseResolveThenableJob(promise, resolution, then.asFunction()));
+        state.context()->jobQueue()->enqueueJob(state, new PromiseResolveThenableJob(state.context(), promise, resolution, then.asFunction()));
     } else {
         promise->fulfillPromise(state, resolution);
         return Value();

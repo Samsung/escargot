@@ -35,8 +35,9 @@ public:
     };
 
 protected:
-    Job(JobType type)
+    Job(JobType type, Context* relatedContext)
         : m_type(type)
+        , m_relatedContext(relatedContext)
     {
     }
 
@@ -46,22 +47,27 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual SandBox::SandBoxResult run(ExecutionState& state) = 0;
+    virtual SandBox::SandBoxResult run() = 0;
+    Context* relatedContext() const
+    {
+        return m_relatedContext;
+    }
 
 private:
     JobType m_type;
+    Context* m_relatedContext;
 };
 
 class PromiseReactionJob : public Job {
 public:
-    PromiseReactionJob(PromiseReaction reaction, Value argument)
-        : Job(JobType::PromiseReactionJob)
+    PromiseReactionJob(Context* relatedContext, PromiseReaction reaction, Value argument)
+        : Job(JobType::PromiseReactionJob, relatedContext)
         , m_reaction(reaction)
         , m_argument(argument)
     {
     }
 
-    SandBox::SandBoxResult run(ExecutionState& state);
+    SandBox::SandBoxResult run();
 
 private:
     PromiseReaction m_reaction;
@@ -70,15 +76,15 @@ private:
 
 class PromiseResolveThenableJob : public Job {
 public:
-    PromiseResolveThenableJob(PromiseObject* promise, Object* thenable, FunctionObject* then)
-        : Job(JobType::PromiseResolveThenableJob)
+    PromiseResolveThenableJob(Context* relatedContext, PromiseObject* promise, Object* thenable, FunctionObject* then)
+        : Job(JobType::PromiseResolveThenableJob, relatedContext)
         , m_promise(promise)
         , m_thenable(thenable)
         , m_then(then)
     {
     }
 
-    SandBox::SandBoxResult run(ExecutionState& state);
+    SandBox::SandBoxResult run();
 
 private:
     PromiseObject* m_promise;

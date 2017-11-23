@@ -56,13 +56,18 @@ public:
         return job;
     }
 
+    std::list<Job*, gc_allocator<Job*>>& impl()
+    {
+        return m_jobs;
+    }
+
     static DefaultJobQueue* get(JobQueue* jobQueue)
     {
         return (DefaultJobQueue*)jobQueue;
     }
 
 private:
-    std::list<Job*, gc_allocator<Job*> > m_jobs;
+    std::list<Job*, gc_allocator<Job*>> m_jobs;
 };
 }
 #endif // ESCARGOT_ENABLE_PROMISE

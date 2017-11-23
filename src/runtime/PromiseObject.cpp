@@ -129,7 +129,7 @@ void PromiseObject::rejectPromise(ExecutionState& state, Value reason)
 void PromiseObject::triggerPromiseReactions(ExecutionState& state, PromiseObject::Reactions& reactions)
 {
     for (size_t i = 0; i < reactions.size(); i++)
-        state.context()->jobQueue()->enqueueJob(state, new PromiseReactionJob(reactions[i], m_promiseResult));
+        state.context()->jobQueue()->enqueueJob(state, new PromiseReactionJob(state.context(), reactions[i], m_promiseResult));
 }
 }
 

@@ -24,9 +24,10 @@
 
 namespace Escargot {
 
-SandBox::SandBoxResult PromiseReactionJob::run(ExecutionState& state)
+SandBox::SandBoxResult PromiseReactionJob::run()
 {
-    SandBox sandbox(state.context());
+    SandBox sandbox(relatedContext());
+    ExecutionState state(relatedContext());
     return sandbox.run([&]() -> Value {
         /* 25.4.2.1.4 Handler is "Identity" case */
         if (m_reaction.m_handler == (FunctionObject*)1) {
@@ -55,9 +56,10 @@ SandBox::SandBoxResult PromiseReactionJob::run(ExecutionState& state)
     });
 }
 
-SandBox::SandBoxResult PromiseResolveThenableJob::run(ExecutionState& state)
+SandBox::SandBoxResult PromiseResolveThenableJob::run()
 {
-    SandBox sandbox(state.context());
+    SandBox sandbox(relatedContext());
+    ExecutionState state(relatedContext());
     return sandbox.run([&]() -> Value {
         auto strings = &state.context()->staticStrings();
         PromiseReaction::Capability capability = m_promise->createResolvingFunctions(state);

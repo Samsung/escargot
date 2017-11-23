@@ -28,7 +28,7 @@ static Value builtinDrainJobQueue(ExecutionState& state, Value thisValue, size_t
 {
     DefaultJobQueue* jobQueue = DefaultJobQueue::get(state.context()->jobQueue());
     while (jobQueue->hasNextJob()) {
-        auto jobResult = jobQueue->nextJob()->run(state);
+        auto jobResult = jobQueue->nextJob()->run();
         if (!jobResult.error.isEmpty())
             return Value(false);
     }

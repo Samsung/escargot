@@ -122,7 +122,7 @@ public:
 #ifdef ESCARGOT_ENABLE_PROMISE
     // if there is an error, executing will be stopped and returns ErrorValue
     // if thres is no job or no error, returns EmptyValue
-    ValueRef* drainJobQueue(ExecutionStateRef* state);
+    ValueRef* drainJobQueue();
 
     typedef void (*NewPromiseJobListener)(ExecutionStateRef* state, JobRef* job);
     void setNewPromiseJobListener(NewPromiseJobListener l);
@@ -696,7 +696,7 @@ public:
 
 class JobRef {
 public:
-    SandBoxRef::SandBoxResult run(ExecutionStateRef* state);
+    SandBoxRef::SandBoxResult run();
 };
 
 class ScriptParserRef {

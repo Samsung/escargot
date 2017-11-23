@@ -130,7 +130,7 @@ public:
 
     // if there is an error, executing will be stopped and returns ErrorValue
     // if thres is no job or no error, returns EmptyValue
-    Value drainJobQueue(ExecutionState& state);
+    Value drainJobQueue();
 
     typedef void (*NewPromiseJobListener)(ExecutionState& state, Job* job);
     void setNewPromiseJobListener(NewPromiseJobListener l);

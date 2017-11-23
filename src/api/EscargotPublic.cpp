@@ -364,10 +364,10 @@ bool VMInstanceRef::removeRoot(VMInstanceRef* instanceRef, ValueRef* ptr)
 }
 
 #ifdef ESCARGOT_ENABLE_PROMISE
-ValueRef* VMInstanceRef::drainJobQueue(ExecutionStateRef* state)
+ValueRef* VMInstanceRef::drainJobQueue()
 {
     VMInstance* imp = toImpl(this);
-    return toRef(imp->drainJobQueue(*toImpl(state)));
+    return toRef(imp->drainJobQueue());
 }
 
 void VMInstanceRef::setNewPromiseJobListener(NewPromiseJobListener l)
@@ -390,6 +390,20 @@ ContextRef* ContextRef::create(VMInstanceRef* vminstanceref)
 void ContextRef::destroy()
 {
     Context* imp = toImpl(this);
+
+#ifdef ESCARGOT_ENABLE_PROMISE
+    DefaultJobQueue* jobQueue = DefaultJobQueue::get(imp->vmInstance()->jobQueue());
+    std::list<Job*, gc_allocator<Job*>>& impl = jobQueue->impl();
+    auto iter = impl.begin();
+    while (iter != impl.end()) {
+        if ((*iter)->relatedContext() == imp) {
+            iter = impl.erase(iter);
+        } else {
+            iter++;
+        }
+    }
+#endif
+
     delete imp;
 }
 
@@ -1207,9 +1221,9 @@ SandBoxRef::SandBoxResult SandBoxRef::run(const std::function<ValueRef*(Executio
     return toSandBoxResultRef(result);
 }
 
-SandBoxRef::SandBoxResult JobRef::run(ExecutionStateRef* state)
+SandBoxRef::SandBoxResult JobRef::run()
 {
-    auto result = toImpl(this)->run(*toImpl(state));
+    auto result = toImpl(this)->run();
     return toSandBoxResultRef(result);
 }
 
