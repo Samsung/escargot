@@ -10,6 +10,9 @@ STATIC_LIB=libescargot.a
 # Environments
 #######################################################
 
+CFLAGS_FROM_ENV:=$(CFLAGS)
+CXXFLAGS_FROM_ENV:=$(CXXFLAGS)
+
 ARCH=#x86,x64
 TYPE=none#interpreter
 MODE=#debug,release
@@ -383,13 +386,13 @@ $(OUTDIR)/$(STATIC_LIB): $(OBJS) $(DEPENDENCY_MAKEFILE)
 $(OUTDIR)/%.o: %.cpp $(DEPENDENCY_MAKEFILE)
 	@echo "[CXX] $@"
 	@mkdir -p $(dir $@)
-	$(QUIET) $(CXX) -c $(CXXFLAGS) $< -o $@
+	$(QUIET) $(CXX) -c $(CXXFLAGS) $(CXXFLAGS_FROM_ENV)  $< -o $@
 	@$(CXX) -MM $(CXXFLAGS) -MT $@ $< > $(OUTDIR)/$*.d
 
 $(OUTDIR)/%.o: %.cc $(DEPENDENCY_MAKEFILE)
 	@echo "[CXX] $@"
 	@mkdir -p $(dir $@)
-	$(QUIET) @$(CXX) -c $(CXXFLAGS) $< -o $@
+	$(QUIET) @$(CXX) -c $(CXXFLAGS) $(CXXFLAGS_FROM_ENV) $< -o $@
 	@$(CXX) -MM $(CXXFLAGS) -MT $@ $< > $(OUTDIR)/$*.d
 
 install_header_to_include:

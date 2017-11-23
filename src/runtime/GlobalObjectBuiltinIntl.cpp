@@ -739,7 +739,7 @@ static IntlMatcherResult lookupMatcher(ExecutionState& state, const Vector<Strin
     // Let availableLocale be undefined.
     String* availableLocale = String::emptyString;
 
-    String* locale;
+    String* locale = String::emptyString;
     String* noExtensionsLocale = String::emptyString;
 
     // Repeat while i < len and availableLocale is undefined:
@@ -1119,6 +1119,8 @@ static void initializeCollator(ExecutionState& state, Object* collator, Value lo
             value = r->at(String::fromASCII("string"));
             // If the name given in the Type column of the row is "boolean",
             // then let value be the result of comparing value with "true".
+        } else {
+            RELEASE_ASSERT_NOT_REACHED();
         }
         // Set the [[<property>]] internal property of collator to value.
         collator->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII(property)), value, collator->internalSlot());
