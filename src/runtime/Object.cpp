@@ -22,6 +22,7 @@
 #include "ErrorObject.h"
 #include "FunctionObject.h"
 #include "ArrayObject.h"
+#include "util/Util.h"
 
 namespace Escargot {
 
@@ -867,7 +868,7 @@ bool Object::nextIndexBackward(ExecutionState& state, Object* obj, const double 
     return exists;
 }
 
-void Object::sort(ExecutionState& state, std::function<bool(const Value& a, const Value& b)> comp)
+void Object::sort(ExecutionState& state, const std::function<bool(const Value& a, const Value& b)>& comp)
 {
     std::vector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> selected;
 
@@ -888,7 +889,16 @@ void Object::sort(ExecutionState& state, std::function<bool(const Value& a, cons
         }
     }
 
-    std::sort(selected.begin(), selected.end(), comp);
+
+    if (selected.size()) {
+        TightVector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> tempSpace;
+        tempSpace.resizeWithUninitializedValues(selected.size());
+
+        mergeSort(selected.data(), selected.size(), tempSpace.data(), [&](const Value& a, const Value& b, bool* lessOrEqualp) -> bool {
+            *lessOrEqualp = comp(a, b);
+            return true;
+        });
+    }
 
     uint32_t i;
     for (i = 0; i < n; i++) {

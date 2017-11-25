@@ -18,6 +18,7 @@
 #include "ArrayObject.h"
 #include "Context.h"
 #include "VMInstance.h"
+#include "util/Util.h"
 
 namespace Escargot {
 
@@ -186,7 +187,7 @@ void ArrayObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionS
     Object::enumeration(state, callback, data);
 }
 
-void ArrayObject::sort(ExecutionState& state, std::function<bool(const Value& a, const Value& b)> comp)
+void ArrayObject::sort(ExecutionState& state, const std::function<bool(const Value& a, const Value& b)>& comp)
 {
     if (isFastModeArray()) {
         if (getArrayLength(state)) {
@@ -197,7 +198,16 @@ void ArrayObject::sort(ExecutionState& state, std::function<bool(const Value& a,
                 tempBuffer[i] = m_fastModeData[i];
             }
 
-            std::sort(tempBuffer, tempBuffer + orgLength, comp);
+            if (orgLength) {
+                TightVector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> tempSpace;
+                tempSpace.resizeWithUninitializedValues(orgLength);
+
+                mergeSort(tempBuffer, orgLength, tempSpace.data(), [&](const Value& a, const Value& b, bool* lessOrEqualp) -> bool {
+                    *lessOrEqualp = comp(a, b);
+                    return true;
+                });
+            }
+
             if (getArrayLength(state) != orgLength) {
                 setArrayLength(state, orgLength);
             }

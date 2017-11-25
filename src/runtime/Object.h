@@ -685,7 +685,7 @@ public:
     static bool nextIndexForward(ExecutionState& state, Object* obj, const double cur, const double len, const bool skipUndefined, double& nextIndex);
     static bool nextIndexBackward(ExecutionState& state, Object* obj, const double cur, const double end, const bool skipUndefined, double& nextIndex);
 
-    virtual void sort(ExecutionState& state, std::function<bool(const Value& a, const Value& b)> comp);
+    virtual void sort(ExecutionState& state, const std::function<bool(const Value& a, const Value& b)>& comp);
 
     virtual bool isInlineCacheable()
     {

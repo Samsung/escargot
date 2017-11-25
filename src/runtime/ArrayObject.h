@@ -57,7 +57,7 @@ public:
     {
         return getArrayLength(state);
     }
-    virtual void sort(ExecutionState& state, std::function<bool(const Value& a, const Value& b)> comp);
+    virtual void sort(ExecutionState& state, const std::function<bool(const Value& a, const Value& b)>& comp);
     virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property);
     virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value);
 
