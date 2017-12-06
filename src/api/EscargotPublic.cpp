@@ -520,6 +520,8 @@ public:
                 return m_defineOwnPropertyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)), toRef(desc.value()));
             }
             return false;
+        } else if (!result.m_wantToSkipDefineCallback) {
+            return m_defineOwnPropertyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)), toRef(desc.value()));
         }
         return Object::defineOwnProperty(state, P, desc);
     }

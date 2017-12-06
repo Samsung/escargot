@@ -260,10 +260,11 @@ public:
 };
 
 struct ExposableObjectGetOwnPropertyCallbackResult {
-    ExposableObjectGetOwnPropertyCallbackResult()
+    ExposableObjectGetOwnPropertyCallbackResult(bool wantToSkipDefineCallback = true)
     {
         m_value = ValueRef::createEmpty();
         m_isWritable = m_isEnumerable = m_isConfigurable = false;
+        m_wantToSkipDefineCallback = wantToSkipDefineCallback;
     }
 
     ExposableObjectGetOwnPropertyCallbackResult(ValueRef* value, bool isWritable, bool isEnumerable, bool isConfigurable)
@@ -272,9 +273,11 @@ struct ExposableObjectGetOwnPropertyCallbackResult {
         m_isWritable = isWritable;
         m_isEnumerable = isEnumerable;
         m_isConfigurable = isConfigurable;
+        m_wantToSkipDefineCallback = true;
     }
 
     ValueRef* m_value;
+    bool m_wantToSkipDefineCallback; // if false, this property will fire DefineOwnPropertyCallback when set
     bool m_isWritable;
     bool m_isEnumerable;
     bool m_isConfigurable;
