@@ -33,6 +33,9 @@ fi
 
 # Common flags --------------------------------------------
 
+CFLAGS_FROM_ENV=$(echo $CFLAGS)
+CXXFLAGS_FROM_ENV=$(echo $CXXFLAGS)
+
 GCCONFFLAGS_COMMON=" --enable-munmap --disable-parallel-mark --enable-large-config " # --enable-large-config --enable-cplusplus"
 if [[ $PORT == STARFISH_EFL ]]; then
     GCCONFFLAGS_COMMON+=" --disable-pthread --disable-threads "
@@ -104,11 +107,11 @@ function build_gc_for_linux() {
         GCCONFFLAGS_LIBTYPE=GCCONFFLAGS_$libtype CFLAGS_LIBTYPE=CFLAGS_$libtype LDFLAGS_LIBTYPE=LDFLAGS_$libtype
 
         GCCONFFLAGS="$GCCONFFLAGS_COMMON ${!GCCONFFLAGS_HOST} ${!GCCONFFLAGS_ARCH} ${!GCCONFFLAGS_MODE} ${!GCCONFFLAGS_LIBTYPE}"
-        CFLAGS="$CFLAGS_COMMON ${!CFLAGS_HOST} ${!CFLAGS_ARCH} ${!CFLAGS_MODE} ${!CFLAGS_LIBTYPE}"
+        CFLAGS="$CFLAGS_COMMON ${!CFLAGS_HOST} ${!CFLAGS_ARCH} ${!CFLAGS_MODE} ${!CFLAGS_LIBTYPE} $CFLAGS_FROM_ENV"
         LDFLAGS="$LDFLAGS_COMMON ${!LDFLAGS_HOST} ${!LDFLAGS_ARCH} ${!LDFLAGS_MODE} ${!LDFLAGS_LIBTYPE}"
 
         if [[ $INCREMENTAL == false ]]; then
-            ../../../../configure $GCCONFFLAGS CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS $CFLAGS" > /dev/null
+            CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS $CFLAGS" ../../../../configure $GCCONFFLAGS > /dev/null
         fi
         make -j$NUMPROC > /dev/null
 
@@ -157,7 +160,7 @@ function build_gc_for_tizen() {
         GCCONFFLAGS_LIBTYPE=GCCONFFLAGS_$libtype CFLAGS_LIBTYPE=CFLAGS_$libtype LDFLAGS_LIBTYPE=LDFLAGS_$libtype
 
         GCCONFFLAGS="$GCCONFFLAGS_COMMON ${!GCCONFFLAGS_HOST} ${!GCCONFFLAGS_ARCH} ${!GCCONFFLAGS_MODE} ${!GCCONFFLAGS_LIBTYPE}"
-        CFLAGS="$CFLAGS_COMMON ${!CFLAGS_HOST} ${!CFLAGS_ARCH} ${!CFLAGS_MODE} ${!CFLAGS_LIBTYPE} --sysroot=$TIZEN_SYSROOT "
+        CFLAGS="$CFLAGS_COMMON ${!CFLAGS_HOST} ${!CFLAGS_ARCH} ${!CFLAGS_MODE} ${!CFLAGS_LIBTYPE} --sysroot=$TIZEN_SYSROOT $CFLAGS_FROM_ENV"
         LDFLAGS="$LDFLAGS_COMMON ${!LDFLAGS_HOST} ${!LDFLAGS_ARCH} ${!LDFLAGS_MODE} ${!LDFLAGS_LIBTYPE}"
         if [[ $LTO == true ]]; then
             CFLAGS+= "-flto -ffat-lto-objects"
@@ -166,14 +169,14 @@ function build_gc_for_tizen() {
             TOOLCHAIN_GCC_WRAPPER=-gcc
         fi
 
-        ../../../../configure --host=$COMPILER_PREFIX $GCCONFFLAGS CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" \
+        CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" \
             ARFLAGS="$PLUGINFLAGS" NMFLAGS="$PLUGINFLAGS" RANLIBFLAGS="$PLUGINFLAGS" \
             CC=$TIZEN_TOOLCHAIN/bin/$COMPILER_PREFIX-gcc \
             CXX=$TIZEN_TOOLCHAIN/bin/$COMPILER_PREFIX-g++ \
             AR=$TIZEN_TOOLCHAIN/bin/${COMPILER_PREFIX}${TOOLCHAIN_GCC_WRAPPER}-ar \
             NM=$TIZEN_TOOLCHAIN/bin/${COMPILER_PREFIX}${TOOLCHAIN_GCC_WRAPPER}-nm \
             RANLIB=$TIZEN_TOOLCHAIN/bin/${COMPILER_PREFIX}${TOOLCHAIN_GCC_WRAPPER}-ranlib \
-            LD=$TIZEN_TOOLCHAIN/bin/$COMPILER_PREFIX-ld > /dev/null
+            LD=$TIZEN_TOOLCHAIN/bin/$COMPILER_PREFIX-ld ../../../../configure --host=$COMPILER_PREFIX $GCCONFFLAGS > /dev/null
         make -j$NUMPROC > /dev/null
 
         echo Building bdwgc for tizen $version $host $arch $mode $libtype done
@@ -213,7 +216,7 @@ function build_gc_for_tizen_obs() {
         GCCONFFLAGS_LIBTYPE=GCCONFFLAGS_$libtype CFLAGS_LIBTYPE=CFLAGS_$libtype LDFLAGS_LIBTYPE=LDFLAGS_$libtype
 
         GCCONFFLAGS="$GCCONFFLAGS_COMMON ${!GCCONFFLAGS_HOST} ${!GCCONFFLAGS_MODE} ${!GCCONFFLAGS_LIBTYPE}"
-        CFLAGS="$CFLAGS_COMMON ${!CFLAGS_HOST} ${!CFLAGS_MODE} ${!CFLAGS_LIBTYPE}"
+        CFLAGS="$CFLAGS_COMMON ${!CFLAGS_HOST} ${!CFLAGS_MODE} ${!CFLAGS_LIBTYPE} $CFLAGS_FROM_ENV"
         LDFLAGS="$LDFLAGS_COMMON ${!LDFLAGS_HOST} ${!LDFLAGS_MODE} ${!LDFLAGS_LIBTYPE}"
         CFLAGS+= "-DTIZEN"
         if [[ $LTO == true ]]; then
@@ -222,9 +225,8 @@ function build_gc_for_tizen_obs() {
             PLUGINFLAGS="--plugin=/usr/lib/bfd-plugins/liblto_plugin.so"
         fi
 
-        ../../../../configure $GCCONFFLAGS CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS $CFLAGS" \
-            ARFLAGS="$PLUGINFLAGS" NMFLAGS="$PLUGINFLAGS" RANLIBFLAGS="$PLUGINFLAGS"
-        make -j
+        CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS $CFLAGS" ARFLAGS="$PLUGINFLAGS" NMFLAGS="$PLUGINFLAGS" RANLIBFLAGS="$PLUGINFLAGS" ../../../../configure $GCCONFFLAGS
+        make -j$NUMPROC
 
         echo Building bdwgc for $host $arch $mode $libtype done
         cd -
