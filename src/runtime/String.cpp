@@ -249,6 +249,26 @@ UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t& len)
     return UTF8StringData(str.data(), str.length());
 }
 
+UTF8StringDataNonGCStd utf16StringToUTF8NonGCString(const char16_t* buf, const size_t& len)
+{
+    UTF8StringDataNonGCStd str;
+    str.reserve(len);
+    for (unsigned i = 0; i < len;) {
+        if (buf[i] < 128) {
+            str += buf[i];
+            i++;
+        } else {
+            char32_t c;
+            U16_NEXT(buf, i, len, c);
+
+            char buf[8];
+            utf32ToUtf8(c, buf);
+            str += buf;
+        }
+    }
+    return str;
+}
+
 UTF16StringData ASCIIString::toUTF16StringData() const
 {
     UTF16StringData ret;
@@ -263,6 +283,11 @@ UTF16StringData ASCIIString::toUTF16StringData() const
 UTF8StringData ASCIIString::toUTF8StringData() const
 {
     return m_stringData;
+}
+
+UTF8StringDataNonGCStd ASCIIString::toNonGCUTF8StringData() const
+{
+    return UTF8StringDataNonGCStd(m_stringData.data(), m_stringData.length());
 }
 
 UTF16StringData Latin1String::toUTF16StringData() const
@@ -293,6 +318,23 @@ UTF8StringData Latin1String::toUTF8StringData() const
     return ret;
 }
 
+UTF8StringDataNonGCStd Latin1String::toNonGCUTF8StringData() const
+{
+    UTF8StringDataNonGCStd ret;
+    size_t len = length();
+    for (size_t i = 0; i < len; i++) {
+        uint8_t ch = m_stringData[i]; /* assume that code points above 0xff are impossible since latin-1 is 8-bit */
+        if (ch < 0x80) {
+            ret.append((char*)&ch, 1);
+        } else {
+            char buf[8];
+            auto len = utf32ToUtf8(ch, buf);
+            ret.append(buf, len);
+        }
+    }
+    return ret;
+}
+
 UTF16StringData UTF16String::toUTF16StringData() const
 {
     return m_stringData;
@@ -301,6 +343,11 @@ UTF16StringData UTF16String::toUTF16StringData() const
 UTF8StringData UTF16String::toUTF8StringData() const
 {
     return utf16StringToUTF8String(m_stringData.data(), m_stringData.length());
+}
+
+UTF8StringDataNonGCStd UTF16String::toNonGCUTF8StringData() const
+{
+    return utf16StringToUTF8NonGCString(m_stringData.data(), m_stringData.length());
 }
 
 enum Flags {

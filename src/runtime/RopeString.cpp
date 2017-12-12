@@ -153,4 +153,9 @@ void RopeString::flattenRopeString()
         flattenRopeStringWorker<UTF16StringData, UTF16String>();
     }
 }
+
+UTF8StringDataNonGCStd RopeString::toNonGCUTF8StringData() const
+{
+    return normalString()->toNonGCUTF8StringData();
+}
 }

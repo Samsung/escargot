@@ -196,6 +196,7 @@ public:
     // NOTE these function generates new copy of string data
     virtual UTF16StringData toUTF16StringData() const = 0;
     virtual UTF8StringData toUTF8StringData() const = 0;
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const = 0;
     static String* emptyString;
 
     uint64_t tryToUseAsIndex() const;
@@ -328,6 +329,7 @@ public:
 
     virtual UTF16StringData toUTF16StringData() const;
     virtual UTF8StringData toUTF8StringData() const;
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const;
 
     void* operator new(size_t size);
     void* operator new(size_t size, GCPlacement p)
@@ -413,6 +415,7 @@ public:
 
     virtual UTF16StringData toUTF16StringData() const;
     virtual UTF8StringData toUTF8StringData() const;
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const;
 
     void* operator new(size_t size);
     void* operator new(size_t size, GCPlacement p)
@@ -487,6 +490,7 @@ public:
 
     virtual UTF16StringData toUTF16StringData() const;
     virtual UTF8StringData toUTF8StringData() const;
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const;
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -504,6 +508,7 @@ UTF16StringData utf8StringToUTF16String(const char* buf, const size_t& len);
 UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t& len);
 ASCIIStringData utf16StringToASCIIString(const char16_t* buf, const size_t& len);
 ASCIIStringData dtoa(double number);
+size_t utf32ToUtf8(char32_t uc, char* UTF8);
 
 inline String* String::fromCharCode(char32_t code)
 {

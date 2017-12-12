@@ -107,9 +107,36 @@ public:
 
     virtual UTF8StringData toUTF8StringData() const
     {
-        // FIXME optimze this function
-        UTF16StringData s = toUTF16StringData();
-        return utf16StringToUTF8String(s.data(), s.length());
+        UTF8StringDataNonGCStd ret;
+        auto accessData = bufferAccessData();
+        for (size_t i = 0; i < accessData.length; i++) {
+            char16_t ch = accessData.charAt(i);
+            if (ch < 0x80) {
+                ret.append((char*)&ch, 1);
+            } else {
+                char buf[8];
+                auto len = utf32ToUtf8(ch, buf);
+                ret.append(buf, len);
+            }
+        }
+        return UTF8StringData(ret.data(), ret.length());
+    }
+
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const
+    {
+        UTF8StringDataNonGCStd ret;
+        auto accessData = bufferAccessData();
+        for (size_t i = 0; i < accessData.length; i++) {
+            char16_t ch = accessData.charAt(i);
+            if (ch < 0x80) {
+                ret.append((char*)&ch, 1);
+            } else {
+                char buf[8];
+                auto len = utf32ToUtf8(ch, buf);
+                ret.append(buf, len);
+            }
+        }
+        return ret;
     }
 
     String* string() const
@@ -219,10 +246,38 @@ public:
 
     virtual UTF8StringData toUTF8StringData() const
     {
-        // FIXME optimze this function
-        UTF16StringData s = toUTF16StringData();
-        return utf16StringToUTF8String(s.data(), s.length());
+        UTF8StringDataNonGCStd ret;
+        auto accessData = bufferAccessData();
+        for (size_t i = 0; i < accessData.length; i++) {
+            char16_t ch = accessData.charAt(i);
+            if (ch < 0x80) {
+                ret.append((char*)&ch, 1);
+            } else {
+                char buf[8];
+                auto len = utf32ToUtf8(ch, buf);
+                ret.append(buf, len);
+            }
+        }
+        return UTF8StringData(ret.data(), ret.length());
     }
+
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const
+    {
+        UTF8StringDataNonGCStd ret;
+        auto accessData = bufferAccessData();
+        for (size_t i = 0; i < accessData.length; i++) {
+            char16_t ch = accessData.charAt(i);
+            if (ch < 0x80) {
+                ret.append((char*)&ch, 1);
+            } else {
+                char buf[8];
+                auto len = utf32ToUtf8(ch, buf);
+                ret.append(buf, len);
+            }
+        }
+        return ret;
+    }
+
 
     virtual bool has8BitContent() const
     {
@@ -320,10 +375,38 @@ public:
 
     virtual UTF8StringData toUTF8StringData() const
     {
-        // FIXME optimze this function
-        UTF16StringData s = toUTF16StringData();
-        return utf16StringToUTF8String(s.data(), s.length());
+        UTF8StringDataNonGCStd ret;
+        auto accessData = bufferAccessData();
+        for (size_t i = 0; i < accessData.length; i++) {
+            char16_t ch = accessData.charAt(i);
+            if (ch < 0x80) {
+                ret.append((char*)&ch, 1);
+            } else {
+                char buf[8];
+                auto len = utf32ToUtf8(ch, buf);
+                ret.append(buf, len);
+            }
+        }
+        return UTF8StringData(ret.data(), ret.length());
     }
+
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const
+    {
+        UTF8StringDataNonGCStd ret;
+        auto accessData = bufferAccessData();
+        for (size_t i = 0; i < accessData.length; i++) {
+            char16_t ch = accessData.charAt(i);
+            if (ch < 0x80) {
+                ret.append((char*)&ch, 1);
+            } else {
+                char buf[8];
+                auto len = utf32ToUtf8(ch, buf);
+                ret.append(buf, len);
+            }
+        }
+        return ret;
+    }
+
 
     String* string() const
     {

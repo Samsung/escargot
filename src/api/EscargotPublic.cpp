@@ -176,8 +176,7 @@ bool StringRef::equals(StringRef* src)
 
 std::string StringRef::toStdUTF8String()
 {
-    auto ret = toImpl(this)->toUTF8StringData();
-    return std::string(ret.data(), ret.length());
+    return toImpl(this)->toNonGCUTF8StringData();
 }
 
 bool PointerValueRef::isString()

@@ -57,6 +57,8 @@ public:
         return normalString()->toUTF8StringData();
     }
 
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const;
+
     virtual bool has8BitContent() const
     {
         return m_has8BitContent;
