@@ -19,6 +19,7 @@
 #include "Context.h"
 #include "RegExpObject.h"
 #include "ArrayObject.h"
+#include "GlobalRegExpFunctionObject.h"
 
 namespace Escargot {
 
@@ -135,12 +136,18 @@ static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t
     RELEASE_ASSERT_NOT_REACHED();
 }
 
+GlobalRegExpFunctionObject::GlobalRegExpFunctionObject(ExecutionState& state)
+    : FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().RegExp, builtinRegExpConstructor, 2, [](ExecutionState& state, CodeBlock * codeBlock, size_t argc, Value * argv) -> Object* {
+                         return new RegExpObject(state, String::emptyString, String::emptyString);
+                     }),
+                     FunctionObject::__ForBuiltin__)
+{
+    initInternalProperties(state);
+}
+
 void GlobalObject::installRegExp(ExecutionState& state)
 {
-    m_regexp = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().RegExp, builtinRegExpConstructor, 2, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
-                                      return new RegExpObject(state, String::emptyString, String::emptyString);
-                                  }),
-                                  FunctionObject::__ForBuiltin__);
+    m_regexp = new GlobalRegExpFunctionObject(state);
     m_regexp->markThisObjectDontNeedStructureTransitionTable(state);
     m_regexp->setPrototype(state, m_functionPrototype);
 

@@ -242,6 +242,9 @@ bool RegExpObject::matchNonGlobally(ExecutionState& state, String* str, RegexMat
 
 bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& matchResult, bool testOnly, size_t startIndex)
 {
+    RegExpStatus& globalRegExpStatus = state.context()->globalObject()->regexp()->m_status;
+    globalRegExpStatus.input = str;
+
     m_lastExecutedString = str;
 
     if (!m_bytecodePattern) {
@@ -285,11 +288,41 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
 
         if (result != JSC::Yarr::offsetNoMatch) {
             gotResult = true;
+            unsigned maxMatchedIndex = subPatternNum;
+
+            bool lastParenInvalid = false;
+            for (; maxMatchedIndex > 0; maxMatchedIndex--) {
+                if (outputBuf[maxMatchedIndex * 2] != std::numeric_limits<unsigned>::max()) {
+                    break;
+                } else {
+                    lastParenInvalid = true;
+                }
+            }
+
+            // Details:{3, 10, 3, 10, 3, 6, 7, 10, 1684872, 806200}
+            globalRegExpStatus.pairCount = maxMatchedIndex;
+            unsigned pairEnd = std::min(maxMatchedIndex, (unsigned)9);
+            for (unsigned i = 1; i <= pairEnd; i++) {
+                if (outputBuf[i * 2] == std::numeric_limits<unsigned>::max()) {
+                    globalRegExpStatus.pairs[i - 1] = StringView();
+                } else {
+                    globalRegExpStatus.pairs[i - 1] = StringView(str, outputBuf[i * 2], outputBuf[i * 2 + 1]);
+                }
+            }
+
             if (UNLIKELY(testOnly)) {
                 // outputBuf[1] should be set to lastIndex
                 if (isGlobal) {
                     setLastIndex(state, Value(outputBuf[1]));
                 }
+                if (!lastParenInvalid && subPatternNum) {
+                    globalRegExpStatus.lastParen = StringView(str, outputBuf[maxMatchedIndex * 2], outputBuf[maxMatchedIndex * 2 + 1]);
+                } else {
+                    globalRegExpStatus.lastParen = StringView();
+                }
+                globalRegExpStatus.lastMatch = StringView(str, outputBuf[0], outputBuf[1]);
+                globalRegExpStatus.leftContext = StringView(str, 0, outputBuf[0]);
+                globalRegExpStatus.rightContext = StringView(str, outputBuf[1], length);
                 return true;
             }
             std::vector<RegexMatchResult::RegexMatchResultPiece> piece;
@@ -302,6 +335,15 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
                 piece[i] = p;
             }
 
+            if (!lastParenInvalid && subPatternNum) {
+                globalRegExpStatus.lastParen = StringView(str, piece[maxMatchedIndex].m_start, piece[maxMatchedIndex].m_end);
+            } else {
+                globalRegExpStatus.lastParen = StringView();
+            }
+
+            globalRegExpStatus.leftContext = StringView(str, 0, piece[0].m_start);
+            globalRegExpStatus.rightContext = StringView(str, piece[maxMatchedIndex].m_end, length);
+            globalRegExpStatus.lastMatch = StringView(str, piece[0].m_start, piece[0].m_end);
             matchResult.m_matchResults.push_back(std::vector<RegexMatchResult::RegexMatchResultPiece>(std::move(piece)));
             if (!isGlobal)
                 break;

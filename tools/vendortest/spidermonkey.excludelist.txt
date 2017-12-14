@@ -820,21 +820,6 @@ js1_5/Array/regress-474529.js
 js1_5/Expressions/regress-96526-delelem.js
 ecma_6/Promise/promise-subclassing.js
 
-# non-standard RegExp properties ($1-$9, lastMatch, lastParen, leftContext, rightContext)
-js1_2/regexp/RegExp_dollar_number.js
-js1_2/regexp/RegExp_lastMatch.js
-js1_2/regexp/RegExp_lastMatch_as_array.js
-js1_2/regexp/RegExp_lastParen.js
-js1_2/regexp/RegExp_lastParen_as_array.js
-js1_2/regexp/RegExp_leftContext.js
-js1_2/regexp/RegExp_leftContext_as_array.js
-js1_2/regexp/RegExp_rightContext.js
-js1_2/regexp/RegExp_rightContext_as_array.js
-js1_5/Regress/regress-330352.js
-ecma_3/Statements/regress-642975.js
-ecma_3/extensions/regress-220367-002.js
-
-
 # usage of deprecated RegExp function
 ecma_3/extensions/regress-327170.js
 js1_2/regexp/compile.js

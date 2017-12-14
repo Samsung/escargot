@@ -34,8 +34,8 @@ public:
         , m_start(s)
         , m_end(e)
     {
-        ASSERT(s <= e);
-        ASSERT(e <= m_string->length());
+        RELEASE_ASSERT(s <= e);
+        RELEASE_ASSERT(e <= m_string->length());
     }
 
     StringView(const StringView& str, const size_t& s, const size_t& e)

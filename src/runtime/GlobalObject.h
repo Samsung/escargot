@@ -19,6 +19,7 @@
 
 #include "runtime/FunctionObject.h"
 #include "runtime/Object.h"
+#include "runtime/GlobalRegExpFunctionObject.h"
 
 namespace Escargot {
 
@@ -251,7 +252,7 @@ public:
         return m_math;
     }
 
-    FunctionObject* regexp()
+    GlobalRegExpFunctionObject* regexp()
     {
         return m_regexp;
     }
@@ -485,7 +486,7 @@ protected:
     FunctionObject* m_date;
     Object* m_datePrototype;
 
-    FunctionObject* m_regexp;
+    GlobalRegExpFunctionObject* m_regexp;
     Object* m_regexpPrototype;
 
     Object* m_math;

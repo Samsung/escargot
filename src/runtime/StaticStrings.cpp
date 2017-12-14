@@ -39,6 +39,10 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     getbyteOffset.init(atomicStringMap, "get byteOffset", strlen("get byteOffset"));
     getLength.init(atomicStringMap, "get length", strlen("get length"));
     getBuffer.init(atomicStringMap, "get buffer", strlen("get buffer"));
+    $Ampersand.init(atomicStringMap, "$&", strlen("$&"));
+    $PlusSign.init(atomicStringMap, "$+", strlen("$+"));
+    $GraveAccent.init(atomicStringMap, "$`", strlen("$`"));
+    $Apostrophe.init(atomicStringMap, "$'", strlen("$'"));
 
     for (unsigned i = 0; i < ESCARGOT_ASCII_TABLE_MAX; i++) {
         LChar buf[2];

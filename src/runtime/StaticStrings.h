@@ -306,6 +306,20 @@ namespace Escargot {
     F(then)                       \
     F(gc)                         \
     F(boundFunction)              \
+    F($_)                         \
+    F(lastMatch)                  \
+    F(lastParen)                  \
+    F(leftContext)                \
+    F(rightContext)               \
+    F($1)                         \
+    F($2)                         \
+    F($3)                         \
+    F($4)                         \
+    F($5)                         \
+    F($6)                         \
+    F($7)                         \
+    F($8)                         \
+    F($9)                         \
     F(load)
 
 
@@ -330,6 +344,10 @@ public:
     AtomicString getbyteOffset;
     AtomicString getLength;
     AtomicString getBuffer;
+    AtomicString $Ampersand;
+    AtomicString $PlusSign;
+    AtomicString $GraveAccent;
+    AtomicString $Apostrophe;
 
 #define ESCARGOT_ASCII_TABLE_MAX 256
     AtomicString asciiTable[ESCARGOT_ASCII_TABLE_MAX];

@@ -39,6 +39,7 @@ class ArrayBufferView;
 #endif
 class DoubleInSmallValue;
 class JSGetterSetter;
+class GlobalRegExpFunctionObject;
 
 #define POINTER_VALUE_STRING_TAG_IN_DATA 0x3
 // finding what is type of PointerValue operation is used in SmallValue <-> Value and interpreter
@@ -157,6 +158,11 @@ public:
         return false;
     }
 
+    virtual bool isGlobalRegExpFunctionObject()
+    {
+        return false;
+    }
+
     String* asString()
     {
         ASSERT(isString());
@@ -254,6 +260,12 @@ public:
     {
         ASSERT(isJSGetterSetter());
         return (JSGetterSetter*)this;
+    }
+
+    GlobalRegExpFunctionObject* asGlobalRegExpFunctionObject()
+    {
+        ASSERT(isGlobalRegExpFunctionObject());
+        return (GlobalRegExpFunctionObject*)this;
     }
 
     bool hasTag(const size_t tag) const

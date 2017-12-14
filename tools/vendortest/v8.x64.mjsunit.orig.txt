@@ -1,13 +1,13 @@
 >>> Running tests for x64.release
 Total: 3102 tests
- *  860 tests will be skipped
+ *  855 tests will be skipped
  *    3 tests are expected to timeout sometimes
  *    2 tests are expected to be flaky but not crash
- * 2214 tests are expected to pass
+ * 2218 tests are expected to pass
  *    0 tests are expected to fail that we won't fix
  *    6 tests are expected to fail that we should fix
 No connection to distribution server; running tests locally.
-Running 2236 tests
+Running 2241 tests
 Done running mjsunit/accessors-on-global-object: pass
 Done running mjsunit/api-call-after-bypassed-exception: pass
 Done running mjsunit/argument-assigned: pass
@@ -199,15 +199,20 @@ Done running mjsunit/prototype: pass
 Done running mjsunit/readonly-accessor: pass
 Done running mjsunit/receiver-in-with-calls: pass
 Done running mjsunit/regexp-UC16: pass
+Done running mjsunit/regexp-cache-replace: pass
 Done running mjsunit/regexp-call-as-function: pass
+Done running mjsunit/regexp-capture-3: pass
 Done running mjsunit/regexp-capture: pass
 Done running mjsunit/regexp-captures: pass
+Done running mjsunit/regexp-global: pass
+Done running mjsunit/regexp-indexof: pass
 Done running mjsunit/regexp-loop-capture: pass
 Done running mjsunit/regexp-multiline: pass
 Done running mjsunit/regexp-regexpexec: pass
 Done running mjsunit/regexp-results-cache: pass
 Done running mjsunit/regexp-sort: pass
 Done running mjsunit/regexp-standalones: pass
+Done running mjsunit/regexp-static: pass
 Done running mjsunit/regexp-string-methods: pass
 Done running mjsunit/result-table-max: pass
 Done running mjsunit/result-table-min: pass
@@ -232,9 +237,11 @@ Done running mjsunit/string-flatten: pass
 Done running mjsunit/string-indexof-2: pass
 Done running mjsunit/string-lastindexof: pass
 Done running mjsunit/string-localecompare: pass
+Done running mjsunit/string-match: pass
 Done running mjsunit/string-oom-concat: pass
 Done running mjsunit/string-replace-gc: pass
 Done running mjsunit/string-replace-one-char: pass
+Done running mjsunit/string-replace: pass
 Done running mjsunit/string-search: pass
 Done running mjsunit/string-split-cache: pass
 Done running mjsunit/this-dynamic-lookup: pass
@@ -575,7 +582,6 @@ Done running mjsunit/regress/regress-318: pass
 Done running mjsunit/regress/regress-3185905: pass
 Done running mjsunit/regress/regress-3199913: pass
 Done running mjsunit/regress/regress-3218530: pass
-Done running mjsunit/regress/regress-3229: pass
 Done running mjsunit/regress/regress-3230771: pass
 Done running mjsunit/regress/regress-3247124: pass
 Done running mjsunit/regress/regress-3252443: pass
@@ -764,7 +770,6 @@ Done running mjsunit/regress/regress-builtinbust-3: pass
 Done running mjsunit/regress/regress-builtinbust-4: pass
 Done running mjsunit/regress/regress-builtinbust-5: pass
 Done running mjsunit/regress/regress-builtinbust-6: pass
-Done running mjsunit/regress/regress-builtinbust-7: pass
 Done running mjsunit/regress/regress-context-osr: pass
 Done running mjsunit/regress/regress-convert-enum2: pass
 Done running mjsunit/regress/regress-convert-function-to-double: pass

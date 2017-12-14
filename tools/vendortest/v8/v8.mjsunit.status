@@ -169,6 +169,9 @@
 
   # BUG(v8:5807): Flaky data race.
   'wasm/embenchen/fannkuch': [PASS, ['tsan', SKIP]],
+
+  # TODO rest of Intl spec
+  'regress/regress-builtinbust-7': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -870,23 +873,18 @@
   'string-oom-replace-global-regexp-with-string': [SKIP],
   'string-oom-replace-regexp-global-with-function': [SKIP],
 
-  # RegExp.$1-$9
-  'regexp-cache-replace': [SKIP],
   # Error
   'error-tostring-omit': [SKIP],
   'regress/regress-596718': [SKIP],
-  # RegExp properties (lastMatch, lastParen, leftContext, rightContext)
-  'regexp-global': [SKIP],
-  'regexp-capture-3': [SKIP],
-  'regexp-indexof': [SKIP],
+
+  # RegExp Issues
   'regexp-lastIndex': [SKIP],
-  'regexp-static': [SKIP],
-  'string-replace': [SKIP],
   'string-slices-regexp': [SKIP],
   'regress/regress-2058': [SKIP], 
-  'string-match': [SKIP],
   'regress/regress-5566': [SKIP],
   'regress/regress-5836': [SKIP],
+  'regress/regress-3229': [SKIP],
+
 
   ## 3. Deprecated
   # function.[arguments|caller|callee]
