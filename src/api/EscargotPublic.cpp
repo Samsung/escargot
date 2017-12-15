@@ -1272,7 +1272,11 @@ void ExecutionStateRef::destroy()
 
 FunctionObjectRef* ExecutionStateRef::resolveCallee()
 {
-    return toRef(toImpl(this)->executionContext()->resolveCallee());
+    auto ec = toImpl(this)->executionContext();
+    if (ec) {
+        return toRef(ec->resolveCallee());
+    }
+    return nullptr;
 }
 
 std::vector<std::pair<FunctionObjectRef*, ValueRef*>> ExecutionStateRef::resolveCallstack()

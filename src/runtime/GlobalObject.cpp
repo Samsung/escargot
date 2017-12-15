@@ -155,6 +155,27 @@ static Value builtinEval(ExecutionState& state, Value thisValue, size_t argc, Va
     return fn->m_globalObject->eval(state, argv[0]);
 }
 
+ObjectGetResult GlobalObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+{
+    ObjectGetResult r = Object::getOwnProperty(state, P);
+    if (!r.hasValue()) {
+        if (UNLIKELY((bool)state.context()->virtualIdentifierCallback())) {
+            Object* target = getPrototypeObject();
+            while (target) {
+                auto result = target->getOwnProperty(state, P);
+                if (result.hasValue()) {
+                    return r;
+                }
+                target = target->getPrototypeObject();
+            }
+            Value virtialIdResult = state.context()->virtualIdentifierCallback()(state, P.string(state));
+            if (!virtialIdResult.isEmpty())
+                return ObjectGetResult(virtialIdResult, true, true, true);
+        }
+    }
+    return r;
+}
+
 Value GlobalObject::eval(ExecutionState& state, const Value& arg)
 {
     if (arg.isString()) {

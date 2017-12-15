@@ -1607,6 +1607,23 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalObjectSlowCase(ExecutionState& 
     return go->getOwnPropertyUtilForObject(state, idx, go);
 }
 
+class VirtualIdDisabler {
+public:
+    VirtualIdDisabler(Context* c)
+    {
+        ctx = c;
+        fn = c->virtualIdentifierCallback();
+        c->setVirtualIdentifierCallback(nullptr);
+    }
+    ~VirtualIdDisabler()
+    {
+        ctx->setVirtualIdentifierCallback(fn);
+    }
+
+    VirtualIdentifierCallback fn;
+    Context* ctx;
+};
+
 NEVER_INLINE void ByteCodeInterpreter::setGlobalObjectSlowCase(ExecutionState& state, Object* go, SetGlobalObject* code, const Value& value, ByteCodeBlock* block)
 {
     size_t idx = go->structure()->findProperty(state, code->m_propertyName);
@@ -1614,6 +1631,7 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalObjectSlowCase(ExecutionState& s
         if (UNLIKELY(state.inStrictMode())) {
             ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, code->m_propertyName.string(), false, String::emptyString, errorMessage_IsNotDefined);
         }
+        VirtualIdDisabler d(state.context());
         go->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, go);
     } else {
         const ObjectStructureItem& item = go->structure()->readProperty(state, idx);
