@@ -6,6 +6,14 @@ Source:        %{name}-%{version}.tar.gz
 Group:         Development/Libraries
 License:       Not Decided Yet
 
+%if %{?profile:1}%{!?profile:0}
+%define tizen_profile_name {%profile}
+%endif
+
+%if %{?sec_product_feature_profile_wearable:1}%{!?sec_product_feature_profile_wearable:0}
+%define tizen_profile_name wearable
+%endif
+
 # build requirements
 BuildRequires: make
 BuildRequires: pkgconfig(dlog)
@@ -37,6 +45,11 @@ export ESCARGOT_ARCH=arm64
 %endif
 %ifarch x86_64
 export ESCARGOT_ARCH=x64
+%endif
+
+%if "%{?tizen_profile_name}" == "wearable"
+CFLAGS+=' -Os '
+CXXFLAGS+=' -Os '
 %endif
 
 make install_header_to_include
