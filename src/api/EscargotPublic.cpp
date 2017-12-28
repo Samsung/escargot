@@ -749,6 +749,16 @@ void ObjectRef::removeFromHiddenClassChain(ExecutionStateRef* state)
     toImpl(this)->markThisObjectDontNeedStructureTransitionTable(*toImpl(state));
 }
 
+void ObjectRef::enumerateObjectOwnProperies(ExecutionStateRef* state, const std::function<bool(ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>& cb)
+{
+    toImpl(this)->enumeration(*toImpl(state), [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+        const std::function<bool(ExecutionStateRef * state, ValueRef * propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>* cb
+            = (const std::function<bool(ExecutionStateRef * state, ValueRef * propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>*)data;
+        return (*cb)(toRef(&state), toRef(name.toValue(state)), desc.isWritable(), desc.isEnumerable(), desc.isConfigurable());
+    },
+                              (void*)&cb);
+}
+
 FunctionObjectRef* GlobalObjectRef::object()
 {
     return toRef(toImpl(this)->object());

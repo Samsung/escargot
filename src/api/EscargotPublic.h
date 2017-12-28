@@ -403,6 +403,8 @@ public:
 
     ValueVectorRef* getOwnPropertyKeys(ExecutionStateRef* state);
 
+    void enumerateObjectOwnProperies(ExecutionStateRef* state, const std::function<bool(ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>& cb);
+
     bool isExtensible();
     void preventExtensions();
 
