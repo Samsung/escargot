@@ -76,15 +76,19 @@ void GlobalEnvironmentRecord::setMutableBindingByIndex(ExecutionState& state, co
 void GlobalEnvironmentRecord::initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
 {
     size_t t = m_globalObject->structure()->findProperty(name);
-    auto desc = m_globalObject->structure()->readProperty(state, t).m_descriptor;
-    if (desc.isDataProperty()) {
-        if (desc.isConfigurable() || !desc.isEnumerable()) {
-            m_globalObject->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(V, ObjectPropertyDescriptor::AllPresent));
-        } else {
-            m_globalObject->setThrowsException(state, name, V, m_globalObject);
-        }
-    } else {
+    if (t == SIZE_MAX) {
         m_globalObject->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(V, ObjectPropertyDescriptor::AllPresent));
+    } else {
+        auto desc = m_globalObject->structure()->readProperty(state, t).m_descriptor;
+        if (desc.isDataProperty()) {
+            if (desc.isConfigurable() || !desc.isEnumerable()) {
+                m_globalObject->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(V, ObjectPropertyDescriptor::AllPresent));
+            } else {
+                m_globalObject->setThrowsException(state, name, V, m_globalObject);
+            }
+        } else {
+            m_globalObject->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(V, ObjectPropertyDescriptor::AllPresent));
+        }
     }
 }
 

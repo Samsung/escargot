@@ -320,6 +320,7 @@ namespace Escargot {
     F($7)                         \
     F($8)                         \
     F($9)                         \
+    F(assign)                     \
     F(load)
 
 

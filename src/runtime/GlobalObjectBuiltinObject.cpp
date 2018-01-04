@@ -477,6 +477,47 @@ static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t ar
     return O;
 }
 
+static Value builtinObjectAssign(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Object.assign ( target, ...sources )
+    // Let to be ? ToObject(target).
+    Object* to = argv[0].toObject(state);
+    // If only one argument was passed, return to.
+    if (argc == 1) {
+        return to;
+    }
+    // Let sources be the List of argument values starting with the second argument.
+    // For each element nextSource of sources, in ascending index order, do
+    for (size_t i = 1; i < argc; i++) {
+        Value nextSource = argv[i];
+        // If nextSource is undefined or null, let keys be a new empty List.
+        ValueVector keys;
+        Object* from = nullptr;
+        if (nextSource.isUndefinedOrNull()) {
+        } else {
+            // Let from be ! ToObject(nextSource).
+            from = nextSource.toObject(state);
+            // Let keys be ? from.[[OwnPropertyKeys]]().
+            keys = from->getOwnPropertyKeys(state);
+        }
+
+        // For each element nextKey of keys in List order, do
+        for (size_t i = 0; i < keys.size(); i++) {
+            Value nextKey = keys[i];
+            // Let desc be ? from.[[GetOwnProperty]](nextKey).
+            auto desc = from->getOwnProperty(state, ObjectPropertyName(state, nextKey));
+            // If desc is not undefined and desc.[[Enumerable]] is true, then
+            if (desc.hasValue() && desc.isEnumerable()) {
+                // Let propValue be ? Get(from, nextKey).
+                Value propValue = desc.value(state, from);
+                // Perform ? Set(to, nextKey, propValue, true).
+                to->setThrowsException(state, ObjectPropertyName(state, nextKey), propValue, to);
+            }
+        }
+    }
+    return to;
+}
+
 void GlobalObject::installObject(ExecutionState& state)
 {
     const StaticStrings& strings = state.context()->staticStrings();
@@ -556,6 +597,11 @@ void GlobalObject::installObject(ExecutionState& state)
                                 ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.seal, builtinObjectSeal, 1, nullptr, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    // ES6+ Object.assign
+    m_object->defineOwnProperty(state, ObjectPropertyName(strings.assign),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.assign, builtinObjectAssign, 2, nullptr, NativeFunctionInfo::Strict)),
+                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.constructor),
                                          ObjectPropertyDescriptor(m_object, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
@@ -587,6 +633,7 @@ void GlobalObject::installObject(ExecutionState& state)
     // $19.1.3.4 Object.prototype.propertyIsEnumerable(V)
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().propertyIsEnumerable),
                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().propertyIsEnumerable, builtinObjectPropertyIsEnumerable, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
 
     JSGetterSetter gs(
         new FunctionObject(state, NativeFunctionInfo(strings.get__proto__, builtinObject__proto__Getter, 0, nullptr, NativeFunctionInfo::Strict)),
