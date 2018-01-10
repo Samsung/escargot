@@ -90,6 +90,7 @@ DEFINE_CAST(ScriptParser);
 #if ESCARGOT_ENABLE_TYPEDARRAY
 DEFINE_CAST(ArrayBufferObject);
 DEFINE_CAST(ArrayBufferView);
+DEFINE_CAST(Uint8ClampedArrayObject);
 #endif
 
 #undef DEFINE_CAST
@@ -308,6 +309,17 @@ bool PointerValueRef::isArrayBufferView()
 ArrayBufferViewRef* PointerValueRef::asArrayBufferView()
 {
     return toRef(toImpl(this)->asArrayBufferView());
+}
+
+bool PointerValueRef::isUint8ClampedArrayObject()
+{
+    return toImpl(this)->isArrayBufferView() && toImpl(this)->asArrayBufferView()->typedArrayType() == TypedArrayType::Uint8Clamped;
+}
+
+Uint8ClampedArrayObjectRef* PointerValueRef::asUint8ClampedArrayObject()
+{
+    ASSERT(isUint8ClampedArrayObject());
+    return toRef((Uint8ClampedArrayObject*)(toImpl(this)->asArrayBufferView()));
 }
 
 #endif
@@ -1742,6 +1754,10 @@ unsigned ArrayBufferViewRef::bytelength()
     return toImpl(this)->bytelength();
 }
 
+Uint8ClampedArrayObjectRef* Uint8ClampedArrayObjectRef::create(ExecutionStateRef* state)
+{
+    return toRef(new Uint8ClampedArrayObject(*toImpl(state)));
+}
 #endif
 
 #ifdef ESCARGOT_ENABLE_PROMISE

@@ -39,6 +39,7 @@ class FunctionObjectRef;
 class ArrayObjectRef;
 class ArrayBufferObjectRef;
 class ArrayBufferViewRef;
+class Uint8ClampedArrayObjectRef;
 class PromiseObjectRef;
 class ErrorObjectRef;
 class DateObjectRef;
@@ -88,6 +89,8 @@ public:
     ArrayBufferObjectRef* asArrayBufferObject();
     bool isArrayBufferView();
     ArrayBufferViewRef* asArrayBufferView();
+    bool isUint8ClampedArrayObject();
+    Uint8ClampedArrayObjectRef* asUint8ClampedArrayObject();
 #endif
 #if ESCARGOT_ENABLE_PROMISE
     bool isPromiseObject();
@@ -653,6 +656,10 @@ public:
     unsigned bytelength();
 };
 
+class Uint8ClampedArrayObjectRef : public ArrayBufferViewRef {
+public:
+    static Uint8ClampedArrayObjectRef* create(ExecutionStateRef* state);
+};
 #endif
 
 #ifdef ESCARGOT_ENABLE_PROMISE
