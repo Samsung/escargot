@@ -525,14 +525,9 @@ public:
     }
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
     {
-        auto result = m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)));
-        if (!result.m_value->isEmpty()) {
-            if (desc.isValuePresent() && result.m_isWritable) {
-                return m_defineOwnPropertyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)), toRef(desc.value()));
-            }
-            return false;
-        } else if (!result.m_wantToSkipDefineCallback) {
-            return m_defineOwnPropertyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)), toRef(desc.value()));
+        bool cbRet = m_defineOwnPropertyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)), toRef(desc.value()));
+        if (cbRet) {
+            return true;
         }
         return Object::defineOwnProperty(state, P, desc);
     }
