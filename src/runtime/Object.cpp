@@ -973,4 +973,19 @@ bool Object::setIndexedProperty(ExecutionState& state, const Value& property, co
 {
     return set(state, ObjectPropertyName(state, property), value, this);
 }
+
+IteratorObject* Object::values(ExecutionState& state)
+{
+    return new ArrayIteratorObject(state, this, ArrayIteratorObject::TypeValue);
+}
+
+IteratorObject* Object::keys(ExecutionState& state)
+{
+    return new ArrayIteratorObject(state, this, ArrayIteratorObject::TypeKey);
+}
+
+IteratorObject* Object::entries(ExecutionState& state)
+{
+    return new ArrayIteratorObject(state, this, ArrayIteratorObject::TypeKeyValue);
+}
 }

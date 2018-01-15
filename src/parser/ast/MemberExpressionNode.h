@@ -132,7 +132,7 @@ public:
                 propertyIndex = context->getLastRegisterIndex();
                 objectIndex = context->getLastRegisterIndex(1);
             }
-            codeBlock->pushCode(SetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
+            codeBlock->pushCode(SetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
             context->giveUpRegister();
             context->giveUpRegister();
         }

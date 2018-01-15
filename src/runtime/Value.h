@@ -206,6 +206,7 @@ public:
     inline bool equalsTo(ExecutionState& ec, const Value& val) const;
     bool equalsToSlowCase(ExecutionState& ec, const Value& val) const;
     bool equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val) const;
+    bool equalsToByTheSameValueZeroAlgorithm(ExecutionState& ec, const Value& val) const;
 
 #ifdef ESCARGOT_32
     uint32_t tag() const;

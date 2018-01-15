@@ -751,6 +751,139 @@ static Value builtinStringValueOf(ExecutionState& state, Value thisValue, size_t
     RELEASE_ASSERT_NOT_REACHED();
 }
 
+static Value builtinStringStartsWith(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ? RequireObjectCoercible(this value).
+    // Let S be ? ToString(O).
+    String* S = Value(thisValue.toObject(state)).toString(state);
+    Value searchString = argv[0];
+    // Let isRegExp be ? IsRegExp(searchString).
+    // If isRegExp is true, throw a TypeError exception.
+    if (searchString.isObject() && searchString.asObject()->isRegExpObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't use RegExp with startsWith");
+    }
+    // Let searchStr be ? ToString(searchString).
+    String* searchStr = searchString.toString(state);
+    // Let pos be ? ToInteger(position). (If position is undefined, this step produces the value 0.)
+    double pos = 0;
+    if (argc >= 2) {
+        pos = argv[1].toInteger(state);
+    }
+
+    // Let len be the number of elements in S.
+    double len = S->length();
+    // Let start be min(max(pos, 0), len).
+    double start = std::min(std::max(pos, 0.0), len);
+    // Let searchLength be the number of elements in searchStr.
+    double searchLength = searchStr->length();
+    // If searchLength+start is greater than len, return false.
+    if (searchLength + start > len) {
+        return Value(false);
+    }
+    // If the sequence of elements of S starting at start of length searchLength is the same as the full element sequence of searchStr, return true.
+    // Otherwise, return false.
+    StringBufferAccessData srcData = S->bufferAccessData();
+    StringBufferAccessData src2Data = searchStr->bufferAccessData();
+
+    for (size_t i = 0; i < src2Data.length; i++) {
+        if (srcData.charAt(i + start) != src2Data.charAt(i)) {
+            return Value(false);
+        }
+    }
+
+    return Value(true);
+}
+
+static Value builtinStringEndsWith(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ? RequireObjectCoercible(this value).
+    // Let S be ? ToString(O).
+    String* S = Value(thisValue.toObject(state)).toString(state);
+    Value searchString = argv[0];
+    // Let isRegExp be ? IsRegExp(searchString).
+    // If isRegExp is true, throw a TypeError exception.
+    if (searchString.isObject() && searchString.asObject()->isRegExpObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't use RegExp with endsWith");
+    }
+    // Let len be the number of elements in S.
+    double len = S->length();
+
+    // Let searchStr be ? ToString(searchString).
+    String* searchStr = searchString.toString(state);
+    // If endPosition is undefined, let pos be len, else let pos be ? ToInteger(endPosition).
+    double pos = 0;
+    if (argc >= 2) {
+        pos = argv[1].toInteger(state);
+    } else {
+        pos = len;
+    }
+
+    // Let end be min(max(pos, 0), len).
+    double end = std::min(std::max(pos, 0.0), len);
+    // Let searchLength be the number of elements in searchStr.
+    double searchLength = searchStr->length();
+    // Let start be end - searchLength.
+    double start = end - searchLength;
+    // If start is less than 0, return false.
+    if (start < 0) {
+        return Value(false);
+    }
+    // If the sequence of elements of S starting at start of length searchLength is the same as the full element sequence of searchStr, return true.
+    StringBufferAccessData srcData = S->bufferAccessData();
+    StringBufferAccessData src2Data = searchStr->bufferAccessData();
+    for (size_t i = 0; i < searchLength; i++) {
+        if (srcData.charAt(i + start) != src2Data.charAt(i)) {
+            return Value(false);
+        }
+    }
+
+    return Value(true);
+}
+
+static Value builtinStringIncludes(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ? RequireObjectCoercible(this value).
+    // Let S be ? ToString(O).
+    String* S = Value(thisValue.toObject(state)).toString(state);
+    // Let isRegExp be ? IsRegExp(searchString).
+    // If isRegExp is true, throw a TypeError exception.
+    Value searchString = argv[0];
+    if (searchString.isObject() && searchString.asObject()->isRegExpObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't use RegExp with includes");
+    }
+
+    // Let searchStr be ? ToString(searchString).
+    String* searchStr = searchString.toString(state);
+
+    // Let pos be ? ToInteger(position). (If position is undefined, this step produces the value 0.)
+    double pos = 0;
+    if (argc >= 2) {
+        pos = argv[1].toInteger(state);
+    }
+
+    // Let len be the number of elements in S.
+    double len = S->length();
+
+    // Let start be min(max(pos, 0), len).
+    double start = std::min(std::max(pos, 0.0), len);
+    // Let searchLen be the number of elements in searchStr.
+    size_t searchLen = searchStr->length();
+    // If there exists any integer k not smaller than start such that k + searchLen is not greater than len, and for all nonnegative integers j less than searchLen, the code unit at index k+j of S is the same as the code unit at index j of searchStr, return true; but if there is no such integer k, return false.
+    auto ret = S->find(searchStr, start);
+    if (ret == SIZE_MAX) {
+        return Value(false);
+    }
+    return Value(true);
+}
+
+static Value builtinStringIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIteratorObject() || !thisValue.asObject()->asIteratorObject()->isStringIteratorObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().StringIterator.string(), true, state.context()->staticStrings().next.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver);
+    }
+    StringIteratorObject* iter = thisValue.asObject()->asIteratorObject()->asStringIteratorObject();
+    return iter->next(state);
+}
 
 void GlobalObject::installString(ExecutionState& state)
 {
@@ -834,10 +967,29 @@ void GlobalObject::installString(ExecutionState& state)
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->valueOf, builtinStringValueOf, 0, nullptr, NativeFunctionInfo::Strict)),
                                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    // ES6 builtins
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->startsWith),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->startsWith, builtinStringStartsWith, 1, nullptr, NativeFunctionInfo::Strict)),
+                                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->endsWith),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->endsWith, builtinStringEndsWith, 1, nullptr, NativeFunctionInfo::Strict)),
+                                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->includes),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->includes, builtinStringIncludes, 1, nullptr, NativeFunctionInfo::Strict)),
+                                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_string->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->fromCharCode),
                                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->fromCharCode, builtinStringFromCharCode, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_string->setFunctionPrototype(state, m_stringPrototype);
+
+    m_stringIteratorPrototype = m_iteratorPrototype;
+    m_stringIteratorPrototype = new StringIteratorObject(state, nullptr);
+
+    m_stringIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
+                                                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinStringIteratorNext, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(strings->String),
                       ObjectPropertyDescriptor(m_string, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

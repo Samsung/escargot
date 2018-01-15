@@ -22,7 +22,6 @@
 
 namespace Escargot {
 
-
 #define DEFINE_FN(Type, type, siz)                                                                    \
     template <>                                                                                       \
     void TypedArrayObject<Type##Adaptor, siz>::typedArrayObjectPrototypeFiller(ExecutionState& state) \

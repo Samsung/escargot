@@ -39,7 +39,15 @@ class FunctionObjectRef;
 class ArrayObjectRef;
 class ArrayBufferObjectRef;
 class ArrayBufferViewRef;
+class Int8ArrayObjectRef;
+class Uint8ArrayObjectRef;
+class Int16ArrayObjectRef;
+class Uint16ArrayObjectRef;
+class Int32ArrayObjectRef;
+class Uint32ArrayObjectRef;
 class Uint8ClampedArrayObjectRef;
+class Float32ArrayObjectRef;
+class Float64ArrayObjectRef;
 class PromiseObjectRef;
 class ErrorObjectRef;
 class DateObjectRef;
@@ -89,8 +97,24 @@ public:
     ArrayBufferObjectRef* asArrayBufferObject();
     bool isArrayBufferView();
     ArrayBufferViewRef* asArrayBufferView();
+    bool isInt8ArrayObject();
+    Int8ArrayObjectRef* asInt8ArrayObject();
+    bool isUint8ArrayObject();
+    Uint8ArrayObjectRef* asUint8ArrayObject();
+    bool isInt16ArrayObject();
+    Int16ArrayObjectRef* asInt16ArrayObject();
+    bool isUint16ArrayObject();
+    Uint16ArrayObjectRef* asUint16ArrayObject();
+    bool isInt32ArrayObject();
+    Int32ArrayObjectRef* asInt32ArrayObject();
+    bool isUint32ArrayObject();
+    Uint32ArrayObjectRef* asUint32ArrayObject();
     bool isUint8ClampedArrayObject();
     Uint8ClampedArrayObjectRef* asUint8ClampedArrayObject();
+    bool isFloat32ArrayObject();
+    Float32ArrayObjectRef* asFloat32ArrayObject();
+    bool isFloat64ArrayObject();
+    Float64ArrayObjectRef* asFloat64ArrayObject();
 #endif
 #if ESCARGOT_ENABLE_PROMISE
     bool isPromiseObject();
@@ -653,10 +677,51 @@ public:
     unsigned bytelength();
 };
 
+class Int8ArrayObjectRef : public ArrayBufferViewRef {
+public:
+    static Int8ArrayObjectRef* create(ExecutionStateRef* state);
+};
+
+class Uint8ArrayObjectRef : public ArrayBufferViewRef {
+public:
+    static Uint8ArrayObjectRef* create(ExecutionStateRef* state);
+};
+
+class Int16ArrayObjectRef : public ArrayBufferViewRef {
+public:
+    static Int16ArrayObjectRef* create(ExecutionStateRef* state);
+};
+
+class Uint16ArrayObjectRef : public ArrayBufferViewRef {
+public:
+    static Uint16ArrayObjectRef* create(ExecutionStateRef* state);
+};
+
+class Uint32ArrayObjectRef : public ArrayBufferViewRef {
+public:
+    static Uint32ArrayObjectRef* create(ExecutionStateRef* state);
+};
+
+class Int32ArrayObjectRef : public ArrayBufferViewRef {
+public:
+    static Int32ArrayObjectRef* create(ExecutionStateRef* state);
+};
+
 class Uint8ClampedArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Uint8ClampedArrayObjectRef* create(ExecutionStateRef* state);
 };
+
+class Float32ArrayObjectRef : public ArrayBufferViewRef {
+public:
+    static Float32ArrayObjectRef* create(ExecutionStateRef* state);
+};
+
+class Float64ArrayObjectRef : public ArrayBufferViewRef {
+public:
+    static Float64ArrayObjectRef* create(ExecutionStateRef* state);
+};
+
 #endif
 
 #ifdef ESCARGOT_ENABLE_PROMISE

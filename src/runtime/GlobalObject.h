@@ -50,7 +50,7 @@ public:
     {
         m_objectPrototype = Object::createBuiltinObjectPrototype(state);
         m_objectPrototype->markThisObjectDontNeedStructureTransitionTable(state);
-        setPrototype(state, m_objectPrototype);
+        Object::setPrototype(state, m_objectPrototype);
 
         m_structure = m_structure->convertToWithFastAccess(state);
         m_throwTypeError = nullptr;
@@ -69,6 +69,7 @@ public:
     {
         installFunction(state);
         installObject(state);
+        installIterator(state);
         installError(state);
         installString(state);
         installNumber(state);
@@ -88,6 +89,8 @@ public:
         installDataView(state);
         installTypedArray(state);
 #endif
+        installMap(state);
+        installSet(state);
         installOthers(state);
     }
 
@@ -114,6 +117,9 @@ public:
     template <typename TA, int elementSize>
     FunctionObject* installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction);
 #endif
+    void installIterator(ExecutionState& state);
+    void installMap(ExecutionState& state);
+    void installSet(ExecutionState& state);
     void installOthers(ExecutionState& state);
 
     Value eval(ExecutionState& state, const Value& arg);
@@ -210,6 +216,10 @@ public:
     {
         return m_stringPrototype;
     }
+    Object* stringIteratorPrototype()
+    {
+        return m_stringIteratorPrototype;
+    }
 
     FunctionObject* number()
     {
@@ -227,6 +237,10 @@ public:
     Object* arrayPrototype()
     {
         return m_arrayPrototype;
+    }
+    Object* arrayIteratorPrototype()
+    {
+        return m_arrayIteratorPrototype;
     }
 
     FunctionObject* boolean()
@@ -405,6 +419,36 @@ public:
     }
 #endif
 
+    FunctionObject* map()
+    {
+        return m_map;
+    }
+
+    Object* mapPrototype()
+    {
+        return m_mapPrototype;
+    }
+
+    Object* mapIteratorPrototype()
+    {
+        return m_mapIteratorPrototype;
+    }
+
+    FunctionObject* set()
+    {
+        return m_set;
+    }
+
+    Object* setPrototype()
+    {
+        return m_setPrototype;
+    }
+
+    Object* setIteratorPrototype()
+    {
+        return m_setIteratorPrototype;
+    }
+
     FunctionObject* eval()
     {
         return m_eval;
@@ -458,6 +502,8 @@ protected:
     FunctionObject* m_function;
     FunctionObject* m_functionPrototype;
 
+    Object* m_iteratorPrototype;
+
     FunctionObject* m_error;
     Object* m_errorPrototype;
     FunctionObject* m_referenceError;
@@ -475,12 +521,14 @@ protected:
 
     FunctionObject* m_string;
     Object* m_stringPrototype;
+    Object* m_stringIteratorPrototype;
 
     FunctionObject* m_number;
     Object* m_numberPrototype;
 
     FunctionObject* m_array;
     Object* m_arrayPrototype;
+    Object* m_arrayIteratorPrototype;
 
     FunctionObject* m_boolean;
     Object* m_booleanPrototype;
@@ -545,6 +593,13 @@ protected:
     FunctionObject* m_float64Array;
     Object* m_float64ArrayPrototype;
 #endif
+
+    FunctionObject* m_map;
+    Object* m_mapPrototype;
+    Object* m_mapIteratorPrototype;
+    FunctionObject* m_set;
+    Object* m_setPrototype;
+    Object* m_setIteratorPrototype;
 };
 }
 

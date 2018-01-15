@@ -427,4 +427,77 @@ bool ArrayObject::setIndexedProperty(ExecutionState& state, const Value& propert
     }
     return set(state, ObjectPropertyName(state, property), value, this);
 }
+
+IteratorObject* ArrayObject::iterator(ExecutionState& state)
+{
+    return new ArrayIteratorObject(state, this, ArrayIteratorObject::TypeValue);
+}
+
+ArrayIteratorObject::ArrayIteratorObject(ExecutionState& state, Object* a, Type type)
+    : IteratorObject(state)
+    , m_array(a)
+    , m_iteratorNextIndex(0)
+    , m_type(type)
+{
+    setPrototype(state, state.context()->globalObject()->arrayIteratorPrototype());
+}
+
+void* ArrayIteratorObject::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(ArrayIteratorObject)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayIteratorObject, m_structure));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayIteratorObject, m_prototype));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayIteratorObject, m_values));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayIteratorObject, m_array));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ArrayIteratorObject));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
+{
+    // Let a be the value of the [[IteratedObject]] internal slot of O.
+    Object* a = m_array;
+    // If a is undefined, return CreateIterResultObject(undefined, true).
+    if (a == nullptr) {
+        return std::make_pair(Value(), true);
+    }
+    // Let index be the value of the [[ArrayIteratorNextIndex]] internal slot of O.
+    size_t index = m_iteratorNextIndex;
+    // Let itemKind be the value of the [[ArrayIterationKind]] internal slot of O.
+    Type itemKind = m_type;
+
+    // If a has a [[TypedArrayName]] internal slot, then
+    // Let len be the value of a's [[ArrayLength]] internal slot.
+    // Else,
+    // Let len be ? ToLength(? Get(a, "length")).
+    auto len = a->length(state);
+
+    // If index ≥ len, then
+    if (index >= len) {
+        // Set the value of the [[IteratedObject]] internal slot of O to undefined.
+        m_array = nullptr;
+        // Return CreateIterResultObject(undefined, true).
+        return std::make_pair(Value(), true);
+    }
+
+    // Set the value of the [[ArrayIteratorNextIndex]] internal slot of O to index+1.
+    m_iteratorNextIndex = index + 1;
+
+    // If itemKind is "key", return CreateIterResultObject(index, false).
+    if (itemKind == Type::TypeKey) {
+        return std::make_pair(Value(index), false);
+    } else if (itemKind == Type::TypeValue) {
+        return std::make_pair(Value(a->getIndexedProperty(state, Value(index)).value(state, a)), false);
+    } else {
+        ArrayObject* result = new ArrayObject(state);
+        result->defineOwnProperty(state, ObjectPropertyName(state, Value(0)), ObjectPropertyDescriptor(Value(index), ObjectPropertyDescriptor::AllPresent));
+        result->defineOwnProperty(state, ObjectPropertyName(state, Value(1)), ObjectPropertyDescriptor(Value(a->getIndexedProperty(state, Value(index)).value(state, a)), ObjectPropertyDescriptor::AllPresent));
+        return std::make_pair(result, false);
+    }
+}
 }

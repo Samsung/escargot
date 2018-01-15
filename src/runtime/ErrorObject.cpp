@@ -77,6 +77,8 @@ const char* errorMessage_GlobalObject_NotExistNewInTypedArrayConstructor = "%s: 
 const char* errorMessage_GlobalObject_NotExistNewInDataViewConstructor = "%s: Constructor DataView requires \'new\'";
 const char* errorMessage_GlobalObject_InvalidArrayLength = "Invalid array length";
 const char* errorMessage_GlobalObject_DetachedBuffer = "%s: Detached buffer cannot be used here";
+const char* errorMessage_GlobalObject_ConstructorRequiresNew = "Constructor requires 'new'";
+const char* errorMessage_GlobalObject_CalledOnIncompatibleReceiver = "%s: called on incompatible receiver";
 const char* errorMessage_String_InvalidStringLength = "Invalid string length";
 
 void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototoype, String* functionName, const char* templateString)

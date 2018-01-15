@@ -19,6 +19,7 @@
 
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
+#include "runtime/IteratorObject.h"
 
 namespace Escargot {
 
@@ -26,6 +27,8 @@ namespace Escargot {
 #define ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP 1024
 
 extern size_t g_arrayObjectTag;
+
+class ArrayIteratorObject;
 
 class ArrayObject : public Object {
     friend class VMInstance;
@@ -75,6 +78,8 @@ public:
         return "Array";
     }
 
+    virtual IteratorObject* iterator(ExecutionState& state) override;
+
 protected:
     ALWAYS_INLINE bool isFastModeArray()
     {
@@ -105,6 +110,36 @@ protected:
     bool setFastModeValue(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
 
     VectorWithNoSize<SmallValue, GCUtil::gc_malloc_ignore_off_page_allocator<SmallValue>> m_fastModeData;
+};
+
+class ArrayIteratorObject : public IteratorObject {
+public:
+    enum Type {
+        TypeKey,
+        TypeValue,
+        TypeKeyValue
+    };
+
+    ArrayIteratorObject(ExecutionState& state, Object* array, Type type);
+
+    virtual bool isArrayIteratorObject() const
+    {
+        return true;
+    }
+
+    virtual const char* internalClassProperty() override
+    {
+        return "Array Iterator";
+    }
+    virtual std::pair<Value, bool> advance(ExecutionState& state) override;
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+protected:
+    Object* m_array;
+    size_t m_iteratorNextIndex;
+    Type m_type;
 };
 }
 

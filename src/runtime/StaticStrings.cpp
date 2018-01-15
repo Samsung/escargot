@@ -31,6 +31,7 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     stringPrivate.init(atomicStringMap, "private", strlen("private"));
     stringStatic.init(atomicStringMap, "static", strlen("static"));
     stringCatch.init(atomicStringMap, "catch", strlen("catch"));
+    stringDelete.init(atomicStringMap, "delete", strlen("delete"));
     defaultRegExpString.init(atomicStringMap, "(?:)", strlen("(?:)"));
 
     get__proto__.init(atomicStringMap, "get __proto__", strlen("get __proto__"));

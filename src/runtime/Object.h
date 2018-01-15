@@ -769,6 +769,14 @@ public:
     // !hasOwnProperty(state, P) is needed for success
     bool defineNativeDataAccessorProperty(ExecutionState& state, const ObjectPropertyName& P, ObjectPropertyNativeGetterSetterData* data, const Value& objectInternalData);
 
+    IteratorObject* values(ExecutionState& state);
+    IteratorObject* keys(ExecutionState& state);
+    IteratorObject* entries(ExecutionState& state);
+    virtual IteratorObject* iterator(ExecutionState& state) // this matches with Object[@@iterator]
+    {
+        return nullptr;
+    }
+
 protected:
     Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);
     void initPlainObject(ExecutionState& state);

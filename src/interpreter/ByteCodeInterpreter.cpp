@@ -343,8 +343,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             goto GetObjectOpcodeSlowCase;
         }
 
-        SetObjectOpcodeLbl : {
-            SetObject* code = (SetObject*)programCounter;
+        SetObjectOperationOpcodeLbl : {
+            SetObjectOperation* code = (SetObjectOperation*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_propertyRegisterIndex];
             if (LIKELY(willBeObject.isObject() && (willBeObject.asPointerValue())->hasTag(g_arrayObjectTag))) {
@@ -367,7 +367,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                             }
                         }
                         arr->m_fastModeData[idx] = registerFile[code->m_loadRegisterIndex];
-                        ADD_PROGRAM_COUNTER(SetObject);
+                        ADD_PROGRAM_COUNTER(SetObjectOperation);
                         NEXT_INSTRUCTION();
                     }
                 }
@@ -686,7 +686,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
         }
 
         SetObjectOpcodeSlowCase : {
-            SetObject* code = (SetObject*)programCounter;
+            SetObjectOperation* code = (SetObjectOperation*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_propertyRegisterIndex];
             Object* obj = willBeObject.toObject(state);
@@ -700,7 +700,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                     Object::throwCannotWriteError(state, PropertyName(state, property.toString(state)));
                 }
             }
-            ADD_PROGRAM_COUNTER(SetObject);
+            ADD_PROGRAM_COUNTER(SetObjectOperation);
             NEXT_INSTRUCTION();
         }
 

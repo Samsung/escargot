@@ -65,7 +65,7 @@ class Node;
     F(ObjectDefineOwnPropertyWithNameOperation, 0, 0) \
     F(ArrayDefineOwnPropertyOperation, 0, 0)          \
     F(GetObject, 1, 2)                                \
-    F(SetObject, 0, 2)                                \
+    F(SetObjectOperation, 0, 2)                       \
     F(GetObjectPreComputedCase, 1, 1)                 \
     F(SetObjectPreComputedCase, 0, 1)                 \
     F(GetGlobalObject, 1, 1)                          \
@@ -454,10 +454,10 @@ public:
 #endif
 };
 
-class SetObject : public ByteCode {
+class SetObjectOperation : public ByteCode {
 public:
-    SetObject(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, const size_t& propertyRegisterIndex, const size_t& loadRegisterIndex)
-        : ByteCode(Opcode::SetObjectOpcode, loc)
+    SetObjectOperation(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, const size_t& propertyRegisterIndex, const size_t& loadRegisterIndex)
+        : ByteCode(Opcode::SetObjectOperationOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_propertyRegisterIndex(propertyRegisterIndex)
         , m_loadRegisterIndex(loadRegisterIndex)

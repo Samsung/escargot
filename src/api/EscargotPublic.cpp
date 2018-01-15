@@ -90,7 +90,15 @@ DEFINE_CAST(ScriptParser);
 #if ESCARGOT_ENABLE_TYPEDARRAY
 DEFINE_CAST(ArrayBufferObject);
 DEFINE_CAST(ArrayBufferView);
+DEFINE_CAST(Int8ArrayObject);
+DEFINE_CAST(Uint8ArrayObject);
+DEFINE_CAST(Int16ArrayObject);
+DEFINE_CAST(Uint16ArrayObject);
+DEFINE_CAST(Int32ArrayObject);
+DEFINE_CAST(Uint32ArrayObject);
 DEFINE_CAST(Uint8ClampedArrayObject);
+DEFINE_CAST(Float32ArrayObject);
+DEFINE_CAST(Float64ArrayObject);
 #endif
 
 #undef DEFINE_CAST
@@ -311,16 +319,27 @@ ArrayBufferViewRef* PointerValueRef::asArrayBufferView()
     return toRef(toImpl(this)->asArrayBufferView());
 }
 
-bool PointerValueRef::isUint8ClampedArrayObject()
-{
-    return toImpl(this)->isArrayBufferView() && toImpl(this)->asArrayBufferView()->typedArrayType() == TypedArrayType::Uint8Clamped;
-}
+#define DEFINE_TYPEDARRAY_IMPL(TypeName)                                                                                             \
+    bool PointerValueRef::is##TypeName##ArrayObject()                                                                                \
+    {                                                                                                                                \
+        return toImpl(this)->isArrayBufferView() && toImpl(this)->asArrayBufferView()->typedArrayType() == TypedArrayType::TypeName; \
+    }                                                                                                                                \
+                                                                                                                                     \
+    TypeName##ArrayObjectRef* PointerValueRef::as##TypeName##ArrayObject()                                                           \
+    {                                                                                                                                \
+        ASSERT(is##TypeName##ArrayObject());                                                                                         \
+        return toRef((TypeName##ArrayObject*)(toImpl(this)->asArrayBufferView()));                                                   \
+    }
 
-Uint8ClampedArrayObjectRef* PointerValueRef::asUint8ClampedArrayObject()
-{
-    ASSERT(isUint8ClampedArrayObject());
-    return toRef((Uint8ClampedArrayObject*)(toImpl(this)->asArrayBufferView()));
-}
+DEFINE_TYPEDARRAY_IMPL(Int8);
+DEFINE_TYPEDARRAY_IMPL(Uint8);
+DEFINE_TYPEDARRAY_IMPL(Int16);
+DEFINE_TYPEDARRAY_IMPL(Uint16);
+DEFINE_TYPEDARRAY_IMPL(Int32);
+DEFINE_TYPEDARRAY_IMPL(Uint32);
+DEFINE_TYPEDARRAY_IMPL(Uint8Clamped);
+DEFINE_TYPEDARRAY_IMPL(Float32);
+DEFINE_TYPEDARRAY_IMPL(Float64);
 
 #endif
 #if ESCARGOT_ENABLE_PROMISE

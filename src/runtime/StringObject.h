@@ -18,6 +18,7 @@
 #define __EscargotStringObject__
 
 #include "runtime/Object.h"
+#include "runtime/IteratorObject.h"
 
 namespace Escargot {
 
@@ -56,12 +57,37 @@ public:
         return "String";
     }
 
+    virtual IteratorObject* iterator(ExecutionState& state) override;
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 
 protected:
     String* m_primitiveValue;
+};
+
+class StringIteratorObject : public IteratorObject {
+public:
+    StringIteratorObject(ExecutionState& state, String* string);
+
+    virtual bool isStringIteratorObject() const
+    {
+        return true;
+    }
+
+    virtual const char* internalClassProperty() override
+    {
+        return "String Iterator";
+    }
+    virtual std::pair<Value, bool> advance(ExecutionState& state) override;
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+protected:
+    String* m_string;
+    size_t m_iteratorNextIndex;
 };
 }
 

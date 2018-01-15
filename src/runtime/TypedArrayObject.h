@@ -22,6 +22,7 @@
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/ArrayBufferObject.h"
+#include "runtime/ArrayObject.h"
 
 namespace Escargot {
 
@@ -348,6 +349,11 @@ public:
             }
         }
         return set(state, ObjectPropertyName(state, property), value, this);
+    }
+
+    virtual IteratorObject* iterator(ExecutionState& state) override
+    {
+        return new ArrayIteratorObject(state, this, ArrayIteratorObject::TypeValue);
     }
 
 protected:

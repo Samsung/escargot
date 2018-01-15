@@ -310,6 +310,45 @@ bool Value::equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val
     return false;
 }
 
+bool Value::equalsToByTheSameValueZeroAlgorithm(ExecutionState& ec, const Value& val) const
+{
+    if (isUndefined())
+        return val.isUndefined();
+
+    if (isNull())
+        return val.isNull();
+
+    if (isBoolean())
+        return val.isBoolean() && asBoolean() == val.asBoolean();
+
+    if (isNumber()) {
+        if (!val.isNumber())
+            return false;
+        double a = asNumber();
+        double b = val.asNumber();
+        if (std::isnan(a) && std::isnan(b))
+            return true;
+        if (std::isnan(a) || std::isnan(b))
+            return false;
+        return a == b;
+    }
+
+    if (isPointerValue()) {
+        PointerValue* o = asPointerValue();
+        if (!val.isPointerValue())
+            return false;
+        PointerValue* o2 = val.asPointerValue();
+        if (o->isString()) {
+            if (!o2->isString())
+                return false;
+            return *o->asString() == *o2->asString();
+        }
+        if (o == o2)
+            return o == o2;
+    }
+    return false;
+}
+
 double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
 {
     ASSERT(isPointerValue());

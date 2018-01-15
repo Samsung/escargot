@@ -251,6 +251,8 @@ namespace Escargot {
     F(some)                       \
     F(split)                      \
     F(startsWith)                 \
+    F(endsWith)                   \
+    F(includes)                   \
     F(substr)                     \
     F(substring)                  \
     F(toExponential)              \
@@ -321,6 +323,19 @@ namespace Escargot {
     F($8)                         \
     F($9)                         \
     F(assign)                     \
+    F(Map)                        \
+    F(clear)                      \
+    F(has)                        \
+    F(done)                       \
+    F(next)                       \
+    F(MapIterator)                \
+    F(ArrayIterator)              \
+    F(StringIterator)             \
+    F(SetIterator)                \
+    F(entries)                    \
+    F(size)                       \
+    F(add)                        \
+    F(Set)                        \
     F(load)
 
 
@@ -338,6 +353,7 @@ public:
     AtomicString stringPrivate;
     AtomicString stringStatic;
     AtomicString stringCatch;
+    AtomicString stringDelete;
     AtomicString defaultRegExpString;
     AtomicString get__proto__;
     AtomicString set__proto__;
