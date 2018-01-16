@@ -28,7 +28,7 @@ class SetObject : public Object {
     friend class SetIteratorObject;
 
 public:
-    typedef TightVector<SmallValue, gc_allocator<SmallValue>> SetObjectData;
+    typedef TightVector<SmallValue, GCUtil::gc_malloc_ignore_off_page_allocator<SmallValue>> SetObjectData;
     SetObject(ExecutionState& state);
 
     virtual bool isSetObject() const

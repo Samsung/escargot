@@ -28,7 +28,7 @@ class MapObject : public Object {
     friend class MapIteratorObject;
 
 public:
-    typedef TightVector<std::pair<SmallValue, SmallValue>, gc_allocator<std::pair<SmallValue, SmallValue>>> MapObjectData;
+    typedef TightVector<std::pair<SmallValue, SmallValue>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<SmallValue, SmallValue>>> MapObjectData;
     MapObject(ExecutionState& state);
 
     virtual bool isMapObject() const

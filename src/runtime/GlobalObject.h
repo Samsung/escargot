@@ -91,6 +91,8 @@ public:
 #endif
         installMap(state);
         installSet(state);
+        installWeakMap(state);
+        installWeakSet(state);
         installOthers(state);
     }
 
@@ -120,6 +122,8 @@ public:
     void installIterator(ExecutionState& state);
     void installMap(ExecutionState& state);
     void installSet(ExecutionState& state);
+    void installWeakMap(ExecutionState& state);
+    void installWeakSet(ExecutionState& state);
     void installOthers(ExecutionState& state);
 
     Value eval(ExecutionState& state, const Value& arg);
@@ -449,6 +453,26 @@ public:
         return m_setIteratorPrototype;
     }
 
+    FunctionObject* weakMap()
+    {
+        return m_weakMap;
+    }
+
+    Object* weakMapPrototype()
+    {
+        return m_weakMapPrototype;
+    }
+
+    FunctionObject* weakSet()
+    {
+        return m_weakSet;
+    }
+
+    Object* weakSetPrototype()
+    {
+        return m_weakSetPrototype;
+    }
+
     FunctionObject* eval()
     {
         return m_eval;
@@ -600,6 +624,10 @@ protected:
     FunctionObject* m_set;
     Object* m_setPrototype;
     Object* m_setIteratorPrototype;
+    FunctionObject* m_weakMap;
+    Object* m_weakMapPrototype;
+    FunctionObject* m_weakSet;
+    Object* m_weakSetPrototype;
 };
 }
 

@@ -336,6 +336,8 @@ namespace Escargot {
     F(size)                       \
     F(add)                        \
     F(Set)                        \
+    F(WeakMap)                    \
+    F(WeakSet)                    \
     F(load)
 
 

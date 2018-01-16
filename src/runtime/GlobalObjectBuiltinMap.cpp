@@ -150,25 +150,14 @@ static Value builtinMapForEach(ExecutionState& state, Value thisValue, size_t ar
         T = argv[1];
     }
     // Let entries be the List that is the value of M's [[MapData]] internal slot.
+    const MapObject::MapObjectData& entries = M->storage();
     // Repeat for each Record {[[Key]], [[Value]]} e that is an element of entries, in original key insertion order
-    // If e.[[Key]] is not empty, then
-    // Perform ? Call(callbackfn, T, « e.[[Value]], e.[[Key]], M »).
-    const MapObject::MapObjectData& storage = M->storage();
-    ValueVector keys;
-
-    for (size_t i = 0; i < storage.size(); i++) {
-        keys.pushBack(storage[i].first);
-    }
-
-    for (size_t i = 0; i < keys.size(); i++) {
+    for (size_t i = 0; i < entries.size(); i++) {
         // If e.[[Key]] is not empty, then
-        for (size_t j = 0; j < storage.size(); j++) {
-            if (Value(storage[j].first).equalsToByTheSameValueZeroAlgorithm(state, keys[i])) {
-                // Perform ? Call(callbackfn, T, « e.[[Value]], e.[[Key]], M »).
-                Value argv[3] = { Value(storage[j].second), Value(storage[j].first), Value(M) };
-                callbackfn.asFunction()->call(state, T, 3, argv);
-                break;
-            }
+        if (!entries[i].first.isEmpty()) {
+            // Perform ? Call(callbackfn, T, « e.[[Value]], e.[[Key]], M »).
+            Value argv[3] = { Value(entries[i].second), Value(entries[i].first), Value(M) };
+            callbackfn.asFunction()->call(state, T, 3, argv);
         }
     }
 

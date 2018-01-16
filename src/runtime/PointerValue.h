@@ -43,6 +43,8 @@ class GlobalRegExpFunctionObject;
 class IteratorObject;
 class MapObject;
 class SetObject;
+class WeakMapObject;
+class WeakSetObject;
 
 #define POINTER_VALUE_STRING_TAG_IN_DATA 0x3
 // finding what is type of PointerValue operation is used in SmallValue <-> Value and interpreter
@@ -181,6 +183,16 @@ public:
         return false;
     }
 
+    virtual bool isWeakMapObject() const
+    {
+        return false;
+    }
+
+    virtual bool isWeakSetObject() const
+    {
+        return false;
+    }
+
     String* asString()
     {
         ASSERT(isString());
@@ -302,6 +314,18 @@ public:
     {
         ASSERT(isSetObject());
         return (SetObject*)this;
+    }
+
+    WeakMapObject* asWeakMapObject()
+    {
+        ASSERT(isWeakMapObject());
+        return (WeakMapObject*)this;
+    }
+
+    WeakSetObject* asWeakSetObject()
+    {
+        ASSERT(isWeakSetObject());
+        return (WeakSetObject*)this;
     }
 
     bool hasTag(const size_t tag) const
