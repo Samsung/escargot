@@ -23,7 +23,14 @@ namespace Escargot {
 
 class WeakMapObject : public Object {
 public:
-    typedef TightVector<std::pair<Object*, SmallValue>, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<std::pair<Object*, SmallValue>>> WeakMapObjectData;
+    struct WeakMapObjectDataItem : public gc {
+        Object* key;
+        SmallValue data;
+
+        void* operator new(size_t size);
+        void* operator new[](size_t size) = delete;
+    };
+    typedef TightVector<WeakMapObjectDataItem*, GCUtil::gc_malloc_ignore_off_page_allocator<WeakMapObjectDataItem*>> WeakMapObjectData;
     WeakMapObject(ExecutionState& state);
 
     virtual bool isWeakMapObject() const
@@ -45,13 +52,7 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-    const WeakMapObjectData& storage()
-    {
-        return m_storage;
-    }
-
 protected:
-    void adjustGCThings();
     WeakMapObjectData m_storage;
 };
 }

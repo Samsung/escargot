@@ -27,6 +27,19 @@ WeakMapObject::WeakMapObject(ExecutionState& state)
     setPrototype(state, state.context()->globalObject()->weakMapPrototype());
 }
 
+void* WeakMapObject::WeakMapObjectDataItem::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(WeakMapObject::WeakMapObjectDataItem)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WeakMapObject::WeakMapObjectDataItem, data));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(WeakMapObject::WeakMapObjectDataItem));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
 void* WeakMapObject::operator new(size_t size)
 {
     static bool typeInited = false;
@@ -46,10 +59,10 @@ void* WeakMapObject::operator new(size_t size)
 bool WeakMapObject::deleteOperation(ExecutionState& state, Object* key)
 {
     for (size_t i = 0; i < m_storage.size(); i++) {
-        auto existingKey = m_storage[i].first;
+        auto existingKey = m_storage[i]->key;
         if (existingKey == key) {
-            m_storage[i] = std::make_pair(nullptr, Value(Value::EmptyValue));
-            adjustGCThings();
+            m_storage[i]->key = nullptr;
+            m_storage[i]->data = SmallValue(nullptr);
             return true;
         }
     }
@@ -59,9 +72,9 @@ bool WeakMapObject::deleteOperation(ExecutionState& state, Object* key)
 Value WeakMapObject::get(ExecutionState& state, Object* key)
 {
     for (size_t i = 0; i < m_storage.size(); i++) {
-        auto existingKey = m_storage[i].first;
+        auto existingKey = m_storage[i]->key;
         if (existingKey == key) {
-            return m_storage[i].second;
+            return m_storage[i]->data;
         }
     }
     return Value();
@@ -70,7 +83,7 @@ Value WeakMapObject::get(ExecutionState& state, Object* key)
 bool WeakMapObject::has(ExecutionState& state, Object* key)
 {
     for (size_t i = 0; i < m_storage.size(); i++) {
-        auto existingKey = m_storage[i].first;
+        auto existingKey = m_storage[i]->key;
         if (existingKey == key) {
             return true;
         }
@@ -78,28 +91,21 @@ bool WeakMapObject::has(ExecutionState& state, Object* key)
     return false;
 }
 
-void WeakMapObject::adjustGCThings()
-{
-    for (size_t i = 0; i < m_storage.size(); i++) {
-        GC_GENERAL_REGISTER_DISAPPEARING_LINK((void**)&(m_storage[i].first), m_storage[i].first);
-        if (m_storage[i].second.isStoredInHeap()) {
-            GC_GENERAL_REGISTER_DISAPPEARING_LINK((void**)&(m_storage[i].second), Value(m_storage[i].second).asPointerValue());
-        }
-    }
-}
 
 void WeakMapObject::set(ExecutionState& state, Object* key, const Value& value)
 {
     for (size_t i = 0; i < m_storage.size(); i++) {
-        auto existingKey = m_storage[i].first;
+        auto existingKey = m_storage[i]->key;
         if (existingKey == key) {
-            m_storage[i].second = value;
+            m_storage[i]->data = value;
             return;
         }
     }
 
-    m_storage.pushBack(std::make_pair(key, value));
-
-    adjustGCThings();
+    auto newData = new WeakMapObjectDataItem();
+    newData->key = key;
+    newData->data = value;
+    GC_GENERAL_REGISTER_DISAPPEARING_LINK((void**)&(newData->key), newData->key);
+    m_storage.pushBack(newData);
 }
 }

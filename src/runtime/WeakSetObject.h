@@ -23,7 +23,16 @@ namespace Escargot {
 
 class WeakSetObject : public Object {
 public:
-    typedef TightVector<Object*, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Object*>> WeakSetObjectData;
+    struct WeakSetObjectDataItem : public gc {
+        Object* key;
+        void* operator new(size_t size)
+        {
+            return GC_MALLOC_ATOMIC(size);
+        }
+        void* operator new[](size_t size) = delete;
+    };
+
+    typedef TightVector<WeakSetObjectDataItem*, GCUtil::gc_malloc_ignore_off_page_allocator<WeakSetObjectDataItem*>> WeakSetObjectData;
     WeakSetObject(ExecutionState& state);
 
     virtual bool isWeakSetObject() const
@@ -44,13 +53,7 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-    const WeakSetObjectData& storage()
-    {
-        return m_storage;
-    }
-
 protected:
-    void adjustGCThings();
     WeakSetObjectData m_storage;
 };
 }

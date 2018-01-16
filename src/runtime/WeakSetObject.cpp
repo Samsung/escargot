@@ -46,11 +46,12 @@ void* WeakSetObject::operator new(size_t size)
 bool WeakSetObject::deleteOperation(ExecutionState& state, Object* key)
 {
     for (size_t i = 0; i < m_storage.size(); i++) {
-        Object* existingKey = m_storage[i];
-        if (existingKey == key) {
-            m_storage[i] = nullptr;
-            adjustGCThings();
-            return true;
+        if (m_storage[i]) {
+            Object* existingKey = m_storage[i]->key;
+            if (existingKey == key) {
+                m_storage[i] = nullptr;
+                return true;
+            }
         }
     }
     return false;
@@ -59,31 +60,30 @@ bool WeakSetObject::deleteOperation(ExecutionState& state, Object* key)
 void WeakSetObject::add(ExecutionState& state, Object* key)
 {
     for (size_t i = 0; i < m_storage.size(); i++) {
-        Object* existingKey = m_storage[i];
-        if (existingKey == key) {
-            return;
+        if (m_storage[i]) {
+            Object* existingKey = m_storage[i]->key;
+            if (existingKey == key) {
+                return;
+            }
         }
     }
 
-    m_storage.pushBack(key);
-    adjustGCThings();
+    auto newData = new WeakSetObjectDataItem();
+    newData->key = key;
+    GC_GENERAL_REGISTER_DISAPPEARING_LINK((void**)&(newData->key), newData->key);
+    m_storage.pushBack(newData);
 }
 
 bool WeakSetObject::has(ExecutionState& state, Object* key)
 {
     for (size_t i = 0; i < m_storage.size(); i++) {
-        Object* existingKey = m_storage[i];
-        if (existingKey == key) {
-            return true;
+        if (m_storage[i]) {
+            Object* existingKey = m_storage[i]->key;
+            if (existingKey == key) {
+                return true;
+            }
         }
     }
     return false;
-}
-
-void WeakSetObject::adjustGCThings()
-{
-    for (size_t i = 0; i < m_storage.size(); i++) {
-        GC_GENERAL_REGISTER_DISAPPEARING_LINK((void**)&(m_storage[i]), m_storage[i]);
-    }
 }
 }
