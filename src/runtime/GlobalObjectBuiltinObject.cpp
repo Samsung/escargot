@@ -17,6 +17,7 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "ArrayObject.h"
 
 namespace Escargot {
@@ -71,19 +72,24 @@ static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_
     Object* thisObject = thisValue.toObject(state);
     StringBuilder builder;
     builder.appendString("[object ");
-    builder.appendString(thisObject->internalClassProperty());
+    Value toStringTag = thisObject->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().toStringTag)).value(state, thisObject);
+    if (toStringTag.isString()) {
+        builder.appendString(toStringTag.asString());
+    } else {
+        builder.appendString(thisObject->internalClassProperty());
+    }
     builder.appendString("]");
     return AtomicString(state, builder.finalize()).string();
 }
 
 static Value builtinObjectHasOwnProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    String* keyString = argv[0].toPrimitive(state, Value::PrimitiveTypeHint::PreferString).toString(state);
+    Value key = argv[0].toPrimitive(state, Value::PrimitiveTypeHint::PreferString);
     Object* obj = thisValue.toObject(state);
-    return Value(obj->hasOwnProperty(state, ObjectPropertyName(state, keyString)));
+    return Value(obj->hasOwnProperty(state, ObjectPropertyName(state, key)));
 }
 
-inline Value objectDefineProperties(ExecutionState& state, Value object, Value properties)
+static Value objectDefineProperties(ExecutionState& state, Value object, Value properties)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
     if (!object.isObject())
@@ -101,7 +107,7 @@ inline Value objectDefineProperties(ExecutionState& state, Value object, Value p
         }
         return true;
     },
-                       &descriptors);
+                       &descriptors, false);
     for (auto it : descriptors) {
         object.asObject()->defineOwnPropertyThrowsException(state, it.first, it.second);
     }
@@ -179,8 +185,8 @@ static Value builtinObjectIsPrototypeOf(ExecutionState& state, Value thisValue, 
 
 static Value builtinObjectPropertyIsEnumerable(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // Let P be ToString(V).
-    Value P = argv[0].toString(state);
+    // Let P be toPropertyKey(V).
+    Value P = argv[0].toPropertyKey(state);
 
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Object, propertyIsEnumerable);
@@ -283,7 +289,7 @@ static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value 
     Object* O = argv[0].asObject();
 
     // Let name be ToString(P).
-    Value name = argv[1].toString(state);
+    Value name = argv[1];
 
     // Let desc be the result of calling the [[GetOwnProperty]] internal method of O with argument name.
     ObjectGetResult desc = O->getOwnProperty(state, ObjectPropertyName(state, name));
@@ -315,7 +321,7 @@ static Value builtinObjectGetOwnPropertyNames(ExecutionState& state, Value thisV
     O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
         Data* a = (Data*)data;
         // Let name be the String value that is the name of P.
-        Value name = P.string(state);
+        Value name = P.toPlainValue(state).toString(state);
         // Call the [[DefineOwnProperty]] internal method of array with arguments ToString(n), the PropertyDescriptor {[[Value]]: name, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
         a->array->defineOwnProperty(state, ObjectPropertyName(state, Value((*a->n))), ObjectPropertyDescriptor(name, ObjectPropertyDescriptor::AllPresent));
         // Increment n by 1.
@@ -323,6 +329,40 @@ static Value builtinObjectGetOwnPropertyNames(ExecutionState& state, Value thisV
         return true;
     },
                    &data);
+
+    // Return array.
+    return array;
+}
+
+static Value builtinObjectGetOwnPropertySymbols(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    Object* O = argv[0].toObject(state);
+
+    // Let array be the result of creating a new object as if by the expression new Array () where Array is the standard built-in constructor with that name.
+    ArrayObject* array = new ArrayObject(state);
+
+    // Let n be 0.
+    size_t n = 0;
+    struct Data {
+        ArrayObject* array;
+        size_t* n;
+    } data;
+    data.array = array;
+    data.n = &n;
+    // For each named own property P of O
+    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+        Data* a = (Data*)data;
+        // Let name be the String value that is the name of P.
+        Value name = P.toPlainValue(state);
+        if (name.isSymbol()) {
+            // Call the [[DefineOwnProperty]] internal method of array with arguments ToString(n), the PropertyDescriptor {[[Value]]: name, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
+            a->array->defineOwnProperty(state, ObjectPropertyName(state, Value((*a->n))), ObjectPropertyDescriptor(name, ObjectPropertyDescriptor::AllPresent));
+            // Increment n by 1.
+            (*a->n)++;
+        }
+        return true;
+    },
+                   &data, false);
 
     // Return array.
     return array;
@@ -426,7 +466,7 @@ static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t ar
         if (desc.isEnumerable()) {
             Data* aData = (Data*)data;
             // Call the [[DefineOwnProperty]] internal method of array with arguments ToString(index), the PropertyDescriptor {[[Value]]: P, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
-            aData->array->defineOwnProperty(state, ObjectPropertyName(state, Value(*aData->index)), ObjectPropertyDescriptor(Value(P.string(state)), ObjectPropertyDescriptor::AllPresent));
+            aData->array->defineOwnProperty(state, ObjectPropertyName(state, Value(*aData->index)), ObjectPropertyDescriptor(Value(P.toPlainValue(state).toString(state)), ObjectPropertyDescriptor::AllPresent));
             // Increment index by 1.
             (*aData->index)++;
         }
@@ -560,6 +600,10 @@ void GlobalObject::installObject(ExecutionState& state)
     // 19.1.2.7 Object.getOwnPropertyNames ( O )
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.getOwnPropertyNames),
                                 ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.getOwnPropertyNames, builtinObjectGetOwnPropertyNames, 1, nullptr, NativeFunctionInfo::Strict)),
+                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_object->defineOwnProperty(state, ObjectPropertyName(strings.getOwnPropertySymbols),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.getOwnPropertySymbols, builtinObjectGetOwnPropertySymbols, 1, nullptr, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // 19.1.2.9 Object.getPrototypeOf ( O )

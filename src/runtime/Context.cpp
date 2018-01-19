@@ -50,6 +50,7 @@ Context::Context(VMInstance* instance)
     m_defaultStructureForBindedFunctionObject = m_instance->m_defaultStructureForBindedFunctionObject;
     m_defaultStructureForArrayObject = m_instance->m_defaultStructureForArrayObject;
     m_defaultStructureForStringObject = m_instance->m_defaultStructureForStringObject;
+    m_defaultStructureForSymbolObject = m_instance->m_defaultStructureForSymbolObject;
     m_defaultStructureForRegExpObject = m_instance->m_defaultStructureForRegExpObject;
     m_defaultStructureForArgumentsObject = m_instance->m_defaultStructureForArgumentsObject;
     m_defaultStructureForArgumentsObjectInStrictMode = m_instance->m_defaultStructureForArgumentsObjectInStrictMode;

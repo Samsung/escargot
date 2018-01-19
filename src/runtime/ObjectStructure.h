@@ -238,10 +238,11 @@ inline PropertyNameMap& ObjectStructure::propertyNameMap()
 
 inline ObjectStructure* ObjectStructure::addProperty(ExecutionState& state, const PropertyName& name, const ObjectStructurePropertyDescriptor& desc)
 {
+    bool nameIsIndexString = name.isIndexString();
     ObjectStructureItem newItem(name, desc);
     if (m_isStructureWithFastAccess) {
         m_properties.pushBack(newItem);
-        m_hasIndexPropertyName = m_hasIndexPropertyName | isIndexString(name.string());
+        m_hasIndexPropertyName = m_hasIndexPropertyName | nameIsIndexString;
         propertyNameMap().insert(std::make_pair(name, m_properties.size() - 1));
         ObjectStructureWithFastAccess* self = (ObjectStructureWithFastAccess*)this;
         ObjectStructureWithFastAccess* newSelf = new ObjectStructureWithFastAccess(state, *self);
@@ -261,9 +262,9 @@ inline ObjectStructure* ObjectStructure::addProperty(ExecutionState& state, cons
     ObjectStructure* newObjectStructure;
 
     if (newProperties.size() > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE)
-        newObjectStructure = new ObjectStructureWithFastAccess(state, std::move(newProperties), m_hasIndexPropertyName | isIndexString(name.string()));
+        newObjectStructure = new ObjectStructureWithFastAccess(state, std::move(newProperties), m_hasIndexPropertyName | nameIsIndexString);
     else
-        newObjectStructure = new ObjectStructure(state, std::move(newProperties), m_needsTransitionTable, m_hasIndexPropertyName | isIndexString(name.string()));
+        newObjectStructure = new ObjectStructure(state, std::move(newProperties), m_needsTransitionTable, m_hasIndexPropertyName | nameIsIndexString);
 
     if (m_needsTransitionTable && !newObjectStructure->isStructureWithFastAccess()) {
         ObjectStructureTransitionItem newTransitionItem(name, desc, newObjectStructure);
@@ -293,7 +294,7 @@ inline ObjectStructure* ObjectStructure::removeProperty(ExecutionState& state, s
     for (size_t i = 0; i < m_properties.size(); i++) {
         if (i == pIndex)
             continue;
-        hasIndexString = hasIndexString | isIndexString(m_properties[i].m_propertyName.string());
+        hasIndexString = hasIndexString | m_properties[i].m_propertyName.isIndexString();
         newProperties[newIdx].m_propertyName = m_properties[i].m_propertyName;
         newProperties[newIdx].m_descriptor = m_properties[i].m_descriptor;
         newIdx++;

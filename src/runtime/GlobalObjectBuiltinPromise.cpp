@@ -19,6 +19,7 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "PromiseObject.h"
 #include "ArrayObject.h"
 #include "JobQueue.h"
@@ -451,6 +452,8 @@ void GlobalObject::installPromise(ExecutionState& state)
     m_promisePrototype->markThisObjectDontNeedStructureTransitionTable(state);
     m_promisePrototype->setPrototype(state, m_objectPrototype);
     m_promisePrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_promise, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                                         ObjectPropertyDescriptor(Value(state.context()->staticStrings().Promise.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $25.4.4.1 Promise.all(iterable);
     m_promise->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->all),

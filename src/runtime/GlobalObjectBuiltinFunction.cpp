@@ -17,6 +17,7 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "parser/ScriptParser.h"
 #include "parser/esprima_cpp/esprima.h"
 #include "runtime/Environment.h"
@@ -206,6 +207,14 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     return new FunctionObject(state, cb, builder.finalize(&state), FunctionObject::ForBind::__ForBind__);
 }
 
+static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (!thisValue.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
+    }
+    return Value(thisValue.asFunction()->hasInstance(state, argv[0]));
+}
+
 void GlobalObject::installFunction(ExecutionState& state)
 {
     FunctionObject* emptyFunction = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionEmptyFunction, 1, nullptr, 0)),
@@ -241,6 +250,9 @@ void GlobalObject::installFunction(ExecutionState& state)
 
     m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().bind),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bind, builtinFunctionBind, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().hasInstance)),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.hasInstance]")), builtinFunctionHasInstanceOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Function),
                       ObjectPropertyDescriptor(m_function, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

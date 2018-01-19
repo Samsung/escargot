@@ -20,73 +20,148 @@
 #include "runtime/AtomicString.h"
 #include "runtime/ExecutionState.h"
 #include "runtime/String.h"
+#include "runtime/Symbol.h"
+#include "runtime/Value.h"
 
 namespace Escargot {
 
+#define PROPERTY_NAME_ATOMIC_STRING_VIAS 1
+
 class PropertyName {
 public:
-    PropertyName()
-    {
-        m_data = ((size_t)AtomicString().string()) + 1;
-        ASSERT(m_data);
-    }
-
-    PropertyName(ExecutionState& state, const AtomicString& atomicString)
-    {
-        m_data = ((size_t)atomicString.string() + 1);
-        ASSERT(m_data);
-    }
-
     PropertyName(const AtomicString& atomicString)
     {
-        m_data = ((size_t)atomicString.string() + 1);
+        m_data = ((size_t)atomicString.string() + PROPERTY_NAME_ATOMIC_STRING_VIAS);
         ASSERT(m_data);
     }
 
-    PropertyName(ExecutionState& state, String* string);
-    String* string() const
+    PropertyName(ExecutionState& state, const Value& value);
+    size_t hashValue() const
     {
         if (hasAtomicString()) {
-            return (String*)(m_data - 1);
-        } else {
-            return (String*)m_data;
+            return ((String*)(m_data - PROPERTY_NAME_ATOMIC_STRING_VIAS))->hashValue();
+        } else if (hasSymbol()) {
+            return m_data;
         }
-    }
-
-    AtomicString atomicString(ExecutionState& state)
-    {
-        if (hasAtomicString()) {
-            return AtomicString((String*)(m_data - 1));
-        } else {
-            return AtomicString(state, (String*)m_data);
-        }
+        return ((String*)m_data)->hashValue();
     }
 
     ALWAYS_INLINE friend bool operator==(const PropertyName& a, const PropertyName& b);
     ALWAYS_INLINE friend bool operator!=(const PropertyName& a, const PropertyName& b);
 
-    size_t rawData() const
+    ALWAYS_INLINE bool isSymbol() const
     {
-        return m_data;
+        if (hasAtomicString()) {
+            return false;
+        }
+        PointerValue* pa = (PointerValue*)m_data;
+        if (UNLIKELY(pa->hasTag(g_symbolTag))) {
+            return true;
+        }
+        return false;
     }
 
     ALWAYS_INLINE bool hasAtomicString() const
     {
-        return LIKELY(m_data & 1);
+        return LIKELY(m_data & PROPERTY_NAME_ATOMIC_STRING_VIAS);
+    }
+
+    bool isPlainString() const
+    {
+        if (hasAtomicString()) {
+            return true;
+        } else if (hasSymbol()) {
+            return false;
+        }
+        return true;
+    }
+
+    String* plainString() const
+    {
+        ASSERT(isPlainString());
+        if (hasAtomicString()) {
+            return ((String*)(m_data - PROPERTY_NAME_ATOMIC_STRING_VIAS));
+        }
+        return ((String*)m_data);
+    }
+
+    bool isIndexString() const
+    {
+        return isPlainString() && ::Escargot::isIndexString(plainString());
+    }
+
+    Value toValue() const
+    {
+        if (hasAtomicString()) {
+            return Value((String*)(m_data - PROPERTY_NAME_ATOMIC_STRING_VIAS));
+        } else {
+            return Value((PointerValue*)m_data);
+        }
+    }
+
+    uint64_t tryToUseAsIndex() const
+    {
+        if (isPlainString()) {
+            return plainString()->tryToUseAsIndex();
+        }
+        return Value::InvalidIndexValue;
+    }
+
+    uint64_t tryToUseAsArrayIndex() const
+    {
+        if (isPlainString()) {
+            return plainString()->tryToUseAsArrayIndex();
+        }
+        return Value::InvalidArrayIndexValue;
+    }
+
+    bool equals(String* s) const
+    {
+        if (isPlainString()) {
+            return plainString()->equals(s);
+        }
+        return false;
+    }
+
+    String* toExceptionString() const
+    {
+        if (isPlainString()) {
+            return plainString();
+        }
+        return ((Symbol*)m_data)->getSymbolDescriptiveString();
     }
 
 protected:
+    ALWAYS_INLINE bool hasSymbol() const
+    {
+        ASSERT(!hasAtomicString());
+        PointerValue* pa = (PointerValue*)m_data;
+        if (UNLIKELY(pa->hasTag(g_symbolTag))) {
+            return true;
+        }
+        return false;
+    }
     size_t m_data;
-    // AtomicString <- saves its (String* | 1)
-    // String* <- saves pointer
+    // AtomicString <- saves its (String* | PROPERTY_NAME_ATOMIC_STRING_VIAS)
+    // String*, Symbol* <- saves pointer
 };
 
 ALWAYS_INLINE bool operator==(const PropertyName& a, const PropertyName& b)
 {
-    if (LIKELY(LIKELY(a.hasAtomicString()) && LIKELY(b.hasAtomicString()))) {
+    bool aa = a.hasAtomicString();
+    bool ab = b.hasAtomicString();
+    if (LIKELY(LIKELY(aa) && LIKELY(ab))) {
         return a.m_data == b.m_data;
     } else {
-        return a.string()->equals(b.string());
+        bool sa = !aa && a.hasSymbol();
+        bool sb = !ab && b.hasSymbol();
+        if (sa && sb) { // a, b both are symbol
+            return a.m_data == b.m_data;
+        } else if (!sa && !sb) { // a, b both are string
+            return a.plainString()->equals(b.plainString());
+        } else {
+            return false;
+        }
     }
 }
 
@@ -103,7 +178,7 @@ template <>
 struct hash<Escargot::PropertyName> {
     size_t operator()(Escargot::PropertyName const& x) const
     {
-        return x.string()->hashValue();
+        return x.hashValue();
     }
 };
 

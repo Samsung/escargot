@@ -322,12 +322,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             if (LIKELY(willBeObject.isObject() && (v = willBeObject.asPointerValue())->hasTag(g_arrayObjectTag))) {
                 ArrayObject* arr = (ArrayObject*)v;
                 if (LIKELY(arr->isFastModeArray())) {
-                    uint32_t idx;
-                    if (LIKELY(property.isUInt32()))
-                        idx = property.asUInt32();
-                    else {
-                        idx = property.toString(state)->tryToUseAsArrayIndex();
-                    }
+                    uint32_t idx = property.tryToUseAsArrayIndex(state);
                     if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
                         if (LIKELY(idx < arr->getArrayLength(state))) {
                             const Value& v = arr->m_fastModeData[idx];
@@ -350,12 +345,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             if (LIKELY(willBeObject.isObject() && (willBeObject.asPointerValue())->hasTag(g_arrayObjectTag))) {
                 ArrayObject* arr = willBeObject.asObject()->asArrayObject();
                 if (LIKELY(arr->isFastModeArray())) {
-                    uint32_t idx;
-                    if (LIKELY(property.isUInt32()))
-                        idx = property.asUInt32();
-                    else {
-                        idx = property.toString(state)->tryToUseAsArrayIndex();
-                    }
+                    uint32_t idx = property.tryToUseAsArrayIndex(state);
                     if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
                         uint32_t len = arr->getArrayLength(state);
                         if (UNLIKELY(len <= idx)) {
@@ -587,7 +577,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             const Value& property = registerFile[code->m_propertyRegisterIndex];
             ObjectPropertyName objPropName = ObjectPropertyName(state, property);
             // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
-            if (property.toString(state)->equals("__proto__")) {
+            if (property.isString() && property.asString()->equals("__proto__")) {
                 willBeObject.asObject()->setPrototype(state, registerFile[code->m_loadRegisterIndex]);
             } else {
                 willBeObject.asObject()->defineOwnProperty(state, objPropName, ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptor::AllPresent));
@@ -660,6 +650,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 PointerValue* p = val.asPointerValue();
                 if (p->isFunctionObject()) {
                     val = state.context()->staticStrings().function.string();
+                } else if (p->isSymbol()) {
+                    val = state.context()->staticStrings().symbol.string();
                 } else {
                     val = state.context()->staticStrings().object.string();
                 }
@@ -1089,22 +1081,7 @@ NEVER_INLINE Value ByteCodeInterpreter::instanceOfOperation(ExecutionState& stat
     if (!right.isFunction()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
     }
-    if (left.isObject()) {
-        FunctionObject* C = right.asFunction();
-        Value P = C->getFunctionPrototype(state);
-        Value O = left.asObject()->getPrototype(state);
-        if (P.isObject()) {
-            while (O.isObject()) {
-                if (P.asObject() == O.asObject()) {
-                    return Value(true);
-                }
-                O = O.asObject()->getPrototype(state);
-            }
-        } else {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_InvalidPrototypeProperty);
-        }
-    }
-    return Value(false);
+    return Value(right.asFunction()->hasInstance(state, left));
 }
 
 NEVER_INLINE void ByteCodeInterpreter::deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile)
@@ -1492,16 +1469,16 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
             target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
                 EData* eData = (EData*)data;
                 if (desc.isEnumerable()) {
-                    String* key = name.toValue(state).toString(state);
+                    String* key = name.toPlainValue(state).toString(state);
                     auto iter = eData->keyStringSet->find(key);
                     if (iter == eData->keyStringSet->end()) {
                         eData->keyStringSet->insert(key);
-                        eData->data->m_keys.pushBack(name.toValue(state));
+                        eData->data->m_keys.pushBack(name.toPlainValue(state));
                     }
                 } else if (self == eData->obj) {
                     // 12.6.4 The values of [[Enumerable]] attributes are not considered
                     // when determining if a property of a prototype object is shadowed by a previous object on the prototype chain.
-                    String* key = name.toValue(state).toString(state);
+                    String* key = name.toPlainValue(state).toString(state);
                     ASSERT(eData->keyStringSet->find(key) == eData->keyStringSet->end());
                     eData->keyStringSet->insert(key);
                 }
@@ -1517,7 +1494,7 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
         target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
             if (desc.isEnumerable()) {
                 EData* eData = (EData*)data;
-                eData->data->m_keys[(*eData->idx)++] = name.toValue(state);
+                eData->data->m_keys[(*eData->idx)++] = name.toPlainValue(state);
             }
             return true;
         },
@@ -1582,11 +1559,11 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalObjectSlowCase(ExecutionState& 
             return res.value(state, go);
         } else {
             if (UNLIKELY((bool)state.context()->virtualIdentifierCallback())) {
-                Value virtialIdResult = state.context()->virtualIdentifierCallback()(state, code->m_propertyName.string());
+                Value virtialIdResult = state.context()->virtualIdentifierCallback()(state, code->m_propertyName.plainString());
                 if (!virtialIdResult.isEmpty())
                     return virtialIdResult;
             }
-            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, code->m_propertyName.string(), false, String::emptyString, errorMessage_IsNotDefined);
+            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, code->m_propertyName.plainString(), false, String::emptyString, errorMessage_IsNotDefined);
         }
     } else {
         const ObjectStructureItem& item = go->structure()->readProperty(state, idx);
@@ -1629,7 +1606,7 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalObjectSlowCase(ExecutionState& s
     size_t idx = go->structure()->findProperty(state, code->m_propertyName);
     if (UNLIKELY(idx == SIZE_MAX)) {
         if (UNLIKELY(state.inStrictMode())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, code->m_propertyName.string(), false, String::emptyString, errorMessage_IsNotDefined);
+            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, code->m_propertyName.plainString(), false, String::emptyString, errorMessage_IsNotDefined);
         }
         VirtualIdDisabler d(state.context());
         go->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, go);

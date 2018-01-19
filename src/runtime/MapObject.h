@@ -52,7 +52,6 @@ public:
     MapIteratorObject* values(ExecutionState& state);
     MapIteratorObject* keys(ExecutionState& state);
     MapIteratorObject* entries(ExecutionState& state);
-    virtual IteratorObject* iterator(ExecutionState& state) override;
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;

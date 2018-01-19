@@ -155,6 +155,7 @@ public:
     inline Object* asObject() const;
     inline FunctionObject* asFunction() const;
     inline String* asString() const;
+    inline Symbol* asSymbol() const;
 
     // Querying the type.
     inline bool isEmpty() const;
@@ -177,8 +178,10 @@ public:
     bool isIterable() const;
 
     enum PrimitiveTypeHint { PreferString,
-                             PreferNumber };
+                             PreferNumber,
+                             PreferDefault };
     Value toPrimitive(ExecutionState& ec, PrimitiveTypeHint = PreferNumber) const; // $7.1.1 ToPrimitive
+    Value ordinaryToPrimitive(ExecutionState& ec, PrimitiveTypeHint) const;
     inline bool toBoolean(ExecutionState& ec) const; // $7.1.2 ToBoolean
     double toNumber(ExecutionState& ec) const; // $7.1.3 ToNumber
     double toInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
@@ -193,13 +196,15 @@ public:
         return toStringSlowCase(ec);
     }
     Object* toObject(ExecutionState& ec) const; // $7.1.13 ToObject
+    Value toPropertyKey(ExecutionState& state) const;
 
     enum { InvalidIndexValue = std::numeric_limits<uint32_t>::max() };
     typedef uint64_t ValueIndex;
     ValueIndex toIndex(ExecutionState& ec) const;
-
+    inline ValueIndex tryToUseAsIndex(ExecutionState& ec) const;
     enum { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() };
     inline uint64_t toArrayIndex(ExecutionState& ec) const;
+    inline uint32_t tryToUseAsArrayIndex(ExecutionState& ec) const;
 
     inline bool abstractEqualsTo(ExecutionState& ec, const Value& val) const;
     bool abstractEqualsToSlowCase(ExecutionState& ec, const Value& val) const;
@@ -207,6 +212,7 @@ public:
     bool equalsToSlowCase(ExecutionState& ec, const Value& val) const;
     bool equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val) const;
     bool equalsToByTheSameValueZeroAlgorithm(ExecutionState& ec, const Value& val) const;
+
 
 #ifdef ESCARGOT_32
     uint32_t tag() const;
@@ -249,12 +255,13 @@ public:
 
 private:
     ValueDescriptor u;
-
     double toNumberSlowCase(ExecutionState& ec) const; // $7.1.3 ToNumber
     String* toStringSlowCase(ExecutionState& ec) const; // $7.1.12 ToString
     Object* toObjectSlowCase(ExecutionState& ec) const; // $7.1.13 ToObject
     Value toPrimitiveSlowCase(ExecutionState& ec, PrimitiveTypeHint) const; // $7.1.1 ToPrimitive
     int32_t toInt32SlowCase(ExecutionState& ec) const; // $7.1.5 ToInt32
+    ValueIndex tryToUseAsIndexSlowCase(ExecutionState& ec) const;
+    uint32_t tryToUseAsArrayIndexSlowCase(ExecutionState& ec) const;
 };
 
 typedef Vector<Value, CustomAllocator<Value>> ValueVector;

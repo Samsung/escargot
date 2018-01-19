@@ -55,9 +55,6 @@ public:
         m_structure = m_structure->convertToWithFastAccess(state);
         m_throwTypeError = nullptr;
         m_throwerGetterSetterData = nullptr;
-
-        // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-        giveInternalClassProperty("global");
     }
 
     virtual bool isGlobalObject() const
@@ -71,6 +68,7 @@ public:
         installObject(state);
         installIterator(state);
         installError(state);
+        installSymbol(state);
         installString(state);
         installNumber(state);
         installBoolean(state);
@@ -99,6 +97,7 @@ public:
     void installFunction(ExecutionState& state);
     void installObject(ExecutionState& state);
     void installError(ExecutionState& state);
+    void installSymbol(ExecutionState& state);
     void installString(ExecutionState& state);
     void installNumber(ExecutionState& state);
     void installBoolean(ExecutionState& state);
@@ -128,6 +127,11 @@ public:
 
     Value eval(ExecutionState& state, const Value& arg);
     Value evalLocal(ExecutionState& state, const Value& arg, Value thisValue, InterpretedCodeBlock* parentCodeBlock);
+
+    virtual const char* internalClassProperty()
+    {
+        return "global";
+    }
 
     FunctionObject* object()
     {
@@ -232,6 +236,15 @@ public:
     Object* numberPrototype()
     {
         return m_numberPrototype;
+    }
+
+    FunctionObject* symbol()
+    {
+        return m_symbol;
+    }
+    Object* symbolPrototype()
+    {
+        return m_symbolPrototype;
     }
 
     FunctionObject* array()
@@ -549,6 +562,9 @@ protected:
 
     FunctionObject* m_number;
     Object* m_numberPrototype;
+
+    FunctionObject* m_symbol;
+    Object* m_symbolPrototype;
 
     FunctionObject* m_array;
     Object* m_arrayPrototype;

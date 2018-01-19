@@ -162,12 +162,7 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
 
 ObjectGetResult ArgumentsObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
-    uint64_t idx;
-    if (LIKELY(P.isUIntType())) {
-        idx = P.uintValue();
-    } else {
-        idx = P.string(state)->tryToUseAsIndex();
-    }
+    uint64_t idx = P.tryToUseAsIndex();
     if (LIKELY(idx != Value::InvalidIndexValue)) {
         if (idx < m_argumentPropertyInfo.size()) {
             Value val = m_argumentPropertyInfo[idx].first;
@@ -185,12 +180,7 @@ ObjectGetResult ArgumentsObject::getOwnProperty(ExecutionState& state, const Obj
 
 bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
-    uint64_t idx;
-    if (LIKELY(P.isUIntType())) {
-        idx = P.uintValue();
-    } else {
-        idx = P.string(state)->tryToUseAsIndex();
-    }
+    uint64_t idx = P.tryToUseAsIndex();
     if (LIKELY(idx != Value::InvalidIndexValue)) {
         if (idx < m_argumentPropertyInfo.size()) {
             Value val = m_argumentPropertyInfo[idx].first;
@@ -251,12 +241,7 @@ bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPrope
 
 bool ArgumentsObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
-    uint64_t idx;
-    if (LIKELY(P.isUIntType())) {
-        idx = P.uintValue();
-    } else {
-        idx = P.string(state)->tryToUseAsIndex();
-    }
+    uint64_t idx = P.tryToUseAsIndex();
     if (LIKELY(idx != Value::InvalidIndexValue)) {
         if (idx < m_argumentPropertyInfo.size()) {
             Value val = m_argumentPropertyInfo[idx].first;
@@ -269,7 +254,7 @@ bool ArgumentsObject::deleteOwnProperty(ExecutionState& state, const ObjectPrope
     return Object::deleteOwnProperty(state, P);
 }
 
-void ArgumentsObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data)
+void ArgumentsObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey)
 {
     for (size_t i = 0; i < m_argumentPropertyInfo.size(); i++) {
         Value v = m_argumentPropertyInfo[i].first;
@@ -279,17 +264,12 @@ void ArgumentsObject::enumeration(ExecutionState& state, bool (*callback)(Execut
             }
         }
     }
-    Object::enumeration(state, callback, data);
+    Object::enumeration(state, callback, data, shouldSkipSymbolKey);
 }
 
 ObjectGetResult ArgumentsObject::getIndexedProperty(ExecutionState& state, const Value& property)
 {
-    uint64_t idx;
-    if (LIKELY(property.isUInt32())) {
-        idx = property.asUInt32();
-    } else {
-        idx = property.toString(state)->tryToUseAsIndex();
-    }
+    Value::ValueIndex idx = property.tryToUseAsIndex(state);
     if (LIKELY(idx != Value::InvalidIndexValue)) {
         if (idx < m_argumentPropertyInfo.size()) {
             Value val = m_argumentPropertyInfo[idx].first;
@@ -307,12 +287,7 @@ ObjectGetResult ArgumentsObject::getIndexedProperty(ExecutionState& state, const
 
 bool ArgumentsObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)
 {
-    uint64_t idx;
-    if (LIKELY(property.isUInt32())) {
-        idx = property.asUInt32();
-    } else {
-        idx = property.toString(state)->tryToUseAsIndex();
-    }
+    Value::ValueIndex idx = property.tryToUseAsIndex(state);
     if (LIKELY(idx != Value::InvalidIndexValue)) {
         if (idx < m_argumentPropertyInfo.size()) {
             Value val = m_argumentPropertyInfo[idx].first;

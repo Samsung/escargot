@@ -17,9 +17,12 @@
 #include "Escargot.h"
 #include "Value.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "StaticStrings.h"
+#include "Symbol.h"
 #include "NumberObject.h"
 #include "StringObject.h"
+#include "SymbolObject.h"
 #include "BooleanObject.h"
 #include "ErrorObject.h"
 
@@ -50,6 +53,19 @@ bool Value::isIterable() const
     return false;
 }
 #endif
+
+Value Value::toPropertyKey(ExecutionState& state) const
+{
+    // Let key be ? ToPrimitive(argument, hint String).
+    Value key = toPrimitive(state, Value::PreferString);
+    // If Type(key) is Symbol, then
+    if (key.isSymbol()) {
+        // Return key.
+        return key;
+    }
+    // Return ! ToString(key).
+    return key.toString(state);
+}
 
 String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
 {
@@ -85,6 +101,9 @@ String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
             return ec.context()->staticStrings().stringTrue.string();
         else
             return ec.context()->staticStrings().stringFalse.string();
+    } else if (isSymbol()) {
+        ErrorObject::throwBuiltinError(ec, ErrorObject::TypeError, "Cannot convert a Symbol value to a string");
+        ASSERT_NOT_REACHED();
     } else {
         return toPrimitive(ec, PreferString).toString(ec);
     }
@@ -99,6 +118,8 @@ Object* Value::toObjectSlowCase(ExecutionState& state) const // $7.1.13 ToObject
         object = new BooleanObject(state, toBoolean(state));
     } else if (isString()) {
         object = new StringObject(state, toString(state));
+    } else if (isSymbol()) {
+        object = new SymbolObject(state, asSymbol());
     } else if (isNull()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_NullToObject);
     } else {
@@ -108,7 +129,7 @@ Object* Value::toObjectSlowCase(ExecutionState& state) const // $7.1.13 ToObject
     return object;
 }
 
-Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint preferredType) const // $7.1.1 ToPrimitive
+Value Value::ordinaryToPrimitive(ExecutionState& state, PrimitiveTypeHint preferredType) const
 {
     ASSERT(!isPrimitive());
     Object* obj = asObject();
@@ -150,6 +171,40 @@ Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint prefer
     RELEASE_ASSERT_NOT_REACHED();
 }
 
+Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint preferredType) const // $7.1.1 ToPrimitive
+{
+    // http://www.ecma-international.org/ecma-262/7.0/index.html#sec-toprimitive
+    // If PreferredType was not passed, let hint be "default".
+    // Else if PreferredType is hint String, let hint be "string".
+    // Else PreferredType is hint Number, let hint be "number".
+    ASSERT(!isPrimitive());
+    Object* obj = asObject();
+
+    // Let exoticToPrim be ? GetMethod(input, @@toPrimitive).
+    Value exoticToPrim = obj->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().toPrimitive)).value(state, obj);
+    // If exoticToPrim is not undefined, then
+    if (!exoticToPrim.isUndefined()) {
+        // Let result be ? Call(exoticToPrim, input, « hint »).
+        Value hint;
+        if (preferredType == PreferNumber) {
+            hint = state.context()->staticStrings().number.string();
+        } else if (preferredType == PreferString) {
+            hint = state.context()->staticStrings().string.string();
+        } else {
+            hint = state.context()->staticStrings().stringDefault.string();
+        }
+        Value result = FunctionObject::call(state, exoticToPrim, obj, 1, &hint);
+        // If Type(result) is not Object, return result.
+        if (!result.isObject()) {
+            return result;
+        }
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_ObjectToPrimitiveValue);
+    }
+
+    return ordinaryToPrimitive(state, preferredType);
+}
+
 bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) const
 {
     bool selfIsNumber = isNumber();
@@ -174,13 +229,8 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
         bool selfIsPointerValue = isPointerValue();
         bool valIsPointerValue = val.isPointerValue();
 
-#ifdef ESCARGOT_32
-        bool valIsString = valIsPointerValue ? !val.isObject() : false;
-        bool selfIsString = selfIsPointerValue ? !isObject() : false;
-#else
         bool valIsString = valIsPointerValue ? val.asPointerValue()->isString() : false;
         bool selfIsString = selfIsPointerValue ? asPointerValue()->isString() : false;
-#endif
 
         if (selfIsNumber && valIsString) {
             // If Type(x) is Number and Type(y) is String,
@@ -199,13 +249,13 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
             // If Type(y) is Boolean, return the result of the comparison x == ToNumber(y).
             // return the result of the comparison ToNumber(x) == y.
             return abstractEqualsTo(state, Value(val.toNumber(state)));
-        } else if ((selfIsString || selfIsNumber) && (valIsPointerValue && !valIsString)) {
+        } else if ((selfIsString || selfIsNumber || isSymbol()) && (valIsPointerValue && val.asPointerValue()->isObject())) {
             // If Type(x) is either String, Number, or Symbol and Type(y) is Object, then
             if (val.asPointerValue()->isDateObject())
                 return abstractEqualsTo(state, val.toPrimitive(state, Value::PreferString));
             else
                 return abstractEqualsTo(state, val.toPrimitive(state));
-        } else if ((selfIsPointerValue && !selfIsString) && (valIsString || valIsNumber)) {
+        } else if ((selfIsPointerValue && asPointerValue()->isObject() && !selfIsString) && (valIsString || valIsNumber || val.isSymbol())) {
             // If Type(x) is Object and Type(y) is either String, Number, or Symbol, then
             if (asPointerValue()->isDateObject())
                 return toPrimitive(state, Value::PreferString).abstractEqualsTo(state, val);
@@ -486,6 +536,9 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
                 val = std::numeric_limits<double>::quiet_NaN();
         }
         return val;
+    } else if (isSymbol()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot convert a Symbol value to a number");
+        ASSERT_NOT_REACHED();
     } else {
         return toPrimitive(state).toNumber(state);
     }
@@ -528,5 +581,21 @@ int32_t Value::toInt32SlowCase(ExecutionState& state) const // $7.1.5 ToInt32
     // If the input value was negative (we could test either 'number' or 'bits',
     // but testing 'bits' is likely faster) invert the result appropriately.
     return bits < 0 ? -result : result;
+}
+
+Value::ValueIndex Value::tryToUseAsIndexSlowCase(ExecutionState& ec) const
+{
+    if (isSymbol()) {
+        return Value::InvalidIndexValue;
+    }
+    return toString(ec)->tryToUseAsIndex();
+}
+
+uint32_t Value::tryToUseAsArrayIndexSlowCase(ExecutionState& ec) const
+{
+    if (isSymbol()) {
+        return Value::InvalidArrayIndexValue;
+    }
+    return toString(ec)->tryToUseAsArrayIndex();
 }
 }

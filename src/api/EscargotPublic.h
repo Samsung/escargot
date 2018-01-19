@@ -31,6 +31,7 @@ namespace Escargot {
 
 class VMInstanceRef;
 class StringRef;
+class SymbolRef;
 class ValueRef;
 class PointerValueRef;
 class ObjectRef;
@@ -52,6 +53,7 @@ class PromiseObjectRef;
 class ErrorObjectRef;
 class DateObjectRef;
 class StringObjectRef;
+class SymbolObjectRef;
 class NumberObjectRef;
 class BooleanObjectRef;
 class RegExpObjectRef;
@@ -72,6 +74,8 @@ class PointerValueRef {
 public:
     bool isString();
     StringRef* asString();
+    bool isSymbol();
+    SymbolRef* asSymbol();
     bool isObject();
     ObjectRef* asObject();
     bool isFunctionObject();
@@ -80,6 +84,8 @@ public:
     ArrayObjectRef* asArrayObject();
     bool isStringObject();
     StringObjectRef* asStringObject();
+    bool isSymbolObject();
+    SymbolObjectRef* asSymbolObject();
     bool isNumberObject();
     NumberObjectRef* asNumberObject();
     bool isBooleanObject();
@@ -137,6 +143,12 @@ public:
     std::string toStdUTF8String();
 };
 
+class SymbolRef : public PointerValueRef {
+public:
+    static SymbolRef* create(StringRef* desc);
+    StringRef* description();
+};
+
 class VMInstanceRef {
 public:
     static VMInstanceRef* create(const char* locale = nullptr, const char* timezone = nullptr);
@@ -145,6 +157,9 @@ public:
     void clearCachesRelatedWithContext();
     bool addRoot(VMInstanceRef* instanceRef, ValueRef* ptr);
     bool removeRoot(VMInstanceRef* instanceRef, ValueRef* ptr);
+
+    SymbolRef* toStringTagSymbol();
+    SymbolRef* iteratorSymbol();
 
 #ifdef ESCARGOT_ENABLE_PROMISE
     // if there is an error, executing will be stopped and returns ErrorValue
@@ -432,10 +447,6 @@ public:
     bool isExtensible();
     void preventExtensions();
 
-    // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-    const char* internalClassProperty();
-    void giveInternalClassProperty(const char* name);
-
     void* extraData();
     void setExtraData(void* e);
 
@@ -617,6 +628,14 @@ public:
 
     void setPrimitiveValue(ExecutionStateRef* state, ValueRef* value);
     StringRef* primitiveValue();
+};
+
+class SymbolObjectRef : public ObjectRef {
+public:
+    static SymbolObjectRef* create(ExecutionStateRef* state);
+
+    void setPrimitiveValue(ExecutionStateRef* state, SymbolRef* value);
+    SymbolRef* primitiveValue();
 };
 
 class NumberObjectRef : public ObjectRef {

@@ -17,6 +17,7 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "StringObject.h"
 #include "ArrayObject.h"
 #include "TypedArrayObject.h"
@@ -264,7 +265,7 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
                         }
                     }
                 }
-                Value arguments[] = { name.toValue(state), val };
+                Value arguments[] = { name.toPlainValue(state), val };
                 return FunctionObject::call(state, reviver, holder, 2, arguments);
             };
             return Walk(root, ObjectPropertyName(state, String::emptyString));
@@ -299,7 +300,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
 
             std::vector<Value::ValueIndex> indexes;
             arrObject->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool { //Value key, HiddenClassPropertyInfo* propertyInfo) {
-                Value::ValueIndex idx = P.toValue(state).toIndex(state);
+                Value::ValueIndex idx = P.toPlainValue(state).toIndex(state);
                 if (idx != Value::InvalidIndexValue) {
                     std::vector<Value::ValueIndex>* indexes = (std::vector<Value::ValueIndex>*)data;
                     indexes->push_back(idx);
@@ -325,7 +326,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
                     bool flag = false;
                     for (size_t i = 0; i < propertyList.size(); i++) {
                         ObjectPropertyName& v = propertyList[i];
-                        if (*v.string(state) == *item) {
+                        if (v.toPropertyName(state).equals(item)) {
                             flag = true;
                             break;
                         }
@@ -377,13 +378,13 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
             Object* valObj = value.asPointerValue()->asObject();
             Value toJson = valObj->get(state, ObjectPropertyName(state, strings->toJSON)).value(state, valObj);
             if (toJson.isPointerValue() && toJson.asPointerValue()->isFunctionObject()) {
-                Value arguments[] = { key.toValue(state) };
+                Value arguments[] = { key.toPlainValue(state) };
                 value = FunctionObject::call(state, toJson, value, 1, arguments);
             }
         }
 
         if (replacerFunc != NULL) {
-            Value arguments[] = { key.toValue(state), value };
+            Value arguments[] = { key.toPlainValue(state), value };
             value = FunctionObject::call(state, replacerFunc, holder, 2, arguments);
         }
 
@@ -426,7 +427,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
     };
 
     Quote = [&](ObjectPropertyName value) -> String* {
-        String* str = value.string(state);
+        String* str = value.toPropertyName(state).plainString();
 
         StringBuilder product;
         product.appendChar('"');
@@ -630,8 +631,10 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
 void GlobalObject::installJSON(ExecutionState& state)
 {
     m_json = new Object(state);
-    m_json->giveInternalClassProperty("JSON");
     m_json->markThisObjectDontNeedStructureTransitionTable(state);
+    m_json->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                             ObjectPropertyDescriptor(Value(state.context()->staticStrings().JSON.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().JSON),
                       ObjectPropertyDescriptor(m_json, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

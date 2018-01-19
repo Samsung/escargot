@@ -26,6 +26,36 @@
 
 namespace Escargot {
 
+PropertyName::PropertyName(ExecutionState& state, const Value& valueIn)
+{
+    Value value = valueIn.toPrimitive(state, Value::PreferString);
+    if (UNLIKELY(value.isSymbol())) {
+        m_data = (size_t)value.asSymbol();
+        return;
+    }
+    String* string = value.toString(state);
+    StringBufferAccessData data = string->bufferAccessData();
+    if (data.length == 0) {
+        m_data = ((size_t)AtomicString().string()) | PROPERTY_NAME_ATOMIC_STRING_VIAS;
+        return;
+    }
+    bool needsRemainNormalString = false;
+    char16_t c = data.has8BitContent ? ((LChar*)data.buffer)[0] : ((char16_t*)data.buffer)[0];
+    if ((c == '.' || (c >= '0' && c <= '9')) && data.length > 16) {
+        needsRemainNormalString = true;
+    }
+
+    if (UNLIKELY(needsRemainNormalString)) {
+        m_data = (size_t)string;
+    } else {
+        if (c < ESCARGOT_ASCII_TABLE_MAX && (data.length == 1)) {
+            m_data = ((size_t)state.context()->staticStrings().asciiTable[c].string()) | PROPERTY_NAME_ATOMIC_STRING_VIAS;
+        } else {
+            m_data = ((size_t)AtomicString(state, string).string()) | PROPERTY_NAME_ATOMIC_STRING_VIAS;
+        }
+    }
+}
+
 size_t g_objectRareDataTag;
 
 ObjectRareData::ObjectRareData(Object* obj)
@@ -40,7 +70,6 @@ ObjectRareData::ObjectRareData(Object* obj)
     m_shouldUpdateEnumerateObjectData = false;
     m_isInArrayObjectDefineOwnProperty = false;
     m_hasNonWritableLastIndexRegexpObject = false;
-    m_internalClassName = nullptr;
     m_extraData = nullptr;
 #ifdef ESCARGOT_ENABLE_PROMISE
     m_internalSlot = nullptr;
@@ -404,7 +433,7 @@ ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectProper
 bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     if (UNLIKELY(isEverSetAsPrototypeObject())) {
-        if (UNLIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && isIndexString(P.string(state)))) {
+        if (UNLIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && P.isIndexString())) {
             state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
         }
     }
@@ -637,11 +666,14 @@ bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& 
     return true;
 }
 
-void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     size_t cnt = m_structure->propertyCount();
     for (size_t i = 0; i < cnt; i++) {
         const ObjectStructureItem& item = m_structure->readProperty(state, i);
+        if (shouldSkipSymbolKey && item.m_propertyName.isSymbol()) {
+            continue;
+        }
         if (!callback(state, this, ObjectPropertyName(state, item.m_propertyName), item.m_descriptor, data)) {
             break;
         }
@@ -653,10 +685,10 @@ ValueVector Object::getOwnPropertyKeys(ExecutionState& state)
     ValueVector result;
     enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
         ValueVector* result = (ValueVector*)data;
-        result->pushBack(name.toValue(state));
+        result->pushBack(name.toPlainValue(state));
         return true;
     },
-                &result);
+                &result, false);
     return result;
 }
 
@@ -743,30 +775,30 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
 void Object::setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver)
 {
     if (UNLIKELY(!set(state, P, v, receiver))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.string(state), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
     }
 }
 
 void Object::setThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver)
 {
     if (UNLIKELY(!set(state, P, v, receiver)) && state.inStrictMode()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.string(state), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
     }
 }
 
 void Object::throwCannotDefineError(ExecutionState& state, const PropertyName& P)
 {
-    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.string(), false, String::emptyString, errorMessage_DefineProperty_RedefineNotConfigurable);
+    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, errorMessage_DefineProperty_RedefineNotConfigurable);
 }
 
 void Object::throwCannotWriteError(ExecutionState& state, const PropertyName& P)
 {
-    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.string(), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
+    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
 }
 
 void Object::throwCannotDeleteError(ExecutionState& state, const PropertyName& P)
 {
-    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.string(), false, String::emptyString, errorMessage_DefineProperty_NotConfigurable);
+    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, errorMessage_DefineProperty_NotConfigurable);
 }
 
 void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
@@ -783,6 +815,11 @@ uint64_t Object::length(ExecutionState& state)
     // return get(state, state.context()->staticStrings().length).value(state, this).toLength(state);
     // ES5
     return get(state, state.context()->staticStrings().length).value(state, this).toUint32(state);
+}
+
+double Object::lengthES6(ExecutionState& state)
+{
+    return get(state, state.context()->staticStrings().length).value(state, this).toLength(state);
 }
 
 
@@ -807,7 +844,7 @@ bool Object::nextIndexForward(ExecutionState& state, Object* obj, const double c
             uint64_t index;
             Data* e = (Data*)data;
             double* ret = e->ret;
-            Value key = name.toValue(state);
+            Value key = name.toPlainValue(state);
             if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
                 if (*e->skipUndefined && self->get(state, name).value(state, self).isUndefined()) {
                     return true;
@@ -849,7 +886,7 @@ bool Object::nextIndexBackward(ExecutionState& state, Object* obj, const double 
             uint64_t index;
             Data* e = (Data*)data;
             double* ret = e->ret;
-            Value key = name.toValue(state);
+            Value key = name.toPlainValue(state);
             if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
                 if (*e->skipUndefined && self->get(state, name).value(state, self).isUndefined()) {
                     return true;
@@ -987,5 +1024,32 @@ IteratorObject* Object::keys(ExecutionState& state)
 IteratorObject* Object::entries(ExecutionState& state)
 {
     return new ArrayIteratorObject(state, this, ArrayIteratorObject::TypeKeyValue);
+}
+
+Object* Object::iterator(ExecutionState& state)
+{
+    Value v = get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator)).value(state, this);
+    if (!v.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "object is not iterable");
+    }
+    v = v.asFunction()->call(state, this, 0, nullptr);
+    if (!v.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "object is not iterable");
+    }
+
+    return v.asObject();
+}
+
+std::pair<Value, bool> Object::iteratorNext(ExecutionState& state)
+{
+    Value mayBeFn = get(state, ObjectPropertyName(state.context()->staticStrings().next)).value(state, this);
+    Value returnValue = FunctionObject::call(state, mayBeFn, this, 0, nullptr);
+    if (!returnValue.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "iterator next function returns illegal value");
+    }
+
+    Value done = returnValue.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().done)).value(state, returnValue);
+    Value value = returnValue.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().value)).value(state, returnValue);
+    return std::make_pair(value, done.toBoolean(state));
 }
 }

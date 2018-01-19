@@ -17,6 +17,7 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "RegExpObject.h"
 #include "ArrayObject.h"
 #include "GlobalRegExpFunctionObject.h"
@@ -48,7 +49,7 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
 
 static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, RegExp, test);
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, RegExp, exec);
     if (!thisObject->isRegExpObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().exec.string(), errorMessage_GlobalObject_ThisNotRegExpObject);
     }

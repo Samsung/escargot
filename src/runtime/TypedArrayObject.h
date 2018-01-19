@@ -237,13 +237,7 @@ public:
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
     {
-        uint64_t index;
-        if (LIKELY(P.isUIntType())) {
-            index = P.uintValue();
-        } else {
-            index = P.string(state)->tryToUseAsIndex();
-        }
-
+        uint64_t index = P.tryToUseAsIndex();
         if (LIKELY(Value::InvalidIndexValue != index)) {
             if ((unsigned)index < arraylength()) {
                 unsigned idxPosition = index * typedArrayElementSize;
@@ -256,13 +250,7 @@ public:
 
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
     {
-        uint64_t index;
-        if (LIKELY(P.isUIntType())) {
-            index = P.uintValue();
-        } else {
-            index = P.string(state)->tryToUseAsIndex();
-        }
-
+        uint64_t index = P.tryToUseAsIndex();
         if (LIKELY(Value::InvalidIndexValue != index)) {
             if ((unsigned)index >= arraylength())
                 return false;
@@ -314,12 +302,7 @@ public:
 
     virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property)
     {
-        uint64_t idx;
-        if (LIKELY(property.isUInt32())) {
-            idx = property.asUInt32();
-        } else {
-            idx = property.toString(state)->tryToUseAsIndex();
-        }
+        Value::ValueIndex idx = property.tryToUseAsIndex(state);
         if (LIKELY(idx != Value::InvalidIndexValue)) {
             if (LIKELY((unsigned)idx < arraylength())) {
                 unsigned idxPosition = idx * typedArrayElementSize;
@@ -331,13 +314,7 @@ public:
 
     virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)
     {
-        int64_t index;
-        if (LIKELY(property.isInt32())) {
-            index = property.asInt32();
-
-        } else {
-            index = property.toString(state)->tryToUseAsIndex();
-        }
+        Value::ValueIndex index = property.tryToUseAsIndex(state);
         if (index < 0) {
             return true;
         }
@@ -349,11 +326,6 @@ public:
             }
         }
         return set(state, ObjectPropertyName(state, property), value, this);
-    }
-
-    virtual IteratorObject* iterator(ExecutionState& state) override
-    {
-        return new ArrayIteratorObject(state, this, ArrayIteratorObject::TypeValue);
     }
 
 protected:

@@ -131,6 +131,11 @@ public:
         return m_defaultStructureForStringObject;
     }
 
+    ObjectStructure* defaultStructureForSymbolObject()
+    {
+        return m_defaultStructureForSymbolObject;
+    }
+
     ObjectStructure* defaultStructureForRegExpObject()
     {
         return m_defaultStructureForRegExpObject;
@@ -205,6 +210,7 @@ protected:
     ObjectStructure* m_defaultStructureForBindedFunctionObject;
     ObjectStructure* m_defaultStructureForArrayObject;
     ObjectStructure* m_defaultStructureForStringObject;
+    ObjectStructure* m_defaultStructureForSymbolObject;
     ObjectStructure* m_defaultStructureForRegExpObject;
     ObjectStructure* m_defaultStructureForArgumentsObject;
     ObjectStructure* m_defaultStructureForArgumentsObjectInStrictMode;

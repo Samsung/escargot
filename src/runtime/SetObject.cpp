@@ -127,11 +127,6 @@ SetIteratorObject* SetObject::entries(ExecutionState& state)
     return new SetIteratorObject(state, this, SetIteratorObject::TypeKeyValue);
 }
 
-IteratorObject* SetObject::iterator(ExecutionState& state)
-{
-    return new SetIteratorObject(state, this, SetIteratorObject::TypeValue);
-}
-
 SetIteratorObject::SetIteratorObject(ExecutionState& state, SetObject* set, Type type)
     : IteratorObject(state)
     , m_set(set)

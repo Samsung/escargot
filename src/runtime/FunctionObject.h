@@ -101,6 +101,8 @@ public:
         return "Function";
     }
 
+    bool hasInstance(ExecutionState& state, const Value& O);
+
 protected:
     LexicalEnvironment* outerEnvironment()
     {

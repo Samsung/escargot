@@ -32,7 +32,11 @@ namespace Escargot {
 #ifdef ESCARGOT_SHELL
 static Value builtinPrint(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    puts(argv[0].toString(state)->toUTF8StringData().data());
+    if (argv[0].isSymbol()) {
+        puts(argv[0].asSymbol()->getSymbolDescriptiveString()->toNonGCUTF8StringData().data());
+    } else {
+        puts(argv[0].toString(state)->toNonGCUTF8StringData().data());
+    }
     return Value();
 }
 
@@ -168,7 +172,7 @@ ObjectGetResult GlobalObject::getOwnProperty(ExecutionState& state, const Object
                 }
                 target = target->getPrototypeObject();
             }
-            Value virtialIdResult = state.context()->virtualIdentifierCallback()(state, P.string(state));
+            Value virtialIdResult = state.context()->virtualIdentifierCallback()(state, P.toPlainValue(state));
             if (!virtialIdResult.isEmpty())
                 return ObjectGetResult(virtialIdResult, true, true, true);
         }

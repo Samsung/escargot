@@ -61,8 +61,8 @@ AtomicString::AtomicString(ExecutionState& ec, String* name)
 AtomicString::AtomicString(Context* c, const StringView& sv)
 {
     size_t v = sv.getTagInFirstDataArea();
-    if (v > POINTER_VALUE_STRING_TAG_IN_DATA) {
-        m_string = (String*)(v & ~POINTER_VALUE_STRING_TAG_IN_DATA);
+    if (v > POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA) {
+        m_string = (String*)(v & ~POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA);
         return;
     }
 
@@ -75,10 +75,10 @@ AtomicString::AtomicString(Context* c, const StringView& sv)
         ec->insert(newSv);
         ASSERT(ec->find(newSv) != ec->end());
         m_string = newSv;
-        str.m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        str.m_tag = (size_t)POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA | (size_t)m_string;
     } else {
         m_string = iter.operator*();
-        str.m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        str.m_tag = (size_t)POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA | (size_t)m_string;
     }
 }
 
@@ -90,8 +90,8 @@ AtomicString::AtomicString(Context* c, String* name)
 void AtomicString::init(AtomicStringMap* ec, String* name)
 {
     size_t v = name->getTagInFirstDataArea();
-    if (v > POINTER_VALUE_STRING_TAG_IN_DATA) {
-        m_string = (String*)(v & ~POINTER_VALUE_STRING_TAG_IN_DATA);
+    if (v > POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA) {
+        m_string = (String*)(v & ~POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA);
         return;
     }
     auto iter = ec->find(name);
@@ -99,10 +99,10 @@ void AtomicString::init(AtomicStringMap* ec, String* name)
         ec->insert(name);
         ASSERT(ec->find(name) != ec->end());
         m_string = name;
-        name->m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        name->m_tag = (size_t)POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA | (size_t)m_string;
     } else {
         m_string = iter.operator*();
-        name->m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        name->m_tag = (size_t)POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA | (size_t)m_string;
     }
 }
 }

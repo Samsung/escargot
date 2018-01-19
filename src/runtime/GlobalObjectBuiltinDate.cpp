@@ -17,6 +17,7 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "DateObject.h"
 #include "ErrorObject.h"
 
@@ -468,6 +469,37 @@ static Value builtinDateGetTimezoneOffset(ExecutionState& state, Value thisValue
     return Value(thisObject->asDateObject()->getTimezoneOffset(state));
 }
 
+static Value builtinDateToPrimitive(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be the this value.
+    Value O = thisValue;
+    // If Type(O) is not Object, throw a TypeError exception.
+    if (!O.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true,
+                                       state.context()->staticStrings().toPrimitive.string(), errorMessage_GlobalObject_ThisNotObject);
+    }
+    bool tryFirstIsString;
+    // If hint is the String value "string" or the String value "default", then
+    if (argv[0].isString() && (argv[0].asString()->equals("string") || argv[0].asString()->equals("default"))) {
+        // Let tryFirst be "string".
+        tryFirstIsString = true;
+    } else if (argv[0].isString() && argv[0].asString()->equals("number")) {
+        // Else if hint is the String value "number", then
+        // Let tryFirst be "number".
+        tryFirstIsString = false;
+    } else {
+        // Else, throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true,
+                                       state.context()->staticStrings().toPrimitive.string(), errorMessage_GlobalObject_IllegalFirstArgument);
+    }
+    // Return ? OrdinaryToPrimitive(O, tryFirst).
+    if (tryFirstIsString) {
+        return O.ordinaryToPrimitive(state, Value::PreferString);
+    } else {
+        return O.ordinaryToPrimitive(state, Value::PreferNumber);
+    }
+}
+
 void GlobalObject::installDate(ExecutionState& state)
 {
     m_date = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Date, builtinDateConstructor, 7, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
@@ -541,7 +573,8 @@ void GlobalObject::installDate(ExecutionState& state)
     m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getTimezoneOffset),
                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getTimezoneOffset, builtinDateGetTimezoneOffset, 0, nullptr, NativeFunctionInfo::Strict)),
                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
+    m_datePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toPrimitive)),
+                                                      ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.toPrimitive]")), builtinDateToPrimitive, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 #define DATE_DEFINE_GETTER(dname, unused1, unused2, unused3)                                                                                                                                                               \
     m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().get##dname),                                                                                                             \
                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().get##dname, builtinDateGet##dname, 0, nullptr, NativeFunctionInfo::Strict)), \

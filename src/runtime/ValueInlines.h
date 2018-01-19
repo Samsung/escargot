@@ -101,7 +101,7 @@ extern size_t g_objectTag;
 inline Value::Value(PointerValue* ptr)
 {
     // other type of PointerValue(Object) has pointer in first data area
-    if (ptr->getTagInFirstDataArea() & POINTER_VALUE_STRING_TAG_IN_DATA) {
+    if (ptr->getTagInFirstDataArea() & POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA) {
         u.asBits.tag = OtherPointerTag;
     } else {
         u.asBits.tag = ObjectPointerTag;
@@ -257,13 +257,24 @@ inline PointerValue* Value::asPointerValue() const
 
 inline bool Value::isString() const
 {
-    return tag() == OtherPointerTag;
+    return tag() == OtherPointerTag && asPointerValue()->isString();
+}
+
+inline bool Value::isSymbol() const
+{
+    return tag() == OtherPointerTag && asPointerValue()->isSymbol();
 }
 
 inline String* Value::asString() const
 {
     ASSERT(isString());
     return asPointerValue()->asString();
+}
+
+inline Symbol* Value::asSymbol() const
+{
+    ASSERT(isSymbol());
+    return asPointerValue()->asSymbol();
 }
 
 inline bool Value::isObject() const
@@ -436,10 +447,21 @@ inline bool Value::isString() const
     return isPointerValue() && asPointerValue()->isString();
 }
 
+inline bool Value::isSymbol() const
+{
+    return isPointerValue() && asPointerValue()->isSymbol();
+}
+
 inline String* Value::asString() const
 {
     ASSERT(isString());
     return asPointerValue()->asString();
+}
+
+inline Symbol* Value::asSymbol() const
+{
+    ASSERT(isSymbol());
+    return asPointerValue()->asSymbol();
 }
 
 inline bool Value::isPointerValue() const
@@ -603,11 +625,10 @@ ALWAYS_INLINE double Value::asNumber() const
 
 inline bool Value::isPrimitive() const
 {
-// return isUndefined() || isNull() || isNumber() || isString() || isBoolean();
 #ifdef ESCARGOT_32
     return tag() != ObjectPointerTag;
 #else
-    return !isPointerValue() || asPointerValue()->isString();
+    return isUndefined() || isNull() || isNumber() || isString() || isBoolean() || isSymbol();
 #endif
 }
 
@@ -717,8 +738,11 @@ inline bool Value::toBoolean(ExecutionState& ec) const // $7.1.2 ToBoolean
         return false;
 
     ASSERT(isPointerValue());
+
     if (asPointerValue()->isString())
         return asString()->length();
+
+    // Symbol, Objects..
     return true;
 }
 
@@ -748,6 +772,24 @@ inline Value::ValueIndex Value::toIndex(ExecutionState& state) const // $7.1.15 
         } else {
             return newLen;
         }
+    }
+}
+
+Value::ValueIndex Value::tryToUseAsIndex(ExecutionState& ec) const
+{
+    if (LIKELY(isUInt32())) {
+        return asUInt32();
+    } else {
+        return tryToUseAsIndexSlowCase(ec);
+    }
+}
+
+uint32_t Value::tryToUseAsArrayIndex(ExecutionState& ec) const
+{
+    if (LIKELY(isUInt32())) {
+        return asUInt32();
+    } else {
+        return tryToUseAsArrayIndexSlowCase(ec);
     }
 }
 

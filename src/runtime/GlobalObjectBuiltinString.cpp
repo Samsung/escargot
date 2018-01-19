@@ -17,6 +17,7 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "StringObject.h"
 #include "ErrorObject.h"
 #include "RegExpObject.h"
@@ -41,6 +42,10 @@ static Value builtinStringConstructor(ExecutionState& state, Value thisValue, si
         if (argc == 0)
             return String::emptyString;
         Value value = argv[0];
+        // If NewTarget is undefined and Type(value) is Symbol, return SymbolDescriptiveString(value).
+        if (value.isSymbol()) {
+            return value.asSymbol()->getSymbolDescriptiveString();
+        }
         return value.toString(state);
     }
 }
@@ -405,7 +410,6 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
     // 1, 2, 3
     RESOLVE_THIS_BINDING_TO_STRING(S, String, split);
     ArrayObject* A = new ArrayObject(state);
-
     // 4, 5
     size_t lengthA = 0;
     size_t lim;
@@ -885,6 +889,16 @@ static Value builtinStringIteratorNext(ExecutionState& state, Value thisValue, s
     return iter->next(state);
 }
 
+static Value builtinStringIterator(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ? RequireObjectCoercible(this value).
+    Value O = thisValue.toObject(state);
+    // Let S be ? ToString(O).
+    String* S = O.toString(state);
+    // Return CreateStringIterator(S).
+    return new StringIteratorObject(state, S);
+}
+
 void GlobalObject::installString(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
@@ -980,6 +994,10 @@ void GlobalObject::installString(ExecutionState& state)
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->includes, builtinStringIncludes, 1, nullptr, NativeFunctionInfo::Strict)),
                                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.iterator]")), builtinStringIterator, 0, nullptr, NativeFunctionInfo::Strict)),
+                                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+
     m_string->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->fromCharCode),
                                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->fromCharCode, builtinStringFromCharCode, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
@@ -990,6 +1008,9 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
                                                                 ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinStringIteratorNext, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                                                ObjectPropertyDescriptor(Value(String::fromASCII("String Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(strings->String),
                       ObjectPropertyDescriptor(m_string, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

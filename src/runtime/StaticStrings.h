@@ -66,6 +66,7 @@ namespace Escargot {
     F(valueOf)                    \
     F(Array)                      \
     F(isArray)                    \
+    F(from)                       \
     F(concat)                     \
     F(forEach)                    \
     F(indexOf)                    \
@@ -222,6 +223,7 @@ namespace Escargot {
     F(fromCharCode)               \
     F(getOwnPropertyDescriptor)   \
     F(getOwnPropertyNames)        \
+    F(getOwnPropertySymbols)      \
     F(hasOwnProperty)             \
     F(imul)                       \
     F(isExtensible)               \
@@ -338,6 +340,16 @@ namespace Escargot {
     F(Set)                        \
     F(WeakMap)                    \
     F(WeakSet)                    \
+    F(Symbol)                     \
+    F(symbol)                     \
+    F(hasInstance)                \
+    F(isConcatSpreadable)         \
+    F(iterator)                   \
+    F(species)                    \
+    F(toPrimitive)                \
+    F(toStringTag)                \
+    F(unscopables)                \
+    F(keyFor)                     \
     F(load)
 
 
@@ -356,6 +368,8 @@ public:
     AtomicString stringStatic;
     AtomicString stringCatch;
     AtomicString stringDelete;
+    AtomicString stringFor;
+    AtomicString stringDefault;
     AtomicString defaultRegExpString;
     AtomicString get__proto__;
     AtomicString set__proto__;

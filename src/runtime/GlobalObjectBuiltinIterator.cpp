@@ -17,12 +17,24 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "ToStringRecursionPreventer.h"
 
 namespace Escargot {
 
+static Value builtinIteratorIterator(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    return thisValue;
+}
+
 void GlobalObject::installIterator(ExecutionState& state)
 {
     m_iteratorPrototype = new Object(state);
+    m_iteratorPrototype->markThisObjectDontNeedStructureTransitionTable(state);
+
+    FunctionObject* fn = new FunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.iterator]")), builtinIteratorIterator, 0, nullptr, NativeFunctionInfo::Strict));
+    m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator),
+                                                          ObjectPropertyDescriptor(fn,
+                                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 }

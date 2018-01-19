@@ -17,6 +17,7 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "WeakSetObject.h"
 #include "IteratorObject.h"
 #include "ToStringRecursionPreventer.h"
@@ -41,7 +42,7 @@ Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t a
     }
     // If iterable is either undefined or null, let iter be undefined.
     Value adder;
-    IteratorObject* iter = nullptr;
+    Object* iter = nullptr;
     if (iterable.isUndefinedOrNull()) {
         iterable = Value();
     } else {
@@ -67,7 +68,7 @@ Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t a
     // Repeat
     while (true) {
         // Let next be ? IteratorStep(iter).
-        auto next = iter->advance(state);
+        auto next = iter->iteratorNext(state);
         // If next is false, return set.
         if (next.second) {
             return set;
@@ -141,6 +142,9 @@ void GlobalObject::installWeakSet(ExecutionState& state)
 
     m_weakSetPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().add),
                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().add, builtinWeakSetAdd, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_weakSetPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                                         ObjectPropertyDescriptor(Value(state.context()->staticStrings().WeakSet.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_weakSet->setFunctionPrototype(state, m_weakSetPrototype);
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().WeakSet),

@@ -17,6 +17,7 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "StringObject.h"
 
 #include <math.h>
@@ -252,8 +253,10 @@ static Value builtinMathExp(ExecutionState& state, Value thisValue, size_t argc,
 void GlobalObject::installMath(ExecutionState& state)
 {
     m_math = new Object(state);
-    m_math->giveInternalClassProperty("Math");
     m_math->markThisObjectDontNeedStructureTransitionTable(state);
+
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                             ObjectPropertyDescriptor(Value(state.context()->staticStrings().Math.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // initialize math object: $20.2.1.6 Math.PI
     const StaticStrings* strings = &state.context()->staticStrings();

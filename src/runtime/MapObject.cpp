@@ -142,11 +142,6 @@ MapIteratorObject* MapObject::entries(ExecutionState& state)
     return new MapIteratorObject(state, this, MapIteratorObject::TypeKeyValue);
 }
 
-IteratorObject* MapObject::iterator(ExecutionState& state)
-{
-    return new MapIteratorObject(state, this, MapIteratorObject::TypeKeyValue);
-}
-
 MapIteratorObject::MapIteratorObject(ExecutionState& state, MapObject* map, Type type)
     : IteratorObject(state)
     , m_map(map)

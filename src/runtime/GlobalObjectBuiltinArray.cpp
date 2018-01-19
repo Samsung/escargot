@@ -17,6 +17,7 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "ArrayObject.h"
 #include "ToStringRecursionPreventer.h"
 
@@ -77,6 +78,143 @@ static Value builtinArrayIsArray(ExecutionState& state, Value thisValue, size_t 
         return Value(true);
     else
         return Value(false);
+}
+
+static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Array.from ( items [ , mapfn [ , thisArg ] ] )#
+    Value items = argv[0];
+    Value mapfn;
+    if (argc > 1) {
+        mapfn = argv[1];
+    }
+    Value thisArg;
+    if (argc > 2) {
+        thisArg = argv[2];
+    }
+    // Let C be the this value.
+    Value C = thisValue;
+    // If mapfn is undefined, let mapping be false.
+    Value T;
+    bool mapping = true;
+    if (mapfn.isUndefined()) {
+        mapping = false;
+    } else {
+        // If IsCallable(mapfn) is false, throw a TypeError exception.
+        if (!mapfn.isFunction()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "argument map function should be undefined or function");
+        }
+        // If thisArg was supplied, let T be thisArg; else let T be undefined.
+        T = thisArg;
+        // Let mapping be true.
+    }
+
+    // Let usingIterator be ? GetMethod(items, @@iterator).
+    items = items.toObject(state);
+    Value usingIterator = items.asObject()->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator)).value(state, items);
+    // If usingIterator is not undefined, then
+    if (!usingIterator.isUndefinedOrNull()) {
+        Object* A;
+        // If IsConstructor(C) is true, then
+        if (C.isFunction() && C.asFunction()->isConstructor()) {
+            // Let A be ? Construct(C).
+            A = C.asFunction()->newInstance(state, 0, nullptr);
+        } else {
+            // Let A be ArrayCreate(0).
+            A = new ArrayObject(state);
+        }
+        // Let iterator be ? GetIterator(items, usingIterator).
+        // Let iterator be ? Call(method, obj).
+        Value willIterator = FunctionObject::call(state, usingIterator, items, 0, nullptr);
+        // If Type(iterator) is not Object, throw a TypeError exception.
+        if (!willIterator.isObject()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Got invalid Iterator");
+        }
+        Object* iterator = willIterator.asObject();
+        // Let k be 0.
+        double k = 0;
+        // Repeat
+        while (true) {
+            // If k ≥ 2^53-1, then
+            if (k >= ((1LL << 53LL) - 1LL)) {
+                // Let error be Completion{[[Type]]: throw, [[Value]]: a newly created TypeError object, [[Target]]: empty}.
+                // Return ? IteratorClose(iterator, error).
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Got invalid index");
+            }
+            // Let Pk be ! ToString(k).
+            ObjectPropertyName pk(state, Value(k));
+            // Let next be ? IteratorStep(iterator).
+            std::pair<Value, bool> next = iterator->iteratorNext(state);
+            // If next is false, then
+            if (next.second) {
+                // Perform ? Set(A, "length", k, true).
+                A->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().length), Value(k), A);
+                // Return A.
+                return A;
+            }
+            // Let nextValue be ? IteratorValue(next).
+            const Value& nextValue = next.first;
+            Value mappedValue;
+            // If mapping is true, then
+            if (mapping) {
+                // Let mappedValue be Call(mapfn, T, « nextValue, k »).
+                // If mappedValue is an abrupt completion, return ? IteratorClose(iterator, mappedValue).
+                // Let mappedValue be mappedValue.[[Value]].
+                Value argv[] = { nextValue, Value(k) };
+                mappedValue = mapfn.asFunction()->call(state, T, 2, argv);
+            } else {
+                mappedValue = nextValue;
+            }
+            // Let defineStatus be CreateDataPropertyOrThrow(A, Pk, mappedValue).
+            A->defineOwnPropertyThrowsException(state, pk, ObjectPropertyDescriptor(mappedValue, ObjectPropertyDescriptor::AllPresent));
+            // Increase k by 1.
+            k++;
+        }
+    }
+    // NOTE: items is not an Iterable so assume it is an array-like object.
+    // Let arrayLike be ! ToObject(items).
+    Object* arrayLike = items.toObject(state);
+    // Let len be ? ToLength(? Get(arrayLike, "length")).
+    auto len = arrayLike->lengthES6(state);
+    // If IsConstructor(C) is true, then
+    Object* A;
+    if (C.isFunction() && C.asFunction()->isConstructor()) {
+        // Let A be ? Construct(C, « len »).
+        Value vlen(len);
+        A = C.asFunction()->newInstance(state, 1, &vlen);
+    } else {
+        // Else,
+        // Let A be ? ArrayCreate(len).
+        A = new ArrayObject(state, len);
+    }
+
+    // Let k be 0.
+    double k = 0;
+    // Repeat, while k < len
+    while (k < len) {
+        // Let Pk be ! ToString(k).
+        ObjectPropertyName Pk(state, Value(k));
+        // Let kValue be ? Get(arrayLike, Pk).
+        Value kValue = arrayLike->get(state, Pk).value(state, arrayLike);
+        // If mapping is true, then
+        Value mappedValue;
+        if (mapping) {
+            // Let mappedValue be ? Call(mapfn, T, « kValue, k »).
+            Value argv[] = { kValue, Value(k) };
+            mappedValue = mapfn.asFunction()->call(state, T, 2, argv);
+        } else {
+            // Else, let mappedValue be kValue.
+            mappedValue = kValue;
+        }
+        // Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
+        A->defineOwnPropertyThrowsException(state, Pk, ObjectPropertyDescriptor(mappedValue, ObjectPropertyDescriptor::AllPresent));
+        // Increase k by 1.
+        k++;
+    }
+    // Perform ? Set(A, "length", len, true).
+    A->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().length), Value(len), A);
+    // Return A.
+    return A;
 }
 
 static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -1272,14 +1410,11 @@ static Value builtinArrayKeys(ExecutionState& state, Value thisValue, size_t arg
     return M->keys(state);
 }
 
-// disable due to compatibility issues.
-/*
 static Value builtinArrayValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(M, Array, values);
     return M->values(state);
 }
-*/
 
 static Value builtinArrayEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
@@ -1312,6 +1447,9 @@ void GlobalObject::installArray(ExecutionState& state)
 
     m_array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().isArray),
                                               ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isArray, builtinArrayIsArray, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().from),
+                                              ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().from, builtinArrayFrom, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().concat),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().concat, builtinArrayConcat, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -1357,9 +1495,15 @@ void GlobalObject::installArray(ExecutionState& state)
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().unshift, builtinArrayUnshift, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().keys),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().keys, builtinArrayKeys, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    // disable due to compatibility issues.
-    // m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().values),
-    //                                                    ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinArrayValues, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    FunctionObject* values = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinArrayValues, 0, nullptr, NativeFunctionInfo::Strict));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().values),
+                                                       ObjectPropertyDescriptor(values, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator),
+                                                       ObjectPropertyDescriptor(values,
+                                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().entries),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().entries, builtinArrayEntries, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
@@ -1370,6 +1514,8 @@ void GlobalObject::installArray(ExecutionState& state)
 
     m_arrayIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
                                                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinArrayIteratorNext, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                                               ObjectPropertyDescriptor(Value(String::fromASCII("Array Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Array),
                       ObjectPropertyDescriptor(m_array, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

@@ -23,6 +23,7 @@
 #include "runtime/RegExpObject.h"
 #include "runtime/StaticStrings.h"
 #include "runtime/String.h"
+#include "runtime/Symbol.h"
 #include "runtime/ToStringRecursionPreventer.h"
 
 namespace Escargot {
@@ -32,6 +33,26 @@ class CodeBlock;
 class JobQueue;
 class Job;
 
+// TODO species, match, replace, search, split, unscopables, isConcatSpreadable
+#define DEFINE_GLOBAL_SYMBOLS(F) \
+    F(hasInstance)               \
+    F(iterator)                  \
+    F(toPrimitive)               \
+    F(toStringTag)
+
+struct GlobalSymbols {
+#define DECLARE_GLOBAL_SYMBOLS(name) Symbol* name;
+    DEFINE_GLOBAL_SYMBOLS(DECLARE_GLOBAL_SYMBOLS);
+#undef DECLARE_GLOBAL_SYMBOLS
+};
+
+struct GlobalSymbolRegistryItem {
+    String* key;
+    Symbol* symbol;
+};
+
+typedef Vector<GlobalSymbolRegistryItem, GCUtil::gc_malloc_allocator<GlobalSymbolRegistryItem>> GlobalSymbolRegistryVector;
+
 class VMInstance : public gc {
     friend class Context;
     friend class VMInstanceRef;
@@ -39,6 +60,17 @@ class VMInstance : public gc {
 
 public:
     VMInstance(const char* locale = nullptr, const char* timezone = nullptr);
+
+    const GlobalSymbols& globalSymbols()
+    {
+        return m_globalSymbols;
+    }
+
+    GlobalSymbolRegistryVector& globalSymbolRegistry()
+    {
+        return m_globalSymbolRegistry;
+    }
+
 #ifdef ENABLE_ICU
     icu::Locale& locale()
     {
@@ -142,6 +174,8 @@ public:
 protected:
     StaticStrings m_staticStrings;
     AtomicStringMap m_atomicStringMap;
+    GlobalSymbols m_globalSymbols;
+    GlobalSymbolRegistryVector m_globalSymbolRegistry;
     Vector<SandBox*, GCUtil::gc_malloc_allocator<SandBox*>> m_sandBoxStack;
     std::unordered_map<void*, size_t, std::hash<void*>, std::equal_to<void*>,
                        GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<void*, size_t>>>
@@ -160,6 +194,7 @@ protected:
     ObjectStructure* m_defaultStructureForBindedFunctionObject;
     ObjectStructure* m_defaultStructureForArrayObject;
     ObjectStructure* m_defaultStructureForStringObject;
+    ObjectStructure* m_defaultStructureForSymbolObject;
     ObjectStructure* m_defaultStructureForRegExpObject;
     ObjectStructure* m_defaultStructureForArgumentsObject;
     ObjectStructure* m_defaultStructureForArgumentsObjectInStrictMode;

@@ -16,6 +16,7 @@
 
 #include "Escargot.h"
 #include "ArrayObject.h"
+#include "ErrorObject.h"
 #include "Context.h"
 #include "VMInstance.h"
 #include "util/Util.h"
@@ -36,6 +37,21 @@ ArrayObject::ArrayObject(ExecutionState& state)
     }
 }
 
+ArrayObject::ArrayObject(ExecutionState& state, double length)
+    : ArrayObject(state)
+{
+    // If length is -0, let length be +0.
+    if (length == 0 && std::signbit(length)) {
+        length = +0.0;
+    }
+    // If length>2^32-1, throw a RangeError exception.
+    if (length > ((1LL << 32LL) - 1LL)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
+    }
+    defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().length), ObjectPropertyDescriptor(Value(length),
+                                                                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+}
+
 ObjectGetResult ArrayObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     ObjectGetResult v = getFastModeValue(state, P);
@@ -52,12 +68,7 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
         return true;
     }
 
-    uint64_t idx;
-    if (LIKELY(P.isUIntType())) {
-        idx = P.uintValue();
-    } else {
-        idx = P.string(state)->tryToUseAsArrayIndex();
-    }
+    uint64_t idx = P.tryToUseAsArrayIndex();
     auto oldLenDesc = structure()->readProperty(state, (size_t)0);
     uint32_t oldLen = getArrayLength(state);
 
@@ -71,7 +82,7 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
             return setArrayLength(state, idx + 1);
         }
         return true;
-    } else if (P.string(state)->equals(state.context()->staticStrings().length.string())) {
+    } else if (P.toPropertyName(state).equals(state.context()->staticStrings().length.string())) {
         // See 3.a ~ 3.n on http://www.ecma-international.org/ecma-262/5.1/#sec-15.4.5.1
         if (desc.isValuePresent()) {
             ObjectPropertyDescriptor newLenDesc(desc);
@@ -153,12 +164,7 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
 bool ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     if (LIKELY(isFastModeArray())) {
-        uint64_t idx;
-        if (LIKELY(P.isUIntType())) {
-            idx = P.uintValue();
-        } else {
-            idx = P.string(state)->tryToUseAsArrayIndex();
-        }
+        uint64_t idx = P.tryToUseAsArrayIndex();
         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
             uint64_t len = getArrayLength(state);
             if (idx < len) {
@@ -171,7 +177,7 @@ bool ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
     return Object::deleteOwnProperty(state, P);
 }
 
-void ArrayObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+void ArrayObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     if (LIKELY(isFastModeArray())) {
         size_t len = getArrayLength(state);
@@ -184,7 +190,7 @@ void ArrayObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionS
             }
         }
     }
-    Object::enumeration(state, callback, data);
+    Object::enumeration(state, callback, data, shouldSkipSymbolKey);
 }
 
 void ArrayObject::sort(ExecutionState& state, const std::function<bool(const Value& a, const Value& b)>& comp)
@@ -316,12 +322,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t& newLengt
 ObjectGetResult ArrayObject::getFastModeValue(ExecutionState& state, const ObjectPropertyName& P)
 {
     if (LIKELY(isFastModeArray())) {
-        uint64_t idx;
-        if (LIKELY(P.isUIntType())) {
-            idx = P.uintValue();
-        } else {
-            idx = P.string(state)->tryToUseAsArrayIndex();
-        }
+        uint64_t idx = P.tryToUseAsArrayIndex();
         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
             if (LIKELY(idx < getArrayLength(state))) {
                 Value v = m_fastModeData[idx];
@@ -338,12 +339,7 @@ ObjectGetResult ArrayObject::getFastModeValue(ExecutionState& state, const Objec
 bool ArrayObject::setFastModeValue(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
 {
     if (LIKELY(isFastModeArray())) {
-        uint64_t idx;
-        if (LIKELY(P.isUIntType())) {
-            idx = P.uintValue();
-        } else {
-            idx = P.string(state)->tryToUseAsArrayIndex();
-        }
+        uint64_t idx = P.tryToUseAsArrayIndex();
         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
             uint32_t len = getArrayLength(state);
             if (len > idx && !m_fastModeData[idx].isEmpty()) {
@@ -383,12 +379,7 @@ bool ArrayObject::setFastModeValue(ExecutionState& state, const ObjectPropertyNa
 ObjectGetResult ArrayObject::getIndexedProperty(ExecutionState& state, const Value& property)
 {
     if (LIKELY(isFastModeArray())) {
-        uint64_t idx;
-        if (LIKELY(property.isUInt32())) {
-            idx = property.asUInt32();
-        } else {
-            idx = property.toString(state)->tryToUseAsArrayIndex();
-        }
+        uint32_t idx = property.tryToUseAsArrayIndex(state);
         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
             if (LIKELY(idx < getArrayLength(state))) {
                 Value v = m_fastModeData[idx];
@@ -405,12 +396,7 @@ ObjectGetResult ArrayObject::getIndexedProperty(ExecutionState& state, const Val
 bool ArrayObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)
 {
     if (LIKELY(isFastModeArray())) {
-        uint64_t idx;
-        if (LIKELY(property.isUInt32())) {
-            idx = property.asUInt32();
-        } else {
-            idx = property.toString(state)->tryToUseAsArrayIndex();
-        }
+        uint32_t idx = property.tryToUseAsArrayIndex(state);
         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
             uint32_t len = getArrayLength(state);
             if (UNLIKELY(len <= idx)) {
@@ -426,11 +412,6 @@ bool ArrayObject::setIndexedProperty(ExecutionState& state, const Value& propert
         }
     }
     return set(state, ObjectPropertyName(state, property), value, this);
-}
-
-IteratorObject* ArrayObject::iterator(ExecutionState& state)
-{
-    return new ArrayIteratorObject(state, this, ArrayIteratorObject::TypeValue);
 }
 
 ArrayIteratorObject::ArrayIteratorObject(ExecutionState& state, Object* a, Type type)
@@ -475,7 +456,7 @@ std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
     // Let len be the value of a's [[ArrayLength]] internal slot.
     // Else,
     // Let len be ? ToLength(? Get(a, "length")).
-    auto len = a->length(state);
+    auto len = a->lengthES6(state);
 
     // If index ≥ len, then
     if (index >= len) {

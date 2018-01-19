@@ -135,6 +135,26 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Stri
     setPrototype(state, state.context()->globalObject()->functionPrototype());
 }
 
+bool FunctionObject::hasInstance(ExecutionState& state, const Value& left)
+{
+    if (left.isObject()) {
+        FunctionObject* C = this;
+        Value P = C->getFunctionPrototype(state);
+        Value O = left.asObject()->getPrototype(state);
+        if (P.isObject()) {
+            while (O.isObject()) {
+                if (P.asObject() == O.asObject()) {
+                    return true;
+                }
+                O = O.asObject()->getPrototype(state);
+            }
+        } else {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_InvalidPrototypeProperty);
+        }
+    }
+    return false;
+}
+
 NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
 {
     Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& v = state.context()->compiledCodeBlocks();

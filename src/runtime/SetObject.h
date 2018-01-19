@@ -52,8 +52,6 @@ public:
     SetIteratorObject* values(ExecutionState& state);
     SetIteratorObject* keys(ExecutionState& state);
 
-    virtual IteratorObject* iterator(ExecutionState& state) override;
-
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 

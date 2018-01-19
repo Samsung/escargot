@@ -29,6 +29,7 @@
 #include "runtime/VMInstance.h"
 #include "runtime/SandBox.h"
 #include "runtime/Environment.h"
+#include "runtime/SymbolObject.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/DateObject.h"
@@ -63,10 +64,12 @@ DEFINE_CAST(Context);
 DEFINE_CAST(SandBox);
 DEFINE_CAST(ExecutionState);
 DEFINE_CAST(String);
+DEFINE_CAST(Symbol);
 DEFINE_CAST(PointerValue);
 DEFINE_CAST(Object);
 DEFINE_CAST(ArrayObject)
 DEFINE_CAST(StringObject)
+DEFINE_CAST(SymbolObject)
 DEFINE_CAST(NumberObject)
 DEFINE_CAST(BooleanObject)
 DEFINE_CAST(RegExpObject)
@@ -188,6 +191,16 @@ std::string StringRef::toStdUTF8String()
     return toImpl(this)->toNonGCUTF8StringData();
 }
 
+SymbolRef* SymbolRef::create(StringRef* desc)
+{
+    return toRef(new Symbol(toImpl(desc)));
+}
+
+StringRef* SymbolRef::description()
+{
+    return toRef(toImpl(this)->description());
+}
+
 bool PointerValueRef::isString()
 {
     return toImpl(this)->isString();
@@ -196,6 +209,16 @@ bool PointerValueRef::isString()
 StringRef* PointerValueRef::asString()
 {
     return toRef(toImpl(this)->asString());
+}
+
+bool PointerValueRef::isSymbol()
+{
+    return toImpl(this)->isSymbol();
+}
+
+SymbolRef* PointerValueRef::asSymbol()
+{
+    return toRef(toImpl(this)->asSymbol());
 }
 
 bool PointerValueRef::isObject()
@@ -236,6 +259,16 @@ bool PointerValueRef::isStringObject()
 StringObjectRef* PointerValueRef::asStringObject()
 {
     return toRef(toImpl(this)->asStringObject());
+}
+
+bool PointerValueRef::isSymbolObject()
+{
+    return toImpl(this)->isSymbolObject();
+}
+
+SymbolObjectRef* PointerValueRef::asSymbolObject()
+{
+    return toRef(toImpl(this)->asSymbolObject());
 }
 
 bool PointerValueRef::isNumberObject()
@@ -370,6 +403,7 @@ void VMInstanceRef::clearCachesRelatedWithContext()
     imp->m_compiledCodeBlocks.clear();
     imp->m_regexpCache.clear();
     imp->m_cachedUTC = nullptr;
+    imp->globalSymbolRegistry().clear();
 }
 
 bool VMInstanceRef::addRoot(VMInstanceRef* instanceRef, ValueRef* ptr)
@@ -391,6 +425,16 @@ bool VMInstanceRef::removeRoot(VMInstanceRef* instanceRef, ValueRef* ptr)
     }
     void* vptr = reinterpret_cast<void*>(value.payload());
     return toImpl(this)->removeRoot(vptr);
+}
+
+SymbolRef* VMInstanceRef::toStringTagSymbol()
+{
+    return toRef(toImpl(this)->globalSymbols().toStringTag);
+}
+
+SymbolRef* VMInstanceRef::iteratorSymbol()
+{
+    return toRef(toImpl(this)->globalSymbols().iterator);
 }
 
 #ifdef ESCARGOT_ENABLE_PROMISE
@@ -536,9 +580,12 @@ public:
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
     {
-        auto result = m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)));
-        if (!result.m_value->isEmpty()) {
-            return ObjectGetResult(toImpl(result.m_value), result.m_isWritable, result.m_isEnumerable, result.m_isConfigurable);
+        Value PV = P.toPlainValue(state);
+        if (!PV.isSymbol()) {
+            auto result = m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(PV));
+            if (!result.m_value->isEmpty()) {
+                return ObjectGetResult(toImpl(result.m_value), result.m_isWritable, result.m_isEnumerable, result.m_isConfigurable);
+            }
         }
         return Object::getOwnProperty(state, P);
     }
@@ -546,21 +593,27 @@ public:
     {
         // Only value type supported
         if (desc.isValuePresent()) {
-            if (m_defineOwnPropertyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)), toRef(desc.value()))) {
-                return true;
+            Value PV = P.toPlainValue(state);
+            if (!PV.isSymbol()) {
+                if (m_defineOwnPropertyCallback(toRef(&state), toRef(this), toRef(PV), toRef(desc.value()))) {
+                    return true;
+                }
             }
         }
         return Object::defineOwnProperty(state, P, desc);
     }
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
     {
-        auto result = m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)));
-        if (!result.m_value->isEmpty()) {
-            return m_deleteOwnPropertyCallback(toRef(&state), toRef(this), toRef(P.toValue(state)));
+        Value PV = P.toPlainValue(state);
+        if (!PV.isSymbol()) {
+            auto result = m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(P.toPlainValue(state)));
+            if (!result.m_value->isEmpty()) {
+                return m_deleteOwnPropertyCallback(toRef(&state), toRef(this), toRef(P.toPlainValue(state)));
+            }
         }
         return Object::deleteOwnProperty(state, P);
     }
-    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
     {
         auto names = m_enumerationCallback(toRef(&state), toRef(this));
         for (size_t i = 0; i < names.size(); i++) {
@@ -578,7 +631,7 @@ public:
 
             callback(state, this, ObjectPropertyName(state, toImpl(names[i].m_name)), desc, data);
         }
-        Object::enumeration(state, callback, data);
+        Object::enumeration(state, callback, data, shouldSkipSymbolKey);
     }
 
     virtual bool isInlineCacheable()
@@ -748,17 +801,6 @@ void ObjectRef::preventExtensions()
     toImpl(this)->preventExtensions();
 }
 
-// http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-const char* ObjectRef::internalClassProperty()
-{
-    return toImpl(this)->internalClassProperty();
-}
-
-void ObjectRef::giveInternalClassProperty(const char* name)
-{
-    toImpl(this)->giveInternalClassProperty(name);
-}
-
 void* ObjectRef::extraData()
 {
     return toImpl(this)->extraData();
@@ -779,7 +821,7 @@ void ObjectRef::enumerateObjectOwnProperies(ExecutionStateRef* state, const std:
     toImpl(this)->enumeration(*toImpl(state), [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
         const std::function<bool(ExecutionStateRef * state, ValueRef * propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>* cb
             = (const std::function<bool(ExecutionStateRef * state, ValueRef * propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>*)data;
-        return (*cb)(toRef(&state), toRef(name.toValue(state)), desc.isWritable(), desc.isEnumerable(), desc.isConfigurable());
+        return (*cb)(toRef(&state), toRef(name.toPlainValue(state)), desc.isWritable(), desc.isEnumerable(), desc.isConfigurable());
     },
                               (void*)&cb);
 }
@@ -1281,7 +1323,9 @@ void ContextRef::setVirtualIdentifierCallback(VirtualIdentifierCallback cb)
     ctx->m_virtualIdentifierCallbackPublic = (void*)cb;
     ctx->setVirtualIdentifierCallback([](ExecutionState& state, Value name) -> Value {
         if (state.context()->m_virtualIdentifierCallbackPublic) {
-            return toImpl(((VirtualIdentifierCallback)state.context()->m_virtualIdentifierCallbackPublic)(toRef(&state), toRef(name)));
+            if (!name.isSymbol()) {
+                return toImpl(((VirtualIdentifierCallback)state.context()->m_virtualIdentifierCallbackPublic)(toRef(&state), toRef(name)));
+            }
         }
         return Value(Value::EmptyValue);
     });
@@ -1533,7 +1577,7 @@ uint32_t ValueRef::toArrayIndex(ExecutionStateRef* state)
         return s.asInt32();
     else {
         ExecutionState* esi = toImpl(state);
-        return Value(s).toString(*esi)->tryToUseAsArrayIndex();
+        return Value(s).tryToUseAsArrayIndex(*esi);
     }
 }
 
@@ -1656,6 +1700,21 @@ void StringObjectRef::setPrimitiveValue(ExecutionStateRef* state, ValueRef* str)
 }
 
 StringRef* StringObjectRef::primitiveValue()
+{
+    return toRef(toImpl(this)->primitiveValue());
+}
+
+SymbolObjectRef* SymbolObjectRef::create(ExecutionStateRef* state)
+{
+    return toRef(new SymbolObject(*toImpl(state), new Symbol(String::emptyString)));
+}
+
+void SymbolObjectRef::setPrimitiveValue(ExecutionStateRef* state, SymbolRef* value)
+{
+    toImpl(this)->setPrimitiveValue(*toImpl(state), toImpl(value));
+}
+
+SymbolRef* SymbolObjectRef::primitiveValue()
 {
     return toRef(toImpl(this)->primitiveValue());
 }

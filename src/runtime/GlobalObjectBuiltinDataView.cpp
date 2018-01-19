@@ -19,6 +19,7 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "TypedArrayObject.h"
 #include "DataViewObject.h"
 
@@ -158,7 +159,8 @@ void GlobalObject::installDataView(ExecutionState& state)
     m_dataViewPrototype->setPrototype(state, m_objectPrototype);
     m_dataView->setFunctionPrototype(state, m_dataViewPrototype);
     m_dataViewPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_dataView, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
+    m_dataViewPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                                          ObjectPropertyDescriptor(Value(state.context()->staticStrings().DataView.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 #define DATAVIEW_DEFINE_GETTER(Name)                                                                                                                                                                                             \
     m_dataViewPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().get##Name),                                                                                                                \
                                            ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().get##Name, builtinDataViewGet##Name, 1, nullptr, NativeFunctionInfo::Strict)), \

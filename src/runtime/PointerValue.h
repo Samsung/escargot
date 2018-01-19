@@ -20,10 +20,12 @@
 namespace Escargot {
 
 class String;
+class Symbol;
 class Object;
 class FunctionObject;
 class ArrayObject;
 class StringObject;
+class SymbolObject;
 class NumberObject;
 class BooleanObject;
 class RegExpObject;
@@ -46,7 +48,7 @@ class SetObject;
 class WeakMapObject;
 class WeakSetObject;
 
-#define POINTER_VALUE_STRING_TAG_IN_DATA 0x3
+#define POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA 0x3
 // finding what is type of PointerValue operation is used in SmallValue <-> Value and interpreter
 // Only Object, String are seen in regular runtime-code
 // We figure what type of PointerValue by POINTER_VALUE_STRING_TAG_IN_DATA
@@ -55,21 +57,16 @@ class WeakSetObject;
 // finding what is type of PointerValue(Object, String) without accessing vtable provides gives better performance
 // but, it uses more memory for String type
 // POINTER_VALUE_STRING_TAG_IN_DATA is not essential thing for implementing figure type(we can use isObject, isString)
-// so, we can remove POINTER_VALUE_STRING_TAG_IN_DATA in very small device future
+// so, we can remove POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA in very small device future
 
 class PointerValue : public gc {
 public:
-    enum Type {
-        StringType,
-        ObjectType,
-        ObjectRareDataType,
-        DoubleInSmallValueType,
-        JSGetterSetterType,
-        EnumerateObjectDataType,
-    };
-
-    virtual Type type() = 0;
     virtual bool isString() const
+    {
+        return false;
+    }
+
+    virtual bool isSymbol() const
     {
         return false;
     }
@@ -90,6 +87,11 @@ public:
     }
 
     virtual bool isStringObject() const
+    {
+        return false;
+    }
+
+    virtual bool isSymbolObject() const
     {
         return false;
     }
@@ -199,6 +201,12 @@ public:
         return (String*)this;
     }
 
+    Symbol* asSymbol()
+    {
+        ASSERT(isSymbol());
+        return (Symbol*)this;
+    }
+
     Object* asObject()
     {
         ASSERT(isObject());
@@ -221,6 +229,12 @@ public:
     {
         ASSERT(isStringObject());
         return (StringObject*)this;
+    }
+
+    SymbolObject* asSymbolObject()
+    {
+        ASSERT(isSymbolObject());
+        return (SymbolObject*)this;
     }
 
     NumberObject* asNumberObject()

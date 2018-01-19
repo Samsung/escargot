@@ -25,6 +25,7 @@ namespace Escargot {
 
 extern size_t g_doubleInSmallValueTag;
 extern size_t g_objectRareDataTag;
+extern size_t g_symbolTag;
 
 Value VMInstance::functionPrototypeNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
@@ -182,6 +183,13 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
     ObjectRareData data(nullptr);
     g_objectRareDataTag = *((size_t*)&data);
 
+    Symbol sm(nullptr);
+    g_symbolTag = *((size_t*)&sm);
+
+#define DECLARE_GLOBAL_SYMBOLS(name) m_globalSymbols.name = new Symbol(String::fromASCII("Symbol." #name));
+    DEFINE_GLOBAL_SYMBOLS(DECLARE_GLOBAL_SYMBOLS);
+#undef DECLARE_GLOBAL_SYMBOLS
+
     ExecutionState stateForInit((Context*)nullptr);
 
     ObjectStructure defaultStructureForObject(stateForInit);
@@ -237,6 +245,8 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
                                                                                 ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&arrayLengthGetterSetterData));
 
     m_defaultStructureForStringObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length, ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&stringLengthGetterSetterData));
+
+    m_defaultStructureForSymbolObject = m_defaultStructureForObject;
 
     m_defaultStructureForRegExpObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.lastIndex,
                                                                                  ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpLastIndexGetterSetterData));

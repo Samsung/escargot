@@ -41,6 +41,7 @@ class ArrayObject : public Object {
 
 public:
     ArrayObject(ExecutionState& state);
+    ArrayObject(ExecutionState& state, double size); // http://www.ecma-international.org/ecma-262/7.0/index.html#sec-arraycreate
     virtual bool isArrayObject() const
     {
         return true;
@@ -55,7 +56,7 @@ public:
         }
     }
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
+    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual uint64_t length(ExecutionState& state)
     {
         return getArrayLength(state);
@@ -77,8 +78,6 @@ public:
     {
         return "Array";
     }
-
-    virtual IteratorObject* iterator(ExecutionState& state) override;
 
 protected:
     ALWAYS_INLINE bool isFastModeArray()

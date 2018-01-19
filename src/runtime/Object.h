@@ -46,18 +46,12 @@ struct ObjectRareData : public PointerValue {
     bool m_shouldUpdateEnumerateObjectData : 1;
     bool m_isInArrayObjectDefineOwnProperty : 1;
     bool m_hasNonWritableLastIndexRegexpObject : 1;
-    const char* m_internalClassName;
     void* m_extraData;
     Object* m_prototype;
 #ifdef ESCARGOT_ENABLE_PROMISE
     Object* m_internalSlot;
 #endif
     ObjectRareData(Object* obj);
-
-    virtual Type type()
-    {
-        return ObjectRareDataType;
-    }
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -72,7 +66,7 @@ public:
             m_value.m_uint = v.asUInt32();
         } else {
             m_isUIntType = false;
-            m_value.m_name = PropertyName(state, v.toString(state));
+            m_value.m_name = PropertyName(state, v);
         }
     }
 
@@ -105,6 +99,15 @@ public:
         return m_value.m_uint;
     }
 
+    bool isIndexString() const
+    {
+        if (isUIntType()) {
+            return true;
+        } else {
+            return propertyName().isIndexString();
+        }
+    }
+
     PropertyName toPropertyName(ExecutionState& state) const
     {
         if (isUIntType()) {
@@ -113,17 +116,37 @@ public:
         return propertyName();
     }
 
-    String* string(ExecutionState& state) const
+    uint64_t tryToUseAsIndex() const
     {
-        return toPropertyName(state).string();
+        if (LIKELY(isUIntType())) {
+            return m_value.m_uint;
+        }
+        return propertyName().tryToUseAsIndex();
     }
 
-    Value toValue(ExecutionState& state) const
+    uint64_t tryToUseAsArrayIndex() const
+    {
+        if (LIKELY(isUIntType())) {
+            return m_value.m_uint;
+        }
+        return propertyName().tryToUseAsArrayIndex();
+    }
+
+    Value toPlainValue(ExecutionState& state) const
     {
         if (isUIntType()) {
             return Value(uintValue());
         } else {
-            return Value(string(state));
+            return propertyName().toValue();
+        }
+    }
+
+    String* toExceptionString() const
+    {
+        if (isUIntType()) {
+            return String::fromDouble(uintValue());
+        } else {
+            return propertyName().toExceptionString();
         }
     }
 
@@ -147,11 +170,6 @@ public:
     {
         ASSERT(getter.isEmpty() || getter.isFunction() || getter.isUndefined());
         ASSERT(setter.isEmpty() || setter.isFunction() || setter.isUndefined());
-    }
-
-    virtual Type type()
-    {
-        return JSGetterSetterType;
     }
 
     virtual bool isJSGetterSetter() const
@@ -505,10 +523,6 @@ class Object : public PointerValue {
 public:
     Object(ExecutionState& state);
     static Object* createFunctionPrototypeObject(ExecutionState& state, FunctionObject* function);
-    virtual Type type()
-    {
-        return ObjectType;
-    }
 
     virtual bool isObject() const
     {
@@ -623,10 +637,10 @@ public:
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    // enumeration every property!
     // callback function should skip un-Enumerable property if needs
-    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
+    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual uint64_t length(ExecutionState& state);
+    double lengthES6(ExecutionState& state);
 
     bool hasOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
     {
@@ -712,14 +726,7 @@ public:
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
     virtual const char* internalClassProperty()
     {
-        if (LIKELY(rareData() == nullptr) || LIKELY(rareData()->m_internalClassName == nullptr))
-            return "Object";
-        return rareData()->m_internalClassName;
-    }
-
-    virtual void giveInternalClassProperty(const char* name)
-    {
-        ensureObjectRareData()->m_internalClassName = name;
+        return "Object";
     }
 
     void* extraData()
@@ -772,10 +779,8 @@ public:
     IteratorObject* values(ExecutionState& state);
     IteratorObject* keys(ExecutionState& state);
     IteratorObject* entries(ExecutionState& state);
-    virtual IteratorObject* iterator(ExecutionState& state) // this matches with Object[@@iterator]
-    {
-        return nullptr;
-    }
+    Object* iterator(ExecutionState& state);
+    std::pair<Value, bool> iteratorNext(ExecutionState& state); // http://www.ecma-international.org/ecma-262/7.0/index.html#sec-iteratornext
 
 protected:
     Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);

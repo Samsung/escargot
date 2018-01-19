@@ -621,7 +621,7 @@ public:
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("get object r%d <- r%d.%s", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, m_propertyName.string()->toUTF8StringData().data());
+        printf("get object r%d <- r%d.%s", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, m_propertyName.plainString()->toUTF8StringData().data());
     }
 #endif
 };
@@ -667,7 +667,7 @@ public:
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("set object r%d.%s <- r%d", (int)m_objectRegisterIndex, m_propertyName.string()->toUTF8StringData().data(), (int)m_loadRegisterIndex);
+        printf("set object r%d.%s <- r%d", (int)m_objectRegisterIndex, m_propertyName.plainString()->toUTF8StringData().data(), (int)m_loadRegisterIndex);
     }
 #endif
 };
@@ -691,7 +691,7 @@ public:
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("get global object r%d <- global.%s", (int)m_registerIndex, m_propertyName.string()->toUTF8StringData().data());
+        printf("get global object r%d <- global.%s", (int)m_registerIndex, m_propertyName.plainString()->toUTF8StringData().data());
     }
 #endif
 };
@@ -716,7 +716,7 @@ public:
 #ifndef NDEBUG
     virtual void dump()
     {
-        printf("set global object global.%s <- r%d", m_propertyName.string()->toUTF8StringData().data(), (int)m_registerIndex);
+        printf("set global object global.%s <- r%d", m_propertyName.plainString()->toUTF8StringData().data(), (int)m_registerIndex);
     }
 #endif
 };
@@ -1335,11 +1335,6 @@ struct EnumerateObjectData : public PointerValue {
     EnumerateObjectData()
     {
         m_idx = 0;
-    }
-
-    virtual Type type()
-    {
-        return EnumerateObjectDataType;
     }
 
     ObjectStructureChainWithGC m_hiddenClassChain;

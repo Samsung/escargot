@@ -48,12 +48,7 @@ void* StringObject::operator new(size_t size)
 
 ObjectGetResult StringObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
-    Value::ValueIndex idx;
-    if (P.isUIntType()) {
-        idx = P.uintValue();
-    } else {
-        idx = P.string(state)->tryToUseAsIndex();
-    }
+    Value::ValueIndex idx = P.tryToUseAsIndex();
     if (idx != Value::InvalidIndexValue) {
         size_t strLen = m_primitiveValue->length();
         if (LIKELY(idx < strLen)) {
@@ -79,7 +74,7 @@ bool StringObject::deleteOwnProperty(ExecutionState& state, const ObjectProperty
     return Object::deleteOwnProperty(state, P);
 }
 
-void StringObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+void StringObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     size_t len = m_primitiveValue->length();
     for (size_t i = 0; i < len; i++) {
@@ -87,17 +82,12 @@ void StringObject::enumeration(ExecutionState& state, bool (*callback)(Execution
             return;
         }
     }
-    Object::enumeration(state, callback, data);
+    Object::enumeration(state, callback, data, shouldSkipSymbolKey);
 }
 
 ObjectGetResult StringObject::getIndexedProperty(ExecutionState& state, const Value& property)
 {
-    Value::ValueIndex idx;
-    if (LIKELY(property.isUInt32())) {
-        idx = property.asUInt32();
-    } else {
-        idx = property.toString(state)->tryToUseAsIndex();
-    }
+    Value::ValueIndex idx = property.tryToUseAsIndex(state);
     if (idx != Value::InvalidIndexValue) {
         size_t strLen = m_primitiveValue->length();
         if (LIKELY(idx < strLen)) {
@@ -105,11 +95,6 @@ ObjectGetResult StringObject::getIndexedProperty(ExecutionState& state, const Va
         }
     }
     return get(state, ObjectPropertyName(state, property));
-}
-
-IteratorObject* StringObject::iterator(ExecutionState& state)
-{
-    return new StringIteratorObject(state, m_primitiveValue);
 }
 
 StringIteratorObject::StringIteratorObject(ExecutionState& state, String* s)
@@ -162,13 +147,13 @@ std::pair<Value, bool> StringIteratorObject::advance(ExecutionState& state)
     // If first < 0xD800 or first > 0xDBFF or position+1 = len, let resultString be the string consisting of the single code unit first.
     String* resultString;
     if (first < 0xD800 || first > 0xDBFF || (position + 1 == len)) {
-        resultString = String::fromInt32(first);
+        resultString = String::fromCharCode(first);
     } else {
         // Let second be the code unit value at index position+1 in the String S.
         auto second = s->charAt(position + 1);
         // If second < 0xDC00 or second > 0xDFFF, let resultString be the string consisting of the single code unit first.
         if (second < 0xDC00 || second > 0xDFFF) {
-            resultString = String::fromInt32(first);
+            resultString = String::fromCharCode(first);
         } else {
             // Else, let resultString be the string consisting of the code unit first followed by the code unit second.
             char16_t s[2] = { first, second };

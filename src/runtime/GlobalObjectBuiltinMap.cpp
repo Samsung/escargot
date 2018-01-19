@@ -17,6 +17,7 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "MapObject.h"
 #include "ToStringRecursionPreventer.h"
 
@@ -38,7 +39,7 @@ Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc,
     }
     // If iterable is either undefined or null, let iter be undefined.
     Value adder;
-    IteratorObject* iter = nullptr;
+    Object* iter = nullptr;
     if (iterable.isUndefinedOrNull()) {
         iterable = Value();
     } else {
@@ -64,7 +65,7 @@ Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc,
     // Repeat
     while (true) {
         // Let next be ? IteratorStep(iter).
-        auto next = iter->advance(state);
+        auto next = iter->iteratorNext(state);
         // If next is false(done is true), return map.
         if (next.second) {
             return map;
@@ -234,8 +235,15 @@ void GlobalObject::installMap(ExecutionState& state)
     m_mapPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().values),
                                                      ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinMapValues, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    auto entFn = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().entries, builtinMapEntries, 0, nullptr, NativeFunctionInfo::Strict));
     m_mapPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().entries),
-                                                     ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().entries, builtinMapEntries, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                     ObjectPropertyDescriptor(entFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_mapPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator),
+                                                     ObjectPropertyDescriptor(entFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+
+    m_mapPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                                     ObjectPropertyDescriptor(Value(state.context()->staticStrings().Map.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     JSGetterSetter gs(
         new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().function, builtinMapSizeGetter, 0, nullptr, NativeFunctionInfo::Strict)),
@@ -248,6 +256,10 @@ void GlobalObject::installMap(ExecutionState& state)
 
     m_mapIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
                                                              ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinMapIteratorNext, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_mapIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                                             ObjectPropertyDescriptor(Value(String::fromASCII("Map Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
 
     m_map->setFunctionPrototype(state, m_mapPrototype);
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Map),

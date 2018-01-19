@@ -541,6 +541,7 @@
       });
       return sym;
     };
+/*
     if (!Type.symbol(Symbol.search)) {
       var symbolSearch = defineWellKnownSymbol('search');
       var originalSearch = String.prototype.search;
@@ -559,6 +560,7 @@
       };
       overrideNative(String.prototype, 'search', searchShim);
     }
+
     if (!Type.symbol(Symbol.replace)) {
       var symbolReplace = defineWellKnownSymbol('replace');
       var originalReplace = String.prototype.replace;
@@ -577,6 +579,7 @@
       };
       overrideNative(String.prototype, 'replace', replaceShim);
     }
+
     if (!Type.symbol(Symbol.split)) {
       var symbolSplit = defineWellKnownSymbol('split');
       var originalSplit = String.prototype.split;
@@ -595,6 +598,7 @@
       };
       overrideNative(String.prototype, 'split', splitShim);
     }
+
     var symbolMatchExists = Type.symbol(Symbol.match);
     var stringMatchIgnoresSymbolMatch = symbolMatchExists && (function () {
       // Firefox 41, through Nightly 45 has Symbol.match, but String#match ignores it.
@@ -622,7 +626,7 @@
         return ES.Call(originalMatch, O, [ES.ToString(regexp)]);
       };
       overrideNative(String.prototype, 'match', matchShim);
-    }
+    }*/
   }
 
   var wrapConstructor = function wrapConstructor(original, replacement, keysToSkip) {

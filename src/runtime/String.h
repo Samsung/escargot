@@ -80,11 +80,7 @@ class String : public PointerValue {
 public:
     String()
     {
-        m_tag = POINTER_VALUE_STRING_TAG_IN_DATA;
-    }
-    virtual Type type()
-    {
-        return StringType;
+        m_tag = POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA;
     }
 
     virtual bool isString() const

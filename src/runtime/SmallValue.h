@@ -35,11 +35,6 @@ class DoubleInSmallValue : public PointerValue {
     friend class SmallValue;
 
 public:
-    virtual Type type()
-    {
-        return DoubleInSmallValueType;
-    }
-
     virtual bool isDoubleInSmallValue() const
     {
         return true;
