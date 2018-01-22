@@ -320,6 +320,7 @@ class InterpretedCodeBlock : public CodeBlock {
     friend class ScriptParser;
     friend class ByteCodeGenerator;
     friend class FunctionObject;
+    friend class ByteCodeInterpreter;
 
     friend int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr);
 
