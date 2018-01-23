@@ -1100,7 +1100,7 @@ static String* icuLocaleToBCP47Tag(String* string)
     }
     return sb.finalize();
 }
-#ifdef ENABLE_ICU
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
 const Vector<String*, gc_allocator<String*>>& GlobalObject::intlCollatorAvailableLocales()
 {
     if (m_intlCollatorAvailableLocales.size() == 0) {

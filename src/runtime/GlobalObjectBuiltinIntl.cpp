@@ -1,4 +1,4 @@
-#ifdef ENABLE_ICU
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
 /*
  * Copyright (C) 2015 Andy VanWagoner (thetalecrafter@gmail.com)
  * Copyright (C) 2015 Sukolsak Sakshuwong (sukolsak@gmail.com)

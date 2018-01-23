@@ -77,7 +77,7 @@ public:
         installDate(state);
         installRegExp(state);
         installJSON(state);
-#ifdef ENABLE_ICU
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
         installIntl(state);
 #endif
 #if ESCARGOT_ENABLE_PROMISE
@@ -106,7 +106,7 @@ public:
     void installDate(ExecutionState& state);
     void installRegExp(ExecutionState& state);
     void installJSON(ExecutionState& state);
-#ifdef ENABLE_ICU
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
     void installIntl(ExecutionState& state);
 #endif
 #if ESCARGOT_ENABLE_PROMISE
@@ -307,7 +307,7 @@ public:
     {
         return m_jsonParse;
     }
-#ifdef ENABLE_ICU
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
     Object* intl()
     {
         return m_intl;
@@ -592,7 +592,7 @@ protected:
     Object* m_json;
     FunctionObject* m_jsonStringify;
     FunctionObject* m_jsonParse;
-#ifdef ENABLE_ICU
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
     Object* m_intl;
     FunctionObject* m_intlCollator;
     Vector<String*, gc_allocator<String*>> m_intlCollatorAvailableLocales;

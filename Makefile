@@ -367,6 +367,10 @@ android.interpreter.debug.shared: $(OUTDIR)/$(SHARED_LIB)
 	cp -f $< .
 android.interpreter.release.shared: $(OUTDIR)/$(SHARED_LIB)
 	cp -f $< .
+android.interpreter.debug.shared.standalone: $(OUTDIR)/$(SHARED_LIB)
+	cp -f $< .
+android.interpreter.release.shared.standalone: $(OUTDIR)/$(SHARED_LIB)
+	cp -f $< .
 
 
 DEPENDENCY_MAKEFILE = Makefile $(BUILDDIR)/Toolchain.mk $(BUILDDIR)/Flags.mk
