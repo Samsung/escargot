@@ -33,7 +33,7 @@ fi
 # Common flags --------------------------------------------
 
 GCCONFFLAGS_COMMON=" --enable-munmap --disable-parallel-mark --enable-large-config --disable-parallel-mark --disable-pthread --disable-threads " # --enable-thread --enable-pthread --enable-large-config --enable-cplusplus"
-CFLAGS_COMMON=" -g3 -march=armv7-a -mfloat-abi=softfp -mfpu=neon -mthumb "
+CFLAGS_COMMON=" -g3 -march=armv7-a -mfloat-abi=softfp -mfpu=neon -mthumb -DANDROID -DPLATFORM_ANDROID "
 CFLAGS_COMMON+=" -DESCARGOT "
 CFLAGS_COMMON+=" -fdata-sections -ffunction-sections " # To exclude unused code from final binary
 FLAGS_COMMON+=" -DIGNORE_DYNAMIC_LOADING -DGC_DONT_REGISTER_MAIN_STATIC_DATA " # Everything in global data is false reference

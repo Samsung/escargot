@@ -12,7 +12,7 @@ else ifeq ($(HOST), android)
 
   CXXFLAGS += --sysroot=$(ANDROID_NDK_STANDALONE)/sysroot
   LDFLAGS  += --sysroot=$(ANDROID_NDK_STANDALONE)/sysroot
-
+  ARFLAGS  =
 else ifeq ($(HOST), tizen_obs)
   CC=gcc
   CXX=g++

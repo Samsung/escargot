@@ -1089,6 +1089,7 @@ void GlobalObject::installOthers(ExecutionState& state)
     m_numberProxyObject = new NumberObject(state);
 }
 
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
 static String* icuLocaleToBCP47Tag(String* string)
 {
     StringBuilder sb;
@@ -1100,7 +1101,7 @@ static String* icuLocaleToBCP47Tag(String* string)
     }
     return sb.finalize();
 }
-#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+
 const Vector<String*, gc_allocator<String*>>& GlobalObject::intlCollatorAvailableLocales()
 {
     if (m_intlCollatorAvailableLocales.size() == 0) {
