@@ -230,9 +230,9 @@ static Value builtinObjectGetPrototypeOf(ExecutionState& state, Value thisValue,
 
 static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // If Type(O) is not Object throw a TypeError exception.
+    // If Type(O) is not Object, return O.
     if (!argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().seal.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+        return argv[0];
     }
     Object* O = argv[0].asObject();
     //O->markThisObjectDontNeedStructureTransitionTable(state);
