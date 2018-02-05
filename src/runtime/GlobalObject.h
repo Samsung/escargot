@@ -83,6 +83,9 @@ public:
 #if ESCARGOT_ENABLE_PROMISE
         installPromise(state);
 #endif
+#if ESCARGOT_ENABLE_PROXY
+        installProxy(state);
+#endif
 #if ESCARGOT_ENABLE_TYPEDARRAY
         installDataView(state);
         installTypedArray(state);
@@ -111,6 +114,9 @@ public:
 #endif
 #if ESCARGOT_ENABLE_PROMISE
     void installPromise(ExecutionState& state);
+#endif
+#if ESCARGOT_ENABLE_PROXY
+    void installProxy(ExecutionState& state);
 #endif
 #if ESCARGOT_ENABLE_TYPEDARRAY
     void installDataView(ExecutionState& state);
@@ -344,7 +350,17 @@ public:
         return m_promisePrototype;
     }
 #endif
+#if ESCARGOT_ENABLE_PROXY
+    FunctionObject* proxy()
+    {
+        return m_proxy;
+    }
 
+    Object* proxyPrototype()
+    {
+        return m_proxyPrototype;
+    }
+#endif
 #if ESCARGOT_ENABLE_TYPEDARRAY
     FunctionObject* arrayBuffer()
     {
@@ -606,7 +622,10 @@ protected:
     FunctionObject* m_promise;
     Object* m_promisePrototype;
 #endif
-
+#if ESCARGOT_ENABLE_PROXY
+    FunctionObject* m_proxy;
+    Object* m_proxyPrototype;
+#endif
 #if ESCARGOT_ENABLE_TYPEDARRAY
     FunctionObject* m_arrayBuffer;
     Object* m_arrayBufferPrototype;
