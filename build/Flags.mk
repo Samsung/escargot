@@ -111,12 +111,14 @@ ESCARGOT_CXXFLAGS_VENDORTEST += -DESCARGOT_ENABLE_VENDORTEST
 ifeq ($(HOST), linux)
   ESCARGOT_CXXFLAGS_COMMON += -DENABLE_ICU -DENABLE_INTL
   ifeq ($(ARCH), x64)
-	ESCARGOT_CXXFLAGS_THIRD_PARTY += $(shell pkg-config --cflags icu-i18n)
-	ESCARGOT_LDFLAGS_THIRD_PARTY += $(shell pkg-config --libs icu-i18n)
+	ESCARGOT_CXXFLAGS_THIRD_PARTY += $(shell pkg-config --cflags icu-uc icu-i18n)
+	ESCARGOT_LDFLAGS_THIRD_PARTY += $(shell pkg-config --libs icu-uc icu-i18n)
   else ifeq ($(ARCH), x86)
-	ESCARGOT_CXXFLAGS_THIRD_PARTY += -I$(ESCARGOT_ROOT)/deps/x86-linux/include
-	ESCARGOT_LDFLAGS_THIRD_PARTY += -Ldeps/x86-linux/lib -Wl,-rpath='deps/x86-linux/lib/' -Wl,-rpath,'$$ORIGIN/deps/x86-linux/lib/'
-	ESCARGOT_LDFLAGS_THIRD_PARTY += -licuio -licui18n -licuuc -licudata
+        ESCARGOT_CXXFLAGS_THIRD_PARTY += $(shell pkg-config --cflags icu-uc icu-i18n)
+        ESCARGOT_LDFLAGS_THIRD_PARTY += $(shell pkg-config --libs icu-uc icu-i18n)
+#	ESCARGOT_CXXFLAGS_THIRD_PARTY += -I$(ESCARGOT_ROOT)/deps/x86-linux/include
+#	ESCARGOT_LDFLAGS_THIRD_PARTY += -Ldeps/x86-linux/lib -Wl,-rpath='deps/x86-linux/lib/' -Wl,-rpath,'$$ORIGIN/deps/x86-linux/lib/'
+#	ESCARGOT_LDFLAGS_THIRD_PARTY += -licuio -licui18n -licuuc -licudata
   endif
 else ifeq ($(HOST), tizen_obs)
   ESCARGOT_CXXFLAGS_COMMON += -DENABLE_ICU -DENABLE_INTL
