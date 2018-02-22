@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2016 Samsung Electronics Co., Ltd. All Rights Reserved
  * Copyright (C) 2011 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

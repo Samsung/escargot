@@ -14,6 +14,7 @@ inline void __attribute__((optimize("O0"))) clearStack()
 #define JS_ASSERT ASSERT
 
 // ds/Sort.h from SpiderMonkey
+// Copyright (C) 2016 Samsung Electronics Co., Ltd. All Rights Reserved
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  * vim: set ts=4 sw=4 et tw=99 ft=cpp:
  *

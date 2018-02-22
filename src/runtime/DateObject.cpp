@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2016 Samsung Electronics Co., Ltd. All Rights Reserved
  * Copyright (C) 1999-2000 Harri Porten (porten@kde.org)
  * Copyright (C) 2006, 2007 Apple Inc. All rights reserved.
  * Copyright (C) 2009 Google Inc. All rights reserved.
