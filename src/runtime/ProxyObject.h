@@ -40,9 +40,7 @@ public:
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
-
 };
-
 }
 
 #endif // __EscargotProxyObject__

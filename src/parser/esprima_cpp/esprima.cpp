@@ -3085,9 +3085,7 @@ public:
                     this->nextToken();
                     expr = this->finalize(node, new ThisExpressionNode());
                 } else if (this->matchKeyword(KeywordKind::Class)) {
-                    // TODO
-                    this->throwUnexpectedToken(this->nextToken());
-                    // expr = this->parseClassExpression();
+                    expr = this->parseClassExpression();
                 } else {
                     this->throwUnexpectedToken(this->nextToken());
                 }
@@ -6288,6 +6286,11 @@ public:
         return this.finalize(node, new Node.ClassExpression(id, superClass, classBody));
     }
     */
+    Node* parseClassExpression()
+    {
+        this->throwError("class keyword is not supported yet");
+        RELEASE_ASSERT_NOT_REACHED();
+    }
 
     // ECMA-262 15.1 Scripts
     // ECMA-262 15.2 Modules

@@ -35,7 +35,6 @@ void* ProxyObject::operator new(size_t size)
 
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
-
 }
 
 #endif // ESCARGOT_ENABLE_PROXY
