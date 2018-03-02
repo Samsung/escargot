@@ -174,6 +174,7 @@ public:
 class ContextRef {
 public:
     static ContextRef* create(VMInstanceRef* vmInstance);
+    void clearRelatedQueuedPromiseJobs();
     void destroy();
 
     ScriptParserRef* scriptParser();

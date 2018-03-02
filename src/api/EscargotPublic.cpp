@@ -461,10 +461,9 @@ ContextRef* ContextRef::create(VMInstanceRef* vminstanceref)
     return toRef(new Context(vminstance));
 }
 
-void ContextRef::destroy()
+void ContextRef::clearRelatedQueuedPromiseJobs()
 {
     Context* imp = toImpl(this);
-
 #ifdef ESCARGOT_ENABLE_PROMISE
     DefaultJobQueue* jobQueue = DefaultJobQueue::get(imp->vmInstance()->jobQueue());
     std::list<Job*, gc_allocator<Job*>>& impl = jobQueue->impl();
@@ -477,7 +476,11 @@ void ContextRef::destroy()
         }
     }
 #endif
+}
 
+void ContextRef::destroy()
+{
+    Context* imp = toImpl(this);
     delete imp;
 }
 

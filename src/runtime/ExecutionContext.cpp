@@ -25,8 +25,8 @@ FunctionObject* ExecutionContext::resolveCallee()
 {
     LexicalEnvironment* env = m_lexicalEnvironment;
     while (env) {
-        if (env->record()->isDeclarativeEnvironmentRecord() && m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-            return m_lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
+        if (env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            return env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
         }
         env = env->outerEnvironment();
     }
