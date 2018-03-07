@@ -4,7 +4,7 @@ Release:       0
 Summary:       Web Widget Engine
 Source:        %{name}-%{version}.tar.gz
 Group:         Development/Libraries
-License:       Not Decided Yet
+License:       LGPL-2.1+ and Apache-2.0 and BSD-2-Clause and BSD-3-Clause and MPL-2.0 and MIT
 
 %if %{?profile:1}%{!?profile:0}
 %define tizen_profile_name {%profile}
