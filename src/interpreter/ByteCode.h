@@ -562,6 +562,7 @@ struct ObjectStructureChainItem : public gc {
 };
 
 typedef std::vector<ObjectStructureChainItem, std::allocator<ObjectStructureChainItem>> ObjectStructureChain;
+typedef std::vector<ObjectStructureChainItem, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<ObjectStructureChainItem>> ObjectStructureChainGC;
 typedef Vector<ObjectStructureChainItem, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectStructureChainItem>, 200> ObjectStructureChainWithGC;
 
 struct GetObjectInlineCacheData {
@@ -630,7 +631,7 @@ public:
 };
 
 struct SetObjectInlineCache {
-    ObjectStructureChain m_cachedhiddenClassChain;
+    ObjectStructureChainGC m_cachedhiddenClassChain;
     size_t m_cachedIndex;
     ObjectStructure* m_hiddenClassWillBe;
     size_t m_cacheMissCount;
