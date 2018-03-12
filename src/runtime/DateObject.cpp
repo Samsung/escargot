@@ -1121,9 +1121,8 @@ String* DateObject::toUTCString(ExecutionState& state, String* functionName)
                  getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state));
         return new ASCIIString(buffer);
     } else {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Date.string(), true, functionName, errorMessage_GlobalObject_InvalidDate);
+        return new ASCIIString("Invalid Date");
     }
-    RELEASE_ASSERT_NOT_REACHED();
 }
 
 String* DateObject::toLocaleDateString(ExecutionState& state)
