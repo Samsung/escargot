@@ -408,17 +408,17 @@ $(OUTDIR)/%.o: %.cc $(DEPENDENCY_MAKEFILE)
 	@$(CXX) -MM $(CXXFLAGS) -MT $@ $< > $(OUTDIR)/$*.d
 
 install_header_to_include:
-	cp src/api/EscargotPublic.h ./include/
-	cp third_party/GCutil/GCUtil.h ./include/
-	cp third_party/GCutil/Allocator.h ./include/
-	cp third_party/GCutil/LeakChecker.h ./include/
-	cp third_party/GCutil/bdwgc/include/gc.h ./include/
-	cp third_party/GCutil/bdwgc/include/gc_mark.h ./include/
-	cp third_party/GCutil/bdwgc/include/gc_typed.h ./include/
-	cp third_party/GCutil/bdwgc/include/gc_allocator.h ./include/
-	cp third_party/GCutil/bdwgc/include/gc_cpp.h ./include/
-	cp third_party/GCutil/bdwgc/include/gc_version.h ./include/
-	cp third_party/GCutil/bdwgc/include/gc_config_macros.h ./include/
+	cp -f src/api/EscargotPublic.h ./include/
+	cp -f third_party/GCutil/GCUtil.h ./include/
+	cp -f third_party/GCutil/Allocator.h ./include/
+	cp -f third_party/GCutil/LeakChecker.h ./include/
+	cp -f third_party/GCutil/bdwgc/include/gc.h ./include/
+	cp -f third_party/GCutil/bdwgc/include/gc_mark.h ./include/
+	cp -f third_party/GCutil/bdwgc/include/gc_typed.h ./include/
+	cp -f third_party/GCutil/bdwgc/include/gc_allocator.h ./include/
+	cp -f third_party/GCutil/bdwgc/include/gc_cpp.h ./include/
+	cp -f third_party/GCutil/bdwgc/include/gc_version.h ./include/
+	cp -f third_party/GCutil/bdwgc/include/gc_config_macros.h ./include/
 
 clean:
 	rm -rf out
