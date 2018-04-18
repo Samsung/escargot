@@ -34,7 +34,6 @@ public:
 
     virtual ~SpreadElementNode()
     {
-        delete m_arg;
     }
 
     virtual ASTNodeType type()
@@ -43,7 +42,7 @@ public:
     }
 
 protected:
-    Node* m_arg;
+    RefPtr<Node> m_arg;
 };
 }
 

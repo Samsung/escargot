@@ -22,6 +22,7 @@
 #include "runtime/Context.h"
 #include "interpreter/ByteCode.h"
 #include "parser/esprima_cpp/esprima.h"
+#include "parser/ScriptParser.h"
 #include "parser/ast/AST.h"
 #include "parser/CodeBlock.h"
 
@@ -184,7 +185,7 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
     GC_set_free_space_divisor(1);
 
     try {
-        ProgramNode* program = esprima::parseProgram(m_context, scriptSource, nullptr, strictFromOutside, stackSizeRemain);
+        RefPtr<ProgramNode> program = esprima::parseProgram(m_context, scriptSource, nullptr, strictFromOutside, stackSizeRemain);
 
         script = new Script(fileName, new StringView(scriptSource));
         InterpretedCodeBlock* topCodeBlock;
@@ -197,14 +198,15 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
             topCodeBlock->m_isEvalCodeInFunction = true;
             topCodeBlock->m_isInWithScope = parentCodeBlock->m_isInWithScope;
         } else {
-            topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, program);
+            topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, program.get());
         }
 
         topCodeBlock->m_isEvalCodeInFunction = isEvalCodeInFunction;
 
         generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
 
-        topCodeBlock->m_cachedASTNode = program;
+        program->ref();
+        topCodeBlock->m_cachedASTNode = program.get();
         script->m_topCodeBlock = topCodeBlock;
 
 // dump Code Block
@@ -273,10 +275,10 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
     return result;
 }
 
-std::pair<Node*, ASTScopeContext*> ScriptParser::parseFunction(InterpretedCodeBlock* codeBlock, size_t stackSizeRemain, ExecutionState* state)
+std::tuple<RefPtr<Node>, ASTScopeContext*, std::unique_ptr<LiteralValueRooterVector>> ScriptParser::parseFunction(InterpretedCodeBlock* codeBlock, size_t stackSizeRemain, ExecutionState* state)
 {
     try {
-        std::pair<Node*, ASTScopeContext*> body = esprima::parseSingleFunction(m_context, codeBlock, stackSizeRemain);
+        std::tuple<RefPtr<Node>, ASTScopeContext*, std::unique_ptr<LiteralValueRooterVector>> body = esprima::parseSingleFunction(m_context, codeBlock, stackSizeRemain);
         return body;
     } catch (esprima::Error* orgError) {
         ErrorObject::throwBuiltinError(*state, ErrorObject::SyntaxError, orgError->message->toUTF8StringData().data());

@@ -37,8 +37,6 @@ public:
 
     virtual ~DoWhileStatementNode()
     {
-        delete m_test;
-        delete m_body;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::DoWhileStatement; }
@@ -66,8 +64,8 @@ public:
     }
 
 protected:
-    ExpressionNode *m_test;
-    StatementNode *m_body;
+    RefPtr<ExpressionNode> m_test;
+    RefPtr<StatementNode> m_body;
 };
 }
 

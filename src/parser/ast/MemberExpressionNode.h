@@ -38,18 +38,16 @@ public:
 
     virtual ~MemberExpressionNode()
     {
-        delete m_object;
-        delete m_property;
     }
 
     Node* object()
     {
-        return m_object;
+        return m_object.get();
     }
 
     Node* property()
     {
-        return m_property;
+        return m_property.get();
     }
 
     virtual ASTNodeType type() { return ASTNodeType::MemberExpression; }
@@ -61,7 +59,7 @@ public:
     AtomicString propertyName()
     {
         ASSERT(isPreComputedCase());
-        return ((IdentifierNode*)m_property)->name();
+        return ((IdentifierNode*)m_property.get())->name();
     }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex)
@@ -185,8 +183,8 @@ public:
     }
 
 protected:
-    Node* m_object; // object: Expression;
-    Node* m_property; // property: Identifier | Expression;
+    RefPtr<Node> m_object; // object: Expression;
+    RefPtr<Node> m_property; // property: Identifier | Expression;
 
     bool m_computed;
 };

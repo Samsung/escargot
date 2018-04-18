@@ -310,4 +310,7 @@ typedef uint16_t ByteCodeRegisterIndex;
 #include "CheckedArithmetic.h"
 #include "runtime/String.h"
 
+#include "wtfbridge.h"
+using namespace JSC::Yarr;
+
 #endif

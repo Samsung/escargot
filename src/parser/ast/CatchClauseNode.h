@@ -33,7 +33,7 @@ class FunctionDeclarationNode;
 class CatchClauseNode : public Node {
 public:
     friend class ScriptParser;
-    CatchClauseNode(Node *param, Node *guard, Node *body, std::vector<FunctionDeclarationNode *, GCUtil::gc_malloc_ignore_off_page_allocator<FunctionDeclarationNode *>> &fd)
+    CatchClauseNode(Node *param, Node *guard, Node *body, std::vector<FunctionDeclarationNode *> &fd)
         : Node()
     {
         m_param = (IdentifierNode *)param;
@@ -44,35 +44,32 @@ public:
 
     virtual ~CatchClauseNode()
     {
-        delete m_param;
-        delete m_guard;
-        delete m_body;
     }
 
     IdentifierNode *param()
     {
-        return m_param;
+        return m_param.get();
     }
 
     BlockStatementNode *body()
     {
-        return m_body;
+        return m_body.get();
     }
 
-    std::vector<FunctionDeclarationNode *, GCUtil::gc_malloc_ignore_off_page_allocator<FunctionDeclarationNode *>> &innerFDs()
+    std::vector<FunctionDeclarationNode *> &innerFDs()
     {
         return m_innerFDs;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::CatchClause; }
 protected:
-    IdentifierNode *m_param;
-    ExpressionNode *m_guard;
-    BlockStatementNode *m_body;
-    std::vector<FunctionDeclarationNode *, GCUtil::gc_malloc_ignore_off_page_allocator<FunctionDeclarationNode *>> m_innerFDs;
+    RefPtr<IdentifierNode> m_param;
+    RefPtr<ExpressionNode> m_guard;
+    RefPtr<BlockStatementNode> m_body;
+    std::vector<FunctionDeclarationNode *> m_innerFDs;
 };
 
-typedef Vector<Node *, GCUtil::gc_malloc_ignore_off_page_allocator<Node *>> CatchClauseNodeVector;
+typedef std::vector<RefPtr<Node>> CatchClauseNodeVector;
 }
 
 #endif

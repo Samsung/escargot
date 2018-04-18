@@ -22,6 +22,7 @@
 
 #include "Node.h"
 #include "StatementNode.h"
+#include "parser/ScriptParser.h"
 
 namespace Escargot {
 
@@ -38,11 +39,6 @@ public:
 
     virtual ~ProgramNode()
     {
-        size_t len = m_body.size();
-
-        for (size_t i = 0; i < len; i++) {
-            delete m_body[i];
-        }
     }
 
     virtual ASTNodeType type() { return ASTNodeType::Program; }
@@ -57,9 +53,15 @@ public:
         codeBlock->pushCode(End(ByteCodeLOC(SIZE_MAX)), context, this);
     }
 
+    void setLiteralValueHolder(std::unique_ptr<LiteralValueRooterVector>&& s)
+    {
+        m_literalValueRooter = std::move(s);
+    }
+
 protected:
     StatementNodeVector m_body; // body: [ Statement ];
     ASTScopeContext* m_scopeContext;
+    std::unique_ptr<LiteralValueRooterVector> m_literalValueRooter;
 };
 }
 

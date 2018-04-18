@@ -37,10 +37,6 @@ public:
 
     virtual ~ObjectExpressionNode()
     {
-        for (unsigned i = 0; i < m_properties.size(); i++) {
-            PropertyNode* p = m_properties[i];
-            delete p;
-        }
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ObjectExpression; }
@@ -49,7 +45,7 @@ public:
         codeBlock->pushCode(CreateObject(ByteCodeLOC(m_loc.index), dstRegister), context, this);
         size_t objIndex = dstRegister;
         for (unsigned i = 0; i < m_properties.size(); i++) {
-            PropertyNode* p = m_properties[i];
+            PropertyNode* p = m_properties[i].get();
             AtomicString propertyAtomicName;
             bool hasKey = false;
             size_t propertyIndex = SIZE_MAX;
@@ -102,7 +98,7 @@ public:
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
         for (size_t i = 0; i < m_properties.size(); i++) {
-            PropertyNode* p = m_properties[i];
+            PropertyNode* p = m_properties[i].get();
             if (p->key()->isIdentifier() && !p->computed()) {
             } else {
                 p->key()->iterateChildrenIdentifier(fn);

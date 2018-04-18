@@ -35,7 +35,6 @@ public:
     }
     virtual ~UpdateExpressionIncrementPrefixNode()
     {
-        delete m_argument;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::UpdateExpressionIncrementPrefix; }
@@ -74,7 +73,7 @@ public:
 
 
 protected:
-    ExpressionNode* m_argument;
+    RefPtr<ExpressionNode> m_argument;
 };
 }
 

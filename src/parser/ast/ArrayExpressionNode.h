@@ -35,10 +35,6 @@ public:
 
     virtual ~ArrayExpressionNode()
     {
-        for (unsigned i = 0; i < m_elements.size(); i++) {
-            delete m_elements[i];
-        }
-        m_elements.clear();
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ArrayExpression; }

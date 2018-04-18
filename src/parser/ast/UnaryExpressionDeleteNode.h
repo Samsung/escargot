@@ -34,7 +34,6 @@ public:
     }
     virtual ~UnaryExpressionDeleteNode()
     {
-        delete m_argument;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionDelete; }
@@ -59,17 +58,17 @@ public:
             }
         } else if (m_argument->isMemberExpression()) {
             ByteCodeRegisterIndex o = m_argument->getRegister(codeBlock, context);
-            ((MemberExpressionNode*)m_argument)->object()->generateExpressionByteCode(codeBlock, context, o);
+            ((MemberExpressionNode*)m_argument.get())->object()->generateExpressionByteCode(codeBlock, context, o);
             ByteCodeRegisterIndex p;
-            if (((MemberExpressionNode*)m_argument)->isPreComputedCase()) {
+            if (((MemberExpressionNode*)m_argument.get())->isPreComputedCase()) {
                 // we can use LoadLiteral here
                 // because, (MemberExpressionNode*)m_argument)->property()->asIdentifier()->name().string()
                 // is protected by AtomicString (IdentifierNode always has AtomicString)
                 p = context->getRegister();
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), p, Value(((MemberExpressionNode*)m_argument)->property()->asIdentifier()->name().string())), context, this);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), p, Value(((MemberExpressionNode*)m_argument.get())->property()->asIdentifier()->name().string())), context, this);
             } else {
-                p = ((MemberExpressionNode*)m_argument)->property()->getRegister(codeBlock, context);
-                ((MemberExpressionNode*)m_argument)->property()->generateExpressionByteCode(codeBlock, context, p);
+                p = ((MemberExpressionNode*)m_argument.get())->property()->getRegister(codeBlock, context);
+                ((MemberExpressionNode*)m_argument.get())->property()->generateExpressionByteCode(codeBlock, context, p);
             }
 
             context->giveUpRegister();
@@ -90,7 +89,7 @@ public:
     }
 
 protected:
-    ExpressionNode* m_argument;
+    RefPtr<ExpressionNode> m_argument;
 };
 }
 

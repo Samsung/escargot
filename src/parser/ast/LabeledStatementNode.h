@@ -36,7 +36,6 @@ public:
 
     virtual ~LabeledStatementNode()
     {
-        delete m_statementNode;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::LabeledStatement; }
@@ -60,7 +59,7 @@ public:
     }
 
 protected:
-    StatementNode* m_statementNode;
+    RefPtr<StatementNode> m_statementNode;
     String* m_label;
 };
 }

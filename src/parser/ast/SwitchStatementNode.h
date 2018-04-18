@@ -41,14 +41,6 @@ public:
 
     virtual ~SwitchStatementNode()
     {
-        delete m_discriminant;
-        for (unsigned i = 0; i < m_casesA.size(); i++) {
-            delete m_casesA[i];
-        }
-        for (unsigned i = 0; i < m_casesB.size(); i++) {
-            delete m_casesB[i];
-        }
-        delete m_default;
     }
 
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
@@ -64,7 +56,7 @@ public:
 
         std::vector<size_t> jumpCodePerCaseNodePosition;
         for (unsigned i = 0; i < m_casesB.size(); i++) {
-            SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesB[i];
+            SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesB[i].get();
             size_t refIndex = caseNode->m_test->getRegister(codeBlock, &newContext);
             caseNode->m_test->generateExpressionByteCode(codeBlock, &newContext, refIndex);
             size_t resultIndex = newContext.getRegister();
@@ -78,7 +70,7 @@ public:
         ASSERT(rIndex0 == newContext.getLastRegisterIndex());
 
         for (unsigned i = 0; i < m_casesA.size(); i++) {
-            SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesA[i];
+            SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesA[i].get();
             size_t refIndex = caseNode->m_test->getRegister(codeBlock, &newContext);
             caseNode->m_test->generateExpressionByteCode(codeBlock, &newContext, refIndex);
             size_t resultIndex = newContext.getRegister();
@@ -97,7 +89,7 @@ public:
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), &newContext, this);
         size_t caseIdx = 0;
         for (unsigned i = 0; i < m_casesB.size(); i++) {
-            SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesB[i];
+            SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesB[i].get();
             codeBlock->peekCode<JumpIfTrue>(jumpCodePerCaseNodePosition[caseIdx++])->m_jumpPosition = codeBlock->currentCodeSize();
             caseNode->generateStatementByteCode(codeBlock, &newContext);
         }
@@ -106,7 +98,7 @@ public:
             m_default->generateStatementByteCode(codeBlock, &newContext);
         }
         for (unsigned i = 0; i < m_casesA.size(); i++) {
-            SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesA[i];
+            SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesA[i].get();
             codeBlock->peekCode<JumpIfTrue>(jumpCodePerCaseNodePosition[caseIdx++])->m_jumpPosition = codeBlock->currentCodeSize();
             caseNode->generateStatementByteCode(codeBlock, &newContext);
         }
@@ -122,9 +114,9 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::SwitchStatement; }
 protected:
-    ExpressionNode* m_discriminant;
+    RefPtr<ExpressionNode> m_discriminant;
     StatementNodeVector m_casesA;
-    StatementNode* m_default;
+    RefPtr<StatementNode> m_default;
     StatementNodeVector m_casesB;
     bool m_lexical;
 };

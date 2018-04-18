@@ -215,11 +215,10 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
 #endif
 
     auto ret = state.context()->scriptParser().parseFunction(m_codeBlock->asInterpretedCodeBlock(), stackRemainApprox, &state);
-    Node* ast = ret.first;
+    RefPtr<Node> ast = std::get<0>(ret);
 
     ByteCodeGenerator g;
-    m_codeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_codeBlock->asInterpretedCodeBlock(), ast, ret.second, false, false, false);
-    delete ast;
+    m_codeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_codeBlock->asInterpretedCodeBlock(), ast.get(), std::get<1>(ret), false, false, false);
 
     v.pushBack(m_codeBlock);
 }

@@ -38,13 +38,9 @@ public:
 
     virtual ~CallExpressionNode()
     {
-        delete m_callee;
-        for (size_t i = 0; i < m_arguments.size(); i++) {
-            delete m_arguments[i];
-        }
-        m_arguments.clear();
     }
-    Node* callee() { return m_callee; }
+
+    Node* callee() { return m_callee.get(); }
     virtual ASTNodeType type() { return ASTNodeType::CallExpression; }
     ByteCodeRegisterIndex generateArguments(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, bool clearInCallingExpressionScope = true)
     {
@@ -149,7 +145,7 @@ public:
             return;
         }
 
-        bool isSlow = !canUseDirectRegister(context, m_callee, m_arguments);
+        bool isSlow = !canUseDirectRegister(context, m_callee.get(), m_arguments);
         bool directBefore = context->m_canSkipCopyToRegister;
         if (isSlow) {
             context->m_canSkipCopyToRegister = false;
@@ -215,7 +211,7 @@ public:
     }
 
 protected:
-    Node* m_callee; // callee: Expression;
+    RefPtr<Node> m_callee; // callee: Expression;
     ArgumentVector m_arguments; // arguments: [ Expression ];
 };
 }

@@ -39,13 +39,11 @@ public:
 
     virtual ~VariableDeclaratorNode()
     {
-        delete m_id;
-        delete m_init;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::VariableDeclarator; }
-    Node* id() { return m_id; }
-    Node* init() { return m_init; }
+    Node* id() { return m_id.get(); }
+    Node* init() { return m_init.get(); }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         ASSERT(m_id->isIdentifier());
@@ -54,11 +52,11 @@ public:
             context->getRegister();
             if (!name.string()->equals("arguments")) {
                 // check canUseIndexedVariableStorage for give right value to generateStoreByteCode(isInit..) with eval
-                AssignmentExpressionSimpleNode assign(m_id, m_init);
-                assign.m_loc = m_loc;
-                assign.generateResultNotRequiredExpressionByteCode(codeBlock, context);
+                RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(m_id.get(), m_init.get()));
+                assign->m_loc = m_loc;
+                assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
                 // for avoding double-free
-                assign.giveupChildren();
+                assign->giveupChildren();
             } else {
                 auto r = m_init->getRegister(codeBlock, context);
                 m_init->generateExpressionByteCode(codeBlock, context, r);
@@ -70,8 +68,8 @@ public:
     }
 
 protected:
-    Node* m_id; // id: Pattern;
-    Node* m_init; // init: Expression | null;
+    RefPtr<Node> m_id; // id: Pattern;
+    RefPtr<Node> m_init; // init: Expression | null;
 };
 }
 

@@ -25,6 +25,8 @@
 #include "parser/esprima_cpp/esprima.h"
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
+#include "interpreter/ByteCode.h"
+#include "parser/ast/ProgramNode.h"
 
 namespace Escargot {
 

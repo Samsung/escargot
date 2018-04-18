@@ -82,7 +82,6 @@
 #include "MemberExpressionNode.h"
 #include "NewExpressionNode.h"
 #include "Node.h"
-#include "Node.h"
 #include "ObjectExpressionNode.h"
 #include "PatternNode.h"
 #include "ProgramNode.h"

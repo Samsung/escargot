@@ -35,7 +35,6 @@ public:
     }
     virtual ~ThrowStatementNode()
     {
-        delete m_argument;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ThrowStatement; }
@@ -50,7 +49,7 @@ public:
     }
 
 protected:
-    Node* m_argument;
+    RefPtr<Node> m_argument;
 };
 }
 

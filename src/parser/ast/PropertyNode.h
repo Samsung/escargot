@@ -45,19 +45,17 @@ public:
 
     virtual ~PropertyNode()
     {
-        delete m_key;
-        delete m_value;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::Property; }
     Node* key()
     {
-        return m_key;
+        return m_key.get();
     }
 
     Node* value()
     {
-        return m_value;
+        return m_value.get();
     }
 
     Kind kind()
@@ -78,8 +76,8 @@ public:
 protected:
     Kind m_kind; // kind: "init" | "get" | "set";
     bool m_computed;
-    Node* m_key; // key: Literal | Identifier;
-    Node* m_value; // value: Expression;
+    RefPtr<Node> m_key; // key: Literal | Identifier;
+    RefPtr<Node> m_value; // value: Expression;
 };
 }
 

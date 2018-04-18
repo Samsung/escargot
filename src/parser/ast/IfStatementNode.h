@@ -37,9 +37,6 @@ public:
 
     virtual ~IfStatementNode()
     {
-        delete m_test;
-        delete m_consequente;
-        delete m_alternate;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::IfStatement; }
@@ -75,9 +72,9 @@ public:
     }
 
 protected:
-    ExpressionNode* m_test;
-    StatementNode* m_consequente;
-    StatementNode* m_alternate;
+    RefPtr<ExpressionNode> m_test;
+    RefPtr<StatementNode> m_consequente;
+    RefPtr<StatementNode> m_alternate;
 };
 }
 

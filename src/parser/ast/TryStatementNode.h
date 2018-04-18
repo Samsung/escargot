@@ -34,15 +34,11 @@ public:
     {
         m_block = (BlockStatementNode *)block;
         m_handler = (CatchClauseNode *)handler;
-        m_guardedHandlers = guardedHandlers;
+        m_guardedHandlers = std::move(guardedHandlers);
         m_finalizer = (BlockStatementNode *)finalizer;
     }
     virtual ~TryStatementNode()
     {
-        delete m_block;
-        delete m_handler;
-        delete m_finalizer;
-        // TODO delete m_guardedHandlers
     }
 
     virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
@@ -104,10 +100,10 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::TryStatement; }
 protected:
-    BlockStatementNode *m_block;
-    CatchClauseNode *m_handler;
+    RefPtr<BlockStatementNode> m_block;
+    RefPtr<CatchClauseNode> m_handler;
     CatchClauseNodeVector m_guardedHandlers;
-    BlockStatementNode *m_finalizer;
+    RefPtr<BlockStatementNode> m_finalizer;
 };
 }
 

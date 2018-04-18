@@ -33,16 +33,11 @@ public:
         : StatementNode()
     {
         m_test = (ExpressionNode*)test;
-        m_consequent = consequent;
+        m_consequent = std::move(consequent);
     }
 
     virtual ~SwitchCaseNode()
     {
-        delete m_test;
-        size_t len = m_consequent.size();
-        for (size_t i = 0; i < len; i++) {
-            delete m_consequent[i];
-        }
     }
 
     virtual ASTNodeType type() { return ASTNodeType::SwitchCase; }
@@ -60,7 +55,7 @@ public:
     }
 
 protected:
-    ExpressionNode* m_test;
+    RefPtr<ExpressionNode> m_test;
     StatementNodeVector m_consequent;
 };
 }

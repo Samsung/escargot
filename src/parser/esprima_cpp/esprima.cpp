@@ -2307,7 +2307,7 @@ struct Context : public gc {
     bool strict : 1;
     RefPtr<ScannerResult> firstCoverInitializedNameError;
     std::vector<std::pair<AtomicString, size_t>> labelSet; // <LabelString, with statement count>
-    std::vector<FunctionDeclarationNode*, GCUtil::gc_malloc_ignore_off_page_allocator<FunctionDeclarationNode*>> functionDeclarationsInDirectCatchScope;
+    std::vector<FunctionDeclarationNode*> functionDeclarationsInDirectCatchScope;
 };
 
 struct Marker : public gc {
@@ -2361,6 +2361,7 @@ public:
     Marker lastMarker;
 
     Vector<ASTScopeContext*, gc_allocator_ignore_off_page<ASTScopeContext*>> scopeContexts;
+    LiteralValueRooterVector literalValueRooter;
     bool trackUsingNames;
     size_t stackLimit;
 
@@ -2379,7 +2380,7 @@ public:
             return;
         for (size_t i = 0; i < vector.size(); i++) {
             ASSERT(vector[i]->isIdentifier());
-            IdentifierNode* id = (IdentifierNode*)vector[i];
+            IdentifierNode* id = (IdentifierNode*)vector[i].get();
             scopeContexts.back()->insertName(id->name(), true);
         }
     }
@@ -2393,13 +2394,14 @@ public:
         }
         auto parentContext = scopeContexts.back();
         scopeContexts.push_back(new ASTScopeContext(this->context->strict));
+        this->literalValueRooter.push_back(scopeContexts.back());
         scopeContexts.back()->m_functionName = functionName;
         scopeContexts.back()->m_inCatch = this->context->inCatch;
         scopeContexts.back()->m_inWith = this->context->inWith;
         scopeContexts.back()->m_parameters.resizeWithUninitializedValues(params.size());
         for (size_t i = 0; i < params.size(); i++) {
             ASSERT(params[i]->isIdentifier());
-            IdentifierNode* id = (IdentifierNode*)params[i];
+            IdentifierNode* id = (IdentifierNode*)params[i].get();
             scopeContexts.back()->m_parameters[i] = id->name();
         }
         if (parentContext) {
@@ -2701,7 +2703,7 @@ public:
     }
 
     template <typename T>
-    T* finalize(MetaNode meta, T* node)
+    RefPtr<T> finalize(MetaNode meta, T* node)
     {
         /*
         if (this->config.range) {
@@ -2745,7 +2747,7 @@ public:
                            NodeLOC(this->lastMarker.index));
         }
 
-        return node;
+        return adoptRef(node);
     }
 
     // Expect the next token to match the specified punctuator.
@@ -2876,7 +2878,7 @@ public:
     }
 
     template <typename T>
-    Node* isolateCoverGrammar(T parseFunction)
+    RefPtr<Node> isolateCoverGrammar(T parseFunction)
     {
         const bool previousIsBindingElement = this->context->isBindingElement;
         const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
@@ -2887,7 +2889,7 @@ public:
         this->context->firstCoverInitializedNameError = nullptr;
 
         this->checkRecursiveLimit();
-        Node* result = (this->*parseFunction)();
+        RefPtr<Node> result = (this->*parseFunction)();
         if (this->context->firstCoverInitializedNameError != nullptr) {
             this->throwUnexpectedToken(this->context->firstCoverInitializedNameError);
         }
@@ -2900,7 +2902,7 @@ public:
     }
 
     template <typename T>
-    Node* isolateCoverGrammarWithFunctor(T parseFunction)
+    RefPtr<Node> isolateCoverGrammarWithFunctor(T parseFunction)
     {
         const bool previousIsBindingElement = this->context->isBindingElement;
         const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
@@ -2911,7 +2913,7 @@ public:
         this->context->firstCoverInitializedNameError = nullptr;
 
         this->checkRecursiveLimit();
-        Node* result = parseFunction();
+        RefPtr<Node> result = parseFunction();
         if (this->context->firstCoverInitializedNameError != nullptr) {
             this->throwUnexpectedToken(this->context->firstCoverInitializedNameError);
         }
@@ -2924,7 +2926,7 @@ public:
     }
 
     template <typename T>
-    Node* inheritCoverGrammar(T parseFunction)
+    RefPtr<Node> inheritCoverGrammar(T parseFunction)
     {
         const bool previousIsBindingElement = this->context->isBindingElement;
         const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
@@ -2935,7 +2937,7 @@ public:
         this->context->firstCoverInitializedNameError = nullptr;
 
         this->checkRecursiveLimit();
-        Node* result = (this->*parseFunction)();
+        RefPtr<Node> result = (this->*parseFunction)();
 
         this->context->isBindingElement = this->context->isBindingElement && previousIsBindingElement;
         this->context->isAssignmentTarget = this->context->isAssignmentTarget && previousIsAssignmentTarget;
@@ -2968,13 +2970,13 @@ public:
         return ret;
     }
 
-#define DEFINE_AS_NODE(TypeName)                \
-    TypeName##Node* as##TypeName##Node(Node* n) \
-    {                                           \
-        if (!n)                                 \
-            return (TypeName##Node*)n;          \
-        ASSERT(n->is##TypeName##Node());        \
-        return (TypeName##Node*)n;              \
+#define DEFINE_AS_NODE(TypeName)                                 \
+    RefPtr<TypeName##Node> as##TypeName##Node(RefPtr<Node> n)    \
+    {                                                            \
+        if (!n)                                                  \
+            return RefPtr<TypeName##Node>(nullptr);              \
+        ASSERT(n->is##TypeName##Node());                         \
+        return RefPtr<TypeName##Node>((TypeName##Node*)n.get()); \
     }
 
     DEFINE_AS_NODE(Expression);
@@ -2982,11 +2984,11 @@ public:
 
     // ECMA-262 12.2 Primary Expressions
 
-    Node* parsePrimaryExpression()
+    RefPtr<Node> parsePrimaryExpression()
     {
         MetaNode node = this->createNode();
 
-        Node* expr;
+        RefPtr<Node> expr;
         // let value, token, raw;
         RefPtr<ScannerResult> token;
 
@@ -3015,7 +3017,9 @@ public:
                     this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
                 expr = this->finalize(node, new LiteralNode(Value(token->valueNumber)));
             } else {
-                expr = this->finalize(node, new LiteralNode(Value(StringView::createStringView(token->valueString))));
+                auto sv = StringView::createStringView(token->valueString);
+                this->literalValueRooter.push_back(sv);
+                expr = this->finalize(node, new LiteralNode(Value(sv)));
             }
             break;
 
@@ -3066,6 +3070,8 @@ public:
                 this->scanner->index = this->startMarker.index;
                 token = this->nextRegexToken();
                 // raw = this->getTokenRaw(token);
+                this->literalValueRooter.push_back(token->valueRegexp.body);
+                this->literalValueRooter.push_back(token->valueRegexp.flags);
                 expr = this->finalize(node, new RegExpLiteralNode(token->valueRegexp.body, token->valueRegexp.flags));
                 break;
             default:
@@ -3143,7 +3149,7 @@ public:
         options.paramSet.push_back(name);
     }
 
-    RestElementNode* parseRestElement(std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>>& params)
+    RefPtr<RestElementNode> parseRestElement(std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>>& params)
     {
         MetaNode node = this->createNode();
 
@@ -3155,7 +3161,7 @@ public:
         }
         params.push_back(this->lookahead);
 
-        IdentifierNode* param = this->parseVariableIdentifier();
+        RefPtr<IdentifierNode> param = this->parseVariableIdentifier();
         if (this->match(Equal)) {
             this->throwError(Messages::DefaultRestParameter);
         }
@@ -3163,12 +3169,12 @@ public:
             this->throwError(Messages::ParameterAfterRestParameter);
         }
 
-        return this->finalize(node, new RestElementNode(param));
+        return this->finalize(node, new RestElementNode(param.get()));
     }
 
-    Node* parsePattern(std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>>& params, String* kind = String::emptyString)
+    RefPtr<Node> parsePattern(std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>>& params, String* kind = String::emptyString)
     {
-        Node* pattern;
+        RefPtr<Node> pattern;
 
         if (this->match(LeftSquareBracket)) {
             this->throwError("Array pattern is not supported yet");
@@ -3189,20 +3195,20 @@ public:
         return pattern;
     }
 
-    Node* parsePatternWithDefault(std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>>& params, String* kind = String::emptyString)
+    RefPtr<Node> parsePatternWithDefault(std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>>& params, String* kind = String::emptyString)
     {
         RefPtr<ScannerResult> startToken = this->lookahead;
 
-        Node* pattern = this->parsePattern(params, kind);
+        RefPtr<Node> pattern = this->parsePattern(params, kind);
         if (this->match(PunctuatorsKind::Substitution)) {
             this->throwError("Assignment in parameter is not supported yet");
 
             this->nextToken();
             const bool previousAllowYield = this->context->allowYield;
             this->context->allowYield = true;
-            Node* right = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+            RefPtr<Node> right = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
             this->context->allowYield = previousAllowYield;
-            pattern = this->finalize(this->startNode(startToken), new AssignmentExpressionSimpleNode(pattern, right));
+            pattern = this->finalize(this->startNode(startToken), new AssignmentExpressionSimpleNode(pattern.get(), right.get()));
         }
 
         return pattern;
@@ -3210,13 +3216,13 @@ public:
 
     bool parseFormalParameter(ParseParameterOptions& options)
     {
-        Node* param;
+        RefPtr<Node> param;
         bool trackUsingNamesBefore = trackUsingNames;
         trackUsingNames = false;
         std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> params;
         RefPtr<ScannerResult> token = this->lookahead;
         if (token->type == Token::PunctuatorToken && token->valuePunctuatorsKind == PunctuatorsKind::PeriodPeriodPeriod) {
-            RestElementNode* param = this->parseRestElement(params);
+            RefPtr<RestElementNode> param = this->parseRestElement(params);
             this->validateParam(options, params.back(), param->argument()->name());
             options.params.push_back(param);
             trackUsingNames = true;
@@ -3270,16 +3276,16 @@ public:
 
     // ECMA-262 12.2.5 Array Initializer
 
-    SpreadElementNode* parseSpreadElement()
+    RefPtr<SpreadElementNode> parseSpreadElement()
     {
         MetaNode node = this->createNode();
         this->expect(PunctuatorsKind::PeriodPeriodPeriod);
-        Node* arg = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
+        RefPtr<Node> arg = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
         this->throwError("Spread element is not supported yet");
-        return this->finalize(node, new SpreadElementNode(arg));
+        return this->finalize(node, new SpreadElementNode(arg.get()));
     }
 
-    Node* parseArrayInitializer()
+    RefPtr<Node> parseArrayInitializer()
     {
         MetaNode node = this->createNode();
         // const elements: Node.ArrayExpressionElement[] = [];
@@ -3291,7 +3297,7 @@ public:
                 this->nextToken();
                 elements.push_back(nullptr);
             } else if (this->match(PeriodPeriodPeriod)) {
-                SpreadElementNode* element = this->parseSpreadElement();
+                RefPtr<SpreadElementNode> element = this->parseSpreadElement();
                 if (!this->match(RightSquareBracket)) {
                     this->context->isAssignmentTarget = false;
                     this->context->isBindingElement = false;
@@ -3312,7 +3318,7 @@ public:
 
     // ECMA-262 12.2.6 Object Initializer
 
-    Node* parsePropertyMethod(ParseFormalParametersResult& params)
+    RefPtr<Node> parsePropertyMethod(ParseFormalParametersResult& params)
     {
         this->context->isAssignmentTarget = false;
         this->context->isBindingElement = false;
@@ -3320,7 +3326,7 @@ public:
         pushScopeContext(params.params, AtomicString());
         extractNamesFromFunctionParams(params.params);
         const bool previousStrict = this->context->strict;
-        Node* body = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
+        RefPtr<Node> body = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
         if (this->context->strict && params.firstRestricted) {
             this->tolerateUnexpectedToken(params.firstRestricted, params.message);
         }
@@ -3332,7 +3338,7 @@ public:
         return body;
     }
 
-    FunctionExpressionNode* parsePropertyMethodFunction()
+    RefPtr<FunctionExpressionNode> parsePropertyMethodFunction()
     {
         const bool isGenerator = false;
         MetaNode node = this->createNode();
@@ -3340,18 +3346,18 @@ public:
         const bool previousAllowYield = this->context->allowYield;
         this->context->allowYield = false;
         ParseFormalParametersResult params = this->parseFormalParameters();
-        Node* method = this->parsePropertyMethod(params);
+        RefPtr<Node> method = this->parsePropertyMethod(params);
         this->context->allowYield = previousAllowYield;
 
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method, popScopeContext(node), isGenerator));
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method.get(), popScopeContext(node), isGenerator));
     }
 
-    Node* parseObjectPropertyKey()
+    RefPtr<Node> parseObjectPropertyKey()
     {
         MetaNode node = this->createNode();
         RefPtr<ScannerResult> token = this->nextToken();
 
-        Node* key = nullptr;
+        RefPtr<Node> key;
         switch (token->type) {
         case Token::NumericLiteralToken:
         case Token::StringLiteralToken:
@@ -3369,7 +3375,9 @@ public:
                         this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
                     v = Value(token->valueNumber);
                 } else {
-                    v = Value(StringView::createStringView(token->valueString));
+                    auto sv = StringView::createStringView(token->valueString);
+                    this->literalValueRooter.push_back(sv);
+                    v = Value(sv);
                 }
                 key = this->finalize(node, new LiteralNode(v));
             }
@@ -3432,14 +3440,14 @@ public:
         return false;
     }
 
-    PropertyNode* parseObjectProperty(bool& hasProto, std::vector<std::pair<AtomicString, size_t>>& usedNames) //: Node.Property
+    RefPtr<PropertyNode> parseObjectProperty(bool& hasProto, std::vector<std::pair<AtomicString, size_t>>& usedNames) //: Node.Property
     {
         MetaNode node = this->createNode();
         RefPtr<ScannerResult> token = this->lookahead;
 
         PropertyNode::Kind kind;
-        Node* key = nullptr; //'': Node.PropertyKey;
-        Node* value = nullptr; //: Node.PropertyValue;
+        RefPtr<Node> key; //'': Node.PropertyKey;
+        RefPtr<Node> value; //: Node.PropertyValue;
 
         bool computed = false;
         bool method = false;
@@ -3483,7 +3491,7 @@ public:
 
             kind = PropertyNode::Kind::Init;
             if (this->match(PunctuatorsKind::Colon)) {
-                if (!computed && this->isPropertyKey(key, "__proto__")) {
+                if (!computed && this->isPropertyKey(key.get(), "__proto__")) {
                     if (hasProto) {
                         this->tolerateError(Messages::DuplicateProtoProperty);
                     }
@@ -3550,10 +3558,10 @@ public:
         }
 
         // return this->finalize(node, new PropertyNode(kind, key, computed, value, method, shorthand));
-        return this->finalize(node, new PropertyNode(key, value, kind, computed));
+        return this->finalize(node, new PropertyNode(key.get(), value.get(), kind, computed));
     }
 
-    Node* parseObjectInitializer()
+    RefPtr<Node> parseObjectInitializer()
     {
         MetaNode node = this->createNode();
 
@@ -3802,9 +3810,9 @@ public:
         }
     }
 
-    Node* parseGroupExpression()
+    RefPtr<Node> parseGroupExpression()
     {
-        Node* expr;
+        RefPtr<Node> expr;
 
         this->expect(LeftParenthesis);
         if (this->match(RightParenthesis)) {
@@ -3843,7 +3851,12 @@ public:
         ArgumentVector args;
         if (!this->match(RightParenthesis)) {
             while (true) {
-                Node* expr = this->match(PeriodPeriodPeriod) ? this->parseSpreadElement() : this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+                RefPtr<Node> expr;
+                if (this->match(PeriodPeriodPeriod)) {
+                    expr = this->parseSpreadElement();
+                } else {
+                    expr = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+                }
                 args.push_back(expr);
                 if (this->match(RightParenthesis)) {
                     break;
@@ -3861,7 +3874,7 @@ public:
         return token->type == Token::IdentifierToken || token->type == Token::KeywordToken || token->type == Token::BooleanLiteralToken || token->type == Token::NullLiteralToken;
     }
 
-    IdentifierNode* parseIdentifierName()
+    RefPtr<IdentifierNode> parseIdentifierName()
     {
         MetaNode node = this->createNode();
         RefPtr<ScannerResult> token = this->nextToken();
@@ -3871,11 +3884,11 @@ public:
         return this->finalize(node, finishIdentifier(token, true));
     }
 
-    Node* parseNewExpression()
+    RefPtr<Node> parseNewExpression()
     {
         MetaNode node = this->createNode();
 
-        IdentifierNode* id = this->parseIdentifierName();
+        RefPtr<IdentifierNode> id = this->parseIdentifierName();
         // assert(id.name === 'new', 'New expression must start with `new`');
 
         Node* expr;
@@ -3883,7 +3896,7 @@ public:
             this->nextToken();
             if (this->lookahead->type == Token::IdentifierToken && this->context->inFunctionBody && this->lookahead->valueString == "target") {
                 // TODO
-                IdentifierNode* property = this->parseIdentifierName();
+                RefPtr<IdentifierNode> property = this->parseIdentifierName();
                 this->throwError("Meta property is not supported yet");
                 RELEASE_ASSERT_NOT_REACHED();
                 // expr = new Node.MetaProperty(id, property);
@@ -3891,14 +3904,14 @@ public:
                 this->throwUnexpectedToken(this->lookahead);
             }
         } else {
-            Node* callee = this->isolateCoverGrammar(&Parser::parseLeftHandSideExpression);
+            RefPtr<Node> callee = this->isolateCoverGrammar(&Parser::parseLeftHandSideExpression);
             ArgumentVector args;
             if (this->match(LeftParenthesis))
                 args = this->parseArguments();
             if (args.size() > 65535) {
                 this->throwError("too many arguments in new");
             }
-            expr = new NewExpressionNode(callee, std::move(args));
+            expr = new NewExpressionNode(callee.get(), std::move(args));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         }
@@ -3906,13 +3919,13 @@ public:
         return this->finalize(node, expr);
     }
 
-    Node* parseLeftHandSideExpressionAllowCall()
+    RefPtr<Node> parseLeftHandSideExpressionAllowCall()
     {
         RefPtr<ScannerResult> startToken = this->lookahead;
         bool previousAllowIn = this->context->allowIn;
         this->context->allowIn = true;
 
-        Node* expr;
+        RefPtr<Node> expr;
         if (this->matchKeyword(Super) && this->context->inFunctionBody) {
             MetaNode node = this->createNode();
             this->nextToken();
@@ -3933,9 +3946,9 @@ public:
                 this->expect(Period);
                 bool trackUsingNamesBefore = this->trackUsingNames;
                 this->trackUsingNames = false;
-                IdentifierNode* property = this->parseIdentifierName();
+                RefPtr<IdentifierNode> property = this->parseIdentifierName();
                 this->trackUsingNames = trackUsingNamesBefore;
-                expr = this->finalize(this->startNode(startToken), new MemberExpressionNode(expr, property, true));
+                expr = this->finalize(this->startNode(startToken), new MemberExpressionNode(expr.get(), property.get(), true));
 
             } else if (this->match(LeftParenthesis)) {
                 this->context->isBindingElement = false;
@@ -3944,18 +3957,18 @@ public:
                 if (args.size() > 65535) {
                     this->throwError("too many arguments in call");
                 }
-                expr = this->finalize(this->startNode(startToken), new CallExpressionNode(expr, std::move(args)));
+                expr = this->finalize(this->startNode(startToken), new CallExpressionNode(expr.get(), std::move(args)));
 
             } else if (this->match(LeftSquareBracket)) {
                 this->context->isBindingElement = false;
                 this->context->isAssignmentTarget = true;
                 this->expect(LeftSquareBracket);
-                Node* property = this->isolateCoverGrammar(&Parser::parseExpression);
+                RefPtr<Node> property = this->isolateCoverGrammar(&Parser::parseExpression);
                 this->expect(RightSquareBracket);
-                expr = this->finalize(this->startNode(startToken), new MemberExpressionNode(expr, property, false));
+                expr = this->finalize(this->startNode(startToken), new MemberExpressionNode(expr.get(), property.get(), false));
 
             } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->head) {
-                Node* quasi = this->parseTemplateLiteral();
+                RefPtr<Node> quasi = this->parseTemplateLiteral();
                 // expr = this->finalize(this->startNode(startToken), new Node.TaggedTemplateExpression(expr, quasi));
                 RELEASE_ASSERT_NOT_REACHED();
             } else {
@@ -3967,7 +3980,7 @@ public:
         return expr;
     }
 
-    Node* parseSuper()
+    RefPtr<Node> parseSuper()
     {
         MetaNode node = this->createNode();
 
@@ -3982,22 +3995,22 @@ public:
         return nullptr;
     }
 
-    Node* parseLeftHandSideExpression()
+    RefPtr<Node> parseLeftHandSideExpression()
     {
         // assert(this->context->allowIn, 'callee of new expression always allow in keyword.');
         ASSERT(this->context->allowIn);
 
         MetaNode node = this->startNode(this->lookahead);
-        Node* expr = (this->matchKeyword(Super) && this->context->inFunctionBody) ? this->parseSuper() : this->inheritCoverGrammar(this->matchKeyword(New) ? &Parser::parseNewExpression : &Parser::parsePrimaryExpression);
+        RefPtr<Node> expr = (this->matchKeyword(Super) && this->context->inFunctionBody) ? this->parseSuper() : this->inheritCoverGrammar(this->matchKeyword(New) ? &Parser::parseNewExpression : &Parser::parsePrimaryExpression);
 
         while (true) {
             if (this->match(LeftSquareBracket)) {
                 this->context->isBindingElement = false;
                 this->context->isAssignmentTarget = true;
                 this->expect(LeftSquareBracket);
-                Node* property = this->isolateCoverGrammar(&Parser::parseExpression);
+                RefPtr<Node> property = this->isolateCoverGrammar(&Parser::parseExpression);
                 this->expect(RightSquareBracket);
-                expr = this->finalize(node, new MemberExpressionNode(expr, property, false));
+                expr = this->finalize(node, new MemberExpressionNode(expr.get(), property.get(), false));
 
             } else if (this->match(Period)) {
                 this->context->isBindingElement = false;
@@ -4005,12 +4018,12 @@ public:
                 this->expect(Period);
                 bool trackUsingNamesBefore = this->trackUsingNames;
                 this->trackUsingNames = false;
-                IdentifierNode* property = this->parseIdentifierName();
+                RefPtr<IdentifierNode> property = this->parseIdentifierName();
                 this->trackUsingNames = trackUsingNamesBefore;
-                expr = this->finalize(node, new MemberExpressionNode(expr, property, true));
+                expr = this->finalize(node, new MemberExpressionNode(expr.get(), property.get(), true));
 
             } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->head) {
-                Node* quasi = this->parseTemplateLiteral();
+                RefPtr<Node> quasi = this->parseTemplateLiteral();
                 // TODO
                 // expr = this->finalize(node, new Node.TaggedTemplateExpression(expr, quasi));
                 this->throwError("Tagged template expression is not supported yet");
@@ -4025,9 +4038,9 @@ public:
 
     // ECMA-262 12.4 Update Expressions
 
-    Node* parseUpdateExpression()
+    RefPtr<Node> parseUpdateExpression()
     {
-        Node* expr;
+        RefPtr<Node> expr;
         RefPtr<ScannerResult> startToken = this->lookahead;
 
         if (this->match(PlusPlus) || this->match(MinusMinus)) {
@@ -4038,7 +4051,7 @@ public:
             if (expr->isLiteral() || expr->type() == ASTNodeType::ThisExpression) {
                 this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
             }
-            if (this->context->strict && expr->type() == Identifier && this->scanner->isRestrictedWord(((IdentifierNode*)expr)->name())) {
+            if (this->context->strict && expr->type() == Identifier && this->scanner->isRestrictedWord(((IdentifierNode*)expr.get())->name())) {
                 this->tolerateError(Messages::StrictLHSPrefix);
             }
             if (!this->context->isAssignmentTarget && this->context->strict) {
@@ -4047,9 +4060,9 @@ public:
             bool prefix = true;
 
             if (isPlus) {
-                expr = this->finalize(node, new UpdateExpressionIncrementPrefixNode(expr));
+                expr = this->finalize(node, new UpdateExpressionIncrementPrefixNode(expr.get()));
             } else {
-                expr = this->finalize(node, new UpdateExpressionDecrementPrefixNode(expr));
+                expr = this->finalize(node, new UpdateExpressionDecrementPrefixNode(expr.get()));
             }
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
@@ -4058,7 +4071,7 @@ public:
             if (!this->hasLineTerminator && this->lookahead->type == Token::PunctuatorToken) {
                 if (this->match(PlusPlus) || this->match(MinusMinus)) {
                     bool isPlus = this->match(PlusPlus);
-                    if (this->context->strict && expr->isIdentifier() && this->scanner->isRestrictedWord(((IdentifierNode*)expr)->name())) {
+                    if (this->context->strict && expr->isIdentifier() && this->scanner->isRestrictedWord(((IdentifierNode*)expr.get())->name())) {
                         this->tolerateError(Messages::StrictLHSPostfix);
                     }
                     if (!this->context->isAssignmentTarget && this->context->strict) {
@@ -4073,9 +4086,9 @@ public:
                     }
 
                     if (isPlus) {
-                        expr = this->finalize(this->startNode(startToken), new UpdateExpressionIncrementPostfixNode(expr));
+                        expr = this->finalize(this->startNode(startToken), new UpdateExpressionIncrementPostfixNode(expr.get()));
                     } else {
-                        expr = this->finalize(this->startNode(startToken), new UpdateExpressionDecrementPostfixNode(expr));
+                        expr = this->finalize(this->startNode(startToken), new UpdateExpressionDecrementPostfixNode(expr.get()));
                     }
                 }
             }
@@ -4086,44 +4099,44 @@ public:
 
     // ECMA-262 12.5 Unary Operators
 
-    Node* parseUnaryExpression()
+    RefPtr<Node> parseUnaryExpression()
     {
-        Node* expr;
+        RefPtr<Node> expr;
 
         if (this->match(Plus)) {
             MetaNode node = this->startNode(this->lookahead);
             RefPtr<ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-            expr = this->finalize(node, new UnaryExpressionPlusNode(expr));
+            expr = this->finalize(node, new UnaryExpressionPlusNode(expr.get()));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         } else if (this->match(Minus)) {
             MetaNode node = this->startNode(this->lookahead);
             RefPtr<ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-            expr = this->finalize(node, new UnaryExpressionMinusNode(expr));
+            expr = this->finalize(node, new UnaryExpressionMinusNode(expr.get()));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         } else if (this->match(Wave)) {
             MetaNode node = this->startNode(this->lookahead);
             RefPtr<ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-            expr = this->finalize(node, new UnaryExpressionBitwiseNotNode(expr));
+            expr = this->finalize(node, new UnaryExpressionBitwiseNotNode(expr.get()));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         } else if (this->match(ExclamationMark)) {
             MetaNode node = this->startNode(this->lookahead);
             RefPtr<ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-            expr = this->finalize(node, new UnaryExpressionLogicalNotNode(expr));
+            expr = this->finalize(node, new UnaryExpressionLogicalNotNode(expr.get()));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         } else if (this->matchKeyword(Delete)) {
             MetaNode node = this->startNode(this->lookahead);
             RefPtr<ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-            Node* exprOld = expr;
-            expr = this->finalize(node, new UnaryExpressionDeleteNode(expr));
+            RefPtr<Node> exprOld = expr;
+            expr = this->finalize(node, new UnaryExpressionDeleteNode(expr.get()));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
 
@@ -4137,15 +4150,15 @@ public:
             MetaNode node = this->startNode(this->lookahead);
             RefPtr<ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-            expr = this->finalize(node, new UnaryExpressionVoidNode(expr));
+            expr = this->finalize(node, new UnaryExpressionVoidNode(expr.get()));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         } else if (this->matchKeyword(Typeof)) {
             MetaNode node = this->startNode(this->lookahead);
             RefPtr<ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-            Node* exprOld = expr;
-            expr = this->finalize(node, new UnaryExpressionTypeOfNode(expr));
+            RefPtr<Node> exprOld = expr;
+            expr = this->finalize(node, new UnaryExpressionTypeOfNode(expr.get()));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
 
@@ -4162,10 +4175,10 @@ public:
         return expr;
     }
 
-    Node* parseExponentiationExpression()
+    RefPtr<Node> parseExponentiationExpression()
     {
         RefPtr<ScannerResult> startToken = this->lookahead;
-        Node* expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+        RefPtr<Node> expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
         // TODO
         /*
          if (expr->type != Syntax.UnaryExpression && this->match('**')) {
@@ -4250,14 +4263,15 @@ public:
         return 0;
     }
 
-    Node* parseBinaryExpression()
+    RefPtr<Node> parseBinaryExpression()
     {
         RefPtr<ScannerResult> startToken = this->lookahead;
 
-        Node* expr = this->inheritCoverGrammar(&Parser::parseExponentiationExpression);
+        RefPtr<Node> expr = this->inheritCoverGrammar(&Parser::parseExponentiationExpression);
 
         RefPtr<ScannerResult> token = this->lookahead;
         std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> tokenKeeper;
+        std::vector<RefPtr<Node>> exprKeeper;
         int prec = this->binaryPrecedence(token);
         if (prec > 0) {
             this->nextToken();
@@ -4269,14 +4283,16 @@ public:
             std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> markers;
             markers.push_back(startToken);
             markers.push_back(this->lookahead);
-            Node* left = expr;
-            Node* right = this->isolateCoverGrammar(&Parser::parseExponentiationExpression);
+            RefPtr<Node> left = expr;
+            RefPtr<Node> right = this->isolateCoverGrammar(&Parser::parseExponentiationExpression);
 
             std::vector<void*, GCUtil::gc_malloc_ignore_off_page_allocator<void*>> stack;
-            stack.push_back(left);
+            exprKeeper.push_back(left);
+            stack.push_back(left.get());
             tokenKeeper.push_back(token);
             stack.push_back(token.get());
-            stack.push_back(right);
+            exprKeeper.push_back(right);
+            stack.push_back(right.get());
 
             while (true) {
                 prec = this->binaryPrecedence(this->lookahead);
@@ -4294,7 +4310,9 @@ public:
                     stack.pop_back();
                     markers.pop_back();
                     MetaNode node = this->startNode(markers.back());
-                    stack.push_back(this->finalize(node, finishBinaryExpression(left, right, operator_)));
+                    auto e = this->finalize(node, finishBinaryExpression(left.get(), right.get(), operator_));
+                    exprKeeper.push_back(e);
+                    stack.push_back(e.get());
                 }
 
                 // Shift.
@@ -4303,7 +4321,9 @@ public:
                 tokenKeeper.push_back(token);
                 stack.push_back(token.get());
                 markers.push_back(this->lookahead);
-                stack.push_back(this->isolateCoverGrammar(&Parser::parseExponentiationExpression));
+                auto e = this->isolateCoverGrammar(&Parser::parseExponentiationExpression);
+                exprKeeper.push_back(e);
+                stack.push_back(e.get());
             }
 
             // Final reduce to clean-up the stack.
@@ -4312,7 +4332,7 @@ public:
             markers.pop_back();
             while (i > 1) {
                 MetaNode node = this->startNode(markers.back());
-                expr = this->finalize(node, finishBinaryExpression((Node*)stack[i - 2], expr, ((ScannerResult*)stack[i - 1])));
+                expr = this->finalize(node, finishBinaryExpression((Node*)stack[i - 2], expr.get(), (ScannerResult*)stack[i - 1]));
                 i -= 2;
             }
         }
@@ -4393,23 +4413,23 @@ public:
 
     // ECMA-262 12.14 Conditional Operator
 
-    Node* parseConditionalExpression()
+    RefPtr<Node> parseConditionalExpression()
     {
         RefPtr<ScannerResult> startToken = this->lookahead;
 
-        Node* expr = this->inheritCoverGrammar(&Parser::parseBinaryExpression);
+        RefPtr<Node> expr = this->inheritCoverGrammar(&Parser::parseBinaryExpression);
         if (this->match(GuessMark)) {
             this->nextToken();
 
             bool previousAllowIn = this->context->allowIn;
             this->context->allowIn = true;
-            Node* consequent = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+            RefPtr<Node> consequent = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
             this->context->allowIn = previousAllowIn;
 
             this->expect(Colon);
-            Node* alternate = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+            RefPtr<Node> alternate = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
 
-            expr = this->finalize(this->startNode(startToken), new ConditionalExpressionNode(expr, consequent, alternate));
+            expr = this->finalize(this->startNode(startToken), new ConditionalExpressionNode(expr.get(), consequent.get(), alternate.get()));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         }
@@ -4523,9 +4543,9 @@ public:
          };
      }
 */
-    Node* parseAssignmentExpression()
+    RefPtr<Node> parseAssignmentExpression()
     {
-        Node* expr;
+        RefPtr<Node> expr;
 
         if (!this->context->allowYield && this->matchKeyword(Yield)) {
             expr = this->parseYieldExpression();
@@ -4604,7 +4624,7 @@ public:
                 }
 
                 if (this->context->strict && expr->type() == Identifier) {
-                    IdentifierNode* id = (IdentifierNode*)(expr);
+                    IdentifierNode* id = (IdentifierNode*)(expr.get());
                     if (this->scanner->isRestrictedWord(id->name())) {
                         this->tolerateUnexpectedToken(token, Messages::StrictLHSAssignment);
                     }
@@ -4617,43 +4637,44 @@ public:
                     this->context->isAssignmentTarget = false;
                     this->context->isBindingElement = false;
                 } else {
-                    this->reinterpretExpressionAsPattern(expr);
+                    this->reinterpretExpressionAsPattern(expr.get());
                 }
 
                 if (expr->isLiteral() || expr->type() == ASTNodeType::ThisExpression) {
                     this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
                 }
 
+                Node* exprResult;
                 token = this->nextToken();
-                Node* right = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+                RefPtr<Node> right = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
                 if (token->valuePunctuatorsKind == Substitution) {
-                    expr = new AssignmentExpressionSimpleNode(expr, right);
+                    exprResult = new AssignmentExpressionSimpleNode(expr.get(), right.get());
                 } else if (token->valuePunctuatorsKind == PlusEqual) {
-                    expr = new AssignmentExpressionPlusNode(expr, right);
+                    exprResult = new AssignmentExpressionPlusNode(expr.get(), right.get());
                 } else if (token->valuePunctuatorsKind == MinusEqual) {
-                    expr = new AssignmentExpressionMinusNode(expr, right);
+                    exprResult = new AssignmentExpressionMinusNode(expr.get(), right.get());
                 } else if (token->valuePunctuatorsKind == MultiplyEqual) {
-                    expr = new AssignmentExpressionMultiplyNode(expr, right);
+                    exprResult = new AssignmentExpressionMultiplyNode(expr.get(), right.get());
                 } else if (token->valuePunctuatorsKind == DivideEqual) {
-                    expr = new AssignmentExpressionDivisionNode(expr, right);
+                    exprResult = new AssignmentExpressionDivisionNode(expr.get(), right.get());
                 } else if (token->valuePunctuatorsKind == ModEqual) {
-                    expr = new AssignmentExpressionModNode(expr, right);
+                    exprResult = new AssignmentExpressionModNode(expr.get(), right.get());
                 } else if (token->valuePunctuatorsKind == LeftShiftEqual) {
-                    expr = new AssignmentExpressionLeftShiftNode(expr, right);
+                    exprResult = new AssignmentExpressionLeftShiftNode(expr.get(), right.get());
                 } else if (token->valuePunctuatorsKind == RightShiftEqual) {
-                    expr = new AssignmentExpressionSignedRightShiftNode(expr, right);
+                    exprResult = new AssignmentExpressionSignedRightShiftNode(expr.get(), right.get());
                 } else if (token->valuePunctuatorsKind == UnsignedRightShiftEqual) {
-                    expr = new AssignmentExpressionUnsignedShiftNode(expr, right);
+                    exprResult = new AssignmentExpressionUnsignedShiftNode(expr.get(), right.get());
                 } else if (token->valuePunctuatorsKind == BitwiseXorEqual) {
-                    expr = new AssignmentExpressionBitwiseXorNode(expr, right);
+                    exprResult = new AssignmentExpressionBitwiseXorNode(expr.get(), right.get());
                 } else if (token->valuePunctuatorsKind == BitwiseAndEqual) {
-                    expr = new AssignmentExpressionBitwiseAndNode(expr, right);
+                    exprResult = new AssignmentExpressionBitwiseAndNode(expr.get(), right.get());
                 } else if (token->valuePunctuatorsKind == BitwiseOrEqual) {
-                    expr = new AssignmentExpressionBitwiseOrNode(expr, right);
+                    exprResult = new AssignmentExpressionBitwiseOrNode(expr.get(), right.get());
                 } else {
                     RELEASE_ASSERT_NOT_REACHED();
                 }
-                expr = this->finalize(this->startNode(startToken), expr);
+                expr = this->finalize(this->startNode(startToken), exprResult);
                 this->context->firstCoverInitializedNameError = nullptr;
             }
         }
@@ -4663,10 +4684,10 @@ public:
 
     // ECMA-262 12.16 Comma Operator
 
-    Node* parseExpression()
+    RefPtr<Node> parseExpression()
     {
         RefPtr<ScannerResult> startToken = this->lookahead;
-        Node* expr = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+        RefPtr<Node> expr = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
 
         if (this->match(Comma)) {
             ExpressionNodeVector expressions;
@@ -4687,9 +4708,9 @@ public:
 
     // ECMA-262 13.2 Block
 
-    StatementNode* parseStatementListItem()
+    RefPtr<StatementNode> parseStatementListItem()
     {
-        StatementNode* statement = nullptr;
+        RefPtr<StatementNode> statement;
         this->context->isAssignmentTarget = true;
         this->context->isBindingElement = true;
         if (this->lookahead->type == KeywordToken) {
@@ -4742,7 +4763,7 @@ public:
         return statement;
     }
 
-    BlockStatementNode* parseBlock()
+    RefPtr<BlockStatementNode> parseBlock()
     {
         MetaNode node = this->createNode();
 
@@ -4954,7 +4975,7 @@ public:
     */
 
     // ECMA-262 13.3.2 Variable Statement
-    IdentifierNode* parseVariableIdentifier(String* kind = String::emptyString)
+    RefPtr<IdentifierNode> parseVariableIdentifier(String* kind = String::emptyString)
     {
         MetaNode node = this->createNode();
 
@@ -4985,25 +5006,25 @@ public:
         bool inFor;
     };
 
-    VariableDeclaratorNode* parseVariableDeclaration(DeclarationOptions& options)
+    RefPtr<VariableDeclaratorNode> parseVariableDeclaration(DeclarationOptions& options)
     {
         MetaNode node = this->createNode();
 
         std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> params;
-        Node* id = this->parsePattern(params, new ASCIIString("var"));
+        RefPtr<Node> id = this->parsePattern(params, new ASCIIString("var"));
 
         // ECMA-262 12.2.1
         if (this->context->strict && id->type() == Identifier) {
-            if (this->scanner->isRestrictedWord(((IdentifierNode*)id)->name())) {
+            if (this->scanner->isRestrictedWord(((IdentifierNode*)id.get())->name())) {
                 this->tolerateError(Messages::StrictVarName);
             }
         }
 
         if (id->type() == Identifier && !this->config.parseSingleFunction) {
-            this->scopeContexts.back()->insertName(((IdentifierNode*)id)->name(), true);
+            this->scopeContexts.back()->insertName(((IdentifierNode*)id.get())->name(), true);
         }
 
-        Node* init = nullptr;
+        RefPtr<Node> init;
         if (this->match(Substitution)) {
             this->nextToken();
             init = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
@@ -5011,7 +5032,7 @@ public:
             this->expect(Substitution);
         }
 
-        return this->finalize(node, new VariableDeclaratorNode(id, init));
+        return this->finalize(node, new VariableDeclaratorNode(id.get(), init.get()));
     }
 
     VariableDeclaratorVector parseVariableDeclarationList(DeclarationOptions& options)
@@ -5029,7 +5050,7 @@ public:
         return list;
     }
 
-    VariableDeclarationNode* parseVariableStatement()
+    RefPtr<VariableDeclarationNode> parseVariableStatement()
     {
         MetaNode node = this->createNode();
         this->expectKeyword(Var);
@@ -5043,7 +5064,7 @@ public:
 
     // ECMA-262 13.4 Empty Statement
 
-    EmptyStatementNode* parseEmptyStatement()
+    RefPtr<EmptyStatementNode> parseEmptyStatement()
     {
         MetaNode node = this->createNode();
         this->expect(SemiColon);
@@ -5052,25 +5073,25 @@ public:
 
     // ECMA-262 13.5 Expression Statement
 
-    ExpressionStatementNode* parseExpressionStatement()
+    RefPtr<ExpressionStatementNode> parseExpressionStatement()
     {
         MetaNode node = this->createNode();
-        Node* expr = this->parseExpression();
+        RefPtr<Node> expr = this->parseExpression();
         this->consumeSemicolon();
-        return this->finalize(node, new ExpressionStatementNode(expr));
+        return this->finalize(node, new ExpressionStatementNode(expr.get()));
     }
 
     // ECMA-262 13.6 If statement
 
-    IfStatementNode* parseIfStatement()
+    RefPtr<IfStatementNode> parseIfStatement()
     {
         MetaNode node = this->createNode();
-        Node* consequent = nullptr;
-        Node* alternate = nullptr;
+        RefPtr<Node> consequent;
+        RefPtr<Node> alternate;
 
         this->expectKeyword(If);
         this->expect(LeftParenthesis);
-        Node* test = this->parseExpression();
+        RefPtr<Node> test = this->parseExpression();
 
         if (!this->match(RightParenthesis) && this->config.tolerant) {
             this->tolerateUnexpectedToken(this->nextToken());
@@ -5084,45 +5105,45 @@ public:
             }
         }
 
-        return this->finalize(node, new IfStatementNode(test, consequent, alternate));
+        return this->finalize(node, new IfStatementNode(test.get(), consequent.get(), alternate.get()));
     }
 
     // ECMA-262 13.7.2 The do-while Statement
 
-    DoWhileStatementNode* parseDoWhileStatement()
+    RefPtr<DoWhileStatementNode> parseDoWhileStatement()
     {
         MetaNode node = this->createNode();
         this->expectKeyword(Do);
 
         bool previousInIteration = this->context->inIteration;
         this->context->inIteration = true;
-        Node* body = this->parseStatement(false);
+        RefPtr<Node> body = this->parseStatement(false);
         this->context->inIteration = previousInIteration;
 
         this->expectKeyword(While);
         this->expect(LeftParenthesis);
-        Node* test = this->parseExpression();
+        RefPtr<Node> test = this->parseExpression();
         this->expect(RightParenthesis);
         if (this->match(SemiColon)) {
             this->nextToken();
         }
 
-        return this->finalize(node, new DoWhileStatementNode(test, body));
+        return this->finalize(node, new DoWhileStatementNode(test.get(), body.get()));
     }
 
     // ECMA-262 13.7.3 The while Statement
 
-    WhileStatementNode* parseWhileStatement()
+    RefPtr<WhileStatementNode> parseWhileStatement()
     {
         MetaNode node = this->createNode();
-        Node* body;
+        RefPtr<Node> body;
 
         bool prevInLoop = this->context->inLoop;
         this->context->inLoop = true;
 
         this->expectKeyword(While);
         this->expect(LeftParenthesis);
-        Node* test = this->parseExpression();
+        RefPtr<Node> test = this->parseExpression();
 
         if (!this->match(RightParenthesis) && this->config.tolerant) {
             this->tolerateUnexpectedToken(this->nextToken());
@@ -5138,20 +5159,20 @@ public:
 
         this->context->inLoop = prevInLoop;
 
-        return this->finalize(node, new WhileStatementNode(test, body));
+        return this->finalize(node, new WhileStatementNode(test.get(), body.get()));
     }
 
     // ECMA-262 13.7.4 The for Statement
     // ECMA-262 13.7.5 The for-in and for-of Statements
 
-    StatementNode* parseForStatement()
+    RefPtr<StatementNode> parseForStatement()
     {
-        Node* init = nullptr;
-        Node* test = nullptr;
-        Node* update = nullptr;
+        RefPtr<Node> init;
+        RefPtr<Node> test;
+        RefPtr<Node> update;
         bool forIn = true;
-        Node* left = nullptr;
-        Node* right = nullptr;
+        RefPtr<Node> left;
+        RefPtr<Node> right;
 
         bool prevInLoop = this->context->inLoop;
 
@@ -5174,7 +5195,7 @@ public:
                 this->context->allowIn = previousAllowIn;
 
                 if (declarations.size() == 1 && this->matchKeyword(In)) {
-                    VariableDeclaratorNode* decl = declarations[0];
+                    RefPtr<VariableDeclaratorNode> decl = declarations[0];
                     // if (decl->init() && (decl.id.type === Syntax.ArrayPattern || decl.id.type === Syntax.ObjectPattern || this->context->strict)) {
                     if (decl->init() && (decl->id()->type() == ArrayExpression || decl->id()->type() == ObjectExpression || this->context->strict)) {
                         this->tolerateError(Messages::ForInOfLoopInitializer, new ASCIIString("for-in"));
@@ -5247,7 +5268,7 @@ public:
                     }
 
                     this->nextToken();
-                    this->reinterpretExpressionAsPattern(init);
+                    this->reinterpretExpressionAsPattern(init.get());
                     left = init;
                     right = this->parseExpression();
                     init = nullptr;
@@ -5292,7 +5313,7 @@ public:
             }
         }
 
-        Node* body = nullptr;
+        RefPtr<Node> body = nullptr;
         if (!this->match(RightParenthesis) && this->config.tolerant) {
             this->tolerateUnexpectedToken(this->nextToken());
             body = this->finalize(this->createNode(), new EmptyStatementNode());
@@ -5309,10 +5330,10 @@ public:
         this->context->inLoop = prevInLoop;
 
         if (left == nullptr) {
-            return this->finalize(node, new ForStatementNode(init, test, update, body));
+            return this->finalize(node, new ForStatementNode(init.get(), test.get(), update.get(), body.get()));
         } else {
             if (forIn) {
-                return this->finalize(node, new ForInStatementNode(left, right, body, false));
+                return this->finalize(node, new ForInStatementNode(left.get(), right.get(), body.get(), false));
             } else {
                 this->throwError("For of is not supported yet");
                 RELEASE_ASSERT_NOT_REACHED();
@@ -5350,12 +5371,12 @@ public:
     }
     // ECMA-262 13.8 The continue statement
 
-    Node* parseContinueStatement()
+    RefPtr<Node> parseContinueStatement()
     {
         MetaNode node = this->createNode();
         this->expectKeyword(Continue);
 
-        IdentifierNode* label = nullptr;
+        RefPtr<IdentifierNode> label = nullptr;
         if (this->lookahead->type == IdentifierToken && !this->hasLineTerminator) {
             label = this->parseVariableIdentifier();
 
@@ -5377,20 +5398,21 @@ public:
             this->throwError(Messages::IllegalContinue);
         }
 
-        if (label)
-            return this->finalize(node, new ContinueLabelStatementNode(label->name().string()));
-        else
+        if (label) {
+            auto string = label->name().string();
+            return this->finalize(node, new ContinueLabelStatementNode(string));
+        } else
             return this->finalize(node, new ContinueStatementNode());
     }
 
     // ECMA-262 13.9 The break statement
 
-    Node* parseBreakStatement()
+    RefPtr<Node> parseBreakStatement()
     {
         MetaNode node = this->createNode();
         this->expectKeyword(Break);
 
-        IdentifierNode* label = nullptr;
+        RefPtr<IdentifierNode> label = nullptr;
         if (this->lookahead->type == IdentifierToken && !this->hasLineTerminator) {
             label = this->parseVariableIdentifier();
 
@@ -5404,15 +5426,16 @@ public:
             this->throwError(Messages::IllegalBreak);
         }
 
-        if (label)
-            return this->finalize(node, new BreakLabelStatementNode(label->name().string()));
-        else
+        if (label) {
+            auto string = label->name().string();
+            return this->finalize(node, new BreakLabelStatementNode(string));
+        } else
             return this->finalize(node, new BreakStatementNode());
     }
 
     // ECMA-262 13.10 The return statement
 
-    Node* parseReturnStatement()
+    RefPtr<Node> parseReturnStatement()
     {
         if (!this->context->inFunctionBody) {
             this->tolerateError(Messages::IllegalReturn);
@@ -5422,18 +5445,18 @@ public:
         this->expectKeyword(Return);
 
         bool hasArgument = !this->match(SemiColon) && !this->match(RightBrace) && !this->hasLineTerminator && this->lookahead->type != EOFToken;
-        Node* argument = nullptr;
+        RefPtr<Node> argument = nullptr;
         if (hasArgument) {
             argument = this->parseExpression();
         }
         this->consumeSemicolon();
 
-        return this->finalize(node, new ReturnStatmentNode(argument));
+        return this->finalize(node, new ReturnStatmentNode(argument.get()));
     }
 
     // ECMA-262 13.11 The with statement
 
-    Node* parseWithStatement()
+    RefPtr<Node> parseWithStatement()
     {
         if (this->context->strict) {
             this->tolerateError(Messages::StrictModeWith);
@@ -5442,7 +5465,7 @@ public:
         MetaNode node = this->createNode();
         this->expectKeyword(With);
         this->expect(LeftParenthesis);
-        Node* object = this->parseExpression();
+        RefPtr<Node> object = this->parseExpression();
         this->expect(RightParenthesis);
 
         bool prevInWith = this->context->inWith;
@@ -5452,23 +5475,23 @@ public:
             this->context->labelSet[i].second++;
         }
 
-        StatementNode* body = this->parseStatement(false);
+        RefPtr<StatementNode> body = this->parseStatement(false);
         this->context->inWith = prevInWith;
 
         for (size_t i = 0; i < this->context->labelSet.size(); i++) {
             this->context->labelSet[i].second--;
         }
 
-        return this->finalize(node, new WithStatementNode(object, body));
+        return this->finalize(node, new WithStatementNode(object, body.get()));
     }
 
     // ECMA-262 13.12 The switch statement
 
-    SwitchCaseNode* parseSwitchCase()
+    RefPtr<SwitchCaseNode> parseSwitchCase()
     {
         MetaNode node = this->createNode();
 
-        Node* test;
+        RefPtr<Node> test;
         if (this->matchKeyword(Default)) {
             this->nextToken();
             test = nullptr;
@@ -5486,30 +5509,30 @@ public:
             consequent.push_back(this->parseStatementListItem());
         }
 
-        return this->finalize(node, new SwitchCaseNode(test, std::move(consequent)));
+        return this->finalize(node, new SwitchCaseNode(test.get(), std::move(consequent)));
     }
 
-    SwitchStatementNode* parseSwitchStatement()
+    RefPtr<SwitchStatementNode> parseSwitchStatement()
     {
         MetaNode node = this->createNode();
         this->expectKeyword(Switch);
 
         this->expect(LeftParenthesis);
-        Node* discriminant = this->parseExpression();
+        RefPtr<Node> discriminant = this->parseExpression();
         this->expect(RightParenthesis);
 
         bool previousInSwitch = this->context->inSwitch;
         this->context->inSwitch = true;
 
         StatementNodeVector casesA, casesB;
-        Node* deflt = nullptr;
+        RefPtr<Node> deflt;
         bool defaultFound = false;
         this->expect(LeftBrace);
         while (true) {
             if (this->match(RightBrace)) {
                 break;
             }
-            SwitchCaseNode* clause = this->parseSwitchCase();
+            RefPtr<SwitchCaseNode> clause = this->parseSwitchCase();
             if (clause->isDefaultNode()) {
                 if (defaultFound) {
                     this->throwError(Messages::MultipleDefaultsInSwitch);
@@ -5528,41 +5551,41 @@ public:
 
         this->context->inSwitch = previousInSwitch;
 
-        return this->finalize(node, new SwitchStatementNode(discriminant, std::move(casesA), deflt, std::move(casesB), false));
+        return this->finalize(node, new SwitchStatementNode(discriminant.get(), std::move(casesA), deflt.get(), std::move(casesB), false));
     }
 
     // ECMA-262 13.13 Labelled Statements
 
-    Node* parseLabelledStatement()
+    RefPtr<Node> parseLabelledStatement()
     {
         MetaNode node = this->createNode();
-        Node* expr = this->parseExpression();
+        RefPtr<Node> expr = this->parseExpression();
 
         StatementNode* statement;
         if ((expr->type() == Identifier) && this->match(Colon)) {
             this->nextToken();
 
-            IdentifierNode* id = (IdentifierNode*)expr;
+            RefPtr<IdentifierNode> id = (IdentifierNode*)expr.get();
             if (hasLabel(id->name())) {
                 this->throwError(Messages::Redeclaration, new ASCIIString("Label"), id->name().string());
             }
 
             this->context->labelSet.push_back(std::make_pair(id->name(), 0));
-            StatementNode* labeledBody = this->parseStatement(this->context->strict ? false : true);
+            RefPtr<StatementNode> labeledBody = this->parseStatement(this->context->strict ? false : true);
             removeLabel(id->name());
 
-            statement = new LabeledStatementNode(labeledBody, id->name().string());
+            this->literalValueRooter.push_back(id->name().string());
+            statement = new LabeledStatementNode(labeledBody.get(), id->name().string());
         } else {
             this->consumeSemicolon();
-            statement = new ExpressionStatementNode(expr);
+            statement = new ExpressionStatementNode(expr.get());
         }
-
         return this->finalize(node, statement);
     }
 
     // ECMA-262 13.14 The throw statement
 
-    Node* parseThrowStatement()
+    RefPtr<Node> parseThrowStatement()
     {
         MetaNode node = this->createNode();
         this->expectKeyword(Throw);
@@ -5571,15 +5594,15 @@ public:
             this->throwError(Messages::NewlineAfterThrow);
         }
 
-        Node* argument = this->parseExpression();
+        RefPtr<Node> argument = this->parseExpression();
         this->consumeSemicolon();
 
-        return this->finalize(node, new ThrowStatementNode(argument));
+        return this->finalize(node, new ThrowStatementNode(argument.get()));
     }
 
     // ECMA-262 13.15 The try statement
 
-    CatchClauseNode* parseCatchClause()
+    RefPtr<CatchClauseNode> parseCatchClause()
     {
         MetaNode node = this->createNode();
 
@@ -5593,12 +5616,12 @@ public:
         bool prevInCatch = this->context->inCatch;
         this->context->inCatch = true;
 
-        std::vector<FunctionDeclarationNode*, GCUtil::gc_malloc_ignore_off_page_allocator<FunctionDeclarationNode*>> vecBefore = std::move(this->context->functionDeclarationsInDirectCatchScope);
+        std::vector<FunctionDeclarationNode*> vecBefore = std::move(this->context->functionDeclarationsInDirectCatchScope);
         bool prevInDirectCatchScope = this->context->inDirectCatchScope;
         this->context->inDirectCatchScope = true;
 
         std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> params;
-        Node* param = this->parsePattern(params);
+        RefPtr<Node> param = this->parsePattern(params);
 
         std::vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> paramMap;
         for (size_t i = 0; i < params.size(); i++) {
@@ -5616,51 +5639,51 @@ public:
         }
 
         if (this->context->strict && param->type() == Identifier) {
-            IdentifierNode* id = (IdentifierNode*)param;
+            IdentifierNode* id = (IdentifierNode*)param.get();
             if (this->scanner->isRestrictedWord(id->name())) {
                 this->tolerateError(Messages::StrictCatchVariable);
             }
         }
 
         this->expect(RightParenthesis);
-        Node* body = this->parseBlock();
+        RefPtr<Node> body = this->parseBlock();
 
         this->context->inCatch = prevInCatch;
 
         this->context->inDirectCatchScope = prevInDirectCatchScope;
 
-        std::vector<FunctionDeclarationNode*, GCUtil::gc_malloc_ignore_off_page_allocator<FunctionDeclarationNode*>> vec = std::move(this->context->functionDeclarationsInDirectCatchScope);
+        std::vector<FunctionDeclarationNode*> vec = std::move(this->context->functionDeclarationsInDirectCatchScope);
 
         this->context->functionDeclarationsInDirectCatchScope = std::move(vecBefore);
 
-        return this->finalize(node, new CatchClauseNode(param, nullptr, body, vec));
+        return this->finalize(node, new CatchClauseNode(param.get(), nullptr, body.get(), vec));
     }
 
-    BlockStatementNode* parseFinallyClause()
+    RefPtr<BlockStatementNode> parseFinallyClause()
     {
         this->expectKeyword(Finally);
         return this->parseBlock();
     }
 
-    TryStatementNode* parseTryStatement()
+    RefPtr<TryStatementNode> parseTryStatement()
     {
         MetaNode node = this->createNode();
         this->expectKeyword(Try);
 
-        BlockStatementNode* block = this->parseBlock();
-        CatchClauseNode* handler = this->matchKeyword(Catch) ? this->parseCatchClause() : nullptr;
-        BlockStatementNode* finalizer = this->matchKeyword(Finally) ? this->parseFinallyClause() : nullptr;
+        RefPtr<BlockStatementNode> block = this->parseBlock();
+        RefPtr<CatchClauseNode> handler = this->matchKeyword(Catch) ? this->parseCatchClause() : nullptr;
+        RefPtr<BlockStatementNode> finalizer = this->matchKeyword(Finally) ? this->parseFinallyClause() : nullptr;
 
         if (!handler && !finalizer) {
             this->throwError(Messages::NoCatchOrFinally);
         }
 
-        return this->finalize(node, new TryStatementNode(block, handler, CatchClauseNodeVector(), finalizer));
+        return this->finalize(node, new TryStatementNode(block.get(), handler.get(), CatchClauseNodeVector(), finalizer.get()));
     }
 
     // ECMA-262 13.16 The debugger statement
 
-    StatementNode* parseDebuggerStatement()
+    RefPtr<StatementNode> parseDebuggerStatement()
     {
         this->throwError("debugger keyword is not supported yet");
         RELEASE_ASSERT_NOT_REACHED();
@@ -5673,10 +5696,10 @@ public:
     }
 
     // ECMA-262 13 Statements
-    StatementNode* parseStatement(bool allowFunctionDeclaration = true)
+    RefPtr<StatementNode> parseStatement(bool allowFunctionDeclaration = true)
     {
         checkRecursiveLimit();
-        StatementNode* statement = nullptr;
+        RefPtr<StatementNode> statement;
         switch (this->lookahead->type) {
         case Token::BooleanLiteralToken:
         case Token::NullLiteralToken:
@@ -5767,7 +5790,7 @@ public:
 
     // ECMA-262 14.1 Function Definition
 
-    BlockStatementNode* parseFunctionSourceElements()
+    RefPtr<BlockStatementNode> parseFunctionSourceElements()
     {
         if (this->config.parseSingleFunction) {
             if (this->config.parseSingleFunctionChildIndex.asUint32()) {
@@ -5838,14 +5861,11 @@ public:
         if (this->config.parseSingleFunction) {
             return this->finalize(nodeStart, new BlockStatementNode(std::move(body)));
         } else {
-            for (size_t i = 0; i < body.size(); i++) {
-                delete body[i];
-            }
             return this->finalize(nodeStart, new BlockStatementNode(std::move(StatementNodeVector())));
         }
     }
 
-    FunctionDeclarationNode* parseFunctionDeclaration(bool identifierIsOptional = false)
+    RefPtr<FunctionDeclarationNode> parseFunctionDeclaration(bool identifierIsOptional = false)
     {
         MetaNode node = this->createNode();
         this->expectKeyword(Function);
@@ -5856,7 +5876,7 @@ public:
         }
 
         const char* message = nullptr;
-        IdentifierNode* id = nullptr;
+        RefPtr<IdentifierNode> id;
         RefPtr<ScannerResult> firstRestricted = nullptr;
 
         if (!identifierIsOptional || !this->match(LeftParenthesis)) {
@@ -5894,7 +5914,7 @@ public:
         extractNamesFromFunctionParams(params);
 
         bool previousStrict = this->context->strict;
-        BlockStatementNode* body = this->parseFunctionSourceElements();
+        RefPtr<BlockStatementNode> body = this->parseFunctionSourceElements();
         if (this->context->strict && firstRestricted) {
             this->throwUnexpectedToken(firstRestricted, message);
         }
@@ -5909,16 +5929,16 @@ public:
             scopeContexts.back()->m_needsSpecialInitialize = true;
         }
 
-        FunctionDeclarationNode* fd = this->finalize(node, new FunctionDeclarationNode(id->name(), std::move(params), body, popScopeContext(node), isGenerator));
+        RefPtr<FunctionDeclarationNode> fd = this->finalize(node, new FunctionDeclarationNode(id->name(), std::move(params), body.get(), popScopeContext(node), isGenerator));
 
         if (this->context->inDirectCatchScope) {
-            this->context->functionDeclarationsInDirectCatchScope.push_back(fd);
+            this->context->functionDeclarationsInDirectCatchScope.push_back(fd.get());
         }
 
         return fd;
     }
 
-    FunctionExpressionNode* parseFunctionExpression()
+    RefPtr<FunctionExpressionNode> parseFunctionExpression()
     {
         MetaNode node = this->createNode();
         this->expectKeyword(Function);
@@ -5929,7 +5949,7 @@ public:
         }
 
         const char* message = nullptr;
-        IdentifierNode* id = nullptr;
+        RefPtr<IdentifierNode> id;
         RefPtr<ScannerResult> firstRestricted = nullptr;
 
         bool previousAllowYield = this->context->allowYield;
@@ -5974,7 +5994,7 @@ public:
 
         extractNamesFromFunctionParams(params);
         bool previousStrict = this->context->strict;
-        BlockStatementNode* body = this->parseFunctionSourceElements();
+        RefPtr<BlockStatementNode> body = this->parseFunctionSourceElements();
         if (this->context->strict && firstRestricted) {
             this->throwUnexpectedToken(firstRestricted, message);
         }
@@ -5984,19 +6004,19 @@ public:
         this->context->strict = previousStrict;
         this->context->allowYield = previousAllowYield;
 
-        return this->finalize(node, new FunctionExpressionNode(fnName, std::move(params), body, popScopeContext(node), isGenerator));
+        return this->finalize(node, new FunctionExpressionNode(fnName, std::move(params), body.get(), popScopeContext(node), isGenerator));
     }
 
     // ECMA-262 14.1.1 Directive Prologues
 
-    Node* parseDirective()
+    RefPtr<Node> parseDirective()
     {
         RefPtr<ScannerResult> token = this->lookahead;
         StringView directiveValue;
         bool isLiteral = false;
 
         MetaNode node = this->createNode();
-        Node* expr = this->parseExpression();
+        RefPtr<Node> expr = this->parseExpression();
         if (expr->type() == Literal) {
             isLiteral = true;
             directiveValue = token->valueString;
@@ -6004,9 +6024,10 @@ public:
         this->consumeSemicolon();
 
         if (isLiteral) {
-            return this->finalize(node, new DirectiveNode(asExpressionNode(expr), directiveValue));
+            this->literalValueRooter.push_back(directiveValue.string());
+            return this->finalize(node, new DirectiveNode(asExpressionNode(expr).get(), directiveValue));
         } else {
-            return this->finalize(node, new ExpressionStatementNode(expr));
+            return this->finalize(node, new ExpressionStatementNode(expr.get()));
         }
     }
 
@@ -6021,14 +6042,14 @@ public:
                 break;
             }
 
-            Node* statement = this->parseDirective();
+            RefPtr<Node> statement = this->parseDirective();
             body.push_back(statement);
 
             if (statement->type() != Directive) {
                 break;
             }
 
-            DirectiveNode* directive = (DirectiveNode*)statement;
+            DirectiveNode* directive = (DirectiveNode*)statement.get();
             if (token->plain && directive->value().equals("use strict")) {
                 this->scopeContexts.back()->m_isStrict = this->context->strict = true;
                 if (firstRestricted) {
@@ -6046,7 +6067,7 @@ public:
 
     // ECMA-262 14.3 Method Definitions
 
-    FunctionExpressionNode* parseGetterMethod()
+    RefPtr<FunctionExpressionNode> parseGetterMethod()
     {
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
@@ -6056,14 +6077,14 @@ public:
         ParseFormalParametersResult params(PatternNodeVector(), nullptr, nullptr, nullptr);
         bool previousAllowYield = this->context->allowYield;
         this->context->allowYield = false;
-        Node* method = this->parsePropertyMethod(params);
+        RefPtr<Node> method = this->parsePropertyMethod(params);
         this->context->allowYield = previousAllowYield;
 
         extractNamesFromFunctionParams(params.params);
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method, popScopeContext(node), isGenerator));
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method.get(), popScopeContext(node), isGenerator));
     }
 
-    FunctionExpressionNode* parseSetterMethod()
+    RefPtr<FunctionExpressionNode> parseSetterMethod()
     {
         MetaNode node = this->createNode();
 
@@ -6082,11 +6103,11 @@ public:
         this->expect(RightParenthesis);
 
         ParseFormalParametersResult options2(std::move(options.params), options.stricted, options.firstRestricted, options.message);
-        Node* method = this->parsePropertyMethod(options2);
+        RefPtr<Node> method = this->parsePropertyMethod(options2);
         this->context->allowYield = previousAllowYield;
 
         extractNamesFromFunctionParams(options.params);
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(options.params), method, popScopeContext(node), isGenerator));
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(options.params), method.get(), popScopeContext(node), isGenerator));
     }
 
     FunctionExpressionNode* parseGeneratorMethod()
@@ -6298,10 +6319,11 @@ public:
     // ECMA-262 15.1 Scripts
     // ECMA-262 15.2 Modules
 
-    ProgramNode* parseProgram()
+    RefPtr<ProgramNode> parseProgram()
     {
         MetaNode node = this->createNode();
         scopeContexts.push_back(new ASTScopeContext(this->context->strict));
+        this->literalValueRooter.push_back(scopeContexts.back());
         StatementNodeVector body = this->parseDirectivePrologues();
         while (this->startMarker.index < this->scanner->length) {
             body.push_back(this->parseStatementListItem());
@@ -6552,14 +6574,17 @@ public:
     */
 };
 
-ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler handler, bool strictFromOutside, size_t stackRemain)
+RefPtr<ProgramNode> parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler handler, bool strictFromOutside, size_t stackRemain)
 {
     Parser parser(ctx, source, handler, stackRemain);
     parser.context->strict = strictFromOutside;
-    return parser.parseProgram();
+    RefPtr<ProgramNode> nd = parser.parseProgram();
+    std::unique_ptr<LiteralValueRooterVector> ptr(new (NoGC) LiteralValueRooterVector(std::move(parser.literalValueRooter)));
+    nd->setLiteralValueHolder(std::move(ptr));
+    return nd;
 }
 
-std::pair<Node*, ASTScopeContext*> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, size_t stackRemain)
+std::tuple<RefPtr<Node>, ASTScopeContext*, std::unique_ptr<LiteralValueRooterVector>> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, size_t stackRemain)
 {
     Parser parser(ctx, codeBlock->src(), nullptr, stackRemain, codeBlock->sourceElementStart().line, codeBlock->sourceElementStart().column);
     parser.trackUsingNames = false;
@@ -6567,7 +6592,9 @@ std::pair<Node*, ASTScopeContext*> parseSingleFunction(::Escargot::Context* ctx,
     parser.config.parseSingleFunctionTarget = codeBlock;
     auto scopeCtx = new ASTScopeContext(codeBlock->isStrict());
     parser.scopeContexts.pushBack(scopeCtx);
-    return std::make_pair(parser.parseFunctionSourceElements(), scopeCtx);
+    parser.literalValueRooter.push_back(parser.scopeContexts.back());
+    auto nd = parser.parseFunctionSourceElements();
+    return std::make_tuple(nd, scopeCtx, std::unique_ptr<LiteralValueRooterVector>(new LiteralValueRooterVector(std::move(parser.literalValueRooter))));
 }
 
 bool isIdentifierPartData[0x10000] = {

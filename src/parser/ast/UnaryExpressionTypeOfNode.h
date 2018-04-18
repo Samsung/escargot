@@ -34,7 +34,6 @@ public:
     }
     virtual ~UnaryExpressionTypeOfNode()
     {
-        delete m_argument;
     }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
@@ -76,7 +75,7 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionTypeOf; }
 protected:
-    Node* m_argument;
+    RefPtr<Node> m_argument;
 };
 }
 

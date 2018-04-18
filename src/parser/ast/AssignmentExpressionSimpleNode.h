@@ -41,8 +41,6 @@ public:
 
     virtual ~AssignmentExpressionSimpleNode()
     {
-        delete m_left;
-        delete m_right;
     }
 
     void giveupChildren()
@@ -52,7 +50,7 @@ public:
 
     Node* left()
     {
-        return m_left;
+        return m_left.get();
     }
 
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionSimple; }
@@ -77,7 +75,7 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        bool isSlowMode = hasSlowAssigmentOperation(m_left, m_right);
+        bool isSlowMode = hasSlowAssigmentOperation(m_left.get(), m_right.get());
 
         bool isBase = context->m_registerStack->size() == 0;
         size_t rightRegister = dstRegister;
@@ -99,7 +97,7 @@ public:
 
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        bool isSlowMode = hasSlowAssigmentOperation(m_left, m_right);
+        bool isSlowMode = hasSlowAssigmentOperation(m_left.get(), m_right.get());
 
         if (isSlowMode) {
             size_t rightRegister = m_right->getRegister(codeBlock, context);
@@ -147,8 +145,8 @@ public:
     }
 
 protected:
-    Node* m_left; // left: Pattern;
-    Node* m_right; // right: Expression;
+    RefPtr<Node> m_left; // left: Pattern;
+    RefPtr<Node> m_right; // right: Expression;
 };
 }
 

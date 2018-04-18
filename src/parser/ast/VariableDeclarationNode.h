@@ -36,10 +36,6 @@ public:
 
     virtual ~VariableDeclarationNode()
     {
-        size_t len = m_declarations.size();
-        for (size_t i = 0; i < len; i++) {
-            delete m_declarations[i];
-        }
     }
 
     virtual ASTNodeType type() { return ASTNodeType::VariableDeclaration; }

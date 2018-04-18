@@ -37,8 +37,6 @@ public:
 
     virtual ~WhileStatementNode()
     {
-        delete m_test;
-        delete m_body;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::WhileStatement; }
@@ -76,8 +74,8 @@ public:
     }
 
 protected:
-    ExpressionNode *m_test;
-    StatementNode *m_body;
+    RefPtr<ExpressionNode> m_test;
+    RefPtr<StatementNode> m_body;
 };
 }
 

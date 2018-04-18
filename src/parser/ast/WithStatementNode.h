@@ -27,17 +27,11 @@ namespace Escargot {
 class WithStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    WithStatementNode(Node* object, StatementNode* body)
+    WithStatementNode(RefPtr<Node> object, RefPtr<StatementNode> body)
         : StatementNode()
     {
         m_object = object;
         m_body = body;
-    }
-
-    virtual ~WithStatementNode()
-    {
-        delete m_object;
-        delete m_body;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::WithStatement; }
@@ -64,8 +58,8 @@ public:
     }
 
 protected:
-    Node* m_object;
-    StatementNode* m_body; // body: [ Statement ];
+    RefPtr<Node> m_object;
+    RefPtr<StatementNode> m_body; // body: [ Statement ];
 };
 }
 

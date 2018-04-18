@@ -41,14 +41,12 @@ public:
 
     virtual ~AssignmentExpressionBitwiseXorNode()
     {
-        delete m_left;
-        delete m_right;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionBitwiseXor; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        bool slowMode = AssignmentExpressionSimpleNode::hasSlowAssigmentOperation(m_left, m_right);
+        bool slowMode = AssignmentExpressionSimpleNode::hasSlowAssigmentOperation(m_left.get(), m_right.get());
         ;
         bool flagBefore;
         if (slowMode) {
@@ -83,8 +81,8 @@ public:
     }
 
 protected:
-    Node* m_left; // left: Pattern;
-    Node* m_right; // right: Expression;
+    RefPtr<Node> m_left; // left: Pattern;
+    RefPtr<Node> m_right; // right: Expression;
 };
 }
 

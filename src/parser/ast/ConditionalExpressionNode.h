@@ -36,9 +36,6 @@ public:
     }
     virtual ~ConditionalExpressionNode()
     {
-        delete m_test;
-        delete m_consequente;
-        delete m_alternate;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ConditionalExpression; }
@@ -74,9 +71,9 @@ public:
     }
 
 protected:
-    ExpressionNode* m_test;
-    ExpressionNode* m_consequente;
-    ExpressionNode* m_alternate;
+    RefPtr<ExpressionNode> m_test;
+    RefPtr<ExpressionNode> m_consequente;
+    RefPtr<ExpressionNode> m_alternate;
 };
 }
 

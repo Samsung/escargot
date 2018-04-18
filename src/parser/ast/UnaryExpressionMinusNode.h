@@ -34,7 +34,6 @@ public:
     }
     virtual ~UnaryExpressionMinusNode()
     {
-        delete m_argument;
     }
 
 
@@ -53,7 +52,7 @@ public:
     }
 
 protected:
-    Node* m_argument;
+    RefPtr<Node> m_argument;
 };
 }
 

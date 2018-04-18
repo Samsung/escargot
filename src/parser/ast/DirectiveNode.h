@@ -36,7 +36,6 @@ public:
 
     virtual ~DirectiveNode()
     {
-        delete m_expr;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::Directive; }
@@ -48,7 +47,7 @@ public:
     }
 
 protected:
-    ExpressionNode* m_expr;
+    RefPtr<ExpressionNode> m_expr;
     StringView m_value;
 };
 }

@@ -37,14 +37,12 @@ public:
 
     virtual ~BinaryExpressionLessThanOrEqualNode()
     {
-        delete m_left;
-        delete m_right;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionLessThanOrEqual; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        bool isSlow = !canUseDirectRegister(context, m_left, m_right);
+        bool isSlow = !canUseDirectRegister(context, m_left.get(), m_right.get());
         bool directBefore = context->m_canSkipCopyToRegister;
         if (isSlow) {
             context->m_canSkipCopyToRegister = false;
@@ -69,8 +67,8 @@ public:
     }
 
 protected:
-    ExpressionNode* m_left;
-    ExpressionNode* m_right;
+    RefPtr<ExpressionNode> m_left;
+    RefPtr<ExpressionNode> m_right;
 };
 }
 

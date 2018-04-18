@@ -27,6 +27,8 @@
 
 #ifndef ESCARGOT
 #include "config.h"
+#else
+#include "Escargot.h"
 #endif
 #include "YarrCanonicalizeUCS2.h"
 

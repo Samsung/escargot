@@ -33,6 +33,7 @@
 #include <wtf/Assertions.h>
 #include <wtf/UnusedParam.h>
 #else
+#include "Escargot.h"
 #include "OSAllocator.h"
 #include "PageAllocation.h"
 #endif

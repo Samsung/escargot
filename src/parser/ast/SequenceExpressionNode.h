@@ -36,9 +36,6 @@ public:
 
     virtual ~SequenceExpressionNode()
     {
-        for (size_t i = 0; i < m_expressions.size(); i++) {
-            delete m_expressions[i];
-        }
     }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)

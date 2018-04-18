@@ -34,7 +34,6 @@ public:
     }
     virtual ~UnaryExpressionPlusNode()
     {
-        delete m_argument;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionPlus; }
@@ -52,7 +51,7 @@ public:
     }
 
 protected:
-    Node* m_argument;
+    RefPtr<Node> m_argument;
 };
 }
 

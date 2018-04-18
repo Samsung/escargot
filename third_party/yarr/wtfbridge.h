@@ -4,7 +4,7 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-#include "Escargot.h"
+
 #define JS_HOWMANY(x,y) (((x)+(y)-1)/(y))
 #define JS_ROUNDUP(x,y) (JS_HOWMANY(x,y)*(y))
 template <class T>

@@ -35,13 +35,15 @@ namespace Escargot {
 
 Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, bool isOnGlobal)
 {
-    Node* programNode = m_topCodeBlock->cachedASTNode();
+    RefPtr<Node> programNode = m_topCodeBlock->cachedASTNode();
+    if (m_topCodeBlock->m_cachedASTNode) {
+        m_topCodeBlock->m_cachedASTNode->deref();
+    }
     m_topCodeBlock->m_cachedASTNode = nullptr;
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
 
     ByteCodeGenerator g;
-    m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode, ((ProgramNode*)programNode)->scopeContext(), isEvalMode, isOnGlobal);
-    delete programNode;
+    m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, isOnGlobal);
 
     LexicalEnvironment* env;
     ExecutionContext* prevEc;
@@ -108,8 +110,11 @@ Script::ScriptSandboxExecuteResult Script::sandboxExecute(ExecutionState& state)
 // NOTE: eval by direct call
 Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isEvalMode, bool needNewRecord)
 {
-    Node* programNode = m_topCodeBlock->cachedASTNode();
+    RefPtr<Node> programNode = m_topCodeBlock->cachedASTNode();
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
+    if (m_topCodeBlock->m_cachedASTNode) {
+        m_topCodeBlock->m_cachedASTNode->deref();
+    }
     m_topCodeBlock->m_cachedASTNode = nullptr;
 
     bool isOnGlobal = true;
@@ -127,9 +132,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
     }
 
     ByteCodeGenerator g;
-    m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode, ((ProgramNode*)programNode)->scopeContext(), isEvalMode, isOnGlobal);
-
-    delete programNode;
+    m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, isOnGlobal);
 
     EnvironmentRecord* record;
     bool inStrict = false;

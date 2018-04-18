@@ -35,17 +35,16 @@ public:
 
     virtual ~RestElementNode()
     {
-        delete m_argument;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::RestElement; }
     IdentifierNode* argument()
     {
-        return m_argument;
+        return m_argument.get();
     }
 
 protected:
-    IdentifierNode* m_argument;
+    RefPtr<IdentifierNode> m_argument;
 };
 }
 

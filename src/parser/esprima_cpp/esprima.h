@@ -21,6 +21,7 @@
 #define __EscargotEsprima__
 
 #include "parser/ast/Node.h"
+#include "parser/ScriptParser.h"
 #include "runtime/Context.h"
 #include "runtime/String.h"
 #include "runtime/ErrorObject.h"
@@ -71,8 +72,8 @@ struct Error : public gc {
 
 #define ESPRIMA_RECURSIVE_LIMIT 1024
 
-ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler astHandler, bool strictFromOutside, size_t stackRemain);
-std::pair<Node*, ASTScopeContext*> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, size_t stackRemain);
+RefPtr<ProgramNode> parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler astHandler, bool strictFromOutside, size_t stackRemain);
+std::tuple<RefPtr<Node>, ASTScopeContext*, std::unique_ptr<LiteralValueRooterVector>> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, size_t stackRemain);
 }
 }
 

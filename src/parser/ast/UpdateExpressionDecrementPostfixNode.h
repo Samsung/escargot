@@ -35,7 +35,6 @@ public:
     }
     virtual ~UpdateExpressionDecrementPostfixNode()
     {
-        delete m_argument;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::UpdateExpressionDecrementPostfix; }
@@ -76,7 +75,7 @@ public:
     }
 
 protected:
-    ExpressionNode* m_argument;
+    RefPtr<ExpressionNode> m_argument;
 };
 }
 

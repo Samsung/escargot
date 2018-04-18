@@ -39,10 +39,6 @@ public:
 
     virtual ~ForStatementNode()
     {
-        delete m_init;
-        delete m_test;
-        delete m_update;
-        delete m_body;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ForStatement; }
@@ -94,10 +90,10 @@ public:
     }
 
 protected:
-    ExpressionNode *m_init;
-    ExpressionNode *m_test;
-    ExpressionNode *m_update;
-    StatementNode *m_body;
+    RefPtr<ExpressionNode> m_init;
+    RefPtr<ExpressionNode> m_test;
+    RefPtr<ExpressionNode> m_update;
+    RefPtr<StatementNode> m_body;
 };
 }
 

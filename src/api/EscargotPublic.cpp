@@ -23,6 +23,7 @@
 #include "GCUtil.h"
 #include "util/Vector.h"
 #include "EscargotPublic.h"
+#include "parser/ast/Node.h"
 #include "parser/ScriptParser.h"
 #include "parser/CodeBlock.h"
 #include "runtime/Context.h"

@@ -36,11 +36,10 @@ public:
 
     virtual ~ExpressionStatementNode()
     {
-        delete m_expression;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ExpressionStatement; }
-    Node* expression() { return m_expression; }
+    Node* expression() { return m_expression.get(); }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         if (!context->m_isEvalCode && !context->m_isGlobalScope) {
@@ -56,7 +55,7 @@ public:
     }
 
 protected:
-    Node* m_expression; // expression: Expression;
+    RefPtr<Node> m_expression; // expression: Expression;
 };
 }
 

@@ -154,7 +154,7 @@ class LiteralNode;
 class IdentifierNode;
 class MemberExpressionNode;
 
-class Node : public gc {
+class Node : public RefCounted<Node> {
     friend class ScriptParser;
 
 protected:
@@ -383,15 +383,15 @@ struct ASTScopeContext : public gc {
     }
 };
 
-typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>, 150> NodeVector;
-typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>, 150> ArgumentVector;
-typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>, 150> ExpressionNodeVector;
-typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>, 150> StatementNodeVector;
-typedef Vector<Node *, gc_allocator_ignore_off_page<Node *>, 150> PatternNodeVector;
+typedef std::vector<RefPtr<Node>> NodeVector;
+typedef std::vector<RefPtr<Node>> ArgumentVector;
+typedef std::vector<RefPtr<Node>> ExpressionNodeVector;
+typedef std::vector<RefPtr<Node>> StatementNodeVector;
+typedef std::vector<RefPtr<Node>> PatternNodeVector;
 class PropertyNode;
-typedef Vector<PropertyNode *, gc_allocator_ignore_off_page<PropertyNode *>, 150> PropertiesNodeVector;
+typedef std::vector<RefPtr<PropertyNode>> PropertiesNodeVector;
 class VariableDeclaratorNode;
-typedef Vector<VariableDeclaratorNode *, gc_allocator_ignore_off_page<VariableDeclaratorNode *>, 150> VariableDeclaratorVector;
+typedef std::vector<RefPtr<VariableDeclaratorNode>> VariableDeclaratorVector;
 }
 
 #endif
