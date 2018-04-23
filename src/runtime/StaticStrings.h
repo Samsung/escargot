@@ -353,6 +353,7 @@ namespace Escargot {
     F(toStringTag)                \
     F(unscopables)                \
     F(keyFor)                     \
+    F(raw)                        \
     F(load)
 
 

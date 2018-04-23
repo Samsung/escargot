@@ -361,8 +361,8 @@ struct ParserError : public gc {
 struct ScanTemplteResult {
     UTF16StringData valueCooked;
     StringView raw;
-    size_t head;
-    size_t tail;
+    bool head;
+    bool tail;
 };
 
 struct ScanRegExpResult {
@@ -467,7 +467,7 @@ public:
         this->type = type;
         this->startWithZero = this->octal = false;
         this->plain = false;
-        this->head = false;
+        this->head = value.head;
         this->prec = -1;
         this->valueKeywordKind = NotKeyword;
         this->valueNumber = 0;
@@ -2028,7 +2028,6 @@ public:
         ScanTemplteResult result;
         result.head = head;
         result.tail = tail;
-        // TODO when parsing global code, we should generate new string not string view of code
         result.raw = StringView(this->source.src(), start + 1, this->index - rawOffset);
         result.valueCooked = UTF16StringData(cooked.data(), cooked.length());
 
@@ -3581,57 +3580,52 @@ public:
     }
 
     // ECMA-262 12.2.9 Template Literals
-    Node* parseTemplateLiteral()
+    TemplateElement* parseTemplateHead()
     {
-        this->throwError("Template literal is not supported yet");
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT(this->lookahead->type == Token::TemplateToken);
+
+        MetaNode node = this->createNode();
+        RefPtr<ScannerResult> token = this->nextToken();
+        TemplateElement* tm = new TemplateElement();
+        tm->value = token->valueTemplate.valueCooked;
+        tm->raw = token->valueTemplate.raw;
+        tm->tail = token->valueTemplate.tail;
+        return tm;
+    }
+
+    TemplateElement* parseTemplateElement()
+    {
+        if (this->lookahead->type != Token::TemplateToken) {
+            this->throwUnexpectedToken(this->lookahead);
+        }
+
+        MetaNode node = this->createNode();
+        RefPtr<ScannerResult> token = this->nextToken();
+        TemplateElement* tm = new TemplateElement();
+        tm->value = token->valueTemplate.valueCooked;
+        tm->raw = token->valueTemplate.raw;
+        tm->tail = token->valueTemplate.tail;
+        return tm;
+    }
+
+    RefPtr<Node> parseTemplateLiteral()
+    {
+        MetaNode node = this->createNode();
+
+        ExpressionNodeVector expressions;
+        TemplateElementVector* quasis = new (GC) TemplateElementVector;
+        quasis->push_back(this->parseTemplateHead());
+        while (!quasis->back()->tail) {
+            expressions.push_back(this->parseExpression());
+            TemplateElement* quasi = this->parseTemplateElement();
+            quasis->push_back(quasi);
+        }
+
+        this->literalValueRooter.push_back(quasis);
+
+        return this->finalize(node, new TemplateLiteralNode(quasis, std::move(expressions)));
     }
     /*
-     parseTemplateHead(): Node.TemplateElement {
-         assert(this->lookahead.head, 'Template literal must start with a template head');
-
-         const node = this->createNode();
-         const token = this->nextToken();
-         const value = {
-             raw: token.value.raw,
-             cooked: token.value.cooked
-         };
-
-         return this->finalize(node, new Node.TemplateElement(value, token.tail));
-     }
-
-     parseTemplateElement(): Node.TemplateElement {
-         if (this->lookahead.type !== Token.Template) {
-             this->throwUnexpectedToken();
-         }
-
-         const node = this->createNode();
-         const token = this->nextToken();
-         const value = {
-             raw: token.value.raw,
-             cooked: token.value.cooked
-         };
-
-         return this->finalize(node, new Node.TemplateElement(value, token.tail));
-     }
-
-     parseTemplateLiteral(): Node.TemplateLiteral {
-         const node = this->createNode();
-
-         const expressions = [];
-         const quasis = [];
-
-         let quasi = this->parseTemplateHead();
-         quasis.push(quasi);
-         while (!quasi.tail) {
-             expressions.push(this->parseExpression());
-             quasi = this->parseTemplateElement();
-             quasis.push(quasi);
-         }
-
-         return this->finalize(node, new Node.TemplateLiteral(quasis, expressions));
-     }
-
      // ECMA-262 12.2.10 The Grouping Operator
 
     reinterpretExpressionAsPattern(expr) {
@@ -3969,8 +3963,7 @@ public:
 
             } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->head) {
                 RefPtr<Node> quasi = this->parseTemplateLiteral();
-                // expr = this->finalize(this->startNode(startToken), new Node.TaggedTemplateExpression(expr, quasi));
-                RELEASE_ASSERT_NOT_REACHED();
+                expr = this->convertTaggedTempleateExpressionToCallExpression(this->startNode(startToken), this->finalize(this->startNode(startToken), new TaggedTemplateExpressionNode(expr.get(), quasi.get())));
             } else {
                 break;
             }
@@ -4024,16 +4017,44 @@ public:
 
             } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->head) {
                 RefPtr<Node> quasi = this->parseTemplateLiteral();
-                // TODO
-                // expr = this->finalize(node, new Node.TaggedTemplateExpression(expr, quasi));
-                this->throwError("Tagged template expression is not supported yet");
-                RELEASE_ASSERT_NOT_REACHED();
+                expr = this->convertTaggedTempleateExpressionToCallExpression(node, this->finalize(node, new TaggedTemplateExpressionNode(expr.get(), quasi.get())).get());
             } else {
                 break;
             }
         }
 
         return expr;
+    }
+
+    RefPtr<Node> convertTaggedTempleateExpressionToCallExpression(MetaNode node, RefPtr<TaggedTemplateExpressionNode> taggedTemplateExpression)
+    {
+        TemplateLiteralNode* templateLiteral = (TemplateLiteralNode*)taggedTemplateExpression->quasi();
+        ArgumentVector args;
+        ExpressionNodeVector elements;
+        for (size_t i = 0; i < templateLiteral->quasis()->size(); i++) {
+            UTF16StringData& sd = (*templateLiteral->quasis())[i]->value;
+            String* str = new UTF16String(std::move(sd));
+            this->literalValueRooter.push_back(str);
+            elements.push_back(this->finalize(node, new LiteralNode(Value(str))));
+        }
+
+        RefPtr<ArrayExpressionNode> arrayExpressionForRaw;
+        {
+            ExpressionNodeVector elements;
+            for (size_t i = 0; i < templateLiteral->quasis()->size(); i++) {
+                String* str = new StringView((*templateLiteral->quasis())[i]->raw);
+                this->literalValueRooter.push_back(str);
+                elements.push_back(this->finalize(node, new LiteralNode(Value(str))));
+            }
+            arrayExpressionForRaw = this->finalize(node, new ArrayExpressionNode(std::move(elements)));
+        }
+
+        RefPtr<ArrayExpressionNode> quasiVector = this->finalize(node, new ArrayExpressionNode(std::move(elements), this->escargotContext->staticStrings().raw, arrayExpressionForRaw.get()));
+        args.push_back(quasiVector.get());
+        for (size_t i = 0; i < templateLiteral->expressions().size(); i++) {
+            args.push_back(templateLiteral->expressions()[i]);
+        }
+        return this->finalize(node, new CallExpressionNode(taggedTemplateExpression->expr(), std::move(args)));
     }
 
     // ECMA-262 12.4 Update Expressions

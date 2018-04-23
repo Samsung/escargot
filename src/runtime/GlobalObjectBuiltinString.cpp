@@ -847,6 +847,64 @@ static Value builtinStringEndsWith(ExecutionState& state, Value thisValue, size_
     return Value(true);
 }
 
+// ( template, ...substitutions )
+static Value builtinStringRaw(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    Value argTemplate = argv[0];
+    // Let substitutions be a List consisting of all of the arguments passed to this function, starting with the second argument. If fewer than two arguments were passed, the List is empty.
+    // Let numberOfSubstitutions be the number of elements in substitutions.
+    size_t numberOfSubstitutions;
+    if (argc < 2) {
+        numberOfSubstitutions = 0;
+    } else {
+        numberOfSubstitutions = argc - 1;
+    }
+
+    // Let cooked be ? ToObject(template).
+    Object* cooked = argTemplate.toObject(state);
+    // Let raw be ? ToObject(? Get(cooked, "raw")).
+    Object* raw = cooked->get(state, ObjectPropertyName(state.context()->staticStrings().raw)).value(state, cooked).toObject(state);
+    // Let literalSegments be ? ToLength(? Get(raw, "length")).
+    double literalSegments = raw->lengthES6(state);
+    // If literalSegments ≤ 0, return the empty string.
+    if (literalSegments <= 0) {
+        return String::emptyString;
+    }
+    // Let stringElements be a new empty List.
+    StringBuilder stringElements;
+    // Let nextIndex be 0.
+    size_t nextIndex = 0;
+    // Repeat
+    while (true) {
+        // Let nextKey be ! ToString(nextIndex).
+        // Let nextSeg be ? ToString(? Get(raw, nextKey)).
+        String* nextSeg = raw->get(state, ObjectPropertyName(state, Value(nextIndex))).value(state, raw).toString(state);
+        // Append in order the code unit elements of nextSeg to the end of stringElements.
+        for (size_t i = 0; i < nextSeg->length(); i++) {
+            stringElements.appendChar(nextSeg->charAt(i));
+        }
+        // If nextIndex + 1 = literalSegments, then
+        if (nextIndex + 1 == literalSegments) {
+            // Return the String value whose code units are, in order, the elements in the List stringElements. If stringElements has no elements, the empty string is returned.
+            return stringElements.finalize(&state);
+        }
+        Value next;
+        // If nextIndex < numberOfSubstitutions, let next be substitutions[nextIndex].
+        if (nextIndex < numberOfSubstitutions) {
+            next = argv[nextIndex + 1];
+        } else {
+            // Else, let next be the empty String.
+            next = String::emptyString;
+        }
+        // Let nextSub be ? ToString(next).
+        String* nextSub = next.toString(state);
+        // Append in order the code unit elements of nextSub to the end of stringElements.
+        stringElements.appendString(nextSub);
+        // Let nextIndex be nextIndex + 1.
+        nextIndex++;
+    }
+}
+
 static Value builtinStringIncludes(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ? RequireObjectCoercible(this value).
@@ -1003,6 +1061,9 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_string->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->fromCharCode),
                                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->fromCharCode, builtinStringFromCharCode, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_string->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->raw),
+                                               ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->fromCharCode, builtinStringRaw, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_string->setFunctionPrototype(state, m_stringPrototype);
 

@@ -82,6 +82,7 @@ class Node;
     F(UnaryBitwiseNot, 1, 1)                          \
     F(UnaryTypeof, 1, 1)                              \
     F(UnaryDelete, 1, 1)                              \
+    F(TemplateOperation, 1, 1)                        \
     F(Jump, 0, 0)                                     \
     F(JumpComplexCase, 0, 0)                          \
     F(JumpIfTrue, 0, 0)                               \
@@ -907,6 +908,29 @@ public:
     virtual void dump()
     {
         printf("unary delete r%d <- r%d r%d %s", (int)m_dstIndex, (int)m_srcIndex0, (int)m_srcIndex1, m_id.string()->toUTF8StringData().data());
+    }
+#endif
+};
+
+class TemplateOperation : public ByteCode {
+public:
+    TemplateOperation(const ByteCodeLOC& loc, const size_t& src0Index, const size_t& src1Index, const size_t& dstIndex)
+        : ByteCode(Opcode::TemplateOperationOpcode, loc)
+        , m_src0Index(src0Index)
+        , m_src1Index(src1Index)
+        , m_dstIndex(dstIndex)
+    {
+    }
+
+    String* m_quasi;
+    ByteCodeRegisterIndex m_src0Index;
+    ByteCodeRegisterIndex m_src1Index;
+    ByteCodeRegisterIndex m_dstIndex;
+
+#ifndef NDEBUG
+    virtual void dump()
+    {
+        printf("template operation(+) r%d <- r%d + r%d", (int)m_dstIndex, (int)m_src0Index, (int)m_src1Index);
     }
 #endif
 };

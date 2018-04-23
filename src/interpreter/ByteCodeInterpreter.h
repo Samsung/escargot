@@ -40,6 +40,7 @@ class CallEvalFunction;
 class WithOperation;
 class TryOperation;
 class UnaryDelete;
+class TemplateOperation;
 class DeclareFunctionDeclarations;
 class ObjectDefineGetter;
 class ObjectDefineSetter;
@@ -56,6 +57,7 @@ public:
     static Object* newOperation(ExecutionState& state, const Value& callee, size_t argc, Value* argv);
     static Value instanceOfOperation(ExecutionState& state, const Value& left, const Value& right);
     static void deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile);
+    static void templateOperation(ExecutionState& state, LexicalEnvironment* env, TemplateOperation* code, Value* registerFile);
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-11.8.5
     static bool abstractRelationalComparisonSlowCase(ExecutionState& state, const Value& left, const Value& right, bool leftFirst);

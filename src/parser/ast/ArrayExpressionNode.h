@@ -27,10 +27,12 @@ namespace Escargot {
 class ArrayExpressionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    ArrayExpressionNode(ExpressionNodeVector&& elements)
+    ArrayExpressionNode(ExpressionNodeVector&& elements, AtomicString additionalPropertyName = AtomicString(), Node* additionalPropertyExpression = nullptr)
         : ExpressionNode()
     {
         m_elements = elements;
+        m_additionalPropertyName = additionalPropertyName;
+        m_additionalPropertyExpression = additionalPropertyExpression;
     }
 
     virtual ~ArrayExpressionNode()
@@ -71,6 +73,13 @@ public:
         codeBlock->peekCode<CreateArray>(arrayIndex)->m_length = arrLen;
 
         codeBlock->m_shouldClearStack = true;
+
+        if (m_additionalPropertyExpression) {
+            size_t reg = m_additionalPropertyExpression->getRegister(codeBlock, context);
+            m_additionalPropertyExpression->generateExpressionByteCode(codeBlock, context, reg);
+            codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), dstRegister, m_additionalPropertyName, reg), context, this);
+            context->giveUpRegister();
+        }
     }
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
@@ -79,10 +88,15 @@ public:
             if (m_elements[i])
                 m_elements[i]->iterateChildrenIdentifier(fn);
         }
+        if (m_additionalPropertyExpression) {
+            m_additionalPropertyExpression->iterateChildrenIdentifier(fn);
+        }
     }
 
 protected:
     ExpressionNodeVector m_elements;
+    AtomicString m_additionalPropertyName;
+    RefPtr<Node> m_additionalPropertyExpression;
 };
 }
 

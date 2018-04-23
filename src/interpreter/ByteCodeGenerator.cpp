@@ -346,6 +346,13 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
+            case TemplateOperationOpcode: {
+                TemplateOperation* cd = (TemplateOperation*)currentCode;
+                assignStackIndexIfNeeded(cd->m_src0Index, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_src1Index, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
             case CallFunctionOpcode: {
                 CallFunction* cd = (CallFunction*)currentCode;
                 assignStackIndexIfNeeded(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);

@@ -867,6 +867,13 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
+        TemplateOperationOpcodeLbl : {
+            TemplateOperation* code = (TemplateOperation*)programCounter;
+            templateOperation(state, ec->lexicalEnvironment(), code, registerFile);
+            ADD_PROGRAM_COUNTER(TemplateOperation);
+            NEXT_INSTRUCTION();
+        }
+
         BinaryInOperationOpcodeLbl : {
             BinaryInOperation* code = (BinaryInOperation*)programCounter;
             if (!registerFile[code->m_srcIndex1].isObject())
@@ -1088,6 +1095,17 @@ NEVER_INLINE Value ByteCodeInterpreter::instanceOfOperation(ExecutionState& stat
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
     }
     return Value(right.asFunction()->hasInstance(state, left));
+}
+
+NEVER_INLINE void ByteCodeInterpreter::templateOperation(ExecutionState& state, LexicalEnvironment* env, TemplateOperation* code, Value* registerFile)
+{
+    const Value& s1 = registerFile[code->m_src0Index];
+    const Value& s2 = registerFile[code->m_src1Index];
+
+    StringBuilder builder;
+    builder.appendString(s1.toString(state));
+    builder.appendString(s2.toString(state));
+    registerFile[code->m_dstIndex] = Value(builder.finalize(&state));
 }
 
 NEVER_INLINE void ByteCodeInterpreter::deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile)

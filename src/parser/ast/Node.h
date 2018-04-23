@@ -121,6 +121,8 @@ enum ASTNodeType {
     Identifier,
     LabeledStatement,
     Literal,
+    TemplateLiteral,
+    TaggedTemplateExpression,
     Directive,
     RegExpLiteral,
     NativeFunction,
