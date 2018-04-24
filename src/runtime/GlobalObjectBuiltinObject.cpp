@@ -487,9 +487,6 @@ static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t ar
 
     // Return array.
     return array;
-
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
 }
 
 static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

@@ -2345,7 +2345,7 @@ static void initializeNumberFormat(ExecutionState& state, Object* numberFormat, 
     // Return numberFormat
 
 
-    UNumberFormatStyle style;
+    UNumberFormatStyle style = UNUM_DEFAULT;
 
     String* styleOption = numberFormat->internalSlot()->get(state, ObjectPropertyName(state, String::fromASCII("style"))).value(state, numberFormat->internalSlot()).toString(state);
 

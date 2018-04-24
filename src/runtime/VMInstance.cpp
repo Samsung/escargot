@@ -152,6 +152,7 @@ static ObjectPropertyNativeGetterSetterData regexpLastIndexGetterSetterData(
 
 VMInstance::VMInstance(const char* locale, const char* timezone)
     : m_didSomePrototypeObjectDefineIndexedProperty(false)
+    , m_cachedUTC(nullptr)
 {
     if (!String::emptyString) {
         String::emptyString = new (NoGC) ASCIIString("");

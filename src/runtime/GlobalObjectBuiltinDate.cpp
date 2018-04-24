@@ -316,7 +316,7 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
         return Value(d->primitiveValue());
     }
 
-    double year, month, date, hour, minute, second, millisecond;
+    double year = 0, month = 0, date = 0, hour = 0, minute =  0, second = 0, millisecond = 0;
 
     if (d->isValid()) {
         if (!utc) {
@@ -481,7 +481,7 @@ static Value builtinDateToPrimitive(ExecutionState& state, Value thisValue, size
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true,
                                        state.context()->staticStrings().toPrimitive.string(), errorMessage_GlobalObject_ThisNotObject);
     }
-    bool tryFirstIsString;
+    bool tryFirstIsString = false;
     // If hint is the String value "string" or the String value "default", then
     if (argv[0].isString() && (argv[0].asString()->equals("string") || argv[0].asString()->equals("default"))) {
         // Let tryFirst be "string".

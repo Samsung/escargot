@@ -1362,6 +1362,8 @@ public:
 struct EnumerateObjectData : public PointerValue {
     EnumerateObjectData()
     {
+        m_object = nullptr;
+        m_originalLength = 0;
         m_idx = 0;
     }
 

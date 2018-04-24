@@ -324,6 +324,7 @@ size_t g_objectTag;
 
 Object::Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea)
     : m_structure(state.context()->defaultStructureForObject())
+    , m_prototype(nullptr)
 {
     m_values.resizeWithUninitializedValues(0, defaultSpace);
     if (initPlainArea) {
