@@ -275,10 +275,10 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
     return result;
 }
 
-std::tuple<RefPtr<Node>, ASTScopeContext*, std::unique_ptr<LiteralValueRooterVector>> ScriptParser::parseFunction(InterpretedCodeBlock* codeBlock, size_t stackSizeRemain, ExecutionState* state)
+std::tuple<RefPtr<Node>, ASTScopeContext*> ScriptParser::parseFunction(InterpretedCodeBlock* codeBlock, size_t stackSizeRemain, ExecutionState* state)
 {
     try {
-        std::tuple<RefPtr<Node>, ASTScopeContext*, std::unique_ptr<LiteralValueRooterVector>> body = esprima::parseSingleFunction(m_context, codeBlock, stackSizeRemain);
+        std::tuple<RefPtr<Node>, ASTScopeContext*> body = esprima::parseSingleFunction(m_context, codeBlock, stackSizeRemain);
         return body;
     } catch (esprima::Error* orgError) {
         ErrorObject::throwBuiltinError(*state, ErrorObject::SyntaxError, orgError->message->toUTF8StringData().data());

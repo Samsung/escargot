@@ -35,6 +35,7 @@ public:
         m_right = String::emptyString;
         m_contentLength = 0;
         m_has8BitContent = true;
+        m_bufferAccessData.hasSpecialImpl = true;
     }
 
     // this function not always create RopeString.
@@ -62,11 +63,6 @@ public:
 
     virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const;
 
-    virtual bool has8BitContent() const
-    {
-        return m_has8BitContent;
-    }
-
     virtual bool isRopeString()
     {
         return true;
@@ -82,9 +78,9 @@ public:
         return normalString()->characters16();
     }
 
-    virtual StringBufferAccessData bufferAccessData() const
+    virtual void bufferAccessDataSpecialImpl()
     {
-        return normalString()->bufferAccessData();
+        m_bufferAccessData = normalString()->bufferAccessData();
     }
 
     void* operator new(size_t size);
@@ -114,8 +110,6 @@ protected:
 
     static_assert(STRING_MAXIMUM_LENGTH < (std::numeric_limits<size_t>::max() / 2), "");
 };
-
-static_assert(sizeof(RopeString) <= (sizeof(size_t) * 5), "");
 }
 
 #endif

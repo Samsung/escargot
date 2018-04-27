@@ -49,8 +49,21 @@ class StringView;
 
 struct StringBufferAccessData {
     bool has8BitContent;
+    bool hasSpecialImpl;
     size_t length;
     const void* buffer;
+
+    char16_t uncheckedCharAtFor8Bit(size_t idx) const
+    {
+        ASSERT(has8BitContent);
+        return ((LChar*)buffer)[idx];
+    }
+
+    char16_t uncheckedCharAtFor16Bit(size_t idx) const
+    {
+        ASSERT(!has8BitContent);
+        return ((char16_t*)buffer)[idx];
+    }
 
     char16_t charAt(size_t idx) const
     {
@@ -61,13 +74,18 @@ struct StringBufferAccessData {
         }
     }
 
-    bool equalsSameLength(const char* str) const
+    ALWAYS_INLINE bool equalsSameLength(const char* str, size_t compareStartAt = 0) const
     {
         ASSERT(strlen(str) == length);
         if (LIKELY(has8BitContent)) {
-            return strncmp(str, (char*)buffer, length) == 0;
+            for (size_t i = compareStartAt; i < length; i++) {
+                if (str[i] != ((char*)buffer)[i]) {
+                    return false;
+                }
+            }
+            return true;
         } else {
-            for (size_t i = 0; i < length; i++) {
+            for (size_t i = compareStartAt; i < length; i++) {
                 if (str[i] != ((char16_t*)buffer)[i]) {
                     return false;
                 }
@@ -84,6 +102,7 @@ public:
     String()
     {
         m_tag = POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA;
+        m_bufferAccessData.hasSpecialImpl = false;
     }
 
     virtual bool isString() const
@@ -96,9 +115,9 @@ public:
         return false;
     }
 
-    virtual bool has8BitContent() const
+    bool has8BitContent() const
     {
-        return false;
+        return bufferAccessData().has8BitContent;
     }
 
     static String* fromASCII(const char* s);
@@ -118,7 +137,17 @@ public:
         return charAt(idx);
     }
 
-    virtual StringBufferAccessData bufferAccessData() const = 0;
+    virtual void bufferAccessDataSpecialImpl()
+    {
+        ASSERT(m_bufferAccessData.hasSpecialImpl);
+    }
+    ALWAYS_INLINE const StringBufferAccessData& bufferAccessData() const
+    {
+        if (UNLIKELY(m_bufferAccessData.hasSpecialImpl)) {
+            const_cast<String*>(this)->bufferAccessDataSpecialImpl();
+        }
+        return m_bufferAccessData;
+    }
 
     bool equals(const String* src) const;
     bool equals(const char* src) const
@@ -153,7 +182,7 @@ public:
 
     size_t hashValue() const
     {
-        auto data = bufferAccessData();
+        const auto& data = bufferAccessData();
         size_t len = data.length;
         size_t hash;
         if (LIKELY(data.has8BitContent)) {
@@ -219,6 +248,7 @@ public:
 
 protected:
     size_t m_tag;
+    StringBufferAccessData m_bufferAccessData;
     static int stringCompare(size_t l1, size_t l2, const String* c1, const String* c2);
 
     template <typename T>
@@ -237,8 +267,6 @@ protected:
         return true;
     }
 };
-
-COMPILE_ASSERT(sizeof(String) == sizeof(size_t) * 2, "");
 
 inline bool operator<(const String& a, const String& b)
 {
@@ -269,61 +297,63 @@ class ASCIIString : public String {
     friend class String;
 
 public:
-    virtual bool has8BitContent() const
-    {
-        return true;
-    }
-
     ASCIIString(ASCIIStringData&& src)
         : String()
-        , m_stringData(std::move(src))
     {
+        ASCIIStringData stringData = std::move(src);
+        initBufferAccessData(stringData);
     }
 
     ASCIIString(const char* str)
         : String()
     {
-        m_stringData.append(str, strlen(str));
+        ASCIIStringData stringData;
+        stringData.append(str, strlen(str));
+        initBufferAccessData(stringData);
     }
 
     ASCIIString(const char* str, size_t len)
         : String()
     {
-        m_stringData.append(str, len);
+        ASCIIStringData stringData;
+        stringData.append(str, len);
+        initBufferAccessData(stringData);
     }
 
     ASCIIString(const char16_t* str, size_t len)
         : String()
     {
-        m_stringData.resizeWithUninitializedValues(len);
+        ASCIIStringData stringData;
+        stringData.resizeWithUninitializedValues(len);
         for (size_t i = 0; i < len; i++) {
             ASSERT(str[i] < 128);
-            m_stringData[i] = str[i];
+            stringData[i] = str[i];
         }
+        initBufferAccessData(stringData);
     }
 
     virtual char16_t charAt(const size_t& idx) const
     {
-        return m_stringData[idx];
+        return m_bufferAccessData.uncheckedCharAtFor8Bit(idx);
     }
 
     virtual size_t length() const
     {
-        return m_stringData.size();
+        return m_bufferAccessData.length;
     }
 
     virtual const LChar* characters8() const
     {
-        return (const LChar*)m_stringData.data();
+        return (const LChar*)m_bufferAccessData.buffer;
     }
 
-    virtual StringBufferAccessData bufferAccessData() const
+    void initBufferAccessData(ASCIIStringData& stringData)
     {
         StringBufferAccessData data;
         data.has8BitContent = true;
-        data.length = m_stringData.length();
-        data.buffer = m_stringData.data();
-        return data;
+        data.length = stringData.length();
+        data.buffer = stringData.takeBuffer();
+        m_bufferAccessData = data;
     }
 
     virtual UTF16StringData toUTF16StringData() const;
@@ -342,74 +372,78 @@ public:
     void* operator new[](size_t size) = delete;
 
 protected:
-    ASCIIStringData m_stringData;
 };
 
 class Latin1String : public String {
     friend class Latin1;
 
 public:
-    virtual bool has8BitContent() const
-    {
-        return true;
-    }
-
     Latin1String(Latin1StringData&& src)
         : String()
-        , m_stringData(std::move(src))
     {
+        Latin1StringData data = std::move(src);
+        initBufferAccessData(data);
     }
 
     Latin1String(const char* str)
         : String()
     {
-        m_stringData.append((const LChar*)str, strlen(str));
+        Latin1StringData data;
+        data.append((const LChar*)str, strlen(str));
+        initBufferAccessData(data);
     }
 
     Latin1String(const char* str, size_t len)
         : String()
     {
-        m_stringData.append((const LChar*)str, len);
+        Latin1StringData data;
+        data.append((const LChar*)str, len);
+        initBufferAccessData(data);
     }
 
     Latin1String(const LChar* str, size_t len)
         : String()
     {
-        m_stringData.append(str, len);
+        Latin1StringData data;
+        data.append(str, len);
+        initBufferAccessData(data);
     }
 
     Latin1String(const char16_t* str, size_t len)
         : String()
     {
-        m_stringData.resizeWithUninitializedValues(len);
+        Latin1StringData data;
+
+        data.resizeWithUninitializedValues(len);
         for (size_t i = 0; i < len; i++) {
             ASSERT(str[i] < 256);
-            m_stringData[i] = str[i];
+            data[i] = str[i];
         }
+        initBufferAccessData(data);
+    }
+
+    void initBufferAccessData(Latin1StringData& stringData)
+    {
+        StringBufferAccessData data;
+        data.has8BitContent = true;
+        data.length = stringData.length();
+        data.buffer = stringData.takeBuffer();
+        m_bufferAccessData = data;
     }
 
     virtual char16_t charAt(const size_t& idx) const
     {
-        return m_stringData[idx];
+        return m_bufferAccessData.uncheckedCharAtFor8Bit(idx);
     }
 
     virtual size_t length() const
     {
-        return m_stringData.size();
+        return m_bufferAccessData.length;
     }
 
     virtual const LChar* characters8() const
     {
-        return m_stringData.data();
-    }
-
-    virtual StringBufferAccessData bufferAccessData() const
-    {
-        StringBufferAccessData data;
-        data.has8BitContent = true;
-        data.length = m_stringData.length();
-        data.buffer = m_stringData.data();
-        return data;
+        return (const LChar*)m_bufferAccessData.buffer;
     }
 
     virtual UTF16StringData toUTF16StringData() const;
@@ -428,28 +462,25 @@ public:
     void* operator new[](size_t size) = delete;
 
 protected:
-    Latin1StringData m_stringData;
 };
 
 class UTF16String : public String {
     friend class String;
 
 public:
-    virtual bool has8BitContent() const
-    {
-        return false;
-    }
-
     UTF16String(UTF16StringData&& src)
         : String()
-        , m_stringData(std::move(src))
     {
+        UTF16StringData data = std::move(src);
+        initBufferAccessData(data);
     }
 
     UTF16String(const char16_t* str, size_t len)
         : String()
     {
-        m_stringData.append(str, len);
+        UTF16StringData data;
+        data.append(str, len);
+        initBufferAccessData(data);
     }
 #ifdef ENABLE_ICU
     UTF16String(icu::UnicodeString& src)
@@ -460,31 +491,32 @@ public:
         for (size_t i = 0; i < srclen; i++) {
             str.push_back(src.charAt(i));
         }
-        m_stringData = std::move(str);
+        initBufferAccessData(str);
     }
 #endif
+
+    void initBufferAccessData(UTF16StringData& stringData)
+    {
+        StringBufferAccessData data;
+        data.has8BitContent = false;
+        data.length = stringData.length();
+        data.buffer = stringData.takeBuffer();
+        m_bufferAccessData = data;
+    }
+
     virtual char16_t charAt(const size_t& idx) const
     {
-        return m_stringData[idx];
+        return m_bufferAccessData.uncheckedCharAtFor16Bit(idx);
     }
 
     virtual size_t length() const
     {
-        return m_stringData.size();
+        return m_bufferAccessData.length;
     }
 
     virtual const char16_t* characters16() const
     {
-        return m_stringData.data();
-    }
-
-    virtual StringBufferAccessData bufferAccessData() const
-    {
-        StringBufferAccessData data;
-        data.has8BitContent = false;
-        data.length = m_stringData.length();
-        data.buffer = m_stringData.data();
-        return data;
+        return (const char16_t*)m_bufferAccessData.buffer;
     }
 
     virtual UTF16StringData toUTF16StringData() const;
@@ -495,7 +527,6 @@ public:
     void* operator new[](size_t size) = delete;
 
 protected:
-    UTF16StringData m_stringData;
 };
 
 bool isAllASCII(const char* buf, const size_t& len);

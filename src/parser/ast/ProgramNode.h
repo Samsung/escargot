@@ -53,15 +53,9 @@ public:
         codeBlock->pushCode(End(ByteCodeLOC(SIZE_MAX)), context, this);
     }
 
-    void setLiteralValueHolder(std::unique_ptr<LiteralValueRooterVector>&& s)
-    {
-        m_literalValueRooter = std::move(s);
-    }
-
 protected:
     StatementNodeVector m_body; // body: [ Statement ];
     ASTScopeContext* m_scopeContext;
-    std::unique_ptr<LiteralValueRooterVector> m_literalValueRooter;
 };
 }
 

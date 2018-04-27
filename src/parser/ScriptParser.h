@@ -63,7 +63,7 @@ public:
         return parse(StringView(script, 0, script->length()), fileName, nullptr, strictFromOutside, isEvalCodeInFunction, stackSizeRemain);
     }
     ScriptParserResult parse(StringView script, String* fileName = String::emptyString, InterpretedCodeBlock* parentCodeBlock = nullptr, bool strictFromOutside = false, bool isEvalCodeInFunction = false, size_t stackSizeRemain = SIZE_MAX);
-    std::tuple<RefPtr<Node>, ASTScopeContext*, std::unique_ptr<LiteralValueRooterVector>> parseFunction(InterpretedCodeBlock* codeBlock, size_t stackSizeRemain, ExecutionState* state = nullptr);
+    std::tuple<RefPtr<Node>, ASTScopeContext*> parseFunction(InterpretedCodeBlock* codeBlock, size_t stackSizeRemain, ExecutionState* state = nullptr);
 
 protected:
     InterpretedCodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program);

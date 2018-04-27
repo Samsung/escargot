@@ -44,8 +44,8 @@ String* RopeString::createRopeString(String* lstr, String* rstr, ExecutionState*
     size_t rlen = rstr->length();
 
     if (llen + rlen < ROPE_STRING_MIN_LENGTH) {
-        auto lData = lstr->bufferAccessData();
-        auto rData = rstr->bufferAccessData();
+        const auto& lData = lstr->bufferAccessData();
+        const auto& rData = rstr->bufferAccessData();
         if (LIKELY(lData.has8BitContent && rData.has8BitContent)) {
             Latin1StringData ret;
             size_t len = lData.length + rData.length;
@@ -82,7 +82,21 @@ String* RopeString::createRopeString(String* lstr, String* rstr, ExecutionState*
     rope->m_left = lstr;
     rope->m_right = rstr;
 
-    rope->m_has8BitContent = lstr->has8BitContent() && rstr->has8BitContent();
+    bool l8bit;
+    if (lstr->isRopeString()) {
+        l8bit = ((RopeString*)lstr)->m_has8BitContent;
+    } else {
+        l8bit = lstr->has8BitContent();
+    }
+
+    bool r8bit;
+    if (rstr->isRopeString()) {
+        r8bit = ((RopeString*)rstr)->m_has8BitContent;
+    } else {
+        r8bit = rstr->has8BitContent();
+    }
+
+    rope->m_has8BitContent = l8bit & r8bit;
     /*
     bool has8 = true;
     if (!lstr->has8BitContent()) {
@@ -126,7 +140,7 @@ void RopeString::flattenRopeStringWorker()
             }
         }
         String* sub = cur;
-        auto data = sub->bufferAccessData();
+        const auto& data = sub->bufferAccessData();
 
         pos -= data.length;
         size_t subLength = data.length;
@@ -150,7 +164,7 @@ void RopeString::flattenRopeStringWorker()
 void RopeString::flattenRopeString()
 {
     ASSERT(m_right);
-    if (has8BitContent()) {
+    if (m_has8BitContent) {
         flattenRopeStringWorker<Latin1StringData, Latin1String>();
     } else {
         flattenRopeStringWorker<UTF16StringData, UTF16String>();

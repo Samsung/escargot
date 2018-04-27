@@ -32,7 +32,7 @@ void StringBuilder::appendPiece(String* str, size_t s, size_t e)
         piece.m_start = s;
         piece.m_end = e;
 
-        auto data = str->bufferAccessData();
+        const auto& data = str->bufferAccessData();
         if (!data.has8BitContent) {
             bool has8 = true;
             for (size_t i = s; i < e; i++) {
@@ -128,7 +128,7 @@ String* StringBuilder::finalize(ExecutionState* state)
                 size_t s = piece.m_start;
                 size_t e = piece.m_end;
                 size_t l = e - s;
-                auto accessData = data->bufferAccessData();
+                const auto& accessData = data->bufferAccessData();
                 if (accessData.has8BitContent) {
                     memcpy(&ret[currentLength], ((LChar*)accessData.buffer) + s, l);
                     currentLength += l;
@@ -155,7 +155,7 @@ String* StringBuilder::finalize(ExecutionState* state)
                 size_t s = piece.m_start;
                 size_t e = piece.m_end;
                 size_t l = e - s;
-                auto accessData = data->bufferAccessData();
+                const auto& accessData = data->bufferAccessData();
                 if (accessData.has8BitContent) {
                     memcpy(&ret[currentLength], ((LChar*)accessData.buffer) + s, l);
                     currentLength += l;

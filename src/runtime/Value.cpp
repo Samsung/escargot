@@ -421,7 +421,7 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
             data = o->asStringObject()->primitiveValue();
         }
 
-        auto bufferAccessData = data->bufferAccessData();
+        const auto& bufferAccessData = data->bufferAccessData();
 
         const size_t len = bufferAccessData.length;
 

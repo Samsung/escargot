@@ -311,12 +311,12 @@ UTF16StringData ASCIIString::toUTF16StringData() const
 
 UTF8StringData ASCIIString::toUTF8StringData() const
 {
-    return m_stringData;
+    return UTF8StringData((const char*)ASCIIString::characters8(), ASCIIString::length());
 }
 
 UTF8StringDataNonGCStd ASCIIString::toNonGCUTF8StringData() const
 {
-    return UTF8StringDataNonGCStd(m_stringData.data(), m_stringData.length());
+    return UTF8StringDataNonGCStd((const char*)ASCIIString::characters8(), ASCIIString::length());
 }
 
 UTF16StringData Latin1String::toUTF16StringData() const
@@ -335,7 +335,7 @@ UTF8StringData Latin1String::toUTF8StringData() const
     UTF8StringData ret;
     size_t len = length();
     for (size_t i = 0; i < len; i++) {
-        uint8_t ch = m_stringData[i]; /* assume that code points above 0xff are impossible since latin-1 is 8-bit */
+        uint8_t ch = m_bufferAccessData.uncheckedCharAtFor8Bit(i); /* assume that code points above 0xff are impossible since latin-1 is 8-bit */
         if (ch < 0x80) {
             ret.append((char*)&ch, 1);
         } else {
@@ -352,7 +352,7 @@ UTF8StringDataNonGCStd Latin1String::toNonGCUTF8StringData() const
     UTF8StringDataNonGCStd ret;
     size_t len = length();
     for (size_t i = 0; i < len; i++) {
-        uint8_t ch = m_stringData[i]; /* assume that code points above 0xff are impossible since latin-1 is 8-bit */
+        uint8_t ch = m_bufferAccessData.uncheckedCharAtFor8Bit(i); /* assume that code points above 0xff are impossible since latin-1 is 8-bit */
         if (ch < 0x80) {
             ret.append((char*)&ch, 1);
         } else {
@@ -366,17 +366,17 @@ UTF8StringDataNonGCStd Latin1String::toNonGCUTF8StringData() const
 
 UTF16StringData UTF16String::toUTF16StringData() const
 {
-    return m_stringData;
+    return UTF16StringData(UTF16String::characters16(), UTF16String::length());
 }
 
 UTF8StringData UTF16String::toUTF8StringData() const
 {
-    return utf16StringToUTF8String(m_stringData.data(), m_stringData.length());
+    return utf16StringToUTF8String(UTF16String::characters16(), UTF16String::length());
 }
 
 UTF8StringDataNonGCStd UTF16String::toNonGCUTF8StringData() const
 {
-    return utf16StringToUTF8NonGCString(m_stringData.data(), m_stringData.length());
+    return utf16StringToUTF8NonGCString(UTF16String::characters16(), UTF16String::length());
 }
 
 enum Flags {
@@ -579,8 +579,8 @@ int String::stringCompare(size_t l1, size_t l2, const String* c1, const String* 
 
 bool String::equals(const String* src) const
 {
-    auto myData = bufferAccessData();
-    auto srcData = src->bufferAccessData();
+    const auto& myData = bufferAccessData();
+    const auto& srcData = src->bufferAccessData();
     if (srcData.length != myData.length) {
         return false;
     }
@@ -602,7 +602,7 @@ bool String::equals(const String* src) const
 uint64_t String::tryToUseAsArrayIndex() const
 {
     uint32_t number = 0;
-    auto data = bufferAccessData();
+    const auto& data = bufferAccessData();
     const size_t& len = data.length;
 
     if (UNLIKELY(len == 0)) {
@@ -644,7 +644,7 @@ uint64_t String::tryToUseAsArrayIndex() const
 uint64_t String::tryToUseAsIndex() const
 {
     uint32_t number = 0;
-    auto data = bufferAccessData();
+    const auto& data = bufferAccessData();
     const size_t& len = data.length;
 
     if (UNLIKELY(len == 0)) {
@@ -693,7 +693,7 @@ size_t String::find(String* str, size_t pos)
 
     if (srcStrLen <= size) {
         char32_t src0 = str->charAt(0);
-        auto data = bufferAccessData();
+        const auto& data = bufferAccessData();
         if (data.has8BitContent) {
             for (; pos <= size - srcStrLen; ++pos) {
                 if (((const LChar*)data.buffer)[pos] == src0) {
@@ -770,7 +770,7 @@ void* ASCIIString::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(ASCIIString)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASCIIString, m_stringData));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASCIIString, m_bufferAccessData.buffer));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ASCIIString));
         typeInited = true;
     }
@@ -783,8 +783,8 @@ void* Latin1String::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(Latin1String)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Latin1String, m_stringData));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ASCIIString));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Latin1String, m_bufferAccessData.buffer));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(Latin1String));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
@@ -796,7 +796,7 @@ void* UTF16String::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(UTF16String)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(UTF16String, m_stringData));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(UTF16String, m_bufferAccessData.buffer));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(UTF16String));
         typeInited = true;
     }

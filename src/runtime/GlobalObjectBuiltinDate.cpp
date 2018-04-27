@@ -316,7 +316,7 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
         return Value(d->primitiveValue());
     }
 
-    double year = 0, month = 0, date = 0, hour = 0, minute =  0, second = 0, millisecond = 0;
+    double year = 0, month = 0, date = 0, hour = 0, minute = 0, second = 0, millisecond = 0;
 
     if (d->isValid()) {
         if (!utc) {

@@ -73,7 +73,7 @@ struct Error : public gc {
 #define ESPRIMA_RECURSIVE_LIMIT 1024
 
 RefPtr<ProgramNode> parseProgram(::Escargot::Context* ctx, StringView source, ParserASTNodeHandler astHandler, bool strictFromOutside, size_t stackRemain);
-std::tuple<RefPtr<Node>, ASTScopeContext*, std::unique_ptr<LiteralValueRooterVector>> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, size_t stackRemain);
+std::tuple<RefPtr<Node>, ASTScopeContext*> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, size_t stackRemain);
 }
 }
 

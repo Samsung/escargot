@@ -538,7 +538,7 @@ static Value builtinStringCharCodeAt(ExecutionState& state, Value thisValue, siz
     RESOLVE_THIS_BINDING_TO_STRING(str, String, charCodeAt);
     int position = argv[0].toInteger(state);
     Value ret;
-    auto data = str->bufferAccessData();
+    const auto& data = str->bufferAccessData();
     if (position < 0 || position >= (int)data.length)
         ret = Value(std::numeric_limits<double>::quiet_NaN());
     else {
@@ -566,7 +566,7 @@ static Value builtinStringCharAt(ExecutionState& state, Value thisValue, size_t 
         return Value(String::emptyString);
     }
 
-    auto accessData = str->bufferAccessData();
+    const auto& accessData = str->bufferAccessData();
 
     if (LIKELY(0 <= position && position < (int64_t)accessData.length)) {
         char16_t c;
@@ -789,8 +789,8 @@ static Value builtinStringStartsWith(ExecutionState& state, Value thisValue, siz
     }
     // If the sequence of elements of S starting at start of length searchLength is the same as the full element sequence of searchStr, return true.
     // Otherwise, return false.
-    StringBufferAccessData srcData = S->bufferAccessData();
-    StringBufferAccessData src2Data = searchStr->bufferAccessData();
+    const auto& srcData = S->bufferAccessData();
+    const auto& src2Data = searchStr->bufferAccessData();
 
     for (size_t i = 0; i < src2Data.length; i++) {
         if (srcData.charAt(i + start) != src2Data.charAt(i)) {
@@ -836,8 +836,8 @@ static Value builtinStringEndsWith(ExecutionState& state, Value thisValue, size_
         return Value(false);
     }
     // If the sequence of elements of S starting at start of length searchLength is the same as the full element sequence of searchStr, return true.
-    StringBufferAccessData srcData = S->bufferAccessData();
-    StringBufferAccessData src2Data = searchStr->bufferAccessData();
+    const auto& srcData = S->bufferAccessData();
+    const auto& src2Data = searchStr->bufferAccessData();
     for (size_t i = 0; i < searchLength; i++) {
         if (srcData.charAt(i + start) != src2Data.charAt(i)) {
             return Value(false);

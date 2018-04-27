@@ -37,7 +37,7 @@ PropertyName::PropertyName(ExecutionState& state, const Value& valueIn)
         return;
     }
     String* string = value.toString(state);
-    StringBufferAccessData data = string->bufferAccessData();
+    const auto& data = string->bufferAccessData();
     if (data.length == 0) {
         m_data = ((size_t)AtomicString().string()) | PROPERTY_NAME_ATOMIC_STRING_VIAS;
         return;

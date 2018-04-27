@@ -26,7 +26,8 @@ template <typename T, typename Allocator>
 class BasicString : public gc {
     void makeEmpty()
     {
-        m_buffer = allocate(0);
+        static T e[0];
+        m_buffer = e;
         m_size = 0;
     }
 
@@ -155,6 +156,8 @@ public:
             if (!m_buffer)
                 deallocate(m_buffer, m_size);
             m_buffer = nullptr;
+
+            makeEmpty();
         }
     }
 
@@ -201,14 +204,12 @@ public:
         if (!m_buffer)
             deallocate(m_buffer, m_size);
         m_buffer = nullptr;
+
+        makeEmpty();
     }
 
     T* data() const
     {
-        if (UNLIKELY(m_buffer == nullptr)) {
-            // FIXME
-            return allocate(0);
-        }
         return m_buffer;
     }
 
@@ -230,7 +231,16 @@ public:
             if (!m_buffer)
                 deallocate(m_buffer, m_size);
             m_buffer = nullptr;
+
+            makeEmpty();
         }
+    }
+
+    T* takeBuffer()
+    {
+        T* buf = m_buffer;
+        makeEmpty();
+        return buf;
     }
 
 protected:

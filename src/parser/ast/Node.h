@@ -172,6 +172,16 @@ public:
 
     virtual ASTNodeType type() = 0;
 
+    inline void *operator new(size_t size)
+    {
+        return GC_MALLOC_UNCOLLECTABLE(size);
+    }
+
+    inline void operator delete(void *obj)
+    {
+        GC_FREE(obj);
+    }
+
     bool isIdentifier()
     {
         return type() == ASTNodeType::Identifier;

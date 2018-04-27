@@ -893,8 +893,6 @@ protected:
     void markAsPrototypeObject(ExecutionState& state);
     void deleteOwnProperty(ExecutionState& state, size_t idx);
 };
-
-COMPILE_ASSERT(sizeof(Object) >= sizeof(String), "");
 }
 
 #endif
