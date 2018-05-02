@@ -1,6 +1,14 @@
 #!/bin/bash
 #set -x
 
+if [ ! -f /proc/cpuinfo ]; then
+    echo "Is this Linux? Cannot find or read /proc/cpuinfo"
+    NUMPROC=8
+else
+    NUMPROC=$(grep 'processor' /proc/cpuinfo | wc -l)
+fi
+
+
 INCREMENTAL=false
 if [[ $1 == incremental ]]; then
     INCREMENTAL=true
@@ -101,7 +109,7 @@ function build_gc_for_tizen() {
             NM=$TIZEN_TOOLCHAIN/bin/${COMPILER_PREFIX}${TOOLCHAIN_GCC_WRAPPER}-nm \
             RANLIB=$TIZEN_TOOLCHAIN/bin/${COMPILER_PREFIX}${TOOLCHAIN_GCC_WRAPPER}-ranlib \
             LD=$TIZEN_TOOLCHAIN/bin/$COMPILER_PREFIX-ld
-        make -j
+        make -j$NUMPROC
 
         echo Building bdwgc for android $version $host $arch $mode $libtype done
         cd -

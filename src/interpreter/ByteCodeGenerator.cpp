@@ -143,7 +143,14 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
         ast->generateStatementByteCode(block, &ctx);
         if (!isGlobalScope && !isEvalMode) {
             ASSERT(ast->type() == ASTNodeType::BlockStatement);
-            if (((BlockStatementNode*)ast)->body().size() && ((BlockStatementNode*)ast)->body().back()->type() == ASTNodeType::ReturnStatement) {
+            BlockStatementNode* blk = (BlockStatementNode*)ast;
+            StatementNode* nd = blk->firstChild();
+            StatementNode* last = nullptr;
+            while (nd) {
+                last = nd;
+                nd = nd->nextSilbing();
+            }
+            if (last && last->type() == ASTNodeType::ReturnStatement) {
             } else {
                 block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
             }

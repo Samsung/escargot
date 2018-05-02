@@ -25,10 +25,10 @@
 
 namespace Escargot {
 
-class DirectiveNode : public Node {
+class DirectiveNode : public StatementNode {
 public:
     DirectiveNode(ExpressionNode* expr, StringView value)
-        : Node()
+        : StatementNode()
     {
         m_expr = expr;
         m_value = value;

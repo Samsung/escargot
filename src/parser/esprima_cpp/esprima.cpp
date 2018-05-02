@@ -376,7 +376,7 @@ struct ParserError : public gc {
     }
 };
 
-struct ScanTemplteResult {
+struct ScanTemplteResult : public gc {
     UTF16StringData valueCooked;
     StringView raw;
     bool head;
@@ -397,25 +397,26 @@ public:
     bool startWithZero : 1;
     bool octal : 1;
     bool plain : 1;
-    bool head : 1;
+    char prec : 8; // max prec is 11
+    // we don't needs init prec.
+    // prec is initialized by another function before use
 
-    int prec;
     size_t lineNumber;
     size_t lineStart;
     size_t start;
     size_t end;
-    size_t index;
 
+    // TODO remove valueString
     StringView valueString;
-    KeywordKind valueKeywordKind;
     union {
+        KeywordKind valueKeywordKind : 8;
         PunctuatorsKind valuePunctuatorsKind;
         double valueNumber;
-        ScanTemplteResult valueTemplate;
+        ScanTemplteResult* valueTemplate;
         ScanRegExpResult valueRegexp;
     };
 
-    ~ScannerResult();
+    inline ~ScannerResult();
 
     inline void operator delete(void* obj)
     {
@@ -434,31 +435,25 @@ public:
         this->type = type;
         this->startWithZero = this->octal = false;
         this->plain = false;
-        this->head = false;
-        this->prec = -1;
-        this->valueKeywordKind = NotKeyword;
         this->lineNumber = lineNumber;
         this->valueNumber = 0;
         this->lineStart = lineStart;
         this->start = start;
-        this->end = this->index = end;
+        this->end = end;
     }
 
     ScannerResult(Scanner* scanner, Token type, StringView valueString, size_t lineNumber, size_t lineStart, size_t start, size_t end)
+        : valueString(valueString)
     {
         this->scanner = scanner;
         this->type = type;
         this->startWithZero = this->octal = false;
         this->plain = false;
-        this->head = false;
-        this->prec = -1;
-        this->valueKeywordKind = NotKeyword;
-        this->valueString = valueString;
         this->lineNumber = lineNumber;
         this->valueNumber = 0;
         this->lineStart = lineStart;
         this->start = start;
-        this->end = this->index = end;
+        this->end = end;
     }
 
     ScannerResult(Scanner* scanner, Token type, double value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
@@ -467,36 +462,25 @@ public:
         this->type = type;
         this->startWithZero = this->octal = false;
         this->plain = false;
-        this->head = false;
-        this->valueKeywordKind = NotKeyword;
         this->valueNumber = value;
         this->lineNumber = lineNumber;
         this->lineStart = lineStart;
         this->start = start;
-        this->end = this->index = end;
-        if (end != SIZE_MAX) {
-            this->end = end;
-        }
+        this->end = end;
     }
 
-    ScannerResult(Scanner* scanner, Token type, ScanTemplteResult value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
+    ScannerResult(Scanner* scanner, Token type, ScanTemplteResult* value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
     {
         this->scanner = scanner;
         this->type = type;
         this->startWithZero = this->octal = false;
         this->plain = false;
-        this->head = value.head;
-        this->prec = -1;
-        this->valueKeywordKind = NotKeyword;
         this->valueNumber = 0;
         this->valueTemplate = value;
         this->lineNumber = lineNumber;
         this->lineStart = lineStart;
         this->start = start;
-        this->end = this->index = end;
-        if (end != SIZE_MAX) {
-            this->end = end;
-        }
+        this->end = end;
     }
 };
 
@@ -584,7 +568,7 @@ public:
 #define SCANNER_RESULT_POOL_INITIAL_SIZE 128
 class Scanner : public gc {
 public:
-    BufferedStringView source;
+    StringView source;
     ErrorHandler* errorHandler;
     // trackComment: boolean;
 
@@ -605,7 +589,7 @@ public:
     }
 
 
-    Scanner(BufferedStringView code, ErrorHandler* handler, size_t startLine = 0, size_t startColumn = 0)
+    Scanner(StringView code, ErrorHandler* handler, size_t startLine = 0, size_t startColumn = 0)
     {
         isPoolEnabled = true;
         source = code;
@@ -1213,16 +1197,16 @@ public:
         return code;
     };
 
-    BufferedStringView getIdentifier()
+    StringView getIdentifier()
     {
         const size_t start = this->index++;
-        while (!this->eof()) {
+        while (UNLIKELY(!this->eof())) {
             const char16_t ch = this->source.bufferedCharAt(this->index);
-            if (ch == 0x5C) {
+            if (UNLIKELY(ch == 0x5C)) {
                 // Blackslash (U+005C) marks Unicode escape sequence.
                 this->index = start;
                 return this->getComplexIdentifier();
-            } else if (ch >= 0xD800 && ch < 0xDFFF) {
+            } else if (UNLIKELY(ch >= 0xD800 && ch < 0xDFFF)) {
                 // Need to handle surrogate pairs.
                 this->index = start;
                 return this->getComplexIdentifier();
@@ -1234,10 +1218,10 @@ public:
             }
         }
 
-        return BufferedStringView(this->source, start, this->index);
+        return StringView(this->source, start, this->index);
     }
 
-    BufferedStringView getComplexIdentifier()
+    StringView getComplexIdentifier()
     {
         char32_t cp = this->codePointAt(this->index);
         ParserCharPiece piece = ParserCharPiece(cp);
@@ -1302,7 +1286,7 @@ public:
         }
 
         String* str = new UTF16String(id.data(), id.length());
-        return BufferedStringView(StringView(str, 0, str->length()));
+        return StringView(str, 0, str->length());
     }
 
     struct OctalToDecimalResult {
@@ -1338,18 +1322,18 @@ public:
 
     // ECMA-262 11.6 Names and Keywords
 
-    RefPtr<ScannerResult> scanIdentifier()
+    RefPtr<ScannerResult> scanIdentifier(char16_t ch0)
     {
         Token type;
         const size_t start = this->index;
 
         // Backslash (U+005C) starts an escaped character.
-        BufferedStringView id = this->source.bufferedCharAt(start) == 0x5C ? this->getComplexIdentifier() : this->getIdentifier();
+        StringView id = UNLIKELY(ch0 == 0x5C) ? this->getComplexIdentifier() : this->getIdentifier();
 
         // There is no keyword or literal with only one character.
         // Thus, it must be an identifier.
         KeywordKind keywordKind = NotKeyword;
-        auto data = id.BufferedStringView::bufferAccessData();
+        auto data = id.StringView::bufferAccessData();
         if (data.length == 1) {
             type = Token::IdentifierToken;
         } else if ((keywordKind = this->isKeyword(data))) {
@@ -1369,23 +1353,22 @@ public:
         }
 
         if (keywordKind) {
-            RefPtr<ScannerResult> r = adoptRef(new (createScannerResult()) ScannerResult(this, type, id.src(), this->lineNumber, this->lineStart, start, this->index));
+            RefPtr<ScannerResult> r = adoptRef(new (createScannerResult()) ScannerResult(this, type, id, this->lineNumber, this->lineStart, start, this->index));
             r->valueKeywordKind = keywordKind;
             return r;
         } else {
-            return adoptRef(new (createScannerResult()) ScannerResult(this, type, id.src(), this->lineNumber, this->lineStart, start, this->index));
+            return adoptRef(new (createScannerResult()) ScannerResult(this, type, id, this->lineNumber, this->lineStart, start, this->index));
         }
     }
 
     // ECMA-262 11.7 Punctuators
-    RefPtr<ScannerResult> scanPunctuator()
+    RefPtr<ScannerResult> scanPunctuator(char16_t ch0)
     {
         RefPtr<ScannerResult> token = adoptRef(new (createScannerResult()) ScannerResult(this, Token::PunctuatorToken, StringView(), this->lineNumber, this->lineStart, this->index, this->index));
 
         PunctuatorsKind kind;
         // Check for most common single-character punctuators.
         size_t start = this->index;
-        char16_t ch0 = this->source.bufferedCharAt(this->index);
         char ch1, ch2, ch3;
         switch (ch0) {
         case '(':
@@ -1633,9 +1616,8 @@ public:
             this->throwUnexpectedToken();
         }
 
-        token->end = this->index;
         token->valuePunctuatorsKind = kind;
-        token->valueString = StringView(this->source.src(), start, this->index);
+        token->valueString = StringView(this->source, start, this->index);
         return RefPtr<ScannerResult>(token);
     }
 
@@ -1952,7 +1934,7 @@ public:
                     if (ch >= 256) {
                         stringViewAllLatin1 = false;
                     }
-                    str = StringView(this->source.src(), start + 1, start + 1 + str.length() + 1);
+                    str = StringView(this->source, start + 1, start + 1 + str.length() + 1);
                 } else {
                     stringUTF16 += ch;
                 }
@@ -2098,11 +2080,11 @@ public:
             this->curlyStack.pop_back();
         }
 
-        ScanTemplteResult result;
-        result.head = head;
-        result.tail = tail;
-        result.raw = StringView(this->source.src(), start + 1, this->index - rawOffset);
-        result.valueCooked = UTF16StringData(cooked.data(), cooked.length());
+        ScanTemplteResult* result = new ScanTemplteResult();
+        result->head = head;
+        result->tail = tail;
+        result->raw = StringView(this->source, start + 1, this->index - rawOffset);
+        result->valueCooked = UTF16StringData(cooked.data(), cooked.length());
 
         return adoptRef(new (createScannerResult()) ScannerResult(this, Token::TemplateToken, result, this->lineNumber, this->lineStart, start, this->index));
     }
@@ -2292,20 +2274,22 @@ public:
 
     RefPtr<ScannerResult> lex()
     {
-        if (this->eof()) {
+        if (UNLIKELY(this->eof())) {
             return adoptRef(new (createScannerResult()) ScannerResult(this, Token::EOFToken, this->lineNumber, this->lineStart, this->index, this->index));
         }
 
         const char16_t cp = this->source.bufferedCharAt(this->index);
 
         if (isIdentifierStart(cp)) {
-            return this->scanIdentifier();
+            return this->scanIdentifier(cp);
         }
 
         // Very common: ( and ) and ;
+        /*
         if (cp == 0x28 || cp == 0x29 || cp == 0x3B) {
-            return this->scanPunctuator();
+            return this->scanPunctuator(cp0);
         }
+        */
 
         // String literal starts with single quote (U+0027) or double quote (U+0022).
         if (cp == 0x27 || cp == 0x22) {
@@ -2318,7 +2302,7 @@ public:
             if (isDecimalDigit(this->source.bufferedCharAt(this->index + 1))) {
                 return this->scanNumericLiteral();
             }
-            return this->scanPunctuator();
+            return this->scanPunctuator(cp);
         }
 
         if (isDecimalDigit(cp)) {
@@ -2334,14 +2318,14 @@ public:
         // Possible identifier start in a surrogate pair.
         if (cp >= 0xD800 && cp < 0xDFFF) {
             if (isIdentifierStart(this->codePointAt(this->index))) {
-                return this->scanIdentifier();
+                return this->scanIdentifier(cp);
             }
         }
-        return this->scanPunctuator();
+        return this->scanPunctuator(cp);
     }
 };
 
-ScannerResult::~ScannerResult()
+inline ScannerResult::~ScannerResult()
 {
     if (this->scanner->isPoolEnabled) {
         if (this->scanner->initialResultMemoryPoolSize < SCANNER_RESULT_POOL_INITIAL_SIZE) {
@@ -2623,7 +2607,7 @@ public:
                 }
             }
 
-            value = new StringView((token->type == Token::TemplateToken) ? token->valueTemplate.raw : token->valueString);
+            value = new StringView((token->type == Token::TemplateToken) ? token->valueTemplate->raw : token->valueString);
         } else {
             value = new ASCIIString("ILLEGAL");
         }
@@ -2713,8 +2697,7 @@ public:
         this->startMarker.lineNumber = this->scanner->lineNumber;
         this->startMarker.lineStart = this->scanner->lineStart;
 
-        RefPtr<ScannerResult> next;
-        next = this->scanner->lex();
+        RefPtr<ScannerResult> next = this->scanner->lex();
         this->hasLineTerminator = (token && next) ? (token->lineNumber != next->lineNumber) : false;
 
         if (next && this->context->strict && next->type == Token::IdentifierToken) {
@@ -3663,9 +3646,9 @@ public:
         MetaNode node = this->createNode();
         RefPtr<ScannerResult> token = this->nextToken();
         TemplateElement* tm = new TemplateElement();
-        tm->value = token->valueTemplate.valueCooked;
-        tm->raw = token->valueTemplate.raw;
-        tm->tail = token->valueTemplate.tail;
+        tm->value = token->valueTemplate->valueCooked;
+        tm->raw = token->valueTemplate->raw;
+        tm->tail = token->valueTemplate->tail;
         return tm;
     }
 
@@ -3678,9 +3661,9 @@ public:
         MetaNode node = this->createNode();
         RefPtr<ScannerResult> token = this->nextToken();
         TemplateElement* tm = new TemplateElement();
-        tm->value = token->valueTemplate.valueCooked;
-        tm->raw = token->valueTemplate.raw;
-        tm->tail = token->valueTemplate.tail;
+        tm->value = token->valueTemplate->valueCooked;
+        tm->raw = token->valueTemplate->raw;
+        tm->tail = token->valueTemplate->tail;
         return tm;
     }
 
@@ -4035,7 +4018,7 @@ public:
                 this->expect(RightSquareBracket);
                 expr = this->finalize(this->startNode(startToken), new MemberExpressionNode(expr.get(), property.get(), false));
 
-            } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->head) {
+            } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->valueTemplate->head) {
                 RefPtr<Node> quasi = this->parseTemplateLiteral();
                 expr = this->convertTaggedTempleateExpressionToCallExpression(this->startNode(startToken), this->finalize(this->startNode(startToken), new TaggedTemplateExpressionNode(expr.get(), quasi.get())));
             } else {
@@ -4089,7 +4072,7 @@ public:
                 this->trackUsingNames = trackUsingNamesBefore;
                 expr = this->finalize(node, new MemberExpressionNode(expr.get(), property.get(), true));
 
-            } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->head) {
+            } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->valueTemplate->head) {
                 RefPtr<Node> quasi = this->parseTemplateLiteral();
                 expr = this->convertTaggedTempleateExpressionToCallExpression(node, this->finalize(node, new TaggedTemplateExpressionNode(expr.get(), quasi.get())).get());
             } else {
@@ -4364,7 +4347,6 @@ public:
 
         RefPtr<ScannerResult> token = this->lookahead;
         std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> tokenKeeper;
-        std::vector<RefPtr<Node>> exprKeeper;
         int prec = this->binaryPrecedence(token);
         if (prec > 0) {
             this->nextToken();
@@ -4380,11 +4362,11 @@ public:
             RefPtr<Node> right = this->isolateCoverGrammar(&Parser::parseExponentiationExpression);
 
             std::vector<void*, GCUtil::gc_malloc_ignore_off_page_allocator<void*>> stack;
-            exprKeeper.push_back(left);
+            left->ref();
             stack.push_back(left.get());
-            tokenKeeper.push_back(token);
+            token->ref();
             stack.push_back(token.get());
-            exprKeeper.push_back(right);
+            right->ref();
             stack.push_back(right.get());
 
             while (true) {
@@ -4396,38 +4378,45 @@ public:
                 // Reduce: make a binary expression from the three topmost entries.
                 while ((stack.size() > 2) && (prec <= ((ScannerResult*)stack[stack.size() - 2])->prec)) {
                     right = (Node*)stack.back();
+                    right->deref();
                     stack.pop_back();
-                    ScannerResult* operator_ = (ScannerResult*)stack.back();
+                    RefPtr<ScannerResult> operator_ = (ScannerResult*)stack.back();
+                    operator_->deref();
                     stack.pop_back();
                     left = (Node*)stack.back();
+                    left->deref();
                     stack.pop_back();
                     markers.pop_back();
                     MetaNode node = this->startNode(markers.back());
-                    auto e = this->finalize(node, finishBinaryExpression(left.get(), right.get(), operator_));
-                    exprKeeper.push_back(e);
+                    auto e = this->finalize(node, finishBinaryExpression(left.get(), right.get(), operator_.get()));
+                    e->ref();
                     stack.push_back(e.get());
                 }
 
                 // Shift.
                 token = this->nextToken();
                 token->prec = prec;
-                tokenKeeper.push_back(token);
+                token->ref();
                 stack.push_back(token.get());
                 markers.push_back(this->lookahead);
                 auto e = this->isolateCoverGrammar(&Parser::parseExponentiationExpression);
-                exprKeeper.push_back(e);
+                e->ref();
                 stack.push_back(e.get());
             }
 
             // Final reduce to clean-up the stack.
             size_t i = stack.size() - 1;
             expr = (Node*)stack[i];
+            expr->deref();
             markers.pop_back();
             while (i > 1) {
                 MetaNode node = this->startNode(markers.back());
                 expr = this->finalize(node, finishBinaryExpression((Node*)stack[i - 2], expr.get(), (ScannerResult*)stack[i - 1]));
+                ((Node*)stack[i - 2])->deref();
+                ((ScannerResult*)stack[i - 1])->deref();
                 i -= 2;
             }
+            RELEASE_ASSERT(i == 0);
         }
 
         return expr;
@@ -4494,6 +4483,7 @@ public:
             else
                 RELEASE_ASSERT_NOT_REACHED();
         } else {
+            ASSERT(token->type == Token::KeywordToken);
             if (token->valueKeywordKind == KeywordKind::In)
                 nd = new BinaryExpressionInNode(left, right);
             else if (token->valueKeywordKind == KeywordKind::InstanceofKeyword)
@@ -4861,16 +4851,17 @@ public:
         MetaNode node = this->createNode();
 
         this->expect(LeftBrace);
-        StatementNodeVector block;
+        RefPtr<StatementContainer> block = StatementContainer::create();
+        StatementNode* referNode = nullptr;
         while (true) {
             if (this->match(RightBrace)) {
                 break;
             }
-            block.push_back(this->parseStatementListItem());
+            referNode = block->appendChild(this->parseStatementListItem().get(), referNode);
         }
         this->expect(RightBrace);
 
-        return this->finalize(node, new BlockStatementNode(std::move(block)));
+        return this->finalize(node, new BlockStatementNode(block.get()));
     }
     /*
          // ECMA-262 13.3.1 Let and Const Declarations
@@ -5594,15 +5585,15 @@ public:
         }
         this->expect(Colon);
 
-        StatementNodeVector consequent;
+        RefPtr<StatementContainer> consequent = StatementContainer::create();
         while (true) {
             if (this->match(RightBrace) || this->matchKeyword(Default) || this->matchKeyword(Case)) {
                 break;
             }
-            consequent.push_back(this->parseStatementListItem());
+            consequent->appendChild(this->parseStatementListItem());
         }
 
-        return this->finalize(node, new SwitchCaseNode(test.get(), std::move(consequent)));
+        return this->finalize(node, new SwitchCaseNode(test.get(), consequent.get()));
     }
 
     RefPtr<SwitchStatementNode> parseSwitchStatement()
@@ -5617,7 +5608,7 @@ public:
         bool previousInSwitch = this->context->inSwitch;
         this->context->inSwitch = true;
 
-        StatementNodeVector casesA, casesB;
+        RefPtr<StatementContainer> casesA = StatementContainer::create(), casesB = StatementContainer::create();
         RefPtr<Node> deflt;
         bool defaultFound = false;
         this->expect(LeftBrace);
@@ -5634,9 +5625,9 @@ public:
                 defaultFound = true;
             } else {
                 if (defaultFound) {
-                    casesA.push_back(clause);
+                    casesA->appendChild(clause);
                 } else {
-                    casesB.push_back(clause);
+                    casesB->appendChild(clause);
                 }
             }
         }
@@ -5644,7 +5635,7 @@ public:
 
         this->context->inSwitch = previousInSwitch;
 
-        return this->finalize(node, new SwitchStatementNode(discriminant.get(), std::move(casesA), deflt.get(), std::move(casesB), false));
+        return this->finalize(node, new SwitchStatementNode(discriminant.get(), casesA.get(), deflt.get(), casesB.get(), false));
     }
 
     // ECMA-262 13.13 Labelled Statements
@@ -5889,7 +5880,7 @@ public:
                 size_t realIndex = this->config.parseSingleFunctionChildIndex.asUint32() - 1;
                 this->config.parseSingleFunctionChildIndex = SmallValue(this->config.parseSingleFunctionChildIndex.asUint32() + 1);
                 InterpretedCodeBlock* currentTarget = this->config.parseSingleFunctionTarget->asInterpretedCodeBlock();
-                size_t orgIndex = this->lookahead->index;
+                size_t orgIndex = this->lookahead->end;
                 this->expect(LeftBrace);
 
                 StringView src = currentTarget->childBlocks()[realIndex]->src();
@@ -5902,7 +5893,7 @@ public:
                 this->lookahead->type = Token::PunctuatorToken;
                 this->lookahead->valuePunctuatorsKind = PunctuatorsKind::RightBrace;
                 this->expect(RightBrace);
-                return this->finalize(this->createNode(), new BlockStatementNode(std::move(StatementNodeVector())));
+                return this->finalize(this->createNode(), new BlockStatementNode(StatementContainer::create().get()));
             }
             this->config.parseSingleFunctionChildIndex = SmallValue(this->config.parseSingleFunctionChildIndex.asUint32() + 1);
         }
@@ -5912,7 +5903,7 @@ public:
         MetaNode nodeStart = this->createNode();
 
         this->expect(LeftBrace);
-        StatementNodeVector body = this->parseDirectivePrologues();
+        RefPtr<StatementContainer> body = this->parseDirectivePrologues();
 
         auto previousLabelSet = this->context->labelSet;
         bool previousInIteration = this->context->inIteration;
@@ -5924,11 +5915,12 @@ public:
         this->context->inSwitch = false;
         this->context->inFunctionBody = true;
 
+        StatementNode* referNode = nullptr;
         while (this->startMarker.index < this->scanner->length) {
             if (this->match(RightBrace)) {
                 break;
             }
-            body.push_back(this->parseStatementListItem());
+            referNode = body->appendChild(this->parseStatementListItem().get(), referNode);
         }
 
         this->expect(RightBrace);
@@ -5951,9 +5943,9 @@ public:
         this->context->inDirectCatchScope = prevInDirectCatchScope;
 
         if (this->config.parseSingleFunction) {
-            return this->finalize(nodeStart, new BlockStatementNode(std::move(body)));
+            return this->finalize(nodeStart, new BlockStatementNode(body.get()));
         } else {
-            return this->finalize(nodeStart, new BlockStatementNode(std::move(StatementNodeVector())));
+            return this->finalize(nodeStart, new BlockStatementNode(StatementContainer::create().get()));
         }
     }
 
@@ -6122,11 +6114,11 @@ public:
         }
     }
 
-    StatementNodeVector parseDirectivePrologues()
+    RefPtr<StatementContainer> parseDirectivePrologues()
     {
         RefPtr<ScannerResult> firstRestricted = nullptr;
 
-        StatementNodeVector body;
+        RefPtr<StatementContainer> body = StatementContainer::create();
         while (true) {
             RefPtr<ScannerResult> token = this->lookahead;
             if (token->type != StringLiteralToken) {
@@ -6134,7 +6126,7 @@ public:
             }
 
             RefPtr<Node> statement = this->parseDirective();
-            body.push_back(statement);
+            body->appendChild(statement->asStatementNode());
 
             if (statement->type() != Directive) {
                 break;
@@ -6414,9 +6406,10 @@ public:
     {
         MetaNode node = this->createNode();
         scopeContexts.push_back(new ASTScopeContext(this->context->strict));
-        StatementNodeVector body = this->parseDirectivePrologues();
+        RefPtr<StatementContainer> body = this->parseDirectivePrologues();
+        StatementNode* referNode = nullptr;
         while (this->startMarker.index < this->scanner->length) {
-            body.push_back(this->parseStatementListItem());
+            referNode = body->appendChild(this->parseStatementListItem().get(), referNode);
         }
         scopeContexts.back()->m_locStart.line = node.line;
         scopeContexts.back()->m_locStart.column = node.column;
@@ -6428,7 +6421,7 @@ public:
         scopeContexts.back()->m_locEnd.column = endNode.column;
 #endif
         scopeContexts.back()->m_locEnd.index = endNode.index;
-        return this->finalize(node, new ProgramNode(std::move(body), scopeContexts.back() /*, this->sourceType*/));
+        return this->finalize(node, new ProgramNode(body.get(), scopeContexts.back() /*, this->sourceType*/));
     }
 
     // ECMA-262 15.2.2 Imports

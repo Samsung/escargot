@@ -115,7 +115,7 @@ protected:
     }
 
     // Returns whether the pointer should be freed or not.
-    bool derefBase()
+    ALWAYS_INLINE bool derefBase()
     {
 #if CHECK_REF_COUNTED_LIFECYCLE
         ASSERT(!m_deletionHasBegun);
@@ -166,7 +166,7 @@ inline void adopted(RefCountedBase* object)
 
 template<typename T> class RefCounted : public RefCountedBase {
 public:
-    void deref()
+    ALWAYS_INLINE void deref()
     {
         if (derefBase())
             delete static_cast<T*>(this);

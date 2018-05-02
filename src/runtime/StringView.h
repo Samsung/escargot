@@ -186,48 +186,6 @@ public:
         return m_string->characters16() + start();
     }
 
-    void* operator new(size_t size);
-    void* operator new[](size_t size) = delete;
-
-protected:
-    String* m_string;
-};
-
-class BufferedStringView : public String {
-    MAKE_STACK_ALLOCATED();
-
-public:
-    BufferedStringView()
-        : m_src(StringView())
-    {
-        init();
-    }
-
-    BufferedStringView(StringView src)
-        : m_src(src)
-    {
-        init();
-    }
-
-    BufferedStringView(const BufferedStringView& src, size_t s, size_t e)
-        : m_src(StringView(src.src(), s, e))
-    {
-        StringBufferAccessData data;
-        data.has8BitContent = src.m_bufferAccessData.has8BitContent;
-        data.length = e - s;
-        if (src.m_bufferAccessData.has8BitContent) {
-            data.buffer = ((LChar*)src.m_bufferAccessData.buffer) + s;
-        } else {
-            data.buffer = ((char16_t*)src.m_bufferAccessData.buffer) + s;
-        }
-        m_bufferAccessData = data;
-    }
-
-    void init()
-    {
-        m_bufferAccessData = m_src.bufferAccessData();
-    }
-
     char16_t bufferedCharAt(const size_t& idx) const
     {
         if (m_bufferAccessData.has8BitContent) {
@@ -237,81 +195,11 @@ public:
         }
     }
 
-    virtual char16_t charAt(const size_t& idx) const
-    {
-        return m_src.charAt(idx);
-    }
-
-    virtual size_t length() const
-    {
-        return m_src.length();
-    }
-
-    virtual UTF16StringData toUTF16StringData() const
-    {
-        UTF16StringData ret;
-        size_t len = length();
-        ret.resizeWithUninitializedValues(len);
-
-        for (size_t i = 0; i < len; i++) {
-            ret[i] = charAt(i);
-        }
-
-        return ret;
-    }
-
-    virtual UTF8StringData toUTF8StringData() const
-    {
-        UTF8StringDataNonGCStd ret;
-        const auto& accessData = bufferAccessData();
-        for (size_t i = 0; i < accessData.length; i++) {
-            char16_t ch = accessData.charAt(i);
-            if (ch < 0x80) {
-                ret.append((char*)&ch, 1);
-            } else {
-                char buf[8];
-                auto len = utf32ToUtf8(ch, buf);
-                ret.append(buf, len);
-            }
-        }
-        return UTF8StringData(ret.data(), ret.length());
-    }
-
-    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const
-    {
-        UTF8StringDataNonGCStd ret;
-        const auto& accessData = bufferAccessData();
-        for (size_t i = 0; i < accessData.length; i++) {
-            char16_t ch = accessData.charAt(i);
-            if (ch < 0x80) {
-                ret.append((char*)&ch, 1);
-            } else {
-                char buf[8];
-                auto len = utf32ToUtf8(ch, buf);
-                ret.append(buf, len);
-            }
-        }
-        return ret;
-    }
-
-
-    virtual const LChar* characters8() const
-    {
-        return m_src.characters8();
-    }
-
-    virtual const char16_t* characters16() const
-    {
-        return m_src.characters16();
-    }
-
-    StringView src() const
-    {
-        return m_src;
-    }
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
 
 protected:
-    StringView m_src;
+    String* m_string;
 };
 
 inline String* StringView::createStringView(String* str, const size_t& s, const size_t& e)

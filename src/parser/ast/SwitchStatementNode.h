@@ -29,7 +29,7 @@ namespace Escargot {
 class SwitchStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    SwitchStatementNode(Node* discriminant, StatementNodeVector&& casesA, Node* deflt, StatementNodeVector&& casesB, bool lexical)
+    SwitchStatementNode(Node* discriminant, StatementContainer* casesA, Node* deflt, StatementContainer* casesB, bool lexical)
         : StatementNode()
     {
         m_discriminant = (ExpressionNode*)discriminant;
@@ -55,8 +55,9 @@ public:
         newContext.m_canSkipCopyToRegister = canSkipCopyToRegister;
 
         std::vector<size_t> jumpCodePerCaseNodePosition;
-        for (unsigned i = 0; i < m_casesB.size(); i++) {
-            SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesB[i].get();
+        StatementNode* nd = m_casesB->firstChild();
+        while (nd) {
+            SwitchCaseNode* caseNode = (SwitchCaseNode*)nd;
             size_t refIndex = caseNode->m_test->getRegister(codeBlock, &newContext);
             caseNode->m_test->generateExpressionByteCode(codeBlock, &newContext, refIndex);
             size_t resultIndex = newContext.getRegister();
@@ -65,12 +66,13 @@ public:
             codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), resultIndex), &newContext, this);
             newContext.giveUpRegister();
             newContext.giveUpRegister();
+            nd = nd->nextSilbing();
         }
 
         ASSERT(rIndex0 == newContext.getLastRegisterIndex());
-
-        for (unsigned i = 0; i < m_casesA.size(); i++) {
-            SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesA[i].get();
+        nd = m_casesA->firstChild();
+        while (nd) {
+            SwitchCaseNode* caseNode = (SwitchCaseNode*)nd;
             size_t refIndex = caseNode->m_test->getRegister(codeBlock, &newContext);
             caseNode->m_test->generateExpressionByteCode(codeBlock, &newContext, refIndex);
             size_t resultIndex = newContext.getRegister();
@@ -79,6 +81,7 @@ public:
             codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), resultIndex), &newContext, this);
             newContext.giveUpRegister();
             newContext.giveUpRegister();
+            nd = nd->nextSilbing();
         }
 
         newContext.giveUpRegister();
@@ -88,19 +91,23 @@ public:
         jmpToDefault = codeBlock->currentCodeSize();
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), &newContext, this);
         size_t caseIdx = 0;
-        for (unsigned i = 0; i < m_casesB.size(); i++) {
-            SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesB[i].get();
+        nd = m_casesB->firstChild();
+        while (nd) {
+            SwitchCaseNode* caseNode = (SwitchCaseNode*)nd;
             codeBlock->peekCode<JumpIfTrue>(jumpCodePerCaseNodePosition[caseIdx++])->m_jumpPosition = codeBlock->currentCodeSize();
             caseNode->generateStatementByteCode(codeBlock, &newContext);
+            nd = nd->nextSilbing();
         }
         if (m_default) {
             codeBlock->peekCode<Jump>(jmpToDefault)->m_jumpPosition = codeBlock->currentCodeSize();
             m_default->generateStatementByteCode(codeBlock, &newContext);
         }
-        for (unsigned i = 0; i < m_casesA.size(); i++) {
-            SwitchCaseNode* caseNode = (SwitchCaseNode*)m_casesA[i].get();
+        nd = m_casesA->firstChild();
+        while (nd) {
+            SwitchCaseNode* caseNode = (SwitchCaseNode*)nd;
             codeBlock->peekCode<JumpIfTrue>(jumpCodePerCaseNodePosition[caseIdx++])->m_jumpPosition = codeBlock->currentCodeSize();
             caseNode->generateStatementByteCode(codeBlock, &newContext);
+            nd = nd->nextSilbing();
         }
         size_t breakPos = codeBlock->currentCodeSize();
         newContext.consumeBreakPositions(codeBlock, breakPos, context->m_tryStatementScopeCount);
@@ -115,9 +122,9 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::SwitchStatement; }
 protected:
     RefPtr<ExpressionNode> m_discriminant;
-    StatementNodeVector m_casesA;
+    RefPtr<StatementContainer> m_casesA;
     RefPtr<StatementNode> m_default;
-    StatementNodeVector m_casesB;
+    RefPtr<StatementContainer> m_casesB;
     bool m_lexical;
 };
 }

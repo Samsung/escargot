@@ -26,13 +26,13 @@
 
 namespace Escargot {
 
-class ProgramNode : public Node {
+class ProgramNode : public StatementNode {
 public:
     friend class ScriptParser;
-    ProgramNode(StatementNodeVector&& body, ASTScopeContext* scopeContext)
-        : Node()
+    ProgramNode(StatementContainer* body, ASTScopeContext* scopeContext)
+        : StatementNode()
     {
-        m_body = body;
+        m_container = body;
         m_scopeContext = scopeContext;
         m_scopeContext->m_nodeType = type();
     }
@@ -45,16 +45,12 @@ public:
     ASTScopeContext* scopeContext() { return m_scopeContext; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        size_t len = m_body.size();
-
-        for (size_t i = 0; i < len; i++) {
-            m_body[i]->generateStatementByteCode(codeBlock, context);
-        }
+        m_container->generateStatementByteCode(codeBlock, context);
         codeBlock->pushCode(End(ByteCodeLOC(SIZE_MAX)), context, this);
     }
 
 protected:
-    StatementNodeVector m_body; // body: [ Statement ];
+    RefPtr<StatementContainer> m_container;
     ASTScopeContext* m_scopeContext;
 };
 }

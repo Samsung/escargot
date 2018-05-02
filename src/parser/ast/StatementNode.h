@@ -25,6 +25,8 @@
 namespace Escargot {
 
 class StatementNode : public Node {
+    friend class StatementContainer;
+
 public:
     StatementNode()
         : Node()
@@ -36,7 +38,73 @@ public:
         return true;
     }
 
+    StatementNode* nextSilbing()
+    {
+        return m_nextSilbing.get();
+    }
+
 protected:
+    RefPtr<StatementNode> m_nextSilbing;
+};
+
+class StatementContainer : public RefCounted<StatementContainer> {
+public:
+    static RefPtr<StatementContainer> create()
+    {
+        return adoptRef(new StatementContainer());
+    }
+
+    void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        StatementNode* nd = m_firstChild.get();
+        while (nd) {
+            nd->generateStatementByteCode(codeBlock, context);
+            nd = nd->nextSilbing();
+        }
+    }
+
+    StatementNode* appendChild(RefPtr<StatementNode> c)
+    {
+        return appendChild(c.get());
+    }
+
+    StatementNode* appendChild(RefPtr<StatementNode> c, RefPtr<StatementNode> referNode)
+    {
+        return appendChild(c.get(), referNode.get());
+    }
+
+    StatementNode* appendChild(StatementNode* c, StatementNode* referNode)
+    {
+        if (referNode == nullptr) {
+            appendChild(c);
+        } else {
+            referNode->m_nextSilbing = c;
+        }
+        return c;
+    }
+
+    StatementNode* appendChild(StatementNode* c)
+    {
+        ASSERT(c->nextSilbing() == nullptr);
+        if (m_firstChild == nullptr) {
+            m_firstChild = c;
+        } else {
+            StatementNode* tail = m_firstChild.get();
+            while (tail->m_nextSilbing != nullptr) {
+                tail = tail->m_nextSilbing.get();
+            }
+            tail->m_nextSilbing = c;
+        }
+        return c;
+    };
+
+    StatementNode* firstChild()
+    {
+        return m_firstChild.get();
+    }
+
+protected:
+    RefPtr<StatementNode> m_firstChild;
 };
 }
 

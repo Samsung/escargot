@@ -28,28 +28,28 @@ namespace Escargot {
 class BlockStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    BlockStatementNode(StatementNodeVector&& body)
+    BlockStatementNode(StatementContainer* body)
         : StatementNode()
     {
-        m_body = body;
+        m_container = body;
     }
 
     virtual ~BlockStatementNode()
     {
     }
     virtual ASTNodeType type() { return ASTNodeType::BlockStatement; }
-    size_t size() { return m_body.size(); }
-    StatementNodeVector& body() { return m_body; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        size_t len = m_body.size();
-        for (size_t i = 0; i < len; i++) {
-            m_body[i]->generateStatementByteCode(codeBlock, context);
-        }
+        m_container->generateStatementByteCode(codeBlock, context);
+    }
+
+    StatementNode* firstChild()
+    {
+        return m_container->firstChild();
     }
 
 protected:
-    StatementNodeVector m_body; // body: [ Statement ];
+    RefPtr<StatementContainer> m_container;
 };
 }
 

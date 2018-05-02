@@ -155,6 +155,7 @@ struct ExtendedNodeLOC {
 class LiteralNode;
 class IdentifierNode;
 class MemberExpressionNode;
+class StatementNode;
 
 class Node : public RefCounted<Node> {
     friend class ScriptParser;
@@ -203,6 +204,12 @@ public:
     {
         ASSERT(isLiteral());
         return (LiteralNode *)this;
+    }
+
+    StatementNode *asStatementNode()
+    {
+        ASSERT(isStatementNode());
+        return (StatementNode *)this;
     }
 
     bool isLiteral()
@@ -398,7 +405,6 @@ struct ASTScopeContext : public gc {
 typedef std::vector<RefPtr<Node>> NodeVector;
 typedef std::vector<RefPtr<Node>> ArgumentVector;
 typedef std::vector<RefPtr<Node>> ExpressionNodeVector;
-typedef std::vector<RefPtr<Node>> StatementNodeVector;
 typedef std::vector<RefPtr<Node>> PatternNodeVector;
 class PropertyNode;
 typedef std::vector<RefPtr<PropertyNode>> PropertiesNodeVector;

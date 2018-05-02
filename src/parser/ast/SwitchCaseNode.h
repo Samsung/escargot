@@ -29,11 +29,11 @@ class SwitchCaseNode : public StatementNode {
 public:
     friend class ScriptParser;
     friend class SwitchStatementNode;
-    SwitchCaseNode(Node* test, StatementNodeVector&& consequent)
+    SwitchCaseNode(Node* test, StatementContainer* consequent)
         : StatementNode()
     {
         m_test = (ExpressionNode*)test;
-        m_consequent = std::move(consequent);
+        m_consequent = consequent;
     }
 
     virtual ~SwitchCaseNode()
@@ -48,15 +48,12 @@ public:
 
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        size_t len = m_consequent.size();
-        for (size_t i = 0; i < len; i++) {
-            m_consequent[i]->generateStatementByteCode(codeBlock, context);
-        }
+        m_consequent->generateStatementByteCode(codeBlock, context);
     }
 
 protected:
     RefPtr<ExpressionNode> m_test;
-    StatementNodeVector m_consequent;
+    RefPtr<StatementContainer> m_consequent;
 };
 }
 
