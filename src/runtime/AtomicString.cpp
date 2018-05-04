@@ -61,6 +61,30 @@ AtomicString::AtomicString(ExecutionState& ec, String* name)
     init(ec.context()->m_atomicStringMap, name);
 }
 
+AtomicString::AtomicString(Context* c, const SourceStringView& sv)
+{
+    size_t v = sv.getTagInFirstDataArea();
+    if (v > POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA) {
+        m_string = (String*)(v & ~POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA);
+        return;
+    }
+
+    AtomicStringMap* ec = c->atomicStringMap();
+    SourceStringView& str = const_cast<SourceStringView&>(sv);
+    String* name = &str;
+    auto iter = ec->find(name);
+    if (ec->end() == iter) {
+        SourceStringView* newSv = new SourceStringView(sv);
+        ec->insert(newSv);
+        ASSERT(ec->find(newSv) != ec->end());
+        m_string = newSv;
+        str.m_tag = (size_t)POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA | (size_t)m_string;
+    } else {
+        m_string = iter.operator*();
+        str.m_tag = (size_t)POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA | (size_t)m_string;
+    }
+}
+
 AtomicString::AtomicString(Context* c, const StringView& sv)
 {
     size_t v = sv.getTagInFirstDataArea();

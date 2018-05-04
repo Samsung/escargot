@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "ScriptParser.h"
 #include "runtime/Context.h"
+#include "runtime/VMInstance.h"
 #include "interpreter/ByteCode.h"
 #include "parser/esprima_cpp/esprima.h"
 #include "parser/ScriptParser.h"
@@ -186,6 +187,7 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
     // GC_set_free_space_divisor(1);
 
     try {
+        m_context->vmInstance()->m_parsedSourceCodes.push_back(scriptSource.string());
         RefPtr<ProgramNode> program = esprima::parseProgram(m_context, scriptSource, nullptr, strictFromOutside, stackSizeRemain);
 
         script = new Script(fileName, new StringView(scriptSource));

@@ -40,12 +40,6 @@ OpcodeTable::OpcodeTable()
     ByteCodeInterpreter::interpret(state, &block, 0, nullptr, addr);
 }
 
-// ECMA-262 11.3 Line Terminators
-ALWAYS_INLINE bool isLineTerminator(char16_t ch)
-{
-    return (ch == 0x0A) || (ch == 0x0D) || (ch == 0x2028) || (ch == 0x2029);
-}
-
 void* ByteCodeBlock::operator new(size_t size)
 {
     static bool typeInited = false;
@@ -115,7 +109,7 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(StringView src, ExtendedNodeLOC so
     for (size_t i = 0; i < index && i < srcLength; i++) {
         char16_t c = src.charAt(i);
         column++;
-        if (isLineTerminator(c)) {
+        if (esprima::isLineTerminator(c)) {
             // skip \r\n
             if (c == 13 && (i + 1 < index) && src.charAt(i + 1) == 10) {
                 i++;

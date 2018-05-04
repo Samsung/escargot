@@ -349,11 +349,9 @@ public:
 
     void initBufferAccessData(ASCIIStringData& stringData)
     {
-        StringBufferAccessData data;
-        data.has8BitContent = true;
-        data.length = stringData.length();
-        data.buffer = stringData.takeBuffer();
-        m_bufferAccessData = data;
+        m_bufferAccessData.has8BitContent = true;
+        m_bufferAccessData.length = stringData.length();
+        m_bufferAccessData.buffer = stringData.takeBuffer();
     }
 
     virtual UTF16StringData toUTF16StringData() const;
@@ -424,11 +422,9 @@ public:
 
     void initBufferAccessData(Latin1StringData& stringData)
     {
-        StringBufferAccessData data;
-        data.has8BitContent = true;
-        data.length = stringData.length();
-        data.buffer = stringData.takeBuffer();
-        m_bufferAccessData = data;
+        m_bufferAccessData.has8BitContent = true;
+        m_bufferAccessData.length = stringData.length();
+        m_bufferAccessData.buffer = stringData.takeBuffer();
     }
 
     virtual char16_t charAt(const size_t& idx) const
@@ -497,11 +493,9 @@ public:
 
     void initBufferAccessData(UTF16StringData& stringData)
     {
-        StringBufferAccessData data;
-        data.has8BitContent = false;
-        data.length = stringData.length();
-        data.buffer = stringData.takeBuffer();
-        m_bufferAccessData = data;
+        m_bufferAccessData.has8BitContent = false;
+        m_bufferAccessData.length = stringData.length();
+        m_bufferAccessData.buffer = stringData.takeBuffer();
     }
 
     virtual char16_t charAt(const size_t& idx) const

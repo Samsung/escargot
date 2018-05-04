@@ -390,6 +390,100 @@ struct ScanRegExpResult {
 
 class Scanner;
 
+StringView keywordToString(KeywordKind keyword)
+{
+    switch (keyword) {
+    case If:
+        return StringView("if");
+    case In:
+        return StringView("in");
+    case Do:
+        return StringView("do");
+    case Var:
+        return StringView("var");
+    case For:
+        return StringView("for");
+    case New:
+        return StringView("new");
+    case Try:
+        return StringView("try");
+    case This:
+        return StringView("this");
+    case Else:
+        return StringView("else");
+    case Case:
+        return StringView("case");
+    case Void:
+        return StringView("void");
+    case With:
+        return StringView("with");
+    case Enum:
+        return StringView("enum");
+    case Await:
+        return StringView("await");
+    case While:
+        return StringView("while");
+    case Break:
+        return StringView("break");
+    case Catch:
+        return StringView("catch");
+    case Throw:
+        return StringView("throw");
+    case Const:
+        return StringView("const");
+    case Class:
+        return StringView("class");
+    case Super:
+        return StringView("super");
+    case Return:
+        return StringView("return");
+    case Typeof:
+        return StringView("typeof");
+    case Delete:
+        return StringView("delete");
+    case Switch:
+        return StringView("switch");
+    case Export:
+        return StringView("export");
+    case Import:
+        return StringView("import");
+    case Default:
+        return StringView("default");
+    case Finally:
+        return StringView("finally");
+    case Extends:
+        return StringView("extends");
+    case Function:
+        return StringView("function");
+    case Continue:
+        return StringView("continue");
+    case Debugger:
+        return StringView("debugger");
+    case InstanceofKeyword:
+        return StringView("instanceof");
+    case Implements:
+        return StringView("implements");
+    case Interface:
+        return StringView("interface");
+    case Package:
+        return StringView("package");
+    case Private:
+        return StringView("private");
+    case Protected:
+        return StringView("protected");
+    case Public:
+        return StringView("public");
+    case Static:
+        return StringView("static");
+    case Yield:
+        return StringView("yield");
+    case Let:
+        return StringView("let");
+    default:
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+}
+
 class ScannerResult : public RefCounted<ScannerResult> {
 public:
     Scanner* scanner;
@@ -397,6 +491,7 @@ public:
     bool startWithZero : 1;
     bool octal : 1;
     bool plain : 1;
+    bool hasComplexString : 1;
     char prec : 8; // max prec is 11
     // we don't needs init prec.
     // prec is initialized by another function before use
@@ -406,15 +501,26 @@ public:
     size_t start;
     size_t end;
 
-    // TODO remove valueString
-    StringView valueString;
     union {
-        KeywordKind valueKeywordKind : 8;
         PunctuatorsKind valuePunctuatorsKind;
+        StringView valueStringLiteralData;
         double valueNumber;
         ScanTemplteResult* valueTemplate;
         ScanRegExpResult valueRegexp;
+        KeywordKind valueKeywordKind;
     };
+
+    StringView relatedSource();
+    StringView valueStringLiteral()
+    {
+        if (this->type == Token::KeywordToken) {
+            return keywordToString(this->valueKeywordKind);
+        }
+        ASSERT(valueStringLiteralData.getTagInFirstDataArea() == POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA);
+        return valueStringLiteralData;
+    }
+
+    Value valueStringLiteralForAST();
 
     inline ~ScannerResult();
 
@@ -430,38 +536,41 @@ public:
     }
 
     ScannerResult(Scanner* scanner, Token type, size_t lineNumber, size_t lineStart, size_t start, size_t end)
+        : valueNumber(0)
     {
         this->scanner = scanner;
         this->type = type;
         this->startWithZero = this->octal = false;
         this->plain = false;
+        this->hasComplexString = false;
         this->lineNumber = lineNumber;
-        this->valueNumber = 0;
         this->lineStart = lineStart;
         this->start = start;
         this->end = end;
     }
 
-    ScannerResult(Scanner* scanner, Token type, StringView valueString, size_t lineNumber, size_t lineStart, size_t start, size_t end)
-        : valueString(valueString)
+    ScannerResult(Scanner* scanner, Token type, const StringView& valueString, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool hasComplexString)
+        : valueStringLiteralData(valueString)
     {
         this->scanner = scanner;
         this->type = type;
         this->startWithZero = this->octal = false;
         this->plain = false;
+        this->hasComplexString = hasComplexString;
         this->lineNumber = lineNumber;
-        this->valueNumber = 0;
         this->lineStart = lineStart;
         this->start = start;
         this->end = end;
     }
 
     ScannerResult(Scanner* scanner, Token type, double value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
+        : valueNumber(value)
     {
         this->scanner = scanner;
         this->type = type;
         this->startWithZero = this->octal = false;
         this->plain = false;
+        this->hasComplexString = false;
         this->valueNumber = value;
         this->lineNumber = lineNumber;
         this->lineStart = lineStart;
@@ -470,13 +579,13 @@ public:
     }
 
     ScannerResult(Scanner* scanner, Token type, ScanTemplteResult* value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
+        : valueTemplate(value)
     {
         this->scanner = scanner;
         this->type = type;
         this->startWithZero = this->octal = false;
         this->plain = false;
-        this->valueNumber = 0;
-        this->valueTemplate = value;
+        this->hasComplexString = false;
         this->lineNumber = lineNumber;
         this->lineStart = lineStart;
         this->start = start;
@@ -878,7 +987,7 @@ public:
 
     bool isFutureReservedWord(const StringView& id)
     {
-        StringBufferAccessData data = id.bufferAccessData();
+        const StringBufferAccessData& data = id.bufferAccessData();
         if (data.length == 4) {
             STRING_CMP("enum", 4)
         } else if (data.length == 5) {
@@ -892,7 +1001,7 @@ public:
     template <typename T>
     bool isStrictModeReservedWord(const T& id)
     {
-        StringBufferAccessData data = id.bufferAccessData();
+        const StringBufferAccessData& data = id.bufferAccessData();
         switch (data.length) {
         case 3: // let
             STRING_CMP("let", 3)
@@ -923,7 +1032,7 @@ public:
     template <typename T>
     bool isRestrictedWord(const T& id)
     {
-        StringBufferAccessData data = id.bufferAccessData();
+        const StringBufferAccessData& data = id.bufferAccessData();
         if (data.length == 4) {
             return data.equalsSameLength("eval");
         } else if (data.length == 9) {
@@ -1332,12 +1441,14 @@ public:
 
         // There is no keyword or literal with only one character.
         // Thus, it must be an identifier.
-        KeywordKind keywordKind = NotKeyword;
+        KeywordKind keywordKind;
         auto data = id.StringView::bufferAccessData();
         if (data.length == 1) {
             type = Token::IdentifierToken;
         } else if ((keywordKind = this->isKeyword(data))) {
-            type = Token::KeywordToken;
+            RefPtr<ScannerResult> r = adoptRef(new (createScannerResult()) ScannerResult(this, Token::KeywordToken, this->lineNumber, this->lineStart, start, this->index));
+            r->valueKeywordKind = keywordKind;
+            return r;
         } else if (data.length == 4) {
             if (data.equalsSameLength("null")) {
                 type = Token::NullLiteralToken;
@@ -1352,19 +1463,13 @@ public:
             type = Token::IdentifierToken;
         }
 
-        if (keywordKind) {
-            RefPtr<ScannerResult> r = adoptRef(new (createScannerResult()) ScannerResult(this, type, id, this->lineNumber, this->lineStart, start, this->index));
-            r->valueKeywordKind = keywordKind;
-            return r;
-        } else {
-            return adoptRef(new (createScannerResult()) ScannerResult(this, type, id, this->lineNumber, this->lineStart, start, this->index));
-        }
+        return adoptRef(new (createScannerResult()) ScannerResult(this, type, id, this->lineNumber, this->lineStart, start, this->index, id.string() != this->source.string()));
     }
 
     // ECMA-262 11.7 Punctuators
     RefPtr<ScannerResult> scanPunctuator(char16_t ch0)
     {
-        RefPtr<ScannerResult> token = adoptRef(new (createScannerResult()) ScannerResult(this, Token::PunctuatorToken, StringView(), this->lineNumber, this->lineStart, this->index, this->index));
+        RefPtr<ScannerResult> token = adoptRef(new (createScannerResult()) ScannerResult(this, Token::PunctuatorToken, this->lineNumber, this->lineStart, this->index, this->index));
 
         PunctuatorsKind kind;
         // Check for most common single-character punctuators.
@@ -1617,7 +1722,6 @@ public:
         }
 
         token->valuePunctuatorsKind = kind;
-        token->valueString = StringView(this->source, start, this->index);
         return RefPtr<ScannerResult>(token);
     }
 
@@ -1948,10 +2052,12 @@ public:
 
         RefPtr<ScannerResult> ret;
         if (isPlainCase) {
-            if (!str.string()->has8BitContent() && stringViewAllLatin1) {
+            bool isNewString = false;
+            if (!str.has8BitContent() && stringViewAllLatin1) {
                 str = StringView(new Latin1String((char16_t*)str.bufferAccessData().buffer, str.length()), 0, str.length());
+                isNewString = true;
             }
-            ret = adoptRef(new (createScannerResult()) ScannerResult(this, Token::StringLiteralToken, str, /*octal, */ this->lineNumber, this->lineStart, start, this->index));
+            ret = adoptRef(new (createScannerResult()) ScannerResult(this, Token::StringLiteralToken, str, /*octal, */ this->lineNumber, this->lineStart, start, this->index, isNewString));
         } else {
             String* newStr;
             if (isAllLatin1(stringUTF16.data(), stringUTF16.length())) {
@@ -1959,7 +2065,7 @@ public:
             } else {
                 newStr = new UTF16String(stringUTF16.data(), stringUTF16.length());
             }
-            ret = adoptRef(new (createScannerResult()) ScannerResult(this, Token::StringLiteralToken, StringView(newStr, 0, newStr->length()), /*octal, */ this->lineNumber, this->lineStart, start, this->index));
+            ret = adoptRef(new (createScannerResult()) ScannerResult(this, Token::StringLiteralToken, StringView(newStr, 0, newStr->length()), /*octal, */ this->lineNumber, this->lineStart, start, this->index, true));
         }
         ret->octal = octal;
         ret->plain = isPlainCase;
@@ -2267,7 +2373,7 @@ public:
         ScanRegExpResult result;
         result.body = body;
         result.flags = flags;
-        RefPtr<ScannerResult> res = adoptRef(new (createScannerResult()) ScannerResult(this, Token::RegularExpressionToken, StringView(), this->lineNumber, this->lineStart, start, this->index));
+        RefPtr<ScannerResult> res = adoptRef(new (createScannerResult()) ScannerResult(this, Token::RegularExpressionToken, this->lineNumber, this->lineStart, start, this->index));
         res->valueRegexp = result;
         return res;
     };
@@ -2333,6 +2439,21 @@ inline ScannerResult::~ScannerResult()
             return;
         }
         this->scanner->resultMemoryPool.push_back(this);
+    }
+}
+
+StringView ScannerResult::relatedSource()
+{
+    return StringView(scanner->source, this->start, this->end);
+}
+
+Value ScannerResult::valueStringLiteralForAST()
+{
+    StringView sv = valueStringLiteral();
+    if (this->hasComplexString) {
+        return new StringView(sv);
+    } else {
+        return new SourceStringView(sv);
     }
 }
 
@@ -2599,15 +2720,17 @@ public:
                 msg = (token->type == Token::EOFToken) ? Messages::UnexpectedEOS : (token->type == Token::IdentifierToken) ? Messages::UnexpectedIdentifier : (token->type == Token::NumericLiteralToken) ? Messages::UnexpectedNumber : (token->type == Token::StringLiteralToken) ? Messages::UnexpectedString : (token->type == Token::TemplateToken) ? Messages::UnexpectedTemplate : Messages::UnexpectedToken;
 
                 if (token->type == Token::KeywordToken) {
-                    if (this->scanner->isFutureReservedWord(token->valueString)) {
+                    if (this->scanner->isFutureReservedWord(token->relatedSource())) {
                         msg = Messages::UnexpectedReserved;
-                    } else if (this->context->strict && this->scanner->isStrictModeReservedWord(token->valueString)) {
+                    } else if (this->context->strict && this->scanner->isStrictModeReservedWord(token->relatedSource())) {
                         msg = Messages::StrictReservedWord;
                     }
                 }
+            } else if (token->type == Token::EOFToken) {
+                msg = Messages::UnexpectedEOS;
             }
 
-            value = new StringView((token->type == Token::TemplateToken) ? token->valueTemplate->raw : token->valueString);
+            value = new StringView((token->type == Token::TemplateToken) ? token->valueTemplate->raw : token->relatedSource());
         } else {
             value = new ASCIIString("ILLEGAL");
         }
@@ -2701,7 +2824,7 @@ public:
         this->hasLineTerminator = (token && next) ? (token->lineNumber != next->lineNumber) : false;
 
         if (next && this->context->strict && next->type == Token::IdentifierToken) {
-            if (this->scanner->isStrictModeReservedWord(next->valueString)) {
+            if (this->scanner->isStrictModeReservedWord(next->relatedSource())) {
                 next->type = Token::KeywordToken;
             }
         }
@@ -3021,7 +3144,12 @@ public:
 
     IdentifierNode* finishIdentifier(RefPtr<ScannerResult> token, bool isScopeVariableName)
     {
-        auto ret = new IdentifierNode(AtomicString(this->escargotContext, token->valueString));
+        IdentifierNode* ret;
+        if (token->hasComplexString) {
+            ret = new IdentifierNode(AtomicString(this->escargotContext, token->valueStringLiteral()));
+        } else {
+            ret = new IdentifierNode(AtomicString(this->escargotContext, SourceStringView(token->valueStringLiteral())));
+        }
         // nodeExtraInfo.insert(std::make_pair(ret, token));
         if (trackUsingNames)
             scopeContexts.back()->insertUsingName(ret->name());
@@ -3078,8 +3206,7 @@ public:
                 if (inProgramParsingAndInFunctionSourceNode()) {
                     expr = this->finalize(node, new LiteralNode(Value(String::emptyString)));
                 } else {
-                    auto sv = StringView::createStringView(token->valueString);
-                    expr = this->finalize(node, new LiteralNode(Value(sv)));
+                    expr = this->finalize(node, new LiteralNode(token->valueStringLiteralForAST()));
                 }
             }
             break;
@@ -3091,7 +3218,7 @@ public:
             // token.value = (token.value === 'true');
             // raw = this->getTokenRaw(token);
             {
-                bool value = token->valueString == "true";
+                bool value = token->relatedSource() == "true";
                 this->scopeContexts.back()->insertNumeralLiteral(Value(value));
                 expr = this->finalize(node, new LiteralNode(Value(value)));
             }
@@ -3290,7 +3417,7 @@ public:
 
         param = this->parsePatternWithDefault(params);
         for (size_t i = 0; i < params.size(); i++) {
-            AtomicString as(this->escargotContext, params[i]->valueString);
+            AtomicString as(this->escargotContext, params[i]->relatedSource());
             this->validateParam(options, params[i], as);
         }
         options.params.push_back(param);
@@ -3434,8 +3561,7 @@ public:
                         this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
                     v = Value(token->valueNumber);
                 } else {
-                    auto sv = StringView::createStringView(token->valueString);
-                    v = Value(sv);
+                    v = Value(token->valueStringLiteralForAST());
                 }
                 key = this->finalize(node, new LiteralNode(v));
             }
@@ -3522,20 +3648,20 @@ public:
         }
 
         bool lookaheadPropertyKey = this->qualifiedPropertyName(this->lookahead);
-        if (token->type == Token::IdentifierToken && token->valueString == "get" && lookaheadPropertyKey) {
+        if (token->type == Token::IdentifierToken && token->relatedSource() == "get" && lookaheadPropertyKey) {
             kind = PropertyNode::Kind::Get;
             computed = this->match(LeftSquareBracket);
             key = this->parseObjectPropertyKey();
             this->context->allowYield = false;
             value = this->parseGetterMethod();
 
-        } else if (token->type == Token::IdentifierToken && token->valueString == "set" && lookaheadPropertyKey) {
+        } else if (token->type == Token::IdentifierToken && token->relatedSource() == "set" && lookaheadPropertyKey) {
             kind = PropertyNode::Kind::Set;
             computed = this->match(LeftSquareBracket);
             key = this->parseObjectPropertyKey();
             value = this->parseSetterMethod();
 
-        } else if (token->type == Token::PunctuatorToken && token->valueString == "*" && lookaheadPropertyKey) {
+        } else if (token->type == Token::PunctuatorToken && token->relatedSource() == "*" && lookaheadPropertyKey) {
             kind = PropertyNode::Kind::Init;
             computed = this->match(LeftSquareBracket);
             key = this->parseObjectPropertyKey();
@@ -3945,7 +4071,7 @@ public:
         Node* expr;
         if (this->match(Period)) {
             this->nextToken();
-            if (this->lookahead->type == Token::IdentifierToken && this->context->inFunctionBody && this->lookahead->valueString == "target") {
+            if (this->lookahead->type == Token::IdentifierToken && this->context->inFunctionBody && this->lookahead->relatedSource() == "target") {
                 // TODO
                 RefPtr<IdentifierNode> property = this->parseIdentifierName();
                 this->throwError("Meta property is not supported yet");
@@ -5072,14 +5198,14 @@ public:
                 this->throwUnexpectedToken(token);
             }
         } else if (token->type != Token::IdentifierToken) {
-            if (this->context->strict && token->type == Token::KeywordToken && this->scanner->isStrictModeReservedWord(token->valueString)) {
+            if (this->context->strict && token->type == Token::KeywordToken && this->scanner->isStrictModeReservedWord(token->relatedSource())) {
                 this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
             } else {
-                if (this->context->strict || token->valueString != "let" || (!kind->equals("var"))) {
+                if (this->context->strict || token->relatedSource() != "let" || (!kind->equals("var"))) {
                     this->throwUnexpectedToken(token);
                 }
             }
-        } else if (this->sourceType == Module && token->type == Token::IdentifierToken && token->valueString == "Await") {
+        } else if (this->sourceType == Module && token->type == Token::IdentifierToken && token->relatedSource() == "await") {
             this->tolerateUnexpectedToken(token);
         }
 
@@ -5290,7 +5416,7 @@ public:
                     right = this->parseExpression();
                     init = nullptr;
                 } else if (declarations.size() == 1 && declarations[0]->init() == nullptr
-                           && this->lookahead->type == Token::IdentifierToken && this->lookahead->valueString == "of") {
+                           && this->lookahead->type == Token::IdentifierToken && this->lookahead->relatedSource() == "of") {
                     init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
                     this->nextToken();
                     left = init;
@@ -5356,7 +5482,7 @@ public:
                     left = init;
                     right = this->parseExpression();
                     init = nullptr;
-                } else if (this->lookahead->type == Token::IdentifierToken && this->lookahead->valueString == "of") {
+                } else if (this->lookahead->type == Token::IdentifierToken && this->lookahead->relatedSource() == "of") {
                     this->throwError("for of is not supported yet");
                     RELEASE_ASSERT_NOT_REACHED();
                     /*
@@ -5710,14 +5836,15 @@ public:
         for (size_t i = 0; i < params.size(); i++) {
             bool has = false;
             for (size_t j = 0; j < paramMap.size(); j++) {
-                if (paramMap[j]->equals(&params[i]->valueString)) {
+                StringView sv = params[i]->valueStringLiteral();
+                if (paramMap[j]->equals(&sv)) {
                     has = true;
                 }
             }
             if (has) {
-                this->tolerateError(Messages::DuplicateBinding, &params[i]->valueString);
+                this->tolerateError(Messages::DuplicateBinding, new StringView(params[i]->relatedSource()));
             } else {
-                paramMap.push_back(StringView::createStringView(params[i]->valueString));
+                paramMap.push_back(new StringView(params[i]->relatedSource()));
             }
         }
 
@@ -5967,14 +6094,14 @@ public:
             RefPtr<ScannerResult> token = this->lookahead;
             id = this->parseVariableIdentifier();
             if (this->context->strict) {
-                if (this->scanner->isRestrictedWord(token->valueString)) {
+                if (this->scanner->isRestrictedWord(token->relatedSource())) {
                     this->tolerateUnexpectedToken(token, Messages::StrictFunctionName);
                 }
             } else {
-                if (this->scanner->isRestrictedWord(token->valueString)) {
+                if (this->scanner->isRestrictedWord(token->relatedSource())) {
                     firstRestricted = token;
                     message = Messages::StrictFunctionName;
-                } else if (this->scanner->isStrictModeReservedWord(token->valueString)) {
+                } else if (this->scanner->isStrictModeReservedWord(token->relatedSource())) {
                     firstRestricted = token;
                     message = Messages::StrictReservedWord;
                 }
@@ -6043,14 +6170,14 @@ public:
             RefPtr<ScannerResult> token = this->lookahead;
             id = (!this->context->strict && !isGenerator && this->matchKeyword(Yield)) ? this->parseIdentifierName() : this->parseVariableIdentifier();
             if (this->context->strict) {
-                if (this->scanner->isRestrictedWord(token->valueString)) {
+                if (this->scanner->isRestrictedWord(token->relatedSource())) {
                     this->tolerateUnexpectedToken(token, Messages::StrictFunctionName);
                 }
             } else {
-                if (this->scanner->isRestrictedWord(token->valueString)) {
+                if (this->scanner->isRestrictedWord(token->relatedSource())) {
                     firstRestricted = token;
                     message = Messages::StrictFunctionName;
-                } else if (this->scanner->isStrictModeReservedWord(token->valueString)) {
+                } else if (this->scanner->isStrictModeReservedWord(token->relatedSource())) {
                     firstRestricted = token;
                     message = Messages::StrictReservedWord;
                 }
@@ -6103,7 +6230,7 @@ public:
         RefPtr<Node> expr = this->parseExpression();
         if (expr->type() == Literal) {
             isLiteral = true;
-            directiveValue = token->valueString;
+            directiveValue = token->valueStringLiteral();
         }
         this->consumeSemicolon();
 

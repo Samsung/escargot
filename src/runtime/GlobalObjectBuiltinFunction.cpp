@@ -61,6 +61,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     try {
         srcToTest.appendString("\r\n){ }");
         String* cur = srcToTest.finalize(&state);
+        state.context()->vmInstance()->parsedSourceCodes().push_back(cur);
         esprima::parseProgram(state.context(), StringView(cur, 0, cur->length()), nullptr, false, SIZE_MAX);
     } catch (esprima::Error* orgError) {
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is a script parse error in parameter name");
@@ -130,9 +131,9 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
     if (fn->codeBlock()->isInterpretedCodeBlock() && fn->codeBlock()->asInterpretedCodeBlock()->script()) {
         StringView src = fn->codeBlock()->asInterpretedCodeBlock()->src();
         while (src[src.length() - 1] != '}') {
-            src = StringView(src.string(), src.start(), src.end() - 1);
+            src = StringView(src, 0, src.length() - 1);
         }
-        builder.appendString(&src);
+        builder.appendString(new StringView(src));
     } else {
         builder.appendString("{ [native code] }");
     }

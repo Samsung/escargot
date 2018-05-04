@@ -60,6 +60,7 @@ class VMInstance : public gc {
     friend class Context;
     friend class VMInstanceRef;
     friend class DefaultJobQueue;
+    friend class ScriptParser;
 
 public:
     VMInstance(const char* locale = nullptr, const char* timezone = nullptr);
@@ -174,6 +175,11 @@ public:
     void addRoot(void* ptr);
     bool removeRoot(void* ptr);
 
+    Vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>>& parsedSourceCodes()
+    {
+        return m_parsedSourceCodes;
+    }
+
 protected:
     StaticStrings m_staticStrings;
     AtomicStringMap m_atomicStringMap;
@@ -202,6 +208,7 @@ protected:
     ObjectStructure* m_defaultStructureForArgumentsObject;
     ObjectStructure* m_defaultStructureForArgumentsObjectInStrictMode;
 
+    Vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> m_parsedSourceCodes;
     Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>> m_compiledCodeBlocks;
 
     ToStringRecursionPreventer m_toStringRecursionPreventer;
