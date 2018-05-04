@@ -113,7 +113,10 @@ enum Opcode {
 #define DECLARE_BYTECODE(name, pushCount, popCount) name##Opcode,
     FOR_EACH_BYTECODE_OP(DECLARE_BYTECODE)
 #undef DECLARE_BYTECODE
-        OpcodeKindEnd
+        OpcodeKindEnd,
+    // special opcode only used in interpreter
+    GetObjectOpcodeSlowCaseOpcode,
+    SetObjectOpcodeSlowCaseOpcode,
 } __attribute__((packed));
 
 struct OpcodeTable {
@@ -160,7 +163,11 @@ class ByteCode : public gc {
 public:
     MAKE_STACK_ALLOCATED();
     ByteCode(Opcode code, const ByteCodeLOC& loc)
+#if COMPILER(GCC)
         : m_opcodeInAddress((void*)code)
+#else
+        : m_opcode(code)
+#endif
 #ifndef NDEBUG
         , m_loc(loc)
         , m_orgOpcode(code)
@@ -171,12 +178,22 @@ public:
     void assignOpcodeInAddress()
     {
 #ifndef NDEBUG
+#if COMPILER(GCC)
         m_orgOpcode = (Opcode)(size_t)m_opcodeInAddress;
+#else
+        m_orgOpcode = m_opcode;
 #endif
+#endif
+#if COMPILER(GCC)
         m_opcodeInAddress = g_opcodeTable.m_table[(Opcode)(size_t)m_opcodeInAddress];
+#endif
     }
 
+#if COMPILER(GCC)
     void* m_opcodeInAddress;
+#else
+    Opcode m_opcode;
+#endif
 #ifndef NDEBUG
     ByteCodeLOC m_loc;
     Opcode m_orgOpcode;
@@ -195,10 +212,6 @@ public:
 
 #endif
 };
-
-#ifdef NDEBUG
-COMPILE_ASSERT(sizeof(ByteCode) == (sizeof(size_t)), "");
-#endif
 
 class LoadLiteral : public ByteCode {
 public:
@@ -1546,7 +1559,7 @@ typedef std::unordered_set<ObjectStructure*, std::hash<ObjectStructure*>, std::e
                            GCUtil::gc_malloc_ignore_off_page_allocator<ObjectStructure*>>
     ObjectStructuresInUse;
 class ByteCodeBlock : public gc {
-    friend class OpcodeTable;
+    friend struct OpcodeTable;
     ByteCodeBlock()
     {
     }

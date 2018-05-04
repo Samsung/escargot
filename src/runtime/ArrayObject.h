@@ -45,28 +45,28 @@ class ArrayObject : public Object {
 public:
     ArrayObject(ExecutionState& state);
     ArrayObject(ExecutionState& state, double size); // http://www.ecma-international.org/ecma-262/7.0/index.html#sec-arraycreate
-    virtual bool isArrayObject() const
+    virtual bool isArrayObject() const override
     {
         return true;
     }
 
-    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
+    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override;
+    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override;
     void defineOwnPropertyThrowsException(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
     {
         if (!ArrayObject::defineOwnProperty(state, P, desc)) {
             throwCannotDefineError(state, P.toPropertyName(state));
         }
     }
-    virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual uint64_t length(ExecutionState& state)
+    virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override;
+    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override;
+    virtual uint64_t length(ExecutionState& state) override
     {
         return getArrayLength(state);
     }
-    virtual void sort(ExecutionState& state, const std::function<bool(const Value& a, const Value& b)>& comp);
-    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property);
-    virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value);
+    virtual void sort(ExecutionState& state, const std::function<bool(const Value& a, const Value& b)>& comp) override;
+    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property) override;
+    virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value) override;
 
     // Use custom allocator for Array object (for Badtime)
     void* operator new(size_t size);
@@ -77,7 +77,7 @@ public:
     static bool arrayLengthNativeSetter(ExecutionState& state, Object* self, const Value& newData);
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-    virtual const char* internalClassProperty()
+    virtual const char* internalClassProperty() override
     {
         return "Array";
     }
@@ -124,7 +124,7 @@ public:
 
     ArrayIteratorObject(ExecutionState& state, Object* array, Type type);
 
-    virtual bool isArrayIteratorObject() const
+    virtual bool isArrayIteratorObject() const override
     {
         return true;
     }

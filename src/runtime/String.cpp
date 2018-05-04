@@ -546,7 +546,8 @@ String* String::fromASCII(const char* src)
 
 String* String::fromDouble(double v)
 {
-    return new ASCIIString(std::move(dtoa(v)));
+    auto s = dtoa(v);
+    return new ASCIIString(std::move(s));
 }
 
 String* String::fromUTF8(const char* src, size_t len)
@@ -554,7 +555,8 @@ String* String::fromUTF8(const char* src, size_t len)
     if (isAllASCII(src, len)) {
         return new ASCIIString(src, len);
     } else {
-        return new UTF16String(std::move(utf8StringToUTF16String(src, len)));
+        auto s = utf8StringToUTF16String(src, len);
+        return new UTF16String(std::move(s));
     }
 }
 

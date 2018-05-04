@@ -48,7 +48,7 @@ class Context : public gc {
     friend class AtomicString;
     friend class SandBox;
     friend class ByteCodeInterpreter;
-    friend class OpcodeTable;
+    friend struct OpcodeTable;
     friend class ContextRef;
 
 public:

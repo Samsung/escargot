@@ -235,10 +235,9 @@ public:
     }
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-    virtual const char* internalClassProperty();
+    virtual const char* internalClassProperty() override;
 
-
-    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override
     {
         uint64_t index = P.tryToUseAsIndex();
         if (LIKELY(Value::InvalidIndexValue != index)) {
@@ -251,7 +250,7 @@ public:
         return ArrayBufferView::getOwnProperty(state, P);
     }
 
-    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override
     {
         uint64_t index = P.tryToUseAsIndex();
         if (LIKELY(Value::InvalidIndexValue != index)) {
@@ -268,12 +267,12 @@ public:
         return ArrayBufferView::defineOwnProperty(state, P, desc);
     }
 
-    virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+    virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override
     {
         return ArrayBufferView::deleteOwnProperty(state, P);
     }
 
-    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override
     {
         size_t len = arraylength();
         for (size_t i = 0; i < len; i++) {
@@ -298,12 +297,12 @@ public:
         return typedArrayElementSize;
     }
 
-    virtual bool isTypedArrayObject() const
+    virtual bool isTypedArrayObject() const override
     {
         return true;
     }
 
-    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property)
+    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property) override
     {
         Value::ValueIndex idx = property.tryToUseAsIndex(state);
         if (LIKELY(idx != Value::InvalidIndexValue)) {
@@ -315,12 +314,9 @@ public:
         return get(state, ObjectPropertyName(state, property));
     }
 
-    virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)
+    virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value) override
     {
         Value::ValueIndex index = property.tryToUseAsIndex(state);
-        if (index < 0) {
-            return true;
-        }
         if (LIKELY(Value::InvalidIndexValue != index)) {
             if (LIKELY((unsigned)index < arraylength())) {
                 unsigned idxPosition = index * typedArrayElementSize;

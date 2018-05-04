@@ -187,7 +187,7 @@ protected:
     GlobalSymbolRegistryVector m_globalSymbolRegistry;
     Vector<SandBox*, GCUtil::gc_malloc_allocator<SandBox*>> m_sandBoxStack;
     std::unordered_map<void*, size_t, std::hash<void*>, std::equal_to<void*>,
-                       GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<void*, size_t>>>
+                       GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<void* const, size_t>>>
         m_rootSet;
 
     // this flag should affect VM-wide array object

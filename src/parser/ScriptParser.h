@@ -26,7 +26,7 @@
 
 namespace Escargot {
 
-class ASTScopeContext;
+struct ASTScopeContext;
 class CodeBlock;
 class InterpretedCodeBlock;
 class Context;

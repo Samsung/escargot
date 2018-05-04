@@ -56,6 +56,11 @@ public:
         return m_relatedContext;
     }
 
+    JobType type() const
+    {
+        return m_type;
+    }
+
 private:
     JobType m_type;
     Context* m_relatedContext;

@@ -93,13 +93,14 @@ typedef int32_t UChar32;
 #define COMPILER(FEATURE) (defined COMPILER_##FEATURE && COMPILER_##FEATURE)
 
 
-/* COMPILER(MSVC) - Microsoft Visual C++ */
-#if defined(_MSC_VER)
+#if defined(__clang__)
+#define COMPILER_CLANG 1
+#elif defined(_MSC_VER)
 #define COMPILER_MSVC 1
-
-/* Specific compiler features */
-#if !COMPILER(CLANG) && _MSC_VER >= 1600
-#define COMPILER_SUPPORTS_CXX_NULLPTR 1
+#elif (__GNUC__)
+#define COMPILER_GCC 1
+#else
+#error "Compiler dectection failed"
 #endif
 
 #if COMPILER(CLANG)
@@ -110,22 +111,9 @@ typedef int32_t UChar32;
 #define COMPILER_QUIRK_FINAL_IS_CALLED_SEALED 1
 #endif
 
-#endif
-
-/* COMPILER(GCC) - GNU Compiler Collection */
-#if defined(__GNUC__)
-#define COMPILER_GCC 1
-#define GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
-#define GCC_VERSION_AT_LEAST(major, minor, patch) (GCC_VERSION >= (major * 10000 + minor * 100 + patch))
-#else
-/* Define this for !GCC compilers, just so we can write things like GCC_VERSION_AT_LEAST(4, 1, 0). */
-#define GCC_VERSION_AT_LEAST(major, minor, patch) 0
-#endif
-
-
 /* ALWAYS_INLINE */
 #ifndef ALWAYS_INLINE
-#if COMPILER(GCC) && defined(NDEBUG) && !COMPILER(MINGW)
+#if (COMPILER(GCC) || COMPILER(CLANG)) && defined(NDEBUG) && !COMPILER(MINGW)
 #define ALWAYS_INLINE inline __attribute__((__always_inline__))
 #elif COMPILER(MSVC) && defined(NDEBUG)
 #define ALWAYS_INLINE __forceinline
@@ -136,7 +124,7 @@ typedef int32_t UChar32;
 
 /* NEVER_INLINE */
 #ifndef NEVER_INLINE
-#if COMPILER(GCC)
+#if COMPILER(GCC) || COMPILER(CLANG)
 #define NEVER_INLINE __attribute__((__noinline__))
 #else
 #define NEVER_INLINE
@@ -145,7 +133,7 @@ typedef int32_t UChar32;
 
 /* UNLIKELY */
 #ifndef UNLIKELY
-#if COMPILER(GCC)
+#if COMPILER(GCC) || COMPILER(CLANG)
 #define UNLIKELY(x) __builtin_expect((x), 0)
 #else
 #define UNLIKELY(x) (x)
@@ -155,7 +143,7 @@ typedef int32_t UChar32;
 
 /* LIKELY */
 #ifndef LIKELY
-#if COMPILER(GCC)
+#if COMPILER(GCC) || COMPILER(CLANG)
 #define LIKELY(x) __builtin_expect((x), 1)
 #else
 #define LIKELY(x) (x)
@@ -165,18 +153,13 @@ typedef int32_t UChar32;
 
 /* NO_RETURN */
 #ifndef NO_RETURN
-#if COMPILER(GCC)
+#if COMPILER(GCC) || COMPILER(CLANG)
 #define NO_RETURN __attribute((__noreturn__))
 #elif COMPILER(MSVC)
 #define NO_RETURN __declspec(noreturn)
 #else
 #define NO_RETURN
 #endif
-#endif
-
-
-#if !COMPILER(GCC)
-#include <codecvt>
 #endif
 
 #define ESCARGOT_LOG_INFO(...) fprintf(stdout, __VA_ARGS__);
@@ -231,7 +214,7 @@ typedef int32_t UChar32;
         abort();                                                                           \
     } while (0)
 
-#if !defined(WARN_UNUSED_RETURN) && COMPILER(GCC)
+#if !defined(WARN_UNUSED_RETURN) && (COMPILER(GCC) || COMPILER(CLANG))
 #define WARN_UNUSED_RETURN __attribute__((__warn_unused_result__))
 #endif
 

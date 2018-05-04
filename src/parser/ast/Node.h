@@ -26,7 +26,7 @@
 namespace Escargot {
 
 class ByteCodeBlock;
-class ByteCodeGenerateContext;
+struct ByteCodeGenerateContext;
 
 enum ASTNodeType {
     ASTNodeTypeError,

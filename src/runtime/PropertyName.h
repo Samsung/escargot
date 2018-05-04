@@ -173,7 +173,7 @@ ALWAYS_INLINE bool operator!=(const PropertyName& a, const PropertyName& b)
     return !operator==(a, b);
 }
 
-typedef std::unordered_map<PropertyName, size_t, std::hash<PropertyName>, std::equal_to<PropertyName>, gc_allocator<std::pair<PropertyName, size_t>>> PropertyNameMap;
+typedef std::unordered_map<PropertyName, size_t, std::hash<PropertyName>, std::equal_to<PropertyName>, gc_allocator<std::pair<const PropertyName, size_t>>> PropertyNameMap;
 }
 
 namespace std {

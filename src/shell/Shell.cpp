@@ -140,7 +140,8 @@ int main(int argc, char* argv[])
             printf("ERROR: Cannot read interactive shell input\n");
             return 3;
         }
-        Escargot::String* str = new Escargot::UTF16String(std::move(Escargot::utf8StringToUTF16String(buf, strlen(buf))));
+        auto s = Escargot::utf8StringToUTF16String(buf, strlen(buf));
+        Escargot::String* str = new Escargot::UTF16String(std::move(s));
         eval(context, str, Escargot::String::fromUTF8("from shell input", strlen("from shell input")), true);
     }
 

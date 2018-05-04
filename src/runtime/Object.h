@@ -79,7 +79,7 @@ public:
         m_value.m_name = v;
     }
 
-    ObjectPropertyName(ExecutionState& state, const PropertyName& v)
+    ObjectPropertyName(ExecutionState&, const PropertyName& v)
     {
         m_isUIntType = false;
         m_value.m_name = v;
@@ -135,7 +135,7 @@ public:
         return propertyName().tryToUseAsArrayIndex();
     }
 
-    Value toPlainValue(ExecutionState& state) const
+    Value toPlainValue(ExecutionState&) const
     {
         if (isUIntType()) {
             return Value(uintValue());
@@ -520,7 +520,7 @@ class Object : public PointerValue {
     friend class VMInstance;
     friend class GlobalObject;
     friend class ByteCodeInterpreter;
-    friend class ObjectRareData;
+    friend struct ObjectRareData;
     static Object* createBuiltinObjectPrototype(ExecutionState& state);
 
 public:
@@ -589,7 +589,7 @@ public:
         ensureObjectRareData()->m_isExtensible = false;
     }
 
-    Value getPrototype(ExecutionState& state)
+    Value getPrototype(ExecutionState&)
     {
         if (LIKELY((size_t)m_prototype > 2)) {
             if (UNLIKELY(g_objectRareDataTag == *((size_t*)(m_prototype)))) {

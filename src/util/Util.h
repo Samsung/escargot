@@ -3,11 +3,21 @@
 
 namespace Escargot {
 
+#if COMPILER(GCC)
 template <const int siz>
 inline void __attribute__((optimize("O0"))) clearStack()
 {
     volatile char a[siz] = { 0 };
 }
+#elif COMPILER(CLANG)
+template <const int siz>
+[[clang::optnone]] inline void clearStack()
+{
+    volatile char a[siz] = { 0 };
+}
+#else
+#error
+#endif
 }
 
 #define JS_ALWAYS_INLINE ALWAYS_INLINE

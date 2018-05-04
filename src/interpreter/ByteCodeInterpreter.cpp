@@ -50,7 +50,9 @@ ALWAYS_INLINE size_t resolveProgramCounter(char* codeBuffer, const size_t progra
 
 Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCodeBlock, register size_t programCounter, Value* registerFile, void* initAddressFiller)
 {
+#if COMPILER(GCC)
     *((size_t*)initAddressFiller) = ((size_t) && FillOpcodeTableOpcodeLbl);
+#endif
     {
         ExecutionContext* ec = state.executionContext();
         char* codeBuffer = byteCodeBlock->m_code.data();
@@ -60,901 +62,1094 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
 #define NEXT_INSTRUCTION() goto NextInstruction;
 
         NextInstruction:
+#if COMPILER(GCC)
             goto*(((ByteCode*)programCounter)->m_opcodeInAddress);
+#else
+            Opcode currentOpcode = ((ByteCode*)programCounter)->m_opcode;
+        NextInstructionWithoutFetchOpcode:
+            switch (currentOpcode) {
+#endif
 
-        LoadLiteralOpcodeLbl : {
-            LoadLiteral* code = (LoadLiteral*)programCounter;
-            registerFile[code->m_registerIndex] = code->m_value;
-            ADD_PROGRAM_COUNTER(LoadLiteral);
-            NEXT_INSTRUCTION();
-        }
+#if COMPILER(GCC)
+#define DEFINE_OPCODE(codeName) codeName##OpcodeLbl
+#else
+#define DEFINE_OPCODE(codeName) case codeName##Opcode
+#endif
 
-        MoveOpcodeLbl : {
-            Move* code = (Move*)programCounter;
-            ASSERT(code->m_registerIndex1 < (byteCodeBlock->m_requiredRegisterFileSizeInValueSize + byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->identifierOnStackCount() + 1));
-            registerFile[code->m_registerIndex1] = registerFile[code->m_registerIndex0];
-            ADD_PROGRAM_COUNTER(Move);
-            NEXT_INSTRUCTION();
-        }
-
-        GetGlobalObjectOpcodeLbl : {
-            GetGlobalObject* code = (GetGlobalObject*)programCounter;
-            GlobalObject* globalObject = state.context()->globalObject();
-            if (LIKELY(globalObject->structure() == code->m_cachedStructure)) {
-                ASSERT(globalObject->m_values.data() <= code->m_cachedAddress);
-                ASSERT(code->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
-                registerFile[code->m_registerIndex] = *((SmallValue*)code->m_cachedAddress);
-            } else {
-                registerFile[code->m_registerIndex] = getGlobalObjectSlowCase(state, globalObject, code, byteCodeBlock);
+            DEFINE_OPCODE(LoadLiteral)
+                :
+            {
+                LoadLiteral* code = (LoadLiteral*)programCounter;
+                registerFile[code->m_registerIndex] = code->m_value;
+                ADD_PROGRAM_COUNTER(LoadLiteral);
+                NEXT_INSTRUCTION();
             }
-            ADD_PROGRAM_COUNTER(GetGlobalObject);
-            NEXT_INSTRUCTION();
-        }
 
-        SetGlobalObjectOpcodeLbl : {
-            SetGlobalObject* code = (SetGlobalObject*)programCounter;
-            GlobalObject* globalObject = state.context()->globalObject();
-            if (LIKELY(globalObject->structure() == code->m_cachedStructure)) {
-                ASSERT(globalObject->m_values.data() <= code->m_cachedAddress);
-                ASSERT(code->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
-                *((SmallValue*)code->m_cachedAddress) = registerFile[code->m_registerIndex];
-            } else {
-                setGlobalObjectSlowCase(state, globalObject, code, registerFile[code->m_registerIndex], byteCodeBlock);
+            DEFINE_OPCODE(Move)
+                :
+            {
+                Move* code = (Move*)programCounter;
+                ASSERT(code->m_registerIndex1 < (byteCodeBlock->m_requiredRegisterFileSizeInValueSize + byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->identifierOnStackCount() + 1));
+                registerFile[code->m_registerIndex1] = registerFile[code->m_registerIndex0];
+                ADD_PROGRAM_COUNTER(Move);
+                NEXT_INSTRUCTION();
             }
-            ADD_PROGRAM_COUNTER(SetGlobalObject);
-            NEXT_INSTRUCTION();
-        }
 
-        BinaryPlusOpcodeLbl : {
-            BinaryPlus* code = (BinaryPlus*)programCounter;
-            const Value& v0 = registerFile[code->m_srcIndex0];
-            const Value& v1 = registerFile[code->m_srcIndex1];
-            Value ret(Value::ForceUninitialized);
-            if (v0.isInt32() && v1.isInt32()) {
-                int32_t a = v0.asInt32();
-                int32_t b = v1.asInt32();
-                int32_t c;
-                bool result = ArithmeticOperations<int32_t, int32_t, int32_t>::add(a, b, c);
-                if (LIKELY(result)) {
-                    ret = Value(c);
+            DEFINE_OPCODE(GetGlobalObject)
+                :
+            {
+                GetGlobalObject* code = (GetGlobalObject*)programCounter;
+                GlobalObject* globalObject = state.context()->globalObject();
+                if (LIKELY(globalObject->structure() == code->m_cachedStructure)) {
+                    ASSERT(globalObject->m_values.data() <= code->m_cachedAddress);
+                    ASSERT(code->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
+                    registerFile[code->m_registerIndex] = *((SmallValue*)code->m_cachedAddress);
                 } else {
-                    ret = Value(Value::EncodeAsDouble, (double)a + (double)b);
+                    registerFile[code->m_registerIndex] = getGlobalObjectSlowCase(state, globalObject, code, byteCodeBlock);
                 }
-            } else if (v0.isNumber() && v1.isNumber()) {
-                ret = Value(v0.asNumber() + v1.asNumber());
-            } else {
-                ret = plusSlowCase(state, v0, v1);
+                ADD_PROGRAM_COUNTER(GetGlobalObject);
+                NEXT_INSTRUCTION();
             }
-            registerFile[code->m_dstIndex] = ret;
-            ADD_PROGRAM_COUNTER(BinaryPlus);
-            NEXT_INSTRUCTION();
-        }
 
-        BinaryMinusOpcodeLbl : {
-            BinaryMinus* code = (BinaryMinus*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            Value ret(Value::ForceUninitialized);
-            if (left.isInt32() && right.isInt32()) {
-                int32_t a = left.asInt32();
-                int32_t b = right.asInt32();
-                int32_t c;
-                bool result = ArithmeticOperations<int32_t, int32_t, int32_t>::sub(a, b, c);
-                if (LIKELY(result)) {
-                    ret = Value(c);
+            DEFINE_OPCODE(SetGlobalObject)
+                :
+            {
+                SetGlobalObject* code = (SetGlobalObject*)programCounter;
+                GlobalObject* globalObject = state.context()->globalObject();
+                if (LIKELY(globalObject->structure() == code->m_cachedStructure)) {
+                    ASSERT(globalObject->m_values.data() <= code->m_cachedAddress);
+                    ASSERT(code->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
+                    *((SmallValue*)code->m_cachedAddress) = registerFile[code->m_registerIndex];
                 } else {
-                    ret = Value(Value::EncodeAsDouble, (double)a - (double)b);
+                    setGlobalObjectSlowCase(state, globalObject, code, registerFile[code->m_registerIndex], byteCodeBlock);
                 }
-            } else {
-                ret = Value(left.toNumber(state) - right.toNumber(state));
+                ADD_PROGRAM_COUNTER(SetGlobalObject);
+                NEXT_INSTRUCTION();
             }
-            registerFile[code->m_dstIndex] = ret;
-            ADD_PROGRAM_COUNTER(BinaryMinus);
-            NEXT_INSTRUCTION();
-        }
 
-        BinaryMultiplyOpcodeLbl : {
-            BinaryMultiply* code = (BinaryMultiply*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            Value ret(Value::ForceUninitialized);
-            if (left.isInt32() && right.isInt32()) {
-                int32_t a = left.asInt32();
-                int32_t b = right.asInt32();
-                if (UNLIKELY((!a || !b) && (a >> 31 || b >> 31))) { // -1 * 0 should be treated as -0, not +0
-                    ret = Value(left.asNumber() * right.asNumber());
-                } else {
-                    int32_t c = right.asInt32();
-                    bool result = ArithmeticOperations<int32_t, int32_t, int32_t>::multiply(a, b, c);
+            DEFINE_OPCODE(BinaryPlus)
+                :
+            {
+                BinaryPlus* code = (BinaryPlus*)programCounter;
+                const Value& v0 = registerFile[code->m_srcIndex0];
+                const Value& v1 = registerFile[code->m_srcIndex1];
+                Value ret(Value::ForceUninitialized);
+                if (v0.isInt32() && v1.isInt32()) {
+                    int32_t a = v0.asInt32();
+                    int32_t b = v1.asInt32();
+                    int32_t c;
+                    bool result = ArithmeticOperations<int32_t, int32_t, int32_t>::add(a, b, c);
                     if (LIKELY(result)) {
                         ret = Value(c);
                     } else {
-                        ret = Value(Value::EncodeAsDouble, a * (double)b);
+                        ret = Value(Value::EncodeAsDouble, (double)a + (double)b);
                     }
-                }
-            } else {
-                ret = Value(Value::EncodeAsDouble, left.toNumber(state) * right.toNumber(state));
-            }
-            registerFile[code->m_dstIndex] = ret;
-            ADD_PROGRAM_COUNTER(BinaryMultiply);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryDivisionOpcodeLbl : {
-            BinaryDivision* code = (BinaryDivision*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(left.toNumber(state) / right.toNumber(state));
-            ADD_PROGRAM_COUNTER(BinaryDivision);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryEqualOpcodeLbl : {
-            BinaryEqual* code = (BinaryEqual*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(left.abstractEqualsTo(state, right));
-            ADD_PROGRAM_COUNTER(BinaryEqual);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryNotEqualOpcodeLbl : {
-            BinaryNotEqual* code = (BinaryNotEqual*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(!left.abstractEqualsTo(state, right));
-            ADD_PROGRAM_COUNTER(BinaryNotEqual);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryStrictEqualOpcodeLbl : {
-            BinaryStrictEqual* code = (BinaryStrictEqual*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(left.equalsTo(state, right));
-            ADD_PROGRAM_COUNTER(BinaryStrictEqual);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryNotStrictEqualOpcodeLbl : {
-            BinaryNotStrictEqual* code = (BinaryNotStrictEqual*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(!left.equalsTo(state, right));
-            ADD_PROGRAM_COUNTER(BinaryNotStrictEqual);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryLessThanOpcodeLbl : {
-            BinaryLessThan* code = (BinaryLessThan*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(abstractRelationalComparison(state, left, right, true));
-            ADD_PROGRAM_COUNTER(BinaryLessThan);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryLessThanOrEqualOpcodeLbl : {
-            BinaryLessThanOrEqual* code = (BinaryLessThanOrEqual*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(abstractRelationalComparisonOrEqual(state, left, right, true));
-            ADD_PROGRAM_COUNTER(BinaryLessThanOrEqual);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryGreaterThanOpcodeLbl : {
-            BinaryGreaterThan* code = (BinaryGreaterThan*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(abstractRelationalComparison(state, right, left, false));
-            ADD_PROGRAM_COUNTER(BinaryGreaterThan);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryGreaterThanOrEqualOpcodeLbl : {
-            BinaryGreaterThanOrEqual* code = (BinaryGreaterThanOrEqual*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(abstractRelationalComparisonOrEqual(state, right, left, false));
-            ADD_PROGRAM_COUNTER(BinaryGreaterThanOrEqual);
-            NEXT_INSTRUCTION();
-        }
-
-        IncrementOpcodeLbl : {
-            Increment* code = (Increment*)programCounter;
-            const Value& val = registerFile[code->m_srcIndex];
-            if (LIKELY(val.isInt32())) {
-                int32_t a = val.asInt32();
-                int32_t b = 1;
-                int32_t c;
-                bool result = ArithmeticOperations<int32_t, int32_t, int32_t>::add(a, b, c);
-                if (LIKELY(result)) {
-                    registerFile[code->m_dstIndex] = Value(c);
+                } else if (v0.isNumber() && v1.isNumber()) {
+                    ret = Value(v0.asNumber() + v1.asNumber());
                 } else {
-                    registerFile[code->m_dstIndex] = Value(Value::EncodeAsDouble, (double)a + (double)b);
+                    ret = plusSlowCase(state, v0, v1);
                 }
-            } else {
-                registerFile[code->m_dstIndex] = plusSlowCase(state, Value(val.toNumber(state)), Value(1));
-            }
-            ADD_PROGRAM_COUNTER(Increment);
-            NEXT_INSTRUCTION();
-        }
-
-        DecrementOpcodeLbl : {
-            Decrement* code = (Decrement*)programCounter;
-            const Value& val = registerFile[code->m_srcIndex];
-            if (LIKELY(val.isInt32())) {
-                int32_t a = val.asInt32();
-                int32_t b = -1;
-                int32_t c;
-                bool result = ArithmeticOperations<int32_t, int32_t, int32_t>::add(a, b, c);
-                if (LIKELY(result)) {
-                    registerFile[code->m_dstIndex] = Value(c);
-                } else {
-                    registerFile[code->m_dstIndex] = Value(Value::EncodeAsDouble, (double)a + (double)b);
-                }
-            } else {
-                registerFile[code->m_dstIndex] = Value(val.toNumber(state) - 1);
-            }
-            ADD_PROGRAM_COUNTER(Decrement);
-            NEXT_INSTRUCTION();
-        }
-
-        UnaryMinusOpcodeLbl : {
-            UnaryMinus* code = (UnaryMinus*)programCounter;
-            const Value& val = registerFile[code->m_srcIndex];
-            registerFile[code->m_dstIndex] = Value(-val.toNumber(state));
-            ADD_PROGRAM_COUNTER(UnaryMinus);
-            NEXT_INSTRUCTION();
-        }
-
-        UnaryNotOpcodeLbl : {
-            UnaryNot* code = (UnaryNot*)programCounter;
-            const Value& val = registerFile[code->m_srcIndex];
-            registerFile[code->m_dstIndex] = Value(!val.toBoolean(state));
-            ADD_PROGRAM_COUNTER(UnaryNot);
-            NEXT_INSTRUCTION();
-        }
-
-        GetObjectOpcodeLbl : {
-            GetObject* code = (GetObject*)programCounter;
-            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            const Value& property = registerFile[code->m_propertyRegisterIndex];
-            PointerValue* v;
-            if (LIKELY(willBeObject.isObject() && (v = willBeObject.asPointerValue())->hasTag(g_arrayObjectTag))) {
-                ArrayObject* arr = (ArrayObject*)v;
-                if (LIKELY(arr->isFastModeArray())) {
-                    uint32_t idx = property.tryToUseAsArrayIndex(state);
-                    if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-                        if (LIKELY(idx < arr->getArrayLength(state))) {
-                            const Value& v = arr->m_fastModeData[idx];
-                            if (LIKELY(!v.isEmpty())) {
-                                registerFile[code->m_storeRegisterIndex] = v;
-                                ADD_PROGRAM_COUNTER(GetObject);
-                                NEXT_INSTRUCTION();
-                            }
-                        }
-                    }
-                }
-            }
-            goto GetObjectOpcodeSlowCase;
-        }
-
-        SetObjectOperationOpcodeLbl : {
-            SetObjectOperation* code = (SetObjectOperation*)programCounter;
-            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            const Value& property = registerFile[code->m_propertyRegisterIndex];
-            if (LIKELY(willBeObject.isObject() && (willBeObject.asPointerValue())->hasTag(g_arrayObjectTag))) {
-                ArrayObject* arr = willBeObject.asObject()->asArrayObject();
-                if (LIKELY(arr->isFastModeArray())) {
-                    uint32_t idx = property.tryToUseAsArrayIndex(state);
-                    if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-                        uint32_t len = arr->getArrayLength(state);
-                        if (UNLIKELY(len <= idx)) {
-                            if (UNLIKELY(!arr->isExtensible())) {
-                                goto SetObjectOpcodeSlowCase;
-                            }
-                            if (UNLIKELY(!arr->setArrayLength(state, idx + 1)) || UNLIKELY(!arr->isFastModeArray())) {
-                                goto SetObjectOpcodeSlowCase;
-                            }
-                        }
-                        arr->m_fastModeData[idx] = registerFile[code->m_loadRegisterIndex];
-                        ADD_PROGRAM_COUNTER(SetObjectOperation);
-                        NEXT_INSTRUCTION();
-                    }
-                }
-            }
-            goto SetObjectOpcodeSlowCase;
-        }
-
-        GetObjectPreComputedCaseOpcodeLbl : {
-            GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)programCounter;
-            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            Object* obj;
-            if (LIKELY(willBeObject.isObject())) {
-                obj = willBeObject.asObject();
-            } else {
-                obj = fastToObject(state, willBeObject);
-            }
-            registerFile[code->m_storeRegisterIndex] = getObjectPrecomputedCaseOperation(state, obj, willBeObject, code->m_propertyName, code->m_inlineCache, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
-            NEXT_INSTRUCTION();
-        }
-
-        SetObjectPreComputedCaseOpcodeLbl : {
-            SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)programCounter;
-            setObjectPreComputedCaseOperation(state, registerFile[code->m_objectRegisterIndex], code->m_propertyName, registerFile[code->m_loadRegisterIndex], *code->m_inlineCache, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
-            NEXT_INSTRUCTION();
-        }
-
-        JumpOpcodeLbl : {
-            Jump* code = (Jump*)programCounter;
-            ASSERT(code->m_jumpPosition != SIZE_MAX);
-            programCounter = code->m_jumpPosition;
-            NEXT_INSTRUCTION();
-        }
-
-        JumpIfTrueOpcodeLbl : {
-            JumpIfTrue* code = (JumpIfTrue*)programCounter;
-            ASSERT(code->m_jumpPosition != SIZE_MAX);
-            if (registerFile[code->m_registerIndex].toBoolean(state)) {
-                programCounter = code->m_jumpPosition;
-            } else {
-                ADD_PROGRAM_COUNTER(JumpIfTrue);
-            }
-            NEXT_INSTRUCTION();
-        }
-
-        JumpIfFalseOpcodeLbl : {
-            JumpIfFalse* code = (JumpIfFalse*)programCounter;
-            ASSERT(code->m_jumpPosition != SIZE_MAX);
-            if (!registerFile[code->m_registerIndex].toBoolean(state)) {
-                programCounter = code->m_jumpPosition;
-            } else {
-                ADD_PROGRAM_COUNTER(JumpIfFalse);
-            }
-            NEXT_INSTRUCTION();
-        }
-
-        CallFunctionOpcodeLbl : {
-            CallFunction* code = (CallFunction*)programCounter;
-            const Value& callee = registerFile[code->m_calleeIndex];
-            registerFile[code->m_resultIndex] = FunctionObject::call(state, callee, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
-            ADD_PROGRAM_COUNTER(CallFunction);
-            NEXT_INSTRUCTION();
-        }
-
-        CallFunctionWithReceiverOpcodeLbl : {
-            CallFunctionWithReceiver* code = (CallFunctionWithReceiver*)programCounter;
-            const Value& callee = registerFile[code->m_calleeIndex];
-            const Value& receiver = registerFile[code->m_receiverIndex];
-            registerFile[code->m_resultIndex] = FunctionObject::call(state, callee, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
-            ADD_PROGRAM_COUNTER(CallFunctionWithReceiver);
-            NEXT_INSTRUCTION();
-        }
-
-        LoadByHeapIndexOpcodeLbl : {
-            LoadByHeapIndex* code = (LoadByHeapIndex*)programCounter;
-            LexicalEnvironment* upperEnv = ec->lexicalEnvironment();
-            for (size_t i = 0; i < code->m_upperIndex; i++) {
-                upperEnv = upperEnv->outerEnvironment();
-            }
-            FunctionEnvironmentRecord* record = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-            ASSERT(record->isFunctionEnvironmentRecordOnHeap() || record->isFunctionEnvironmentRecordNotIndexed());
-            registerFile[code->m_registerIndex] = ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[code->m_index];
-            ADD_PROGRAM_COUNTER(LoadByHeapIndex);
-            NEXT_INSTRUCTION();
-        }
-
-        StoreByHeapIndexOpcodeLbl : {
-            StoreByHeapIndex* code = (StoreByHeapIndex*)programCounter;
-            LexicalEnvironment* upperEnv = ec->lexicalEnvironment();
-            for (size_t i = 0; i < code->m_upperIndex; i++) {
-                upperEnv = upperEnv->outerEnvironment();
-            }
-            FunctionEnvironmentRecord* record = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-            ASSERT(record->isFunctionEnvironmentRecordOnHeap() || record->isFunctionEnvironmentRecordNotIndexed());
-            ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[code->m_index] = registerFile[code->m_registerIndex];
-            ADD_PROGRAM_COUNTER(StoreByHeapIndex);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryModOpcodeLbl : {
-            BinaryMod* code = (BinaryMod*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = modOperation(state, left, right);
-            ADD_PROGRAM_COUNTER(BinaryMod);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryBitwiseAndOpcodeLbl : {
-            BinaryBitwiseAnd* code = (BinaryBitwiseAnd*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(left.toInt32(state) & right.toInt32(state));
-            ADD_PROGRAM_COUNTER(BinaryBitwiseAnd);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryBitwiseOrOpcodeLbl : {
-            BinaryBitwiseOr* code = (BinaryBitwiseOr*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(left.toInt32(state) | right.toInt32(state));
-            ADD_PROGRAM_COUNTER(BinaryBitwiseOr);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryBitwiseXorOpcodeLbl : {
-            BinaryBitwiseXor* code = (BinaryBitwiseXor*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(left.toInt32(state) ^ right.toInt32(state));
-            ADD_PROGRAM_COUNTER(BinaryBitwiseXor);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryLeftShiftOpcodeLbl : {
-            BinaryLeftShift* code = (BinaryLeftShift*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            int32_t lnum = left.toInt32(state);
-            int32_t rnum = right.toInt32(state);
-            lnum <<= ((unsigned int)rnum) & 0x1F;
-            registerFile[code->m_dstIndex] = Value(lnum);
-            ADD_PROGRAM_COUNTER(BinaryLeftShift);
-            NEXT_INSTRUCTION();
-        }
-
-        BinarySignedRightShiftOpcodeLbl : {
-            BinarySignedRightShift* code = (BinarySignedRightShift*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            int32_t lnum = left.toInt32(state);
-            int32_t rnum = right.toInt32(state);
-            lnum >>= ((unsigned int)rnum) & 0x1F;
-            registerFile[code->m_dstIndex] = Value(lnum);
-            ADD_PROGRAM_COUNTER(BinarySignedRightShift);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryUnsignedRightShiftOpcodeLbl : {
-            BinaryUnsignedRightShift* code = (BinaryUnsignedRightShift*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            uint32_t lnum = left.toUint32(state);
-            uint32_t rnum = right.toUint32(state);
-            lnum = (lnum) >> ((rnum)&0x1F);
-            registerFile[code->m_dstIndex] = Value(lnum);
-            ADD_PROGRAM_COUNTER(BinaryUnsignedRightShift);
-            NEXT_INSTRUCTION();
-        }
-
-        UnaryBitwiseNotOpcodeLbl : {
-            UnaryBitwiseNot* code = (UnaryBitwiseNot*)programCounter;
-            const Value& val = registerFile[code->m_srcIndex];
-            registerFile[code->m_dstIndex] = Value(~val.toInt32(state));
-            ADD_PROGRAM_COUNTER(UnaryBitwiseNot);
-            NEXT_INSTRUCTION();
-        }
-
-        ReturnFunctionWithValueOpcodeLbl : {
-            ReturnFunctionWithValue* code = (ReturnFunctionWithValue*)programCounter;
-            return registerFile[code->m_registerIndex];
-        }
-
-        ReturnFunctionOpcodeLbl : {
-            return Value();
-        }
-
-        ToNumberOpcodeLbl : {
-            ToNumber* code = (ToNumber*)programCounter;
-            const Value& val = registerFile[code->m_srcIndex];
-            registerFile[code->m_dstIndex] = Value(val.toNumber(state));
-            ADD_PROGRAM_COUNTER(ToNumber);
-            NEXT_INSTRUCTION();
-        }
-
-        CreateObjectOpcodeLbl : {
-            CreateObject* code = (CreateObject*)programCounter;
-            registerFile[code->m_registerIndex] = new Object(state);
-            ADD_PROGRAM_COUNTER(CreateObject);
-            NEXT_INSTRUCTION();
-        }
-
-        CreateArrayOpcodeLbl : {
-            CreateArray* code = (CreateArray*)programCounter;
-            ArrayObject* arr = new ArrayObject(state);
-            arr->setArrayLength(state, code->m_length);
-            registerFile[code->m_registerIndex] = arr;
-            ADD_PROGRAM_COUNTER(CreateArray);
-            NEXT_INSTRUCTION();
-        }
-
-        ObjectDefineOwnPropertyOperationOpcodeLbl : {
-            ObjectDefineOwnPropertyOperation* code = (ObjectDefineOwnPropertyOperation*)programCounter;
-            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            const Value& property = registerFile[code->m_propertyRegisterIndex];
-            ObjectPropertyName objPropName = ObjectPropertyName(state, property);
-            // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
-            if (property.isString() && property.asString()->equals("__proto__")) {
-                willBeObject.asObject()->setPrototype(state, registerFile[code->m_loadRegisterIndex]);
-            } else {
-                willBeObject.asObject()->defineOwnProperty(state, objPropName, ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptor::AllPresent));
-            }
-            ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyOperation);
-            NEXT_INSTRUCTION();
-        }
-
-        ObjectDefineOwnPropertyWithNameOperationOpcodeLbl : {
-            ObjectDefineOwnPropertyWithNameOperation* code = (ObjectDefineOwnPropertyWithNameOperation*)programCounter;
-            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
-            if (code->m_propertyName == state.context()->staticStrings().__proto__) {
-                willBeObject.asObject()->setPrototype(state, registerFile[code->m_loadRegisterIndex]);
-            } else {
-                willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptor::AllPresent));
-            }
-            ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyWithNameOperation);
-            NEXT_INSTRUCTION();
-        }
-
-        ArrayDefineOwnPropertyOperationOpcodeLbl : {
-            ArrayDefineOwnPropertyOperation* code = (ArrayDefineOwnPropertyOperation*)programCounter;
-            ArrayObject* arr = registerFile[code->m_objectRegisterIndex].asObject()->asArrayObject();
-            if (LIKELY(arr->isFastModeArray())) {
-                size_t end = code->m_count + code->m_baseIndex;
-                for (size_t i = 0; i < code->m_count; i++) {
-                    if (LIKELY(code->m_loadRegisterIndexs[i] != std::numeric_limits<ByteCodeRegisterIndex>::max())) {
-                        arr->m_fastModeData[i + code->m_baseIndex] = registerFile[code->m_loadRegisterIndexs[i]];
-                    }
-                }
-            } else {
-                for (size_t i = 0; i < code->m_count; i++) {
-                    if (LIKELY(code->m_loadRegisterIndexs[i] != std::numeric_limits<ByteCodeRegisterIndex>::max())) {
-                        arr->defineOwnProperty(state, ObjectPropertyName(state, Value(i + code->m_baseIndex)), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndexs[i]], ObjectPropertyDescriptor::AllPresent));
-                    }
-                }
-            }
-            ADD_PROGRAM_COUNTER(ArrayDefineOwnPropertyOperation);
-            NEXT_INSTRUCTION();
-        }
-
-        NewOperationOpcodeLbl : {
-            NewOperation* code = (NewOperation*)programCounter;
-            registerFile[code->m_resultIndex] = newOperation(state, registerFile[code->m_calleeIndex], code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
-            ADD_PROGRAM_COUNTER(NewOperation);
-            NEXT_INSTRUCTION();
-        }
-
-        UnaryTypeofOpcodeLbl : {
-            UnaryTypeof* code = (UnaryTypeof*)programCounter;
-            Value val;
-            if (code->m_id.string()->length()) {
-                val = loadByName(state, ec->lexicalEnvironment(), code->m_id, false);
-            } else {
-                val = registerFile[code->m_srcIndex];
-            }
-            if (val.isUndefined())
-                val = state.context()->staticStrings().undefined.string();
-            else if (val.isNull())
-                val = state.context()->staticStrings().object.string();
-            else if (val.isBoolean())
-                val = state.context()->staticStrings().boolean.string();
-            else if (val.isNumber())
-                val = state.context()->staticStrings().number.string();
-            else if (val.isString())
-                val = state.context()->staticStrings().string.string();
-            else {
-                ASSERT(val.isPointerValue());
-                PointerValue* p = val.asPointerValue();
-                if (p->isFunctionObject()) {
-                    val = state.context()->staticStrings().function.string();
-                } else if (p->isSymbol()) {
-                    val = state.context()->staticStrings().symbol.string();
-                } else {
-                    val = state.context()->staticStrings().object.string();
-                }
+                registerFile[code->m_dstIndex] = ret;
+                ADD_PROGRAM_COUNTER(BinaryPlus);
+                NEXT_INSTRUCTION();
             }
 
-            registerFile[code->m_dstIndex] = val;
-            ADD_PROGRAM_COUNTER(UnaryTypeof);
-            NEXT_INSTRUCTION();
-        }
-
-        GetObjectOpcodeSlowCase : {
-            GetObject* code = (GetObject*)programCounter;
-            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            const Value& property = registerFile[code->m_propertyRegisterIndex];
-            Object* obj;
-            if (LIKELY(willBeObject.isObject())) {
-                obj = willBeObject.asObject();
-            } else {
-                obj = fastToObject(state, willBeObject);
-            }
-            registerFile[code->m_storeRegisterIndex] = obj->getIndexedProperty(state, property).value(state, willBeObject);
-            ADD_PROGRAM_COUNTER(GetObject);
-            NEXT_INSTRUCTION();
-        }
-
-        SetObjectOpcodeSlowCase : {
-            SetObjectOperation* code = (SetObjectOperation*)programCounter;
-            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            const Value& property = registerFile[code->m_propertyRegisterIndex];
-            Object* obj = willBeObject.toObject(state);
-            if (willBeObject.isPrimitive()) {
-                obj->preventExtensions();
-            }
-
-            bool result = obj->setIndexedProperty(state, property, registerFile[code->m_loadRegisterIndex]);
-            if (UNLIKELY(!result)) {
-                if (state.inStrictMode()) {
-                    Object::throwCannotWriteError(state, PropertyName(state, property.toString(state)));
-                }
-            }
-            ADD_PROGRAM_COUNTER(SetObjectOperation);
-            NEXT_INSTRUCTION();
-        }
-
-        LoadByNameOpcodeLbl : {
-            LoadByName* code = (LoadByName*)programCounter;
-            registerFile[code->m_registerIndex] = loadByName(state, ec->lexicalEnvironment(), code->m_name);
-            ADD_PROGRAM_COUNTER(LoadByName);
-            NEXT_INSTRUCTION();
-        }
-
-        StoreByNameOpcodeLbl : {
-            StoreByName* code = (StoreByName*)programCounter;
-            storeByName(state, ec->lexicalEnvironment(), code->m_name, registerFile[code->m_registerIndex]);
-            ADD_PROGRAM_COUNTER(StoreByName);
-            NEXT_INSTRUCTION();
-        }
-
-        CreateFunctionOpcodeLbl : {
-            CreateFunction* code = (CreateFunction*)programCounter;
-            registerFile[code->m_registerIndex] = new FunctionObject(state, code->m_codeBlock, ec->lexicalEnvironment());
-            ADD_PROGRAM_COUNTER(CreateFunction);
-            NEXT_INSTRUCTION();
-        }
-
-        CallEvalFunctionOpcodeLbl : {
-            CallEvalFunction* code = (CallEvalFunction*)programCounter;
-            evalOperation(state, code, registerFile, byteCodeBlock, ec);
-            ADD_PROGRAM_COUNTER(CallEvalFunction);
-            NEXT_INSTRUCTION();
-        }
-
-        TryOperationOpcodeLbl : {
-            TryOperation* code = (TryOperation*)programCounter;
-            programCounter = tryOperation(state, code, ec, ec->lexicalEnvironment(), programCounter, byteCodeBlock, registerFile);
-            NEXT_INSTRUCTION();
-        }
-
-        TryCatchWithBodyEndOpcodeLbl : {
-            (*(state.rareData()->m_controlFlowRecord))[state.rareData()->m_controlFlowRecord->size() - 1] = nullptr;
-            return Value();
-        }
-
-        FinallyEndOpcodeLbl : {
-            FinallyEnd* code = (FinallyEnd*)programCounter;
-            ControlFlowRecord* record = state.rareData()->m_controlFlowRecord->back();
-            state.rareData()->m_controlFlowRecord->erase(state.rareData()->m_controlFlowRecord->size() - 1);
-            if (record) {
-                if (record->reason() == ControlFlowRecord::NeedsJump) {
-                    size_t pos = record->wordValue();
-                    record->m_count--;
-                    if (record->count() && (record->outerLimitCount() < record->count())) {
-                        state.rareData()->m_controlFlowRecord->back() = record;
-                        return Value();
-                    } else
-                        programCounter = jumpTo(codeBuffer, pos);
-                } else if (record->reason() == ControlFlowRecord::NeedsThrow) {
-                    state.context()->throwException(state, record->value());
-                } else if (record->reason() == ControlFlowRecord::NeedsReturn) {
-                    record->m_count--;
-                    if (record->count()) {
-                        state.rareData()->m_controlFlowRecord->back() = record;
-                        return Value();
+            DEFINE_OPCODE(BinaryMinus)
+                :
+            {
+                BinaryMinus* code = (BinaryMinus*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                Value ret(Value::ForceUninitialized);
+                if (left.isInt32() && right.isInt32()) {
+                    int32_t a = left.asInt32();
+                    int32_t b = right.asInt32();
+                    int32_t c;
+                    bool result = ArithmeticOperations<int32_t, int32_t, int32_t>::sub(a, b, c);
+                    if (LIKELY(result)) {
+                        ret = Value(c);
                     } else {
-                        return record->value();
+                        ret = Value(Value::EncodeAsDouble, (double)a - (double)b);
+                    }
+                } else {
+                    ret = Value(left.toNumber(state) - right.toNumber(state));
+                }
+                registerFile[code->m_dstIndex] = ret;
+                ADD_PROGRAM_COUNTER(BinaryMinus);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryMultiply)
+                :
+            {
+                BinaryMultiply* code = (BinaryMultiply*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                Value ret(Value::ForceUninitialized);
+                if (left.isInt32() && right.isInt32()) {
+                    int32_t a = left.asInt32();
+                    int32_t b = right.asInt32();
+                    if (UNLIKELY((!a || !b) && (a >> 31 || b >> 31))) { // -1 * 0 should be treated as -0, not +0
+                        ret = Value(left.asNumber() * right.asNumber());
+                    } else {
+                        int32_t c = right.asInt32();
+                        bool result = ArithmeticOperations<int32_t, int32_t, int32_t>::multiply(a, b, c);
+                        if (LIKELY(result)) {
+                            ret = Value(c);
+                        } else {
+                            ret = Value(Value::EncodeAsDouble, a * (double)b);
+                        }
+                    }
+                } else {
+                    ret = Value(Value::EncodeAsDouble, left.toNumber(state) * right.toNumber(state));
+                }
+                registerFile[code->m_dstIndex] = ret;
+                ADD_PROGRAM_COUNTER(BinaryMultiply);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryDivision)
+                :
+            {
+                BinaryDivision* code = (BinaryDivision*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                registerFile[code->m_dstIndex] = Value(left.toNumber(state) / right.toNumber(state));
+                ADD_PROGRAM_COUNTER(BinaryDivision);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryEqual)
+                :
+            {
+                BinaryEqual* code = (BinaryEqual*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                registerFile[code->m_dstIndex] = Value(left.abstractEqualsTo(state, right));
+                ADD_PROGRAM_COUNTER(BinaryEqual);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryNotEqual)
+                :
+            {
+                BinaryNotEqual* code = (BinaryNotEqual*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                registerFile[code->m_dstIndex] = Value(!left.abstractEqualsTo(state, right));
+                ADD_PROGRAM_COUNTER(BinaryNotEqual);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryStrictEqual)
+                :
+            {
+                BinaryStrictEqual* code = (BinaryStrictEqual*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                registerFile[code->m_dstIndex] = Value(left.equalsTo(state, right));
+                ADD_PROGRAM_COUNTER(BinaryStrictEqual);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryNotStrictEqual)
+                :
+            {
+                BinaryNotStrictEqual* code = (BinaryNotStrictEqual*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                registerFile[code->m_dstIndex] = Value(!left.equalsTo(state, right));
+                ADD_PROGRAM_COUNTER(BinaryNotStrictEqual);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryLessThan)
+                :
+            {
+                BinaryLessThan* code = (BinaryLessThan*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                registerFile[code->m_dstIndex] = Value(abstractRelationalComparison(state, left, right, true));
+                ADD_PROGRAM_COUNTER(BinaryLessThan);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryLessThanOrEqual)
+                :
+            {
+                BinaryLessThanOrEqual* code = (BinaryLessThanOrEqual*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                registerFile[code->m_dstIndex] = Value(abstractRelationalComparisonOrEqual(state, left, right, true));
+                ADD_PROGRAM_COUNTER(BinaryLessThanOrEqual);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryGreaterThan)
+                :
+            {
+                BinaryGreaterThan* code = (BinaryGreaterThan*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                registerFile[code->m_dstIndex] = Value(abstractRelationalComparison(state, right, left, false));
+                ADD_PROGRAM_COUNTER(BinaryGreaterThan);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryGreaterThanOrEqual)
+                :
+            {
+                BinaryGreaterThanOrEqual* code = (BinaryGreaterThanOrEqual*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                registerFile[code->m_dstIndex] = Value(abstractRelationalComparisonOrEqual(state, right, left, false));
+                ADD_PROGRAM_COUNTER(BinaryGreaterThanOrEqual);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(Increment)
+                :
+            {
+                Increment* code = (Increment*)programCounter;
+                const Value& val = registerFile[code->m_srcIndex];
+                if (LIKELY(val.isInt32())) {
+                    int32_t a = val.asInt32();
+                    int32_t b = 1;
+                    int32_t c;
+                    bool result = ArithmeticOperations<int32_t, int32_t, int32_t>::add(a, b, c);
+                    if (LIKELY(result)) {
+                        registerFile[code->m_dstIndex] = Value(c);
+                    } else {
+                        registerFile[code->m_dstIndex] = Value(Value::EncodeAsDouble, (double)a + (double)b);
+                    }
+                } else {
+                    registerFile[code->m_dstIndex] = plusSlowCase(state, Value(val.toNumber(state)), Value(1));
+                }
+                ADD_PROGRAM_COUNTER(Increment);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(Decrement)
+                :
+            {
+                Decrement* code = (Decrement*)programCounter;
+                const Value& val = registerFile[code->m_srcIndex];
+                if (LIKELY(val.isInt32())) {
+                    int32_t a = val.asInt32();
+                    int32_t b = -1;
+                    int32_t c;
+                    bool result = ArithmeticOperations<int32_t, int32_t, int32_t>::add(a, b, c);
+                    if (LIKELY(result)) {
+                        registerFile[code->m_dstIndex] = Value(c);
+                    } else {
+                        registerFile[code->m_dstIndex] = Value(Value::EncodeAsDouble, (double)a + (double)b);
+                    }
+                } else {
+                    registerFile[code->m_dstIndex] = Value(val.toNumber(state) - 1);
+                }
+                ADD_PROGRAM_COUNTER(Decrement);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(UnaryMinus)
+                :
+            {
+                UnaryMinus* code = (UnaryMinus*)programCounter;
+                const Value& val = registerFile[code->m_srcIndex];
+                registerFile[code->m_dstIndex] = Value(-val.toNumber(state));
+                ADD_PROGRAM_COUNTER(UnaryMinus);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(UnaryNot)
+                :
+            {
+                UnaryNot* code = (UnaryNot*)programCounter;
+                const Value& val = registerFile[code->m_srcIndex];
+                registerFile[code->m_dstIndex] = Value(!val.toBoolean(state));
+                ADD_PROGRAM_COUNTER(UnaryNot);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(GetObject)
+                :
+            {
+                GetObject* code = (GetObject*)programCounter;
+                const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+                const Value& property = registerFile[code->m_propertyRegisterIndex];
+                PointerValue* v;
+                if (LIKELY(willBeObject.isObject() && (v = willBeObject.asPointerValue())->hasTag(g_arrayObjectTag))) {
+                    ArrayObject* arr = (ArrayObject*)v;
+                    if (LIKELY(arr->isFastModeArray())) {
+                        uint32_t idx = property.tryToUseAsArrayIndex(state);
+                        if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
+                            if (LIKELY(idx < arr->getArrayLength(state))) {
+                                const Value& v = arr->m_fastModeData[idx];
+                                if (LIKELY(!v.isEmpty())) {
+                                    registerFile[code->m_storeRegisterIndex] = v;
+                                    ADD_PROGRAM_COUNTER(GetObject);
+                                    NEXT_INSTRUCTION();
+                                }
+                            }
+                        }
                     }
                 }
-            } else {
-                ADD_PROGRAM_COUNTER(FinallyEnd);
+#if COMPILER(GCC)
+                goto GetObjectOpcodeSlowCaseOpcodeLbl;
+#else
+                    currentOpcode = GetObjectOpcodeSlowCaseOpcode;
+                    goto NextInstructionWithoutFetchOpcode;
+#endif
             }
-            NEXT_INSTRUCTION();
-        }
 
-        ThrowOperationOpcodeLbl : {
-            ThrowOperation* code = (ThrowOperation*)programCounter;
-            state.context()->throwException(state, registerFile[code->m_registerIndex]);
-        }
-
-        WithOperationOpcodeLbl : {
-            WithOperation* code = (WithOperation*)programCounter;
-            size_t newPc = programCounter;
-            Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-            Value v = withOperation(state, code, registerFile[code->m_registerIndex].toObject(state), ec, ec->lexicalEnvironment(), newPc, byteCodeBlock, registerFile, stackStorage);
-            if (!v.isEmpty()) {
-                return v;
+            DEFINE_OPCODE(SetObjectOperation)
+                :
+            {
+                SetObjectOperation* code = (SetObjectOperation*)programCounter;
+                const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+                const Value& property = registerFile[code->m_propertyRegisterIndex];
+                if (LIKELY(willBeObject.isObject() && (willBeObject.asPointerValue())->hasTag(g_arrayObjectTag))) {
+                    ArrayObject* arr = willBeObject.asObject()->asArrayObject();
+                    if (LIKELY(arr->isFastModeArray())) {
+                        uint32_t idx = property.tryToUseAsArrayIndex(state);
+                        if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
+                            uint32_t len = arr->getArrayLength(state);
+                            if (UNLIKELY(len <= idx)) {
+                                if (UNLIKELY(!arr->isExtensible())) {
+#if COMPILER(GCC)
+                                    goto SetObjectOpcodeSlowCaseOpcodeLbl;
+#else
+                                        currentOpcode = SetObjectOpcodeSlowCaseOpcode;
+                                        goto NextInstructionWithoutFetchOpcode;
+#endif
+                                }
+                                if (UNLIKELY(!arr->setArrayLength(state, idx + 1)) || UNLIKELY(!arr->isFastModeArray())) {
+#if COMPILER(GCC)
+                                    goto SetObjectOpcodeSlowCaseOpcodeLbl;
+#else
+                                        currentOpcode = SetObjectOpcodeSlowCaseOpcode;
+                                        goto NextInstructionWithoutFetchOpcode;
+#endif
+                                }
+                            }
+                            arr->m_fastModeData[idx] = registerFile[code->m_loadRegisterIndex];
+                            ADD_PROGRAM_COUNTER(SetObjectOperation);
+                            NEXT_INSTRUCTION();
+                        }
+                    }
+                }
+#if COMPILER(GCC)
+                goto SetObjectOpcodeSlowCaseOpcodeLbl;
+#else
+                    currentOpcode = SetObjectOpcodeSlowCaseOpcode;
+                    goto NextInstructionWithoutFetchOpcode;
+#endif
             }
-            if (programCounter == newPc) {
+
+            DEFINE_OPCODE(GetObjectPreComputedCase)
+                :
+            {
+                GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)programCounter;
+                const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+                Object* obj;
+                if (LIKELY(willBeObject.isObject())) {
+                    obj = willBeObject.asObject();
+                } else {
+                    obj = fastToObject(state, willBeObject);
+                }
+                registerFile[code->m_storeRegisterIndex] = getObjectPrecomputedCaseOperation(state, obj, willBeObject, code->m_propertyName, code->m_inlineCache, byteCodeBlock);
+                ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(SetObjectPreComputedCase)
+                :
+            {
+                SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)programCounter;
+                setObjectPreComputedCaseOperation(state, registerFile[code->m_objectRegisterIndex], code->m_propertyName, registerFile[code->m_loadRegisterIndex], *code->m_inlineCache, byteCodeBlock);
+                ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(Jump)
+                :
+            {
+                Jump* code = (Jump*)programCounter;
+                ASSERT(code->m_jumpPosition != SIZE_MAX);
+                programCounter = code->m_jumpPosition;
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(JumpIfTrue)
+                :
+            {
+                JumpIfTrue* code = (JumpIfTrue*)programCounter;
+                ASSERT(code->m_jumpPosition != SIZE_MAX);
+                if (registerFile[code->m_registerIndex].toBoolean(state)) {
+                    programCounter = code->m_jumpPosition;
+                } else {
+                    ADD_PROGRAM_COUNTER(JumpIfTrue);
+                }
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(JumpIfFalse)
+                :
+            {
+                JumpIfFalse* code = (JumpIfFalse*)programCounter;
+                ASSERT(code->m_jumpPosition != SIZE_MAX);
+                if (!registerFile[code->m_registerIndex].toBoolean(state)) {
+                    programCounter = code->m_jumpPosition;
+                } else {
+                    ADD_PROGRAM_COUNTER(JumpIfFalse);
+                }
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(CallFunction)
+                :
+            {
+                CallFunction* code = (CallFunction*)programCounter;
+                const Value& callee = registerFile[code->m_calleeIndex];
+                registerFile[code->m_resultIndex] = FunctionObject::call(state, callee, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+                ADD_PROGRAM_COUNTER(CallFunction);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(CallFunctionWithReceiver)
+                :
+            {
+                CallFunctionWithReceiver* code = (CallFunctionWithReceiver*)programCounter;
+                const Value& callee = registerFile[code->m_calleeIndex];
+                const Value& receiver = registerFile[code->m_receiverIndex];
+                registerFile[code->m_resultIndex] = FunctionObject::call(state, callee, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+                ADD_PROGRAM_COUNTER(CallFunctionWithReceiver);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(LoadByHeapIndex)
+                :
+            {
+                LoadByHeapIndex* code = (LoadByHeapIndex*)programCounter;
+                LexicalEnvironment* upperEnv = ec->lexicalEnvironment();
+                for (size_t i = 0; i < code->m_upperIndex; i++) {
+                    upperEnv = upperEnv->outerEnvironment();
+                }
+                FunctionEnvironmentRecord* record = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+                ASSERT(record->isFunctionEnvironmentRecordOnHeap() || record->isFunctionEnvironmentRecordNotIndexed());
+                registerFile[code->m_registerIndex] = ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[code->m_index];
+                ADD_PROGRAM_COUNTER(LoadByHeapIndex);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(StoreByHeapIndex)
+                :
+            {
+                StoreByHeapIndex* code = (StoreByHeapIndex*)programCounter;
+                LexicalEnvironment* upperEnv = ec->lexicalEnvironment();
+                for (size_t i = 0; i < code->m_upperIndex; i++) {
+                    upperEnv = upperEnv->outerEnvironment();
+                }
+                FunctionEnvironmentRecord* record = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+                ASSERT(record->isFunctionEnvironmentRecordOnHeap() || record->isFunctionEnvironmentRecordNotIndexed());
+                ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[code->m_index] = registerFile[code->m_registerIndex];
+                ADD_PROGRAM_COUNTER(StoreByHeapIndex);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryMod)
+                :
+            {
+                BinaryMod* code = (BinaryMod*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                registerFile[code->m_dstIndex] = modOperation(state, left, right);
+                ADD_PROGRAM_COUNTER(BinaryMod);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryBitwiseAnd)
+                :
+            {
+                BinaryBitwiseAnd* code = (BinaryBitwiseAnd*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                registerFile[code->m_dstIndex] = Value(left.toInt32(state) & right.toInt32(state));
+                ADD_PROGRAM_COUNTER(BinaryBitwiseAnd);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryBitwiseOr)
+                :
+            {
+                BinaryBitwiseOr* code = (BinaryBitwiseOr*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                registerFile[code->m_dstIndex] = Value(left.toInt32(state) | right.toInt32(state));
+                ADD_PROGRAM_COUNTER(BinaryBitwiseOr);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryBitwiseXor)
+                :
+            {
+                BinaryBitwiseXor* code = (BinaryBitwiseXor*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                registerFile[code->m_dstIndex] = Value(left.toInt32(state) ^ right.toInt32(state));
+                ADD_PROGRAM_COUNTER(BinaryBitwiseXor);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryLeftShift)
+                :
+            {
+                BinaryLeftShift* code = (BinaryLeftShift*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                int32_t lnum = left.toInt32(state);
+                int32_t rnum = right.toInt32(state);
+                lnum <<= ((unsigned int)rnum) & 0x1F;
+                registerFile[code->m_dstIndex] = Value(lnum);
+                ADD_PROGRAM_COUNTER(BinaryLeftShift);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinarySignedRightShift)
+                :
+            {
+                BinarySignedRightShift* code = (BinarySignedRightShift*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                int32_t lnum = left.toInt32(state);
+                int32_t rnum = right.toInt32(state);
+                lnum >>= ((unsigned int)rnum) & 0x1F;
+                registerFile[code->m_dstIndex] = Value(lnum);
+                ADD_PROGRAM_COUNTER(BinarySignedRightShift);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryUnsignedRightShift)
+                :
+            {
+                BinaryUnsignedRightShift* code = (BinaryUnsignedRightShift*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                uint32_t lnum = left.toUint32(state);
+                uint32_t rnum = right.toUint32(state);
+                lnum = (lnum) >> ((rnum)&0x1F);
+                registerFile[code->m_dstIndex] = Value(lnum);
+                ADD_PROGRAM_COUNTER(BinaryUnsignedRightShift);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(UnaryBitwiseNot)
+                :
+            {
+                UnaryBitwiseNot* code = (UnaryBitwiseNot*)programCounter;
+                const Value& val = registerFile[code->m_srcIndex];
+                registerFile[code->m_dstIndex] = Value(~val.toInt32(state));
+                ADD_PROGRAM_COUNTER(UnaryBitwiseNot);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(ReturnFunctionWithValue)
+                :
+            {
+                ReturnFunctionWithValue* code = (ReturnFunctionWithValue*)programCounter;
+                return registerFile[code->m_registerIndex];
+            }
+
+            DEFINE_OPCODE(ReturnFunction)
+                :
+            {
                 return Value();
             }
-            programCounter = newPc;
-            NEXT_INSTRUCTION();
-        }
 
-        JumpComplexCaseOpcodeLbl : {
-            JumpComplexCase* code = (JumpComplexCase*)programCounter;
-            state.ensureRareData()->m_controlFlowRecord->back() = code->m_controlFlowRecord->clone();
-            return Value();
-        }
+            DEFINE_OPCODE(ToNumber)
+                :
+            {
+                ToNumber* code = (ToNumber*)programCounter;
+                const Value& val = registerFile[code->m_srcIndex];
+                registerFile[code->m_dstIndex] = Value(val.toNumber(state));
+                ADD_PROGRAM_COUNTER(ToNumber);
+                NEXT_INSTRUCTION();
+            }
 
-        EnumerateObjectOpcodeLbl : {
-            EnumerateObject* code = (EnumerateObject*)programCounter;
-            auto data = executeEnumerateObject(state, registerFile[code->m_objectRegisterIndex].toObject(state));
-            registerFile[code->m_dataRegisterIndex] = Value((PointerValue*)data);
-            ADD_PROGRAM_COUNTER(EnumerateObject);
-            NEXT_INSTRUCTION();
-        }
+            DEFINE_OPCODE(CreateObject)
+                :
+            {
+                CreateObject* code = (CreateObject*)programCounter;
+                registerFile[code->m_registerIndex] = new Object(state);
+                ADD_PROGRAM_COUNTER(CreateObject);
+                NEXT_INSTRUCTION();
+            }
 
-        CheckIfKeyIsLastOpcodeLbl : {
-            CheckIfKeyIsLast* code = (CheckIfKeyIsLast*)programCounter;
-            EnumerateObjectData* data = (EnumerateObjectData*)registerFile[code->m_registerIndex].asPointerValue();
-            bool shouldUpdateEnumerateObjectData = false;
-            Object* obj = data->m_object;
-            for (size_t i = 0; i < data->m_hiddenClassChain.size(); i++) {
-                auto hc = data->m_hiddenClassChain[i];
-                ObjectStructureChainItem testItem;
-                testItem.m_objectStructure = obj->structure();
-                if (hc != testItem) {
-                    shouldUpdateEnumerateObjectData = true;
-                    break;
-                }
-                Value val = obj->getPrototype(state);
-                if (val.isObject()) {
-                    obj = val.asObject();
+            DEFINE_OPCODE(CreateArray)
+                :
+            {
+                CreateArray* code = (CreateArray*)programCounter;
+                ArrayObject* arr = new ArrayObject(state);
+                arr->setArrayLength(state, code->m_length);
+                registerFile[code->m_registerIndex] = arr;
+                ADD_PROGRAM_COUNTER(CreateArray);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(ObjectDefineOwnPropertyOperation)
+                :
+            {
+                ObjectDefineOwnPropertyOperation* code = (ObjectDefineOwnPropertyOperation*)programCounter;
+                const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+                const Value& property = registerFile[code->m_propertyRegisterIndex];
+                ObjectPropertyName objPropName = ObjectPropertyName(state, property);
+                // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
+                if (property.isString() && property.asString()->equals("__proto__")) {
+                    willBeObject.asObject()->setPrototype(state, registerFile[code->m_loadRegisterIndex]);
                 } else {
-                    break;
+                    willBeObject.asObject()->defineOwnProperty(state, objPropName, ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptor::AllPresent));
                 }
+                ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyOperation);
+                NEXT_INSTRUCTION();
             }
 
-            if (!shouldUpdateEnumerateObjectData && data->m_object->isArrayObject() && data->m_object->length(state) != data->m_originalLength) {
-                shouldUpdateEnumerateObjectData = true;
-            }
-            if (!shouldUpdateEnumerateObjectData && data->m_object->rareData() && data->m_object->rareData()->m_shouldUpdateEnumerateObjectData) {
-                shouldUpdateEnumerateObjectData = true;
-            }
-
-            if (shouldUpdateEnumerateObjectData) {
-                registerFile[code->m_registerIndex] = Value((PointerValue*)updateEnumerateObjectData(state, data));
-                data = (EnumerateObjectData*)registerFile[code->m_registerIndex].asPointerValue();
-            }
-
-            if (data->m_keys.size() <= data->m_idx) {
-                programCounter = jumpTo(codeBuffer, code->m_forInEndPosition);
-            } else {
-                ADD_PROGRAM_COUNTER(CheckIfKeyIsLast);
-            }
-            NEXT_INSTRUCTION();
-        }
-
-        EnumerateObjectKeyOpcodeLbl : {
-            EnumerateObjectKey* code = (EnumerateObjectKey*)programCounter;
-            EnumerateObjectData* data = (EnumerateObjectData*)registerFile[code->m_dataRegisterIndex].asPointerValue();
-            data->m_idx++;
-            registerFile[code->m_registerIndex] = Value(data->m_keys[data->m_idx - 1]).toString(state);
-            ADD_PROGRAM_COUNTER(EnumerateObjectKey);
-            NEXT_INSTRUCTION();
-        }
-
-        LoadRegexpOpcodeLbl : {
-            LoadRegexp* code = (LoadRegexp*)programCounter;
-            auto reg = new RegExpObject(state, code->m_body, code->m_option);
-            registerFile[code->m_registerIndex] = reg;
-            ADD_PROGRAM_COUNTER(LoadRegexp);
-            NEXT_INSTRUCTION();
-        }
-
-        UnaryDeleteOpcodeLbl : {
-            UnaryDelete* code = (UnaryDelete*)programCounter;
-            deleteOperation(state, ec->lexicalEnvironment(), code, registerFile);
-            ADD_PROGRAM_COUNTER(UnaryDelete);
-            NEXT_INSTRUCTION();
-        }
-
-        TemplateOperationOpcodeLbl : {
-            TemplateOperation* code = (TemplateOperation*)programCounter;
-            templateOperation(state, ec->lexicalEnvironment(), code, registerFile);
-            ADD_PROGRAM_COUNTER(TemplateOperation);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryInOperationOpcodeLbl : {
-            BinaryInOperation* code = (BinaryInOperation*)programCounter;
-            if (!registerFile[code->m_srcIndex1].isObject())
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "type of rvalue is not Object");
-            auto result = registerFile[code->m_srcIndex1].toObject(state)->get(state, ObjectPropertyName(state, registerFile[code->m_srcIndex0]));
-            registerFile[code->m_dstIndex] = Value(result.hasValue());
-            ADD_PROGRAM_COUNTER(BinaryInOperation);
-            NEXT_INSTRUCTION();
-        }
-
-        BinaryInstanceOfOperationOpcodeLbl : {
-            BinaryInstanceOfOperation* code = (BinaryInstanceOfOperation*)programCounter;
-            registerFile[code->m_dstIndex] = instanceOfOperation(state, registerFile[code->m_srcIndex0], registerFile[code->m_srcIndex1]);
-            ADD_PROGRAM_COUNTER(BinaryInstanceOfOperation);
-            NEXT_INSTRUCTION();
-        }
-
-        ObjectDefineGetterOpcodeLbl : {
-            ObjectDefineGetter* code = (ObjectDefineGetter*)programCounter;
-            defineObjectGetter(state, code, registerFile);
-            ADD_PROGRAM_COUNTER(ObjectDefineGetter);
-            NEXT_INSTRUCTION();
-        }
-
-        ObjectDefineSetterOpcodeLbl : {
-            ObjectDefineSetter* code = (ObjectDefineSetter*)programCounter;
-            defineObjectSetter(state, code, registerFile);
-            ADD_PROGRAM_COUNTER(ObjectDefineGetter);
-            NEXT_INSTRUCTION();
-        }
-
-        CallFunctionInWithScopeOpcodeLbl : {
-            CallFunctionInWithScope* code = (CallFunctionInWithScope*)programCounter;
-            registerFile[code->m_resultIndex] = callFunctionInWithScope(state, code, ec, ec->lexicalEnvironment(), &registerFile[code->m_argumentsStartIndex]);
-            ADD_PROGRAM_COUNTER(CallFunctionInWithScope);
-            NEXT_INSTRUCTION();
-        }
-
-        DeclareFunctionDeclarationsOpcodeLbl : {
-            DeclareFunctionDeclarations* code = (DeclareFunctionDeclarations*)programCounter;
-            Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-            declareFunctionDeclarations(state, code, ec->lexicalEnvironment(), stackStorage);
-            ADD_PROGRAM_COUNTER(DeclareFunctionDeclarations);
-            NEXT_INSTRUCTION();
-        }
-
-        ReturnFunctionSlowCaseOpcodeLbl : {
-            ReturnFunctionSlowCase* code = (ReturnFunctionSlowCase*)programCounter;
-            Value ret;
-            if (code->m_registerIndex != std::numeric_limits<ByteCodeRegisterIndex>::max()) {
-                ret = registerFile[code->m_registerIndex];
-            }
-            if (UNLIKELY(state.rareData() != nullptr)) {
-                if (state.rareData()->m_controlFlowRecord && state.rareData()->m_controlFlowRecord->size()) {
-                    state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, ret, state.rareData()->m_controlFlowRecord->size());
+            DEFINE_OPCODE(ObjectDefineOwnPropertyWithNameOperation)
+                :
+            {
+                ObjectDefineOwnPropertyWithNameOperation* code = (ObjectDefineOwnPropertyWithNameOperation*)programCounter;
+                const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+                // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
+                if (code->m_propertyName == state.context()->staticStrings().__proto__) {
+                    willBeObject.asObject()->setPrototype(state, registerFile[code->m_loadRegisterIndex]);
+                } else {
+                    willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptor::AllPresent));
                 }
+                ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyWithNameOperation);
+                NEXT_INSTRUCTION();
             }
-            return ret;
-        }
 
-        ThrowStaticErrorOperationOpcodeLbl : {
-            ThrowStaticErrorOperation* code = (ThrowStaticErrorOperation*)programCounter;
-            ErrorObject::throwBuiltinError(state, (ErrorObject::Code)code->m_errorKind, code->m_errorMessage);
-        }
-
-        EndOpcodeLbl:
-            return registerFile[0];
-
-        } catch (const Value& v) {
-            if (byteCodeBlock->m_codeBlock->isInterpretedCodeBlock() && byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->byteCodeBlock() == nullptr) {
-                byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->m_byteCodeBlock = byteCodeBlock;
+            DEFINE_OPCODE(ArrayDefineOwnPropertyOperation)
+                :
+            {
+                ArrayDefineOwnPropertyOperation* code = (ArrayDefineOwnPropertyOperation*)programCounter;
+                ArrayObject* arr = registerFile[code->m_objectRegisterIndex].asObject()->asArrayObject();
+                if (LIKELY(arr->isFastModeArray())) {
+                    size_t end = code->m_count + code->m_baseIndex;
+                    for (size_t i = 0; i < code->m_count; i++) {
+                        if (LIKELY(code->m_loadRegisterIndexs[i] != std::numeric_limits<ByteCodeRegisterIndex>::max())) {
+                            arr->m_fastModeData[i + code->m_baseIndex] = registerFile[code->m_loadRegisterIndexs[i]];
+                        }
+                    }
+                } else {
+                    for (size_t i = 0; i < code->m_count; i++) {
+                        if (LIKELY(code->m_loadRegisterIndexs[i] != std::numeric_limits<ByteCodeRegisterIndex>::max())) {
+                            arr->defineOwnProperty(state, ObjectPropertyName(state, Value(i + code->m_baseIndex)), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndexs[i]], ObjectPropertyDescriptor::AllPresent));
+                        }
+                    }
+                }
+                ADD_PROGRAM_COUNTER(ArrayDefineOwnPropertyOperation);
+                NEXT_INSTRUCTION();
             }
-            processException(state, v, ec, programCounter);
+
+            DEFINE_OPCODE(NewOperation)
+                :
+            {
+                NewOperation* code = (NewOperation*)programCounter;
+                registerFile[code->m_resultIndex] = newOperation(state, registerFile[code->m_calleeIndex], code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+                ADD_PROGRAM_COUNTER(NewOperation);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(UnaryTypeof)
+                :
+            {
+                UnaryTypeof* code = (UnaryTypeof*)programCounter;
+                Value val;
+                if (code->m_id.string()->length()) {
+                    val = loadByName(state, ec->lexicalEnvironment(), code->m_id, false);
+                } else {
+                    val = registerFile[code->m_srcIndex];
+                }
+                if (val.isUndefined())
+                    val = state.context()->staticStrings().undefined.string();
+                else if (val.isNull())
+                    val = state.context()->staticStrings().object.string();
+                else if (val.isBoolean())
+                    val = state.context()->staticStrings().boolean.string();
+                else if (val.isNumber())
+                    val = state.context()->staticStrings().number.string();
+                else if (val.isString())
+                    val = state.context()->staticStrings().string.string();
+                else {
+                    ASSERT(val.isPointerValue());
+                    PointerValue* p = val.asPointerValue();
+                    if (p->isFunctionObject()) {
+                        val = state.context()->staticStrings().function.string();
+                    } else if (p->isSymbol()) {
+                        val = state.context()->staticStrings().symbol.string();
+                    } else {
+                        val = state.context()->staticStrings().object.string();
+                    }
+                }
+
+                registerFile[code->m_dstIndex] = val;
+                ADD_PROGRAM_COUNTER(UnaryTypeof);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(GetObjectOpcodeSlowCase)
+                :
+            {
+                GetObject* code = (GetObject*)programCounter;
+                const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+                const Value& property = registerFile[code->m_propertyRegisterIndex];
+                Object* obj;
+                if (LIKELY(willBeObject.isObject())) {
+                    obj = willBeObject.asObject();
+                } else {
+                    obj = fastToObject(state, willBeObject);
+                }
+                registerFile[code->m_storeRegisterIndex] = obj->getIndexedProperty(state, property).value(state, willBeObject);
+                ADD_PROGRAM_COUNTER(GetObject);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(SetObjectOpcodeSlowCase)
+                :
+            {
+                SetObjectOperation* code = (SetObjectOperation*)programCounter;
+                const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+                const Value& property = registerFile[code->m_propertyRegisterIndex];
+                Object* obj = willBeObject.toObject(state);
+                if (willBeObject.isPrimitive()) {
+                    obj->preventExtensions();
+                }
+
+                bool result = obj->setIndexedProperty(state, property, registerFile[code->m_loadRegisterIndex]);
+                if (UNLIKELY(!result)) {
+                    if (state.inStrictMode()) {
+                        Object::throwCannotWriteError(state, PropertyName(state, property.toString(state)));
+                    }
+                }
+                ADD_PROGRAM_COUNTER(SetObjectOperation);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(LoadByName)
+                :
+            {
+                LoadByName* code = (LoadByName*)programCounter;
+                registerFile[code->m_registerIndex] = loadByName(state, ec->lexicalEnvironment(), code->m_name);
+                ADD_PROGRAM_COUNTER(LoadByName);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(StoreByName)
+                :
+            {
+                StoreByName* code = (StoreByName*)programCounter;
+                storeByName(state, ec->lexicalEnvironment(), code->m_name, registerFile[code->m_registerIndex]);
+                ADD_PROGRAM_COUNTER(StoreByName);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(CreateFunction)
+                :
+            {
+                CreateFunction* code = (CreateFunction*)programCounter;
+                registerFile[code->m_registerIndex] = new FunctionObject(state, code->m_codeBlock, ec->lexicalEnvironment());
+                ADD_PROGRAM_COUNTER(CreateFunction);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(CallEvalFunction)
+                :
+            {
+                CallEvalFunction* code = (CallEvalFunction*)programCounter;
+                evalOperation(state, code, registerFile, byteCodeBlock, ec);
+                ADD_PROGRAM_COUNTER(CallEvalFunction);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(TryOperation)
+                :
+            {
+                TryOperation* code = (TryOperation*)programCounter;
+                programCounter = tryOperation(state, code, ec, ec->lexicalEnvironment(), programCounter, byteCodeBlock, registerFile);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(TryCatchWithBodyEnd)
+                :
+            {
+                (*(state.rareData()->m_controlFlowRecord))[state.rareData()->m_controlFlowRecord->size() - 1] = nullptr;
+                return Value();
+            }
+
+            DEFINE_OPCODE(FinallyEnd)
+                :
+            {
+                FinallyEnd* code = (FinallyEnd*)programCounter;
+                ControlFlowRecord* record = state.rareData()->m_controlFlowRecord->back();
+                state.rareData()->m_controlFlowRecord->erase(state.rareData()->m_controlFlowRecord->size() - 1);
+                if (record) {
+                    if (record->reason() == ControlFlowRecord::NeedsJump) {
+                        size_t pos = record->wordValue();
+                        record->m_count--;
+                        if (record->count() && (record->outerLimitCount() < record->count())) {
+                            state.rareData()->m_controlFlowRecord->back() = record;
+                            return Value();
+                        } else
+                            programCounter = jumpTo(codeBuffer, pos);
+                    } else if (record->reason() == ControlFlowRecord::NeedsThrow) {
+                        state.context()->throwException(state, record->value());
+                    } else if (record->reason() == ControlFlowRecord::NeedsReturn) {
+                        record->m_count--;
+                        if (record->count()) {
+                            state.rareData()->m_controlFlowRecord->back() = record;
+                            return Value();
+                        } else {
+                            return record->value();
+                        }
+                    }
+                } else {
+                    ADD_PROGRAM_COUNTER(FinallyEnd);
+                }
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(ThrowOperation)
+                :
+            {
+                ThrowOperation* code = (ThrowOperation*)programCounter;
+                state.context()->throwException(state, registerFile[code->m_registerIndex]);
+            }
+
+            DEFINE_OPCODE(WithOperation)
+                :
+            {
+                WithOperation* code = (WithOperation*)programCounter;
+                size_t newPc = programCounter;
+                Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
+                Value v = withOperation(state, code, registerFile[code->m_registerIndex].toObject(state), ec, ec->lexicalEnvironment(), newPc, byteCodeBlock, registerFile, stackStorage);
+                if (!v.isEmpty()) {
+                    return v;
+                }
+                if (programCounter == newPc) {
+                    return Value();
+                }
+                programCounter = newPc;
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(JumpComplexCase)
+                :
+            {
+                JumpComplexCase* code = (JumpComplexCase*)programCounter;
+                state.ensureRareData()->m_controlFlowRecord->back() = code->m_controlFlowRecord->clone();
+                return Value();
+            }
+
+            DEFINE_OPCODE(EnumerateObject)
+                :
+            {
+                EnumerateObject* code = (EnumerateObject*)programCounter;
+                auto data = executeEnumerateObject(state, registerFile[code->m_objectRegisterIndex].toObject(state));
+                registerFile[code->m_dataRegisterIndex] = Value((PointerValue*)data);
+                ADD_PROGRAM_COUNTER(EnumerateObject);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(CheckIfKeyIsLast)
+                :
+            {
+                CheckIfKeyIsLast* code = (CheckIfKeyIsLast*)programCounter;
+                EnumerateObjectData* data = (EnumerateObjectData*)registerFile[code->m_registerIndex].asPointerValue();
+                bool shouldUpdateEnumerateObjectData = false;
+                Object* obj = data->m_object;
+                for (size_t i = 0; i < data->m_hiddenClassChain.size(); i++) {
+                    auto hc = data->m_hiddenClassChain[i];
+                    ObjectStructureChainItem testItem;
+                    testItem.m_objectStructure = obj->structure();
+                    if (hc != testItem) {
+                        shouldUpdateEnumerateObjectData = true;
+                        break;
+                    }
+                    Value val = obj->getPrototype(state);
+                    if (val.isObject()) {
+                        obj = val.asObject();
+                    } else {
+                        break;
+                    }
+                }
+
+                if (!shouldUpdateEnumerateObjectData && data->m_object->isArrayObject() && data->m_object->length(state) != data->m_originalLength) {
+                    shouldUpdateEnumerateObjectData = true;
+                }
+                if (!shouldUpdateEnumerateObjectData && data->m_object->rareData() && data->m_object->rareData()->m_shouldUpdateEnumerateObjectData) {
+                    shouldUpdateEnumerateObjectData = true;
+                }
+
+                if (shouldUpdateEnumerateObjectData) {
+                    registerFile[code->m_registerIndex] = Value((PointerValue*)updateEnumerateObjectData(state, data));
+                    data = (EnumerateObjectData*)registerFile[code->m_registerIndex].asPointerValue();
+                }
+
+                if (data->m_keys.size() <= data->m_idx) {
+                    programCounter = jumpTo(codeBuffer, code->m_forInEndPosition);
+                } else {
+                    ADD_PROGRAM_COUNTER(CheckIfKeyIsLast);
+                }
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(EnumerateObjectKey)
+                :
+            {
+                EnumerateObjectKey* code = (EnumerateObjectKey*)programCounter;
+                EnumerateObjectData* data = (EnumerateObjectData*)registerFile[code->m_dataRegisterIndex].asPointerValue();
+                data->m_idx++;
+                registerFile[code->m_registerIndex] = Value(data->m_keys[data->m_idx - 1]).toString(state);
+                ADD_PROGRAM_COUNTER(EnumerateObjectKey);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(LoadRegexp)
+                :
+            {
+                LoadRegexp* code = (LoadRegexp*)programCounter;
+                auto reg = new RegExpObject(state, code->m_body, code->m_option);
+                registerFile[code->m_registerIndex] = reg;
+                ADD_PROGRAM_COUNTER(LoadRegexp);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(UnaryDelete)
+                :
+            {
+                UnaryDelete* code = (UnaryDelete*)programCounter;
+                deleteOperation(state, ec->lexicalEnvironment(), code, registerFile);
+                ADD_PROGRAM_COUNTER(UnaryDelete);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(TemplateOperation)
+                :
+            {
+                TemplateOperation* code = (TemplateOperation*)programCounter;
+                templateOperation(state, ec->lexicalEnvironment(), code, registerFile);
+                ADD_PROGRAM_COUNTER(TemplateOperation);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryInOperation)
+                :
+            {
+                BinaryInOperation* code = (BinaryInOperation*)programCounter;
+                if (!registerFile[code->m_srcIndex1].isObject())
+                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "type of rvalue is not Object");
+                auto result = registerFile[code->m_srcIndex1].toObject(state)->get(state, ObjectPropertyName(state, registerFile[code->m_srcIndex0]));
+                registerFile[code->m_dstIndex] = Value(result.hasValue());
+                ADD_PROGRAM_COUNTER(BinaryInOperation);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BinaryInstanceOfOperation)
+                :
+            {
+                BinaryInstanceOfOperation* code = (BinaryInstanceOfOperation*)programCounter;
+                registerFile[code->m_dstIndex] = instanceOfOperation(state, registerFile[code->m_srcIndex0], registerFile[code->m_srcIndex1]);
+                ADD_PROGRAM_COUNTER(BinaryInstanceOfOperation);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(ObjectDefineGetter)
+                :
+            {
+                ObjectDefineGetter* code = (ObjectDefineGetter*)programCounter;
+                defineObjectGetter(state, code, registerFile);
+                ADD_PROGRAM_COUNTER(ObjectDefineGetter);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(ObjectDefineSetter)
+                :
+            {
+                ObjectDefineSetter* code = (ObjectDefineSetter*)programCounter;
+                defineObjectSetter(state, code, registerFile);
+                ADD_PROGRAM_COUNTER(ObjectDefineGetter);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(CallFunctionInWithScope)
+                :
+            {
+                CallFunctionInWithScope* code = (CallFunctionInWithScope*)programCounter;
+                registerFile[code->m_resultIndex] = callFunctionInWithScope(state, code, ec, ec->lexicalEnvironment(), &registerFile[code->m_argumentsStartIndex]);
+                ADD_PROGRAM_COUNTER(CallFunctionInWithScope);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(DeclareFunctionDeclarations)
+                :
+            {
+                DeclareFunctionDeclarations* code = (DeclareFunctionDeclarations*)programCounter;
+                Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
+                declareFunctionDeclarations(state, code, ec->lexicalEnvironment(), stackStorage);
+                ADD_PROGRAM_COUNTER(DeclareFunctionDeclarations);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(ReturnFunctionSlowCase)
+                :
+            {
+                ReturnFunctionSlowCase* code = (ReturnFunctionSlowCase*)programCounter;
+                Value ret;
+                if (code->m_registerIndex != std::numeric_limits<ByteCodeRegisterIndex>::max()) {
+                    ret = registerFile[code->m_registerIndex];
+                }
+                if (UNLIKELY(state.rareData() != nullptr)) {
+                    if (state.rareData()->m_controlFlowRecord && state.rareData()->m_controlFlowRecord->size()) {
+                        state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, ret, state.rareData()->m_controlFlowRecord->size());
+                    }
+                }
+                return ret;
+            }
+
+            DEFINE_OPCODE(ThrowStaticErrorOperation)
+                :
+            {
+                ThrowStaticErrorOperation* code = (ThrowStaticErrorOperation*)programCounter;
+                ErrorObject::throwBuiltinError(state, (ErrorObject::Code)code->m_errorKind, code->m_errorMessage);
+            }
+            DEFINE_OPCODE(End)
+                : return registerFile[0];
+
+#if !COMPILER(GCC)
+        default:
+            RELEASE_ASSERT_NOT_REACHED();
         }
+#endif
     }
-FillOpcodeTableOpcodeLbl : {
+    catch (const Value& v)
+    {
+        if (byteCodeBlock->m_codeBlock->isInterpretedCodeBlock() && byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->byteCodeBlock() == nullptr) {
+            byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->m_byteCodeBlock = byteCodeBlock;
+        }
+        processException(state, v, ec, programCounter);
+    }
+}
+#if COMPILER(GCC)
+FillOpcodeTableOpcodeLbl:
+{
 #define REGISTER_TABLE(opcode, pushCount, popCount) g_opcodeTable.m_table[opcode##Opcode] = &&opcode##OpcodeLbl;
     FOR_EACH_BYTECODE_OP(REGISTER_TABLE);
 #undef REGISTER_TABLE
     return Value();
 }
+#else
+        return Value();
+#endif
 }
 
 NEVER_INLINE EnvironmentRecord* ByteCodeInterpreter::getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue, bool throwException)

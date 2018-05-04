@@ -347,7 +347,7 @@ static Value builtinArraySort(ExecutionState& state, Value thisValue, size_t arg
     }
     bool defaultSort = (argc == 0) || cmpfn.isUndefined();
 
-    thisObject->sort(state, [defaultSort, &cmpfn, &state, &thisObject](const Value& a, const Value& b) -> bool {
+    thisObject->sort(state, [defaultSort, &cmpfn, &state](const Value& a, const Value& b) -> bool {
         if (a.isEmpty() && b.isUndefined())
             return false;
         if (a.isUndefined() && b.isEmpty())

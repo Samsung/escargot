@@ -46,7 +46,7 @@ struct RegExpStatus {
 
 class GlobalRegExpFunctionObject : public FunctionObject {
     friend class RegExpObject;
-    friend class GlobalRegExpFunctionObjectBuiltinFunctions;
+    friend struct GlobalRegExpFunctionObjectBuiltinFunctions;
 
 public:
     GlobalRegExpFunctionObject(ExecutionState& state);

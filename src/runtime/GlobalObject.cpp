@@ -79,9 +79,10 @@ static String* builtinHelperFileRead(ExecutionState& state, const char* fileName
             }
         }
         fclose(fp);
-        if (hasNonLatin1Content)
-            src = new UTF16String(std::move(utf8StringToUTF16String(utf8Str.data(), utf8Str.length())));
-        else
+        if (hasNonLatin1Content) {
+            auto s = utf8StringToUTF16String(utf8Str.data(), utf8Str.length());
+            src = new UTF16String(std::move(s));
+        } else
             src = new Latin1String(str.data(), str.length());
     } else {
         char msg[1024];

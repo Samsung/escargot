@@ -363,7 +363,7 @@ public:
     {
         return gc::operator new(size, p);
     }
-    void* operator new(size_t size, void* ptr)
+    void* operator new(size_t, void* ptr)
     {
         return ptr;
     }
@@ -451,7 +451,7 @@ public:
     {
         return gc::operator new(size, p);
     }
-    void* operator new(size_t size, void* ptr)
+    void* operator new(size_t, void* ptr)
     {
         return ptr;
     }
@@ -538,10 +538,12 @@ inline String* String::fromCharCode(char32_t code)
 {
     if (code < 128) {
         char c = (char)code;
-        return new ASCIIString(std::move(ASCIIStringData(&c, 1)));
+        ASCIIStringData s(&c, 1);
+        return new ASCIIString(std::move(s));
     } else if (code <= 0x10000) {
         char16_t c = (char16_t)code;
-        return new UTF16String(std::move(UTF16StringData(&c, 1)));
+        UTF16StringData s(&c, 1);
+        return new UTF16String(std::move(s));
     } else {
         char16_t buf[3];
         buf[0] = (char16_t)(0xD800 + ((code - 0x10000) >> 10));
@@ -575,7 +577,7 @@ struct equal_to<Escargot::String*> {
 #include "runtime/StringView.h"
 
 namespace Escargot {
-typedef std::unordered_map<String*, String*, std::hash<String*>, std::equal_to<String*>, gc_allocator<std::pair<String*, String*>>> StringMapStd;
+typedef std::unordered_map<String*, String*, std::hash<String*>, std::equal_to<String*>, gc_allocator<std::pair<String* const, String*>>> StringMapStd;
 class StringMap : public StringMapStd, public gc {
 public:
     String* at(String* s) const

@@ -34,7 +34,7 @@ public:
         return m_primitiveValue;
     }
 
-    virtual bool isStringObject() const
+    virtual bool isStringObject() const override
     {
         return true;
     }
@@ -44,18 +44,18 @@ public:
         m_primitiveValue = data;
     }
 
-    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property);
-    virtual uint64_t length(ExecutionState& state)
+    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override;
+    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override;
+    virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override;
+    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override;
+    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property) override;
+    virtual uint64_t length(ExecutionState& state) override
     {
         return m_primitiveValue->length();
     }
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-    virtual const char* internalClassProperty()
+    virtual const char* internalClassProperty() override
     {
         return "String";
     }
@@ -72,7 +72,7 @@ class StringIteratorObject : public IteratorObject {
 public:
     StringIteratorObject(ExecutionState& state, String* string);
 
-    virtual bool isStringIteratorObject() const
+    virtual bool isStringIteratorObject() const override
     {
         return true;
     }

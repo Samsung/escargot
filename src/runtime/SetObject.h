@@ -34,13 +34,13 @@ public:
     typedef TightVector<SmallValue, GCUtil::gc_malloc_ignore_off_page_allocator<SmallValue>> SetObjectData;
     SetObject(ExecutionState& state);
 
-    virtual bool isSetObject() const
+    virtual bool isSetObject() const override
     {
         return true;
     }
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-    virtual const char* internalClassProperty()
+    virtual const char* internalClassProperty() override
     {
         return "Set";
     }
@@ -76,7 +76,7 @@ public:
     };
     SetIteratorObject(ExecutionState& state, SetObject* map, Type type);
 
-    virtual bool isSetIteratorObject() const
+    virtual bool isSetIteratorObject() const override
     {
         return true;
     }

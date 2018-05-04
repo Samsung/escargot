@@ -63,7 +63,7 @@ class ObjectStructure : public gc {
     friend class ArrayObject;
 
 public:
-    ObjectStructure(ExecutionState& state, bool needsTransitionTable = true)
+    ObjectStructure(ExecutionState&, bool needsTransitionTable = true)
     {
         m_needsTransitionTable = needsTransitionTable;
         m_isProtectedByTransitionTable = false;
@@ -71,7 +71,7 @@ public:
         m_isStructureWithFastAccess = false;
     }
 
-    ObjectStructure(ExecutionState& state, ObjectStructureItemVector&& properties, bool needsTransitionTable, bool hasIndexPropertyName)
+    ObjectStructure(ExecutionState&, ObjectStructureItemVector&& properties, bool needsTransitionTable, bool hasIndexPropertyName)
         : m_properties(std::move(properties))
     {
         m_needsTransitionTable = needsTransitionTable;
@@ -86,7 +86,7 @@ public:
         return findProperty(name);
     }
 
-    size_t findProperty(ExecutionState& state, const PropertyName& name)
+    size_t findProperty(ExecutionState&, const PropertyName& name)
     {
         return findProperty(name);
     }
@@ -111,7 +111,7 @@ public:
         return readProperty(state, findProperty(state, propertyName));
     }
 
-    const ObjectStructureItem& readProperty(ExecutionState& state, size_t idx)
+    const ObjectStructureItem& readProperty(ExecutionState&, size_t idx)
     {
         return m_properties[idx];
     }

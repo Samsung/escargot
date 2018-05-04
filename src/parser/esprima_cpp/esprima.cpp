@@ -1714,6 +1714,7 @@ public:
             }
             break;
         default:
+            kind = PunctuatorsKindEnd;
             break;
         }
 
@@ -4068,7 +4069,6 @@ public:
         RefPtr<IdentifierNode> id = this->parseIdentifierName();
         // assert(id.name === 'new', 'New expression must start with `new`');
 
-        Node* expr;
         if (this->match(Period)) {
             this->nextToken();
             if (this->lookahead->type == Token::IdentifierToken && this->context->inFunctionBody && this->lookahead->relatedSource() == "target") {
@@ -4080,19 +4080,19 @@ public:
             } else {
                 this->throwUnexpectedToken(this->lookahead);
             }
-        } else {
-            RefPtr<Node> callee = this->isolateCoverGrammar(&Parser::parseLeftHandSideExpression);
-            ArgumentVector args;
-            if (this->match(LeftParenthesis))
-                args = this->parseArguments();
-            if (args.size() > 65535) {
-                this->throwError("too many arguments in new");
-            }
-            expr = new NewExpressionNode(callee.get(), std::move(args));
-            this->context->isAssignmentTarget = false;
-            this->context->isBindingElement = false;
         }
 
+        Node* expr;
+        RefPtr<Node> callee = this->isolateCoverGrammar(&Parser::parseLeftHandSideExpression);
+        ArgumentVector args;
+        if (this->match(LeftParenthesis))
+            args = this->parseArguments();
+        if (args.size() > 65535) {
+            this->throwError("too many arguments in new");
+        }
+        expr = new NewExpressionNode(callee.get(), std::move(args));
+        this->context->isAssignmentTarget = false;
+        this->context->isBindingElement = false;
         return this->finalize(node, expr);
     }
 
