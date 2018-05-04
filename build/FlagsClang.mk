@@ -6,6 +6,7 @@ ESCARGOT_CXXFLAGS_COMMON += -std=c++0x -g3
 ESCARGOT_CXXFLAGS_COMMON += -fno-math-errno -I$(ESCARGOT_ROOT)/src/
 ESCARGOT_CXXFLAGS_COMMON += -fdata-sections -ffunction-sections
 # ESCARGOT_CXXFLAGS_COMMON += -frounding-math -fsignaling-nans
+ESCARGOT_CXXFLAGS_COMMON += -fno-fast-math -fno-unsafe-math-optimizations -fdenormal-fp-math=ieee
 ESCARGOT_CXXFLAGS_COMMON += -fno-omit-frame-pointer
 ESCARGOT_CXXFLAGS_COMMON += -fvisibility=hidden
 ESCARGOT_CXXFLAGS_COMMON += -stdlib=libc++

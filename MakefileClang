@@ -166,7 +166,7 @@ endif
 ifeq ($(MODE), debug)
   CXXFLAGS:=$(ESCARGOT_CXXFLAGS_DEBUG) $(CXXFLAGS)
 else ifeq ($(MODE), release)
-  CXXFLAGS:=$(CXXFLAGS) $(ESCARGOT_CXXFLAGS_RELEASE)
+  CXXFLAGS:=$(ESCARGOT_CXXFLAGS_RELEASE) $(CXXFLAGS)
 endif
 
 # OUTPUT flags
@@ -381,7 +381,7 @@ android.interpreter.release.static.standalone: $(OUTDIR)/$(STATIC_LIB)
 	cp -f $< .
 
 
-DEPENDENCY_MAKEFILE = Makefile $(BUILDDIR)/Toolchain.mk $(BUILDDIR)/Flags.mk
+DEPENDENCY_MAKEFILE = MakefileClang $(BUILDDIR)/ToolchainClang.mk $(BUILDDIR)/FlagsClang.mk
 
 $(OUTDIR)/$(BIN): $(OBJS) $(OBJS_GC) $(DEPENDENCY_MAKEFILE)
 	@echo "[LINK] $@"

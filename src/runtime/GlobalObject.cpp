@@ -448,7 +448,10 @@ static Value builtinIsFinite(ExecutionState& state, Value thisValue, size_t argc
 static Value builtinIsNaN(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     double num = argv[0].toNumber(state);
-    return Value(std::isnan(num));
+    if (std::isnan(num)) {
+        return Value(Value::True);
+    }
+    return Value(Value::False);
 }
 
 /* ES5 15.1.3 URI Handling Functions */
