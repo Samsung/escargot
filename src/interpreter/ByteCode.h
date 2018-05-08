@@ -161,7 +161,7 @@ struct ByteCodeLOC {
 
 class ByteCode : public gc {
 public:
-    MAKE_STACK_ALLOCATED();
+    virtual ~ByteCode(){}
     ByteCode(Opcode code, const ByteCodeLOC& loc)
 #if COMPILER(GCC)
         : m_opcodeInAddress((void*)code)
