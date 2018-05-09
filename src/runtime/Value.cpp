@@ -114,6 +114,7 @@ String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
     } else {
         return toPrimitive(ec, PreferString).toString(ec);
     }
+    return nullptr;
 }
 
 Object* Value::toObjectSlowCase(ExecutionState& state) const // $7.1.13 ToObject
@@ -549,6 +550,7 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
     } else {
         return toPrimitive(state).toNumber(state);
     }
+    return 0;
 }
 
 int32_t Value::toInt32SlowCase(ExecutionState& state) const // $7.1.5 ToInt32

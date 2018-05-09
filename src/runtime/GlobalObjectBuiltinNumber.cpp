@@ -150,6 +150,7 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
     char buf[512];
     std::basic_ostringstream<char> stream;
     std::basic_ostringstream<char> expStream;
+    int exp = 0;
     if (number < 0) { // 5
         stream << "-";
         number = -1 * number;
@@ -164,7 +165,6 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
     if (digit < 0 || digit > 20) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toExponential.string(), errorMessage_GlobalObject_RangeError);
     }
-    int exp = 0;
     if (number == 0) {
         exp = 0;
     } else if (std::abs(number) >= 10) {
