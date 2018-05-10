@@ -29,7 +29,7 @@
 
 namespace Escargot {
 
-enum TypedArrayType {
+enum TypedArrayType : unsigned {
     Int8,
     Int16,
     Int32,

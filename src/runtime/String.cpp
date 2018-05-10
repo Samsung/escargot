@@ -379,7 +379,7 @@ UTF8StringDataNonGCStd UTF16String::toNonGCUTF8StringData() const
     return utf16StringToUTF8NonGCString(UTF16String::characters16(), UTF16String::length());
 }
 
-enum Flags {
+enum Flags : unsigned {
     NO_FLAGS = 0,
     EMIT_POSITIVE_EXPONENT_SIGN = 1,
     EMIT_TRAILING_DECIMAL_POINT = 2,

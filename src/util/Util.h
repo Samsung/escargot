@@ -15,6 +15,14 @@ template <const int siz>
 {
     volatile char a[siz] = { 0 };
 }
+#elif COMPILER(MSVC)
+#pragma optimize("", off)
+template <const int siz>
+inline void clearStack()
+{
+    volatile char a[siz] = { 0 };
+}
+#pragma optimize("", on)
 #else
 #error
 #endif
@@ -184,7 +192,7 @@ bool mergeSort(T *array, size_t nelems, T *scratch, Comparator c)
         detail::CopyNonEmptyArray(array, scratch, nelems);
     return true;
 }
-}
+} // namespace Escargot
 
 
 #endif

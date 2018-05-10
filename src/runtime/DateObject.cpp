@@ -83,27 +83,27 @@ namespace Escargot {
     }
 
 #define LEAP ((int16_t)1)
-enum { JAN,
-       FEB,
-       MAR,
-       APR,
-       MAY,
-       JUN,
-       JUL,
-       AUG,
-       SEP,
-       OCT,
-       NOV,
-       DEC,
-       INVALID };
+enum : unsigned { JAN,
+                  FEB,
+                  MAR,
+                  APR,
+                  MAY,
+                  JUN,
+                  JUL,
+                  AUG,
+                  SEP,
+                  OCT,
+                  NOV,
+                  DEC,
+                  INVALID };
 
-enum { SUN,
-       MON,
-       TUE,
-       WED,
-       THU,
-       FRI,
-       SAT };
+enum : unsigned { SUN,
+                  MON,
+                  TUE,
+                  WED,
+                  THU,
+                  FRI,
+                  SAT };
 
 static constexpr int8_t daysInMonth[12] = {
     31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
@@ -116,17 +116,33 @@ static constexpr int16_t _firstDay(int mon)
 
 static constexpr int16_t firstDayOfMonth[2][13] = {
     {
-        _firstDay(JAN), _firstDay(FEB), _firstDay(MAR),
-        _firstDay(APR), _firstDay(MAY), _firstDay(JUN),
-        _firstDay(JUL), _firstDay(AUG), _firstDay(SEP),
-        _firstDay(OCT), _firstDay(NOV), _firstDay(DEC),
+        _firstDay(JAN),
+        _firstDay(FEB),
+        _firstDay(MAR),
+        _firstDay(APR),
+        _firstDay(MAY),
+        _firstDay(JUN),
+        _firstDay(JUL),
+        _firstDay(AUG),
+        _firstDay(SEP),
+        _firstDay(OCT),
+        _firstDay(NOV),
+        _firstDay(DEC),
         _firstDay(INVALID),
     },
     {
-        _firstDay(JAN), _firstDay(FEB), _firstDay(MAR) + LEAP,
-        _firstDay(APR) + LEAP, _firstDay(MAY) + LEAP, _firstDay(JUN) + LEAP,
-        _firstDay(JUL) + LEAP, _firstDay(AUG) + LEAP, _firstDay(SEP) + LEAP,
-        _firstDay(OCT) + LEAP, _firstDay(NOV) + LEAP, _firstDay(DEC) + LEAP,
+        _firstDay(JAN),
+        _firstDay(FEB),
+        _firstDay(MAR) + LEAP,
+        _firstDay(APR) + LEAP,
+        _firstDay(MAY) + LEAP,
+        _firstDay(JUN) + LEAP,
+        _firstDay(JUL) + LEAP,
+        _firstDay(AUG) + LEAP,
+        _firstDay(SEP) + LEAP,
+        _firstDay(OCT) + LEAP,
+        _firstDay(NOV) + LEAP,
+        _firstDay(DEC) + LEAP,
         _firstDay(INVALID) + LEAP,
     },
 };
@@ -149,6 +165,23 @@ void DateObject::initCachedUTC(ExecutionState& state, DateObject* d)
     state.context()->vmInstance()->setCachedUTC(d);
 }
 
+#if OS(WINDOWS)
+#define CLOCK_REALTIME 0
+#include <windows.h>
+struct timespec {
+    long tv_sec;
+    long tv_nsec;
+}; //header part
+static int clock_gettime(int, struct timespec* spec) //C-file part
+{
+    __int64 wintime;
+    GetSystemTimeAsFileTime((FILETIME*)&wintime);
+    wintime -= 116444736000000000i64; //1jan1601 to 1jan1970
+    spec->tv_sec = wintime / 10000000i64; //seconds
+    spec->tv_nsec = wintime % 10000000i64 * 100; //nano-seconds
+    return 0;
+}
+#endif
 
 time64_t DateObject::currentTime()
 {
@@ -832,7 +865,7 @@ time64_t DateObject::parseStringToDate_2(ExecutionState& state, String* istr, bo
     }
     // Check that we have parsed all characters in the string.
     while (*currentPosition) {
-        if (std::isspace(*currentPosition)) {
+        if (isspace(*currentPosition)) {
             currentPosition++;
         } else {
             break;

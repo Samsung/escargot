@@ -487,7 +487,7 @@ StringView keywordToString(KeywordKind keyword)
 class ScannerResult : public RefCounted<ScannerResult> {
 public:
     Scanner* scanner;
-    Token type : 4;
+    unsigned char type : 4;
     bool startWithZero : 1;
     bool octal : 1;
     bool plain : 1;

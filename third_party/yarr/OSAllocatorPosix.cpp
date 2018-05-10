@@ -23,6 +23,7 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #ifndef ESCARGOT
 #include "config.h"
 #include "OSAllocator.h"
@@ -37,6 +38,8 @@
 #include "OSAllocator.h"
 #include "PageAllocation.h"
 #endif
+
+#if OS(POSIX)
 
 namespace WTF {
 
@@ -191,3 +194,5 @@ void OSAllocator::releaseDecommitted(void* address, size_t bytes)
 }
 
 } // namespace WTF
+
+#endif

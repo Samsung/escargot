@@ -28,8 +28,6 @@
 
 #include <GCUtil.h>
 
-#pragma GCC visibility push(default)
-
 namespace Escargot {
 
 class VMInstanceRef;
@@ -66,14 +64,14 @@ class ExecutionStateRef;
 class ValueVectorRef;
 class JobRef;
 
-class Globals {
+class EXPORT Globals {
 public:
     static void initialize(bool applyMallOpt = false, bool applyGcOpt = false);
     static void finalize();
 };
 
 // `double` value is not presented in PointerValue, but it is stored in heap
-class PointerValueRef {
+class EXPORT PointerValueRef {
 public:
     bool isString();
     StringRef* asString();
@@ -131,7 +129,7 @@ public:
 #endif
 };
 
-class StringRef : public PointerValueRef {
+class EXPORT StringRef : public PointerValueRef {
 public:
     static StringRef* fromASCII(const char* s);
     static StringRef* fromASCII(const char* s, size_t len);
@@ -146,13 +144,13 @@ public:
     std::string toStdUTF8String();
 };
 
-class SymbolRef : public PointerValueRef {
+class EXPORT SymbolRef : public PointerValueRef {
 public:
     static SymbolRef* create(StringRef* desc);
     StringRef* description();
 };
 
-class VMInstanceRef {
+class EXPORT VMInstanceRef {
 public:
     static VMInstanceRef* create(const char* locale = nullptr, const char* timezone = nullptr);
     void destroy();
@@ -174,7 +172,7 @@ public:
 #endif
 };
 
-class ContextRef {
+class EXPORT ContextRef {
 public:
     static ContextRef* create(VMInstanceRef* vmInstance);
     void clearRelatedQueuedPromiseJobs();
@@ -193,7 +191,7 @@ public:
     VirtualIdentifierCallback virtualIdentifierCallback();
 };
 
-class AtomicStringRef {
+class EXPORT AtomicStringRef {
 public:
     static AtomicStringRef* create(ContextRef* c, const char* src); // from ASCII string
     static AtomicStringRef* create(ContextRef* c, StringRef* src);
@@ -201,7 +199,7 @@ public:
     StringRef* string();
 };
 
-class ExecutionStateRef {
+class EXPORT ExecutionStateRef {
 public:
     // this can not create sandbox
     // use this function only non-exececption area
@@ -218,7 +216,7 @@ public:
 
 // double, PointerValueRef are stored in heap
 // client should root heap values
-class ValueRef {
+class EXPORT ValueRef {
 public:
     union PublicValueDescriptor {
         int64_t asInt64;
@@ -305,7 +303,7 @@ public:
     void resize(size_t newSize);
 };
 
-struct ExposableObjectGetOwnPropertyCallbackResult {
+struct EXPORT ExposableObjectGetOwnPropertyCallbackResult {
     ExposableObjectGetOwnPropertyCallbackResult()
     {
         m_value = ValueRef::createEmpty();
@@ -326,7 +324,7 @@ struct ExposableObjectGetOwnPropertyCallbackResult {
     bool m_isConfigurable;
 };
 
-struct ExposableObjectEnumerationCallbackResult {
+struct EXPORT ExposableObjectEnumerationCallbackResult {
     ExposableObjectEnumerationCallbackResult(ValueRef* name, bool isWritable, bool isEnumerable, bool isConfigurable)
     {
         m_name = name;
@@ -348,7 +346,7 @@ typedef std::vector<ExposableObjectEnumerationCallbackResult, GCUtil::gc_malloc_
 typedef ExposableObjectEnumerationCallbackResultVector (*ExposableObjectEnumerationCallback)(ExecutionStateRef* state, ObjectRef* self);
 typedef bool (*ExposableObjectDeleteOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* propertyName);
 
-class ObjectRef : public PointerValueRef {
+class EXPORT ObjectRef : public PointerValueRef {
 public:
     static ObjectRef* create(ExecutionStateRef* state);
     // can not redefine or delete virtual property
@@ -457,7 +455,7 @@ public:
     void removeFromHiddenClassChain(ExecutionStateRef* state);
 };
 
-class GlobalObjectRef : public ObjectRef {
+class EXPORT GlobalObjectRef : public ObjectRef {
 public:
     FunctionObjectRef* object();
     ObjectRef* objectPrototype();
@@ -526,7 +524,7 @@ public:
 #endif
 };
 
-class FunctionObjectRef : public ObjectRef {
+class EXPORT FunctionObjectRef : public ObjectRef {
 public:
     typedef ValueRef* (*NativeFunctionPointer)(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isNewExpression);
     typedef ObjectRef* (*NativeFunctionConstructor)(ExecutionStateRef* state, size_t argc, ValueRef** argv);
@@ -566,12 +564,12 @@ public:
     void markFunctionNeedsSlowVirtualIdentifierOperation();
 };
 
-class ArrayObjectRef : public ObjectRef {
+class EXPORT ArrayObjectRef : public ObjectRef {
 public:
     static ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class ErrorObjectRef : public ObjectRef {
+class EXPORT ErrorObjectRef : public ObjectRef {
 public:
     enum Code {
         None,
@@ -587,37 +585,37 @@ public:
 protected:
 };
 
-class ReferenceErrorObjectRef : public ErrorObjectRef {
+class EXPORT ReferenceErrorObjectRef : public ErrorObjectRef {
 public:
     static ReferenceErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
 };
 
-class TypeErrorObjectRef : public ErrorObjectRef {
+class EXPORT TypeErrorObjectRef : public ErrorObjectRef {
 public:
     static TypeErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
 };
 
-class SyntaxErrorObjectRef : public ErrorObjectRef {
+class EXPORT SyntaxErrorObjectRef : public ErrorObjectRef {
 public:
     static SyntaxErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
 };
 
-class RangeErrorObjectRef : public ErrorObjectRef {
+class EXPORT RangeErrorObjectRef : public ErrorObjectRef {
 public:
     static RangeErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
 };
 
-class URIErrorObjectRef : public ErrorObjectRef {
+class EXPORT URIErrorObjectRef : public ErrorObjectRef {
 public:
     static URIErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
 };
 
-class EvalErrorObjectRef : public ErrorObjectRef {
+class EXPORT EvalErrorObjectRef : public ErrorObjectRef {
 public:
     static EvalErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
 };
 
-class DateObjectRef : public ObjectRef {
+class EXPORT DateObjectRef : public ObjectRef {
 public:
     static DateObjectRef* create(ExecutionStateRef* state);
     void setTimeValue(ExecutionStateRef* state, ValueRef* str);
@@ -626,7 +624,7 @@ public:
     double primitiveValue();
 };
 
-class StringObjectRef : public ObjectRef {
+class EXPORT StringObjectRef : public ObjectRef {
 public:
     static StringObjectRef* create(ExecutionStateRef* state);
 
@@ -634,7 +632,7 @@ public:
     StringRef* primitiveValue();
 };
 
-class SymbolObjectRef : public ObjectRef {
+class EXPORT SymbolObjectRef : public ObjectRef {
 public:
     static SymbolObjectRef* create(ExecutionStateRef* state);
 
@@ -642,7 +640,7 @@ public:
     SymbolRef* primitiveValue();
 };
 
-class NumberObjectRef : public ObjectRef {
+class EXPORT NumberObjectRef : public ObjectRef {
 public:
     static NumberObjectRef* create(ExecutionStateRef* state);
 
@@ -650,7 +648,7 @@ public:
     double primitiveValue();
 };
 
-class BooleanObjectRef : public ObjectRef {
+class EXPORT BooleanObjectRef : public ObjectRef {
 public:
     static BooleanObjectRef* create(ExecutionStateRef* state);
 
@@ -658,7 +656,7 @@ public:
     bool primitiveValue();
 };
 
-class RegExpObjectRef : public ObjectRef {
+class EXPORT RegExpObjectRef : public ObjectRef {
 public:
     enum RegExpObjectOption {
         None = 1,
@@ -676,7 +674,7 @@ public:
 };
 
 #ifdef ESCARGOT_ENABLE_TYPEDARRAY
-class ArrayBufferObjectRef : public ObjectRef {
+class EXPORT ArrayBufferObjectRef : public ObjectRef {
 public:
     typedef void* (*ArrayBufferObjectBufferMallocFunction)(size_t siz);
     typedef void (*ArrayBufferObjectBufferFreeFunction)(void* buffer);
@@ -693,54 +691,54 @@ public:
     unsigned bytelength();
 };
 
-class ArrayBufferViewRef : public ObjectRef {
+class EXPORT ArrayBufferViewRef : public ObjectRef {
 public:
     ArrayBufferObjectRef* buffer();
     uint8_t* rawBuffer();
     unsigned bytelength();
 };
 
-class Int8ArrayObjectRef : public ArrayBufferViewRef {
+class EXPORT Int8ArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Int8ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class Uint8ArrayObjectRef : public ArrayBufferViewRef {
+class EXPORT Uint8ArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Uint8ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class Int16ArrayObjectRef : public ArrayBufferViewRef {
+class EXPORT Int16ArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Int16ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class Uint16ArrayObjectRef : public ArrayBufferViewRef {
+class EXPORT Uint16ArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Uint16ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class Uint32ArrayObjectRef : public ArrayBufferViewRef {
+class EXPORT Uint32ArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Uint32ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class Int32ArrayObjectRef : public ArrayBufferViewRef {
+class EXPORT Int32ArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Int32ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class Uint8ClampedArrayObjectRef : public ArrayBufferViewRef {
+class EXPORT Uint8ClampedArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Uint8ClampedArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class Float32ArrayObjectRef : public ArrayBufferViewRef {
+class EXPORT Float32ArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Float32ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class Float64ArrayObjectRef : public ArrayBufferViewRef {
+class EXPORT Float64ArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Float64ArrayObjectRef* create(ExecutionStateRef* state);
 };
@@ -748,7 +746,7 @@ public:
 #endif
 
 #ifdef ESCARGOT_ENABLE_PROMISE
-class PromiseObjectRef : public ObjectRef {
+class EXPORT PromiseObjectRef : public ObjectRef {
 public:
     static PromiseObjectRef* create(ExecutionStateRef* state);
     void fulfill(ExecutionStateRef* state, ValueRef* value);
@@ -756,7 +754,7 @@ public:
 };
 #endif
 
-class SandBoxRef {
+class EXPORT SandBoxRef {
 public:
     static SandBoxRef* create(ContextRef* ctxRef);
     void destroy();
@@ -791,12 +789,12 @@ public:
     SandBoxResult run(const std::function<ValueRef*(ExecutionStateRef* state)>& scriptRunner); // for capsule script executing with try-catch
 };
 
-class JobRef {
+class EXPORT JobRef {
 public:
     SandBoxRef::SandBoxResult run();
 };
 
-class ScriptParserRef {
+class EXPORT ScriptParserRef {
 public:
     struct ScriptParserResult {
         ScriptParserResult(ScriptRef* script, StringRef* error)
@@ -812,13 +810,11 @@ public:
     ScriptParserResult parse(StringRef* script, StringRef* fileName);
 };
 
-class ScriptRef {
+class EXPORT ScriptRef {
 public:
     ValueRef* execute(ExecutionStateRef* state);
 };
 
 } // namespace Escargot
-
-#pragma GCC visibility pop
 
 #endif

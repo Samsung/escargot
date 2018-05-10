@@ -106,11 +106,12 @@ void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, String* ob
 
     size_t len1 = strlen(templateString);
     size_t len2 = replacer->length();
-    char16_t buf[len1 + 1];
+    std::basic_string<char16_t> buf;
+    buf.resize(len1);
     for (size_t i = 0; i < len1; i++) {
         buf[i] = templateString[i];
     }
-    UTF16StringDataNonGCStd str(buf, len1);
+    UTF16StringDataNonGCStd str(buf.data(), len1);
     size_t idx;
     if ((idx = str.find(u"%s")) != SIZE_MAX) {
         str.replace(str.begin() + idx, str.begin() + idx + 2, replacer->toUTF16StringData().data());
@@ -195,4 +196,4 @@ EvalErrorObject::EvalErrorObject(ExecutionState& state, String* errorMessage)
 {
     setPrototype(state, state.context()->globalObject()->evalErrorPrototype());
 }
-}
+} // namespace Escargot

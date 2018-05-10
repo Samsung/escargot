@@ -117,7 +117,11 @@ enum Opcode {
     // special opcode only used in interpreter
     GetObjectOpcodeSlowCaseOpcode,
     SetObjectOpcodeSlowCaseOpcode,
+#if COMPILER(MSVC)
+};
+#else
 } __attribute__((packed));
+#endif
 
 struct OpcodeTable {
     void* m_table[OpcodeKindEnd];
@@ -161,7 +165,7 @@ struct ByteCodeLOC {
 
 class ByteCode : public gc {
 public:
-    virtual ~ByteCode(){}
+    virtual ~ByteCode() {}
     ByteCode(Opcode code, const ByteCodeLOC& loc)
 #if COMPILER(GCC)
         : m_opcodeInAddress((void*)code)
@@ -1580,8 +1584,7 @@ public:
             m_objectStructuresInUse = nullptr;
         }
 
-        GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
-                                                void*) {
+        GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
             ByteCodeBlock* self = (ByteCodeBlock*)obj;
             for (size_t i = 0; i < self->m_getObjectCodePositions.size(); i++) {
                 GetObjectInlineCacheDataVector().swap(((GetObjectPreComputedCase*)((size_t)self->m_code.data() + self->m_getObjectCodePositions[i]))->m_inlineCache.m_cache);
@@ -1669,6 +1672,6 @@ public:
 
     void* operator new(size_t size);
 };
-}
+} // namespace Escargot
 
 #endif

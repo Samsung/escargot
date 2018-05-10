@@ -37,9 +37,6 @@ void* CodeBlock::operator new(size_t size)
         GC_word obj_bitmap[GC_BITMAP_SIZE(CodeBlock)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_context));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_byteCodeBlock));
-#ifndef NDEBUG
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CodeBlock, m_scopeContext));
-#endif
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(CodeBlock));
         typeInited = true;
     }

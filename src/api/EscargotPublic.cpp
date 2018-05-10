@@ -17,9 +17,8 @@
  *  USA
  */
 
-#include <cstdlib> // size_t
-
 #include "Escargot.h"
+#include <cstdlib> // size_t
 #include "GCUtil.h"
 #include "util/Vector.h"
 #include "EscargotPublic.h"
@@ -1578,7 +1577,6 @@ ValueRef::ValueIndex ValueRef::toIndex(ExecutionStateRef* state)
 
 uint32_t ValueRef::toArrayIndex(ExecutionStateRef* state)
 {
-    uint32_t idx;
     SmallValue s = SmallValue::fromPayload(this);
     if (LIKELY(s.isInt32()))
         return s.asInt32();

@@ -32,7 +32,7 @@ class JobQueue : public gc {
 protected:
     JobQueue() {}
 public:
-    virtual ~JobQueue(){}
+    virtual ~JobQueue() {}
     static JobQueue* create();
     virtual size_t enqueueJob(ExecutionState& state, Job* job) = 0;
 };

@@ -26,7 +26,7 @@ template <typename T, typename Allocator>
 class BasicString : public gc {
     void makeEmpty()
     {
-        static T e[0];
+        static T e[1];
         m_buffer = e;
         m_size = 0;
     }

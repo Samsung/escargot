@@ -64,7 +64,7 @@ class WeakSetObject;
 
 class PointerValue : public gc {
 public:
-    virtual ~PointerValue(){}
+    virtual ~PointerValue() {}
     virtual bool isString() const
     {
         return false;

@@ -256,7 +256,7 @@ public:
 
     explicit ObjectPropertyDescriptor(ExecutionState& state, Object* obj);
 
-    ~ObjectPropertyDescriptor() { }
+    ~ObjectPropertyDescriptor() {}
     ObjectPropertyDescriptor(const ObjectPropertyDescriptor& desc)
     {
         m_property = desc.m_property;

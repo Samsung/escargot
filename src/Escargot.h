@@ -20,78 +20,8 @@
 #ifndef __Escargot__
 #define __Escargot__
 
-#include <algorithm>
-#include <cassert>
-#include <climits>
-#include <clocale>
-#include <cmath>
-#include <csetjmp>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <cwchar>
-#include <functional>
-#include <limits>
-#include <list>
-#include <locale>
-#include <map>
-#include <memory>
-#include <set>
-#include <sstream>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
-
-#ifdef ENABLE_ICU
-#include <unicode/locid.h>
-#include <unicode/uchar.h>
-#include <unicode/datefmt.h>
-#include <unicode/ucol.h> // for Intl
-#include <unicode/urename.h> // for Intl
-#include <unicode/unumsys.h> // for Intl
-#include <unicode/udat.h> // for Intl
-#include <unicode/udatpg.h> // for Intl
-#include <unicode/unum.h> // for Intl
-#else
-typedef char16_t UChar;
-typedef unsigned char LChar;
-typedef int32_t UChar32;
-
-// macros from icu
-#define U16_IS_LEAD(c) (((c)&0xfffffc00) == 0xd800)
-#define U16_IS_TRAIL(c) (((c)&0xfffffc00) == 0xdc00)
-#define U16_SURROGATE_OFFSET ((0xd800 << 10UL) + 0xdc00 - 0x10000)
-#define U16_GET_SUPPLEMENTARY(lead, trail) \
-    (((UChar32)(lead) << 10UL) + (UChar32)(trail)-U16_SURROGATE_OFFSET)
-
-#define U16_NEXT(s, i, length, c)                                   \
-    {                                                               \
-        (c) = (s)[(i)++];                                           \
-        if (U16_IS_LEAD(c)) {                                       \
-            uint16_t __c2;                                          \
-            if ((i) != (length) && U16_IS_TRAIL(__c2 = (s)[(i)])) { \
-                ++(i);                                              \
-                (c) = U16_GET_SUPPLEMENTARY((c), __c2);             \
-            }                                                       \
-        }                                                           \
-    }
-#define u_tolower tolower
-#define u_toupper toupper
-#ifndef TRUE
-#define TRUE 1
-#endif
-
-#ifndef FALSE
-#define FALSE 0
-#endif
-
-#endif
-
-
 /* COMPILER() - the compiler being used to build the project */
 #define COMPILER(FEATURE) (defined COMPILER_##FEATURE && COMPILER_##FEATURE)
-
 
 #if defined(__clang__)
 #define COMPILER_CLANG 1
@@ -162,6 +92,121 @@ typedef int32_t UChar32;
 #endif
 #endif
 
+/* EXPORT */
+#ifndef EXPORT
+#if COMPILER(MSVC)
+#define EXPORT __declspec(dllexport)
+#else
+#define EXPORT __attribute__((visibility("default")))
+#endif
+#endif
+
+#if COMPILER(MSVC)
+#define strncasecmp _strnicmp
+#define strcasecmp _stricmp
+#define tzname _tzname
+#define _ITERATOR_DEBUG_LEVEL 0
+#endif
+
+#define OS(NAME) (defined OS_##NAME && OS_##NAME)
+
+#ifdef _WIN32
+#define OS_WINDOWS 1
+#elif _WIN64
+#define OS_WINODWS 1
+#elif __APPLE__
+#include "TargetConditionals.h"
+#if TARGET_IPHONE_SIMULATOR
+#define OS_POSIX 1
+#elif TARGET_OS_IPHONE
+#define OS_POSIX 1
+#elif TARGET_OS_MAC
+#define OS_POSIX 1
+#else
+#error "Unknown Apple platform"
+#endif
+#elif __linux__
+#define OS_POSIX 1
+#elif __unix__ // all unices not caught above
+#define OS_POSIX 1
+#elif defined(_POSIX_VERSION)
+#define OS_POSIX 1
+#else
+#error "failed to detect target OS"
+#endif
+
+#if OS(WINDOWS)
+#define NOMINMAX
+#endif
+
+#include <algorithm>
+#include <cassert>
+#include <climits>
+#include <clocale>
+#include <cmath>
+#include <csetjmp>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cwchar>
+#include <functional>
+#include <limits>
+#include <list>
+#include <locale>
+#include <map>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+#ifdef ENABLE_ICU
+#include <unicode/locid.h>
+#include <unicode/uchar.h>
+#include <unicode/datefmt.h>
+#include <unicode/ucol.h> // for Intl
+#include <unicode/urename.h> // for Intl
+#include <unicode/unumsys.h> // for Intl
+#include <unicode/udat.h> // for Intl
+#include <unicode/udatpg.h> // for Intl
+#include <unicode/unum.h> // for Intl
+#else
+typedef char16_t UChar;
+typedef unsigned char LChar;
+typedef int32_t UChar32;
+
+// macros from icu
+#define U16_IS_LEAD(c) (((c)&0xfffffc00) == 0xd800)
+#define U16_IS_TRAIL(c) (((c)&0xfffffc00) == 0xdc00)
+#define U16_SURROGATE_OFFSET ((0xd800 << 10UL) + 0xdc00 - 0x10000)
+#define U16_GET_SUPPLEMENTARY(lead, trail) \
+    (((UChar32)(lead) << 10UL) + (UChar32)(trail)-U16_SURROGATE_OFFSET)
+
+#define U16_NEXT(s, i, length, c)                                   \
+    {                                                               \
+        (c) = (s)[(i)++];                                           \
+        if (U16_IS_LEAD(c)) {                                       \
+            uint16_t __c2;                                          \
+            if ((i) != (length) && U16_IS_TRAIL(__c2 = (s)[(i)])) { \
+                ++(i);                                              \
+                (c) = U16_GET_SUPPLEMENTARY((c), __c2);             \
+            }                                                       \
+        }                                                           \
+    }
+#define u_tolower tolower
+#define u_toupper toupper
+#ifndef TRUE
+#define TRUE 1
+#endif
+
+#ifndef FALSE
+#define FALSE 0
+#endif
+
+#endif
+
 #define ESCARGOT_LOG_INFO(...) fprintf(stdout, __VA_ARGS__);
 #define ESCARGOT_LOG_ERROR(...) fprintf(stderr, __VA_ARGS__);
 
@@ -228,7 +273,7 @@ typedef int32_t UChar32;
 #define UNUSED_PARAMETER(variable) (void)&variable
 #endif
 
-#if !defined(UNUSED_PARAM)
+#if !defined(UNUSED_PARAMETER)
 #define UNUSED_PARAMETER(variable) (void)variable
 #endif
 
@@ -260,7 +305,7 @@ typedef uint16_t ByteCodeRegisterIndex;
 #define KEEP_NUMERAL_LITERDATA_IN_REGISTERFILE_LIMIT 16
 #endif
 
-#ifndef STACK_GROWS_DOWN
+#if !defined(STACK_GROWS_DOWN) && !defined(STACK_GROWS_UP)
 #define STACK_GROWS_DOWN
 #endif
 

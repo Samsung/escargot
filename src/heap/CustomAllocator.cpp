@@ -25,25 +25,24 @@
 #include "runtime/ArrayObject.h"
 #include "parser/CodeBlock.h"
 
-
 namespace Escargot {
 
 static int s_gcKinds[HeapObjectKind::NumberOfKind];
 
 template <GC_get_next_pointer_proc proc>
-static struct GC_ms_entry* markAndPushCustomIterable(GC_word* addr,
-                                                     struct GC_ms_entry* mark_stack_ptr,
-                                                     struct GC_ms_entry* mark_stack_limit,
-                                                     GC_word env)
+GC_ms_entry* markAndPushCustomIterable(GC_word* addr,
+                                       struct GC_ms_entry* mark_stack_ptr,
+                                       struct GC_ms_entry* mark_stack_limit,
+                                       GC_word env)
 {
     return GC_mark_and_push_custom_iterable(addr, mark_stack_ptr, mark_stack_limit, proc);
 }
 
 template <GC_get_sub_pointer_proc proc, const int number_of_sub_pointer>
-static struct GC_ms_entry* markAndPushCustom(GC_word* addr,
-                                             struct GC_ms_entry* mark_stack_ptr,
-                                             struct GC_ms_entry* mark_stack_limit,
-                                             GC_word env)
+GC_ms_entry* markAndPushCustom(GC_word* addr,
+                               struct GC_ms_entry* mark_stack_ptr,
+                               struct GC_ms_entry* mark_stack_limit,
+                               GC_word env)
 {
     GC_mark_custom_result subPtrs[number_of_sub_pointer];
     return GC_mark_and_push_custom(addr, mark_stack_ptr, mark_stack_limit, proc, subPtrs, number_of_sub_pointer);
@@ -245,4 +244,4 @@ InterpretedCodeBlock* CustomAllocator<InterpretedCodeBlock>::allocate(size_type 
     int kind = s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind];
     return (InterpretedCodeBlock*)GC_GENERIC_MALLOC(sizeof(InterpretedCodeBlock), kind);
 }
-}
+} // namespace Escargot

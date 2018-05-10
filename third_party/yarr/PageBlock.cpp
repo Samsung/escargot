@@ -30,7 +30,7 @@
 #endif
 #include "PageBlock.h"
 
-#if OS(UNIX)
+#if OS(POSIX)
 #include <unistd.h>
 #endif
 
@@ -44,7 +44,7 @@ namespace WTF {
 static size_t s_pageSize;
 static size_t s_pageMask;
 
-#if OS(UNIX)
+#if OS(POSIX)
 
 inline size_t systemPageSize()
 {

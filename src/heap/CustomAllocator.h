@@ -47,7 +47,7 @@ namespace Escargot {
 
 class ExecutionState;
 
-enum HeapObjectKind {
+enum HeapObjectKind : unsigned {
     ValueVectorKind = 0,
     ArrayObjectKind,
     CodeBlockKind,

@@ -289,7 +289,7 @@ FOR_EACH_DATE_VALUES(DECLARE_STATIC_DATE_GETTER);
 DECLARE_STATIC_DATE_GETTER(Day, -, -, -);
 DECLARE_STATIC_DATE_GETTER(UTCDay, -, -, -);
 
-enum DateSetterType {
+enum DateSetterType : unsigned {
     Time,
     Day
 };

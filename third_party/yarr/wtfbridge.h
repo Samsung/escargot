@@ -1051,16 +1051,21 @@ const size_t notFound = static_cast<size_t>(-1);
 #define PLATFORM(WTF_FEATURE) (defined WTF_PLATFORM_##WTF_FEATURE  && WTF_PLATFORM_##WTF_FEATURE)
 #define CPU(WTF_FEATURE) (defined WTF_CPU_##WTF_FEATURE  && WTF_CPU_##WTF_FEATURE)
 #define HAVE(WTF_FEATURE) (defined HAVE_##WTF_FEATURE  && HAVE_##WTF_FEATURE)
-#define OS(WTF_FEATURE) (defined WTF_OS_##WTF_FEATURE  && WTF_OS_##WTF_FEATURE)
+#define OS(NAME) (defined OS_##NAME && OS_##NAME)
 #define USE(WTF_FEATURE) (defined WTF_USE_##WTF_FEATURE  && WTF_USE_##WTF_FEATURE)
 #define ENABLE(WTF_FEATURE) (defined ENABLE_##WTF_FEATURE  && ENABLE_##WTF_FEATURE)
 
 #if ESCARGOT_64
 #define WTF_CPU_X86_64 1
 #endif
+
+#if OS(WINDOWS)
+#define WTF_OS_WINDOWS 1
+#else
 #define WTF_OS_LINUX 1
 #define WTF_OS_UNIX 1
 #define HAVE_ERRNO_H 1
 #define HAVE_MMAP 1
+#endif
 
 #endif /* yarr_wtfbridge_h */

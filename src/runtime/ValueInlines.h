@@ -96,7 +96,11 @@ inline Value::Value(bool b)
 inline Value::Value(FromPayloadTag, intptr_t ptr)
 {
     u.asBits.tag = OtherPointerTag;
+#if COMPILER(MSVC)
+    u.asBits.payload = (int32_t)(ptr);
+#else
     u.asBits.payload = reinterpret_cast<int32_t>(ptr);
+#endif
 }
 
 extern size_t g_objectTag;
@@ -834,6 +838,6 @@ inline double Value::toLength(ExecutionState& state) const
     }
     return std::min(len, std::pow(2, 32) - 1);
 }
-}
+} // namespace Escargot
 
 #endif

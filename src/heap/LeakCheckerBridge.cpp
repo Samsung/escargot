@@ -24,10 +24,10 @@
 #include "CustomAllocator.h"
 #include "runtime/ErrorObject.h"
 
+#ifdef PROFILE_BDWGC
+
 #include <sys/time.h>
 #include <sys/resource.h>
-
-#ifdef PROFILE_BDWGC
 
 namespace Escargot {
 

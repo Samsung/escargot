@@ -45,7 +45,7 @@ protected:
     }
 
 public:
-    virtual ~Job(){}
+    virtual ~Job() {}
     static Job* create()
     {
         RELEASE_ASSERT_NOT_REACHED();

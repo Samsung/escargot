@@ -107,8 +107,9 @@ protected:
         size_t m_contentLength : 63;
 #endif
     };
-
+#if !COMPILER(MSVC)
     static_assert(STRING_MAXIMUM_LENGTH < (std::numeric_limits<size_t>::max() / 2), "");
+#endif
 };
 }
 
