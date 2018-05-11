@@ -20,6 +20,14 @@
 #ifndef __ESCARGOT_PUBLIC__
 #define __ESCARGOT_PUBLIC__
 
+#ifndef EXPORT
+#if defined(_MSC_VER)
+#define EXPORT __declspec(dllexport)
+#else
+#define EXPORT __attribute__((visibility("default")))
+#endif
+#endif
+
 #include <string>
 #include <cstdlib>
 #include <vector>

@@ -492,6 +492,7 @@ public:
     bool octal : 1;
     bool plain : 1;
     bool hasComplexString : 1;
+    bool hasKeywordButUseString : 1;
     char prec : 8; // max prec is 11
     // we don't needs init prec.
     // prec is initialized by another function before use
@@ -513,7 +514,7 @@ public:
     StringView relatedSource();
     StringView valueStringLiteral()
     {
-        if (this->type == Token::KeywordToken) {
+        if (this->type == Token::KeywordToken && !this->hasKeywordButUseString) {
             return keywordToString(this->valueKeywordKind);
         }
         ASSERT(valueStringLiteralData.getTagInFirstDataArea() == POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA);
@@ -541,6 +542,7 @@ public:
         this->scanner = scanner;
         this->type = type;
         this->startWithZero = this->octal = false;
+        this->hasKeywordButUseString = true;
         this->plain = false;
         this->hasComplexString = false;
         this->lineNumber = lineNumber;
@@ -555,6 +557,7 @@ public:
         this->scanner = scanner;
         this->type = type;
         this->startWithZero = this->octal = false;
+        this->hasKeywordButUseString = true;
         this->plain = false;
         this->hasComplexString = hasComplexString;
         this->lineNumber = lineNumber;
@@ -569,6 +572,7 @@ public:
         this->scanner = scanner;
         this->type = type;
         this->startWithZero = this->octal = false;
+        this->hasKeywordButUseString = true;
         this->plain = false;
         this->hasComplexString = false;
         this->valueNumber = value;
@@ -584,6 +588,7 @@ public:
         this->scanner = scanner;
         this->type = type;
         this->startWithZero = this->octal = false;
+        this->hasKeywordButUseString = true;
         this->plain = false;
         this->hasComplexString = false;
         this->lineNumber = lineNumber;
@@ -1448,6 +1453,7 @@ public:
         } else if ((keywordKind = this->isKeyword(data))) {
             RefPtr<ScannerResult> r = adoptRef(new (createScannerResult()) ScannerResult(this, Token::KeywordToken, this->lineNumber, this->lineStart, start, this->index));
             r->valueKeywordKind = keywordKind;
+            r->hasKeywordButUseString = false;
             return r;
         } else if (data.length == 4) {
             if (data.equalsSameLength("null")) {
@@ -2827,6 +2833,7 @@ public:
         if (next && this->context->strict && next->type == Token::IdentifierToken) {
             if (this->scanner->isStrictModeReservedWord(next->relatedSource())) {
                 next->type = Token::KeywordToken;
+
             }
         }
         this->lookahead = next;
