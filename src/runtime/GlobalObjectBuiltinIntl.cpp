@@ -86,7 +86,7 @@ static std::string grandfatheredLangTag(String* locale)
 
     auto utf8 = locale->toUTF8StringData();
     std::string stdUTF8(utf8.data(), utf8.length());
-    std::transform(stdUTF8.begin(), stdUTF8.end(), stdUTF8.begin(), ::tolower);
+    std::transform(stdUTF8.begin(), stdUTF8.end(), stdUTF8.begin(), tolower);
     auto iter = tagMap.find(stdUTF8);
 
     if (iter != tagMap.end()) {
@@ -254,7 +254,7 @@ static std::string privateUseLangTag(const std::vector<std::string>& parts, size
             ++currentIndex;
             ++numExtParts;
             privateuse.appendChar('-');
-            std::transform(extPart.begin(), extPart.end(), extPart.begin(), ::tolower);
+            std::transform(extPart.begin(), extPart.end(), extPart.begin(), tolower);
             privateuse.appendString(String::fromASCII(extPart.c_str()));
         }
 
@@ -291,7 +291,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
     ++currentIndex;
     StringBuilder canonical;
 
-    std::transform(language.begin(), language.end(), language.begin(), ::tolower);
+    std::transform(language.begin(), language.end(), language.begin(), tolower);
     canonical.appendString(String::fromASCII(language.c_str()));
 
     // Check for extlang.
@@ -303,7 +303,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
             if (extlangLength == 3 && isAllSpecialCharacters(extlang, isASCIIAlpha)) {
                 ++currentIndex;
                 canonical.appendString("-");
-                std::transform(extlang.begin(), extlang.end(), extlang.begin(), ::tolower);
+                std::transform(extlang.begin(), extlang.end(), extlang.begin(), tolower);
                 canonical.appendString(String::fromASCII(extlang.c_str()));
             } else
                 break;
@@ -318,8 +318,8 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
         if (scriptLength == 4 && isAllSpecialCharacters(script, isASCIIAlpha)) {
             ++currentIndex;
             canonical.appendString("-");
-            std::transform(script.begin(), script.end(), script.begin(), ::tolower);
-            canonical.appendChar((char)::toupper(script[0]));
+            std::transform(script.begin(), script.end(), script.begin(), tolower);
+            canonical.appendChar((char)toupper(script[0]));
             script = script.substr(1, 3);
             canonical.appendString(String::fromASCII(script.c_str()));
         }
@@ -335,7 +335,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
         if (isValidRegion) {
             ++currentIndex;
             canonical.appendChar('-');
-            std::transform(region.begin(), region.end(), region.begin(), ::toupper);
+            std::transform(region.begin(), region.end(), region.begin(), toupper);
             canonical.appendString(String::fromASCII(region.c_str()));
         }
     }
@@ -353,7 +353,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
 
         // Cannot include duplicate subtags (case insensitive).
         std::string lowerVariant = variant;
-        std::transform(lowerVariant.begin(), lowerVariant.end(), lowerVariant.begin(), ::tolower);
+        std::transform(lowerVariant.begin(), lowerVariant.end(), lowerVariant.begin(), tolower);
         auto iter = subtags.find(lowerVariant);
         if (iter != subtags.end()) {
             return std::string();
@@ -381,7 +381,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
 
         // Cannot include duplicate singleton (case insensitive).
         std::string singleton = possibleSingleton;
-        std::transform(possibleSingleton.begin(), possibleSingleton.end(), possibleSingleton.begin(), ::tolower);
+        std::transform(possibleSingleton.begin(), possibleSingleton.end(), possibleSingleton.begin(), tolower);
 
         auto iter = subtags.find(singleton);
         if (iter != subtags.end()) {
@@ -404,7 +404,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
             ++currentIndex;
             ++numExtParts;
             extension.appendChar('-');
-            std::transform(extPart.begin(), extPart.end(), extPart.begin(), ::tolower);
+            std::transform(extPart.begin(), extPart.end(), extPart.begin(), tolower);
             extension.appendString(String::fromASCII(extPart.c_str()));
         }
 
@@ -1502,7 +1502,7 @@ bool equalIgnoringASCIICase(String* timeZoneName, const UTF16StringDataNonGCStd&
         return false;
     }
     for (size_t i = 0; i < ianaTimeZoneView.size(); i++) {
-        if (::tolower(ianaTimeZoneView[i]) != ::tolower(timeZoneName->charAt(i))) {
+        if (tolower(ianaTimeZoneView[i]) != tolower(timeZoneName->charAt(i))) {
             return false;
         }
     }
@@ -2258,7 +2258,7 @@ static void initializeNumberFormat(ExecutionState& state, Object* numberFormat, 
         // Let c be the result of converting c to upper case as specified in 6.1.
         String* cString = c.toString(state);
         std::string str = cString->toUTF8StringData().data();
-        std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+        std::transform(str.begin(), str.end(), str.begin(), toupper);
         // Set the [[currency]] internal property of numberFormat to c.
         numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("currency")), String::fromASCII(str.data()), numberFormat->internalSlot());
         // Let cDigits be the result of calling the CurrencyDigits abstract operation (defined below) with argument c.

@@ -279,11 +279,11 @@ public:
     StringRef* toString(ExecutionStateRef* state);
     ObjectRef* toObject(ExecutionStateRef* state);
 
-    enum { InvalidIndexValue = std::numeric_limits<uint32_t>::max() };
+    enum : uint32_t { InvalidIndexValue = std::numeric_limits<uint32_t>::max() };
     typedef uint64_t ValueIndex;
     ValueIndex toIndex(ExecutionStateRef* state);
 
-    enum { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() };
+    enum : uint32_t { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() };
     uint32_t toArrayIndex(ExecutionStateRef* state);
 
     bool asBoolean();

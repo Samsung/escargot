@@ -804,4 +804,34 @@ void* UTF16String::operator new(size_t size)
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
+
+bool isupper(char16_t ch)
+{
+    return (ch >= 'A' && ch <= 'Z');
+}
+
+bool islower(char16_t ch)
+{
+    return (ch >= 'a' && ch <= 'z');
+}
+
+char16_t tolower(char16_t c)
+{
+    return isupper(c) ? (c) - 'A' + 'a' : c;
+}
+
+char16_t toupper(char16_t c)
+{
+    return islower(c) ? c - 'a' + 'A' : c;
+}
+
+bool isspace(char16_t c)
+{
+    return (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v' ? 1 : 0);
+}
+
+bool isdigit(char16_t ch)
+{
+    return (ch >= '0' && ch <= '9');
+}
 }

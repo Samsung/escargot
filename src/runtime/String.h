@@ -552,6 +552,14 @@ inline String* String::fromCharCode(char32_t code)
         return new UTF16String(buf, 2);
     }
 }
+
+// these functions only care ascii range(0~127)
+bool islower(char16_t ch);
+bool isupper(char16_t ch);
+char16_t tolower(char16_t ch);
+char16_t toupper(char16_t ch);
+bool isspace(char16_t ch);
+bool isdigit(char16_t ch);
 }
 
 namespace std {

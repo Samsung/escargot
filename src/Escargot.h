@@ -104,8 +104,9 @@
 #if COMPILER(MSVC)
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
-#define tzname _tzname
+#ifndef NDEBUG
 #define _ITERATOR_DEBUG_LEVEL 0
+#endif
 #endif
 
 #define OS(NAME) (defined OS_##NAME && OS_##NAME)

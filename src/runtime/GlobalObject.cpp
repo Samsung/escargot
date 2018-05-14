@@ -97,6 +97,7 @@ static Value builtinLoad(ExecutionState& state, Value thisValue, size_t argc, Va
 {
     auto f = argv[0].toString(state)->toUTF8StringData();
     const char* fileName = f.data();
+
     String* src = builtinHelperFileRead(state, fileName, state.context()->staticStrings().load);
     Context* context = state.context();
     auto result = context->scriptParser().parse(src, argv[0].toString(state));

@@ -32,8 +32,8 @@ enum TextCaseSensitivity {
 namespace JSC { namespace Yarr {
 class Unicode {
   public:
-    static UChar toUpper(UChar c) { return toupper(c); }
-    static UChar toLower(UChar c) { return tolower(c); }
+    static UChar toUpper(UChar c) { return ::Escargot::toupper((char16_t)c); }
+    static UChar toLower(UChar c) { return ::Escargot::tolower((char16_t)c); }
 };
 
 

@@ -74,6 +74,7 @@
 #include "DateObject.h"
 #include "Context.h"
 #include "runtime/VMInstance.h"
+#include <time.h>
 
 namespace Escargot {
 
@@ -1102,8 +1103,20 @@ String* DateObject::toTimeString(ExecutionState& state)
         int tzOffsetHour = (tzOffsetAsMin / const_Date_minutesPerHour);
         int tzOffsetMin = ((tzOffsetAsMin / (double)const_Date_minutesPerHour) - tzOffsetHour) * 60;
         tzOffsetHour *= 100;
-        snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d GMT%s%04d (%s)", getHours(state), getMinutes(state), getSeconds(state), (tzOffsetAsMin < 0) ? "-" : "+", std::abs(tzOffsetHour + tzOffsetMin), m_cachedLocal.isdst ? tzname[1] : tzname[0]);
+#if OS(WINDOWS)
+        const char* timeZoneName = _tzname[m_cachedLocal.isdst ? 1 : 0];
+        snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d GMT%s%04d", getHours(state), getMinutes(state), getSeconds(state), (tzOffsetAsMin < 0) ? "-" : "+", std::abs(tzOffsetHour + tzOffsetMin));
+        StringBuilder sb;
+        sb.appendString(buffer);
+        sb.appendChar('(');
+        sb.appendString(String::fromUTF8(timeZoneName, strlen(timeZoneName)));
+        sb.appendChar(')');
+        return sb.finalize();
+#else
+        const char* timeZoneName = m_cachedLocal.isdst ? tzname[1] : tzname[0];
+        snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d GMT%s%04d (%s)", getHours(state), getMinutes(state), getSeconds(state), (tzOffsetAsMin < 0) ? "-" : "+", std::abs(tzOffsetHour + tzOffsetMin), timeZoneName);
         return new ASCIIString(buffer);
+#endif
     } else {
         return new ASCIIString(invalidDate);
     }

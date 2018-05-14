@@ -96,14 +96,13 @@ public:
         if (m_timezoneID == "") {
             icu::TimeZone* tz = icu::TimeZone::createDefault();
             ASSERT(tz != nullptr);
-            tz->getDisplayName(m_timezoneID);
-            delete tz;
+            tz->getID(m_timezoneID);
+            m_timezone = tz;
         } else {
             tzset();
+            m_timezone = (icu::TimeZone::createTimeZone(m_timezoneID));
         }
-        m_timezone = (icu::TimeZone::createTimeZone(m_timezoneID))->clone();
     }
-
     void setTimezoneID(icu::UnicodeString id)
     {
         m_timezoneID = id;
@@ -232,6 +231,6 @@ protected:
     void* m_publicJobQueueListenerPointer;
 #endif
 };
-}
+} // namespace Escargot
 
 #endif

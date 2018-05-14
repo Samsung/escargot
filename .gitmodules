@@ -16,3 +16,6 @@
 [submodule "third_party/GCutil"]
     path = third_party/GCutil
     url = git@github.sec.samsung.net:RS7-webtf/gcutil.git
+[submodule "third_party/icu"]
+	path = third_party/icu
+	url = git@github.sec.samsung.net:RS7-webtf/icu.git

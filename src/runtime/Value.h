@@ -184,11 +184,11 @@ public:
     Object* toObject(ExecutionState& ec) const; // $7.1.13 ToObject
     Value toPropertyKey(ExecutionState& state) const;
 
-    enum { InvalidIndexValue = std::numeric_limits<uint32_t>::max() };
+    enum : uint32_t { InvalidIndexValue = std::numeric_limits<uint32_t>::max() };
     typedef uint64_t ValueIndex;
     ValueIndex toIndex(ExecutionState& ec) const;
     inline ValueIndex tryToUseAsIndex(ExecutionState& ec) const;
-    enum { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() };
+    enum : uint32_t { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() };
     inline uint64_t toArrayIndex(ExecutionState& ec) const;
     inline uint32_t tryToUseAsArrayIndex(ExecutionState& ec) const;
 

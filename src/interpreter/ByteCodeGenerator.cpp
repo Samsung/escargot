@@ -125,7 +125,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
     ByteCodeGenerateContext ctx(codeBlock, block, info, nData);
     ctx.m_shouldGenerateLOCData = shouldGenerateLOCData;
     if (shouldGenerateLOCData) {
-        block->m_locData = new (GC_MALLOC_ATOMIC(sizeof(ByteCodeLOCData))) ByteCodeLOCData();
+        block->m_locData = new ByteCodeLOCData();
     }
 
     // generate init function decls first
@@ -164,8 +164,11 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
         ThrowStaticErrorOperation code(ByteCodeLOC(err.m_index), ErrorObject::SyntaxError, data);
         block->m_code.resize(sizeof(ThrowStaticErrorOperation));
         memcpy(block->m_code.data(), &code, sizeof(ThrowStaticErrorOperation));
-        block->m_locData = new (GC_MALLOC(sizeof(ByteCodeLOCData))) ByteCodeLOCData();
-        block->m_locData->pushBack(std::make_pair(0, err.m_index));
+        if (block->m_locData) {
+            delete block->m_locData;
+        }
+        block->m_locData = new ByteCodeLOCData();
+        block->m_locData->push_back(std::make_pair(0, err.m_index));
     } catch (const char* err) {
         // TODO
         RELEASE_ASSERT_NOT_REACHED();

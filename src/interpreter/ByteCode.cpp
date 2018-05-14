@@ -49,7 +49,6 @@ void* ByteCodeBlock::operator new(size_t size)
         GC_word obj_bitmap[GC_BITMAP_SIZE(ByteCodeBlock)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_literalData));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_codeBlock));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_locData));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_objectStructuresInUse));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ByteCodeBlock));
         typeInited = true;
@@ -77,7 +76,7 @@ void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
     m_locData = block->m_locData;
     block->m_locData = nullptr;
     // prevent infinate fillLocDataIfNeeded if m_locData.size() == 0 in here
-    m_locData->pushBack(std::make_pair(SIZE_MAX, SIZE_MAX));
+    m_locData->push_back(std::make_pair(SIZE_MAX, SIZE_MAX));
 }
 
 ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t codePosition, CodeBlock* cb)

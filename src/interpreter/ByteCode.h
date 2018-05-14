@@ -1556,7 +1556,7 @@ public:
 
 
 typedef Vector<char, std::allocator<char>, 200> ByteCodeBlockData;
-typedef Vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>> ByteCodeLOCData;
+typedef std::vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>> ByteCodeLOCData;
 typedef Vector<void*, GCUtil::gc_malloc_ignore_off_page_allocator<void*>> ByteCodeLiteralData;
 typedef Vector<Value, std::allocator<Value>> ByteCodeNumeralLiteralData;
 typedef std::unordered_set<ObjectStructure*, std::hash<ObjectStructure*>, std::equal_to<ObjectStructure*>,
@@ -1594,7 +1594,7 @@ public:
             self->m_numeralLiteralData.clear();
             self->m_code.clear();
             if (self->m_locData)
-                self->m_locData->clear();
+                delete self->m_locData;
         },
                                        nullptr, nullptr, nullptr);
     }
@@ -1619,7 +1619,7 @@ public:
         char* first = (char*)&code;
         size_t start = m_code.size();
         if (context->m_shouldGenerateLOCData)
-            m_locData->pushBack(std::make_pair(start, idx));
+            m_locData->push_back(std::make_pair(start, idx));
 
         m_code.resize(m_code.size() + sizeof(CodeType));
         for (size_t i = 0; i < sizeof(CodeType); i++) {

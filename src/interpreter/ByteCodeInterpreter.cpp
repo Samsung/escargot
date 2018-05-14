@@ -201,7 +201,9 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                         }
                     }
                 } else {
-                    ret = Value(Value::EncodeAsDouble, left.toNumber(state) * right.toNumber(state));
+                    auto first = left.toNumber(state);
+                    auto second = right.toNumber(state);
+                    ret = Value(Value::EncodeAsDouble, first * second);
                 }
                 registerFile[code->m_dstIndex] = ret;
                 ADD_PROGRAM_COUNTER(BinaryMultiply);
