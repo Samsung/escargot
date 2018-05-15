@@ -33,7 +33,7 @@ elif [[ $1 == v8* ]]; then
     tc="v8.$ARCH"
   fi
   if [[ $2 == time ]]; then
-      cp tools/vendortest/sunspider-standalone-driver-v8.js $SUNSPIDER_BASE/resources/sunspider-standalone-driver.js
+      cp test/vendortest/driver/sunspider-standalone-driver-v8.js $SUNSPIDER_BASE/resources/sunspider-standalone-driver.js
   fi
 elif [[ $1 == jsc* ]]; then
   JSC_PATH="$TESTBIN/$ARCH/jsc_170222"

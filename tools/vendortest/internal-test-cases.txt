@@ -1,8 +1,0 @@
-escargot/infinite-recursion.js
-SpiderMonkey/regress-609617.js
-mjs.js v8/array-indexing.js
-mjs.js v8/array-join.js
-mjs.js v8/array-length.js
-mjs.js v8/array-push11.js
-mjs.js v8/array-push13.js
-mjs.js v8/array-push14.js

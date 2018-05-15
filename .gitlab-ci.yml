@@ -66,7 +66,7 @@ test_x64_release_jetstream_only_cdjs:
         - git submodule init
         - git submodule update test/vendortest
         - cp out/linux/x64/interpreter/release/escargot ./escargot
-    script: make run-jetstream-only-cdjs; if cat tools/vendortest/jetstream/jetstream-result-raw.res | grep -c 'NaN' > /dev/null; then exit 1; fi; exit $?;
+    script: make run-jetstream-only-cdjs; if cat test/vendortest/driver/jetstream/jetstream-result-raw.res | grep -c 'NaN' > /dev/null; then exit 1; fi; exit $?;
     dependencies:
         - build_x64_release
 
@@ -81,7 +81,7 @@ test_x64_release_jetstream_only_simple:
         - git submodule init
         - git submodule update test/vendortest
         - cp out/linux/x64/interpreter/release/escargot ./escargot
-    script: make run-jetstream-only-simple; if cat tools/vendortest/jetstream/jetstream-result-raw.res | grep -c 'NaN' > /dev/null; then exit 1; fi; exit $?;
+    script: make run-jetstream-only-simple; if cat test/vendortest/driver/jetstream/jetstream-result-raw.res | grep -c 'NaN' > /dev/null; then exit 1; fi; exit $?;
     dependencies:
         - build_x64_release
 
@@ -221,7 +221,7 @@ test_x86_release_jetstream_only_cdjs:
         - git submodule init
         - git submodule update test/vendortest
         - cp out/linux/x86/interpreter/release/escargot ./escargot
-    script: make run-jetstream-only-cdjs; if cat tools/vendortest/jetstream/jetstream-result-raw.res | grep -c 'NaN' > /dev/null; then exit 1; fi; exit $?;
+    script: make run-jetstream-only-cdjs; if cat test/vendortest/driver/jetstream/jetstream-result-raw.res | grep -c 'NaN' > /dev/null; then exit 1; fi; exit $?;
     dependencies:
         - build_x86_release
 
@@ -236,7 +236,7 @@ test_x86_release_jetstream_only_simple:
         - git submodule init
         - git submodule update test/vendortest
         - cp out/linux/x86/interpreter/release/escargot ./escargot
-    script: make run-jetstream-only-simple; if cat tools/vendortest/jetstream/jetstream-result-raw.res | grep -c 'NaN' > /dev/null; then exit 1; fi; exit $?;
+    script: make run-jetstream-only-simple; if cat test/vendortest/driver/jetstream/jetstream-result-raw.res | grep -c 'NaN' > /dev/null; then exit 1; fi; exit $?;
     dependencies:
         - build_x86_release
 
