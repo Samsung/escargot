@@ -54,6 +54,20 @@ public:
         return adoptRef(new StatementContainer());
     }
 
+    ~StatementContainer()
+    {
+        RefPtr<StatementNode> c = m_firstChild.release();
+        if (!c) {
+            return;
+        }
+
+        do {
+            RefPtr<StatementNode> next = c->m_nextSilbing.release();
+            c.release();
+            c = next;
+        } while (c);
+    }
+
     void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         StatementNode* nd = m_firstChild.get();
