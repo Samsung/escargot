@@ -566,6 +566,144 @@ static Value builtinObjectAssign(ExecutionState& state, Value thisValue, size_t 
     return to;
 }
 
+static ArrayObject* createArrayFromList(ExecutionState& state, ValueVector& elements)
+{
+    // Let array be ! ArrayCreate(0).
+    // Let n be 0.
+    // For each element e of elements, do
+    // Let status be CreateDataProperty(array, ! ToString(n), e).
+    // Assert: status is true.
+    // Increment n by 1.
+    // Return array.
+    ArrayObject* array = new ArrayObject(state);
+    for (size_t n = 0; n < elements.size(); n++) {
+        array->defineOwnProperty(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(elements[n], ObjectPropertyDescriptor::AllPresent));
+    }
+    return array;
+}
+
+enum EnumerableOwnPropertiesType {
+    EnumerableOwnPropertiesTypeKey,
+    EnumerableOwnPropertiesTypeValue,
+    EnumerableOwnPropertiesTypeKeyValue
+};
+
+// https://www.ecma-international.org/ecma-262/8.0/#sec-enumerableownproperties
+static ValueVector enumerableOwnProperties(ExecutionState& state, Object* O, EnumerableOwnPropertiesType kind)
+{
+    ValueVector properties;
+    // Let ownKeys be ? O.[[OwnPropertyKeys]]().
+    // Let properties be a new empty List.
+    // For each element key of ownKeys in List order, do
+    struct Data {
+        ValueVector& properties;
+        EnumerableOwnPropertiesType kind;
+        Data(ValueVector& properties, EnumerableOwnPropertiesType kind)
+            : properties(properties)
+            , kind(kind)
+        {
+        }
+    };
+    Data sender(properties, kind);
+
+    double k = 0;
+
+    // Order the elements of properties so they are in the same relative order as would be produced by the Iterator that would be returned
+    // if the EnumerateObjectProperties internal method were invoked with O.
+    while (true) {
+        // Let exists be the result of calling the [[HasProperty]] internal method of E with P.
+        ObjectGetResult exists = O->getIndexedProperty(state, Value(k));
+        if (exists.hasValue() && exists.isEnumerable()) {
+            // If kind is "key", append key to properties.
+            if (sender.kind == EnumerableOwnPropertiesType::EnumerableOwnPropertiesTypeKey) {
+                sender.properties.push_back(Value(k));
+            } else {
+                // Else,
+                // Let value be ? Get(O, key).
+                Value value = exists.value(state, O);
+                // If kind is "value", append value to properties.
+                if (sender.kind == EnumerableOwnPropertiesType::EnumerableOwnPropertiesTypeValue) {
+                    sender.properties.push_back(value);
+                } else {
+                    // Else,
+                    // Assert: kind is "key+value".
+                    // Let entry be CreateArrayFromList(« key, value »).
+                    ArrayObject* entry = new ArrayObject(state);
+                    entry->defineOwnProperty(state, ObjectPropertyName(state, Value(0)), ObjectPropertyDescriptor(Value(k), ObjectPropertyDescriptor::AllPresent));
+                    entry->defineOwnProperty(state, ObjectPropertyName(state, Value(1)), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
+                    // Append entry to properties.
+                    sender.properties.push_back(entry);
+                }
+            }
+            k++;
+        } else {
+            Object::nextIndexForward(state, O, k, std::numeric_limits<double>::max(), false, k);
+            if (k == std::numeric_limits<double>::max()) {
+                break;
+            }
+        }
+    }
+
+    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& keyName, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+        Data* d = (Data*)data;
+        Value vv = keyName.toPlainValue(state);
+        if (vv.toArrayIndex(state) != Value::InvalidArrayIndexValue) {
+            return true;
+        }
+        // If Type(key) is String, then
+        // Let desc be ? O.[[GetOwnProperty]](key).
+        // If desc is not undefined and desc.[[Enumerable]] is true, then
+        if (desc.isEnumerable()) {
+            // If kind is "key", append key to properties.
+            if (d->kind == EnumerableOwnPropertiesType::EnumerableOwnPropertiesTypeKey) {
+                d->properties.push_back(keyName.toPlainValue(state));
+            } else {
+                // Else,
+                // Let value be ? Get(O, key).
+                Value value = self->get(state, keyName).value(state, self);
+                // If kind is "value", append value to properties.
+                if (d->kind == EnumerableOwnPropertiesType::EnumerableOwnPropertiesTypeValue) {
+                    d->properties.push_back(value);
+                } else {
+                    // Else,
+                    // Assert: kind is "key+value".
+                    // Let entry be CreateArrayFromList(« key, value »).
+                    ArrayObject* entry = new ArrayObject(state);
+                    entry->defineOwnProperty(state, ObjectPropertyName(state, Value(0)), ObjectPropertyDescriptor(keyName.toPlainValue(state), ObjectPropertyDescriptor::AllPresent));
+                    entry->defineOwnProperty(state, ObjectPropertyName(state, Value(1)), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
+                    // Append entry to properties.
+                    d->properties.push_back(entry);
+                }
+            }
+        }
+        return true;
+    },
+                   &sender, true);
+
+    // Return properties.
+    return properties;
+}
+
+static Value builtinObjectValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let obj be ? ToObject(O).
+    Object* obj = argv[0].toObject(state);
+    // Let nameList be ? EnumerableOwnProperties(obj, "value").
+    auto nameList = enumerableOwnProperties(state, obj, EnumerableOwnPropertiesTypeValue);
+    // Return CreateArrayFromList(nameList).
+    return createArrayFromList(state, nameList);
+}
+
+static Value builtinObjectEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let obj be ? ToObject(O).
+    Object* obj = argv[0].toObject(state);
+    // Let nameList be ? EnumerableOwnProperties(obj, "key+value").
+    auto nameList = enumerableOwnProperties(state, obj, EnumerableOwnPropertiesTypeKeyValue);
+    // Return CreateArrayFromList(nameList).
+    return createArrayFromList(state, nameList);
+}
+
 void GlobalObject::installObject(ExecutionState& state)
 {
     const StaticStrings& strings = state.context()->staticStrings();
@@ -665,6 +803,14 @@ void GlobalObject::installObject(ExecutionState& state)
                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.valueOf, builtinObjectValueOf, 0, nullptr, NativeFunctionInfo::Strict)),
                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    // ES2017 Object.values
+    m_object->defineOwnProperty(state, ObjectPropertyName(strings.values),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.values, builtinObjectValues, 1, nullptr, NativeFunctionInfo::Strict)),
+                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // ES2017 Object.entries
+    m_object->defineOwnProperty(state, ObjectPropertyName(strings.entries),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.entries, builtinObjectEntries, 1, nullptr, NativeFunctionInfo::Strict)),
+                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $19.1.3.2 Object.prototype.hasOwnProperty(V)
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.hasOwnProperty),
