@@ -297,7 +297,7 @@ public:
 protected:
 };
 
-class ValueVectorRef {
+class EXPORT ValueVectorRef {
 public:
     static ValueVectorRef* create(size_t size = 0);
 
@@ -419,7 +419,7 @@ public:
     // client extend this struct to give data for getter, setter if needs
     // this struct must allocated in gc-heap
     // only setter can be null
-    struct NativeDataAccessorPropertyData {
+    struct EXPORT NativeDataAccessorPropertyData {
         bool m_isWritable : 1;
         bool m_isEnumerable : 1;
         bool m_isConfigurable : 1;
