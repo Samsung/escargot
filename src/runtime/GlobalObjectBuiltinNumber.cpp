@@ -338,6 +338,72 @@ static Value builtinNumberValueOf(ExecutionState& state, Value thisValue, size_t
     RELEASE_ASSERT_NOT_REACHED();
 }
 
+static Value builtinNumberIsFinite(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (!argv[0].isNumber()) {
+        return Value(Value::False);
+    }
+
+    double number = argv[0].asNumber();
+    if (std::isnan(number) || number == std::numeric_limits<double>::infinity() || number == -std::numeric_limits<double>::infinity()) {
+        return Value(Value::False);
+    }
+    return Value(Value::True);
+}
+
+static Value builtinNumberIsInteger(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (!argv[0].isNumber()) {
+        return Value(Value::False);
+    }
+
+    double number = argv[0].asNumber();
+    if (std::isnan(number) || number == std::numeric_limits<double>::infinity() || number == -std::numeric_limits<double>::infinity()) {
+        return Value(Value::False);
+    }
+
+    double integer = argv[0].toInteger(state);
+    if (number != integer) {
+        return Value(Value::False);
+    }
+    return Value(Value::True);
+}
+
+static Value builtinNumberIsNaN(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (!argv[0].isNumber()) {
+        return Value(Value::False);
+    }
+
+    double number = argv[0].asNumber();
+    if (std::isnan(number)) {
+        return Value(Value::True);
+    }
+    return Value(Value::False);
+}
+
+static Value builtinNumberIsSafeInteger(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (!argv[0].isNumber()) {
+        return Value(Value::False);
+    }
+
+    double number = argv[0].asNumber();
+    if (std::isnan(number) || number == std::numeric_limits<double>::infinity() || number == -std::numeric_limits<double>::infinity()) {
+        return Value(Value::False);
+    }
+
+    double integer = argv[0].toInteger(state);
+    if (number != integer) {
+        return Value(Value::False);
+    }
+
+    if (std::abs(integer) <= 9007199254740991.0) {
+        return Value(Value::True);
+    }
+    return Value(Value::False);
+}
+
 void GlobalObject::installNumber(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
@@ -380,6 +446,21 @@ void GlobalObject::installNumber(ExecutionState& state)
     ObjectPropertyDescriptor::PresentAttribute allFalsePresent = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent
                                                                                                               | ObjectPropertyDescriptor::NonEnumerablePresent
                                                                                                               | ObjectPropertyDescriptor::NonConfigurablePresent);
+
+    // $20.1.2.1 Number.EPSILON
+    m_number->defineOwnPropertyThrowsException(state, strings->EPSILON, ObjectPropertyDescriptor(Value(std::numeric_limits<double>::epsilon()), allFalsePresent));
+    // $20.1.2.2 Number.isFinite
+    m_number->defineOwnPropertyThrowsException(state, strings->isFinite, 
+                                               ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->isFinite, builtinNumberIsFinite, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // $20.1.2.3 Number.isInteger
+    m_number->defineOwnPropertyThrowsException(state, strings->isInteger, 
+                                               ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->isInteger, builtinNumberIsInteger, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // $20.1.2.3 Number.isNaN
+    m_number->defineOwnPropertyThrowsException(state, strings->isNaN, 
+                                               ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->isNaN, builtinNumberIsNaN, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // $20.1.2.5 Number.isSafeInteger
+    m_number->defineOwnPropertyThrowsException(state, strings->isSafeInteger, 
+                                               ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->isSafeInteger, builtinNumberIsSafeInteger, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $20.1.2.6 Number.MAX_SAFE_INTEGER
     m_number->defineOwnPropertyThrowsException(state, strings->MAX_SAFE_INTEGER, ObjectPropertyDescriptor(Value(9007199254740991.0), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
     // $20.1.2.7 Number.MAX_VALUE

@@ -49,6 +49,7 @@ namespace Escargot {
     F(Number)                     \
     F(NaN)                        \
     F(Infinity)                   \
+    F(EPSILON)                    \
     F(NEGATIVE_INFINITY)          \
     F(POSITIVE_INFINITY)          \
     F(MAX_VALUE)                  \
@@ -233,6 +234,8 @@ namespace Escargot {
     F(isFinite)                   \
     F(isFrozen)                   \
     F(isNaN)                      \
+    F(isInteger)                  \
+    F(isSafeInteger)              \
     F(isSealed)                   \
     F(keys)                       \
     F(localeCompare)              \
