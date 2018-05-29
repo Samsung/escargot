@@ -19,3 +19,15 @@
 [submodule "third_party/icu"]
 	path = third_party/icu
 	url = git@github.sec.samsung.net:RS7-webtf/icu.git
+[submodule "third_party/checked_arithmetic"]
+	path = third_party/checked_arithmetic
+	url = git@github.sec.samsung.net:RS7-webtf/checked_arithmetic.git
+[submodule "third_party/double_conversion"]
+	path = third_party/double_conversion
+	url = git@github.sec.samsung.net:RS7-webtf/double_conversion.git
+[submodule "third_party/rapidjson"]
+	path = third_party/rapidjson
+	url = git@github.sec.samsung.net:RS7-webtf/rapidjson.git
+[submodule "third_party/yarr"]
+	path = third_party/yarr
+	url = git@github.sec.samsung.net:RS7-webtf/yarr.git
