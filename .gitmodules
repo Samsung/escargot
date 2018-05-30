@@ -10,24 +10,24 @@
 [submodule "test/octane"]
     path = test/octane
     url = https://github.com/chromium/octane.git
-[submodule "test/vendortest"]
-    path = test/vendortest
-    url = git@github.sec.samsung.net:RS7-webtf/js_vendor_tc.git
 [submodule "third_party/GCutil"]
     path = third_party/GCutil
     url = git@github.sec.samsung.net:RS7-webtf/gcutil.git
-[submodule "third_party/icu"]
-	path = third_party/icu
-	url = git@github.sec.samsung.net:RS7-webtf/icu.git
 [submodule "third_party/checked_arithmetic"]
 	path = third_party/checked_arithmetic
-	url = git@github.sec.samsung.net:RS7-webtf/checked_arithmetic.git
+	url = git@github.sec.samsung.net:RS8-webtf-sub/checked_arithmetic.git
 [submodule "third_party/double_conversion"]
 	path = third_party/double_conversion
-	url = git@github.sec.samsung.net:RS7-webtf/double_conversion.git
+	url = git@github.sec.samsung.net:RS8-webtf-sub/double_conversion.git
 [submodule "third_party/rapidjson"]
 	path = third_party/rapidjson
-	url = git@github.sec.samsung.net:RS7-webtf/rapidjson.git
+	url = git@github.sec.samsung.net:RS8-webtf-sub/rapidjson.git
 [submodule "third_party/yarr"]
 	path = third_party/yarr
-	url = git@github.sec.samsung.net:RS7-webtf/yarr.git
+	url = git@github.sec.samsung.net:RS8-webtf-sub/yarr.git
+[submodule "third_party/icu"]
+	path = third_party/icu
+	url = git@github.sec.samsung.net:RS8-webtf-sub/icu.git
+[submodule "test/vendortest"]
+	path = test/vendortest
+	url = git@github.sec.samsung.net:RS8-webtf-test/js_vendor_tc.git
