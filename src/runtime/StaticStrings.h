@@ -139,10 +139,17 @@ namespace Escargot {
     F(pow)                        \
     F(random)                     \
     F(round)                      \
+    F(sign)                       \
     F(sin)                        \
+    F(sinh)                       \
     F(sqrt)                       \
     F(tan)                        \
+    F(tanh)                       \
+    F(trunc)                      \
     F(log)                        \
+    F(log1p)                      \
+    F(log10)                      \
+    F(log2)                       \
     F(toString)                   \
     F(toLocaleString)             \
     F(boolean)                    \
@@ -208,6 +215,8 @@ namespace Escargot {
     F(cbrt)                       \
     F(charAt)                     \
     F(charCodeAt)                 \
+    F(clz32)                      \
+    F(cosh)                       \
     F(create)                     \
     F(dbgBreak)                   \
     F(decodeURI)                  \
@@ -219,6 +228,7 @@ namespace Escargot {
     F(escape)                     \
     F(every)                      \
     F(exp)                        \
+    F(expm1)                      \
     F(fill)                       \
     F(filter)                     \
     F(find)                       \
