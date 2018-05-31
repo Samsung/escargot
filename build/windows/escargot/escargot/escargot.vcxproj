@@ -231,6 +231,7 @@
     <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinWeakMap.cpp" />
     <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinWeakSet.cpp" />
     <ClCompile Include="..\..\..\..\src\runtime\GlobalRegExpFunctionObject.cpp" />
+    <ClCompile Include="..\..\..\..\src\runtime\IEEE754.cpp" />
     <ClCompile Include="..\..\..\..\src\runtime\IteratorObject.cpp" />
     <ClCompile Include="..\..\..\..\src\runtime\Job.cpp" />
     <ClCompile Include="..\..\..\..\src\runtime\JobQueue.cpp" />
@@ -404,6 +405,7 @@
     <ClInclude Include="..\..\..\..\src\runtime\FunctionObject.h" />
     <ClInclude Include="..\..\..\..\src\runtime\GlobalObject.h" />
     <ClInclude Include="..\..\..\..\src\runtime\GlobalRegExpFunctionObject.h" />
+    <ClInclude Include="..\..\..\..\src\runtime\IEEE754.h" />
     <ClInclude Include="..\..\..\..\src\runtime\IteratorObject.h" />
     <ClInclude Include="..\..\..\..\src\runtime\Job.h" />
     <ClInclude Include="..\..\..\..\src\runtime\JobQueue.h" />

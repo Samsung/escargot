@@ -135,6 +135,7 @@ void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, String* ob
 
 ErrorObject::ErrorObject(ExecutionState& state, String* errorMessage)
     : Object(state)
+    , m_stackTraceData(nullptr)
 {
     if (errorMessage->length()) {
         defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,

@@ -303,6 +303,9 @@
     <ClCompile Include="..\..\..\..\third_party\yarr\OSAllocatorWin.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\src\runtime\IEEE754.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\src\api\EscargotPublic.h">
@@ -822,6 +825,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\third_party\yarr\YarrPattern.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\src\runtime\IEEE754.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

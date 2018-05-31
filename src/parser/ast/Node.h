@@ -26,6 +26,7 @@
 namespace Escargot {
 
 class ByteCodeBlock;
+class InterpretedCodeBlock;
 struct ByteCodeGenerateContext;
 
 enum ASTNodeType {
@@ -140,8 +141,14 @@ struct NodeLOC {
 };
 
 struct ExtendedNodeLOC {
-    size_t line;
-    size_t column;
+    union {
+        size_t line;
+        size_t byteCodePosition;
+    };
+    union {
+        ByteCodeBlock *actualCodeBlock;
+        size_t column;
+    };
     size_t index;
 
     ExtendedNodeLOC(size_t line, size_t column, size_t index)

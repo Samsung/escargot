@@ -24,6 +24,8 @@
 
 namespace Escargot {
 
+class ByteCodeBlock;
+
 extern const char* errorMessage_NotImplemented; // FIXME to be removed
 extern const char* errorMessage_IsNotDefined;
 extern const char* errorMessage_AssignmentToConstantVariable;
@@ -116,7 +118,32 @@ public:
         return "Error";
     }
 
+    struct StackTraceGCData {
+        union {
+            ByteCodeBlock* byteCodeBlock;
+            String* infoString;
+        };
+    };
+    struct StackTraceNonGCData {
+        size_t byteCodePosition;
+    };
+    struct StackTraceData : public gc {
+        TightVector<StackTraceGCData, GCUtil::gc_malloc_ignore_off_page_allocator<StackTraceGCData>> gcValues;
+        TightVector<StackTraceNonGCData, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<StackTraceNonGCData>> nonGCValues;
+    };
+
+    StackTraceData* stackTraceData()
+    {
+        return m_stackTraceData;
+    }
+
+    void setStackTraceData(StackTraceData* d)
+    {
+        m_stackTraceData = d;
+    }
+
 protected:
+    StackTraceData* m_stackTraceData;
 };
 
 class ReferenceErrorObject : public ErrorObject {

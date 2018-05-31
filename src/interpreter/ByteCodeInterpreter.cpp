@@ -2118,7 +2118,8 @@ NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, c
             ByteCodeBlock* b = cb->asInterpretedCodeBlock()->byteCodeBlock();
             ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
             if (programCounter != SIZE_MAX) {
-                loc = b->computeNodeLOCFromByteCode(state.context(), programCounter - (size_t)b->m_code.data(), cb);
+                loc.byteCodePosition = programCounter - (size_t)b->m_code.data();
+                loc.actualCodeBlock = b;
             }
             SandBox::StackTraceData data;
             data.loc = loc;
@@ -2131,7 +2132,8 @@ NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, c
             if (cb->isInterpretedCodeBlock()) {
                 ByteCodeBlock* b = cb->asInterpretedCodeBlock()->byteCodeBlock();
                 if (programCounter != SIZE_MAX) {
-                    loc = b->computeNodeLOCFromByteCode(state.context(), programCounter - (size_t)b->m_code.data(), cb);
+                    loc.byteCodePosition = programCounter - (size_t)b->m_code.data();
+                    loc.actualCodeBlock = b;
                 }
             }
             SandBox::StackTraceData data;
