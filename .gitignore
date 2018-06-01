@@ -28,3 +28,6 @@ tools/vendortest/chakracore/chakracorelog.verbose.txt
 *.sort.txt
 bdwgcUsage.dat
 node_modules
+CMakeCache.txt
+CMakeFiles
+cmake_install.cmake

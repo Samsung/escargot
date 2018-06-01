@@ -33,7 +33,7 @@ count_err = 0
 
 interesting_exts = ['.cpp', '.h', '.js', '.py', '.sh', '.cmake']
 clang_format_exts = ['.cpp', '.h']
-skip_dirs = ['deps', 'build', 'third_party', 'out', 'tools', '.git', 'test']
+skip_dirs = ['deps', 'build', 'third_party', 'out', 'tools', '.git', 'test', 'CMakeFiles']
 skip_files = []
 
 
