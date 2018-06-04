@@ -39,7 +39,7 @@ ADD_CUSTOM_TARGET (run-sunspider-js
 ADD_CUSTOM_TARGET (run-octane
                    COMMENT "run-octane"
                    COMMAND @cd test/octane/ && ../../escargot run.js | tee > ../../test/octane_result 
-                   COMMAND @/bin/bash -c "./build/command_octane.sh"
+                   COMMAND @cat test/octane_result | grep -c 'Score' > /dev/null;
                   )
 
 
@@ -132,13 +132,13 @@ ADD_CUSTOM_TARGET (run-jetstream
 ADD_CUSTOM_TARGET (run-jetstream-only-simple
                    COMMENT "run-jetstream-only-simple"
                    COMMAND @make run-jetstream TARGET_TEST="simple"
-                   COMMAND @/bin/bash -c "./build/command_jetstream.sh"
+                   COMMAND @! cat test/vendortest/driver/jetstream/jetstream-result-raw.res | grep -c 'NaN' > /dev/null;
                   )
 
 ADD_CUSTOM_TARGET (run-jetstream-only-cdjs
                    COMMENT "run-jetstream-only-cdjs"
                    COMMAND @make run-jetstream TARGET_TEST="cdjs"
-                   COMMAND @/bin/bash -c "./build/command_jetstream.sh"
+                   COMMAND @! cat test/vendortest/driver/jetstream/jetstream-result-raw.res | grep -c 'NaN' > /dev/null;
                   )
 
 ADD_CUSTOM_TARGET (run-jetstream-only-sunspider

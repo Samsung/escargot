@@ -21,6 +21,5 @@ PROCESSORCOUNT (NPROCS)
 
 # INCLUDE CMAKE FILES
 INCLUDE (build/config.cmake)
-INCLUDE (build/flags.cmake)
 INCLUDE (build/escargot.cmake)
 INCLUDE (build/test.cmake)

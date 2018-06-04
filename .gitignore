@@ -13,6 +13,7 @@ output.js
 #!test/*.js
 *.pyc
 tags
+cscope.out
 #test/out/
 #test/SunSpider/resources/sunspider-standalone-driver.js
 #memps
