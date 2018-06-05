@@ -304,6 +304,56 @@ static Value builtinMathFloor(ExecutionState& state, Value thisValue, size_t arg
     return Value(floor(x));
 }
 
+static Value builtinMathFround(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    double x = argv[0].toNumber(state);
+    return Value(static_cast<double>(static_cast<float>(x)));
+}
+
+static Value builtinMathHypot(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    double maxValue = 0;
+    bool has_nan = false;
+    for (unsigned i = 0; i < argc; i++) {
+        double value = argv[i].toNumber(state);
+        if (std::isinf(value)) {
+            return Value(std::numeric_limits<double>::infinity());
+        } else if (std::isnan(value)) {
+            has_nan = true;
+        }
+        double absValue = std::abs(value);
+        maxValue = std::max(maxValue, absValue);
+    }
+
+    if (has_nan) {
+        double qnan = std::numeric_limits<double>::quiet_NaN();
+        return Value(qnan);
+    }
+
+    if (maxValue == 0) {
+        return Value(0.0);
+    }
+
+    double sum = 0;
+    double compensation = 0;
+    for (unsigned i = 0; i < argc; i++) {
+        double value = argv[i].toNumber(state);
+        double scaledArgument = value / maxValue;
+        double summand = scaledArgument * scaledArgument - compensation;
+        double preliminary = sum + summand;
+        compensation = (preliminary - sum) - summand;
+        sum = preliminary;
+    }
+    return Value(std::sqrt(sum) * maxValue);
+}
+
+static Value builtinMathIMul(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    int32_t x = argv[0].toInt32(state);
+    int32_t y = argv[1].toInt32(state);
+    return Value(x * y);
+}
+
 static Value builtinMathLog(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     double x = argv[0].toNumber(state);
@@ -420,6 +470,16 @@ void GlobalObject::installMath(ExecutionState& state)
     // initialize math object: $20.2.2.16 Math.floor()
     m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().floor),
                                              ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().floor, builtinMathFloor, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // initialize math object: $20.2.2.17 Math.fround()
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().fround),
+                                             ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().fround, builtinMathFround, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // initialize math object: $20.2.2.18 Math.hypot()
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().hypot),
+                                             ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().hypot, builtinMathHypot, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // initialize math object: $20.2.2.19 Math.imul()
+    m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().imul),
+                                             ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().imul, builtinMathIMul, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     // initialize math object: $20.2.2.20 Math.log()
     m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().log),
                                              ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().log, builtinMathLog, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

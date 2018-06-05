@@ -136,6 +136,8 @@ namespace Escargot {
     F(max)                        \
     F(min)                        \
     F(floor)                      \
+    F(fround)                     \
+    F(hypot)                      \
     F(pow)                        \
     F(random)                     \
     F(round)                      \
