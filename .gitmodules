@@ -25,8 +25,8 @@
 [submodule "third_party/yarr"]
 	path = third_party/yarr
 	url = git@github.sec.samsung.net:RS8-webtf-sub/yarr.git
-[submodule "third_party/icu"]
-	path = third_party/icu
+[submodule "third_party/windows/icu"]
+	path = third_party/windows/icu
 	url = git@github.sec.samsung.net:RS8-webtf-sub/icu.git
 [submodule "test/vendortest"]
 	path = test/vendortest
