@@ -91,6 +91,7 @@
       <AdditionalIncludeDirectories>.\..\..\..\..\src;.\..\..\..\..\third_party\GCutil;.\..\..\..\..\third_party\GCutil\bdwgc\include;.\..\..\..\..\third_party\checked_arithmetic;.\..\..\..\..\third_party\double_conversion;.\..\..\..\..\third_party\rapidjson\include;.\..\..\..\..\third_party\yarr;.\..\..\..\..\third_party\icu\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <FloatingPointModel>Strict</FloatingPointModel>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
