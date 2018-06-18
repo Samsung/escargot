@@ -171,7 +171,7 @@ std::pair<Value, bool> SetIteratorObject::advance(ExecutionState& state)
 
     // Let entries be the List that is the value of the [[SetData]] internal slot of s.
     // Repeat while index is less than the total number of elements of entries. The number of elements must be redetermined each time this method is evaluated.
-    while (index < s->size(state)) {
+    while (index < s->m_storage.size()) {
         // Let e be entries[index].
         Value e = s->m_storage[index];
         // Set index to index+1.

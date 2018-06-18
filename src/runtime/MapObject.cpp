@@ -186,7 +186,7 @@ std::pair<Value, bool> MapIteratorObject::advance(ExecutionState& state)
 
     // Let entries be the List that is the value of the [[MapData]] internal slot of m.
     // Repeat while index is less than the total number of elements of entries. The number of elements must be redetermined each time this method is evaluated.
-    while (index < m->size(state)) {
+    while (index < m->m_storage.size()) {
         // Let e be the Record {[[Key]], [[Value]]} that is the value of entries[index].
         auto e = m->m_storage[index];
         // Set index to index+1.
