@@ -59,6 +59,11 @@ public:
         return m_fileName;
     }
 
+    String* src()
+    {
+        return m_src;
+    }
+
     InterpretedCodeBlock* topCodeBlock()
     {
         return m_topCodeBlock;

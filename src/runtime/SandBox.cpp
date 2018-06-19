@@ -49,6 +49,7 @@ SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner)
                 StackTraceData traceData;
                 traceData.loc = loc;
                 traceData.fileName = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock->script()->fileName();
+                traceData.source = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock->script()->src();
                 result.stackTraceData.pushBack(traceData);
             } else {
                 result.stackTraceData.pushBack(m_stackTraceData[i].second);
@@ -68,7 +69,7 @@ static Value builtinErrorObjectStackInfo(ExecutionState& state, Value thisValue,
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isErrorObject())) {
     } else {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get DataView.prototype.byteLength called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get Error.prototype.stack called on incompatible receiver");
     }
 
     ErrorObject* obj = thisValue.asObject()->asErrorObject();
@@ -78,57 +79,122 @@ static Value builtinErrorObjectStackInfo(ExecutionState& state, Value thisValue,
 
     auto stackTraceData = obj->stackTraceData();
     StringBuilder builder;
+    stackTraceData->buildStackTrace(state.context(), builder);
+    return builder.finalize();
+}
 
-    auto getResult = obj->get(state, state.context()->staticStrings().name);
-    if (getResult.hasValue()) {
-        builder.appendString(getResult.value(state, obj).toString(state));
-        builder.appendString(": ");
-    }
-    getResult = obj->get(state, state.context()->staticStrings().message);
-    if (getResult.hasValue()) {
-        builder.appendString(getResult.value(state, obj).toString(state));
-        builder.appendChar('\n');
-    }
-    for (size_t i = 0; i < stackTraceData->gcValues.size(); i++) {
-        builder.appendString("at ");
-        if (stackTraceData->nonGCValues[i].byteCodePosition == SIZE_MAX) {
-            builder.appendString(stackTraceData->gcValues[i].infoString);
+ErrorObject::StackTraceData* ErrorObject::StackTraceData::create(SandBox* sandBox)
+{
+    ErrorObject::StackTraceData* data = new ErrorObject::StackTraceData();
+    data->gcValues.resizeWithUninitializedValues(sandBox->m_stackTraceData.size());
+    data->nonGCValues.resizeWithUninitializedValues(sandBox->m_stackTraceData.size());
+    data->exception = sandBox->m_exception;
+
+    for (size_t i = 0; i < sandBox->m_stackTraceData.size(); i++) {
+        if ((size_t)sandBox->m_stackTraceData[i].second.loc.index == SIZE_MAX && (size_t)sandBox->m_stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
+            data->gcValues[i].byteCodeBlock = sandBox->m_stackTraceData[i].second.loc.actualCodeBlock;
+            data->nonGCValues[i].byteCodePosition = sandBox->m_stackTraceData[i].second.loc.byteCodePosition;
         } else {
-            ExtendedNodeLOC loc = stackTraceData->gcValues[i].byteCodeBlock->computeNodeLOCFromByteCode(state.context(),
-                                                                                                        stackTraceData->nonGCValues[i].byteCodePosition, stackTraceData->gcValues[i].byteCodeBlock->m_codeBlock);
-            builder.appendString(stackTraceData->gcValues[i].byteCodeBlock->m_codeBlock->script()->fileName());
+            data->gcValues[i].infoString = sandBox->m_stackTraceData[i].second.fileName;
+            data->nonGCValues[i].byteCodePosition = SIZE_MAX;
+        }
+    }
+
+    return data;
+}
+
+void ErrorObject::StackTraceData::buildStackTrace(Context* context, StringBuilder& builder)
+{
+    if (exception.isObject()) {
+        ExecutionState state(context);
+        SandBox sb(context);
+        sb.run([&]() -> Value {
+            auto getResult = exception.asObject()->get(state, state.context()->staticStrings().name);
+            if (getResult.hasValue()) {
+                builder.appendString(getResult.value(state, exception.asObject()).toString(state));
+                builder.appendString(": ");
+            }
+            getResult = exception.asObject()->get(state, state.context()->staticStrings().message);
+            if (getResult.hasValue()) {
+                builder.appendString(getResult.value(state, exception.asObject()).toString(state));
+                builder.appendChar('\n');
+            }
+            return Value();
+        });
+    }
+    for (size_t i = 0; i < gcValues.size(); i++) {
+        builder.appendString("at ");
+        if (nonGCValues[i].byteCodePosition == SIZE_MAX) {
+            builder.appendString(gcValues[i].infoString);
+        } else {
+            ExtendedNodeLOC loc = gcValues[i].byteCodeBlock->computeNodeLOCFromByteCode(context,
+                                                                                        nonGCValues[i].byteCodePosition, gcValues[i].byteCodeBlock->m_codeBlock);
+            builder.appendString(gcValues[i].byteCodeBlock->m_codeBlock->script()->fileName());
             builder.appendChar(':');
             builder.appendString(String::fromDouble(loc.line));
             builder.appendChar(':');
             builder.appendString(String::fromDouble(loc.column));
+
+            String* src = gcValues[i].byteCodeBlock->m_codeBlock->script()->src();
+            if (src->length()) {
+                const size_t preLineMax = 40;
+                const size_t afterLineMax = 40;
+
+                size_t preLineSoFar = 0;
+                size_t afterLineSoFar = 0;
+
+                size_t start = loc.index;
+                int64_t idx = (int64_t)start;
+                while (start - idx < preLineMax) {
+                    if (idx == 0) {
+                        break;
+                    }
+                    if (src->charAt((size_t)idx) == '\r' || src->charAt((size_t)idx) == '\n') {
+                        idx++;
+                        break;
+                    }
+                    idx--;
+                }
+                preLineSoFar = idx;
+
+                idx = start;
+                while (idx - start < afterLineMax) {
+                    if ((size_t)idx == src->length() - 1) {
+                        break;
+                    }
+                    if (src->charAt((size_t)idx) == '\r' || src->charAt((size_t)idx) == '\n') {
+                        break;
+                    }
+                    idx++;
+                }
+                afterLineSoFar = idx;
+
+                if (preLineSoFar <= afterLineSoFar && preLineSoFar <= src->length() && afterLineSoFar <= src->length()) {
+                    auto subSrc = src->substring(preLineSoFar, afterLineSoFar);
+                    builder.appendChar('\n');
+                    builder.appendString(subSrc);
+                    builder.appendChar('\n');
+                    std::string sourceCodePosition;
+                    for (size_t i = preLineSoFar; i < start; i++) {
+                        sourceCodePosition += " ";
+                    }
+                    sourceCodePosition += "^";
+                    builder.appendString(String::fromUTF8(sourceCodePosition.data(), sourceCodePosition.length()));
+                }
+            }
         }
 
-        if (i != stackTraceData->gcValues.size() - 1) {
+        if (i != gcValues.size() - 1) {
             builder.appendChar('\n');
         }
     }
-    return builder.finalize();
 }
 
 void SandBox::fillStackDataIntoErrorObject(const Value& e)
 {
     if (e.isObject() && e.asObject()->isErrorObject()) {
         ErrorObject* obj = e.asObject()->asErrorObject();
-        ErrorObject::StackTraceData* data = new ErrorObject::StackTraceData();
-
-        data->gcValues.resizeWithUninitializedValues(m_stackTraceData.size());
-        data->nonGCValues.resizeWithUninitializedValues(m_stackTraceData.size());
-
-        for (size_t i = 0; i < m_stackTraceData.size(); i++) {
-            if ((size_t)m_stackTraceData[i].second.loc.index == SIZE_MAX && (size_t)m_stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
-                data->gcValues[i].byteCodeBlock = m_stackTraceData[i].second.loc.actualCodeBlock;
-                data->nonGCValues[i].byteCodePosition = m_stackTraceData[i].second.loc.byteCodePosition;
-            } else {
-                data->gcValues[i].infoString = m_stackTraceData[i].second.fileName;
-                data->nonGCValues[i].byteCodePosition = SIZE_MAX;
-            }
-        }
-
+        ErrorObject::StackTraceData* data = ErrorObject::StackTraceData::create(this);
         obj->setStackTraceData(data);
 
         ExecutionState state(m_context);

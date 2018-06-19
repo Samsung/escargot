@@ -2541,6 +2541,7 @@ public:
     Context contextInstance;
     Context* context;
     std::vector<RefPtr<ScannerResult>, gc_allocator_ignore_off_page<RefPtr<ScannerResult>>> tokens;
+    Marker baseMarker;
     Marker startMarker;
     Marker lastMarker;
 
@@ -2591,7 +2592,7 @@ public:
         }
     }
 
-    Parser(::Escargot::Context* escargotContext, StringView code, ParserASTNodeHandler delegate, size_t stackRemain, size_t startLine = 0, size_t startColumn = 0)
+    Parser(::Escargot::Context* escargotContext, StringView code, ParserASTNodeHandler delegate, size_t stackRemain, size_t startLine = 0, size_t startColumn = 0, size_t startIndex = 0)
         : errorHandler(&errorHandlerInstance)
         , scannerInstance(code, this->errorHandler, startLine, startColumn)
     {
@@ -2655,6 +2656,10 @@ public:
         this->context->inWith = false;
         this->context->inLoop = false;
         this->context->strict = this->sourceType == Module;
+
+        this->baseMarker.index = startIndex;
+        this->baseMarker.lineNumber = this->scanner->lineNumber;
+        this->baseMarker.lineStart = 0;
 
         this->startMarker.index = 0;
         this->startMarker.lineNumber = this->scanner->lineNumber;
@@ -2875,7 +2880,7 @@ public:
     MetaNode createNode()
     {
         MetaNode n;
-        n.index = this->startMarker.index;
+        n.index = this->startMarker.index + this->baseMarker.index;
         n.line = this->startMarker.lineNumber;
         n.column = this->startMarker.index - this->startMarker.lineStart;
         return n;
@@ -2884,7 +2889,7 @@ public:
     MetaNode startNode(RefPtr<ScannerResult> token)
     {
         MetaNode n;
-        n.index = token->start;
+        n.index = token->start + this->baseMarker.index;
         n.line = token->lineNumber;
         n.column = token->start - token->lineStart;
         return n;
@@ -3344,8 +3349,6 @@ public:
 
     RefPtr<RestElementNode> parseRestElement(std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>>& params)
     {
-        MetaNode node = this->createNode();
-
         this->throwError("Rest element is not supported yet");
 
         this->nextToken();
@@ -3353,6 +3356,8 @@ public:
             this->throwError(Messages::ObjectPatternAsRestParameter);
         }
         params.push_back(this->lookahead);
+
+        MetaNode node = this->createNode();
 
         RefPtr<IdentifierNode> param = this->parseVariableIdentifier();
         if (this->match(Equal)) {
@@ -3452,7 +3457,6 @@ public:
 
         options.firstRestricted = firstRestricted;
 
-        this->expect(LeftParenthesis);
         if (!this->match(RightParenthesis)) {
             options.paramSet.clear();
             while (this->startMarker.index < this->scanner->length) {
@@ -3471,8 +3475,9 @@ public:
 
     RefPtr<SpreadElementNode> parseSpreadElement()
     {
-        MetaNode node = this->createNode();
         this->expect(PunctuatorsKind::PeriodPeriodPeriod);
+        MetaNode node = this->createNode();
+
         RefPtr<Node> arg = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
         this->throwError("Spread element is not supported yet");
         return this->finalize(node, new SpreadElementNode(arg.get()));
@@ -3480,11 +3485,12 @@ public:
 
     RefPtr<Node> parseArrayInitializer()
     {
-        MetaNode node = this->createNode();
         // const elements: Node.ArrayExpressionElement[] = [];
         ExpressionNodeVector elements;
 
         this->expect(LeftSquareBracket);
+        MetaNode node = this->createNode();
+
         while (!this->match(RightSquareBracket)) {
             if (this->match(Comma)) {
                 this->nextToken();
@@ -3534,10 +3540,10 @@ public:
     RefPtr<FunctionExpressionNode> parsePropertyMethodFunction()
     {
         const bool isGenerator = false;
-        MetaNode node = this->createNode();
-
         const bool previousAllowYield = this->context->allowYield;
         this->context->allowYield = false;
+        this->expect(LeftParenthesis);
+        MetaNode node = this->createNode();
         ParseFormalParametersResult params = this->parseFormalParameters();
         RefPtr<Node> method = this->parsePropertyMethod(params);
         this->context->allowYield = previousAllowYield;
@@ -3547,8 +3553,8 @@ public:
 
     RefPtr<Node> parseObjectPropertyKey()
     {
-        MetaNode node = this->createNode();
         RefPtr<ScannerResult> token = this->nextToken();
+        MetaNode node = this->createNode();
 
         RefPtr<Node> key;
         switch (token->type) {
@@ -3646,6 +3652,7 @@ public:
 
         if (token->type == Token::IdentifierToken) {
             this->nextToken();
+            MetaNode node = this->createNode();
             key = this->finalize(node, finishIdentifier(token, true));
         } else if (this->match(PunctuatorsKind::Multiply)) {
             this->nextToken();
@@ -3754,9 +3761,8 @@ public:
 
     RefPtr<Node> parseObjectInitializer()
     {
-        MetaNode node = this->createNode();
-
         this->expect(LeftBrace);
+        MetaNode node = this->createNode();
         PropertiesNodeVector properties;
         bool hasProto = false;
         std::vector<std::pair<AtomicString, size_t>> usedNames;
@@ -3776,8 +3782,8 @@ public:
     {
         ASSERT(this->lookahead->type == Token::TemplateToken);
 
-        MetaNode node = this->createNode();
         RefPtr<ScannerResult> token = this->nextToken();
+        MetaNode node = this->createNode();
         TemplateElement* tm = new TemplateElement();
         tm->value = token->valueTemplate->valueCooked;
         tm->raw = token->valueTemplate->raw;
@@ -3791,8 +3797,8 @@ public:
             this->throwUnexpectedToken(this->lookahead);
         }
 
-        MetaNode node = this->createNode();
         RefPtr<ScannerResult> token = this->nextToken();
+        MetaNode node = this->createNode();
         TemplateElement* tm = new TemplateElement();
         tm->value = token->valueTemplate->valueCooked;
         tm->raw = token->valueTemplate->raw;
@@ -4980,9 +4986,8 @@ public:
 
     RefPtr<BlockStatementNode> parseBlock()
     {
-        MetaNode node = this->createNode();
-
         this->expect(LeftBrace);
+        MetaNode node = this->createNode();
         RefPtr<StatementContainer> block = StatementContainer::create();
         StatementNode* referNode = nullptr;
         while (true) {
@@ -5268,8 +5273,8 @@ public:
 
     RefPtr<VariableDeclarationNode> parseVariableStatement()
     {
-        MetaNode node = this->createNode();
         this->expectKeyword(Var);
+        MetaNode node = this->createNode();
         DeclarationOptions opt;
         opt.inFor = false;
         VariableDeclaratorVector declarations = this->parseVariableDeclarationList(opt);
@@ -5282,8 +5287,8 @@ public:
 
     RefPtr<EmptyStatementNode> parseEmptyStatement()
     {
-        MetaNode node = this->createNode();
         this->expect(SemiColon);
+        MetaNode node = this->createNode();
         return this->finalize(node, new EmptyStatementNode());
     }
 
@@ -5301,11 +5306,11 @@ public:
 
     RefPtr<IfStatementNode> parseIfStatement()
     {
-        MetaNode node = this->createNode();
         RefPtr<Node> consequent;
         RefPtr<Node> alternate;
 
         this->expectKeyword(If);
+        MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
         RefPtr<Node> test = this->parseExpression();
 
@@ -5328,8 +5333,8 @@ public:
 
     RefPtr<DoWhileStatementNode> parseDoWhileStatement()
     {
-        MetaNode node = this->createNode();
         this->expectKeyword(Do);
+        MetaNode node = this->createNode();
 
         bool previousInIteration = this->context->inIteration;
         this->context->inIteration = true;
@@ -5351,13 +5356,13 @@ public:
 
     RefPtr<WhileStatementNode> parseWhileStatement()
     {
-        MetaNode node = this->createNode();
         RefPtr<Node> body;
 
         bool prevInLoop = this->context->inLoop;
         this->context->inLoop = true;
 
         this->expectKeyword(While);
+        MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
         RefPtr<Node> test = this->parseExpression();
 
@@ -5392,8 +5397,8 @@ public:
 
         bool prevInLoop = this->context->inLoop;
 
-        MetaNode node = this->createNode();
         this->expectKeyword(For);
+        MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
 
         if (this->match(SemiColon)) {
@@ -5589,8 +5594,8 @@ public:
 
     RefPtr<Node> parseContinueStatement()
     {
-        MetaNode node = this->createNode();
         this->expectKeyword(Continue);
+        MetaNode node = this->createNode();
 
         RefPtr<IdentifierNode> label = nullptr;
         if (this->lookahead->type == IdentifierToken && !this->hasLineTerminator) {
@@ -5625,8 +5630,8 @@ public:
 
     RefPtr<Node> parseBreakStatement()
     {
-        MetaNode node = this->createNode();
         this->expectKeyword(Break);
+        MetaNode node = this->createNode();
 
         RefPtr<IdentifierNode> label = nullptr;
         if (this->lookahead->type == IdentifierToken && !this->hasLineTerminator) {
@@ -5657,8 +5662,8 @@ public:
             this->tolerateError(Messages::IllegalReturn);
         }
 
-        MetaNode node = this->createNode();
         this->expectKeyword(Return);
+        MetaNode node = this->createNode();
 
         bool hasArgument = !this->match(SemiColon) && !this->match(RightBrace) && !this->hasLineTerminator && this->lookahead->type != EOFToken;
         RefPtr<Node> argument = nullptr;
@@ -5678,8 +5683,8 @@ public:
             this->tolerateError(Messages::StrictModeWith);
         }
 
-        MetaNode node = this->createNode();
         this->expectKeyword(With);
+        MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
         RefPtr<Node> object = this->parseExpression();
         this->expect(RightParenthesis);
@@ -5709,10 +5714,12 @@ public:
 
         RefPtr<Node> test;
         if (this->matchKeyword(Default)) {
+            node = this->createNode();
             this->nextToken();
             test = nullptr;
         } else {
             this->expectKeyword(Case);
+            node = this->createNode();
             test = this->parseExpression();
         }
         this->expect(Colon);
@@ -5730,8 +5737,8 @@ public:
 
     RefPtr<SwitchStatementNode> parseSwitchStatement()
     {
-        MetaNode node = this->createNode();
         this->expectKeyword(Switch);
+        MetaNode node = this->createNode();
 
         this->expect(LeftParenthesis);
         RefPtr<Node> discriminant = this->parseExpression();
@@ -5774,8 +5781,8 @@ public:
 
     RefPtr<Node> parseLabelledStatement()
     {
-        MetaNode node = this->createNode();
         RefPtr<Node> expr = this->parseExpression();
+        MetaNode node = this->createNode();
 
         StatementNode* statement;
         if ((expr->type() == Identifier) && this->match(Colon)) {
@@ -5802,13 +5809,13 @@ public:
 
     RefPtr<Node> parseThrowStatement()
     {
-        MetaNode node = this->createNode();
         this->expectKeyword(Throw);
 
         if (this->hasLineTerminator) {
             this->throwError(Messages::NewlineAfterThrow);
         }
 
+        MetaNode node = this->createNode();
         RefPtr<Node> argument = this->parseExpression();
         this->consumeSemicolon();
 
@@ -5819,9 +5826,9 @@ public:
 
     RefPtr<CatchClauseNode> parseCatchClause()
     {
-        MetaNode node = this->createNode();
-
         this->expectKeyword(Catch);
+
+        MetaNode node = this->createNode();
 
         this->expect(LeftParenthesis);
         if (this->match(RightParenthesis)) {
@@ -5883,8 +5890,8 @@ public:
 
     RefPtr<TryStatementNode> parseTryStatement()
     {
-        MetaNode node = this->createNode();
         this->expectKeyword(Try);
+        MetaNode node = this->createNode();
 
         RefPtr<BlockStatementNode> block = this->parseBlock();
         RefPtr<CatchClauseNode> handler = this->matchKeyword(Catch) ? this->parseCatchClause() : nullptr;
@@ -6084,8 +6091,8 @@ public:
 
     RefPtr<FunctionDeclarationNode> parseFunctionDeclaration(bool identifierIsOptional = false)
     {
-        MetaNode node = this->createNode();
         this->expectKeyword(Function);
+        MetaNode node = this->createNode();
 
         bool isGenerator = this->match(Multiply);
         if (isGenerator) {
@@ -6117,6 +6124,7 @@ public:
         bool previousAllowYield = this->context->allowYield;
         this->context->allowYield = !isGenerator;
 
+        this->expect(LeftParenthesis);
         ParseFormalParametersResult formalParameters = this->parseFormalParameters(firstRestricted);
         PatternNodeVector params = std::move(formalParameters.params);
         RefPtr<ScannerResult> stricted = formalParameters.stricted;
@@ -6157,8 +6165,8 @@ public:
 
     RefPtr<FunctionExpressionNode> parseFunctionExpression()
     {
-        MetaNode node = this->createNode();
         this->expectKeyword(Function);
+        MetaNode node = this->createNode();
 
         bool isGenerator = this->match(Multiply);
         if (isGenerator) {
@@ -6190,6 +6198,7 @@ public:
             }
         }
 
+        this->expect(LeftParenthesis);
         ParseFormalParametersResult formalParameters = this->parseFormalParameters(firstRestricted);
         PatternNodeVector params = std::move(formalParameters.params);
         RefPtr<ScannerResult> stricted = formalParameters.stricted;
@@ -6800,7 +6809,7 @@ RefPtr<ProgramNode> parseProgram(::Escargot::Context* ctx, StringView source, Pa
 
 std::tuple<RefPtr<Node>, ASTScopeContext*> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, size_t stackRemain)
 {
-    Parser parser(ctx, codeBlock->src(), nullptr, stackRemain, codeBlock->sourceElementStart().line, codeBlock->sourceElementStart().column);
+    Parser parser(ctx, codeBlock->src(), nullptr, stackRemain, codeBlock->sourceElementStart().line, codeBlock->sourceElementStart().column, codeBlock->sourceElementStart().index);
     parser.trackUsingNames = false;
     parser.config.parseSingleFunction = true;
     parser.config.parseSingleFunctionTarget = codeBlock;

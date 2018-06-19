@@ -189,6 +189,11 @@ bool StringRef::equals(StringRef* src)
     return toImpl(this)->equals(toImpl(src));
 }
 
+StringRef* StringRef::substring(size_t from, size_t to)
+{
+    return toRef(toImpl(this)->substring(from, to));
+}
+
 std::string StringRef::toStdUTF8String()
 {
     return toImpl(this)->toNonGCUTF8StringData();
@@ -1287,6 +1292,8 @@ static SandBoxRef::SandBoxResult toSandBoxResultRef(SandBox::SandBoxResult& resu
         for (size_t i = 0; i < result.stackTraceData.size(); i++) {
             SandBoxRef::StackTraceData t;
             t.fileName = toRef(result.stackTraceData[i].fileName);
+            t.source = toRef(result.stackTraceData[i].source);
+            t.loc.index = result.stackTraceData[i].loc.index;
             t.loc.line = result.stackTraceData[i].loc.line;
             t.loc.column = result.stackTraceData[i].loc.column;
             r.stackTraceData.push_back(t);

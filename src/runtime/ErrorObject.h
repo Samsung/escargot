@@ -25,6 +25,7 @@
 namespace Escargot {
 
 class ByteCodeBlock;
+class SandBox;
 
 extern const char* errorMessage_NotImplemented; // FIXME to be removed
 extern const char* errorMessage_IsNotDefined;
@@ -130,6 +131,13 @@ public:
     struct StackTraceData : public gc {
         TightVector<StackTraceGCData, GCUtil::gc_malloc_ignore_off_page_allocator<StackTraceGCData>> gcValues;
         TightVector<StackTraceNonGCData, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<StackTraceNonGCData>> nonGCValues;
+        Value exception;
+
+        void buildStackTrace(Context* context, StringBuilder& builder);
+        static StackTraceData* create(SandBox* sandBox);
+
+    private:
+        StackTraceData() {}
     };
 
     StackTraceData* stackTraceData()

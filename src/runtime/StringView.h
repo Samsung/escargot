@@ -38,8 +38,8 @@ public:
         : String()
         , m_string(str)
     {
-        RELEASE_ASSERT(s <= e);
-        RELEASE_ASSERT(e <= str->length());
+        ASSERT(s <= e);
+        ASSERT(e <= str->length());
         initBufferAccessData(str->bufferAccessData(), s, e);
     }
 

@@ -169,7 +169,7 @@ public:
     size_t find(String* str, size_t pos = 0);
     size_t rfind(String* str, size_t pos);
 
-    String* subString(size_t from, size_t to);
+    String* substring(size_t from, size_t to);
 
     template <typename T>
     static inline size_t stringHash(T* src, size_t length)

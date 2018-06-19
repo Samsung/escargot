@@ -27,6 +27,7 @@ namespace Escargot {
 
 class SandBox : public gc {
     friend class ByteCodeInterpreter;
+    friend class ErrorObject;
 
 public:
     SandBox(Context* s)
@@ -43,9 +44,11 @@ public:
 
     struct StackTraceData : public gc {
         String* fileName;
+        String* source;
         ExtendedNodeLOC loc;
         StackTraceData()
             : fileName(String::emptyString)
+            , source(String::emptyString)
             , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
         {
         }

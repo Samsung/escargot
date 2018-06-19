@@ -1866,6 +1866,17 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
         programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
     } catch (const Value& val) {
         state.context()->m_sandBoxStack.back()->fillStackDataIntoErrorObject(val);
+
+#ifndef NDEBUG
+        if (getenv("DUMP_ERROR_IN_TRY_CATCH") && strlen(getenv("DUMP_ERROR_IN_TRY_CATCH"))) {
+            ErrorObject::StackTraceData* data = ErrorObject::StackTraceData::create(state.context()->m_sandBoxStack.back());
+            StringBuilder builder;
+            builder.appendString("Caught error in try-catch block\n");
+            data->buildStackTrace(state.context(), builder);
+            ESCARGOT_LOG_ERROR("%s\n", builder.finalize()->toUTF8StringData().data());
+        }
+#endif
+
         state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
         if (code->m_hasCatch == false) {
             state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
@@ -2124,6 +2135,7 @@ NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, c
             SandBox::StackTraceData data;
             data.loc = loc;
             data.fileName = cb->asInterpretedCodeBlock()->script()->fileName();
+            data.source = cb->asInterpretedCodeBlock()->script()->src();
             sb->m_stackTraceData.pushBack(std::make_pair(ec, data));
         } else {
             FunctionObject* fn = env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
@@ -2149,6 +2161,7 @@ NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, c
                 builder.appendString(" } ");
                 data.fileName = builder.finalize();
             }
+            data.source = String::emptyString;
             sb->m_stackTraceData.pushBack(std::make_pair(ec, data));
         }
     }

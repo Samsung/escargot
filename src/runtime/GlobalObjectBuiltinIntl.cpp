@@ -626,7 +626,7 @@ static String* bestAvailableLocale(ExecutionState& state, const Vector<String*, 
             pos -= 2;
 
         // d. Let candidate be the substring of candidate from position 0, inclusive, to position pos, exclusive.
-        candidate = candidate->subString(0, pos);
+        candidate = candidate->substring(0, pos);
     }
 
     return String::emptyString;
@@ -787,7 +787,7 @@ static IntlMatcherResult lookupMatcher(ExecutionState& state, const Vector<Strin
                 end++;
             }
 
-            result.extension = locale->subString(extensionIndex, extensionLength);
+            result.extension = locale->substring(extensionIndex, extensionLength);
             result.extensionIndex = extensionIndex;
         }
     } else {
@@ -937,9 +937,9 @@ static StringMap* resolveLocale(ExecutionState& state, const Vector<String*, gc_
     // If the length of supportedExtension is greater than 2, then
     if (supportedExtension->length() > 2) {
         // Let preExtension be the substring of foundLocale from position 0, inclusive, to position extensionIndex, exclusive.
-        String* preExtension = foundLocale->subString(0, r.extensionIndex);
+        String* preExtension = foundLocale->substring(0, r.extensionIndex);
         // Let postExtension be the substring of foundLocale from position extensionIndex to the end of the string.
-        String* postExtension = foundLocale->subString(r.extensionIndex, foundLocale->length());
+        String* postExtension = foundLocale->substring(r.extensionIndex, foundLocale->length());
         // Let foundLocale be the concatenation of preExtension, supportedExtension, and postExtension.
         StringBuilder sb;
         sb.appendString(preExtension);

@@ -366,7 +366,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         if (space.asString()->length() <= 10) {
             gap = space.asString();
         } else {
-            gap = space.asString()->subString(0, 10);
+            gap = space.asString()->substring(0, 10);
         }
     }
 

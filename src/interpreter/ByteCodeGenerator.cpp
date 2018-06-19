@@ -522,7 +522,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
             switch (opcode) {
 #define DUMP_BYTE_CODE(code, pushCount, popCount) \
     case code##Opcode:                            \
-        currentCode->dumpCode(idx + codeBase);    \
+        currentCode->dumpCode(idx);               \
         idx += sizeof(code);                      \
         continue;
 

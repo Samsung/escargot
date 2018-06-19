@@ -85,7 +85,6 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
             ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is unbalanced braces(}) in Function Constructor input");
         }
     }
-
     src.appendString("\n){\n");
     if (argc > 0) {
         src.appendString(source);
@@ -101,8 +100,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     }
 
     InterpretedCodeBlock* cb = parserResult.m_script->topCodeBlock()->childBlocks()[0];
-    cb->updateSourceElementStart(2, 1);
-
+    cb->updateSourceElementStart(3, 1);
     LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, parserResult.m_script->topCodeBlock(), state.context()->globalObject()), nullptr);
     return new FunctionObject(state, cb, globalEnvironment);
 }

@@ -151,7 +151,7 @@ static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size
                 return state.context()->staticStrings().asciiTable[c].string();
             }
         }
-        return str->subString(from, to);
+        return str->substring(from, to);
     }
 }
 
@@ -178,7 +178,7 @@ static Value builtinStringSubstr(ExecutionState& state, Value thisValue, size_t 
     if (resultLength <= 0)
         return String::emptyString;
 
-    return str->subString(intStart, intStart + resultLength);
+    return str->substring(intStart, intStart + resultLength);
 }
 
 static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -492,7 +492,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
                 if (result.m_matchResults[0][0].m_start >= S->length())
                     break;
 
-                String* T = S->subString(p, result.m_matchResults[0][0].m_start);
+                String* T = S->substring(p, result.m_matchResults[0][0].m_start);
                 A->defineOwnProperty(state, ObjectPropertyName(state, Value(lengthA++)), ObjectPropertyDescriptor(T, ObjectPropertyDescriptor::AllPresent));
                 if (lengthA == lim)
                     return A;
@@ -516,7 +516,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
                     if (q >= S->length())
                         break;
 
-                    String* T = S->subString(p, q);
+                    String* T = S->substring(p, q);
                     A->defineOwnProperty(state, ObjectPropertyName(state, Value(lengthA++)), ObjectPropertyDescriptor(T, ObjectPropertyDescriptor::AllPresent));
                     if (lengthA == lim)
                         return A;
@@ -528,7 +528,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
     }
 
     // 14, 15, 16
-    String* T = S->subString(p, s);
+    String* T = S->substring(p, s);
     A->defineOwnProperty(state, ObjectPropertyName(state, Value(lengthA)), ObjectPropertyDescriptor(T, ObjectPropertyDescriptor::AllPresent));
     return A;
 }
@@ -621,7 +621,7 @@ static Value builtinStringSlice(ExecutionState& state, Value thisValue, size_t a
     int from = (start < 0) ? std::max(len + start, 0.0) : std::min(start, (double)len);
     int to = (end < 0) ? std::max(len + end, 0.0) : std::min(end, (double)len);
     int span = std::max(to - from, 0);
-    return str->subString(from, from + span);
+    return str->substring(from, from + span);
 }
 
 static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

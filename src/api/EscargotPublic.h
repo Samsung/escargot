@@ -149,6 +149,8 @@ public:
     size_t length();
     bool equals(StringRef* src);
 
+    StringRef* substring(size_t from, size_t to);
+
     std::string toStdUTF8String();
 };
 
@@ -782,6 +784,7 @@ public:
 
     struct StackTraceData {
         StringRef* fileName;
+        StringRef* source;
         LOC loc;
         StackTraceData();
     };
