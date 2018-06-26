@@ -98,7 +98,13 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
         }
     }
 
-    return computeNodeLOC(cb->asInterpretedCodeBlock()->src(), cb->asInterpretedCodeBlock()->sourceElementStart(), index);
+    size_t indexRelatedWithScript = index;
+    index -= cb->asInterpretedCodeBlock()->sourceElementStart().index;
+
+    auto result = computeNodeLOC(cb->asInterpretedCodeBlock()->src(), cb->asInterpretedCodeBlock()->sourceElementStart(), index);
+    result.index = indexRelatedWithScript;
+
+    return result;
 }
 
 ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(StringView src, ExtendedNodeLOC sourceElementStart, size_t index)
