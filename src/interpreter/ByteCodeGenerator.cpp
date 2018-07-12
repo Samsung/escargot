@@ -196,7 +196,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
         char* end = &block->m_code.data()[block->m_code.size()];
         while (&code[idx] < end) {
             ByteCode* currentCode = (ByteCode*)(&code[idx]);
-#if COMPILER(GCC)
+#if defined(COMPILER_GCC)
             Opcode opcode = (Opcode)(size_t)currentCode->m_opcodeInAddress;
 #else
             Opcode opcode = currentCode->m_opcode;

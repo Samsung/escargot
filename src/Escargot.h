@@ -21,7 +21,8 @@
 #define __Escargot__
 
 /* COMPILER() - the compiler being used to build the project */
-#define COMPILER(FEATURE) (defined COMPILER_##FEATURE && COMPILER_##FEATURE)
+// Outdated syntax: use defined()
+// #define COMPILER(FEATURE) (defined COMPILER_##FEATURE && COMPILER_##FEATURE)
 
 #if defined(__clang__)
 #define COMPILER_CLANG 1
@@ -33,7 +34,7 @@
 #error "Compiler dectection failed"
 #endif
 
-#if COMPILER(CLANG)
+#if defined(COMPILER_CLANG)
 /* Keep strong enums turned off when building with clang-cl: We cannot yet build all of Blink without fallback to cl.exe, and strong enums are exposed at ABI boundaries. */
 #undef COMPILER_SUPPORTS_CXX_STRONG_ENUMS
 #else
@@ -43,9 +44,9 @@
 
 /* ALWAYS_INLINE */
 #ifndef ALWAYS_INLINE
-#if (COMPILER(GCC) || COMPILER(CLANG)) && defined(NDEBUG) && !COMPILER(MINGW)
+#if (defined(COMPILER_GCC) || defined(COMPILER_CLANG)) && defined(NDEBUG) && !defined(COMPILER_MINGW)
 #define ALWAYS_INLINE inline __attribute__((__always_inline__))
-#elif COMPILER(MSVC) && defined(NDEBUG)
+#elif defined(COMPILER_MSVC) && defined(NDEBUG)
 #define ALWAYS_INLINE __forceinline
 #else
 #define ALWAYS_INLINE inline
@@ -54,7 +55,7 @@
 
 /* NEVER_INLINE */
 #ifndef NEVER_INLINE
-#if COMPILER(GCC) || COMPILER(CLANG)
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define NEVER_INLINE __attribute__((__noinline__))
 #else
 #define NEVER_INLINE
@@ -63,7 +64,7 @@
 
 /* UNLIKELY */
 #ifndef UNLIKELY
-#if COMPILER(GCC) || COMPILER(CLANG)
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define UNLIKELY(x) __builtin_expect((x), 0)
 #else
 #define UNLIKELY(x) (x)
@@ -73,7 +74,7 @@
 
 /* LIKELY */
 #ifndef LIKELY
-#if COMPILER(GCC) || COMPILER(CLANG)
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define LIKELY(x) __builtin_expect((x), 1)
 #else
 #define LIKELY(x) (x)
@@ -83,9 +84,9 @@
 
 /* NO_RETURN */
 #ifndef NO_RETURN
-#if COMPILER(GCC) || COMPILER(CLANG)
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define NO_RETURN __attribute((__noreturn__))
-#elif COMPILER(MSVC)
+#elif defined(COMPILER_MSVC)
 #define NO_RETURN __declspec(noreturn)
 #else
 #define NO_RETURN
@@ -94,14 +95,14 @@
 
 /* EXPORT */
 #ifndef EXPORT
-#if COMPILER(MSVC)
+#if defined(COMPILER_MSVC)
 #define EXPORT __declspec(dllexport)
 #else
 #define EXPORT __attribute__((visibility("default")))
 #endif
 #endif
 
-#if COMPILER(MSVC)
+#if defined(COMPILER_MSVC)
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
 #ifndef NDEBUG
@@ -109,7 +110,7 @@
 #endif
 #endif
 
-#define OS(NAME) (defined OS_##NAME && OS_##NAME)
+// #define OS(NAME) (defined OS_##NAME && OS_##NAME)
 
 #ifdef _WIN32
 #define OS_WINDOWS 1
@@ -136,7 +137,7 @@
 #error "failed to detect target OS"
 #endif
 
-#if OS(WINDOWS)
+#if defined(OS_WINDOWS)
 #define NOMINMAX
 #endif
 
@@ -260,7 +261,7 @@ typedef int32_t UChar32;
         abort();                                                                           \
     } while (0)
 
-#if !defined(WARN_UNUSED_RETURN) && (COMPILER(GCC) || COMPILER(CLANG))
+#if !defined(WARN_UNUSED_RETURN) && (defined(COMPILER_GCC) || defined(COMPILER_CLANG))
 #define WARN_UNUSED_RETURN __attribute__((__warn_unused_result__))
 #endif
 
@@ -270,7 +271,7 @@ typedef int32_t UChar32;
 
 /* UNUSED_PARAMETER */
 
-#if !defined(UNUSED_PARAMETER) && COMPILER(MSVC)
+#if !defined(UNUSED_PARAMETER) && defined(COMPILER_MSVC)
 #define UNUSED_PARAMETER(variable) (void)&variable
 #endif
 

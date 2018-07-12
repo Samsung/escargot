@@ -166,7 +166,7 @@ void DateObject::initCachedUTC(ExecutionState& state, DateObject* d)
     state.context()->vmInstance()->setCachedUTC(d);
 }
 
-#if OS(WINDOWS)
+#if defined(OS_WINDOWS)
 #define CLOCK_REALTIME 0
 #include <windows.h>
 struct timespec {
@@ -1103,7 +1103,7 @@ String* DateObject::toTimeString(ExecutionState& state)
         int tzOffsetHour = (tzOffsetAsMin / const_Date_minutesPerHour);
         int tzOffsetMin = ((tzOffsetAsMin / (double)const_Date_minutesPerHour) - tzOffsetHour) * 60;
         tzOffsetHour *= 100;
-#if OS(WINDOWS)
+#if defined(OS_WINDOWS)
         const char* timeZoneName = _tzname[m_cachedLocal.isdst ? 1 : 0];
         snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d GMT%s%04d", getHours(state), getMinutes(state), getSeconds(state), (tzOffsetAsMin < 0) ? "-" : "+", std::abs(tzOffsetHour + tzOffsetMin));
         StringBuilder sb;

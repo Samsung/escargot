@@ -50,7 +50,7 @@ ALWAYS_INLINE size_t resolveProgramCounter(char* codeBuffer, const size_t progra
 
 Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCodeBlock, register size_t programCounter, Value* registerFile, void* initAddressFiller)
 {
-#if COMPILER(GCC)
+#if defined(COMPILER_GCC)
     *((size_t*)initAddressFiller) = ((size_t) && FillOpcodeTableOpcodeLbl);
 #endif
     {
@@ -62,7 +62,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
 #define NEXT_INSTRUCTION() goto NextInstruction;
 
         NextInstruction:
-#if COMPILER(GCC)
+#if defined(COMPILER_GCC)
             goto*(((ByteCode*)programCounter)->m_opcodeInAddress);
 #else
             Opcode currentOpcode = ((ByteCode*)programCounter)->m_opcode;
@@ -70,7 +70,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             switch (currentOpcode) {
 #endif
 
-#if COMPILER(GCC)
+#if defined(COMPILER_GCC)
 #define DEFINE_OPCODE(codeName) codeName##OpcodeLbl
 #else
 #define DEFINE_OPCODE(codeName) case codeName##Opcode
@@ -396,7 +396,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                         }
                     }
                 }
-#if COMPILER(GCC)
+#if defined(COMPILER_GCC)
                 goto GetObjectOpcodeSlowCaseOpcodeLbl;
 #else
                     currentOpcode = GetObjectOpcodeSlowCaseOpcode;
@@ -418,7 +418,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                             uint32_t len = arr->getArrayLength(state);
                             if (UNLIKELY(len <= idx)) {
                                 if (UNLIKELY(!arr->isExtensible())) {
-#if COMPILER(GCC)
+#if defined(COMPILER_GCC)
                                     goto SetObjectOpcodeSlowCaseOpcodeLbl;
 #else
                                         currentOpcode = SetObjectOpcodeSlowCaseOpcode;
@@ -426,7 +426,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
 #endif
                                 }
                                 if (UNLIKELY(!arr->setArrayLength(state, idx + 1)) || UNLIKELY(!arr->isFastModeArray())) {
-#if COMPILER(GCC)
+#if defined(COMPILER_GCC)
                                     goto SetObjectOpcodeSlowCaseOpcodeLbl;
 #else
                                         currentOpcode = SetObjectOpcodeSlowCaseOpcode;
@@ -440,7 +440,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                         }
                     }
                 }
-#if COMPILER(GCC)
+#if defined(COMPILER_GCC)
                 goto SetObjectOpcodeSlowCaseOpcodeLbl;
 #else
                     currentOpcode = SetObjectOpcodeSlowCaseOpcode;
@@ -1127,7 +1127,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             DEFINE_OPCODE(End)
                 : return registerFile[0];
 
-#if !COMPILER(GCC)
+#if !defined(COMPILER_GCC)
         default:
             RELEASE_ASSERT_NOT_REACHED();
         }
@@ -1141,7 +1141,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
         processException(state, v, ec, programCounter);
     }
 }
-#if COMPILER(GCC)
+#if defined(COMPILER_GCC)
 FillOpcodeTableOpcodeLbl:
 {
 #define REGISTER_TABLE(opcode, pushCount, popCount) g_opcodeTable.m_table[opcode##Opcode] = &&opcode##OpcodeLbl;

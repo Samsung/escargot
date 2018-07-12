@@ -96,7 +96,7 @@ inline Value::Value(bool b)
 inline Value::Value(FromPayloadTag, intptr_t ptr)
 {
     u.asBits.tag = OtherPointerTag;
-#if COMPILER(MSVC)
+#if defined(COMPILER_MSVC)
     u.asBits.payload = (int32_t)(ptr);
 #else
     u.asBits.payload = reinterpret_cast<int32_t>(ptr);

@@ -44,7 +44,7 @@ namespace {
 
 /* Disable "potential divide by 0" warning in Visual Studio compiler. */
 
-#if COMPILER(MSVC)
+#if defined(COMPILER_MSVC)
 
 #pragma warning(disable : 4723)
 

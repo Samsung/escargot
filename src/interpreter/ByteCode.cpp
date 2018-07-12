@@ -35,7 +35,7 @@ OpcodeTable::OpcodeTable()
     ByteCodeBlock block;
 
     block.m_code.resize(sizeof(FillOpcodeTable));
-#if COMPILER(GCC)
+#if defined(COMPILER_GCC)
     size_t* addr = (size_t*)(block.m_code.data() + offsetof(FillOpcodeTable, m_opcodeInAddress));
     ByteCodeInterpreter::interpret(state, &block, 0, nullptr, addr);
 #endif

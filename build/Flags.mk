@@ -12,6 +12,7 @@ ESCARGOT_CXXFLAGS_COMMON += -fvisibility=hidden
 ESCARGOT_CXXFLAGS_COMMON += -Wno-unused-but-set-variable -Wno-unused-but-set-parameter -Wno-unused-parameter
 ESCARGOT_CXXFLAGS_COMMON += -Wno-type-limits -Wno-unused-result -Wno-unused-variable -Wno-invalid-offsetof
 ESCARGOT_CXXFLAGS_COMMON += -Wno-deprecated-declarations
+ESCARGOT_CXXFLAGS_COMMON += -Wno-implicit-fallthrough
 
 ESCARGOT_CXXFLAGS_COMMON += -DESCARGOT_ENABLE_TYPEDARRAY
 ESCARGOT_CXXFLAGS_COMMON += -DESCARGOT_ENABLE_PROMISE

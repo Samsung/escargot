@@ -3,19 +3,19 @@
 
 namespace Escargot {
 
-#if COMPILER(GCC)
+#if defined(COMPILER_GCC)
 template <const int siz>
 inline void __attribute__((optimize("O0"))) clearStack()
 {
     volatile char a[siz] = { 0 };
 }
-#elif COMPILER(CLANG)
+#elif defined(COMPILER_CLANG)
 template <const int siz>
 [[clang::optnone]] inline void clearStack()
 {
     volatile char a[siz] = { 0 };
 }
-#elif COMPILER(MSVC)
+#elif defined(COMPILER_MSVC)
 #pragma optimize("", off)
 template <const int siz>
 inline void clearStack()

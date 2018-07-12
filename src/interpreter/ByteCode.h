@@ -117,7 +117,7 @@ enum Opcode {
     // special opcode only used in interpreter
     GetObjectOpcodeSlowCaseOpcode,
     SetObjectOpcodeSlowCaseOpcode,
-#if COMPILER(MSVC)
+#if defined(COMPILER_MSVC)
 };
 #else
 } __attribute__((packed));
@@ -167,7 +167,7 @@ class ByteCode : public gc {
 public:
     virtual ~ByteCode() {}
     ByteCode(Opcode code, const ByteCodeLOC& loc)
-#if COMPILER(GCC)
+#if defined(COMPILER_GCC)
         : m_opcodeInAddress((void*)code)
 #else
         : m_opcode(code)
@@ -182,18 +182,18 @@ public:
     void assignOpcodeInAddress()
     {
 #ifndef NDEBUG
-#if COMPILER(GCC)
+#if defined(COMPILER_GCC)
         m_orgOpcode = (Opcode)(size_t)m_opcodeInAddress;
 #else
         m_orgOpcode = m_opcode;
 #endif
 #endif
-#if COMPILER(GCC)
+#if defined(COMPILER_GCC)
         m_opcodeInAddress = g_opcodeTable.m_table[(Opcode)(size_t)m_opcodeInAddress];
 #endif
     }
 
-#if COMPILER(GCC)
+#if defined(COMPILER_GCC)
     void* m_opcodeInAddress;
 #else
     Opcode m_opcode;
