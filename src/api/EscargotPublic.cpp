@@ -1270,6 +1270,7 @@ void SandBoxRef::destroy()
 
 SandBoxRef::StackTraceData::StackTraceData()
     : fileName(toRef(String::emptyString))
+    , source(toRef(String::emptyString))
     , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 {
 }
