@@ -125,18 +125,22 @@ struct StringBufferAccessData {
         OutputType ret;
         const auto& accessData = *this;
         for (size_t i = 0; i < accessData.length; i++) {
-            char16_t ch = accessData.charAt(i);
+            char32_t ch = (uint16_t)accessData.charAt(i);
             if (ch < 0x80) {
                 ret.append((char*)&ch, 1);
             } else {
                 char32_t finalCh;
                 if (U16_IS_LEAD(ch)) {
-                    char16_t c2;
-                    if (i + 1 < accessData.length && U16_IS_TRAIL(c2 = accessData.charAt(i + 1))) {
-                        finalCh = U16_GET_SUPPLEMENTARY(ch, c2);
-                        i++;
+                    if (i + 1 == accessData.length) {
+                        finalCh = ch;
                     } else {
-                        finalCh = 0xFFFD;
+                        char16_t c2;
+                        if (U16_IS_TRAIL(c2 = accessData.charAt(i + 1))) {
+                            finalCh = U16_GET_SUPPLEMENTARY(ch, c2);
+                            i++;
+                        } else {
+                            finalCh = 0xFFFD;
+                        }
                     }
                 } else {
                     finalCh = ch;
