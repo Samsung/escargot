@@ -112,36 +112,12 @@ public:
 
     virtual UTF8StringData toUTF8StringData() const
     {
-        UTF8StringDataNonGCStd ret;
-        const auto& accessData = bufferAccessData();
-        for (size_t i = 0; i < accessData.length; i++) {
-            char16_t ch = accessData.charAt(i);
-            if (ch < 0x80) {
-                ret.append((char*)&ch, 1);
-            } else {
-                char buf[8];
-                auto len = utf32ToUtf8(ch, buf);
-                ret.append(buf, len);
-            }
-        }
-        return UTF8StringData(ret.data(), ret.length());
+        return bufferAccessData().toUTF8String<UTF8StringData, UTF8StringDataNonGCStd>();
     }
 
     virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const
     {
-        UTF8StringDataNonGCStd ret;
-        const auto& accessData = bufferAccessData();
-        for (size_t i = 0; i < accessData.length; i++) {
-            char16_t ch = accessData.charAt(i);
-            if (ch < 0x80) {
-                ret.append((char*)&ch, 1);
-            } else {
-                char buf[8];
-                auto len = utf32ToUtf8(ch, buf);
-                ret.append(buf, len);
-            }
-        }
-        return ret;
+        return bufferAccessData().toUTF8String<UTF8StringDataNonGCStd>();
     }
 
     virtual const LChar* characters8() const
@@ -268,36 +244,12 @@ public:
 
     virtual UTF8StringData toUTF8StringData() const
     {
-        UTF8StringDataNonGCStd ret;
-        const auto& accessData = bufferAccessData();
-        for (size_t i = 0; i < accessData.length; i++) {
-            char16_t ch = accessData.charAt(i);
-            if (ch < 0x80) {
-                ret.append((char*)&ch, 1);
-            } else {
-                char buf[8];
-                auto len = utf32ToUtf8(ch, buf);
-                ret.append(buf, len);
-            }
-        }
-        return UTF8StringData(ret.data(), ret.length());
+        return bufferAccessData().toUTF8String<UTF8StringData, UTF8StringDataNonGCStd>();
     }
 
     virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const
     {
-        UTF8StringDataNonGCStd ret;
-        const auto& accessData = bufferAccessData();
-        for (size_t i = 0; i < accessData.length; i++) {
-            char16_t ch = accessData.charAt(i);
-            if (ch < 0x80) {
-                ret.append((char*)&ch, 1);
-            } else {
-                char buf[8];
-                auto len = utf32ToUtf8(ch, buf);
-                ret.append(buf, len);
-            }
-        }
-        return ret;
+        return bufferAccessData().toUTF8String<UTF8StringDataNonGCStd>();
     }
 
     virtual const LChar* characters8() const

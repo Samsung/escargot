@@ -258,46 +258,6 @@ size_t utf32ToUtf8(char32_t uc, char* UTF8)
     return tRequiredSize;
 }
 
-UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t& len)
-{
-    UTF8StringDataNonGCStd str;
-    str.reserve(len);
-    for (unsigned i = 0; i < len;) {
-        if (buf[i] < 128) {
-            str += buf[i];
-            i++;
-        } else {
-            char32_t c;
-            U16_NEXT(buf, i, len, c);
-
-            char buf[8];
-            utf32ToUtf8(c, buf);
-            str += buf;
-        }
-    }
-    return UTF8StringData(str.data(), str.length());
-}
-
-UTF8StringDataNonGCStd utf16StringToUTF8NonGCString(const char16_t* buf, const size_t& len)
-{
-    UTF8StringDataNonGCStd str;
-    str.reserve(len);
-    for (unsigned i = 0; i < len;) {
-        if (buf[i] < 128) {
-            str += buf[i];
-            i++;
-        } else {
-            char32_t c;
-            U16_NEXT(buf, i, len, c);
-
-            char buf[8];
-            utf32ToUtf8(c, buf);
-            str += buf;
-        }
-    }
-    return str;
-}
-
 UTF16StringData ASCIIString::toUTF16StringData() const
 {
     UTF16StringData ret;
@@ -371,12 +331,12 @@ UTF16StringData UTF16String::toUTF16StringData() const
 
 UTF8StringData UTF16String::toUTF8StringData() const
 {
-    return utf16StringToUTF8String(UTF16String::characters16(), UTF16String::length());
+    return bufferAccessData().toUTF8String<UTF8StringData, UTF8StringDataNonGCStd>();
 }
 
 UTF8StringDataNonGCStd UTF16String::toNonGCUTF8StringData() const
 {
-    return utf16StringToUTF8NonGCString(UTF16String::characters16(), UTF16String::length());
+    return bufferAccessData().toUTF8String<UTF8StringDataNonGCStd>();
 }
 
 enum Flags : unsigned {

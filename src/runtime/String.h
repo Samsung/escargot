@@ -41,6 +41,24 @@ typedef std::basic_string<char, std::char_traits<char>> UTF8StringDataNonGCStd;
 typedef std::basic_string<char16_t, std::char_traits<char16_t>> UTF16StringDataNonGCStd;
 typedef std::basic_string<char32_t, std::char_traits<char32_t>> UTF32StringDataNonGCStd;
 
+bool isAllASCII(const char* buf, const size_t& len);
+bool isAllASCII(const char16_t* buf, const size_t& len);
+bool isAllLatin1(const char16_t* buf, const size_t& len);
+bool isIndexString(String* str);
+char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen);
+UTF16StringData utf8StringToUTF16String(const char* buf, const size_t& len);
+UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t& len);
+ASCIIStringData utf16StringToASCIIString(const char16_t* buf, const size_t& len);
+ASCIIStringData dtoa(double number);
+size_t utf32ToUtf8(char32_t uc, char* UTF8);
+// these functions only care ascii range(0~127)
+bool islower(char16_t ch);
+bool isupper(char16_t ch);
+char16_t tolower(char16_t ch);
+char16_t toupper(char16_t ch);
+bool isspace(char16_t ch);
+bool isdigit(char16_t ch);
+
 class ASCIIString;
 class Latin1String;
 class UTF16String;
@@ -92,6 +110,44 @@ struct StringBufferAccessData {
             }
             return true;
         }
+    }
+
+    template <typename OutputType, typename ComputingType>
+    OutputType toUTF8String() const
+    {
+        ComputingType s = toUTF8String<ComputingType>();
+        return OutputType(s.data(), s.length());
+    }
+
+    template <typename OutputType>
+    OutputType toUTF8String() const
+    {
+        OutputType ret;
+        const auto& accessData = *this;
+        for (size_t i = 0; i < accessData.length; i++) {
+            char16_t ch = accessData.charAt(i);
+            if (ch < 0x80) {
+                ret.append((char*)&ch, 1);
+            } else {
+                char32_t finalCh;
+                if (U16_IS_LEAD(ch)) {
+                    char16_t c2;
+                    if (i + 1 < accessData.length && U16_IS_TRAIL(c2 = accessData.charAt(i + 1))) {
+                        finalCh = U16_GET_SUPPLEMENTARY(ch, c2);
+                        i++;
+                    } else {
+                        finalCh = 0xFFFD;
+                    }
+                } else {
+                    finalCh = ch;
+                }
+
+                char buf[8];
+                auto len = utf32ToUtf8(finalCh, buf);
+                ret.append(buf, len);
+            }
+        }
+        return ret;
     }
 };
 
@@ -523,17 +579,6 @@ public:
 protected:
 };
 
-bool isAllASCII(const char* buf, const size_t& len);
-bool isAllASCII(const char16_t* buf, const size_t& len);
-bool isAllLatin1(const char16_t* buf, const size_t& len);
-bool isIndexString(String* str);
-char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen);
-UTF16StringData utf8StringToUTF16String(const char* buf, const size_t& len);
-UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t& len);
-ASCIIStringData utf16StringToASCIIString(const char16_t* buf, const size_t& len);
-ASCIIStringData dtoa(double number);
-size_t utf32ToUtf8(char32_t uc, char* UTF8);
-
 inline String* String::fromCharCode(char32_t code)
 {
     if (code < 128) {
@@ -552,14 +597,6 @@ inline String* String::fromCharCode(char32_t code)
         return new UTF16String(buf, 2);
     }
 }
-
-// these functions only care ascii range(0~127)
-bool islower(char16_t ch);
-bool isupper(char16_t ch);
-char16_t tolower(char16_t ch);
-char16_t toupper(char16_t ch);
-bool isspace(char16_t ch);
-bool isdigit(char16_t ch);
 }
 
 namespace std {
