@@ -445,6 +445,11 @@ SymbolRef* VMInstanceRef::iteratorSymbol()
     return toRef(toImpl(this)->globalSymbols().iterator);
 }
 
+SymbolRef* VMInstanceRef::unscopablesSymbol()
+{
+    return toRef(toImpl(this)->globalSymbols().unscopables);
+}
+
 #ifdef ESCARGOT_ENABLE_PROMISE
 ValueRef* VMInstanceRef::drainJobQueue()
 {

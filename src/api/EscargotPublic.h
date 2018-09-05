@@ -171,6 +171,7 @@ public:
 
     SymbolRef* toStringTagSymbol();
     SymbolRef* iteratorSymbol();
+    SymbolRef* unscopablesSymbol();
 
 #ifdef ESCARGOT_ENABLE_PROMISE
     // if there is an error, executing will be stopped and returns ErrorValue
