@@ -517,6 +517,7 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
                         break;
                     else
                         state = State::ReadingNumber;
+                // Fall through.
                 case ReadingNumber:
                     if (isSpace(ch))
                         state = State::DoneReadingNumber;

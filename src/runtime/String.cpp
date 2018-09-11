@@ -143,13 +143,13 @@ char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen)
     switch (length) {
     case 4:
         ch += static_cast<unsigned char>(*sequence++);
-        ch <<= 6; // FALLTHROUGH;
+        ch <<= 6; // Fall through.
     case 3:
         ch += static_cast<unsigned char>(*sequence++);
-        ch <<= 6; // FALLTHROUGH;
+        ch <<= 6; // Fall through.
     case 2:
         ch += static_cast<unsigned char>(*sequence++);
-        ch <<= 6; // FALLTHROUGH;
+        ch <<= 6; // Fall through.
     case 1:
         ch += static_cast<unsigned char>(*sequence++);
     }

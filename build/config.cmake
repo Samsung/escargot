@@ -1,6 +1,8 @@
 CMAKE_MINIMUM_REQUIRED (VERSION 2.8)
 
+#######################################################
 # CONFIGURATION
+#######################################################
 SET (ESCARGOT_CXXFLAGS_CONFIG)
 SET (ESCARGOT_LDFLAGS_CONFIG)
 
@@ -69,12 +71,18 @@ ELSEIF (${HOST} MATCHES "tizen")
 ENDIF()
 
 
-# PATH
+#######################################################
+# PATH 
+#######################################################
 SET (ESCARGOT_ROOT ${CMAKE_SOURCE_DIR})
 SET (THIRD_PARTY_ROOT ${ESCARGOT_ROOT}/third_party)
 SET (GCUTIL_ROOT ${THIRD_PARTY_ROOT}/GCutil)
 
 SET (OUTDIR ${ESCARGOT_ROOT}/out/${HOST}/${ARCH}/${TYPE}/${MODE})
+
+SET (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTDIR}/)
+SET (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTDIR}/lib)
+SET (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTDIR}/lib)
 
 # TARGET NAME
 SET (ESCARGOT_TARGET escargot)

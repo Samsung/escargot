@@ -96,37 +96,123 @@ ENDIF()
 
 
 # GC LIBRARY (static)
-#ADD_SUBDIRECTORY (${GCUTIL_ROOT})
-#IF (${MODE} STREQUAL "debug")
-#    SET (GC_LIB gc_debug)
-#ELSEIF (${MODE} STREQUAL "release")
-#    SET (GC_LIB gc_release)
-#ENDIF()
+SET (GC_LIB gc)
+SET (GC_DEFINITIONS_COMMON -DHAVE_CONFIG_H -DESCARGOT -DIGNORE_DYNAMIC_LOADING -DGC_DONT_REGISTER_MAIN_STATIC_DATA)
+IF (${MODE} STREQUAL "debug")
+    SET (GC_DEFINITIONS_MODE -DGC_DEBUG)
+ENDIF()
+SET (GC_DEFINITIONS
+    ${GC_DEFINITIONS_COMMON}
+    ${GC_DEFINITIONS_MODE}
+)
 
-#FIND_LIBRARY (GC_LIB libgc.a 
-#              PATHS ${GCUTIL_ROOT}/bdwgc/out/${HOST}/${ARCH}/${MODE}.static/.libs)
+SET (GC_CFLAGS_COMMON -g3 -fdata-sections -ffunction-sections)
+MESSAGE (${GC_CFLAGS_COMMON})
+
+IF (${ARCH} STREQUAL "x86")
+    SET (GC_CFLAGS_ARCH -m32)
+    SET (GC_LDFLAGS_ARCH -m32)
+ELSEIF (${ARCH} STREQUAL "tizen")
+    SET (GC_CFLAGS_ARCH -march=armv7-a -mthumb -finline-limit=64)
+ENDIF()
+
+IF (${MODE} STREQUAL "debug")
+    SET (GC_CFLAGS_MODE -O0)
+ELSE()
+    SET (GC_CFLAGS_MODE -O2)
+ENDIF()
+
+SET (GC_CFLAGS
+    ${GC_CFLAGS_COMMON}
+    ${GC_CFLAGS_ARCH}
+    ${GC_CFLAGS_MODE}
+)
+
+SET (GC_CONFFLAGS_COMMON --enable-munmap --disable-parallel-mark --enable-large-config --disable-pthread --disable-threads)
+IF (${MODE} STREQUAL "debug")
+    SET (GC_CONFFLAGS_MODE --enable-debug --enable-gc-debug)
+ELSE()
+    SET (GC_CONFFLAGS_MODE --disable-debug --disable-gc-debug)
+ENDIF()
+SET (GC_CONFFLAGS
+    ${GC_CONFFLAGS_COMMON}
+    ${GC_CONFFLAGS_MODE}
+)
+
+SET (GC_SRC
+    ${GCUTIL_ROOT}/bdwgc/allchblk.c
+    ${GCUTIL_ROOT}/bdwgc/alloc.c
+    ${GCUTIL_ROOT}/bdwgc/backgraph.c
+    ${GCUTIL_ROOT}/bdwgc/blacklst.c
+    ${GCUTIL_ROOT}/bdwgc/checksums.c
+    #${GCUTIL_ROOT}/bdwgc/darwin_stop_world.c
+    ${GCUTIL_ROOT}/bdwgc/dbg_mlc.c
+    ${GCUTIL_ROOT}/bdwgc/dyn_load.c
+    ${GCUTIL_ROOT}/bdwgc/finalize.c
+    ${GCUTIL_ROOT}/bdwgc/fnlz_mlc.c
+    #${GCUTIL_ROOT}/bdwgc/gc_cpp.cc
+    ${GCUTIL_ROOT}/bdwgc/gc_dlopen.c
+    ${GCUTIL_ROOT}/bdwgc/gcj_mlc.c
+    ${GCUTIL_ROOT}/bdwgc/headers.c
+    ${GCUTIL_ROOT}/bdwgc/mach_dep.c
+    ${GCUTIL_ROOT}/bdwgc/malloc.c
+    ${GCUTIL_ROOT}/bdwgc/mallocx.c
+    ${GCUTIL_ROOT}/bdwgc/mark.c
+    ${GCUTIL_ROOT}/bdwgc/mark_rts.c
+    ${GCUTIL_ROOT}/bdwgc/misc.c
+    ${GCUTIL_ROOT}/bdwgc/new_hblk.c
+    ${GCUTIL_ROOT}/bdwgc/obj_map.c
+    ${GCUTIL_ROOT}/bdwgc/os_dep.c
+    #${GCUTIL_ROOT}/bdwgc/pthread_start.c
+    #${GCUTIL_ROOT}/bdwgc/pthread_stop_world.c
+    #${GCUTIL_ROOT}/bdwgc/pthread_support.c
+    ${GCUTIL_ROOT}/bdwgc/pcr_interface.c
+    ${GCUTIL_ROOT}/bdwgc/ptr_chck.c
+    ${GCUTIL_ROOT}/bdwgc/real_malloc.c
+    ${GCUTIL_ROOT}/bdwgc/reclaim.c
+    #${GCUTIL_ROOT}/bdwgc/sparc_mach_dep.S
+    ${GCUTIL_ROOT}/bdwgc/specific.c
+    ${GCUTIL_ROOT}/bdwgc/stubborn.c
+    ${GCUTIL_ROOT}/bdwgc/thread_local_alloc.c
+    ${GCUTIL_ROOT}/bdwgc/typd_mlc.c 
+    #${GCUTIL_ROOT}/bdwgc/win32_threads.c 
+    ${GCUTIL_ROOT}/bdwgc/cord/cordbscs.c
+    ${GCUTIL_ROOT}/bdwgc/cord/cordprnt.c
+    ${GCUTIL_ROOT}/bdwgc/cord/cordxtra.c
+)
+
+SET (GC_BUILDDIR ${GCUTIL_ROOT}/bdwgc/out/${HOST}/${ARCH}/${MODE}.static) 
+
+ADD_CUSTOM_TARGET (GC_PRECONF
+        WORKING_DIRECTORY ${GCUTIL_ROOT}/bdwgc
+        COMMAND autoreconf -vif
+        COMMAND automake --add-missing
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${GC_BUILDDIR}
+)
+
+ADD_CUSTOM_TARGET (GC_CONF
+        WORKING_DIRECTORY ${GC_BUILDDIR}
+        DEPENDS GC_PRECONF
+        COMMAND ../../../../configure ${GC_CONFFLAGS} CFLAGS="${GC_CFLAGS}" LDFLAGS="${GC_LDFLAGS}"
+)
+
+ADD_LIBRARY (${GC_LIB} STATIC ${GC_SRC})
+TARGET_INCLUDE_DIRECTORIES (${GC_LIB} PUBLIC ${GCUTIL_ROOT}/bdwgc/include/ ${GC_BUILDDIR}/include/)
+TARGET_COMPILE_DEFINITIONS (${GC_LIB} PUBLIC ${GC_DEFINITIONS})
+TARGET_COMPILE_OPTIONS (${GC_LIB} PUBLIC ${GC_CFLAGS})
+ADD_DEPENDENCIES (${GC_LIB} GC_CONF)
 
 
 # BUILD
 IF (${OUTPUT} STREQUAL "bin")
-    SET (GC_LIB "${GCUTIL_ROOT}/bdwgc/out/${HOST}/${ARCH}/${MODE}.static/.libs/libgc.a")
-    MESSAGE (${GC_LIB})
-    ADD_CUSTOM_COMMAND (OUTPUT ${GC_LIB} 
-                        COMMENT "Build GCutil" 
-                        COMMAND @./build_third_party.sh)
+    ADD_EXECUTABLE (${ESCARGOT_TARGET} ${SRC})
+    ADD_DEPENDENCIES (${ESCARGOT_TARGET} ${GC_LIB})
 
-#    ADD_LIBRARY (GC_LIB STATIC IMPORTED)
-#    SET_PROPERTY (TARGET GC_LIB PROPERTY IMPORTED_LOCATION ${GCUTIL_ROOT}/bdwgc/out/${HOST}/${ARCH}/${MODE}.static/.libs/libgc.a)
-
-    ADD_EXECUTABLE (${ESCARGOT_TARGET} ${SRC} ${GC_LIB})
-#ADD_EXECUTABLE (${ESCARGOT_TARGET} ${SRC})
-#TARGET_LINK_LIBRARIES (${ESCARGOT_TARGET} ${ESCARGOT_LIBRARIES} GC_LIB)
     TARGET_LINK_LIBRARIES (${ESCARGOT_TARGET} ${ESCARGOT_LIBRARIES} ${GC_LIB})
     TARGET_INCLUDE_DIRECTORIES (${ESCARGOT_TARGET} PUBLIC ${ESCARGOT_LIBDIRS})
     SET_TARGET_PROPERTIES (${ESCARGOT_TARGET} PROPERTIES 
                            COMPILE_FLAGS "${ESCARGOT_CXXFLAGS}" 
-                           LINK_FLAGS "${ESCARGOT_LDFLAGS}" 
-                           RUNTIME_OUTPUT_DIRECTORY "${OUTDIR}")
+                           LINK_FLAGS "${ESCARGOT_LDFLAGS}") 
 
     ADD_CUSTOM_COMMAND (TARGET ${ESCARGOT_TARGET} PRE_BUILD
                         COMMAND @make tidy)
@@ -135,22 +221,14 @@ IF (${OUTPUT} STREQUAL "bin")
 
 ELSEIF (${OUTPUT} STREQUAL "shared_lib")
     ADD_LIBRARY (${ESCARGOT_TARGET} SHARED ${SRC})
-#TODO standalone
-#TARGET_LINK_LIBRARIES (${ESCARGOT_TARGET} ${ESCARGOT_LIBRARIES})
-#TARGET_INCLUDE_DIRECTORIES (${ESCARGOT_TARGET} PUBLIC ${ESCARGOT_LIBDIRS})
     SET_TARGET_PROPERTIES (${ESCARGOT_TARGET} PROPERTIES 
                            COMPILE_FLAGS "${ESCARGOT_CXXFLAGS}" 
-                           LINK_FLAGS "${ESCARGOT_LDFLAGS}" 
-                           LIBRARY_OUTPUT_DIRECTORY "${OUTDIR}")
+                           LINK_FLAGS "${ESCARGOT_LDFLAGS}") 
 ELSEIF (${OUTPUT} STREQUAL "static_lib")
     ADD_LIBRARY (${ESCARGOT_TARGET} STATIC ${SRC})
-#TODO standalone
-#TARGET_LINK_LIBRARIES (${ESCARGOT_TARGET} ${ESCARGOT_LIBRARIES})
-#TARGET_INCLUDE_DIRECTORIES (${ESCARGOT_TARGET} PUBLIC ${ESCARGOT_LIBDIRS})
     SET_TARGET_PROPERTIES (${ESCARGOT_TARGET} PROPERTIES 
                            COMPILE_FLAGS "${ESCARGOT_CXXFLAGS}" 
-                           LINK_FLAGS "${ESCARGOT_LDFLAGS}" 
-                           ARCHIVE_OUTPUT_DIRECTORY "${OUTDIR}")
+                           LINK_FLAGS "${ESCARGOT_LDFLAGS}") 
 ENDIF()
 
 
