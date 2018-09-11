@@ -575,9 +575,18 @@ public:
     void markFunctionNeedsSlowVirtualIdentifierOperation();
 };
 
+class EXPORT IteratorObjectRef : public ObjectRef {
+public:
+    static IteratorObjectRef* create(ExecutionStateRef* state);
+    ValueRef* next(ExecutionStateRef* state);
+};
+
 class EXPORT ArrayObjectRef : public ObjectRef {
 public:
     static ArrayObjectRef* create(ExecutionStateRef* state);
+    IteratorObjectRef* values(ExecutionStateRef* state);
+    IteratorObjectRef* keys(ExecutionStateRef* state);
+    IteratorObjectRef* entries(ExecutionStateRef* state);
 };
 
 class EXPORT ErrorObjectRef : public ObjectRef {

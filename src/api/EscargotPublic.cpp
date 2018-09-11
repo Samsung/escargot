@@ -33,6 +33,7 @@
 #include "runtime/SandBox.h"
 #include "runtime/Environment.h"
 #include "runtime/SymbolObject.h"
+#include "runtime/IteratorObject.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/DateObject.h"
@@ -70,6 +71,7 @@ DEFINE_CAST(String);
 DEFINE_CAST(Symbol);
 DEFINE_CAST(PointerValue);
 DEFINE_CAST(Object);
+DEFINE_CAST(IteratorObject);
 DEFINE_CAST(ArrayObject)
 DEFINE_CAST(StringObject)
 DEFINE_CAST(SymbolObject)
@@ -1634,9 +1636,32 @@ FunctionObjectRef* ValueRef::asFunction()
     return toRef(Value(SmallValue::fromPayload(this)).asFunction());
 }
 
+IteratorObjectRef* IteratorObjectRef::create(ExecutionStateRef* state)
+{
+    return toRef(new IteratorObject(*toImpl(state)));
+}
+
+ValueRef* IteratorObjectRef::next(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->next(*toImpl(state)));
+}
+
 ArrayObjectRef* ArrayObjectRef::create(ExecutionStateRef* state)
 {
     return toRef(new ArrayObject(*toImpl(state)));
+}
+
+IteratorObjectRef* ArrayObjectRef::values(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->values(*toImpl(state)));
+}
+IteratorObjectRef* ArrayObjectRef::keys(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->keys(*toImpl(state)));
+}
+IteratorObjectRef* ArrayObjectRef::entries(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->entries(*toImpl(state)));
 }
 
 COMPILE_ASSERT((int)ErrorObject::Code::None == (int)ErrorObjectRef::Code::None, "");

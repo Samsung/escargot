@@ -84,8 +84,14 @@ public:
 
     Value next(ExecutionState& state);
 
-    virtual const char* internalClassProperty() = 0;
-    virtual std::pair<Value, bool> advance(ExecutionState& state) = 0; // implemention should return pair<Value, done>
+    virtual const char* internalClassProperty() {
+        return "Iterator";
+    }
+    virtual std::pair<Value, bool> advance(ExecutionState& state)
+    {
+        ASSERT_NOT_REACHED();
+    }
+
 protected:
 };
 }
