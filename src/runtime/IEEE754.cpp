@@ -1911,6 +1911,7 @@ double log1p(double x)
     GET_HIGH_WORD(hx, x);
     ax = hx & 0x7FFFFFFF;
 
+    c = 0;
     k = 1;
     if (hx < 0x3FDA827A) { /* 1+x < sqrt(2)+ */
         if (ax >= 0x3FF00000) { /* x <= -1.0 */

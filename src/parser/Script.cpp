@@ -118,7 +118,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
     m_topCodeBlock->m_cachedASTNode = nullptr;
 
     bool isOnGlobal = true;
-    FunctionEnvironmentRecord* fnRecord;
+    FunctionEnvironmentRecord* fnRecord = nullptr;
     {
         LexicalEnvironment* env = state.executionContext()->lexicalEnvironment();
         while (env) {
