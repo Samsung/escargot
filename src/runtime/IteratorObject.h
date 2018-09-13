@@ -87,9 +87,10 @@ public:
     virtual const char* internalClassProperty() {
         return "Iterator";
     }
+
     virtual std::pair<Value, bool> advance(ExecutionState& state)
     {
-        ASSERT_NOT_REACHED();
+        RELEASE_ASSERT_NOT_REACHED();
     }
 
 protected:
