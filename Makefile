@@ -39,6 +39,12 @@ else ifneq (,$(findstring x64,$(MAKECMDGOALS)))
   ARCH=x64
 else ifneq (,$(findstring arm,$(MAKECMDGOALS)))
   ARCH=arm
+else ifneq (,$(findstring aarch64,$(MAKECMDGOALS)))
+  ARCH=aarch64
+else ifneq (,$(findstring i686,$(MAKECMDGOALS)))
+  ARCH=i686
+else ifneq (,$(findstring x86_64,$(MAKECMDGOALS)))
+  ARCH=x86_64
 endif
 
 ifneq (,$(findstring interpreter,$(MAKECMDGOALS)))
@@ -89,9 +95,16 @@ else ifneq (,$(findstring tizen24_mobile_arm,$(MAKECMDGOALS)))
   TIZEN_PROFILE=mobile
 else ifneq (,$(findstring tizen_obs_arm,$(MAKECMDGOALS)))
   HOST=tizen_obs
-else ifneq (,$(findstring tizen_obs_i386,$(MAKECMDGOALS)))
+  ARCH=arm
+else ifneq (,$(findstring tizen_obs_aarch64,$(MAKECMDGOALS)))
   HOST=tizen_obs
-  ARCH=i386
+  ARCH=aarch64
+else ifneq (,$(findstring tizen_obs_i686,$(MAKECMDGOALS)))
+  HOST=tizen_obs
+  ARCH=i686
+else ifneq (,$(findstring tizen_obs_x86_64,$(MAKECMDGOALS)))
+  HOST=tizen_obs
+  ARCH=x86_64
 else ifneq (,$(findstring android,$(MAKECMDGOALS)))
   HOST=android
   ARCH=arm
@@ -148,12 +161,18 @@ ifeq ($(ARCH), x64)
 else ifeq ($(ARCH), x86)
   CXXFLAGS += $(ESCARGOT_CXXFLAGS_X86)
   LDFLAGS += $(ESCARGOT_LDFLAGS_X86)
-else ifeq ($(ARCH), i386)
+else ifeq ($(ARCH), i686)
   CXXFLAGS += $(ESCARGOT_CXXFLAGS_X86)
   LDFLAGS += $(ESCARGOT_LDFLAGS_X86)
 else ifeq ($(ARCH), arm)
   CXXFLAGS += $(ESCARGOT_CXXFLAGS_ARM)
   LDFLAGS += $(ESCARGOT_LDFLAGS_ARM)
+else ifeq ($(ARCH), aarch64)
+  CXXFLAGS += $(ESCARGOT_CXXFLAGS_AARCH64)
+  LDFLAGS += $(ESCARGOT_LDFLAGS_AARCH64)
+else ifeq ($(ARCH), x86_64)
+  CXXFLAGS += $(ESCARGOT_CXXFLAGS_X64)
+  LDFLAGS += $(ESCARGOT_LDFLAGS_X64)
 endif
 
 # TYPE flags
@@ -324,6 +343,21 @@ tizen_obs_arm.interpreter.release: $(OUTDIR)/$(BIN)
 tizen_obs_i386.interpreter.release: $(OUTDIR)/$(BIN)
 tizen_obs_arm.interpreter.debug: $(OUTDIR)/$(BIN)
 tizen_obs_i386.interpreter.debug: $(OUTDIR)/$(BIN)
+
+tizen_obs_aarch64.interpreter.release.static: $(OUTDIR)/$(STATIC_LIB)
+tizen_obs_aarch64.interpreter.debug.static: $(OUTDIR)/$(STATIC_LIB)
+tizen_obs_aarch64.interpreter.release: $(OUTDIR)/$(BIN)
+tizen_obs_aarch64.interpreter.debug: $(OUTDIR)/$(BIN)
+
+tizen_obs_i686.interpreter.release.static: $(OUTDIR)/$(STATIC_LIB)
+tizen_obs_i686.interpreter.debug.static: $(OUTDIR)/$(STATIC_LIB)
+tizen_obs_i686.interpreter.release: $(OUTDIR)/$(BIN)
+tizen_obs_i686.interpreter.debug: $(OUTDIR)/$(BIN)
+
+tizen_obs_x86_64.interpreter.release.static: $(OUTDIR)/$(STATIC_LIB)
+tizen_obs_x86_64.interpreter.debug.static: $(OUTDIR)/$(STATIC_LIB)
+tizen_obs_x86_64.interpreter.release: $(OUTDIR)/$(BIN)
+tizen_obs_x86_64.interpreter.debug: $(OUTDIR)/$(BIN)
 
 ##### TIZEN24 #####
 tizen24_mobile_emulator.interpreter.release.static: $(OUTDIR)/$(STATIC_LIB)
