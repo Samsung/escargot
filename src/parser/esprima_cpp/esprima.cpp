@@ -2679,18 +2679,30 @@ public:
     {
         UTF16StringDataNonGCStd msg;
         if (arg0->length() && arg1->length()) {
-            char message[512];
             UTF8StringData d1 = arg0->toUTF8StringData();
             UTF8StringData d2 = arg1->toUTF8StringData();
-            snprintf(message, sizeof(message), messageFormat, d1.data(), d2.data());
-            auto temp = utf8StringToUTF16String(message, strlen(message));
+
+            auto temp = utf8StringToUTF16String(messageFormat, strlen(messageFormat));
             msg = UTF16StringDataNonGCStd(temp.data(), temp.length());
+            UTF16StringDataNonGCStd from(u"%s");
+            UTF16StringDataNonGCStd arg0Data(arg0->toUTF16StringData().data());
+            UTF16StringDataNonGCStd arg1Data(arg1->toUTF16StringData().data());
+            size_t start_pos = msg.find(from, 0);
+            RELEASE_ASSERT(start_pos != SIZE_MAX);
+            msg.replace(start_pos, from.length(), arg0Data);
+
+            start_pos = msg.find(from, start_pos + arg0Data.length());
+            RELEASE_ASSERT(start_pos != SIZE_MAX);
+            msg.replace(start_pos, from.length(), arg1Data);
         } else if (arg0->length()) {
-            char message[512];
             UTF8StringData d1 = arg0->toUTF8StringData();
-            snprintf(message, sizeof(message), messageFormat, d1.data());
-            auto temp = utf8StringToUTF16String(message, strlen(message));
+            auto temp = utf8StringToUTF16String(messageFormat, strlen(messageFormat));
             msg = UTF16StringDataNonGCStd(temp.data(), temp.length());
+            UTF16StringDataNonGCStd from(u"%s");
+            UTF16StringDataNonGCStd argData(arg0->toUTF16StringData().data());
+            size_t start_pos = msg.find(from, 0);
+            RELEASE_ASSERT(start_pos != SIZE_MAX);
+            msg.replace(start_pos, from.length(), argData);
         } else {
             msg.assign(messageFormat, &messageFormat[strlen(messageFormat)]);
         }

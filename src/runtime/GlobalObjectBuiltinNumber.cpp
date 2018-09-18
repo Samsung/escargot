@@ -140,7 +140,8 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
     }
 
     int digit = 0; // only used when an argument is given
-    if (argc > 0) {
+    bool undefinedDigit = argc == 0 || argv[0].isUndefined();
+    if (!undefinedDigit) {
         double fractionDigits = argv[0].toNumber(state);
         digit = (int)trunc(fractionDigits);
     }
@@ -148,19 +149,13 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
         return state.context()->staticStrings().NaN.string();
     }
     char buf[512];
-    std::basic_ostringstream<char> stream;
-    std::basic_ostringstream<char> expStream;
     int exp = 0;
-    if (number < 0) { // 5
-        stream << "-";
-        number = -1 * number;
-    }
     if (std::isinf(number)) { // 6
-        snprintf(buf, sizeof(buf), stream.str().c_str(), number, exp);
-        StringBuilder builder;
-        builder.appendString(buf);
-        builder.appendString(state.context()->staticStrings().Infinity.string());
-        return builder.finalize();
+        if (number < 0) {
+            return state.context()->staticStrings().NegativeInfinity.string();
+        } else {
+            return state.context()->staticStrings().Infinity.string();
+        }
     }
     if (digit < 0 || digit > 20) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toExponential.string(), errorMessage_GlobalObject_RangeError);
@@ -181,15 +176,25 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
         }
     }
     number /= pow(10, exp);
-    if (argc == 0) {
-        stream << "%.15lf";
+    if (undefinedDigit) {
+        snprintf(buf, sizeof(buf), "%.15lf", number);
     } else {
-        stream << "%." << digit << "lf";
+        String* numberStr = String::fromDouble(number);
+        char zeros[20];
+        int sign = number < 0 ? 1 : 0;
+        int len = (int)numberStr->length() - sign;
+        int addDigit = 2 + digit - len;
+        for (int i = 0; i < addDigit; i++) {
+            zeros[i] = '0';
+        }
+        zeros[addDigit < 0 ? 0 : addDigit] = '\0';
+        int endP = (addDigit < 0 ? digit + 2 : len) + sign;
+        snprintf(buf, sizeof(buf), "%s%s\n", numberStr->substring(0, endP)->characters8(), zeros);
     }
-    snprintf(buf, sizeof(buf), stream.str().c_str(), number);
+
     // remove trailing zeros
     char* tail = nullptr;
-    if (argc == 0) {
+    if (undefinedDigit) {
         tail = buf + strlen(buf) - 1;
         while (*tail == '0' && *tail-- != '.') {
         }
@@ -207,12 +212,7 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
     }
     if (*(tail - 1) == '.')
         tail--;
-    expStream << "e";
-    if (exp >= 0) {
-        expStream << "+";
-    }
-    expStream << "%d";
-    snprintf(tail, 512 - (ptrdiff_t)(buf - tail), expStream.str().c_str(), exp);
+    snprintf(tail, 512 - (ptrdiff_t)(buf - tail), "e%+d", exp);
     return Value(new ASCIIString(buf));
 }
 
@@ -231,18 +231,16 @@ static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, si
     if (argc == 0 || argv[0].isUndefined()) {
         return Value(number).toString(state);
     } else if (argc >= 1) {
-        double x = number;
         double p_d = argv[0].toNumber(state);
-        if (std::isnan(x)) {
+        if (std::isnan(number)) {
             return state.context()->staticStrings().NaN.string();
         }
-        std::basic_ostringstream<char> stream;
-        if (x < 0) {
-            stream << "-";
-            x = -x;
-        }
-        if (std::isinf(x)) {
-            stream << "Infinity";
+        if (std::isinf(number)) {
+            if (number < 0) {
+                return state.context()->staticStrings().NegativeInfinity.string();
+            } else {
+                return state.context()->staticStrings().Infinity.string();
+            }
         } else {
             int p = (int)trunc(p_d);
             if (p < 1 || p > 21) {
@@ -253,10 +251,6 @@ static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, si
             double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToPrecision(number, p, &builder);
             return Value(new ASCIIString(builder.Finalize()));
         }
-        std::string fstr = stream.str();
-        char buf[512];
-        snprintf(buf, sizeof(buf), fstr.c_str(), x);
-        return Value(new ASCIIString(buf));
     }
     return Value();
 }

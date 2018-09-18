@@ -182,10 +182,10 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
 #endif
 
     DoubleInSmallValue temp(0);
-    g_doubleInSmallValueTag = *((size_t*)&temp);
+    memcpy(&g_doubleInSmallValueTag, &temp, sizeof(size_t));
 
     ObjectRareData data(nullptr);
-    g_objectRareDataTag = *((size_t*)&data);
+    memcpy(&g_objectRareDataTag, &data, sizeof(size_t));
 
     Symbol sm(nullptr);
     g_symbolTag = *((size_t*)&sm);

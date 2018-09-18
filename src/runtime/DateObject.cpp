@@ -1137,17 +1137,13 @@ String* DateObject::toFullString(ExecutionState& state)
 
 String* DateObject::toISOString(ExecutionState& state)
 {
-    const char* format[2] = { "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ",
-                              "%+07d-%02d-%02dT%02d:%02d:%02d.%03dZ" };
     char buffer[64];
     if (IS_VALID_TIME(m_primitiveValue)) {
-        int formatSelect;
         if (getUTCFullYear(state) >= 0 && getUTCFullYear(state) <= 9999) {
-            formatSelect = 0;
+            snprintf(buffer, sizeof(buffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
         } else {
-            formatSelect = 1;
+            snprintf(buffer, sizeof(buffer), "%+07d-%02d-%02dT%02d:%02d:%02d.%03dZ", getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
         }
-        snprintf(buffer, sizeof(buffer), format[formatSelect], getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
         return new ASCIIString(buffer);
     } else {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toISOString.string(), errorMessage_GlobalObject_InvalidDate);
@@ -1158,11 +1154,9 @@ String* DateObject::toISOString(ExecutionState& state)
 
 String* DateObject::toUTCString(ExecutionState& state, String* functionName)
 {
-    const char* format = "%s, %02d %s %d %02d:%02d:%02d GMT";
-
     char buffer[64];
     if (IS_VALID_TIME(m_primitiveValue)) {
-        snprintf(buffer, sizeof(buffer), format, days[getUTCDay(state)], getUTCDate(state),
+        snprintf(buffer, sizeof(buffer), "%s, %02d %s %d %02d:%02d:%02d GMT", days[getUTCDay(state)], getUTCDate(state),
                  months[getUTCMonth(state)], getUTCFullYear(state),
                  getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state));
         return new ASCIIString(buffer);
