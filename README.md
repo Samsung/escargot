@@ -8,7 +8,7 @@ apt-get install autoconf automake libtool libc++-dev libicu-dev gcc-multilib g++
 ## Build Escargot
 
 ``` sh
-git clone git@github.sec.samsung.net:lws/escargot.git
+git clone git@github.com:pando-project/escargot.git
 cd escargot
 git submodule update --init third_party
 cmake CMakeLists.txt -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin
@@ -45,9 +45,3 @@ make run-v8-x64 # V8 for x64
 make run-chakracore-x64 # Chakracore for x64
 make run-test262 # test262
 ```
-
-## Misc.
-
-### CI Infrastructure
-
-http://10.113.64.74:8080/job/escargot2_daily_measure/

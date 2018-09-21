@@ -14,7 +14,7 @@ if [[ $1 == incremental ]]; then
     INCREMENTAL=true
 fi
 
-PORT=STARFISH_EFL
+PORT=PANDO_EFL
 #LTO=true
 LTO=false
 #COMPILER_VERSION_MAJOR=4.9
@@ -39,7 +39,7 @@ CFLAGS_FROM_ENV=$(echo $CFLAGS)
 CXXFLAGS_FROM_ENV=$(echo $CXXFLAGS)
 
 GCCONFFLAGS_COMMON=" --enable-munmap --disable-parallel-mark --enable-large-config " # --enable-large-config --enable-cplusplus"
-if [[ $PORT == STARFISH_EFL ]]; then
+if [[ $PORT == PANDO_EFL ]]; then
     GCCONFFLAGS_COMMON+=" --disable-pthread --disable-threads "
 fi
 CFLAGS_COMMON=" -g3 "
