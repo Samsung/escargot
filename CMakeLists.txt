@@ -22,4 +22,6 @@ PROCESSORCOUNT (NPROCS)
 # INCLUDE CMAKE FILES
 INCLUDE (build/config.cmake)
 INCLUDE (build/escargot.cmake)
-INCLUDE (build/test.cmake)
+IF (${OUTPUT} STREQUAL "bin")
+    INCLUDE (build/test.cmake)
+ENDIF()
