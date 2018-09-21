@@ -232,7 +232,7 @@ ELSEIF (${OUTPUT} STREQUAL "static_lib")
 ENDIF()
 
 
-# CUSTOM TARGET for Starfish
+# CUSTOM TARGET for Pando
 ADD_CUSTOM_TARGET (install_header_to_include
                    COMMENT "install_header_to_include"
                    COMMAND @cp -f ${ESCARGOT_ROOT}/src/api/EscargotPublic.h ${ESCARGOT_ROOT}/include/.

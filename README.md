@@ -8,7 +8,7 @@ apt-get install autoconf automake libtool libc++-dev libicu-dev gcc-multilib g++
 ## Building
 
 ``` sh
-git clone git@github.sec.samsung.net:RS7-webtf/escargot.git
+git clone git@github.com:pando-project/escargot.git
 cd escargot
 git submodule init
 git submodule update third_party/GCutil
@@ -39,9 +39,3 @@ git submodule update
 ```sh
 make run-sunspider
 ```
-
-## Misc.
-
-### CI Infrastructure
-
-http://10.113.64.74:8080/job/escargot2_daily_measure/
