@@ -12,7 +12,7 @@ JerryScript uses the name api, exactly jerry-api.h
 
 3) EscargotPublic.h
 
-Starfish uses this convention.
+Pando uses this convention.
 
 ## The Name of global utilities
 Like `v8::V8::Initialize`, we sometimes want to initialize or get or set something belongs into global.
