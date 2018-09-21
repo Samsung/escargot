@@ -1,6 +1,6 @@
 # Specification
 
-Escargot is lightweight JavaScript engine used in StarFish.
+Escargot is lightweight JavaScript engine used in Pando.
 Escargot implements full of [ECMAScript 5.1 specification](http://www.ecma-international.org/ecma-262/5.1/) and part of [ECMAScript 6.0 specification](http://www.ecma-international.org/ecma-262/6.0/).
 
 ## ES5
