@@ -36,18 +36,20 @@ static int itoa(int64_t value, char* sp, int radix)
     uint64_t v;
 
     int sign = (radix == 10 && value < 0);
-    if (sign)
+    if (sign) {
         v = -value;
-    else
+    } else {
         v = (uint64_t)value;
+    }
 
     while (v || tp == tmp) {
         i = v % radix;
         v /= radix; // v/=radix uses less CPU clocks than v=v/radix does
-        if (i < 10)
+        if (i < 10) {
             *tp++ = i + '0';
-        else
+        } else {
             *tp++ = i + 'a' - 10;
+        }
     }
 
     int64_t len = tp - tmp;
@@ -70,16 +72,18 @@ static Value builtinNumberConstructor(ExecutionState& state, Value thisValue, si
     NumberObject* numObj;
     if (isNewExpression) {
         numObj = thisValue.asPointerValue()->asObject()->asNumberObject();
-        if (argc == 0)
+        if (argc == 0) {
             numObj->setPrimitiveValue(state, 0);
-        else
+        } else {
             numObj->setPrimitiveValue(state, argv[0].toNumber(state));
+        }
         return numObj;
     } else {
-        if (argc == 0)
+        if (argc == 0) {
             return Value(0);
-        else
+        } else {
             return Value(argv[0].toNumber(state));
+        }
     }
 }
 
@@ -207,8 +211,9 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
             }
         }
         tail++;
-        for (int i = 0; i < digit; i++)
+        for (int i = 0; i < digit; i++) {
             tail++;
+        }
     }
     if (*(tail - 1) == '.')
         tail--;
@@ -273,12 +278,13 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
     double radix = 10;
     if (argc > 0 && !argv[0].isUndefined()) {
         radix = argv[0].toInteger(state);
-        if (radix < 2 || radix > 36)
+        if (radix < 2 || radix > 36) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_RadixInvalidRange);
+        }
     }
-    if (radix == 10)
+    if (radix == 10) {
         return (Value(number).toString(state));
-    else {
+    } else {
         bool isInteger = (static_cast<int64_t>(number) == number);
         if (isInteger) {
             bool minusFlag = (number < 0) ? 1 : 0;

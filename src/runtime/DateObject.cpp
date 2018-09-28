@@ -251,12 +251,13 @@ static int equivalentYearForDST(int year)
     int maxYear = 2037;
 
     int difference;
-    if (year > maxYear)
+    if (year > maxYear) {
         difference = minYear - year;
-    else if (year < minYear)
+    } else if (year < minYear) {
         difference = maxYear - year;
-    else
+    } else {
         return year;
+    }
 
     int quotient = difference / 28;
     int product = quotient * 28;
@@ -350,9 +351,10 @@ static int findMonth(const char* monthStr)
     ASSERT(monthStr);
     char needle[4];
     for (int i = 0; i < 3; ++i) {
-        if (!*monthStr)
+        if (!*monthStr) {
             return -1;
-        //        needle[i] = static_cast<char>(toASCIILower(*monthStr++));
+        }
+        // needle[i] = static_cast<char>(toASCIILower(*monthStr++));
         needle[i] = (*monthStr++) | (uint8_t)0x20;
     }
     needle[3] = '\0';
@@ -360,8 +362,9 @@ static int findMonth(const char* monthStr)
     const char* str = strstr(haystack, needle);
     if (str) {
         int position = static_cast<int>(str - haystack);
-        if (position % 3 == 0)
+        if (position % 3 == 0) {
             return position / 3;
+        }
     }
     return -1;
 }
@@ -382,12 +385,13 @@ inline static void skipSpacesAndComments(const char*& s)
     char ch;
     while ((ch = *s)) {
         if (!isASCIISpace(ch)) {
-            if (ch == '(')
+            if (ch == '(') {
                 nesting++;
-            else if (ch == ')' && nesting > 0)
+            } else if (ch == ')' && nesting > 0) {
                 nesting--;
-            else if (nesting == 0)
+            } else if (nesting == 0) {
                 break;
+            }
         }
         s++;
     }
@@ -397,8 +401,9 @@ static bool parseInt(const char* string, char** stopPosition, int base, int* res
 {
     long longResult = strtol(string, stopPosition, base);
     // Avoid the use of errno as it is not available on Windows CE
-    if (string == *stopPosition || longResult <= std::numeric_limits<int>::min() || longResult >= std::numeric_limits<int>::max())
+    if (string == *stopPosition || longResult <= std::numeric_limits<int>::min() || longResult >= std::numeric_limits<int>::max()) {
         return false;
+    }
     *result = static_cast<int>(longResult);
     return true;
 }
@@ -408,8 +413,9 @@ static bool parseLong(const char* string, char** stopPosition, int base, long* r
     if (digits == 0) {
         *result = strtol(string, stopPosition, base);
         // Avoid the use of errno as it is not available on Windows CE
-        if (string == *stopPosition || *result == std::numeric_limits<long>::min() || *result == std::numeric_limits<long>::max())
+        if (string == *stopPosition || *result == std::numeric_limits<long>::min() || *result == std::numeric_limits<long>::max()) {
             return false;
+        }
         return true;
     } else {
         strtol(string, stopPosition, base); // for compute stopPosition
@@ -421,8 +427,9 @@ static bool parseLong(const char* string, char** stopPosition, int base, long* r
         s[3] = '\0';
 
         *result = strtol(s, NULL, base);
-        if (string == *stopPosition || *result == std::numeric_limits<long>::min() || *result == std::numeric_limits<long>::max())
+        if (string == *stopPosition || *result == std::numeric_limits<long>::min() || *result == std::numeric_limits<long>::max()) {
             return false;
+        }
         return true;
     }
 }
@@ -440,114 +447,140 @@ time64_t DateObject::parseStringToDate_1(ExecutionState& state, String* istr, bo
 
     while (*dateString && !isASCIIDigit(*dateString)) {
         if (isASCIISpace(*dateString) || *dateString == '(') {
-            if (dateString - wordStart >= 3)
+            if (dateString - wordStart >= 3) {
                 month = findMonth(wordStart);
+            }
             skipSpacesAndComments(dateString);
             wordStart = dateString;
-        } else
+        } else {
             dateString++;
+        }
     }
 
-    if (month == -1 && wordStart != dateString)
+    if (month == -1 && wordStart != dateString) {
         month = findMonth(wordStart);
+    }
 
     skipSpacesAndComments(dateString);
 
-    if (!*dateString)
+    if (!*dateString) {
         return TIME64NAN;
+    }
 
     char* newPosStr;
     long int day;
-    if (!parseLong(dateString, &newPosStr, 10, &day))
+    if (!parseLong(dateString, &newPosStr, 10, &day)) {
         return TIME64NAN;
+    }
     dateString = newPosStr;
 
-    if (!*dateString)
+    if (!*dateString) {
         return TIME64NAN;
+    }
 
-    if (day < 0)
+    if (day < 0) {
         return TIME64NAN;
+    }
 
     int year = 0;
     if (day > 31) {
         // ### where is the boundary and what happens below?
-        if (*dateString != '/')
+        if (*dateString != '/') {
             return TIME64NAN;
+        }
         // looks like a YYYY/MM/DD date
-        if (!*++dateString)
+        if (!*++dateString) {
             return TIME64NAN;
-        if (day <= std::numeric_limits<int>::min() || day >= std::numeric_limits<int>::max())
+        }
+        if (day <= std::numeric_limits<int>::min() || day >= std::numeric_limits<int>::max()) {
             return TIME64NAN;
+        }
         year = static_cast<int>(day);
-        if (!parseLong(dateString, &newPosStr, 10, &month))
+        if (!parseLong(dateString, &newPosStr, 10, &month)) {
             return TIME64NAN;
+        }
         month -= 1;
         dateString = newPosStr;
-        if (*dateString++ != '/' || !*dateString)
+        if (*dateString++ != '/' || !*dateString) {
             return TIME64NAN;
-        if (!parseLong(dateString, &newPosStr, 10, &day))
+        }
+        if (!parseLong(dateString, &newPosStr, 10, &day)) {
             return TIME64NAN;
+        }
         dateString = newPosStr;
     } else if (*dateString == '/' && month == -1) {
         dateString++;
         // This looks like a MM/DD/YYYY date, not an RFC date.
         month = day - 1; // 0-based
-        if (!parseLong(dateString, &newPosStr, 10, &day))
+        if (!parseLong(dateString, &newPosStr, 10, &day)) {
             return TIME64NAN;
-        if (day < 1 || day > 31)
+        }
+        if (day < 1 || day > 31) {
             return TIME64NAN;
+        }
         dateString = newPosStr;
-        if (*dateString == '/')
+        if (*dateString == '/') {
             dateString++;
-        if (!*dateString)
+        }
+        if (!*dateString) {
             return TIME64NAN;
+        }
     } else {
-        if (*dateString == '-')
+        if (*dateString == '-') {
             dateString++;
+        }
 
         skipSpacesAndComments(dateString);
 
-        if (*dateString == ',')
+        if (*dateString == ',') {
             dateString++;
+        }
 
         if (month == -1) { // not found yet
             month = findMonth(dateString);
-            if (month == -1)
+            if (month == -1) {
                 return TIME64NAN;
+            }
 
-            while (*dateString && *dateString != '-' && *dateString != ',' && !isASCIISpace(*dateString))
+            while (*dateString && *dateString != '-' && *dateString != ',' && !isASCIISpace(*dateString)) {
                 dateString++;
+            }
 
-            if (!*dateString)
+            if (!*dateString) {
                 return TIME64NAN;
+            }
 
             // '-99 23:12:40 GMT'
-            if (*dateString != '-' && *dateString != '/' && *dateString != ',' && !isASCIISpace(*dateString))
+            if (*dateString != '-' && *dateString != '/' && *dateString != ',' && !isASCIISpace(*dateString)) {
                 return TIME64NAN;
+            }
             dateString++;
         }
     }
 
-    if (month < 0 || month > 11)
+    if (month < 0 || month > 11) {
         return TIME64NAN;
+    }
 
     // '99 23:12:40 GMT'
     if (year <= 0 && *dateString) {
-        if (!parseInt(dateString, &newPosStr, 10, &year))
+        if (!parseInt(dateString, &newPosStr, 10, &year)) {
             return TIME64NAN;
+        }
     }
 
     // Don't fail if the time is missing.
     long hour = 0;
     long minute = 0;
     long second = 0;
-    if (!*newPosStr)
+    if (!*newPosStr) {
         dateString = newPosStr;
-    else {
+    } else {
         // ' 23:12:40 GMT'
         if (!(isASCIISpace(*newPosStr) || *newPosStr == ',')) {
-            if (*newPosStr != ':')
+            if (*newPosStr != ':') {
                 return TIME64NAN;
+            }
             // There was no year; the number was the hour.
             year = -1;
         } else {
@@ -565,53 +598,66 @@ time64_t DateObject::parseStringToDate_1(ExecutionState& state, String* istr, bo
         if (newPosStr != dateString) {
             dateString = newPosStr;
 
-            if (hour < 0 || hour > 23)
+            if (hour < 0 || hour > 23) {
                 return TIME64NAN;
+            }
 
-            if (!*dateString)
+            if (!*dateString) {
                 return TIME64NAN;
+            }
 
             // ':12:40 GMT'
-            if (*dateString++ != ':')
+            if (*dateString++ != ':') {
                 return TIME64NAN;
+            }
 
-            if (!parseLong(dateString, &newPosStr, 10, &minute))
+            if (!parseLong(dateString, &newPosStr, 10, &minute)) {
                 return TIME64NAN;
+            }
             dateString = newPosStr;
 
-            if (minute < 0 || minute > 59)
+            if (minute < 0 || minute > 59) {
                 return TIME64NAN;
+            }
 
             // ':40 GMT'
-            if (*dateString && *dateString != ':' && !isASCIISpace(*dateString))
+            if (*dateString && *dateString != ':' &&
+                !isASCIISpace(*dateString)) {
                 return TIME64NAN;
+            }
 
             // seconds are optional in rfc822 + rfc2822
             if (*dateString == ':') {
                 dateString++;
 
-                if (!parseLong(dateString, &newPosStr, 10, &second))
+                if (!parseLong(dateString, &newPosStr, 10, &second)) {
                     return TIME64NAN;
+                }
                 dateString = newPosStr;
 
-                if (second < 0 || second > 59)
+                if (second < 0 || second > 59) {
                     return TIME64NAN;
+                }
             }
 
             skipSpacesAndComments(dateString);
 
             if (strncasecmp(dateString, "AM", 2) == 0) {
-                if (hour > 12)
+                if (hour > 12) {
                     return TIME64NAN;
-                if (hour == 12)
+                }
+                if (hour == 12) {
                     hour = 0;
+                }
                 dateString += 2;
                 skipSpacesAndComments(dateString);
             } else if (strncasecmp(dateString, "PM", 2) == 0) {
-                if (hour > 12)
+                if (hour > 12) {
                     return TIME64NAN;
-                if (hour != 12)
+                }
+                if (hour != 12) {
                     hour += 12;
+                }
                 dateString += 2;
                 skipSpacesAndComments(dateString);
             }
@@ -620,8 +666,9 @@ time64_t DateObject::parseStringToDate_1(ExecutionState& state, String* istr, bo
 
     // The year may be after the time but before the time zone.
     if (isASCIIDigit(*dateString) && year == -1) {
-        if (!parseInt(dateString, &newPosStr, 10, &year))
+        if (!parseInt(dateString, &newPosStr, 10, &year)) {
             return TIME64NAN;
+        }
         dateString = newPosStr;
         skipSpacesAndComments(dateString);
     }
@@ -635,25 +682,29 @@ time64_t DateObject::parseStringToDate_1(ExecutionState& state, String* istr, bo
         }
         if (*dateString == '+' || *dateString == '-') {
             int o;
-            if (!parseInt(dateString, &newPosStr, 10, &o))
+            if (!parseInt(dateString, &newPosStr, 10, &o)) {
                 return TIME64NAN;
+            }
             dateString = newPosStr;
 
-            if (o < -9959 || o > 9959)
+            if (o < -9959 || o > 9959) {
                 return TIME64NAN;
+            }
 
             int sgn = (o < 0) ? -1 : 1;
             o = abs(o);
             if (*dateString != ':') {
-                if (o >= 24)
+                if (o >= 24) {
                     offset = ((o / 100) * 60 + (o % 100)) * sgn;
-                else
+                } else {
                     offset = o * 60 * sgn;
+                }
             } else { // GMT+05:00
                 ++dateString; // skip the ':'
                 int o2;
-                if (!parseInt(dateString, &newPosStr, 10, &o2))
+                if (!parseInt(dateString, &newPosStr, 10, &o2)) {
                     return TIME64NAN;
+                }
                 dateString = newPosStr;
                 offset = (o * 60 + o2) * sgn;
             }
@@ -673,22 +724,25 @@ time64_t DateObject::parseStringToDate_1(ExecutionState& state, String* istr, bo
     skipSpacesAndComments(dateString);
 
     if (*dateString && year == -1) {
-        if (!parseInt(dateString, &newPosStr, 10, &year))
+        if (!parseInt(dateString, &newPosStr, 10, &year)) {
             return TIME64NAN;
+        }
         dateString = newPosStr;
         skipSpacesAndComments(dateString);
     }
 
     // Trailing garbage
-    if (*dateString)
+    if (*dateString) {
         return TIME64NAN;
+    }
 
     // Y2K: Handle 2 digit years.
     if (year >= 0 && year < 100) {
-        if (year < 50)
+        if (year < 50) {
             year += 2000;
-        else
+        } else {
             year += 1900;
+        }
     }
 
     return timeinfoToMs(state, year, month, day, hour, minute, second, 0);
@@ -701,51 +755,67 @@ static char* parseES5DatePortion(const char* currentPosition, int& year, long& m
     // This is a bit more lenient on the year string than ES5 specifies:
     // instead of restricting to 4 digits (or 6 digits with mandatory +/-),
     // it accepts any integer value. Consider this an implementation fallback.
-    if (!parseInt(currentPosition, &postParsePosition, 10, &year))
+    if (!parseInt(currentPosition, &postParsePosition, 10, &year)) {
         return 0;
+    }
 
     // Check for presence of -MM portion.
-    if (*postParsePosition != '-')
+    if (*postParsePosition != '-') {
         return postParsePosition;
+    }
     currentPosition = postParsePosition + 1;
 
-    if (!isASCIIDigit(*currentPosition))
+    if (!isASCIIDigit(*currentPosition)) {
         return 0;
-    if (!parseLong(currentPosition, &postParsePosition, 10, &month))
+    }
+    if (!parseLong(currentPosition, &postParsePosition, 10, &month)) {
         return 0;
-    if ((postParsePosition - currentPosition) != 2)
+    }
+    if ((postParsePosition - currentPosition) != 2) {
         return 0;
+    }
 
     // Check for presence of -DD portion.
-    if (*postParsePosition != '-')
+    if (*postParsePosition != '-') {
         return postParsePosition;
+    }
     currentPosition = postParsePosition + 1;
 
-    if (!isASCIIDigit(*currentPosition))
+    if (!isASCIIDigit(*currentPosition)) {
         return 0;
-    if (!parseLong(currentPosition, &postParsePosition, 10, &day))
+    }
+    if (!parseLong(currentPosition, &postParsePosition, 10, &day)) {
         return 0;
-    if ((postParsePosition - currentPosition) != 2)
+    }
+    if ((postParsePosition - currentPosition) != 2) {
         return 0;
+    }
     return postParsePosition;
 }
 static char* parseES5TimePortion(char* currentPosition, long& hours, long& minutes, long& milliSeconds, long& timeZoneSeconds, bool& haveTZ)
 {
     char* postParsePosition;
-    if (!isASCIIDigit(*currentPosition))
+    if (!isASCIIDigit(*currentPosition)) {
         return 0;
-    if (!parseLong(currentPosition, &postParsePosition, 10, &hours))
+    }
+    if (!parseLong(currentPosition, &postParsePosition, 10, &hours)) {
         return 0;
-    if (*postParsePosition != ':' || (postParsePosition - currentPosition) != 2)
+    }
+    if (*postParsePosition != ':' ||
+        (postParsePosition - currentPosition) != 2) {
         return 0;
+    }
     currentPosition = postParsePosition + 1;
 
-    if (!isASCIIDigit(*currentPosition))
+    if (!isASCIIDigit(*currentPosition)) {
         return 0;
-    if (!parseLong(currentPosition, &postParsePosition, 10, &minutes))
+    }
+    if (!parseLong(currentPosition, &postParsePosition, 10, &minutes)) {
         return 0;
-    if ((postParsePosition - currentPosition) != 2)
+    }
+    if ((postParsePosition - currentPosition) != 2) {
         return 0;
+    }
     currentPosition = postParsePosition;
 
     // Seconds are optional.
@@ -753,12 +823,15 @@ static char* parseES5TimePortion(char* currentPosition, long& hours, long& minut
         ++currentPosition;
 
         long intSeconds;
-        if (!isASCIIDigit(*currentPosition))
+        if (!isASCIIDigit(*currentPosition)) {
             return 0;
-        if (!parseLong(currentPosition, &postParsePosition, 10, &intSeconds))
+        }
+        if (!parseLong(currentPosition, &postParsePosition, 10, &intSeconds)) {
             return 0;
-        if ((postParsePosition - currentPosition) != 2)
+        }
+        if ((postParsePosition - currentPosition) != 2) {
             return 0;
+        }
         milliSeconds = intSeconds * const_Date_msPerSecond;
         if (*postParsePosition == '.') {
             currentPosition = postParsePosition + 1;
@@ -770,8 +843,9 @@ static char* parseES5TimePortion(char* currentPosition, long& hours, long& minut
                 return 0;
 
             long fracSeconds;
-            if (!parseLong(currentPosition, &postParsePosition, 10, &fracSeconds, 3))
+            if (!parseLong(currentPosition, &postParsePosition, 10, &fracSeconds, 3)) {
                 return 0;
+            }
 
             long numFracDigits = std::min((long)(postParsePosition - currentPosition), 3L);
             milliSeconds += fracSeconds * pow(10.0, static_cast<double>(3 - numFracDigits));
@@ -785,12 +859,13 @@ static char* parseES5TimePortion(char* currentPosition, long& hours, long& minut
     }
 
     bool tzNegative;
-    if (*currentPosition == '-')
+    if (*currentPosition == '-') {
         tzNegative = true;
-    else if (*currentPosition == '+')
+    } else if (*currentPosition == '+') {
         tzNegative = false;
-    else
+    } else {
         return currentPosition; // no timezone
+    }
     ++currentPosition;
     haveTZ = true;
 
@@ -798,40 +873,50 @@ static char* parseES5TimePortion(char* currentPosition, long& hours, long& minut
     long tzHoursAbs;
     long tzMinutes;
 
-    if (!isASCIIDigit(*currentPosition))
+    if (!isASCIIDigit(*currentPosition)) {
         return 0;
-    if (!parseLong(currentPosition, &postParsePosition, 10, &tzHours))
+    }
+    if (!parseLong(currentPosition, &postParsePosition, 10, &tzHours)) {
         return 0;
+    }
     if (postParsePosition - currentPosition == 4) {
         tzMinutes = tzHours % 100;
         tzHours = tzHours / 100;
         tzHoursAbs = labs(tzHours);
     } else if (postParsePosition - currentPosition == 2) {
-        if (*postParsePosition != ':')
+        if (*postParsePosition != ':') {
             return 0;
+        }
 
         tzHoursAbs = labs(tzHours);
         currentPosition = postParsePosition + 1;
 
-        if (!isASCIIDigit(*currentPosition))
+        if (!isASCIIDigit(*currentPosition)) {
             return 0;
-        if (!parseLong(currentPosition, &postParsePosition, 10, &tzMinutes))
+        }
+        if (!parseLong(currentPosition, &postParsePosition, 10, &tzMinutes)) {
             return 0;
-        if ((postParsePosition - currentPosition) != 2)
+        }
+        if ((postParsePosition - currentPosition) != 2) {
             return 0;
-    } else
+        }
+    } else {
         return 0;
+    }
 
     currentPosition = postParsePosition;
 
-    if (tzHoursAbs > 24)
+    if (tzHoursAbs > 24) {
         return 0;
-    if (tzMinutes < 0 || tzMinutes > 59)
+    }
+    if (tzMinutes < 0 || tzMinutes > 59) {
         return 0;
+    }
 
     timeZoneSeconds = 60 * (tzMinutes + (60 * tzHoursAbs));
-    if (tzNegative)
+    if (tzNegative) {
         timeZoneSeconds = -timeZoneSeconds;
+    }
 
     return currentPosition;
 }
@@ -861,8 +946,9 @@ time64_t DateObject::parseStringToDate_2(ExecutionState& state, String* istr, bo
         haveTZ = false;
         // Parse the time HH:mm[:ss[.sss]][Z|(+|-)00:00]
         currentPosition = parseES5TimePortion(currentPosition + 1, hours, minutes, milliSeconds, timeZoneSeconds, haveTZ);
-        if (!currentPosition)
+        if (!currentPosition) {
             return TIME64NAN;
+        }
     }
     // Check that we have parsed all characters in the string.
     while (*currentPosition) {
@@ -872,25 +958,33 @@ time64_t DateObject::parseStringToDate_2(ExecutionState& state, String* istr, bo
             break;
         }
     }
-    if (*currentPosition)
+    if (*currentPosition) {
         return TIME64NAN;
+    }
 
     // A few of these checks could be done inline above, but since many of them are interrelated
     // we would be sacrificing readability to "optimize" the (presumably less common) failure path.
-    if (month < 1 || month > 12)
+    if (month < 1 || month > 12) {
         return TIME64NAN;
-    if (day < 1 || day > const_Date_daysPerMonth[month - 1])
+    }
+    if (day < 1 || day > const_Date_daysPerMonth[month - 1]) {
         return TIME64NAN;
-    if (month == 2 && day > 28 && daysInYear(year) != 366)
+    }
+    if (month == 2 && day > 28 && daysInYear(year) != 366) {
         return TIME64NAN;
-    if (hours < 0 || hours > 24)
+    }
+    if (hours < 0 || hours > 24) {
         return TIME64NAN;
-    if (hours == 24 && (minutes || milliSeconds))
+    }
+    if (hours == 24 && (minutes || milliSeconds)) {
         return TIME64NAN;
-    if (minutes < 0 || minutes > 59)
+    }
+    if (minutes < 0 || minutes > 59) {
         return TIME64NAN;
-    if (milliSeconds < 0 || milliSeconds >= const_Date_msPerMinute + const_Date_msPerSecond)
+    }
+    if (milliSeconds < 0 || milliSeconds >= const_Date_msPerMinute + const_Date_msPerSecond) {
         return TIME64NAN;
+    }
     if (milliSeconds > const_Date_msPerMinute) {
         // Discard leap seconds by clamping to the end of a minute.
         milliSeconds = const_Date_msPerMinute;
@@ -1018,8 +1112,9 @@ int DateObject::daysFromMonth(int year, int month)
 
 int DateObject::daysFromTime(time64_t t)
 {
-    if (t < 0)
+    if (t < 0) {
         t -= (const_Date_msPerDay - 1);
+    }
     return static_cast<int>(t / (double)const_Date_msPerDay);
 }
 

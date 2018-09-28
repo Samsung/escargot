@@ -2733,10 +2733,11 @@ public:
     Error* unexpectedTokenError(RefPtr<ScannerResult> token = nullptr, const char* message = nullptr)
     {
         const char* msg;
-        if (message)
+        if (message) {
             msg = message;
-        else
+        } else {
             msg = Messages::UnexpectedToken;
+        }
 
         String* value;
         if (token) {
@@ -3981,7 +3982,7 @@ public:
 
         return expr;
     }
-*/
+    */
     void reinterpretExpressionAsPattern(Node* expr)
     {
         switch (expr->type()) {
@@ -4578,68 +4579,75 @@ public:
         if (token->type == Token::PunctuatorToken) {
             PunctuatorsKind oper = token->valuePunctuatorsKind;
             // Additive Operators
-            if (oper == Plus)
+            if (oper == Plus) {
                 nd = new BinaryExpressionPlusNode(left, right);
-            else if (oper == Minus)
+            } else if (oper == Minus) {
                 nd = new BinaryExpressionMinusNode(left, right);
+            }
 
             // Bitwise Shift Operators
-            else if (oper == LeftShift)
+            else if (oper == LeftShift) {
                 nd = new BinaryExpressionLeftShiftNode(left, right);
-            else if (oper == RightShift)
+            } else if (oper == RightShift) {
                 nd = new BinaryExpressionSignedRightShiftNode(left, right);
-            else if (oper == UnsignedRightShift)
+            } else if (oper == UnsignedRightShift) {
                 nd = new BinaryExpressionUnsignedRightShiftNode(left, right);
+            }
 
             // Multiplicative Operators
-            else if (oper == Multiply)
+            else if (oper == Multiply) {
                 nd = new BinaryExpressionMultiplyNode(left, right);
-            else if (oper == Divide)
+            } else if (oper == Divide) {
                 nd = new BinaryExpressionDivisionNode(left, right);
-            else if (oper == Mod)
+            } else if (oper == Mod) {
                 nd = new BinaryExpressionModNode(left, right);
+            }
 
             // Relational Operators
-            else if (oper == LeftInequality)
+            else if (oper == LeftInequality) {
                 nd = new BinaryExpressionLessThanNode(left, right);
-            else if (oper == RightInequality)
+            } else if (oper == RightInequality) {
                 nd = new BinaryExpressionGreaterThanNode(left, right);
-            else if (oper == LeftInequalityEqual)
+            } else if (oper == LeftInequalityEqual) {
                 nd = new BinaryExpressionLessThanOrEqualNode(left, right);
-            else if (oper == RightInequalityEqual)
+            } else if (oper == RightInequalityEqual) {
                 nd = new BinaryExpressionGreaterThanOrEqualNode(left, right);
+            }
 
             // Equality Operators
-            else if (oper == Equal)
+            else if (oper == Equal) {
                 nd = new BinaryExpressionEqualNode(left, right);
-            else if (oper == NotEqual)
+            } else if (oper == NotEqual) {
                 nd = new BinaryExpressionNotEqualNode(left, right);
-            else if (oper == StrictEqual)
+            } else if (oper == StrictEqual) {
                 nd = new BinaryExpressionStrictEqualNode(left, right);
-            else if (oper == NotStrictEqual)
+            } else if (oper == NotStrictEqual) {
                 nd = new BinaryExpressionNotStrictEqualNode(left, right);
+            }
 
             // Binary Bitwise Operator
-            else if (oper == BitwiseAnd)
+            else if (oper == BitwiseAnd) {
                 nd = new BinaryExpressionBitwiseAndNode(left, right);
-            else if (oper == BitwiseXor)
+            } else if (oper == BitwiseXor) {
                 nd = new BinaryExpressionBitwiseXorNode(left, right);
-            else if (oper == BitwiseOr)
+            } else if (oper == BitwiseOr) {
                 nd = new BinaryExpressionBitwiseOrNode(left, right);
-            else if (oper == LogicalOr)
+            } else if (oper == LogicalOr) {
                 nd = new BinaryExpressionLogicalOrNode(left, right);
-            else if (oper == LogicalAnd)
+            } else if (oper == LogicalAnd) {
                 nd = new BinaryExpressionLogicalAndNode(left, right);
-            else
+            } else {
                 RELEASE_ASSERT_NOT_REACHED();
+            }
         } else {
             ASSERT(token->type == Token::KeywordToken);
-            if (token->valueKeywordKind == KeywordKind::In)
+            if (token->valueKeywordKind == KeywordKind::In) {
                 nd = new BinaryExpressionInNode(left, right);
-            else if (token->valueKeywordKind == KeywordKind::InstanceofKeyword)
+            } else if (token->valueKeywordKind == KeywordKind::InstanceofKeyword) {
                 nd = new BinaryExpressionInstanceOfNode(left, right);
-            else
+            } else {
                 RELEASE_ASSERT_NOT_REACHED();
+            }
         }
         return nd;
     }
@@ -4775,7 +4783,7 @@ public:
              message: options.message
          };
      }
-*/
+    */
     RefPtr<Node> parseAssignmentExpression()
     {
         RefPtr<Node> expr;
@@ -4821,7 +4829,6 @@ public:
                      this->context->strict = previousStrict;
                      this->context->allowYield = previousAllowYield;
                  }
-
              } else {
                  if (this->matchAssign()) {
                      if (!this->context->isAssignmentTarget) {
@@ -4850,7 +4857,7 @@ public:
                      expr = this->finalize(this->startNode(startToken), new Node.AssignmentExpression(token.value, expr, right));
                      this->context->firstCoverInitializedNameError = null;
                  }
-             }*/
+             } */
             if (this->matchAssign()) {
                 if (!this->context->isAssignmentTarget && this->context->strict) {
                     this->tolerateError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
@@ -5579,7 +5586,7 @@ public:
             forIn ? this->finalize(node, new Node.ForInStatement(left, right, body)) :
                 this->finalize(node, new Node.ForOfStatement(left, right, body));
 
-*/
+        */
     }
 
     void removeLabel(AtomicString label)
@@ -5662,8 +5669,9 @@ public:
         if (label) {
             auto string = label->name().string();
             return this->finalize(node, new BreakLabelStatementNode(string));
-        } else
+        } else {
             return this->finalize(node, new BreakStatementNode());
+        }
     }
 
     // ECMA-262 13.10 The return statement
@@ -6220,8 +6228,9 @@ public:
         }
 
         AtomicString fnName;
-        if (id)
+        if (id) {
             fnName = id->name();
+        }
 
         pushScopeContext(params, fnName);
 
