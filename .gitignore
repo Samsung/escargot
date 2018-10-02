@@ -20,6 +20,8 @@ cscope.out
 escargot.asm
 escargot.elf
 out
+build.ninja
+rules.ninja
 #test/test262/test/config/excludelist.xml
 android/obj
 android/libs

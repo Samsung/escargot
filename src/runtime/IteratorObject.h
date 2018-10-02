@@ -84,7 +84,8 @@ public:
 
     Value next(ExecutionState& state);
 
-    virtual const char* internalClassProperty() {
+    virtual const char* internalClassProperty()
+    {
         return "Iterator";
     }
 

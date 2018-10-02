@@ -621,8 +621,7 @@ time64_t DateObject::parseStringToDate_1(ExecutionState& state, String* istr, bo
             }
 
             // ':40 GMT'
-            if (*dateString && *dateString != ':' &&
-                !isASCIISpace(*dateString)) {
+            if (*dateString && *dateString != ':' && !isASCIISpace(*dateString)) {
                 return TIME64NAN;
             }
 
@@ -801,8 +800,7 @@ static char* parseES5TimePortion(char* currentPosition, long& hours, long& minut
     if (!parseLong(currentPosition, &postParsePosition, 10, &hours)) {
         return 0;
     }
-    if (*postParsePosition != ':' ||
-        (postParsePosition - currentPosition) != 2) {
+    if (*postParsePosition != ':' || (postParsePosition - currentPosition) != 2) {
         return 0;
     }
     currentPosition = postParsePosition + 1;
