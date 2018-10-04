@@ -10,7 +10,7 @@ cache:
     - ./shared
     
 matrix:
-  fast_finish: true
+  # fast_finish: true
   include:
     - stage: "Build (x64.release)"
       name: "x64.interpreter.release"
@@ -18,7 +18,7 @@ matrix:
       script:
         - rm -rf ./shared/*
         - ./build_third_party.sh
-        - make x64.interpreter.release -j32
+        - make x64.interpreter.release -j8
         - cp ./escargot ./shared
         - cat /proc/cpuinfo
     - stage: "Test (x64.release)"
@@ -30,7 +30,7 @@ matrix:
       name: "run-jetstream-only-simple"
       script:
         - cp ./shared/escargot .
-        - make run-jetstream-only-simple
+        - travis_wait 30 make run-jetstream-only-simple
     - stage: "Test (x64.release)"
       name: "sunspider-js"
       script:
