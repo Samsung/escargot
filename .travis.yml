@@ -25,10 +25,50 @@ jobs:
         - cp ./shared/escargot .
         - make run-jetstream-only-cdjs
     - stage: test
-      name: sunspider
+      name: run-jetstream-only-simple
+      script:
+        - cp ./shared/escargot .
+        - make run-jetstream-only-simple
+    - stage: test
+      name: sunspider-js
       script:
         - cp ./shared/escargot .
         - make run-sunspider-js
+    - stage: test
+      name: test262
+      script:
+        - cp ./shared/escargot .
+        - make run-test262
+    - stage: test
+      name: internal-test
+      script:
+        - cp ./shared/escargot .
+        - make run-internal-test
+    - stage: test
+      name: octane
+      script:
+        - cp ./shared/escargot .
+        - make run-octane
+    - stage: test
+      name: v8
+      script:
+        - cp ./shared/escargot .
+        - make run-v8
+    - stage: test
+      name: chakracore
+      script:
+        - cp ./shared/escargot .
+        - make run-chakracore
+    - stage: test
+      name: jsc-stress
+      script:
+        - cp ./shared/escargot .
+        - make run-jsc-stress
+    - stage: test
+      name: spidermonkey
+      script:
+        - cp ./shared/escargot .
+        - make run-spidermonkey
 
 branches:
   only:
