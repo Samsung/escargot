@@ -11,61 +11,61 @@ cache:
     
 jobs:
   include:
-    - stage: build
-      name: build
+    - stage: "Build (x64.release)"
+      name: "x64.interpreter.release"
       before_install: sudo apt-get install -y autoconf automake libtool libc++-dev libicu-dev gcc-multilib g++-multilib
       script:
         - rm -rf ./shared/*
         - ./build_third_party.sh
-        - make x64.interpreter.release -j8
+        - make x64.interpreter.release -j16
         - cp ./escargot ./shared
-    - stage: test
-      name: jetstream-only-cdjs
+    - stage: "Test (x64.release)"
+      name: "jetstream-only-cdjs"
       script:
         - cp ./shared/escargot .
         - make run-jetstream-only-cdjs
-    - stage: test
-      name: run-jetstream-only-simple
+    - stage: "Test (x64.release)"
+      name: "run-jetstream-only-simple"
       script:
         - cp ./shared/escargot .
         - make run-jetstream-only-simple
-    - stage: test
-      name: sunspider-js
+    - stage: "Test (x64.release)"
+      name: "sunspider-js"
       script:
         - cp ./shared/escargot .
         - make run-sunspider-js
-    - stage: test
-      name: test262
+    - stage: "Test (x64.release)"
+      name: "test262"
       script:
         - cp ./shared/escargot .
         - make run-test262
-    - stage: test
-      name: internal-test
+    - stage: "Test (x64.release)"
+      name: "internal-test"
       script:
         - cp ./shared/escargot .
         - make run-internal-test
-    - stage: test
-      name: octane
+    - stage: "Test (x64.release)"
+      name: "octane"
       script:
         - cp ./shared/escargot .
         - make run-octane
-    - stage: test
-      name: v8
+    - stage: "Test (x64.release)"
+      name: "v8"
       script:
         - cp ./shared/escargot .
         - make run-v8
-    - stage: test
-      name: chakracore
+    - stage: "Test (x64.release)"
+      name: "chakracore"
       script:
         - cp ./shared/escargot .
         - make run-chakracore
-    - stage: test
-      name: jsc-stress
+    - stage: "Test (x64.release)"
+      name: "jsc-stress"
       script:
         - cp ./shared/escargot .
         - make run-jsc-stress
-    - stage: test
-      name: spidermonkey
+    - stage: "Test (x64.release)"
+      name: "spidermonkey"
       script:
         - cp ./shared/escargot .
         - make run-spidermonkey
