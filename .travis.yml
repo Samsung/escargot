@@ -9,7 +9,8 @@ cache:
   directories:
     - ./shared
     
-jobs:
+matrix:
+  fast_finish: true
   include:
     - stage: "Build (x64.release)"
       name: "x64.interpreter.release"
@@ -17,8 +18,9 @@ jobs:
       script:
         - rm -rf ./shared/*
         - ./build_third_party.sh
-        - make x64.interpreter.release -j16
+        - make x64.interpreter.release -j32
         - cp ./escargot ./shared
+        - cat /proc/cpuinfo
     - stage: "Test (x64.release)"
       name: "jetstream-only-cdjs"
       script:
