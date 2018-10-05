@@ -19,58 +19,160 @@ matrix:
         - rm -rf ./shared/*
         - ./build_third_party.sh
         - make x64.interpreter.release -j8
-        - cp ./escargot ./shared
-        - cat /proc/cpuinfo
+        - cp ./escargot ./shared/ESCARGOT_X64_RELEASE
+        - make x64.interpreter.release -j8
+        - cp ./escargot ./shared/ESCARGOT_X64_DEBUG
+        - make x64.interpreter.release -j8
+        - cp ./escargot ./shared/ESCARGOT_X86_RELEASE
+        - make x64.interpreter.release -j8
+        - cp ./escargot ./shared/ESCARGOT_X86_DEBUG
     - stage: "Test (x64.release)"
       name: "jetstream-only-cdjs"
       script:
-        - cp ./shared/escargot .
+        - cp ./shared/ESCARGOT_X64_RELEASE .
         - make run-jetstream-only-cdjs
     - stage: "Test (x64.release)"
       name: "run-jetstream-only-simple"
       script:
-        - cp ./shared/escargot .
+        - cp ./shared/ESCARGOT_X64_RELEASE .
         - travis_wait 30 make run-jetstream-only-simple
     - stage: "Test (x64.release)"
       name: "sunspider-js"
       script:
-        - cp ./shared/escargot .
+        - cp ./shared/ESCARGOT_X64_RELEASE .
         - make run-sunspider-js
     - stage: "Test (x64.release)"
       name: "test262"
       script:
-        - cp ./shared/escargot .
+        - cp ./shared/ESCARGOT_X64_RELEASE .
         - make run-test262
     - stage: "Test (x64.release)"
       name: "internal-test"
       script:
-        - cp ./shared/escargot .
+        - cp ./shared/ESCARGOT_X64_RELEASE .
         - make run-internal-test
     - stage: "Test (x64.release)"
       name: "octane"
       script:
-        - cp ./shared/escargot .
+        - cp ./shared/ESCARGOT_X64_RELEASE .
+        - mkdir out
         - make run-octane
-    - stage: "Test (x64.release)"
-      name: "v8"
-      script:
-        - cp ./shared/escargot .
-        - make run-v8
+#    - stage: "Test (x64.release)"
+#      name: "v8"
+#      script:
+#        - cp ./shared/ESCARGOT_X64_RELEASE .
+#        - make run-v8
     - stage: "Test (x64.release)"
       name: "chakracore"
       script:
-        - cp ./shared/escargot .
+        - cp ./shared/ESCARGOT_X64_RELEASE .
         - make run-chakracore
     - stage: "Test (x64.release)"
       name: "jsc-stress"
       script:
-        - cp ./shared/escargot .
+        - cp ./shared/ESCARGOT_X64_RELEASE .
         - make run-jsc-stress
-    - stage: "Test (x64.release)"
-      name: "spidermonkey"
+#    - stage: "Test (x64.release)"
+#      name: "spidermonkey"
+#      script:
+#        - cp ./shared/ESCARGOT_X64_RELEASE .
+#        - make run-spidermonkey
+    - stage: "Test (x64.debug)"
+      name: "jetstream-only-cdjs"
       script:
-        - cp ./shared/escargot .
-        - make run-spidermonkey
+        - cp ./shared/ESCARGOT_X64_DEBUG .
+        - make run-jetstream-only-cdjs
+    - stage: "Test (x64.debug)"
+      name: "sunspider-js"
+      script:
+        - cp ./shared/ESCARGOT_X64_DEBUG .
+        - make run-sunspider-js
+    - stage: "Test (x64.debug)"
+      name: "test262"
+      script:
+        - cp ./shared/ESCARGOT_X64_DEBUG .
+        - make run-test262
+    - stage: "Test (x64.debug)"
+      name: "internal-test"
+      script:
+        - cp ./shared/ESCARGOT_X64_DEBUG .
+        - make run-internal-test
+    - stage: "Test (x86.release)"
+      name: "jetstream-only-cdjs"
+      script:
+        - cp ./shared/ESCARGOT_X86_RELEASE .
+        - make run-jetstream-only-cdjs
+    - stage: "Test (x86.release)"
+      name: "run-jetstream-only-simple"
+      script:
+        - cp ./shared/ESCARGOT_X86_RELEASE .
+        - travis_wait 30 make run-jetstream-only-simple
+    - stage: "Test (x86.release)"
+      name: "sunspider-js"
+      script:
+        - cp ./shared/ESCARGOT_X86_RELEASE .
+        - make run-sunspider-js
+    - stage: "Test (x86.release)"
+      name: "test262"
+      script:
+        - cp ./shared/ESCARGOT_X86_RELEASE .
+        - make run-test262
+    - stage: "Test (x86.release)"
+      name: "internal-test"
+      script:
+        - cp ./shared/ESCARGOT_X86_RELEASE .
+        - make run-internal-test
+    - stage: "Test (x86.release)"
+      name: "octane"
+      script:
+        - cp ./shared/ESCARGOT_X86_RELEASE .
+        - mkdir out
+        - make run-octane
+#    - stage: "Test (x86.release)"
+#      name: "v8"
+#      script:
+#        - cp ./shared/ESCARGOT_X86_RELEASE .
+#        - make run-v8
+    - stage: "Test (x86.release)"
+      name: "chakracore"
+      script:
+        - cp ./shared/ESCARGOT_X86_RELEASE .
+        - make run-chakracore
+    - stage: "Test (x86.release)"
+      name: "jsc-stress"
+      script:
+        - cp ./shared/ESCARGOT_X86_RELEASE .
+        - make run-jsc-stress
+#    - stage: "Test (x86.release)"
+#      name: "spidermonkey"
+#      script:
+#        - cp ./shared/ESCARGOT_X86_RELEASE .
+#        - make run-spidermonkey
+    - stage: "Test (x86.debug)"
+      name: "jetstream-only-cdjs"
+      script:
+        - cp ./shared/ESCARGOT_X86_DEBUG .
+        - make run-jetstream-only-cdjs
+    - stage: "Test (x86.debug)"
+      name: "sunspider-js"
+      script:
+        - cp ./shared/ESCARGOT_X86_DEBUG .
+        - make run-sunspider-js
+    - stage: "Test (x86.debug)"
+      name: "test262"
+      script:
+        - cp ./shared/ESCARGOT_X86_DEBUG .
+        - make run-test262
+    - stage: "Test (x86.debug)"
+      name: "internal-test"
+      script:
+        - cp ./shared/ESCARGOT_X86_DEBUG .
+        - make run-internal-test
+    - env:
+      ESCARGOT_X64_RELEASE=escargot.x64.release
+      ESCARGOT_X64_DEBUG=escargot.x64.debug
+      ESCARGOT_X86_RELEASE=escargot.x86.release
+      ESCARGOT_X86_DEBUG=escargot.x86.debug
 
 branches:
   only:
