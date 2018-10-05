@@ -12,19 +12,19 @@ cache:
 matrix:
   # fast_finish: true
   include:
-    - stage: "Build (x64.release)"
-      name: "x64.interpreter.release"
+    - stage: "Build"
+      name: "Build"
       before_install: sudo apt-get install -y autoconf automake libtool libc++-dev libicu-dev gcc-multilib g++-multilib
       script:
         - rm -rf ./shared/*
         - ./build_third_party.sh
         - make x64.interpreter.release -j8
         - cp ./escargot ./shared/escargot.x64.release
-        - make x64.interpreter.release -j8
+        - make x64.interpreter.debug -j8
         - cp ./escargot ./shared/escargot.x64.debug
-        - make x64.interpreter.release -j8
+        - make x86.interpreter.release -j8
         - cp ./escargot ./shared/escargot.x86.release
-        - make x64.interpreter.release -j8
+        - make x86.interpreter.debug -j8
         - cp ./escargot ./shared/escargot.x86.debug
     - stage: "Test (x64.release)"
       name: "jetstream-only-cdjs"
