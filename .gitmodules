@@ -12,22 +12,22 @@
     url = https://github.com/chromium/octane.git
 [submodule "third_party/GCutil"]
     path = third_party/GCutil
-    url = git@github.sec.samsung.net:RS7-webtf/gcutil.git
+    url = git@github.sec.samsung.net:lws/gcutil.git
 [submodule "third_party/checked_arithmetic"]
 	path = third_party/checked_arithmetic
-	url = git@github.sec.samsung.net:RS8-webtf-sub/checked_arithmetic.git
+	url = git@github.sec.samsung.net:lws-submodules/checked_arithmetic.git
 [submodule "third_party/double_conversion"]
 	path = third_party/double_conversion
-	url = git@github.sec.samsung.net:RS8-webtf-sub/double_conversion.git
+	url = git@github.sec.samsung.net:lws-submodules/double_conversion.git
 [submodule "third_party/rapidjson"]
 	path = third_party/rapidjson
-	url = git@github.sec.samsung.net:RS8-webtf-sub/rapidjson.git
+	url = git@github.sec.samsung.net:lws-submodules/rapidjson.git
 [submodule "third_party/yarr"]
 	path = third_party/yarr
-	url = git@github.sec.samsung.net:RS8-webtf-sub/yarr.git
+	url = git@github.sec.samsung.net:lws-submodules/yarr.git
 [submodule "third_party/windows/icu"]
 	path = third_party/windows/icu
-	url = git@github.sec.samsung.net:RS8-webtf-sub/icu.git
+	url = git@github.sec.samsung.net:lws-submodules/icu.git
 [submodule "test/vendortest"]
 	path = test/vendortest
-	url = git@github.sec.samsung.net:RS8-webtf-test/js_vendor_tc.git
+	url = git@github.sec.samsung.net:lws-test/js_vendor_tc.git
