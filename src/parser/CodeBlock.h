@@ -508,6 +508,11 @@ public:
         return m_cachedASTNode;
     }
 
+    void clearCachedASTNode()
+    {
+        m_cachedASTNode = nullptr;
+    }
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 

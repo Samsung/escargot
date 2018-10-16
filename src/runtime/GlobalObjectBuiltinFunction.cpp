@@ -99,6 +99,9 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
         state.throwException(err);
     }
 
+    parserResult.m_script->topCodeBlock()->cachedASTNode()->deref();
+    parserResult.m_script->topCodeBlock()->clearCachedASTNode();
+
     InterpretedCodeBlock* cb = parserResult.m_script->topCodeBlock()->childBlocks()[0];
     cb->updateSourceElementStart(3, 1);
     LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, parserResult.m_script->topCodeBlock(), state.context()->globalObject()), nullptr);
