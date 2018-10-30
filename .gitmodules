@@ -1,15 +1,15 @@
 [submodule "test/test262"]
     path = test/test262
-    url = https://github.com/tc39/test262.git
+    url = git@github.sec.samsung.net:lws-test/test262.git
 [submodule "test/test262-master"]
     path = test/test262-master
-    url = https://github.com/tc39/test262.git
+    url = git@github.sec.samsung.net:lws-test/test262-master.git
 [submodule "test/test262-harness-py"]
     path = test/test262-harness-py
-    url = https://github.com/test262-utils/test262-harness-py
+    url = git@github.sec.samsung.net:lws-test/test262-harness-py.git
 [submodule "test/octane"]
     path = test/octane
-    url = https://github.com/chromium/octane.git
+    url = git@github.sec.samsung.net:lws-test/octane.git
 [submodule "third_party/GCutil"]
     path = third_party/GCutil
     url = git@github.sec.samsung.net:lws/gcutil.git
