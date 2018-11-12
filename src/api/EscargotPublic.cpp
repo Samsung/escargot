@@ -1399,6 +1399,14 @@ std::vector<std::pair<FunctionObjectRef*, ValueRef*>> ExecutionStateRef::resolve
     return result;
 }
 
+GlobalObjectRef* ExecutionStateRef::resolveCallerLexicalGlobalObject()
+{
+    ASSERT(toImpl(this)->parent());
+    ExecutionState* callerState = toImpl(this)->parent();
+
+    return toRef(callerState->context()->globalObject());
+}
+
 void ExecutionStateRef::throwException(ValueRef* value)
 {
     ExecutionState* imp = toImpl(this);
@@ -1593,9 +1601,9 @@ ValueRef::ValueIndex ValueRef::toIndex(ExecutionStateRef* state)
 uint32_t ValueRef::toArrayIndex(ExecutionStateRef* state)
 {
     SmallValue s = SmallValue::fromPayload(this);
-    if (LIKELY(s.isInt32()))
+    if (LIKELY(s.isInt32())) {
         return s.asInt32();
-    else {
+    } else {
         ExecutionState* esi = toImpl(state);
         return Value(s).tryToUseAsArrayIndex(*esi);
     }

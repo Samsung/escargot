@@ -219,6 +219,7 @@ public:
 
     FunctionObjectRef* resolveCallee(); // resolve nearest callee if exists
     std::vector<std::pair<FunctionObjectRef*, ValueRef*>> resolveCallstack(); // resolve callee, this value
+    GlobalObjectRef* resolveCallerLexicalGlobalObject(); // resolve caller's lexical global object
 
     void throwException(ValueRef* value);
 
