@@ -389,6 +389,7 @@ public:
     AtomicString stringDelete;
     AtomicString stringFor;
     AtomicString stringDefault;
+    AtomicString stringThis;
     AtomicString defaultRegExpString;
     AtomicString get__proto__;
     AtomicString set__proto__;

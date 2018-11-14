@@ -592,7 +592,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     FunctionObject* typedArrayFunction = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().TypedArray, builtinTypedArrayConstructor, 0, [](ExecutionState& state, CodeBlock* cb, size_t argc, Value* argv) -> Object* {
                                                                 return new Object(state);
                                                             },
-                                                                                      (NativeFunctionInfo::Flags)(NativeFunctionInfo::Strict | NativeFunctionInfo::Consturctor)),
+                                                                                      (NativeFunctionInfo::Flags)(NativeFunctionInfo::Strict | NativeFunctionInfo::Constructor)),
                                                             FunctionObject::__ForBuiltin__);
     // %TypedArray%.prototype
     Object* typedArrayPrototype = typedArrayFunction->getFunctionPrototype(state).asObject();

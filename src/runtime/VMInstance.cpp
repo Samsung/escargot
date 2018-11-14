@@ -196,7 +196,6 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
 
     ExecutionState stateForInit((Context*)nullptr);
 
-    ObjectStructure defaultStructureForObject(stateForInit);
     m_defaultStructureForObject = new ObjectStructure(stateForInit);
 
     m_defaultStructureForFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.prototype,
@@ -205,9 +204,17 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
     m_defaultStructureForFunctionObject = m_defaultStructureForFunctionObject->addProperty(stateForInit, m_staticStrings.name,
                                                                                            ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
 
-    // TODO(ES6)
     m_defaultStructureForFunctionObject = m_defaultStructureForFunctionObject->addProperty(stateForInit, m_staticStrings.length,
                                                                                            ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
+
+    // TODO(ES6)
+    //Arrow Function
+
+    m_defaultStructureForArrowFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.name,
+                                                                                        ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
+
+    m_defaultStructureForArrowFunctionObject = m_defaultStructureForArrowFunctionObject->addProperty(stateForInit, m_staticStrings.length,
+                                                                                                     ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
 
     m_defaultStructureForFunctionObjectInStrictMode = m_defaultStructureForFunctionObject->addProperty(stateForInit, m_staticStrings.caller,
                                                                                                        ObjectStructurePropertyDescriptor::createAccessorDescriptor(ObjectStructurePropertyDescriptor::WritablePresent));

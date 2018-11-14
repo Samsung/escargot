@@ -278,6 +278,9 @@ public:
     {
     }
 
+    void generateStoreThisValueByteCode(ByteCodeBlock* block, ByteCodeGenerateContext* context);
+    void generateLoadThisValueByteCode(ByteCodeBlock* block, ByteCodeGenerateContext* context);
+
     ByteCodeBlock* generateByteCode(Context* c, InterpretedCodeBlock* codeBlock, Node* ast, ASTScopeContext* scopeCtx, bool isEvalMode = false, bool isOnGlobal = false, bool shouldGenerateLOCData = false);
 };
 }

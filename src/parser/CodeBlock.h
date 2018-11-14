@@ -43,24 +43,24 @@ typedef Object* (*NativeFunctionConstructor)(ExecutionState& state, CodeBlock* c
 struct NativeFunctionInfo {
     enum Flags {
         Strict = 1,
-        Consturctor = 1 << 1,
+        Constructor = 1 << 1,
     };
     bool m_isStrict;
-    bool m_isConsturctor;
+    bool m_isConstructor;
     AtomicString m_name;
     NativeFunctionPointer m_nativeFunction;
     NativeFunctionConstructor m_nativeFunctionConstructor;
     size_t m_argumentCount;
 
-    NativeFunctionInfo(AtomicString name, NativeFunctionPointer fn, size_t argc, NativeFunctionConstructor ctor = nullptr, int flags = Flags::Strict | Flags::Consturctor)
+    NativeFunctionInfo(AtomicString name, NativeFunctionPointer fn, size_t argc, NativeFunctionConstructor ctor = nullptr, int flags = Flags::Strict | Flags::Constructor)
         : m_isStrict(flags & Strict)
-        , m_isConsturctor(flags & Consturctor)
+        , m_isConstructor(flags & Constructor)
         , m_name(name)
         , m_nativeFunction(fn)
         , m_nativeFunctionConstructor(ctor)
         , m_argumentCount(argc)
     {
-        if (!m_isConsturctor) {
+        if (!m_isConstructor) {
             ASSERT(ctor == nullptr);
         } else {
             ASSERT(ctor);
@@ -115,6 +115,7 @@ public:
         CodeBlockIsFunctionDeclaration = 1 << 6,
         CodeBlockIsFunctionDeclarationWithSpecialBinding = 1 << 7,
         CodeBlockIsFunctionExpression = 1 << 8,
+        CodeBlockIsArrowFunctionExpression = 1 << 9,
     };
 
     struct IdentifierInfo {
@@ -132,9 +133,9 @@ public:
         return m_context;
     }
 
-    bool isConsturctor() const
+    bool isConstructor() const
     {
-        return m_isConsturctor;
+        return m_isConstructor;
     }
 
     bool inCatchWith()
@@ -195,6 +196,21 @@ public:
     bool isFunctionExpression() const
     {
         return m_isFunctionExpression;
+    }
+
+    bool isArrowFunctionExpression() const
+    {
+        return m_isArrowFunctionExpression;
+    }
+
+    bool needToLoadThisValue() const
+    {
+        return m_needToLoadThisValue;
+    }
+
+    void setNeedToLoadThisValue()
+    {
+        m_needToLoadThisValue = true;
     }
 
     bool hasCallNativeFunctionCode() const
@@ -285,7 +301,7 @@ protected:
     CodeBlock() {}
     Context* m_context;
 
-    bool m_isConsturctor : 1;
+    bool m_isConstructor : 1;
     bool m_isStrict : 1;
     bool m_hasCallNativeFunctionCode : 1;
     bool m_isFunctionNameSaveOnHeap : 1;
@@ -303,10 +319,12 @@ protected:
     bool m_isFunctionExpression : 1;
     bool m_isFunctionDeclaration : 1;
     bool m_isFunctionDeclarationWithSpecialBinding : 1;
+    bool m_isArrowFunctionExpression : 1;
     bool m_isInWithScope : 1;
     bool m_isEvalCodeInFunction : 1;
     bool m_isBindedFunction : 1;
     bool m_needsVirtualIDOperation : 1;
+    bool m_needToLoadThisValue : 1;
     uint16_t m_parameterCount;
 
     AtomicString m_functionName;
@@ -333,6 +351,9 @@ public:
     {
         m_childBlocks.push_back(cb);
     }
+    bool needToStoreThisValue();
+    void captureThis();
+    void captureArguments();
     bool tryCaptureIdentifiersFromChildCodeBlock(AtomicString name);
     void notifySelfOrChildHasEvalWithYield();
 
@@ -417,6 +438,36 @@ public:
         return false;
     }
 
+    IndexedIdentifierInfo upperIndexedIdentifierInfo(const AtomicString& name)
+    {
+        size_t upperIndex = 1;
+        IndexedIdentifierInfo info;
+
+        ASSERT(this->parentCodeBlock());
+        InterpretedCodeBlock* blk = this->parentCodeBlock();
+
+        while (!blk->isGlobalScopeCodeBlock() && blk->canUseIndexedVariableStorage()) {
+            size_t index = blk->findName(name);
+            if (index != SIZE_MAX) {
+                info.m_isResultSaved = true;
+                info.m_isStackAllocated = blk->m_identifierInfos[index].m_needToAllocateOnStack;
+                info.m_upperIndex = upperIndex;
+                info.m_isMutable = blk->m_identifierInfos[index].m_isMutable;
+                if (blk->canUseIndexedVariableStorage()) {
+                    info.m_index = blk->m_identifierInfos[index].m_indexForIndexedStorage;
+                } else {
+                    info.m_index = index;
+                }
+                return info;
+            }
+            upperIndex++;
+            blk = blk->parentCodeBlock();
+        }
+
+        info.m_isResultSaved = false;
+        return info;
+    }
+
     IndexedIdentifierInfo indexedIdentifierInfo(const AtomicString& name)
     {
         size_t upperIndex = 0;
@@ -479,6 +530,16 @@ public:
             }
         }
         return SIZE_MAX;
+    }
+
+    bool hasParameter(const AtomicString& name)
+    {
+        for (size_t i = 0; i < m_parametersInfomation.size(); i++) {
+            if (m_parametersInfomation[i].m_name == name) {
+                return true;
+            }
+        }
+        return false;
     }
 
     const StringView& src()

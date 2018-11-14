@@ -69,7 +69,12 @@ public:
 
     bool isConstructor()
     {
-        return m_codeBlock->isConsturctor();
+        return m_codeBlock->isConstructor();
+    }
+
+    bool isArrowFunction()
+    {
+        return m_codeBlock->isArrowFunctionExpression();
     }
 
     virtual bool isFunctionObject() const

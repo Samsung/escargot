@@ -21,6 +21,7 @@
 #define AST_h
 
 #include "ArrayExpressionNode.h"
+#include "ArrowFunctionExpressionNode.h"
 #include "AssignmentExpressionBitwiseAndNode.h"
 #include "AssignmentExpressionBitwiseOrNode.h"
 #include "AssignmentExpressionBitwiseXorNode.h"

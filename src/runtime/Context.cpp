@@ -45,6 +45,7 @@ Context::Context(VMInstance* instance)
 {
     m_defaultStructureForObject = m_instance->m_defaultStructureForObject;
     m_defaultStructureForFunctionObject = m_instance->m_defaultStructureForFunctionObject;
+    m_defaultStructureForArrowFunctionObject = m_instance->m_defaultStructureForArrowFunctionObject;
     m_defaultStructureForNotConstructorFunctionObject = m_instance->m_defaultStructureForNotConstructorFunctionObject;
     m_defaultStructureForFunctionObjectInStrictMode = m_instance->m_defaultStructureForFunctionObjectInStrictMode;
     m_defaultStructureForNotConstructorFunctionObjectInStrictMode = m_instance->m_defaultStructureForNotConstructorFunctionObjectInStrictMode;

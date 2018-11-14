@@ -195,6 +195,7 @@ protected:
 
     ObjectStructure* m_defaultStructureForObject;
     ObjectStructure* m_defaultStructureForFunctionObject;
+    ObjectStructure* m_defaultStructureForArrowFunctionObject;
     ObjectStructure* m_defaultStructureForNotConstructorFunctionObject;
     ObjectStructure* m_defaultStructureForFunctionObjectInStrictMode;
     ObjectStructure* m_defaultStructureForNotConstructorFunctionObjectInStrictMode;

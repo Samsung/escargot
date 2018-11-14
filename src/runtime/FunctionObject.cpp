@@ -62,6 +62,19 @@ void FunctionObject::initFunctionObject(ExecutionState& state)
         auto data = state.context()->globalObject()->throwerGetterSetterData();
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(data);
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3] = Value(data);
+    } else if (isArrowFunction()) {
+        // TODO ES6
+        m_structure = state.context()->defaultStructureForArrowFunctionObject();
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->parameterCount()));
+        // arrow function should not have "caller" and "arguments" property
+        // Call the [[DefineOwnProperty]] internal method of F with arguments "caller", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
+        // Call the [[DefineOwnProperty]] internal method of F with arguments "arguments", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
+        /*
+        auto data = state.context()->globalObject()->throwerGetterSetterData();
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(data);
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3] = Value(data);
+        */
     } else {
         m_structure = state.context()->defaultStructureForNotConstructorFunctionObject();
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
@@ -85,7 +98,7 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForG
 }
 
 FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltin)
-    : Object(state, codeBlock->isConsturctor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
+    : Object(state, codeBlock->isConstructor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
     , m_codeBlock(codeBlock)
     , m_outerEnvironment(nullptr)
 {
@@ -96,7 +109,7 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForB
 }
 
 FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info)
-    : Object(state, info.m_isConsturctor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
+    : Object(state, info.m_isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
     , m_codeBlock(new CodeBlock(state.context(), info))
     , m_outerEnvironment(nullptr)
 {
@@ -117,7 +130,7 @@ FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, F
 
 FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnv)
     : Object(state,
-             (codeBlock->isConsturctor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)) + ((codeBlock->isStrict() && !codeBlock->hasCallNativeFunctionCode()) ? 2 : 0),
+             (codeBlock->isConstructor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)) + ((codeBlock->isStrict() && !codeBlock->hasCallNativeFunctionCode()) ? 2 : 0),
              false)
     , m_codeBlock(codeBlock)
     , m_outerEnvironment(outerEnv)
@@ -242,7 +255,7 @@ Object* FunctionObject::newInstance(ExecutionState& state, const size_t& argc, V
             targetFunction = (FunctionObject*)cb->boundFunctionInfo()->m_ctorFn;
             cb = targetFunction->codeBlock();
         }
-        if (!cb->isConsturctor()) {
+        if (!cb->isConstructor()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, codeBlock()->functionName().string(), false, String::emptyString, errorMessage_New_NotConstructor);
         }
     }
@@ -362,14 +375,18 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
     }
 
     // prepare receiver
-    if (!isStrict) {
-        if (receiverSrc.isUndefinedOrNull()) {
-            stackStorage[0] = ctx->globalObject();
-        } else {
-            stackStorage[0] = receiverSrc.toObject(state);
-        }
+    if (UNLIKELY(m_codeBlock->isArrowFunctionExpression())) {
+        stackStorage[0] = ctx->globalObject();
     } else {
-        stackStorage[0] = receiverSrc;
+        if (!isStrict) {
+            if (receiverSrc.isUndefinedOrNull()) {
+                stackStorage[0] = ctx->globalObject();
+            } else {
+                stackStorage[0] = receiverSrc.toObject(state);
+            }
+        } else {
+            stackStorage[0] = receiverSrc;
+        }
     }
 
     // binding function name
@@ -469,8 +486,12 @@ void FunctionObject::generateArgumentsObject(ExecutionState& state, FunctionEnvi
         const CodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == arguments) {
-                ASSERT(v[i].m_needToAllocateOnStack);
-                stackStorage[v[i].m_indexForIndexedStorage] = fnRecord->createArgumentsObject(state, state.executionContext());
+                if (v[i].m_needToAllocateOnStack) {
+                    stackStorage[v[i].m_indexForIndexedStorage] = fnRecord->createArgumentsObject(state, state.executionContext());
+                } else {
+                    ASSERT(fnRecord->isFunctionEnvironmentRecordOnHeap());
+                    ((FunctionEnvironmentRecordOnHeap*)fnRecord)->m_heapStorage[v[i].m_indexForIndexedStorage] = fnRecord->createArgumentsObject(state, state.executionContext());
+                }
                 break;
             }
         }

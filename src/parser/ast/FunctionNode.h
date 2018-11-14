@@ -22,6 +22,7 @@
 
 #include "ExpressionNode.h"
 #include "StatementNode.h"
+#include "IdentifierNode.h"
 
 namespace Escargot {
 
