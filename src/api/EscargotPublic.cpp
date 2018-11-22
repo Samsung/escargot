@@ -1402,9 +1402,16 @@ std::vector<std::pair<FunctionObjectRef*, ValueRef*>> ExecutionStateRef::resolve
 GlobalObjectRef* ExecutionStateRef::resolveCallerLexicalGlobalObject()
 {
     ASSERT(toImpl(this)->parent());
-    ExecutionState* callerState = toImpl(this)->parent();
-
-    return toRef(callerState->context()->globalObject());
+    auto ctx = toImpl(this)->context();
+    auto p = toImpl(this)->parent();
+    while (p) {
+        if (ctx != p->context()) {
+            ctx = p->context();
+            break;
+        }
+        p = p->parent();
+    }
+    return toRef(ctx->globalObject());
 }
 
 void ExecutionStateRef::throwException(ValueRef* value)
