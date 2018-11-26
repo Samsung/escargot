@@ -4658,7 +4658,7 @@ public:
                 nd = new BinaryExpressionPlusNode(left, right);
             } else if (oper == Minus) {
                 nd = new BinaryExpressionMinusNode(left, right);
-            } else if (oper == LeftShift) {  // Bitwise Shift Operators
+            } else if (oper == LeftShift) { // Bitwise Shift Operators
                 nd = new BinaryExpressionLeftShiftNode(left, right);
             } else if (oper == RightShift) {
                 nd = new BinaryExpressionSignedRightShiftNode(left, right);

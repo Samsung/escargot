@@ -194,12 +194,15 @@ public:
     VMInstanceRef* vmInstance();
 
     typedef ValueRef* (*VirtualIdentifierCallback)(ExecutionStateRef* state, ValueRef* name);
+    typedef ValueRef* (*SecurityPolicyCheckCallback)(ExecutionStateRef* state, bool isEval);
 
     // this is not compatible with ECMAScript
     // but this callback is needed for browser-implementation
     // if there is a Identifier with that value, callback should return non-empty value
     void setVirtualIdentifierCallback(VirtualIdentifierCallback cb);
     VirtualIdentifierCallback virtualIdentifierCallback();
+
+    void setSecurityPolicyCheckCallback(SecurityPolicyCheckCallback cb);
 };
 
 class EXPORT AtomicStringRef {

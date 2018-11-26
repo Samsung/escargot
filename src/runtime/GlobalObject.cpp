@@ -82,8 +82,9 @@ static String* builtinHelperFileRead(ExecutionState& state, const char* fileName
         if (hasNonLatin1Content) {
             auto s = utf8StringToUTF16String(utf8Str.data(), utf8Str.length());
             src = new UTF16String(std::move(s));
-        } else
+        } else {
             src = new Latin1String(str.data(), str.length());
+        }
     } else {
         char msg[1024];
         snprintf(msg, sizeof(msg), "%%s: cannot open file %s", fileName);
@@ -194,6 +195,15 @@ ObjectGetResult GlobalObject::getOwnProperty(ExecutionState& state, const Object
 Value GlobalObject::eval(ExecutionState& state, const Value& arg)
 {
     if (arg.isString()) {
+        if (UNLIKELY((bool)state.context()->securityPolicyCheckCallback())) {
+            Value checkMSG = state.context()->securityPolicyCheckCallback()(state, true);
+            if (!checkMSG.isEmpty()) {
+                ASSERT(checkMSG.isString());
+                ErrorObject* err = ErrorObject::createError(state, ErrorObject::Code::EvalError, checkMSG.asString());
+                state.throwException(err);
+                return Value();
+            }
+        }
         ScriptParser parser(state.context());
         const char* s = "eval input";
         ExecutionContext* pec = state.executionContext();
@@ -222,6 +232,15 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
 Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thisValue, InterpretedCodeBlock* parentCodeBlock)
 {
     if (arg.isString()) {
+        if (UNLIKELY((bool)state.context()->securityPolicyCheckCallback())) {
+            Value checkMSG = state.context()->securityPolicyCheckCallback()(state, true);
+            if (!checkMSG.isEmpty()) {
+                ASSERT(checkMSG.isString());
+                ErrorObject* err = ErrorObject::createError(state, ErrorObject::Code::EvalError, checkMSG.asString());
+                state.throwException(err);
+                return Value();
+            }
+        }
         ScriptParser parser(state.context());
         const char* s = "eval input";
         ExecutionContext* pec = state.executionContext();
@@ -314,9 +333,9 @@ static Value builtinParseInt(ExecutionState& state, Value thisValue, size_t argc
     // 5. If S is not empty and the first character of S is a plus sign + or a minus sign -, then remove the first character from S.
     double sign = 1;
     if (p < strLen) {
-        if (s->charAt(p) == '+')
+        if (s->charAt(p) == '+') {
             p++;
-        else if (s->charAt(p) == '-') {
+        } else if (s->charAt(p) == '-') {
             sign = -1;
             p++;
         }

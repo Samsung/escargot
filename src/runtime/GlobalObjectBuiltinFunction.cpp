@@ -37,6 +37,16 @@ static Value builtinFunctionEmptyFunction(ExecutionState& state, Value thisValue
 
 static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+    if (isNewExpression && UNLIKELY((bool)state.context()->securityPolicyCheckCallback())) {
+        Value checkMSG = state.context()->securityPolicyCheckCallback()(state, false);
+        if (!checkMSG.isEmpty()) {
+            ASSERT(checkMSG.isString());
+            ErrorObject* err = ErrorObject::createError(state, ErrorObject::Code::EvalError, checkMSG.asString());
+            state.throwException(err);
+            return Value();
+        }
+    }
+
     StringBuilder src, srcToTest;
     src.appendString("function anonymous(");
     srcToTest.appendString("function anonymous(");

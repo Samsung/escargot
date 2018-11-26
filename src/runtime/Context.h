@@ -43,6 +43,7 @@ class ByteCodeBlock;
 class ToStringRecursionPreventer;
 
 typedef Value (*VirtualIdentifierCallback)(ExecutionState& state, Value name);
+typedef Value (*SecurityPolicyCheckCallback)(ExecutionState& state, bool isEval);
 
 class Context : public gc {
     friend class AtomicString;
@@ -196,6 +197,16 @@ public:
         return m_virtualIdentifierCallback;
     }
 
+    void setSecurityPolicyCheckCallback(SecurityPolicyCheckCallback cb)
+    {
+        m_securityPolicyCheckCallback = cb;
+    }
+
+    SecurityPolicyCheckCallback securityPolicyCheckCallback()
+    {
+        return m_securityPolicyCheckCallback;
+    }
+
 protected:
     VMInstance* m_instance;
 
@@ -226,8 +237,10 @@ protected:
     Vector<SandBox*, GCUtil::gc_malloc_allocator<SandBox*>>& m_sandBoxStack;
     ToStringRecursionPreventer* m_toStringRecursionPreventer;
     VirtualIdentifierCallback m_virtualIdentifierCallback;
+    SecurityPolicyCheckCallback m_securityPolicyCheckCallback;
     // public helper variable
     void* m_virtualIdentifierCallbackPublic;
+    void* m_securityPolicyCheckCallbackPublic;
 #if ESCARGOT_ENABLE_PROMISE
     JobQueue* m_jobQueue;
 #endif

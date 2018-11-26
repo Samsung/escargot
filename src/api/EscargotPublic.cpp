@@ -1358,6 +1358,18 @@ ContextRef::VirtualIdentifierCallback ContextRef::virtualIdentifierCallback()
     return ((VirtualIdentifierCallback)ctx->m_virtualIdentifierCallbackPublic);
 }
 
+void ContextRef::setSecurityPolicyCheckCallback(SecurityPolicyCheckCallback cb)
+{
+    Context* ctx = toImpl(this);
+    ctx->m_securityPolicyCheckCallbackPublic = (void*)cb;
+    ctx->setSecurityPolicyCheckCallback([](ExecutionState& state, bool isEval) -> Value {
+        if (state.context()->m_securityPolicyCheckCallbackPublic) {
+            return toImpl(((SecurityPolicyCheckCallback)state.context()->m_securityPolicyCheckCallbackPublic)(toRef(&state), isEval));
+        }
+        return Value(Value::EmptyValue);
+    });
+}
+
 ExecutionStateRef* ExecutionStateRef::create(ContextRef* ctxref)
 {
     Context* ctx = toImpl(ctxref);
