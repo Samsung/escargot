@@ -65,6 +65,12 @@ class VMInstance : public gc {
 
 public:
     VMInstance(const char* locale = nullptr, const char* timezone = nullptr);
+    ~VMInstance()
+    {
+#ifdef ENABLE_ICU
+        delete m_timezone;
+#endif
+    }
 
     const GlobalSymbols& globalSymbols()
     {
