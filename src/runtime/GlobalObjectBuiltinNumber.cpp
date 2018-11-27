@@ -26,6 +26,8 @@
 #include "ieee.h"
 #include "double-conversion.h"
 
+#define NUMBER_TO_STRING_BUFFER_LENGTH 96
+
 namespace Escargot {
 
 static int itoa(int64_t value, char* sp, int radix)
@@ -123,8 +125,8 @@ static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t
             return Value(round(number)).toString(state);
         }
 
-        char buffer[512];
-        double_conversion::StringBuilder builder(buffer, 512);
+        char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
+        double_conversion::StringBuilder builder(buffer, NUMBER_TO_STRING_BUFFER_LENGTH);
         double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToFixed(number, digit, &builder);
         return Value(new ASCIIString(builder.Finalize()));
     }
@@ -152,8 +154,7 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
     if (std::isnan(number)) { // 3
         return state.context()->staticStrings().NaN.string();
     }
-    char buf[512];
-    int exp = 0;
+
     if (std::isinf(number)) { // 6
         if (number < 0) {
             return state.context()->staticStrings().NegativeInfinity.string();
@@ -164,61 +165,15 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
     if (digit < 0 || digit > 20) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toExponential.string(), errorMessage_GlobalObject_RangeError);
     }
-    if (number == 0) {
-        exp = 0;
-    } else if (std::abs(number) >= 10) {
-        double tmp = number;
-        while (tmp >= 10) {
-            exp++;
-            tmp /= 10.0;
-        }
-    } else if (std::abs(number) < 1) {
-        double tmp = number;
-        while (tmp < 1) {
-            exp--;
-            tmp *= 10.0;
-        }
-    }
-    number /= pow(10, exp);
-    if (undefinedDigit) {
-        snprintf(buf, sizeof(buf), "%.15lf", number);
-    } else {
-        String* numberStr = String::fromDouble(number);
-        char zeros[20];
-        int sign = number < 0 ? 1 : 0;
-        int len = (int)numberStr->length() - sign;
-        int addDigit = 2 + digit - len;
-        for (int i = 0; i < addDigit; i++) {
-            zeros[i] = '0';
-        }
-        zeros[addDigit < 0 ? 0 : addDigit] = '\0';
-        int endP = (addDigit < 0 ? digit + 2 : len) + sign;
-        snprintf(buf, sizeof(buf), "%s%s\n", numberStr->substring(0, endP)->characters8(), zeros);
-    }
 
-    // remove trailing zeros
-    char* tail = nullptr;
+    char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
+    double_conversion::StringBuilder builder(buffer, NUMBER_TO_STRING_BUFFER_LENGTH);
     if (undefinedDigit) {
-        tail = buf + strlen(buf) - 1;
-        while (*tail == '0' && *tail-- != '.') {
-        }
-        tail++;
+        double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToExponential(number, -1, &builder);
     } else {
-        for (size_t i = 0; i < strlen(buf); i++) {
-            tail = &buf[i];
-            if (*tail == '.') {
-                break;
-            }
-        }
-        tail++;
-        for (int i = 0; i < digit; i++) {
-            tail++;
-        }
+        double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToExponential(number, digit, &builder);
     }
-    if (*(tail - 1) == '.')
-        tail--;
-    snprintf(tail, 512 - (ptrdiff_t)(buf - tail), "e%+d", exp);
-    return Value(new ASCIIString(buf));
+    return Value(new ASCIIString(builder.Finalize()));
 }
 
 static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -251,8 +206,8 @@ static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, si
             if (p < 1 || p > 21) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toPrecision.string(), errorMessage_GlobalObject_RangeError);
             }
-            char buffer[512];
-            double_conversion::StringBuilder builder(buffer, 512);
+            char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
+            double_conversion::StringBuilder builder(buffer, NUMBER_TO_STRING_BUFFER_LENGTH);
             double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToPrecision(number, p, &builder);
             return Value(new ASCIIString(builder.Finalize()));
         }
