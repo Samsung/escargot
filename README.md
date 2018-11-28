@@ -5,39 +5,45 @@
 apt-get install autoconf automake libtool libc++-dev libicu-dev gcc-multilib g++-multilib
 ```
 
-## Building
+## Build Escargot
 
 ``` sh
-git clone git@github.sec.samsung.net:RS7-webtf/escargot.git
+git clone git@github.sec.samsung.net:lws/escargot.git
 cd escargot
-git submodule init
-git submodule update third_party/GCutil
-./build_third_party.sh
-make [x86|x64].interpreter.[debug|release] -j
+git submodule update --init third_party
+cmake CMakeLists.txt -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin
+make -j
 ```
 
-e.g. `make x64.interpreter.debug -j`, `make x64.interpreter.release -j`
+#### Build options
 
-To get available configuration list, get help of completion
+The following build options are supported when generating Makefile using cmake.
 
-``` sh
-make <tab><tab>
-```
+* -DESCARGOT_HOST=[ linux | tizen_obs ]<br>
+  Compile Escargot for either Linux or Tizen platform
+* -DESCARGOT_ARCH=[ x64 | x86 | arm | i686 | aarch64 ]<br>
+  Compile Escargot for each architecture
+* -DESCARGOT_MODE=[ debug | release ]<br>
+  Compile Escargot for either release or debug mode
+* -DESCARGOT_OUTPUT=[ bin | shared_lib | static_lib ]<br> 
+  Define target output type
 
 ## Testing
 
 First, get benchmarks and tests
 
-
 ``` sh
-git submodule init
-git submodule update
+git submodule update --init
 ```
 
-### Sunspider
+### Benchmarks
 
 ```sh
-make run-sunspider
+make run-sunspider-js # Sunspider
+make run-octane # Octane
+make run-v8-x64 # V8 for x64
+make run-chakracore-x64 # Chakracore for x64
+make run-test262 # test262
 ```
 
 ## Misc.
