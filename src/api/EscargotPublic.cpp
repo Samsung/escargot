@@ -201,6 +201,18 @@ std::string StringRef::toStdUTF8String()
     return toImpl(this)->toNonGCUTF8StringData();
 }
 
+StringRef::StringBufferAccessDataRef StringRef::stringBufferAccessData()
+{
+    StringRef::StringBufferAccessDataRef ref;
+    auto implRef = toImpl(this)->bufferAccessData();
+
+    ref.buffer = implRef.buffer;
+    ref.has8BitContent = implRef.has8BitContent;
+    ref.length = implRef.length;
+
+    return ref;
+}
+
 SymbolRef* SymbolRef::create(StringRef* desc)
 {
     return toRef(new Symbol(toImpl(desc)));

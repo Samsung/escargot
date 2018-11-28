@@ -152,6 +152,38 @@ public:
     StringRef* substring(size_t from, size_t to);
 
     std::string toStdUTF8String();
+
+    // don't store this sturct
+    // this is only for temporary access
+    struct StringBufferAccessDataRef {
+        bool has8BitContent;
+        size_t length;
+        const void* buffer;
+
+        // A type to hold a single Latin-1 character.
+        typedef unsigned char LChar;
+
+        char16_t uncheckedCharAtFor8Bit(size_t idx) const
+        {
+            return ((LChar*)buffer)[idx];
+        }
+
+        char16_t uncheckedCharAtFor16Bit(size_t idx) const
+        {
+            return ((char16_t*)buffer)[idx];
+        }
+
+        char16_t charAt(size_t idx) const
+        {
+            if (has8BitContent) {
+                return ((LChar*)buffer)[idx];
+            } else {
+                return ((char16_t*)buffer)[idx];
+            }
+        }
+    };
+
+    StringBufferAccessDataRef stringBufferAccessData();
 };
 
 class EXPORT SymbolRef : public PointerValueRef {
