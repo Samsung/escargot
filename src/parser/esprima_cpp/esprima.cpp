@@ -3472,7 +3472,8 @@ public:
         bool valid;
 
         ParseFormalParametersResult()
-            : valid(false)
+            : message(nullptr)
+            , valid(false)
         {
         }
         ParseFormalParametersResult(PatternNodeVector params, RefPtr<ScannerResult> stricted, RefPtr<ScannerResult> firstRestricted, const char* message)
