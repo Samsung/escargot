@@ -11,7 +11,7 @@ apt-get install autoconf automake libtool libc++-dev libicu-dev gcc-multilib g++
 git clone git@github.com:pando-project/escargot.git
 cd escargot
 git submodule init
-git submodule update third_party/GCutil
+git submodule update
 ./build_third_party.sh
 make [x86|x64].interpreter.[debug|release] -j
 ```
