@@ -26,6 +26,41 @@ inline void clearStack()
 #else
 #error
 #endif
+
+
+uint64_t tickCount(); // increase 1000 by 1 second
+uint64_t longTickCount(); // increase 1000000 by 1 second
+uint64_t timestamp(); // increase 1000 by 1 second
+
+class ProfilerTimer {
+public:
+    ProfilerTimer(const char *msg)
+    {
+        m_start = longTickCount();
+        m_msg = msg;
+    }
+    ~ProfilerTimer();
+
+protected:
+    uint64_t m_start;
+    const char *m_msg;
+};
+
+class LongTaskFinder {
+public:
+    LongTaskFinder(const char *msg, size_t loggingTimeInMS)
+    {
+        m_loggingTime = loggingTimeInMS;
+        m_start = longTickCount();
+        m_msg = msg;
+    }
+    ~LongTaskFinder();
+
+protected:
+    size_t m_loggingTime;
+    uint64_t m_start;
+    const char *m_msg;
+};
 }
 
 #define JS_ALWAYS_INLINE ALWAYS_INLINE

@@ -28,6 +28,8 @@
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/ErrorObject.h"
+#include "runtime/VMInstance.h"
+#include "parser/ast/AST.h"
 #include "util/Util.h"
 
 namespace Escargot {
@@ -175,17 +177,11 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
 {
     Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& v = state.context()->compiledCodeBlocks();
 
-    size_t currentCodeSizeTotal = 0;
-    for (size_t i = 0; i < v.size(); i++) {
-        currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_code.size();
-        currentCodeSizeTotal += (v[i]->m_byteCodeBlock->m_locData ? (v[i]->m_byteCodeBlock->m_locData->size() * sizeof(std::pair<size_t, size_t>)) : 0);
-        currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_literalData.size() * sizeof(size_t);
-        currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_objectStructuresInUse->size() * sizeof(size_t);
-        currentCodeSizeTotal += v[i]->m_byteCodeBlock->m_getObjectCodePositions.size() * sizeof(size_t);
-    }
+    auto& currentCodeSizeTotal = state.context()->vmInstance()->compiledByteCodeSize();
     // ESCARGOT_LOG_INFO("codeSizeTotal %lfMB\n", (int)currentCodeSizeTotal / 1024.0 / 1024.0);
 
     if (currentCodeSizeTotal > FUNCTION_OBJECT_BYTECODE_SIZE_MAX) {
+        currentCodeSizeTotal = 0;
         std::vector<CodeBlock*, gc_allocator<CodeBlock*>> codeBlocksInCurrentStack;
 
         ExecutionContext* ec = state.executionContext();
@@ -215,6 +211,7 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
 
         for (size_t i = 0; i < codeBlocksInCurrentStack.size(); i++) {
             v[i] = codeBlocksInCurrentStack[i];
+            currentCodeSizeTotal += v[i]->m_byteCodeBlock->memoryAllocatedSize();
         }
     }
     ASSERT(!m_codeBlock->hasCallNativeFunctionCode());
@@ -227,6 +224,7 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
     size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
 #endif
 
+
     auto ret = state.context()->scriptParser().parseFunction(m_codeBlock->asInterpretedCodeBlock(), stackRemainApprox, &state);
     RefPtr<Node> ast = std::get<0>(ret);
 
@@ -234,6 +232,8 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
     m_codeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_codeBlock->asInterpretedCodeBlock(), ast.get(), std::get<1>(ret), false, false, false);
 
     v.pushBack(m_codeBlock);
+
+    currentCodeSizeTotal += m_codeBlock->m_byteCodeBlock->memoryAllocatedSize();
 }
 
 Value FunctionObject::callSlowCase(ExecutionState& state, const Value& callee, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression)

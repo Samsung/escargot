@@ -165,7 +165,11 @@ struct ByteCodeLOC {
 
 class ByteCode : public gc {
 public:
-    virtual ~ByteCode() {}
+#ifndef NDEBUG
+    virtual ~ByteCode()
+    {
+    }
+#endif
     ByteCode(Opcode code, const ByteCodeLOC& loc)
 #if defined(COMPILER_GCC)
         : m_opcodeInAddress((void*)code)
@@ -1621,7 +1625,7 @@ public:
         if (context->m_shouldGenerateLOCData)
             m_locData->push_back(std::make_pair(start, idx));
 
-        m_code.resize(m_code.size() + sizeof(CodeType));
+        m_code.resizeWithUninitializedValues(m_code.size() + sizeof(CodeType));
         for (size_t i = 0; i < sizeof(CodeType); i++) {
             m_code[start++] = *first;
             first++;
@@ -1649,6 +1653,16 @@ public:
     size_t currentCodeSize()
     {
         return m_code.size();
+    }
+
+    size_t memoryAllocatedSize()
+    {
+        size_t siz = m_code.size();
+        siz += m_locData ? (m_locData->size() * sizeof(std::pair<size_t, size_t>)) : 0;
+        siz += m_literalData.size() * sizeof(size_t);
+        siz += m_objectStructuresInUse->size() * sizeof(size_t);
+        siz += m_getObjectCodePositions.size() * sizeof(size_t);
+        return siz;
     }
 
     ExtendedNodeLOC computeNodeLOCFromByteCode(Context* c, size_t codePosition, CodeBlock* cb);

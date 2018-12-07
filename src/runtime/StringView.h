@@ -34,6 +34,14 @@ public:
         m_bufferAccessData.buffer = str;
     }
 
+    ALWAYS_INLINE StringView(const char* str, size_t len)
+    {
+        m_string = nullptr;
+        m_bufferAccessData.has8BitContent = true;
+        m_bufferAccessData.length = len;
+        m_bufferAccessData.buffer = str;
+    }
+
     ALWAYS_INLINE StringView(String* str, const size_t& s, const size_t& e)
         : String()
         , m_string(str)

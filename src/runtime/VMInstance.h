@@ -67,10 +67,13 @@ public:
     VMInstance(const char* locale = nullptr, const char* timezone = nullptr);
     ~VMInstance()
     {
+        clearCaches();
 #ifdef ENABLE_ICU
         delete m_timezone;
 #endif
     }
+
+    void clearCaches();
 
     const GlobalSymbols& globalSymbols()
     {
@@ -186,6 +189,16 @@ public:
         return m_parsedSourceCodes;
     }
 
+    Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& compiledCodeBlocks()
+    {
+        return m_compiledCodeBlocks;
+    }
+
+    size_t& compiledByteCodeSize()
+    {
+        return m_compiledByteCodeSize;
+    }
+
 protected:
     StaticStrings m_staticStrings;
     AtomicStringMap m_atomicStringMap;
@@ -217,6 +230,7 @@ protected:
 
     Vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> m_parsedSourceCodes;
     Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>> m_compiledCodeBlocks;
+    size_t m_compiledByteCodeSize;
 
     ToStringRecursionPreventer m_toStringRecursionPreventer;
 

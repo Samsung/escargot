@@ -253,6 +253,18 @@ private:
 typedef Vector<Value, CustomAllocator<Value>> ValueVector;
 }
 
+namespace std {
+
+template <>
+struct is_fundamental<Escargot::Value> {
+    operator bool() const
+    {
+        return true;
+    }
+};
+}
+
+
 #include "runtime/Object.h"
 #include "runtime/PointerValue.h"
 #include "runtime/String.h"

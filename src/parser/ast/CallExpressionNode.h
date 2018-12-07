@@ -33,7 +33,7 @@ public:
         : ExpressionNode()
     {
         m_callee = callee;
-        m_arguments = arguments;
+        m_arguments = std::move(arguments);
     }
 
     virtual ~CallExpressionNode()

@@ -325,4 +325,22 @@ inline ObjectStructure* ObjectStructure::convertToWithFastAccess(ExecutionState&
 }
 }
 
+namespace std {
+
+template <>
+struct is_fundamental<Escargot::ObjectStructureItem> {
+    operator bool() const
+    {
+        return true;
+    }
+};
+
+template <>
+struct is_fundamental<Escargot::ObjectStructureTransitionItem> {
+    operator bool() const
+    {
+        return true;
+    }
+};
+}
 #endif

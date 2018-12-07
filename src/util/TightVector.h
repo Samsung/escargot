@@ -51,8 +51,13 @@ public:
         if (other.size()) {
             m_size = other.size();
             m_buffer = Allocator().allocate(m_size);
-            for (size_t i = 0; i < m_size; i++) {
-                m_buffer[i] = other[i];
+
+            if (std::is_fundamental<T>()) {
+                memcpy(m_buffer, other.m_buffer, sizeof(T) * m_size);
+            } else {
+                for (size_t i = 0; i < m_size; i++) {
+                    m_buffer[i] = other[i];
+                }
             }
         } else {
             m_buffer = nullptr;
@@ -65,8 +70,12 @@ public:
         if (other.size()) {
             m_size = other.size();
             m_buffer = Allocator().allocate(m_size);
-            for (size_t i = 0; i < m_size; i++) {
-                m_buffer[i] = other[i];
+            if (std::is_fundamental<T>()) {
+                memcpy(m_buffer, other.m_buffer, sizeof(T) * m_size);
+            } else {
+                for (size_t i = 0; i < m_size; i++) {
+                    m_buffer[i] = other[i];
+                }
             }
         } else {
             clear();
@@ -78,8 +87,12 @@ public:
     {
         m_size = other.size() + 1;
         m_buffer = Allocator().allocate(m_size);
-        for (size_t i = 0; i < other.size(); i++) {
-            m_buffer[i] = other[i];
+        if (std::is_fundamental<T>()) {
+            memcpy(m_buffer, other.data(), sizeof(T) * other.size());
+        } else {
+            for (size_t i = 0; i < other.size(); i++) {
+                m_buffer[i] = other[i];
+            }
         }
         m_buffer[other.size()] = newItem;
     }
@@ -93,9 +106,14 @@ public:
     void pushBack(const T& val)
     {
         T* newBuffer = Allocator().allocate(m_size + 1);
-        for (size_t i = 0; i < m_size; i++) {
-            newBuffer[i] = m_buffer[i];
+        if (std::is_fundamental<T>()) {
+            memcpy(newBuffer, m_buffer, sizeof(T) * m_size);
+        } else {
+            for (size_t i = 0; i < m_size; i++) {
+                newBuffer[i] = m_buffer[i];
+            }
         }
+
         newBuffer[m_size] = val;
         if (m_buffer)
             Allocator().deallocate(m_buffer, m_size);
@@ -214,8 +232,12 @@ public:
         if (newSize) {
             T* newBuffer = Allocator().allocate(newSize);
 
-            for (size_t i = 0; i < m_size && i < newSize; i++) {
-                newBuffer[i] = m_buffer[i];
+            if (std::is_fundamental<T>()) {
+                memcpy(newBuffer, m_buffer, sizeof(T) * std::min(m_size, newSize));
+            } else {
+                for (size_t i = 0; i < m_size && i < newSize; i++) {
+                    newBuffer[i] = m_buffer[i];
+                }
             }
 
             if (m_buffer)
@@ -235,8 +257,12 @@ public:
         if (newSize) {
             T* newBuffer = Allocator().allocate(newSize);
 
-            for (size_t i = 0; i < m_size && i < newSize; i++) {
-                newBuffer[i] = m_buffer[i];
+            if (std::is_fundamental<T>()) {
+                memcpy(newBuffer, m_buffer, sizeof(T) * std::min(m_size, newSize));
+            } else {
+                for (size_t i = 0; i < m_size && i < newSize; i++) {
+                    newBuffer[i] = m_buffer[i];
+                }
             }
 
             for (size_t i = m_size; i < newSize; i++) {
@@ -290,8 +316,13 @@ public:
     void pushBack(const T& val, size_t newSize)
     {
         T* newBuffer = Allocator().allocate(newSize);
-        for (size_t i = 0; i < newSize - 1; i++) {
-            newBuffer[i] = m_buffer[i];
+
+        if (std::is_fundamental<T>()) {
+            memcpy(newBuffer, m_buffer, sizeof(T) * (newSize - 1));
+        } else {
+            for (size_t i = 0; i < newSize - 1; i++) {
+                newBuffer[i] = m_buffer[i];
+            }
         }
         newBuffer[newSize - 1] = val;
         if (m_buffer)

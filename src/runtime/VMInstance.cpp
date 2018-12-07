@@ -149,9 +149,9 @@ bool VMInstance::regexpLastIndexNativeSetter(ExecutionState& state, Object* self
 static ObjectPropertyNativeGetterSetterData regexpLastIndexGetterSetterData(
     true, false, false, &VMInstance::regexpLastIndexNativeGetter, &VMInstance::regexpLastIndexNativeSetter);
 
-
 VMInstance::VMInstance(const char* locale, const char* timezone)
     : m_didSomePrototypeObjectDefineIndexedProperty(false)
+    , m_compiledByteCodeSize(0)
     , m_cachedUTC(nullptr)
 {
     if (!String::emptyString) {
@@ -284,6 +284,14 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
     m_jobQueueListener = nullptr;
     m_publicJobQueueListenerPointer = nullptr;
 #endif
+}
+
+void VMInstance::clearCaches()
+{
+    m_compiledCodeBlocks.clear();
+    m_regexpCache.clear();
+    m_cachedUTC = nullptr;
+    globalSymbolRegistry().clear();
 }
 
 void VMInstance::somePrototypeObjectDefineIndexedProperty(ExecutionState& state)

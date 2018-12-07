@@ -182,8 +182,6 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
     ScriptParseError* error = nullptr;
 
     GC_disable();
-    // int orgFreeSpaceDivisor = GC_get_free_space_divisor();
-    // GC_set_free_space_divisor(1);
 
     try {
         m_context->vmInstance()->m_parsedSourceCodes.push_back(scriptSource.string());
@@ -272,7 +270,6 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
     }
 
     GC_enable();
-    // GC_set_free_space_divisor(orgFreeSpaceDivisor);
 
     ScriptParser::ScriptParserResult result(script, error);
     return result;

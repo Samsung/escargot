@@ -27,10 +27,7 @@
 
 namespace Escargot {
 
-typedef std::unordered_set<String*,
-                           std::hash<String*>, std::equal_to<String*>,
-                           GCUtil::gc_malloc_ignore_off_page_allocator<String*> >
-    AtomicStringMap;
+typedef std::unordered_set<String*, std::hash<String*>, std::equal_to<String*>, GCUtil::gc_malloc_ignore_off_page_allocator<String*> > AtomicStringMap;
 
 class AtomicString : public gc {
     friend class StaticStrings;
@@ -133,6 +130,5 @@ inline bool operator!=(const AtomicString& a, const AtomicString& b)
 typedef Vector<AtomicString, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<AtomicString> > AtomicStringVector;
 typedef TightVector<AtomicString, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<AtomicString> > AtomicStringTightVector;
 }
-
 
 #endif

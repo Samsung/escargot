@@ -56,8 +56,13 @@ public:
             m_size = other.size();
             m_capacity = other.m_capacity;
             m_buffer = Allocator().allocate(m_capacity);
-            for (size_t i = 0; i < m_size; i++) {
-                m_buffer[i] = other[i];
+
+            if (std::is_fundamental<T>()) {
+                memcpy(m_buffer, other.data(), sizeof(T) * m_size);
+            } else {
+                for (size_t i = 0; i < m_size; i++) {
+                    m_buffer[i] = other[i];
+                }
             }
         } else {
             m_buffer = nullptr;
@@ -72,8 +77,13 @@ public:
             m_size = other.size();
             m_capacity = other.m_capacity;
             m_buffer = Allocator().allocate(m_capacity);
-            for (size_t i = 0; i < m_size; i++) {
-                m_buffer[i] = other[i];
+
+            if (std::is_fundamental<T>()) {
+                memcpy(m_buffer, other.data(), sizeof(T) * m_size);
+            } else {
+                for (size_t i = 0; i < m_size; i++) {
+                    m_buffer[i] = other[i];
+                }
             }
         } else {
             clear();
@@ -86,9 +96,15 @@ public:
         m_size = other.size() + 1;
         m_capacity = other.m_capacity + 1;
         m_buffer = Allocator().allocate(m_size);
-        for (size_t i = 0; i < other.size(); i++) {
-            m_buffer[i] = other[i];
+
+        if (std::is_fundamental<T>()) {
+            memcpy(m_buffer, other.data(), sizeof(T) * other.size());
+        } else {
+            for (size_t i = 0; i < other.size(); i++) {
+                m_buffer[i] = other[i];
+            }
         }
+
         m_buffer[other.size()] = newItem;
     }
 
@@ -104,9 +120,15 @@ public:
             size_t oldc = m_capacity;
             m_capacity = computeAllocateSize(m_size + 1);
             T* newBuffer = Allocator().allocate(m_capacity);
-            for (size_t i = 0; i < m_size; i++) {
-                newBuffer[i] = m_buffer[i];
+
+            if (std::is_fundamental<T>()) {
+                memcpy(newBuffer, m_buffer, sizeof(T) * m_size);
+            } else {
+                for (size_t i = 0; i < m_size; i++) {
+                    newBuffer[i] = m_buffer[i];
+                }
             }
+
             if (m_buffer)
                 Allocator().deallocate(m_buffer, oldc);
             m_buffer = newBuffer;
@@ -127,17 +149,30 @@ public:
             size_t oldC = m_capacity;
             m_capacity = computeAllocateSize(m_size + 1);
             T* newBuffer = Allocator().allocate(m_capacity);
-            for (size_t i = 0; i < pos; i++) {
-                newBuffer[i] = m_buffer[i];
+
+            if (std::is_fundamental<T>()) {
+                memcpy(newBuffer, m_buffer, sizeof(T) * pos);
+            } else {
+                for (size_t i = 0; i < pos; i++) {
+                    newBuffer[i] = m_buffer[i];
+                }
             }
+
             newBuffer[pos] = val;
-            for (size_t i = pos; i < m_size; i++) {
-                newBuffer[i + 1] = m_buffer[i];
+
+            if (std::is_fundamental<T>()) {
+                memcpy(&newBuffer[pos + 1], &m_buffer[pos], sizeof(T) * (pos - m_size));
+            } else {
+                for (size_t i = pos; i < m_size; i++) {
+                    newBuffer[i + 1] = m_buffer[i];
+                }
             }
+
             if (m_buffer)
                 Allocator().deallocate(m_buffer, oldC);
             m_buffer = newBuffer;
         } else {
+            // TODO use memmove
             for (size_t i = pos; i < m_size; i++) {
                 m_buffer[i + 1] = m_buffer[i];
             }
@@ -162,13 +197,20 @@ public:
         if (m_size - c) {
             size_t oldC = m_capacity;
             T* newBuffer = Allocator().allocate(m_size - c);
-            for (size_t i = 0; i < start; i++) {
-                newBuffer[i] = m_buffer[i];
+
+            if (std::is_fundamental<T>()) {
+                memcpy(newBuffer, m_buffer, sizeof(T) * start);
+                memcpy(&newBuffer[end - c], &m_buffer[end], sizeof(T) * (m_size - end));
+            } else {
+                for (size_t i = 0; i < start; i++) {
+                    newBuffer[i] = m_buffer[i];
+                }
+
+                for (size_t i = end; i < m_size; i++) {
+                    newBuffer[i - c] = m_buffer[i];
+                }
             }
 
-            for (size_t i = end; i < m_size; i++) {
-                newBuffer[i - c] = m_buffer[i];
-            }
 
             if (m_buffer)
                 Allocator().deallocate(m_buffer, oldC);
@@ -241,9 +283,15 @@ public:
     {
         if (m_size != m_capacity) {
             T* newBuffer = Allocator().allocate(m_size);
-            for (size_t i = 0; i < m_size; i++) {
-                newBuffer[i] = m_buffer[i];
+
+            if (std::is_fundamental<T>()) {
+                memcpy(newBuffer, m_buffer, sizeof(T) * m_size);
+            } else {
+                for (size_t i = 0; i < m_size; i++) {
+                    newBuffer[i] = m_buffer[i];
+                }
             }
+
             size_t oldC = m_capacity;
             m_capacity = m_size;
             if (m_buffer)
@@ -255,16 +303,25 @@ public:
     void resizeWithUninitializedValues(size_t newSize)
     {
         if (newSize) {
-            T* newBuffer = Allocator().allocate(newSize);
+            if (m_capacity < newSize) {
+                size_t newCapacity = computeAllocateSize(newSize);
+                T* newBuffer = Allocator().allocate(newCapacity);
 
-            for (size_t i = 0; i < m_size && i < newSize; i++) {
-                newBuffer[i] = m_buffer[i];
+                if (std::is_fundamental<T>()) {
+                    memcpy(newBuffer, m_buffer, sizeof(T) * std::min(m_size, newSize));
+                } else {
+                    for (size_t i = 0; i < m_size && i < newSize; i++) {
+                        newBuffer[i] = m_buffer[i];
+                    }
+                }
+
+                if (m_buffer)
+                    Allocator().deallocate(m_buffer, m_capacity);
+
+                m_buffer = newBuffer;
+                m_capacity = newCapacity;
             }
-            if (m_buffer)
-                Allocator().deallocate(m_buffer, m_capacity);
-            m_capacity = newSize;
             m_size = newSize;
-            m_buffer = newBuffer;
         } else {
             clear();
         }
@@ -276,9 +333,15 @@ public:
             if (newSize > m_capacity) {
                 size_t newCapacity = computeAllocateSize(newSize);
                 T* newBuffer = Allocator().allocate(newCapacity);
-                for (size_t i = 0; i < m_size && i < newSize; i++) {
-                    newBuffer[i] = m_buffer[i];
+
+                if (std::is_fundamental<T>()) {
+                    memcpy(newBuffer, m_buffer, sizeof(T) * std::min(m_size, newSize));
+                } else {
+                    for (size_t i = 0; i < m_size && i < newSize; i++) {
+                        newBuffer[i] = m_buffer[i];
+                    }
                 }
+
                 for (size_t i = m_size; i < newSize; i++) {
                     newBuffer[i] = val;
                 }
@@ -301,10 +364,12 @@ public:
 protected:
     size_t computeAllocateSize(size_t newSize)
     {
-        size_t n = newSize * glowFactor / 100.f;
-        if (n == newSize)
-            n++;
-        return n;
+        if (newSize == 0) {
+            return 1;
+        }
+        size_t base = log2l(newSize);
+        size_t capacity = 1 << (base + 1);
+        return capacity * glowFactor / 100.f;
     }
 
     T* m_buffer;
@@ -335,9 +400,15 @@ public:
             size_t oldc = m_capacity;
             m_capacity = computeAllocateSize(newSize);
             T* newBuffer = Allocator().allocate(m_capacity);
-            for (size_t i = 0; i < (newSize - 1); i++) {
-                newBuffer[i] = m_buffer[i];
+
+            if (std::is_fundamental<T>()) {
+                memcpy(newBuffer, m_buffer, sizeof(T) * (newSize - 1));
+            } else {
+                for (size_t i = 0; i < (newSize - 1); i++) {
+                    newBuffer[i] = m_buffer[i];
+                }
             }
+
             if (m_buffer)
                 Allocator().deallocate(m_buffer, oldc);
             m_buffer = newBuffer;
@@ -385,12 +456,18 @@ public:
             if (newSize > m_capacity) {
                 size_t newCapacity = computeAllocateSize(newSize);
                 T* newBuffer = Allocator().allocate(newCapacity);
-                for (size_t i = 0; i < oldSize && i < newSize; i++) {
-                    newBuffer[i] = m_buffer[i];
+
+                if (std::is_fundamental<T>()) {
+                    memcpy(newBuffer, m_buffer, sizeof(T) * std::min(oldSize, newSize));
+                } else {
+                    for (size_t i = 0; i < oldSize && i < newSize; i++) {
+                        newBuffer[i] = m_buffer[i];
+                    }
                 }
                 for (size_t i = oldSize; i < newSize; i++) {
                     newBuffer[i] = val;
                 }
+
                 if (m_buffer)
                     Allocator().deallocate(m_buffer, m_capacity);
                 m_capacity = newCapacity;
@@ -406,12 +483,14 @@ public:
     }
 
 protected:
-    size_t computeAllocateSize(size_t newSize)
+    size_t computeAllocateSize(size_t siz)
     {
-        size_t n = newSize * glowFactor / 100.f;
-        if (n == newSize)
-            n++;
-        return n;
+        if (siz == 0) {
+            return 1;
+        }
+        size_t base = log2l(siz);
+        size_t capacity = 1 << (base + 1);
+        return capacity * glowFactor / 100.f;
     }
 
     T* m_buffer;
