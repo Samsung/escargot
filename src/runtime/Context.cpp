@@ -62,7 +62,9 @@ Context::Context(VMInstance* instance)
     m_jobQueue = instance->m_jobQueue;
 #endif
     m_virtualIdentifierCallback = nullptr;
+    m_securityPolicyCheckCallback = nullptr;
     m_virtualIdentifierCallbackPublic = nullptr;
+    m_securityPolicyCheckCallbackPublic = nullptr;
 
     ExecutionState stateForInit(this);
     m_globalObject = new GlobalObject(stateForInit);
