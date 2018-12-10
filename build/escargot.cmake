@@ -105,7 +105,7 @@ ENDIF()
 
 # GC LIBRARY (static) only for binary output
 IF (${ESCARGOT_OUTPUT} STREQUAL "bin")
-    SET (GC_CFLAGS_COMMON "-g3 -fdata-sections -ffunction-sections -DHAVE_CONFIG_H -DESCARGOT -DIGNORE_DYNAMIC_LOADING -DGC_DONT_REGISTER_MAIN_STATIC_DATA")
+    SET (GC_CFLAGS_COMMON "-g3 -fdata-sections -ffunction-sections -DHAVE_CONFIG_H -DESCARGOT -DIGNORE_DYNAMIC_LOADING -DGC_DONT_REGISTER_MAIN_STATIC_DATA -Wno-unused-variable")
     
     IF (${ESCARGOT_ARCH} STREQUAL "x86")
         SET (GC_CFLAGS_ARCH "-m32")
