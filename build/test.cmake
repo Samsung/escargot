@@ -13,12 +13,12 @@ ADD_CUSTOM_TARGET (tidy-install
 
 ADD_CUSTOM_TARGET (tidy
                    COMMENT "tidy"
-                   COMMAND @python tools/check_tidy.py
+                   COMMAND @python ${PROJECT_SOURCE_DIR}/tools/check_tidy.py
                   )
 
 ADD_CUSTOM_TARGET (tidy-update
                    COMMENT "tidy-update"
-                   COMMAND @python tools/check_tidy.py update
+                   COMMAND @python ${PROJECT_SOURCE_DIR}/tools/check_tidy.py update
                   )
 
 
