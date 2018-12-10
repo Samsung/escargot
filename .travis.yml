@@ -19,7 +19,6 @@ matrix:
         - "sudo apt-get install -y libicu-dev:i386"
       script:
         - rm -rf ./shared/*
-        - ./build_third_party.sh
         - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin
         - make -Cout/linux/x64/release -j2 --quiet
         - cp ./out/linux/x64/release/escargot ./shared/escargot.x64.release
