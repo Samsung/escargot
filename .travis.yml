@@ -104,72 +104,86 @@ matrix:
         - make run-internal-test
     - stage: "Test (x86.release)"
       name: "jetstream-only-cdjs"
+      before_install: "sudo apt-get install -y libicu-dev:i386"
       script:
         - cp ./shared/escargot.x86.release ./escargot
         - make run-jetstream-only-cdjs
     - stage: "Test (x86.release)"
       name: "run-jetstream-only-simple"
+      before_install: "sudo apt-get install -y libicu-dev:i386"
       script:
         - cp ./shared/escargot.x86.release ./escargot
         - travis_wait 30 make run-jetstream-only-simple
     - stage: "Test (x86.release)"
       name: "sunspider-js"
+      before_install: "sudo apt-get install -y libicu-dev:i386"
       script:
         - cp ./shared/escargot.x86.release ./escargot
         - make run-sunspider-js
     - stage: "Test (x86.release)"
       name: "test262"
+      before_install: "sudo apt-get install -y libicu-dev:i386"
       script:
         - cp ./shared/escargot.x86.release ./escargot
         - make run-test262
     - stage: "Test (x86.release)"
       name: "internal-test"
+      before_install: "sudo apt-get install -y libicu-dev:i386"
       script:
         - cp ./shared/escargot.x86.release ./escargot
         - make run-internal-test
     - stage: "Test (x86.release)"
       name: "octane"
+      before_install: "sudo apt-get install -y libicu-dev:i386"
       script:
         - cp ./shared/escargot.x86.release ./escargot
         - mkdir out
         - make run-octane
 #    - stage: "Test (x86.release)"
 #      name: "v8"
+#      before_install: "sudo apt-get install -y libicu-dev:i386"
 #      script:
 #        - cp ./shared/escargot.x86.release ./escargot
 #        - make run-v8
     - stage: "Test (x86.release)"
       name: "chakracore"
+      before_install: "sudo apt-get install -y libicu-dev:i386"
       script:
         - cp ./shared/escargot.x86.release ./escargot
         - make run-chakracore
     - stage: "Test (x86.release)"
       name: "jsc-stress"
+      before_install: "sudo apt-get install -y libicu-dev:i386"
       script:
         - cp ./shared/escargot.x86.release ./escargot
         - make run-jsc-stress
 #    - stage: "Test (x86.release)"
 #      name: "spidermonkey"
+#      before_install: "sudo apt-get install -y libicu-dev:i386"
 #      script:
 #        - cp ./shared/escargot.x86.release ./escargot
 #        - make run-spidermonkey
     - stage: "Test (x86.debug)"
       name: "jetstream-only-cdjs"
+      before_install: "sudo apt-get install -y libicu-dev:i386"
       script:
         - cp ./shared/escargot.x86.debug ./escargot
         - make run-jetstream-only-cdjs
     - stage: "Test (x86.debug)"
       name: "sunspider-js"
+      before_install: "sudo apt-get install -y libicu-dev:i386"
       script:
         - cp ./shared/escargot.x86.debug ./escargot
         - make run-sunspider-js
     - stage: "Test (x86.debug)"
       name: "test262"
+      before_install: "sudo apt-get install -y libicu-dev:i386"
       script:
         - cp ./shared/escargot.x86.debug ./escargot
         - make run-test262
     - stage: "Test (x86.debug)"
       name: "internal-test"
+      before_install: "sudo apt-get install -y libicu-dev:i386"
       script:
         - cp ./shared/escargot.x86.debug ./escargot
         - make run-internal-test
