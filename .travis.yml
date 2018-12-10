@@ -17,23 +17,20 @@ matrix:
       before_install:
         - sudo apt-get install -y autoconf automake libtool libc++-dev libicu-dev gcc-multilib g++-multilib
         - "sudo apt-get install -y libicu-dev:i386"
-#        - "sudo apt-get install $(apt-cache depends libicu-dev | egrep 'Depends: libicu[0-9]+' | cut -d ':' -f2):i386 libc6-dev:i386"
-#        - apt-get download libicu-dev:i386
-#        - sudo dpkg -i libicu-dev*_i386.deb
       script:
         - rm -rf ./shared/*
         - ./build_third_party.sh
         - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin
-        - make -Cout/linux/x64/release -j2
+        - make -Cout/linux/x64/release -j2 --quiet
         - cp ./out/linux/x64/release/escargot ./shared/escargot.x64.release
         - cmake -H. -Bout/linux/x64/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin
-        - make -Cout/linux/x64/debug -j2
+        - make -Cout/linux/x64/debug -j2 --quiet
         - cp ./out/linux/x64/debug/escargot ./shared/escargot.x64.debug
         - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin
-        - make -Cout/linux/x86/release -j2
+        - make -Cout/linux/x86/release -j2 --quiet
         - cp ./out/linux/x86/release/escargot ./shared/escargot.x86.release
         - cmake -H. -Bout/linux/x86/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin
-        - make -Cout/linux/x86/debug -j2
+        - make -Cout/linux/x86/debug -j2 --quiet
         - cp ./out/linux/x86/debug/escargot ./shared/escargot.x86.debug
     - stage: "Test (x64.release)"
       name: "jetstream-only-cdjs"
