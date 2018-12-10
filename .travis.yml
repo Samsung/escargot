@@ -1,193 +1,65 @@
 sudo: required
-
 language: cpp
-
 compiler:
   - gcc
 
-cache:
-  directories:
-    - ./shared
+before_install: sudo apt-get install -y autoconf automake libtool libc++-dev libicu-dev gcc-multilib g++-multilib
 
 matrix:
-  # fast_finish: true
   include:
-    - stage: "Build"
-      name: "Build"
-      before_install:
-        - sudo apt-get install -y autoconf automake libtool libc++-dev libicu-dev gcc-multilib g++-multilib
-        - "sudo apt-get install -y libicu-dev:i386"
+    - name: "x64.release"
       script:
-        - rm -rf ./shared/*
         - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin
         - make -Cout/linux/x64/release -j2 --quiet
-        - cp ./out/linux/x64/release/escargot ./shared/escargot.x64.release
+        - cp ./out/linux/x64/release/escargot ./escargot
+        - make run-jetstream-only-cdjs
+        - travis_wait 30 make run-jetstream-only-simple
+        - make run-sunspider-js
+        - make run-test262
+        - make run-internal-test
+        - make run-octane
+#       - make run-v8
+        - make run-chakracore
+        - make run-jsc-stress
+#       - make run-spidermonkey
+
+    - name: "x64.debug"
+      script:
         - cmake -H. -Bout/linux/x64/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin
         - make -Cout/linux/x64/debug -j2 --quiet
-        - cp ./out/linux/x64/debug/escargot ./shared/escargot.x64.debug
-        - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin
-        - make -Cout/linux/x86/release -j2 --quiet
-        - cp ./out/linux/x86/release/escargot ./shared/escargot.x86.release
-        - cmake -H. -Bout/linux/x86/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin
-        - make -Cout/linux/x86/debug -j2 --quiet
-        - cp ./out/linux/x86/debug/escargot ./shared/escargot.x86.debug
-    - stage: "Test (x64.release)"
-      name: "jetstream-only-cdjs"
-      script:
-        - cp ./shared/escargot.x64.release ./escargot
+        - cp ./out/linux/x64/debug/escargot ./escargot
         - make run-jetstream-only-cdjs
-    - stage: "Test (x64.release)"
-      name: "run-jetstream-only-simple"
-      script:
-        - cp ./shared/escargot.x64.release ./escargot
-        - travis_wait 30 make run-jetstream-only-simple
-    - stage: "Test (x64.release)"
-      name: "sunspider-js"
-      script:
-        - cp ./shared/escargot.x64.release ./escargot
         - make run-sunspider-js
-    - stage: "Test (x64.release)"
-      name: "test262"
-      script:
-        - cp ./shared/escargot.x64.release ./escargot
         - make run-test262
-    - stage: "Test (x64.release)"
-      name: "internal-test"
-      script:
-        - cp ./shared/escargot.x64.release ./escargot
-        - make run-internal-test
-    - stage: "Test (x64.release)"
-      name: "octane"
-      script:
-        - cp ./shared/escargot.x64.release ./escargot
-        - mkdir out
-        - make run-octane
-#    - stage: "Test (x64.release)"
-#      name: "v8"
-#      script:
-#        - cp ./shared/escargot.x64.release ./escargot
-#        - make run-v8
-    - stage: "Test (x64.release)"
-      name: "chakracore"
-      script:
-        - cp ./shared/escargot.x64.release ./escargot
-        - make run-chakracore
-    - stage: "Test (x64.release)"
-      name: "jsc-stress"
-      script:
-        - cp ./shared/escargot.x64.release ./escargot
-        - make run-jsc-stress
-#    - stage: "Test (x64.release)"
-#      name: "spidermonkey"
-#      script:
-#        - cp ./shared/escargot.x64.release ./escargot
-#        - make run-spidermonkey
-    - stage: "Test (x64.debug)"
-      name: "jetstream-only-cdjs"
-      script:
-        - cp ./shared/escargot.x64.debug ./escargot
-        - make run-jetstream-only-cdjs
-    - stage: "Test (x64.debug)"
-      name: "sunspider-js"
-      script:
-        - cp ./shared/escargot.x64.debug ./escargot
-        - make run-sunspider-js
-    - stage: "Test (x64.debug)"
-      name: "test262"
-      script:
-        - cp ./shared/escargot.x64.debug ./escargot
-        - make run-test262
-    - stage: "Test (x64.debug)"
-      name: "internal-test"
-      script:
-        - cp ./shared/escargot.x64.debug ./escargot
-        - make run-internal-test
-    - stage: "Test (x86.release)"
-      name: "jetstream-only-cdjs"
-      before_install: "sudo apt-get install -y libicu-dev:i386"
-      script:
-        - cp ./shared/escargot.x86.release ./escargot
-        - make run-jetstream-only-cdjs
-    - stage: "Test (x86.release)"
-      name: "run-jetstream-only-simple"
-      before_install: "sudo apt-get install -y libicu-dev:i386"
-      script:
-        - cp ./shared/escargot.x86.release ./escargot
-        - travis_wait 30 make run-jetstream-only-simple
-    - stage: "Test (x86.release)"
-      name: "sunspider-js"
-      before_install: "sudo apt-get install -y libicu-dev:i386"
-      script:
-        - cp ./shared/escargot.x86.release ./escargot
-        - make run-sunspider-js
-    - stage: "Test (x86.release)"
-      name: "test262"
-      before_install: "sudo apt-get install -y libicu-dev:i386"
-      script:
-        - cp ./shared/escargot.x86.release ./escargot
-        - make run-test262
-    - stage: "Test (x86.release)"
-      name: "internal-test"
-      before_install: "sudo apt-get install -y libicu-dev:i386"
-      script:
-        - cp ./shared/escargot.x86.release ./escargot
-        - make run-internal-test
-    - stage: "Test (x86.release)"
-      name: "octane"
-      before_install: "sudo apt-get install -y libicu-dev:i386"
-      script:
-        - cp ./shared/escargot.x86.release ./escargot
-        - mkdir out
-        - make run-octane
-#    - stage: "Test (x86.release)"
-#      name: "v8"
-#      before_install: "sudo apt-get install -y libicu-dev:i386"
-#      script:
-#        - cp ./shared/escargot.x86.release ./escargot
-#        - make run-v8
-    - stage: "Test (x86.release)"
-      name: "chakracore"
-      before_install: "sudo apt-get install -y libicu-dev:i386"
-      script:
-        - cp ./shared/escargot.x86.release ./escargot
-        - make run-chakracore
-    - stage: "Test (x86.release)"
-      name: "jsc-stress"
-      before_install: "sudo apt-get install -y libicu-dev:i386"
-      script:
-        - cp ./shared/escargot.x86.release ./escargot
-        - make run-jsc-stress
-#    - stage: "Test (x86.release)"
-#      name: "spidermonkey"
-#      before_install: "sudo apt-get install -y libicu-dev:i386"
-#      script:
-#        - cp ./shared/escargot.x86.release ./escargot
-#        - make run-spidermonkey
-    - stage: "Test (x86.debug)"
-      name: "jetstream-only-cdjs"
-      before_install: "sudo apt-get install -y libicu-dev:i386"
-      script:
-        - cp ./shared/escargot.x86.debug ./escargot
-        - make run-jetstream-only-cdjs
-    - stage: "Test (x86.debug)"
-      name: "sunspider-js"
-      before_install: "sudo apt-get install -y libicu-dev:i386"
-      script:
-        - cp ./shared/escargot.x86.debug ./escargot
-        - make run-sunspider-js
-    - stage: "Test (x86.debug)"
-      name: "test262"
-      before_install: "sudo apt-get install -y libicu-dev:i386"
-      script:
-        - cp ./shared/escargot.x86.debug ./escargot
-        - make run-test262
-    - stage: "Test (x86.debug)"
-      name: "internal-test"
-      before_install: "sudo apt-get install -y libicu-dev:i386"
-      script:
-        - cp ./shared/escargot.x86.debug ./escargot
         - make run-internal-test
 
-#branches:
-#  only:
-#    - master
+    - name: "x86.release"
+      install: "sudo apt-get install -y libicu-dev:i386"
+      script:
+        - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin
+        - make -Cout/linux/x86/release -j2 --quiet
+        - cp ./out/linux/x86/release/escargot ./escargot
+        - make run-jetstream-only-cdjs
+        - travis_wait 30 make run-jetstream-only-simple
+        - make run-sunspider-js
+        - make run-test262
+        - make run-internal-test
+        - make run-octane
+#       - make run-v8
+        - make run-chakracore
+        - make run-jsc-stress
+#       - make run-spidermonkey
+
+    - name: "x86.debug"
+      install:
+        - "sudo apt-get install -y libicu-dev:i386"
+      script:
+        - cmake -H. -Bout/linux/x86/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin
+        - make -Cout/linux/x86/debug -j2 --quiet
+        - cp ./out/linux/x86/debug/escargot ./escargot
+        - make run-jetstream-only-cdjs
+        - make run-sunspider-js
+        - make run-test262
+        - make run-internal-test
+
+# fast_finish: true
