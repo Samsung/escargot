@@ -72,7 +72,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
         srcToTest.appendString("\r\n){ }");
         String* cur = srcToTest.finalize(&state);
         state.context()->vmInstance()->parsedSourceCodes().push_back(cur);
-        esprima::parseProgram(state.context(), StringView(cur, 0, cur->length()), nullptr, false, SIZE_MAX);
+        esprima::parseProgram(state.context(), StringView(cur, 0, cur->length()), false, SIZE_MAX);
     } catch (esprima::Error* orgError) {
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is a script parse error in parameter name");
     }

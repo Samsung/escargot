@@ -166,7 +166,8 @@ protected:
     size_t searchTransitionTable(const PropertyName& s, const ObjectStructurePropertyDescriptor& desc)
     {
         ASSERT(m_needsTransitionTable);
-        for (size_t i = 0; i < m_transitionTable.size(); i++) {
+        size_t len = m_transitionTable.size();
+        for (size_t i = 0; i < len; i++) {
             if (m_transitionTable[i].m_descriptor == desc && m_transitionTable[i].m_propertyName == s) {
                 return i;
             }
@@ -241,10 +242,10 @@ inline PropertyNameMap& ObjectStructure::propertyNameMap()
 
 inline ObjectStructure* ObjectStructure::addProperty(ExecutionState& state, const PropertyName& name, const ObjectStructurePropertyDescriptor& desc)
 {
-    bool nameIsIndexString = name.isIndexString();
     ObjectStructureItem newItem(name, desc);
     if (m_isStructureWithFastAccess) {
         m_properties.pushBack(newItem);
+        bool nameIsIndexString = m_hasIndexPropertyName ? true : name.isIndexString();
         m_hasIndexPropertyName = m_hasIndexPropertyName | nameIsIndexString;
         propertyNameMap().insert(std::make_pair(name, m_properties.size() - 1));
         ObjectStructureWithFastAccess* self = (ObjectStructureWithFastAccess*)this;
@@ -261,6 +262,7 @@ inline ObjectStructure* ObjectStructure::addProperty(ExecutionState& state, cons
         ASSERT(m_transitionTable.size() == 0);
     }
 
+    bool nameIsIndexString = m_hasIndexPropertyName ? true : name.isIndexString();
     ObjectStructureItemVector newProperties(m_properties, newItem);
     ObjectStructure* newObjectStructure;
 
