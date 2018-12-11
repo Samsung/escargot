@@ -43,6 +43,8 @@ public:
         return "ArrayBuffer";
     }
 
+    static const uint32_t maxArrayBufferSize = 210000000;
+
     // Clone srcBuffer's srcByteOffset ~ end.
     bool cloneBuffer(ArrayBufferObject* srcBuffer, size_t srcByteOffset);
     // Clone srcBuffer's srcByteOffset ~ (srcByteOffset + cloneLength).

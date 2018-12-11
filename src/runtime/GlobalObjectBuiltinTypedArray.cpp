@@ -211,8 +211,13 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             uint64_t length = inputObj->length(state);
             ASSERT(length >= 0);
             unsigned elementSize = obj->elementSize();
+            uint64_t bufferSize = length * elementSize;
+            if (bufferSize > ArrayBufferObject::maxArrayBufferSize) {
+                // 6.2.6.1.2
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferSize);
+            }
             ArrayBufferObject* buffer = new ArrayBufferObject(state);
-            buffer->allocateBuffer(length * elementSize);
+            buffer->allocateBuffer(bufferSize);
             obj->setBuffer(buffer, 0, length * elementSize, length);
             for (uint64_t i = 0; i < length; i++) {
                 ObjectPropertyName pK(state, Value(i));
@@ -224,10 +229,10 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             RELEASE_ASSERT_NOT_REACHED();
         }
         // TODO
-        if (obj->arraylength() >= 210000000) {
+        if (obj->arraylength() >= ArrayBufferObject::maxArrayBufferSize) {
             state.throwException(new ASCIIString(errorMessage_NotImplemented));
         }
-        RELEASE_ASSERT(obj->arraylength() < 210000000);
+        RELEASE_ASSERT(obj->arraylength() < ArrayBufferObject::maxArrayBufferSize);
     }
     return obj;
 }
