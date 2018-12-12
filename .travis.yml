@@ -7,6 +7,11 @@ before_install: sudo apt-get install -y autoconf automake libtool libc++-dev lib
 
 matrix:
   include:
+    - name: "check"
+      install: sudo apt-get install -y clang-format-3.8
+      script:
+        - python tools/check_tidy.py
+
     - name: "x64.release"
       script:
         - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin
@@ -51,8 +56,7 @@ matrix:
 #       - make -s -Cout/linux/x86/release run-spidermonkey
 
     - name: "x86.debug"
-      install:
-        - "sudo apt-get install -y libicu-dev:i386"
+      install: "sudo apt-get install -y libicu-dev:i386"
       script:
         - cmake -H. -Bout/linux/x86/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin
         - make -s -Cout/linux/x86/debug -j2
