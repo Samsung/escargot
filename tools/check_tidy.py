@@ -61,7 +61,7 @@ def is_checked_by_clang(file):
 
 
 def check_tidy(src_dir, update=False):
-    print src_dir
+    print(src_dir)
     count_lines = 0
     count_empty_lines = 0
 
@@ -115,13 +115,13 @@ def check_tidy(src_dir, update=False):
             if not line.strip():
                 count_empty_lines += 1
 
-    print "* total lines of code: %d" % count_lines
-    print ("* total non-blank lines of code: %d"
-           % (count_lines - count_empty_lines))
-    print "%s* total errors: %d%s" % (TERM_RED if count_err > 0 else TERM_GREEN,
+    print("* total lines of code: %d" % count_lines)
+    print("* total non-blank lines of code: %d"
+          % (count_lines - count_empty_lines))
+    print("%s* total errors: %d%s" % (TERM_RED if count_err > 0 else TERM_GREEN,
                                       count_err,
-                                      TERM_EMPTY)
-    print
+                                      TERM_EMPTY))
+    print()
 
     return count_err == 0
 
