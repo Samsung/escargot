@@ -75,6 +75,7 @@ const char* errorMessage_GlobalObject_FirstArgumentNotCallable = "%s: first argu
 const char* errorMessage_GlobalObject_FirstArgumentNotString = "%s: first argument is not a string";
 const char* errorMessage_GlobalObject_FirstArgumentInvalidLength = "%s: first arugment is an invalid length value";
 const char* errorMessage_GlobalObject_InvalidArrayBufferOffset = "%s: ArrayBuffer length minus the byteOffset is not a multiple of the element size";
+const char* errorMessage_GlobalObject_InvalidArrayBufferSize = "%s: ArrayBuffer buffer allocation failed";
 const char* errorMessage_GlobalObject_NotExistNewInArrayBufferConstructor = "%s: Constructor ArrayBuffer requires \'new\'";
 const char* errorMessage_GlobalObject_NotExistNewInTypedArrayConstructor = "%s: Constructor TypedArray requires \'new\'";
 const char* errorMessage_GlobalObject_NotExistNewInDataViewConstructor = "%s: Constructor DataView requires \'new\'";
