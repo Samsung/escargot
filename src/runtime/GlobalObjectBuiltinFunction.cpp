@@ -234,7 +234,7 @@ static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue
 
 void GlobalObject::installFunction(ExecutionState& state)
 {
-    FunctionObject* emptyFunction = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionEmptyFunction, 1, nullptr, 0)),
+    FunctionObject* emptyFunction = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionEmptyFunction, 0, nullptr, 0)),
                                                        FunctionObject::__ForGlobalBuiltin__);
 
     g_functionObjectTag = *((size_t*)emptyFunction);
