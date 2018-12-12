@@ -80,6 +80,7 @@ extern const char* errorMessage_GlobalObject_FirstArgumentNotCallable;
 extern const char* errorMessage_GlobalObject_FirstArgumentNotString;
 extern const char* errorMessage_GlobalObject_FirstArgumentInvalidLength;
 extern const char* errorMessage_GlobalObject_InvalidArrayBufferOffset;
+extern const char* errorMessage_GlobalObject_InvalidArrayBufferSize;
 extern const char* errorMessage_GlobalObject_NotExistNewInArrayBufferConstructor;
 extern const char* errorMessage_GlobalObject_NotExistNewInTypedArrayConstructor;
 extern const char* errorMessage_GlobalObject_NotExistNewInDataViewConstructor;
