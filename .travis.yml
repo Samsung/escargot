@@ -1,0 +1,65 @@
+sudo: required
+language: cpp
+compiler:
+  - gcc
+
+before_install: sudo apt-get install -y autoconf automake libtool libc++-dev libicu-dev gcc-multilib g++-multilib
+
+matrix:
+  include:
+    - name: "x64.release"
+      script:
+        - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin
+        - make -s -Cout/linux/x64/release -j2
+        - cp ./out/linux/x64/release/escargot ./escargot
+        - make -s -Cout/linux/x64/release run-jetstream-only-cdjs
+        - travis_wait 30 make -s -Cout/linux/x64/release run-jetstream-only-simple
+        - make -s -Cout/linux/x64/release run-sunspider-js
+        - make -s -Cout/linux/x64/release run-test262
+        - make -s -Cout/linux/x64/release run-internal-test
+        - make -s -Cout/linux/x64/release run-octane
+#       - make -s -Cout/linux/x64/release run-v8
+        - make -s -Cout/linux/x64/release run-chakracore-x64
+        - make -s -Cout/linux/x64/release run-jsc-stress-x64
+#       - make -s -Cout/linux/x64/release run-spidermonkey
+
+    - name: "x64.debug"
+      script:
+        - cmake -H. -Bout/linux/x64/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin
+        - make -s -Cout/linux/x64/debug -j2
+        - cp ./out/linux/x64/debug/escargot ./escargot
+        - make -s -Cout/linux/x64/debug run-jetstream-only-cdjs
+        - make -s -Cout/linux/x64/debug run-sunspider-js
+        - make -s -Cout/linux/x64/debug run-test262
+        - make -s -Cout/linux/x64/debug run-internal-test
+
+    - name: "x86.release"
+      install: "sudo apt-get install -y libicu-dev:i386"
+      script:
+        - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin
+        - make -s -Cout/linux/x86/release -j2
+        - cp ./out/linux/x86/release/escargot ./escargot
+        - make -s -Cout/linux/x86/release run-jetstream-only-cdjs
+        - travis_wait 30 make -s -Cout/linux/x86/release run-jetstream-only-simple
+        - make -s -Cout/linux/x86/release run-sunspider-js
+        - make -s -Cout/linux/x86/release run-test262
+        - make -s -Cout/linux/x86/release run-internal-test
+        - make -s -Cout/linux/x86/release run-octane
+#       - make -s -Cout/linux/x86/release run-v8
+        - make -s -Cout/linux/x86/release run-chakracore-x86
+        - make -s -Cout/linux/x86/release run-jsc-stress-x86
+#       - make -s -Cout/linux/x86/release run-spidermonkey
+
+    - name: "x86.debug"
+      install:
+        - "sudo apt-get install -y libicu-dev:i386"
+      script:
+        - cmake -H. -Bout/linux/x86/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin
+        - make -s -Cout/linux/x86/debug -j2
+        - cp ./out/linux/x86/debug/escargot ./escargot
+        - make -s -Cout/linux/x86/debug run-jetstream-only-cdjs
+        - make -s -Cout/linux/x86/debug run-sunspider-js
+        - make -s -Cout/linux/x86/debug run-test262
+        - make -s -Cout/linux/x86/debug run-internal-test
+
+# fast_finish: true

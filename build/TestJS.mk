@@ -49,7 +49,7 @@ run-internal-test:
 
 run-test262:
 	cp excludelist.orig.xml test/test262/test/config/excludelist.xml
-	cp test262.py test/test262/tools/packaging/test262.py
+	cp test/test262.py test/test262/tools/packaging/test262.py
 	cd test/test262/; \
 	TZ="US/Pacific" python tools/packaging/test262.py --command ../../escargot $(OPT) --full-summary
 
