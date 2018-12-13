@@ -66,41 +66,38 @@ ADD_CUSTOM_TARGET (run-test262-master
                    COMMAND @python ${PROJECT_SOURCE_DIR}/test/test262-harness-py/src/test262.py --command ${PROJECT_SOURCE_DIR}/escargot --tests=${PROJECT_SOURCE_DIR}/test/test262-master $(OPT) --full-summary
                   )
 
-#TODO
 ADD_CUSTOM_TARGET (run-spidermonkey-x86
                    COMMENT "run-spidermonkey-x86"
-                   COMMAND @cp /usr/local/lib/node_modules/vendortest/node_modules/ . -rf
-                   COMMAND @nodejs node_modules/.bin/babel test/vendortest/SpiderMonkey/ecma_6/Promise --out-dir test/vendortest/SpiderMonkey/ecma_6/Promise
-                   COMMAND @rm test/vendortest/SpiderMonkey/shell.js
-                   COMMAND @ln -s `pwd`/test/vendortest/driver/spidermonkey.shell.js test/vendortest/SpiderMonkey/shell.js
-                   COMMAND @rm test/vendortest/SpiderMonkey/js1_8_1/jit/shell.js
-                   COMMAND @ln -s `pwd`/test/vendortest/driver/spidermonkey.js1_8_1.jit.shell.js test/vendortest/SpiderMonkey/js1_8_1/jit/shell.js
-                   COMMAND @rm test/vendortest/SpiderMonkey/ecma_6/shell.js
-                   COMMAND @ln -s `pwd`/test/vendortest/driver/spidermonkey.ecma_6.shell.js test/vendortest/SpiderMonkey/ecma_6/shell.js
-                   COMMAND @rm test/vendortest/SpiderMonkey/ecma_6/TypedArray/shell.js
-                   COMMAND @ln -s `pwd`/test/vendortest/driver/spidermonkey.ecma_6.TypedArray.shell.js test/vendortest/SpiderMonkey/ecma_6/TypedArray/shell.js
-                   COMMAND @(LOCALE="en_US" ./test/vendortest/SpiderMonkey/jstests.py -s --xul-info=x86-gcc3:Linux:false --exclude-file=./test/vendortest/driver/spidermonkey.excludelist.txt ./escargot --output-file=./test/vendortest/driver/spidermonkey.x86.log.txt --failure-file=../../../test/vendortest/driver/spidermonkey.x86.gen.txt ecma/ ecma_2/ ecma_3/ ecma_3_1/ ecma_5/ ecma_6/Promise ecma_6/TypedArray ecma_6/ArrayBuffer ecma_6/Number ecma_6/Math js1_1/ js1_2/ js1_3/ js1_4/ js1_5/ js1_6/ js1_7/ js1_8/ js1_8_1/ js1_8_5/ shell/ supporting/ ) || (echo done)
-                   COMMAND @sort test/vendortest/driver/spidermonkey.x86.orig.txt -o test/vendortest/driver/spidermonkey.x86.orig.sort.txt
-                   COMMAND @sort test/vendortest/driver/spidermonkey.x86.gen.txt -o test/vendortest/driver/spidermonkey.x86.gen.sort.txt
-                   COMMAND @diff test/vendortest/driver/spidermonkey.x86.orig.sort.txt test/vendortest/driver/spidermonkey.x86.gen.sort.txt
+                   COMMAND @nodejs ${PROJECT_SOURCE_DIR}/node_modules/.bin/babel ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/ecma_6/Promise --out-dir ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/ecma_6/Promise
+                   COMMAND @rm ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/shell.js
+                   COMMAND @ln -s ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.shell.js ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/shell.js
+                   COMMAND @rm ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/js1_8_1/jit/shell.js
+                   COMMAND @ln -s ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.js1_8_1.jit.shell.js ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/js1_8_1/jit/shell.js
+                   COMMAND @rm ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/ecma_6/shell.js
+                   COMMAND @ln -s ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.ecma_6.shell.js ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/ecma_6/shell.js
+                   COMMAND @rm ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/ecma_6/TypedArray/shell.js
+                   COMMAND @ln -s ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.ecma_6.TypedArray.shell.js ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/ecma_6/TypedArray/shell.js
+                   COMMAND @(LOCALE="en_US" ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/jstests.py --no-progress -s --xul-info=x86-gcc3:Linux:false --exclude-file=${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.excludelist.txt ${PROJECT_SOURCE_DIR}/escargot --output-file=${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.x86.log.txt --failure-file=${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.x86.gen.txt ecma/ ecma_2/ ecma_3/ ecma_3_1/ ecma_5/ ecma_6/Promise ecma_6/TypedArray ecma_6/ArrayBuffer ecma_6/Number ecma_6/Math js1_1/ js1_2/ js1_3/ js1_4/ js1_5/ js1_6/ js1_7/ js1_8/ js1_8_1/ js1_8_5/ shell/ supporting/ ) || (echo done)
+                   COMMAND @sort ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.x86.orig.txt -o ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.x86.orig.sort.txt
+                   COMMAND @sort ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.x86.gen.txt -o ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.x86.gen.sort.txt
+                   COMMAND @diff ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.x86.orig.sort.txt ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.x86.gen.sort.txt
                  )
 
 ADD_CUSTOM_TARGET (run-spidermonkey-x64
                    COMMENT "run-spidermonkey-x64"
-                   COMMAND @cp /usr/local/lib/node_modules/vendortest/node_modules/ . -rf
-                   COMMAND @nodejs node_modules/.bin/babel test/vendortest/SpiderMonkey/ecma_6/Promise --out-dir test/vendortest/SpiderMonkey/ecma_6/Promise
-                   COMMAND @rm test/vendortest/SpiderMonkey/shell.js
-                   COMMAND @ln -s `pwd`/test/vendortest/driver/spidermonkey.shell.js test/vendortest/SpiderMonkey/shell.js
-                   COMMAND @rm test/vendortest/SpiderMonkey/js1_8_1/jit/shell.js
-                   COMMAND @ln -s `pwd`/test/vendortest/driver/spidermonkey.js1_8_1.jit.shell.js test/vendortest/SpiderMonkey/js1_8_1/jit/shell.js
-                   COMMAND @rm test/vendortest/SpiderMonkey/ecma_6/shell.js
-                   COMMAND @ln -s `pwd`/test/vendortest/driver/spidermonkey.ecma_6.shell.js test/vendortest/SpiderMonkey/ecma_6/shell.js
-                   COMMAND @rm test/vendortest/SpiderMonkey/ecma_6/TypedArray/shell.js
-                   COMMAND @ln -s `pwd`/test/vendortest/driver/spidermonkey.ecma_6.TypedArray.shell.js test/vendortest/SpiderMonkey/ecma_6/TypedArray/shell.js
-                   COMMAND @(LOCALE="en_US" ./test/vendortest/SpiderMonkey/jstests.py -s --xul-info=x86_64-gcc3:Linux:false --exclude-file=./test/vendortest/driver/spidermonkey.excludelist.txt ./escargot --output-file=./test/vendortest/driver/spidermonkey.x86_64.log.txt --failure-file=../../../test/vendortest/driver/spidermonkey.x86_64.gen.txt ecma/ ecma_2/ ecma_3/ ecma_3_1/ ecma_5/ ecma_6/Promise ecma_6/TypedArray ecma_6/ArrayBuffer ecma_6/Number ecma_6/Math js1_1/ js1_2/ js1_3/ js1_4/ js1_5/ js1_6/ js1_7/ js1_8/ js1_8_1/ js1_8_5/ shell/ supporting/ ) || (echo done)
-                   COMMAND @sort test/vendortest/driver/spidermonkey.x86_64.orig.txt -o test/vendortest/driver/spidermonkey.x86_64.orig.sort.txt
-                   COMMAND @sort test/vendortest/driver/spidermonkey.x86_64.gen.txt -o test/vendortest/driver/spidermonkey.x86_64.gen.sort.txt
-                   COMMAND @diff test/vendortest/driver/spidermonkey.x86_64.orig.sort.txt test/vendortest/driver/spidermonkey.x86_64.gen.sort.txt
+                   COMMAND @nodejs ${PROJECT_SOURCE_DIR}/node_modules/.bin/babel ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/ecma_6/Promise --out-dir ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/ecma_6/Promise
+                   COMMAND @rm ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/shell.js
+                   COMMAND @ln -s ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.shell.js ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/shell.js
+                   COMMAND @rm ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/js1_8_1/jit/shell.js
+                   COMMAND @ln -s ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.js1_8_1.jit.shell.js ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/js1_8_1/jit/shell.js
+                   COMMAND @rm ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/ecma_6/shell.js
+                   COMMAND @ln -s ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.ecma_6.shell.js ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/ecma_6/shell.js
+                   COMMAND @rm ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/ecma_6/TypedArray/shell.js
+                   COMMAND @ln -s ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.ecma_6.TypedArray.shell.js ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/ecma_6/TypedArray/shell.js
+                   COMMAND @(LOCALE="en_US" ${PROJECT_SOURCE_DIR}/test/vendortest/SpiderMonkey/jstests.py --no-progress -s --xul-info=x86_64-gcc3:Linux:false --exclude-file=${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.excludelist.txt ${PROJECT_SOURCE_DIR}/escargot --output-file=${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.x86_64.log.txt --failure-file=${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.x86_64.gen.txt ecma/ ecma_2/ ecma_3/ ecma_3_1/ ecma_5/ ecma_6/Promise ecma_6/TypedArray ecma_6/ArrayBuffer ecma_6/Number ecma_6/Math js1_1/ js1_2/ js1_3/ js1_4/ js1_5/ js1_6/ js1_7/ js1_8/ js1_8_1/ js1_8_5/ shell/ supporting/ ) || (echo done)
+                   COMMAND @sort ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.x86_64.orig.txt -o ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.x86_64.orig.sort.txt
+                   COMMAND @sort ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.x86_64.gen.txt -o ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.x86_64.gen.sort.txt
+                   COMMAND @diff ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.x86_64.orig.sort.txt ${PROJECT_SOURCE_DIR}/test/vendortest/driver/spidermonkey.x86_64.gen.sort.txt
                  )
 
 ADD_CUSTOM_TARGET (run-jsc-stress-x86
