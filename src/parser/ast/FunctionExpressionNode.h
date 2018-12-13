@@ -42,10 +42,13 @@ public:
     {
         CodeBlock* blk = nullptr;
         size_t cnt = 0;
-        for (size_t i = 0; i < context->m_codeBlock->asInterpretedCodeBlock()->childBlocks().size(); i++) {
-            CodeBlock* c = context->m_codeBlock->asInterpretedCodeBlock()->childBlocks()[i];
+        const auto& childBlocks = context->m_codeBlock->asInterpretedCodeBlock()->childBlocks();
+        size_t len = childBlocks.size();
+        size_t counter = context->m_feCounter;
+        for (size_t i = 0; i < len; i++) {
+            CodeBlock* c = childBlocks[i];
             if (c->isFunctionExpression()) {
-                if (cnt == context->m_feCounter) {
+                if (cnt == counter) {
                     blk = c;
                     break;
                 }

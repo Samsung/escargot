@@ -38,6 +38,43 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     stringFor.init(atomicStringMap, "for", strlen("for"));
     stringDefault.init(atomicStringMap, "default", strlen("default"));
     stringThis.init(atomicStringMap, "this", strlen("this"));
+
+    stringIf.init(atomicStringMap, "if", strlen("if"));
+    stringIn.init(atomicStringMap, "in", strlen("in"));
+    stringDo.init(atomicStringMap, "do", strlen("do"));
+    stringVar.init(atomicStringMap, "var", strlen("var"));
+    stringNew.init(atomicStringMap, "new", strlen("new"));
+    stringTry.init(atomicStringMap, "try", strlen("try"));
+    stringElse.init(atomicStringMap, "else", strlen("else"));
+    stringCase.init(atomicStringMap, "case", strlen("case"));
+    stringVoid.init(atomicStringMap, "void", strlen("void"));
+    stringWith.init(atomicStringMap, "with", strlen("with"));
+    stringEnum.init(atomicStringMap, "enum", strlen("enum"));
+    stringAwait.init(atomicStringMap, "await", strlen("await"));
+    stringWhile.init(atomicStringMap, "while", strlen("while"));
+    stringBreak.init(atomicStringMap, "break", strlen("break"));
+    stringThrow.init(atomicStringMap, "throw", strlen("throw"));
+    stringConst.init(atomicStringMap, "const", strlen("const"));
+    stringClass.init(atomicStringMap, "class", strlen("class"));
+    stringSuper.init(atomicStringMap, "super", strlen("super"));
+    stringReturn.init(atomicStringMap, "return", strlen("return"));
+    stringTypeof.init(atomicStringMap, "typeof", strlen("typeof"));
+    stringSwitch.init(atomicStringMap, "switch", strlen("switch"));
+    stringExport.init(atomicStringMap, "export", strlen("export"));
+    stringImport.init(atomicStringMap, "import", strlen("import"));
+    stringFinally.init(atomicStringMap, "finally", strlen("finally"));
+    stringExtends.init(atomicStringMap, "extends", strlen("extends"));
+    stringFunction.init(atomicStringMap, "function", strlen("function"));
+    stringContinue.init(atomicStringMap, "continue", strlen("continue"));
+    stringDebugger.init(atomicStringMap, "debugger", strlen("debugger"));
+    stringInstanceof.init(atomicStringMap, "instanceof", strlen("instanceof"));
+    stringImplements.init(atomicStringMap, "implements", strlen("implements"));
+    stringInterface.init(atomicStringMap, "interface", strlen("interface"));
+    stringPackage.init(atomicStringMap, "package", strlen("package"));
+    stringYield.init(atomicStringMap, "yield", strlen("yield"));
+    stringLet.init(atomicStringMap, "let", strlen("let"));
+    stringError.init(atomicStringMap, "error", strlen("error"));
+
     defaultRegExpString.init(atomicStringMap, "(?:)", strlen("(?:)"));
 
     get__proto__.init(atomicStringMap, "get __proto__", strlen("get __proto__"));

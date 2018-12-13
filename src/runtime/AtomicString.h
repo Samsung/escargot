@@ -131,4 +131,15 @@ typedef Vector<AtomicString, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<
 typedef TightVector<AtomicString, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<AtomicString> > AtomicStringTightVector;
 }
 
+namespace std {
+
+template <>
+struct is_fundamental<Escargot::AtomicString> {
+    operator bool() const
+    {
+        return true;
+    }
+};
+}
+
 #endif

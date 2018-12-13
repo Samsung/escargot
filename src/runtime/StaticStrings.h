@@ -390,6 +390,46 @@ public:
     AtomicString stringFor;
     AtomicString stringDefault;
     AtomicString stringThis;
+
+    // this js keywords are used in esprima
+    // after removing esprima::keywordToString
+    // these strings are can be removed
+    AtomicString stringIf;
+    AtomicString stringIn;
+    AtomicString stringDo;
+    AtomicString stringVar;
+    AtomicString stringNew;
+    AtomicString stringTry;
+    AtomicString stringElse;
+    AtomicString stringCase;
+    AtomicString stringVoid;
+    AtomicString stringWith;
+    AtomicString stringEnum;
+    AtomicString stringAwait;
+    AtomicString stringWhile;
+    AtomicString stringBreak;
+    AtomicString stringThrow;
+    AtomicString stringConst;
+    AtomicString stringClass;
+    AtomicString stringSuper;
+    AtomicString stringReturn;
+    AtomicString stringTypeof;
+    AtomicString stringSwitch;
+    AtomicString stringExport;
+    AtomicString stringImport;
+    AtomicString stringFinally;
+    AtomicString stringExtends;
+    AtomicString stringFunction;
+    AtomicString stringContinue;
+    AtomicString stringDebugger;
+    AtomicString stringInstanceof;
+    AtomicString stringImplements;
+    AtomicString stringInterface;
+    AtomicString stringPackage;
+    AtomicString stringYield;
+    AtomicString stringLet;
+    AtomicString stringError;
+
     AtomicString defaultRegExpString;
     AtomicString get__proto__;
     AtomicString set__proto__;

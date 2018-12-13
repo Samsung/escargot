@@ -111,10 +111,10 @@ public:
         }
     }
 
-    PropertyName toPropertyName(ExecutionState& state) const
+    ALWAYS_INLINE PropertyName toPropertyName(ExecutionState& state) const
     {
         if (isUIntType()) {
-            return PropertyName(state, String::fromDouble(uintValue()));
+            return toPropertyNameUintCase(state);
         }
         return propertyName();
     }
@@ -160,6 +160,8 @@ protected:
         PropertyName m_name;
         uint32_t m_uint;
     } m_value;
+
+    PropertyName toPropertyNameUintCase(ExecutionState& state) const;
 };
 
 class JSGetterSetter : public PointerValue {

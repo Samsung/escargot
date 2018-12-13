@@ -59,6 +59,18 @@ PropertyName::PropertyName(ExecutionState& state, const Value& valueIn)
     }
 }
 
+PropertyName ObjectPropertyName::toPropertyNameUintCase(ExecutionState& state) const
+{
+    ASSERT(isUIntType());
+
+    auto uint = uintValue();
+    if (uint < ESCARGOT_STRINGS_NUMBERS_MAX) {
+        return PropertyName(state.context()->staticStrings().numbers[uint]);
+    }
+
+    return PropertyName(state, String::fromDouble(uint));
+}
+
 size_t g_objectRareDataTag;
 
 ObjectRareData::ObjectRareData(Object* obj)

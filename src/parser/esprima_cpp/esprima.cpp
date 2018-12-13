@@ -397,98 +397,98 @@ struct ScanRegExpResult {
 
 class Scanner;
 
-StringView keywordToString(KeywordKind keyword)
+AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
 {
     switch (keyword) {
     case If:
-        return StringView("if", 2);
+        return ctx->staticStrings().stringIf;
     case In:
-        return StringView("in", 2);
+        return ctx->staticStrings().stringIn;
     case Do:
-        return StringView("do", 2);
+        return ctx->staticStrings().stringDo;
     case Var:
-        return StringView("var", 3);
+        return ctx->staticStrings().stringVar;
     case For:
-        return StringView("for", 3);
+        return ctx->staticStrings().stringFor;
     case New:
-        return StringView("new", 3);
+        return ctx->staticStrings().stringNew;
     case Try:
-        return StringView("try", 3);
+        return ctx->staticStrings().stringTry;
     case This:
-        return StringView("this", 4);
+        return ctx->staticStrings().stringThis;
     case Else:
-        return StringView("else", 4);
+        return ctx->staticStrings().stringElse;
     case Case:
-        return StringView("case", 4);
+        return ctx->staticStrings().stringCase;
     case Void:
-        return StringView("void", 4);
+        return ctx->staticStrings().stringVoid;
     case With:
-        return StringView("with", 4);
+        return ctx->staticStrings().stringWith;
     case Enum:
-        return StringView("enum", 4);
+        return ctx->staticStrings().stringEnum;
     case Await:
-        return StringView("await", 5);
+        return ctx->staticStrings().stringAwait;
     case While:
-        return StringView("while", 5);
+        return ctx->staticStrings().stringWhile;
     case Break:
-        return StringView("break", 5);
+        return ctx->staticStrings().stringBreak;
     case Catch:
-        return StringView("catch", 5);
+        return ctx->staticStrings().stringCatch;
     case Throw:
-        return StringView("throw", 5);
+        return ctx->staticStrings().stringThrow;
     case Const:
-        return StringView("const", 5);
+        return ctx->staticStrings().stringConst;
     case Class:
-        return StringView("class", 5);
+        return ctx->staticStrings().stringClass;
     case Super:
-        return StringView("super", 5);
+        return ctx->staticStrings().stringSuper;
     case Return:
-        return StringView("return", 6);
+        return ctx->staticStrings().stringReturn;
     case Typeof:
-        return StringView("typeof", 6);
+        return ctx->staticStrings().stringTypeof;
     case Delete:
-        return StringView("delete", 6);
+        return ctx->staticStrings().stringDelete;
     case Switch:
-        return StringView("switch", 6);
+        return ctx->staticStrings().stringSwitch;
     case Export:
-        return StringView("export", 6);
+        return ctx->staticStrings().stringExport;
     case Import:
-        return StringView("import", 6);
+        return ctx->staticStrings().stringImport;
     case Default:
-        return StringView("default", 7);
+        return ctx->staticStrings().stringDefault;
     case Finally:
-        return StringView("finally", 7);
+        return ctx->staticStrings().stringFinally;
     case Extends:
-        return StringView("extends", 7);
+        return ctx->staticStrings().stringExtends;
     case Function:
-        return StringView("function", 8);
+        return ctx->staticStrings().stringFunction;
     case Continue:
-        return StringView("continue", 8);
+        return ctx->staticStrings().stringContinue;
     case Debugger:
-        return StringView("debugger", 8);
+        return ctx->staticStrings().stringDebugger;
     case InstanceofKeyword:
-        return StringView("instanceof", 10);
+        return ctx->staticStrings().stringInstanceof;
     case Implements:
-        return StringView("implements", 10);
+        return ctx->staticStrings().stringImplements;
     case Interface:
-        return StringView("interface", 9);
+        return ctx->staticStrings().stringInterface;
     case Package:
-        return StringView("package", 7);
+        return ctx->staticStrings().stringPackage;
     case Private:
-        return StringView("private", 7);
+        return ctx->staticStrings().stringPrivate;
     case Protected:
-        return StringView("protected", 9);
+        return ctx->staticStrings().stringProtected;
     case Public:
-        return StringView("public", 6);
+        return ctx->staticStrings().stringPublic;
     case Static:
-        return StringView("static", 6);
+        return ctx->staticStrings().stringStatic;
     case Yield:
-        return StringView("yield", 5);
+        return ctx->staticStrings().stringYield;
     case Let:
-        return StringView("let", 3);
+        return ctx->staticStrings().stringLet;
     default:
         ASSERT_NOT_REACHED();
-        return StringView("error", 5);
+        return ctx->staticStrings().stringError;
     }
 }
 
@@ -499,7 +499,6 @@ public:
     bool startWithZero : 1;
     bool octal : 1;
     bool plain : 1;
-    bool hasComplexString : 1;
     bool hasKeywordButUseString : 1;
     char prec : 8; // max prec is 11
     // we don't needs init prec.
@@ -520,16 +519,9 @@ public:
     };
 
     StringView relatedSource();
-    StringView valueStringLiteral()
-    {
-        if (this->type == Token::KeywordToken && !this->hasKeywordButUseString) {
-            return keywordToString(this->valueKeywordKind);
-        }
-        ASSERT(valueStringLiteralData.getTagInFirstDataArea() == POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA);
-        return valueStringLiteralData;
-    }
-
+    StringView valueStringLiteral();
     Value valueStringLiteralForAST();
+    void consturctStringLiteral();
 
     inline ~ScannerResult();
 
@@ -552,22 +544,20 @@ public:
         this->startWithZero = this->octal = false;
         this->hasKeywordButUseString = true;
         this->plain = false;
-        this->hasComplexString = false;
         this->lineNumber = lineNumber;
         this->lineStart = lineStart;
         this->start = start;
         this->end = end;
     }
 
-    ScannerResult(Scanner* scanner, Token type, const StringView& valueString, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool hasComplexString)
+    ScannerResult(Scanner* scanner, Token type, const StringView& valueString, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool plain)
         : valueStringLiteralData(valueString)
     {
         this->scanner = scanner;
         this->type = type;
         this->startWithZero = this->octal = false;
         this->hasKeywordButUseString = true;
-        this->plain = false;
-        this->hasComplexString = hasComplexString;
+        this->plain = plain;
         this->lineNumber = lineNumber;
         this->lineStart = lineStart;
         this->start = start;
@@ -582,7 +572,6 @@ public:
         this->startWithZero = this->octal = false;
         this->hasKeywordButUseString = true;
         this->plain = false;
-        this->hasComplexString = false;
         this->valueNumber = value;
         this->lineNumber = lineNumber;
         this->lineStart = lineStart;
@@ -598,7 +587,6 @@ public:
         this->startWithZero = this->octal = false;
         this->hasKeywordButUseString = true;
         this->plain = false;
-        this->hasComplexString = false;
         this->lineNumber = lineNumber;
         this->lineStart = lineStart;
         this->start = start;
@@ -691,6 +679,7 @@ public:
 class Scanner : public gc {
 public:
     StringView source;
+    ::Escargot::Context* escargotContext;
     ErrorHandler* errorHandler;
     // trackComment: boolean;
 
@@ -711,8 +700,9 @@ public:
     }
 
 
-    Scanner(StringView code, ErrorHandler* handler, size_t startLine = 0, size_t startColumn = 0)
+    Scanner(::Escargot::Context* escargotContext, StringView code, ErrorHandler* handler, size_t startLine = 0, size_t startColumn = 0)
     {
+        this->escargotContext = escargotContext;
         curlyStack.reserve(128);
         isPoolEnabled = true;
         source = code;
@@ -1478,7 +1468,7 @@ public:
             type = Token::IdentifierToken;
         }
 
-        return adoptRef(new (createScannerResult()) ScannerResult(this, type, id, this->lineNumber, this->lineStart, start, this->index, id.string() != this->source.string()));
+        return adoptRef(new (createScannerResult()) ScannerResult(this, type, id, this->lineNumber, this->lineStart, start, this->index, id.string() == this->source.string()));
     }
 
     // ECMA-262 11.7 Punctuators
@@ -1957,7 +1947,6 @@ public:
 
     PassRefPtr<ScannerResult> scanStringLiteral()
     {
-        // TODO apply rope-string
         const size_t start = this->index;
         char16_t quote = this->source.bufferedCharAt(start);
         ASSERT((quote == '\'' || quote == '"'));
@@ -1967,18 +1956,6 @@ public:
         bool octal = false;
         bool isPlainCase = true;
 
-        UTF16StringDataNonGCStd stringUTF16;
-        size_t plainCaseStart = start + 1;
-        size_t plainCaseEnd = start + 1;
-
-#define CONVERT_UNPLAIN_CASE_IF_NEEDED()                                                   \
-    if (isPlainCase) {                                                                     \
-        auto temp = StringView(this->source, start + 1, plainCaseEnd).toUTF16StringData(); \
-        stringUTF16.reserve(32);                                                           \
-        stringUTF16.insert(stringUTF16.end(), temp.data(), &temp.data()[temp.length()]);   \
-        isPlainCase = false;                                                               \
-    }
-
         while (LIKELY(!this->eof())) {
             char16_t ch = this->source.bufferedCharAt(this->index++);
 
@@ -1987,55 +1964,35 @@ public:
                 break;
             } else if (UNLIKELY(ch == '\\')) {
                 ch = this->source.bufferedCharAt(this->index++);
-                CONVERT_UNPLAIN_CASE_IF_NEEDED()
+                isPlainCase = false;
                 if (!ch || !isLineTerminator(ch)) {
                     switch (ch) {
                     case 'u':
                     case 'x':
                         if (this->source.bufferedCharAt(this->index) == '{') {
                             ++this->index;
-                            ParserCharPiece piece(this->scanUnicodeCodePointEscape());
-                            stringUTF16.append(piece.data, piece.data + piece.length);
+                            this->scanUnicodeCodePointEscape();
                         } else {
                             CharOrEmptyResult res = this->scanHexEscape(ch);
                             if (res.isEmpty) {
                                 this->throwUnexpectedToken();
                             }
-                            const char32_t unescaped = res.code;
-                            ParserCharPiece piece(unescaped);
-                            stringUTF16.append(piece.data, piece.data + piece.length);
                         }
                         break;
                     case 'n':
-                        stringUTF16 += '\n';
-                        break;
                     case 'r':
-                        stringUTF16 += '\r';
-                        break;
                     case 't':
-                        stringUTF16 += '\t';
-                        break;
                     case 'b':
-                        stringUTF16 += '\b';
-                        break;
                     case 'f':
-                        stringUTF16 += '\f';
-                        break;
                     case 'v':
-                        stringUTF16 += '\x0B';
                         break;
 
                     default:
                         if (ch && isOctalDigit(ch)) {
                             OctalToDecimalResult octToDec = this->octalToDecimal(ch);
-
                             octal = octToDec.octal || octal;
-                            stringUTF16 += octToDec.code;
                         } else if (isDecimalDigit(ch)) {
                             octal = true;
-                            stringUTF16 += ch;
-                        } else {
-                            stringUTF16 += ch;
                         }
                         break;
                     }
@@ -2051,11 +2008,6 @@ public:
             } else if (UNLIKELY(isLineTerminator(ch))) {
                 break;
             } else {
-                if (isPlainCase) {
-                    plainCaseEnd++;
-                } else {
-                    stringUTF16 += ch;
-                }
             }
         }
 
@@ -2065,22 +2017,16 @@ public:
         }
 
         if (isPlainCase) {
-            bool isNewString = false;
-            StringView str(this->source, plainCaseStart, plainCaseEnd);
-            auto ret = adoptRef(new (createScannerResult()) ScannerResult(this, Token::StringLiteralToken, str, /*octal, */ this->lineNumber, this->lineStart, start, this->index, isNewString));
+            StringView str(this->source, start + 1, this->index - 1);
+            auto ret = adoptRef(new (createScannerResult()) ScannerResult(this, Token::StringLiteralToken, str, this->lineNumber, this->lineStart, start, this->index, true));
             ret->octal = octal;
-            ret->plain = isPlainCase;
+            ret->plain = true;
             return ret;
         } else {
-            String* newStr;
-            if (isAllLatin1(stringUTF16.data(), stringUTF16.length())) {
-                newStr = new Latin1String(stringUTF16.data(), stringUTF16.length());
-            } else {
-                newStr = new UTF16String(stringUTF16.data(), stringUTF16.length());
-            }
-            auto ret = adoptRef(new (createScannerResult()) ScannerResult(this, Token::StringLiteralToken, StringView(newStr, 0, newStr->length()), /*octal, */ this->lineNumber, this->lineStart, start, this->index, true));
+            // build string if needs
+            auto ret = adoptRef(new (createScannerResult()) ScannerResult(this, Token::StringLiteralToken, StringView(), this->lineNumber, this->lineStart, start, this->index, false));
             ret->octal = octal;
-            ret->plain = isPlainCase;
+            ret->plain = false;
             return ret;
         }
     }
@@ -2466,11 +2412,141 @@ StringView ScannerResult::relatedSource()
 Value ScannerResult::valueStringLiteralForAST()
 {
     StringView sv = valueStringLiteral();
-    if (this->hasComplexString) {
-        return new StringView(sv);
-    } else {
+    if (this->plain) {
         return new SourceStringView(sv);
     }
+    RELEASE_ASSERT(sv.string() != nullptr);
+    return sv.string();
+}
+
+StringView ScannerResult::valueStringLiteral()
+{
+    if (this->type == Token::KeywordToken && !this->hasKeywordButUseString) {
+        AtomicString as = keywordToString(this->scanner->escargotContext, this->valueKeywordKind);
+        return StringView(as.string(), 0, as.string()->length());
+    }
+    if (this->type == Token::StringLiteralToken && !plain && valueStringLiteralData.length() == 0) {
+        consturctStringLiteral();
+    }
+    ASSERT(valueStringLiteralData.getTagInFirstDataArea() == POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA);
+    return valueStringLiteralData;
+}
+
+void ScannerResult::consturctStringLiteral()
+{
+    size_t indexBackup = this->scanner->index;
+    size_t lineNumberBackup = this->scanner->lineNumber;
+    size_t lineStartBackup = this->scanner->lineStart;
+
+    this->scanner->index = this->start;
+    const size_t start = this->start;
+    char16_t quote = this->scanner->source.bufferedCharAt(start);
+    ASSERT((quote == '\'' || quote == '"'));
+    // 'String literal must starts with a quote');
+
+    ++this->scanner->index;
+    bool isEveryCharAllLatin1 = true;
+
+    UTF16StringDataNonGCStd stringUTF16;
+    while (true) {
+        char16_t ch = this->scanner->source.bufferedCharAt(this->scanner->index++);
+
+        if (ch == quote) {
+            quote = '\0';
+            break;
+        } else if (UNLIKELY(ch == '\\')) {
+            ch = this->scanner->source.bufferedCharAt(this->scanner->index++);
+            if (!ch || !isLineTerminator(ch)) {
+                switch (ch) {
+                case 'u':
+                case 'x':
+                    if (this->scanner->source.bufferedCharAt(this->scanner->index) == '{') {
+                        ++this->scanner->index;
+                        ParserCharPiece piece(this->scanner->scanUnicodeCodePointEscape());
+                        stringUTF16.append(piece.data, piece.data + piece.length);
+                        if (piece.length != 1 || piece.data[0] >= 256) {
+                            isEveryCharAllLatin1 = false;
+                        }
+                    } else {
+                        auto res = this->scanner->scanHexEscape(ch);
+                        const char32_t unescaped = res.code;
+                        ParserCharPiece piece(unescaped);
+                        stringUTF16.append(piece.data, piece.data + piece.length);
+                        if (piece.length != 1 || piece.data[0] >= 256) {
+                            isEveryCharAllLatin1 = false;
+                        }
+                    }
+                    break;
+                case 'n':
+                    stringUTF16 += '\n';
+                    break;
+                case 'r':
+                    stringUTF16 += '\r';
+                    break;
+                case 't':
+                    stringUTF16 += '\t';
+                    break;
+                case 'b':
+                    stringUTF16 += '\b';
+                    break;
+                case 'f':
+                    stringUTF16 += '\f';
+                    break;
+                case 'v':
+                    stringUTF16 += '\x0B';
+                    break;
+
+                default:
+                    if (ch && isOctalDigit(ch)) {
+                        auto octToDec = this->scanner->octalToDecimal(ch);
+
+                        stringUTF16 += octToDec.code;
+                        if (octToDec.code >= 256) {
+                            isEveryCharAllLatin1 = false;
+                        }
+                    } else if (isDecimalDigit(ch)) {
+                        stringUTF16 += ch;
+                        if (ch >= 256) {
+                            isEveryCharAllLatin1 = false;
+                        }
+                    } else {
+                        stringUTF16 += ch;
+                        if (ch >= 256) {
+                            isEveryCharAllLatin1 = false;
+                        }
+                    }
+                    break;
+                }
+            } else {
+                ++this->scanner->lineNumber;
+                if (ch == '\r' && this->scanner->source.bufferedCharAt(this->scanner->index) == '\n') {
+                    ++this->scanner->index;
+                } else if (ch == '\n' && this->scanner->source.bufferedCharAt(this->scanner->index) == '\r') {
+                    ++this->scanner->index;
+                }
+                this->scanner->lineStart = this->scanner->index;
+            }
+        } else if (UNLIKELY(isLineTerminator(ch))) {
+            break;
+        } else {
+            stringUTF16 += ch;
+            if (ch >= 256) {
+                isEveryCharAllLatin1 = false;
+            }
+        }
+    }
+
+    this->scanner->index = indexBackup;
+    this->scanner->lineNumber = lineNumberBackup;
+    this->scanner->lineStart = lineStartBackup;
+
+    String* newStr;
+    if (isEveryCharAllLatin1) {
+        newStr = new Latin1String(stringUTF16.data(), stringUTF16.length());
+    } else {
+        newStr = new UTF16String(stringUTF16.data(), stringUTF16.length());
+    }
+    this->valueStringLiteralData = StringView(newStr, 0, newStr->length());
 }
 
 struct Config : public gc {
@@ -2561,6 +2637,7 @@ public:
 
     Vector<ASTScopeContext*, gc_allocator_ignore_off_page<ASTScopeContext*>> scopeContexts;
     bool trackUsingNames;
+    AtomicString lastUsingName;
     size_t stackLimit;
 
     typedef std::pair<ASTNodeType, AtomicString> ScanExpressionResult;
@@ -2571,7 +2648,23 @@ public:
     {
         auto ret = scopeContexts.back();
         scopeContexts.pop_back();
+        lastUsingName = AtomicString();
         return ret;
+    }
+
+    void pushScopeContext(ASTScopeContext* ctx)
+    {
+        scopeContexts.push_back(ctx);
+        lastUsingName = AtomicString();
+    }
+
+    ALWAYS_INLINE void insertUsingName(AtomicString name)
+    {
+        if (lastUsingName == name) {
+            return;
+        }
+        scopeContexts.back()->insertUsingName(name);
+        lastUsingName = name;
     }
 
     void extractNamesFromFunctionParams(const PatternNodeVector& vector)
@@ -2589,11 +2682,11 @@ public:
     {
         if (this->config.parseSingleFunction) {
             fakeContext = ASTScopeContext();
-            scopeContexts.push_back(&fakeContext);
+            pushScopeContext(&fakeContext);
             return;
         }
         auto parentContext = scopeContexts.back();
-        scopeContexts.push_back(new ASTScopeContext(this->context->strict));
+        pushScopeContext(new ASTScopeContext(this->context->strict));
         scopeContexts.back()->m_functionName = functionName;
         scopeContexts.back()->m_inCatch = this->context->inCatch;
         scopeContexts.back()->m_inWith = this->context->inWith;
@@ -2610,7 +2703,7 @@ public:
 
     Parser(::Escargot::Context* escargotContext, StringView code, size_t stackRemain, size_t startLine = 0, size_t startColumn = 0, size_t startIndex = 0)
         : errorHandler(&errorHandlerInstance)
-        , scannerInstance(code, this->errorHandler, startLine, startColumn)
+        , scannerInstance(escargotContext, code, this->errorHandler, startLine, startColumn)
     {
         if (stackRemain >= STACK_LIMIT_FROM_BASE) {
             stackRemain = STACK_LIMIT_FROM_BASE;
@@ -2685,7 +2778,27 @@ public:
         this->lastMarker.lineNumber = this->scanner->lineNumber;
         this->lastMarker.lineStart = 0;
 
-        this->nextToken();
+        {
+            this->lastMarker.index = this->scanner->index;
+            this->lastMarker.lineNumber = this->scanner->lineNumber;
+            this->lastMarker.lineStart = this->scanner->lineStart;
+
+            this->collectComments();
+
+            this->startMarker.index = this->scanner->index;
+            this->startMarker.lineNumber = this->scanner->lineNumber;
+            this->startMarker.lineStart = this->scanner->lineStart;
+
+            PassRefPtr<ScannerResult> next = this->scanner->lex();
+            this->hasLineTerminator = false;
+
+            if (this->context->strict && next->type == Token::IdentifierToken) {
+                if (this->scanner->isStrictModeReservedWord(next->relatedSource())) {
+                    next->type = Token::KeywordToken;
+                }
+            }
+            this->lookahead = next;
+        }
         this->lastMarker.index = this->scanner->index;
         this->lastMarker.lineNumber = this->scanner->lineNumber;
         this->lastMarker.lineStart = this->scanner->lineStart;
@@ -2862,9 +2975,9 @@ public:
         this->startMarker.lineStart = this->scanner->lineStart;
 
         PassRefPtr<ScannerResult> next = this->scanner->lex();
-        this->hasLineTerminator = (token && next) ? (token->lineNumber != next->lineNumber) : false;
+        this->hasLineTerminator = token->lineNumber != next->lineNumber;
 
-        if (next && this->context->strict && next->type == Token::IdentifierToken) {
+        if (this->context->strict && next->type == Token::IdentifierToken) {
             if (this->scanner->isStrictModeReservedWord(next->relatedSource())) {
                 next->type = Token::KeywordToken;
             }
@@ -2948,10 +3061,10 @@ public:
         if (type == CallExpression) {
             CallExpressionNode* c = (CallExpressionNode*)node;
             if (c->callee()->isIdentifier()) {
-                if (((IdentifierNode*)c->callee())->name().string()->equals("eval")) {
+                if (((IdentifierNode*)c->callee())->name() == this->escargotContext->staticStrings().eval) {
                     scopeContexts.back()->m_hasEval = true;
                     if (this->context->inArrowFunction) {
-                        scopeContexts.back()->insertUsingName(this->escargotContext->staticStrings().stringThis);
+                        insertUsingName(this->escargotContext->staticStrings().stringThis);
                     }
                 }
             }
@@ -3254,11 +3367,15 @@ public:
         if (a.length == 1 && firstCh < ESCARGOT_ASCII_TABLE_MAX) {
             ret = new IdentifierNode(this->escargotContext->staticStrings().asciiTable[firstCh]);
         } else {
-            ret = new IdentifierNode(AtomicString(this->escargotContext, SourceStringView(sv)));
+            if (!token->plain) {
+                ret = new IdentifierNode(AtomicString(this->escargotContext, sv.string()));
+            } else {
+                ret = new IdentifierNode(AtomicString(this->escargotContext, SourceStringView(sv)));
+            }
         }
-        //nodeExtraInfo.insert(std::make_pair(ret, token));
+
         if (trackUsingNames) {
-            scopeContexts.back()->insertUsingName(ret->name());
+            insertUsingName(ret->name());
         }
         return ret;
     }
@@ -3272,11 +3389,15 @@ public:
         if (a.length == 1 && firstCh < ESCARGOT_ASCII_TABLE_MAX) {
             name = this->escargotContext->staticStrings().asciiTable[firstCh];
         } else {
-            name = AtomicString(this->escargotContext, SourceStringView(sv));
+            if (!token->plain) {
+                name = AtomicString(this->escargotContext, sv.string());
+            } else {
+                name = AtomicString(this->escargotContext, SourceStringView(sv));
+            }
         }
 
         if (trackUsingNames) {
-            scopeContexts.back()->insertUsingName(name);
+            insertUsingName(name);
         }
 
         return std::make_pair(ASTNodeType::Identifier, name);
@@ -3404,7 +3525,7 @@ public:
                     return this->parseFunctionExpression();
                 } else if (this->matchKeyword(KeywordKind::This)) {
                     if (this->context->inArrowFunction) {
-                        scopeContexts.back()->insertUsingName(this->escargotContext->staticStrings().stringThis);
+                        insertUsingName(this->escargotContext->staticStrings().stringThis);
                     }
                     this->nextToken();
                     return this->finalize(node, new ThisExpressionNode());
@@ -3532,7 +3653,7 @@ public:
                     return std::make_pair(ASTNodeType::FunctionExpression, AtomicString());
                 } else if (this->matchKeyword(KeywordKind::This)) {
                     if (this->context->inArrowFunction) {
-                        scopeContexts.back()->insertUsingName(this->escargotContext->staticStrings().stringThis);
+                        insertUsingName(this->escargotContext->staticStrings().stringThis);
                     }
                     this->nextToken();
                     return std::make_pair(ASTNodeType::ThisExpression, AtomicString());
@@ -4067,7 +4188,7 @@ public:
 
             kind = PropertyNode::Kind::Init;
             if (this->match(PunctuatorsKind::Colon)) {
-                if (!computed && this->isPropertyKey(key.get(), "__proto__")) {
+                if (!this->config.parseSingleFunction && !computed && this->isPropertyKey(key.get(), "__proto__")) {
                     if (hasProto) {
                         this->tolerateError(Messages::DuplicateProtoProperty);
                     }
@@ -4099,41 +4220,43 @@ public:
             }
         }
 
-        if (key->isIdentifier()) {
-            AtomicString as = key->asIdentifier()->name();
-            bool seenInit = kind == PropertyNode::Kind::Init;
-            bool seenGet = kind == PropertyNode::Kind::Get;
-            bool seenSet = kind == PropertyNode::Kind::Set;
-            size_t len = usedNames.size();
+        if (!this->config.parseSingleFunction) {
+            if (key->isIdentifier()) {
+                AtomicString as = key->asIdentifier()->name();
+                bool seenInit = kind == PropertyNode::Kind::Init;
+                bool seenGet = kind == PropertyNode::Kind::Get;
+                bool seenSet = kind == PropertyNode::Kind::Set;
+                size_t len = usedNames.size();
 
-            for (size_t i = 0; i < len; i++) {
-                const auto& n = usedNames[i];
-                if (n.first == as) {
-                    if (n.second == PropertyNode::Kind::Init) {
-                        if (this->context->strict) {
-                            if (seenInit || seenGet || seenSet) {
+                for (size_t i = 0; i < len; i++) {
+                    const auto& n = usedNames[i];
+                    if (n.first == as) {
+                        if (n.second == PropertyNode::Kind::Init) {
+                            if (this->context->strict) {
+                                if (seenInit || seenGet || seenSet) {
+                                    this->throwError("invalid object literal");
+                                }
+                            } else {
+                                if (seenGet || seenSet) {
+                                    this->throwError("invalid object literal");
+                                }
+                            }
+                            seenInit = true;
+                        } else if (n.second == PropertyNode::Kind::Get) {
+                            if (seenInit || seenGet) {
                                 this->throwError("invalid object literal");
                             }
-                        } else {
-                            if (seenGet || seenSet) {
+                            seenGet = true;
+                        } else if (n.second == PropertyNode::Kind::Set) {
+                            if (seenInit || seenSet) {
                                 this->throwError("invalid object literal");
                             }
+                            seenSet = true;
                         }
-                        seenInit = true;
-                    } else if (n.second == PropertyNode::Kind::Get) {
-                        if (seenInit || seenGet) {
-                            this->throwError("invalid object literal");
-                        }
-                        seenGet = true;
-                    } else if (n.second == PropertyNode::Kind::Set) {
-                        if (seenInit || seenSet) {
-                            this->throwError("invalid object literal");
-                        }
-                        seenSet = true;
                     }
                 }
+                usedNames.push_back(std::make_pair(as, kind));
             }
-            usedNames.push_back(std::make_pair(as, kind));
         }
 
         // return this->finalize(node, new PropertyNode(kind, key, computed, value, method, shorthand));
@@ -4822,8 +4945,7 @@ public:
     {
         MetaNode node = this->createNode();
 
-        RefPtr<IdentifierNode> id = this->parseIdentifierName();
-        // assert(id.name === 'new', 'New expression must start with `new`');
+        this->nextToken();
 
         if (this->match(Period)) {
             this->nextToken();
@@ -4853,10 +4975,7 @@ public:
 
     ScanExpressionResult scanNewExpression()
     {
-        MetaNode node = this->createNode();
-
-        auto id = this->scanIdentifierName();
-        // assert(id.name === 'new', 'New expression must start with `new`');
+        this->nextToken();
 
         if (this->match(Period)) {
             this->nextToken();
@@ -4947,7 +5066,6 @@ public:
 
         ScanExpressionResult expr(std::make_pair(ASTNodeType::ASTNodeTypeError, AtomicString()));
         if (this->context->inFunctionBody && this->matchKeyword(Super)) {
-            MetaNode node = this->createNode();
             this->nextToken();
             this->throwError("super keyword is not supported yet");
             RELEASE_ASSERT_NOT_REACHED();
@@ -5005,7 +5123,7 @@ public:
         if (callee.first == ASTNodeType::Identifier && callee.second == escargotContext->staticStrings().eval) {
             scopeContexts.back()->m_hasEval = true;
             if (this->context->inArrowFunction) {
-                scopeContexts.back()->insertUsingName(this->escargotContext->staticStrings().stringThis);
+                insertUsingName(this->escargotContext->staticStrings().stringThis);
             }
         }
     }
@@ -5482,55 +5600,57 @@ public:
     // ECMA-262 12.12 Binary Bitwise Operators
     // ECMA-262 12.13 Binary Logical Operators
 
-    int binaryPrecedence(RefPtr<ScannerResult> token)
+    int binaryPrecedence(const RefPtr<ScannerResult>& token)
     {
-        if (token->type == Token::PunctuatorToken) {
-            if (token->valuePunctuatorsKind == Substitution) {
+        if (LIKELY(token->type == Token::PunctuatorToken)) {
+            switch (token->valuePunctuatorsKind) {
+            case Substitution:
                 return 0;
-            } else if (token->valuePunctuatorsKind == LogicalOr) {
+            case LogicalOr:
                 return 1;
-            } else if (token->valuePunctuatorsKind == LogicalAnd) {
+            case LogicalAnd:
                 return 2;
-            } else if (token->valuePunctuatorsKind == BitwiseOr) {
+            case BitwiseOr:
                 return 3;
-            } else if (token->valuePunctuatorsKind == BitwiseXor) {
+            case BitwiseXor:
                 return 4;
-            } else if (token->valuePunctuatorsKind == BitwiseAnd) {
+            case BitwiseAnd:
                 return 5;
-            } else if (token->valuePunctuatorsKind == Equal) {
+            case Equal:
                 return 6;
-            } else if (token->valuePunctuatorsKind == NotEqual) {
+            case NotEqual:
                 return 6;
-            } else if (token->valuePunctuatorsKind == StrictEqual) {
+            case StrictEqual:
                 return 6;
-            } else if (token->valuePunctuatorsKind == NotStrictEqual) {
+            case NotStrictEqual:
                 return 6;
-            } else if (token->valuePunctuatorsKind == RightInequality) {
+            case RightInequality:
                 return 7;
-            } else if (token->valuePunctuatorsKind == LeftInequality) {
+            case LeftInequality:
                 return 7;
-            } else if (token->valuePunctuatorsKind == RightInequalityEqual) {
+            case RightInequalityEqual:
                 return 7;
-            } else if (token->valuePunctuatorsKind == LeftInequalityEqual) {
+            case LeftInequalityEqual:
                 return 7;
-            } else if (token->valuePunctuatorsKind == LeftShift) {
+            case LeftShift:
                 return 8;
-            } else if (token->valuePunctuatorsKind == RightShift) {
+            case RightShift:
                 return 8;
-            } else if (token->valuePunctuatorsKind == UnsignedRightShift) {
+            case UnsignedRightShift:
                 return 8;
-            } else if (token->valuePunctuatorsKind == Plus) {
+            case Plus:
                 return 9;
-            } else if (token->valuePunctuatorsKind == Minus) {
+            case Minus:
                 return 9;
-            } else if (token->valuePunctuatorsKind == Multiply) {
+            case Multiply:
                 return 11;
-            } else if (token->valuePunctuatorsKind == Divide) {
+            case Divide:
                 return 11;
-            } else if (token->valuePunctuatorsKind == Mod) {
+            case Mod:
                 return 11;
+            default:
+                return 0;
             }
-            return 0;
         } else if (token->type == Token::KeywordToken) {
             if (token->valueKeywordKind == In) {
                 return this->context->allowIn ? 7 : 0;
@@ -8281,7 +8401,7 @@ public:
         }
 
         scopeContexts.back()->insertName(id->name(), true);
-        scopeContexts.back()->insertUsingName(id->name());
+        insertUsingName(id->name());
         pushScopeContext(params, id->name());
         extractNamesFromFunctionParams(params);
 
@@ -8366,7 +8486,7 @@ public:
 
         if (id) {
             scopeContexts.back()->insertName(fnName, false);
-            scopeContexts.back()->insertUsingName(fnName);
+            insertUsingName(fnName);
         }
 
         extractNamesFromFunctionParams(params);
@@ -8731,7 +8851,7 @@ public:
     PassRefPtr<ProgramNode> parseProgram()
     {
         MetaNode node = this->createNode();
-        scopeContexts.push_back(new ASTScopeContext(this->context->strict));
+        pushScopeContext(new ASTScopeContext(this->context->strict));
         RefPtr<StatementContainer> body = this->parseDirectivePrologues();
         StatementNode* referNode = nullptr;
         while (this->startMarker.index < this->scanner->length) {
@@ -8997,15 +9117,15 @@ std::tuple<RefPtr<Node>, ASTScopeContext*> parseSingleFunction(::Escargot::Conte
     parser.trackUsingNames = false;
     parser.config.parseSingleFunction = true;
     parser.config.parseSingleFunctionTarget = codeBlock;
-    auto scopeCtx = new ASTScopeContext(codeBlock->isStrict());
-    parser.scopeContexts.pushBack(scopeCtx);
+    auto sc = new ASTScopeContext(codeBlock->isStrict());
+    parser.pushScopeContext(sc);
     RefPtr<Node> nd;
     if (codeBlock->isArrowFunctionExpression()) {
         nd = parser.parseArrowFunctionSourceElements();
     } else {
         nd = parser.parseFunctionSourceElements();
     }
-    return std::make_tuple(nd, scopeCtx);
+    return std::make_tuple(nd, sc);
 }
 
 char g_asciiRangeCharMap[128] = {

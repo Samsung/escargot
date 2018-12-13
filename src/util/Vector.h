@@ -173,9 +173,10 @@ public:
             m_buffer = newBuffer;
         } else {
             // TODO use memmove
-            for (size_t i = pos; i < m_size; i++) {
-                m_buffer[i + 1] = m_buffer[i];
+            for (size_t i = m_size; i > pos; i--) {
+                m_buffer[i] = m_buffer[i - 1];
             }
+
             m_buffer[pos] = val;
         }
 
