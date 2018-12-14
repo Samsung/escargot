@@ -87,7 +87,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;GC_DEBUG;ESCARGOT_EXPORTS;ESCARGOT;ESCARGOT_ENABLE_TYPEDARRAY;ESCARGOT_ENABLE_PROMISE;ESCARGOT_32;ENABLE_ICU;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;GC_DEBUG;ESCARGOT_EXPORTS;ESCARGOT;ESCARGOT_ENABLE_TYPEDARRAY;ESCARGOT_ENABLE_PROMISE;ESCARGOT_32;ENABLE_ICU;ENABLE_INTL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>.\..\..\..\..\src;.\..\..\..\..\third_party\GCutil;.\..\..\..\..\third_party\GCutil\bdwgc\include;.\..\..\..\..\third_party\checked_arithmetic;.\..\..\..\..\third_party\double_conversion;.\..\..\..\..\third_party\rapidjson\include;.\..\..\..\..\third_party\yarr;.\..\..\..\..\third_party\icu\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <FloatingPointModel>Strict</FloatingPointModel>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -108,7 +108,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;ESCARGOT_EXPORTS;ESCARGOT;ESCARGOT_ENABLE_TYPEDARRAY;ESCARGOT_ENABLE_PROMISE;ESCARGOT_32;ENABLE_ICU;ESCARGOT_SHELL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;ESCARGOT_EXPORTS;ESCARGOT;ESCARGOT_ENABLE_TYPEDARRAY;ESCARGOT_ENABLE_PROMISE;ESCARGOT_32;ENABLE_ICU;ESCARGOT_SHELL;ENABLE_INTL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>.\..\..\..\..\src;.\..\..\..\..\third_party\GCutil;.\..\..\..\..\third_party\GCutil\bdwgc\include;.\..\..\..\..\third_party\checked_arithmetic;.\..\..\..\..\third_party\double_conversion;.\..\..\..\..\third_party\rapidjson\include;.\..\..\..\..\third_party\yarr;.\..\..\..\..\third_party\icu\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <FloatingPointModel>Strict</FloatingPointModel>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -134,7 +134,7 @@
       <FunctionLevelLinking>
       </FunctionLevelLinking>
       <IntrinsicFunctions>false</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;ESCARGOT_EXPORTS;ESCARGOT;ESCARGOT_ENABLE_TYPEDARRAY;ESCARGOT_ENABLE_PROMISE;ESCARGOT_32;ENABLE_ICU;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;ESCARGOT_EXPORTS;ESCARGOT;ESCARGOT_ENABLE_TYPEDARRAY;ESCARGOT_ENABLE_PROMISE;ESCARGOT_32;ENABLE_ICU;ENABLE_INTL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>.\..\..\..\..\src;.\..\..\..\..\third_party\GCutil;.\..\..\..\..\third_party\GCutil\bdwgc\include;.\..\..\..\..\third_party\checked_arithmetic;.\..\..\..\..\third_party\double_conversion;.\..\..\..\..\third_party\rapidjson\include;.\..\..\..\..\third_party\yarr;.\..\..\..\..\third_party\icu\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -161,7 +161,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;ESCARGOT_EXPORTS;ESCARGOT;ESCARGOT_ENABLE_TYPEDARRAY;ESCARGOT_ENABLE_PROMISE;ESCARGOT_32;ESCARGOT_SHELL;ENABLE_ICU;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;ESCARGOT_EXPORTS;ESCARGOT;ESCARGOT_ENABLE_TYPEDARRAY;ESCARGOT_ENABLE_PROMISE;ESCARGOT_32;ESCARGOT_SHELL;ENABLE_ICU;ENABLE_INTL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>.\..\..\..\..\src;.\..\..\..\..\third_party\GCutil;.\..\..\..\..\third_party\GCutil\bdwgc\include;.\..\..\..\..\third_party\checked_arithmetic;.\..\..\..\..\third_party\double_conversion;.\..\..\..\..\third_party\rapidjson\include;.\..\..\..\..\third_party\yarr;.\..\..\..\..\third_party\icu\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <FloatingPointModel>Strict</FloatingPointModel>
