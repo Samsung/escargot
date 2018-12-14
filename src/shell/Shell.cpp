@@ -27,9 +27,11 @@
 #include "runtime/JobQueue.h"
 #endif
 
+#ifdef ESCARGOT_ENABLE_VENDORTEST
 namespace Escargot {
 void installTestFunctions(Escargot::ExecutionState& state);
 }
+#endif // ESCARGOT_ENABLE_VENDORTEST
 
 NEVER_INLINE bool eval(Escargot::Context* context, Escargot::String* str, Escargot::String* fileName, bool shouldPrintScriptResult)
 {
