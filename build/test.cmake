@@ -1,27 +1,6 @@
 CMAKE_MINIMUM_REQUIRED (VERSION 2.8)
 
 
-ADD_CUSTOM_TARGET (check
-                   COMMENT "check"
-                   COMMAND @make tidy
-                  )
-
-ADD_CUSTOM_TARGET (tidy-install
-                   COMMENT "tidy-install"
-                   COMMAND @apt-get install clang-format-3.8
-                  )
-
-ADD_CUSTOM_TARGET (tidy
-                   COMMENT "tidy"
-                   COMMAND @python ${PROJECT_SOURCE_DIR}/tools/check_tidy.py
-                  )
-
-ADD_CUSTOM_TARGET (tidy-update
-                   COMMENT "tidy-update"
-                   COMMAND @python ${PROJECT_SOURCE_DIR}/tools/check_tidy.py update
-                  )
-
-
 # Targets : benchmarks
 
 ADD_CUSTOM_TARGET (run-sunspider

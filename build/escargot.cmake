@@ -106,23 +106,23 @@ ENDIF()
 # GC LIBRARY (static) only for binary output
 IF (${ESCARGOT_OUTPUT} STREQUAL "bin")
     SET (GC_CFLAGS_COMMON "-g3 -fdata-sections -ffunction-sections -DHAVE_CONFIG_H -DESCARGOT -DIGNORE_DYNAMIC_LOADING -DGC_DONT_REGISTER_MAIN_STATIC_DATA -Wno-unused-variable")
-    
+
     IF (${ESCARGOT_ARCH} STREQUAL "x86")
         SET (GC_CFLAGS_ARCH "-m32")
         SET (GC_LDFLAGS_ARCH "-m32")
     ELSEIF (${ESCARGOT_ARCH} STREQUAL "arm")
         SET (GC_CFLAGS_ARCH "-march=armv7-a -mthumb -finline-limit=64")
     ENDIF()
-    
+
     IF (${ESCARGOT_MODE} STREQUAL "debug")
         SET (GC_CFLAGS_MODE "-O0 -DGC_DEBUG")
     ELSE()
         SET (GC_CFLAGS_MODE "-O2")
     ENDIF()
-    
+
     SET (GC_CFLAGS "${GC_CFLAGS_COMMON} ${GC_CFLAGS_ARCH} ${GC_CFLAGS_MODE} $ENV{CFLAGS}")
     SET (GC_LDFLAGS "${GC_LDFLAGS_ARCH} ${GC_CFLAGS}")
-    
+
     SET (GC_CONFFLAGS_COMMON --enable-munmap --disable-parallel-mark --enable-large-config --disable-pthread --disable-threads)
     IF (${ESCARGOT_MODE} STREQUAL "debug")
         SET (GC_CONFFLAGS_MODE --enable-debug --enable-gc-debug)
@@ -133,10 +133,10 @@ IF (${ESCARGOT_OUTPUT} STREQUAL "bin")
         ${GC_CONFFLAGS_COMMON}
         ${GC_CONFFLAGS_MODE}
     )
-    
+
     SET (GC_BUILDDIR ${GCUTIL_ROOT}/bdwgc/out/${ESCARGOT_HOST}/${ESCARGOT_ARCH}/${ESCARGOT_MODE}.static)
     SET (GC_TARGET ${GC_BUILDDIR}/.libs/libgc.a)
-    
+
     ADD_CUSTOM_COMMAND (OUTPUT ${GC_TARGET}
             COMMENT "BUILD GC"
             WORKING_DIRECTORY ${GCUTIL_ROOT}/bdwgc
@@ -162,11 +162,9 @@ IF (${ESCARGOT_OUTPUT} STREQUAL "bin")
     TARGET_LINK_LIBRARIES (${ESCARGOT_TARGET} ${ESCARGOT_LIBRARIES} ${GC_TARGET})
     TARGET_INCLUDE_DIRECTORIES (${ESCARGOT_TARGET} PUBLIC ${ESCARGOT_LIBDIRS})
     SET_TARGET_PROPERTIES (${ESCARGOT_TARGET} PROPERTIES 
-                           COMPILE_FLAGS "${ESCARGOT_CXXFLAGS} $ENV{CXXFLAGS}" 
+                           COMPILE_FLAGS "${ESCARGOT_CXXFLAGS} $ENV{CXXFLAGS}"
                            LINK_FLAGS "${ESCARGOT_LDFLAGS}")
 
-    ADD_CUSTOM_COMMAND (TARGET ${ESCARGOT_TARGET} PRE_BUILD
-                        COMMAND @make tidy)
     ADD_CUSTOM_COMMAND (TARGET ${ESCARGOT_TARGET} POST_BUILD
                         COMMAND @cp ${ESCARGOT_OUTDIR}/${ESCARGOT_TARGET} .)
 
