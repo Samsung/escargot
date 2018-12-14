@@ -155,7 +155,7 @@ ADD_CUSTOM_TARGET (run-v8-x86
                    COMMAND @cp ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8/v8.testsuite.py ${PROJECT_SOURCE_DIR}/test/vendortest/v8/tools/testrunner/local/testsuite.py
                    COMMAND @cp ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8/v8.execution.py ${PROJECT_SOURCE_DIR}/test/vendortest/v8/tools/testrunner/local/execution.py
                    COMMAND @cp ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8/v8.progress.py ${PROJECT_SOURCE_DIR}/test/vendortest/v8/tools/testrunner/local/progress.py
-                   COMMAND @${PROJECT_SOURCE_DIR}/test/vendortest/v8/tools/run-tests.py --quickcheck --no-presubmit --no-variants --arch-and-mode=x32.release --shell-dir ../../../ --escargot --report -p verbose --no-sorting mjsunit | tee ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8.x32.mjsunit.gen.txt && diff ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8.x32.mjsunit.orig.txt ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8.x32.mjsunit.gen.txt
+                   COMMAND @${PROJECT_SOURCE_DIR}/test/vendortest/v8/tools/run-tests.py --timeout=120 --quickcheck --no-presubmit --no-variants --arch-and-mode=x32.release --shell-dir ../../../ --escargot --report -p verbose --no-sorting mjsunit | tee ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8.x32.mjsunit.gen.txt && diff ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8.x32.mjsunit.orig.txt ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8.x32.mjsunit.gen.txt
                   )
 
 ADD_CUSTOM_TARGET (run-v8-x64
@@ -166,5 +166,5 @@ ADD_CUSTOM_TARGET (run-v8-x64
                    COMMAND @cp ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8/v8.testsuite.py ${PROJECT_SOURCE_DIR}/test/vendortest/v8/tools/testrunner/local/testsuite.py
                    COMMAND @cp ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8/v8.execution.py ${PROJECT_SOURCE_DIR}/test/vendortest/v8/tools/testrunner/local/execution.py
                    COMMAND @cp ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8/v8.progress.py ${PROJECT_SOURCE_DIR}/test/vendortest/v8/tools/testrunner/local/progress.py
-                   COMMAND @${PROJECT_SOURCE_DIR}/test/vendortest/v8/tools/run-tests.py --quickcheck --no-presubmit --no-variants --arch-and-mode=x64.release --shell-dir ../../../ --escargot --report -p verbose --no-sorting mjsunit | tee ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8.x64.mjsunit.gen.txt && diff ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8.x64.mjsunit.orig.txt ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8.x64.mjsunit.gen.txt
+                   COMMAND @${PROJECT_SOURCE_DIR}/test/vendortest/v8/tools/run-tests.py --timeout=120 --quickcheck --no-presubmit --no-variants --arch-and-mode=x64.release --shell-dir ../../../ --escargot --report -p verbose --no-sorting mjsunit | tee ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8.x64.mjsunit.gen.txt && diff ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8.x64.mjsunit.orig.txt ${PROJECT_SOURCE_DIR}/test/vendortest/driver/v8.x64.mjsunit.gen.txt
                   )

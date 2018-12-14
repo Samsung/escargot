@@ -85,8 +85,4 @@ matrix:
         - make -s -Cout/linux/x86/release run-v8-x86
         - make -s -Cout/linux/x86/release run-spidermonkey-x86
 
-  allow_failures:
-    - name: "x64.release (-DVENDORTEST=1)"
-    - name: "x86.release (-DVENDORTEST=1)"
-
 # fast_finish: true
