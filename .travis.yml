@@ -23,10 +23,8 @@ matrix:
         - make -s -Cout/linux/x64/release run-test262
         - make -s -Cout/linux/x64/release run-internal-test
         - make -s -Cout/linux/x64/release run-octane
-#       - make -s -Cout/linux/x64/release run-v8
         - make -s -Cout/linux/x64/release run-chakracore-x64
         - make -s -Cout/linux/x64/release run-jsc-stress-x64
-#       - make -s -Cout/linux/x64/release run-spidermonkey
 
     - name: "x64.debug"
       script:
@@ -50,10 +48,8 @@ matrix:
         - make -s -Cout/linux/x86/release run-test262
         - make -s -Cout/linux/x86/release run-internal-test
         - make -s -Cout/linux/x86/release run-octane
-#       - make -s -Cout/linux/x86/release run-v8
         - make -s -Cout/linux/x86/release run-chakracore-x86
         - make -s -Cout/linux/x86/release run-jsc-stress-x86
-#       - make -s -Cout/linux/x86/release run-spidermonkey
 
     - name: "x86.debug"
       install: "sudo apt-get install -y libicu-dev:i386"
@@ -65,5 +61,32 @@ matrix:
         - make -s -Cout/linux/x86/debug run-sunspider-js
         - make -s -Cout/linux/x86/debug run-test262
         - make -s -Cout/linux/x86/debug run-internal-test
+
+    - name: "x64.release (-DVENDORTEST=1)"
+      install:
+        - sudo apt-get install -y npm
+        - npm install
+      script:
+        - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1
+        - make -s -Cout/linux/x64/release -j2
+        - cp ./out/linux/x64/release/escargot ./escargot
+        - make -s -Cout/linux/x64/release run-v8-x64
+        - make -s -Cout/linux/x64/release run-spidermonkey-x64
+
+    - name: "x86.release (-DVENDORTEST=1)"
+      install:
+        - "sudo apt-get install -y libicu-dev:i386"
+        - sudo apt-get install -y npm
+        - npm install
+      script:
+        - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1
+        - make -s -Cout/linux/x86/release -j2
+        - cp ./out/linux/x86/release/escargot ./escargot
+        - make -s -Cout/linux/x86/release run-v8-x86
+        - make -s -Cout/linux/x86/release run-spidermonkey-x86
+
+  allow_failures:
+    - name: "x64.release (-DVENDORTEST=1)"
+    - name: "x86.release (-DVENDORTEST=1)"
 
 # fast_finish: true
