@@ -11,13 +11,13 @@ apt-get install autoconf automake libtool libc++-dev libicu-dev gcc-multilib g++
 git clone git@github.com:pando-project/escargot.git
 cd escargot
 git submodule update --init third_party
-cmake CMakeLists.txt -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin
-make -j
+cmake CMakeLists.txt -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -G Ninja
+ninja
 ```
 
 #### Build options
 
-The following build options are supported when generating Makefile using cmake.
+The following build options are supported when generating ninja rules using cmake.
 
 * -DESCARGOT_HOST=[ linux | tizen_obs ]<br>
   Compile Escargot for either Linux or Tizen platform
@@ -37,6 +37,8 @@ git submodule update --init
 ```
 
 ### Benchmarks
+
+Test run for each benchmark
 
 ```sh
 make run-sunspider-js # Sunspider

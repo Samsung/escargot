@@ -22,6 +22,8 @@ escargot.elf
 out
 build.ninja
 rules.ninja
+.ninja_deps
+.ninja_log
 #test/test262/test/config/excludelist.xml
 android/obj
 android/libs
