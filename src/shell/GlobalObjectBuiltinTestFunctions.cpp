@@ -22,11 +22,11 @@
 #include "runtime/GlobalObject.h"
 #include "runtime/JobQueue.h"
 
+#ifdef ESCARGOT_ENABLE_VENDORTEST
+
 namespace Escargot {
 
 #ifdef ESCARGOT_ENABLE_PROMISE
-#ifdef ESCARGOT_ENABLE_VENDORTEST
-
 static Value builtinDrainJobQueue(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     DefaultJobQueue* jobQueue = DefaultJobQueue::get(state.context()->jobQueue());
@@ -45,21 +45,16 @@ static Value builtinAddPromiseReactions(ExecutionState& state, Value thisValue, 
     promise->appendReaction(argv[1].toObject(state)->asFunctionObject(), argv[2].toObject(state)->asFunctionObject(), capability);
     return Value();
 }
-#endif
-#endif
+#endif // ESCARGOT_ENABLE_PROMISE
 
-#ifdef ESCARGOT_ENABLE_VENDORTEST
 static Value builtinCreateNewGlobalObject(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     Context* ctx = new Context(state.context()->vmInstance());
     return ctx->globalObject();
 }
-#endif
-
 
 void installTestFunctions(ExecutionState& state)
 {
-#ifdef ESCARGOT_ENABLE_VENDORTEST
     GlobalObject* globalObject = state.context()->globalObject();
 
 #ifdef ESCARGOT_ENABLE_PROMISE
@@ -80,8 +75,8 @@ void installTestFunctions(ExecutionState& state)
                                     ObjectPropertyDescriptor(new FunctionObject(state,
                                                                                 NativeFunctionInfo(createNewGlobalObject, builtinCreateNewGlobalObject, 0, nullptr, NativeFunctionInfo::Strict)),
                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
-#else // ESCARGOT_ENABLE_VENDORTEST
-/* Do nothong */
+}
+
+}
+
 #endif // ESCARGOT_ENABLE_VENDORTEST
-}
-}
