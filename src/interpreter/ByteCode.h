@@ -120,7 +120,7 @@ enum Opcode {
 #if defined(COMPILER_MSVC)
 };
 #else
-} __attribute__((packed));
+};
 #endif
 
 struct OpcodeTable {
