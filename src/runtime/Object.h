@@ -660,9 +660,17 @@ public:
 
     ValueVector getOwnPropertyKeys(ExecutionState& state);
 
+#if ESCARGOT_ENABLE_PROXY
+    virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P);
+#else
     ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P);
+#endif
 
+#if ESCARGOT_ENABLE_PROXY
+    virtual bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
+#else
     bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
+#endif
     void setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
     void setThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
     void defineOwnPropertyThrowsException(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)

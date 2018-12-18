@@ -38,6 +38,9 @@ class GlobalObject;
 #if ESCARGOT_ENABLE_PROMISE
 class PromiseObject;
 #endif
+#if ESCARGOT_ENABLE_PROXY
+class ProxyObject;
+#endif
 #if ESCARGOT_ENABLE_TYPEDARRAY
 class ArrayBufferObject;
 class ArrayBufferView;
@@ -132,6 +135,13 @@ public:
 
 #if ESCARGOT_ENABLE_PROMISE
     virtual bool isPromiseObject() const
+    {
+        return false;
+    }
+#endif
+
+#if ESCARGOT_ENABLE_PROXY
+    virtual bool isProxyObject() const
     {
         return false;
     }
@@ -282,6 +292,13 @@ public:
     {
         ASSERT(isPromiseObject());
         return (PromiseObject*)this;
+    }
+#endif
+#if ESCARGOT_ENABLE_PROXY
+    ProxyObject* asProxyObject()
+    {
+        ASSERT(isProxyObject());
+        return (ProxyObject*)this;
     }
 #endif
 #if ESCARGOT_ENABLE_TYPEDARRAY

@@ -41,8 +41,39 @@ public:
         return "Proxy";
     }
 
-    void* operator new(size_t size);
-    void* operator new[](size_t size) = delete;
+    ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& propertyName) override;
+    bool set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, const Value& receiver) override;
+
+    void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true)  override;
+
+    bool isInlineCacheable() override
+    {
+        return false;
+    }
+
+    void setTarget(Object* target)
+    {
+        m_target = target;
+    }
+
+    Object* target()
+    {
+        return m_target;
+    }
+
+    void setHandler(Object* handler)
+    {
+        m_handler = handler;
+    }
+
+    Object* handler()
+    {
+        return m_handler;
+    }
+
+protected:
+    Object* m_target;
+    Object* m_handler;
 };
 }
 

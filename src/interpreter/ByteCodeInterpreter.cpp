@@ -772,17 +772,17 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 } else {
                     val = registerFile[code->m_srcIndex];
                 }
-                if (val.isUndefined())
+                if (val.isUndefined()) {
                     val = state.context()->staticStrings().undefined.string();
-                else if (val.isNull())
+                } else if (val.isNull()) {
                     val = state.context()->staticStrings().object.string();
-                else if (val.isBoolean())
+                } else if (val.isBoolean()) {
                     val = state.context()->staticStrings().boolean.string();
-                else if (val.isNumber())
+                } else if (val.isNumber()) {
                     val = state.context()->staticStrings().number.string();
-                else if (val.isString())
+                } else if (val.isString()) {
                     val = state.context()->staticStrings().string.string();
-                else {
+                } else {
                     ASSERT(val.isPointerValue());
                     PointerValue* p = val.asPointerValue();
                     if (p->isFunctionObject()) {
@@ -901,8 +901,9 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                         if (record->count() && (record->outerLimitCount() < record->count())) {
                             state.rareData()->m_controlFlowRecord->back() = record;
                             return Value();
-                        } else
+                        } else {
                             programCounter = jumpTo(codeBuffer, pos);
+                        }
                     } else if (record->reason() == ControlFlowRecord::NeedsThrow) {
                         state.context()->throwException(state, record->value());
                     } else if (record->reason() == ControlFlowRecord::NeedsReturn) {
@@ -1048,9 +1049,9 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 BinaryInOperation* code = (BinaryInOperation*)programCounter;
-                if (!registerFile[code->m_srcIndex1].isObject())
-                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "type of rvalue is not Object");
-                auto result = registerFile[code->m_srcIndex1].toObject(state)->get(state, ObjectPropertyName(state, registerFile[code->m_srcIndex0]));
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                auto result = binaryInOperation(state, left, right);
                 registerFile[code->m_dstIndex] = Value(result.hasValue());
                 ADD_PROGRAM_COUNTER(BinaryInOperation);
                 NEXT_INSTRUCTION();
@@ -1253,13 +1254,13 @@ NEVER_INLINE Value ByteCodeInterpreter::modOperation(ExecutionState& state, cons
         double lvalue = left.toNumber(state);
         double rvalue = right.toNumber(state);
         // http://www.ecma-international.org/ecma-262/5.1/#sec-11.5.3
-        if (std::isnan(lvalue) || std::isnan(rvalue))
+        if (std::isnan(lvalue) || std::isnan(rvalue)) {
             ret = Value(std::numeric_limits<double>::quiet_NaN());
-        else if (std::isinf(lvalue) || rvalue == 0 || rvalue == -0.0)
+        } else if (std::isinf(lvalue) || rvalue == 0 || rvalue == -0.0) {
             ret = Value(std::numeric_limits<double>::quiet_NaN());
-        else if (std::isinf(rvalue))
+        } else if (std::isinf(rvalue)) {
             ret = Value(lvalue);
-        else if (lvalue == 0.0) {
+        } else if (lvalue == 0.0) {
             if (std::signbit(lvalue))
                 ret = Value(Value::EncodeAsDouble, -0.0);
             else
@@ -1986,8 +1987,9 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, Wit
             record->m_count--;
             if (record->count() && (record->outerLimitCount() < record->count())) {
                 state.rareData()->m_controlFlowRecord->back() = record;
-            } else
+            } else {
                 programCounter = jumpTo(codeBuffer, pos);
+            }
             return Value(Value::EmptyValue);
         } else {
             ASSERT(record->reason() == ControlFlowRecord::NeedsReturn);
@@ -2001,6 +2003,19 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, Wit
         programCounter = jumpTo(codeBuffer, code->m_withEndPostion);
     }
     return Value(Value::EmptyValue);
+}
+
+NEVER_INLINE ObjectGetResult ByteCodeInterpreter::binaryInOperation(ExecutionState& state, const Value& left, const Value& right)
+{
+    auto result = ObjectGetResult();
+    if (!right.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "type of rvalue is not Object");
+        return result;
+    }
+
+    result = right.toObject(state)->get(state, ObjectPropertyName(state, left));
+
+    return result;
 }
 
 NEVER_INLINE Value ByteCodeInterpreter::callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, ExecutionContext* ec, LexicalEnvironment* env, Value* argv)
@@ -2150,9 +2165,9 @@ NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, c
             }
             SandBox::StackTraceData data;
             data.loc = loc;
-            if (cb->isInterpretedCodeBlock() && cb->asInterpretedCodeBlock()->script())
+            if (cb->isInterpretedCodeBlock() && cb->asInterpretedCodeBlock()->script()) {
                 data.fileName = cb->asInterpretedCodeBlock()->script()->fileName();
-            else {
+            } else {
                 StringBuilder builder;
                 builder.appendString("function ");
                 builder.appendString(cb->functionName().string());

@@ -31,16 +31,66 @@
 namespace Escargot {
 
 // $26.2.1 The Proxy Constructor
+// https://www.ecma-international.org/ecma-262/8.0/#sec-proxycreate
 static Value builtinProxyConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // TODO: Implement a wrapped Object.
-    return Value();
+    auto strings = &state.context()->staticStrings();
+
+    if (!isNewExpression) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: calling a builtin Proxy constructor without new is forbidden");
+        return Value();
+    }
+
+    Value target = argv[0];
+    Value handler = argv[1];
+
+    // 1. If Type(target) is not Object, throw a TypeError exception.
+    if (!target.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: \'target\' argument of Proxy must be an object");
+        return Value();
+    }
+
+    // 2. If target is a Proxy exotic object and target.[[ProxyHandler]] is null, throw a TypeError exception.
+    if (target.asObject()->isProxyObject()) {
+        ProxyObject* exotic = target.asObject()->asProxyObject();
+        if (!exotic->handler()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: \'target\' Type Error");
+            return Value();
+        }
+    }
+
+    // 3. If Type(handler) is not Object, throw a TypeError exception.
+    if (!handler.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: \'handler\' argument of Proxy must be an object");
+        return Value();
+    }
+
+    // 4. If handler is a Proxy exotic object and handler.[[ProxyHandler]] is null, throw a TypeError exception.
+    if (handler.asObject()->isProxyObject()) {
+        ProxyObject* exotic = handler.asObject()->asProxyObject();
+        if (!exotic->handler()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: \'handler\' Type Error");
+            return Value();
+        }
+    }
+
+    // 5. Let P be a newly created object.
+    ProxyObject* P = thisValue.toObject(state)->asProxyObject();
+
+    // 6. Set P.[[ProxyTarget]] to target.
+    P->setTarget(argv[0].asObject());
+
+    // 7. Set P.[[ProxyHandler]] to handler.
+    P->setHandler(argv[1].asObject());
+
+    // 8. Return P.
+    return P;
 }
 
 void GlobalObject::installProxy(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    m_proxy = new FunctionObject(state, NativeFunctionInfo(strings->Proxy, builtinProxyConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
+    m_proxy = new FunctionObject(state, NativeFunctionInfo(strings->Proxy, builtinProxyConstructor, 2, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
                                      return new ProxyObject(state);
                                  }),
                                  FunctionObject::__ForBuiltin__);
@@ -50,7 +100,7 @@ void GlobalObject::installProxy(ExecutionState& state)
     m_proxyPrototype = new ProxyObject(state);
     m_proxyPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     m_proxyPrototype->setPrototype(state, m_objectPrototype);
-    m_promisePrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_promise, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_proxyPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_proxy, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // TODO: 26.2.2.1 Implement revocable
 

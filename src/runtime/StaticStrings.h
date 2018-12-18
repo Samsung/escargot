@@ -317,6 +317,7 @@ namespace Escargot {
     F(setUint16)                  \
     F(setUint32)                  \
     F(Promise)                    \
+    F(Proxy)                      \
     F(alreadyResolved)            \
     F(alreadyCalled)              \
     F(values)                     \
