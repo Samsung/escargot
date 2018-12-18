@@ -40,12 +40,18 @@ git submodule update --init
 
 ### Benchmarks
 
-Test run for each benchmark
-
+Prerequisite for SpiderMonkey
 ```sh
-make run-sunspider-js # Sunspider
-make run-octane # Octane
-make run-v8-x64 # V8 for x64
-make run-chakracore-x64 # Chakracore for x64
-make run-test262 # test262
+sudo apt-get install -y npm
+npm install
+```
+
+Test run for each benchmark
+```sh
+ninja run-sunspider-js # Sunspider
+ninja run-octane # Octane
+ninja run-v8-x64 # V8 for x64
+ninja run-chakracore-x64 # Chakracore for x64
+ninja run-test262 # test262
+ninja run-spidermonkey-x64 # SpiderMonkey
 ```
