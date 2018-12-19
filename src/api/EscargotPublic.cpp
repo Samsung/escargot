@@ -149,6 +149,7 @@ void Globals::initialize(bool applyMallOpt, bool applyGcOpt)
 
 void Globals::finalize()
 {
+    return;
 }
 
 StringRef* StringRef::fromASCII(const char* s)

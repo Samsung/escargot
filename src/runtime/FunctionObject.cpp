@@ -178,7 +178,6 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
     Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& v = state.context()->compiledCodeBlocks();
 
     auto& currentCodeSizeTotal = state.context()->vmInstance()->compiledByteCodeSize();
-    // ESCARGOT_LOG_INFO("codeSizeTotal %lfMB\n", (int)currentCodeSizeTotal / 1024.0 / 1024.0);
 
     if (currentCodeSizeTotal > FUNCTION_OBJECT_BYTECODE_SIZE_MAX) {
         currentCodeSizeTotal = 0;

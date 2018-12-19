@@ -102,7 +102,6 @@ public:
     // __p is not permitted to be a null pointer.
     void deallocate(pointer __p, size_type GC_ATTR_UNUSED GC_n)
     {
-        // memset(__p, 0, GC_n * sizeof(GC_Tp));
         GC_FREE(__p);
     }
 

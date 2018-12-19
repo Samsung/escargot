@@ -224,7 +224,6 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
         memcpy(block->m_numeralLiteralData.data(), nData->data(), sizeof(Value) * nData->size());
     }
 
-    // ESCARGOT_LOG_INFO("codeSize %lf, %lf\n", block->m_code.size() / 1024.0 / 1024.0, block->m_code.capacity() / 1024.0 / 1024.0);
     block->m_code.shrinkToFit();
 
     block->m_getObjectCodePositions = std::move(ctx.m_getObjectCodePositions);
