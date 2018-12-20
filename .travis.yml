@@ -85,15 +85,16 @@ matrix:
         - make -s -Cout/linux/x86/release run-v8-x86
         - make -s -Cout/linux/x86/release run-spidermonkey-x86
 
-    allow_failures:
-    - env:
-      - JOBNAME="SonarQube"
+    - name: "SonarQube"
       addons:
         sonarcloud:
           organization: "pando-project"
-      script: ./tools/check_sonarqube.sh
       cache:
         directories:
           - '$HOME/.sonar/cache'
+      script: ./tools/check_sonarqube.sh
+
+  allow_failures:
+    - name: "SonarQube"
 
 # fast_finish: true
