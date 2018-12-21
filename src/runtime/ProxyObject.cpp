@@ -44,7 +44,7 @@ ObjectGetResult ProxyObject::get(ExecutionState& state, const ObjectPropertyName
 
     // 2. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
-       ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler can be null.");
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler can be null.");
         return ObjectGetResult();
     }
 
@@ -67,7 +67,7 @@ ObjectGetResult ProxyObject::get(ExecutionState& state, const ObjectPropertyName
             // 6. Let trapResult be ? Call(trap, handler, « target, P, Receiver »).
             if (trap.isFunction()) {
                 Value prop = propertyName.toPlainValue(state);
-                Value arguments[] = {target, prop, handler};
+                Value arguments[] = { target, prop, handler };
                 trapResult = FunctionObject::call(state, trap, m_handler, 3, arguments);
             } else {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler's get trap wasn't undefined, null, or callable");
@@ -137,7 +137,7 @@ bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyN
             // 6. Let booleanTrapResult be ToBoolean(? Call(trap, handler, « target, P, V, Receiver »)).
             if (trap.isFunction()) {
                 Value prop = propertyName.toPlainValue(state);
-                Value arguments[] = {target, prop, v, receiver};
+                Value arguments[] = { target, prop, v, receiver };
                 Value booleanTrapResult = FunctionObject::call(state, trap, handler, 4, arguments);
                 // 7. If booleanTrapResult is false, return false.
                 if (booleanTrapResult.isFalse()) {
@@ -163,8 +163,7 @@ bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyN
                 // b. If IsAccessorDescriptor(targetDesc) is true and targetDesc.[[Configurable]] is false, then
                 if (!targetDesc.isConfigurable()) {
                     // i. If targetDesc.[[Set]] is undefined, throw a TypeError exception.
-                    if ((!targetDesc.jsGetterSetter()->hasGetter() || targetDesc.jsGetterSetter()->getter().isUndefined()))
-                    {
+                    if ((!targetDesc.jsGetterSetter()->hasGetter() || targetDesc.jsGetterSetter()->getter().isUndefined())) {
                         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error.");
                         return false;
                     }

@@ -76,7 +76,6 @@ void installTestFunctions(ExecutionState& state)
                                                                                 NativeFunctionInfo(createNewGlobalObject, builtinCreateNewGlobalObject, 0, nullptr, NativeFunctionInfo::Strict)),
                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 }
-
 }
 
 #endif // ESCARGOT_ENABLE_VENDORTEST
