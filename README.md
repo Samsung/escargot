@@ -41,26 +41,21 @@ The following build options are supported when generating ninja rules using cmak
 
 ## Testing
 
-First, get benchmarks and tests
-
-``` sh
+First, get benchmarks and tests:
+```sh
 git submodule update --init
 ```
 
 ### Benchmarks
 
-Prerequisite for SpiderMonkey
+Prerequisite for SpiderMonkey:
 ```sh
 sudo apt-get install npm
 npm install
 ```
 
-Test run for each benchmark
+Test run for each benchmark (Sunspider, Octane, V8, Chakracore, test262,
+SpiderMonkey, etc.):
 ```sh
-ninja run-sunspider-js # Sunspider
-ninja run-octane # Octane
-ninja run-v8-x64 # V8 for x64
-ninja run-chakracore-x64 # Chakracore for x64
-ninja run-test262 # test262
-ninja run-spidermonkey-x64 # SpiderMonkey
+tools/run-tests.py
 ```
