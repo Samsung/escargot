@@ -464,4 +464,3 @@ clean:
 #######################################################
 
 include $(BUILDDIR)/TestCC.mk
-include $(BUILDDIR)/TestJS.mk
