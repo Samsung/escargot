@@ -23,7 +23,7 @@ import sys
 from argparse import ArgumentParser
 from difflib import unified_diff
 from glob import glob
-from os.path import abspath, dirname, join
+from os.path import abspath, basename, dirname, join, relpath
 from shutil import copy
 from subprocess import PIPE, Popen
 
@@ -245,9 +245,21 @@ def run_chakracore(engine, arch):
     copy(join(CHAKRACORE_OVERRIDE_DIR, 'chakracore.run.sh'), join(CHAKRACORE_DIR, 'run.sh'))
     copy(join(CHAKRACORE_OVERRIDE_DIR, 'chakracore.include.js'), join(CHAKRACORE_DIR, 'include.js'))
     copy(join(CHAKRACORE_OVERRIDE_DIR, 'chakracore.rlexedirs.xml'), join(CHAKRACORE_DIR, 'rlexedirs.xml'))
+    for rlexexml in glob(join(CHAKRACORE_OVERRIDE_DIR, '*.rlexe.xml')):
+        dirname, _, filename = basename(rlexexml).partition('.')
+        copy(rlexexml, join(CHAKRACORE_DIR, dirname, filename))
+    for js in [join(CHAKRACORE_DIR, 'DynamicCode', 'eval-nativecodedata.js'),
+               join(CHAKRACORE_DIR, 'utf8', 'unicode_digit_as_identifier_should_work.js')]:
+        with open(js, 'a') as f:
+            f.write("WScript.Echo('PASS');")
 
-    run(['bash', '-c', join('build', 'command_chakracore_%s.sh' % arch)],
-         cwd=PROJECT_SOURCE_DIR)
+    stdout = run(['bash', join(CHAKRACORE_DIR, 'run.sh'), relpath(engine)],
+                 stdout=PIPE)
+    with open(join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver', 'chakracore.%s.gen.txt' % arch), 'w') as gen_txt:
+        gen_txt.write(stdout)
+    run(['diff',
+         join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver', 'chakracore.%s.orig.txt' % arch),
+         join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver', 'chakracore.%s.gen.txt' % arch)])
 
 
 @runner('v8', default=True)
