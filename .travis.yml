@@ -4,7 +4,7 @@ compiler:
   - gcc
 
 before_install:
-  - sudo apt-get install -y autoconf automake libtool
+  - sudo apt-get install -y autoconf automake libtool ninja-build
 
 matrix:
   include:
@@ -18,8 +18,8 @@ matrix:
       install:
         - sudo apt-get install -y libicu-dev
       script:
-        - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin
-        - make -s -Cout/linux/x64/release -j2
+        - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -GNinja
+        - ninja -Cout/linux/x64/release
         - cp ./out/linux/x64/release/escargot ./escargot
         - travis_wait tools/run-tests.py --arch=x86_64 jetstream-only-simple
         - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal octane chakracore jsc-stress
@@ -28,8 +28,8 @@ matrix:
       install:
         - sudo apt-get install -y libicu-dev
       script:
-        - cmake -H. -Bout/linux/x64/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin
-        - make -s -Cout/linux/x64/debug -j2
+        - cmake -H. -Bout/linux/x64/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin -GNinja
+        - ninja -Cout/linux/x64/debug
         - cp ./out/linux/x64/debug/escargot ./escargot
         - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal
 
@@ -38,8 +38,8 @@ matrix:
         - sudo apt-get install -y gcc-multilib g++-multilib
         - "sudo apt-get install -y libicu-dev:i386"
       script:
-        - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin
-        - make -s -Cout/linux/x86/release -j2
+        - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -GNinja
+        - ninja -Cout/linux/x86/release
         - cp ./out/linux/x86/release/escargot ./escargot
         - travis_wait tools/run-tests.py --arch=x86 jetstream-only-simple
         - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js test262 internal octane chakracore jsc-stress
@@ -49,8 +49,8 @@ matrix:
         - sudo apt-get install -y gcc-multilib g++-multilib
         - "sudo apt-get install -y libicu-dev:i386"
       script:
-        - cmake -H. -Bout/linux/x86/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin
-        - make -s -Cout/linux/x86/debug -j2
+        - cmake -H. -Bout/linux/x86/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin -GNinja
+        - ninja -Cout/linux/x86/debug
         - cp ./out/linux/x86/debug/escargot ./escargot
         - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js test262 internal
 
@@ -60,8 +60,8 @@ matrix:
         - sudo apt-get install -y npm
         - npm install
       script:
-        - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1
-        - make -s -Cout/linux/x64/release -j2
+        - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
+        - ninja -Cout/linux/x64/release
         - cp ./out/linux/x64/release/escargot ./escargot
         - tools/run-tests.py --arch=x86_64 v8 spidermonkey
 
@@ -72,8 +72,8 @@ matrix:
         - sudo apt-get install -y npm
         - npm install
       script:
-        - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1
-        - make -s -Cout/linux/x86/release -j2
+        - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
+        - ninja -Cout/linux/x86/release
         - cp ./out/linux/x86/release/escargot ./escargot
         - tools/run-tests.py --arch=x86 v8 spidermonkey
 
