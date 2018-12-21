@@ -18,11 +18,11 @@ sudo apt-get install libicu-dev:i386
 
 ## Build Escargot
 
-``` sh
-git clone git@github.com:pando-project/escargot.git
+```sh
+git clone https://github.com/pando-project/escargot.git
 cd escargot
 git submodule update --init third_party
-cmake CMakeLists.txt -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -G Ninja
+cmake -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -GNinja
 ninja
 ```
 
