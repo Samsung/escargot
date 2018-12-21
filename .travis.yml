@@ -3,16 +3,20 @@ language: cpp
 compiler:
   - gcc
 
-before_install: sudo apt-get install -y autoconf automake libtool libc++-dev libicu-dev gcc-multilib g++-multilib
+before_install:
+  - sudo apt-get install -y autoconf automake libtool
 
 matrix:
   include:
     - name: "check"
-      install: sudo apt-get install -y clang-format-3.8
+      before_install: # skip installation of common build dependencies (not needed for checks)
+        - sudo apt-get install -y clang-format-3.8
       script:
         - python tools/check_tidy.py
 
     - name: "x64.release"
+      install:
+        - sudo apt-get install -y libicu-dev
       script:
         - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin
         - make -s -Cout/linux/x64/release -j2
@@ -21,6 +25,8 @@ matrix:
         - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal octane chakracore jsc-stress
 
     - name: "x64.debug"
+      install:
+        - sudo apt-get install -y libicu-dev
       script:
         - cmake -H. -Bout/linux/x64/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin
         - make -s -Cout/linux/x64/debug -j2
@@ -28,7 +34,9 @@ matrix:
         - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal
 
     - name: "x86.release"
-      install: "sudo apt-get install -y libicu-dev:i386"
+      install:
+        - sudo apt-get install -y gcc-multilib g++-multilib
+        - "sudo apt-get install -y libicu-dev:i386"
       script:
         - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin
         - make -s -Cout/linux/x86/release -j2
@@ -37,7 +45,9 @@ matrix:
         - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js test262 internal octane chakracore jsc-stress
 
     - name: "x86.debug"
-      install: "sudo apt-get install -y libicu-dev:i386"
+      install:
+        - sudo apt-get install -y gcc-multilib g++-multilib
+        - "sudo apt-get install -y libicu-dev:i386"
       script:
         - cmake -H. -Bout/linux/x86/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin
         - make -s -Cout/linux/x86/debug -j2
@@ -46,6 +56,7 @@ matrix:
 
     - name: "x64.release (-DVENDORTEST=1)"
       install:
+        - sudo apt-get install -y libicu-dev
         - sudo apt-get install -y npm
         - npm install
       script:
@@ -56,6 +67,7 @@ matrix:
 
     - name: "x86.release (-DVENDORTEST=1)"
       install:
+        - sudo apt-get install -y gcc-multilib g++-multilib
         - "sudo apt-get install -y libicu-dev:i386"
         - sudo apt-get install -y npm
         - npm install
@@ -72,7 +84,10 @@ matrix:
       cache:
         directories:
           - '$HOME/.sonar/cache'
-      script: ./tools/check_sonarqube.sh
+      install:
+        - sudo apt-get install -y libicu-dev
+      script:
+        - ./tools/check_sonarqube.sh
 
   allow_failures:
     - name: "SonarQube"

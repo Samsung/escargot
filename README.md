@@ -4,8 +4,16 @@
 [![SonarCloud Status](https://sonarcloud.io/api/project_badges/measure?project=pando-project_escargot&metric=alert_status)](https://sonarcloud.io/dashboard?id=pando-project_escargot)
 
 ## Prerequisites
+
+General build prerequisites:
+```sh
+sudo apt-get install autoconf automake libtool libicu-dev
 ```
-apt-get install autoconf automake libtool libc++-dev libicu-dev gcc-multilib g++-multilib
+
+Prerequisites for x86-64-to-x86 compilation:
+```sh
+sudo apt-get install gcc-multilib g++-multilib
+sudo apt-get install libicu-dev:i386
 ```
 
 ## Build Escargot
@@ -43,7 +51,7 @@ git submodule update --init
 
 Prerequisite for SpiderMonkey
 ```sh
-sudo apt-get install -y npm
+sudo apt-get install npm
 npm install
 ```
 
