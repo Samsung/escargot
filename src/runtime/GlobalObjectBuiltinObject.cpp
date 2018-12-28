@@ -60,7 +60,7 @@ static Value builtinObjectPreventExtensions(ExecutionState& state, Value thisVal
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().defineProperty.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
     }
     Object* o = argv[0].asObject();
-    o->preventExtensions();
+    o->preventExtensions(state);
     return o;
 }
 
@@ -231,6 +231,35 @@ static Value builtinObjectGetPrototypeOf(ExecutionState& state, Value thisValue,
     return argv[0].asObject()->getPrototype(state);
 }
 
+static Value builtinObjectSetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    Value O = argv[0];
+    Value proto = argv[1];
+    // 1. Let O be ? RequireObjectCoercible(O).
+    if (O.isUndefined() || O.isNull()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().setPrototypeOf.string(), "");
+        return Value();
+    }
+
+    // 2. If Type(proto) is neither Object nor Null, throw a TypeError exception.
+    if (!proto.isObject() && !proto.isNull()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().setPrototypeOf.string(), "");
+        return Value();
+    }
+
+    // 3. If Type(O) is not Object, return O.
+    if (!O.isObject()) {
+        return O;
+    }
+
+    // 4. Let status be ? O.[[SetPrototypeOf]](proto).
+    // 5. If status is false, throw a TypeError exception.
+    O.asObject()->setPrototype(state, proto);
+
+    // 6. Return O.
+    return O;
+}
+
 static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
 #if defined(ESCARGOT_ENABLE_VENDORTEST) || defined(ESCARGOT_SHELL)
@@ -285,7 +314,7 @@ static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t 
     }
 
     // Set the [[Extensible]] internal property of O to false.
-    O->preventExtensions();
+    O->preventExtensions(state);
     // Return O.
     return O;
 }
@@ -386,7 +415,7 @@ static Value builtinObjectIsExtensible(ExecutionState& state, Value thisValue, s
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().seal.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
     }
     // Return the Boolean value of the [[Extensible]] internal property of O.
-    return Value(argv[0].asObject()->isExtensible());
+    return Value(argv[0].asObject()->isExtensible(state));
 }
 
 static Value builtinObjectIsFrozen(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -412,7 +441,7 @@ static Value builtinObjectIsFrozen(ExecutionState& state, Value thisValue, size_
         return Value(false);
 
     // If the [[Extensible]] internal property of O is false, then return true.
-    if (!O->isExtensible())
+    if (!O->isExtensible(state))
         return Value(true);
 
     // Otherwise, return false.
@@ -444,7 +473,7 @@ static Value builtinObjectIsSealed(ExecutionState& state, Value thisValue, size_
         return Value(false);
 
     // If the [[Extensible]] internal property of O is false, then return true.
-    if (!O->isExtensible())
+    if (!O->isExtensible(state))
         return Value(true);
 
     // Otherwise, return false.
@@ -520,7 +549,7 @@ static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t ar
     }
 
     // Set the [[Extensible]] internal property of O to false.
-    O->preventExtensions();
+    O->preventExtensions(state);
     // Return O.
     return O;
 }
@@ -786,6 +815,12 @@ void GlobalObject::installObject(ExecutionState& state)
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.seal),
                                 ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.seal, builtinObjectSeal, 1, nullptr, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // 19.1.2.20 Object.setPrototypeOf ( O, proto )
+    m_object->defineOwnProperty(state, ObjectPropertyName(strings.setPrototypeOf),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.setPrototypeOf, builtinObjectSetPrototypeOf, 2, nullptr, NativeFunctionInfo::Strict)),
+                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
 
     // ES6+ Object.assign
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.assign),

@@ -226,13 +226,13 @@ bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPrope
                         newDesc.setConfigurable(desc.isConfigurable());
                     }
 
-                    bool extensibleBefore = isExtensible();
+                    bool extensibleBefore = isExtensible(state);
                     if (!extensibleBefore) {
                         rareData()->m_isExtensible = true;
                     }
                     bool ret = Object::defineOwnProperty(state, P, newDesc);
                     if (!extensibleBefore) {
-                        preventExtensions();
+                        preventExtensions(state);
                     }
                     return ret;
                 }

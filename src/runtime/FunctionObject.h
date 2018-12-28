@@ -82,6 +82,11 @@ public:
         return true;
     }
 
+    virtual bool isCallable() const
+    {
+        return true;
+    }
+
     CodeBlock* codeBlock()
     {
         return m_codeBlock;

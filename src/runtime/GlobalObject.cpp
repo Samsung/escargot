@@ -176,13 +176,13 @@ ObjectGetResult GlobalObject::getOwnProperty(ExecutionState& state, const Object
     ObjectGetResult r = Object::getOwnProperty(state, P);
     if (!r.hasValue()) {
         if (UNLIKELY((bool)state.context()->virtualIdentifierCallback())) {
-            Object* target = getPrototypeObject();
+            Object* target = getPrototypeObject(state);
             while (target) {
                 auto result = target->getOwnProperty(state, P);
                 if (result.hasValue()) {
                     return r;
                 }
-                target = target->getPrototypeObject();
+                target = target->getPrototypeObject(state);
             }
             Value virtialIdResult = state.context()->virtualIdentifierCallback()(state, P.toPlainValue(state));
             if (!virtialIdResult.isEmpty())
@@ -940,7 +940,7 @@ static Value builtinLookupGetter(ExecutionState& state, Value thisValue, size_t 
             return Value();
         }
         // Set O to ? O.[[GetPrototypeOf]]().
-        O = O->getPrototypeObject();
+        O = O->getPrototypeObject(state);
         // If O is null, return undefined.
     }
     return Value();
@@ -969,7 +969,7 @@ static Value builtinLookupSetter(ExecutionState& state, Value thisValue, size_t 
             return Value();
         }
         // Set O to ? O.[[GetPrototypeOf]]().
-        O = O->getPrototypeObject();
+        O = O->getPrototypeObject(state);
         // If O is null, return undefined.
     }
     return Value();

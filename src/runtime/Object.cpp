@@ -332,6 +332,44 @@ ObjectPropertyDescriptor ObjectPropertyDescriptor::fromObjectStructurePropertyDe
     }
 }
 
+// https://www.ecma-international.org/ecma-262/6.0/#sec-frompropertydescriptor
+Object* ObjectPropertyDescriptor::fromObjectPropertyDescriptor(ExecutionState& state, const ObjectPropertyDescriptor& desc)
+{
+    auto strings = &state.context()->staticStrings();
+    // 1. If Desc is undefined, return undefined.
+    // 2. Let obj be ObjectCreate(%ObjectPrototype%).
+    Object* obj = new Object(state);
+    // 4. If Desc has a [[Value]] field, then
+    if (!desc.isAccessorDescriptor()) {
+        // 4.a Perform CreateDataProperty(obj, "value", Desc.[[Value]]).
+        // 5. If Desc has a [[Writable]] field, then
+        // 5.a Perform CreateDataProperty(obj, "writable", Desc.[[Writable]]).
+        obj->defineOwnProperty(state, ObjectPropertyName(state, strings->value.string()), ObjectPropertyDescriptor(desc.isValuePresent() ? desc.value() : Value(), ObjectPropertyDescriptor::AllPresent));
+        obj->defineOwnProperty(state, ObjectPropertyName(state, strings->writable.string()), ObjectPropertyDescriptor(Value(desc.isWritable()), ObjectPropertyDescriptor::AllPresent));
+    } else {
+        ASSERT(desc.hasJSGetter() || desc.hasJSSetter());
+        // 6. If Desc has a [[Get]] field, then
+        if (desc.hasJSGetter()) {
+            // 6.a. Perform CreateDataProperty(obj, "get", Desc.[[Get]]).
+            obj->defineOwnProperty(state, ObjectPropertyName(state, strings->get.string()), ObjectPropertyDescriptor(desc.getterSetter().getter(), ObjectPropertyDescriptor::AllPresent));
+        }
+        // 7. If Desc has a [[Set]] field, then
+        if (desc.hasJSSetter()) {
+            // 7.a. Perform CreateDataProperty(obj, "set", Desc.[[Set]])
+            obj->defineOwnProperty(state, ObjectPropertyName(state, strings->set.string()), ObjectPropertyDescriptor(desc.getterSetter().setter(), ObjectPropertyDescriptor::AllPresent));
+        }
+    }
+    // 8. If Desc has an [[Enumerable]] field, then
+    // 8.a. Perform CreateDataProperty(obj, "enumerable", Desc.[[Enumerable]]).
+    obj->defineOwnProperty(state, ObjectPropertyName(state, strings->enumerable.string()), ObjectPropertyDescriptor(Value(desc.isEnumerable()), ObjectPropertyDescriptor::AllPresent));
+    // 9. If Desc has a [[Configurable]] field, then
+    // 9.a. Perform CreateDataProperty(obj , "configurable", Desc.[[Configurable]]).
+    obj->defineOwnProperty(state, ObjectPropertyName(state, strings->configurable.string()), ObjectPropertyDescriptor(Value(desc.isConfigurable()), ObjectPropertyDescriptor::AllPresent));
+    // 10. Assert: all of the above CreateDataProperty operations return true.
+    // 11. Return obj.
+    return obj;
+}
+
 size_t g_objectTag;
 
 Object::Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea)
@@ -377,14 +415,17 @@ Object* Object::createFunctionPrototypeObject(ExecutionState& state, FunctionObj
 
 void Object::setPrototype(ExecutionState& state, const Value& value)
 {
-    if (!isExtensible() && (value.isObject() || value.isUndefinedOrNull())) {
+    if (!isExtensible(state) && (value.isObject() || value.isUndefinedOrNull())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't set prototype of this object");
     }
 
     Value it = value;
     while (it.isObject()) {
-        if (it.isObject() && it.asObject() == this)
+        if (it.isObject() && it.asObject() == this) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "cyclic __proto__");
+        } else if (it.isObject() && !it.asObject()->isOrdinary()) {
+            break;
+        }
         Value proto = it.asObject()->getPrototype(state);
         it = proto;
     }
@@ -419,13 +460,11 @@ void Object::markAsPrototypeObject(ExecutionState& state)
     }
 }
 
-// http://www.ecma-international.org/ecma-262/6.0/#sec-ordinarygetownproperty
 ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     if (propertyName.isUIntType() && !m_structure->hasIndexPropertyName()) {
         return ObjectGetResult();
     }
-
     PropertyName P = propertyName.toPropertyName(state);
     size_t idx = m_structure->findProperty(state, P);
     if (LIKELY(idx != SIZE_MAX)) {
@@ -459,7 +498,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
     size_t oldIdx = m_structure->findProperty(state, propertyName);
     if (oldIdx == SIZE_MAX) {
         // 3. If current is undefined and extensible is false, then Reject.
-        if (UNLIKELY(!isExtensible())) {
+        if (UNLIKELY(!isExtensible(state))) {
             return false;
         }
 
@@ -528,18 +567,20 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
                 // and set the rest of the property's attributes to their default values.
                 newDesc = ObjectPropertyDescriptor(desc.isValuePresent() ? desc.value() : Value(), (ObjectPropertyDescriptor::PresentAttribute)f);
             }
-        }
-        // Else, if IsDataDescriptor(current) and IsDataDescriptor(Desc) are both true, then
-        else if (current.isDataProperty() && desc.isDataDescriptor()) {
-            // If the [[Configurable]] and [[Writable]] fields of current are false, then
-            if (!current.isConfigurable() && !current.isWritable()) {
-                // Reject, if the [[Writable]] field of Desc is true.
-                if (desc.isWritable()) {
+            // Else, if IsDataDescriptor(current) and IsDataDescriptor(Desc) are both true, then
+        } else if (item.m_descriptor.isDataProperty() && desc.isDataDescriptor()) {
+            // If the [[Configurable]] field of current is false, then
+            if (!item.m_descriptor.isConfigurable()) {
+                // Reject, if the [[Writable]] field of current is false and the [[Writable]] field of Desc is true.
+                if (!item.m_descriptor.isWritable() && desc.isWritable()) {
                     return false;
                 }
-                // Reject, if the [[Value]] field of Desc is present and SameValue(Desc.[[Value]], current.[[Value]]) is false.
-                if (desc.isValuePresent() && !desc.value().equalsToByTheSameValueAlgorithm(state, getOwnDataPropertyUtilForObject(state, idx, this))) {
-                    return false;
+                // If the [[Writable]] field of current is false, then
+                if (!item.m_descriptor.isWritable()) {
+                    // Reject, if the [[Value]] field of Desc is present and SameValue(Desc.[[Value]], current.[[Value]]) is false.
+                    if (desc.isValuePresent() && !desc.value().equalsToByTheSameValueAlgorithm(state, getOwnDataPropertyUtilForObject(state, idx, this))) {
+                        return false;
+                    }
                 }
             }
         }
@@ -674,84 +715,106 @@ ValueVector Object::getOwnPropertyKeys(ExecutionState& state)
     return result;
 }
 
+// https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-get-p-receiver
 ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& propertyName)
 {
-    Object* target = this;
-    while (true) {
-        auto result = target->getOwnProperty(state, propertyName);
-        if (result.hasValue()) {
-            return result;
-        }
-        target = target->getPrototypeObject();
-        if (!target) {
+    // 2. Let desc be ? O.[[GetOwnProperty]](P).
+    auto desc = this->getOwnProperty(state, propertyName);
+    // 4. If desc is undefined, then
+    if (!desc.hasValue()) {
+        // 4.a. Let parent be ? O.[[GetPrototypeOf]]().
+        Object* parent = this->getPrototypeObject(state);
+        // 4.c. If parent is null, return undefined.
+        if (!parent) {
             return ObjectGetResult();
         }
+        // 4.c. Return parent.[[Get]](P, Receiver).
+        return parent->get(state, propertyName);
     }
+    // FIXME need to implement spec after this line
+    return desc;
 }
 
-// http://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-set-p-v-receiver
+// https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-set-p-v-receiver
 bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, const Value& receiver)
 {
-    auto desc = getOwnProperty(state, propertyName);
-    if (!desc.hasValue()) {
-        Value target = this->getPrototype(state);
-        while (target.isObject()) {
-            Object* O = target.asObject();
-            auto desc = O->getOwnProperty(state, propertyName);
-            if (desc.hasValue()) {
-                return O->set(state, propertyName, v, receiver);
-            }
-            target = O->getPrototype(state);
-        }
-        ObjectPropertyDescriptor desc(v, ObjectPropertyDescriptor::AllPresent);
-        return defineOwnProperty(state, propertyName, desc);
-    } else {
-        // If IsDataDescriptor(ownDesc) is true, then
-        if (desc.isDataProperty()) {
-            // If ownDesc.[[Writable]] is false, return false.
-            if (!desc.isWritable()) {
-                return false;
-            }
-
-            if (!receiver.isObject())
-                return false;
-            Object* receiverObj = receiver.toObject(state);
-            // Let existingDescriptor be Receiver.[[GetOwnProperty]](P).
-            auto receiverDesc = receiverObj->getOwnProperty(state, propertyName);
-            // If existingDescriptor is not undefined, then
-            if (receiverDesc.hasValue()) {
-                // If IsAccessorDescriptor(existingDescriptor) is true, return false.
-                if (!receiverDesc.isDataProperty()) {
-                    return false;
-                }
-                // If existingDescriptor.[[Writable]] is false, return false
-                if (!receiverDesc.isWritable()) {
-                    return false;
-                }
-                // Let valueDesc be the PropertyDescriptor{[[Value]]: V}.
-                ObjectPropertyDescriptor desc(v);
-                return receiverObj->defineOwnProperty(state, propertyName, desc);
-            } else {
-                // Else Receiver does not currently have a property P,
-                // Return CreateDataProperty(Receiver, P, V).
-                ObjectPropertyDescriptor newDesc(v, ObjectPropertyDescriptor::AllPresent);
-                return receiverObj->defineOwnProperty(state, propertyName, newDesc);
-            }
+    // 2. Let ownDesc be O.[[GetOwnProperty]](P).
+    auto ownDesc = this->getOwnProperty(state, propertyName);
+    // 4. If ownDesc is undefined, then
+    if (!ownDesc.hasValue()) {
+        // FIXME need to optimize prototype iteration
+        // 4.a. Let parent be O.[[GetPrototypeOf]]().
+        Value parent = this->getPrototype(state);
+        // 4.c. If parent is not null, then
+        if (parent.isObject()) {
+            // 4.c.i. Return parent.[[Set]](P, V, Receiver).
+            return parent.asObject()->set(state, propertyName, v, receiver);
         } else {
-            // Let setter be ownDesc.[[Set]].
-            Value setter = desc.jsGetterSetter()->hasSetter() ? desc.jsGetterSetter()->setter() : Value();
-
-            // If setter is undefined, return false.
-            if (setter.isUndefined()) {
-                return false;
-            }
-
-            // Let setterResult be Call(setter, Receiver, «V»).
-            Value argv[] = { v };
-            FunctionObject::call(state, setter, receiver, 1, argv);
-            return true;
+            // 4.d.i. Let ownDesc be the PropertyDescriptor{[[Value]]: undefined, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}.
+            ownDesc = ObjectGetResult(Value(), true, true, true);
         }
     }
+    // 5. If IsDataDescriptor(ownDesc) is true, then
+    if (ownDesc.isDataProperty()) {
+        // 5.a. If ownDesc.[[Writable]] is false, return false.
+        if (!ownDesc.isWritable()) {
+            return false;
+        }
+        // 5.b. If Type(Receiver) is not Object, return false.
+        if (!receiver.isObject()) {
+            return false;
+        }
+        // 5.c. Let existingDescriptor be Receiver.[[GetOwnProperty]](P).
+        Object* receiverObj = receiver.asObject();
+        auto existingDesc = receiverObj->getOwnProperty(state, propertyName);
+        // 5.e. If existingDescriptor is not undefined, then
+        if (existingDesc.hasValue()) {
+            // 5.e.i. If IsAccessorDescriptor(existingDescriptor) is true, return false.
+            if (!existingDesc.isDataProperty()) {
+                return false;
+            }
+            // 5.e.ii. If existingDescriptor.[[Writable]] is false, return false.
+            if (!existingDesc.isWritable()) {
+                return false;
+            }
+            // 5.e.iii. Let valueDesc be the PropertyDescriptor{[[Value]]: V}.
+            ObjectPropertyDescriptor propertyDesc(v);
+            // 5.e.iv. Return Receiver.[[DefineOwnProperty]](P, valueDesc).
+            return receiverObj->defineOwnProperty(state, propertyName, propertyDesc);
+        }
+        // 5.f. Else Receiver does not currently have a property P,
+        // 5.f.i Return CreateDataProperty(Receiver, P, V).
+        return receiverObj->defineOwnProperty(state, propertyName, ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+    }
+    // 6. Assert: IsAccessorDescriptor(ownDesc) is true.
+    ASSERT(!ownDesc.isDataProperty());
+    // 7. Let setter be ownDesc.[[Set]].
+    Value setter = ownDesc.jsGetterSetter()->hasSetter() ? ownDesc.jsGetterSetter()->setter() : Value();
+    // 8. If setter is undefined, return false.
+    if (setter.isUndefined()) {
+        return false;
+    }
+    // 9. Let setterResult be Call(setter, Receiver, «V»).
+    Value argv[] = { v };
+    FunctionObject::call(state, setter, receiver, 1, argv);
+    return true;
+}
+
+// https://www.ecma-international.org/ecma-262/6.0/#sec-getmethod
+Value Object::getMethod(ExecutionState& state, const ObjectPropertyName& propertyName)
+{
+    // 2. Let func be GetV(O, P).
+    Value func = this->get(state, propertyName).value(state, this);
+    // 4. If func is either undefined or null, return undefined.
+    if (func.isUndefinedOrNull()) {
+        return Value();
+    }
+    // 5. If IsCallable(func) is false, throw a TypeError exception.
+    if (!func.isObject() || !func.asObject()->isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, String::emptyString, false, String::emptyString, "%s: return value of getMethod is not callable");
+    }
+    // 6. Return func.
+    return func;
 }
 
 void Object::setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver)
@@ -971,11 +1034,11 @@ bool Object::defineNativeDataAccessorProperty(ExecutionState& state, const Objec
 {
     if (hasOwnProperty(state, P))
         return false;
-    if (!isExtensible())
+    if (!isExtensible(state))
         return false;
 
     ASSERT(!hasOwnProperty(state, P));
-    ASSERT(isExtensible());
+    ASSERT(isExtensible(state));
 
     m_structure = m_structure->addProperty(state, P.toPropertyName(state), ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(data));
     m_values.pushBack(objectInternalData, m_structure->propertyCount());

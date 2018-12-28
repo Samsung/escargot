@@ -106,7 +106,7 @@ public:
     {
         throwBuiltinError(state, code, String::emptyString, false, String::emptyString, templateString);
     }
-    static void throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototoype, String* functionName, const char* templateString);
+    static void throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString);
     static ErrorObject* createError(ExecutionState& state, ErrorObject::Code code, String* errorMessage);
     ErrorObject(ExecutionState& state, String* errorMessage);
     virtual bool isErrorObject() const

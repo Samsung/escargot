@@ -363,7 +363,7 @@ bool ArrayObject::setFastModeValue(ExecutionState& state, const ObjectPropertyNa
             }
 
             if (UNLIKELY(len <= idx)) {
-                if (UNLIKELY(!isExtensible())) {
+                if (UNLIKELY(!isExtensible(state))) {
                     return false;
                 }
                 if (UNLIKELY(!setArrayLength(state, idx + 1)) || UNLIKELY(!isFastModeArray())) {
@@ -401,7 +401,7 @@ bool ArrayObject::setIndexedProperty(ExecutionState& state, const Value& propert
         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
             uint32_t len = getArrayLength(state);
             if (UNLIKELY(len <= idx)) {
-                if (UNLIKELY(!isExtensible())) {
+                if (UNLIKELY(!isExtensible(state))) {
                     return false;
                 }
                 if (UNLIKELY(!setArrayLength(state, idx + 1)) || UNLIKELY(!isFastModeArray())) {
