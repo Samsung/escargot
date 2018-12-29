@@ -72,7 +72,7 @@ ENDIF()
 
 
 #######################################################
-# PATH 
+# PATH
 #######################################################
 SET (ESCARGOT_ROOT ${PROJECT_SOURCE_DIR})
 SET (ESCARGOT_THIRD_PARTY_ROOT ${ESCARGOT_ROOT}/third_party)
@@ -88,7 +88,7 @@ ENDIF()
 
 
 #######################################################
-# FLAGS FOR COMMON 
+# FLAGS FOR COMMON
 #######################################################
 # ESCARGOT COMMON CXXFLAGS
 SET (ESCARGOT_CXXFLAGS_COMMON "$ENV{CXXFLAGS}")
@@ -181,10 +181,10 @@ SET (ESCARGOT_LDFLAGS_TIZEN)
 SET (ESCARGOT_LDFLAGS_TIZEN "${ESCARGOT_LDFLAGS_TIZEN} -lpthread -lrt")
 IF (${ESCARGOT_HOST} MATCHES "tizen_" AND NOT ${ESCARGOT_HOST} STREQUAL "tizen_obs")
     IF (${ESCARGOT_ARCH} STREQUAL "arm")
-	    SET (ESCARGOT_LDFLAGS_TIZEN "${ESCARGOT_LDFLAGS_TIZEN} -Ldeps/tizen/lib/tizen-wearable-${TIZEN_VERSION}-target-arm")
+        SET (ESCARGOT_LDFLAGS_TIZEN "${ESCARGOT_LDFLAGS_TIZEN} -Ldeps/tizen/lib/tizen-wearable-${TIZEN_VERSION}-target-arm")
         SET (ESCARGOT_LDFLAGS_TIZEN "${ESCARGOT_LDFLAGS_TIZEN} -licuio -licui18n -licuuc -licudata")
     ELSEIF (${ESCARGOT_ARCH} STREQUAL "i386")
-	    SET (ESCARGOT_LDFLAGS_TIZEN "${ESCARGOT_LDFLAGS_TIZEN} -Ldeps/tizen/lib/tizen-wearable-${TIZEN_VERSION}-emulator-x86")
+        SET (ESCARGOT_LDFLAGS_TIZEN "${ESCARGOT_LDFLAGS_TIZEN} -Ldeps/tizen/lib/tizen-wearable-${TIZEN_VERSION}-emulator-x86")
         SET (ESCARGOT_LDFLAGS_TIZEN "${ESCARGOT_LDFLAGS_TIZEN} -licuio -licui18n -licuuc -licudata")
     ENDIF()
 ENDIF()
