@@ -22,7 +22,7 @@
 #include "Heap.h"
 #include "LeakChecker.h"
 
-#include <malloc.h>
+#include <stdlib.h>
 
 namespace Escargot {
 
