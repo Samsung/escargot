@@ -1053,7 +1053,7 @@ public:
         // 'yield' and 'let' are for compatibility with SpiderMonkey and ES.next.
         // Some others are from future reserved words.
 
-        register size_t length = data.length;
+        size_t length = data.length;
         char16_t first = data.charAt(0);
         char16_t second;
         switch (first) {
