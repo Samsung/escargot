@@ -368,6 +368,11 @@ public:
         return tag == *((size_t*)(this));
     }
 
+    size_t getTag() const
+    {
+        return *((size_t*)(this));
+    }
+
     bool hasTagInFirstDataArea(const size_t tag) const
     {
         return tag == *((size_t*)(this) + 1);
