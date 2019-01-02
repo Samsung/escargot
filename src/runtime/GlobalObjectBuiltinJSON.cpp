@@ -418,7 +418,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         }
         if (value.isObject()) {
             if (!value.isFunction()) {
-                if (value.asObject()->isArrayObject() || value.asObject()->isTypedArrayObject()) {
+                if (value.asObject()->isArrayObject()) {
                     return JA(value.asObject()->asArrayObject());
                 } else {
                     return JO(value.asObject());
