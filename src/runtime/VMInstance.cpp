@@ -181,14 +181,11 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
     }
 #endif
 
-    DoubleInSmallValue temp(0);
-    memcpy(&g_doubleInSmallValueTag, &temp, sizeof(size_t));
+    g_doubleInSmallValueTag = DoubleInSmallValue(0).getTag();
 
-    ObjectRareData data(nullptr);
-    memcpy(&g_objectRareDataTag, &data, sizeof(size_t));
+    g_objectRareDataTag = ObjectRareData(nullptr).getTag();
 
-    Symbol sm(nullptr);
-    g_symbolTag = *((size_t*)&sm);
+    g_symbolTag = Symbol(nullptr).getTag();
 
 #define DECLARE_GLOBAL_SYMBOLS(name) m_globalSymbols.name = new Symbol(String::fromASCII("Symbol." #name));
     DEFINE_GLOBAL_SYMBOLS(DECLARE_GLOBAL_SYMBOLS);

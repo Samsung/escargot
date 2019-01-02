@@ -802,7 +802,7 @@ protected:
     ObjectRareData* rareData() const
     {
         if ((size_t)m_prototype > 2) {
-            if ((g_objectRareDataTag == *((size_t*)(m_prototype)))) {
+            if (g_objectRareDataTag == *((size_t*)(m_prototype))) {
                 return (ObjectRareData*)m_prototype;
             }
         }
