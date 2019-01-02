@@ -5,6 +5,8 @@
 
 ## Prerequisites
 
+#### On Ubuntu Linux
+
 General build prerequisites:
 ```sh
 sudo apt-get install autoconf automake libtool libicu-dev
@@ -14,6 +16,20 @@ Prerequisites for x86-64-to-x86 compilation:
 ```sh
 sudo apt-get install gcc-multilib g++-multilib
 sudo apt-get install libicu-dev:i386
+```
+
+#### On macOS
+
+```sh
+brew install autoconf automake cmake icu4c libtool ninja pkg-config
+```
+
+Note: For later build steps (cmake, pkg-config) to find ICU libraries, you may
+need to set the `PKG_CONFIG_PATH` environment variable, as instructed by brew.
+E.g.:
+
+```sh
+export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig"
 ```
 
 ## Build Escargot
@@ -30,13 +46,13 @@ ninja
 
 The following build options are supported when generating ninja rules using cmake.
 
-* -DESCARGOT_HOST=[ linux | tizen_obs ]<br>
-  Compile Escargot for either Linux or Tizen platform
+* -DESCARGOT_HOST=[ linux | tizen_obs | darwin ]<br>
+  Compile Escargot for Linux, Tizen, or macOS platform
 * -DESCARGOT_ARCH=[ x64 | x86 | arm | i686 | aarch64 ]<br>
   Compile Escargot for each architecture
 * -DESCARGOT_MODE=[ debug | release ]<br>
   Compile Escargot for either release or debug mode
-* -DESCARGOT_OUTPUT=[ bin | shared_lib | static_lib ]<br> 
+* -DESCARGOT_OUTPUT=[ bin | shared_lib | static_lib ]<br>
   Define target output type
 
 ## Testing
