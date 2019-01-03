@@ -52,8 +52,10 @@ The following build options are supported when generating ninja rules using cmak
   Compile Escargot for each architecture
 * -DESCARGOT_MODE=[ debug | release ]<br>
   Compile Escargot for either release or debug mode
-* -DESCARGOT_OUTPUT=[ bin | shared_lib | static_lib ]<br>
-  Define target output type
+* -DESCARGOT_OUTPUT=[ bin ]<br>
+  Define whether to compile shell
+* -DBUILD_SHARED_LIBS=[ ON | OFF ]<br>
+  Define engine library type
 
 ## Testing
 

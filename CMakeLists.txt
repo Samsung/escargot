@@ -27,3 +27,8 @@ ADD_SUBDIRECTORY (third_party)
 # INCLUDE CMAKE FILES
 INCLUDE (${PROJECT_SOURCE_DIR}/build/config.cmake)
 INCLUDE (${PROJECT_SOURCE_DIR}/build/escargot.cmake)
+
+ADD_SUBDIRECTORY (src)
+IF (${ESCARGOT_OUTPUT} STREQUAL "bin")
+    ADD_SUBDIRECTORY (src/shell)
+ENDIF()
