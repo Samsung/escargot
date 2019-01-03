@@ -202,6 +202,47 @@ def run_jsc_stress(engine, arch):
         env={'PYTHONPATH': '.'})
 
 
+def _run_regression_tests(engine, assert_js, files, is_fail):
+    fails = 0
+    for file in files:
+        proc = Popen([engine, assert_js, file], stdout=PIPE)
+        out, _ = proc.communicate()
+
+        if is_fail and proc.returncode or not is_fail and not proc.returncode:
+            print('%sOK: %s%s' % (COLOR_GREEN, file, COLOR_RESET))
+        else:
+            print('%sFAIL(%d): %s%s' % (COLOR_RED, proc.returncode, file, COLOR_RESET))
+            print(out)
+
+            fails += 1
+
+    return fails
+
+
+@runner('regression-tests', default=True)
+def run_regression_tests(engine, arch):
+    REGRESSION_DIR = join(PROJECT_SOURCE_DIR, 'test', 'regression-tests')
+    REGRESSION_XFAIL_DIR = join(REGRESSION_DIR, 'xfail')
+    REGRESSION_ASSERT_JS = join(REGRESSION_DIR, 'assert.js')
+
+    print('Running regression tests:')
+    xpass = glob(join(REGRESSION_DIR, 'issue-*.js'))
+    xpass_result = _run_regression_tests(engine, REGRESSION_ASSERT_JS, xpass, False)
+
+    print('Running regression tests expected to fail:')
+    xfail = glob(join(REGRESSION_XFAIL_DIR, 'issue-*.js'))
+    xfail_result = _run_regression_tests(engine, REGRESSION_ASSERT_JS, xfail, True)
+
+    tests_total = len(xpass) + len(xfail)
+    fail_total = xfail_result + xpass_result
+    print('TOTAL: %d' % (tests_total))
+    print('%sPASS : %d%s' % (COLOR_GREEN, tests_total - fail_total, COLOR_RESET))
+    print('%sFAIL : %d%s' % (COLOR_RED, fail_total, COLOR_RESET))
+
+    if fail_total > 0:
+        raise Exception("Regression tests failed")
+
+
 def _run_jetstream(engine, target_test):
     JETSTREAM_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver', 'jetstream')
     JETSTREAM_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'JetStream-1.1')
