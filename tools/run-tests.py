@@ -155,7 +155,14 @@ def run_spidermonkey(engine, arch):
     SPIDERMONKEY_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver')
     SPIDERMONKEY_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'SpiderMonkey')
 
-    run(['nodejs', join(PROJECT_SOURCE_DIR, 'node_modules', '.bin', 'babel'), join(SPIDERMONKEY_DIR, 'ecma_6', 'Promise'), '--out-dir', join(SPIDERMONKEY_DIR, 'ecma_6', 'Promise')])
+    for nodejs in ['nodejs', 'node']:
+        try:
+            run([nodejs, '-v'])
+            break
+        except Exception:
+            continue
+
+    run([nodejs, join(PROJECT_SOURCE_DIR, 'node_modules', '.bin', 'babel'), join(SPIDERMONKEY_DIR, 'ecma_6', 'Promise'), '--out-dir', join(SPIDERMONKEY_DIR, 'ecma_6', 'Promise')])
     copy(join(SPIDERMONKEY_OVERRIDE_DIR, 'spidermonkey.shell.js'), join(SPIDERMONKEY_DIR, 'shell.js'))
     copy(join(SPIDERMONKEY_OVERRIDE_DIR, 'spidermonkey.js1_8_1.jit.shell.js'), join(SPIDERMONKEY_DIR, 'js1_8_1', 'jit', 'shell.js'))
     copy(join(SPIDERMONKEY_OVERRIDE_DIR, 'spidermonkey.ecma_6.shell.js'), join(SPIDERMONKEY_DIR, 'ecma_6', 'shell.js'))
