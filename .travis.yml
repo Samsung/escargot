@@ -14,6 +14,41 @@ matrix:
       script:
         - python tools/check_tidy.py
 
+    - name: "darwin.x64.release"
+      os: osx
+      before_install: # override installation of common linux build dependencies (invalid for darwin)
+        - for PKG in autoconf automake cmake icu4c libtool ninja pkg-config; do brew list $PKG &>/dev/null || brew install $PKG; done
+      env:
+        - PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig
+      script:
+        - cmake -H. -Bout/darwin/x64/release -DESCARGOT_HOST=darwin -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -GNinja
+        - ninja -Cout/darwin/x64/release
+        - cp ./out/darwin/x64/release/escargot ./escargot
+        - travis_wait 30 tools/run-tests.py --arch=x86_64 jetstream-only-simple
+        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal octane jsc-stress
+        # FIXME: chakracore fails on darwin
+        # ChakraCore's test runner uses `readlink -f` to determine the test root directory.
+        # However, `readlink` has no `-f` option on macOS.
+
+    - name: "darwin.x64.release (-DVENDORTEST=1)"
+      os: osx
+      before_install: # override installation of common linux build dependencies (invalid for darwin)
+        - for PKG in autoconf automake cmake icu4c libtool ninja node pkg-config; do brew list $PKG &>/dev/null || brew install $PKG; done
+        - npm install
+      env:
+        - PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig
+      script:
+        - cmake -H. -Bout/darwin/x64/release -DESCARGOT_HOST=darwin -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
+        - ninja -Cout/darwin/x64/release
+        - cp ./out/darwin/x64/release/escargot ./escargot
+        - tools/run-tests.py --arch=x86_64 v8
+        # FIXME: spidermonkey fails on darwin
+        # SpiderMonkey's ecma/String/15.5.4.12-3.js tests String.prototype.toUpperCase(),
+        # which relies on ICU. Recent ICU versions (installed on macOS) support Unicode 11.0,
+        # which returns upper case letters from the Gregorian Extended block (0x1C90-0x1CBF)
+        # for Gregorian letters (0x10D0-0x10FF). Unfortunately, the test case expects
+        # Unicode 1.0 compatible(?) behaviour, i.e., to return letters unmodified.
+
     - name: "linux.x64.release"
       install:
         - sudo apt-get install -y libicu-dev
@@ -76,41 +111,6 @@ matrix:
         - ninja -Cout/linux/x86/release
         - cp ./out/linux/x86/release/escargot ./escargot
         - tools/run-tests.py --arch=x86 v8 spidermonkey
-
-    - name: "darwin.x64.release"
-      os: osx
-      before_install: # override installation of common linux build dependencies (invalid for darwin)
-        - for PKG in autoconf automake cmake icu4c libtool ninja pkg-config; do brew list $PKG &>/dev/null || brew install $PKG; done
-      env:
-        - PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig
-      script:
-        - cmake -H. -Bout/darwin/x64/release -DESCARGOT_HOST=darwin -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -GNinja
-        - ninja -Cout/darwin/x64/release
-        - cp ./out/darwin/x64/release/escargot ./escargot
-        - travis_wait 30 tools/run-tests.py --arch=x86_64 jetstream-only-simple
-        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal octane jsc-stress
-        # FIXME: chakracore fails on darwin
-        # ChakraCore's test runner uses `readlink -f` to determine the test root directory.
-        # However, `readlink` has no `-f` option on macOS.
-
-    - name: "darwin.x64.release (-DVENDORTEST=1)"
-      os: osx
-      before_install: # override installation of common linux build dependencies (invalid for darwin)
-        - for PKG in autoconf automake cmake icu4c libtool ninja node pkg-config; do brew list $PKG &>/dev/null || brew install $PKG; done
-        - npm install
-      env:
-        - PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig
-      script:
-        - cmake -H. -Bout/darwin/x64/release -DESCARGOT_HOST=darwin -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
-        - ninja -Cout/darwin/x64/release
-        - cp ./out/darwin/x64/release/escargot ./escargot
-        - tools/run-tests.py --arch=x86_64 v8
-        # FIXME: spidermonkey fails on darwin
-        # SpiderMonkey's ecma/String/15.5.4.12-3.js tests String.prototype.toUpperCase(),
-        # which relies on ICU. Recent ICU versions (installed on macOS) support Unicode 11.0,
-        # which returns upper case letters from the Gregorian Extended block (0x1C90-0x1CBF)
-        # for Gregorian letters (0x10D0-0x10FF). Unfortunately, the test case expects
-        # Unicode 1.0 compatible(?) behaviour, i.e., to return letters unmodified.
 
     - name: "SonarQube"
       addons:
