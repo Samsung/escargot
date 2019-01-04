@@ -286,6 +286,7 @@ def run_v8(engine, arch):
                   '--report',
                   '-p', 'verbose',
                   '--no-sorting',
+                  '--no-network',
                   'mjsunit'],
                  stdout=PIPE,
                  checkresult=False)
@@ -297,11 +298,8 @@ def run_v8(engine, arch):
     # observed exit code is that of the last element of the pipe, which is
     # tee in that case (which is always 0).
 
-    with open(join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver', 'v8.%s.mjsunit.gen.txt' % arch), 'w') as msunit_gen_txt:
-        msunit_gen_txt.write(stdout)
-    run(['diff',
-         join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver', 'v8.%s.mjsunit.orig.txt' % arch),
-         join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver', 'v8.%s.mjsunit.gen.txt' % arch)])
+    if '=== All tests succeeded' not in stdout:
+        raise Exception('Not all tests succeeded')
 
 
 def main():
