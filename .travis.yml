@@ -1,23 +1,21 @@
-sudo: required
 language: cpp
 compiler:
   - gcc
 
-before_install:
-  - sudo apt-get install -y autoconf automake libtool ninja-build
-
 matrix:
   include:
     - name: "check"
-      before_install: # skip installation of common build dependencies (not needed for checks)
-        - sudo apt-get install -y clang-format-3.8
+      addons:
+        apt:
+          packages: [ clang-format-3.8 ]
       script:
         - python tools/check_tidy.py
 
     - name: "darwin.x64.release"
       os: osx
-      before_install: # override installation of common linux build dependencies (invalid for darwin)
-        - for PKG in autoconf automake cmake icu4c libtool ninja pkg-config; do brew list $PKG &>/dev/null || brew install $PKG; done
+      addons:
+        homebrew:
+          packages: [ autoconf, automake, cmake, libtool, ninja, pkg-config, icu4c ]
       env:
         - PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig
       script:
@@ -32,8 +30,10 @@ matrix:
 
     - name: "darwin.x64.release (-DVENDORTEST=1)"
       os: osx
-      before_install: # override installation of common linux build dependencies (invalid for darwin)
-        - for PKG in autoconf automake cmake icu4c libtool ninja node pkg-config; do brew list $PKG &>/dev/null || brew install $PKG; done
+      addons:
+        homebrew:
+          packages: [ autoconf, automake, cmake, libtool, ninja, pkg-config, icu4c ]
+      install:
         - npm install
       env:
         - PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig
@@ -50,8 +50,9 @@ matrix:
         # Unicode 1.0 compatible(?) behaviour, i.e., to return letters unmodified.
 
     - name: "linux.x64.release"
-      install:
-        - sudo apt-get install -y libicu-dev
+      addons:
+        apt:
+          packages: [ autoconf, automake, libtool, ninja-build, libicu-dev ]
       script:
         - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -GNinja
         - ninja -Cout/linux/x64/release
@@ -60,8 +61,9 @@ matrix:
         - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal octane chakracore jsc-stress
 
     - name: "linux.x64.debug"
-      install:
-        - sudo apt-get install -y libicu-dev
+      addons:
+        apt:
+          packages: [ autoconf, automake, libtool, ninja-build, libicu-dev ]
       script:
         - cmake -H. -Bout/linux/x64/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin -GNinja
         - ninja -Cout/linux/x64/debug
@@ -69,9 +71,9 @@ matrix:
         - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal
 
     - name: "linux.x86.release"
-      install:
-        - sudo apt-get install -y gcc-multilib g++-multilib
-        - "sudo apt-get install -y libicu-dev:i386"
+      addons:
+        apt:
+          packages: [ autoconf, automake, libtool, ninja-build, gcc-multilib g++-multilib, "libicu-dev:i386" ]
       script:
         - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -GNinja
         - ninja -Cout/linux/x86/release
@@ -80,9 +82,9 @@ matrix:
         - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js test262 internal octane chakracore jsc-stress
 
     - name: "linux.x86.debug"
-      install:
-        - sudo apt-get install -y gcc-multilib g++-multilib
-        - "sudo apt-get install -y libicu-dev:i386"
+      addons:
+        apt:
+          packages: [ autoconf, automake, libtool, ninja-build, gcc-multilib g++-multilib, "libicu-dev:i386" ]
       script:
         - cmake -H. -Bout/linux/x86/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin -GNinja
         - ninja -Cout/linux/x86/debug
@@ -90,9 +92,10 @@ matrix:
         - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js test262 internal
 
     - name: "linux.x64.release (-DVENDORTEST=1)"
+      addons:
+        apt:
+          packages: [ autoconf, automake, libtool, ninja-build, libicu-dev, npm ]
       install:
-        - sudo apt-get install -y libicu-dev
-        - sudo apt-get install -y npm
         - npm install
       script:
         - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
@@ -101,10 +104,10 @@ matrix:
         - tools/run-tests.py --arch=x86_64 v8 spidermonkey
 
     - name: "linux.x86.release (-DVENDORTEST=1)"
+      addons:
+        apt:
+          packages: [ autoconf, automake, libtool, ninja-build, gcc-multilib g++-multilib, "libicu-dev:i386", npm ]
       install:
-        - sudo apt-get install -y gcc-multilib g++-multilib
-        - "sudo apt-get install -y libicu-dev:i386"
-        - sudo apt-get install -y npm
         - npm install
       script:
         - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
@@ -114,13 +117,13 @@ matrix:
 
     - name: "SonarQube"
       addons:
+        apt:
+          packages: [ autoconf, automake, libtool, ninja-build, libicu-dev ]
         sonarcloud:
           organization: "pando-project"
       cache:
         directories:
           - '$HOME/.sonar/cache'
-      install:
-        - sudo apt-get install -y libicu-dev
       script:
         - ./tools/check_sonarqube.sh
 
