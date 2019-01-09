@@ -22,6 +22,8 @@ ES5 specification is fully supported with Escargot.
 | | TypedArray.BYTES_PER_ELEMENT | data property | |
 | | TypedArray.prototype.BYTES_PER_ELEMENT | data property | |
 | | TypedArray.prototype.constructor | data property | |
+| | TypedArray.prototype.copyWithin (target, start [, end]) | method | |
+| | TypedArray.prototype.every (callbackfn [, thisArg]) | method | |
 | | getter of TypedArray.prototype.byteLength | accessor property | |
 | | getter of TypedArray.prototype.byteOffset | accessor property | |
 | | getter of TypedArray.prototype.length | accessor property | |

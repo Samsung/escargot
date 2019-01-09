@@ -237,10 +237,85 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
     return obj;
 }
 
+Value validateTypedArray(ExecutionState& state, Object* thisObject, String* func)
+{
+    const StaticStrings* strings = &state.context()->staticStrings();
+    if (!thisObject->isTypedArrayObject() || !thisObject->isArrayBufferView()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, errorMessage_GlobalObject_ThisNotTypedArrayObject);
+    }
+
+    auto wrapper = thisObject->asArrayBufferView();
+    ArrayBufferObject* buffer = wrapper->buffer();
+    if (buffer->isDetachedBuffer()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, errorMessage_GlobalObject_DetachedBuffer);
+    }
+    return buffer;
+}
+
 Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    // Let O be ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, copyWithin);
+    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
+    validateTypedArray(state, O, state.context()->staticStrings().copyWithin.string());
+
+    // Array.prototype.copyWithin as defined in 22.1.3.3 except
+    // that the this object’s [[ArrayLength]] internal slot is accessed
+    // in place of performing a [[Get]] of "length"
+    double len = O->asArrayBufferView()->arraylength();
+
+    // Let relativeTarget be ToInteger(target).
+    double relativeTarget = argv[0].toInteger(state);
+    // If relativeTarget < 0, let to be max((len + relativeTarget),0); else let to be min(relativeTarget, len).
+    double to = (relativeTarget < 0.0) ? std::max((len + relativeTarget), 0.0) : std::min(relativeTarget, len);
+
+    // Let relativeStart be ToInteger(start).
+    double relativeStart = argv[1].toInteger(state);
+    // If relativeStart < 0, let from be max((len + relativeStart),0); else let from be min(relativeStart, len).
+    double from = (relativeStart < 0.0) ? std::max((len + relativeStart), 0.0) : std::min(relativeStart, len);
+
+    // If end is undefined, let relativeEnd be len; else let relativeEnd be ToInteger(end).
+    double relativeEnd = (argc <= 2 || argv[2].isUndefined()) ? len : argv[2].toInteger(state);
+    // If relativeEnd < 0, let final be max((len + relativeEnd),0); else let final be min(relativeEnd, len).
+    double finalEnd = (relativeEnd < 0.0) ? std::max((len + relativeEnd), 0.0) : std::min(relativeEnd, len);
+
+    // Let count be min(final-from, len-to).
+    double count = std::min(finalEnd - from, len - to);
+    int8_t direction;
+    // If from<to and to<from+count
+    if (from < to && to < from + count) {
+        // Let direction be -1.
+        direction = -1;
+        // Let from be from + count -1.
+        from = from + count - 1;
+        // Let to be to + count -1.
+        to = to + count - 1;
+    } else {
+        // Let direction = 1.
+        direction = 1;
+    }
+
+    // Repeat, while count > 0
+    while (count > 0) {
+        // Let fromPresent be HasProperty(O, fromKey).
+        ObjectGetResult fromValue = O->getIndexedProperty(state, Value(from));
+        // If fromPresent is true, then
+        if (fromValue.hasValue()) {
+            // Let setStatus be Set(O, toKey, fromVal, true).
+            O->setIndexedPropertyThrowsException(state, Value(to), fromValue.value(state, O));
+        } else {
+            // Let deleteStatus be DeletePropertyOrThrow(O, toKey).
+            O->deleteOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(to)));
+        }
+        // Let from be from + direction.
+        from = from + direction;
+        // Let to be to + direction.
+        to = to + direction;
+        // Let count be count − 1.
+        count = count - 1;
+    }
+    // return O.
+    return O;
 }
 
 Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -495,6 +570,63 @@ Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t a
     return ByteCodeInterpreter::newOperation(state, thisBinded->get(state, strings->constructor).value(state, thisBinded), 3, arg);
 }
 
+Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, every);
+    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
+    validateTypedArray(state, O, state.context()->staticStrings().every.string());
+
+    // Array.prototype.every as defined in 22.1.3.5 except
+    // that the this object’s [[ArrayLength]] internal slot is accessed
+    // in place of performing a [[Get]] of "length"
+    unsigned len = O->asArrayBufferView()->arraylength();
+
+    // If IsCallable(callbackfn) is false, throw a TypeError exception.
+    Value callbackfn = argv[0];
+    if (!callbackfn.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true,
+                                       state.context()->staticStrings().every.string(), errorMessage_GlobalObject_CallbackNotCallable);
+    }
+
+    // If thisArg was supplied, let T be thisArg; else let T be undefined.
+    Value T;
+    if (argc > 1)
+        T = argv[1];
+
+    // Let k be 0.
+    unsigned k = 0;
+
+    while (k < len) {
+        // Let Pk be ToString(k).
+        Value pk(k);
+
+        // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument Pk.
+        bool kPresent = O->hasProperty(state, ObjectPropertyName(state, pk));
+
+        // If kPresent is true, then
+        if (kPresent) {
+            // Let kValue be the result of calling the [[Get]] internal method of O with argument Pk.
+            Value kValue = O->get(state, ObjectPropertyName(state, pk)).value(state, O);
+            // Let testResult be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
+            Value args[] = { kValue, Value(k), O };
+            Value testResult = callbackfn.asFunction()->call(state, T, 3, args);
+
+            if (!testResult.toBoolean(state)) {
+                return Value(false);
+            }
+
+            // Increae k by 1.
+            k++;
+        } else {
+            double result;
+            Object::nextIndexForward(state, O, k, len, false, result);
+            k = result;
+        }
+    }
+    return Value(true);
+}
+
 template <typename TA, int elementSize>
 FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction)
 {
@@ -606,7 +738,10 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->set),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->set, builtinTypedArraySet, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->copyWithin),
-                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->copyWithin, builtinTypedArrayCopyWithin, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->copyWithin, builtinTypedArrayCopyWithin, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->every),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->every, builtinTypedArrayEvery, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->indexOf),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->indexOf, builtinTypedArrayIndexOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->lastIndexOf),
