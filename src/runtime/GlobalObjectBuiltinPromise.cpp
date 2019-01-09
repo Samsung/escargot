@@ -93,7 +93,12 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
         remainingElementsCount->defineOwnProperty(state, strings->value, ObjectPropertyDescriptor(Value(1), ObjectPropertyDescriptor::AllPresent));
         uint32_t index = 0;
 
-        ASSERT(iterable->isArrayObject()); // TODO
+        if (!iterable->isArrayObject()) {
+            Value arguments[] = { new TypeErrorObject(state, new ASCIIString("Second argument is not an array")) };
+            FunctionObject::call(state, capability.m_rejectFunction, Value(), 1, arguments);
+            return capability.m_promise;
+        }
+
         ArrayObject* iterableArray = iterable->asArrayObject();
 
         // 6. Repeat
@@ -205,7 +210,12 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
         ArrayObject* values = new ArrayObject(state);
         uint32_t index = 0;
 
-        ASSERT(iterable->isArrayObject()); // TODO
+        if (!iterable->isArrayObject()) {
+            Value arguments[] = { new TypeErrorObject(state, new ASCIIString("Second argument is not an array")) };
+            FunctionObject::call(state, capability.m_rejectFunction, Value(), 1, arguments);
+            return capability.m_promise;
+        }
+
         ArrayObject* iterableArray = iterable->asArrayObject();
 
         // 6. Repeat
