@@ -526,7 +526,8 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
                 // Convert the property named P of object O from a data property to an accessor property.
                 // Preserve the existing values of the converted property’s [[Configurable]] and [[Enumerable]] attributes
                 // and set the rest of the property’s attributes to their default values.
-                newDesc = ObjectPropertyDescriptor(desc.value(), (ObjectPropertyDescriptor::PresentAttribute)f);
+                newDesc = desc.isValuePresent() ? ObjectPropertyDescriptor(desc.value(), (ObjectPropertyDescriptor::PresentAttribute)f)
+                                                : ObjectPropertyDescriptor((ObjectPropertyDescriptor::PresentAttribute)f);
             }
         }
         // Else, if IsDataDescriptor(current) and IsDataDescriptor(Desc) are both true, then
