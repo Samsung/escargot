@@ -255,6 +255,7 @@ namespace Escargot {
     F(map)                        \
     F(match)                      \
     F(now)                        \
+    F(normalize)                  \
     F(parseFloat)                 \
     F(parseInt)                   \
     F(preventExtensions)          \
@@ -263,6 +264,7 @@ namespace Escargot {
     F(append)                     \
     F(reduce)                     \
     F(reduceRight)                \
+    F(repeat)                     \
     F(replace)                    \
     F(reverse)                    \
     F(run)                        \
