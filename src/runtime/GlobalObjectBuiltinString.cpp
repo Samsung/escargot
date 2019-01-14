@@ -215,6 +215,97 @@ static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t a
     }
 }
 
+#if defined(ENABLE_ICU)
+static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    enum NormalizationForm {
+        NFC,
+        NFD,
+        NFKC,
+        NFKD
+    };
+
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, normalize);
+    Value argument = argv[0];
+    NormalizationForm form = NFC;
+    if (LIKELY(!argument.isUndefined())) {
+        String* formString = argument.toString(state);
+        if (formString->equals("NFC")) {
+            form = NFC;
+        } else if (formString->equals("NFD")) {
+            form = NFD;
+        } else if (formString->equals("NFKC")) {
+            form = NFKC;
+        } else if (formString->equals("NFKD")) {
+            form = NFKD;
+        } else {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "invalid normalization form");
+            return Value();
+        }
+    }
+
+    auto utf16Str = str->toUTF16StringData();
+    UErrorCode status = U_ZERO_ERROR;
+    const UNormalizer2* normalizer = nullptr;
+    switch (form) {
+    case NFC:
+        normalizer = unorm2_getNFCInstance(&status);
+        break;
+    case NFD:
+        normalizer = unorm2_getNFDInstance(&status);
+        break;
+    case NFKC:
+        normalizer = unorm2_getNFKCInstance(&status);
+        break;
+    case NFKD:
+        normalizer = unorm2_getNFKDInstance(&status);
+        break;
+    default:
+        break;
+    }
+    if (!normalizer || U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "normalization fails");
+        return Value();
+    }
+    int32_t normalizedStringLength = unorm2_normalize(normalizer, (const UChar*)utf16Str.data(), utf16Str.length(), nullptr, 0, &status);
+    if (U_FAILURE(status) && status != U_BUFFER_OVERFLOW_ERROR) {
+        // when normalize fails.
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "normalization fails");
+        return Value();
+    }
+    UTF16StringData ret;
+    ret.resizeWithUninitializedValues(normalizedStringLength);
+    status = U_ZERO_ERROR;
+    unorm2_normalize(normalizer, (const UChar*)utf16Str.data(), utf16Str.length(), (UChar*)ret.data(), normalizedStringLength, &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "normalization fails");
+        return Value();
+    }
+    return new UTF16String(std::move(ret));
+}
+#endif // ENABLE_ICU
+
+static Value builtinStringRepeat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, repeat);
+    Value argument = argv[0];
+    int32_t repeatCount;
+    double count = argument.toInteger(state);
+    if (count < 0 || count == std::numeric_limits<double>::infinity()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "invalid count number of String repeat method");
+    }
+    repeatCount = static_cast<int32_t>(count);
+    if (count == 0) {
+        return String::emptyString;
+    }
+
+    StringBuilder builder;
+    for (int i = 0; i < repeatCount; i++) {
+        builder.appendString(str);
+    }
+    return builder.finalize();
+}
+
 static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_STRING(string, String, replace);
@@ -1006,6 +1097,15 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->match),
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->match, builtinStringMatch, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+#if defined(ENABLE_ICU)
+    // The length property of the normalize method is 0.
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->normalize),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->normalize, builtinStringNormalize, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+#endif // ENABLE_ICU
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->repeat),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->repeat, builtinStringRepeat, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->replace),
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->replace, builtinStringReplace, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

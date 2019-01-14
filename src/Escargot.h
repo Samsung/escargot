@@ -168,6 +168,7 @@
 #include <unicode/locid.h>
 #include <unicode/uchar.h>
 #include <unicode/datefmt.h>
+#include <unicode/unorm.h> // for normalize builtin function of String
 #include <unicode/ucol.h> // for Intl
 #include <unicode/urename.h> // for Intl
 #include <unicode/unumsys.h> // for Intl
