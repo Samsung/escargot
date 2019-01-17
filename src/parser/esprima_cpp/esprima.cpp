@@ -42,266 +42,164 @@
 #include "interpreter/ByteCode.h"
 #include "parser/ast/AST.h"
 #include "parser/CodeBlock.h"
-#include "double-conversion.h"
-#include "ieee.h"
+#include "parser/Lexer.h"
 
 #include "wtfbridge.h"
 
 using namespace JSC::Yarr;
+using namespace Escargot::EscargotLexer;
 
 namespace Escargot {
 
 namespace esprima {
 
-enum Token {
-    BooleanLiteralToken = 1,
-    EOFToken = 2,
-    IdentifierToken = 3,
-    KeywordToken = 4,
-    NullLiteralToken = 5,
-    NumericLiteralToken = 6,
-    PunctuatorToken = 7,
-    StringLiteralToken = 8,
-    RegularExpressionToken = 9,
-    TemplateToken = 10
-};
-
-/*
-enum PlaceHolders {
-    ArrowParameterPlaceHolder
-};
-*/
-
-enum PunctuatorsKind {
-    LeftParenthesis,
-    RightParenthesis,
-    LeftBrace,
-    RightBrace,
-    Period,
-    PeriodPeriodPeriod,
-    Comma,
-    Colon,
-    SemiColon,
-    LeftSquareBracket,
-    RightSquareBracket,
-    GuessMark,
-    Wave,
-    UnsignedRightShift,
-    RightShift,
-    LeftShift,
-    Plus,
-    Minus,
-    Multiply,
-    Divide,
-    Mod,
-    ExclamationMark,
-    StrictEqual,
-    NotStrictEqual,
-    Equal,
-    NotEqual,
-    LogicalAnd,
-    LogicalOr,
-    PlusPlus,
-    MinusMinus,
-    BitwiseAnd,
-    BitwiseOr,
-    BitwiseXor,
-    LeftInequality,
-    RightInequality,
-    InPunctuator,
-    InstanceOfPunctuator,
-
-    Substitution,
-    UnsignedRightShiftEqual,
-    RightShiftEqual,
-    LeftShiftEqual,
-    PlusEqual,
-    MinusEqual,
-    MultiplyEqual,
-    DivideEqual,
-    ModEqual,
-    // ExclamationMarkEqual,
-    BitwiseAndEqual,
-    BitwiseOrEqual,
-    BitwiseXorEqual,
-    LeftInequalityEqual,
-    RightInequalityEqual,
-    SubstitutionEnd,
-
-    Arrow,
-    PunctuatorsKindEnd,
-};
-
-enum KeywordKind {
-    NotKeyword,
-    If,
-    In,
-    Do,
-    Var,
-    For,
-    New,
-    Try,
-    This,
-    Else,
-    Case,
-    Void,
-    With,
-    Enum,
-    Await,
-    While,
-    Break,
-    Catch,
-    Throw,
-    Const,
-    Class,
-    Super,
-    Return,
-    Typeof,
-    Delete,
-    Switch,
-    Export,
-    Import,
-    Default,
-    Finally,
-    Extends,
-    Function,
-    Continue,
-    Debugger,
-    InstanceofKeyword,
-    StrictModeReservedWord,
-    Implements,
-    Interface,
-    Package,
-    Private,
-    Protected,
-    Public,
-    Static,
-    Yield,
-    Let,
-    KeywordKindEnd
+char g_asciiRangeCharMap[128] = {
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    ESPRIMA_IS_WHITESPACE,
+    ESPRIMA_IS_LINE_TERMINATOR,
+    ESPRIMA_IS_WHITESPACE,
+    ESPRIMA_IS_WHITESPACE,
+    ESPRIMA_IS_LINE_TERMINATOR,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    ESPRIMA_IS_WHITESPACE,
+    0,
+    0,
+    0,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    ESPRIMA_IS_IDENT,
+    ESPRIMA_IS_IDENT,
+    ESPRIMA_IS_IDENT,
+    ESPRIMA_IS_IDENT,
+    ESPRIMA_IS_IDENT,
+    ESPRIMA_IS_IDENT,
+    ESPRIMA_IS_IDENT,
+    ESPRIMA_IS_IDENT,
+    ESPRIMA_IS_IDENT,
+    ESPRIMA_IS_IDENT,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    0,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    0,
+    0,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    0,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
+    0,
+    0,
+    0,
+    0,
+    0
 };
 
 NEVER_INLINE bool isWhiteSpaceSlowCase(char16_t ch)
 {
-    return (ch == 0xA0) || UNLIKELY(ch >= 0x1680 && (ch == 0x1680 || ch == 0x180E || ch == 0x2000 || ch == 0x2001
-                                                     || ch == 0x2002 || ch == 0x2003 || ch == 0x2004 || ch == 0x2005 || ch == 0x2006
-                                                     || ch == 0x2007 || ch == 0x2008 || ch == 0x2009 || ch == 0x200A || ch == 0x202F
-                                                     || ch == 0x205F || ch == 0x3000 || ch == 0xFEFF));
-}
+    ASSERT(ch >= 0x80);
 
-ALWAYS_INLINE bool isDecimalDigit(char16_t ch)
-{
-    return (ch >= '0' && ch <= '9'); // 0..9
-}
-
-ALWAYS_INLINE bool isHexDigit(char16_t ch)
-{
-    return isDecimalDigit(ch) || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F');
-}
-
-ALWAYS_INLINE bool isOctalDigit(char16_t ch)
-{
-    return (ch >= '0' && ch < '8'); // 0..7
-}
-
-ALWAYS_INLINE char16_t octalValue(char16_t ch)
-{
-    ASSERT(isOctalDigit(ch));
-    return ch - '0';
-}
-
-ALWAYS_INLINE uint8_t toHexNumericValue(char16_t ch)
-{
-    return ch < 'A' ? ch - '0' : (ch - 'A' + 10) & 0xF;
-}
-
-struct ParserCharPiece {
-    char16_t data[3];
-    size_t length;
-
-    ParserCharPiece(const char16_t a)
-    {
-        data[0] = a;
-        data[1] = 0;
-        length = 1;
+    if (LIKELY(ch < 0x1680)) {
+        return (ch == 0xA0);
     }
 
-    ParserCharPiece(const char32_t a)
-    {
-        if (a < 0x10000) {
-            data[0] = a;
-            data[1] = 0;
-            length = 1;
-        } else {
-            data[0] = (char16_t)(0xD800 + ((a - 0x10000) >> 10));
-            data[1] = (char16_t)(0xDC00 + ((a - 0x10000) & 1023));
-            data[2] = 0;
-            length = 2;
-        }
-    }
-
-    ParserCharPiece(const char16_t a, const char16_t b)
-    {
-        data[0] = a;
-        data[1] = b;
-        data[2] = 0;
-        length = 2;
-    }
-};
-
-// ECMA-262 11.6 Identifier Names and Identifiers
-ALWAYS_INLINE ParserCharPiece fromCodePoint(char32_t cp)
-{
-    if (cp < 0x10000) {
-        return ParserCharPiece((char16_t)cp);
-    } else {
-        return ParserCharPiece((char16_t)(0xD800 + ((cp - 0x10000) >> 10)), (char16_t)(0xDC00 + ((cp - 0x10000) & 1023)));
-    }
+    return (ch == 0x1680 || ch == 0x180E || ch == 0x2000 || ch == 0x2001
+            || ch == 0x2002 || ch == 0x2003 || ch == 0x2004 || ch == 0x2005 || ch == 0x2006
+            || ch == 0x2007 || ch == 0x2008 || ch == 0x2009 || ch == 0x200A || ch == 0x202F
+            || ch == 0x205F || ch == 0x3000 || ch == 0xFEFF);
 }
-
-NEVER_INLINE bool isIdentifierPartSlow(char32_t ch)
-{
-    return (ch == 0xAA) || (ch == 0xB5) || (ch == 0xB7) || (ch == 0xBA) || (0xC0 <= ch && ch <= 0xD6) || (0xD8 <= ch && ch <= 0xF6) || (0xF8 <= ch && ch <= 0x02C1) || (0x02C6 <= ch && ch <= 0x02D1) || (0x02E0 <= ch && ch <= 0x02E4) || (ch == 0x02EC) || (ch == 0x02EE) || (0x0300 <= ch && ch <= 0x0374) || (ch == 0x0376) || (ch == 0x0377) || (0x037A <= ch && ch <= 0x037D) || (ch == 0x037F) || (0x0386 <= ch && ch <= 0x038A) || (ch == 0x038C) || (0x038E <= ch && ch <= 0x03A1) || (0x03A3 <= ch && ch <= 0x03F5) || (0x03F7 <= ch && ch <= 0x0481) || (0x0483 <= ch && ch <= 0x0487) || (0x048A <= ch && ch <= 0x052F) || (0x0531 <= ch && ch <= 0x0556) || (ch == 0x0559) || (0x0561 <= ch && ch <= 0x0587) || (0x0591 <= ch && ch <= 0x05BD) || (ch == 0x05BF) || (ch == 0x05C1) || (ch == 0x05C2) || (ch == 0x05C4) || (ch == 0x05C5) || (ch == 0x05C7) || (0x05D0 <= ch && ch <= 0x05EA) || (0x05F0 <= ch && ch <= 0x05F2) || (0x0610 <= ch && ch <= 0x061A) || (0x0620 <= ch && ch <= 0x0669) || (0x066E <= ch && ch <= 0x06D3) || (0x06D5 <= ch && ch <= 0x06DC) || (0x06DF <= ch && ch <= 0x06E8) || (0x06EA <= ch && ch <= 0x06FC) || (ch == 0x06FF) || (0x0710 <= ch && ch <= 0x074A) || (0x074D <= ch && ch <= 0x07B1) || (0x07C0 <= ch && ch <= 0x07F5) || (ch == 0x07FA) || (0x0800 <= ch && ch <= 0x082D) || (0x0840 <= ch && ch <= 0x085B) || (0x08A0 <= ch && ch <= 0x08B2) || (0x08E4 <= ch && ch <= 0x0963) || (0x0966 <= ch && ch <= 0x096F) || (0x0971 <= ch && ch <= 0x0983) || (0x0985 <= ch && ch <= 0x098C) || (ch == 0x098F) || (ch == 0x0990) || (0x0993 <= ch && ch <= 0x09A8) || (0x09AA <= ch && ch <= 0x09B0) || (ch == 0x09B2) || (0x09B6 <= ch && ch <= 0x09B9) || (0x09BC <= ch && ch <= 0x09C4) || (ch == 0x09C7) || (ch == 0x09C8) || (0x09CB <= ch && ch <= 0x09CE) || (ch == 0x09D7) || (ch == 0x09DC) || (ch == 0x09DD) || (0x09DF <= ch && ch <= 0x09E3) || (0x09E6 <= ch && ch <= 0x09F1) || (0x0A01 <= ch && ch <= 0x0A03) || (0x0A05 <= ch && ch <= 0x0A0A) || (ch == 0x0A0F) || (ch == 0x0A10) || (0x0A13 <= ch && ch <= 0x0A28) || (0x0A2A <= ch && ch <= 0x0A30) || (ch == 0x0A32) || (ch == 0x0A33) || (ch == 0x0A35) || (ch == 0x0A36) || (ch == 0x0A38) || (ch == 0x0A39) || (ch == 0x0A3C) || (0x0A3E <= ch && ch <= 0x0A42) || (ch == 0x0A47) || (ch == 0x0A48) || (0x0A4B <= ch && ch <= 0x0A4D) || (ch == 0x0A51) || (0x0A59 <= ch && ch <= 0x0A5C) || (ch == 0x0A5E) || (0x0A66 <= ch && ch <= 0x0A75) || (0x0A81 <= ch && ch <= 0x0A83) || (0x0A85 <= ch && ch <= 0x0A8D) || (0x0A8F <= ch && ch <= 0x0A91) || (0x0A93 <= ch && ch <= 0x0AA8) || (0x0AAA <= ch && ch <= 0x0AB0) || (ch == 0x0AB2) || (ch == 0x0AB3) || (0x0AB5 <= ch && ch <= 0x0AB9) || (0x0ABC <= ch && ch <= 0x0AC5) || (0x0AC7 <= ch && ch <= 0x0AC9) || (0x0ACB <= ch && ch <= 0x0ACD) || (ch == 0x0AD0) || (0x0AE0 <= ch && ch <= 0x0AE3) || (0x0AE6 <= ch && ch <= 0x0AEF) || (0x0B01 <= ch && ch <= 0x0B03) || (0x0B05 <= ch && ch <= 0x0B0C) || (ch == 0x0B0F) || (ch == 0x0B10) || (0x0B13 <= ch && ch <= 0x0B28) || (0x0B2A <= ch && ch <= 0x0B30) || (ch == 0x0B32) || (ch == 0x0B33) || (0x0B35 <= ch && ch <= 0x0B39) || (0x0B3C <= ch && ch <= 0x0B44) || (ch == 0x0B47) || (ch == 0x0B48) || (0x0B4B <= ch && ch <= 0x0B4D) || (ch == 0x0B56) || (ch == 0x0B57) || (ch == 0x0B5C) || (ch == 0x0B5D) || (0x0B5F <= ch && ch <= 0x0B63) || (0x0B66 <= ch && ch <= 0x0B6F) || (ch == 0x0B71) || (ch == 0x0B82) || (ch == 0x0B83) || (0x0B85 <= ch && ch <= 0x0B8A) || (0x0B8E <= ch && ch <= 0x0B90) || (0x0B92 <= ch && ch <= 0x0B95) || (ch == 0x0B99) || (ch == 0x0B9A) || (ch == 0x0B9C) || (ch == 0x0B9E) || (ch == 0x0B9F) || (ch == 0x0BA3) || (ch == 0x0BA4) || (0x0BA8 <= ch && ch <= 0x0BAA) || (0x0BAE <= ch && ch <= 0x0BB9) || (0x0BBE <= ch && ch <= 0x0BC2) || (0x0BC6 <= ch && ch <= 0x0BC8) || (0x0BCA <= ch && ch <= 0x0BCD) || (ch == 0x0BD0) || (ch == 0x0BD7) || (0x0BE6 <= ch && ch <= 0x0BEF) || (0x0C00 <= ch && ch <= 0x0C03) || (0x0C05 <= ch && ch <= 0x0C0C) || (0x0C0E <= ch && ch <= 0x0C10) || (0x0C12 <= ch && ch <= 0x0C28) || (0x0C2A <= ch && ch <= 0x0C39) || (0x0C3D <= ch && ch <= 0x0C44) || (0x0C46 <= ch && ch <= 0x0C48) || (0x0C4A <= ch && ch <= 0x0C4D) || (ch == 0x0C55) || (ch == 0x0C56) || (ch == 0x0C58) || (ch == 0x0C59) || (0x0C60 <= ch && ch <= 0x0C63) || (0x0C66 <= ch && ch <= 0x0C6F) || (0x0C81 <= ch && ch <= 0x0C83) || (0x0C85 <= ch && ch <= 0x0C8C) || (0x0C8E <= ch && ch <= 0x0C90) || (0x0C92 <= ch && ch <= 0x0CA8) || (0x0CAA <= ch && ch <= 0x0CB3) || (0x0CB5 <= ch && ch <= 0x0CB9) || (0x0CBC <= ch && ch <= 0x0CC4) || (0x0CC6 <= ch && ch <= 0x0CC8) || (0x0CCA <= ch && ch <= 0x0CCD) || (ch == 0x0CD5) || (ch == 0x0CD6) || (ch == 0x0CDE) || (0x0CE0 <= ch && ch <= 0x0CE3) || (0x0CE6 <= ch && ch <= 0x0CEF) || (ch == 0x0CF1) || (ch == 0x0CF2) || (0x0D01 <= ch && ch <= 0x0D03) || (0x0D05 <= ch && ch <= 0x0D0C) || (0x0D0E <= ch && ch <= 0x0D10) || (0x0D12 <= ch && ch <= 0x0D3A) || (0x0D3D <= ch && ch <= 0x0D44) || (0x0D46 <= ch && ch <= 0x0D48) || (0x0D4A <= ch && ch <= 0x0D4E) || (ch == 0x0D57) || (0x0D60 <= ch && ch <= 0x0D63) || (0x0D66 <= ch && ch <= 0x0D6F) || (0x0D7A <= ch && ch <= 0x0D7F) || (ch == 0x0D82) || (ch == 0x0D83) || (0x0D85 <= ch && ch <= 0x0D96) || (0x0D9A <= ch && ch <= 0x0DB1) || (0x0DB3 <= ch && ch <= 0x0DBB) || (ch == 0x0DBD) || (0x0DC0 <= ch && ch <= 0x0DC6) || (ch == 0x0DCA) || (0x0DCF <= ch && ch <= 0x0DD4) || (ch == 0x0DD6) || (0x0DD8 <= ch && ch <= 0x0DDF) || (0x0DE6 <= ch && ch <= 0x0DEF) || (ch == 0x0DF2) || (ch == 0x0DF3) || (0x0E01 <= ch && ch <= 0x0E3A) || (0x0E40 <= ch && ch <= 0x0E4E) || (0x0E50 <= ch && ch <= 0x0E59) || (ch == 0x0E81) || (ch == 0x0E82) || (ch == 0x0E84) || (ch == 0x0E87) || (ch == 0x0E88) || (ch == 0x0E8A) || (ch == 0x0E8D) || (0x0E94 <= ch && ch <= 0x0E97) || (0x0E99 <= ch && ch <= 0x0E9F) || (0x0EA1 <= ch && ch <= 0x0EA3) || (ch == 0x0EA5) || (ch == 0x0EA7) || (ch == 0x0EAA) || (ch == 0x0EAB) || (0x0EAD <= ch && ch <= 0x0EB9) || (0x0EBB <= ch && ch <= 0x0EBD) || (0x0EC0 <= ch && ch <= 0x0EC4) || (ch == 0x0EC6) || (0x0EC8 <= ch && ch <= 0x0ECD) || (0x0ED0 <= ch && ch <= 0x0ED9) || (0x0EDC <= ch && ch <= 0x0EDF) || (ch == 0x0F00) || (ch == 0x0F18) || (ch == 0x0F19) || (0x0F20 <= ch && ch <= 0x0F29) || (ch == 0x0F35) || (ch == 0x0F37) || (ch == 0x0F39) || (0x0F3E <= ch && ch <= 0x0F47) || (0x0F49 <= ch && ch <= 0x0F6C) || (0x0F71 <= ch && ch <= 0x0F84) || (0x0F86 <= ch && ch <= 0x0F97) || (0x0F99 <= ch && ch <= 0x0FBC) || (ch == 0x0FC6) || (0x1000 <= ch && ch <= 0x1049) || (0x1050 <= ch && ch <= 0x109D) || (0x10A0 <= ch && ch <= 0x10C5) || (ch == 0x10C7) || (ch == 0x10CD) || (0x10D0 <= ch && ch <= 0x10FA) || (0x10FC <= ch && ch <= 0x1248) || (0x124A <= ch && ch <= 0x124D) || (0x1250 <= ch && ch <= 0x1256) || (ch == 0x1258) || (0x125A <= ch && ch <= 0x125D) || (0x1260 <= ch && ch <= 0x1288) || (0x128A <= ch && ch <= 0x128D) || (0x1290 <= ch && ch <= 0x12B0) || (0x12B2 <= ch && ch <= 0x12B5) || (0x12B8 <= ch && ch <= 0x12BE) || (ch == 0x12C0) || (0x12C2 <= ch && ch <= 0x12C5) || (0x12C8 <= ch && ch <= 0x12D6) || (0x12D8 <= ch && ch <= 0x1310) || (0x1312 <= ch && ch <= 0x1315) || (0x1318 <= ch && ch <= 0x135A) || (0x135D <= ch && ch <= 0x135F) || (0x1369 <= ch && ch <= 0x1371) || (0x1380 <= ch && ch <= 0x138F) || (0x13A0 <= ch && ch <= 0x13F4) || (0x1401 <= ch && ch <= 0x166C) || (0x166F <= ch && ch <= 0x167F) || (0x1681 <= ch && ch <= 0x169A) || (0x16A0 <= ch && ch <= 0x16EA) || (0x16EE <= ch && ch <= 0x16F8) || (0x1700 <= ch && ch <= 0x170C) || (0x170E <= ch && ch <= 0x1714) || (0x1720 <= ch && ch <= 0x1734) || (0x1740 <= ch && ch <= 0x1753) || (0x1760 <= ch && ch <= 0x176C) || (0x176E <= ch && ch <= 0x1770) || (ch == 0x1772) || (ch == 0x1773) || (0x1780 <= ch && ch <= 0x17D3) || (ch == 0x17D7) || (ch == 0x17DC) || (ch == 0x17DD) || (0x17E0 <= ch && ch <= 0x17E9) || (0x180B <= ch && ch <= 0x180D) || (0x1810 <= ch && ch <= 0x1819) || (0x1820 <= ch && ch <= 0x1877) || (0x1880 <= ch && ch <= 0x18AA) || (0x18B0 <= ch && ch <= 0x18F5) || (0x1900 <= ch && ch <= 0x191E) || (0x1920 <= ch && ch <= 0x192B) || (0x1930 <= ch && ch <= 0x193B) || (0x1946 <= ch && ch <= 0x196D) || (0x1970 <= ch && ch <= 0x1974) || (0x1980 <= ch && ch <= 0x19AB) || (0x19B0 <= ch && ch <= 0x19C9) || (0x19D0 <= ch && ch <= 0x19DA) || (0x1A00 <= ch && ch <= 0x1A1B) || (0x1A20 <= ch && ch <= 0x1A5E) || (0x1A60 <= ch && ch <= 0x1A7C) || (0x1A7F <= ch && ch <= 0x1A89) || (0x1A90 <= ch && ch <= 0x1A99) || (ch == 0x1AA7) || (0x1AB0 <= ch && ch <= 0x1ABD) || (0x1B00 <= ch && ch <= 0x1B4B) || (0x1B50 <= ch && ch <= 0x1B59) || (0x1B6B <= ch && ch <= 0x1B73) || (0x1B80 <= ch && ch <= 0x1BF3) || (0x1C00 <= ch && ch <= 0x1C37) || (0x1C40 <= ch && ch <= 0x1C49) || (0x1C4D <= ch && ch <= 0x1C7D) || (0x1CD0 <= ch && ch <= 0x1CD2) || (0x1CD4 <= ch && ch <= 0x1CF6) || (ch == 0x1CF8) || (ch == 0x1CF9) || (0x1D00 <= ch && ch <= 0x1DF5) || (0x1DFC <= ch && ch <= 0x1F15) || (0x1F18 <= ch && ch <= 0x1F1D) || (0x1F20 <= ch && ch <= 0x1F45) || (0x1F48 <= ch && ch <= 0x1F4D) || (0x1F50 <= ch && ch <= 0x1F57) || (ch == 0x1F59) || (ch == 0x1F5B) || (ch == 0x1F5D) || (0x1F5F <= ch && ch <= 0x1F7D) || (0x1F80 <= ch && ch <= 0x1FB4) || (0x1FB6 <= ch && ch <= 0x1FBC) || (ch == 0x1FBE) || (0x1FC2 <= ch && ch <= 0x1FC4) || (0x1FC6 <= ch && ch <= 0x1FCC) || (0x1FD0 <= ch && ch <= 0x1FD3) || (0x1FD6 <= ch && ch <= 0x1FDB) || (0x1FE0 <= ch && ch <= 0x1FEC) || (0x1FF2 <= ch && ch <= 0x1FF4) || (0x1FF6 <= ch && ch <= 0x1FFC) || (ch == 0x200C) || (ch == 0x200D) || (ch == 0x203F) || (ch == 0x2040) || (ch == 0x2054) || (ch == 0x2071) || (ch == 0x207F) || (0x2090 <= ch && ch <= 0x209C) || (0x20D0 <= ch && ch <= 0x20DC) || (ch == 0x20E1) || (0x20E5 <= ch && ch <= 0x20F0) || (ch == 0x2102) || (ch == 0x2107) || (0x210A <= ch && ch <= 0x2113) || (ch == 0x2115) || (0x2118 <= ch && ch <= 0x211D) || (ch == 0x2124) || (ch == 0x2126) || (ch == 0x2128) || (0x212A <= ch && ch <= 0x2139) || (0x213C <= ch && ch <= 0x213F) || (0x2145 <= ch && ch <= 0x2149) || (ch == 0x214E) || (0x2160 <= ch && ch <= 0x2188) || (0x2C00 <= ch && ch <= 0x2C2E) || (0x2C30 <= ch && ch <= 0x2C5E) || (0x2C60 <= ch && ch <= 0x2CE4) || (0x2CEB <= ch && ch <= 0x2CF3) || (0x2D00 <= ch && ch <= 0x2D25) || (ch == 0x2D27) || (ch == 0x2D2D) || (0x2D30 <= ch && ch <= 0x2D67) || (ch == 0x2D6F) || (0x2D7F <= ch && ch <= 0x2D96) || (0x2DA0 <= ch && ch <= 0x2DA6) || (0x2DA8 <= ch && ch <= 0x2DAE) || (0x2DB0 <= ch && ch <= 0x2DB6) || (0x2DB8 <= ch && ch <= 0x2DBE) || (0x2DC0 <= ch && ch <= 0x2DC6) || (0x2DC8 <= ch && ch <= 0x2DCE) || (0x2DD0 <= ch && ch <= 0x2DD6) || (0x2DD8 <= ch && ch <= 0x2DDE) || (0x2DE0 <= ch && ch <= 0x2DFF) || (0x3005 <= ch && ch <= 0x3007) || (0x3021 <= ch && ch <= 0x302F) || (0x3031 <= ch && ch <= 0x3035) || (0x3038 <= ch && ch <= 0x303C) || (0x3041 <= ch && ch <= 0x3096) || (0x3099 <= ch && ch <= 0x309F) || (0x30A1 <= ch && ch <= 0x30FA) || (0x30FC <= ch && ch <= 0x30FF) || (0x3105 <= ch && ch <= 0x312D) || (0x3131 <= ch && ch <= 0x318E) || (0x31A0 <= ch && ch <= 0x31BA) || (0x31F0 <= ch && ch <= 0x31FF) || (0x3400 <= ch && ch <= 0x4DB5) || (0x4E00 <= ch && ch <= 0x9FCC) || (0xA000 <= ch && ch <= 0xA48C) || (0xA4D0 <= ch && ch <= 0xA4FD) || (0xA500 <= ch && ch <= 0xA60C) || (0xA610 <= ch && ch <= 0xA62B) || (0xA640 <= ch && ch <= 0xA66F) || (0xA674 <= ch && ch <= 0xA67D) || (0xA67F <= ch && ch <= 0xA69D) || (0xA69F <= ch && ch <= 0xA6F1) || (0xA717 <= ch && ch <= 0xA71F) || (0xA722 <= ch && ch <= 0xA788) || (0xA78B <= ch && ch <= 0xA78E) || (0xA790 <= ch && ch <= 0xA7AD) || (ch == 0xA7B0) || (ch == 0xA7B1) || (0xA7F7 <= ch && ch <= 0xA827) || (0xA840 <= ch && ch <= 0xA873) || (0xA880 <= ch && ch <= 0xA8C4) || (0xA8D0 <= ch && ch <= 0xA8D9) || (0xA8E0 <= ch && ch <= 0xA8F7) || (ch == 0xA8FB) || (0xA900 <= ch && ch <= 0xA92D) || (0xA930 <= ch && ch <= 0xA953) || (0xA960 <= ch && ch <= 0xA97C) || (0xA980 <= ch && ch <= 0xA9C0) || (0xA9CF <= ch && ch <= 0xA9D9) || (0xA9E0 <= ch && ch <= 0xA9FE) || (0xAA00 <= ch && ch <= 0xAA36) || (0xAA40 <= ch && ch <= 0xAA4D) || (0xAA50 <= ch && ch <= 0xAA59) || (0xAA60 <= ch && ch <= 0xAA76) || (0xAA7A <= ch && ch <= 0xAAC2) || (0xAADB <= ch && ch <= 0xAADD) || (0xAAE0 <= ch && ch <= 0xAAEF) || (0xAAF2 <= ch && ch <= 0xAAF6) || (0xAB01 <= ch && ch <= 0xAB06) || (0xAB09 <= ch && ch <= 0xAB0E) || (0xAB11 <= ch && ch <= 0xAB16) || (0xAB20 <= ch && ch <= 0xAB26) || (0xAB28 <= ch && ch <= 0xAB2E) || (0xAB30 <= ch && ch <= 0xAB5A) || (0xAB5C <= ch && ch <= 0xAB5F) || (ch == 0xAB64) || (ch == 0xAB65) || (0xABC0 <= ch && ch <= 0xABEA) || (ch == 0xABEC) || (ch == 0xABED) || (0xABF0 <= ch && ch <= 0xABF9) || (0xAC00 <= ch && ch <= 0xD7A3) || (0xD7B0 <= ch && ch <= 0xD7C6) || (0xD7CB <= ch && ch <= 0xD7FB) || (0xF900 <= ch && ch <= 0xFA6D) || (0xFA70 <= ch && ch <= 0xFAD9) || (0xFB00 <= ch && ch <= 0xFB06) || (0xFB13 <= ch && ch <= 0xFB17) || (0xFB1D <= ch && ch <= 0xFB28) || (0xFB2A <= ch && ch <= 0xFB36) || (0xFB38 <= ch && ch <= 0xFB3C) || (ch == 0xFB3E) || (ch == 0xFB40) || (ch == 0xFB41) || (ch == 0xFB43) || (ch == 0xFB44) || (0xFB46 <= ch && ch <= 0xFBB1) || (0xFBD3 <= ch && ch <= 0xFD3D) || (0xFD50 <= ch && ch <= 0xFD8F) || (0xFD92 <= ch && ch <= 0xFDC7) || (0xFDF0 <= ch && ch <= 0xFDFB) || (0xFE00 <= ch && ch <= 0xFE0F) || (0xFE20 <= ch && ch <= 0xFE2D) || (ch == 0xFE33) || (ch == 0xFE34) || (0xFE4D <= ch && ch <= 0xFE4F) || (0xFE70 <= ch && ch <= 0xFE74) || (0xFE76 <= ch && ch <= 0xFEFC) || (0xFF10 <= ch && ch <= 0xFF19) || (0xFF21 <= ch && ch <= 0xFF3A) || (ch == 0xFF3F) || (0xFF41 <= ch && ch <= 0xFF5A) || (0xFF66 <= ch && ch <= 0xFFBE) || (0xFFC2 <= ch && ch <= 0xFFC7) || (0xFFCA <= ch && ch <= 0xFFCF) || (0xFFD2 <= ch && ch <= 0xFFD7) || (0xFFDA <= ch && ch <= 0xFFDC);
-}
-
-ALWAYS_INLINE bool isIdentifierPart(char32_t ch)
-{
-    if (LIKELY(ch < 128)) {
-        return g_asciiRangeCharMap[ch] & ESPRIMA_IS_IDENT;
-    } else {
-        return isIdentifierPartSlow(ch);
-    }
-}
-
-NEVER_INLINE bool isIdentifierStartSlow(char32_t ch)
-{
-    return (ch == 0xAA) || (ch == 0xB5) || (ch == 0xB7) || (ch == 0xBA) || (0xC0 <= ch && ch <= 0xD6) || (0xD8 <= ch && ch <= 0xF6) || (0xF8 <= ch && ch <= 0x02C1) || (0x02C6 <= ch && ch <= 0x02D1) || (0x02E0 <= ch && ch <= 0x02E4) || (ch == 0x02EC) || (ch == 0x02EE) || (0x0300 <= ch && ch <= 0x0374) || (ch == 0x0376) || (ch == 0x0377) || (0x037A <= ch && ch <= 0x037D) || (ch == 0x037F) || (0x0386 <= ch && ch <= 0x038A) || (ch == 0x038C) || (0x038E <= ch && ch <= 0x03A1) || (0x03A3 <= ch && ch <= 0x03F5) || (0x03F7 <= ch && ch <= 0x0481) || (0x0483 <= ch && ch <= 0x0487) || (0x048A <= ch && ch <= 0x052F) || (0x0531 <= ch && ch <= 0x0556) || (ch == 0x0559) || (0x0561 <= ch && ch <= 0x0587) || (0x0591 <= ch && ch <= 0x05BD) || (ch == 0x05BF) || (ch == 0x05C1) || (ch == 0x05C2) || (ch == 0x05C4) || (ch == 0x05C5) || (ch == 0x05C7) || (0x05D0 <= ch && ch <= 0x05EA) || (0x05F0 <= ch && ch <= 0x05F2) || (0x0610 <= ch && ch <= 0x061A) || (0x0620 <= ch && ch <= 0x0669) || (0x066E <= ch && ch <= 0x06D3) || (0x06D5 <= ch && ch <= 0x06DC) || (0x06DF <= ch && ch <= 0x06E8) || (0x06EA <= ch && ch <= 0x06FC) || (ch == 0x06FF) || (0x0710 <= ch && ch <= 0x074A) || (0x074D <= ch && ch <= 0x07B1) || (0x07C0 <= ch && ch <= 0x07F5) || (ch == 0x07FA) || (0x0800 <= ch && ch <= 0x082D) || (0x0840 <= ch && ch <= 0x085B) || (0x08A0 <= ch && ch <= 0x08B2) || (0x08E4 <= ch && ch <= 0x0963) || (0x0966 <= ch && ch <= 0x096F) || (0x0971 <= ch && ch <= 0x0983) || (0x0985 <= ch && ch <= 0x098C) || (ch == 0x098F) || (ch == 0x0990) || (0x0993 <= ch && ch <= 0x09A8) || (0x09AA <= ch && ch <= 0x09B0) || (ch == 0x09B2) || (0x09B6 <= ch && ch <= 0x09B9) || (0x09BC <= ch && ch <= 0x09C4) || (ch == 0x09C7) || (ch == 0x09C8) || (0x09CB <= ch && ch <= 0x09CE) || (ch == 0x09D7) || (ch == 0x09DC) || (ch == 0x09DD) || (0x09DF <= ch && ch <= 0x09E3) || (0x09E6 <= ch && ch <= 0x09F1) || (0x0A01 <= ch && ch <= 0x0A03) || (0x0A05 <= ch && ch <= 0x0A0A) || (ch == 0x0A0F) || (ch == 0x0A10) || (0x0A13 <= ch && ch <= 0x0A28) || (0x0A2A <= ch && ch <= 0x0A30) || (ch == 0x0A32) || (ch == 0x0A33) || (ch == 0x0A35) || (ch == 0x0A36) || (ch == 0x0A38) || (ch == 0x0A39) || (ch == 0x0A3C) || (0x0A3E <= ch && ch <= 0x0A42) || (ch == 0x0A47) || (ch == 0x0A48) || (0x0A4B <= ch && ch <= 0x0A4D) || (ch == 0x0A51) || (0x0A59 <= ch && ch <= 0x0A5C) || (ch == 0x0A5E) || (0x0A66 <= ch && ch <= 0x0A75) || (0x0A81 <= ch && ch <= 0x0A83) || (0x0A85 <= ch && ch <= 0x0A8D) || (0x0A8F <= ch && ch <= 0x0A91) || (0x0A93 <= ch && ch <= 0x0AA8) || (0x0AAA <= ch && ch <= 0x0AB0) || (ch == 0x0AB2) || (ch == 0x0AB3) || (0x0AB5 <= ch && ch <= 0x0AB9) || (0x0ABC <= ch && ch <= 0x0AC5) || (0x0AC7 <= ch && ch <= 0x0AC9) || (0x0ACB <= ch && ch <= 0x0ACD) || (ch == 0x0AD0) || (0x0AE0 <= ch && ch <= 0x0AE3) || (0x0AE6 <= ch && ch <= 0x0AEF) || (0x0B01 <= ch && ch <= 0x0B03) || (0x0B05 <= ch && ch <= 0x0B0C) || (ch == 0x0B0F) || (ch == 0x0B10) || (0x0B13 <= ch && ch <= 0x0B28) || (0x0B2A <= ch && ch <= 0x0B30) || (ch == 0x0B32) || (ch == 0x0B33) || (0x0B35 <= ch && ch <= 0x0B39) || (0x0B3C <= ch && ch <= 0x0B44) || (ch == 0x0B47) || (ch == 0x0B48) || (0x0B4B <= ch && ch <= 0x0B4D) || (ch == 0x0B56) || (ch == 0x0B57) || (ch == 0x0B5C) || (ch == 0x0B5D) || (0x0B5F <= ch && ch <= 0x0B63) || (0x0B66 <= ch && ch <= 0x0B6F) || (ch == 0x0B71) || (ch == 0x0B82) || (ch == 0x0B83) || (0x0B85 <= ch && ch <= 0x0B8A) || (0x0B8E <= ch && ch <= 0x0B90) || (0x0B92 <= ch && ch <= 0x0B95) || (ch == 0x0B99) || (ch == 0x0B9A) || (ch == 0x0B9C) || (ch == 0x0B9E) || (ch == 0x0B9F) || (ch == 0x0BA3) || (ch == 0x0BA4) || (0x0BA8 <= ch && ch <= 0x0BAA) || (0x0BAE <= ch && ch <= 0x0BB9) || (0x0BBE <= ch && ch <= 0x0BC2) || (0x0BC6 <= ch && ch <= 0x0BC8) || (0x0BCA <= ch && ch <= 0x0BCD) || (ch == 0x0BD0) || (ch == 0x0BD7) || (0x0BE6 <= ch && ch <= 0x0BEF) || (0x0C00 <= ch && ch <= 0x0C03) || (0x0C05 <= ch && ch <= 0x0C0C) || (0x0C0E <= ch && ch <= 0x0C10) || (0x0C12 <= ch && ch <= 0x0C28) || (0x0C2A <= ch && ch <= 0x0C39) || (0x0C3D <= ch && ch <= 0x0C44) || (0x0C46 <= ch && ch <= 0x0C48) || (0x0C4A <= ch && ch <= 0x0C4D) || (ch == 0x0C55) || (ch == 0x0C56) || (ch == 0x0C58) || (ch == 0x0C59) || (0x0C60 <= ch && ch <= 0x0C63) || (0x0C66 <= ch && ch <= 0x0C6F) || (0x0C81 <= ch && ch <= 0x0C83) || (0x0C85 <= ch && ch <= 0x0C8C) || (0x0C8E <= ch && ch <= 0x0C90) || (0x0C92 <= ch && ch <= 0x0CA8) || (0x0CAA <= ch && ch <= 0x0CB3) || (0x0CB5 <= ch && ch <= 0x0CB9) || (0x0CBC <= ch && ch <= 0x0CC4) || (0x0CC6 <= ch && ch <= 0x0CC8) || (0x0CCA <= ch && ch <= 0x0CCD) || (ch == 0x0CD5) || (ch == 0x0CD6) || (ch == 0x0CDE) || (0x0CE0 <= ch && ch <= 0x0CE3) || (0x0CE6 <= ch && ch <= 0x0CEF) || (ch == 0x0CF1) || (ch == 0x0CF2) || (0x0D01 <= ch && ch <= 0x0D03) || (0x0D05 <= ch && ch <= 0x0D0C) || (0x0D0E <= ch && ch <= 0x0D10) || (0x0D12 <= ch && ch <= 0x0D3A) || (0x0D3D <= ch && ch <= 0x0D44) || (0x0D46 <= ch && ch <= 0x0D48) || (0x0D4A <= ch && ch <= 0x0D4E) || (ch == 0x0D57) || (0x0D60 <= ch && ch <= 0x0D63) || (0x0D66 <= ch && ch <= 0x0D6F) || (0x0D7A <= ch && ch <= 0x0D7F) || (ch == 0x0D82) || (ch == 0x0D83) || (0x0D85 <= ch && ch <= 0x0D96) || (0x0D9A <= ch && ch <= 0x0DB1) || (0x0DB3 <= ch && ch <= 0x0DBB) || (ch == 0x0DBD) || (0x0DC0 <= ch && ch <= 0x0DC6) || (ch == 0x0DCA) || (0x0DCF <= ch && ch <= 0x0DD4) || (ch == 0x0DD6) || (0x0DD8 <= ch && ch <= 0x0DDF) || (0x0DE6 <= ch && ch <= 0x0DEF) || (ch == 0x0DF2) || (ch == 0x0DF3) || (0x0E01 <= ch && ch <= 0x0E3A) || (0x0E40 <= ch && ch <= 0x0E4E) || (0x0E50 <= ch && ch <= 0x0E59) || (ch == 0x0E81) || (ch == 0x0E82) || (ch == 0x0E84) || (ch == 0x0E87) || (ch == 0x0E88) || (ch == 0x0E8A) || (ch == 0x0E8D) || (0x0E94 <= ch && ch <= 0x0E97) || (0x0E99 <= ch && ch <= 0x0E9F) || (0x0EA1 <= ch && ch <= 0x0EA3) || (ch == 0x0EA5) || (ch == 0x0EA7) || (ch == 0x0EAA) || (ch == 0x0EAB) || (0x0EAD <= ch && ch <= 0x0EB9) || (0x0EBB <= ch && ch <= 0x0EBD) || (0x0EC0 <= ch && ch <= 0x0EC4) || (ch == 0x0EC6) || (0x0EC8 <= ch && ch <= 0x0ECD) || (0x0ED0 <= ch && ch <= 0x0ED9) || (0x0EDC <= ch && ch <= 0x0EDF) || (ch == 0x0F00) || (ch == 0x0F18) || (ch == 0x0F19) || (0x0F20 <= ch && ch <= 0x0F29) || (ch == 0x0F35) || (ch == 0x0F37) || (ch == 0x0F39) || (0x0F3E <= ch && ch <= 0x0F47) || (0x0F49 <= ch && ch <= 0x0F6C) || (0x0F71 <= ch && ch <= 0x0F84) || (0x0F86 <= ch && ch <= 0x0F97) || (0x0F99 <= ch && ch <= 0x0FBC) || (ch == 0x0FC6) || (0x1000 <= ch && ch <= 0x1049) || (0x1050 <= ch && ch <= 0x109D) || (0x10A0 <= ch && ch <= 0x10C5) || (ch == 0x10C7) || (ch == 0x10CD) || (0x10D0 <= ch && ch <= 0x10FA) || (0x10FC <= ch && ch <= 0x1248) || (0x124A <= ch && ch <= 0x124D) || (0x1250 <= ch && ch <= 0x1256) || (ch == 0x1258) || (0x125A <= ch && ch <= 0x125D) || (0x1260 <= ch && ch <= 0x1288) || (0x128A <= ch && ch <= 0x128D) || (0x1290 <= ch && ch <= 0x12B0) || (0x12B2 <= ch && ch <= 0x12B5) || (0x12B8 <= ch && ch <= 0x12BE) || (ch == 0x12C0) || (0x12C2 <= ch && ch <= 0x12C5) || (0x12C8 <= ch && ch <= 0x12D6) || (0x12D8 <= ch && ch <= 0x1310) || (0x1312 <= ch && ch <= 0x1315) || (0x1318 <= ch && ch <= 0x135A) || (0x135D <= ch && ch <= 0x135F) || (0x1369 <= ch && ch <= 0x1371) || (0x1380 <= ch && ch <= 0x138F) || (0x13A0 <= ch && ch <= 0x13F4) || (0x1401 <= ch && ch <= 0x166C) || (0x166F <= ch && ch <= 0x167F) || (0x1681 <= ch && ch <= 0x169A) || (0x16A0 <= ch && ch <= 0x16EA) || (0x16EE <= ch && ch <= 0x16F8) || (0x1700 <= ch && ch <= 0x170C) || (0x170E <= ch && ch <= 0x1714) || (0x1720 <= ch && ch <= 0x1734) || (0x1740 <= ch && ch <= 0x1753) || (0x1760 <= ch && ch <= 0x176C) || (0x176E <= ch && ch <= 0x1770) || (ch == 0x1772) || (ch == 0x1773) || (0x1780 <= ch && ch <= 0x17D3) || (ch == 0x17D7) || (ch == 0x17DC) || (ch == 0x17DD) || (0x17E0 <= ch && ch <= 0x17E9) || (0x180B <= ch && ch <= 0x180D) || (0x1810 <= ch && ch <= 0x1819) || (0x1820 <= ch && ch <= 0x1877) || (0x1880 <= ch && ch <= 0x18AA) || (0x18B0 <= ch && ch <= 0x18F5) || (0x1900 <= ch && ch <= 0x191E) || (0x1920 <= ch && ch <= 0x192B) || (0x1930 <= ch && ch <= 0x193B) || (0x1946 <= ch && ch <= 0x196D) || (0x1970 <= ch && ch <= 0x1974) || (0x1980 <= ch && ch <= 0x19AB) || (0x19B0 <= ch && ch <= 0x19C9) || (0x19D0 <= ch && ch <= 0x19DA) || (0x1A00 <= ch && ch <= 0x1A1B) || (0x1A20 <= ch && ch <= 0x1A5E) || (0x1A60 <= ch && ch <= 0x1A7C) || (0x1A7F <= ch && ch <= 0x1A89) || (0x1A90 <= ch && ch <= 0x1A99) || (ch == 0x1AA7) || (0x1AB0 <= ch && ch <= 0x1ABD) || (0x1B00 <= ch && ch <= 0x1B4B) || (0x1B50 <= ch && ch <= 0x1B59) || (0x1B6B <= ch && ch <= 0x1B73) || (0x1B80 <= ch && ch <= 0x1BF3) || (0x1C00 <= ch && ch <= 0x1C37) || (0x1C40 <= ch && ch <= 0x1C49) || (0x1C4D <= ch && ch <= 0x1C7D) || (0x1CD0 <= ch && ch <= 0x1CD2) || (0x1CD4 <= ch && ch <= 0x1CF6) || (ch == 0x1CF8) || (ch == 0x1CF9) || (0x1D00 <= ch && ch <= 0x1DF5) || (0x1DFC <= ch && ch <= 0x1F15) || (0x1F18 <= ch && ch <= 0x1F1D) || (0x1F20 <= ch && ch <= 0x1F45) || (0x1F48 <= ch && ch <= 0x1F4D) || (0x1F50 <= ch && ch <= 0x1F57) || (ch == 0x1F59) || (ch == 0x1F5B) || (ch == 0x1F5D) || (0x1F5F <= ch && ch <= 0x1F7D) || (0x1F80 <= ch && ch <= 0x1FB4) || (0x1FB6 <= ch && ch <= 0x1FBC) || (ch == 0x1FBE) || (0x1FC2 <= ch && ch <= 0x1FC4) || (0x1FC6 <= ch && ch <= 0x1FCC) || (0x1FD0 <= ch && ch <= 0x1FD3) || (0x1FD6 <= ch && ch <= 0x1FDB) || (0x1FE0 <= ch && ch <= 0x1FEC) || (0x1FF2 <= ch && ch <= 0x1FF4) || (0x1FF6 <= ch && ch <= 0x1FFC) || (ch == 0x200C) || (ch == 0x200D) || (ch == 0x203F) || (ch == 0x2040) || (ch == 0x2054) || (ch == 0x2071) || (ch == 0x207F) || (0x2090 <= ch && ch <= 0x209C) || (0x20D0 <= ch && ch <= 0x20DC) || (ch == 0x20E1) || (0x20E5 <= ch && ch <= 0x20F0) || (ch == 0x2102) || (ch == 0x2107) || (0x210A <= ch && ch <= 0x2113) || (ch == 0x2115) || (0x2118 <= ch && ch <= 0x211D) || (ch == 0x2124) || (ch == 0x2126) || (ch == 0x2128) || (0x212A <= ch && ch <= 0x2139) || (0x213C <= ch && ch <= 0x213F) || (0x2145 <= ch && ch <= 0x2149) || (ch == 0x214E) || (0x2160 <= ch && ch <= 0x2188) || (0x2C00 <= ch && ch <= 0x2C2E) || (0x2C30 <= ch && ch <= 0x2C5E) || (0x2C60 <= ch && ch <= 0x2CE4) || (0x2CEB <= ch && ch <= 0x2CF3) || (0x2D00 <= ch && ch <= 0x2D25) || (ch == 0x2D27) || (ch == 0x2D2D) || (0x2D30 <= ch && ch <= 0x2D67) || (ch == 0x2D6F) || (0x2D7F <= ch && ch <= 0x2D96) || (0x2DA0 <= ch && ch <= 0x2DA6) || (0x2DA8 <= ch && ch <= 0x2DAE) || (0x2DB0 <= ch && ch <= 0x2DB6) || (0x2DB8 <= ch && ch <= 0x2DBE) || (0x2DC0 <= ch && ch <= 0x2DC6) || (0x2DC8 <= ch && ch <= 0x2DCE) || (0x2DD0 <= ch && ch <= 0x2DD6) || (0x2DD8 <= ch && ch <= 0x2DDE) || (0x2DE0 <= ch && ch <= 0x2DFF) || (0x3005 <= ch && ch <= 0x3007) || (0x3021 <= ch && ch <= 0x302F) || (0x3031 <= ch && ch <= 0x3035) || (0x3038 <= ch && ch <= 0x303C) || (0x3041 <= ch && ch <= 0x3096) || (0x3099 <= ch && ch <= 0x309F) || (0x30A1 <= ch && ch <= 0x30FA) || (0x30FC <= ch && ch <= 0x30FF) || (0x3105 <= ch && ch <= 0x312D) || (0x3131 <= ch && ch <= 0x318E) || (0x31A0 <= ch && ch <= 0x31BA) || (0x31F0 <= ch && ch <= 0x31FF) || (0x3400 <= ch && ch <= 0x4DB5) || (0x4E00 <= ch && ch <= 0x9FCC) || (0xA000 <= ch && ch <= 0xA48C) || (0xA4D0 <= ch && ch <= 0xA4FD) || (0xA500 <= ch && ch <= 0xA60C) || (0xA610 <= ch && ch <= 0xA62B) || (0xA640 <= ch && ch <= 0xA66F) || (0xA674 <= ch && ch <= 0xA67D) || (0xA67F <= ch && ch <= 0xA69D) || (0xA69F <= ch && ch <= 0xA6F1) || (0xA717 <= ch && ch <= 0xA71F) || (0xA722 <= ch && ch <= 0xA788) || (0xA78B <= ch && ch <= 0xA78E) || (0xA790 <= ch && ch <= 0xA7AD) || (ch == 0xA7B0) || (ch == 0xA7B1) || (0xA7F7 <= ch && ch <= 0xA827) || (0xA840 <= ch && ch <= 0xA873) || (0xA880 <= ch && ch <= 0xA8C4) || (0xA8D0 <= ch && ch <= 0xA8D9) || (0xA8E0 <= ch && ch <= 0xA8F7) || (ch == 0xA8FB) || (0xA900 <= ch && ch <= 0xA92D) || (0xA930 <= ch && ch <= 0xA953) || (0xA960 <= ch && ch <= 0xA97C) || (0xA980 <= ch && ch <= 0xA9C0) || (0xA9CF <= ch && ch <= 0xA9D9) || (0xA9E0 <= ch && ch <= 0xA9FE) || (0xAA00 <= ch && ch <= 0xAA36) || (0xAA40 <= ch && ch <= 0xAA4D) || (0xAA50 <= ch && ch <= 0xAA59) || (0xAA60 <= ch && ch <= 0xAA76) || (0xAA7A <= ch && ch <= 0xAAC2) || (0xAADB <= ch && ch <= 0xAADD) || (0xAAE0 <= ch && ch <= 0xAAEF) || (0xAAF2 <= ch && ch <= 0xAAF6) || (0xAB01 <= ch && ch <= 0xAB06) || (0xAB09 <= ch && ch <= 0xAB0E) || (0xAB11 <= ch && ch <= 0xAB16) || (0xAB20 <= ch && ch <= 0xAB26) || (0xAB28 <= ch && ch <= 0xAB2E) || (0xAB30 <= ch && ch <= 0xAB5A) || (0xAB5C <= ch && ch <= 0xAB5F) || (ch == 0xAB64) || (ch == 0xAB65) || (0xABC0 <= ch && ch <= 0xABEA) || (ch == 0xABEC) || (ch == 0xABED) || (0xABF0 <= ch && ch <= 0xABF9) || (0xAC00 <= ch && ch <= 0xD7A3) || (0xD7B0 <= ch && ch <= 0xD7C6) || (0xD7CB <= ch && ch <= 0xD7FB) || (0xF900 <= ch && ch <= 0xFA6D) || (0xFA70 <= ch && ch <= 0xFAD9) || (0xFB00 <= ch && ch <= 0xFB06) || (0xFB13 <= ch && ch <= 0xFB17) || (0xFB1D <= ch && ch <= 0xFB28) || (0xFB2A <= ch && ch <= 0xFB36) || (0xFB38 <= ch && ch <= 0xFB3C) || (ch == 0xFB3E) || (ch == 0xFB40) || (ch == 0xFB41) || (ch == 0xFB43) || (ch == 0xFB44) || (0xFB46 <= ch && ch <= 0xFBB1) || (0xFBD3 <= ch && ch <= 0xFD3D) || (0xFD50 <= ch && ch <= 0xFD8F) || (0xFD92 <= ch && ch <= 0xFDC7) || (0xFDF0 <= ch && ch <= 0xFDFB) || (0xFE00 <= ch && ch <= 0xFE0F) || (0xFE20 <= ch && ch <= 0xFE2D) || (ch == 0xFE33) || (ch == 0xFE34) || (0xFE4D <= ch && ch <= 0xFE4F) || (0xFE70 <= ch && ch <= 0xFE74) || (0xFE76 <= ch && ch <= 0xFEFC) || (0xFF10 <= ch && ch <= 0xFF19) || (0xFF21 <= ch && ch <= 0xFF3A) || (ch == 0xFF3F) || (0xFF41 <= ch && ch <= 0xFF5A) || (0xFF66 <= ch && ch <= 0xFFBE) || (0xFFC2 <= ch && ch <= 0xFFC7) || (0xFFCA <= ch && ch <= 0xFFCF) || (0xFFD2 <= ch && ch <= 0xFFD7) || (0xFFDA <= ch && ch <= 0xFFDC);
-}
-
-ALWAYS_INLINE bool isIdentifierStart(char32_t ch)
-{
-    if (LIKELY(ch < 128)) {
-        return g_asciiRangeCharMap[ch] & ESPRIMA_START_IDENT;
-    } else {
-        return isIdentifierStartSlow(ch);
-    }
-}
-
-struct Curly {
-    char m_curly[4];
-    Curly() {}
-    Curly(const char curly[4])
-    {
-        m_curly[0] = curly[0];
-        m_curly[1] = curly[1];
-        m_curly[2] = curly[2];
-        m_curly[3] = curly[3];
-    }
-};
 
 namespace Messages {
 const char* UnexpectedToken = "Unexpected token %s";
-const char* UnexpectedTokenIllegal = "Unexpected token ILLEGAL";
 const char* UnexpectedNumber = "Unexpected number";
 const char* UnexpectedString = "Unexpected string";
 const char* UnexpectedIdentifier = "Unexpected identifier";
@@ -310,7 +208,6 @@ const char* UnexpectedTemplate = "Unexpected quasi %s";
 const char* UnexpectedEOS = "Unexpected end of input";
 const char* NewlineAfterThrow = "Illegal newline after throw";
 const char* InvalidRegExp = "Invalid regular expression";
-const char* UnterminatedRegExp = "Invalid regular expression: missing /";
 const char* InvalidLHSInAssignment = "Invalid left-hand side in assignment";
 const char* InvalidLHSInForIn = "Invalid left-hand side in for-in";
 const char* InvalidLHSInForLoop = "Invalid left-hand side in for-loop";
@@ -334,7 +231,6 @@ const char* StrictLHSAssignment = "Assignment to eval or arguments is not allowe
 const char* StrictLHSPostfix = "Postfix increment/decrement may not have eval or arguments operand in strict mode";
 const char* StrictLHSPrefix = "Prefix increment/decrement may not have eval or arguments operand in strict mode";
 const char* StrictReservedWord = "Use of future reserved word in strict mode";
-const char* TemplateOctalLiteral = "Octal literals are not allowed in template strings.";
 const char* ParameterAfterRestParameter = "Rest parameter must be last formal parameter";
 const char* DefaultRestParameter = "Unexpected token =";
 const char* ObjectPatternAsRestParameter = "Unexpected token {";
@@ -350,15 +246,6 @@ const char* IllegalExportDeclaration = "Unexpected token";
 const char* DuplicateBinding = "Duplicate binding %s";
 const char* ForInOfLoopInitializer = "%s loop variable declaration may not have an initializer";
 } // namespace Messages
-
-/*
-export interface Comment {
-    multiLine: boolean;
-    slice: number[];
-    range: number[];
-    loc: any;
-}
-*/
 
 struct ParserError : public gc {
     String* description;
@@ -382,2172 +269,6 @@ struct ParserError : public gc {
         this->description = new ASCIIString(description);
     }
 };
-
-struct ScanTemplteResult : public gc {
-    UTF16StringData valueCooked;
-    StringView raw;
-    bool head;
-    bool tail;
-};
-
-struct ScanRegExpResult {
-    String* body;
-    String* flags;
-};
-
-class Scanner;
-
-AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
-{
-    switch (keyword) {
-    case If:
-        return ctx->staticStrings().stringIf;
-    case In:
-        return ctx->staticStrings().stringIn;
-    case Do:
-        return ctx->staticStrings().stringDo;
-    case Var:
-        return ctx->staticStrings().stringVar;
-    case For:
-        return ctx->staticStrings().stringFor;
-    case New:
-        return ctx->staticStrings().stringNew;
-    case Try:
-        return ctx->staticStrings().stringTry;
-    case This:
-        return ctx->staticStrings().stringThis;
-    case Else:
-        return ctx->staticStrings().stringElse;
-    case Case:
-        return ctx->staticStrings().stringCase;
-    case Void:
-        return ctx->staticStrings().stringVoid;
-    case With:
-        return ctx->staticStrings().stringWith;
-    case Enum:
-        return ctx->staticStrings().stringEnum;
-    case Await:
-        return ctx->staticStrings().stringAwait;
-    case While:
-        return ctx->staticStrings().stringWhile;
-    case Break:
-        return ctx->staticStrings().stringBreak;
-    case Catch:
-        return ctx->staticStrings().stringCatch;
-    case Throw:
-        return ctx->staticStrings().stringThrow;
-    case Const:
-        return ctx->staticStrings().stringConst;
-    case Class:
-        return ctx->staticStrings().stringClass;
-    case Super:
-        return ctx->staticStrings().stringSuper;
-    case Return:
-        return ctx->staticStrings().stringReturn;
-    case Typeof:
-        return ctx->staticStrings().stringTypeof;
-    case Delete:
-        return ctx->staticStrings().stringDelete;
-    case Switch:
-        return ctx->staticStrings().stringSwitch;
-    case Export:
-        return ctx->staticStrings().stringExport;
-    case Import:
-        return ctx->staticStrings().stringImport;
-    case Default:
-        return ctx->staticStrings().stringDefault;
-    case Finally:
-        return ctx->staticStrings().stringFinally;
-    case Extends:
-        return ctx->staticStrings().stringExtends;
-    case Function:
-        return ctx->staticStrings().stringFunction;
-    case Continue:
-        return ctx->staticStrings().stringContinue;
-    case Debugger:
-        return ctx->staticStrings().stringDebugger;
-    case InstanceofKeyword:
-        return ctx->staticStrings().stringInstanceof;
-    case Implements:
-        return ctx->staticStrings().stringImplements;
-    case Interface:
-        return ctx->staticStrings().stringInterface;
-    case Package:
-        return ctx->staticStrings().stringPackage;
-    case Private:
-        return ctx->staticStrings().stringPrivate;
-    case Protected:
-        return ctx->staticStrings().stringProtected;
-    case Public:
-        return ctx->staticStrings().stringPublic;
-    case Static:
-        return ctx->staticStrings().stringStatic;
-    case Yield:
-        return ctx->staticStrings().stringYield;
-    case Let:
-        return ctx->staticStrings().stringLet;
-    default:
-        ASSERT_NOT_REACHED();
-        return ctx->staticStrings().stringError;
-    }
-}
-
-class ScannerResult : public RefCounted<ScannerResult> {
-public:
-    Scanner* scanner;
-    unsigned char type : 4;
-    bool startWithZero : 1;
-    bool octal : 1;
-    bool plain : 1;
-    bool hasKeywordButUseString : 1;
-    char prec : 8; // max prec is 11
-    // we don't needs init prec.
-    // prec is initialized by another function before use
-
-    size_t lineNumber;
-    size_t lineStart;
-    size_t start;
-    size_t end;
-
-    union {
-        PunctuatorsKind valuePunctuatorsKind;
-        StringView valueStringLiteralData;
-        double valueNumber;
-        ScanTemplteResult* valueTemplate;
-        ScanRegExpResult valueRegexp;
-        KeywordKind valueKeywordKind;
-    };
-
-    StringView relatedSource();
-    StringView valueStringLiteral();
-    Value valueStringLiteralForAST();
-    void consturctStringLiteral();
-
-    inline ~ScannerResult();
-
-    inline void operator delete(void* obj)
-    {
-    }
-
-    inline void operator delete(void*, void*) {}
-    inline void operator delete[](void* obj) {}
-    inline void operator delete[](void*, void*) {}
-    ScannerResult()
-    {
-    }
-
-    ScannerResult(Scanner* scanner, Token type, size_t lineNumber, size_t lineStart, size_t start, size_t end)
-        : valueNumber(0)
-    {
-        this->scanner = scanner;
-        this->type = type;
-        this->startWithZero = this->octal = false;
-        this->hasKeywordButUseString = true;
-        this->plain = false;
-        this->lineNumber = lineNumber;
-        this->lineStart = lineStart;
-        this->start = start;
-        this->end = end;
-    }
-
-    ScannerResult(Scanner* scanner, Token type, const StringView& valueString, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool plain)
-        : valueStringLiteralData(valueString)
-    {
-        this->scanner = scanner;
-        this->type = type;
-        this->startWithZero = this->octal = false;
-        this->hasKeywordButUseString = true;
-        this->plain = plain;
-        this->lineNumber = lineNumber;
-        this->lineStart = lineStart;
-        this->start = start;
-        this->end = end;
-    }
-
-    ScannerResult(Scanner* scanner, Token type, double value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
-        : valueNumber(value)
-    {
-        this->scanner = scanner;
-        this->type = type;
-        this->startWithZero = this->octal = false;
-        this->hasKeywordButUseString = true;
-        this->plain = false;
-        this->valueNumber = value;
-        this->lineNumber = lineNumber;
-        this->lineStart = lineStart;
-        this->start = start;
-        this->end = end;
-    }
-
-    ScannerResult(Scanner* scanner, Token type, ScanTemplteResult* value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
-        : valueTemplate(value)
-    {
-        this->scanner = scanner;
-        this->type = type;
-        this->startWithZero = this->octal = false;
-        this->hasKeywordButUseString = true;
-        this->plain = false;
-        this->lineNumber = lineNumber;
-        this->lineStart = lineStart;
-        this->start = start;
-        this->end = end;
-    }
-};
-
-class ErrorHandler : public gc {
-public:
-    // errors: Error[];
-    // tolerant: boolean;
-
-    ErrorHandler()
-    {
-        // this->errors = [];
-        // this->tolerant = false;
-    }
-
-    // recordError(error: Error): void {
-    //     this->errors.push(error);
-    // };
-
-    void tolerate(Error* error)
-    {
-        /*
-        if (this->tolerant) {
-            this->recordError(error);
-        } else {
-            throw error;
-        }*/
-        throw error;
-    }
-
-    Error* constructError(String* msg, size_t column)
-    {
-        Error* error = new (NoGC) Error(msg);
-        error->column = column;
-        return error;
-        // try {
-        //     throw error;
-        // } catch (base) {
-        /* istanbul ignore else */
-        //     if (Object.create && Object.defineProperty) {
-        //         error = Object.create(base);
-        //         Object.defineProperty(error, 'column', { value: column });
-        //     }
-        // } finally {
-        //     return error;
-        // }
-    }
-
-    Error* createError(size_t index, size_t line, size_t col, String* description, ErrorObject::Code code)
-    {
-        UTF16StringDataNonGCStd msg = u"Line ";
-        char lineStringBuf[512];
-        snprintf(lineStringBuf, sizeof(lineStringBuf), "%zu", line);
-        std::string lineString = lineStringBuf;
-        msg += UTF16StringDataNonGCStd(lineString.begin(), lineString.end());
-        msg += u": ";
-        if (description->length()) {
-            msg += UTF16StringDataNonGCStd(description->toUTF16StringData().data());
-        }
-        Error* error = constructError(new UTF16String(msg.data(), msg.length()), col);
-        error->index = index;
-        error->lineNumber = line;
-        error->description = description;
-        error->errorCode = code;
-        return error;
-    };
-
-    void throwError(size_t index, size_t line, size_t col, String* description, ErrorObject::Code code)
-    {
-        throw this->createError(index, line, col, description, code);
-    }
-
-    void tolerateError(size_t index, size_t line, size_t col, String* description, ErrorObject::Code code)
-    {
-        Error* error = this->createError(index, line, col, description, code);
-        /*
-        if (this->tolerant) {
-            this->recordError(error);
-        } else {
-            throw error;
-        }*/
-        throw error;
-    }
-};
-
-#define SCANNER_RESULT_POOL_INITIAL_SIZE 128
-class Scanner : public gc {
-public:
-    StringView source;
-    ::Escargot::Context* escargotContext;
-    ErrorHandler* errorHandler;
-    // trackComment: boolean;
-
-    size_t length;
-    size_t index;
-    size_t lineNumber;
-    size_t lineStart;
-    std::vector<Curly> curlyStack;
-    bool isPoolEnabled;
-    ScannerResult* initialResultMemoryPool[SCANNER_RESULT_POOL_INITIAL_SIZE];
-    size_t initialResultMemoryPoolSize;
-    std::vector<ScannerResult*, gc_allocator<ScannerResult*>> resultMemoryPool;
-    char scannerResultInnerPool[SCANNER_RESULT_POOL_INITIAL_SIZE * sizeof(ScannerResult)];
-
-    ~Scanner()
-    {
-        isPoolEnabled = false;
-    }
-
-
-    Scanner(::Escargot::Context* escargotContext, StringView code, ErrorHandler* handler, size_t startLine = 0, size_t startColumn = 0)
-    {
-        this->escargotContext = escargotContext;
-        curlyStack.reserve(128);
-        isPoolEnabled = true;
-        source = code;
-        errorHandler = handler;
-        // trackComment = false;
-
-        length = code.length();
-        index = 0;
-        lineNumber = ((length > 0) ? 1 : 0) + startLine;
-        lineStart = startColumn;
-
-        initialResultMemoryPoolSize = SCANNER_RESULT_POOL_INITIAL_SIZE;
-        ScannerResult* ptr = (ScannerResult*)scannerResultInnerPool;
-        for (size_t i = 0; i < SCANNER_RESULT_POOL_INITIAL_SIZE; i++) {
-            ptr[i].scanner = this;
-            initialResultMemoryPool[i] = &ptr[i];
-        }
-    }
-
-    ScannerResult* createScannerResult()
-    {
-        if (initialResultMemoryPoolSize) {
-            initialResultMemoryPoolSize--;
-            return initialResultMemoryPool[initialResultMemoryPoolSize];
-        } else if (resultMemoryPool.size() == 0) {
-            auto ret = (ScannerResult*)GC_MALLOC(sizeof(ScannerResult));
-            return ret;
-        } else {
-            auto ret = resultMemoryPool.back();
-            resultMemoryPool.pop_back();
-            return ret;
-        }
-    }
-
-    bool eof()
-    {
-        return index >= length;
-    }
-
-    void throwUnexpectedToken(const char* message = Messages::UnexpectedTokenIllegal)
-    {
-        this->errorHandler->throwError(this->index, this->lineNumber, this->index - this->lineStart + 1, new ASCIIString(message), ErrorObject::SyntaxError);
-    }
-    /*
-    tolerateUnexpectedToken() {
-        this->errorHandler.tolerateError(this->index, this->lineNumber,
-            this->index - this->lineStart + 1, Messages.UnexpectedTokenIllegal);
-    };
-*/
-    void tolerateUnexpectedToken()
-    {
-        throwUnexpectedToken();
-    }
-    // ECMA-262 11.4 Comments
-
-    // skipSingleLineComment(offset: number): Comment[] {
-    void skipSingleLineComment(size_t /*offset*/)
-    {
-        // let comments: Comment[];
-        // size_t start, loc;
-
-        /*
-        if (this->trackComment) {
-            comments = [];
-            start = this->index - offset;
-            loc = {
-                start: {
-                    line: this->lineNumber,
-                    column: this->index - this->lineStart - offset
-                },
-                end: {}
-            };
-        }*/
-
-        while (!this->eof()) {
-            char16_t ch = this->source.bufferedCharAt(this->index);
-            ++this->index;
-            if (isLineTerminator(ch)) {
-                /*
-                if (this->trackComment) {
-                    loc.end = {
-                        line: this->lineNumber,
-                        column: this->index - this->lineStart - 1
-                    };
-                    const entry: Comment = {
-                        multiLine: false,
-                        slice: [start + offset, this->index - 1],
-                        range: [start, this->index - 1],
-                        loc: loc
-                    };
-                    comments.push(entry);
-                }*/
-                if (ch == 13 && this->source.bufferedCharAt(this->index) == 10) {
-                    ++this->index;
-                }
-                ++this->lineNumber;
-                this->lineStart = this->index;
-                // return comments;
-                return;
-            }
-        }
-
-        /*
-        if (this->trackComment) {
-            loc.end = {
-                line: this->lineNumber,
-                column: this->index - this->lineStart
-            };
-            const entry: Comment = {
-                multiLine: false,
-                slice: [start + offset, this->index],
-                range: [start, this->index],
-                loc: loc
-            };
-            comments.push(entry);
-        }*/
-
-        // return comments;
-        return;
-    }
-
-    // skipMultiLineComment(): Comment[] {
-    void skipMultiLineComment()
-    {
-        // let comments: Comment[];
-        // size_t start, loc;
-        /*
-        if (this->trackComment) {
-            comments = [];
-            start = this->index - 2;
-            loc = {
-                start: {
-                    line: this->lineNumber,
-                    column: this->index - this->lineStart - 2
-                },
-                end: {}
-            };
-        }
-         */
-        while (!this->eof()) {
-            char16_t ch = this->source.bufferedCharAt(this->index);
-            if (isLineTerminator(ch)) {
-                if (ch == 0x0D && this->source.bufferedCharAt(this->index + 1) == 0x0A) {
-                    ++this->index;
-                }
-                ++this->lineNumber;
-                ++this->index;
-                this->lineStart = this->index;
-            } else if (ch == 0x2A) {
-                // Block comment ends with '*/'.
-                if (this->source.bufferedCharAt(this->index + 1) == 0x2F) {
-                    this->index += 2;
-                    /*
-                    if (this->trackComment) {
-                        loc.end = {
-                            line: this->lineNumber,
-                            column: this->index - this->lineStart
-                        };
-                        const entry: Comment = {
-                            multiLine: true,
-                            slice: [start + 2, this->index - 2],
-                            range: [start, this->index],
-                            loc: loc
-                        };
-                        comments.push(entry);
-                    }
-                    return comments;
-                    */
-                    return;
-                }
-                ++this->index;
-            } else {
-                ++this->index;
-            }
-        }
-
-        /*
-        // Ran off the end of the file - the whole thing is a comment
-        if (this->trackComment) {
-            loc.end = {
-                line: this->lineNumber,
-                column: this->index - this->lineStart
-            };
-            const entry: Comment = {
-                multiLine: true,
-                slice: [start + 2, this->index],
-                range: [start, this->index],
-                loc: loc
-            };
-            comments.push(entry);
-        }*/
-
-        tolerateUnexpectedToken();
-        // return comments;
-        return;
-    }
-
-    ALWAYS_INLINE void scanComments()
-    {
-        bool start = (this->index == 0);
-        while (LIKELY(!this->eof())) {
-            char16_t ch = this->source.bufferedCharAt(this->index);
-
-            if (isWhiteSpace(ch)) {
-                ++this->index;
-            } else if (isLineTerminator(ch)) {
-                ++this->index;
-                if (ch == 0x0D && this->source.bufferedCharAt(this->index) == 0x0A) {
-                    ++this->index;
-                }
-                ++this->lineNumber;
-                this->lineStart = this->index;
-                start = true;
-            } else if (ch == 0x2F) { // U+002F is '/'
-                ch = this->source.bufferedCharAt(this->index + 1);
-                if (ch == 0x2F) {
-                    this->index += 2;
-                    this->skipSingleLineComment(2);
-                    start = true;
-                } else if (ch == 0x2A) { // U+002A is '*'
-                    this->index += 2;
-                    this->skipMultiLineComment();
-                } else {
-                    break;
-                }
-            } else if (start && ch == 0x2D) { // U+002D is '-'
-                // U+003E is '>'
-                if ((this->source.bufferedCharAt(this->index + 1) == 0x2D) && (this->source.bufferedCharAt(this->index + 2) == 0x3E)) {
-                    // '-->' is a single-line comment
-                    this->index += 3;
-                    this->skipSingleLineComment(3);
-                } else {
-                    break;
-                }
-            } else if (ch == 0x3C) { // U+003C is '<'
-                if (this->length > this->index + 4) {
-                    if (this->source.bufferedCharAt(this->index + 1) == '!'
-                        && this->source.bufferedCharAt(this->index + 2) == '-'
-                        && this->source.bufferedCharAt(this->index + 3) == '-') {
-                        this->index += 4; // `<!--`
-                        this->skipSingleLineComment(4);
-                    } else {
-                        break;
-                    }
-                } else {
-                    break;
-                }
-
-            } else {
-                break;
-            }
-        }
-
-        return;
-    }
-
-    static bool equals(const char16_t* c1, const char* c2, size_t len)
-    {
-        for (size_t i = 0; i < len; i++) {
-            if (c1[i] != c2[i]) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-// ECMA-262 11.6.2.2 Future Reserved Words
-#define STRING_CMP(str, len)                               \
-    if (LIKELY(data.has8BitContent)) {                     \
-        return strncmp(str, (char*)data.buffer, len) == 0; \
-    } else {                                               \
-        return equals((char16_t*)data.buffer, str, len);   \
-    }
-
-#define STRING_CMP2(str1, str2, len)                                                                   \
-    if (LIKELY(data.has8BitContent)) {                                                                 \
-        if (strncmp(str1, (char*)data.buffer, len) == 0) {                                             \
-            return true;                                                                               \
-        } else if (strncmp(str2, (char*)data.buffer, len) == 0) {                                      \
-            return true;                                                                               \
-        }                                                                                              \
-    } else {                                                                                           \
-        return equals((char16_t*)data.buffer, str1, len) || equals((char16_t*)data.buffer, str2, len); \
-    }
-
-    bool isFutureReservedWord(const StringView& id)
-    {
-        const StringBufferAccessData& data = id.bufferAccessData();
-        if (data.length == 4) {
-            STRING_CMP("enum", 4)
-        } else if (data.length == 5) {
-            STRING_CMP("super", 5)
-        } else if (data.length == 6) {
-            STRING_CMP2("export", "import", 6)
-        }
-        return false;
-    }
-
-    template <typename T>
-    ALWAYS_INLINE bool isStrictModeReservedWord(const T& id)
-    {
-        const StringBufferAccessData& data = id.bufferAccessData();
-        switch (data.length) {
-        case 3: // let
-            STRING_CMP("let", 3)
-            break;
-        case 5: // yield
-            STRING_CMP("yield", 3)
-            break;
-        case 6: // static public
-            STRING_CMP2("static", "public", 6)
-            break;
-        case 7: // private package
-            STRING_CMP2("private", "package", 7)
-            break;
-        case 9: // protected interface
-            STRING_CMP2("protected", "interface", 9)
-            break;
-        case 10: // implements
-            STRING_CMP("implements", 10)
-            break;
-        }
-
-#undef STRING_CMP
-#undef STRING_CMP2
-
-        return false;
-    }
-
-    template <typename T>
-    bool isRestrictedWord(const T& id)
-    {
-        const StringBufferAccessData& data = id.bufferAccessData();
-        if (data.length == 4) {
-            return data.equalsSameLength("eval");
-        } else if (data.length == 9) {
-            return data.equalsSameLength("arguments");
-        } else {
-            return false;
-        }
-    }
-
-    // ECMA-262 11.6.2.1 Keywords
-    ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
-    {
-        // 'const' is specialized as Keyword in V8.
-        // 'yield' and 'let' are for compatibility with SpiderMonkey and ES.next.
-        // Some others are from future reserved words.
-
-        size_t length = data.length;
-        char16_t first = data.charAt(0);
-        char16_t second;
-        switch (first) {
-        case 'a':
-            // TODO await
-            break;
-        case 'b':
-            if (length == 5 && data.equalsSameLength("break", 1)) {
-                return Break;
-            }
-            break;
-        case 'c':
-            if (length == 4) {
-                if (data.equalsSameLength("case", 1)) {
-                    return Case;
-                }
-            } else if (length == 5) {
-                second = data.charAt(1);
-                if (second == 'a' && data.equalsSameLength("catch", 2)) {
-                    return Catch;
-                } else if (second == 'o' && data.equalsSameLength("const", 2)) {
-                    const char* env = getenv("ESCARGOT_TREAT_CONST_AS_VAR");
-                    if (env && strlen(env)) {
-                        return Var;
-                    }
-                    return Const;
-                } else if (second == 'l' && data.equalsSameLength("class", 2)) {
-                    return Class;
-                }
-            } else if (length == 8) {
-                if (data.equalsSameLength("continue", 1)) {
-                    return Continue;
-                }
-            }
-            break;
-        case 'd':
-            if (length == 8) {
-                if (data.equalsSameLength("debugger", 1)) {
-                    return Debugger;
-                }
-            } else if (length == 2) {
-                if (data.equalsSameLength("do", 1)) {
-                    return Do;
-                }
-            } else if (length == 6) {
-                if (data.equalsSameLength("delete", 1)) {
-                    return Delete;
-                }
-            } else if (length == 7) {
-                if (data.equalsSameLength("default", 1)) {
-                    return Default;
-                }
-            }
-            break;
-        case 'e':
-            if (length == 4) {
-                second = data.charAt(1);
-                if (second == 'l' && data.equalsSameLength("else", 2)) {
-                    return Else;
-                } else if (second == 'n' && data.equalsSameLength("enum", 2)) {
-                    return Enum;
-                }
-            } else if (length == 6) {
-                if (data.equalsSameLength("export", 1)) {
-                    return Export;
-                }
-            } else if (length == 7) {
-                if (data.equalsSameLength("extends", 1)) {
-                    return Extends;
-                }
-            }
-            break;
-        case 'f':
-            if (length == 3) {
-                if (data.equalsSameLength("for", 1)) {
-                    return For;
-                }
-            } else if (length == 7) {
-                if (data.equalsSameLength("finally", 1)) {
-                    return Finally;
-                }
-            } else if (length == 8) {
-                if (data.equalsSameLength("function", 1)) {
-                    return Function;
-                }
-            }
-            break;
-        case 'i':
-            if (length == 2) {
-                second = data.charAt(1);
-                if (second == 'f') {
-                    return If;
-                } else if (second == 'n') {
-                    return In;
-                }
-            } else if (length == 6) {
-                if (data.equalsSameLength("import", 1)) {
-                    return Import;
-                }
-            } else if (length == 10) {
-                if (data.equalsSameLength("instanceof", 1)) {
-                    return InstanceofKeyword;
-                }
-            }
-            break;
-        case 'l':
-            if (length == 3 && data.equalsSameLength("let", 1)) {
-                return Let;
-            }
-            break;
-        case 'n':
-            if (length == 3 && data.equalsSameLength("new", 1)) {
-                return New;
-            }
-            break;
-        case 'r':
-            if (length == 6 && data.equalsSameLength("return", 1)) {
-                return Return;
-            }
-            break;
-        case 's':
-            if (length == 5 && data.equalsSameLength("super", 1)) {
-                return Super;
-            } else if (length == 6 && data.equalsSameLength("switch", 1)) {
-                return Switch;
-            }
-            break;
-        case 't':
-            switch (length) {
-            case 3:
-                if (data.equalsSameLength("try", 1)) {
-                    return Try;
-                }
-                break;
-            case 4:
-                if (data.equalsSameLength("this", 1)) {
-                    return This;
-                }
-                break;
-            case 5:
-                if (data.equalsSameLength("throw", 1)) {
-                    return Throw;
-                }
-                break;
-            case 6:
-                if (data.equalsSameLength("typeof", 1)) {
-                    return Typeof;
-                }
-                break;
-            }
-            break;
-        case 'v':
-            if (length == 3 && data.equalsSameLength("var", 1)) {
-                return Var;
-            } else if (length == 4 && data.equalsSameLength("void", 1)) {
-                return Void;
-            }
-            break;
-        case 'w':
-            if (length == 4 && data.equalsSameLength("with", 1)) {
-                return With;
-            } else if (length == 5 && data.equalsSameLength("while", 1)) {
-                return While;
-            }
-            break;
-        case 'y':
-            if (length == 5 && data.equalsSameLength("yield", 1)) {
-                return Yield;
-            }
-            break;
-        }
-        return NotKeyword;
-    }
-
-    char32_t codePointAt(size_t i)
-    {
-        char32_t cp, first, second;
-        cp = this->source.bufferedCharAt(i);
-        if (cp >= 0xD800 && cp <= 0xDBFF) {
-            second = this->source.bufferedCharAt(i + 1);
-            if (second >= 0xDC00 && second <= 0xDFFF) {
-                first = cp;
-                cp = (first - 0xD800) * 0x400 + second - 0xDC00 + 0x10000;
-            }
-        }
-
-        return cp;
-    }
-
-    int hexValue(char16_t ch)
-    {
-        int c = 0;
-        if (ch >= '0' && ch <= '9') {
-            c = ch - '0';
-        } else if (ch >= 'a' && ch <= 'f') {
-            c = ch - 'a' + 10;
-        } else if (ch >= 'A' && ch <= 'F') {
-            c = ch - 'A' + 10;
-        } else {
-            RELEASE_ASSERT_NOT_REACHED();
-        }
-        return c;
-    }
-
-    struct CharOrEmptyResult {
-        char32_t code;
-        bool isEmpty;
-
-        CharOrEmptyResult(char32_t code, bool isEmpty)
-        {
-            this->code = code;
-            this->isEmpty = isEmpty;
-        }
-    };
-
-    CharOrEmptyResult scanHexEscape(char prefix)
-    {
-        size_t len = (prefix == 'u') ? 4 : 2;
-        char32_t code = 0;
-
-        for (size_t i = 0; i < len; ++i) {
-            if (!this->eof() && isHexDigit(this->source.bufferedCharAt(this->index))) {
-                code = code * 16 + hexValue(this->source.bufferedCharAt(this->index++));
-            } else {
-                return CharOrEmptyResult(0, true);
-            }
-        }
-
-        return CharOrEmptyResult(code, false);
-    }
-
-    char32_t scanUnicodeCodePointEscape()
-    {
-        char16_t ch = this->source.bufferedCharAt(this->index);
-        char32_t code = 0;
-
-        // At least, one hex digit is required.
-        if (ch == '}') {
-            this->throwUnexpectedToken();
-        }
-
-        while (!this->eof()) {
-            ch = this->source.bufferedCharAt(this->index++);
-            if (!isHexDigit(ch)) {
-                break;
-            }
-            code = code * 16 + hexValue(ch);
-        }
-
-        if (code > 0x10FFFF || ch != '}') {
-            this->throwUnexpectedToken();
-        }
-
-        return code;
-    }
-
-    StringView getIdentifier()
-    {
-        const size_t start = this->index++;
-        while (UNLIKELY(!this->eof())) {
-            const char16_t ch = this->source.bufferedCharAt(this->index);
-            if (UNLIKELY(ch == 0x5C)) {
-                // Blackslash (U+005C) marks Unicode escape sequence.
-                this->index = start;
-                return this->getComplexIdentifier();
-            } else if (UNLIKELY(ch >= 0xD800 && ch < 0xDFFF)) {
-                // Need to handle surrogate pairs.
-                this->index = start;
-                return this->getComplexIdentifier();
-            }
-            if (isIdentifierPart(ch)) {
-                ++this->index;
-            } else {
-                break;
-            }
-        }
-
-        return StringView(this->source, start, this->index);
-    }
-
-    StringView getComplexIdentifier()
-    {
-        char32_t cp = this->codePointAt(this->index);
-        ParserCharPiece piece = ParserCharPiece(cp);
-        UTF16StringDataNonGCStd id(piece.data, piece.length);
-        this->index += id.length();
-
-        // '\u' (U+005C, U+0075) denotes an escaped character.
-        char32_t ch;
-        if (cp == 0x5C) {
-            if (this->source.bufferedCharAt(this->index) != 0x75) {
-                this->throwUnexpectedToken();
-            }
-            ++this->index;
-            if (this->source.bufferedCharAt(this->index) == '{') {
-                ++this->index;
-                ch = this->scanUnicodeCodePointEscape();
-            } else {
-                CharOrEmptyResult res = this->scanHexEscape('u');
-                ch = res.code;
-                cp = ch;
-                if (res.isEmpty || ch == '\\' || !isIdentifierStart(cp)) {
-                    this->throwUnexpectedToken();
-                }
-            }
-            id = ch;
-        }
-
-        while (!this->eof()) {
-            cp = this->codePointAt(this->index);
-            if (!isIdentifierPart(cp)) {
-                break;
-            }
-            // ch = Character.fromCodePoint(cp);
-            ch = cp;
-            piece = ParserCharPiece(ch);
-            id += UTF16StringDataNonGCStd(piece.data, piece.length);
-            this->index += piece.length;
-
-            // '\u' (U+005C, U+0075) denotes an escaped character.
-            if (cp == 0x5C) {
-                // id = id.substr(0, id.length - 1);
-                id.erase(id.length() - 1);
-
-                if (this->source.bufferedCharAt(this->index) != 0x75) {
-                    this->throwUnexpectedToken();
-                }
-                ++this->index;
-                if (this->source.bufferedCharAt(this->index) == '{') {
-                    ++this->index;
-                    ch = this->scanUnicodeCodePointEscape();
-                } else {
-                    CharOrEmptyResult res = this->scanHexEscape('u');
-                    ch = res.code;
-                    cp = ch;
-                    if (res.isEmpty || ch == '\\' || !isIdentifierPart(cp)) {
-                        this->throwUnexpectedToken();
-                    }
-                }
-                piece = ParserCharPiece(ch);
-                id += UTF16StringDataNonGCStd(piece.data, piece.length);
-            }
-        }
-
-        String* str = new UTF16String(id.data(), id.length());
-        return StringView(str, 0, str->length());
-    }
-
-    struct OctalToDecimalResult {
-        char16_t code;
-        bool octal;
-
-        OctalToDecimalResult(char16_t code, bool octal)
-        {
-            this->code = code;
-            this->octal = octal;
-        }
-    };
-    OctalToDecimalResult octalToDecimal(char16_t ch)
-    {
-        // \0 is not octal escape sequence
-        bool octal = (ch != '0');
-        char16_t code = octalValue(ch);
-
-        if (!this->eof() && isOctalDigit(this->source.bufferedCharAt(this->index))) {
-            octal = true;
-            code = code * 8 + octalValue(this->source.bufferedCharAt(this->index++));
-
-            // 3 digits are only allowed when string starts
-            // with 0, 1, 2, 3
-            // if ('0123'.indexOf(ch) >= 0 && !this->eof() && Character.isOctalDigit(this->source.charCodeAt(this->index))) {
-            if ((ch >= '0' && ch <= '3') && !this->eof() && isOctalDigit(this->source.bufferedCharAt(this->index))) {
-                code = code * 8 + octalValue(this->source.bufferedCharAt(this->index++));
-            }
-        }
-
-        return OctalToDecimalResult(code, octal);
-    };
-
-    // ECMA-262 11.6 Names and Keywords
-
-    ALWAYS_INLINE PassRefPtr<ScannerResult> scanIdentifier(char16_t ch0)
-    {
-        Token type;
-        const size_t start = this->index;
-
-        // Backslash (U+005C) starts an escaped character.
-        StringView id = UNLIKELY(ch0 == 0x5C) ? this->getComplexIdentifier() : this->getIdentifier();
-
-        // There is no keyword or literal with only one character.
-        // Thus, it must be an identifier.
-        KeywordKind keywordKind;
-        auto data = id.StringView::bufferAccessData();
-        if (data.length == 1) {
-            type = Token::IdentifierToken;
-        } else if ((keywordKind = this->isKeyword(data))) {
-            PassRefPtr<ScannerResult> r = adoptRef(new (createScannerResult()) ScannerResult(this, Token::KeywordToken, this->lineNumber, this->lineStart, start, this->index));
-            r->valueKeywordKind = keywordKind;
-            r->hasKeywordButUseString = false;
-            return r;
-        } else if (data.length == 4) {
-            if (data.equalsSameLength("null")) {
-                type = Token::NullLiteralToken;
-            } else if (data.equalsSameLength("true")) {
-                type = Token::BooleanLiteralToken;
-            } else {
-                type = Token::IdentifierToken;
-            }
-        } else if ((data.length == 5 && data.equalsSameLength("false"))) {
-            type = Token::BooleanLiteralToken;
-        } else {
-            type = Token::IdentifierToken;
-        }
-
-        return adoptRef(new (createScannerResult()) ScannerResult(this, type, id, this->lineNumber, this->lineStart, start, this->index, id.string() == this->source.string()));
-    }
-
-    // ECMA-262 11.7 Punctuators
-    PassRefPtr<ScannerResult> scanPunctuator(char16_t ch0)
-    {
-        PassRefPtr<ScannerResult> token = adoptRef(new (createScannerResult()) ScannerResult(this, Token::PunctuatorToken, this->lineNumber, this->lineStart, this->index, this->index));
-
-        PunctuatorsKind kind;
-        // Check for most common single-character punctuators.
-        size_t start = this->index;
-        char16_t ch1, ch2, ch3;
-        switch (ch0) {
-        case '(':
-            ++this->index;
-            kind = LeftParenthesis;
-            break;
-
-        case '{':
-            this->curlyStack.push_back(Curly("{\0\0"));
-            ++this->index;
-            kind = LeftBrace;
-            break;
-
-        case '.':
-            ++this->index;
-            kind = Period;
-            if (this->source.bufferedCharAt(this->index) == '.' && this->source.bufferedCharAt(this->index + 1) == '.') {
-                // Spread operator: ...
-                this->index += 2;
-                // resultStr = "...";
-                kind = PeriodPeriodPeriod;
-            }
-            break;
-
-        case '}':
-            ++this->index;
-            if (!this->curlyStack.size()) {
-                this->throwUnexpectedToken();
-            }
-            this->curlyStack.pop_back();
-            kind = RightBrace;
-            break;
-        case ')':
-            kind = RightParenthesis;
-            ++this->index;
-            break;
-        case ';':
-            kind = SemiColon;
-            ++this->index;
-            break;
-        case ',':
-            kind = Comma;
-            ++this->index;
-            break;
-        case '[':
-            kind = LeftSquareBracket;
-            ++this->index;
-            break;
-        case ']':
-            kind = RightSquareBracket;
-            ++this->index;
-            break;
-        case ':':
-            kind = Colon;
-            ++this->index;
-            break;
-        case '?':
-            kind = GuessMark;
-            ++this->index;
-            break;
-        case '~':
-            kind = Wave;
-            ++this->index;
-            break;
-
-        case '>':
-            ch1 = this->source.bufferedCharAt(this->index + 1);
-            if (ch1 == '>') {
-                ch2 = this->source.bufferedCharAt(this->index + 2);
-                if (ch2 == '>') {
-                    ch3 = this->source.bufferedCharAt(this->index + 3);
-                    if (ch3 == '=') {
-                        this->index += 4;
-                        kind = UnsignedRightShiftEqual;
-                    } else {
-                        kind = UnsignedRightShift;
-                        this->index += 3;
-                    }
-                } else if (ch2 == '=') {
-                    kind = RightShiftEqual;
-                    this->index += 3;
-                } else {
-                    kind = RightShift;
-                    this->index += 2;
-                }
-            } else if (ch1 == '=') {
-                kind = RightInequalityEqual;
-                this->index += 2;
-            } else {
-                kind = RightInequality;
-                this->index += 1;
-            }
-            break;
-        case '<':
-            ch1 = this->source.bufferedCharAt(this->index + 1);
-            if (ch1 == '<') {
-                ch2 = this->source.bufferedCharAt(this->index + 2);
-                if (ch2 == '=') {
-                    kind = LeftShiftEqual;
-                    this->index += 3;
-                } else {
-                    kind = LeftShift;
-                    this->index += 2;
-                }
-            } else if (ch1 == '=') {
-                kind = LeftInequalityEqual;
-                this->index += 2;
-            } else {
-                kind = LeftInequality;
-                this->index += 1;
-            }
-            break;
-        case '=':
-            ch1 = this->source.bufferedCharAt(this->index + 1);
-            if (ch1 == '=') {
-                ch2 = this->source.bufferedCharAt(this->index + 2);
-                if (ch2 == '=') {
-                    kind = StrictEqual;
-                    this->index += 3;
-                } else {
-                    kind = Equal;
-                    this->index += 2;
-                }
-            } else if (ch1 == '>') {
-                kind = Arrow;
-                this->index += 2;
-            } else {
-                kind = Substitution;
-                this->index += 1;
-            }
-            break;
-        case '!':
-            ch1 = this->source.bufferedCharAt(this->index + 1);
-            if (ch1 == '=') {
-                ch2 = this->source.bufferedCharAt(this->index + 2);
-                if (ch2 == '=') {
-                    kind = NotStrictEqual;
-                    this->index += 3;
-                } else {
-                    kind = NotEqual;
-                    this->index += 2;
-                }
-            } else {
-                kind = ExclamationMark;
-                this->index += 1;
-            }
-            break;
-        case '&':
-            ch1 = this->source.bufferedCharAt(this->index + 1);
-            if (ch1 == '&') {
-                kind = LogicalAnd;
-                this->index += 2;
-            } else if (ch1 == '=') {
-                kind = BitwiseAndEqual;
-                this->index += 2;
-            } else {
-                kind = BitwiseAnd;
-                this->index += 1;
-            }
-            break;
-        case '|':
-            ch1 = this->source.bufferedCharAt(this->index + 1);
-            if (ch1 == '|') {
-                kind = LogicalOr;
-                this->index += 2;
-            } else if (ch1 == '=') {
-                kind = BitwiseOrEqual;
-                this->index += 2;
-            } else {
-                kind = BitwiseOr;
-                this->index += 1;
-            }
-            break;
-        case '^':
-            ch1 = this->source.bufferedCharAt(this->index + 1);
-            if (ch1 == '=') {
-                kind = BitwiseXorEqual;
-                this->index += 2;
-            } else {
-                kind = BitwiseXor;
-                this->index += 1;
-            }
-            break;
-        case '+':
-            ch1 = this->source.bufferedCharAt(this->index + 1);
-            if (ch1 == '+') {
-                kind = PlusPlus;
-                this->index += 2;
-            } else if (ch1 == '=') {
-                kind = PlusEqual;
-                this->index += 2;
-            } else {
-                kind = Plus;
-                this->index += 1;
-            }
-            break;
-        case '-':
-            ch1 = this->source.bufferedCharAt(this->index + 1);
-            if (ch1 == '-') {
-                kind = MinusMinus;
-                this->index += 2;
-            } else if (ch1 == '=') {
-                kind = MinusEqual;
-                this->index += 2;
-            } else {
-                kind = Minus;
-                this->index += 1;
-            }
-            break;
-        case '*':
-            ch1 = this->source.bufferedCharAt(this->index + 1);
-            if (ch1 == '=') {
-                kind = MultiplyEqual;
-                this->index += 2;
-            } else {
-                kind = Multiply;
-                this->index += 1;
-            }
-            break;
-        case '/':
-            ch1 = this->source.bufferedCharAt(this->index + 1);
-            if (ch1 == '=') {
-                kind = DivideEqual;
-                this->index += 2;
-            } else {
-                kind = Divide;
-                this->index += 1;
-            }
-            break;
-        case '%':
-            ch1 = this->source.bufferedCharAt(this->index + 1);
-            if (ch1 == '=') {
-                kind = ModEqual;
-                this->index += 2;
-            } else {
-                kind = Mod;
-                this->index += 1;
-            }
-            break;
-        default:
-            kind = PunctuatorsKindEnd;
-            break;
-        }
-
-        if (UNLIKELY(this->index == token->start)) {
-            this->throwUnexpectedToken();
-        }
-
-        token->valuePunctuatorsKind = kind;
-        return token;
-    }
-
-    // ECMA-262 11.8.3 Numeric Literals
-
-    PassRefPtr<ScannerResult> scanHexLiteral(size_t start)
-    {
-        uint64_t number = 0;
-        double numberDouble = 0.0;
-        bool shouldUseDouble = false;
-        bool scanned = false;
-
-        size_t shiftCount = 0;
-        while (!this->eof()) {
-            char16_t ch = this->source.bufferedCharAt(this->index);
-            if (!isHexDigit(ch)) {
-                break;
-            }
-            if (shouldUseDouble) {
-                numberDouble = numberDouble * 16 + toHexNumericValue(ch);
-            } else {
-                number = (number << 4) + toHexNumericValue(ch);
-                if (++shiftCount >= 16) {
-                    shouldUseDouble = true;
-                    numberDouble = number;
-                    number = 0;
-                }
-            }
-            this->index++;
-            scanned = true;
-        }
-
-        if (!scanned) {
-            this->throwUnexpectedToken();
-        }
-
-        if (isIdentifierStart(this->source.bufferedCharAt(this->index))) {
-            this->throwUnexpectedToken();
-        }
-
-        if (shouldUseDouble) {
-            ASSERT(number == 0);
-            return adoptRef(new (createScannerResult()) ScannerResult(this, Token::NumericLiteralToken, numberDouble, this->lineNumber, this->lineStart, start, this->index));
-        } else {
-            ASSERT(numberDouble == 0.0);
-            return adoptRef(new (createScannerResult()) ScannerResult(this, Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index));
-        }
-    }
-
-    PassRefPtr<ScannerResult> scanBinaryLiteral(size_t start)
-    {
-        uint64_t number = 0;
-        bool scanned = false;
-
-        while (!this->eof()) {
-            char16_t ch = this->source.bufferedCharAt(this->index);
-            if (ch != '0' && ch != '1') {
-                break;
-            }
-            number = (number << 1) + ch - '0';
-            this->index++;
-            scanned = true;
-        }
-
-        if (!scanned) {
-            // only 0b or 0B
-            this->throwUnexpectedToken();
-        }
-
-        if (!this->eof()) {
-            char16_t ch = this->source.bufferedCharAt(this->index);
-            /* istanbul ignore else */
-            if (isIdentifierStart(ch) || isDecimalDigit(ch)) {
-                this->throwUnexpectedToken();
-            }
-        }
-
-        return adoptRef(new (createScannerResult()) ScannerResult(this, Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index));
-    }
-
-    PassRefPtr<ScannerResult> scanOctalLiteral(char16_t prefix, size_t start)
-    {
-        uint64_t number = 0;
-        bool scanned = false;
-        bool octal = isOctalDigit(prefix);
-
-        while (!this->eof()) {
-            char16_t ch = this->source.bufferedCharAt(this->index);
-            if (!isOctalDigit(ch)) {
-                break;
-            }
-            number = (number << 3) + ch - '0';
-            this->index++;
-            scanned = true;
-        }
-
-        if (!octal && !scanned) {
-            // only 0o or 0O
-            throwUnexpectedToken();
-        }
-
-        if (isIdentifierStart(this->source.bufferedCharAt(this->index)) || isDecimalDigit(this->source.bufferedCharAt(this->index))) {
-            throwUnexpectedToken();
-        }
-        PassRefPtr<ScannerResult> ret = adoptRef(new (createScannerResult()) ScannerResult(this, Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index));
-        ret->octal = octal;
-
-        return ret;
-    }
-
-    bool isImplicitOctalLiteral()
-    {
-        // Implicit octal, unless there is a non-octal digit.
-        // (Annex B.1.1 on Numeric Literals)
-        for (size_t i = this->index + 1; i < this->length; ++i) {
-            const char16_t ch = this->source.bufferedCharAt(i);
-            if (ch == '8' || ch == '9') {
-                return false;
-            }
-            if (!isOctalDigit(ch)) {
-                return true;
-            }
-        }
-        return true;
-    }
-
-    PassRefPtr<ScannerResult> scanNumericLiteral()
-    {
-        const size_t start = this->index;
-        char16_t ch = this->source.bufferedCharAt(start);
-        char16_t startChar = ch;
-        ASSERT(isDecimalDigit(ch) || (ch == '.'));
-        // 'Numeric literal must start with a decimal digit or a decimal point');
-
-        std::string number;
-        number.reserve(32);
-
-        if (ch != '.') {
-            number = this->source.bufferedCharAt(this->index++);
-            ch = this->source.bufferedCharAt(this->index);
-
-            // Hex number starts with '0x'.
-            // Octal number starts with '0'.
-            // Octal number in ES6 starts with '0o'.
-            // Binary number in ES6 starts with '0b'.
-            if (number == "0") {
-                if (ch == 'x' || ch == 'X') {
-                    ++this->index;
-                    return this->scanHexLiteral(start);
-                }
-                if (ch == 'b' || ch == 'B') {
-                    ++this->index;
-                    return this->scanBinaryLiteral(start);
-                }
-                if (ch == 'o' || ch == 'O') {
-                    return this->scanOctalLiteral(ch, start);
-                }
-
-                if (ch && isOctalDigit(ch)) {
-                    if (this->isImplicitOctalLiteral()) {
-                        return this->scanOctalLiteral(ch, start);
-                    }
-                }
-            }
-
-            while (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
-                number += this->source.bufferedCharAt(this->index++);
-            }
-            ch = this->source.bufferedCharAt(this->index);
-        }
-
-        if (ch == '.') {
-            number += this->source.bufferedCharAt(this->index++);
-            while (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
-                number += this->source.bufferedCharAt(this->index++);
-            }
-            ch = this->source.bufferedCharAt(this->index);
-        }
-
-        if (ch == 'e' || ch == 'E') {
-            number += this->source.bufferedCharAt(this->index++);
-
-            ch = this->source.bufferedCharAt(this->index);
-            if (ch == '+' || ch == '-') {
-                number += this->source.bufferedCharAt(this->index++);
-            }
-            if (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
-                while (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
-                    number += this->source.bufferedCharAt(this->index++);
-                }
-            } else {
-                this->throwUnexpectedToken();
-            }
-        }
-
-        if (isIdentifierStart(this->source.bufferedCharAt(this->index))) {
-            this->throwUnexpectedToken();
-        }
-
-        int length = number.length();
-        int length_dummy;
-        double_conversion::StringToDoubleConverter converter(double_conversion::StringToDoubleConverter::ALLOW_HEX
-                                                                 | double_conversion::StringToDoubleConverter::ALLOW_LEADING_SPACES
-                                                                 | double_conversion::StringToDoubleConverter::ALLOW_TRAILING_SPACES,
-                                                             0.0, double_conversion::Double::NaN(),
-                                                             "Infinity", "NaN");
-        double ll = converter.StringToDouble(number.data(), length, &length_dummy);
-
-        auto ret = adoptRef(new (createScannerResult()) ScannerResult(this, Token::NumericLiteralToken, ll, this->lineNumber, this->lineStart, start, this->index));
-        if (startChar == '0' && length >= 2 && ll >= 1) {
-            ret->startWithZero = true;
-        }
-        return ret;
-    }
-
-    // ECMA-262 11.8.4 String Literals
-
-    PassRefPtr<ScannerResult> scanStringLiteral()
-    {
-        const size_t start = this->index;
-        char16_t quote = this->source.bufferedCharAt(start);
-        ASSERT((quote == '\'' || quote == '"'));
-        // 'String literal must starts with a quote');
-
-        ++this->index;
-        bool octal = false;
-        bool isPlainCase = true;
-
-        while (LIKELY(!this->eof())) {
-            char16_t ch = this->source.bufferedCharAt(this->index++);
-
-            if (ch == quote) {
-                quote = '\0';
-                break;
-            } else if (UNLIKELY(ch == '\\')) {
-                ch = this->source.bufferedCharAt(this->index++);
-                isPlainCase = false;
-                if (!ch || !isLineTerminator(ch)) {
-                    switch (ch) {
-                    case 'u':
-                    case 'x':
-                        if (this->source.bufferedCharAt(this->index) == '{') {
-                            ++this->index;
-                            this->scanUnicodeCodePointEscape();
-                        } else {
-                            CharOrEmptyResult res = this->scanHexEscape(ch);
-                            if (res.isEmpty) {
-                                this->throwUnexpectedToken();
-                            }
-                        }
-                        break;
-                    case 'n':
-                    case 'r':
-                    case 't':
-                    case 'b':
-                    case 'f':
-                    case 'v':
-                        break;
-
-                    default:
-                        if (ch && isOctalDigit(ch)) {
-                            OctalToDecimalResult octToDec = this->octalToDecimal(ch);
-                            octal = octToDec.octal || octal;
-                        } else if (isDecimalDigit(ch)) {
-                            octal = true;
-                        }
-                        break;
-                    }
-                } else {
-                    ++this->lineNumber;
-                    if (ch == '\r' && this->source.bufferedCharAt(this->index) == '\n') {
-                        ++this->index;
-                    } else if (ch == '\n' && this->source.bufferedCharAt(this->index) == '\r') {
-                        ++this->index;
-                    }
-                    this->lineStart = this->index;
-                }
-            } else if (UNLIKELY(isLineTerminator(ch))) {
-                break;
-            } else {
-            }
-        }
-
-        if (quote != '\0') {
-            this->index = start;
-            this->throwUnexpectedToken();
-        }
-
-        if (isPlainCase) {
-            StringView str(this->source, start + 1, this->index - 1);
-            auto ret = adoptRef(new (createScannerResult()) ScannerResult(this, Token::StringLiteralToken, str, this->lineNumber, this->lineStart, start, this->index, true));
-            ret->octal = octal;
-            ret->plain = true;
-            return ret;
-        } else {
-            // build string if needs
-            auto ret = adoptRef(new (createScannerResult()) ScannerResult(this, Token::StringLiteralToken, StringView(), this->lineNumber, this->lineStart, start, this->index, false));
-            ret->octal = octal;
-            ret->plain = false;
-            return ret;
-        }
-    }
-
-    // ECMA-262 11.8.6 Template Literal Lexical Components
-
-    PassRefPtr<ScannerResult> scanTemplate()
-    {
-        // TODO apply rope-string
-        UTF16StringDataNonGCStd cooked;
-        bool terminated = false;
-        size_t start = this->index;
-
-        bool head = (this->source.bufferedCharAt(start) == '`');
-        bool tail = false;
-        size_t rawOffset = 2;
-
-        ++this->index;
-
-        while (!this->eof()) {
-            char16_t ch = this->source.bufferedCharAt(this->index++);
-            if (ch == '`') {
-                rawOffset = 1;
-                tail = true;
-                terminated = true;
-                break;
-            } else if (ch == '$') {
-                if (this->source.bufferedCharAt(this->index) == '{') {
-                    this->curlyStack.push_back(Curly("${\0"));
-                    ++this->index;
-                    terminated = true;
-                    break;
-                }
-                cooked += ch;
-            } else if (ch == '\\') {
-                ch = this->source.bufferedCharAt(this->index++);
-                if (!isLineTerminator(ch)) {
-                    switch (ch) {
-                    case 'n':
-                        cooked += '\n';
-                        break;
-                    case 'r':
-                        cooked += '\r';
-                        break;
-                    case 't':
-                        cooked += '\t';
-                        break;
-                    case 'u':
-                    case 'x':
-                        if (this->source.bufferedCharAt(this->index) == '{') {
-                            ++this->index;
-                            cooked += this->scanUnicodeCodePointEscape();
-                        } else {
-                            const size_t restore = this->index;
-                            CharOrEmptyResult res = this->scanHexEscape(ch);
-                            const char32_t unescaped = res.code;
-                            if (!res.isEmpty) {
-                                ParserCharPiece piece(unescaped);
-                                cooked += UTF16StringDataNonGCStd(piece.data, piece.length);
-                            } else {
-                                this->index = restore;
-                                cooked += ch;
-                            }
-                        }
-                        break;
-                    case 'b':
-                        cooked += '\b';
-                        break;
-                    case 'f':
-                        cooked += '\f';
-                        break;
-                    case 'v':
-                        cooked += '\v';
-                        break;
-
-                    default:
-                        if (ch == '0') {
-                            if (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
-                                // Illegal: \01 \02 and so on
-                                this->throwUnexpectedToken(Messages::TemplateOctalLiteral);
-                            }
-                            cooked += (char16_t)'\0';
-                        } else if (isOctalDigit(ch)) {
-                            // Illegal: \1 \2
-                            this->throwUnexpectedToken(Messages::TemplateOctalLiteral);
-                        } else {
-                            cooked += ch;
-                        }
-                        break;
-                    }
-                } else {
-                    ++this->lineNumber;
-                    if (ch == '\r' && this->source.bufferedCharAt(this->index) == '\n') {
-                        ++this->index;
-                    }
-                    this->lineStart = this->index;
-                }
-            } else if (isLineTerminator(ch)) {
-                ++this->lineNumber;
-                if (ch == '\r' && this->source.bufferedCharAt(this->index) == '\n') {
-                    ++this->index;
-                }
-                this->lineStart = this->index;
-                cooked += '\n';
-            } else {
-                cooked += ch;
-            }
-        }
-
-        if (!terminated) {
-            this->throwUnexpectedToken();
-        }
-
-        if (!head) {
-            this->curlyStack.pop_back();
-        }
-
-        ScanTemplteResult* result = new ScanTemplteResult();
-        result->head = head;
-        result->tail = tail;
-        result->raw = StringView(this->source, start + 1, this->index - rawOffset);
-        result->valueCooked = UTF16StringData(cooked.data(), cooked.length());
-
-        return adoptRef(new (createScannerResult()) ScannerResult(this, Token::TemplateToken, result, this->lineNumber, this->lineStart, start, this->index));
-    }
-
-    // ECMA-262 11.8.5 Regular Expression Literals
-    /*
-    testRegExp(pattern: string, flags: string) {
-        // The BMP character to use as a replacement for astral symbols when
-        // translating an ES6 "u"-flagged pattern to an ES5-compatible
-        // approximation.
-        // Note: replacing with '\uFFFF' enables false positives in unlikely
-        // scenarios. For example, `[\u{1044f}-\u{10440}]` is an invalid
-        // pattern that would not be detected by this substitution.
-        const astralSubstitute = '\uFFFF';
-        let tmp = pattern;
-        let self = this;
-
-        if (flags.indexOf('u') >= 0) {
-            tmp = tmp
-                // Replace every Unicode escape sequence with the equivalent
-                // BMP character or a constant ASCII code point in the case of
-                // astral symbols. (See the above note on `astralSubstitute`
-                // for more information.)
-                .replace(/\\u\{([0-9a-fA-F]+)\}|\\u([a-fA-F0-9]{4})/g, function($0, $1, $2) {
-                    const codePoint = parseInt($1 || $2, 16);
-                    if (codePoint > 0x10FFFF) {
-                        self.throwUnexpectedToken(Messages.InvalidRegExp);
-                    }
-                    if (codePoint <= 0xFFFF) {
-                        return String.fromCharCode(codePoint);
-                    }
-                    return astralSubstitute;
-                })
-                // Replace each paired surrogate with a single ASCII symbol to
-                // avoid throwing on regular expressions that are only valid in
-                // combination with the "u" flag.
-                .replace(
-                /[\uD800-\uDBFF][\uDC00-\uDFFF]/g,
-                astralSubstitute
-                );
-        }
-
-        // First, detect invalid regular expressions.
-        try {
-            RegExp(tmp);
-        } catch (e) {
-            this->throwUnexpectedToken(Messages.InvalidRegExp);
-        }
-
-        // Return a regular expression object for this pattern-flag pair, or
-        // `null` in case the current environment doesn't support the flags it
-        // uses.
-        try {
-            return new RegExp(pattern, flags);
-        } catch (exception) {
-            return null;
-        }
-    };
-    */
-
-    String* scanRegExpBody()
-    {
-        char16_t ch = this->source.bufferedCharAt(this->index);
-        ASSERT(ch == '/');
-        // assert(ch == '/', 'Regular expression literal must start with a slash');
-
-        // TODO apply rope-string
-        char16_t ch0 = this->source.bufferedCharAt(this->index++);
-        UTF16StringDataNonGCStd str(&ch0, 1);
-        bool classMarker = false;
-        bool terminated = false;
-
-        while (!this->eof()) {
-            ch = this->source.bufferedCharAt(this->index++);
-            str += ch;
-            if (ch == '\\') {
-                ch = this->source.bufferedCharAt(this->index++);
-                // ECMA-262 7.8.5
-                if (isLineTerminator(ch)) {
-                    this->throwUnexpectedToken(Messages::UnterminatedRegExp);
-                }
-                str += ch;
-            } else if (isLineTerminator(ch)) {
-                this->throwUnexpectedToken(Messages::UnterminatedRegExp);
-            } else if (classMarker) {
-                if (ch == ']') {
-                    classMarker = false;
-                }
-            } else {
-                if (ch == '/') {
-                    terminated = true;
-                    break;
-                } else if (ch == '[') {
-                    classMarker = true;
-                }
-            }
-        }
-
-        if (!terminated) {
-            this->throwUnexpectedToken(Messages::UnterminatedRegExp);
-        }
-
-        // Exclude leading and trailing slash.
-        str = str.substr(1, str.length() - 2);
-        /*
-        return {
-            value: body,
-            literal: str
-        };*/
-        if (isAllASCII(str.data(), str.length())) {
-            return new ASCIIString(str.data(), str.length());
-        } else {
-            return new UTF16String(str.data(), str.length());
-        }
-    }
-
-    String* scanRegExpFlags()
-    {
-        // UTF16StringData str = '';
-        UTF16StringDataNonGCStd flags;
-        while (!this->eof()) {
-            char16_t ch = this->source.bufferedCharAt(this->index);
-            if (!isIdentifierPart(ch)) {
-                break;
-            }
-
-            ++this->index;
-            if (ch == '\\' && !this->eof()) {
-                ch = this->source.bufferedCharAt(this->index);
-                if (ch == 'u') {
-                    ++this->index;
-                    const size_t restore = this->index;
-                    char32_t ch32;
-                    CharOrEmptyResult res = this->scanHexEscape('u');
-                    ch32 = res.code;
-                    if (!res.isEmpty) {
-                        ParserCharPiece piece(ch32);
-                        flags += UTF16StringDataNonGCStd(piece.data, piece.length);
-                        /*
-                        for (str += '\\u'; restore < this->index; ++restore) {
-                            str += this->source[restore];
-                        }*/
-                    } else {
-                        this->index = restore;
-                        flags += 'u';
-                        // str += '\\u';
-                    }
-                    this->tolerateUnexpectedToken();
-                } else {
-                    // str += '\\';
-                    this->tolerateUnexpectedToken();
-                }
-            } else {
-                flags += ch;
-                // str += ch;
-            }
-        }
-
-        /*
-        return {
-            value: flags,
-            literal: str
-        };
-        */
-        if (isAllASCII(flags.data(), flags.length())) {
-            return new ASCIIString(flags.data(), flags.length());
-        } else {
-            return new UTF16String(flags.data(), flags.length());
-        }
-    }
-
-    PassRefPtr<ScannerResult> scanRegExp()
-    {
-        const size_t start = this->index;
-
-        String* body = this->scanRegExpBody();
-        String* flags = this->scanRegExpFlags();
-        // const value = this->testRegExp(body.value, flags.value);
-
-        ScanRegExpResult result;
-        result.body = body;
-        result.flags = flags;
-        PassRefPtr<ScannerResult> res = adoptRef(new (createScannerResult()) ScannerResult(this, Token::RegularExpressionToken, this->lineNumber, this->lineStart, start, this->index));
-        res->valueRegexp = result;
-        return res;
-    };
-
-    ALWAYS_INLINE PassRefPtr<ScannerResult> lex()
-    {
-        if (UNLIKELY(this->eof())) {
-            return adoptRef(new (createScannerResult()) ScannerResult(this, Token::EOFToken, this->lineNumber, this->lineStart, this->index, this->index));
-        }
-
-        const char16_t cp = this->source.bufferedCharAt(this->index);
-
-        if (isIdentifierStart(cp)) {
-            goto ScanID;
-        }
-
-        // Very common: ( and ) and ;
-        /*
-        if (cp == 0x28 || cp == 0x29 || cp == 0x3B) {
-            return this->scanPunctuator(cp0);
-        }
-        */
-
-        // String literal starts with single quote (U+0027) or double quote (U+0022).
-        if (cp == 0x27 || cp == 0x22) {
-            return this->scanStringLiteral();
-        }
-
-        // Dot (.) U+002E can also start a floating-point number, hence the need
-        // to check the next character.
-        if (UNLIKELY(cp == 0x2E)) {
-            if (isDecimalDigit(this->source.bufferedCharAt(this->index + 1))) {
-                return this->scanNumericLiteral();
-            }
-            return this->scanPunctuator(cp);
-        }
-
-        if (isDecimalDigit(cp)) {
-            return this->scanNumericLiteral();
-        }
-
-        // Template literals start with ` (U+0060) for template head
-        // or } (U+007D) for template middle or template tail.
-        if (UNLIKELY(cp == 0x60 || (cp == 0x7D && (this->curlyStack.size() && strcmp(this->curlyStack.back().m_curly, "${") == 0)))) {
-            return this->scanTemplate();
-        }
-
-        // Possible identifier start in a surrogate pair.
-        if (UNLIKELY(cp >= 0xD800 && cp < 0xDFFF)) {
-            if (isIdentifierStart(this->codePointAt(this->index))) {
-                goto ScanID;
-            }
-        }
-        return this->scanPunctuator(cp);
-
-
-    ScanID:
-        return this->scanIdentifier(cp);
-    }
-};
-
-inline ScannerResult::~ScannerResult()
-{
-    if (this->scanner->isPoolEnabled) {
-        if (this->scanner->initialResultMemoryPoolSize < SCANNER_RESULT_POOL_INITIAL_SIZE) {
-            this->scanner->initialResultMemoryPool[this->scanner->initialResultMemoryPoolSize++] = this;
-            return;
-        }
-        this->scanner->resultMemoryPool.push_back(this);
-    }
-}
-
-StringView ScannerResult::relatedSource()
-{
-    return StringView(scanner->source, this->start, this->end);
-}
-
-Value ScannerResult::valueStringLiteralForAST()
-{
-    StringView sv = valueStringLiteral();
-    if (this->plain) {
-        return new SourceStringView(sv);
-    }
-    RELEASE_ASSERT(sv.string() != nullptr);
-    return sv.string();
-}
-
-StringView ScannerResult::valueStringLiteral()
-{
-    if (this->type == Token::KeywordToken && !this->hasKeywordButUseString) {
-        AtomicString as = keywordToString(this->scanner->escargotContext, this->valueKeywordKind);
-        return StringView(as.string(), 0, as.string()->length());
-    }
-    if (this->type == Token::StringLiteralToken && !plain && valueStringLiteralData.length() == 0) {
-        consturctStringLiteral();
-    }
-    ASSERT(valueStringLiteralData.getTagInFirstDataArea() == POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA);
-    return valueStringLiteralData;
-}
-
-void ScannerResult::consturctStringLiteral()
-{
-    size_t indexBackup = this->scanner->index;
-    size_t lineNumberBackup = this->scanner->lineNumber;
-    size_t lineStartBackup = this->scanner->lineStart;
-
-    this->scanner->index = this->start;
-    const size_t start = this->start;
-    char16_t quote = this->scanner->source.bufferedCharAt(start);
-    ASSERT((quote == '\'' || quote == '"'));
-    // 'String literal must starts with a quote');
-
-    ++this->scanner->index;
-    bool isEveryCharAllLatin1 = true;
-
-    UTF16StringDataNonGCStd stringUTF16;
-    while (true) {
-        char16_t ch = this->scanner->source.bufferedCharAt(this->scanner->index++);
-
-        if (ch == quote) {
-            quote = '\0';
-            break;
-        } else if (UNLIKELY(ch == '\\')) {
-            ch = this->scanner->source.bufferedCharAt(this->scanner->index++);
-            if (!ch || !isLineTerminator(ch)) {
-                switch (ch) {
-                case 'u':
-                case 'x':
-                    if (this->scanner->source.bufferedCharAt(this->scanner->index) == '{') {
-                        ++this->scanner->index;
-                        ParserCharPiece piece(this->scanner->scanUnicodeCodePointEscape());
-                        stringUTF16.append(piece.data, piece.data + piece.length);
-                        if (piece.length != 1 || piece.data[0] >= 256) {
-                            isEveryCharAllLatin1 = false;
-                        }
-                    } else {
-                        auto res = this->scanner->scanHexEscape(ch);
-                        const char32_t unescaped = res.code;
-                        ParserCharPiece piece(unescaped);
-                        stringUTF16.append(piece.data, piece.data + piece.length);
-                        if (piece.length != 1 || piece.data[0] >= 256) {
-                            isEveryCharAllLatin1 = false;
-                        }
-                    }
-                    break;
-                case 'n':
-                    stringUTF16 += '\n';
-                    break;
-                case 'r':
-                    stringUTF16 += '\r';
-                    break;
-                case 't':
-                    stringUTF16 += '\t';
-                    break;
-                case 'b':
-                    stringUTF16 += '\b';
-                    break;
-                case 'f':
-                    stringUTF16 += '\f';
-                    break;
-                case 'v':
-                    stringUTF16 += '\x0B';
-                    break;
-
-                default:
-                    if (ch && isOctalDigit(ch)) {
-                        auto octToDec = this->scanner->octalToDecimal(ch);
-
-                        stringUTF16 += octToDec.code;
-                        if (octToDec.code >= 256) {
-                            isEveryCharAllLatin1 = false;
-                        }
-                    } else if (isDecimalDigit(ch)) {
-                        stringUTF16 += ch;
-                        if (ch >= 256) {
-                            isEveryCharAllLatin1 = false;
-                        }
-                    } else {
-                        stringUTF16 += ch;
-                        if (ch >= 256) {
-                            isEveryCharAllLatin1 = false;
-                        }
-                    }
-                    break;
-                }
-            } else {
-                ++this->scanner->lineNumber;
-                if (ch == '\r' && this->scanner->source.bufferedCharAt(this->scanner->index) == '\n') {
-                    ++this->scanner->index;
-                } else if (ch == '\n' && this->scanner->source.bufferedCharAt(this->scanner->index) == '\r') {
-                    ++this->scanner->index;
-                }
-                this->scanner->lineStart = this->scanner->index;
-            }
-        } else if (UNLIKELY(isLineTerminator(ch))) {
-            break;
-        } else {
-            stringUTF16 += ch;
-            if (ch >= 256) {
-                isEveryCharAllLatin1 = false;
-            }
-        }
-    }
-
-    this->scanner->index = indexBackup;
-    this->scanner->lineNumber = lineNumberBackup;
-    this->scanner->lineStart = lineStartBackup;
-
-    String* newStr;
-    if (isEveryCharAllLatin1) {
-        newStr = new Latin1String(stringUTF16.data(), stringUTF16.length());
-    } else {
-        newStr = new UTF16String(stringUTF16.data(), stringUTF16.length());
-    }
-    this->valueStringLiteralData = StringView(newStr, 0, newStr->length());
-}
 
 struct Config : public gc {
     bool range : 1;
@@ -2923,41 +644,6 @@ public:
     ALWAYS_INLINE void collectComments()
     {
         this->scanner->scanComments();
-        /*
-        if (!this->config.comment) {
-            this->scanner->scanComments();
-        } else {
-            const comments: Comment[] = this->scanner->scanComments();
-            if (comments.length > 0 && this->delegate) {
-                for (let i = 0; i < comments.length; ++i) {
-                    const e: Comment = comments[i];
-                    let node;
-                    node = {
-                        type: e.multiLine ? 'BlockComment' : 'LineComment',
-                        value: this->scanner->source.slice(e.slice[0], e.slice[1])
-                    };
-                    if (this->config.range) {
-                        node.range = e.range;
-                    }
-                    if (this->config.loc) {
-                        node.loc = e.loc;
-                    }
-                    const metadata = {
-                        start: {
-                            line: e.loc.start.line,
-                            column: e.loc.start.column,
-                            offset: e.range[0]
-                        },
-                        end: {
-                            line: e.loc.end.line,
-                            column: e.loc.end.column,
-                            offset: e.range[1]
-                        }
-                    };
-                    this->delegate(node, metadata);
-                }
-            }
-        }*/
     }
 
     PassRefPtr<ScannerResult> nextToken()
@@ -3082,10 +768,10 @@ public:
 
     // Expect the next token to match the specified punctuator.
     // If not, an exception will be thrown.
-    void expect(PunctuatorsKind value)
+    void expect(PunctuatorKind value)
     {
         PassRefPtr<ScannerResult> token = this->nextToken();
-        if (token->type != Token::PunctuatorToken || token->valuePunctuatorsKind != value) {
+        if (token->type != Token::PunctuatorToken || token->valuePunctuatorKind != value) {
             this->throwUnexpectedToken(token);
         }
     }
@@ -3108,7 +794,7 @@ public:
         } else {
             this->expect(',');
         }*/
-        this->expect(PunctuatorsKind::Comma);
+        this->expect(PunctuatorKind::Comma);
     }
 
     // Expect the next token to match the specified keyword.
@@ -3124,9 +810,9 @@ public:
 
     // Return true if the next token matches the specified punctuator.
 
-    bool match(PunctuatorsKind value)
+    bool match(PunctuatorKind value)
     {
-        return this->lookahead->type == Token::PunctuatorToken && this->lookahead->valuePunctuatorsKind == value;
+        return this->lookahead->type == Token::PunctuatorToken && this->lookahead->valuePunctuatorKind == value;
     }
 
     // Return true if the next token matches the specified keyword
@@ -3151,7 +837,7 @@ public:
         if (this->lookahead->type != Token::PunctuatorToken) {
             return false;
         }
-        PunctuatorsKind op = this->lookahead->valuePunctuatorsKind;
+        PunctuatorKind op = this->lookahead->valuePunctuatorKind;
 
         if (op >= Substitution && op < SubstitutionEnd) {
             return true;
@@ -3346,10 +1032,10 @@ public:
 
     void consumeSemicolon()
     {
-        if (this->match(PunctuatorsKind::SemiColon)) {
+        if (this->match(PunctuatorKind::SemiColon)) {
             this->nextToken();
         } else if (!this->hasLineTerminator) {
-            if (this->lookahead->type != Token::EOFToken && !this->match(PunctuatorsKind::RightBrace)) {
+            if (this->lookahead->type != Token::EOFToken && !this->match(PunctuatorKind::RightBrace)) {
                 this->throwUnexpectedToken(this->lookahead);
             }
             this->lastMarker.index = this->startMarker.index;
@@ -3424,7 +1110,7 @@ public:
         // let value, token, raw;
         switch (this->lookahead->type) {
         case Token::IdentifierToken:
-            if (this->sourceType == SourceType::Module && this->lookahead->valueKeywordKind == KeywordKind::Await) {
+            if (this->sourceType == SourceType::Module && this->lookahead->valueKeywordKind == AwaitKeyword) {
                 this->tolerateUnexpectedToken(this->lookahead);
             }
             return this->finalize(node, finishIdentifier(this->nextToken(), true));
@@ -3485,7 +1171,7 @@ public:
             break;
 
         case Token::PunctuatorToken: {
-            PunctuatorsKind value = this->lookahead->valuePunctuatorsKind;
+            PunctuatorKind value = this->lookahead->valuePunctuatorKind;
             switch (value) {
             case LeftParenthesis:
                 this->context->isBindingElement = false;
@@ -3514,22 +1200,22 @@ public:
         }
 
         case Token::KeywordToken:
-            if (!this->context->strict && this->context->allowYield && this->matchKeyword(KeywordKind::Yield)) {
+            if (!this->context->strict && this->context->allowYield && this->matchKeyword(YieldKeyword)) {
                 return this->parseIdentifierName();
-            } else if (!this->context->strict && this->matchKeyword(KeywordKind::Let)) {
+            } else if (!this->context->strict && this->matchKeyword(LetKeyword)) {
                 throwUnexpectedToken(this->nextToken());
             } else {
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
-                if (this->matchKeyword(KeywordKind::Function)) {
+                if (this->matchKeyword(FunctionKeyword)) {
                     return this->parseFunctionExpression();
-                } else if (this->matchKeyword(KeywordKind::This)) {
+                } else if (this->matchKeyword(ThisKeyword)) {
                     if (this->context->inArrowFunction) {
                         insertUsingName(this->escargotContext->staticStrings().stringThis);
                     }
                     this->nextToken();
                     return this->finalize(node, new ThisExpressionNode());
-                } else if (this->matchKeyword(KeywordKind::Class)) {
+                } else if (this->matchKeyword(ClassKeyword)) {
                     return this->parseClassExpression();
                 } else {
                     this->throwUnexpectedToken(this->nextToken());
@@ -3551,7 +1237,7 @@ public:
         // let value, token, raw;
         switch (this->lookahead->type) {
         case Token::IdentifierToken:
-            if (this->sourceType == SourceType::Module && this->lookahead->valueKeywordKind == KeywordKind::Await) {
+            if (this->sourceType == SourceType::Module && this->lookahead->valueKeywordKind == AwaitKeyword) {
                 this->tolerateUnexpectedToken(this->lookahead);
             }
             return finishScanIdentifier(this->nextToken(), true);
@@ -3609,7 +1295,7 @@ public:
             break;
 
         case Token::PunctuatorToken: {
-            PunctuatorsKind value = this->lookahead->valuePunctuatorsKind;
+            PunctuatorKind value = this->lookahead->valuePunctuatorKind;
             switch (value) {
             case LeftParenthesis:
                 this->context->isBindingElement = false;
@@ -3641,23 +1327,23 @@ public:
         }
 
         case Token::KeywordToken:
-            if (!this->context->strict && this->context->allowYield && this->matchKeyword(KeywordKind::Yield)) {
+            if (!this->context->strict && this->context->allowYield && this->matchKeyword(YieldKeyword)) {
                 return this->scanIdentifierName();
-            } else if (!this->context->strict && this->matchKeyword(KeywordKind::Let)) {
+            } else if (!this->context->strict && this->matchKeyword(LetKeyword)) {
                 throwUnexpectedToken(this->nextToken());
             } else {
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
-                if (this->matchKeyword(KeywordKind::Function)) {
+                if (this->matchKeyword(FunctionKeyword)) {
                     this->parseFunctionExpression();
                     return std::make_pair(ASTNodeType::FunctionExpression, AtomicString());
-                } else if (this->matchKeyword(KeywordKind::This)) {
+                } else if (this->matchKeyword(ThisKeyword)) {
                     if (this->context->inArrowFunction) {
                         insertUsingName(this->escargotContext->staticStrings().stringThis);
                     }
                     this->nextToken();
                     return std::make_pair(ASTNodeType::ThisExpression, AtomicString());
-                } else if (this->matchKeyword(KeywordKind::Class)) {
+                } else if (this->matchKeyword(ClassKeyword)) {
                     this->parseClassExpression();
                     return std::make_pair(ASTNodeType::ASTNodeTypeError, AtomicString());
                 } else {
@@ -3748,7 +1434,7 @@ public:
             RELEASE_ASSERT_NOT_REACHED();
             // pattern = this->parseObjectPattern(params, kind);
         } else {
-            if (this->matchKeyword(KeywordKind::Let) && (kind == KeywordKind::Const || kind == KeywordKind::Let)) {
+            if (this->matchKeyword(LetKeyword) && (kind == ConstKeyword || kind == LetKeyword)) {
                 this->tolerateUnexpectedToken(this->lookahead, Messages::UnexpectedToken);
             }
             params.push_back(this->lookahead);
@@ -3767,7 +1453,7 @@ public:
             RELEASE_ASSERT_NOT_REACHED();
             // pattern = this->parseObjectPattern(params, kind);
         } else {
-            if (this->matchKeyword(KeywordKind::Let) && (kind == KeywordKind::Const || kind == KeywordKind::Let)) {
+            if (this->matchKeyword(LetKeyword) && (kind == ConstKeyword || kind == LetKeyword)) {
                 this->tolerateUnexpectedToken(this->lookahead, Messages::UnexpectedToken);
             }
             params.push_back(this->lookahead);
@@ -3780,7 +1466,7 @@ public:
         RefPtr<ScannerResult> startToken = this->lookahead;
 
         PassRefPtr<Node> pattern = this->parsePattern(params, kind);
-        if (this->match(PunctuatorsKind::Substitution)) {
+        if (this->match(PunctuatorKind::Substitution)) {
             this->throwError("Assignment in parameter is not supported yet");
 
             this->nextToken();
@@ -3801,7 +1487,7 @@ public:
         trackUsingNames = false;
         std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> params;
         RefPtr<ScannerResult> token = this->lookahead;
-        if (token->type == Token::PunctuatorToken && token->valuePunctuatorsKind == PunctuatorsKind::PeriodPeriodPeriod) {
+        if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::PeriodPeriodPeriod) {
             RefPtr<RestElementNode> param = this->parseRestElement(params);
             this->validateParam(options, params.back(), param->argument()->name());
             options.params.push_back(param);
@@ -3816,7 +1502,7 @@ public:
         }
         options.params.push_back(param);
         trackUsingNames = trackUsingNamesBefore;
-        return !this->match(PunctuatorsKind::RightParenthesis);
+        return !this->match(PunctuatorKind::RightParenthesis);
     }
 
     struct ParseFormalParametersResult {
@@ -3865,7 +1551,7 @@ public:
 
     PassRefPtr<SpreadElementNode> parseSpreadElement()
     {
-        this->expect(PunctuatorsKind::PeriodPeriodPeriod);
+        this->expect(PunctuatorKind::PeriodPeriodPeriod);
         MetaNode node = this->createNode();
 
         RefPtr<Node> arg = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
@@ -3875,7 +1561,7 @@ public:
 
     ScanExpressionResult scanSpreadElement()
     {
-        this->expect(PunctuatorsKind::PeriodPeriodPeriod);
+        this->expect(PunctuatorKind::PeriodPeriodPeriod);
         MetaNode node = this->createNode();
 
         this->scanInheritCoverGrammar(&Parser::scanAssignmentExpression);
@@ -4022,7 +1708,7 @@ public:
             break;
         }
         case Token::PunctuatorToken:
-            if (token->valuePunctuatorsKind == LeftSquareBracket) {
+            if (token->valuePunctuatorKind == LeftSquareBracket) {
                 key = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
                 this->expect(RightSquareBracket);
             } else {
@@ -4074,7 +1760,7 @@ public:
             break;
         }
         case Token::PunctuatorToken:
-            if (token->valuePunctuatorsKind == LeftSquareBracket) {
+            if (token->valuePunctuatorKind == LeftSquareBracket) {
                 key = this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
                 this->expect(RightSquareBracket);
             } else {
@@ -4100,7 +1786,7 @@ public:
         case Token::KeywordToken:
             return true;
         case Token::PunctuatorToken:
-            return token->valuePunctuatorsKind == LeftSquareBracket;
+            return token->valuePunctuatorKind == LeftSquareBracket;
         default:
             return false;
         }
@@ -4137,7 +1823,7 @@ public:
             this->nextToken();
             MetaNode node = this->createNode();
             key = this->finalize(node, finishIdentifier(token, true));
-        } else if (this->match(PunctuatorsKind::Multiply)) {
+        } else if (this->match(PunctuatorKind::Multiply)) {
             this->nextToken();
         } else {
             computed = this->match(LeftSquareBracket);
@@ -4174,7 +1860,7 @@ public:
             key = this->parseObjectPropertyKey();
             value = this->parseSetterMethod();
 
-        } else if (token->type == Token::PunctuatorToken && token->valuePunctuatorsKind == PunctuatorsKind::Multiply && lookaheadPropertyKey) {
+        } else if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::Multiply && lookaheadPropertyKey) {
             kind = PropertyNode::Kind::Init;
             computed = this->match(LeftSquareBracket);
             key = this->parseObjectPropertyKey();
@@ -4187,7 +1873,7 @@ public:
             }
 
             kind = PropertyNode::Kind::Init;
-            if (this->match(PunctuatorsKind::Colon)) {
+            if (this->match(PunctuatorKind::Colon)) {
                 if (!this->config.parseSingleFunction && !computed && this->isPropertyKey(key.get(), "__proto__")) {
                     if (hasProto) {
                         this->tolerateError(Messages::DuplicateProtoProperty);
@@ -4278,7 +1964,7 @@ public:
         if (token->type == Token::IdentifierToken) {
             this->nextToken();
             key = finishScanIdentifier(token, true);
-        } else if (this->match(PunctuatorsKind::Multiply)) {
+        } else if (this->match(PunctuatorKind::Multiply)) {
             this->nextToken();
         } else {
             computed = this->match(LeftSquareBracket);
@@ -4321,7 +2007,7 @@ public:
             keyString = keyValue.second;
             this->parseSetterMethod();
 
-        } else if (token->type == Token::PunctuatorToken && token->valuePunctuatorsKind == PunctuatorsKind::Multiply && lookaheadPropertyKey) {
+        } else if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::Multiply && lookaheadPropertyKey) {
             kind = PropertyNode::Kind::Init;
             computed = this->match(LeftSquareBracket);
             auto keyValue = this->scanObjectPropertyKey();
@@ -4336,7 +2022,7 @@ public:
             }
 
             kind = PropertyNode::Kind::Init;
-            if (this->match(PunctuatorsKind::Colon)) {
+            if (this->match(PunctuatorKind::Colon)) {
                 bool isProto = (key.first == ASTNodeType::Identifier && key.second == this->escargotContext->staticStrings().__proto__)
                     || (key.first == ASTNodeType::Literal && keyString->equals("__proto__"));
 
@@ -5007,7 +2693,7 @@ public:
         this->context->allowIn = true;
 
         RefPtr<Node> expr;
-        if (this->context->inFunctionBody && this->matchKeyword(Super)) {
+        if (this->context->inFunctionBody && this->matchKeyword(SuperKeyword)) {
             MetaNode node = this->createNode();
             this->nextToken();
             this->throwError("super keyword is not supported yet");
@@ -5017,13 +2703,13 @@ public:
                 this->throwUnexpectedToken(this->lookahead);
             }
         } else {
-            expr = this->inheritCoverGrammar(this->matchKeyword(New) ? &Parser::parseNewExpression : &Parser::parsePrimaryExpression);
+            expr = this->inheritCoverGrammar(this->matchKeyword(NewKeyword) ? &Parser::parseNewExpression : &Parser::parsePrimaryExpression);
         }
 
         while (true) {
             bool isPunctuatorTokenLookahead = this->lookahead->type == Token::PunctuatorToken;
             if (isPunctuatorTokenLookahead) {
-                if (this->lookahead->valuePunctuatorsKind == Period) {
+                if (this->lookahead->valuePunctuatorKind == Period) {
                     this->context->isBindingElement = false;
                     this->context->isAssignmentTarget = true;
                     this->nextToken();
@@ -5032,11 +2718,11 @@ public:
                     PassRefPtr<IdentifierNode> property = this->parseIdentifierName();
                     this->trackUsingNames = trackUsingNamesBefore;
                     expr = this->finalize(this->startNode(startToken), new MemberExpressionNode(expr.get(), property.get(), true));
-                } else if (this->lookahead->valuePunctuatorsKind == LeftParenthesis) {
+                } else if (this->lookahead->valuePunctuatorKind == LeftParenthesis) {
                     this->context->isBindingElement = false;
                     this->context->isAssignmentTarget = false;
                     expr = this->finalize(this->startNode(startToken), new CallExpressionNode(expr.get(), this->parseArguments()));
-                } else if (this->lookahead->valuePunctuatorsKind == LeftSquareBracket) {
+                } else if (this->lookahead->valuePunctuatorKind == LeftSquareBracket) {
                     this->context->isBindingElement = false;
                     this->context->isAssignmentTarget = true;
                     this->nextToken();
@@ -5065,7 +2751,7 @@ public:
         this->context->allowIn = true;
 
         ScanExpressionResult expr(std::make_pair(ASTNodeType::ASTNodeTypeError, AtomicString()));
-        if (this->context->inFunctionBody && this->matchKeyword(Super)) {
+        if (this->context->inFunctionBody && this->matchKeyword(SuperKeyword)) {
             this->nextToken();
             this->throwError("super keyword is not supported yet");
             RELEASE_ASSERT_NOT_REACHED();
@@ -5074,13 +2760,13 @@ public:
                 this->throwUnexpectedToken(this->lookahead);
             }
         } else {
-            expr = this->scanInheritCoverGrammar(this->matchKeyword(New) ? &Parser::scanNewExpression : &Parser::scanPrimaryExpression);
+            expr = this->scanInheritCoverGrammar(this->matchKeyword(NewKeyword) ? &Parser::scanNewExpression : &Parser::scanPrimaryExpression);
         }
 
         while (true) {
             bool isPunctuatorTokenLookahead = this->lookahead->type == Token::PunctuatorToken;
             if (isPunctuatorTokenLookahead) {
-                if (this->lookahead->valuePunctuatorsKind == Period) {
+                if (this->lookahead->valuePunctuatorKind == Period) {
                     this->context->isBindingElement = false;
                     this->context->isAssignmentTarget = true;
                     this->nextToken();
@@ -5089,13 +2775,13 @@ public:
                     ScanExpressionResult property = this->scanIdentifierName();
                     this->trackUsingNames = trackUsingNamesBefore;
                     expr.first = ASTNodeType::MemberExpression;
-                } else if (this->lookahead->valuePunctuatorsKind == LeftParenthesis) {
+                } else if (this->lookahead->valuePunctuatorKind == LeftParenthesis) {
                     this->context->isBindingElement = false;
                     this->context->isAssignmentTarget = false;
                     testCalleeExpressionInScan(expr);
                     this->scanArguments();
                     expr.first = ASTNodeType::CallExpression;
-                } else if (this->lookahead->valuePunctuatorsKind == LeftSquareBracket) {
+                } else if (this->lookahead->valuePunctuatorKind == LeftSquareBracket) {
                     this->context->isBindingElement = false;
                     this->context->isAssignmentTarget = true;
                     this->nextToken();
@@ -5132,7 +2818,7 @@ public:
     {
         MetaNode node = this->createNode();
 
-        this->expectKeyword(Super);
+        this->expectKeyword(SuperKeyword);
         if (!this->match(LeftSquareBracket) && !this->match(Period)) {
             this->throwUnexpectedToken(this->lookahead);
         }
@@ -5147,7 +2833,7 @@ public:
     {
         MetaNode node = this->createNode();
 
-        this->expectKeyword(Super);
+        this->expectKeyword(SuperKeyword);
         if (!this->match(LeftSquareBracket) && !this->match(Period)) {
             this->throwUnexpectedToken(this->lookahead);
         }
@@ -5165,7 +2851,7 @@ public:
         ASSERT(this->context->allowIn);
 
         MetaNode node = this->startNode(this->lookahead);
-        RefPtr<Node> expr = (this->matchKeyword(Super) && this->context->inFunctionBody) ? this->parseSuper() : this->inheritCoverGrammar(this->matchKeyword(New) ? &Parser::parseNewExpression : &Parser::parsePrimaryExpression);
+        RefPtr<Node> expr = (this->matchKeyword(SuperKeyword) && this->context->inFunctionBody) ? this->parseSuper() : this->inheritCoverGrammar(this->matchKeyword(NewKeyword) ? &Parser::parseNewExpression : &Parser::parsePrimaryExpression);
 
         while (true) {
             if (this->match(LeftSquareBracket)) {
@@ -5203,7 +2889,7 @@ public:
         ASSERT(this->context->allowIn);
 
         MetaNode node = this->startNode(this->lookahead);
-        ScanExpressionResult expr = (this->matchKeyword(Super) && this->context->inFunctionBody) ? this->scanSuper() : this->scanInheritCoverGrammar(this->matchKeyword(New) ? &Parser::scanNewExpression : &Parser::scanPrimaryExpression);
+        ScanExpressionResult expr = (this->matchKeyword(SuperKeyword) && this->context->inFunctionBody) ? this->scanSuper() : this->scanInheritCoverGrammar(this->matchKeyword(NewKeyword) ? &Parser::scanNewExpression : &Parser::scanPrimaryExpression);
 
         while (true) {
             if (this->match(LeftSquareBracket)) {
@@ -5388,7 +3074,7 @@ public:
     {
         bool matchPun = this->lookahead->type == Token::PunctuatorToken;
         if (matchPun) {
-            auto punctuatorsKind = this->lookahead->valuePunctuatorsKind;
+            auto punctuatorsKind = this->lookahead->valuePunctuatorKind;
             if (punctuatorsKind == Plus) {
                 MetaNode node = this->startNode(this->lookahead);
                 this->nextToken();
@@ -5427,7 +3113,7 @@ public:
         bool isKeyword = this->lookahead->type == Token::KeywordToken;
 
         if (isKeyword) {
-            if (this->lookahead->valueKeywordKind == Delete) {
+            if (this->lookahead->valueKeywordKind == DeleteKeyword) {
                 MetaNode node = this->startNode(this->lookahead);
                 this->nextToken();
                 auto subExpr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
@@ -5442,7 +3128,7 @@ public:
                     this->scopeContexts.back()->m_hasEvaluateBindingId = true;
                 }
                 return expr;
-            } else if (this->lookahead->valueKeywordKind == Void) {
+            } else if (this->lookahead->valueKeywordKind == VoidKeyword) {
                 MetaNode node = this->startNode(this->lookahead);
                 this->nextToken();
                 auto subExpr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
@@ -5450,7 +3136,7 @@ public:
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
                 return expr;
-            } else if (this->lookahead->valueKeywordKind == Typeof) {
+            } else if (this->lookahead->valueKeywordKind == TypeofKeyword) {
                 MetaNode node = this->startNode(this->lookahead);
                 this->nextToken();
                 auto subExpr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
@@ -5475,7 +3161,7 @@ public:
     {
         bool matchPun = this->lookahead->type == Token::PunctuatorToken;
         if (matchPun) {
-            auto punctuatorsKind = this->lookahead->valuePunctuatorsKind;
+            auto punctuatorsKind = this->lookahead->valuePunctuatorKind;
             if (punctuatorsKind == Plus) {
                 this->nextToken();
                 auto subExpr = this->scanInheritCoverGrammar(&Parser::scanUnaryExpression);
@@ -5512,7 +3198,7 @@ public:
         bool isKeyword = this->lookahead->type == Token::KeywordToken;
 
         if (isKeyword) {
-            if (this->lookahead->valueKeywordKind == Delete) {
+            if (this->lookahead->valueKeywordKind == DeleteKeyword) {
                 MetaNode node = this->startNode(this->lookahead);
                 this->nextToken();
                 auto subExpr = this->scanInheritCoverGrammar(&Parser::scanUnaryExpression);
@@ -5527,7 +3213,7 @@ public:
                     this->scopeContexts.back()->m_hasEvaluateBindingId = true;
                 }
                 return expr;
-            } else if (this->lookahead->valueKeywordKind == Void) {
+            } else if (this->lookahead->valueKeywordKind == VoidKeyword) {
                 MetaNode node = this->startNode(this->lookahead);
                 this->nextToken();
                 auto subExpr = this->scanInheritCoverGrammar(&Parser::scanUnaryExpression);
@@ -5535,7 +3221,7 @@ public:
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
                 return expr;
-            } else if (this->lookahead->valueKeywordKind == Typeof) {
+            } else if (this->lookahead->valueKeywordKind == TypeofKeyword) {
                 MetaNode node = this->startNode(this->lookahead);
                 this->nextToken();
                 auto subExpr = this->scanInheritCoverGrammar(&Parser::scanUnaryExpression);
@@ -5603,7 +3289,7 @@ public:
     int binaryPrecedence(const RefPtr<ScannerResult>& token)
     {
         if (LIKELY(token->type == Token::PunctuatorToken)) {
-            switch (token->valuePunctuatorsKind) {
+            switch (token->valuePunctuatorKind) {
             case Substitution:
                 return 0;
             case LogicalOr:
@@ -5652,7 +3338,7 @@ public:
                 return 0;
             }
         } else if (token->type == Token::KeywordToken) {
-            if (token->valueKeywordKind == In) {
+            if (token->valueKeywordKind == InKeyword) {
                 return this->context->allowIn ? 7 : 0;
             } else if (token->valueKeywordKind == InstanceofKeyword) {
                 return 7;
@@ -5820,7 +3506,7 @@ public:
     {
         Node* nd;
         if (token->type == Token::PunctuatorToken) {
-            PunctuatorsKind oper = token->valuePunctuatorsKind;
+            PunctuatorKind oper = token->valuePunctuatorKind;
             // Additive Operators
             if (oper == Plus) {
                 nd = new BinaryExpressionPlusNode(left, right);
@@ -5869,7 +3555,7 @@ public:
             }
         } else {
             ASSERT(token->type == Token::KeywordToken);
-            if (token->valueKeywordKind == KeywordKind::In) {
+            if (token->valueKeywordKind == InKeyword) {
                 nd = new BinaryExpressionInNode(left, right);
             } else if (token->valueKeywordKind == KeywordKind::InstanceofKeyword) {
                 nd = new BinaryExpressionInstanceOfNode(left, right);
@@ -5884,7 +3570,7 @@ public:
     {
         ScanExpressionResult nd(ASTNodeType::ASTNodeTypeError, AtomicString());
         if (token->type == Token::PunctuatorToken) {
-            PunctuatorsKind oper = token->valuePunctuatorsKind;
+            PunctuatorKind oper = token->valuePunctuatorKind;
             // Additive Operators
             if (oper == Plus) {
                 nd.first = ASTNodeType::BinaryExpressionPlus;
@@ -5933,7 +3619,7 @@ public:
             }
         } else {
             ASSERT(token->type == Token::KeywordToken);
-            if (token->valueKeywordKind == KeywordKind::In) {
+            if (token->valueKeywordKind == InKeyword) {
                 nd.first = ASTNodeType::BinaryExpressionIn;
             } else if (token->valueKeywordKind == KeywordKind::InstanceofKeyword) {
                 nd.first = ASTNodeType::BinaryExpressionInstanceOf;
@@ -6099,7 +3785,7 @@ public:
     {
         RefPtr<Node> expr;
 
-        if (!this->context->allowYield && this->matchKeyword(Yield)) {
+        if (!this->context->allowYield && this->matchKeyword(YieldKeyword)) {
             expr = this->parseYieldExpression();
         } else {
             RefPtr<ScannerResult> startToken = this->lookahead;
@@ -6201,29 +3887,29 @@ public:
                     Node* exprResult;
                     token = this->nextToken();
                     RefPtr<Node> right = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
-                    if (token->valuePunctuatorsKind == Substitution) {
+                    if (token->valuePunctuatorKind == Substitution) {
                         exprResult = new AssignmentExpressionSimpleNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorsKind == PlusEqual) {
+                    } else if (token->valuePunctuatorKind == PlusEqual) {
                         exprResult = new AssignmentExpressionPlusNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorsKind == MinusEqual) {
+                    } else if (token->valuePunctuatorKind == MinusEqual) {
                         exprResult = new AssignmentExpressionMinusNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorsKind == MultiplyEqual) {
+                    } else if (token->valuePunctuatorKind == MultiplyEqual) {
                         exprResult = new AssignmentExpressionMultiplyNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorsKind == DivideEqual) {
+                    } else if (token->valuePunctuatorKind == DivideEqual) {
                         exprResult = new AssignmentExpressionDivisionNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorsKind == ModEqual) {
+                    } else if (token->valuePunctuatorKind == ModEqual) {
                         exprResult = new AssignmentExpressionModNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorsKind == LeftShiftEqual) {
+                    } else if (token->valuePunctuatorKind == LeftShiftEqual) {
                         exprResult = new AssignmentExpressionLeftShiftNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorsKind == RightShiftEqual) {
+                    } else if (token->valuePunctuatorKind == RightShiftEqual) {
                         exprResult = new AssignmentExpressionSignedRightShiftNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorsKind == UnsignedRightShiftEqual) {
+                    } else if (token->valuePunctuatorKind == UnsignedRightShiftEqual) {
                         exprResult = new AssignmentExpressionUnsignedShiftNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorsKind == BitwiseXorEqual) {
+                    } else if (token->valuePunctuatorKind == BitwiseXorEqual) {
                         exprResult = new AssignmentExpressionBitwiseXorNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorsKind == BitwiseAndEqual) {
+                    } else if (token->valuePunctuatorKind == BitwiseAndEqual) {
                         exprResult = new AssignmentExpressionBitwiseAndNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorsKind == BitwiseOrEqual) {
+                    } else if (token->valuePunctuatorKind == BitwiseOrEqual) {
                         exprResult = new AssignmentExpressionBitwiseOrNode(expr.get(), right.get());
                     } else {
                         RELEASE_ASSERT_NOT_REACHED();
@@ -6240,7 +3926,7 @@ public:
     {
         ScanExpressionResult expr;
 
-        if (!this->context->allowYield && this->matchKeyword(Yield)) {
+        if (!this->context->allowYield && this->matchKeyword(YieldKeyword)) {
             expr = this->scanYieldExpression();
         } else {
             RefPtr<ScannerResult> startToken = this->lookahead;
@@ -6353,29 +4039,29 @@ public:
                     ScanExpressionResult exprResult(std::make_pair(ASTNodeType::ASTNodeTypeError, AtomicString()));
                     token = this->nextToken();
                     ScanExpressionResult right = this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
-                    if (token->valuePunctuatorsKind == Substitution) {
+                    if (token->valuePunctuatorKind == Substitution) {
                         exprResult.first = ASTNodeType::AssignmentExpressionSimple;
-                    } else if (token->valuePunctuatorsKind == PlusEqual) {
+                    } else if (token->valuePunctuatorKind == PlusEqual) {
                         exprResult.first = ASTNodeType::AssignmentExpressionPlus;
-                    } else if (token->valuePunctuatorsKind == MinusEqual) {
+                    } else if (token->valuePunctuatorKind == MinusEqual) {
                         exprResult.first = ASTNodeType::AssignmentExpressionMinus;
-                    } else if (token->valuePunctuatorsKind == MultiplyEqual) {
+                    } else if (token->valuePunctuatorKind == MultiplyEqual) {
                         exprResult.first = ASTNodeType::AssignmentExpressionMultiply;
-                    } else if (token->valuePunctuatorsKind == DivideEqual) {
+                    } else if (token->valuePunctuatorKind == DivideEqual) {
                         exprResult.first = ASTNodeType::AssignmentExpressionDivision;
-                    } else if (token->valuePunctuatorsKind == ModEqual) {
+                    } else if (token->valuePunctuatorKind == ModEqual) {
                         exprResult.first = ASTNodeType::AssignmentExpressionMod;
-                    } else if (token->valuePunctuatorsKind == LeftShiftEqual) {
+                    } else if (token->valuePunctuatorKind == LeftShiftEqual) {
                         exprResult.first = ASTNodeType::AssignmentExpressionLeftShift;
-                    } else if (token->valuePunctuatorsKind == RightShiftEqual) {
+                    } else if (token->valuePunctuatorKind == RightShiftEqual) {
                         exprResult.first = ASTNodeType::AssignmentExpressionSignedRightShift;
-                    } else if (token->valuePunctuatorsKind == UnsignedRightShiftEqual) {
+                    } else if (token->valuePunctuatorKind == UnsignedRightShiftEqual) {
                         exprResult.first = ASTNodeType::AssignmentExpressionUnsignedRightShift;
-                    } else if (token->valuePunctuatorsKind == BitwiseXorEqual) {
+                    } else if (token->valuePunctuatorKind == BitwiseXorEqual) {
                         exprResult.first = ASTNodeType::AssignmentExpressionBitwiseXor;
-                    } else if (token->valuePunctuatorsKind == BitwiseAndEqual) {
+                    } else if (token->valuePunctuatorKind == BitwiseAndEqual) {
                         exprResult.first = ASTNodeType::AssignmentExpressionBitwiseAnd;
-                    } else if (token->valuePunctuatorsKind == BitwiseOrEqual) {
+                    } else if (token->valuePunctuatorKind == BitwiseOrEqual) {
                         exprResult.first = ASTNodeType::AssignmentExpressionBitwiseOr;
                     } else {
                         RELEASE_ASSERT_NOT_REACHED();
@@ -6440,7 +4126,7 @@ public:
         this->context->isBindingElement = true;
         if (this->lookahead->type == KeywordToken) {
             switch (this->lookahead->valueKeywordKind) {
-            case Function:
+            case FunctionKeyword:
                 statement = this->parseFunctionDeclaration();
                 break;
             default:
@@ -6494,7 +4180,7 @@ public:
         this->context->isBindingElement = true;
         if (this->lookahead->type == KeywordToken) {
             switch (this->lookahead->valueKeywordKind) {
-            case Function:
+            case FunctionKeyword:
                 this->parseFunctionDeclaration();
                 break;
             default:
@@ -6771,7 +4457,7 @@ public:
         MetaNode node = this->createNode();
 
         RefPtr<ScannerResult> token = this->nextToken();
-        if (token->type == Token::KeywordToken && token->valueKeywordKind == Yield) {
+        if (token->type == Token::KeywordToken && token->valueKeywordKind == YieldKeyword) {
             if (this->context->strict) {
                 this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
             }
@@ -6782,7 +4468,7 @@ public:
             if (this->context->strict && token->type == Token::KeywordToken && this->scanner->isStrictModeReservedWord(token->relatedSource())) {
                 this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
             } else {
-                if (this->context->strict || token->relatedSource() != "let" || (kind != KeywordKind::Var)) {
+                if (this->context->strict || token->relatedSource() != "let" || (kind != VarKeyword)) {
                     this->throwUnexpectedToken(token);
                 }
             }
@@ -6796,7 +4482,7 @@ public:
     AtomicString scanVariableIdentifier(KeywordKind kind = KeywordKindEnd)
     {
         RefPtr<ScannerResult> token = this->nextToken();
-        if (token->type == Token::KeywordToken && token->valueKeywordKind == Yield) {
+        if (token->type == Token::KeywordToken && token->valueKeywordKind == YieldKeyword) {
             if (this->context->strict) {
                 this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
             }
@@ -6807,7 +4493,7 @@ public:
             if (this->context->strict && token->type == Token::KeywordToken && this->scanner->isStrictModeReservedWord(token->relatedSource())) {
                 this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
             } else {
-                if (this->context->strict || token->relatedSource() != "let" || (kind != KeywordKind::Var)) {
+                if (this->context->strict || token->relatedSource() != "let" || (kind != VarKeyword)) {
                     this->throwUnexpectedToken(token);
                 }
             }
@@ -6827,7 +4513,7 @@ public:
         MetaNode node = this->createNode();
 
         std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> params;
-        RefPtr<Node> id = this->parsePattern(params, KeywordKind::Var);
+        RefPtr<Node> id = this->parsePattern(params, VarKeyword);
 
         // ECMA-262 12.2.1
         if (this->context->strict && id->type() == Identifier) {
@@ -6854,7 +4540,7 @@ public:
     void scanVariableDeclaration(DeclarationOptions& options)
     {
         std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> params;
-        std::pair<ASTNodeType, AtomicString> id = this->scanPattern(params, KeywordKind::Var);
+        std::pair<ASTNodeType, AtomicString> id = this->scanPattern(params, VarKeyword);
 
         // ECMA-262 12.2.1
         if (this->context->strict && id.first == Identifier) {
@@ -6908,7 +4594,7 @@ public:
 
     PassRefPtr<VariableDeclarationNode> parseVariableStatement()
     {
-        this->expectKeyword(Var);
+        this->expectKeyword(VarKeyword);
         MetaNode node = this->createNode();
         DeclarationOptions opt;
         opt.inFor = false;
@@ -6920,7 +4606,7 @@ public:
 
     void scanVariableStatement()
     {
-        this->expectKeyword(Var);
+        this->expectKeyword(VarKeyword);
         DeclarationOptions opt;
         opt.inFor = false;
         this->scanVariableDeclarationList(opt);
@@ -6964,7 +4650,7 @@ public:
         RefPtr<Node> consequent;
         RefPtr<Node> alternate;
 
-        this->expectKeyword(If);
+        this->expectKeyword(IfKeyword);
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
         RefPtr<Node> test = this->parseExpression();
@@ -6975,7 +4661,7 @@ public:
         } else {
             this->expect(RightParenthesis);
             consequent = this->parseStatement(this->context->strict ? false : true);
-            if (this->matchKeyword(Else)) {
+            if (this->matchKeyword(ElseKeyword)) {
                 this->nextToken();
                 alternate = this->parseStatement();
             }
@@ -6986,7 +4672,7 @@ public:
 
     void scanIfStatement()
     {
-        this->expectKeyword(If);
+        this->expectKeyword(IfKeyword);
         this->expect(LeftParenthesis);
         this->scanExpression();
 
@@ -6995,7 +4681,7 @@ public:
         } else {
             this->expect(RightParenthesis);
             this->scanStatement(this->context->strict ? false : true);
-            if (this->matchKeyword(Else)) {
+            if (this->matchKeyword(ElseKeyword)) {
                 this->nextToken();
                 this->scanStatement();
             }
@@ -7006,7 +4692,7 @@ public:
 
     PassRefPtr<DoWhileStatementNode> parseDoWhileStatement()
     {
-        this->expectKeyword(Do);
+        this->expectKeyword(DoKeyword);
         MetaNode node = this->createNode();
 
         bool previousInIteration = this->context->inIteration;
@@ -7014,7 +4700,7 @@ public:
         RefPtr<Node> body = this->parseStatement(false);
         this->context->inIteration = previousInIteration;
 
-        this->expectKeyword(While);
+        this->expectKeyword(WhileKeyword);
         this->expect(LeftParenthesis);
         RefPtr<Node> test = this->parseExpression();
         this->expect(RightParenthesis);
@@ -7027,7 +4713,7 @@ public:
 
     void scanDoWhileStatement()
     {
-        this->expectKeyword(Do);
+        this->expectKeyword(DoKeyword);
         MetaNode node = this->createNode();
 
         bool previousInIteration = this->context->inIteration;
@@ -7035,7 +4721,7 @@ public:
         this->scanStatement(false);
         this->context->inIteration = previousInIteration;
 
-        this->expectKeyword(While);
+        this->expectKeyword(WhileKeyword);
         this->expect(LeftParenthesis);
         this->scanExpression();
         this->expect(RightParenthesis);
@@ -7053,7 +4739,7 @@ public:
         bool prevInLoop = this->context->inLoop;
         this->context->inLoop = true;
 
-        this->expectKeyword(While);
+        this->expectKeyword(WhileKeyword);
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
         RefPtr<Node> test = this->parseExpression();
@@ -7080,7 +4766,7 @@ public:
         bool prevInLoop = this->context->inLoop;
         this->context->inLoop = true;
 
-        this->expectKeyword(While);
+        this->expectKeyword(WhileKeyword);
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
         this->scanExpression();
@@ -7112,14 +4798,14 @@ public:
 
         bool prevInLoop = this->context->inLoop;
 
-        this->expectKeyword(For);
+        this->expectKeyword(ForKeyword);
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
 
         if (this->match(SemiColon)) {
             this->nextToken();
         } else {
-            if (this->matchKeyword(Var)) {
+            if (this->matchKeyword(VarKeyword)) {
                 MetaNode metaInit = this->createNode();
                 this->nextToken();
 
@@ -7130,7 +4816,7 @@ public:
                 VariableDeclaratorVector declarations = this->parseVariableDeclarationList(opt);
                 this->context->allowIn = previousAllowIn;
 
-                if (declarations.size() == 1 && this->matchKeyword(In)) {
+                if (declarations.size() == 1 && this->matchKeyword(InKeyword)) {
                     RefPtr<VariableDeclaratorNode> decl = declarations[0];
                     // if (decl->init() && (decl.id.type === Syntax.ArrayPattern || decl.id.type === Syntax.ObjectPattern || this->context->strict)) {
                     if (decl->init() && (decl->id()->type() == ArrayExpression || decl->id()->type() == ObjectExpression || this->context->strict)) {
@@ -7153,7 +4839,7 @@ public:
                     init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
                     this->expect(SemiColon);
                 }
-            } else if (this->matchKeyword(Const) || this->matchKeyword(Let)) {
+            } else if (this->matchKeyword(ConstKeyword) || this->matchKeyword(LetKeyword)) {
                 // TODO
                 this->throwUnexpectedToken(this->nextToken());
                 /*
@@ -7198,7 +4884,7 @@ public:
                 init = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
                 this->context->allowIn = previousAllowIn;
 
-                if (this->matchKeyword(In)) {
+                if (this->matchKeyword(InKeyword)) {
                     if (init->isLiteral() || init->type() == ASTNodeType::AssignmentExpression || init->type() == ASTNodeType::ThisExpression) {
                         this->tolerateError(Messages::InvalidLHSInForIn);
                     }
@@ -7296,14 +4982,14 @@ public:
 
         bool prevInLoop = this->context->inLoop;
 
-        this->expectKeyword(For);
+        this->expectKeyword(ForKeyword);
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
 
         if (this->match(SemiColon)) {
             this->nextToken();
         } else {
-            if (this->matchKeyword(Var)) {
+            if (this->matchKeyword(VarKeyword)) {
                 MetaNode metaInit = this->createNode();
                 this->nextToken();
 
@@ -7314,7 +5000,7 @@ public:
                 VariableDeclaratorVector declarations = this->parseVariableDeclarationList(opt);
                 this->context->allowIn = previousAllowIn;
 
-                if (declarations.size() == 1 && this->matchKeyword(In)) {
+                if (declarations.size() == 1 && this->matchKeyword(InKeyword)) {
                     RefPtr<VariableDeclaratorNode> decl = declarations[0];
                     // if (decl->init() && (decl.id.type === Syntax.ArrayPattern || decl.id.type === Syntax.ObjectPattern || this->context->strict)) {
                     if (decl->init() && (decl->id()->type() == ArrayExpression || decl->id()->type() == ObjectExpression || this->context->strict)) {
@@ -7337,7 +5023,7 @@ public:
                     init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
                     this->expect(SemiColon);
                 }
-            } else if (this->matchKeyword(Const) || this->matchKeyword(Let)) {
+            } else if (this->matchKeyword(ConstKeyword) || this->matchKeyword(LetKeyword)) {
                 // TODO
                 this->throwUnexpectedToken(this->nextToken());
                 /*
@@ -7382,7 +5068,7 @@ public:
                 init = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
                 this->context->allowIn = previousAllowIn;
 
-                if (this->matchKeyword(In)) {
+                if (this->matchKeyword(InKeyword)) {
                     if (init->isLiteral() || init->type() == ASTNodeType::AssignmentExpression || init->type() == ASTNodeType::ThisExpression) {
                         this->tolerateError(Messages::InvalidLHSInForIn);
                     }
@@ -7481,7 +5167,7 @@ public:
 
     PassRefPtr<Node> parseContinueStatement()
     {
-        this->expectKeyword(Continue);
+        this->expectKeyword(ContinueKeyword);
         MetaNode node = this->createNode();
 
         RefPtr<IdentifierNode> label = nullptr;
@@ -7516,7 +5202,7 @@ public:
 
     void scanContinueStatement()
     {
-        this->expectKeyword(Continue);
+        this->expectKeyword(ContinueKeyword);
 
         AtomicString label;
         if (this->lookahead->type == IdentifierToken && !this->hasLineTerminator) {
@@ -7545,7 +5231,7 @@ public:
 
     PassRefPtr<Node> parseBreakStatement()
     {
-        this->expectKeyword(Break);
+        this->expectKeyword(BreakKeyword);
         MetaNode node = this->createNode();
 
         RefPtr<IdentifierNode> label = nullptr;
@@ -7572,7 +5258,7 @@ public:
 
     void scanBreakStatement()
     {
-        this->expectKeyword(Break);
+        this->expectKeyword(BreakKeyword);
 
         AtomicString label;
         if (this->lookahead->type == IdentifierToken && !this->hasLineTerminator) {
@@ -7597,7 +5283,7 @@ public:
             this->tolerateError(Messages::IllegalReturn);
         }
 
-        this->expectKeyword(Return);
+        this->expectKeyword(ReturnKeyword);
         MetaNode node = this->createNode();
 
         bool hasArgument = !this->match(SemiColon) && !this->match(RightBrace) && !this->hasLineTerminator && this->lookahead->type != EOFToken;
@@ -7616,7 +5302,7 @@ public:
             this->tolerateError(Messages::IllegalReturn);
         }
 
-        this->expectKeyword(Return);
+        this->expectKeyword(ReturnKeyword);
 
         bool hasArgument = !this->match(SemiColon) && !this->match(RightBrace) && !this->hasLineTerminator && this->lookahead->type != EOFToken;
         if (hasArgument) {
@@ -7633,7 +5319,7 @@ public:
             this->tolerateError(Messages::StrictModeWith);
         }
 
-        this->expectKeyword(With);
+        this->expectKeyword(WithKeyword);
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
         RefPtr<Node> object = this->parseExpression();
@@ -7663,12 +5349,12 @@ public:
         MetaNode node = this->createNode();
 
         RefPtr<Node> test;
-        if (this->matchKeyword(Default)) {
+        if (this->matchKeyword(DefaultKeyword)) {
             node = this->createNode();
             this->nextToken();
             test = nullptr;
         } else {
-            this->expectKeyword(Case);
+            this->expectKeyword(CaseKeyword);
             node = this->createNode();
             test = this->parseExpression();
         }
@@ -7676,7 +5362,7 @@ public:
 
         RefPtr<StatementContainer> consequent = StatementContainer::create();
         while (true) {
-            if (this->match(RightBrace) || this->matchKeyword(Default) || this->matchKeyword(Case)) {
+            if (this->match(RightBrace) || this->matchKeyword(DefaultKeyword) || this->matchKeyword(CaseKeyword)) {
                 break;
             }
             consequent->appendChild(this->parseStatementListItem());
@@ -7688,18 +5374,18 @@ public:
     bool scanSwitchCase()
     {
         bool isDefaultNode;
-        if (this->matchKeyword(Default)) {
+        if (this->matchKeyword(DefaultKeyword)) {
             this->nextToken();
             isDefaultNode = true;
         } else {
-            this->expectKeyword(Case);
+            this->expectKeyword(CaseKeyword);
             this->scanExpression();
             isDefaultNode = false;
         }
         this->expect(Colon);
 
         while (true) {
-            if (this->match(RightBrace) || this->matchKeyword(Default) || this->matchKeyword(Case)) {
+            if (this->match(RightBrace) || this->matchKeyword(DefaultKeyword) || this->matchKeyword(CaseKeyword)) {
                 break;
             }
             this->scanStatementListItem();
@@ -7709,7 +5395,7 @@ public:
 
     PassRefPtr<SwitchStatementNode> parseSwitchStatement()
     {
-        this->expectKeyword(Switch);
+        this->expectKeyword(SwitchKeyword);
         MetaNode node = this->createNode();
 
         this->expect(LeftParenthesis);
@@ -7751,7 +5437,7 @@ public:
 
     void scanSwitchStatement()
     {
-        this->expectKeyword(Switch);
+        this->expectKeyword(SwitchKeyword);
 
         this->expect(LeftParenthesis);
         this->scanExpression();
@@ -7832,7 +5518,7 @@ public:
 
     PassRefPtr<Node> parseThrowStatement()
     {
-        this->expectKeyword(Throw);
+        this->expectKeyword(ThrowKeyword);
 
         if (this->hasLineTerminator) {
             this->throwError(Messages::NewlineAfterThrow);
@@ -7847,7 +5533,7 @@ public:
 
     void scanThrowStatement()
     {
-        this->expectKeyword(Throw);
+        this->expectKeyword(ThrowKeyword);
 
         if (this->hasLineTerminator) {
             this->throwError(Messages::NewlineAfterThrow);
@@ -7861,7 +5547,7 @@ public:
 
     PassRefPtr<CatchClauseNode> parseCatchClause()
     {
-        this->expectKeyword(Catch);
+        this->expectKeyword(CatchKeyword);
 
         MetaNode node = this->createNode();
 
@@ -7919,7 +5605,7 @@ public:
 
     void scanCatchClause()
     {
-        this->expectKeyword(Catch);
+        this->expectKeyword(CatchKeyword);
 
         this->expect(LeftParenthesis);
         if (this->match(RightParenthesis)) {
@@ -7975,24 +5661,24 @@ public:
 
     PassRefPtr<BlockStatementNode> parseFinallyClause()
     {
-        this->expectKeyword(Finally);
+        this->expectKeyword(FinallyKeyword);
         return this->parseBlock();
     }
 
     void scanFinallyClause()
     {
-        this->expectKeyword(Finally);
+        this->expectKeyword(FinallyKeyword);
         this->scanBlock();
     }
 
     PassRefPtr<TryStatementNode> parseTryStatement()
     {
-        this->expectKeyword(Try);
+        this->expectKeyword(TryKeyword);
         MetaNode node = this->createNode();
 
         RefPtr<BlockStatementNode> block = this->parseBlock();
-        RefPtr<CatchClauseNode> handler = this->matchKeyword(Catch) ? this->parseCatchClause() : nullptr;
-        RefPtr<BlockStatementNode> finalizer = this->matchKeyword(Finally) ? this->parseFinallyClause() : nullptr;
+        RefPtr<CatchClauseNode> handler = this->matchKeyword(CatchKeyword) ? this->parseCatchClause() : nullptr;
+        RefPtr<BlockStatementNode> finalizer = this->matchKeyword(FinallyKeyword) ? this->parseFinallyClause() : nullptr;
 
         if (!handler && !finalizer) {
             this->throwError(Messages::NoCatchOrFinally);
@@ -8003,11 +5689,11 @@ public:
 
     void scanTryStatement()
     {
-        this->expectKeyword(Try);
+        this->expectKeyword(TryKeyword);
 
         this->scanBlock();
-        bool meetHandler = this->matchKeyword(Catch) ? (this->scanCatchClause(), true) : false;
-        bool meetFinalizer = this->matchKeyword(Finally) ? (this->scanFinallyClause(), true) : false;
+        bool meetHandler = this->matchKeyword(CatchKeyword) ? (this->scanCatchClause(), true) : false;
+        bool meetFinalizer = this->matchKeyword(FinallyKeyword) ? (this->scanFinallyClause(), true) : false;
 
         if (!meetHandler && !meetFinalizer) {
             this->throwError(Messages::NoCatchOrFinally);
@@ -8044,7 +5730,7 @@ public:
             break;
 
         case Token::PunctuatorToken: {
-            PunctuatorsKind value = this->lookahead->valuePunctuatorsKind;
+            PunctuatorKind value = this->lookahead->valuePunctuatorKind;
             if (value == LeftBrace) {
                 statement = this->parseBlock();
             } else if (value == LeftParenthesis) {
@@ -8062,50 +5748,50 @@ public:
 
         case Token::KeywordToken:
             switch (this->lookahead->valueKeywordKind) {
-            case Break:
+            case BreakKeyword:
                 statement = asStatementNode(this->parseBreakStatement());
                 break;
-            case Continue:
+            case ContinueKeyword:
                 statement = asStatementNode(this->parseContinueStatement());
                 break;
-            case Debugger:
+            case DebuggerKeyword:
                 statement = asStatementNode(this->parseDebuggerStatement());
                 break;
-            case Do:
+            case DoKeyword:
                 statement = asStatementNode(this->parseDoWhileStatement());
                 break;
-            case For:
+            case ForKeyword:
                 statement = asStatementNode(this->parseForStatement());
                 break;
-            case Function: {
+            case FunctionKeyword: {
                 if (!allowFunctionDeclaration) {
                     this->throwUnexpectedToken(this->lookahead);
                 }
                 statement = asStatementNode(this->parseFunctionDeclaration());
                 break;
             }
-            case If:
+            case IfKeyword:
                 statement = asStatementNode(this->parseIfStatement());
                 break;
-            case Return:
+            case ReturnKeyword:
                 statement = asStatementNode(this->parseReturnStatement());
                 break;
-            case Switch:
+            case SwitchKeyword:
                 statement = asStatementNode(this->parseSwitchStatement());
                 break;
-            case Throw:
+            case ThrowKeyword:
                 statement = asStatementNode(this->parseThrowStatement());
                 break;
-            case Try:
+            case TryKeyword:
                 statement = asStatementNode(this->parseTryStatement());
                 break;
-            case Var:
+            case VarKeyword:
                 statement = asStatementNode(this->parseVariableStatement());
                 break;
-            case While:
+            case WhileKeyword:
                 statement = asStatementNode(this->parseWhileStatement());
                 break;
-            case With:
+            case WithKeyword:
                 statement = asStatementNode(this->parseWithStatement());
                 break;
             default:
@@ -8135,7 +5821,7 @@ public:
             break;
 
         case Token::PunctuatorToken: {
-            PunctuatorsKind value = this->lookahead->valuePunctuatorsKind;
+            PunctuatorKind value = this->lookahead->valuePunctuatorKind;
             if (value == LeftBrace) {
                 this->scanBlock();
             } else if (value == LeftParenthesis) {
@@ -8153,50 +5839,50 @@ public:
 
         case Token::KeywordToken:
             switch (this->lookahead->valueKeywordKind) {
-            case Break:
+            case BreakKeyword:
                 this->scanBreakStatement();
                 break;
-            case Continue:
+            case ContinueKeyword:
                 this->scanContinueStatement();
                 break;
-            case Debugger:
+            case DebuggerKeyword:
                 this->parseDebuggerStatement();
                 break;
-            case Do:
+            case DoKeyword:
                 this->scanDoWhileStatement();
                 break;
-            case For:
+            case ForKeyword:
                 this->scanForStatement();
                 break;
-            case Function: {
+            case FunctionKeyword: {
                 if (!allowFunctionDeclaration) {
                     this->throwUnexpectedToken(this->lookahead);
                 }
                 this->parseFunctionDeclaration();
                 break;
             }
-            case If:
+            case IfKeyword:
                 this->scanIfStatement();
                 break;
-            case Return:
+            case ReturnKeyword:
                 this->scanReturnStatement();
                 break;
-            case Switch:
+            case SwitchKeyword:
                 this->scanSwitchStatement();
                 break;
-            case Throw:
+            case ThrowKeyword:
                 this->scanThrowStatement();
                 break;
-            case Try:
+            case TryKeyword:
                 this->scanTryStatement();
                 break;
-            case Var:
+            case VarKeyword:
                 this->scanVariableStatement();
                 break;
-            case While:
+            case WhileKeyword:
                 this->scanWhileStatement();
                 break;
-            case With:
+            case WithKeyword:
                 this->parseWithStatement();
                 break;
             default:
@@ -8286,7 +5972,7 @@ public:
                 this->lookahead->lineNumber = this->scanner->lineNumber;
                 this->lookahead->lineNumber = this->scanner->lineStart;
                 this->lookahead->type = Token::PunctuatorToken;
-                this->lookahead->valuePunctuatorsKind = PunctuatorsKind::RightBrace;
+                this->lookahead->valuePunctuatorKind = PunctuatorKind::RightBrace;
                 this->expect(RightBrace);
                 return this->finalize(this->createNode(), new BlockStatementNode(StatementContainer::create().get()));
             }
@@ -8356,7 +6042,7 @@ public:
 
     PassRefPtr<FunctionDeclarationNode> parseFunctionDeclaration(bool identifierIsOptional = false)
     {
-        this->expectKeyword(Function);
+        this->expectKeyword(FunctionKeyword);
         MetaNode node = this->createNode();
 
         bool isGenerator = this->match(Multiply);
@@ -8433,7 +6119,7 @@ public:
 
     PassRefPtr<FunctionExpressionNode> parseFunctionExpression()
     {
-        this->expectKeyword(Function);
+        this->expectKeyword(FunctionKeyword);
         MetaNode node = this->createNode();
 
         bool isGenerator = this->match(Multiply);
@@ -8452,7 +6138,7 @@ public:
 
         if (!this->match(LeftParenthesis)) {
             RefPtr<ScannerResult> token = this->lookahead;
-            id = (!this->context->strict && !isGenerator && this->matchKeyword(Yield)) ? this->parseIdentifierName() : this->parseVariableIdentifier();
+            id = (!this->context->strict && !isGenerator && this->matchKeyword(YieldKeyword)) ? this->parseIdentifierName() : this->parseVariableIdentifier();
             if (this->context->strict) {
                 if (this->scanner->isRestrictedWord(token->relatedSource())) {
                     this->tolerateUnexpectedToken(token, Messages::StrictFunctionName);
@@ -9127,137 +6813,6 @@ std::tuple<RefPtr<Node>, ASTScopeContext*> parseSingleFunction(::Escargot::Conte
     }
     return std::make_tuple(nd, sc);
 }
-
-char g_asciiRangeCharMap[128] = {
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    ESPRIMA_IS_WHITESPACE,
-    ESPRIMA_IS_LINE_TERMINATOR,
-    ESPRIMA_IS_WHITESPACE,
-    ESPRIMA_IS_WHITESPACE,
-    ESPRIMA_IS_LINE_TERMINATOR,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    ESPRIMA_IS_WHITESPACE,
-    0,
-    0,
-    0,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    ESPRIMA_IS_IDENT,
-    ESPRIMA_IS_IDENT,
-    ESPRIMA_IS_IDENT,
-    ESPRIMA_IS_IDENT,
-    ESPRIMA_IS_IDENT,
-    ESPRIMA_IS_IDENT,
-    ESPRIMA_IS_IDENT,
-    ESPRIMA_IS_IDENT,
-    ESPRIMA_IS_IDENT,
-    ESPRIMA_IS_IDENT,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    0,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    0,
-    0,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    0,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    ESPRIMA_START_IDENT | ESPRIMA_IS_IDENT,
-    0,
-    0,
-    0,
-    0,
-    0
-};
 
 } // namespace esprima
 } // namespace Escargot

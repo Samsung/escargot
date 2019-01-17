@@ -56,7 +56,7 @@ ALWAYS_INLINE bool isLineTerminator(char16_t ch)
     if (LIKELY(ch < 128)) {
         return g_asciiRangeCharMap[ch] & ESPRIMA_IS_LINE_TERMINATOR;
     }
-    return UNLIKELY(ch >= 128 && ((ch == 0x2028) || (ch == 0x2029)));
+    return UNLIKELY(ch == 0x2028 || ch == 0x2029);
 }
 
 typedef std::function<void(::Escargot::Node*, NodeLOC start, NodeLOC end)> ParserASTNodeHandler;
