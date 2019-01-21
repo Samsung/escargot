@@ -11,6 +11,8 @@ output.js
 *.js
 *.swp
 #!test/*.js
+!test/regression-tests/*.js
+!test/regression-tests/xfail/*.js
 *.pyc
 tags
 cscope.out

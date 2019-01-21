@@ -23,7 +23,7 @@ matrix:
         - ninja -Cout/darwin/x64/release
         - cp ./out/darwin/x64/release/escargot ./escargot
         - travis_wait 30 tools/run-tests.py --arch=x86_64 jetstream-only-simple
-        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal octane jsc-stress
+        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal octane jsc-stress regression-tests
         # FIXME: chakracore fails on darwin
         # ChakraCore's test runner uses `readlink -f` to determine the test root directory.
         # However, `readlink` has no `-f` option on macOS.
@@ -58,7 +58,7 @@ matrix:
         - ninja -Cout/linux/x64/release
         - cp ./out/linux/x64/release/escargot ./escargot
         - travis_wait tools/run-tests.py --arch=x86_64 jetstream-only-simple
-        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal octane chakracore jsc-stress
+        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal octane chakracore jsc-stress regression-tests
 
     - name: "linux.x64.debug"
       addons:
@@ -68,7 +68,7 @@ matrix:
         - cmake -H. -Bout/linux/x64/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin -GNinja
         - ninja -Cout/linux/x64/debug
         - cp ./out/linux/x64/debug/escargot ./escargot
-        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal
+        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal regression-tests
 
     - name: "linux.x86.release"
       addons:
@@ -89,7 +89,7 @@ matrix:
         - cmake -H. -Bout/linux/x86/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin -GNinja
         - ninja -Cout/linux/x86/debug
         - cp ./out/linux/x86/debug/escargot ./escargot
-        - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js test262 internal
+        - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js test262 internal regression-tests
 
     - name: "linux.x64.release (-DVENDORTEST=1)"
       addons:
@@ -113,7 +113,7 @@ matrix:
         - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
         - ninja -Cout/linux/x86/release
         - cp ./out/linux/x86/release/escargot ./escargot
-        - tools/run-tests.py --arch=x86 v8 spidermonkey
+        - tools/run-tests.py --arch=x86 v8 spidermonkey regression-tests
 
     - name: "SonarQube"
       addons:
