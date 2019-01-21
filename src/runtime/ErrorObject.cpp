@@ -87,13 +87,13 @@ const char* errorMessage_GlobalObject_IllegalFirstArgument = "%s: illegal first 
 const char* errorMessage_String_InvalidStringLength = "Invalid string length";
 
 
-void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototoype, String* functionName, const char* templateString)
+void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString)
 {
     StringBuilder replacerBuilder;
     if (objectName->length()) {
         replacerBuilder.appendString(objectName);
     }
-    if (prototoype) {
+    if (prototype) {
         replacerBuilder.appendChar('.');
         replacerBuilder.appendString(state.context()->staticStrings().prototype.string());
     }

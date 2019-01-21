@@ -17,12 +17,14 @@
  *  USA
  */
 
-#if ESCARGOT_ENABLE_PROXY
 
 #ifndef __EscargotProxyObject__
 #define __EscargotProxyObject__
 
+#if ESCARGOT_ENABLE_PROXY
+
 #include "runtime/Object.h"
+#include "runtime/FunctionObject.h"
 
 namespace Escargot {
 
@@ -35,21 +37,48 @@ public:
         return true;
     }
 
+    virtual bool isOrdinary() const
+    {
+        return false;
+    }
+
+    virtual bool isCallable() const
+    {
+        return m_isCallable;
+    }
+
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-    virtual const char* internalClassProperty()
+    virtual const char* internalClassProperty() override
     {
         return "Proxy";
     }
 
-    ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& propertyName) override;
-    bool set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, const Value& receiver) override;
+    static Value createProxy(ExecutionState& state, const Value& target, const Value& handler);
 
-    void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) override;
+    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;
 
-    bool isInlineCacheable() override
+    virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
+
+    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
+
+    virtual bool preventExtensions(ExecutionState& state) override;
+
+    virtual bool hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName) override;
+
+    virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& propertyName) override;
+    virtual bool set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, const Value& receiver) override;
+
+    virtual bool isInlineCacheable() override
     {
         return false;
     }
+
+    virtual void setPrototype(ExecutionState& state, const Value& value) override;
+
+    virtual Value getPrototype(ExecutionState&) override;
+    virtual Object* getPrototypeObject(ExecutionState&) override;
+
+    virtual bool isExtensible(ExecutionState&) override;
 
     void setTarget(Object* target)
     {
@@ -71,11 +100,17 @@ public:
         return m_handler;
     }
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 protected:
+    bool m_isCallable;
+    bool m_isConstruct;
+
     Object* m_target;
     Object* m_handler;
 };
 }
 
-#endif // __EscargotProxyObject__
 #endif // ESCARGOT_ENABLE_PROXY
+#endif // __EscargotProxyObject__

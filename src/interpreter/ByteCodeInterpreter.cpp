@@ -417,7 +417,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
                             uint32_t len = arr->getArrayLength(state);
                             if (UNLIKELY(len <= idx)) {
-                                if (UNLIKELY(!arr->isExtensible())) {
+                                if (UNLIKELY(!arr->isExtensible(state))) {
 #if defined(COMPILER_GCC)
                                     goto SetObjectOpcodeSlowCaseOpcodeLbl;
 #else
@@ -824,7 +824,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 const Value& property = registerFile[code->m_propertyRegisterIndex];
                 Object* obj = willBeObject.toObject(state);
                 if (willBeObject.isPrimitive()) {
-                    obj->preventExtensions();
+                    obj->preventExtensions(state);
                 }
 
                 bool result = obj->setIndexedProperty(state, property, registerFile[code->m_loadRegisterIndex]);
@@ -1051,8 +1051,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 BinaryInOperation* code = (BinaryInOperation*)programCounter;
                 const Value& left = registerFile[code->m_srcIndex0];
                 const Value& right = registerFile[code->m_srcIndex1];
-                auto result = binaryInOperation(state, left, right);
-                registerFile[code->m_dstIndex] = Value(result.hasValue());
+                bool result = binaryInOperation(state, left, right);
+                registerFile[code->m_dstIndex] = Value(result);
                 ADD_PROGRAM_COUNTER(BinaryInOperation);
                 NEXT_INSTRUCTION();
             }
@@ -1427,7 +1427,7 @@ TestCache:
                 currentCacheIndex++;
                 goto TestCache;
             }
-            Object* protoObject = obj->getPrototypeObject();
+            Object* protoObject = obj->getPrototypeObject(state);
             if (protoObject != nullptr) {
                 obj = protoObject;
             } else {
@@ -1490,7 +1490,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
             inlineCache.m_cache[0].m_cachedIndex = idx;
             break;
         }
-        obj = obj->getPrototypeObject();
+        obj = obj->getPrototypeObject(state);
         if (!obj) {
             break;
         }
@@ -1509,7 +1509,7 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
     if (UNLIKELY(!willBeObject.isObject())) {
         obj = willBeObject.toObject(state);
         if (willBeObject.isPrimitive()) {
-            obj->preventExtensions();
+            obj->preventExtensions(state);
         }
     } else {
         obj = willBeObject.asObject();
@@ -1534,7 +1534,7 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
                 miss = true;
                 break;
             } else {
-                Object* o = obj->getPrototypeObject();
+                Object* o = obj->getPrototypeObject(state);
                 if (UNLIKELY(!o)) {
                     miss = true;
                     break;
@@ -2005,17 +2005,16 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, Wit
     return Value(Value::EmptyValue);
 }
 
-NEVER_INLINE ObjectGetResult ByteCodeInterpreter::binaryInOperation(ExecutionState& state, const Value& left, const Value& right)
+NEVER_INLINE bool ByteCodeInterpreter::binaryInOperation(ExecutionState& state, const Value& left, const Value& right)
 {
-    auto result = ObjectGetResult();
     if (!right.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "type of rvalue is not Object");
-        return result;
+        return false;
     }
 
-    result = right.toObject(state)->get(state, ObjectPropertyName(state, left));
-
-    return result;
+    // https://www.ecma-international.org/ecma-262/5.1/#sec-11.8.7
+    // Return the result of calling the [[HasProperty]] internal method of rval with argument ToString(lval).
+    return right.toObject(state)->hasProperty(state, ObjectPropertyName(state, left));
 }
 
 NEVER_INLINE Value ByteCodeInterpreter::callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, ExecutionContext* ec, LexicalEnvironment* env, Value* argv)

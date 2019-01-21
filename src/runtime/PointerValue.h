@@ -209,6 +209,11 @@ public:
         return false;
     }
 
+    virtual bool isCallable() const
+    {
+        return false;
+    }
+
     String* asString()
     {
         ASSERT(isString());

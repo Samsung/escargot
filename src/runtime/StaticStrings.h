@@ -184,6 +184,7 @@ namespace Escargot {
     F(supportedLocalesOf)         \
     F(resolvedOptions)            \
     F(getPrototypeOf)             \
+    F(setPrototypeOf)             \
     F(isPrototypeOf)              \
     F(propertyIsEnumerable)       \
     F(ignoreCase)                 \
@@ -241,6 +242,7 @@ namespace Escargot {
     F(getOwnPropertyNames)        \
     F(getOwnPropertySymbols)      \
     F(hasOwnProperty)             \
+    F(deleteProperty)             \
     F(imul)                       \
     F(isExtensible)               \
     F(isFinite)                   \
@@ -320,6 +322,7 @@ namespace Escargot {
     F(setUint32)                  \
     F(Promise)                    \
     F(Proxy)                      \
+    F(proxy)                      \
     F(alreadyResolved)            \
     F(alreadyCalled)              \
     F(values)                     \

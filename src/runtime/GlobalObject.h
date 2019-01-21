@@ -358,11 +358,6 @@ public:
     {
         return m_proxy;
     }
-
-    Object* proxyPrototype()
-    {
-        return m_proxyPrototype;
-    }
 #endif
 #if ESCARGOT_ENABLE_TYPEDARRAY
     FunctionObject* arrayBuffer()
@@ -627,7 +622,6 @@ protected:
 #endif
 #if ESCARGOT_ENABLE_PROXY
     FunctionObject* m_proxy;
-    Object* m_proxyPrototype;
 #endif
 #if ESCARGOT_ENABLE_TYPEDARRAY
     FunctionObject* m_arrayBuffer;

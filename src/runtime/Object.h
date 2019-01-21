@@ -380,6 +380,7 @@ public:
 
     ObjectStructurePropertyDescriptor toObjectStructurePropertyDescriptor() const;
     static ObjectPropertyDescriptor fromObjectStructurePropertyDescriptor(const ObjectStructurePropertyDescriptor& desc, const Value& value);
+    static Object* fromObjectPropertyDescriptor(ExecutionState& state, const ObjectPropertyDescriptor& desc);
 
 private:
     bool isDataProperty() const
@@ -535,6 +536,11 @@ public:
         return true;
     }
 
+    virtual bool isOrdinary() const
+    {
+        return true;
+    }
+
     ErrorObject* asErrorObject()
     {
         ASSERT(isErrorObject());
@@ -580,19 +586,32 @@ public:
     }
 #endif
 
-    // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-isextensible
-    bool isExtensible()
+// http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-isextensiblie
+#if ESCARGOT_ENABLE_PROXY
+    virtual bool isExtensible(ExecutionState&)
+#else
+    bool isExtensible(ExecutionState&)
+#endif
     {
         return rareData() == nullptr ? true : rareData()->m_isExtensible;
     }
 
-    // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-preventextensions
-    void preventExtensions()
+// http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-preventextensions
+#if ESCARGOT_ENABLE_PROXY
+    virtual bool preventExtensions(ExecutionState&)
+#else
+    bool preventExtensions(ExecutionState&)
+#endif
     {
         ensureObjectRareData()->m_isExtensible = false;
+        return true;
     }
 
+#if ESCARGOT_ENABLE_PROXY
+    virtual Value getPrototype(ExecutionState&)
+#else
     Value getPrototype(ExecutionState&)
+#endif
     {
         if (LIKELY((size_t)m_prototype > 2)) {
             if (UNLIKELY(g_objectRareDataTag == *((size_t*)(m_prototype)))) {
@@ -615,7 +634,11 @@ public:
         }
     }
 
-    Object* getPrototypeObject()
+#if ESCARGOT_ENABLE_PROXY
+    virtual Object* getPrototypeObject(ExecutionState&)
+#else
+    Object* getPrototypeObject(ExecutionState&)
+#endif
     {
         if (LIKELY((size_t)m_prototype > 2)) {
             if (UNLIKELY(g_objectRareDataTag == *((size_t*)(m_prototype)))) {
@@ -638,7 +661,11 @@ public:
         }
     }
 
+#if ESCARGOT_ENABLE_PROXY
+    virtual void setPrototype(ExecutionState& state, const Value& value);
+#else
     void setPrototype(ExecutionState& state, const Value& value);
+#endif
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
@@ -653,7 +680,11 @@ public:
         return getOwnProperty(state, propertyName).hasValue();
     }
 
+#if ESCARGOT_ENABLE_PROXY
+    virtual bool hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
+#else
     bool hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
+#endif
     {
         return get(state, propertyName).hasValue();
     }
@@ -671,6 +702,8 @@ public:
 #else
     bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
 #endif
+
+    Value getMethod(ExecutionState& state, const ObjectPropertyName& propertyName);
     void setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
     void setThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
     void defineOwnPropertyThrowsException(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)

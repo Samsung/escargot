@@ -486,15 +486,15 @@ public:
     bool hasOwnProperty(ExecutionStateRef* state, ValueRef* propertyName);
 
     ValueRef* getPrototype(ExecutionStateRef* state);
-    ObjectRef* getPrototypeObject(); // if __proto__ is not object(undefined or null), this function returns nullptr instead of orginal value.
+    ObjectRef* getPrototypeObject(ExecutionStateRef* state); // if __proto__ is not object(undefined or null), this function returns nullptr instead of orginal value.
     void setPrototype(ExecutionStateRef* state, ValueRef* value);
 
     ValueVectorRef* getOwnPropertyKeys(ExecutionStateRef* state);
 
     void enumerateObjectOwnProperies(ExecutionStateRef* state, const std::function<bool(ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>& cb);
 
-    bool isExtensible();
-    void preventExtensions();
+    bool isExtensible(ExecutionStateRef* state);
+    void preventExtensions(ExecutionStateRef* state);
 
     void* extraData();
     void setExtraData(void* e);
