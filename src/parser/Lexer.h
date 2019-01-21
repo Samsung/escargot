@@ -148,18 +148,6 @@ enum KeywordKind {
     KeywordKindEnd
 };
 
-struct Curly {
-    char m_curly[4];
-    Curly() {}
-    Curly(const char curly[4])
-    {
-        m_curly[0] = curly[0];
-        m_curly[1] = curly[1];
-        m_curly[2] = curly[2];
-        m_curly[3] = curly[3];
-    }
-};
-
 struct ScanTemplteResult : public gc {
     UTF16StringData valueCooked;
     StringView raw;
@@ -343,7 +331,6 @@ public:
     size_t index;
     size_t lineNumber;
     size_t lineStart;
-    std::vector<Curly> curlyStack;
     bool isPoolEnabled;
     ScannerResult* initialResultMemoryPool[SCANNER_RESULT_POOL_INITIAL_SIZE];
     size_t initialResultMemoryPoolSize;
@@ -798,7 +785,7 @@ public:
     PassRefPtr<ScannerResult> scanStringLiteral();
 
     // ECMA-262 11.8.6 Template Literal Lexical Components
-    PassRefPtr<ScannerResult> scanTemplate();
+    PassRefPtr<ScannerResult> scanTemplate(bool head = false);
 
     // ECMA-262 11.8.5 Regular Expression Literals
     String* scanRegExpBody();

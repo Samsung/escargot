@@ -472,7 +472,6 @@ void ScannerResult::consturctStringLiteral()
 Scanner::Scanner(::Escargot::Context* escargotContext, StringView code, ErrorHandler* handler, size_t startLine, size_t startColumn)
 {
     this->escargotContext = escargotContext;
-    curlyStack.reserve(128);
     isPoolEnabled = true;
     source = code;
     errorHandler = handler;
@@ -720,7 +719,6 @@ PassRefPtr<ScannerResult> Scanner::scanPunctuator(char16_t ch0)
         break;
 
     case '{':
-        this->curlyStack.push_back(Curly("{\0\0"));
         ++this->index;
         kind = LeftBrace;
         break;
@@ -738,10 +736,6 @@ PassRefPtr<ScannerResult> Scanner::scanPunctuator(char16_t ch0)
 
     case '}':
         ++this->index;
-        if (!this->curlyStack.size()) {
-            this->throwUnexpectedToken();
-        }
-        this->curlyStack.pop_back();
         kind = RightBrace;
         break;
     case ')':
@@ -1272,18 +1266,15 @@ PassRefPtr<ScannerResult> Scanner::scanStringLiteral()
     }
 }
 
-PassRefPtr<ScannerResult> Scanner::scanTemplate()
+PassRefPtr<ScannerResult> Scanner::scanTemplate(bool head)
 {
     // TODO apply rope-string
     UTF16StringDataNonGCStd cooked;
     bool terminated = false;
     size_t start = this->index;
 
-    bool head = (this->source.bufferedCharAt(start) == '`');
     bool tail = false;
     size_t rawOffset = 2;
-
-    ++this->index;
 
     while (!this->eof()) {
         char16_t ch = this->source.bufferedCharAt(this->index++);
@@ -1294,7 +1285,6 @@ PassRefPtr<ScannerResult> Scanner::scanTemplate()
             break;
         } else if (ch == '$') {
             if (this->source.bufferedCharAt(this->index) == '{') {
-                this->curlyStack.push_back(Curly("${\0"));
                 ++this->index;
                 terminated = true;
                 break;
@@ -1378,14 +1368,10 @@ PassRefPtr<ScannerResult> Scanner::scanTemplate()
         this->throwUnexpectedToken();
     }
 
-    if (!head) {
-        this->curlyStack.pop_back();
-    }
-
     ScanTemplteResult* result = new ScanTemplteResult();
     result->head = head;
     result->tail = tail;
-    result->raw = StringView(this->source, start + 1, this->index - rawOffset);
+    result->raw = StringView(this->source, start, this->index - rawOffset);
     result->valueCooked = UTF16StringData(cooked.data(), cooked.length());
 
     return adoptRef(new (createScannerResult()) ScannerResult(this, Token::TemplateToken, result, this->lineNumber, this->lineStart, start, this->index));
@@ -1544,10 +1530,9 @@ PassRefPtr<ScannerResult> Scanner::lex()
         return this->scanNumericLiteral();
     }
 
-    // Template literals start with ` (U+0060) for template head
-    // or } (U+007D) for template middle or template tail.
-    if (UNLIKELY(cp == 0x60 || (cp == 0x7D && (this->curlyStack.size() && strcmp(this->curlyStack.back().m_curly, "${") == 0)))) {
-        return this->scanTemplate();
+    if (UNLIKELY(cp == '`')) {
+        ++this->index;
+        return this->scanTemplate(true);
     }
 
     // Possible identifier start in a surrogate pair.
