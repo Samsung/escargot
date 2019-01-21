@@ -71,8 +71,9 @@ public:
                     }
                 }
                 codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), r, blk), context, this);
-                IdentifierNode node(blk->functionName());
-                node.generateStoreByteCode(codeBlock, context, r, false);
+
+                RefPtr<IdentifierNode> node = adoptRef(new IdentifierNode(blk->functionName()));
+                node->generateStoreByteCode(codeBlock, context, r, false);
                 context->giveUpRegister();
             }
 
