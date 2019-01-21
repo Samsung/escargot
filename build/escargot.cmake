@@ -112,7 +112,7 @@ IF (${ESCARGOT_OUTPUT} STREQUAL "bin")
     ENDIF()
 
     IF (${ESCARGOT_MODE} STREQUAL "debug")
-        SET (GC_CFLAGS_MODE "-O0 -DGC_DEBUG")
+        SET (GC_CFLAGS_MODE "-O0 -g3 -DGC_DEBUG")
     ELSE()
         SET (GC_CFLAGS_MODE "-O2")
     ENDIF()

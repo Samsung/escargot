@@ -2,7 +2,7 @@
 # common flags
 #######################################################
 ESCARGOT_CXXFLAGS_COMMON += -DESCARGOT
-ESCARGOT_CXXFLAGS_COMMON += -std=c++0x -g3
+ESCARGOT_CXXFLAGS_COMMON += -std=c++0x
 ESCARGOT_CXXFLAGS_COMMON += -fno-math-errno -I$(ESCARGOT_ROOT)/src/
 ESCARGOT_CXXFLAGS_COMMON += -fdata-sections -ffunction-sections
 # ESCARGOT_CXXFLAGS_COMMON += -frounding-math -fsignaling-nans
@@ -72,7 +72,7 @@ endif
 #######################################################
 # flags for $(MODE) : debug/release
 #######################################################
-ESCARGOT_CXXFLAGS_DEBUG += -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -Werror
+ESCARGOT_CXXFLAGS_DEBUG += -O0 -g3 -D_GLIBCXX_DEBUG -Wall -Wextra -Werror
 ESCARGOT_CXXFLAGS_RELEASE += -O2 -DNDEBUG -fno-stack-protector
 
 ifneq (,$(findstring tizen,$(HOST)))
