@@ -172,7 +172,7 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCode
         err->lineNumber = cb->m_sourceElementStart.line;
         err->column = cb->m_sourceElementStart.column;
         err->index = cb->m_sourceElementStart.index;
-        throw err;
+        throw * err;
     }
 }
 
@@ -256,17 +256,16 @@ ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, St
         }
 #endif
 
-    } catch (esprima::Error* orgError) {
+    } catch (esprima::Error& orgError) {
         script = nullptr;
         error = new ScriptParseError();
-        error->column = orgError->column;
-        error->description = orgError->description;
-        error->index = orgError->index;
-        error->lineNumber = orgError->lineNumber;
-        error->message = orgError->message;
-        error->name = orgError->name;
-        error->errorCode = orgError->errorCode;
-        delete orgError;
+        error->column = orgError.column;
+        error->description = orgError.description;
+        error->index = orgError.index;
+        error->lineNumber = orgError.lineNumber;
+        error->message = orgError.message;
+        error->name = orgError.name;
+        error->errorCode = orgError.errorCode;
     }
 
     GC_enable();
@@ -280,8 +279,8 @@ std::tuple<RefPtr<Node>, ASTScopeContext*> ScriptParser::parseFunction(Interpret
     try {
         std::tuple<RefPtr<Node>, ASTScopeContext*> body = esprima::parseSingleFunction(m_context, codeBlock, stackSizeRemain);
         return body;
-    } catch (esprima::Error* orgError) {
-        ErrorObject::throwBuiltinError(*state, ErrorObject::SyntaxError, orgError->message->toUTF8StringData().data());
+    } catch (esprima::Error& orgError) {
+        ErrorObject::throwBuiltinError(*state, ErrorObject::SyntaxError, orgError.message->toUTF8StringData().data());
         RELEASE_ASSERT_NOT_REACHED();
     }
 }
