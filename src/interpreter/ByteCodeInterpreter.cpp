@@ -34,6 +34,10 @@
 #include "util/Util.h"
 #include "../third_party/checked_arithmetic/CheckedArithmetic.h"
 
+#if ESCARGOT_ENABLE_PROXY
+#include "runtime/ProxyObject.h"
+#endif
+
 namespace Escargot {
 
 #define ADD_PROGRAM_COUNTER(CodeType) programCounter += sizeof(CodeType);
@@ -1281,10 +1285,18 @@ NEVER_INLINE Value ByteCodeInterpreter::modOperation(ExecutionState& state, cons
 
 NEVER_INLINE Object* ByteCodeInterpreter::newOperation(ExecutionState& state, const Value& callee, size_t argc, Value* argv)
 {
-    if (UNLIKELY(!callee.isFunction())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
+    if (LIKELY(callee.isFunction())) {
+        return callee.asFunction()->newInstance(state, argc, argv);
     }
-    return callee.asFunction()->newInstance(state, argc, argv);
+
+#if ESCARGOT_ENABLE_PROXY
+    if (callee.isPointerValue() && callee.asPointerValue()->isProxyObject() && callee.asPointerValue()->asProxyObject()->isConstructor()) {
+        return callee.asPointerValue()->asProxyObject()->construct(state, argc, argv);
+    }
+#endif
+
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
+    return nullptr;
 }
 
 NEVER_INLINE Value ByteCodeInterpreter::instanceOfOperation(ExecutionState& state, const Value& left, const Value& right)

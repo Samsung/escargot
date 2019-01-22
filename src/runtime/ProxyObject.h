@@ -47,6 +47,11 @@ public:
         return m_isCallable;
     }
 
+    bool isConstructor() const
+    {
+        return m_isConstructible;
+    }
+
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
     virtual const char* internalClassProperty() override
     {
@@ -80,6 +85,10 @@ public:
 
     virtual bool isExtensible(ExecutionState&) override;
 
+    Value call(ExecutionState& state, const Value& callee, const Value& receiver, const size_t& argc, Value* argv);
+
+    Object* construct(ExecutionState& state, const size_t& argc, Value* argv);
+
     void setTarget(Object* target)
     {
         m_target = target;
@@ -105,7 +114,7 @@ public:
 
 protected:
     bool m_isCallable;
-    bool m_isConstruct;
+    bool m_isConstructible;
 
     Object* m_target;
     Object* m_handler;

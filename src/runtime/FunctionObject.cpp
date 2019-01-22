@@ -32,6 +32,10 @@
 #include "parser/ast/AST.h"
 #include "util/Util.h"
 
+#if ESCARGOT_ENABLE_PROXY
+#include "runtime/ProxyObject.h"
+#endif
+
 namespace Escargot {
 
 size_t g_functionObjectTag;
@@ -237,12 +241,16 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
 
 Value FunctionObject::callSlowCase(ExecutionState& state, const Value& callee, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression)
 {
-    if (LIKELY(callee.isObject() && callee.asPointerValue()->isFunctionObject())) {
-        return callee.asFunction()->processCall(state, receiver, argc, argv, isNewExpression);
-    } else {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
-        return Value();
+    if (LIKELY(callee.isObject())) {
+        if (LIKELY(callee.asPointerValue()->isFunctionObject()))
+            return callee.asFunction()->processCall(state, receiver, argc, argv, isNewExpression);
+#if ESCARGOT_ENABLE_PROXY
+        else if (callee.asPointerValue()->isProxyObject() && callee.asPointerValue()->isCallable())
+            return callee.asPointerValue()->asProxyObject()->call(state, callee, receiver, argc, argv);
+#endif
     }
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
+    return Value();
 }
 
 Object* FunctionObject::newInstance(ExecutionState& state, const size_t& argc, Value* argv)
