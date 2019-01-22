@@ -48,7 +48,7 @@ public:
 
         newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by m_test
 
-        if (m_init) {
+        if (m_init && m_init->type() != ASTNodeType::RegExpLiteral) {
             m_init->generateStatementByteCode(codeBlock, &newContext);
         }
 
