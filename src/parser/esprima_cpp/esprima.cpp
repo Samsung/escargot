@@ -2146,9 +2146,12 @@ public:
 
     TemplateElement* parseTemplateElement()
     {
-        if (this->lookahead->type != Token::TemplateToken) {
+        if (!this->match(PunctuatorKind::RightBrace)) {
             this->throwUnexpectedToken(this->lookahead);
         }
+
+        // Re-scan the current token (right brace) as a template string.
+        this->lookahead = this->scanner->scanTemplate();
 
         RefPtr<ScannerResult> token = this->nextToken();
         MetaNode node = this->createNode();
