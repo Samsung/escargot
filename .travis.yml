@@ -22,8 +22,8 @@ matrix:
         - cmake -H. -Bout/darwin/x64/release -DESCARGOT_HOST=darwin -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -GNinja
         - ninja -Cout/darwin/x64/release
         - cp ./out/darwin/x64/release/escargot ./escargot
-        - travis_wait 30 tools/run-tests.py --arch=x86_64 jetstream-only-simple
-        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal octane jsc-stress regression-tests
+        - travis_wait 40 tools/run-tests.py --arch=x86_64 jetstream-only-simple octane
+        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal jsc-stress regression-tests
         # FIXME: chakracore fails on darwin
         # ChakraCore's test runner uses `readlink -f` to determine the test root directory.
         # However, `readlink` has no `-f` option on macOS.
