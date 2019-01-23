@@ -687,6 +687,13 @@ public:
         return NotKeyword;
     }
 
+    enum {
+        /* The largest code-point that an UTF16 surrogate pair can represent is 0x10ffff,
+         * so any codepoint above this can be a valid value for empty. The UINT32_MAX is
+         * chosen because it is a valid immediate for machine instructions. */
+        EmptyCodePoint = UINT32_MAX
+    };
+
     char32_t codePointAt(size_t i)
     {
         char32_t cp, first, second;
@@ -702,18 +709,7 @@ public:
         return cp;
     }
 
-    struct CharOrEmptyResult {
-        char32_t code;
-        bool isEmpty;
-
-        CharOrEmptyResult(char32_t code, bool isEmpty)
-        {
-            this->code = code;
-            this->isEmpty = isEmpty;
-        }
-    };
-
-    CharOrEmptyResult scanHexEscape(char prefix);
+    char32_t scanHexEscape(char prefix);
     char32_t scanUnicodeCodePointEscape();
 
     StringView getIdentifier();

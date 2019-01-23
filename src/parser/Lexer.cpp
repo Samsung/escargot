@@ -161,29 +161,18 @@ static ALWAYS_INLINE uint8_t toHexNumericValue(char16_t ch)
 
 static int hexValue(char16_t ch)
 {
-    int c = 0;
     if (ch >= '0' && ch <= '9') {
-        c = ch - '0';
-    } else if (ch >= 'a' && ch <= 'f') {
-        c = ch - 'a' + 10;
-    } else if (ch >= 'A' && ch <= 'F') {
-        c = ch - 'A' + 10;
-    } else {
-        RELEASE_ASSERT_NOT_REACHED();
+        return ch - '0';
     }
-    return c;
+
+    ASSERT((ch | 0x20) >= 'a' && (ch | 0x20) <= 'f');
+
+    return (ch | 0x20) - ('a' - 10);
 }
 
 struct ParserCharPiece {
     char16_t data[3];
     size_t length;
-
-    ParserCharPiece(const char16_t a)
-    {
-        data[0] = a;
-        data[1] = 0;
-        length = 1;
-    }
 
     ParserCharPiece(const char32_t a)
     {
@@ -198,25 +187,7 @@ struct ParserCharPiece {
             length = 2;
         }
     }
-
-    ParserCharPiece(const char16_t a, const char16_t b)
-    {
-        data[0] = a;
-        data[1] = b;
-        data[2] = 0;
-        length = 2;
-    }
 };
-
-// ECMA-262 11.6 Identifier Names and Identifiers
-static ALWAYS_INLINE ParserCharPiece fromCodePoint(char32_t cp)
-{
-    if (cp < 0x10000) {
-        return ParserCharPiece((char16_t)cp);
-    } else {
-        return ParserCharPiece((char16_t)(0xD800 + ((cp - 0x10000) >> 10)), (char16_t)(0xDC00 + ((cp - 0x10000) & 1023)));
-    }
-}
 
 AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
 {
@@ -388,8 +359,7 @@ void ScannerResult::consturctStringLiteral()
                             isEveryCharAllLatin1 = false;
                         }
                     } else {
-                        auto res = this->scanner->scanHexEscape(ch);
-                        const char32_t unescaped = res.code;
+                        const char32_t unescaped = this->scanner->scanHexEscape(ch);
                         ParserCharPiece piece(unescaped);
                         stringUTF16.append(piece.data, piece.data + piece.length);
                         if (piece.length != 1 || piece.data[0] >= 256) {
@@ -549,7 +519,7 @@ void Scanner::skipMultiLineComment(void)
     throwUnexpectedToken();
 }
 
-Scanner::CharOrEmptyResult Scanner::scanHexEscape(char prefix)
+char32_t Scanner::scanHexEscape(char prefix)
 {
     size_t len = (prefix == 'u') ? 4 : 2;
     char32_t code = 0;
@@ -558,11 +528,11 @@ Scanner::CharOrEmptyResult Scanner::scanHexEscape(char prefix)
         if (!this->eof() && isHexDigit(this->source.bufferedCharAt(this->index))) {
             code = code * 16 + hexValue(this->source.bufferedCharAt(this->index++));
         } else {
-            return CharOrEmptyResult(0, true);
+            return EmptyCodePoint;
         }
     }
 
-    return CharOrEmptyResult(code, false);
+    return code;
 }
 
 char32_t Scanner::scanUnicodeCodePointEscape()
@@ -632,10 +602,9 @@ StringView Scanner::getComplexIdentifier()
             ++this->index;
             ch = this->scanUnicodeCodePointEscape();
         } else {
-            CharOrEmptyResult res = this->scanHexEscape('u');
-            ch = res.code;
+            ch = this->scanHexEscape('u');
             cp = ch;
-            if (res.isEmpty || ch == '\\' || !isIdentifierStart(cp)) {
+            if (ch == EmptyCodePoint || ch == '\\' || !isIdentifierStart(cp)) {
                 this->throwUnexpectedToken();
             }
         }
@@ -667,10 +636,9 @@ StringView Scanner::getComplexIdentifier()
                 ++this->index;
                 ch = this->scanUnicodeCodePointEscape();
             } else {
-                CharOrEmptyResult res = this->scanHexEscape('u');
-                ch = res.code;
+                ch = this->scanHexEscape('u');
                 cp = ch;
-                if (res.isEmpty || ch == '\\' || !isIdentifierPart(cp)) {
+                if (ch == EmptyCodePoint || ch == '\\' || !isIdentifierPart(cp)) {
                     this->throwUnexpectedToken();
                 }
             }
@@ -1207,11 +1175,8 @@ PassRefPtr<ScannerResult> Scanner::scanStringLiteral()
                     if (this->source.bufferedCharAt(this->index) == '{') {
                         ++this->index;
                         this->scanUnicodeCodePointEscape();
-                    } else {
-                        CharOrEmptyResult res = this->scanHexEscape(ch);
-                        if (res.isEmpty) {
-                            this->throwUnexpectedToken();
-                        }
+                    } else if (this->scanHexEscape(ch) == EmptyCodePoint) {
+                        this->throwUnexpectedToken();
                     }
                     break;
                 case 'n':
@@ -1310,9 +1275,8 @@ PassRefPtr<ScannerResult> Scanner::scanTemplate(bool head)
                         cooked += this->scanUnicodeCodePointEscape();
                     } else {
                         const size_t restore = this->index;
-                        CharOrEmptyResult res = this->scanHexEscape(ch);
-                        const char32_t unescaped = res.code;
-                        if (!res.isEmpty) {
+                        const char32_t unescaped = this->scanHexEscape(ch);
+                        if (unescaped != EmptyCodePoint) {
                             ParserCharPiece piece(unescaped);
                             cooked += UTF16StringDataNonGCStd(piece.data, piece.length);
                         } else {
@@ -1444,10 +1408,8 @@ String* Scanner::scanRegExpFlags()
             if (ch == 'u') {
                 ++this->index;
                 const size_t restore = this->index;
-                char32_t ch32;
-                CharOrEmptyResult res = this->scanHexEscape('u');
-                ch32 = res.code;
-                if (!res.isEmpty) {
+                char32_t ch32 = this->scanHexEscape('u');
+                if (ch32 != EmptyCodePoint) {
                     ParserCharPiece piece(ch32);
                     flags += UTF16StringDataNonGCStd(piece.data, piece.length);
                     /*
