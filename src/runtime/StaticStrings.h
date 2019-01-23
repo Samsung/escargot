@@ -28,6 +28,7 @@ namespace Escargot {
     F(null)                       \
     F(undefined)                  \
     F(prototype)                  \
+    F(construct)                  \
     F(constructor)                \
     F(name)                       \
     F(arguments)                  \

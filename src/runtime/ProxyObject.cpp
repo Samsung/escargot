@@ -23,6 +23,7 @@
 #include "ProxyObject.h"
 #include "Context.h"
 #include "JobQueue.h"
+#include "runtime/ArrayObject.h"
 #include "interpreter/ByteCodeInterpreter.h"
 
 namespace Escargot {
@@ -30,7 +31,7 @@ namespace Escargot {
 ProxyObject::ProxyObject(ExecutionState& state)
     : Object(state)
     , m_isCallable(false)
-    , m_isConstruct(false)
+    , m_isConstructible(false)
     , m_target(nullptr)
     , m_handler(nullptr)
 {
@@ -100,7 +101,9 @@ Value ProxyObject::createProxy(ExecutionState& state, const Value& target, const
         proxy->m_isCallable = true;
     }
     // 7.b If target has a [[Construct]] internal method, then Set the [[Construct]] internal method of P as specified in 9.5.14.
-
+    if ((target.isFunction() && target.asFunction()->isConstructor()) || (target.asObject()->isProxyObject() && target.asPointerValue()->asProxyObject()->isConstructor())) {
+        proxy->m_isConstructible = true;
+    }
 
     // 8. Set the [[ProxyTarget]] internal slot of P to target.
     proxy->setTarget(target.asObject());
@@ -767,6 +770,97 @@ bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyN
     // 15. Return true.
     return true;
 }
+
+// https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-call-thisargument-argumentslist
+Value ProxyObject::call(ExecutionState& state, const Value& callee, const Value& receiver, const size_t& argc, Value* argv)
+{
+    auto strings = &state.context()->staticStrings();
+    // 2. If handler is null, throw a TypeError exception.
+    if (this->handler() == nullptr) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
+        return Value();
+    }
+
+    // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
+    Value handler(this->handler());
+
+    // 3. Assert: Type(handler) is Object.
+    ASSERT(handler.isObject());
+
+    // 4. Let target be the value of the [[ProxyTarget]] internal slot of O.
+    Value target(this->target());
+
+    // 5. Let trap be GetMethod(handler, "apply").
+    // 6. ReturnIfAbrupt(trap).
+    Value trap;
+    trap = handler.asObject()->getMethod(state, ObjectPropertyName(state, strings->apply.string()));
+
+    // 7. If trap is undefined, then
+    // a. Return Call(target, thisArgument, argumentsList).
+    if (trap.isUndefined()) {
+        return FunctionObject::call(state, target, receiver, argc, argv);
+    }
+
+    // 8. Let argArray be CreateArrayFromList(argumentsList).
+    ArrayObject* argArray = new ArrayObject(state);
+    for (size_t n = 0; n < argc; n++) {
+        argArray->defineOwnProperty(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(argv[n], ObjectPropertyDescriptor::AllPresent));
+    }
+
+    // 9. Return Call(trap, handler, «target, thisArgument, argArray»).
+    Value arguments[] = { target, receiver, Value(argArray) };
+    return FunctionObject::call(state, trap, handler, 3, arguments);
 }
 
+Object* ProxyObject::construct(ExecutionState& state, const size_t& argc, Value* argv)
+{
+    auto strings = &state.context()->staticStrings();
+    // 2. If handler is null, throw a TypeError exception.
+    if (this->handler() == nullptr) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
+        return nullptr;
+    }
+
+    // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
+    Value handler(this->handler());
+
+    // 3. Assert: Type(handler) is Object.
+    ASSERT(handler.isObject());
+
+    // 4. Let target be the value of the [[ProxyTarget]] internal slot of O.
+    Value target(this->target());
+
+    // 5. Let trap be GetMethod(handler, "construct").
+    // 6. ReturnIfAbrupt(trap).
+    Value trap;
+    trap = handler.asObject()->getMethod(state, ObjectPropertyName(state, strings->construct.string()));
+
+    // 7. If trap is undefined, then
+    // a. Assert: target has a [[Construct]] internal method.
+    // b. Return Construct(target, argumentsList, newTarget).
+    if (trap.isUndefined()) {
+        ASSERT((target.isFunction() && target.asFunction()->isConstructor()) || (target.asObject()->isProxyObject() && target.asObject()->asProxyObject()->isConstructor()));
+        return ByteCodeInterpreter::newOperation(state, target, argc, argv);
+    }
+
+    // 8. Let argArray be CreateArrayFromList(argumentsList).
+    ArrayObject* argArray = new ArrayObject(state);
+    for (size_t n = 0; n < argc; n++) {
+        argArray->defineOwnProperty(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(argv[n], ObjectPropertyDescriptor::AllPresent));
+    }
+
+    // 9. Let newObj be Call(trap, handler, «target, argArray, newTarget »).
+    Value arguments[] = { target, Value(argArray) };
+    Value newObj = FunctionObject::call(state, trap, handler, 2, arguments);
+
+    // 11. If Type(newObj) is not Object, throw a TypeError exception.
+    if (!newObj.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: The result of [[Construct]] must be an Object.");
+        return nullptr;
+    }
+
+    // 12. Return newObj.
+    return newObj.asObject();
+}
+}
 #endif // ESCARGOT_ENABLE_PROXY
