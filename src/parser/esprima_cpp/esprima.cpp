@@ -580,7 +580,7 @@ public:
     }
 
     // Throw an exception because of the token.
-    Error* unexpectedTokenError(RefPtr<ScannerResult> token = nullptr, const char* message = nullptr)
+    Error unexpectedTokenError(RefPtr<ScannerResult> token = nullptr, const char* message = nullptr)
     {
         const char* msg;
         if (message) {
