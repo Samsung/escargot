@@ -270,6 +270,8 @@ namespace Escargot {
     F(repeat)                     \
     F(replace)                    \
     F(reverse)                    \
+    F(revocable)                  \
+    F(revoke)                     \
     F(run)                        \
     F(seal)                       \
     F(search)                     \
