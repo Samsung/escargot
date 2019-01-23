@@ -1853,25 +1853,21 @@ public:
             key = this->parseObjectPropertyKey();
             this->context->allowYield = false;
             value = this->parseGetterMethod();
-
         } else if (isSet) {
             kind = PropertyNode::Kind::Set;
             computed = this->match(LeftSquareBracket);
             key = this->parseObjectPropertyKey();
             value = this->parseSetterMethod();
-
         } else if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::Multiply && lookaheadPropertyKey) {
             kind = PropertyNode::Kind::Init;
             computed = this->match(LeftSquareBracket);
             key = this->parseObjectPropertyKey();
             value = this->parseGeneratorMethod();
             method = true;
-
         } else {
             if (!key) {
                 this->throwUnexpectedToken(this->lookahead);
             }
-
             kind = PropertyNode::Kind::Init;
             if (this->match(PunctuatorKind::Colon)) {
                 if (!this->config.parseSingleFunction && !computed && this->isPropertyKey(key.get(), "__proto__")) {
@@ -1882,25 +1878,22 @@ public:
                 }
                 this->nextToken();
                 value = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
-
-                /* TODO(ES6) this part is only for es6
             } else if (this->match(LeftParenthesis)) {
                 value = this->parsePropertyMethodFunction();
                 method = true;
-
             } else if (token->type == Token::IdentifierToken) {
-                Node* id = this->finalize(node, finishIdentifier(token, true));
+                this->throwError("Property shorthand is not supported yet");
+                RefPtr<Node> id = this->finalize(node, finishIdentifier(token, true));
                 if (this->match(Substitution)) {
                     this->context->firstCoverInitializedNameError = this->lookahead;
                     this->nextToken();
                     shorthand = true;
-                    Node* init = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
-                    value = this->finalize(node, new AssignmentExpressionSimpleNode(id, init));
+                    RefPtr<Node> init = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+                    //value = this->finalize(node, new AssignmentPatternNode(id, init));
                 } else {
                     shorthand = true;
                     value = id;
                 }
-            */
             } else {
                 this->throwUnexpectedToken(this->nextToken());
             }
@@ -1998,7 +1991,6 @@ public:
             keyString = keyValue.second;
             this->context->allowYield = false;
             this->parseGetterMethod();
-
         } else if (isSet) {
             kind = PropertyNode::Kind::Set;
             computed = this->match(LeftSquareBracket);
@@ -2006,7 +1998,6 @@ public:
             key = keyValue.first;
             keyString = keyValue.second;
             this->parseSetterMethod();
-
         } else if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::Multiply && lookaheadPropertyKey) {
             kind = PropertyNode::Kind::Init;
             computed = this->match(LeftSquareBracket);
@@ -2015,17 +2006,14 @@ public:
             keyString = keyValue.second;
             this->parseGeneratorMethod();
             method = true;
-
         } else {
             if (key.first == ASTNodeType::ASTNodeTypeError) {
                 this->throwUnexpectedToken(this->lookahead);
             }
-
             kind = PropertyNode::Kind::Init;
             if (this->match(PunctuatorKind::Colon)) {
                 bool isProto = (key.first == ASTNodeType::Identifier && key.second == this->escargotContext->staticStrings().__proto__)
                     || (key.first == ASTNodeType::Literal && keyString->equals("__proto__"));
-
                 if (!computed && isProto) {
                     if (hasProto) {
                         this->tolerateError(Messages::DuplicateProtoProperty);
@@ -2034,25 +2022,19 @@ public:
                 }
                 this->nextToken();
                 this->scanInheritCoverGrammar(&Parser::scanAssignmentExpression);
-
-                /* TODO(ES6) this part is only for es6
             } else if (this->match(LeftParenthesis)) {
-                value = this->parsePropertyMethodFunction();
+                this->parsePropertyMethodFunction();
                 method = true;
-
             } else if (token->type == Token::IdentifierToken) {
-                Node* id = this->finalize(node, finishIdentifier(token, true));
+                this->throwError("Property shorthand is not supported yet");
                 if (this->match(Substitution)) {
                     this->context->firstCoverInitializedNameError = this->lookahead;
                     this->nextToken();
                     shorthand = true;
-                    Node* init = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
-                    value = this->finalize(node, new AssignmentExpressionSimpleNode(id, init));
+                    this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
                 } else {
                     shorthand = true;
-                    value = id;
                 }
-            */
             } else {
                 this->throwUnexpectedToken(this->nextToken());
             }
