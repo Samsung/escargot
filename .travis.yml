@@ -16,23 +16,6 @@ matrix:
       addons:
         homebrew:
           packages: [ autoconf, automake, cmake, libtool, ninja, pkg-config, icu4c ]
-      env:
-        - PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig
-      script:
-        - cmake -H. -Bout/darwin/x64/release -DESCARGOT_HOST=darwin -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -GNinja
-        - ninja -Cout/darwin/x64/release
-        - cp ./out/darwin/x64/release/escargot ./escargot
-        - travis_wait 40 tools/run-tests.py --arch=x86_64 jetstream-only-simple octane
-        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal jsc-stress regression-tests
-        # FIXME: chakracore fails on darwin
-        # ChakraCore's test runner uses `readlink -f` to determine the test root directory.
-        # However, `readlink` has no `-f` option on macOS.
-
-    - name: "darwin.x64.release (-DVENDORTEST=1)"
-      os: osx
-      addons:
-        homebrew:
-          packages: [ autoconf, automake, cmake, libtool, ninja, pkg-config, icu4c ]
       install:
         - npm install
       env:
@@ -41,7 +24,13 @@ matrix:
         - cmake -H. -Bout/darwin/x64/release -DESCARGOT_HOST=darwin -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
         - ninja -Cout/darwin/x64/release
         - cp ./out/darwin/x64/release/escargot ./escargot
-        - tools/run-tests.py --arch=x86_64 v8
+        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal jsc-stress regression-tests v8 
+        # FIXME: jetstream-only-simple and octane takes too long running time on darwin
+        # jetstream-only-simple and octane are skipped now.
+        # - travis_wait 40 tools/run-tests.py --arch=x86_64 jetstream-only-simple octane
+        # FIXME: chakracore fails on darwin
+        # ChakraCore's test runner uses `readlink -f` to determine the test root directory.
+        # However, `readlink` has no `-f` option on macOS.
         # FIXME: spidermonkey fails on darwin
         # SpiderMonkey's ecma/String/15.5.4.12-3.js tests String.prototype.toUpperCase(),
         # which relies on ICU. Recent ICU versions (installed on macOS) support Unicode 11.0,
@@ -52,13 +41,15 @@ matrix:
     - name: "linux.x64.release"
       addons:
         apt:
-          packages: [ autoconf, automake, libtool, ninja-build, libicu-dev ]
+          packages: [ autoconf, automake, libtool, ninja-build, libicu-dev, npm ]
+      install:
+        - npm install
       script:
-        - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -GNinja
+        - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
         - ninja -Cout/linux/x64/release
         - cp ./out/linux/x64/release/escargot ./escargot
         - travis_wait tools/run-tests.py --arch=x86_64 jetstream-only-simple
-        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal octane chakracore jsc-stress regression-tests
+        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js test262 internal octane chakracore jsc-stress v8 spidermonkey regression-tests
 
     - name: "linux.x64.debug"
       addons:
@@ -73,13 +64,15 @@ matrix:
     - name: "linux.x86.release"
       addons:
         apt:
-          packages: [ autoconf, automake, libtool, ninja-build, gcc-multilib g++-multilib, "libicu-dev:i386" ]
+          packages: [ autoconf, automake, libtool, ninja-build, gcc-multilib g++-multilib, "libicu-dev:i386", npm ]
+      install:
+        - npm install
       script:
-        - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -GNinja
+        - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
         - ninja -Cout/linux/x86/release
         - cp ./out/linux/x86/release/escargot ./escargot
         - travis_wait tools/run-tests.py --arch=x86 jetstream-only-simple
-        - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js test262 internal octane chakracore jsc-stress
+        - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js test262 internal octane chakracore jsc-stress v8 spidermonkey regression-tests
 
     - name: "linux.x86.debug"
       addons:
@@ -90,30 +83,6 @@ matrix:
         - ninja -Cout/linux/x86/debug
         - cp ./out/linux/x86/debug/escargot ./escargot
         - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js test262 internal regression-tests
-
-    - name: "linux.x64.release (-DVENDORTEST=1)"
-      addons:
-        apt:
-          packages: [ autoconf, automake, libtool, ninja-build, libicu-dev, npm ]
-      install:
-        - npm install
-      script:
-        - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
-        - ninja -Cout/linux/x64/release
-        - cp ./out/linux/x64/release/escargot ./escargot
-        - tools/run-tests.py --arch=x86_64 v8 spidermonkey
-
-    - name: "linux.x86.release (-DVENDORTEST=1)"
-      addons:
-        apt:
-          packages: [ autoconf, automake, libtool, ninja-build, gcc-multilib g++-multilib, "libicu-dev:i386", npm ]
-      install:
-        - npm install
-      script:
-        - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
-        - ninja -Cout/linux/x86/release
-        - cp ./out/linux/x86/release/escargot ./escargot
-        - tools/run-tests.py --arch=x86 v8 spidermonkey regression-tests
 
     - name: "SonarQube"
       addons:
