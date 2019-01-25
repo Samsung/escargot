@@ -607,6 +607,9 @@ struct GetObjectInlineCacheData {
 
     GetObjectInlineCacheData& operator=(const GetObjectInlineCacheData& src)
     {
+        if (&src == this)
+            return *this;
+
         m_cachedhiddenClassChain = src.m_cachedhiddenClassChain;
         m_cachedIndex = src.m_cachedIndex;
         return *this;
