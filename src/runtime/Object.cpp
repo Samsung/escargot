@@ -413,39 +413,50 @@ Object* Object::createFunctionPrototypeObject(ExecutionState& state, FunctionObj
     return obj;
 }
 
-void Object::setPrototype(ExecutionState& state, const Value& value)
+bool Object::setPrototype(ExecutionState& state, const Value& proto)
 {
-    if (!isExtensible(state) && (value.isObject() || value.isUndefinedOrNull())) {
+    if (!proto.isObject() && !proto.isNull()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't set prototype of this object");
+        return false;
     }
 
-    Value it = value;
-    while (it.isObject()) {
-        if (it.isObject() && it.asObject() == this) {
+    Value object = this;
+    Value current = this->getPrototype(state);
+
+    if (proto == current) {
+        return true;
+    }
+
+    if (UNLIKELY(!isOrdinary() || !isExtensible(state))) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't set prototype of this object");
+        return false;
+    }
+
+    Value nextProto = proto;
+    while (nextProto && nextProto.isObject()) {
+        if (nextProto.asObject() == this) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "cyclic __proto__");
-        } else if (it.isObject() && !it.asObject()->isOrdinary()) {
+            return false;
+        }
+        if (UNLIKELY(!nextProto.asObject()->isOrdinary())) {
             break;
         }
-        Value proto = it.asObject()->getPrototype(state);
-        it = proto;
+        nextProto = nextProto.asObject()->getPrototype(state);
     }
 
     Object* o = nullptr;
-    if (value.isObject()) {
-        value.asObject()->markAsPrototypeObject(state);
-        o = value.asObject();
-    } else if (value.isNull()) {
-        o = nullptr;
-    } else if (value.isUndefined()) {
-        o = (Object*)1;
-    } else {
-        return;
+    if (LIKELY(proto.isObject())) {
+        proto.asObject()->markAsPrototypeObject(state);
+        o = proto.asObject();
     }
+
     if (rareData()) {
         rareData()->m_prototype = o;
     } else {
         m_prototype = o;
     }
+
+    return true;
 }
 
 void Object::markAsPrototypeObject(ExecutionState& state)

@@ -805,9 +805,9 @@ ObjectRef* ObjectRef::getPrototypeObject(ExecutionStateRef* state)
     return toRef(toImpl(this)->getPrototypeObject(*toImpl(state)));
 }
 
-void ObjectRef::setPrototype(ExecutionStateRef* state, ValueRef* value)
+bool ObjectRef::setPrototype(ExecutionStateRef* state, ValueRef* value)
 {
-    toImpl(this)->setPrototype(*toImpl(state), toImpl(value));
+    return toImpl(this)->setPrototype(*toImpl(state), toImpl(value));
 }
 
 ValueVectorRef* ObjectRef::getOwnPropertyKeys(ExecutionStateRef* state)

@@ -32,8 +32,13 @@ static Value builtinObject__proto__Getter(ExecutionState& state, Value thisValue
 
 static Value builtinObject__proto__Setter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    if (!argv[0].isUndefined())
-        thisValue.toObject(state)->setPrototype(state, argv[0]);
+    Value value = argv[0];
+    Object* thisObject = thisValue.toObject(state);
+    // Setting __proto__ to a non-object, non-null value is ignored
+    if (!value.isObject() && !value.isNull()) {
+        return Value();
+    }
+    thisObject->setPrototype(state, value);
     return Value();
 }
 
@@ -233,10 +238,11 @@ static Value builtinObjectGetPrototypeOf(ExecutionState& state, Value thisValue,
 
 static Value builtinObjectSetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    Value O = argv[0];
+    Value object = argv[0];
     Value proto = argv[1];
+
     // 1. Let O be ? RequireObjectCoercible(O).
-    if (O.isUndefined() || O.isNull()) {
+    if (object.isUndefinedOrNull()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().setPrototypeOf.string(), "");
         return Value();
     }
@@ -247,17 +253,10 @@ static Value builtinObjectSetPrototypeOf(ExecutionState& state, Value thisValue,
         return Value();
     }
 
-    // 3. If Type(O) is not Object, return O.
-    if (!O.isObject()) {
-        return O;
-    }
+    Object* obj = object.toObject(state);
+    obj->setPrototype(state, proto);
 
-    // 4. Let status be ? O.[[SetPrototypeOf]](proto).
-    // 5. If status is false, throw a TypeError exception.
-    O.asObject()->setPrototype(state, proto);
-
-    // 6. Return O.
-    return O;
+    return object;
 }
 
 static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
