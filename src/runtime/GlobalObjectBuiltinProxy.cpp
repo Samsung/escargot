@@ -17,7 +17,7 @@
  *  USA
  */
 
-#if ESCARGOT_ENABLE_PROXY
+#if ESCARGOT_ENABLE_PROXY_REFLECT
 
 #include "Escargot.h"
 #include "ProxyObject.h"
@@ -119,4 +119,4 @@ void GlobalObject::installProxy(ExecutionState& state)
 }
 }
 
-#endif // ESCARGOT_ENABLE_PROXY
+#endif // ESCARGOT_ENABLE_PROXY_REFLECT

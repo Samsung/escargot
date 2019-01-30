@@ -21,7 +21,7 @@
 #ifndef __EscargotProxyObject__
 #define __EscargotProxyObject__
 
-#if ESCARGOT_ENABLE_PROXY
+#if ESCARGOT_ENABLE_PROXY_REFLECT
 
 #include "runtime/Object.h"
 #include "runtime/FunctionObject.h"
@@ -71,7 +71,7 @@ public:
         return m_isCallable;
     }
 
-    bool isConstructor() const
+    bool isConstructible() const
     {
         return m_isConstructible;
     }
@@ -145,5 +145,5 @@ protected:
 };
 }
 
-#endif // ESCARGOT_ENABLE_PROXY
+#endif // ESCARGOT_ENABLE_PROXY_REFLECT
 #endif // __EscargotProxyObject__

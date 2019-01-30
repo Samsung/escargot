@@ -38,7 +38,7 @@ class GlobalObject;
 #if ESCARGOT_ENABLE_PROMISE
 class PromiseObject;
 #endif
-#if ESCARGOT_ENABLE_PROXY
+#if ESCARGOT_ENABLE_PROXY_REFLECT
 class ProxyObject;
 #endif
 #if ESCARGOT_ENABLE_TYPEDARRAY
@@ -140,7 +140,7 @@ public:
     }
 #endif
 
-#if ESCARGOT_ENABLE_PROXY
+#if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual bool isProxyObject() const
     {
         return false;
@@ -299,7 +299,7 @@ public:
         return (PromiseObject*)this;
     }
 #endif
-#if ESCARGOT_ENABLE_PROXY
+#if ESCARGOT_ENABLE_PROXY_REFLECT
     ProxyObject* asProxyObject()
     {
         ASSERT(isProxyObject());

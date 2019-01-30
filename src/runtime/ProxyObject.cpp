@@ -17,12 +17,11 @@
  *  USA
  */
 
-#if ESCARGOT_ENABLE_PROXY
+#if ESCARGOT_ENABLE_PROXY_REFLECT
 
 #include "Escargot.h"
 #include "ProxyObject.h"
 #include "Context.h"
-#include "JobQueue.h"
 #include "runtime/ArrayObject.h"
 #include "interpreter/ByteCodeInterpreter.h"
 
@@ -101,7 +100,7 @@ Value ProxyObject::createProxy(ExecutionState& state, const Value& target, const
         proxy->m_isCallable = true;
     }
     // 7.b If target has a [[Construct]] internal method, then Set the [[Construct]] internal method of P as specified in 9.5.14.
-    if ((target.isFunction() && target.asFunction()->isConstructor()) || (target.asObject()->isProxyObject() && target.asPointerValue()->asProxyObject()->isConstructor())) {
+    if (target.isFunction() || (target.asObject()->isProxyObject() && target.asObject()->asProxyObject()->isConstructible())) {
         proxy->m_isConstructible = true;
     }
 
@@ -815,6 +814,8 @@ Value ProxyObject::call(ExecutionState& state, const Value& callee, const Value&
     return FunctionObject::call(state, trap, handler, 3, arguments);
 }
 
+// FIXME newTarget is missing [[Construct]] ( argumentsList, newTarget)
+// https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-construct-argumentslist-newtarget
 Object* ProxyObject::construct(ExecutionState& state, const size_t& argc, Value* argv)
 {
     auto strings = &state.context()->staticStrings();
@@ -842,7 +843,8 @@ Object* ProxyObject::construct(ExecutionState& state, const size_t& argc, Value*
     // a. Assert: target has a [[Construct]] internal method.
     // b. Return Construct(target, argumentsList, newTarget).
     if (trap.isUndefined()) {
-        ASSERT((target.isFunction() && target.asFunction()->isConstructor()) || (target.asObject()->isProxyObject() && target.asObject()->asProxyObject()->isConstructor()));
+        ASSERT(target.isFunction() || (target.asObject()->isProxyObject() && target.asObject()->asProxyObject()->isConstructible()));
+        // FIXME Construct (F, [argumentsList], [newTarget])
         return ByteCodeInterpreter::newOperation(state, target, argc, argv);
     }
 
@@ -866,4 +868,4 @@ Object* ProxyObject::construct(ExecutionState& state, const size_t& argc, Value*
     return newObj.asObject();
 }
 }
-#endif // ESCARGOT_ENABLE_PROXY
+#endif // ESCARGOT_ENABLE_PROXY_REFLECT

@@ -32,7 +32,7 @@
 #include "parser/ast/AST.h"
 #include "util/Util.h"
 
-#if ESCARGOT_ENABLE_PROXY
+#if ESCARGOT_ENABLE_PROXY_REFLECT
 #include "runtime/ProxyObject.h"
 #endif
 
@@ -244,7 +244,7 @@ Value FunctionObject::callSlowCase(ExecutionState& state, const Value& callee, c
     if (LIKELY(callee.isObject())) {
         if (LIKELY(callee.asPointerValue()->isFunctionObject()))
             return callee.asFunction()->processCall(state, receiver, argc, argv, isNewExpression);
-#if ESCARGOT_ENABLE_PROXY
+#if ESCARGOT_ENABLE_PROXY_REFLECT
         else if (callee.asPointerValue()->isProxyObject() && callee.asPointerValue()->isCallable())
             return callee.asPointerValue()->asProxyObject()->call(state, callee, receiver, argc, argv);
 #endif

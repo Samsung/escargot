@@ -34,7 +34,7 @@
 #include "util/Util.h"
 #include "../third_party/checked_arithmetic/CheckedArithmetic.h"
 
-#if ESCARGOT_ENABLE_PROXY
+#if ESCARGOT_ENABLE_PROXY_REFLECT
 #include "runtime/ProxyObject.h"
 #endif
 
@@ -1289,8 +1289,8 @@ NEVER_INLINE Object* ByteCodeInterpreter::newOperation(ExecutionState& state, co
         return callee.asFunction()->newInstance(state, argc, argv);
     }
 
-#if ESCARGOT_ENABLE_PROXY
-    if (callee.isPointerValue() && callee.asPointerValue()->isProxyObject() && callee.asPointerValue()->asProxyObject()->isConstructor()) {
+#if ESCARGOT_ENABLE_PROXY_REFLECT
+    if (callee.isObject() && callee.asObject()->isProxyObject() && callee.asPointerValue()->asProxyObject()->isConstructible()) {
         return callee.asPointerValue()->asProxyObject()->construct(state, argc, argv);
     }
 #endif
