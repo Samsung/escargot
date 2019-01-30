@@ -1250,10 +1250,8 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanNumericLiteral()
                 return this->scanOctalLiteral(ch, start);
             }
 
-            if (ch && isOctalDigit(ch)) {
-                if (this->isImplicitOctalLiteral()) {
-                    return this->scanOctalLiteral(ch, start);
-                }
+            if (ch && isOctalDigit(ch) && this->isImplicitOctalLiteral()) {
+                return this->scanOctalLiteral(ch, start);
             }
         }
 
@@ -1885,10 +1883,8 @@ PassRefPtr<Scanner::ScannerResult> Scanner::lex()
     }
 
     // Possible identifier start in a surrogate pair.
-    if (UNLIKELY(cp >= 0xD800 && cp < 0xDFFF)) {
-        if (isIdentifierStart(this->codePointAt(this->index))) {
-            goto ScanID;
-        }
+    if (UNLIKELY(cp >= 0xD800 && cp < 0xDFFF) && isIdentifierStart(this->codePointAt(this->index))) {
+        goto ScanID;
     }
     return this->scanPunctuator(cp);
 

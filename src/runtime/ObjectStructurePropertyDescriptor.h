@@ -237,11 +237,9 @@ protected:
             ASSERT(!(attribute & WritablePresent));
         }
 
-        if (m_descriptorData.mode() == HasJSGetterSetter) {
-            if (attribute & PresentAttribute::HasJSSetter) {
-                // set writable flag for checking fast
-                m_descriptorData = ObjectStructurePropertyDescriptorData((PresentAttribute)(WritablePresent | attribute), mode);
-            }
+        if (m_descriptorData.mode() == HasJSGetterSetter && (attribute & PresentAttribute::HasJSSetter)) {
+            // set writable flag for checking fast
+            m_descriptorData = ObjectStructurePropertyDescriptorData((PresentAttribute)(WritablePresent | attribute), mode);
         }
     }
 

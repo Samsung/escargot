@@ -292,12 +292,10 @@ static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t 
         Object* newDesc = nullptr;
 
         // If IsDataDescriptor(desc) is true, then
-        if (desc.isDataProperty()) {
-            // If desc.[[Writable]] is true, set desc.[[Writable]] to false.
-            if (desc.isWritable()) {
-                newDesc = O->getOwnProperty(state, P).toPropertyDescriptor(state, O).asObject();
-                newDesc->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().writable), Value(false), newDesc);
-            }
+        // If desc.[[Writable]] is true, set desc.[[Writable]] to false.
+        if (desc.isDataProperty() && desc.isWritable()) {
+            newDesc = O->getOwnProperty(state, P).toPropertyDescriptor(state, O).asObject();
+            newDesc->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().writable), Value(false), newDesc);
         }
         // If desc.[[Configurable]] is true, set desc.[[Configurable]] to false.
         if (desc.isConfigurable()) {

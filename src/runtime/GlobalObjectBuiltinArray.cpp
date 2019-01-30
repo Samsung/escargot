@@ -243,17 +243,15 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
     double prevIndex = 0;
     double curIndex = 0;
     while (curIndex < len) {
-        if (curIndex != 0) {
-            if (sep->length() > 0) {
-                if (static_cast<double>(builder.contentLength()) > static_cast<double>(STRING_MAXIMUM_LENGTH - (curIndex - prevIndex - 1) * sep->length())) {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_String_InvalidStringLength);
-                }
-                while (curIndex - prevIndex > 1) {
-                    builder.appendString(sep);
-                    prevIndex++;
-                }
-                builder.appendString(sep);
+        if (curIndex != 0 && sep->length() > 0) {
+            if (static_cast<double>(builder.contentLength()) > static_cast<double>(STRING_MAXIMUM_LENGTH - (curIndex - prevIndex - 1) * sep->length())) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_String_InvalidStringLength);
             }
+            while (curIndex - prevIndex > 1) {
+                builder.appendString(sep);
+                prevIndex++;
+            }
+            builder.appendString(sep);
         }
         Value elem = thisBinded->getIndexedProperty(state, Value(curIndex)).value(state, thisBinded);
 
@@ -340,10 +338,8 @@ static Value builtinArraySort(ExecutionState& state, Value thisValue, size_t arg
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, sort);
     Value cmpfn = argv[0];
-    if (!cmpfn.isUndefined()) {
-        if (!cmpfn.isFunction()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().sort.string(), errorMessage_GlobalObject_FirstArgumentNotCallable);
-        }
+    if (!cmpfn.isUndefined() && !cmpfn.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().sort.string(), errorMessage_GlobalObject_FirstArgumentNotCallable);
     }
     bool defaultSort = (argc == 0) || cmpfn.isUndefined();
 

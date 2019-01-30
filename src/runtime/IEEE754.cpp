@@ -392,9 +392,8 @@ ALWAYS_INLINE double __kernel_cos(double x, double y)
     int32_t ix;
     GET_HIGH_WORD(ix, x);
     ix &= 0x7FFFFFFF; /* ix = |x|'s high word*/
-    if (ix < 0x3E400000) { /* if x < 2**27 */
-        if (static_cast<int>(x) == 0)
-            return one; /* generate inexact */
+    if (ix < 0x3E400000 && static_cast<int>(x) == 0) { /* if x < 2**27 */
+        return one; /* generate inexact */
     }
     z = x * x;
     r = z * (C1 + z * (C2 + z * (C3 + z * (C4 + z * (C5 + z * C6)))));
@@ -775,9 +774,8 @@ ALWAYS_INLINE double __kernel_sin(double x, double y, int iy)
     int32_t ix;
     GET_HIGH_WORD(ix, x);
     ix &= 0x7FFFFFFF; /* high word of x */
-    if (ix < 0x3E400000) { /* |x| < 2**-27 */
-        if (static_cast<int>(x) == 0)
-            return x;
+    if (ix < 0x3E400000 && static_cast<int>(x) == 0) { /* |x| < 2**-27 */
+        return x;
     } /* generate inexact */
     z = x * x;
     v = z * x;
@@ -852,26 +850,25 @@ double __kernel_tan(double x, double y, int iy)
 
     GET_HIGH_WORD(hx, x); /* high word of x */
     ix = hx & 0x7FFFFFFF; /* high word of |x| */
-    if (ix < 0x3E300000) { /* x < 2**-28 */
-        if (static_cast<int>(x) == 0) { /* generate inexact */
-            uint32_t low;
-            GET_LOW_WORD(low, x);
-            if (((ix | low) | (iy + 1)) == 0) {
-                return one / fabs(x);
-            } else {
-                if (iy == 1) {
-                    return x;
-                } else { /* compute -1 / (x+y) carefully */
-                    double a, t;
+    if (ix < 0x3E300000 && static_cast<int>(x) == 0) { /* x < 2**-28 */
+        /* generate inexact */
+        uint32_t low;
+        GET_LOW_WORD(low, x);
+        if (((ix | low) | (iy + 1)) == 0) {
+            return one / fabs(x);
+        } else {
+            if (iy == 1) {
+                return x;
+            } else { /* compute -1 / (x+y) carefully */
+                double a, t;
 
-                    z = w = x + y;
-                    SET_LOW_WORD(z, 0);
-                    v = y - (z - x);
-                    t = a = -one / w;
-                    SET_LOW_WORD(t, 0);
-                    s = one + t * z;
-                    return t + a * (s + t * v);
-                }
+                z = w = x + y;
+                SET_LOW_WORD(z, 0);
+                v = y - (z - x);
+                t = a = -one / w;
+                SET_LOW_WORD(t, 0);
+                s = one + t * z;
+                return t + a * (s + t * v);
             }
         }
     }
@@ -1119,9 +1116,8 @@ double asin(double x)
             return x * pio2_hi + x * pio2_lo;
         return (x - x) / (x - x); /* asin(|x|>1) is NaN */
     } else if (ix < 0x3FE00000) { /* |x|<0.5 */
-        if (ix < 0x3E400000) { /* if |x| < 2**-27 */
-            if (huge + x > one)
-                return x; /* return x with inexact if x!=0*/
+        if (ix < 0x3E400000 && huge + x > one) { /* if |x| < 2**-27 */
+            return x; /* return x with inexact if x!=0*/
         } else {
             t = x * x;
         }
@@ -1177,9 +1173,8 @@ double asinh(double x)
     ix = hx & 0x7FFFFFFF;
     if (ix >= 0x7FF00000)
         return x + x; /* x is inf or NaN */
-    if (ix < 0x3E300000) { /* |x|<2**-28 */
-        if (huge + x > one)
-            return x; /* return x inexact except 0 */
+    if (ix < 0x3E300000 && huge + x > one) { /* |x|<2**-28 */
+        return x; /* return x inexact except 0 */
     }
     if (ix > 0x41B00000) { /* |x| > 2**28 */
         w = log(fabs(x)) + ln2;
@@ -1264,9 +1259,8 @@ double atan(double x)
             return -atanhi[3] - *(volatile double *)&atanlo[3];
     }
     if (ix < 0x3FDC0000) { /* |x| < 0.4375 */
-        if (ix < 0x3E400000) { /* |x| < 2^-27 */
-            if (huge + x > one)
-                return x; /* raise inexact */
+        if (ix < 0x3E400000 && huge + x > one) { /* |x| < 2^-27 */
+            return x; /* raise inexact */
         }
         id = -1;
     } else {
@@ -2374,9 +2368,9 @@ double expm1(double x)
             if (x > o_threshold)
                 return huge * huge; /* overflow */
         }
-        if (xsb != 0) { /* x < -56*ln2, return -1.0 with inexact */
-            if (x + tiny < 0.0) /* raise inexact */
-                return tiny - one; /* return -1 */
+        if (xsb != 0 && x + tiny < 0.0) { /* x < -56*ln2, return -1.0 with inexact */
+            /* raise inexact */
+            return tiny - one; /* return -1 */
         }
     }
 
@@ -2824,9 +2818,8 @@ double tanh(double x)
 
     /* |x| < 22 */
     if (ix < 0x40360000) { /* |x|<22 */
-        if (ix < 0x3E300000) { /* |x|<2**-28 */
-            if (huge + x > one)
-                return x; /* tanh(tiny) = tiny with inexact */
+        if (ix < 0x3E300000 && huge + x > one) { /* |x|<2**-28 */
+            return x; /* tanh(tiny) = tiny with inexact */
         }
         if (ix >= 0x3FF00000) { /* |x|>=1  */
             t = expm1(two * fabs(x));

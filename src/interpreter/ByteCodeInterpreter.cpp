@@ -388,14 +388,12 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                     ArrayObject* arr = (ArrayObject*)v;
                     if (LIKELY(arr->isFastModeArray())) {
                         uint32_t idx = property.tryToUseAsArrayIndex(state);
-                        if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-                            if (LIKELY(idx < arr->getArrayLength(state))) {
-                                const Value& v = arr->m_fastModeData[idx];
-                                if (LIKELY(!v.isEmpty())) {
-                                    registerFile[code->m_storeRegisterIndex] = v;
-                                    ADD_PROGRAM_COUNTER(GetObject);
-                                    NEXT_INSTRUCTION();
-                                }
+                        if (LIKELY(idx != Value::InvalidArrayIndexValue) && LIKELY(idx < arr->getArrayLength(state))) {
+                            const Value& v = arr->m_fastModeData[idx];
+                            if (LIKELY(!v.isEmpty())) {
+                                registerFile[code->m_storeRegisterIndex] = v;
+                                ADD_PROGRAM_COUNTER(GetObject);
+                                NEXT_INSTRUCTION();
                             }
                         }
                     }
@@ -832,10 +830,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 }
 
                 bool result = obj->setIndexedProperty(state, property, registerFile[code->m_loadRegisterIndex]);
-                if (UNLIKELY(!result)) {
-                    if (state.inStrictMode()) {
-                        Object::throwCannotWriteError(state, PropertyName(state, property.toString(state)));
-                    }
+                if (UNLIKELY(!result) && state.inStrictMode()) {
+                    Object::throwCannotWriteError(state, PropertyName(state, property.toString(state)));
                 }
                 ADD_PROGRAM_COUNTER(SetObjectOperation);
                 NEXT_INSTRUCTION();
@@ -1752,13 +1748,11 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::updateEnumerateObjectData
     std::vector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> differenceKeys;
     for (size_t i = 0; i < newData->m_keys.size(); i++) {
         const Value& key = newData->m_keys[i];
-        if (std::find(oldKeys.begin(), oldKeys.begin() + data->m_idx, key) == oldKeys.begin() + data->m_idx) {
-            // If a property that has not yet been visited during enumeration is deleted, then it will not be visited.
-            if (std::find(oldKeys.begin() + data->m_idx, oldKeys.end(), key) != oldKeys.end()) {
-                // If new properties are added to the object being enumerated during enumeration,
-                // the newly added properties are not guaranteed to be visited in the active enumeration.
-                differenceKeys.push_back(key);
-            }
+        // If a property that has not yet been visited during enumeration is deleted, then it will not be visited.
+        if (std::find(oldKeys.begin(), oldKeys.begin() + data->m_idx, key) == oldKeys.begin() + data->m_idx && std::find(oldKeys.begin() + data->m_idx, oldKeys.end(), key) != oldKeys.end()) {
+            // If new properties are added to the object being enumerated during enumeration,
+            // the newly added properties are not guaranteed to be visited in the active enumeration.
+            differenceKeys.push_back(key);
         }
     }
     data = newData;
@@ -2131,10 +2125,8 @@ NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, c
     while (true) {
         if (env->record()->isGlobalEnvironmentRecord()) {
             break;
-        } else if (env->record()->isDeclarativeEnvironmentRecord()) {
-            if (env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-                break;
-            }
+        } else if (env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            break;
         }
         env = env->outerEnvironment();
         ec = ecInput->parent();

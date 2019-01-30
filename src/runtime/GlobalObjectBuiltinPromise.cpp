@@ -280,9 +280,8 @@ static Value builtinPromiseResolve(ExecutionState& state, Value thisValue, size_
     auto strings = &state.context()->staticStrings();
     Object* thisObject = thisValue.toObject(state);
     Value x = argv[0];
-    if (x.isObject() && x.asObject()->isPromiseObject()) {
-        if (x.asObject()->get(state, strings->constructor).value(state, x.asObject()) == Value(thisObject))
-            return x;
+    if (x.isObject() && x.asObject()->isPromiseObject() && x.asObject()->get(state, strings->constructor).value(state, x.asObject()) == Value(thisObject)) {
+        return x;
     }
     PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, thisObject);
 

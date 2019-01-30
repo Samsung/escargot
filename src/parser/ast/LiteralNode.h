@@ -49,13 +49,11 @@ public:
     virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         size_t idxExists = SIZE_MAX;
-        if (context->m_keepNumberalLiteralsInRegisterFile) {
-            if (!m_value.isPointerValue()) {
-                for (size_t i = 0; i < context->m_numeralLiteralData->size(); i++) {
-                    if ((*context->m_numeralLiteralData)[i] == m_value) {
-                        context->pushRegister(REGULAR_REGISTER_LIMIT + VARIABLE_LIMIT + i);
-                        return context->getLastRegisterIndex();
-                    }
+        if (context->m_keepNumberalLiteralsInRegisterFile && !m_value.isPointerValue()) {
+            for (size_t i = 0; i < context->m_numeralLiteralData->size(); i++) {
+                if ((*context->m_numeralLiteralData)[i] == m_value) {
+                    context->pushRegister(REGULAR_REGISTER_LIMIT + VARIABLE_LIMIT + i);
+                    return context->getLastRegisterIndex();
                 }
             }
         }

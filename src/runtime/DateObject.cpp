@@ -563,10 +563,8 @@ time64_t DateObject::parseStringToDate_1(ExecutionState& state, String* istr, bo
     }
 
     // '99 23:12:40 GMT'
-    if (year <= 0 && *dateString) {
-        if (!parseInt(dateString, &newPosStr, 10, &year)) {
-            return TIME64NAN;
-        }
+    if (year <= 0 && *dateString && !parseInt(dateString, &newPosStr, 10, &year)) {
+        return TIME64NAN;
     }
 
     // Don't fail if the time is missing.

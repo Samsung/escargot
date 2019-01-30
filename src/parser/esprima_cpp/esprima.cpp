@@ -365,10 +365,8 @@ public:
             PassRefPtr<Scanner::ScannerResult> next = this->scanner->lex();
             this->hasLineTerminator = false;
 
-            if (this->context->strict && next->type == Token::IdentifierToken) {
-                if (this->scanner->isStrictModeReservedWord(next->relatedSource())) {
-                    next->type = Token::KeywordToken;
-                }
+            if (this->context->strict && next->type == Token::IdentifierToken && this->scanner->isStrictModeReservedWord(next->relatedSource())) {
+                next->type = Token::KeywordToken;
             }
             this->lookahead = next;
         }
@@ -509,10 +507,8 @@ public:
         PassRefPtr<Scanner::ScannerResult> next = this->scanner->lex();
         this->hasLineTerminator = token->lineNumber != next->lineNumber;
 
-        if (this->context->strict && next->type == Token::IdentifierToken) {
-            if (this->scanner->isStrictModeReservedWord(next->relatedSource())) {
-                next->type = Token::KeywordToken;
-            }
+        if (this->context->strict && next->type == Token::IdentifierToken && this->scanner->isStrictModeReservedWord(next->relatedSource())) {
+            next->type = Token::KeywordToken;
         }
         this->lookahead = next;
 
@@ -592,12 +588,10 @@ public:
         auto type = node->type();
         if (type == CallExpression) {
             CallExpressionNode* c = (CallExpressionNode*)node;
-            if (c->callee()->isIdentifier()) {
-                if (((IdentifierNode*)c->callee())->name() == this->escargotContext->staticStrings().eval) {
-                    scopeContexts.back()->m_hasEval = true;
-                    if (this->context->inArrowFunction) {
-                        insertUsingName(this->escargotContext->staticStrings().stringThis);
-                    }
+            if (c->callee()->isIdentifier() && ((IdentifierNode*)c->callee())->name() == this->escargotContext->staticStrings().eval) {
+                scopeContexts.back()->m_hasEval = true;
+                if (this->context->inArrowFunction) {
+                    insertUsingName(this->escargotContext->staticStrings().stringThis);
                 }
             }
         } else if (type == WithStatement) {
@@ -1729,43 +1723,41 @@ public:
             }
         }
 
-        if (!this->config.parseSingleFunction) {
-            if (key->isIdentifier()) {
-                AtomicString as = key->asIdentifier()->name();
-                bool seenInit = kind == PropertyNode::Kind::Init;
-                bool seenGet = kind == PropertyNode::Kind::Get;
-                bool seenSet = kind == PropertyNode::Kind::Set;
-                size_t len = usedNames.size();
+        if (!this->config.parseSingleFunction && key->isIdentifier()) {
+            AtomicString as = key->asIdentifier()->name();
+            bool seenInit = kind == PropertyNode::Kind::Init;
+            bool seenGet = kind == PropertyNode::Kind::Get;
+            bool seenSet = kind == PropertyNode::Kind::Set;
+            size_t len = usedNames.size();
 
-                for (size_t i = 0; i < len; i++) {
-                    const auto& n = usedNames[i];
-                    if (n.first == as) {
-                        if (n.second == PropertyNode::Kind::Init) {
-                            if (this->context->strict) {
-                                if (seenInit || seenGet || seenSet) {
-                                    this->throwError("invalid object literal");
-                                }
-                            } else {
-                                if (seenGet || seenSet) {
-                                    this->throwError("invalid object literal");
-                                }
-                            }
-                            seenInit = true;
-                        } else if (n.second == PropertyNode::Kind::Get) {
-                            if (seenInit || seenGet) {
+            for (size_t i = 0; i < len; i++) {
+                const auto& n = usedNames[i];
+                if (n.first == as) {
+                    if (n.second == PropertyNode::Kind::Init) {
+                        if (this->context->strict) {
+                            if (seenInit || seenGet || seenSet) {
                                 this->throwError("invalid object literal");
                             }
-                            seenGet = true;
-                        } else if (n.second == PropertyNode::Kind::Set) {
-                            if (seenInit || seenSet) {
+                        } else {
+                            if (seenGet || seenSet) {
                                 this->throwError("invalid object literal");
                             }
-                            seenSet = true;
                         }
+                        seenInit = true;
+                    } else if (n.second == PropertyNode::Kind::Get) {
+                        if (seenInit || seenGet) {
+                            this->throwError("invalid object literal");
+                        }
+                        seenGet = true;
+                    } else if (n.second == PropertyNode::Kind::Set) {
+                        if (seenInit || seenSet) {
+                            this->throwError("invalid object literal");
+                        }
+                        seenSet = true;
                     }
                 }
-                usedNames.push_back(std::make_pair(as, kind));
             }
+            usedNames.push_back(std::make_pair(as, kind));
         }
 
         // return this->finalize(node, new PropertyNode(kind, key, computed, value, method, shorthand));
@@ -2795,28 +2787,26 @@ public:
             this->context->isBindingElement = false;
         } else {
             expr = this->inheritCoverGrammar(&Parser::parseLeftHandSideExpressionAllowCall);
-            if (!this->hasLineTerminator && this->lookahead->type == Token::PunctuatorToken) {
-                if (this->match(PlusPlus) || this->match(MinusMinus)) {
-                    bool isPlus = this->match(PlusPlus);
-                    if (this->context->strict && expr->isIdentifier() && this->scanner->isRestrictedWord(((IdentifierNode*)expr.get())->name())) {
-                        this->tolerateError(Messages::StrictLHSPostfix);
-                    }
-                    if (!this->context->isAssignmentTarget && this->context->strict) {
-                        this->tolerateError(Messages::InvalidLHSInAssignment);
-                    }
-                    this->context->isAssignmentTarget = false;
-                    this->context->isBindingElement = false;
-                    this->nextToken();
+            if (!this->hasLineTerminator && this->lookahead->type == Token::PunctuatorToken && (this->match(PlusPlus) || this->match(MinusMinus))) {
+                bool isPlus = this->match(PlusPlus);
+                if (this->context->strict && expr->isIdentifier() && this->scanner->isRestrictedWord(((IdentifierNode*)expr.get())->name())) {
+                    this->tolerateError(Messages::StrictLHSPostfix);
+                }
+                if (!this->context->isAssignmentTarget && this->context->strict) {
+                    this->tolerateError(Messages::InvalidLHSInAssignment);
+                }
+                this->context->isAssignmentTarget = false;
+                this->context->isBindingElement = false;
+                this->nextToken();
 
-                    if (expr->isLiteral() || expr->type() == ASTNodeType::ThisExpression) {
-                        this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
-                    }
+                if (expr->isLiteral() || expr->type() == ASTNodeType::ThisExpression) {
+                    this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                }
 
-                    if (isPlus) {
-                        expr = this->finalize(this->startNode(startToken), new UpdateExpressionIncrementPostfixNode(expr.get()));
-                    } else {
-                        expr = this->finalize(this->startNode(startToken), new UpdateExpressionDecrementPostfixNode(expr.get()));
-                    }
+                if (isPlus) {
+                    expr = this->finalize(this->startNode(startToken), new UpdateExpressionIncrementPostfixNode(expr.get()));
+                } else {
+                    expr = this->finalize(this->startNode(startToken), new UpdateExpressionDecrementPostfixNode(expr.get()));
                 }
             }
         }
@@ -4331,10 +4321,8 @@ public:
         RefPtr<Node> id = this->parsePattern(params, VarKeyword);
 
         // ECMA-262 12.2.1
-        if (this->context->strict && id->type() == Identifier) {
-            if (this->scanner->isRestrictedWord(((IdentifierNode*)id.get())->name())) {
-                this->tolerateError(Messages::StrictVarName);
-            }
+        if (this->context->strict && id->type() == Identifier && this->scanner->isRestrictedWord(((IdentifierNode*)id.get())->name())) {
+            this->tolerateError(Messages::StrictVarName);
         }
 
         if (id->type() == Identifier && !this->config.parseSingleFunction) {
@@ -4358,10 +4346,8 @@ public:
         std::pair<ASTNodeType, AtomicString> id = this->scanPattern(params, VarKeyword);
 
         // ECMA-262 12.2.1
-        if (this->context->strict && id.first == Identifier) {
-            if (this->scanner->isRestrictedWord(id.second)) {
-                this->tolerateError(Messages::StrictVarName);
-            }
+        if (this->context->strict && id.first == Identifier && this->scanner->isRestrictedWord(id.second)) {
+            this->tolerateError(Messages::StrictVarName);
         }
 
         if (id.first == Identifier && !this->config.parseSingleFunction) {

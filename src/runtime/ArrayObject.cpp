@@ -268,10 +268,8 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t& newLengt
 {
     if (UNLIKELY(isFastModeArray() && (newLength > ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE))) {
         uint32_t orgLength = getArrayLength(state);
-        if (newLength > orgLength) {
-            if ((newLength - orgLength > ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP)) {
-                convertIntoNonFastMode(state);
-            }
+        if (newLength > orgLength && (newLength - orgLength > ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP)) {
+            convertIntoNonFastMode(state);
         }
     }
 
@@ -324,14 +322,12 @@ ObjectGetResult ArrayObject::getFastModeValue(ExecutionState& state, const Objec
 {
     if (LIKELY(isFastModeArray())) {
         uint64_t idx = P.tryToUseAsArrayIndex();
-        if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-            if (LIKELY(idx < getArrayLength(state))) {
-                Value v = m_fastModeData[idx];
-                if (LIKELY(!v.isEmpty())) {
-                    return ObjectGetResult(v, true, true, true);
-                }
-                return ObjectGetResult();
+        if (LIKELY(idx != Value::InvalidArrayIndexValue) && LIKELY(idx < getArrayLength(state))) {
+            Value v = m_fastModeData[idx];
+            if (LIKELY(!v.isEmpty())) {
+                return ObjectGetResult(v, true, true, true);
             }
+            return ObjectGetResult();
         }
     }
     return ObjectGetResult();
@@ -381,14 +377,12 @@ ObjectGetResult ArrayObject::getIndexedProperty(ExecutionState& state, const Val
 {
     if (LIKELY(isFastModeArray())) {
         uint32_t idx = property.tryToUseAsArrayIndex(state);
-        if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-            if (LIKELY(idx < getArrayLength(state))) {
-                Value v = m_fastModeData[idx];
-                if (LIKELY(!v.isEmpty())) {
-                    return ObjectGetResult(v, true, true, true);
-                }
-                return get(state, ObjectPropertyName(state, property));
+        if (LIKELY(idx != Value::InvalidArrayIndexValue) && LIKELY(idx < getArrayLength(state))) {
+            Value v = m_fastModeData[idx];
+            if (LIKELY(!v.isEmpty())) {
+                return ObjectGetResult(v, true, true, true);
             }
+            return get(state, ObjectPropertyName(state, property));
         }
     }
     return get(state, ObjectPropertyName(state, property));
