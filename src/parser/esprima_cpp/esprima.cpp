@@ -275,7 +275,6 @@ struct Config : public gc {
     bool loc : 1;
     bool tokens : 1;
     bool comment : 1;
-    bool tolerant : 1;
     bool parseSingleFunction : 1;
     CodeBlock* parseSingleFunctionTarget;
     SmallValue parseSingleFunctionChildIndex; // use SmallValue for saving index. this reduce memory leak from stack
@@ -443,7 +442,6 @@ public:
         // config.source = String::emptyString;
         config.tokens = false;
         config.comment = false;
-        config.tolerant = false;
         config.parseSingleFunction = false;
         config.parseSingleFunctionTarget = nullptr;
         config.parseSingleFunctionChildIndex = SmallValue((uint32_t)0);
@@ -454,7 +452,6 @@ public:
             source: null,
             tokens: (typeof options.tokens == 'boolean') && options.tokens,
             comment: (typeof options.comment == 'boolean') && options.comment,
-            tolerant: (typeof options.tolerant == 'boolean') && options.tolerant
         };
         if (this->config.loc && options.source && options.source !== null) {
             this->config.source = String(options.source);
@@ -635,12 +632,6 @@ public:
         throw this->unexpectedTokenError(token, message);
     }
 
-    void tolerateUnexpectedToken(RefPtr<ScannerResult> token, const char* message = nullptr)
-    {
-        // this->errorHandler.tolerate(this->unexpectedTokenError(token, message));
-        throwUnexpectedToken(token, message);
-    }
-
     ALWAYS_INLINE void collectComments()
     {
         this->scanner->scanComments();
@@ -776,24 +767,8 @@ public:
         }
     }
 
-    // Quietly expect a comma when in tolerant mode, otherwise delegates to expect().
-
     void expectCommaSeparator()
     {
-        /*
-        if (this->config.tolerant) {
-            let token = this->lookahead;
-            if (token.type == Token.Punctuator && token.value == ',') {
-                this->nextToken();
-            } else if (token.type == Token.Punctuator && token.value == ';') {
-                this->nextToken();
-                this->tolerateUnexpectedToken(token);
-            } else {
-                this->tolerateUnexpectedToken(token, Messages.UnexpectedToken);
-            }
-        } else {
-            this->expect(',');
-        }*/
         this->expect(PunctuatorKind::Comma);
     }
 
@@ -1111,17 +1086,17 @@ public:
         switch (this->lookahead->type) {
         case Token::IdentifierToken:
             if (this->sourceType == SourceType::Module && this->lookahead->valueKeywordKind == AwaitKeyword) {
-                this->tolerateUnexpectedToken(this->lookahead);
+                this->throwUnexpectedToken(this->lookahead);
             }
             return this->finalize(node, finishIdentifier(this->nextToken(), true));
             break;
         case Token::NumericLiteralToken:
         case Token::StringLiteralToken:
             if (this->context->strict && this->lookahead->octal) {
-                this->tolerateUnexpectedToken(this->lookahead, Messages::StrictOctalLiteral);
+                this->throwUnexpectedToken(this->lookahead, Messages::StrictOctalLiteral);
             }
             if (this->context->strict && this->lookahead->startWithZero) {
-                this->tolerateUnexpectedToken(this->lookahead, Messages::StrictLeadingZeroLiteral);
+                this->throwUnexpectedToken(this->lookahead, Messages::StrictLeadingZeroLiteral);
             }
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
@@ -1238,17 +1213,17 @@ public:
         switch (this->lookahead->type) {
         case Token::IdentifierToken:
             if (this->sourceType == SourceType::Module && this->lookahead->valueKeywordKind == AwaitKeyword) {
-                this->tolerateUnexpectedToken(this->lookahead);
+                this->throwUnexpectedToken(this->lookahead);
             }
             return finishScanIdentifier(this->nextToken(), true);
             break;
         case Token::NumericLiteralToken:
         case Token::StringLiteralToken:
             if (this->context->strict && this->lookahead->octal) {
-                this->tolerateUnexpectedToken(this->lookahead, Messages::StrictOctalLiteral);
+                this->throwUnexpectedToken(this->lookahead, Messages::StrictOctalLiteral);
             }
             if (this->context->strict && this->lookahead->startWithZero) {
-                this->tolerateUnexpectedToken(this->lookahead, Messages::StrictLeadingZeroLiteral);
+                this->throwUnexpectedToken(this->lookahead, Messages::StrictLeadingZeroLiteral);
             }
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
@@ -1435,7 +1410,7 @@ public:
             // pattern = this->parseObjectPattern(params, kind);
         } else {
             if (this->matchKeyword(LetKeyword) && (kind == ConstKeyword || kind == LetKeyword)) {
-                this->tolerateUnexpectedToken(this->lookahead, Messages::UnexpectedToken);
+                this->throwUnexpectedToken(this->lookahead, Messages::UnexpectedToken);
             }
             params.push_back(this->lookahead);
             return this->parseVariableIdentifier(kind);
@@ -1454,7 +1429,7 @@ public:
             // pattern = this->parseObjectPattern(params, kind);
         } else {
             if (this->matchKeyword(LetKeyword) && (kind == ConstKeyword || kind == LetKeyword)) {
-                this->tolerateUnexpectedToken(this->lookahead, Messages::UnexpectedToken);
+                this->throwUnexpectedToken(this->lookahead, Messages::UnexpectedToken);
             }
             params.push_back(this->lookahead);
             return std::make_pair(ASTNodeType::Identifier, this->scanVariableIdentifier(kind));
@@ -1643,10 +1618,10 @@ public:
         const bool previousStrict = this->context->strict;
         PassRefPtr<Node> body = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
         if (this->context->strict && params.firstRestricted) {
-            this->tolerateUnexpectedToken(params.firstRestricted, params.message);
+            this->throwUnexpectedToken(params.firstRestricted, params.message);
         }
         if (this->context->strict && params.stricted) {
-            this->tolerateUnexpectedToken(params.stricted, params.message);
+            this->throwUnexpectedToken(params.stricted, params.message);
         }
         this->context->strict = previousStrict;
         this->context->inArrowFunction = previousInArrowFunction;
@@ -1678,10 +1653,10 @@ public:
         case Token::NumericLiteralToken:
         case Token::StringLiteralToken:
             if (this->context->strict && token->octal) {
-                this->tolerateUnexpectedToken(token, Messages::StrictOctalLiteral);
+                this->throwUnexpectedToken(token, Messages::StrictOctalLiteral);
             }
             if (this->context->strict && this->lookahead->startWithZero) {
-                this->tolerateUnexpectedToken(this->lookahead, Messages::StrictLeadingZeroLiteral);
+                this->throwUnexpectedToken(this->lookahead, Messages::StrictLeadingZeroLiteral);
             }
             // const raw = this->getTokenRaw(token);
             {
@@ -1732,10 +1707,10 @@ public:
         case Token::NumericLiteralToken:
         case Token::StringLiteralToken:
             if (this->context->strict && token->octal) {
-                this->tolerateUnexpectedToken(token, Messages::StrictOctalLiteral);
+                this->throwUnexpectedToken(token, Messages::StrictOctalLiteral);
             }
             if (this->context->strict && this->lookahead->startWithZero) {
-                this->tolerateUnexpectedToken(this->lookahead, Messages::StrictLeadingZeroLiteral);
+                this->throwUnexpectedToken(this->lookahead, Messages::StrictLeadingZeroLiteral);
             }
             // const raw = this->getTokenRaw(token);
             {
@@ -3795,7 +3770,7 @@ public:
 
                 if (list.valid) {
                     if (this->hasLineTerminator) {
-                        this->tolerateUnexpectedToken(this->lookahead);
+                        this->throwUnexpectedToken(this->lookahead);
                     }
                     this->context->firstCoverInitializedNameError = nullptr;
 
@@ -3834,7 +3809,7 @@ public:
                         this->throwUnexpectedToken(list.firstRestricted, list.message);
                     }
                     if (this->context->strict && list.stricted) {
-                        this->tolerateUnexpectedToken(list.stricted, list.message);
+                        this->throwUnexpectedToken(list.stricted, list.message);
                     }
                     expr = this->finalize(node, new ArrowFunctionExpressionNode(std::move(list.params), body.get(), popScopeContext(node), expression)); //TODO
 
@@ -3851,10 +3826,10 @@ public:
                     if (this->context->strict && expr->type() == Identifier) {
                         IdentifierNode* id = expr->asIdentifier();
                         if (this->scanner->isRestrictedWord(id->name())) {
-                            this->tolerateUnexpectedToken(token, Messages::StrictLHSAssignment);
+                            this->throwUnexpectedToken(token, Messages::StrictLHSAssignment);
                         }
                         if (this->scanner->isStrictModeReservedWord(id->name())) {
-                            this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
+                            this->throwUnexpectedToken(token, Messages::StrictReservedWord);
                         }
                     }
 
@@ -3946,7 +3921,7 @@ public:
 
                 if (list.valid) {
                     if (this->hasLineTerminator) {
-                        this->tolerateUnexpectedToken(this->lookahead);
+                        this->throwUnexpectedToken(this->lookahead);
                     }
                     this->context->firstCoverInitializedNameError = nullptr;
 
@@ -3985,7 +3960,7 @@ public:
                         this->throwUnexpectedToken(list.firstRestricted, list.message);
                     }
                     if (this->context->strict && list.stricted) {
-                        this->tolerateUnexpectedToken(list.stricted, list.message);
+                        this->throwUnexpectedToken(list.stricted, list.message);
                     }
                     exprNode = this->finalize(node, new ArrowFunctionExpressionNode(std::move(list.params), body.get(), popScopeContext(node), expression)); //TODO
 
@@ -4003,10 +3978,10 @@ public:
 
                     if (this->context->strict && expr.first == ASTNodeType::Identifier) {
                         if (this->scanner->isRestrictedWord(expr.second)) {
-                            this->tolerateUnexpectedToken(token, Messages::StrictLHSAssignment);
+                            this->throwUnexpectedToken(token, Messages::StrictLHSAssignment);
                         }
                         if (this->scanner->isStrictModeReservedWord(expr.second)) {
-                            this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
+                            this->throwUnexpectedToken(token, Messages::StrictReservedWord);
                         }
                     }
 
@@ -4126,13 +4101,13 @@ public:
              switch (this->lookahead.value) {
                  case 'export':
                      if (this->sourceType !== 'module') {
-                         this->tolerateUnexpectedToken(this->lookahead, Messages.IllegalExportDeclaration);
+                         this->throwUnexpectedToken(this->lookahead, Messages.IllegalExportDeclaration);
                      }
                      statement = this->parseExportDeclaration();
                      break;
                  case 'import':
                      if (this->sourceType !== 'module') {
-                         this->tolerateUnexpectedToken(this->lookahead, Messages.IllegalImportDeclaration);
+                         this->throwUnexpectedToken(this->lookahead, Messages.IllegalImportDeclaration);
                      }
                      statement = this->parseImportDeclaration();
                      break;
@@ -4180,13 +4155,13 @@ public:
              switch (this->lookahead.value) {
                  case 'export':
                      if (this->sourceType !== 'module') {
-                         this->tolerateUnexpectedToken(this->lookahead, Messages.IllegalExportDeclaration);
+                         this->throwUnexpectedToken(this->lookahead, Messages.IllegalExportDeclaration);
                      }
                      statement = this->parseExportDeclaration();
                      break;
                  case 'import':
                      if (this->sourceType !== 'module') {
-                         this->tolerateUnexpectedToken(this->lookahead, Messages.IllegalImportDeclaration);
+                         this->throwUnexpectedToken(this->lookahead, Messages.IllegalImportDeclaration);
                      }
                      statement = this->parseImportDeclaration();
                      break;
@@ -4410,7 +4385,7 @@ public:
             pattern = this->parseObjectPattern(params, kind);
         } else {
             if (this->matchKeyword('let') && (kind === 'const' || kind === 'let')) {
-                this->tolerateUnexpectedToken(this->lookahead, Messages.UnexpectedToken);
+                this->throwUnexpectedToken(this->lookahead, Messages.UnexpectedToken);
             }
             params.push(this->lookahead);
             pattern = this->parseVariableIdentifier(kind);
@@ -4444,21 +4419,21 @@ public:
         RefPtr<ScannerResult> token = this->nextToken();
         if (token->type == Token::KeywordToken && token->valueKeywordKind == YieldKeyword) {
             if (this->context->strict) {
-                this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
+                this->throwUnexpectedToken(token, Messages::StrictReservedWord);
             }
             if (!this->context->allowYield) {
                 this->throwUnexpectedToken(token);
             }
         } else if (token->type != Token::IdentifierToken) {
             if (this->context->strict && token->type == Token::KeywordToken && this->scanner->isStrictModeReservedWord(token->relatedSource())) {
-                this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
+                this->throwUnexpectedToken(token, Messages::StrictReservedWord);
             } else {
                 if (this->context->strict || token->relatedSource() != "let" || (kind != VarKeyword)) {
                     this->throwUnexpectedToken(token);
                 }
             }
         } else if (this->sourceType == Module && token->type == Token::IdentifierToken && token->relatedSource() == "await") {
-            this->tolerateUnexpectedToken(token);
+            this->throwUnexpectedToken(token);
         }
 
         return this->finalize(node, finishIdentifier(token, true));
@@ -4469,21 +4444,21 @@ public:
         RefPtr<ScannerResult> token = this->nextToken();
         if (token->type == Token::KeywordToken && token->valueKeywordKind == YieldKeyword) {
             if (this->context->strict) {
-                this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
+                this->throwUnexpectedToken(token, Messages::StrictReservedWord);
             }
             if (!this->context->allowYield) {
                 this->throwUnexpectedToken(token);
             }
         } else if (token->type != Token::IdentifierToken) {
             if (this->context->strict && token->type == Token::KeywordToken && this->scanner->isStrictModeReservedWord(token->relatedSource())) {
-                this->tolerateUnexpectedToken(token, Messages::StrictReservedWord);
+                this->throwUnexpectedToken(token, Messages::StrictReservedWord);
             } else {
                 if (this->context->strict || token->relatedSource() != "let" || (kind != VarKeyword)) {
                     this->throwUnexpectedToken(token);
                 }
             }
         } else if (this->sourceType == Module && token->type == Token::IdentifierToken && token->relatedSource() == "await") {
-            this->tolerateUnexpectedToken(token);
+            this->throwUnexpectedToken(token);
         }
 
         return finishScanIdentifier(token, true).second;
@@ -4640,16 +4615,11 @@ public:
         this->expect(LeftParenthesis);
         RefPtr<Node> test = this->parseExpression();
 
-        if (!this->match(RightParenthesis) && this->config.tolerant) {
-            this->tolerateUnexpectedToken(this->nextToken());
-            consequent = this->finalize(this->createNode(), new EmptyStatementNode());
-        } else {
-            this->expect(RightParenthesis);
-            consequent = this->parseStatement(this->context->strict ? false : true);
-            if (this->matchKeyword(ElseKeyword)) {
-                this->nextToken();
-                alternate = this->parseStatement();
-            }
+        this->expect(RightParenthesis);
+        consequent = this->parseStatement(this->context->strict ? false : true);
+        if (this->matchKeyword(ElseKeyword)) {
+            this->nextToken();
+            alternate = this->parseStatement();
         }
 
         return this->finalize(node, new IfStatementNode(test.get(), consequent.get(), alternate.get()));
@@ -4661,15 +4631,11 @@ public:
         this->expect(LeftParenthesis);
         this->scanExpression();
 
-        if (!this->match(RightParenthesis) && this->config.tolerant) {
-            this->tolerateUnexpectedToken(this->nextToken());
-        } else {
-            this->expect(RightParenthesis);
-            this->scanStatement(this->context->strict ? false : true);
-            if (this->matchKeyword(ElseKeyword)) {
-                this->nextToken();
-                this->scanStatement();
-            }
+        this->expect(RightParenthesis);
+        this->scanStatement(this->context->strict ? false : true);
+        if (this->matchKeyword(ElseKeyword)) {
+            this->nextToken();
+            this->scanStatement();
         }
     }
 
@@ -4729,18 +4695,12 @@ public:
         this->expect(LeftParenthesis);
         RefPtr<Node> test = this->parseExpression();
 
-        if (!this->match(RightParenthesis) && this->config.tolerant) {
-            this->tolerateUnexpectedToken(this->nextToken());
-            body = this->finalize(this->createNode(), new EmptyStatementNode());
-        } else {
-            this->expect(RightParenthesis);
+        this->expect(RightParenthesis);
 
-            bool previousInIteration = this->context->inIteration;
-            this->context->inIteration = true;
-            body = this->parseStatement(false);
-            this->context->inIteration = previousInIteration;
-        }
-
+        bool previousInIteration = this->context->inIteration;
+        this->context->inIteration = true;
+        body = this->parseStatement(false);
+        this->context->inIteration = previousInIteration;
         this->context->inLoop = prevInLoop;
 
         return this->finalize(node, new WhileStatementNode(test.get(), body.get()));
@@ -4756,16 +4716,11 @@ public:
         this->expect(LeftParenthesis);
         this->scanExpression();
 
-        if (!this->match(RightParenthesis) && this->config.tolerant) {
-            this->tolerateUnexpectedToken(this->nextToken());
-        } else {
-            this->expect(RightParenthesis);
-            bool previousInIteration = this->context->inIteration;
-            this->context->inIteration = true;
-            this->scanStatement(false);
-            this->context->inIteration = previousInIteration;
-        }
-
+        this->expect(RightParenthesis);
+        bool previousInIteration = this->context->inIteration;
+        this->context->inIteration = true;
+        this->scanStatement(false);
+        this->context->inIteration = previousInIteration;
         this->context->inLoop = prevInLoop;
     }
 
@@ -4921,19 +4876,14 @@ public:
         }
 
         RefPtr<Node> body = nullptr;
-        if (!this->match(RightParenthesis) && this->config.tolerant) {
-            this->tolerateUnexpectedToken(this->nextToken());
-            body = this->finalize(this->createNode(), new EmptyStatementNode());
-        } else {
-            this->expect(RightParenthesis);
 
-            bool previousInIteration = this->context->inIteration;
-            this->context->inIteration = true;
-            auto functor = std::bind(&Parser::parseStatement, std::ref(*this), false);
-            body = this->isolateCoverGrammarWithFunctor(functor);
-            this->context->inIteration = previousInIteration;
-        }
+        this->expect(RightParenthesis);
 
+        bool previousInIteration = this->context->inIteration;
+        this->context->inIteration = true;
+        auto functor = std::bind(&Parser::parseStatement, std::ref(*this), false);
+        body = this->isolateCoverGrammarWithFunctor(functor);
+        this->context->inIteration = previousInIteration;
         this->context->inLoop = prevInLoop;
 
         if (left == nullptr) {
@@ -5104,18 +5054,13 @@ public:
             }
         }
 
-        if (!this->match(RightParenthesis) && this->config.tolerant) {
-            this->tolerateUnexpectedToken(this->nextToken());
-        } else {
-            this->expect(RightParenthesis);
+        this->expect(RightParenthesis);
 
-            bool previousInIteration = this->context->inIteration;
-            this->context->inIteration = true;
-            auto functor = std::bind(&Parser::scanStatement, std::ref(*this), false);
-            this->scanIsolateCoverGrammarWithFunctor(functor);
-            this->context->inIteration = previousInIteration;
-        }
-
+        bool previousInIteration = this->context->inIteration;
+        this->context->inIteration = true;
+        auto functor = std::bind(&Parser::scanStatement, std::ref(*this), false);
+        this->scanIsolateCoverGrammarWithFunctor(functor);
+        this->context->inIteration = previousInIteration;
         this->context->inLoop = prevInLoop;
 
         if (left == nullptr) {
@@ -5920,7 +5865,7 @@ public:
             this->throwUnexpectedToken(list.firstRestricted, list.message);
         }
         if (this->context->strict && list.stricted) {
-            this->tolerateUnexpectedToken(list.stricted, list.message);
+            this->throwUnexpectedToken(list.stricted, list.message);
         }
         */
 
@@ -6044,7 +5989,7 @@ public:
             id = this->parseVariableIdentifier();
             if (this->context->strict) {
                 if (this->scanner->isRestrictedWord(token->relatedSource())) {
-                    this->tolerateUnexpectedToken(token, Messages::StrictFunctionName);
+                    this->throwUnexpectedToken(token, Messages::StrictFunctionName);
                 }
             } else {
                 if (this->scanner->isRestrictedWord(token->relatedSource())) {
@@ -6082,7 +6027,7 @@ public:
             this->throwUnexpectedToken(firstRestricted, message);
         }
         if (this->context->strict && stricted) {
-            this->tolerateUnexpectedToken(stricted, message);
+            this->throwUnexpectedToken(stricted, message);
         }
 
         this->context->strict = previousStrict;
@@ -6126,7 +6071,7 @@ public:
             id = (!this->context->strict && !isGenerator && this->matchKeyword(YieldKeyword)) ? this->parseIdentifierName() : this->parseVariableIdentifier();
             if (this->context->strict) {
                 if (this->scanner->isRestrictedWord(token->relatedSource())) {
-                    this->tolerateUnexpectedToken(token, Messages::StrictFunctionName);
+                    this->throwUnexpectedToken(token, Messages::StrictFunctionName);
                 }
             } else {
                 if (this->scanner->isRestrictedWord(token->relatedSource())) {
@@ -6167,7 +6112,7 @@ public:
             this->throwUnexpectedToken(firstRestricted, message);
         }
         if (this->context->strict && stricted) {
-            this->tolerateUnexpectedToken(stricted, message);
+            this->throwUnexpectedToken(stricted, message);
         }
         this->context->strict = previousStrict;
         this->context->allowYield = previousAllowYield;
@@ -6222,7 +6167,7 @@ public:
             if (token->plain && directive->value().equals("use strict")) {
                 this->scopeContexts.back()->m_isStrict = this->context->strict = true;
                 if (firstRestricted) {
-                    this->tolerateUnexpectedToken(firstRestricted, Messages::StrictOctalLiteral);
+                    this->throwUnexpectedToken(firstRestricted, Messages::StrictOctalLiteral);
                 }
             } else {
                 if (!firstRestricted && token->octal) {
@@ -6267,7 +6212,7 @@ public:
 
         this->expect(LeftParenthesis);
         if (this->match(RightParenthesis)) {
-            this->tolerateUnexpectedToken(this->lookahead);
+            this->throwUnexpectedToken(this->lookahead);
         } else {
             this->parseFormalParameter(options);
         }
