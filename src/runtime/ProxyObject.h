@@ -28,6 +28,30 @@
 
 namespace Escargot {
 
+class Proxy;
+
+class RevokeFunctionObject : public FunctionObject {
+public:
+    RevokeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ProxyObject* proxy)
+        : FunctionObject(state, info)
+        , m_proxy(proxy)
+    {
+    }
+
+    ProxyObject* revocableProxy()
+    {
+        return m_proxy;
+    }
+
+    void setRevocableProxyToNull()
+    {
+        m_proxy = nullptr;
+    }
+
+protected:
+    ProxyObject* m_proxy;
+};
+
 class ProxyObject : public Object {
 public:
     ProxyObject(ExecutionState& state);
