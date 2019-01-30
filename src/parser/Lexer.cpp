@@ -34,6 +34,11 @@ const char* Messages::TemplateOctalLiteral = "Octal literals are not allowed in 
 
 #define IDENT_RANGE_LONG 200
 
+/* The largest code-point that an UTF16 surrogate pair can represent is 0x10ffff,
+ * so any codepoint above this can be a valid value for empty. The UINT32_MAX is
+ * chosen because it is a valid immediate for machine instructions. */
+#define EMPTY_CODE_POINT UINT32_MAX
+
 /* Starting codepoints of identifier ranges. */
 static const uint16_t identRangeStart[429] = {
     170, 181, 183, 186, 192, 216, 248, 710, 736, 748, 750, 768, 886, 890, 895, 902, 908, 910, 931, 1015, 1155, 1162,
@@ -528,7 +533,7 @@ char32_t Scanner::scanHexEscape(char prefix)
         if (!this->eof() && isHexDigit(this->source.bufferedCharAt(this->index))) {
             code = code * 16 + hexValue(this->source.bufferedCharAt(this->index++));
         } else {
-            return EmptyCodePoint;
+            return EMPTY_CODE_POINT;
         }
     }
 
@@ -604,7 +609,7 @@ StringView Scanner::getComplexIdentifier()
         } else {
             ch = this->scanHexEscape('u');
             cp = ch;
-            if (ch == EmptyCodePoint || ch == '\\' || !isIdentifierStart(cp)) {
+            if (ch == EMPTY_CODE_POINT || ch == '\\' || !isIdentifierStart(cp)) {
                 this->throwUnexpectedToken();
             }
         }
@@ -638,7 +643,7 @@ StringView Scanner::getComplexIdentifier()
             } else {
                 ch = this->scanHexEscape('u');
                 cp = ch;
-                if (ch == EmptyCodePoint || ch == '\\' || !isIdentifierPart(cp)) {
+                if (ch == EMPTY_CODE_POINT || ch == '\\' || !isIdentifierPart(cp)) {
                     this->throwUnexpectedToken();
                 }
             }
@@ -1175,7 +1180,7 @@ PassRefPtr<ScannerResult> Scanner::scanStringLiteral()
                     if (this->source.bufferedCharAt(this->index) == '{') {
                         ++this->index;
                         this->scanUnicodeCodePointEscape();
-                    } else if (this->scanHexEscape(ch) == EmptyCodePoint) {
+                    } else if (this->scanHexEscape(ch) == EMPTY_CODE_POINT) {
                         this->throwUnexpectedToken();
                     }
                     break;
@@ -1276,7 +1281,7 @@ PassRefPtr<ScannerResult> Scanner::scanTemplate(bool head)
                     } else {
                         const size_t restore = this->index;
                         const char32_t unescaped = this->scanHexEscape(ch);
-                        if (unescaped != EmptyCodePoint) {
+                        if (unescaped != EMPTY_CODE_POINT) {
                             ParserCharPiece piece(unescaped);
                             cooked += UTF16StringDataNonGCStd(piece.data, piece.length);
                         } else {
@@ -1409,7 +1414,7 @@ String* Scanner::scanRegExpFlags()
                 ++this->index;
                 const size_t restore = this->index;
                 char32_t ch32 = this->scanHexEscape('u');
-                if (ch32 != EmptyCodePoint) {
+                if (ch32 != EMPTY_CODE_POINT) {
                     ParserCharPiece piece(ch32);
                     flags += UTF16StringDataNonGCStd(piece.data, piece.length);
                     /*
@@ -1453,6 +1458,224 @@ PassRefPtr<ScannerResult> Scanner::scanRegExp()
     PassRefPtr<ScannerResult> res = adoptRef(new (createScannerResult()) ScannerResult(this, Token::RegularExpressionToken, this->lineNumber, this->lineStart, start, this->index));
     res->valueRegexp = result;
     return res;
+}
+
+// ECMA-262 11.6.2.1 Keywords
+static ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
+{
+    // 'const' is specialized as Keyword in V8.
+    // 'yield' and 'let' are for compatibility with SpiderMonkey and ES.next.
+    // Some others are from future reserved words.
+
+    size_t length = data.length;
+    char16_t first = data.charAt(0);
+    char16_t second;
+    switch (first) {
+    case 'a':
+        // TODO await
+        break;
+    case 'b':
+        if (length == 5 && data.equalsSameLength("break", 1)) {
+            return BreakKeyword;
+        }
+        break;
+    case 'c':
+        if (length == 4) {
+            if (data.equalsSameLength("case", 1)) {
+                return CaseKeyword;
+            }
+        } else if (length == 5) {
+            second = data.charAt(1);
+            if (second == 'a' && data.equalsSameLength("catch", 2)) {
+                return CatchKeyword;
+            } else if (second == 'o' && data.equalsSameLength("const", 2)) {
+                const char* env = getenv("ESCARGOT_TREAT_CONST_AS_VAR");
+                if (env && strlen(env)) {
+                    return VarKeyword;
+                }
+                return ConstKeyword;
+            } else if (second == 'l' && data.equalsSameLength("class", 2)) {
+                return ClassKeyword;
+            }
+        } else if (length == 8) {
+            if (data.equalsSameLength("continue", 1)) {
+                return ContinueKeyword;
+            }
+        }
+        break;
+    case 'd':
+        if (length == 8) {
+            if (data.equalsSameLength("debugger", 1)) {
+                return DebuggerKeyword;
+            }
+        } else if (length == 2) {
+            if (data.equalsSameLength("do", 1)) {
+                return DoKeyword;
+            }
+        } else if (length == 6) {
+            if (data.equalsSameLength("delete", 1)) {
+                return DeleteKeyword;
+            }
+        } else if (length == 7) {
+            if (data.equalsSameLength("default", 1)) {
+                return DefaultKeyword;
+            }
+        }
+        break;
+    case 'e':
+        if (length == 4) {
+            second = data.charAt(1);
+            if (second == 'l' && data.equalsSameLength("else", 2)) {
+                return ElseKeyword;
+            } else if (second == 'n' && data.equalsSameLength("enum", 2)) {
+                return EnumKeyword;
+            }
+        } else if (length == 6) {
+            if (data.equalsSameLength("export", 1)) {
+                return ExportKeyword;
+            }
+        } else if (length == 7) {
+            if (data.equalsSameLength("extends", 1)) {
+                return ExtendsKeyword;
+            }
+        }
+        break;
+    case 'f':
+        if (length == 3) {
+            if (data.equalsSameLength("for", 1)) {
+                return ForKeyword;
+            }
+        } else if (length == 7) {
+            if (data.equalsSameLength("finally", 1)) {
+                return FinallyKeyword;
+            }
+        } else if (length == 8) {
+            if (data.equalsSameLength("function", 1)) {
+                return FunctionKeyword;
+            }
+        }
+        break;
+    case 'i':
+        if (length == 2) {
+            second = data.charAt(1);
+            if (second == 'f') {
+                return IfKeyword;
+            } else if (second == 'n') {
+                return InKeyword;
+            }
+        } else if (length == 6) {
+            if (data.equalsSameLength("import", 1)) {
+                return ImportKeyword;
+            }
+        } else if (length == 10) {
+            if (data.equalsSameLength("instanceof", 1)) {
+                return InstanceofKeyword;
+            }
+        }
+        break;
+    case 'l':
+        if (length == 3 && data.equalsSameLength("let", 1)) {
+            return LetKeyword;
+        }
+        break;
+    case 'n':
+        if (length == 3 && data.equalsSameLength("new", 1)) {
+            return NewKeyword;
+        }
+        break;
+    case 'r':
+        if (length == 6 && data.equalsSameLength("return", 1)) {
+            return ReturnKeyword;
+        }
+        break;
+    case 's':
+        if (length == 5 && data.equalsSameLength("super", 1)) {
+            return SuperKeyword;
+        } else if (length == 6 && data.equalsSameLength("switch", 1)) {
+            return SwitchKeyword;
+        }
+        break;
+    case 't':
+        switch (length) {
+        case 3:
+            if (data.equalsSameLength("try", 1)) {
+                return TryKeyword;
+            }
+            break;
+        case 4:
+            if (data.equalsSameLength("this", 1)) {
+                return ThisKeyword;
+            }
+            break;
+        case 5:
+            if (data.equalsSameLength("throw", 1)) {
+                return ThrowKeyword;
+            }
+            break;
+        case 6:
+            if (data.equalsSameLength("typeof", 1)) {
+                return TypeofKeyword;
+            }
+            break;
+        }
+        break;
+    case 'v':
+        if (length == 3 && data.equalsSameLength("var", 1)) {
+            return VarKeyword;
+        } else if (length == 4 && data.equalsSameLength("void", 1)) {
+            return VoidKeyword;
+        }
+        break;
+    case 'w':
+        if (length == 4 && data.equalsSameLength("with", 1)) {
+            return WithKeyword;
+        } else if (length == 5 && data.equalsSameLength("while", 1)) {
+            return WhileKeyword;
+        }
+        break;
+    case 'y':
+        if (length == 5 && data.equalsSameLength("yield", 1)) {
+            return YieldKeyword;
+        }
+        break;
+    }
+    return NotKeyword;
+}
+
+ALWAYS_INLINE PassRefPtr<ScannerResult> Scanner::scanIdentifier(char16_t ch0)
+{
+    Token type;
+    const size_t start = this->index;
+
+    // Backslash (U+005C) starts an escaped character.
+    StringView id = UNLIKELY(ch0 == 0x5C) ? this->getComplexIdentifier() : this->getIdentifier();
+
+    // There is no keyword or literal with only one character.
+    // Thus, it must be an identifier.
+    KeywordKind keywordKind;
+    auto data = id.StringView::bufferAccessData();
+    if (data.length == 1) {
+        type = Token::IdentifierToken;
+    } else if ((keywordKind = isKeyword(data))) {
+        PassRefPtr<ScannerResult> r = adoptRef(new (createScannerResult()) ScannerResult(this, Token::KeywordToken, this->lineNumber, this->lineStart, start, this->index));
+        r->valueKeywordKind = keywordKind;
+        r->hasKeywordButUseString = false;
+        return r;
+    } else if (data.length == 4) {
+        if (data.equalsSameLength("null")) {
+            type = Token::NullLiteralToken;
+        } else if (data.equalsSameLength("true")) {
+            type = Token::BooleanLiteralToken;
+        } else {
+            type = Token::IdentifierToken;
+        }
+    } else if ((data.length == 5 && data.equalsSameLength("false"))) {
+        type = Token::BooleanLiteralToken;
+    } else {
+        type = Token::IdentifierToken;
+    }
+
+    return adoptRef(new (createScannerResult()) ScannerResult(this, type, id, this->lineNumber, this->lineStart, start, this->index, id.string() == this->source.string()));
 }
 
 PassRefPtr<ScannerResult> Scanner::lex()
