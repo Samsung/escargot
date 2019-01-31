@@ -160,110 +160,6 @@ struct ScanRegExpResult {
     String* flags;
 };
 
-class Scanner;
-
-class ScannerResult : public RefCounted<ScannerResult> {
-public:
-    Scanner* scanner;
-    unsigned char type : 4;
-    bool startWithZero : 1;
-    bool octal : 1;
-    bool plain : 1;
-    bool hasKeywordButUseString : 1;
-    char prec : 8; // max prec is 11
-    // we don't needs init prec.
-    // prec is initialized by another function before use
-
-    size_t lineNumber;
-    size_t lineStart;
-    size_t start;
-    size_t end;
-
-    union {
-        PunctuatorKind valuePunctuatorKind;
-        StringView valueStringLiteralData;
-        double valueNumber;
-        ScanTemplteResult* valueTemplate;
-        ScanRegExpResult valueRegexp;
-        KeywordKind valueKeywordKind;
-    };
-
-    StringView relatedSource();
-    StringView valueStringLiteral();
-    Value valueStringLiteralForAST();
-    void consturctStringLiteral();
-
-    ~ScannerResult();
-
-    inline void operator delete(void* obj)
-    {
-    }
-
-    inline void operator delete(void*, void*) {}
-    inline void operator delete[](void* obj) {}
-    inline void operator delete[](void*, void*) {}
-    ScannerResult()
-    {
-    }
-
-    ScannerResult(Scanner* scanner, Token type, size_t lineNumber, size_t lineStart, size_t start, size_t end)
-        : valueNumber(0)
-    {
-        this->scanner = scanner;
-        this->type = type;
-        this->startWithZero = this->octal = false;
-        this->hasKeywordButUseString = true;
-        this->plain = false;
-        this->lineNumber = lineNumber;
-        this->lineStart = lineStart;
-        this->start = start;
-        this->end = end;
-    }
-
-    ScannerResult(Scanner* scanner, Token type, const StringView& valueString, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool plain)
-        : valueStringLiteralData(valueString)
-    {
-        this->scanner = scanner;
-        this->type = type;
-        this->startWithZero = this->octal = false;
-        this->hasKeywordButUseString = true;
-        this->plain = plain;
-        this->lineNumber = lineNumber;
-        this->lineStart = lineStart;
-        this->start = start;
-        this->end = end;
-    }
-
-    ScannerResult(Scanner* scanner, Token type, double value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
-        : valueNumber(value)
-    {
-        this->scanner = scanner;
-        this->type = type;
-        this->startWithZero = this->octal = false;
-        this->hasKeywordButUseString = true;
-        this->plain = false;
-        this->valueNumber = value;
-        this->lineNumber = lineNumber;
-        this->lineStart = lineStart;
-        this->start = start;
-        this->end = end;
-    }
-
-    ScannerResult(Scanner* scanner, Token type, ScanTemplteResult* value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
-        : valueTemplate(value)
-    {
-        this->scanner = scanner;
-        this->type = type;
-        this->startWithZero = this->octal = false;
-        this->hasKeywordButUseString = true;
-        this->plain = false;
-        this->lineNumber = lineNumber;
-        this->lineStart = lineStart;
-        this->start = start;
-        this->end = end;
-    }
-};
-
 class ErrorHandler : public gc {
 public:
     ErrorHandler()
@@ -322,6 +218,110 @@ extern const char* TemplateOctalLiteral;
 #define SCANNER_RESULT_POOL_INITIAL_SIZE 128
 class Scanner : public gc {
 public:
+    class ScannerResult : public RefCounted<ScannerResult> {
+    public:
+        Scanner* scanner;
+        unsigned char type : 4;
+        bool startWithZero : 1;
+        bool octal : 1;
+        bool plain : 1;
+        bool hasKeywordButUseString : 1;
+        char prec : 8; // max prec is 11
+        // we don't needs init prec.
+        // prec is initialized by another function before use
+
+        size_t lineNumber;
+        size_t lineStart;
+        size_t start;
+        size_t end;
+
+        union {
+            PunctuatorKind valuePunctuatorKind;
+            StringView valueStringLiteralData;
+            double valueNumber;
+            ScanTemplteResult* valueTemplate;
+            ScanRegExpResult valueRegexp;
+            KeywordKind valueKeywordKind;
+        };
+
+        StringView relatedSource();
+        StringView valueStringLiteral();
+        Value valueStringLiteralForAST();
+
+        ~ScannerResult();
+
+        inline void operator delete(void* obj)
+        {
+        }
+
+        inline void operator delete(void*, void*) {}
+        inline void operator delete[](void* obj) {}
+        inline void operator delete[](void*, void*) {}
+        ScannerResult()
+        {
+        }
+
+        ScannerResult(Scanner* scanner, Token type, size_t lineNumber, size_t lineStart, size_t start, size_t end)
+            : valueNumber(0)
+        {
+            this->scanner = scanner;
+            this->type = type;
+            this->startWithZero = this->octal = false;
+            this->hasKeywordButUseString = true;
+            this->plain = false;
+            this->lineNumber = lineNumber;
+            this->lineStart = lineStart;
+            this->start = start;
+            this->end = end;
+        }
+
+        ScannerResult(Scanner* scanner, Token type, const StringView& valueString, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool plain)
+            : valueStringLiteralData(valueString)
+        {
+            this->scanner = scanner;
+            this->type = type;
+            this->startWithZero = this->octal = false;
+            this->hasKeywordButUseString = true;
+            this->plain = plain;
+            this->lineNumber = lineNumber;
+            this->lineStart = lineStart;
+            this->start = start;
+            this->end = end;
+        }
+
+        ScannerResult(Scanner* scanner, Token type, double value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
+            : valueNumber(value)
+        {
+            this->scanner = scanner;
+            this->type = type;
+            this->startWithZero = this->octal = false;
+            this->hasKeywordButUseString = true;
+            this->plain = false;
+            this->valueNumber = value;
+            this->lineNumber = lineNumber;
+            this->lineStart = lineStart;
+            this->start = start;
+            this->end = end;
+        }
+
+        ScannerResult(Scanner* scanner, Token type, ScanTemplteResult* value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
+            : valueTemplate(value)
+        {
+            this->scanner = scanner;
+            this->type = type;
+            this->startWithZero = this->octal = false;
+            this->hasKeywordButUseString = true;
+            this->plain = false;
+            this->lineNumber = lineNumber;
+            this->lineStart = lineStart;
+            this->start = start;
+            this->end = end;
+        }
+
+    private:
+        void constructStringLiteral();
+    };
+
     StringView source;
     ::Escargot::Context* escargotContext;
     ErrorHandler* errorHandler;
@@ -520,6 +520,15 @@ public:
         return cp;
     }
 
+    // ECMA-262 11.8.6 Template Literal Lexical Components
+    PassRefPtr<ScannerResult> scanTemplate(bool head = false);
+
+    // ECMA-262 11.8.5 Regular Expression Literals
+    PassRefPtr<ScannerResult> scanRegExp();
+
+    PassRefPtr<ScannerResult> lex();
+
+private:
     char32_t scanHexEscape(char prefix);
     char32_t scanUnicodeCodePointEscape();
 
@@ -536,18 +545,6 @@ public:
 
     OctalToDecimalResult octalToDecimal(char16_t ch);
 
-    // ECMA-262 11.8.6 Template Literal Lexical Components
-    PassRefPtr<ScannerResult> scanTemplate(bool head = false);
-
-    // ECMA-262 11.8.5 Regular Expression Literals
-    String* scanRegExpBody();
-    String* scanRegExpFlags();
-
-    PassRefPtr<ScannerResult> scanRegExp();
-
-    PassRefPtr<ScannerResult> lex();
-
-private:
     StringView getIdentifier();
     StringView getComplexIdentifier();
 
@@ -567,6 +564,9 @@ private:
 
     // ECMA-262 11.6 Names and Keywords
     ALWAYS_INLINE PassRefPtr<ScannerResult> scanIdentifier(char16_t ch0);
+
+    String* scanRegExpBody();
+    String* scanRegExpFlags();
 };
 }
 }
