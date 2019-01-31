@@ -67,6 +67,9 @@ public:
 
     const TightVector<T, Allocator>& operator=(const TightVector<T, Allocator>& other)
     {
+        if (&other == this)
+            return *this;
+
         if (other.size()) {
             m_size = other.size();
             m_buffer = Allocator().allocate(m_size);

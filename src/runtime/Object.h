@@ -273,6 +273,9 @@ public:
 
     void operator=(const ObjectPropertyDescriptor& desc)
     {
+        if (&desc == this)
+            return;
+
         m_property = desc.m_property;
         if (desc.isDataProperty()) {
             m_isDataProperty = true;

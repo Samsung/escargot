@@ -73,6 +73,9 @@ public:
 
     const Vector<T, Allocator, glowFactor>& operator=(const Vector<T, Allocator, glowFactor>& other)
     {
+        if (&other == this)
+            return *this;
+
         if (other.size()) {
             m_size = other.size();
             m_capacity = other.m_capacity;

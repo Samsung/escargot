@@ -64,6 +64,9 @@ public:
 
     const BasicString<T, Allocator>& operator=(const BasicString<T, Allocator>& other)
     {
+        if (&other == this)
+            return *this;
+
         if (other.size()) {
             m_size = other.size();
             m_buffer = allocate(m_size);
