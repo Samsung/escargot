@@ -296,7 +296,7 @@ struct Context : public gc {
     bool inWith : 1;
     bool inLoop : 1;
     bool strict : 1;
-    RefPtr<ScannerResult> firstCoverInitializedNameError;
+    RefPtr<Scanner::ScannerResult> firstCoverInitializedNameError;
     std::vector<std::pair<AtomicString, size_t>> labelSet; // <LabelString, with statement count>
     std::vector<FunctionDeclarationNode*> functionDeclarationsInDirectCatchScope;
 };
@@ -335,8 +335,8 @@ public:
     Scanner scannerInstance;
 
     /*
-    std::unordered_map<IdentifierNode*, RefPtr<ScannerResult>,
-                       std::hash<IdentifierNode*>, std::equal_to<IdentifierNode*>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<IdentifierNode*, RefPtr<ScannerResult>>>>
+    std::unordered_map<IdentifierNode*, RefPtr<Scanner::ScannerResult>,
+                       std::hash<IdentifierNode*>, std::equal_to<IdentifierNode*>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<IdentifierNode*, RefPtr<Scanner::ScannerResult>>>>
         nodeExtraInfo;
     */
 
@@ -345,12 +345,12 @@ public:
         Module
     };
     SourceType sourceType;
-    RefPtr<ScannerResult> lookahead;
+    RefPtr<Scanner::ScannerResult> lookahead;
     bool hasLineTerminator;
 
     Context contextInstance;
     Context* context;
-    std::vector<RefPtr<ScannerResult>, gc_allocator_ignore_off_page<RefPtr<ScannerResult>>> tokens;
+    std::vector<RefPtr<Scanner::ScannerResult>, gc_allocator_ignore_off_page<RefPtr<Scanner::ScannerResult>>> tokens;
     Marker baseMarker;
     Marker startMarker;
     Marker lastMarker;
@@ -507,7 +507,7 @@ public:
             this->startMarker.lineNumber = this->scanner->lineNumber;
             this->startMarker.lineStart = this->scanner->lineStart;
 
-            PassRefPtr<ScannerResult> next = this->scanner->lex();
+            PassRefPtr<Scanner::ScannerResult> next = this->scanner->lex();
             this->hasLineTerminator = false;
 
             if (this->context->strict && next->type == Token::IdentifierToken) {
@@ -577,7 +577,7 @@ public:
     }
 
     // Throw an exception because of the token.
-    Error unexpectedTokenError(RefPtr<ScannerResult> token = nullptr, const char* message = nullptr)
+    Error unexpectedTokenError(RefPtr<Scanner::ScannerResult> token = nullptr, const char* message = nullptr)
     {
         const char* msg;
         if (message) {
@@ -627,7 +627,7 @@ public:
         }
     }
 
-    void throwUnexpectedToken(RefPtr<ScannerResult> token, const char* message = nullptr)
+    void throwUnexpectedToken(RefPtr<Scanner::ScannerResult> token, const char* message = nullptr)
     {
         throw this->unexpectedTokenError(token, message);
     }
@@ -637,9 +637,9 @@ public:
         this->scanner->scanComments();
     }
 
-    PassRefPtr<ScannerResult> nextToken()
+    PassRefPtr<Scanner::ScannerResult> nextToken()
     {
-        PassRefPtr<ScannerResult> token(this->lookahead.release());
+        PassRefPtr<Scanner::ScannerResult> token(this->lookahead.release());
 
         this->lastMarker.index = this->scanner->index;
         this->lastMarker.lineNumber = this->scanner->lineNumber;
@@ -651,7 +651,7 @@ public:
         this->startMarker.lineNumber = this->scanner->lineNumber;
         this->startMarker.lineStart = this->scanner->lineStart;
 
-        PassRefPtr<ScannerResult> next = this->scanner->lex();
+        PassRefPtr<Scanner::ScannerResult> next = this->scanner->lex();
         this->hasLineTerminator = token->lineNumber != next->lineNumber;
 
         if (this->context->strict && next->type == Token::IdentifierToken) {
@@ -670,11 +670,11 @@ public:
         return token;
     }
 
-    PassRefPtr<ScannerResult> nextRegexToken()
+    PassRefPtr<Scanner::ScannerResult> nextRegexToken()
     {
         this->collectComments();
 
-        RefPtr<ScannerResult> token = this->scanner->scanRegExp();
+        RefPtr<Scanner::ScannerResult> token = this->scanner->scanRegExp();
 
         // Prime the next lookahead.
         this->lookahead = token;
@@ -702,7 +702,7 @@ public:
         return n;
     }
 
-    MetaNode startNode(const RefPtr<ScannerResult>& token)
+    MetaNode startNode(const RefPtr<Scanner::ScannerResult>& token)
     {
         MetaNode n;
         n.index = token->start + this->baseMarker.index;
@@ -761,7 +761,7 @@ public:
     // If not, an exception will be thrown.
     void expect(PunctuatorKind value)
     {
-        PassRefPtr<ScannerResult> token = this->nextToken();
+        PassRefPtr<Scanner::ScannerResult> token = this->nextToken();
         if (token->type != Token::PunctuatorToken || token->valuePunctuatorKind != value) {
             this->throwUnexpectedToken(token);
         }
@@ -777,7 +777,7 @@ public:
 
     void expectKeyword(KeywordKind keyword)
     {
-        PassRefPtr<ScannerResult> token = this->nextToken();
+        PassRefPtr<Scanner::ScannerResult> token = this->nextToken();
         if (token->type != Token::KeywordToken || token->valueKeywordKind != keyword) {
             this->throwUnexpectedToken(token);
         }
@@ -872,7 +872,7 @@ public:
     {
         const bool previousIsBindingElement = this->context->isBindingElement;
         const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
-        RefPtr<ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+        RefPtr<Scanner::ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
 
         this->context->isBindingElement = true;
         this->context->isAssignmentTarget = true;
@@ -896,7 +896,7 @@ public:
     {
         const bool previousIsBindingElement = this->context->isBindingElement;
         const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
-        RefPtr<ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+        RefPtr<Scanner::ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
 
         this->context->isBindingElement = true;
         this->context->isAssignmentTarget = true;
@@ -920,7 +920,7 @@ public:
     {
         const bool previousIsBindingElement = this->context->isBindingElement;
         const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
-        RefPtr<ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+        RefPtr<Scanner::ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
 
         this->context->isBindingElement = true;
         this->context->isAssignmentTarget = true;
@@ -944,7 +944,7 @@ public:
     {
         const bool previousIsBindingElement = this->context->isBindingElement;
         const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
-        RefPtr<ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+        RefPtr<Scanner::ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
 
         this->context->isBindingElement = true;
         this->context->isAssignmentTarget = true;
@@ -966,7 +966,7 @@ public:
     {
         const bool previousIsBindingElement = this->context->isBindingElement;
         const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
-        RefPtr<ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+        RefPtr<Scanner::ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
 
         this->context->isBindingElement = true;
         this->context->isAssignmentTarget = true;
@@ -988,7 +988,7 @@ public:
     {
         const bool previousIsBindingElement = this->context->isBindingElement;
         const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
-        RefPtr<ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+        RefPtr<Scanner::ScannerResult> previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
 
         this->context->isBindingElement = true;
         this->context->isAssignmentTarget = true;
@@ -1019,7 +1019,7 @@ public:
         }
     }
 
-    IdentifierNode* finishIdentifier(PassRefPtr<ScannerResult> token, bool isScopeVariableName)
+    IdentifierNode* finishIdentifier(PassRefPtr<Scanner::ScannerResult> token, bool isScopeVariableName)
     {
         IdentifierNode* ret;
         StringView sv = token->valueStringLiteral();
@@ -1041,7 +1041,7 @@ public:
         return ret;
     }
 
-    ScanExpressionResult finishScanIdentifier(PassRefPtr<ScannerResult> token, bool isScopeVariableName)
+    ScanExpressionResult finishScanIdentifier(PassRefPtr<Scanner::ScannerResult> token, bool isScopeVariableName)
     {
         AtomicString name;
         StringView sv = token->valueStringLiteral();
@@ -1101,7 +1101,7 @@ public:
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
             {
-                PassRefPtr<ScannerResult> token = this->nextToken();
+                PassRefPtr<Scanner::ScannerResult> token = this->nextToken();
                 // raw = this->getTokenRaw(token);
                 if (token->type == Token::NumericLiteralToken) {
                     if (this->context->inLoop || token->valueNumber == 0)
@@ -1120,7 +1120,7 @@ public:
         case Token::BooleanLiteralToken: {
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
-            PassRefPtr<ScannerResult> token = this->nextToken();
+            PassRefPtr<Scanner::ScannerResult> token = this->nextToken();
             // token.value = (token.value === 'true');
             // raw = this->getTokenRaw(token);
             {
@@ -1134,7 +1134,7 @@ public:
         case Token::NullLiteralToken: {
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
-            PassRefPtr<ScannerResult> token = this->nextToken();
+            PassRefPtr<Scanner::ScannerResult> token = this->nextToken();
             // token.value = null;
             // raw = this->getTokenRaw(token);
             this->scopeContexts.back()->insertNumeralLiteral(Value(Value::Null));
@@ -1163,7 +1163,7 @@ public:
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
                 this->scanner->index = this->startMarker.index;
-                PassRefPtr<ScannerResult> token = this->nextRegexToken();
+                PassRefPtr<Scanner::ScannerResult> token = this->nextRegexToken();
                 // raw = this->getTokenRaw(token);
                 return this->finalize(node, new RegExpLiteralNode(token->valueRegexp.body, token->valueRegexp.flags));
                 break;
@@ -1228,7 +1228,7 @@ public:
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
             {
-                PassRefPtr<ScannerResult> token = this->nextToken();
+                PassRefPtr<Scanner::ScannerResult> token = this->nextToken();
                 // raw = this->getTokenRaw(token);
                 if (token->type == Token::NumericLiteralToken) {
                     if (this->context->inLoop || token->valueNumber == 0)
@@ -1243,7 +1243,7 @@ public:
         case Token::BooleanLiteralToken: {
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
-            PassRefPtr<ScannerResult> token = this->nextToken();
+            PassRefPtr<Scanner::ScannerResult> token = this->nextToken();
             // token.value = (token.value === 'true');
             // raw = this->getTokenRaw(token);
             {
@@ -1257,7 +1257,7 @@ public:
         case Token::NullLiteralToken: {
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
-            PassRefPtr<ScannerResult> token = this->nextToken();
+            PassRefPtr<Scanner::ScannerResult> token = this->nextToken();
             // token.value = null;
             // raw = this->getTokenRaw(token);
             this->scopeContexts.back()->insertNumeralLiteral(Value(Value::Null));
@@ -1289,7 +1289,7 @@ public:
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
                 this->scanner->index = this->startMarker.index;
-                PassRefPtr<ScannerResult> token = this->nextRegexToken();
+                PassRefPtr<Scanner::ScannerResult> token = this->nextRegexToken();
                 // raw = this->getTokenRaw(token);
                 this->finalize(node, new RegExpLiteralNode(token->valueRegexp.body, token->valueRegexp.flags));
                 return std::make_pair(ASTNodeType::Literal, AtomicString());
@@ -1337,9 +1337,9 @@ public:
     struct ParseParameterOptions {
         PatternNodeVector params;
         std::vector<AtomicString, gc_allocator<AtomicString>> paramSet;
-        RefPtr<ScannerResult> stricted;
+        RefPtr<Scanner::ScannerResult> stricted;
         const char* message;
-        RefPtr<ScannerResult> firstRestricted;
+        RefPtr<Scanner::ScannerResult> firstRestricted;
         ParseParameterOptions()
         {
             firstRestricted = nullptr;
@@ -1349,7 +1349,7 @@ public:
     };
 
 
-    void validateParam(ParseParameterOptions& options, const RefPtr<ScannerResult>& param, AtomicString name)
+    void validateParam(ParseParameterOptions& options, const RefPtr<Scanner::ScannerResult>& param, AtomicString name)
     {
         if (this->context->strict) {
             if (this->scanner->isRestrictedWord(name)) {
@@ -1375,7 +1375,7 @@ public:
         options.paramSet.push_back(name);
     }
 
-    PassRefPtr<RestElementNode> parseRestElement(std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>>& params)
+    PassRefPtr<RestElementNode> parseRestElement(std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>>& params)
     {
         this->throwError("Rest element is not supported yet");
 
@@ -1398,7 +1398,7 @@ public:
         return this->finalize(node, new RestElementNode(param.get()));
     }
 
-    PassRefPtr<Node> parsePattern(std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>>& params, KeywordKind kind = KeywordKindEnd)
+    PassRefPtr<Node> parsePattern(std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>>& params, KeywordKind kind = KeywordKindEnd)
     {
         if (this->match(LeftSquareBracket)) {
             this->throwError("Array pattern is not supported yet");
@@ -1417,7 +1417,7 @@ public:
         }
     }
 
-    std::pair<ASTNodeType, AtomicString> scanPattern(std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>>& params, KeywordKind kind = KeywordKindEnd)
+    std::pair<ASTNodeType, AtomicString> scanPattern(std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>>& params, KeywordKind kind = KeywordKindEnd)
     {
         if (this->match(LeftSquareBracket)) {
             this->throwError("Array pattern is not supported yet");
@@ -1436,9 +1436,9 @@ public:
         }
     }
 
-    PassRefPtr<Node> parsePatternWithDefault(std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>>& params, KeywordKind kind = KeywordKindEnd)
+    PassRefPtr<Node> parsePatternWithDefault(std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>>& params, KeywordKind kind = KeywordKindEnd)
     {
-        RefPtr<ScannerResult> startToken = this->lookahead;
+        RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
 
         PassRefPtr<Node> pattern = this->parsePattern(params, kind);
         if (this->match(PunctuatorKind::Substitution)) {
@@ -1460,8 +1460,8 @@ public:
         RefPtr<Node> param;
         bool trackUsingNamesBefore = trackUsingNames;
         trackUsingNames = false;
-        std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> params;
-        RefPtr<ScannerResult> token = this->lookahead;
+        std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> params;
+        RefPtr<Scanner::ScannerResult> token = this->lookahead;
         if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::PeriodPeriodPeriod) {
             RefPtr<RestElementNode> param = this->parseRestElement(params);
             this->validateParam(options, params.back(), param->argument()->name());
@@ -1482,8 +1482,8 @@ public:
 
     struct ParseFormalParametersResult {
         PatternNodeVector params;
-        RefPtr<ScannerResult> stricted;
-        RefPtr<ScannerResult> firstRestricted;
+        RefPtr<Scanner::ScannerResult> stricted;
+        RefPtr<Scanner::ScannerResult> firstRestricted;
         const char* message;
         bool valid;
 
@@ -1492,7 +1492,7 @@ public:
             , valid(false)
         {
         }
-        ParseFormalParametersResult(PatternNodeVector params, RefPtr<ScannerResult> stricted, RefPtr<ScannerResult> firstRestricted, const char* message)
+        ParseFormalParametersResult(PatternNodeVector params, RefPtr<Scanner::ScannerResult> stricted, RefPtr<Scanner::ScannerResult> firstRestricted, const char* message)
         {
             this->params = std::move(params);
             this->stricted = stricted;
@@ -1502,7 +1502,7 @@ public:
         }
     };
 
-    ParseFormalParametersResult parseFormalParameters(RefPtr<ScannerResult> firstRestricted = nullptr)
+    ParseFormalParametersResult parseFormalParameters(RefPtr<Scanner::ScannerResult> firstRestricted = nullptr)
     {
         ParseParameterOptions options;
 
@@ -1645,7 +1645,7 @@ public:
 
     PassRefPtr<Node> parseObjectPropertyKey()
     {
-        RefPtr<ScannerResult> token = this->nextToken();
+        RefPtr<Scanner::ScannerResult> token = this->nextToken();
         MetaNode node = this->createNode();
 
         RefPtr<Node> key;
@@ -1700,7 +1700,7 @@ public:
 
     std::pair<ScanExpressionResult, String*> scanObjectPropertyKey()
     {
-        RefPtr<ScannerResult> token = this->nextToken();
+        RefPtr<Scanner::ScannerResult> token = this->nextToken();
         ScanExpressionResult key(std::make_pair(ASTNodeType::ASTNodeTypeError, AtomicString()));
         String* keyString = String::emptyString;
         switch (token->type) {
@@ -1750,7 +1750,7 @@ public:
         return std::make_pair(key, keyString);
     }
 
-    bool qualifiedPropertyName(RefPtr<ScannerResult> token)
+    bool qualifiedPropertyName(RefPtr<Scanner::ScannerResult> token)
     {
         switch (token->type) {
         case Token::IdentifierToken:
@@ -1784,7 +1784,7 @@ public:
     PassRefPtr<PropertyNode> parseObjectProperty(bool& hasProto, std::vector<std::pair<AtomicString, size_t>>& usedNames) //: Node.Property
     {
         MetaNode node = this->createNode();
-        RefPtr<ScannerResult> token = this->lookahead;
+        RefPtr<Scanner::ScannerResult> token = this->lookahead;
 
         PropertyNode::Kind kind;
         RefPtr<Node> key; //'': Node.PropertyKey;
@@ -1919,7 +1919,7 @@ public:
 
     void scanObjectProperty(bool& hasProto, std::vector<std::pair<AtomicString, size_t>>& usedNames) //: Node.Property
     {
-        RefPtr<ScannerResult> token = this->lookahead;
+        RefPtr<Scanner::ScannerResult> token = this->lookahead;
 
         PropertyNode::Kind kind;
         ScanExpressionResult key(std::make_pair(ASTNodeType::ASTNodeTypeError, AtomicString()));
@@ -2092,7 +2092,7 @@ public:
     {
         ASSERT(this->lookahead->type == Token::TemplateToken);
 
-        RefPtr<ScannerResult> token = this->nextToken();
+        RefPtr<Scanner::ScannerResult> token = this->nextToken();
         MetaNode node = this->createNode();
         TemplateElement* tm = new TemplateElement();
         tm->value = token->valueTemplate->valueCooked;
@@ -2110,7 +2110,7 @@ public:
         // Re-scan the current token (right brace) as a template string.
         this->lookahead = this->scanner->scanTemplate();
 
-        RefPtr<ScannerResult> token = this->nextToken();
+        RefPtr<Scanner::ScannerResult> token = this->nextToken();
         MetaNode node = this->createNode();
         TemplateElement* tm = new TemplateElement();
         tm->value = token->valueTemplate->valueCooked;
@@ -2357,7 +2357,7 @@ public:
             //TODO
             expr = this->finalize(this->startNode(this->lookahead), new ArrowParameterPlaceHolderNode());
         } else {
-            RefPtr<ScannerResult> startToken = this->lookahead;
+            RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
 
             bool arrow = false;
             this->context->isBindingElement = true;
@@ -2441,7 +2441,7 @@ public:
             //TODO
             expr.first = ASTNodeType::ArrowParameterPlaceHolder;
         } else {
-            RefPtr<ScannerResult> startToken = this->lookahead;
+            RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
 
             bool arrow = false;
             this->context->isBindingElement = true;
@@ -2562,7 +2562,7 @@ public:
         }
     }
 
-    bool isIdentifierName(RefPtr<ScannerResult> token)
+    bool isIdentifierName(RefPtr<Scanner::ScannerResult> token)
     {
         return token->type == Token::IdentifierToken || token->type == Token::KeywordToken || token->type == Token::BooleanLiteralToken || token->type == Token::NullLiteralToken;
     }
@@ -2570,7 +2570,7 @@ public:
     PassRefPtr<IdentifierNode> parseIdentifierName()
     {
         MetaNode node = this->createNode();
-        RefPtr<ScannerResult> token = this->nextToken();
+        RefPtr<Scanner::ScannerResult> token = this->nextToken();
         if (!this->isIdentifierName(token)) {
             this->throwUnexpectedToken(token);
         }
@@ -2579,7 +2579,7 @@ public:
 
     ScanExpressionResult scanIdentifierName()
     {
-        RefPtr<ScannerResult> token = this->nextToken();
+        RefPtr<Scanner::ScannerResult> token = this->nextToken();
         if (!this->isIdentifierName(token)) {
             this->throwUnexpectedToken(token);
         }
@@ -2648,7 +2648,7 @@ public:
 
     PassRefPtr<Node> parseLeftHandSideExpressionAllowCall()
     {
-        RefPtr<ScannerResult> startToken = this->lookahead;
+        RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
         bool previousAllowIn = this->context->allowIn;
         this->context->allowIn = true;
 
@@ -2706,7 +2706,7 @@ public:
 
     ScanExpressionResult scanLeftHandSideExpressionAllowCall()
     {
-        RefPtr<ScannerResult> startToken = this->lookahead;
+        RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
         bool previousAllowIn = this->context->allowIn;
         this->context->allowIn = true;
 
@@ -2913,12 +2913,12 @@ public:
     PassRefPtr<Node> parseUpdateExpression()
     {
         RefPtr<Node> expr;
-        RefPtr<ScannerResult> startToken = this->lookahead;
+        RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
 
         if (this->match(PlusPlus) || this->match(MinusMinus)) {
             bool isPlus = this->match(PlusPlus);
             MetaNode node = this->startNode(startToken);
-            RefPtr<ScannerResult> token = this->nextToken();
+            RefPtr<Scanner::ScannerResult> token = this->nextToken();
             expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
             if (expr->isLiteral() || expr->type() == ASTNodeType::ThisExpression) {
                 this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
@@ -2972,12 +2972,12 @@ public:
     ScanExpressionResult scanUpdateExpression()
     {
         ScanExpressionResult expr(std::make_pair(ASTNodeType::ASTNodeTypeError, AtomicString()));
-        RefPtr<ScannerResult> startToken = this->lookahead;
+        RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
 
         if (this->match(PlusPlus) || this->match(MinusMinus)) {
             bool isPlus = this->match(PlusPlus);
             MetaNode node = this->startNode(startToken);
-            RefPtr<ScannerResult> token = this->nextToken();
+            RefPtr<Scanner::ScannerResult> token = this->nextToken();
             expr = this->scanInheritCoverGrammar(&Parser::scanUnaryExpression);
             if (expr.first == ASTNodeType::Literal || expr.first == ASTNodeType::ThisExpression) {
                 this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
@@ -3204,7 +3204,7 @@ public:
 
     PassRefPtr<Node> parseExponentiationExpression()
     {
-        RefPtr<ScannerResult> startToken = this->lookahead;
+        RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
         RefPtr<Node> expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
         // TODO
         /*
@@ -3246,7 +3246,7 @@ public:
     // ECMA-262 12.12 Binary Bitwise Operators
     // ECMA-262 12.13 Binary Logical Operators
 
-    int binaryPrecedence(const RefPtr<ScannerResult>& token)
+    int binaryPrecedence(const RefPtr<Scanner::ScannerResult>& token)
     {
         if (LIKELY(token->type == Token::PunctuatorToken)) {
             switch (token->valuePunctuatorKind) {
@@ -3311,12 +3311,12 @@ public:
 
     PassRefPtr<Node> parseBinaryExpression()
     {
-        RefPtr<ScannerResult> startToken = this->lookahead;
+        RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
 
         RefPtr<Node> expr = this->inheritCoverGrammar(&Parser::parseExponentiationExpression);
 
-        RefPtr<ScannerResult> token = this->lookahead;
-        std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> tokenKeeper;
+        RefPtr<Scanner::ScannerResult> token = this->lookahead;
+        std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> tokenKeeper;
         int prec = this->binaryPrecedence(token);
         if (prec > 0) {
             this->nextToken();
@@ -3325,7 +3325,7 @@ public:
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
 
-            std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> markers;
+            std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> markers;
             markers.push_back(startToken);
             markers.push_back(this->lookahead);
             RefPtr<Node> left = expr;
@@ -3346,11 +3346,11 @@ public:
                 }
 
                 // Reduce: make a binary expression from the three topmost entries.
-                while ((stack.size() > 2) && (prec <= ((ScannerResult*)stack[stack.size() - 2])->prec)) {
+                while ((stack.size() > 2) && (prec <= ((Scanner::ScannerResult*)stack[stack.size() - 2])->prec)) {
                     right = (Node*)stack.back();
                     right->deref();
                     stack.pop_back();
-                    RefPtr<ScannerResult> operator_ = (ScannerResult*)stack.back();
+                    RefPtr<Scanner::ScannerResult> operator_ = (Scanner::ScannerResult*)stack.back();
                     operator_->deref();
                     stack.pop_back();
                     left = (Node*)stack.back();
@@ -3381,9 +3381,9 @@ public:
             markers.pop_back();
             while (i > 1) {
                 MetaNode node = this->startNode(markers.back());
-                expr = this->finalize(node, finishBinaryExpression((Node*)stack[i - 2], expr.get(), (ScannerResult*)stack[i - 1]));
+                expr = this->finalize(node, finishBinaryExpression((Node*)stack[i - 2], expr.get(), (Scanner::ScannerResult*)stack[i - 1]));
                 ((Node*)stack[i - 2])->deref();
-                ((ScannerResult*)stack[i - 1])->deref();
+                ((Scanner::ScannerResult*)stack[i - 1])->deref();
                 i -= 2;
             }
             RELEASE_ASSERT(i == 0);
@@ -3396,8 +3396,8 @@ public:
     {
         ScanExpressionResult expr = this->scanInheritCoverGrammar(&Parser::scanExponentiationExpression);
 
-        RefPtr<ScannerResult> token = this->lookahead;
-        std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> tokenKeeper;
+        RefPtr<Scanner::ScannerResult> token = this->lookahead;
+        std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> tokenKeeper;
         int prec = this->binaryPrecedence(token);
         if (prec > 0) {
             this->nextToken();
@@ -3422,11 +3422,11 @@ public:
                 }
 
                 // Reduce: make a binary expression from the three topmost entries.
-                while ((stack.size() > 2) && (prec <= ((ScannerResult*)stack[stack.size() - 2])->prec)) {
+                while ((stack.size() > 2) && (prec <= ((Scanner::ScannerResult*)stack[stack.size() - 2])->prec)) {
                     right = *((ScanExpressionResult*)stack.back());
                     delete (ScanExpressionResult*)stack.back();
                     stack.pop_back();
-                    RefPtr<ScannerResult> operator_ = (ScannerResult*)stack.back();
+                    RefPtr<Scanner::ScannerResult> operator_ = (Scanner::ScannerResult*)stack.back();
                     operator_->deref();
                     stack.pop_back();
                     left = *((ScanExpressionResult*)stack.back());
@@ -3450,9 +3450,9 @@ public:
             expr = *((ScanExpressionResult*)stack[i]);
             delete (ScanExpressionResult*)stack[i];
             while (i > 1) {
-                expr = scanBinaryExpression(*((ScanExpressionResult*)stack[i - 2]), expr, (ScannerResult*)stack[i - 1]);
+                expr = scanBinaryExpression(*((ScanExpressionResult*)stack[i - 2]), expr, (Scanner::ScannerResult*)stack[i - 1]);
                 delete (ScanExpressionResult*)stack[i - 2];
-                ((ScannerResult*)stack[i - 1])->deref();
+                ((Scanner::ScannerResult*)stack[i - 1])->deref();
                 i -= 2;
             }
             RELEASE_ASSERT(i == 0);
@@ -3462,7 +3462,7 @@ public:
     }
 
 
-    Node* finishBinaryExpression(Node* left, Node* right, ScannerResult* token)
+    Node* finishBinaryExpression(Node* left, Node* right, Scanner::ScannerResult* token)
     {
         Node* nd;
         if (token->type == Token::PunctuatorToken) {
@@ -3526,7 +3526,7 @@ public:
         return nd;
     }
 
-    ScanExpressionResult scanBinaryExpression(ScanExpressionResult left, ScanExpressionResult right, ScannerResult* token)
+    ScanExpressionResult scanBinaryExpression(ScanExpressionResult left, ScanExpressionResult right, Scanner::ScannerResult* token)
     {
         ScanExpressionResult nd(ASTNodeType::ASTNodeTypeError, AtomicString());
         if (token->type == Token::PunctuatorToken) {
@@ -3594,7 +3594,7 @@ public:
 
     PassRefPtr<Node> parseConditionalExpression()
     {
-        RefPtr<ScannerResult> startToken = this->lookahead;
+        RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
 
         RefPtr<Node> expr = this->inheritCoverGrammar(&Parser::parseBinaryExpression);
         if (this->match(GuessMark)) {
@@ -3734,7 +3734,7 @@ public:
         }
 
         if (options.message == Messages::StrictParamDupe) {
-            RefPtr<ScannerResult> token = this->context->strict ? options.stricted : options.firstRestricted;
+            RefPtr<Scanner::ScannerResult> token = this->context->strict ? options.stricted : options.firstRestricted;
             this->throwUnexpectedToken(token, options.message);
         }
 
@@ -3748,8 +3748,8 @@ public:
         if (!this->context->allowYield && this->matchKeyword(YieldKeyword)) {
             expr = this->parseYieldExpression();
         } else {
-            RefPtr<ScannerResult> startToken = this->lookahead;
-            RefPtr<ScannerResult> token = startToken;
+            RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
+            RefPtr<Scanner::ScannerResult> token = startToken;
             expr = this->parseConditionalExpression();
 
             /*
@@ -3889,8 +3889,8 @@ public:
         if (!this->context->allowYield && this->matchKeyword(YieldKeyword)) {
             expr = this->scanYieldExpression();
         } else {
-            RefPtr<ScannerResult> startToken = this->lookahead;
-            RefPtr<ScannerResult> token = startToken;
+            RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
+            RefPtr<Scanner::ScannerResult> token = startToken;
             auto lastMarker = this->lastMarker;
             expr = this->scanConditionalExpression();
 
@@ -4038,7 +4038,7 @@ public:
 
     PassRefPtr<Node> parseExpression()
     {
-        RefPtr<ScannerResult> startToken = this->lookahead;
+        RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
         RefPtr<Node> expr = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
 
         if (this->match(Comma)) {
@@ -4416,7 +4416,7 @@ public:
     {
         MetaNode node = this->createNode();
 
-        RefPtr<ScannerResult> token = this->nextToken();
+        RefPtr<Scanner::ScannerResult> token = this->nextToken();
         if (token->type == Token::KeywordToken && token->valueKeywordKind == YieldKeyword) {
             if (this->context->strict) {
                 this->throwUnexpectedToken(token, Messages::StrictReservedWord);
@@ -4441,7 +4441,7 @@ public:
 
     AtomicString scanVariableIdentifier(KeywordKind kind = KeywordKindEnd)
     {
-        RefPtr<ScannerResult> token = this->nextToken();
+        RefPtr<Scanner::ScannerResult> token = this->nextToken();
         if (token->type == Token::KeywordToken && token->valueKeywordKind == YieldKeyword) {
             if (this->context->strict) {
                 this->throwUnexpectedToken(token, Messages::StrictReservedWord);
@@ -4472,7 +4472,7 @@ public:
     {
         MetaNode node = this->createNode();
 
-        std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> params;
+        std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> params;
         RefPtr<Node> id = this->parsePattern(params, VarKeyword);
 
         // ECMA-262 12.2.1
@@ -4499,7 +4499,7 @@ public:
 
     void scanVariableDeclaration(DeclarationOptions& options)
     {
-        std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> params;
+        std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> params;
         std::pair<ASTNodeType, AtomicString> id = this->scanPattern(params, VarKeyword);
 
         // ECMA-262 12.2.1
@@ -4818,7 +4818,7 @@ public:
                 }
                 */
             } else {
-                RefPtr<ScannerResult> initStartToken = this->lookahead;
+                RefPtr<Scanner::ScannerResult> initStartToken = this->lookahead;
                 bool previousAllowIn = this->context->allowIn;
                 this->context->allowIn = false;
                 init = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
@@ -4997,7 +4997,7 @@ public:
                 }
                 */
             } else {
-                RefPtr<ScannerResult> initStartToken = this->lookahead;
+                RefPtr<Scanner::ScannerResult> initStartToken = this->lookahead;
                 bool previousAllowIn = this->context->allowIn;
                 this->context->allowIn = false;
                 init = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
@@ -5493,7 +5493,7 @@ public:
         bool prevInDirectCatchScope = this->context->inDirectCatchScope;
         this->context->inDirectCatchScope = true;
 
-        std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> params;
+        std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> params;
         RefPtr<Node> param = this->parsePattern(params);
 
         std::vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> paramMap;
@@ -5549,7 +5549,7 @@ public:
         bool prevInDirectCatchScope = this->context->inDirectCatchScope;
         this->context->inDirectCatchScope = true;
 
-        std::vector<RefPtr<ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<ScannerResult>>> params;
+        std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> params;
         RefPtr<Node> param = this->parsePattern(params);
 
         std::vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> paramMap;
@@ -5982,10 +5982,10 @@ public:
 
         const char* message = nullptr;
         RefPtr<IdentifierNode> id;
-        RefPtr<ScannerResult> firstRestricted = nullptr;
+        RefPtr<Scanner::ScannerResult> firstRestricted = nullptr;
 
         if (!identifierIsOptional || !this->match(LeftParenthesis)) {
-            RefPtr<ScannerResult> token = this->lookahead;
+            RefPtr<Scanner::ScannerResult> token = this->lookahead;
             id = this->parseVariableIdentifier();
             if (this->context->strict) {
                 if (this->scanner->isRestrictedWord(token->relatedSource())) {
@@ -6010,7 +6010,7 @@ public:
         this->expect(LeftParenthesis);
         ParseFormalParametersResult formalParameters = this->parseFormalParameters(firstRestricted);
         PatternNodeVector params = std::move(formalParameters.params);
-        RefPtr<ScannerResult> stricted = formalParameters.stricted;
+        RefPtr<Scanner::ScannerResult> stricted = formalParameters.stricted;
         firstRestricted = formalParameters.firstRestricted;
         if (formalParameters.message) {
             message = formalParameters.message;
@@ -6059,7 +6059,7 @@ public:
 
         const char* message = nullptr;
         RefPtr<IdentifierNode> id;
-        RefPtr<ScannerResult> firstRestricted = nullptr;
+        RefPtr<Scanner::ScannerResult> firstRestricted = nullptr;
 
         bool previousAllowYield = this->context->allowYield;
         bool previousInArrowFunction = this->context->inArrowFunction;
@@ -6067,7 +6067,7 @@ public:
         this->context->inArrowFunction = false;
 
         if (!this->match(LeftParenthesis)) {
-            RefPtr<ScannerResult> token = this->lookahead;
+            RefPtr<Scanner::ScannerResult> token = this->lookahead;
             id = (!this->context->strict && !isGenerator && this->matchKeyword(YieldKeyword)) ? this->parseIdentifierName() : this->parseVariableIdentifier();
             if (this->context->strict) {
                 if (this->scanner->isRestrictedWord(token->relatedSource())) {
@@ -6087,7 +6087,7 @@ public:
         this->expect(LeftParenthesis);
         ParseFormalParametersResult formalParameters = this->parseFormalParameters(firstRestricted);
         PatternNodeVector params = std::move(formalParameters.params);
-        RefPtr<ScannerResult> stricted = formalParameters.stricted;
+        RefPtr<Scanner::ScannerResult> stricted = formalParameters.stricted;
         firstRestricted = formalParameters.firstRestricted;
         if (formalParameters.message) {
             message = formalParameters.message;
@@ -6125,7 +6125,7 @@ public:
 
     PassRefPtr<Node> parseDirective()
     {
-        RefPtr<ScannerResult> token = this->lookahead;
+        RefPtr<Scanner::ScannerResult> token = this->lookahead;
         StringView directiveValue;
         bool isLiteral = false;
 
@@ -6146,12 +6146,12 @@ public:
 
     PassRefPtr<StatementContainer> parseDirectivePrologues()
     {
-        RefPtr<ScannerResult> firstRestricted = nullptr;
+        RefPtr<Scanner::ScannerResult> firstRestricted = nullptr;
 
         this->context->inParsingDirective = true;
         RefPtr<StatementContainer> body = StatementContainer::create();
         while (true) {
-            RefPtr<ScannerResult> token = this->lookahead;
+            RefPtr<Scanner::ScannerResult> token = this->lookahead;
             if (token->type != StringLiteralToken) {
                 break;
             }
