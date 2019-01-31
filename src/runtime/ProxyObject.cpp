@@ -503,7 +503,7 @@ bool ProxyObject::isExtensible(ExecutionState& state)
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-setprototypeof-v
-void ProxyObject::setPrototype(ExecutionState& state, const Value& value)
+bool ProxyObject::setPrototype(ExecutionState& state, const Value& value)
 {
     auto strings = &state.context()->staticStrings();
     // 1. Assert: Either Type(V) is Object or Type(V) is Null.
@@ -512,7 +512,7 @@ void ProxyObject::setPrototype(ExecutionState& state, const Value& value)
     // 3. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
-        return;
+        return false;
     }
 
     // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
@@ -532,8 +532,7 @@ void ProxyObject::setPrototype(ExecutionState& state, const Value& value)
     // 8. If trap is undefined, then
     // a. Return target.[[SetPrototypeOf]](V).
     if (trap.isUndefined()) {
-        target.asObject()->setPrototype(state, value);
-        return;
+        return target.asObject()->setPrototype(state, value);
     }
 
     // 9. Let booleanTrapResult be ToBoolean(Call(trap, handler, «target, V»)).
@@ -541,13 +540,17 @@ void ProxyObject::setPrototype(ExecutionState& state, const Value& value)
     bool booleanTrapResult;
     Value arguments[] = { target, value };
     booleanTrapResult = FunctionObject::call(state, trap, handler, 2, arguments).toBoolean(state);
+    if (!booleanTrapResult) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy setPrototypeOf could not set the prototype.");
+        return false;
+    }
 
     // 11. Let extensibleTarget be IsExtensible(target).
     bool extensibleTarget = target.asObject()->isExtensible(state);
 
     // 13. If extensibleTarget is true, return booleanTrapResult.
     if (extensibleTarget) {
-        return;
+        return booleanTrapResult;
     }
 
     // 14. Let targetProto be target.[[GetPrototypeOf]]().
@@ -556,11 +559,11 @@ void ProxyObject::setPrototype(ExecutionState& state, const Value& value)
     // 16. If booleanTrapResult is true and SameValue(V, targetProto) is false, throw a TypeError exception.
     if (booleanTrapResult && value != targetProto) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
-        return;
+        return false;
     }
 
     // 17. Return booleanTrapResult.
-    return;
+    return booleanTrapResult;
 }
 
 Object* ProxyObject::getPrototypeObject(ExecutionState& state)

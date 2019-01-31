@@ -102,7 +102,7 @@ public:
         return false;
     }
 
-    virtual void setPrototype(ExecutionState& state, const Value& value) override;
+    virtual bool setPrototype(ExecutionState& state, const Value& value) override;
 
     virtual Value getPrototype(ExecutionState&) override;
     virtual Object* getPrototypeObject(ExecutionState&) override;

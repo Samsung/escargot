@@ -624,7 +624,7 @@ public:
                 } else if (e == nullptr) {
                     return Value(Value::Null);
                 } else {
-                    ASSERT((size_t)e == 1);
+                    RELEASE_ASSERT_NOT_REACHED();
                     return Value();
                 }
             }
@@ -632,7 +632,7 @@ public:
         } else if (m_prototype == nullptr) {
             return Value(Value::Null);
         } else {
-            ASSERT((size_t)m_prototype == 1);
+            RELEASE_ASSERT_NOT_REACHED();
             return Value();
         }
     }
@@ -651,7 +651,7 @@ public:
                 } else if (e == nullptr) {
                     return nullptr;
                 } else {
-                    ASSERT((size_t)e == 1);
+                    RELEASE_ASSERT_NOT_REACHED();
                     return nullptr;
                 }
             }
@@ -659,15 +659,15 @@ public:
         } else if (m_prototype == nullptr) {
             return nullptr;
         } else {
-            ASSERT((size_t)m_prototype == 1);
+            RELEASE_ASSERT_NOT_REACHED();
             return nullptr;
         }
     }
 
 #if ESCARGOT_ENABLE_PROXY
-    virtual void setPrototype(ExecutionState& state, const Value& value);
+    virtual bool setPrototype(ExecutionState& state, const Value& proto);
 #else
-    void setPrototype(ExecutionState& state, const Value& value);
+    bool setPrototype(ExecutionState& state, const Value& proto);
 #endif
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
@@ -797,7 +797,7 @@ public:
         ensureObjectRareData();
         if (!internalSlot()) {
             setInternalSlot(new Object(state));
-            internalSlot()->setPrototype(state, Value());
+            internalSlot()->setPrototype(state, Value(Value::Null));
         }
         return internalSlot();
     }
