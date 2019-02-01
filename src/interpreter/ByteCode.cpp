@@ -21,6 +21,7 @@
 #include "ByteCode.h"
 #include "ByteCodeInterpreter.h"
 #include "runtime/Context.h"
+#include "parser/Lexer.h"
 #include "parser/ScriptParser.h"
 #include "parser/ast/AST.h"
 #include "parser/esprima_cpp/esprima.h"
@@ -115,7 +116,7 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(StringView src, ExtendedNodeLOC so
     for (size_t i = 0; i < index && i < srcLength; i++) {
         char16_t c = src.charAt(i);
         column++;
-        if (esprima::isLineTerminator(c)) {
+        if (EscargotLexer::isLineTerminator(c)) {
             // skip \r\n
             if (c == 13 && (i + 1 < index) && src.charAt(i + 1) == 10) {
                 i++;

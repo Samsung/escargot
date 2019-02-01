@@ -43,6 +43,151 @@ const char* Messages::TemplateOctalLiteral = "Octal literals are not allowed in 
  * value can represent an invalid octal value. */
 #define NON_OCTAL_VALUE 256
 
+char EscargotLexer::g_asciiRangeCharMap[128] = {
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    LexerIsCharWhiteSpace,
+    LexerIsCharLineTerminator,
+    LexerIsCharWhiteSpace,
+    LexerIsCharWhiteSpace,
+    LexerIsCharLineTerminator,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    LexerIsCharWhiteSpace,
+    0,
+    0,
+    0,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    LexerIsCharIdent,
+    LexerIsCharIdent,
+    LexerIsCharIdent,
+    LexerIsCharIdent,
+    LexerIsCharIdent,
+    LexerIsCharIdent,
+    LexerIsCharIdent,
+    LexerIsCharIdent,
+    LexerIsCharIdent,
+    LexerIsCharIdent,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    0,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    0,
+    0,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    0,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    LexerIsCharIdentStart | LexerIsCharIdent,
+    0,
+    0,
+    0,
+    0,
+    0
+};
+
+NEVER_INLINE bool EscargotLexer::isWhiteSpaceSlowCase(char16_t ch)
+{
+    ASSERT(ch >= 0x80);
+
+    if (LIKELY(ch < 0x1680)) {
+        return (ch == 0xA0);
+    }
+
+    return (ch == 0x1680 || ch == 0x180E || ch == 0x2000 || ch == 0x2001
+            || ch == 0x2002 || ch == 0x2003 || ch == 0x2004 || ch == 0x2005 || ch == 0x2006
+            || ch == 0x2007 || ch == 0x2008 || ch == 0x2009 || ch == 0x200A || ch == 0x202F
+            || ch == 0x205F || ch == 0x3000 || ch == 0xFEFF);
+}
+
 /* Starting codepoints of identifier ranges. */
 static const uint16_t identRangeStart[429] = {
     170, 181, 183, 186, 192, 216, 248, 710, 736, 748, 750, 768, 886, 890, 895, 902, 908, 910, 931, 1015, 1155, 1162,
@@ -127,7 +272,7 @@ static NEVER_INLINE bool isIdentifierPartSlow(char32_t ch)
 static ALWAYS_INLINE bool isIdentifierPart(char32_t ch)
 {
     if (LIKELY(ch < 128)) {
-        return esprima::g_asciiRangeCharMap[ch] & ESPRIMA_IS_IDENT;
+        return g_asciiRangeCharMap[ch] & LexerIsCharIdent;
     }
 
     return isIdentifierPartSlow(ch);
@@ -136,7 +281,7 @@ static ALWAYS_INLINE bool isIdentifierPart(char32_t ch)
 static ALWAYS_INLINE bool isIdentifierStart(char32_t ch)
 {
     if (LIKELY(ch < 128)) {
-        return esprima::g_asciiRangeCharMap[ch] & ESPRIMA_START_IDENT;
+        return g_asciiRangeCharMap[ch] & LexerIsCharIdentStart;
     }
 
     return isIdentifierPartSlow(ch);
@@ -356,7 +501,7 @@ void Scanner::ScannerResult::constructStringLiteral()
             break;
         } else if (UNLIKELY(ch == '\\')) {
             ch = this->scanner->source.bufferedCharAt(this->scanner->index++);
-            if (!ch || !esprima::isLineTerminator(ch)) {
+            if (!ch || !isLineTerminator(ch)) {
                 switch (ch) {
                 case 'u':
                 case 'x':
@@ -422,7 +567,7 @@ void Scanner::ScannerResult::constructStringLiteral()
                 }
                 this->scanner->lineStart = this->scanner->index;
             }
-        } else if (UNLIKELY(esprima::isLineTerminator(ch))) {
+        } else if (UNLIKELY(isLineTerminator(ch))) {
             break;
         } else {
             stringUTF16 += ch;
@@ -487,7 +632,7 @@ void Scanner::skipSingleLineComment(void)
         char16_t ch = this->source.bufferedCharAt(this->index);
         ++this->index;
 
-        if (esprima::isLineTerminator(ch)) {
+        if (isLineTerminator(ch)) {
             if (ch == 13 && this->source.bufferedCharAt(this->index) == 10) {
                 ++this->index;
             }
@@ -503,7 +648,7 @@ void Scanner::skipMultiLineComment(void)
 {
     while (!this->eof()) {
         char16_t ch = this->source.bufferedCharAt(this->index);
-        if (esprima::isLineTerminator(ch)) {
+        if (isLineTerminator(ch)) {
             if (ch == 0x0D && this->source.bufferedCharAt(this->index + 1) == 0x0A) {
                 ++this->index;
             }
@@ -1176,7 +1321,7 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanStringLiteral()
         } else if (UNLIKELY(ch == '\\')) {
             ch = this->source.bufferedCharAt(this->index++);
             isPlainCase = false;
-            if (!ch || !esprima::isLineTerminator(ch)) {
+            if (!ch || !isLineTerminator(ch)) {
                 switch (ch) {
                 case 'u':
                 case 'x':
@@ -1212,7 +1357,7 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanStringLiteral()
                 }
                 this->lineStart = this->index;
             }
-        } else if (UNLIKELY(esprima::isLineTerminator(ch))) {
+        } else if (UNLIKELY(isLineTerminator(ch))) {
             break;
         } else {
         }
@@ -1264,7 +1409,7 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanTemplate(bool head)
             cooked += ch;
         } else if (ch == '\\') {
             ch = this->source.bufferedCharAt(this->index++);
-            if (!esprima::isLineTerminator(ch)) {
+            if (!isLineTerminator(ch)) {
                 switch (ch) {
                 case 'n':
                     cooked += '\n';
@@ -1323,7 +1468,7 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanTemplate(bool head)
                 }
                 this->lineStart = this->index;
             }
-        } else if (esprima::isLineTerminator(ch)) {
+        } else if (isLineTerminator(ch)) {
             ++this->lineNumber;
             if (ch == '\r' && this->source.bufferedCharAt(this->index) == '\n') {
                 ++this->index;
@@ -1366,11 +1511,11 @@ String* Scanner::scanRegExpBody()
         if (ch == '\\') {
             ch = this->source.bufferedCharAt(this->index++);
             // ECMA-262 7.8.5
-            if (esprima::isLineTerminator(ch)) {
+            if (isLineTerminator(ch)) {
                 this->throwUnexpectedToken(Messages::UnterminatedRegExp);
             }
             str += ch;
-        } else if (esprima::isLineTerminator(ch)) {
+        } else if (isLineTerminator(ch)) {
             this->throwUnexpectedToken(Messages::UnterminatedRegExp);
         } else if (classMarker) {
             if (ch == ']') {

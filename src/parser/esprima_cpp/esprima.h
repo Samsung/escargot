@@ -33,32 +33,6 @@ class CodeBlock;
 
 namespace esprima {
 
-#define ESPRIMA_START_IDENT 1
-#define ESPRIMA_IS_IDENT 2
-#define ESPRIMA_IS_WHITESPACE 4
-#define ESPRIMA_IS_LINE_TERMINATOR 8
-
-extern char g_asciiRangeCharMap[128];
-
-// ECMA-262 11.2 White Space
-NEVER_INLINE bool isWhiteSpaceSlowCase(char16_t ch);
-ALWAYS_INLINE bool isWhiteSpace(char16_t ch)
-{
-    if (LIKELY(ch < 128)) {
-        return g_asciiRangeCharMap[ch] & ESPRIMA_IS_WHITESPACE;
-    }
-    return isWhiteSpaceSlowCase(ch);
-}
-
-// ECMA-262 11.3 Line Terminators
-ALWAYS_INLINE bool isLineTerminator(char16_t ch)
-{
-    if (LIKELY(ch < 128)) {
-        return g_asciiRangeCharMap[ch] & ESPRIMA_IS_LINE_TERMINATOR;
-    }
-    return UNLIKELY(ch == 0x2028 || ch == 0x2029);
-}
-
 typedef std::function<void(::Escargot::Node*, NodeLOC start, NodeLOC end)> ParserASTNodeHandler;
 
 struct Error : public gc {

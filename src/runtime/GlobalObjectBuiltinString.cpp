@@ -25,7 +25,7 @@
 #include "ErrorObject.h"
 #include "RegExpObject.h"
 #include "ArrayObject.h"
-#include "parser/esprima_cpp/esprima.h"
+#include "parser/Lexer.h"
 
 namespace Escargot {
 
@@ -828,11 +828,11 @@ static Value builtinStringTrim(ExecutionState& state, Value thisValue, size_t ar
     RESOLVE_THIS_BINDING_TO_STRING(str, String, trim);
     int64_t s, e;
     for (s = 0; s < (int64_t)str->length(); s++) {
-        if (!esprima::isWhiteSpace((*str)[s]) && !esprima::isLineTerminator((*str)[s]))
+        if (!EscargotLexer::isWhiteSpaceOrLineTerminator((*str)[s]))
             break;
     }
     for (e = ((int64_t)str->length()) - 1; e >= s; e--) {
-        if (!esprima::isWhiteSpace((*str)[e]) && !esprima::isLineTerminator((*str)[e]))
+        if (!EscargotLexer::isWhiteSpaceOrLineTerminator((*str)[e]))
             break;
     }
     return new StringView(str, s, e + 1);
