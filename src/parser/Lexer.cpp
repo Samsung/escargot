@@ -39,6 +39,10 @@ const char* Messages::TemplateOctalLiteral = "Octal literals are not allowed in 
  * chosen because it is a valid immediate for machine instructions. */
 #define EMPTY_CODE_POINT UINT32_MAX
 
+/* The largest octal value is 255, so any higher
+ * value can represent an invalid octal value. */
+#define NON_OCTAL_VALUE 256
+
 /* Starting codepoints of identifier ranges. */
 static const uint16_t identRangeStart[429] = {
     170, 181, 183, 186, 192, 216, 248, 710, 736, 748, 750, 768, 886, 890, 895, 902, 908, 910, 931, 1015, 1155, 1162,
@@ -341,7 +345,7 @@ void Scanner::ScannerResult::constructStringLiteral()
     // 'String literal must starts with a quote');
 
     ++this->scanner->index;
-    bool isEveryCharAllLatin1 = true;
+    bool isEveryCharLatin1 = true;
 
     UTF16StringDataNonGCStd stringUTF16;
     while (true) {
@@ -361,14 +365,14 @@ void Scanner::ScannerResult::constructStringLiteral()
                         ParserCharPiece piece(this->scanner->scanUnicodeCodePointEscape());
                         stringUTF16.append(piece.data, piece.data + piece.length);
                         if (piece.length != 1 || piece.data[0] >= 256) {
-                            isEveryCharAllLatin1 = false;
+                            isEveryCharLatin1 = false;
                         }
                     } else {
                         const char32_t unescaped = this->scanner->scanHexEscape(ch);
                         ParserCharPiece piece(unescaped);
                         stringUTF16.append(piece.data, piece.data + piece.length);
                         if (piece.length != 1 || piece.data[0] >= 256) {
-                            isEveryCharAllLatin1 = false;
+                            isEveryCharLatin1 = false;
                         }
                     }
                     break;
@@ -393,21 +397,18 @@ void Scanner::ScannerResult::constructStringLiteral()
 
                 default:
                     if (ch && isOctalDigit(ch)) {
-                        auto octToDec = this->scanner->octalToDecimal(ch);
-
-                        stringUTF16 += octToDec.code;
-                        if (octToDec.code >= 256) {
-                            isEveryCharAllLatin1 = false;
-                        }
+                        uint16_t octToDec = this->scanner->octalToDecimal(ch, true);
+                        stringUTF16 += octToDec;
+                        ASSERT(octToDec < 256);
                     } else if (isDecimalDigit(ch)) {
                         stringUTF16 += ch;
                         if (ch >= 256) {
-                            isEveryCharAllLatin1 = false;
+                            isEveryCharLatin1 = false;
                         }
                     } else {
                         stringUTF16 += ch;
                         if (ch >= 256) {
-                            isEveryCharAllLatin1 = false;
+                            isEveryCharLatin1 = false;
                         }
                     }
                     break;
@@ -426,7 +427,7 @@ void Scanner::ScannerResult::constructStringLiteral()
         } else {
             stringUTF16 += ch;
             if (ch >= 256) {
-                isEveryCharAllLatin1 = false;
+                isEveryCharLatin1 = false;
             }
         }
     }
@@ -436,7 +437,7 @@ void Scanner::ScannerResult::constructStringLiteral()
     this->scanner->lineStart = lineStartBackup;
 
     String* newStr;
-    if (isEveryCharAllLatin1) {
+    if (isEveryCharLatin1) {
         newStr = new Latin1String(stringUTF16.data(), stringUTF16.length());
     } else {
         newStr = new UTF16String(stringUTF16.data(), stringUTF16.length());
@@ -656,11 +657,12 @@ StringView Scanner::getComplexIdentifier()
     return StringView(str, 0, str->length());
 }
 
-Scanner::OctalToDecimalResult Scanner::octalToDecimal(char16_t ch)
+uint16_t Scanner::octalToDecimal(char16_t ch, bool octal)
 {
     // \0 is not octal escape sequence
-    bool octal = (ch != '0');
     char16_t code = octalValue(ch);
+
+    octal |= (ch != '0');
 
     if (!this->eof() && isOctalDigit(this->source.bufferedCharAt(this->index))) {
         octal = true;
@@ -674,7 +676,8 @@ Scanner::OctalToDecimalResult Scanner::octalToDecimal(char16_t ch)
         }
     }
 
-    return OctalToDecimalResult(code, octal);
+    ASSERT(!octal || code < NON_OCTAL_VALUE);
+    return octal ? code : NON_OCTAL_VALUE;
 };
 
 PassRefPtr<Scanner::ScannerResult> Scanner::scanPunctuator(char16_t ch0)
@@ -1194,8 +1197,7 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanStringLiteral()
 
                 default:
                     if (ch && isOctalDigit(ch)) {
-                        OctalToDecimalResult octToDec = this->octalToDecimal(ch);
-                        octal = octToDec.octal || octal;
+                        octal |= (this->octalToDecimal(ch, false) != NON_OCTAL_VALUE);
                     } else if (isDecimalDigit(ch)) {
                         octal = true;
                     }
