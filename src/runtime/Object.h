@@ -54,7 +54,7 @@ struct ObjectRareData : public PointerValue {
 #ifdef ESCARGOT_ENABLE_PROMISE
     Object* m_internalSlot;
 #endif
-    ObjectRareData(Object* obj);
+    explicit ObjectRareData(Object* obj);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -531,7 +531,7 @@ class Object : public PointerValue {
     static Object* createBuiltinObjectPrototype(ExecutionState& state);
 
 public:
-    Object(ExecutionState& state);
+    explicit Object(ExecutionState& state);
     static Object* createFunctionPrototypeObject(ExecutionState& state, FunctionObject* function);
 
     virtual bool isObject() const

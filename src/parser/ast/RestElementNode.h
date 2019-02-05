@@ -27,7 +27,7 @@ namespace Escargot {
 
 class RestElementNode : public Node {
 public:
-    RestElementNode(IdentifierNode* argument)
+    explicit RestElementNode(IdentifierNode* argument)
         : Node()
     {
         m_argument = argument;

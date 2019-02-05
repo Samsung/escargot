@@ -49,7 +49,7 @@ class GlobalRegExpFunctionObject : public FunctionObject {
     friend struct GlobalRegExpFunctionObjectBuiltinFunctions;
 
 public:
-    GlobalRegExpFunctionObject(ExecutionState& state);
+    explicit GlobalRegExpFunctionObject(ExecutionState& state);
     virtual bool isGlobalRegExpFunctionObject()
     {
         return true;

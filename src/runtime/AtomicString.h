@@ -34,7 +34,7 @@ class AtomicString : public gc {
     friend class PropertyName;
     friend class ASTScopeContextNameInfo;
     friend class AtomicStringRef;
-    inline AtomicString(String* str)
+    inline explicit AtomicString(String* str)
     {
         m_string = str;
     }

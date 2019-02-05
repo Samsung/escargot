@@ -28,7 +28,7 @@ namespace Escargot {
 class VariableDeclarationNode : public DeclarationNode {
 public:
     friend class ScriptParser;
-    VariableDeclarationNode(VariableDeclaratorVector&& decl)
+    explicit VariableDeclarationNode(VariableDeclaratorVector&& decl)
         : DeclarationNode()
     {
         m_declarations = decl;

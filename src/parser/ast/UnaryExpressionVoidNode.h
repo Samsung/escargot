@@ -27,7 +27,7 @@ namespace Escargot {
 class UnaryExpressionVoidNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    UnaryExpressionVoidNode(Node* argument)
+    explicit UnaryExpressionVoidNode(Node* argument)
         : ExpressionNode()
     {
         m_argument = argument;

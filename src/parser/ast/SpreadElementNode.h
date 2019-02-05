@@ -26,7 +26,7 @@ namespace Escargot {
 
 class SpreadElementNode : public Node {
 public:
-    SpreadElementNode(Node* arg)
+    explicit SpreadElementNode(Node* arg)
         : Node()
     {
         m_arg = arg;

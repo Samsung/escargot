@@ -194,7 +194,7 @@ class ObjectStructureWithFastAccess : public ObjectStructure {
     friend class ObjectStructure;
 
 public:
-    ObjectStructureWithFastAccess(ExecutionState& state)
+    explicit ObjectStructureWithFastAccess(ExecutionState& state)
         : ObjectStructure(state, false)
         , m_propertyNameMap(new (GC) PropertyNameMap())
     {

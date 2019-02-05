@@ -28,7 +28,7 @@ extern size_t g_symbolTag;
 
 class Symbol : public PointerValue {
 public:
-    Symbol(String* desc = String::emptyString)
+    explicit Symbol(String* desc = String::emptyString)
     {
         m_tag = POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA;
         m_description = desc;

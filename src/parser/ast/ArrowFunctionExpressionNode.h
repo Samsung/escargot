@@ -31,7 +31,7 @@ public:
     {
     }
 
-    ArrowParameterPlaceHolderNode(ExpressionNodeVector&& params)
+    explicit ArrowParameterPlaceHolderNode(ExpressionNodeVector&& params)
         : Node()
         , m_params(std::move(params))
     {

@@ -176,7 +176,7 @@ protected:
 
 class SourceStringView : public String {
 public:
-    ALWAYS_INLINE SourceStringView(const StringView& str)
+    ALWAYS_INLINE explicit SourceStringView(const StringView& str)
     {
         m_bufferAccessData = str.bufferAccessData();
     }

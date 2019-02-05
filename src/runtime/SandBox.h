@@ -30,7 +30,7 @@ class SandBox : public gc {
     friend class ErrorObject;
 
 public:
-    SandBox(Context* s)
+    explicit SandBox(Context* s)
     {
         m_context = s;
         m_context->m_sandBoxStack.pushBack(this);

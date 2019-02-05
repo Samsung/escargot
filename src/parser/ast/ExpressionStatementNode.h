@@ -28,7 +28,7 @@ namespace Escargot {
 class ExpressionStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    ExpressionStatementNode(Node* expression)
+    explicit ExpressionStatementNode(Node* expression)
         : StatementNode()
     {
         m_expression = expression;

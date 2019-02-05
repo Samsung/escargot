@@ -28,7 +28,7 @@ class UpdateExpressionIncrementPostfixNode : public ExpressionNode {
 public:
     friend class ScriptParser;
 
-    UpdateExpressionIncrementPostfixNode(Node* argument)
+    explicit UpdateExpressionIncrementPostfixNode(Node* argument)
         : ExpressionNode()
     {
         m_argument = (ExpressionNode*)argument;

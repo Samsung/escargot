@@ -53,7 +53,7 @@ class Context : public gc {
     friend class ContextRef;
 
 public:
-    Context(VMInstance* instance);
+    explicit Context(VMInstance* instance);
 
     VMInstance* vmInstance()
     {

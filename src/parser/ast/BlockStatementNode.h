@@ -28,7 +28,7 @@ namespace Escargot {
 class BlockStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    BlockStatementNode(StatementContainer* body)
+    explicit BlockStatementNode(StatementContainer* body)
         : StatementNode()
     {
         m_container = body;

@@ -85,7 +85,7 @@ public:
         JSC::Yarr::BytecodePattern* m_bytecodePattern;
     };
 
-    RegExpObject(ExecutionState& state);
+    explicit RegExpObject(ExecutionState& state);
     RegExpObject(ExecutionState& state, String* source, String* option);
 
     void init(ExecutionState& state, String* source, String* option);

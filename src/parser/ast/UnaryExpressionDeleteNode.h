@@ -27,7 +27,7 @@ namespace Escargot {
 class UnaryExpressionDeleteNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    UnaryExpressionDeleteNode(Node* argument)
+    explicit UnaryExpressionDeleteNode(Node* argument)
         : ExpressionNode()
     {
         m_argument = (ExpressionNode*)argument;

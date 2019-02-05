@@ -32,7 +32,7 @@ public:
         m_capacity = 0;
     }
 
-    Vector(size_t siz)
+    explicit Vector(size_t siz)
     {
         m_buffer = nullptr;
         m_size = 0;

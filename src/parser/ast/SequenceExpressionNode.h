@@ -28,7 +28,7 @@ namespace Escargot {
 class SequenceExpressionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    SequenceExpressionNode(ExpressionNodeVector&& expressions)
+    explicit SequenceExpressionNode(ExpressionNodeVector&& expressions)
         : ExpressionNode()
     {
         m_expressions = expressions;

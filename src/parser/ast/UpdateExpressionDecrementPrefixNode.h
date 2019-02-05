@@ -28,7 +28,7 @@ class UpdateExpressionDecrementPrefixNode : public ExpressionNode {
 public:
     friend class ScriptParser;
 
-    UpdateExpressionDecrementPrefixNode(Node* argument)
+    explicit UpdateExpressionDecrementPrefixNode(Node* argument)
         : ExpressionNode()
     {
         m_argument = (ExpressionNode*)argument;

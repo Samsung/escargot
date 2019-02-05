@@ -336,7 +336,7 @@ public:
 
 class DeclareFunctionDeclarations : public ByteCode {
 public:
-    DeclareFunctionDeclarations(InterpretedCodeBlock* cb)
+    explicit DeclareFunctionDeclarations(InterpretedCodeBlock* cb)
         : ByteCode(Opcode::DeclareFunctionDeclarationsOpcode, ByteCodeLOC(SIZE_MAX))
         , m_codeBlock(cb)
     {
@@ -1247,7 +1247,7 @@ public:
 
 class ReturnFunction : public ByteCode {
 public:
-    ReturnFunction(const ByteCodeLOC& loc)
+    explicit ReturnFunction(const ByteCodeLOC& loc)
         : ByteCode(Opcode::ReturnFunctionOpcode, loc)
     {
     }
@@ -1295,7 +1295,7 @@ public:
 
 class TryOperation : public ByteCode {
 public:
-    TryOperation(const ByteCodeLOC& loc)
+    explicit TryOperation(const ByteCodeLOC& loc)
         : ByteCode(Opcode::TryOperationOpcode, loc)
     {
         m_hasCatch = false;
@@ -1316,7 +1316,7 @@ public:
 
 class TryCatchWithBodyEnd : public ByteCode {
 public:
-    TryCatchWithBodyEnd(const ByteCodeLOC& loc)
+    explicit TryCatchWithBodyEnd(const ByteCodeLOC& loc)
         : ByteCode(Opcode::TryCatchWithBodyEndOpcode, loc)
     {
     }
@@ -1331,7 +1331,7 @@ public:
 
 class FinallyEnd : public ByteCode {
 public:
-    FinallyEnd(const ByteCodeLOC& loc)
+    explicit FinallyEnd(const ByteCodeLOC& loc)
         : ByteCode(Opcode::FinallyEndOpcode, loc)
     {
         m_tryDupCount = 0;
@@ -1404,7 +1404,7 @@ struct EnumerateObjectData : public PointerValue {
 
 class EnumerateObject : public ByteCode {
 public:
-    EnumerateObject(const ByteCodeLOC& loc)
+    explicit EnumerateObject(const ByteCodeLOC& loc)
         : ByteCode(Opcode::EnumerateObjectOpcode, loc)
     {
         m_objectRegisterIndex = m_dataRegisterIndex = std::numeric_limits<ByteCodeRegisterIndex>::max();
@@ -1422,7 +1422,7 @@ public:
 
 class EnumerateObjectKey : public ByteCode {
 public:
-    EnumerateObjectKey(const ByteCodeLOC& loc)
+    explicit EnumerateObjectKey(const ByteCodeLOC& loc)
         : ByteCode(Opcode::EnumerateObjectKeyOpcode, loc)
     {
         m_dataRegisterIndex = m_registerIndex = std::numeric_limits<ByteCodeRegisterIndex>::max();
@@ -1440,7 +1440,7 @@ public:
 
 class CheckIfKeyIsLast : public ByteCode {
 public:
-    CheckIfKeyIsLast(const ByteCodeLOC& loc)
+    explicit CheckIfKeyIsLast(const ByteCodeLOC& loc)
         : ByteCode(Opcode::CheckIfKeyIsLastOpcode, loc)
     {
         m_forInEndPosition = SIZE_MAX;
@@ -1540,7 +1540,7 @@ public:
 
 class End : public ByteCode {
 public:
-    End(const ByteCodeLOC& loc)
+    explicit End(const ByteCodeLOC& loc)
         : ByteCode(Opcode::EndOpcode, loc)
     {
     }
@@ -1576,7 +1576,7 @@ class ByteCodeBlock : public gc {
     }
 
 public:
-    ByteCodeBlock(InterpretedCodeBlock* codeBlock)
+    explicit ByteCodeBlock(InterpretedCodeBlock* codeBlock)
     {
         m_requiredRegisterFileSizeInValueSize = 2;
         m_codeBlock = codeBlock;

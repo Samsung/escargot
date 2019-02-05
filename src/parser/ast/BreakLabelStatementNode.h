@@ -27,7 +27,7 @@ namespace Escargot {
 class BreakLabelStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    BreakLabelStatementNode(String* label)
+    explicit BreakLabelStatementNode(String* label)
         : StatementNode()
     {
         m_label = label;

@@ -49,7 +49,7 @@ static const int64_t const_Date_msPerDay = const_Date_msPerHour * const_Date_hou
 
 class DateObject : public Object {
 public:
-    DateObject(ExecutionState& state);
+    explicit DateObject(ExecutionState& state);
 
     static void initCachedUTC(ExecutionState& state, DateObject* d);
 

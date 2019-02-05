@@ -31,7 +31,7 @@ class SetIteratorObject;
 
 class IteratorObject : public Object {
 public:
-    IteratorObject(ExecutionState& state);
+    explicit IteratorObject(ExecutionState& state);
 
     virtual bool isIteratorObject() const
     {
