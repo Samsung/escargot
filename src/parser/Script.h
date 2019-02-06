@@ -69,7 +69,7 @@ public:
         return m_topCodeBlock;
     }
 
-protected:
+private:
     Value executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isEvalMode = false, bool needNewEnv = false);
     String* m_fileName;
     String* m_src;

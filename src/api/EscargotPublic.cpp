@@ -670,7 +670,7 @@ public:
         return false;
     }
 
-protected:
+private:
     ExposableObjectGetOwnPropertyCallback m_getOwnPropetyCallback;
     ExposableObjectDefineOwnPropertyCallback m_defineOwnPropertyCallback;
     ExposableObjectEnumerationCallback m_enumerationCallback;
