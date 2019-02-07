@@ -7,7 +7,7 @@ matrix:
     - name: "check"
       addons:
         apt:
-          packages: [ clang-format-3.8 ]
+          packages: [ clang-format-3.9 ]
       script:
         - python tools/check_tidy.py
 
@@ -25,7 +25,7 @@ matrix:
         - ninja -Cout/darwin/x64/release
         - cp ./out/darwin/x64/release/escargot ./escargot
         - travis_wait tools/run-tests.py --arch=x86_64 test262
-        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js internal jsc-stress regression-tests v8 
+        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js internal jsc-stress regression-tests v8
         # FIXME: jetstream-only-simple and octane takes too long running time on darwin
         # jetstream-only-simple and octane are skipped now.
         # - travis_wait 40 tools/run-tests.py --arch=x86_64 jetstream-only-simple octane
