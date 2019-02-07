@@ -65,7 +65,7 @@ public:
         m_right->iterateChildrenIdentifier(fn);
     }
 
-protected:
+private:
     RefPtr<ExpressionNode> m_left;
     RefPtr<ExpressionNode> m_right;
 };

@@ -78,7 +78,7 @@ public:
         m_right->iterateChildrenIdentifier(fn);
     }
 
-protected:
+private:
     RefPtr<Node> m_left; // left: Pattern;
     RefPtr<Node> m_right; // right: Expression;
 };
