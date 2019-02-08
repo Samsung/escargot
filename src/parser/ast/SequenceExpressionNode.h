@@ -60,7 +60,7 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::SequenceExpression; }
     const ExpressionNodeVector& expressions() { return m_expressions; }
-protected:
+private:
     ExpressionNodeVector m_expressions; // expression: Expression;
 };
 }

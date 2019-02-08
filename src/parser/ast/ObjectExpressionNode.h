@@ -106,7 +106,7 @@ public:
         }
     }
 
-protected:
+private:
     PropertiesNodeVector m_properties;
 };
 }

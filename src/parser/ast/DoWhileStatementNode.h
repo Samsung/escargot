@@ -63,7 +63,7 @@ public:
         newContext.propagateInformationTo(*context);
     }
 
-protected:
+private:
     RefPtr<ExpressionNode> m_test;
     RefPtr<StatementNode> m_body;
 };

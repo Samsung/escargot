@@ -54,7 +54,7 @@ public:
         ASSERT(context->m_registerStack->size() == before);
     }
 
-protected:
+private:
     RefPtr<Node> m_expression; // expression: Expression;
 };
 }

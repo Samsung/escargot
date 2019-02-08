@@ -182,7 +182,7 @@ public:
         }
     }
 
-protected:
+private:
     RefPtr<Node> m_object; // object: Expression;
     RefPtr<Node> m_property; // property: Identifier | Expression;
 

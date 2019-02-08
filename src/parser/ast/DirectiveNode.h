@@ -46,7 +46,7 @@ public:
         context->giveUpRegister();
     }
 
-protected:
+private:
     RefPtr<ExpressionNode> m_expr;
     StringView m_value;
 };

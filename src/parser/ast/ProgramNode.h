@@ -49,7 +49,7 @@ public:
         codeBlock->pushCode(End(ByteCodeLOC(SIZE_MAX)), context, this);
     }
 
-protected:
+private:
     RefPtr<StatementContainer> m_container;
     ASTScopeContext* m_scopeContext;
 };

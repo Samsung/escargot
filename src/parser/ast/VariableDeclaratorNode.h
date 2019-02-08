@@ -67,7 +67,7 @@ public:
         }
     }
 
-protected:
+private:
     RefPtr<Node> m_id; // id: Pattern;
     RefPtr<Node> m_init; // init: Expression | null;
 };

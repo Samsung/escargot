@@ -62,7 +62,7 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::CatchClause; }
-protected:
+private:
     RefPtr<IdentifierNode> m_param;
     RefPtr<ExpressionNode> m_guard;
     RefPtr<BlockStatementNode> m_body;

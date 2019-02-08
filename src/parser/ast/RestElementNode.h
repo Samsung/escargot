@@ -43,7 +43,7 @@ public:
         return m_argument.get();
     }
 
-protected:
+private:
     RefPtr<IdentifierNode> m_argument;
 };
 }

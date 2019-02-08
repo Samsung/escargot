@@ -57,7 +57,7 @@ public:
     inline Node* body() { return m_body.get(); }
     inline const AtomicString& id() { return m_id; }
     ASTScopeContext* scopeContext() { return m_scopeContext; }
-protected:
+private:
     bool m_isGenerator;
     AtomicString m_id; // id: Identifier;
     PatternNodeVector m_params; // params: [ Pattern ];

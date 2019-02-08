@@ -54,7 +54,7 @@ public:
         }
     }
 
-protected:
+private:
     String* m_label;
 };
 }

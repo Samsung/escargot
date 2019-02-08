@@ -62,7 +62,7 @@ public:
         context->m_feCounter++;
     }
 
-protected:
+private:
     FunctionNode m_function;
     // defaults: [ Expression ];
     // rest: Identifier | null;

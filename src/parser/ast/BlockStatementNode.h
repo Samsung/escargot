@@ -48,7 +48,7 @@ public:
         return m_container->firstChild();
     }
 
-protected:
+private:
     RefPtr<StatementContainer> m_container;
 };
 }

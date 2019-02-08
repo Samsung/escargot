@@ -48,7 +48,7 @@ public:
         context->giveUpRegister();
     }
 
-protected:
+private:
     RefPtr<Node> m_argument;
 };
 }

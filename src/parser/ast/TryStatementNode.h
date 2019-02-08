@@ -100,7 +100,7 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::TryStatement; }
-protected:
+private:
     RefPtr<BlockStatementNode> m_block;
     RefPtr<CatchClauseNode> m_handler;
     CatchClauseNodeVector m_guardedHandlers;
