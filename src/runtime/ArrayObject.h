@@ -82,7 +82,7 @@ public:
         return "Array";
     }
 
-protected:
+private:
     ALWAYS_INLINE bool isFastModeArray()
     {
         if (LIKELY(rareData() == nullptr)) {

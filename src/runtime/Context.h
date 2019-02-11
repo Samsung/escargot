@@ -207,7 +207,7 @@ public:
         return m_securityPolicyCheckCallback;
     }
 
-protected:
+private:
     VMInstance* m_instance;
 
     // these data actually store in VMInstance
