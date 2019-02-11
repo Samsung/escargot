@@ -590,7 +590,7 @@ public:
 #endif
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-isextensiblie
-#if ESCARGOT_ENABLE_PROXY
+#if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual bool isExtensible(ExecutionState&)
 #else
     bool isExtensible(ExecutionState&)
@@ -600,7 +600,7 @@ public:
     }
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-preventextensions
-#if ESCARGOT_ENABLE_PROXY
+#if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual bool preventExtensions(ExecutionState&)
 #else
     bool preventExtensions(ExecutionState&)
@@ -610,7 +610,7 @@ public:
         return true;
     }
 
-#if ESCARGOT_ENABLE_PROXY
+#if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual Value getPrototype(ExecutionState&)
 #else
     Value getPrototype(ExecutionState&)
@@ -637,7 +637,7 @@ public:
         }
     }
 
-#if ESCARGOT_ENABLE_PROXY
+#if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual Object* getPrototypeObject(ExecutionState&)
 #else
     Object* getPrototypeObject(ExecutionState&)
@@ -664,7 +664,7 @@ public:
         }
     }
 
-#if ESCARGOT_ENABLE_PROXY
+#if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual bool setPrototype(ExecutionState& state, const Value& proto);
 #else
     bool setPrototype(ExecutionState& state, const Value& proto);
@@ -683,7 +683,7 @@ public:
         return getOwnProperty(state, propertyName).hasValue();
     }
 
-#if ESCARGOT_ENABLE_PROXY
+#if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual bool hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
 #else
     bool hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
@@ -694,13 +694,13 @@ public:
 
     ValueVector getOwnPropertyKeys(ExecutionState& state);
 
-#if ESCARGOT_ENABLE_PROXY
+#if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P);
 #else
     ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P);
 #endif
 
-#if ESCARGOT_ENABLE_PROXY
+#if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
 #else
     bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
