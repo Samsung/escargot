@@ -65,7 +65,7 @@ public:
     ScriptParserResult parse(StringView script, String* fileName = String::emptyString, InterpretedCodeBlock* parentCodeBlock = nullptr, bool strictFromOutside = false, bool isEvalCodeInFunction = false, size_t stackSizeRemain = SIZE_MAX);
     std::tuple<RefPtr<Node>, ASTScopeContext*> parseFunction(InterpretedCodeBlock* codeBlock, size_t stackSizeRemain, ExecutionState* state = nullptr);
 
-protected:
+private:
     InterpretedCodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program);
     InterpretedCodeBlock* generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock);
     void generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb);

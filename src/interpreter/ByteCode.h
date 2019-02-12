@@ -1043,7 +1043,7 @@ public:
         return new ControlFlowRecord(m_reason, m_value, m_count, m_outerLimitCount);
     }
 
-protected:
+private:
     ControlFlowReason m_reason;
     union {
         Value m_value;
