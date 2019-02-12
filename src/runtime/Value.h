@@ -219,16 +219,14 @@ public:
 
 // All non-numeric (bool, null, undefined) immediates have bit 2 set.
 #define TagBitTypeOther 0x2ll
-#define TagBitBool 0x4ll
-#define TagBitUndefined 0x8ll
-// Combined integer value for non-numeric immediates.
-#define ValueFalse (TagBitTypeOther | TagBitBool | false)
-#define ValueTrue (TagBitTypeOther | TagBitBool | true)
-#define ValueUndefined (TagBitTypeOther | TagBitUndefined)
-#define ValueNull (TagBitTypeOther)
+#define TagTypeShift 2
 
-// TagMask is used to check for all types of immediate values (either number or 'other').
-#define TagMask (TagTypeNumber | TagBitTypeOther)
+// Combined integer value for non-numeric immediates.
+#define ValueFalse (TagBitTypeOther | (0 << TagTypeShift))
+#define ValueTrue (TagBitTypeOther | (1 << TagTypeShift))
+#define ValueUndefined (TagBitTypeOther | (2 << TagTypeShift))
+#define ValueNull (TagBitTypeOther | (3 << TagTypeShift))
+#define ValueLast ValueNull
 
 // These special values are never visible to JavaScript code; Empty is used to represent
 // Array holes, and for uninitialized Values. Deleted is used in hash table code.
@@ -236,7 +234,11 @@ public:
 // pointer should have either of these values (Empty is null, deleted is at an invalid
 // alignment for a GC cell, and in the zero page).
 #define ValueEmpty 0x0ll
-#define ValueDeleted 0x4ll
+
+// TagMask is used to check for all types of immediate values (either number or 'other').
+#define TagMask (TagTypeNumber | TagBitTypeOther)
+
+    intptr_t payload() const;
 #endif
 
 private:

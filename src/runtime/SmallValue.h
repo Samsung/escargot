@@ -77,7 +77,7 @@ const int kApiInt64Size = sizeof(int64_t);
 
 // Tag information for HeapObject.
 const intptr_t kHeapObjectTag = 0;
-const int kHeapObjectTagSize = 2;
+const int kHeapObjectTagSize = 1;
 const intptr_t kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
 
 // Tag information for Smi.
@@ -151,17 +151,11 @@ const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
 
 extern size_t g_doubleInSmallValueTag;
 
-#define smallValueUndefined 0x8
-#define smallValueNull (0x8 + sizeof(size_t) * 1)
-#define smallValueTrue (0x8 + sizeof(size_t) * 2)
-#define smallValueFalse (0x8 + sizeof(size_t) * 3)
-#define smallValueEmpty (0x8 + sizeof(size_t) * 4)
-
 class SmallValue {
 public:
     SmallValue()
     {
-        m_data.payload = (intptr_t)(smallValueUndefined);
+        m_data.payload = (intptr_t)(ValueUndefined);
     }
 
     SmallValue(const SmallValue& from)
@@ -185,18 +179,14 @@ public:
 
     explicit SmallValue(PointerValue* v)
     {
-        if (v) {
-            m_data.payload = (intptr_t)v;
-        } else {
-            m_data.payload = (intptr_t)smallValueEmpty;
-        }
+        m_data.payload = (intptr_t)v;
     }
 
     bool isStoredInHeap()
     {
         if (HAS_OBJECT_TAG(m_data.payload)) {
             PointerValue* v = (PointerValue*)m_data.payload;
-            if (((size_t)v) > smallValueEmpty) {
+            if (((size_t)v) > ValueLast) {
                 return true;
             }
         }
@@ -215,32 +205,15 @@ public:
 
     bool isEmpty() const
     {
-        if (HAS_OBJECT_TAG(m_data.payload)) {
-            PointerValue* v = (PointerValue*)m_data.payload;
-            if (((size_t)v) == smallValueEmpty) {
-                return true;
-            }
-        }
-        return false;
+        return m_data.payload == ValueEmpty;
     }
 
     operator Value() const
     {
         if (HAS_OBJECT_TAG(m_data.payload)) {
             PointerValue* v = (PointerValue*)m_data.payload;
-            if (((size_t)v) <= smallValueEmpty) {
-                if (v == (PointerValue*)smallValueUndefined) {
-                    return Value();
-                } else if (v == (PointerValue*)smallValueNull) {
-                    return Value(Value::Null);
-                } else if (v == (PointerValue*)smallValueTrue) {
-                    return Value(Value::True);
-                } else if (v == (PointerValue*)smallValueFalse) {
-                    return Value(Value::False);
-                } else {
-                    ASSERT(v == (PointerValue*)smallValueEmpty);
-                    return Value(Value::EmptyValue);
-                }
+            if (((size_t)v) <= ValueLast) {
+                Value(v);
             } else if (g_doubleInSmallValueTag == *((size_t*)v)) {
                 return Value(v->asDoubleInSmallValue()->value());
             }
@@ -296,22 +269,15 @@ public:
         if (from.isPointerValue()) {
 #ifdef ESCARGOT_32
             ASSERT(!from.isEmpty());
-            m_data.payload = (intptr_t)from.asPointerValue();
-#else
-            if (from.isEmpty()) {
-                m_data.payload = (intptr_t)(smallValueEmpty);
-            } else {
-                m_data.payload = (intptr_t)from.asPointerValue();
-            }
-
 #endif
+            m_data.payload = (intptr_t)from.asPointerValue();
         } else {
             int32_t i32;
             if (from.isInt32() && SmallValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
                 m_data.payload = SmallValueImpl::PlatformSmiTagging::IntToSmi(i32);
             } else if (from.isNumber()) {
                 auto payload = m_data.payload;
-                if (((size_t)payload > (size_t)smallValueEmpty) && HAS_OBJECT_TAG(payload)) {
+                if (((size_t)payload > (size_t)ValueLast) && HAS_OBJECT_TAG(payload)) {
                     PointerValue* v = (PointerValue*)payload;
                     if (g_doubleInSmallValueTag == *((size_t*)v)) {
                         ((DoubleInSmallValue*)m_data.payload)->m_value = from.asNumber();
@@ -319,17 +285,8 @@ public:
                     }
                 }
                 m_data.payload = reinterpret_cast<intptr_t>(new DoubleInSmallValue(from.asNumber()));
-            } else if (from.isUndefined()) {
-                m_data.payload = (intptr_t)(smallValueUndefined);
-            } else if (from.isTrue()) {
-                m_data.payload = (intptr_t)(smallValueTrue);
-            } else if (from.isFalse()) {
-                m_data.payload = (intptr_t)(smallValueFalse);
-            } else if (from.isNull()) {
-                m_data.payload = (intptr_t)(smallValueNull);
             } else {
-                ASSERT(from.isEmpty());
-                m_data.payload = (intptr_t)(smallValueEmpty);
+                m_data.payload = from.payload();
             }
         }
     }
@@ -340,35 +297,18 @@ protected:
         if (from.isPointerValue()) {
 #ifdef ESCARGOT_32
             ASSERT(!from.isEmpty());
-            m_data.payload = (intptr_t)from.asPointerValue();
-#else
-            if (from.isEmpty()) {
-                m_data.payload = (intptr_t)(smallValueEmpty);
-            } else {
-                m_data.payload = (intptr_t)from.asPointerValue();
-            }
-
 #endif
+            m_data.payload = (intptr_t)from.asPointerValue();
         } else {
             int32_t i32;
             if (from.isInt32() && SmallValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
                 m_data.payload = SmallValueImpl::PlatformSmiTagging::IntToSmi(i32);
             } else if (from.isNumber()) {
                 m_data.payload = reinterpret_cast<intptr_t>(new DoubleInSmallValue(from.asNumber()));
-            } else if (from.isUndefined()) {
-                m_data.payload = (intptr_t)(smallValueUndefined);
-            } else if (from.isTrue()) {
-                m_data.payload = (intptr_t)(smallValueTrue);
-            } else if (from.isFalse()) {
-                m_data.payload = (intptr_t)(smallValueFalse);
-            } else if (from.isNull()) {
-                m_data.payload = (intptr_t)(smallValueNull);
             } else {
-                ASSERT(from.isEmpty());
-                m_data.payload = (intptr_t)(smallValueEmpty);
+                m_data.payload = from.payload();
             }
         }
-        ASSERT(m_data.payload);
     }
 
     explicit SmallValue(SmallValueData v)

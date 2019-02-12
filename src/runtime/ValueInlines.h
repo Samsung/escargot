@@ -352,7 +352,7 @@ inline Value::Value(FromPayloadTag, intptr_t ptr)
 
 inline Value::Value(bool b)
 {
-    u.asInt64 = (TagBitTypeOther | TagBitBool | b);
+    u.asInt64 = (TagBitTypeOther | (b << TagTypeShift));
 }
 
 inline Value::Value(PointerValue* ptr)
@@ -525,6 +525,11 @@ inline bool Value::isFunction() const
 inline FunctionObject* Value::asFunction() const
 {
     return asPointerValue()->asFunctionObject();
+}
+
+inline intptr_t Value::payload() const
+{
+    return u.asInt64;
 }
 
 #endif
