@@ -2,7 +2,7 @@
 # common flags
 #######################################################
 ESCARGOT_CXXFLAGS_COMMON += -DESCARGOT
-ESCARGOT_CXXFLAGS_COMMON += -std=c++0x -g3
+ESCARGOT_CXXFLAGS_COMMON += -std=c++11 -g3
 ESCARGOT_CXXFLAGS_COMMON += -fno-math-errno -I$(ESCARGOT_ROOT)/src/
 ESCARGOT_CXXFLAGS_COMMON += -fdata-sections -ffunction-sections
 ESCARGOT_CXXFLAGS_COMMON += -frounding-math -fsignaling-nans
@@ -39,7 +39,7 @@ else ifeq ($(HOST), android)
   endif
   ifeq ($(REACT_NATIVE), 1)
     ESCARGOT_CXXFLAGS_COMMON += -UESCARGOT_ENABLE_PROMISE
-    ESCARGOT_CXXFLAGS_COMMON += -frtti -std=c++11
+    ESCARGOT_CXXFLAGS_COMMON += -frtti
   endif
 endif
 
