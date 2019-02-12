@@ -532,18 +532,7 @@ private:
     char32_t scanHexEscape(char prefix);
     char32_t scanUnicodeCodePointEscape();
 
-    struct OctalToDecimalResult {
-        char16_t code;
-        bool octal;
-
-        OctalToDecimalResult(char16_t code, bool octal)
-        {
-            this->code = code;
-            this->octal = octal;
-        }
-    };
-
-    OctalToDecimalResult octalToDecimal(char16_t ch);
+    uint16_t octalToDecimal(char16_t ch, bool octal);
 
     StringView getIdentifier();
     StringView getComplexIdentifier();
