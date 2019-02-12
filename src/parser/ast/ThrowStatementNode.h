@@ -28,7 +28,7 @@ namespace Escargot {
 class ThrowStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    ThrowStatementNode(Node* argument)
+    explicit ThrowStatementNode(Node* argument)
         : StatementNode()
     {
         m_argument = argument;

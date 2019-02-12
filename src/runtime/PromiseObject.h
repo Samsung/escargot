@@ -81,7 +81,7 @@ public:
         Rejected
     };
 
-    PromiseObject(ExecutionState& state);
+    explicit PromiseObject(ExecutionState& state);
 
     virtual bool isPromiseObject() const
     {

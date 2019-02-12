@@ -76,7 +76,7 @@ inline void decomposeDouble(double number, bool& sign, int32_t& exponent, uint64
 // This is used in converting the integer part of a number to a string.
 class BigInteger {
 public:
-    BigInteger(double number)
+    explicit BigInteger(double number)
     {
         m_values.reserve(36);
         ASSERT(std::isfinite(number) && !std::signbit(number));

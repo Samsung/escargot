@@ -31,7 +31,7 @@ public:
         m_size = 0;
     }
 
-    TightVector(size_t siz)
+    explicit TightVector(size_t siz)
     {
         m_buffer = nullptr;
         m_size = 0;

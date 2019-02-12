@@ -27,7 +27,7 @@ namespace Escargot {
 class UnaryExpressionLogicalNotNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    UnaryExpressionLogicalNotNode(Node* argument)
+    explicit UnaryExpressionLogicalNotNode(Node* argument)
         : ExpressionNode()
     {
         m_argument = argument;

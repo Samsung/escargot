@@ -357,14 +357,14 @@ class ASCIIString : public String {
     friend class String;
 
 public:
-    ASCIIString(ASCIIStringData&& src)
+    explicit ASCIIString(ASCIIStringData&& src)
         : String()
     {
         ASCIIStringData stringData = std::move(src);
         initBufferAccessData(stringData);
     }
 
-    ASCIIString(const char* str)
+    explicit ASCIIString(const char* str)
         : String()
     {
         ASCIIStringData stringData;
@@ -436,14 +436,14 @@ class Latin1String : public String {
     friend class Latin1;
 
 public:
-    Latin1String(Latin1StringData&& src)
+    explicit Latin1String(Latin1StringData&& src)
         : String()
     {
         Latin1StringData data = std::move(src);
         initBufferAccessData(data);
     }
 
-    Latin1String(const char* str)
+    explicit Latin1String(const char* str)
         : String()
     {
         Latin1StringData data;
@@ -524,7 +524,7 @@ class UTF16String : public String {
     friend class String;
 
 public:
-    UTF16String(UTF16StringData&& src)
+    explicit UTF16String(UTF16StringData&& src)
         : String()
     {
         UTF16StringData data = std::move(src);
@@ -539,7 +539,7 @@ public:
         initBufferAccessData(data);
     }
 #ifdef ENABLE_ICU
-    UTF16String(icu::UnicodeString& src)
+    explicit UTF16String(icu::UnicodeString& src)
         : String()
     {
         UTF16StringData str;

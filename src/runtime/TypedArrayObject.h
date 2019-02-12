@@ -43,7 +43,7 @@ enum TypedArrayType : unsigned {
 
 class ArrayBufferView : public Object {
 public:
-    ArrayBufferView(ExecutionState& state)
+    explicit ArrayBufferView(ExecutionState& state)
         : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, true)
     {
         m_rawBuffer = nullptr;
@@ -228,7 +228,7 @@ class TypedArrayObject : public ArrayBufferView {
     void typedArrayObjectPrototypeFiller(ExecutionState& state);
 
 public:
-    TypedArrayObject(ExecutionState& state)
+    explicit TypedArrayObject(ExecutionState& state)
         : ArrayBufferView(state)
     {
         typedArrayObjectPrototypeFiller(state);
@@ -333,7 +333,7 @@ protected:
 typedef TypedArrayObject<Int8Adaptor, 1> Int8ArrayObjectWrapper;
 class Int8ArrayObject : public Int8ArrayObjectWrapper {
 public:
-    Int8ArrayObject(ExecutionState& state)
+    explicit Int8ArrayObject(ExecutionState& state)
         : Int8ArrayObjectWrapper(state)
     {
     }
@@ -345,7 +345,7 @@ public:
 typedef TypedArrayObject<Int16Adaptor, 2> Int16ArrayObjectWrapper;
 class Int16ArrayObject : public Int16ArrayObjectWrapper {
 public:
-    Int16ArrayObject(ExecutionState& state)
+    explicit Int16ArrayObject(ExecutionState& state)
         : Int16ArrayObjectWrapper(state)
     {
     }
@@ -357,7 +357,7 @@ public:
 typedef TypedArrayObject<Int32Adaptor, 4> Int32ArrayObjectWrapper;
 class Int32ArrayObject : public Int32ArrayObjectWrapper {
 public:
-    Int32ArrayObject(ExecutionState& state)
+    explicit Int32ArrayObject(ExecutionState& state)
         : Int32ArrayObjectWrapper(state)
     {
     }
@@ -369,7 +369,7 @@ public:
 typedef TypedArrayObject<Uint8Adaptor, 1> Uint8ArrayObjectWrapper;
 class Uint8ArrayObject : public Uint8ArrayObjectWrapper {
 public:
-    Uint8ArrayObject(ExecutionState& state)
+    explicit Uint8ArrayObject(ExecutionState& state)
         : Uint8ArrayObjectWrapper(state)
     {
     }
@@ -381,7 +381,7 @@ public:
 typedef TypedArrayObject<Uint16Adaptor, 2> Uint16ArrayObjectWrapper;
 class Uint16ArrayObject : public Uint16ArrayObjectWrapper {
 public:
-    Uint16ArrayObject(ExecutionState& state)
+    explicit Uint16ArrayObject(ExecutionState& state)
         : Uint16ArrayObjectWrapper(state)
     {
     }
@@ -393,7 +393,7 @@ public:
 typedef TypedArrayObject<Uint32Adaptor, 4> Uint32ArrayObjectWrapper;
 class Uint32ArrayObject : public Uint32ArrayObjectWrapper {
 public:
-    Uint32ArrayObject(ExecutionState& state)
+    explicit Uint32ArrayObject(ExecutionState& state)
         : Uint32ArrayObjectWrapper(state)
     {
     }
@@ -405,7 +405,7 @@ public:
 typedef TypedArrayObject<Uint8ClampedAdaptor, 1> Uint8ClampedArrayObjectWrapper;
 class Uint8ClampedArrayObject : public Uint8ClampedArrayObjectWrapper {
 public:
-    Uint8ClampedArrayObject(ExecutionState& state)
+    explicit Uint8ClampedArrayObject(ExecutionState& state)
         : Uint8ClampedArrayObjectWrapper(state)
     {
     }
@@ -417,7 +417,7 @@ public:
 typedef TypedArrayObject<Float32Adaptor, 4> Float32ArrayObjectWrapper;
 class Float32ArrayObject : public Float32ArrayObjectWrapper {
 public:
-    Float32ArrayObject(ExecutionState& state)
+    explicit Float32ArrayObject(ExecutionState& state)
         : Float32ArrayObjectWrapper(state)
     {
     }
@@ -429,7 +429,7 @@ public:
 typedef TypedArrayObject<Float64Adaptor, 8> Float64ArrayObjectWrapper;
 class Float64ArrayObject : public Float64ArrayObjectWrapper {
 public:
-    Float64ArrayObject(ExecutionState& state)
+    explicit Float64ArrayObject(ExecutionState& state)
         : Float64ArrayObjectWrapper(state)
     {
     }

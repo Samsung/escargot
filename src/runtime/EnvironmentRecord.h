@@ -100,7 +100,7 @@ public:
         {
         }
 
-        GetBindingValueResult(const Value& v)
+        explicit GetBindingValueResult(const Value& v)
             : m_hasBindingValue(true)
             , m_value(v)
         {
@@ -175,7 +175,7 @@ protected:
 
 class ObjectEnvironmentRecord : public EnvironmentRecord {
 public:
-    ObjectEnvironmentRecord(Object* O)
+    explicit ObjectEnvironmentRecord(Object* O)
         : EnvironmentRecord()
         , m_bindingObject(O)
     {
@@ -405,7 +405,7 @@ class FunctionEnvironmentRecord : public DeclarativeEnvironmentRecord {
     friend class ByteCodeInterpreter;
 
 public:
-    ALWAYS_INLINE FunctionEnvironmentRecord(FunctionObject* function)
+    ALWAYS_INLINE explicit FunctionEnvironmentRecord(FunctionObject* function)
         : DeclarativeEnvironmentRecord()
         , m_functionObject(function)
     {
@@ -459,7 +459,7 @@ class FunctionEnvironmentRecordSimple : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
 
 public:
-    ALWAYS_INLINE FunctionEnvironmentRecordSimple(FunctionObject* function)
+    ALWAYS_INLINE explicit FunctionEnvironmentRecordSimple(FunctionObject* function)
         : FunctionEnvironmentRecord(function)
     {
     }

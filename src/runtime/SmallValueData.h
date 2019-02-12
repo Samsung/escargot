@@ -28,7 +28,7 @@ union SmallValueData {
     {
     }
 
-    SmallValueData(void* ptr)
+    explicit SmallValueData(void* ptr)
     {
         payload = (intptr_t)ptr;
     }

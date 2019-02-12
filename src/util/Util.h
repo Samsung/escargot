@@ -34,7 +34,7 @@ uint64_t timestamp(); // increase 1000 by 1 second
 
 class ProfilerTimer {
 public:
-    ProfilerTimer(const char *msg)
+    explicit ProfilerTimer(const char *msg)
     {
         m_start = longTickCount();
         m_msg = msg;

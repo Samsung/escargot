@@ -44,7 +44,7 @@ struct Error : public gc {
     String* description;
     ErrorObject::Code errorCode;
 
-    Error(String* message)
+    explicit Error(String* message)
     {
         this->name = String::emptyString;
         this->message = message;

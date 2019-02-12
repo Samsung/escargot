@@ -46,7 +46,7 @@ public:
         return true;
     }
 
-    DoubleInSmallValue(double v)
+    explicit DoubleInSmallValue(double v)
         : m_value(v)
     {
     }
@@ -169,7 +169,7 @@ public:
         m_data.payload = from.m_data.payload;
     }
 
-    SmallValue(const uint32_t& from)
+    explicit SmallValue(const uint32_t& from)
     {
         if (LIKELY(SmallValueImpl::PlatformSmiTagging::IsValidSmi(from))) {
             m_data.payload = SmallValueImpl::PlatformSmiTagging::IntToSmi(from);
@@ -183,7 +183,7 @@ public:
         fromValueForCtor(from);
     }
 
-    SmallValue(PointerValue* v)
+    explicit SmallValue(PointerValue* v)
     {
         if (v) {
             m_data.payload = (intptr_t)v;
@@ -371,7 +371,7 @@ protected:
         ASSERT(m_data.payload);
     }
 
-    SmallValue(SmallValueData v)
+    explicit SmallValue(SmallValueData v)
         : m_data(v)
     {
     }
@@ -388,7 +388,7 @@ namespace std {
 
 template <>
 struct is_fundamental<Escargot::SmallValue> {
-    operator bool() const
+    explicit operator bool() const
     {
         return true;
     }

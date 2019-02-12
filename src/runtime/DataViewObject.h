@@ -31,7 +31,7 @@ namespace Escargot {
 
 class DataViewObject : public ArrayBufferView {
 public:
-    DataViewObject(ExecutionState& state)
+    explicit DataViewObject(ExecutionState& state)
         : ArrayBufferView(state)
     {
     }

@@ -36,7 +36,7 @@ typedef Vector<void*, GCUtil::gc_malloc_ignore_off_page_allocator<void*>, 150> L
 
 class ScriptParser : public gc {
 public:
-    ScriptParser(Context* c);
+    explicit ScriptParser(Context* c);
 
     struct ScriptParseError : public gc {
         String* name;

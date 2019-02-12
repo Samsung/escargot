@@ -29,7 +29,7 @@ namespace Escargot {
 class ObjectExpressionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    ObjectExpressionNode(PropertiesNodeVector&& properties)
+    explicit ObjectExpressionNode(PropertiesNodeVector&& properties)
         : ExpressionNode()
     {
         m_properties = properties;

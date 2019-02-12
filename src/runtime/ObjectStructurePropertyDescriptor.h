@@ -177,7 +177,7 @@ protected:
             ASSERT(mode < 2);
         }
 
-        ObjectStructurePropertyDescriptorData(ObjectPropertyNativeGetterSetterData* nativeGetterSetterData)
+        explicit ObjectStructurePropertyDescriptorData(ObjectPropertyNativeGetterSetterData* nativeGetterSetterData)
         {
             m_nativeGetterSetterData = nativeGetterSetterData;
         }
@@ -247,7 +247,7 @@ protected:
         }
     }
 
-    ObjectStructurePropertyDescriptor(ObjectPropertyNativeGetterSetterData* nativeGetterSetterData)
+    explicit ObjectStructurePropertyDescriptor(ObjectPropertyNativeGetterSetterData* nativeGetterSetterData)
         : m_descriptorData(nativeGetterSetterData)
     {
     }

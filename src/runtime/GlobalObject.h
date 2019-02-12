@@ -47,7 +47,7 @@ public:
     friend class GlobalEnvironmentRecord;
     friend class IdentifierNode;
 
-    GlobalObject(ExecutionState& state)
+    explicit GlobalObject(ExecutionState& state)
         : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, false)
         , m_context(state.context())
     {

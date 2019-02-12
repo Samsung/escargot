@@ -87,15 +87,15 @@ public:
     enum FromPayloadTag { FromPayload };
 
     Value();
-    Value(ForceUninitializedTag);
-    Value(NullInitTag);
-    Value(UndefinedInitTag);
-    Value(EmptyValueInitTag);
-    Value(TrueInitTag);
-    Value(FalseInitTag);
+    explicit Value(ForceUninitializedTag);
+    explicit Value(NullInitTag);
+    explicit Value(UndefinedInitTag);
+    explicit Value(EmptyValueInitTag);
+    explicit Value(TrueInitTag);
+    explicit Value(FalseInitTag);
     explicit Value(FromPayloadTag, intptr_t ptr);
 #ifdef ESCARGOT_64
-    Value(PointerValue* ptr);
+    explicit Value(PointerValue* ptr);
     Value(const PointerValue* ptr);
 #else
     Value(PointerValue* ptr);
@@ -257,7 +257,7 @@ namespace std {
 
 template <>
 struct is_fundamental<Escargot::Value> {
-    operator bool() const
+    explicit operator bool() const
     {
         return true;
     }
