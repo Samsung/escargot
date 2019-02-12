@@ -536,7 +536,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
     }
 
     std::function<Value(String*, int, String*)> splitMatchUsingStr;
-    splitMatchUsingStr = [](String* S, int q, String* R) -> Value {
+    splitMatchUsingStr = [](String* S, int q, String* R) {
         int s = S->length();
         int r = R->length();
         if (q + r > s)
@@ -1054,8 +1054,8 @@ static Value builtinStringIterator(ExecutionState& state, Value thisValue, size_
 void GlobalObject::installString(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    m_string = new FunctionObject(state, NativeFunctionInfo(strings->String, builtinStringConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
-                                      return new StringObject(state);
+    m_string = new FunctionObject(state, NativeFunctionInfo(strings->String, builtinStringConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) {
+                                      return (new StringObject(state))->asObject();
                                   }),
                                   FunctionObject::__ForBuiltin__);
     m_string->markThisObjectDontNeedStructureTransitionTable(state);

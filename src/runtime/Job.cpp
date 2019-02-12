@@ -31,7 +31,7 @@ SandBox::SandBoxResult PromiseReactionJob::run()
 {
     SandBox sandbox(relatedContext());
     ExecutionState state(relatedContext());
-    return sandbox.run([&]() -> Value {
+    return sandbox.run([&]() {
         /* 25.4.2.1.4 Handler is "Identity" case */
         if (m_reaction.m_handler == (FunctionObject*)1) {
             Value value[] = { m_argument };
@@ -45,7 +45,7 @@ SandBox::SandBoxResult PromiseReactionJob::run()
         }
 
         SandBox sb(state.context());
-        auto res = sb.run([&]() -> Value {
+        auto res = sb.run([&]() {
             Value arguments[] = { m_argument };
             Value res = FunctionObject::call(state, m_reaction.m_handler, Value(), 1, arguments);
             Value value[] = { res };
@@ -63,12 +63,12 @@ SandBox::SandBoxResult PromiseResolveThenableJob::run()
 {
     SandBox sandbox(relatedContext());
     ExecutionState state(relatedContext());
-    return sandbox.run([&]() -> Value {
+    return sandbox.run([&]() {
         auto strings = &state.context()->staticStrings();
         PromiseReaction::Capability capability = m_promise->createResolvingFunctions(state);
 
         SandBox sb(state.context());
-        auto res = sb.run([&]() -> Value {
+        auto res = sb.run([&]() {
             Value arguments[] = { capability.m_resolveFunction, capability.m_rejectFunction };
             Value thenCallResult = FunctionObject::call(state, m_then, m_thenable, 2, arguments);
             Value value[] = { thenCallResult };

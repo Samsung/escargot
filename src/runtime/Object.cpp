@@ -717,7 +717,7 @@ void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState&
 ValueVector Object::getOwnPropertyKeys(ExecutionState& state)
 {
     ValueVector result;
-    enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+    enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
         ValueVector* result = (ValueVector*)data;
         result->pushBack(name.toPlainValue(state));
         return true;
@@ -987,7 +987,7 @@ void Object::sort(ExecutionState& state, const std::function<bool(const Value& a
         TightVector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> tempSpace;
         tempSpace.resizeWithUninitializedValues(selected.size());
 
-        mergeSort(selected.data(), selected.size(), tempSpace.data(), [&](const Value& a, const Value& b, bool* lessOrEqualp) -> bool {
+        mergeSort(selected.data(), selected.size(), tempSpace.data(), [&](const Value& a, const Value& b, bool* lessOrEqualp) {
             *lessOrEqualp = comp(a, b);
             return true;
         });

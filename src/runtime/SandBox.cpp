@@ -113,7 +113,7 @@ void ErrorObject::StackTraceData::buildStackTrace(Context* context, StringBuilde
     if (exception.isObject()) {
         ExecutionState state(context);
         SandBox sb(context);
-        sb.run([&]() -> Value {
+        sb.run([&]() {
             auto getResult = exception.asObject()->get(state, state.context()->staticStrings().name);
             if (getResult.hasValue()) {
                 builder.appendString(getResult.value(state, exception.asObject()).toString(state));

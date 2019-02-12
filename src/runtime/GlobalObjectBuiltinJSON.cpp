@@ -216,7 +216,7 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
             Object* root = new Object(state);
             root->defineOwnProperty(state, ObjectPropertyName(state, String::emptyString), ObjectPropertyDescriptor(unfiltered, ObjectPropertyDescriptor::AllPresent));
             std::function<Value(Value, const ObjectPropertyName&)> Walk;
-            Walk = [&](Value holder, const ObjectPropertyName& name) -> Value {
+            Walk = [&](Value holder, const ObjectPropertyName& name) {
                 Value val = holder.asPointerValue()->asObject()->get(state, name).value(state, holder);
                 if (val.isObject()) {
                     if (val.asObject()->isArrayObject()) {
@@ -248,7 +248,7 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
                     } else {
                         Object* object = val.asObject();
                         std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>> keys;
-                        object->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+                        object->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) {
                             if (desc.isEnumerable()) {
                                 std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>>* keys = (std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>>*)data;
                                 keys->push_back(P);
@@ -302,7 +302,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
             ArrayObject* arrObject = replacer.asObject()->asArrayObject();
 
             std::vector<Value::ValueIndex> indexes;
-            arrObject->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool { //Value key, HiddenClassPropertyInfo* propertyInfo) {
+            arrObject->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) { //Value key, HiddenClassPropertyInfo* propertyInfo) {
                 Value::ValueIndex idx = P.toPlainValue(state).toIndex(state);
                 if (idx != Value::InvalidIndexValue) {
                     std::vector<Value::ValueIndex>* indexes = (std::vector<Value::ValueIndex>*)data;
@@ -429,7 +429,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         return Value();
     };
 
-    Quote = [&](ObjectPropertyName value) -> String* {
+    Quote = [&](ObjectPropertyName value) {
         String* str = value.toPropertyName(state).plainString();
 
         StringBuilder product;
@@ -467,7 +467,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         return product.finalize(&state);
     };
 
-    JA = [&](ArrayObject* arrayObj) -> String* {
+    JA = [&](ArrayObject* arrayObj) {
         // 1
         for (size_t i = 0; i < stack.size(); i++) {
             Value& v = stack[i];
@@ -538,7 +538,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         return final.finalize(&state);
     };
 
-    JO = [&](Object* value) -> String* {
+    JO = [&](Object* value) {
         // 1
         for (size_t i = 0; i < stack.size(); i++) {
             if (stack[i] == value) {
@@ -559,7 +559,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         if (propertyListTouched) {
             k = propertyList;
         } else {
-            value->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+            value->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) {
                 std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>>* k = (std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>>*)data;
                 if (desc.isEnumerable()) {
                     k->push_back(P);

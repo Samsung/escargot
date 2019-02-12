@@ -464,7 +464,7 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
                                                              "Infinity", "NaN");
         val = converter.StringToDouble(buf, len, &end);
         if (static_cast<size_t>(end) != len) {
-            auto isSpace = [](char16_t c) -> bool {
+            auto isSpace = [](char16_t c) {
                 switch (c) {
                 case 0x0009:
                 case 0x000A:

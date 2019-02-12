@@ -1653,7 +1653,7 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
     size_t ownKeyCount = 0;
     bool shouldSearchProto = false;
 
-    target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+    target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data) {
         if (desc.isEnumerable()) {
             size_t* ownKeyCount = (size_t*)data;
             (*ownKeyCount)++;
@@ -1671,7 +1671,7 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
     target = target.asObject()->getPrototype(state);
     while (target.isObject()) {
         if (!shouldSearchProto) {
-            target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+            target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
                 if (desc.isEnumerable()) {
                     bool* shouldSearchProto = (bool*)data;
                     *shouldSearchProto = true;
@@ -1700,7 +1700,7 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
 
     if (shouldSearchProto) {
         while (target.isObject()) {
-            target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+            target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
                 EData* eData = (EData*)data;
                 if (desc.isEnumerable()) {
                     String* key = name.toPlainValue(state).toString(state);
@@ -1725,7 +1725,7 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
         size_t idx = 0;
         eData.idx = &idx;
         data->m_keys.resizeWithUninitializedValues(ownKeyCount);
-        target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+        target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
             if (desc.isEnumerable()) {
                 EData* eData = (EData*)data;
                 eData->data->m_keys[(*eData->idx)++] = name.toPlainValue(state);

@@ -243,10 +243,10 @@ void GlobalObject::installFunction(ExecutionState& state)
     m_functionPrototype->setPrototype(state, m_objectPrototype);
     m_functionPrototype->markThisObjectDontNeedStructureTransitionTable(state);
 
-    m_function = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
+    m_function = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) {
                                         // create dummy object.
                                         // this object is replaced in function ctor
-                                        return new FunctionObject(state, NativeFunctionInfo(AtomicString(), builtinFunctionConstructor, 0, nullptr, 0));
+                                        return (new FunctionObject(state, NativeFunctionInfo(AtomicString(), builtinFunctionConstructor, 0, nullptr, 0)))->asObject();
                                     }),
                                     FunctionObject::__ForBuiltin__);
     m_function->markThisObjectDontNeedStructureTransitionTable(state);

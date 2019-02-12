@@ -148,8 +148,8 @@ static Value builtinWeakMapSet(ExecutionState& state, Value thisValue, size_t ar
 
 void GlobalObject::installWeakMap(ExecutionState& state)
 {
-    m_weakMap = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakMap, builtinWeakMapConstructor, 0, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
-                                       return new WeakMapObject(state);
+    m_weakMap = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakMap, builtinWeakMapConstructor, 0, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) {
+                                       return (new WeakMapObject(state))->asObject();
                                    }),
                                    FunctionObject::__ForBuiltin__);
     m_weakMap->markThisObjectDontNeedStructureTransitionTable(state);

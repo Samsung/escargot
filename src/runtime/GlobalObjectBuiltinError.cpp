@@ -125,8 +125,8 @@ static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t
 
 void GlobalObject::installError(ExecutionState& state)
 {
-    m_error = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Error, builtinErrorConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
-                                     return new ErrorObject(state, String::emptyString);
+    m_error = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Error, builtinErrorConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) {
+                                     return (new ErrorObject(state, String::emptyString))->asObject();
                                  }),
                                  FunctionObject::__ForBuiltin__);
     m_error->markThisObjectDontNeedStructureTransitionTable(state);

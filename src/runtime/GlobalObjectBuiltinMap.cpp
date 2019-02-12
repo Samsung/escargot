@@ -203,8 +203,8 @@ static Value builtinMapIteratorNext(ExecutionState& state, Value thisValue, size
 
 void GlobalObject::installMap(ExecutionState& state)
 {
-    m_map = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Map, builtinMapConstructor, 0, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
-                                   return new MapObject(state);
+    m_map = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Map, builtinMapConstructor, 0, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) {
+                                   return (new MapObject(state))->asObject();
                                }),
                                FunctionObject::__ForBuiltin__);
     m_map->markThisObjectDontNeedStructureTransitionTable(state);

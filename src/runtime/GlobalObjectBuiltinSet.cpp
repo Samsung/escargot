@@ -181,8 +181,8 @@ static Value builtinSetIteratorNext(ExecutionState& state, Value thisValue, size
 
 void GlobalObject::installSet(ExecutionState& state)
 {
-    m_set = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Set, builtinSetConstructor, 0, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
-                                   return new SetObject(state);
+    m_set = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Set, builtinSetConstructor, 0, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) {
+                                   return (new SetObject(state))->asObject();
                                }),
                                FunctionObject::__ForBuiltin__);
     m_set->markThisObjectDontNeedStructureTransitionTable(state);

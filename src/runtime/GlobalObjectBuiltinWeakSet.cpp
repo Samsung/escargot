@@ -126,8 +126,8 @@ static Value builtinWeakSetHas(ExecutionState& state, Value thisValue, size_t ar
 
 void GlobalObject::installWeakSet(ExecutionState& state)
 {
-    m_weakSet = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakSet, builtinWeakSetConstructor, 0, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
-                                       return new WeakSetObject(state);
+    m_weakSet = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakSet, builtinWeakSetConstructor, 0, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) {
+                                       return (new WeakSetObject(state))->asObject();
                                    }),
                                    FunctionObject::__ForBuiltin__);
     m_weakSet->markThisObjectDontNeedStructureTransitionTable(state);

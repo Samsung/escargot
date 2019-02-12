@@ -211,7 +211,7 @@ void ArrayObject::sort(ExecutionState& state, const std::function<bool(const Val
                 TightVector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> tempSpace;
                 tempSpace.resizeWithUninitializedValues(orgLength);
 
-                mergeSort(tempBuffer, orgLength, tempSpace.data(), [&](const Value& a, const Value& b, bool* lessOrEqualp) -> bool {
+                mergeSort(tempBuffer, orgLength, tempSpace.data(), [&](const Value& a, const Value& b, bool* lessOrEqualp) {
                     *lessOrEqualp = comp(a, b);
                     return true;
                 });

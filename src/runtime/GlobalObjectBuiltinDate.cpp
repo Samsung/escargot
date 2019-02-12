@@ -505,8 +505,8 @@ static Value builtinDateToPrimitive(ExecutionState& state, Value thisValue, size
 
 void GlobalObject::installDate(ExecutionState& state)
 {
-    m_date = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Date, builtinDateConstructor, 7, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
-                                    return new DateObject(state);
+    m_date = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Date, builtinDateConstructor, 7, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) {
+                                    return (new DateObject(state))->asObject();
                                 }),
                                 FunctionObject::__ForBuiltin__);
     m_date->markThisObjectDontNeedStructureTransitionTable(state);

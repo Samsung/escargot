@@ -631,8 +631,8 @@ template <typename TA, int elementSize>
 FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    FunctionObject* taConstructor = new FunctionObject(state, NativeFunctionInfo(taName, builtinTypedArrayConstructor<TA, elementSize>, 3, [](ExecutionState& state, CodeBlock* cb, size_t argc, Value* argv) -> Object* {
-                                                           return new TA(state);
+    FunctionObject* taConstructor = new FunctionObject(state, NativeFunctionInfo(taName, builtinTypedArrayConstructor<TA, elementSize>, 3, [](ExecutionState& state, CodeBlock* cb, size_t argc, Value* argv) {
+                                                           return (new TA(state))->asObject();
                                                        }),
                                                        FunctionObject::__ForBuiltin__);
     taConstructor->markThisObjectDontNeedStructureTransitionTable(state);
@@ -692,8 +692,8 @@ static Value builtinTypedArrayGetToStringTag(ExecutionState& state, Value thisVa
 
 void GlobalObject::installTypedArray(ExecutionState& state)
 {
-    m_arrayBuffer = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().ArrayBuffer, builtinArrayBufferConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
-                                           return new ArrayBufferObject(state);
+    m_arrayBuffer = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().ArrayBuffer, builtinArrayBufferConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) {
+                                           return (new ArrayBufferObject(state))->asObject();
                                        }),
                                        FunctionObject::__ForBuiltin__);
     m_arrayBuffer->markThisObjectDontNeedStructureTransitionTable(state);
@@ -726,7 +726,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                       ObjectPropertyDescriptor(m_arrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // %TypedArray%
-    FunctionObject* typedArrayFunction = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().TypedArray, builtinTypedArrayConstructor, 0, [](ExecutionState& state, CodeBlock* cb, size_t argc, Value* argv) -> Object* {
+    FunctionObject* typedArrayFunction = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().TypedArray, builtinTypedArrayConstructor, 0, [](ExecutionState& state, CodeBlock* cb, size_t argc, Value* argv) {
                                                                 return new Object(state);
                                                             },
                                                                                       (NativeFunctionInfo::Flags)(NativeFunctionInfo::Strict | NativeFunctionInfo::Constructor)),

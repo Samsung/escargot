@@ -104,7 +104,7 @@ static Value objectDefineProperties(ExecutionState& state, Value object, Value p
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Object.string(), false, strings->defineProperty.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
     Object* props = properties.toObject(state);
     std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, gc_allocator_ignore_off_page<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>> descriptors;
-    props->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+    props->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
         auto propDesc = self->getOwnProperty(state, name);
         std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, gc_allocator_ignore_off_page<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>>* descriptors = (std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, gc_allocator_ignore_off_page<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>>*)data;
         if (propDesc.hasValue() && desc.isEnumerable()) {
@@ -278,7 +278,7 @@ static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t 
 
     // For each named own property name P of O,
     std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>> descriptors;
-    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) {
         std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>* descriptors = (std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>*)data;
         descriptors->push_back(std::make_pair(P, desc));
         return true;
@@ -357,7 +357,7 @@ static Value builtinObjectGetOwnPropertyNames(ExecutionState& state, Value thisV
     data.array = array;
     data.n = &n;
     // For each named own property P of O
-    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) {
         Data* a = (Data*)data;
         // Let name be the String value that is the name of P.
         Value name = P.toPlainValue(state).toString(state);
@@ -389,7 +389,7 @@ static Value builtinObjectGetOwnPropertySymbols(ExecutionState& state, Value thi
     data.array = array;
     data.n = &n;
     // For each named own property P of O
-    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) {
         Data* a = (Data*)data;
         // Let name be the String value that is the name of P.
         Value name = P.toPlainValue(state);
@@ -427,7 +427,7 @@ static Value builtinObjectIsFrozen(ExecutionState& state, Value thisValue, size_
 
     bool hasNonFrozenProperty = false;
     // For each named own property name P of O,
-    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) {
         if ((desc.isDataProperty() && desc.isWritable()) || desc.isConfigurable()) {
             bool* hasNonFrozenProperty = (bool*)data;
             *hasNonFrozenProperty = true;
@@ -457,7 +457,7 @@ static Value builtinObjectIsSealed(ExecutionState& state, Value thisValue, size_
 
     bool hasNonSealedProperty = false;
     // For each named own property name P of O,
-    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) {
         // Let desc be the result of calling the [[GetOwnProperty]] internal method of O with P.
         // If desc.[[Configurable]] is true, then return false.
         if (desc.isConfigurable()) {
@@ -501,7 +501,7 @@ static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t ar
     data.index = &index;
 
     // For each own enumerable property of O whose name String is P
-    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) {
         if (desc.isEnumerable()) {
             Data* aData = (Data*)data;
             // Call the [[DefineOwnProperty]] internal method of array with arguments ToString(index), the PropertyDescriptor {[[Value]]: P, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
@@ -527,7 +527,7 @@ static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t ar
 
     // For each named own property name P of O,
     std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>> descriptors;
-    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) {
         std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>>* descriptors = (std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>>*)data;
         descriptors->push_back(std::make_pair(P, desc));
         return true;
@@ -672,7 +672,7 @@ static ValueVector enumerableOwnProperties(ExecutionState& state, Object* O, Enu
         }
     }
 
-    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& keyName, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& keyName, const ObjectStructurePropertyDescriptor& desc, void* data) {
         Data* d = (Data*)data;
         Value vv = keyName.toPlainValue(state);
         if (vv.toArrayIndex(state) != Value::InvalidArrayIndexValue) {
@@ -737,7 +737,7 @@ void GlobalObject::installObject(ExecutionState& state)
     const StaticStrings& strings = state.context()->staticStrings();
 
     FunctionObject* emptyFunction = m_functionPrototype;
-    m_object = new FunctionObject(state, NativeFunctionInfo(strings.Object, builtinObjectConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
+    m_object = new FunctionObject(state, NativeFunctionInfo(strings.Object, builtinObjectConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) {
                                       return new Object(state);
                                   }),
                                   FunctionObject::__ForBuiltin__);

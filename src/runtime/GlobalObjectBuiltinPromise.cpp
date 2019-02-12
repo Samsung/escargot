@@ -33,7 +33,7 @@ namespace Escargot {
 static SandBox::SandBoxResult tryCallMethodAndCatchError(ExecutionState& state, ObjectPropertyName name, Value receiver, Value arguments[], const size_t& argumentCount, bool isNewExpression)
 {
     SandBox sb(state.context());
-    return sb.run([&]() -> Value {
+    return sb.run([&]() {
         Value callee = receiver.toObject(state)->get(state, name).value(state, receiver);
         return FunctionObject::call(state, callee, receiver, argumentCount, arguments);
     });
@@ -58,7 +58,7 @@ static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, s
     PromiseReaction::Capability capability = promise->createResolvingFunctions(state);
 
     SandBox sb(state.context());
-    auto res = sb.run([&]() -> Value {
+    auto res = sb.run([&]() {
         Value arguments[] = { capability.m_resolveFunction, capability.m_rejectFunction };
         FunctionObject::call(state, executor, Value(), 2, arguments);
         return Value();
@@ -170,7 +170,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
             remainingElementsCount->setThrowsException(state, strings->value, Value(remainingElements - 1), remainingElementsCount);
             if (remainingElements == 1) {
                 SandBox sb(state.context());
-                auto res = sb.run([&]() -> Value {
+                auto res = sb.run([&]() {
                     Value arguments[] = { values };
                     FunctionObject::call(state, capability.m_resolveFunction, Value(), 1, arguments);
                     return Value();
@@ -383,7 +383,7 @@ Value promiseResolveFunction(ExecutionState& state, Value thisValue, size_t argc
     Object* resolution = resolutionValue.asObject();
 
     SandBox sb(state.context());
-    auto res = sb.run([&]() -> Value {
+    auto res = sb.run([&]() {
         return resolution->get(state, strings->then).value(state, resolution);
     });
     if (!res.error.isEmpty()) {
@@ -454,8 +454,8 @@ static Value builtinPromiseToString(ExecutionState& state, Value thisValue, size
 void GlobalObject::installPromise(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    m_promise = new FunctionObject(state, NativeFunctionInfo(strings->Promise, builtinPromiseConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
-                                       return new PromiseObject(state);
+    m_promise = new FunctionObject(state, NativeFunctionInfo(strings->Promise, builtinPromiseConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) {
+                                       return (new PromiseObject(state))->asObject();
                                    }),
                                    FunctionObject::__ForBuiltin__);
     m_promise->markThisObjectDontNeedStructureTransitionTable(state);

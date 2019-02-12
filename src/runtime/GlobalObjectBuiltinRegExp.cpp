@@ -141,8 +141,8 @@ static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t
 }
 
 GlobalRegExpFunctionObject::GlobalRegExpFunctionObject(ExecutionState& state)
-    : FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().RegExp, builtinRegExpConstructor, 2, [](ExecutionState& state, CodeBlock * codeBlock, size_t argc, Value * argv) -> Object* {
-                         return new RegExpObject(state, String::emptyString, String::emptyString);
+    : FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().RegExp, builtinRegExpConstructor, 2, [](ExecutionState& state, CodeBlock * codeBlock, size_t argc, Value * argv) {
+                         return (new RegExpObject(state, String::emptyString, String::emptyString))->asObject();
                      }),
                      FunctionObject::__ForBuiltin__)
 {

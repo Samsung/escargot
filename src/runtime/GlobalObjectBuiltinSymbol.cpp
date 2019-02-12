@@ -120,7 +120,7 @@ Value builtinSymbolKeyFor(ExecutionState& state, Value thisValue, size_t argc, V
 
 void GlobalObject::installSymbol(ExecutionState& state)
 {
-    m_symbol = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Symbol, builtinSymbolConstructor, 0, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
+    m_symbol = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Symbol, builtinSymbolConstructor, 0, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) {
                                       return new Object(state);
                                   }),
                                   FunctionObject::__ForBuiltin__);

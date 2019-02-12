@@ -89,7 +89,7 @@ Script::ScriptSandboxExecuteResult Script::sandboxExecute(ExecutionState& state)
     SandBox sb(state.context());
     ExecutionState stateForInit(state.context(), &state, nullptr);
 
-    auto sandBoxResult = sb.run([&]() -> Value {
+    auto sandBoxResult = sb.run([&]() {
         return execute(stateForInit, false, false, true);
     });
     result.result = sandBoxResult.result;

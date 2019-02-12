@@ -422,7 +422,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
     std::sort(
         extensions.begin(),
         extensions.end(),
-        [](const std::string& a, const std::string& b) -> bool {
+        [](const std::string& a, const std::string& b) {
             return a[0] < b[0];
         });
     size_t numExtenstions = extensions.size();
@@ -2552,7 +2552,7 @@ void GlobalObject::installIntl(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(strings->Intl),
                       ObjectPropertyDescriptor(m_intl, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_intlCollator = new FunctionObject(state, NativeFunctionInfo(strings->Collator, builtinIntlCollatorConstructor, 0, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
+    m_intlCollator = new FunctionObject(state, NativeFunctionInfo(strings->Collator, builtinIntlCollatorConstructor, 0, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) {
                                             return new Object(state);
                                         }),
                                         FunctionObject::__ForBuiltin__);
@@ -2567,7 +2567,7 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlCollator->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlCollatorSupportedLocalesOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
-    m_intlDateTimeFormat = new FunctionObject(state, NativeFunctionInfo(strings->DateTimeFormat, builtinIntlDateTimeFormatConstructor, 0, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
+    m_intlDateTimeFormat = new FunctionObject(state, NativeFunctionInfo(strings->DateTimeFormat, builtinIntlDateTimeFormatConstructor, 0, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) {
                                                   return new Object(state);
                                               }),
                                               FunctionObject::__ForBuiltin__);
@@ -2582,7 +2582,7 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlDateTimeFormat->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
                                             ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlDateTimeFormatSupportedLocalesOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
-    m_intlNumberFormat = new FunctionObject(state, NativeFunctionInfo(strings->NumberFormat, builtinIntlNumberFormatConstructor, 0, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
+    m_intlNumberFormat = new FunctionObject(state, NativeFunctionInfo(strings->NumberFormat, builtinIntlNumberFormatConstructor, 0, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) {
                                                 return new Object(state);
                                             }),
                                             FunctionObject::__ForBuiltin__);

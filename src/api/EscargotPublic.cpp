@@ -757,7 +757,7 @@ bool ObjectRef::defineAccessorProperty(ExecutionStateRef* state, ValueRef* prope
 
 bool ObjectRef::defineNativeDataAccessorProperty(ExecutionStateRef* state, ValueRef* propertyName, NativeDataAccessorPropertyData* publicData)
 {
-    ObjectPropertyNativeGetterSetterData* innerData = new ObjectPropertyNativeGetterSetterData(publicData->m_isWritable, publicData->m_isEnumerable, publicData->m_isConfigurable, [](ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* innerData = new ObjectPropertyNativeGetterSetterData(publicData->m_isWritable, publicData->m_isEnumerable, publicData->m_isConfigurable, [](ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea) {
         NativeDataAccessorPropertyData* publicData = reinterpret_cast<NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
         return toImpl(publicData->m_getter(toRef(&state), toRef(self), publicData));
     },
@@ -766,11 +766,11 @@ bool ObjectRef::defineNativeDataAccessorProperty(ExecutionStateRef* state, Value
     if (!publicData->m_isWritable) {
         innerData->m_setter = nullptr;
     } else if (publicData->m_isWritable && !publicData->m_setter) {
-        innerData->m_setter = [](ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData) -> bool {
+        innerData->m_setter = [](ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData) {
             return false;
         };
     } else {
-        innerData->m_setter = [](ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData) -> bool {
+        innerData->m_setter = [](ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData) {
             NativeDataAccessorPropertyData* publicData = reinterpret_cast<NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
             // ExecutionStateRef* state, ObjectRef* self, NativeDataAccessorPropertyData* data, ValueRef* setterInputData
             return publicData->m_setter(toRef(&state), toRef(self), publicData, toRef(setterInputData));
@@ -849,7 +849,7 @@ void ObjectRef::removeFromHiddenClassChain(ExecutionStateRef* state)
 
 void ObjectRef::enumerateObjectOwnProperies(ExecutionStateRef* state, const std::function<bool(ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>& cb)
 {
-    toImpl(this)->enumeration(*toImpl(state), [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+    toImpl(this)->enumeration(*toImpl(state), [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
         const std::function<bool(ExecutionStateRef * state, ValueRef * propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>* cb
             = (const std::function<bool(ExecutionStateRef * state, ValueRef * propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>*)data;
         return (*cb)(toRef(&state), toRef(name.toPlainValue(state)), desc.isWritable(), desc.isEnumerable(), desc.isConfigurable());
@@ -1183,7 +1183,7 @@ static FunctionObjectRef* createFunction(ExecutionStateRef* state, FunctionObjec
     data->m_publicFn = info.m_nativeFunction;
     if (info.m_isConstructor && info.m_nativeFunctionConstructor) {
         data->m_publicCtor = info.m_nativeFunctionConstructor;
-        data->m_ctorFn = [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
+        data->m_ctorFn = [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) {
             ValueRef** newArgv = ALLOCA(sizeof(ValueRef*) * argc, ValueRef*, state);
             for (size_t i = 0; i < argc; i++) {
                 newArgv[i] = toRef(argv[i]);
@@ -1192,7 +1192,7 @@ static FunctionObjectRef* createFunction(ExecutionStateRef* state, FunctionObjec
         };
     } else if (info.m_isConstructor) {
         data->m_publicCtor = nullptr;
-        data->m_ctorFn = [](ExecutionState& state, CodeBlock* cb, size_t argc, Value* argv) -> Object* {
+        data->m_ctorFn = [](ExecutionState& state, CodeBlock* cb, size_t argc, Value* argv) {
             return new Object(state);
         };
     } else {
@@ -1326,7 +1326,7 @@ static SandBoxRef::SandBoxResult toSandBoxResultRef(SandBox::SandBoxResult& resu
 
 SandBoxRef::SandBoxResult SandBoxRef::run(const std::function<ValueRef*(ExecutionStateRef* state)>& scriptRunner)
 {
-    auto result = toImpl(this)->run([&]() -> Value {
+    auto result = toImpl(this)->run([&]() {
         ExecutionState state(toImpl(this)->context());
         return toImpl(scriptRunner(toRef(&state)));
     });
@@ -1355,7 +1355,7 @@ void ContextRef::setVirtualIdentifierCallback(VirtualIdentifierCallback cb)
 {
     Context* ctx = toImpl(this);
     ctx->m_virtualIdentifierCallbackPublic = (void*)cb;
-    ctx->setVirtualIdentifierCallback([](ExecutionState& state, Value name) -> Value {
+    ctx->setVirtualIdentifierCallback([](ExecutionState& state, Value name) {
         if (state.context()->m_virtualIdentifierCallbackPublic) {
             if (!name.isSymbol()) {
                 return toImpl(((VirtualIdentifierCallback)state.context()->m_virtualIdentifierCallbackPublic)(toRef(&state), toRef(name)));
@@ -1375,7 +1375,7 @@ void ContextRef::setSecurityPolicyCheckCallback(SecurityPolicyCheckCallback cb)
 {
     Context* ctx = toImpl(this);
     ctx->m_securityPolicyCheckCallbackPublic = (void*)cb;
-    ctx->setSecurityPolicyCheckCallback([](ExecutionState& state, bool isEval) -> Value {
+    ctx->setSecurityPolicyCheckCallback([](ExecutionState& state, bool isEval) {
         if (state.context()->m_securityPolicyCheckCallbackPublic) {
             return toImpl(((SecurityPolicyCheckCallback)state.context()->m_securityPolicyCheckCallbackPublic)(toRef(&state), isEval));
         }

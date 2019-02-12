@@ -347,7 +347,7 @@ static Value builtinArraySort(ExecutionState& state, Value thisValue, size_t arg
     }
     bool defaultSort = (argc == 0) || cmpfn.isUndefined();
 
-    thisObject->sort(state, [defaultSort, &cmpfn, &state](const Value& a, const Value& b) -> bool {
+    thisObject->sort(state, [defaultSort, &cmpfn, &state](const Value& a, const Value& b) {
         if (a.isEmpty() && b.isUndefined())
             return false;
         if (a.isUndefined() && b.isEmpty())
@@ -1558,8 +1558,8 @@ static Value builtinArrayIteratorNext(ExecutionState& state, Value thisValue, si
 
 void GlobalObject::installArray(ExecutionState& state)
 {
-    m_array = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Array, builtinArrayConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
-                                     return new ArrayObject(state);
+    m_array = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Array, builtinArrayConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) {
+                                     return (new ArrayObject(state))->asObject();
                                  }),
                                  FunctionObject::__ForBuiltin__);
     m_array->markThisObjectDontNeedStructureTransitionTable(state);
