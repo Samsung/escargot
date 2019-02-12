@@ -84,7 +84,7 @@ public:
         context->m_feCounter++;
     }
 
-protected:
+private:
     FunctionNode m_function;
     bool m_expression;
     // defaults: [ Expression ];

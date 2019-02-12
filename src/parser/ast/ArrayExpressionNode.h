@@ -93,7 +93,7 @@ public:
         }
     }
 
-protected:
+private:
     ExpressionNodeVector m_elements;
     AtomicString m_additionalPropertyName;
     RefPtr<Node> m_additionalPropertyExpression;
