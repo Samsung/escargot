@@ -30,8 +30,8 @@
 #include "StringObject.h"
 #include "NumberObject.h"
 #include "DateObject.h"
+#include "parser/Lexer.h"
 #include "parser/ScriptParser.h"
-#include "parser/esprima_cpp/esprima.h"
 #include "heap/LeakCheckerBridge.h"
 #include "EnvironmentRecord.h"
 #include "Environment.h"
@@ -335,8 +335,7 @@ static Value builtinParseInt(ExecutionState& state, Value thisValue, size_t argc
     unsigned strLen = s->length();
 
     for (; p < strLen; p++) {
-        char16_t c = s->charAt(p);
-        if (!(esprima::isWhiteSpace(c) || esprima::isLineTerminator(c)))
+        if (!(EscargotLexer::isWhiteSpaceOrLineTerminator(s->charAt(p))))
             break;
     }
 
@@ -424,8 +423,7 @@ static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t ar
     unsigned len = s->length();
 
     for (; p < len; p++) {
-        char16_t c = s->charAt(p);
-        if (!(esprima::isWhiteSpace(c) || esprima::isLineTerminator(c)))
+        if (!(EscargotLexer::isWhiteSpaceOrLineTerminator(s->charAt(p))))
             break;
     }
 

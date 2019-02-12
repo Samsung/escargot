@@ -148,6 +148,42 @@ enum KeywordKind {
     KeywordKindEnd
 };
 
+enum {
+    LexerIsCharIdentStart = (1 << 0),
+    LexerIsCharIdent = (1 << 1),
+    LexerIsCharWhiteSpace = (1 << 2),
+    LexerIsCharLineTerminator = (1 << 3)
+};
+
+extern char g_asciiRangeCharMap[128];
+
+// ECMA-262 11.2 White Space
+NEVER_INLINE bool isWhiteSpaceSlowCase(char16_t ch);
+ALWAYS_INLINE bool isWhiteSpace(char16_t ch)
+{
+    if (LIKELY(ch < 128)) {
+        return g_asciiRangeCharMap[ch] & LexerIsCharWhiteSpace;
+    }
+    return isWhiteSpaceSlowCase(ch);
+}
+
+// ECMA-262 11.3 Line Terminators
+ALWAYS_INLINE bool isLineTerminator(char16_t ch)
+{
+    if (LIKELY(ch < 128)) {
+        return g_asciiRangeCharMap[ch] & LexerIsCharLineTerminator;
+    }
+    return UNLIKELY(ch == 0x2028 || ch == 0x2029);
+}
+
+ALWAYS_INLINE bool isWhiteSpaceOrLineTerminator(char16_t ch)
+{
+    if (LIKELY(ch < 128)) {
+        return g_asciiRangeCharMap[ch] & (LexerIsCharWhiteSpace | LexerIsCharLineTerminator);
+    }
+    return UNLIKELY(ch == 0x2028 || ch == 0x2029 || isWhiteSpaceSlowCase(ch));
+}
+
 struct ScanTemplteResult : public gc {
     UTF16StringData valueCooked;
     StringView raw;
@@ -367,9 +403,9 @@ public:
         while (LIKELY(!this->eof())) {
             char16_t ch = this->source.bufferedCharAt(this->index);
 
-            if (esprima::isWhiteSpace(ch)) {
+            if (isWhiteSpace(ch)) {
                 ++this->index;
-            } else if (esprima::isLineTerminator(ch)) {
+            } else if (isLineTerminator(ch)) {
                 ++this->index;
                 if (ch == 0x0D && this->source.bufferedCharAt(this->index) == 0x0A) {
                     ++this->index;
