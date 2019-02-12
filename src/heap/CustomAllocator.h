@@ -82,14 +82,14 @@ public:
         typedef CustomAllocator<GC_Tp1> other;
     };
 
-    CustomAllocator() throw() {}
-    CustomAllocator(const CustomAllocator&) throw() {}
+    CustomAllocator() noexcept {}
+    CustomAllocator(const CustomAllocator&) noexcept {}
 #if !(GC_NO_MEMBER_TEMPLATES || 0 < _MSC_VER && _MSC_VER <= 1200)
     // MSVC++ 6.0 do not support member templates
     template <class GC_Tp1>
-    CustomAllocator(const CustomAllocator<GC_Tp1>&) throw() {}
+    CustomAllocator(const CustomAllocator<GC_Tp1>&) noexcept {}
 #endif
-    ~CustomAllocator() throw()
+    ~CustomAllocator() noexcept
     {
     }
 
@@ -105,7 +105,7 @@ public:
         GC_FREE(__p);
     }
 
-    size_type max_size() const throw()
+    size_type max_size() const noexcept
     {
         return size_t(-1) / sizeof(GC_Tp);
     }
