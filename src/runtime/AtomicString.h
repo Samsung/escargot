@@ -41,13 +41,13 @@ class AtomicString : public gc {
 
 public:
     inline AtomicString()
+        : m_string(String::emptyString)
     {
-        m_string = String::emptyString;
     }
 
     inline AtomicString(const AtomicString& src)
+        : m_string(src.m_string)
     {
-        m_string = src.m_string;
     }
 
     static AtomicString fromPayload(void* payload)

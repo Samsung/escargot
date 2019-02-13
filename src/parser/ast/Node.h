@@ -137,8 +137,8 @@ enum ASTNodeType {
 struct NodeLOC {
     size_t index;
     explicit NodeLOC(size_t index)
+        : index(index)
     {
-        this->index = index;
     }
 };
 
@@ -154,10 +154,10 @@ struct ExtendedNodeLOC {
     size_t index;
 
     ExtendedNodeLOC(size_t line, size_t column, size_t index)
+        : line(line)
+        , column(column)
+        , index(index)
     {
-        this->line = line;
-        this->column = column;
-        this->index = index;
     }
 };
 
@@ -399,17 +399,24 @@ struct ASTScopeContext : public gc {
     }
 
     explicit ASTScopeContext(bool isStrict = false)
-        : m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+        : m_isStrict(isStrict)
+        , m_hasEval(false)
+        , m_hasWith(false)
+        , m_hasCatch(false)
+        , m_hasYield(false)
+        , m_hasEvaluateBindingId(false)
+        , m_inCatch(false)
+        , m_inWith(false)
+        , m_isArrowFunctionExpression(false)
+        , m_hasManyNumeralLiteral(false)
+        , m_needsSpecialInitialize(false)
+        , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 #ifndef NDEBUG
         , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 #else
         , m_locEnd(SIZE_MAX)
 #endif
     {
-        m_isStrict = isStrict;
-        m_hasEvaluateBindingId = m_hasYield = m_hasCatch = m_hasWith = m_hasEval = false;
-        m_needsSpecialInitialize = m_hasManyNumeralLiteral = m_inCatch = m_inWith = false;
-        m_isArrowFunctionExpression = false;
     }
 };
 

@@ -30,8 +30,8 @@ class LiteralNode : public ExpressionNode {
 public:
     explicit LiteralNode(Value value)
         : ExpressionNode()
+        , m_value(value)
     {
-        m_value = value;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::Literal; }

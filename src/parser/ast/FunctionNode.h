@@ -29,12 +29,12 @@ namespace Escargot {
 class FunctionNode {
 public:
     FunctionNode(const AtomicString& id, PatternNodeVector&& params, Node* body, ASTScopeContext* scopeContext, bool isGenerator, Node* node)
+        : m_isGenerator(isGenerator)
+        , m_id(id)
+        , m_params(std::move(params))
+        , m_body(body)
+        , m_scopeContext(scopeContext)
     {
-        m_id = id;
-        m_params = std::move(params);
-        m_body = body;
-        m_isGenerator = isGenerator;
-        m_scopeContext = scopeContext;
         m_scopeContext->m_nodeType = node->type();
     }
     ~FunctionNode()

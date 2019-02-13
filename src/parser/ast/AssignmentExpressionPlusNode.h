@@ -34,9 +34,9 @@ public:
 
     AssignmentExpressionPlusNode(Node* left, Node* right)
         : ExpressionNode()
+        , m_left(left)
+        , m_right(right)
     {
-        m_left = left;
-        m_right = right;
     }
 
     virtual ~AssignmentExpressionPlusNode()

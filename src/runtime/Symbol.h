@@ -29,9 +29,9 @@ extern size_t g_symbolTag;
 class Symbol : public PointerValue {
 public:
     explicit Symbol(String* desc = String::emptyString)
+        : m_tag(POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA)
+        , m_description(desc)
     {
-        m_tag = POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA;
-        m_description = desc;
     }
 
     virtual bool isSymbol() const

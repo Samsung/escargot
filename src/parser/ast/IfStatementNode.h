@@ -29,10 +29,10 @@ public:
     friend class ScriptParser;
     IfStatementNode(Node* test, Node* consequente, Node* alternate)
         : StatementNode()
+        , m_test((ExpressionNode*)test)
+        , m_consequente((StatementNode*)consequente)
+        , m_alternate((StatementNode*)alternate)
     {
-        m_test = (ExpressionNode*)test;
-        m_consequente = (StatementNode*)consequente;
-        m_alternate = (StatementNode*)alternate;
     }
 
     virtual ~IfStatementNode()

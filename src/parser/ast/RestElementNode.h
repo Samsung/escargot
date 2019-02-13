@@ -29,8 +29,8 @@ class RestElementNode : public Node {
 public:
     explicit RestElementNode(IdentifierNode* argument)
         : Node()
+        , m_argument(argument)
     {
-        m_argument = argument;
     }
 
     virtual ~RestElementNode()

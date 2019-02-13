@@ -29,8 +29,8 @@ public:
     friend class ScriptParser;
     explicit BreakLabelStatementNode(String* label)
         : StatementNode()
+        , m_label(label)
     {
-        m_label = label;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::BreakLabelStatement; }

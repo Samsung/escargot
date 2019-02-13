@@ -352,17 +352,19 @@ public:
 
 struct EXPORT ExposableObjectGetOwnPropertyCallbackResult {
     ExposableObjectGetOwnPropertyCallbackResult()
+        : m_value(ValueRef::createEmpty())
+        , m_isWritable(false)
+        , m_isEnumerable(false)
+        , m_isConfigurable(false)
     {
-        m_value = ValueRef::createEmpty();
-        m_isWritable = m_isEnumerable = m_isConfigurable = false;
     }
 
     ExposableObjectGetOwnPropertyCallbackResult(ValueRef* value, bool isWritable, bool isEnumerable, bool isConfigurable)
+        : m_value(value)
+        , m_isWritable(isWritable)
+        , m_isEnumerable(isEnumerable)
+        , m_isConfigurable(isConfigurable)
     {
-        m_value = value;
-        m_isWritable = isWritable;
-        m_isEnumerable = isEnumerable;
-        m_isConfigurable = isConfigurable;
     }
 
     ValueRef* m_value;
@@ -373,11 +375,11 @@ struct EXPORT ExposableObjectGetOwnPropertyCallbackResult {
 
 struct EXPORT ExposableObjectEnumerationCallbackResult {
     ExposableObjectEnumerationCallbackResult(ValueRef* name, bool isWritable, bool isEnumerable, bool isConfigurable)
+        : m_name(name)
+        , m_isWritable(isWritable)
+        , m_isEnumerable(isEnumerable)
+        , m_isConfigurable(isConfigurable)
     {
-        m_name = name;
-        m_isWritable = isWritable;
-        m_isEnumerable = isEnumerable;
-        m_isConfigurable = isConfigurable;
     }
 
     ExposableObjectEnumerationCallbackResult() {} // for std vector
@@ -821,10 +823,10 @@ public:
         size_t index;
 
         LOC(size_t line, size_t column, size_t index)
+            : line(line)
+            , column(column)
+            , index(index)
         {
-            this->line = line;
-            this->column = column;
-            this->index = index;
         }
     };
 

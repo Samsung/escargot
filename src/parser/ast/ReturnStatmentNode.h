@@ -29,8 +29,8 @@ public:
     friend class ScriptParser;
     explicit ReturnStatmentNode(Node* argument)
         : StatementNode()
+        , m_argument(argument)
     {
-        m_argument = argument;
     }
 
     virtual ~ReturnStatmentNode()

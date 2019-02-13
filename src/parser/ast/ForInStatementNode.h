@@ -30,11 +30,11 @@ public:
     friend class ScriptParser;
     ForInStatementNode(Node *left, Node *right, Node *body, bool each)
         : StatementNode()
+        , m_left((ExpressionNode *)left)
+        , m_right((ExpressionNode *)right)
+        , m_body((StatementNode *)body)
+        , m_each(each)
     {
-        m_left = (ExpressionNode *)left;
-        m_right = (ExpressionNode *)right;
-        m_body = (StatementNode *)body;
-        m_each = each;
     }
 
     virtual ~ForInStatementNode()

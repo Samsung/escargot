@@ -31,9 +31,9 @@ public:
     friend class ScriptParser;
     ProgramNode(StatementContainer* body, ASTScopeContext* scopeContext)
         : StatementNode()
+        , m_container(body)
+        , m_scopeContext(scopeContext)
     {
-        m_container = body;
-        m_scopeContext = scopeContext;
         m_scopeContext->m_nodeType = type();
     }
 

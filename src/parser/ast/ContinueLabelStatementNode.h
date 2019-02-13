@@ -29,8 +29,8 @@ public:
     friend class ScriptParser;
     explicit ContinueLabelStatementNode(String* label)
         : StatementNode()
+        , m_label(label)
     {
-        m_label = label;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ContinueLabelStatement; }

@@ -31,9 +31,9 @@ public:
     friend class SwitchStatementNode;
     SwitchCaseNode(Node* test, StatementContainer* consequent)
         : StatementNode()
+        , m_test((ExpressionNode*)test)
+        , m_consequent(consequent)
     {
-        m_test = (ExpressionNode*)test;
-        m_consequent = consequent;
     }
 
     virtual ~SwitchCaseNode()

@@ -30,9 +30,9 @@ namespace Escargot {
 GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, InterpretedCodeBlock* codeBlock, GlobalObject* global, bool isEvalMode, bool createBinding)
     : EnvironmentRecord()
     , m_globalCodeBlock(codeBlock)
+    , m_globalObject(global)
 {
     ASSERT(codeBlock == nullptr || codeBlock->parentCodeBlock() == nullptr);
-    m_globalObject = global;
 
     if (createBinding) {
         const InterpretedCodeBlock::IdentifierInfoVector& vec = codeBlock->identifierInfos();
@@ -112,18 +112,18 @@ EnvironmentRecord::BindingSlot GlobalEnvironmentRecord::hasBinding(ExecutionStat
 
 FunctionEnvironmentRecordOnHeap::FunctionEnvironmentRecordOnHeap(FunctionObject* function, size_t argc, Value* argv)
     : FunctionEnvironmentRecord(function)
+    , m_argc(argc)
+    , m_argv(argv)
     , m_heapStorage(function->codeBlock()->asInterpretedCodeBlock()->identifierOnHeapCount())
 {
-    m_argc = argc;
-    m_argv = argv;
 }
 
 FunctionEnvironmentRecordNotIndexed::FunctionEnvironmentRecordNotIndexed(FunctionObject* function, size_t argc, Value* argv)
     : FunctionEnvironmentRecord(function)
+    , m_argc(argc)
+    , m_argv(argv)
     , m_heapStorage()
 {
-    m_argc = argc;
-    m_argv = argv;
     const InterpretedCodeBlock::IdentifierInfoVector& vec = function->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
     size_t len = vec.size();
     m_recordVector.resizeWithUninitializedValues(len);

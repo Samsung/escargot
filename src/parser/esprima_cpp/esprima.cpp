@@ -109,19 +109,19 @@ struct ParserError : public gc {
     size_t col;
 
     ParserError(size_t index, size_t line, size_t col, String* description)
+        : description(description)
+        , index(index)
+        , line(line)
+        , col(col)
     {
-        this->index = index;
-        this->line = line;
-        this->col = col;
-        this->description = description;
     }
 
     ParserError(size_t index, size_t line, size_t col, const char* description)
+        : description(new ASCIIString(description))
+        , index(index)
+        , line(line)
+        , col(col)
     {
-        this->index = index;
-        this->line = line;
-        this->col = col;
-        this->description = new ASCIIString(description);
     }
 };
 
@@ -1342,12 +1342,12 @@ public:
         {
         }
         ParseFormalParametersResult(PatternNodeVector params, RefPtr<Scanner::ScannerResult> stricted, RefPtr<Scanner::ScannerResult> firstRestricted, const char* message)
+            : params(std::move(params))
+            , stricted(stricted)
+            , firstRestricted(firstRestricted)
+            , message(nullptr)
+            , valid(true)
         {
-            this->params = std::move(params);
-            this->stricted = stricted;
-            this->firstRestricted = firstRestricted;
-            this->message = nullptr;
-            this->valid = true;
         }
     };
 

@@ -29,9 +29,9 @@ public:
     friend class ScriptParser;
     WithStatementNode(RefPtr<Node> object, RefPtr<StatementNode> body)
         : StatementNode()
+        , m_object(object)
+        , m_body(body)
     {
-        m_object = object;
-        m_body = body;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::WithStatement; }

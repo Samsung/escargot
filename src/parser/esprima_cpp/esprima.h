@@ -45,12 +45,14 @@ struct Error : public gc {
     ErrorObject::Code errorCode;
 
     explicit Error(String* message)
+        : name(String::emptyString)
+        , message(message)
+        , index(0)
+        , lineNumber(0)
+        , column(0)
+        , description(String::emptyString)
+        , errorCode(ErrorObject::Code::SyntaxError)
     {
-        this->name = String::emptyString;
-        this->message = message;
-        this->column = this->lineNumber = this->index = 0;
-        this->description = String::emptyString;
-        this->errorCode = ErrorObject::Code::SyntaxError;
     }
 };
 

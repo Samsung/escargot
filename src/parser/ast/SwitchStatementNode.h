@@ -31,12 +31,12 @@ public:
     friend class ScriptParser;
     SwitchStatementNode(Node* discriminant, StatementContainer* casesA, Node* deflt, StatementContainer* casesB, bool lexical)
         : StatementNode()
+        , m_discriminant((ExpressionNode*)discriminant)
+        , m_casesA(casesA)
+        , m_default((StatementNode*)deflt)
+        , m_casesB(casesB)
+        , m_lexical(lexical)
     {
-        m_discriminant = (ExpressionNode*)discriminant;
-        m_casesA = casesA;
-        m_default = (StatementNode*)deflt;
-        m_casesB = casesB;
-        m_lexical = lexical;
     }
 
     virtual ~SwitchStatementNode()

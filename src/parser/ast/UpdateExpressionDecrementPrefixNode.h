@@ -30,8 +30,8 @@ public:
 
     explicit UpdateExpressionDecrementPrefixNode(Node* argument)
         : ExpressionNode()
+        , m_argument((ExpressionNode*)argument)
     {
-        m_argument = (ExpressionNode*)argument;
     }
     virtual ~UpdateExpressionDecrementPrefixNode()
     {

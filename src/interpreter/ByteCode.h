@@ -147,19 +147,19 @@ inline const char* getByteCodeName(Opcode opcode)
 
 
 struct ByteCodeLOC {
+    size_t index;
 #ifndef NDEBUG
     size_t line;
     size_t column;
 #endif
-    size_t index;
 
     explicit ByteCodeLOC(size_t index)
-    {
-        this->index = index;
+        : index(index)
 #ifndef NDEBUG
-        this->line = SIZE_MAX;
-        this->column = SIZE_MAX;
+        , line(SIZE_MAX)
+        , column(SIZE_MAX)
 #endif
+    {
     }
 };
 
@@ -988,19 +988,19 @@ public:
     };
 
     ControlFlowRecord(const ControlFlowReason& reason, const Value& value, size_t count = 0, size_t outerLimitCount = SIZE_MAX)
+        : m_reason(reason)
+        , m_value(value)
+        , m_count(count)
+        , m_outerLimitCount(outerLimitCount)
     {
-        m_reason = reason;
-        m_value = value;
-        m_count = count;
-        m_outerLimitCount = outerLimitCount;
     }
 
     ControlFlowRecord(const ControlFlowReason& reason, const size_t& value, size_t count = 0, size_t outerLimitCount = SIZE_MAX)
+        : m_reason(reason)
+        , m_wordValue(value)
+        , m_count(count)
+        , m_outerLimitCount(outerLimitCount)
     {
-        m_reason = reason;
-        m_wordValue = value;
-        m_count = count;
-        m_outerLimitCount = outerLimitCount;
     }
 
     const ControlFlowReason& reason()
@@ -1577,20 +1577,14 @@ class ByteCodeBlock : public gc {
 
 public:
     explicit ByteCodeBlock(InterpretedCodeBlock* codeBlock)
+        : m_isEvalMode(false)
+        , m_isOnGlobal(false)
+        , m_shouldClearStack(false)
+        , m_requiredRegisterFileSizeInValueSize(2)
+        , m_objectStructuresInUse((codeBlock->hasCallNativeFunctionCode()) ? nullptr : new (GC) ObjectStructuresInUse())
+        , m_locData(nullptr)
+        , m_codeBlock(codeBlock)
     {
-        m_requiredRegisterFileSizeInValueSize = 2;
-        m_codeBlock = codeBlock;
-        m_isEvalMode = false;
-        m_isOnGlobal = false;
-        m_shouldClearStack = false;
-        m_locData = nullptr;
-
-        if (!codeBlock->hasCallNativeFunctionCode()) {
-            m_objectStructuresInUse = new (GC) ObjectStructuresInUse();
-        } else {
-            m_objectStructuresInUse = nullptr;
-        }
-
         GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
             ByteCodeBlock* self = (ByteCodeBlock*)obj;
             for (size_t i = 0; i < self->m_getObjectCodePositions.size(); i++) {

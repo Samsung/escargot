@@ -30,8 +30,8 @@ public:
     friend class ScriptParser;
     explicit BlockStatementNode(StatementContainer* body)
         : StatementNode()
+        , m_container(body)
     {
-        m_container = body;
     }
 
     virtual ~BlockStatementNode()

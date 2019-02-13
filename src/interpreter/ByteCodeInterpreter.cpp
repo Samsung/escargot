@@ -1815,9 +1815,9 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalObjectSlowCase(ExecutionState& 
 class VirtualIdDisabler {
 public:
     explicit VirtualIdDisabler(Context* c)
+        : fn(c->virtualIdentifierCallback())
+        , ctx(c)
     {
-        ctx = c;
-        fn = c->virtualIdentifierCallback();
         c->setVirtualIdentifierCallback(nullptr);
     }
     ~VirtualIdDisabler()
