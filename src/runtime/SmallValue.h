@@ -387,11 +387,7 @@ typedef TightVector<SmallValue, GCUtil::gc_malloc_ignore_off_page_allocator<Smal
 namespace std {
 
 template <>
-struct is_fundamental<Escargot::SmallValue> {
-    explicit operator bool() const
-    {
-        return true;
-    }
+struct is_fundamental<Escargot::SmallValue> : public true_type {
 };
 }
 

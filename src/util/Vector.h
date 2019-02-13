@@ -22,6 +22,28 @@
 
 namespace Escargot {
 
+template <typename T, bool isFundamental = std::is_fundamental<T>::value>
+struct VectorCopier {
+};
+
+template <typename T>
+struct VectorCopier<T, true> {
+    static void copy(T* dst, const T* src, const size_t size)
+    {
+        memcpy(dst, src, sizeof(T) * size);
+    }
+};
+
+template <typename T>
+struct VectorCopier<T, false> {
+    static void copy(T* dst, const T* src, const size_t size)
+    {
+        for (size_t i = 0; i < size; i++) {
+            dst[i] = src[i];
+        }
+    }
+};
+
 template <typename T, typename Allocator, int const glowFactor = 120>
 class Vector : public gc {
 public:
@@ -56,14 +78,7 @@ public:
             m_size = other.size();
             m_capacity = other.m_capacity;
             m_buffer = Allocator().allocate(m_capacity);
-
-            if (std::is_fundamental<T>()) {
-                memcpy(m_buffer, other.data(), sizeof(T) * m_size);
-            } else {
-                for (size_t i = 0; i < m_size; i++) {
-                    m_buffer[i] = other[i];
-                }
-            }
+            VectorCopier<T>::copy(m_buffer, other.data(), m_size);
         } else {
             m_buffer = nullptr;
             m_size = 0;
@@ -80,14 +95,7 @@ public:
             m_size = other.size();
             m_capacity = other.m_capacity;
             m_buffer = Allocator().allocate(m_capacity);
-
-            if (std::is_fundamental<T>()) {
-                memcpy(m_buffer, other.data(), sizeof(T) * m_size);
-            } else {
-                for (size_t i = 0; i < m_size; i++) {
-                    m_buffer[i] = other[i];
-                }
-            }
+            VectorCopier<T>::copy(m_buffer, other.data(), m_size);
         } else {
             clear();
         }
@@ -99,14 +107,7 @@ public:
         m_size = other.size() + 1;
         m_capacity = other.m_capacity + 1;
         m_buffer = Allocator().allocate(m_size);
-
-        if (std::is_fundamental<T>()) {
-            memcpy(m_buffer, other.data(), sizeof(T) * other.size());
-        } else {
-            for (size_t i = 0; i < other.size(); i++) {
-                m_buffer[i] = other[i];
-            }
-        }
+        VectorCopier<T>::copy(m_buffer, other.data(), other.size());
 
         m_buffer[other.size()] = newItem;
     }
@@ -123,14 +124,7 @@ public:
             size_t oldc = m_capacity;
             m_capacity = computeAllocateSize(m_size + 1);
             T* newBuffer = Allocator().allocate(m_capacity);
-
-            if (std::is_fundamental<T>()) {
-                memcpy(newBuffer, m_buffer, sizeof(T) * m_size);
-            } else {
-                for (size_t i = 0; i < m_size; i++) {
-                    newBuffer[i] = m_buffer[i];
-                }
-            }
+            VectorCopier<T>::copy(newBuffer, m_buffer, m_size);
 
             if (m_buffer)
                 Allocator().deallocate(m_buffer, oldc);
@@ -153,23 +147,9 @@ public:
             m_capacity = computeAllocateSize(m_size + 1);
             T* newBuffer = Allocator().allocate(m_capacity);
 
-            if (std::is_fundamental<T>()) {
-                memcpy(newBuffer, m_buffer, sizeof(T) * pos);
-            } else {
-                for (size_t i = 0; i < pos; i++) {
-                    newBuffer[i] = m_buffer[i];
-                }
-            }
-
+            VectorCopier<T>::copy(newBuffer, m_buffer, pos);
             newBuffer[pos] = val;
-
-            if (std::is_fundamental<T>()) {
-                memcpy(&newBuffer[pos + 1], &m_buffer[pos], sizeof(T) * (pos - m_size));
-            } else {
-                for (size_t i = pos; i < m_size; i++) {
-                    newBuffer[i + 1] = m_buffer[i];
-                }
-            }
+            VectorCopier<T>::copy(&newBuffer[pos + 1], m_buffer + pos, m_size - pos);
 
             if (m_buffer)
                 Allocator().deallocate(m_buffer, oldC);
@@ -201,20 +181,8 @@ public:
         if (m_size - c) {
             size_t oldC = m_capacity;
             T* newBuffer = Allocator().allocate(m_size - c);
-
-            if (std::is_fundamental<T>()) {
-                memcpy(newBuffer, m_buffer, sizeof(T) * start);
-                memcpy(&newBuffer[end - c], &m_buffer[end], sizeof(T) * (m_size - end));
-            } else {
-                for (size_t i = 0; i < start; i++) {
-                    newBuffer[i] = m_buffer[i];
-                }
-
-                for (size_t i = end; i < m_size; i++) {
-                    newBuffer[i - c] = m_buffer[i];
-                }
-            }
-
+            VectorCopier<T>::copy(newBuffer, m_buffer, start);
+            VectorCopier<T>::copy(&newBuffer[end - c], &m_buffer[end], m_size - end);
 
             if (m_buffer)
                 Allocator().deallocate(m_buffer, oldC);
@@ -287,14 +255,7 @@ public:
     {
         if (m_size != m_capacity) {
             T* newBuffer = Allocator().allocate(m_size);
-
-            if (std::is_fundamental<T>()) {
-                memcpy(newBuffer, m_buffer, sizeof(T) * m_size);
-            } else {
-                for (size_t i = 0; i < m_size; i++) {
-                    newBuffer[i] = m_buffer[i];
-                }
-            }
+            VectorCopier<T>::copy(newBuffer, m_buffer, m_size);
 
             size_t oldC = m_capacity;
             m_capacity = m_size;
@@ -310,14 +271,7 @@ public:
             if (m_capacity < newSize) {
                 size_t newCapacity = computeAllocateSize(newSize);
                 T* newBuffer = Allocator().allocate(newCapacity);
-
-                if (std::is_fundamental<T>()) {
-                    memcpy(newBuffer, m_buffer, sizeof(T) * std::min(m_size, newSize));
-                } else {
-                    for (size_t i = 0; i < m_size && i < newSize; i++) {
-                        newBuffer[i] = m_buffer[i];
-                    }
-                }
+                VectorCopier<T>::copy(newBuffer, m_buffer, std::min(m_size, newSize));
 
                 if (m_buffer)
                     Allocator().deallocate(m_buffer, m_capacity);
@@ -337,14 +291,7 @@ public:
             if (newSize > m_capacity) {
                 size_t newCapacity = computeAllocateSize(newSize);
                 T* newBuffer = Allocator().allocate(newCapacity);
-
-                if (std::is_fundamental<T>()) {
-                    memcpy(newBuffer, m_buffer, sizeof(T) * std::min(m_size, newSize));
-                } else {
-                    for (size_t i = 0; i < m_size && i < newSize; i++) {
-                        newBuffer[i] = m_buffer[i];
-                    }
-                }
+                VectorCopier<T>::copy(newBuffer, m_buffer, std::min(m_size, newSize));
 
                 for (size_t i = m_size; i < newSize; i++) {
                     newBuffer[i] = val;
@@ -404,14 +351,7 @@ public:
             size_t oldc = m_capacity;
             m_capacity = computeAllocateSize(newSize);
             T* newBuffer = Allocator().allocate(m_capacity);
-
-            if (std::is_fundamental<T>()) {
-                memcpy(newBuffer, m_buffer, sizeof(T) * (newSize - 1));
-            } else {
-                for (size_t i = 0; i < (newSize - 1); i++) {
-                    newBuffer[i] = m_buffer[i];
-                }
-            }
+            VectorCopier<T>::copy(newBuffer, m_buffer, newSize - 1);
 
             if (m_buffer)
                 Allocator().deallocate(m_buffer, oldc);
@@ -460,14 +400,8 @@ public:
             if (newSize > m_capacity) {
                 size_t newCapacity = computeAllocateSize(newSize);
                 T* newBuffer = Allocator().allocate(newCapacity);
+                VectorCopier<T>::copy(newBuffer, m_buffer, std::min(oldSize, newSize));
 
-                if (std::is_fundamental<T>()) {
-                    memcpy(newBuffer, m_buffer, sizeof(T) * std::min(oldSize, newSize));
-                } else {
-                    for (size_t i = 0; i < oldSize && i < newSize; i++) {
-                        newBuffer[i] = m_buffer[i];
-                    }
-                }
                 for (size_t i = oldSize; i < newSize; i++) {
                     newBuffer[i] = val;
                 }
