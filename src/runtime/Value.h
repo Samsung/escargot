@@ -58,6 +58,27 @@ inline ToType bitwise_cast(FromType from)
     return u.to;
 }
 
+// All non-numeric (bool, null, undefined) immediates have bit 2 set.
+
+#ifdef ESCARGOT_32
+#define TagBitTypeOther 0x2u
+#else
+#define TagBitTypeOther 0x2ll
+#endif
+
+#define TagTypeShift 2
+
+// Combined integer value for non-numeric immediates.
+#define ValueFalse (TagBitTypeOther | (0 << TagTypeShift))
+#define ValueTrue (TagBitTypeOther | (1 << TagTypeShift))
+#define ValueNull (TagBitTypeOther | (2 << TagTypeShift))
+#define ValueUndefined (TagBitTypeOther | (3 << TagTypeShift))
+#define ValueLast ValueUndefined
+
+// This special value is never visible to JavaScript code. Empty represents
+// Array holes, and uninitialized Values, and maps to NULL pointer.
+#define ValueEmpty 0x0u
+
 #ifdef ESCARGOT_64
 #define CellPayloadOffset 0
 #else
@@ -67,14 +88,15 @@ inline ToType bitwise_cast(FromType from)
 class Value {
 public:
 #ifdef ESCARGOT_32
-    enum { Int32Tag = 0xffffffff };
-    enum { BooleanTag = 0xfffffffe };
-    enum { NullTag = 0xfffffffd };
-    enum { UndefinedTag = 0xfffffffc };
-    enum { OtherPointerTag = 0xfffffffb };
-    enum { ObjectPointerTag = 0xfffffffa };
-    enum { EmptyValueTag = 0xfffffff9 };
-    enum { LowestTag = EmptyValueTag };
+    enum { EmptyValueTag = ~ValueEmpty };
+    enum { Int32Tag = 0xfffffffe };
+    enum { BooleanFalseTag = ~ValueFalse };
+    enum { BooleanTrueTag = ~ValueTrue };
+    enum { NullTag = ~ValueNull };
+    enum { UndefinedTag = ~ValueUndefined };
+    enum { OtherPointerTag = ~(TagBitTypeOther | (4 << TagTypeShift)) };
+    enum { ObjectPointerTag = ~(TagBitTypeOther | (5 << TagTypeShift)) };
+    enum { LowestTag = ObjectPointerTag };
 #endif
 
     enum NullInitTag { Null };
@@ -85,6 +107,7 @@ public:
     enum EncodeAsDoubleTag { EncodeAsDouble };
     enum ForceUninitializedTag { ForceUninitialized };
     enum FromPayloadTag { FromPayload };
+    enum FromTagTag { FromTag };
 
     Value();
     explicit Value(ForceUninitializedTag);
@@ -104,6 +127,7 @@ public:
     Value(const Object* ptr);
     Value(String* ptr);
     Value(const String* ptr);
+    explicit Value(FromTagTag, uint32_t tag);
 #endif
 
     // Numbers
@@ -216,24 +240,6 @@ public:
 // If all bits in the mask are set, this indicates an integer number,
 // if any but not all are set this value is a double precision number.
 #define TagTypeNumber 0xffff000000000000ll
-
-// All non-numeric (bool, null, undefined) immediates have bit 2 set.
-#define TagBitTypeOther 0x2ll
-#define TagTypeShift 2
-
-// Combined integer value for non-numeric immediates.
-#define ValueFalse (TagBitTypeOther | (0 << TagTypeShift))
-#define ValueTrue (TagBitTypeOther | (1 << TagTypeShift))
-#define ValueUndefined (TagBitTypeOther | (2 << TagTypeShift))
-#define ValueNull (TagBitTypeOther | (3 << TagTypeShift))
-#define ValueLast ValueNull
-
-// These special values are never visible to JavaScript code; Empty is used to represent
-// Array holes, and for uninitialized Values. Deleted is used in hash table code.
-// These values would map to cell types in the Value encoding, but not valid GC cell
-// pointer should have either of these values (Empty is null, deleted is at an invalid
-// alignment for a GC cell, and in the zero page).
-#define ValueEmpty 0x0ll
 
 // TagMask is used to check for all types of immediate values (either number or 'other').
 #define TagMask (TagTypeNumber | TagBitTypeOther)

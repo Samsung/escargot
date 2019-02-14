@@ -213,7 +213,11 @@ public:
         if (HAS_OBJECT_TAG(m_data.payload)) {
             PointerValue* v = (PointerValue*)m_data.payload;
             if (((size_t)v) <= ValueLast) {
-                Value(v);
+#ifdef ESCARGOT_32
+                return Value(Value::FromTag, ~((uint32_t)v));
+#else
+                return Value(v);
+#endif
             } else if (g_doubleInSmallValueTag == *((size_t*)v)) {
                 return Value(v->asDoubleInSmallValue()->value());
             }
@@ -286,7 +290,11 @@ public:
                 }
                 m_data.payload = reinterpret_cast<intptr_t>(new DoubleInSmallValue(from.asNumber()));
             } else {
+#ifdef ESCARGOT_32
+                m_data.payload = ~from.tag();
+#else
                 m_data.payload = from.payload();
+#endif
             }
         }
     }
@@ -306,7 +314,11 @@ protected:
             } else if (from.isNumber()) {
                 m_data.payload = reinterpret_cast<intptr_t>(new DoubleInSmallValue(from.asNumber()));
             } else {
+#ifdef ESCARGOT_32
+                m_data.payload = ~from.tag();
+#else
                 m_data.payload = from.payload();
+#endif
             }
         }
     }
