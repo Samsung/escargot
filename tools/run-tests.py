@@ -349,6 +349,28 @@ def run_v8(engine, arch):
     if '=== All tests succeeded' not in stdout:
         raise Exception('Not all tests succeeded')
 
+@runner('es2015', default=True)
+def run_es2015(engine, arch):
+    ES2015_DIR = join(PROJECT_SOURCE_DIR, 'test', 'es2015')
+    ES2015_ASSERT_JS = join(ES2015_DIR, 'assert.js')
+
+    print('Running es2015 test:')
+    files = glob(join(ES2015_DIR, 'proxy-*.js'))
+    fails = 0
+    for file in files:
+        proc = Popen([engine, ES2015_ASSERT_JS, file], stdout=PIPE)
+        out, _ = proc.communicate()
+
+        if not proc.returncode:
+            print('%sOK: %s%s' % (COLOR_GREEN, file, COLOR_RESET))
+        else:
+            print('%sFAIL(%d): %s%s' % (COLOR_RED, proc.returncode, file, COLOR_RESET))
+            print(out)
+            fails += 1
+
+    if fails > 0:
+        raise Exception('ES2015 tests failed')
+
 
 def main():
     parser = ArgumentParser(description='Escargot Test Suite Runner')
