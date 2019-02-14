@@ -63,7 +63,7 @@ public:
     }
 
 
-protected:
+private:
     Value m_value;
 };
 }

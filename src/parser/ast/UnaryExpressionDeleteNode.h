@@ -63,7 +63,7 @@ public:
             if (((MemberExpressionNode*)m_argument.get())->isPreComputedCase()) {
                 // we can use LoadLiteral here
                 // because, (MemberExpressionNode*)m_argument)->property()->asIdentifier()->name().string()
-                // is protected by AtomicString (IdentifierNode always has AtomicString)
+                // is private by AtomicString (IdentifierNode always has AtomicString)
                 p = context->getRegister();
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), p, Value(((MemberExpressionNode*)m_argument.get())->property()->asIdentifier()->name().string())), context, this);
             } else {

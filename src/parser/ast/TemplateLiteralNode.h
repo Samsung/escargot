@@ -81,7 +81,7 @@ public:
         }
     }
 
-protected:
+private:
     TemplateElementVector* m_quasis;
     ExpressionNodeVector m_expressions;
 };

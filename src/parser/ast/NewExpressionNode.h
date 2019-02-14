@@ -118,7 +118,7 @@ public:
         }
     }
 
-protected:
+private:
     RefPtr<Node> m_callee;
     ArgumentVector m_arguments;
 };

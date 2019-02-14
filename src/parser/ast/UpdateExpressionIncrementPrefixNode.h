@@ -72,7 +72,7 @@ public:
     }
 
 
-protected:
+private:
     RefPtr<ExpressionNode> m_argument;
 };
 }

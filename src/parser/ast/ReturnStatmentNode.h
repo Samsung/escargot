@@ -61,7 +61,7 @@ public:
         }
     }
 
-protected:
+private:
     RefPtr<Node> m_argument;
 };
 }

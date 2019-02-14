@@ -76,7 +76,7 @@ public:
         }
     }
 
-protected:
+private:
     VariableDeclaratorVector m_declarations; // declarations: [ VariableDeclarator ];
     // kind: "var" | "let" | "const";
 };

@@ -44,7 +44,7 @@ public:
         codeBlock->pushCode(LoadRegexp(ByteCodeLOC(m_loc.index), dstRegister, m_body, m_flag), context, this);
     }
 
-protected:
+private:
     String* m_body;
     String* m_flag;
 };

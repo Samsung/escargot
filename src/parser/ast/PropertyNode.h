@@ -73,7 +73,7 @@ public:
         return m_key->isIdentifier() || m_key->isLiteral();
     }
 
-protected:
+private:
     Kind m_kind; // kind: "init" | "get" | "set";
     bool m_computed;
     RefPtr<Node> m_key; // key: Literal | Identifier;

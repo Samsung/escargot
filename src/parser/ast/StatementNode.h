@@ -43,7 +43,7 @@ public:
         return m_nextSilbing.get();
     }
 
-protected:
+private:
     RefPtr<StatementNode> m_nextSilbing;
 };
 
@@ -117,7 +117,7 @@ public:
         return m_firstChild.get();
     }
 
-protected:
+private:
     RefPtr<StatementNode> m_firstChild;
 };
 }

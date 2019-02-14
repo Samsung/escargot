@@ -70,7 +70,7 @@ public:
         m_alternate->iterateChildrenIdentifier(fn);
     }
 
-protected:
+private:
     RefPtr<ExpressionNode> m_test;
     RefPtr<ExpressionNode> m_consequente;
     RefPtr<ExpressionNode> m_alternate;

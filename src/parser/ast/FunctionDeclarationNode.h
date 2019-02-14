@@ -43,7 +43,7 @@ public:
         // do nothing
     }
 
-protected:
+private:
     FunctionNode m_function;
 };
 }

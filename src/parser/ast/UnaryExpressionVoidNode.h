@@ -50,7 +50,7 @@ public:
         m_argument->iterateChildrenIdentifier(fn);
     }
 
-protected:
+private:
     RefPtr<Node> m_argument;
 };
 }

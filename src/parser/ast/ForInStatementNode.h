@@ -122,7 +122,7 @@ public:
         newContext.propagateInformationTo(*context);
     }
 
-protected:
+private:
     RefPtr<ExpressionNode> m_left;
     RefPtr<ExpressionNode> m_right;
     RefPtr<StatementNode> m_body;

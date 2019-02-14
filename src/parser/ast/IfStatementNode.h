@@ -71,7 +71,7 @@ public:
         }
     }
 
-protected:
+private:
     RefPtr<ExpressionNode> m_test;
     RefPtr<StatementNode> m_consequente;
     RefPtr<StatementNode> m_alternate;

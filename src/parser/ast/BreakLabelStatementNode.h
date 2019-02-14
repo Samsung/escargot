@@ -40,7 +40,7 @@ public:
         context->pushLabeledBreakPositions(codeBlock->lastCodePosition<Jump>(), m_label);
     }
 
-protected:
+private:
     String* m_label;
 };
 }

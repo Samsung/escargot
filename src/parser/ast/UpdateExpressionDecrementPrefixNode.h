@@ -71,7 +71,7 @@ public:
         m_argument->iterateChildrenIdentifierAssigmentCase(fn);
     }
 
-protected:
+private:
     RefPtr<ExpressionNode> m_argument;
 };
 }

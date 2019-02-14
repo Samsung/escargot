@@ -58,7 +58,7 @@ public:
         context->m_currentLabels->erase(context->m_currentLabels->end() - 1);
     }
 
-protected:
+private:
     RefPtr<StatementNode> m_statementNode;
     String* m_label;
 };

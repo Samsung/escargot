@@ -41,7 +41,7 @@ public:
         return SpreadElement;
     }
 
-protected:
+private:
     RefPtr<Node> m_arg;
 };
 }

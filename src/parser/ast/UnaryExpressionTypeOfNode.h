@@ -74,7 +74,7 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionTypeOf; }
-protected:
+private:
     RefPtr<Node> m_argument;
 };
 }

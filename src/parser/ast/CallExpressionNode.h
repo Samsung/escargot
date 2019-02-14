@@ -210,7 +210,7 @@ public:
         }
     }
 
-protected:
+private:
     RefPtr<Node> m_callee; // callee: Expression;
     ArgumentVector m_arguments; // arguments: [ Expression ];
 };

@@ -57,7 +57,7 @@ public:
         context->m_tryStatementScopeCount--;
     }
 
-protected:
+private:
     RefPtr<Node> m_object;
     RefPtr<StatementNode> m_body; // body: [ Statement ];
 };

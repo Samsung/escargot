@@ -189,7 +189,7 @@ public:
         context->giveUpRegister();
     }
 
-protected:
+private:
     AtomicString m_name;
 };
 }
