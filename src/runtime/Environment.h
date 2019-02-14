@@ -59,7 +59,7 @@ public:
         return true;
     }
 
-protected:
+private:
     EnvironmentRecord* m_record;
     LexicalEnvironment* m_outerEnvironment;
 };

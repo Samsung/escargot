@@ -94,7 +94,7 @@ public:
         return m_string->bufferAccessData();
     }
 
-protected:
+private:
     void init(AtomicStringMap* ec, String* name);
     void init(AtomicStringMap* ec, const LChar* str, size_t len)
     {

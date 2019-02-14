@@ -242,7 +242,7 @@ public:
         return m_bindingObject->deleteOwnProperty(state, name);
     }
 
-protected:
+private:
     Object* m_bindingObject;
 };
 
@@ -274,7 +274,7 @@ public:
         return m_globalCodeBlock;
     }
 
-protected:
+private:
     InterpretedCodeBlock* m_globalCodeBlock;
     GlobalObject* m_globalObject;
 };
@@ -376,7 +376,7 @@ public:
 
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V);
 
-protected:
+private:
     SmallValueVector m_heapStorage;
     IdentifierRecordVector m_recordVector;
 };
@@ -540,7 +540,7 @@ public:
         return m_argv;
     }
 
-protected:
+private:
     size_t m_argc;
     Value* m_argv;
     SmallValueTightVector m_heapStorage;
@@ -617,7 +617,7 @@ public:
 
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V);
 
-protected:
+private:
     size_t m_argc;
     Value* m_argv;
     SmallValueTightVector m_heapStorage;
