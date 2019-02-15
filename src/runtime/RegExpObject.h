@@ -87,8 +87,10 @@ public:
 
     explicit RegExpObject(ExecutionState& state);
     RegExpObject(ExecutionState& state, String* source, String* option);
+    RegExpObject(ExecutionState& state, String* source, unsigned int option);
 
     void init(ExecutionState& state, String* source, String* option);
+    void initWithOption(ExecutionState& state, String* source, Option option);
 
     double computedLastIndex(ExecutionState& state)
     {
@@ -157,6 +159,7 @@ private:
     }
 
     void setOption(const Option& option);
+    void internalInit(ExecutionState& state, String* source);
 
     static RegExpCacheEntry& getCacheEntryAndCompileIfNeeded(ExecutionState& state, String* source, const Option& option);
 
