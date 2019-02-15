@@ -97,6 +97,7 @@ protected:
     void flattenRopeStringWorker();
     void flattenRopeString();
 
+private:
     String* m_left;
     String* m_right;
     struct {

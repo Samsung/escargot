@@ -230,8 +230,6 @@ protected:
         }
     };
 
-    ObjectStructurePropertyDescriptorData m_descriptorData;
-
     ObjectStructurePropertyDescriptor(PresentAttribute attribute = (PresentAttribute)(WritablePresent | EnumerablePresent | ConfigurablePresent), ObjectStructurePropertyDescriptorMode mode = PlainDataMode)
         : m_descriptorData(attribute, mode)
     {
@@ -251,6 +249,9 @@ protected:
         : m_descriptorData(nativeGetterSetterData)
     {
     }
+
+private:
+    ObjectStructurePropertyDescriptorData m_descriptorData;
 };
 
 COMPILE_ASSERT(sizeof(ObjectStructurePropertyDescriptor) <= sizeof(size_t), "");

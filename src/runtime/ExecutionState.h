@@ -117,7 +117,7 @@ public:
         return m_rareData;
     }
 
-protected:
+private:
     Context* m_context;
     ExecutionContext* m_executionContext;
     size_t m_stackBase;

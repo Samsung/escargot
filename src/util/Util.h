@@ -41,7 +41,7 @@ public:
     }
     ~ProfilerTimer();
 
-protected:
+private:
     uint64_t m_start;
     const char *m_msg;
 };
@@ -56,7 +56,7 @@ public:
     }
     ~LongTaskFinder();
 
-protected:
+private:
     size_t m_loggingTime;
     uint64_t m_start;
     const char *m_msg;

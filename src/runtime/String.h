@@ -306,8 +306,10 @@ public:
         return nullptr;
     }
 
-protected:
+private:
     size_t m_tag;
+
+protected:
     StringBufferAccessData m_bufferAccessData;
     static int stringCompare(size_t l1, size_t l2, const String* c1, const String* c2);
 

@@ -46,7 +46,7 @@ public:
 
     String* getSymbolDescriptiveString() const;
 
-protected:
+private:
     size_t m_tag;
     String* m_description;
 };

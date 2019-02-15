@@ -116,7 +116,7 @@ public:
 
     bool hasInstance(ExecutionState& state, const Value& O);
 
-protected:
+private:
     LexicalEnvironment* outerEnvironment()
     {
         return m_outerEnvironment;
