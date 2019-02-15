@@ -330,19 +330,11 @@ inline ObjectStructure* ObjectStructure::convertToWithFastAccess(ExecutionState&
 namespace std {
 
 template <>
-struct is_fundamental<Escargot::ObjectStructureItem> {
-    operator bool() const
-    {
-        return true;
-    }
+struct is_fundamental<Escargot::ObjectStructureItem> : public true_type {
 };
 
 template <>
-struct is_fundamental<Escargot::ObjectStructureTransitionItem> {
-    operator bool() const
-    {
-        return true;
-    }
+struct is_fundamental<Escargot::ObjectStructureTransitionItem> : public true_type {
 };
 }
 #endif

@@ -134,11 +134,7 @@ typedef TightVector<AtomicString, GCUtil::gc_malloc_atomic_ignore_off_page_alloc
 namespace std {
 
 template <>
-struct is_fundamental<Escargot::AtomicString> {
-    operator bool() const
-    {
-        return true;
-    }
+struct is_fundamental<Escargot::AtomicString> : public true_type {
 };
 }
 

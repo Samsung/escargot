@@ -256,11 +256,7 @@ typedef Vector<Value, CustomAllocator<Value>> ValueVector;
 namespace std {
 
 template <>
-struct is_fundamental<Escargot::Value> {
-    explicit operator bool() const
-    {
-        return true;
-    }
+struct is_fundamental<Escargot::Value> : public true_type {
 };
 }
 
