@@ -494,13 +494,14 @@ void Scanner::ScannerResult::constructStringLiteral()
 
     UTF16StringDataNonGCStd stringUTF16;
     while (true) {
-        char16_t ch = this->scanner->source.bufferedCharAt(this->scanner->index++);
-
+        char16_t ch = this->scanner->source.bufferedCharAt(this->scanner->index);
+        ++this->scanner->index;
         if (ch == quote) {
             quote = '\0';
             break;
         } else if (UNLIKELY(ch == '\\')) {
-            ch = this->scanner->source.bufferedCharAt(this->scanner->index++);
+            ch = this->scanner->source.bufferedCharAt(this->scanner->index);
+            ++this->scanner->index;
             if (!ch || !isLineTerminator(ch)) {
                 switch (ch) {
                 case 'u':
@@ -677,7 +678,8 @@ char32_t Scanner::scanHexEscape(char prefix)
 
     for (size_t i = 0; i < len; ++i) {
         if (!this->eof() && isHexDigit(this->source.bufferedCharAt(this->index))) {
-            code = code * 16 + hexValue(this->source.bufferedCharAt(this->index++));
+            code = code * 16 + hexValue(this->source.bufferedCharAt(this->index));
+            ++this->index;
         } else {
             return EMPTY_CODE_POINT;
         }
@@ -697,7 +699,8 @@ char32_t Scanner::scanUnicodeCodePointEscape()
     }
 
     while (!this->eof()) {
-        ch = this->source.bufferedCharAt(this->index++);
+        ch = this->source.bufferedCharAt(this->index);
+        ++this->index;
         if (!isHexDigit(ch)) {
             break;
         }
@@ -713,7 +716,8 @@ char32_t Scanner::scanUnicodeCodePointEscape()
 
 StringView Scanner::getIdentifier()
 {
-    const size_t start = this->index++;
+    const size_t start = this->index;
+    ++this->index;
     while (UNLIKELY(!this->eof())) {
         const char16_t ch = this->source.bufferedCharAt(this->index);
         if (UNLIKELY(ch == 0x5C)) {
@@ -811,7 +815,8 @@ uint16_t Scanner::octalToDecimal(char16_t ch, bool octal)
 
     if (!this->eof() && isOctalDigit(this->source.bufferedCharAt(this->index))) {
         octal = true;
-        code = code * 8 + octalValue(this->source.bufferedCharAt(this->index++));
+        code = code * 8 + octalValue(this->source.bufferedCharAt(this->index));
+        ++this->index;
 
         // 3 digits are only allowed when string starts
         // with 0, 1, 2, 3
@@ -1224,7 +1229,8 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanNumericLiteral()
     number.reserve(32);
 
     if (ch != '.') {
-        number = this->source.bufferedCharAt(this->index++);
+        number = this->source.bufferedCharAt(this->index);
+        ++this->index;
         ch = this->source.bufferedCharAt(this->index);
 
         // Hex number starts with '0x'.
@@ -1252,15 +1258,18 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanNumericLiteral()
         }
 
         while (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
-            number += this->source.bufferedCharAt(this->index++);
+            number += this->source.bufferedCharAt(this->index);
+            ++this->index;
         }
         ch = this->source.bufferedCharAt(this->index);
     }
 
     if (ch == '.') {
-        number += this->source.bufferedCharAt(this->index++);
+        number += this->source.bufferedCharAt(this->index);
+        ++this->index;
         while (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
-            number += this->source.bufferedCharAt(this->index++);
+            number += this->source.bufferedCharAt(this->index);
+            ++this->index;
         }
         ch = this->source.bufferedCharAt(this->index);
     }
@@ -1270,11 +1279,13 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanNumericLiteral()
 
         ch = this->source.bufferedCharAt(this->index);
         if (ch == '+' || ch == '-') {
-            number += this->source.bufferedCharAt(this->index++);
+            number += this->source.bufferedCharAt(this->index);
+            ++this->index;
         }
         if (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
             while (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
-                number += this->source.bufferedCharAt(this->index++);
+                number += this->source.bufferedCharAt(this->index);
+                ++this->index;
             }
         } else {
             this->throwUnexpectedToken();
@@ -1313,13 +1324,14 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanStringLiteral()
     bool isPlainCase = true;
 
     while (LIKELY(!this->eof())) {
-        char16_t ch = this->source.bufferedCharAt(this->index++);
-
+        char16_t ch = this->source.bufferedCharAt(this->index);
+        ++this->index;
         if (ch == quote) {
             quote = '\0';
             break;
         } else if (UNLIKELY(ch == '\\')) {
-            ch = this->source.bufferedCharAt(this->index++);
+            ch = this->source.bufferedCharAt(this->index);
+            ++this->index;
             isPlainCase = false;
             if (!ch || !isLineTerminator(ch)) {
                 switch (ch) {
@@ -1394,7 +1406,8 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanTemplate(bool head)
     size_t rawOffset = 2;
 
     while (!this->eof()) {
-        char16_t ch = this->source.bufferedCharAt(this->index++);
+        char16_t ch = this->source.bufferedCharAt(this->index);
+        ++this->index;
         if (ch == '`') {
             rawOffset = 1;
             tail = true;
@@ -1408,7 +1421,8 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanTemplate(bool head)
             }
             cooked += ch;
         } else if (ch == '\\') {
-            ch = this->source.bufferedCharAt(this->index++);
+            ch = this->source.bufferedCharAt(this->index);
+            ++this->index;
             if (!isLineTerminator(ch)) {
                 switch (ch) {
                 case 'n':
@@ -1500,16 +1514,19 @@ String* Scanner::scanRegExpBody()
     // assert(ch == '/', 'Regular expression literal must start with a slash');
 
     // TODO apply rope-string
-    char16_t ch0 = this->source.bufferedCharAt(this->index++);
+    char16_t ch0 = this->source.bufferedCharAt(this->index);
+    ++this->index;
     UTF16StringDataNonGCStd str(&ch0, 1);
     bool classMarker = false;
     bool terminated = false;
 
     while (!this->eof()) {
-        ch = this->source.bufferedCharAt(this->index++);
+        ch = this->source.bufferedCharAt(this->index);
+        ++this->index;
         str += ch;
         if (ch == '\\') {
-            ch = this->source.bufferedCharAt(this->index++);
+            ch = this->source.bufferedCharAt(this->index);
+            ++this->index;
             // ECMA-262 7.8.5
             if (isLineTerminator(ch)) {
                 this->throwUnexpectedToken(Messages::UnterminatedRegExp);
