@@ -77,20 +77,20 @@ inline Value::Value(EmptyValueInitTag)
 
 inline Value::Value(TrueInitTag)
 {
-    u.asBits.tag = BooleanTag;
-    u.asBits.payload = 1;
+    u.asBits.tag = BooleanTrueTag;
+    u.asBits.payload = 0;
 }
 
 inline Value::Value(FalseInitTag)
 {
-    u.asBits.tag = BooleanTag;
+    u.asBits.tag = BooleanFalseTag;
     u.asBits.payload = 0;
 }
 
 inline Value::Value(bool b)
 {
-    u.asBits.tag = BooleanTag;
-    u.asBits.payload = b;
+    u.asBits.tag = BooleanFalseTag ^ (((uint32_t)b) << TagTypeShift);
+    u.asBits.payload = 0;
 }
 
 inline Value::Value(FromPayloadTag, intptr_t ptr)
@@ -152,6 +152,15 @@ inline Value::Value(const Object* ptr)
     u.asBits.payload = reinterpret_cast<int32_t>(const_cast<Object*>(ptr));
 }
 
+inline Value::Value(FromTagTag, uint32_t tag)
+{
+    ASSERT(tag == BooleanFalseTag || tag == BooleanTrueTag || tag == NullTag
+           || tag == UndefinedTag || tag == EmptyValueTag);
+
+    u.asBits.tag = tag;
+    u.asBits.payload = 0;
+}
+
 inline Value::Value(EncodeAsDoubleTag, double d)
 {
     u.asDouble = d;
@@ -207,7 +216,7 @@ inline int32_t Value::asInt32() const
 inline bool Value::asBoolean() const
 {
     ASSERT(isBoolean());
-    return u.asBits.payload;
+    return u.asBits.tag == BooleanTrueTag;
 }
 
 inline double Value::asDouble() const
@@ -243,17 +252,21 @@ inline bool Value::isNull() const
 
 inline bool Value::isBoolean() const
 {
-    return tag() == BooleanTag;
+    /* BooleanTrueTag and BooleanFalseTag are inverted values
+       of ValueTrue and ValueFalse respectively. */
+    COMPILE_ASSERT(BooleanFalseTag == (BooleanTrueTag | (1 << TagTypeShift)), "");
+
+    return (tag() | (1 << TagTypeShift)) == BooleanFalseTag;
 }
 
 inline bool Value::isTrue() const
 {
-    return tag() == BooleanTag && asBoolean();
+    return tag() == BooleanTrueTag;
 }
 
 inline bool Value::isFalse() const
 {
-    return tag() == BooleanTag && !asBoolean();
+    return tag() == BooleanFalseTag;
 }
 
 inline PointerValue* Value::asPointerValue() const
@@ -352,7 +365,7 @@ inline Value::Value(FromPayloadTag, intptr_t ptr)
 
 inline Value::Value(bool b)
 {
-    u.asInt64 = (TagBitTypeOther | TagBitBool | b);
+    u.asInt64 = (TagBitTypeOther | (b << TagTypeShift));
 }
 
 inline Value::Value(PointerValue* ptr)
@@ -488,7 +501,9 @@ inline bool Value::isNull() const
 
 inline bool Value::isBoolean() const
 {
-    return u.asInt64 == ValueTrue || u.asInt64 == ValueFalse;
+    COMPILE_ASSERT(ValueTrue == (ValueFalse | (1 << TagTypeShift)), "");
+
+    return (u.asInt64 | (1 << TagTypeShift)) == ValueTrue;
 }
 
 inline bool Value::isTrue() const
@@ -525,6 +540,11 @@ inline bool Value::isFunction() const
 inline FunctionObject* Value::asFunction() const
 {
     return asPointerValue()->asFunctionObject();
+}
+
+inline intptr_t Value::payload() const
+{
+    return u.asInt64;
 }
 
 #endif
@@ -718,16 +738,8 @@ inline bool Value::equalsTo(ExecutionState& state, const Value& val) const
 
 inline bool Value::toBoolean(ExecutionState& ec) const // $7.1.2 ToBoolean
 {
-#ifdef ESCARGOT_32
-    if (LIKELY(isBoolean()))
-        return payload();
-#else
-    if (*this == Value(true))
-        return true;
-
-    if (*this == Value(false))
-        return false;
-#endif
+    if (isBoolean())
+        return asBoolean();
 
     if (isInt32())
         return asInt32();
