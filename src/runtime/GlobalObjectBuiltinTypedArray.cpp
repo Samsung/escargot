@@ -323,10 +323,8 @@ Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, size_t ar
     // NOTE: Same algorithm as Array.prototype.indexOf
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, indexOf);
-    if (!O->isTypedArrayObject()) {
-        const StaticStrings* strings = &state.context()->staticStrings();
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, strings->indexOf.string(), errorMessage_GlobalObject_ThisNotTypedArrayObject);
-    }
+    validateTypedArray(state, O, state.context()->staticStrings().indexOf.string());
+
     // Let lenValue be this object's [[ArrayLength]] internal slot.
     // Let len be ToUint32(lenValue).
     int64_t len = O->asArrayBufferView()->arraylength();
@@ -396,10 +394,8 @@ Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue, size_
     // NOTE: Same algorithm as Array.prototype.lastIndexOf
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, lastIndexOf);
-    if (!O->isTypedArrayObject()) {
-        const StaticStrings* strings = &state.context()->staticStrings();
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, strings->lastIndexOf.string(), errorMessage_GlobalObject_ThisNotTypedArrayObject);
-    }
+    validateTypedArray(state, O, state.context()->staticStrings().lastIndexOf.string());
+
     // Let lenValue be this object's [[ArrayLength]] internal slot.
     // Let len be ToUint32(lenValue).
     int64_t len = O->asArrayBufferView()->arraylength();
@@ -598,16 +594,10 @@ Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size_t argc
     unsigned k = 0;
 
     while (k < len) {
-        // Let Pk be ToString(k).
-        Value pk(k);
-
-        // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument Pk.
-        bool kPresent = O->hasProperty(state, ObjectPropertyName(state, pk));
-
-        // If kPresent is true, then
-        if (kPresent) {
+        ObjectGetResult value = O->getIndexedProperty(state, Value(k));
+        if (value.hasValue()) {
             // Let kValue be the result of calling the [[Get]] internal method of O with argument Pk.
-            Value kValue = O->get(state, ObjectPropertyName(state, pk)).value(state, O);
+            Value kValue = value.value(state, O);
             // Let testResult be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
             Value args[] = { kValue, Value(k), O };
             Value testResult = callbackfn.asFunction()->call(state, T, 3, args);
@@ -625,6 +615,135 @@ Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size_t argc
         }
     }
     return Value(true);
+}
+
+Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, fill);
+    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
+    validateTypedArray(state, O, state.context()->staticStrings().fill.string());
+
+    // Array.prototype.fill as defined in 22.1.3.5 except
+    // that the this object’s [[ArrayLength]] internal slot is accessed
+    // in place of performing a [[Get]] of "length"
+    double len = O->asArrayBufferView()->arraylength();
+
+    // Let relativeStart be ToInteger(start).
+    double relativeStart = 0;
+    if (argc > 1) {
+        relativeStart = argv[1].toInteger(state);
+    }
+
+    // If relativeStart < 0, let k be max((len + relativeStart),0); else let k be min(relativeStart, len).
+    unsigned k = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, len);
+
+    // If end is undefined, let relativeEnd be len; else let relativeEnd be ToInteger(end).
+    double relativeEnd = len;
+    if (argc > 2 && !argv[2].isUndefined()) {
+        relativeEnd = argv[2].toInteger(state);
+    }
+
+    // If relativeEnd < 0, let final be max((len + relativeEnd),0); else let final be min(relativeEnd, len).
+    unsigned fin = (relativeEnd < 0) ? std::max(len + relativeEnd, 0.0) : std::min(relativeEnd, len);
+
+    Value value = argv[0];
+    while (k < fin) {
+        O->setIndexedPropertyThrowsException(state, Value(k), value);
+        k++;
+    }
+    // return O.
+    return O;
+}
+
+Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, find);
+    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
+    validateTypedArray(state, O, state.context()->staticStrings().find.string());
+
+    // Array.prototype.find as defined in 22.1.3.8 except
+    // that the this object’s [[ArrayLength]] internal slot is accessed
+    // in place of performing a [[Get]] of "length"
+    double len = O->asArrayBufferView()->arraylength();
+
+    // If IsCallable(predicate) is false, throw a TypeError exception.
+    Value predicate = argv[0];
+    if (!predicate.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().find.string(), errorMessage_GlobalObject_CallbackNotCallable);
+    }
+
+    // If thisArg was supplied, let T be thisArg; else let T be undefined.
+    Value T;
+    if (argc > 1) {
+        T = argv[1];
+    }
+
+    // Let k be 0.
+    double k = 0;
+    Value kValue;
+    // Repeat, while k < len
+    while (k < len) {
+        // Let kValue be Get(O, Pk).
+        kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        // Let testResult be ToBoolean(Call(predicate, T, «kValue, k, O»)).
+        Value args[] = { kValue, Value(k), O };
+        bool testResult = predicate.asFunction()->call(state, T, 3, args).toBoolean(state);
+        // If testResult is true, return kValue.
+        if (testResult) {
+            return kValue;
+        }
+        // Increase k by 1.
+        k++;
+    }
+    // Return undefined.
+    return Value();
+}
+
+Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, findIndex);
+    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
+    validateTypedArray(state, O, state.context()->staticStrings().findIndex.string());
+
+    // Array.prototype.findIndex as defined in 22.1.3.9 except
+    // that the this object’s [[ArrayLength]] internal slot is accessed
+    // in place of performing a [[Get]] of "length"
+    double len = O->asArrayBufferView()->arraylength();
+
+    // If IsCallable(predicate) is false, throw a TypeError exception.
+    Value predicate = argv[0];
+    if (!predicate.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().findIndex.string(), errorMessage_GlobalObject_CallbackNotCallable);
+    }
+
+    // If thisArg was supplied, let T be thisArg; else let T be undefined.
+    Value T;
+    if (argc > 1) {
+        T = argv[1];
+    }
+
+    // Let k be 0.
+    double k = 0;
+    Value kValue;
+    // Repeat, while k < len
+    while (k < len) {
+        // Let kValue be ? Get(O, Pk).
+        Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        // Let testResult be ToBoolean(? Call(predicate, T, « kValue, k, O »)).
+        Value args[] = { kValue, Value(k), O };
+        bool testResult = predicate.asFunction()->call(state, T, 3, args).toBoolean(state);
+        // If testResult is true, return k.
+        if (testResult) {
+            return Value(k);
+        }
+        // Increase k by 1.
+        k++;
+    }
+    // Return -1
+    return Value(-1);
 }
 
 template <typename TA, int elementSize>
@@ -663,18 +782,21 @@ FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicStr
 static Value builtinTypedArrayKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(M, TypedArray, keys);
+    validateTypedArray(state, M, state.context()->staticStrings().keys.string());
     return M->keys(state);
 }
 
 static Value builtinTypedArrayValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(M, TypedArray, values);
+    validateTypedArray(state, M, state.context()->staticStrings().values.string());
     return M->values(state);
 }
 
 static Value builtinTypedArrayEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(M, TypedArray, entries);
+    validateTypedArray(state, M, state.context()->staticStrings().entries.string());
     return M->entries(state);
 }
 
@@ -722,11 +844,11 @@ void GlobalObject::installTypedArray(ExecutionState& state)
 
     m_arrayBuffer->setFunctionPrototype(state, m_arrayBufferPrototype);
 
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().ArrayBuffer),
+    defineOwnProperty(state, ObjectPropertyName(strings->ArrayBuffer),
                       ObjectPropertyDescriptor(m_arrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // %TypedArray%
-    FunctionObject* typedArrayFunction = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().TypedArray, builtinTypedArrayConstructor, 0, [](ExecutionState& state, CodeBlock* cb, size_t argc, Value* argv) -> Object* {
+    FunctionObject* typedArrayFunction = new FunctionObject(state, NativeFunctionInfo(strings->TypedArray, builtinTypedArrayConstructor, 0, [](ExecutionState& state, CodeBlock* cb, size_t argc, Value* argv) -> Object* {
                                                                 return new Object(state);
                                                             },
                                                                                       (NativeFunctionInfo::Flags)(NativeFunctionInfo::Strict | NativeFunctionInfo::Constructor)),
@@ -741,18 +863,23 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->copyWithin, builtinTypedArrayCopyWithin, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->every),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->every, builtinTypedArrayEvery, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->fill),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->fill, builtinTypedArrayFill, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->find),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->find, builtinTypedArrayFind, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->findIndex),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->findIndex, builtinTypedArrayFindIndex, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->indexOf),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->indexOf, builtinTypedArrayIndexOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->lastIndexOf),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->lastIndexOf, builtinTypedArrayLastIndexOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().keys),
-                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().keys, builtinTypedArrayKeys, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().entries),
-                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().entries, builtinTypedArrayEntries, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->keys),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->keys, builtinTypedArrayKeys, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->entries),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->entries, builtinTypedArrayEntries, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    auto valuesFn = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinTypedArrayValues, 0, nullptr, NativeFunctionInfo::Strict));
-    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().values),
+    auto valuesFn = new FunctionObject(state, NativeFunctionInfo(strings->values, builtinTypedArrayValues, 0, nullptr, NativeFunctionInfo::Strict));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->values),
                                                           ObjectPropertyDescriptor(valuesFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator),
