@@ -151,7 +151,7 @@ public:
         m_stackTraceData = d;
     }
 
-protected:
+private:
     StackTraceData* m_stackTraceData;
 };
 

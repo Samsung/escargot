@@ -64,7 +64,7 @@ public:
     void* operator new[](size_t size) = delete;
 
 
-protected:
+private:
     String* m_primitiveValue;
 };
 
@@ -86,7 +86,7 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-protected:
+private:
     String* m_string;
     size_t m_iteratorNextIndex;
 };

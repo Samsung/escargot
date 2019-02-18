@@ -259,6 +259,7 @@ protected:
         Allocator().deallocate(buffer, siz + 1);
     }
 
+private:
     T* m_buffer;
     size_t m_size;
 };

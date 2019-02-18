@@ -50,7 +50,7 @@ public:
         return false;
     }
 
-protected:
+private:
     Vector<Object*, GCUtil::gc_malloc_ignore_off_page_allocator<Object*>> m_registeredItems;
 };
 
@@ -59,8 +59,10 @@ public:
     ToStringRecursionPreventerItemAutoHolder(ExecutionState& state, Object* obj);
     ~ToStringRecursionPreventerItemAutoHolder();
 
-protected:
+private:
     ToStringRecursionPreventer* m_preventer;
+
+protected:
 #ifndef NDEBUG
     Object* m_object;
 #endif

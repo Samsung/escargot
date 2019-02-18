@@ -153,7 +153,7 @@ public:
         }
     }
 
-protected:
+private:
     bool m_isUIntType;
     union ObjectPropertyNameData {
         ObjectPropertyNameData() { m_uint = 0; }
@@ -208,7 +208,7 @@ public:
         return m_setter;
     }
 
-protected:
+private:
     SmallValue m_getter;
     SmallValue m_setter;
 };
@@ -505,7 +505,7 @@ public:
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.10.4
     Value toPropertyDescriptor(ExecutionState& state, const Value& receiver);
 
-protected:
+private:
     bool m_hasValue : 1;
     bool m_isWritable : 1;
     bool m_isEnumerable : 1;
@@ -515,6 +515,8 @@ protected:
         Value m_value;
         JSGetterSetter* m_jsGetterSetter;
     };
+
+protected:
     Value valueSlowCase(ExecutionState& state, const Value& receiver) const;
 };
 

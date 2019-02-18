@@ -199,7 +199,7 @@ public:
         return m_compiledByteCodeSize;
     }
 
-protected:
+private:
     StaticStrings m_staticStrings;
     AtomicStringMap m_atomicStringMap;
     GlobalSymbols m_globalSymbols;

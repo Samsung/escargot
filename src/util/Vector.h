@@ -323,6 +323,7 @@ protected:
         return capacity * glowFactor / 100.f;
     }
 
+private:
     T* m_buffer;
     size_t m_capacity;
     size_t m_size;
@@ -431,6 +432,7 @@ protected:
         return capacity * glowFactor / 100.f;
     }
 
+private:
     T* m_buffer;
     size_t m_capacity;
 };

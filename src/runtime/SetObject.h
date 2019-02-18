@@ -63,7 +63,7 @@ public:
         return m_storage;
     }
 
-protected:
+private:
     SetObjectData m_storage;
 };
 
@@ -89,7 +89,7 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-protected:
+private:
     SetObject* m_set;
     size_t m_iteratorIndex;
     Type m_type;

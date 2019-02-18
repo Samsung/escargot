@@ -155,10 +155,12 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-protected:
+private:
     bool m_isProtectedByTransitionTable;
-    bool m_needsTransitionTable;
+
+protected:
     bool m_hasIndexPropertyName;
+    bool m_needsTransitionTable;
     bool m_isStructureWithFastAccess;
     ObjectStructureItemVector m_properties;
     ObjectStructureTransitionTableVector m_transitionTable;

@@ -171,6 +171,7 @@ protected:
         }
     }
 
+private:
     String* m_string;
 };
 

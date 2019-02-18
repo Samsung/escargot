@@ -134,6 +134,9 @@ public:
         return ((Symbol*)m_data)->getSymbolDescriptiveString();
     }
 
+private:
+    size_t m_data;
+
 protected:
     ALWAYS_INLINE bool hasSymbol() const
     {
@@ -144,7 +147,7 @@ protected:
         }
         return false;
     }
-    size_t m_data;
+
     // AtomicString <- saves its (String* | PROPERTY_NAME_ATOMIC_STRING_VIAS)
     // String*, Symbol* <- saves pointer
 };

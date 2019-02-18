@@ -64,7 +64,7 @@ public:
         return m_storage;
     }
 
-protected:
+private:
     MapObjectData m_storage;
 };
 
@@ -90,7 +90,7 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-protected:
+private:
     MapObject* m_map;
     size_t m_iteratorIndex;
     Type m_type;

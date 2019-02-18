@@ -56,7 +56,7 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-protected:
+private:
     WeakSetObjectData m_storage;
 };
 }

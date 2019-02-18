@@ -246,7 +246,7 @@ public:
         }
     }
 
-protected:
+private:
     T* m_buffer;
     size_t m_size;
 };
@@ -350,7 +350,7 @@ public:
         return m_buffer;
     }
 
-protected:
+private:
     T* m_buffer;
 };
 }

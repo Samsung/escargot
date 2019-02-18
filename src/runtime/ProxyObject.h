@@ -48,7 +48,7 @@ public:
         m_proxy = nullptr;
     }
 
-protected:
+private:
     ProxyObject* m_proxy;
 };
 
@@ -136,7 +136,7 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-protected:
+private:
     bool m_isCallable;
     bool m_isConstructible;
 

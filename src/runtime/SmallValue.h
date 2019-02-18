@@ -63,7 +63,7 @@ public:
         return m_value;
     }
 
-protected:
+private:
     double m_value;
 };
 
@@ -328,7 +328,7 @@ protected:
     {
     }
 
-
+private:
     SmallValueData m_data;
 };
 

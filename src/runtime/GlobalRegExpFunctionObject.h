@@ -55,7 +55,7 @@ public:
         return true;
     }
 
-protected:
+private:
     void initInternalProperties(ExecutionState& state);
     RegExpStatus m_status;
 };
