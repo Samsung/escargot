@@ -89,14 +89,18 @@ class Value {
 public:
 #ifdef ESCARGOT_32
     enum { EmptyValueTag = ~ValueEmpty };
-    enum { Int32Tag = 0xfffffffe };
     enum { BooleanFalseTag = ~ValueFalse };
     enum { BooleanTrueTag = ~ValueTrue };
     enum { NullTag = ~ValueNull };
     enum { UndefinedTag = ~ValueUndefined };
-    enum { OtherPointerTag = ~(TagBitTypeOther | (4 << TagTypeShift)) };
-    enum { ObjectPointerTag = ~(TagBitTypeOther | (5 << TagTypeShift)) };
-    enum { LowestTag = ObjectPointerTag };
+    enum { LowestTag = UndefinedTag };
+
+    // Any value which last bit is not set
+    enum { Int32Tag = 0xfffffffe - 0 };
+    enum { OtherPointerTag = 0xfffffffe - 2 };
+    enum { ObjectPointerTag = 0xfffffffe - 4 };
+
+    COMPILE_ASSERT((size_t)LowestTag < (size_t)ObjectPointerTag, "");
 #endif
 
     enum NullInitTag { Null };
@@ -226,7 +230,6 @@ public:
 
 #ifdef ESCARGOT_32
     uint32_t tag() const;
-    int32_t payload() const;
 #elif ESCARGOT_64
 // These values are #defines since using static const integers here is a ~1% regression!
 
@@ -243,9 +246,9 @@ public:
 
 // TagMask is used to check for all types of immediate values (either number or 'other').
 #define TagMask (TagTypeNumber | TagBitTypeOther)
+#endif
 
     intptr_t payload() const;
-#endif
 
 private:
     ValueDescriptor u;
