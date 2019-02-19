@@ -212,10 +212,8 @@ ObjectPropertyDescriptor::ObjectPropertyDescriptor(ExecutionState& state, Object
         }
     }
 
-    if (!m_isDataProperty) {
-        if (hasWritable | hasValue) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid property descriptor. Cannot both specify accessors and a value or writable attribute");
-        }
+    if (!m_isDataProperty && (hasWritable | hasValue)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid property descriptor. Cannot both specify accessors and a value or writable attribute");
     }
 
     checkProperty();
@@ -464,10 +462,8 @@ void Object::markAsPrototypeObject(ExecutionState& state)
     ensureObjectRareData();
     rareData()->m_isEverSetAsPrototypeObject = true;
 
-    if (!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty()) {
-        if (structure()->hasIndexPropertyName()) {
-            state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
-        }
+    if (!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && structure()->hasIndexPropertyName()) {
+        state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
     }
 }
 
@@ -587,11 +583,9 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
                     return false;
                 }
                 // If the [[Writable]] field of current is false, then
-                if (!item.m_descriptor.isWritable()) {
-                    // Reject, if the [[Value]] field of Desc is present and SameValue(Desc.[[Value]], current.[[Value]]) is false.
-                    if (desc.isValuePresent() && !desc.value().equalsToByTheSameValueAlgorithm(state, getOwnDataPropertyUtilForObject(state, idx, this))) {
-                        return false;
-                    }
+                // Reject, if the [[Value]] field of Desc is present and SameValue(Desc.[[Value]], current.[[Value]]) is false.
+                if (!item.m_descriptor.isWritable() && desc.isValuePresent() && !desc.value().equalsToByTheSameValueAlgorithm(state, getOwnDataPropertyUtilForObject(state, idx, this))) {
+                    return false;
                 }
             }
         }
@@ -905,11 +899,9 @@ bool Object::nextIndexForward(ExecutionState& state, Object* obj, const double c
                 if (*e->skipUndefined && self->get(state, name).value(state, self).isUndefined()) {
                     return true;
                 }
-                if (index > *e->cur) {
-                    if (*ret > index) {
-                        *ret = std::min(static_cast<double>(index), *ret);
-                        *e->exists = true;
-                    }
+                if (index > *e->cur && *ret > index) {
+                    *ret = std::min(static_cast<double>(index), *ret);
+                    *e->exists = true;
                 }
             }
             return true;

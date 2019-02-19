@@ -625,10 +625,8 @@ public:
         // Only value type supported
         if (desc.isValuePresent()) {
             Value PV = P.toPlainValue(state);
-            if (!PV.isSymbol()) {
-                if (m_defineOwnPropertyCallback(toRef(&state), toRef(this), toRef(PV), toRef(desc.value()))) {
-                    return true;
-                }
+            if (!PV.isSymbol() && m_defineOwnPropertyCallback(toRef(&state), toRef(this), toRef(PV), toRef(desc.value()))) {
+                return true;
             }
         }
         return Object::defineOwnProperty(state, P, desc);
@@ -1356,10 +1354,8 @@ void ContextRef::setVirtualIdentifierCallback(VirtualIdentifierCallback cb)
     Context* ctx = toImpl(this);
     ctx->m_virtualIdentifierCallbackPublic = (void*)cb;
     ctx->setVirtualIdentifierCallback([](ExecutionState& state, Value name) -> Value {
-        if (state.context()->m_virtualIdentifierCallbackPublic) {
-            if (!name.isSymbol()) {
-                return toImpl(((VirtualIdentifierCallback)state.context()->m_virtualIdentifierCallbackPublic)(toRef(&state), toRef(name)));
-            }
+        if (state.context()->m_virtualIdentifierCallbackPublic && !name.isSymbol()) {
+            return toImpl(((VirtualIdentifierCallback)state.context()->m_virtualIdentifierCallbackPublic)(toRef(&state), toRef(name)));
         }
         return Value(Value::EmptyValue);
     });

@@ -912,14 +912,12 @@ static StringMap* resolveLocale(ExecutionState& state, const Vector<String*, gc_
 
             // If the result of calling the [[Call]] internal method of indexOf with keyLocaleData as the this value
             // and an argument list containing the single item optionsValue is not -1, then
-            if (std::find(keyLocaleData.begin(), keyLocaleData.end(), optionsValue) != keyLocaleData.end()) {
-                // If optionsValue is not equal to value, then
-                if (optionsValue != value) {
-                    // Let value be optionsValue.
-                    // Let supportedExtensionAddition be "".
-                    value = optionsValue;
-                    supportedExtensionAddition = String::emptyString;
-                }
+            // If optionsValue is not equal to value, then
+            if (std::find(keyLocaleData.begin(), keyLocaleData.end(), optionsValue) != keyLocaleData.end() && optionsValue != value) {
+                // Let value be optionsValue.
+                // Let supportedExtensionAddition be "".
+                value = optionsValue;
+                supportedExtensionAddition = String::emptyString;
             }
         }
         // Set result.[[<key>]] to value.

@@ -394,28 +394,20 @@ private:
 protected:
     void checkProperty()
     {
-        if ((m_property & WritablePresent)) {
-            if ((m_property & NonWritablePresent)) {
-                ASSERT_NOT_REACHED();
-            }
+        if ((m_property & WritablePresent) && (m_property & NonWritablePresent)) {
+            ASSERT_NOT_REACHED();
         }
 
-        if ((m_property & EnumerablePresent)) {
-            if ((m_property & NonEnumerablePresent)) {
-                ASSERT_NOT_REACHED();
-            }
+        if ((m_property & EnumerablePresent) && (m_property & NonEnumerablePresent)) {
+            ASSERT_NOT_REACHED();
         }
 
-        if ((m_property & ConfigurablePresent)) {
-            if ((m_property & NonConfigurablePresent)) {
-                ASSERT_NOT_REACHED();
-            }
+        if ((m_property & ConfigurablePresent) && (m_property & NonConfigurablePresent)) {
+            ASSERT_NOT_REACHED();
         }
 
-        if (!m_isDataProperty) {
-            if ((m_property & WritablePresent) | (m_property & NonWritablePresent) | (m_property & ValuePresent)) {
-                ASSERT_NOT_REACHED();
-            }
+        if (!m_isDataProperty && ((m_property & WritablePresent) | (m_property & NonWritablePresent) | (m_property & ValuePresent))) {
+            ASSERT_NOT_REACHED();
         }
     }
     MAKE_STACK_ALLOCATED();
@@ -839,10 +831,8 @@ protected:
     void initPlainObject(ExecutionState& state);
     ObjectRareData* rareData() const
     {
-        if ((size_t)m_prototype > 2) {
-            if (g_objectRareDataTag == *((size_t*)(m_prototype))) {
-                return (ObjectRareData*)m_prototype;
-            }
+        if ((size_t)m_prototype > 2 && g_objectRareDataTag == *((size_t*)(m_prototype))) {
+            return (ObjectRareData*)m_prototype;
         }
         return nullptr;
     }

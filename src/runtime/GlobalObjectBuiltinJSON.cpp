@@ -211,68 +211,66 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
 
     // 4
     Value reviver = argv[1];
-    if (reviver.isObject()) {
-        if (reviver.isPointerValue() && reviver.asPointerValue()->isFunctionObject()) {
-            Object* root = new Object(state);
-            root->defineOwnProperty(state, ObjectPropertyName(state, String::emptyString), ObjectPropertyDescriptor(unfiltered, ObjectPropertyDescriptor::AllPresent));
-            std::function<Value(Value, const ObjectPropertyName&)> Walk;
-            Walk = [&](Value holder, const ObjectPropertyName& name) -> Value {
-                Value val = holder.asPointerValue()->asObject()->get(state, name).value(state, holder);
-                if (val.isObject()) {
-                    if (val.asObject()->isArrayObject()) {
-                        ArrayObject* arrObject = val.asObject()->asArrayObject();
-                        uint32_t i = 0;
-                        uint32_t len = arrObject->length(state);
-                        while (i < len) {
-                            Value newElement = Walk(val, ObjectPropertyName(state, Value(i).toString(state)));
-                            if (newElement.isUndefined()) {
-                                arrObject->deleteOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)));
-                            } else {
-                                arrObject->defineOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)), ObjectPropertyDescriptor(newElement, ObjectPropertyDescriptor::AllPresent));
-                            }
-                            i++;
+    if (reviver.isObject() && reviver.isPointerValue() && reviver.asPointerValue()->isFunctionObject()) {
+        Object* root = new Object(state);
+        root->defineOwnProperty(state, ObjectPropertyName(state, String::emptyString), ObjectPropertyDescriptor(unfiltered, ObjectPropertyDescriptor::AllPresent));
+        std::function<Value(Value, const ObjectPropertyName&)> Walk;
+        Walk = [&](Value holder, const ObjectPropertyName& name) -> Value {
+            Value val = holder.asPointerValue()->asObject()->get(state, name).value(state, holder);
+            if (val.isObject()) {
+                if (val.asObject()->isArrayObject()) {
+                    ArrayObject* arrObject = val.asObject()->asArrayObject();
+                    uint32_t i = 0;
+                    uint32_t len = arrObject->length(state);
+                    while (i < len) {
+                        Value newElement = Walk(val, ObjectPropertyName(state, Value(i).toString(state)));
+                        if (newElement.isUndefined()) {
+                            arrObject->deleteOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)));
+                        } else {
+                            arrObject->defineOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)), ObjectPropertyDescriptor(newElement, ObjectPropertyDescriptor::AllPresent));
                         }
-                    } else if (val.asObject()->isTypedArrayObject()) {
-                        ArrayBufferView* arrObject = val.asObject()->asArrayBufferView();
-                        uint32_t i = 0;
-                        uint32_t len = arrObject->arraylength();
-                        while (i < len) {
-                            Value newElement = Walk(val, ObjectPropertyName(state, Value(i).toString(state)));
-                            if (newElement.isUndefined()) {
-                                arrObject->deleteOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)));
-                            } else {
-                                arrObject->defineOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)), ObjectPropertyDescriptor(newElement, ObjectPropertyDescriptor::AllPresent));
-                            }
-                            i++;
+                        i++;
+                    }
+                } else if (val.asObject()->isTypedArrayObject()) {
+                    ArrayBufferView* arrObject = val.asObject()->asArrayBufferView();
+                    uint32_t i = 0;
+                    uint32_t len = arrObject->arraylength();
+                    while (i < len) {
+                        Value newElement = Walk(val, ObjectPropertyName(state, Value(i).toString(state)));
+                        if (newElement.isUndefined()) {
+                            arrObject->deleteOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)));
+                        } else {
+                            arrObject->defineOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)), ObjectPropertyDescriptor(newElement, ObjectPropertyDescriptor::AllPresent));
                         }
-                    } else {
-                        Object* object = val.asObject();
-                        std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>> keys;
-                        object->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-                            if (desc.isEnumerable()) {
-                                std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>>* keys = (std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>>*)data;
-                                keys->push_back(P);
-                            }
-                            return true;
-                        },
-                                            &keys);
-                        for (auto key : keys) {
-                            if (!object->hasOwnProperty(state, key))
-                                continue;
-                            Value newElement = Walk(val, key);
-                            if (newElement.isUndefined()) {
-                                object->deleteOwnProperty(state, key);
-                            } else {
-                                object->defineOwnProperty(state, key, ObjectPropertyDescriptor(newElement, ObjectPropertyDescriptor::AllPresent));
-                            }
+                        i++;
+                    }
+                } else {
+                    Object* object = val.asObject();
+                    std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>> keys;
+                    object->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+                        if (desc.isEnumerable()) {
+                            std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>>* keys = (std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>>*)data;
+                            keys->push_back(P);
+                        }
+                        return true;
+                    },
+                                        &keys);
+                    for (auto key : keys) {
+                        if (!object->hasOwnProperty(state, key))
+                            continue;
+                        Value newElement = Walk(val, key);
+                        if (newElement.isUndefined()) {
+                            object->deleteOwnProperty(state, key);
+                        } else {
+                            object->defineOwnProperty(state, key, ObjectPropertyDescriptor(newElement, ObjectPropertyDescriptor::AllPresent));
                         }
                     }
                 }
-                Value arguments[] = { name.toPlainValue(state), val };
-                return FunctionObject::call(state, reviver, holder, 2, arguments);
-            };
-            return Walk(root, ObjectPropertyName(state, String::emptyString));
-        }
+            }
+            Value arguments[] = { name.toPlainValue(state), val };
+            return FunctionObject::call(state, reviver, holder, 2, arguments);
+        };
+        return Walk(root, ObjectPropertyName(state, String::emptyString));
     }
 
     // 5
@@ -319,11 +317,8 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
                     item = property.asString();
                 } else if (property.isNumber()) {
                     item = property.toString(state);
-                } else if (property.isObject()) {
-                    if (property.asPointerValue()->isStringObject()
-                        || property.asPointerValue()->isNumberObject()) {
-                        item = property.toString(state);
-                    }
+                } else if (property.isObject() && (property.asPointerValue()->isStringObject() || property.asPointerValue()->isNumberObject())) {
+                    item = property.toString(state);
                 }
                 if (item) {
                     bool flag = false;
@@ -416,13 +411,11 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
             }
             return strings->null.string();
         }
-        if (value.isObject()) {
-            if (!value.isFunction()) {
-                if (value.asObject()->isArrayObject()) {
-                    return JA(value.asObject()->asArrayObject());
-                } else {
-                    return JO(value.asObject());
-                }
+        if (value.isObject() && !value.isFunction()) {
+            if (value.asObject()->isArrayObject()) {
+                return JA(value.asObject()->asArrayObject());
+            } else {
+                return JO(value.asObject());
             }
         }
 

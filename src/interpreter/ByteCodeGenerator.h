@@ -151,34 +151,26 @@ struct ByteCodeGenerateContext {
     {
         ASSERT(m_tryStatementScopeCount);
         for (unsigned i = 0; i < m_breakStatementPositions.size(); i++) {
-            if (m_breakStatementPositions[i] > (unsigned long)frontlimit) {
-                if (m_complexCaseStatementPositions.find(m_breakStatementPositions[i]) == m_complexCaseStatementPositions.end()) {
-                    m_complexCaseStatementPositions.insert(std::make_pair(m_breakStatementPositions[i], m_tryStatementScopeCount));
-                }
+            if (m_breakStatementPositions[i] > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_breakStatementPositions[i]) == m_complexCaseStatementPositions.end()) {
+                m_complexCaseStatementPositions.insert(std::make_pair(m_breakStatementPositions[i], m_tryStatementScopeCount));
             }
         }
 
         for (unsigned i = 0; i < m_continueStatementPositions.size(); i++) {
-            if (m_continueStatementPositions[i] > (unsigned long)frontlimit) {
-                if (m_complexCaseStatementPositions.find(m_continueStatementPositions[i]) == m_complexCaseStatementPositions.end()) {
-                    m_complexCaseStatementPositions.insert(std::make_pair(m_continueStatementPositions[i], m_tryStatementScopeCount));
-                }
+            if (m_continueStatementPositions[i] > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_continueStatementPositions[i]) == m_complexCaseStatementPositions.end()) {
+                m_complexCaseStatementPositions.insert(std::make_pair(m_continueStatementPositions[i], m_tryStatementScopeCount));
             }
         }
 
         for (unsigned i = 0; i < m_labeledBreakStatmentPositions.size(); i++) {
-            if (m_labeledBreakStatmentPositions[i].second > (unsigned long)frontlimit) {
-                if (m_complexCaseStatementPositions.find(m_labeledBreakStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
-                    m_complexCaseStatementPositions.insert(std::make_pair(m_labeledBreakStatmentPositions[i].second, m_tryStatementScopeCount));
-                }
+            if (m_labeledBreakStatmentPositions[i].second > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labeledBreakStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
+                m_complexCaseStatementPositions.insert(std::make_pair(m_labeledBreakStatmentPositions[i].second, m_tryStatementScopeCount));
             }
         }
 
         for (unsigned i = 0; i < m_labeledContinueStatmentPositions.size(); i++) {
-            if (m_labeledContinueStatmentPositions[i].second > (unsigned long)frontlimit) {
-                if (m_complexCaseStatementPositions.find(m_labeledContinueStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
-                    m_complexCaseStatementPositions.insert(std::make_pair(m_labeledContinueStatmentPositions[i].second, m_tryStatementScopeCount));
-                }
+            if (m_labeledContinueStatmentPositions[i].second > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labeledContinueStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
+                m_complexCaseStatementPositions.insert(std::make_pair(m_labeledContinueStatmentPositions[i].second, m_tryStatementScopeCount));
             }
         }
     }

@@ -578,10 +578,8 @@ uint64_t String::tryToUseAsArrayIndex() const
         first = ((char16_t*)data.buffer)[0];
     }
 
-    if (len > 1) {
-        if (first == '0') {
-            return Value::InvalidArrayIndexValue;
-        }
+    if (len > 1 && first == '0') {
+        return Value::InvalidArrayIndexValue;
     }
 
     for (unsigned i = 0; i < len; i++) {
@@ -620,10 +618,8 @@ uint64_t String::tryToUseAsIndex() const
         first = ((char16_t*)data.buffer)[0];
     }
 
-    if (len > 1) {
-        if (first == '0') {
-            return Value::InvalidIndexValue;
-        }
+    if (len > 1 && first == '0') {
+        return Value::InvalidIndexValue;
     }
 
     for (unsigned i = 0; i < len; i++) {

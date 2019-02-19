@@ -193,10 +193,8 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
             if (env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
                 if (env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->isInterpretedCodeBlock()) {
                     InterpretedCodeBlock* cblk = env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->asInterpretedCodeBlock();
-                    if (cblk->script() && cblk->byteCodeBlock()) {
-                        if (std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), cblk) == codeBlocksInCurrentStack.end()) {
-                            codeBlocksInCurrentStack.push_back(cblk);
-                        }
+                    if (cblk->script() && cblk->byteCodeBlock() && std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), cblk) == codeBlocksInCurrentStack.end()) {
+                        codeBlocksInCurrentStack.push_back(cblk);
                     }
                 }
             }

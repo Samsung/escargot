@@ -305,11 +305,9 @@ public:
     virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property) override
     {
         Value::ValueIndex idx = property.tryToUseAsIndex(state);
-        if (LIKELY(idx != Value::InvalidIndexValue)) {
-            if (LIKELY((unsigned)idx < arraylength())) {
-                unsigned idxPosition = idx * typedArrayElementSize;
-                return ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false);
-            }
+        if (LIKELY(idx != Value::InvalidIndexValue) && LIKELY((unsigned)idx < arraylength())) {
+            unsigned idxPosition = idx * typedArrayElementSize;
+            return ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false);
         }
         return get(state, ObjectPropertyName(state, property));
     }
@@ -317,12 +315,10 @@ public:
     virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value) override
     {
         Value::ValueIndex index = property.tryToUseAsIndex(state);
-        if (LIKELY(Value::InvalidIndexValue != index)) {
-            if (LIKELY((unsigned)index < arraylength())) {
-                unsigned idxPosition = index * typedArrayElementSize;
-                setValueInBuffer<TypeAdaptor>(state, idxPosition, value);
-                return true;
-            }
+        if (LIKELY(Value::InvalidIndexValue != index) && LIKELY((unsigned)index < arraylength())) {
+            unsigned idxPosition = index * typedArrayElementSize;
+            setValueInBuffer<TypeAdaptor>(state, idxPosition, value);
+            return true;
         }
         return set(state, ObjectPropertyName(state, property), value, this);
     }

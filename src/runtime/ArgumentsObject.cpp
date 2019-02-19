@@ -166,15 +166,13 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
 ObjectGetResult ArgumentsObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     uint64_t idx = P.tryToUseAsIndex();
-    if (LIKELY(idx != Value::InvalidIndexValue)) {
-        if (idx < m_argumentPropertyInfo.size()) {
-            Value val = m_argumentPropertyInfo[idx].first;
-            if (!val.isEmpty()) {
-                if (m_argumentPropertyInfo[idx].second.string()->length()) {
-                    return ObjectGetResult(ArgumentsObjectNativeGetter(state, this, m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second), true, true, true);
-                } else {
-                    return ObjectGetResult(val, true, true, true);
-                }
+    if (LIKELY(idx != Value::InvalidIndexValue) && idx < m_argumentPropertyInfo.size()) {
+        Value val = m_argumentPropertyInfo[idx].first;
+        if (!val.isEmpty()) {
+            if (m_argumentPropertyInfo[idx].second.string()->length()) {
+                return ObjectGetResult(ArgumentsObjectNativeGetter(state, this, m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second), true, true, true);
+            } else {
+                return ObjectGetResult(val, true, true, true);
             }
         }
     }
@@ -184,58 +182,56 @@ ObjectGetResult ArgumentsObject::getOwnProperty(ExecutionState& state, const Obj
 bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     uint64_t idx = P.tryToUseAsIndex();
-    if (LIKELY(idx != Value::InvalidIndexValue)) {
-        if (idx < m_argumentPropertyInfo.size()) {
-            Value val = m_argumentPropertyInfo[idx].first;
-            if (!val.isEmpty()) {
-                if (desc.isDataWritableEnumerableConfigurable() || desc.isValuePresentAlone()) {
-                    if (m_argumentPropertyInfo[idx].second.string()->length()) {
-                        ArgumentsObjectNativeSetter(state, this, desc.value(), m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second);
-                        return true;
-                    } else {
-                        m_argumentPropertyInfo[idx].first = desc.value();
-                        return true;
-                    }
+    if (LIKELY(idx != Value::InvalidIndexValue) && idx < m_argumentPropertyInfo.size()) {
+        Value val = m_argumentPropertyInfo[idx].first;
+        if (!val.isEmpty()) {
+            if (desc.isDataWritableEnumerableConfigurable() || desc.isValuePresentAlone()) {
+                if (m_argumentPropertyInfo[idx].second.string()->length()) {
+                    ArgumentsObjectNativeSetter(state, this, desc.value(), m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second);
+                    return true;
                 } else {
-                    if (m_argumentPropertyInfo[idx].second.string()->length() && desc.isDataDescriptor()) {
-                        if (desc.isValuePresent())
-                            ArgumentsObjectNativeSetter(state, this, desc.value(), m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second);
-                    }
-                    ObjectPropertyDescriptor descCpy(desc);
-                    if (!desc.isAccessorDescriptor() && !desc.isValuePresent()) {
-                        if (m_argumentPropertyInfo[idx].second.string()->length())
-                            descCpy.setValue(ArgumentsObjectNativeGetter(state, this, m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second));
-                        else
-                            descCpy.setValue(m_argumentPropertyInfo[idx].first);
-                    }
-
-                    m_argumentPropertyInfo[idx].first = Value(Value::EmptyValue);
-
-                    ObjectPropertyDescriptor newDesc(descCpy);
-                    newDesc.setWritable(true);
-                    newDesc.setConfigurable(true);
-                    newDesc.setEnumerable(true);
-
-                    if (desc.isWritablePresent()) {
-                        newDesc.setWritable(desc.isWritable());
-                    }
-                    if (desc.isEnumerablePresent()) {
-                        newDesc.setEnumerable(desc.isEnumerable());
-                    }
-                    if (desc.isConfigurablePresent()) {
-                        newDesc.setConfigurable(desc.isConfigurable());
-                    }
-
-                    bool extensibleBefore = isExtensible(state);
-                    if (!extensibleBefore) {
-                        rareData()->m_isExtensible = true;
-                    }
-                    bool ret = Object::defineOwnProperty(state, P, newDesc);
-                    if (!extensibleBefore) {
-                        preventExtensions(state);
-                    }
-                    return ret;
+                    m_argumentPropertyInfo[idx].first = desc.value();
+                    return true;
                 }
+            } else {
+                if (m_argumentPropertyInfo[idx].second.string()->length() && desc.isDataDescriptor()) {
+                    if (desc.isValuePresent())
+                        ArgumentsObjectNativeSetter(state, this, desc.value(), m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second);
+                }
+                ObjectPropertyDescriptor descCpy(desc);
+                if (!desc.isAccessorDescriptor() && !desc.isValuePresent()) {
+                    if (m_argumentPropertyInfo[idx].second.string()->length())
+                        descCpy.setValue(ArgumentsObjectNativeGetter(state, this, m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second));
+                    else
+                        descCpy.setValue(m_argumentPropertyInfo[idx].first);
+                }
+
+                m_argumentPropertyInfo[idx].first = Value(Value::EmptyValue);
+
+                ObjectPropertyDescriptor newDesc(descCpy);
+                newDesc.setWritable(true);
+                newDesc.setConfigurable(true);
+                newDesc.setEnumerable(true);
+
+                if (desc.isWritablePresent()) {
+                    newDesc.setWritable(desc.isWritable());
+                }
+                if (desc.isEnumerablePresent()) {
+                    newDesc.setEnumerable(desc.isEnumerable());
+                }
+                if (desc.isConfigurablePresent()) {
+                    newDesc.setConfigurable(desc.isConfigurable());
+                }
+
+                bool extensibleBefore = isExtensible(state);
+                if (!extensibleBefore) {
+                    rareData()->m_isExtensible = true;
+                }
+                bool ret = Object::defineOwnProperty(state, P, newDesc);
+                if (!extensibleBefore) {
+                    preventExtensions(state);
+                }
+                return ret;
             }
         }
     }
@@ -245,13 +241,11 @@ bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPrope
 bool ArgumentsObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     uint64_t idx = P.tryToUseAsIndex();
-    if (LIKELY(idx != Value::InvalidIndexValue)) {
-        if (idx < m_argumentPropertyInfo.size()) {
-            Value val = m_argumentPropertyInfo[idx].first;
-            if (!val.isEmpty()) {
-                m_argumentPropertyInfo[idx].first = Value(Value::EmptyValue);
-                return true;
-            }
+    if (LIKELY(idx != Value::InvalidIndexValue) && idx < m_argumentPropertyInfo.size()) {
+        Value val = m_argumentPropertyInfo[idx].first;
+        if (!val.isEmpty()) {
+            m_argumentPropertyInfo[idx].first = Value(Value::EmptyValue);
+            return true;
         }
     }
     return Object::deleteOwnProperty(state, P);
@@ -273,15 +267,13 @@ void ArgumentsObject::enumeration(ExecutionState& state, bool (*callback)(Execut
 ObjectGetResult ArgumentsObject::getIndexedProperty(ExecutionState& state, const Value& property)
 {
     Value::ValueIndex idx = property.tryToUseAsIndex(state);
-    if (LIKELY(idx != Value::InvalidIndexValue)) {
-        if (idx < m_argumentPropertyInfo.size()) {
-            Value val = m_argumentPropertyInfo[idx].first;
-            if (!val.isEmpty()) {
-                if (m_argumentPropertyInfo[idx].second.string()->length()) {
-                    return ObjectGetResult(ArgumentsObjectNativeGetter(state, this, m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second), true, true, true);
-                } else {
-                    return ObjectGetResult(val, true, true, true);
-                }
+    if (LIKELY(idx != Value::InvalidIndexValue) && idx < m_argumentPropertyInfo.size()) {
+        Value val = m_argumentPropertyInfo[idx].first;
+        if (!val.isEmpty()) {
+            if (m_argumentPropertyInfo[idx].second.string()->length()) {
+                return ObjectGetResult(ArgumentsObjectNativeGetter(state, this, m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second), true, true, true);
+            } else {
+                return ObjectGetResult(val, true, true, true);
             }
         }
     }
@@ -291,17 +283,15 @@ ObjectGetResult ArgumentsObject::getIndexedProperty(ExecutionState& state, const
 bool ArgumentsObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)
 {
     Value::ValueIndex idx = property.tryToUseAsIndex(state);
-    if (LIKELY(idx != Value::InvalidIndexValue)) {
-        if (idx < m_argumentPropertyInfo.size()) {
-            Value val = m_argumentPropertyInfo[idx].first;
-            if (!val.isEmpty()) {
-                if (m_argumentPropertyInfo[idx].second.string()->length()) {
-                    ArgumentsObjectNativeSetter(state, this, value, m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second);
-                    return true;
-                } else {
-                    m_argumentPropertyInfo[idx].first = value;
-                    return true;
-                }
+    if (LIKELY(idx != Value::InvalidIndexValue) && idx < m_argumentPropertyInfo.size()) {
+        Value val = m_argumentPropertyInfo[idx].first;
+        if (!val.isEmpty()) {
+            if (m_argumentPropertyInfo[idx].second.string()->length()) {
+                ArgumentsObjectNativeSetter(state, this, value, m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second);
+                return true;
+            } else {
+                m_argumentPropertyInfo[idx].first = value;
+                return true;
             }
         }
     }
