@@ -35,6 +35,15 @@ RegExpObject::RegExpObject(ExecutionState& state, String* source, String* option
     init(state, source, option);
 }
 
+RegExpObject::RegExpObject(ExecutionState& state, String* source, unsigned int option)
+    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5, true)
+    , m_lastIndex(Value(0))
+    , m_lastExecutedString(NULL)
+{
+    initRegExpObject(state);
+    initWithOption(state, source, (Option)option);
+}
+
 RegExpObject::RegExpObject(ExecutionState& state)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5, true)
     , m_lastIndex(Value(0))
@@ -123,21 +132,39 @@ static String* escapeSlashInPattern(String* patternStr)
         return builder.finalize();
 }
 
-void RegExpObject::init(ExecutionState& state, String* source, String* option)
+void RegExpObject::internalInit(ExecutionState& state, String* source)
 {
     String* defaultRegExpString = state.context()->staticStrings().defaultRegExpString.string();
 
+    String* previousSource = m_source;
+    // Last index should always be 0 on RegExp initialization
+    m_lastIndex = Value(0);
     m_source = source->length() ? source : defaultRegExpString;
     m_source = escapeSlashInPattern(m_source);
 
-    m_option = parseOption(state, option);
-
     auto entry = getCacheEntryAndCompileIfNeeded(state, m_source, m_option);
-    if (entry.m_yarrError)
+    if (entry.m_yarrError) {
+        if (previousSource != defaultRegExpString) {
+            m_source = previousSource;
+        }
+
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has invalid source");
+    }
 
     m_yarrPattern = entry.m_yarrPattern;
     m_bytecodePattern = entry.m_bytecodePattern;
+}
+
+void RegExpObject::init(ExecutionState& state, String* source, String* option)
+{
+    m_option = parseOption(state, option);
+    this->internalInit(state, source);
+}
+
+void RegExpObject::initWithOption(ExecutionState& state, String* source, Option option)
+{
+    m_option = option;
+    this->internalInit(state, source);
 }
 
 void RegExpObject::setLastIndex(ExecutionState& state, const Value& v)

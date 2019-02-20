@@ -136,8 +136,23 @@ static Value builtinRegExpToString(ExecutionState& state, Value thisValue, size_
 
 static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    state.throwException(new ASCIIString(errorMessage_NotImplemented));
-    RELEASE_ASSERT_NOT_REACHED();
+    if (argv[0].isObject() && argv[0].asObject()->isRegExpObject()) {
+        if (!argv[1].isUndefined()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot supply flags when constructing one RegExp from another");
+        } else {
+            RegExpObject* retVal = thisValue.asPointerValue()->asObject()->asRegExpObject();
+            RegExpObject* patternRegExp = argv[0].asPointerValue()->asObject()->asRegExpObject();
+            retVal->initWithOption(state, patternRegExp->source(), patternRegExp->option());
+            return retVal;
+        }
+    }
+
+    RegExpObject* retVal = thisValue.asPointerValue()->asObject()->asRegExpObject();
+    String* pattern_str = argv[0].isUndefined() ? String::emptyString : argv[0].toString(state);
+    String* flags_str = argv[1].isUndefined() ? String::emptyString : argv[1].toString(state);
+    retVal->init(state, pattern_str, flags_str);
+
+    return retVal;
 }
 
 GlobalRegExpFunctionObject::GlobalRegExpFunctionObject(ExecutionState& state)
