@@ -817,6 +817,40 @@ static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t ar
     return Value(true);
 }
 
+static Value builtinArrayFill(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, fill);
+    // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
+    // Let len be ToUint32(lenValue).
+    double len = O->length(state);
+
+    // Let relativeStart be ToInteger(start).
+    double relativeStart = 0;
+    if (argc > 1) {
+        relativeStart = argv[1].toInteger(state);
+    }
+
+    // If relativeStart < 0, let k be max((len + relativeStart),0); else let k be min(relativeStart, len).
+    unsigned k = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, len);
+
+    // If end is undefined, let relativeEnd be len; else let relativeEnd be ToInteger(end).
+    double relativeEnd = len;
+    if (argc > 2 && !argv[2].isUndefined()) {
+        relativeEnd = argv[2].toInteger(state);
+    }
+
+    // If relativeEnd < 0, let final be max((len + relativeEnd),0); else let final be min(relativeEnd, len).
+    unsigned fin = (relativeEnd < 0) ? std::max(len + relativeEnd, 0.0) : std::min(relativeEnd, len);
+
+    Value value = argv[0];
+    while (k < fin) {
+        O->setIndexedPropertyThrowsException(state, Value(k), value);
+        k++;
+    }
+    // return O.
+    return O;
+}
+
 static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
@@ -1590,6 +1624,8 @@ void GlobalObject::installArray(ExecutionState& state)
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().slice, builtinArraySlice, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().every),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().every, builtinArrayEvery, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().fill),
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().every, builtinArrayFill, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().includes),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().every, builtinArrayIncludes, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().filter),
