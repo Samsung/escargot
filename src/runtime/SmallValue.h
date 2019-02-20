@@ -75,12 +75,7 @@ const int kApiAlignSize = 4;
 const int kApiIntSize = sizeof(int);
 const int kApiInt64Size = sizeof(int64_t);
 
-// Tag information for HeapObject.
-const intptr_t kHeapObjectTag = 0;
-const int kHeapObjectTagSize = 1;
-const intptr_t kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
-
-// Tag information for Smi.
+// Tag information for small immediate. Other values are heap objects.
 const int kSmiTag = 1;
 const int kSmiTagSize = 1;
 const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
@@ -145,8 +140,6 @@ const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
 
 #define HAS_SMI_TAG(value) \
     ((reinterpret_cast<intptr_t>(value) & ::Escargot::SmallValueImpl::kSmiTagMask) == ::Escargot::SmallValueImpl::kSmiTag)
-#define HAS_OBJECT_TAG(value) \
-    ((value & ::Escargot::SmallValueImpl::kHeapObjectTagMask) == ::Escargot::SmallValueImpl::kHeapObjectTag)
 }
 
 extern size_t g_doubleInSmallValueTag;
@@ -184,13 +177,12 @@ public:
 
     bool isStoredInHeap()
     {
-        if (HAS_OBJECT_TAG(m_data.payload)) {
-            PointerValue* v = (PointerValue*)m_data.payload;
-            if (((size_t)v) > ValueLast) {
-                return true;
-            }
+        if (HAS_SMI_TAG(m_data.payload)) {
+            return false;
         }
-        return false;
+
+        PointerValue* v = (PointerValue*)m_data.payload;
+        return ((size_t)v) > ValueLast;
     }
 
     intptr_t payload() const
@@ -210,56 +202,51 @@ public:
 
     operator Value() const
     {
-        if (HAS_OBJECT_TAG(m_data.payload)) {
-            PointerValue* v = (PointerValue*)m_data.payload;
-            if (((size_t)v) <= ValueLast) {
-#ifdef ESCARGOT_32
-                return Value(Value::FromTag, ~((uint32_t)v));
-#else
-                return Value(v);
-#endif
-            } else if (g_doubleInSmallValueTag == *((size_t*)v)) {
-                return Value(v->asDoubleInSmallValue()->value());
-            }
-            return Value(v);
-        } else {
+        if (HAS_SMI_TAG(m_data.payload)) {
             int32_t value = SmallValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
             return Value(value);
         }
-        return Value();
+
+        PointerValue* v = (PointerValue*)m_data.payload;
+        if (((size_t)v) <= ValueLast) {
+#ifdef ESCARGOT_32
+            return Value(Value::FromTag, ~((uint32_t)v));
+#else
+            return Value(v);
+#endif
+        } else if (g_doubleInSmallValueTag == *((size_t*)v)) {
+            return Value(v->asDoubleInSmallValue()->value());
+        }
+        return Value(v);
     }
 
     bool isInt32()
     {
-        if (HAS_OBJECT_TAG(m_data.payload)) {
-            return false;
-        }
-
-        return true;
+        return HAS_SMI_TAG(m_data.payload);
     }
 
     uint32_t asInt32()
     {
-        ASSERT(!HAS_OBJECT_TAG(m_data.payload));
+        ASSERT(HAS_SMI_TAG(m_data.payload));
         int32_t value = SmallValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
         return (uint32_t)value;
     }
 
     uint32_t asUint32()
     {
-        ASSERT(!HAS_OBJECT_TAG(m_data.payload));
+        ASSERT(HAS_SMI_TAG(m_data.payload));
         int32_t value = SmallValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
         return (uint32_t)value;
     }
 
     uint32_t toUint32(ExecutionState& state)
     {
-        if (UNLIKELY(HAS_OBJECT_TAG(m_data.payload))) {
-            return operator Escargot::Value().toUint32(state);
-        } else {
+        if (LIKELY(HAS_SMI_TAG(m_data.payload))) {
             int32_t value = SmallValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
             return (uint32_t)value;
         }
+
+        return operator Escargot::Value().toUint32(state);
     }
 
     void operator=(PointerValue* from)
@@ -275,28 +262,34 @@ public:
             ASSERT(!from.isEmpty());
 #endif
             m_data.payload = (intptr_t)from.asPointerValue();
-        } else {
-            int32_t i32;
-            if (from.isInt32() && SmallValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
-                m_data.payload = SmallValueImpl::PlatformSmiTagging::IntToSmi(i32);
-            } else if (from.isNumber()) {
-                auto payload = m_data.payload;
-                if (((size_t)payload > (size_t)ValueLast) && HAS_OBJECT_TAG(payload)) {
-                    PointerValue* v = (PointerValue*)payload;
-                    if (g_doubleInSmallValueTag == *((size_t*)v)) {
-                        ((DoubleInSmallValue*)m_data.payload)->m_value = from.asNumber();
-                        return;
-                    }
-                }
-                m_data.payload = reinterpret_cast<intptr_t>(new DoubleInSmallValue(from.asNumber()));
-            } else {
-#ifdef ESCARGOT_32
-                m_data.payload = ~from.tag();
-#else
-                m_data.payload = from.payload();
-#endif
-            }
+            return;
         }
+
+        int32_t i32;
+        if (from.isInt32() && SmallValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
+            m_data.payload = SmallValueImpl::PlatformSmiTagging::IntToSmi(i32);
+            return;
+        }
+
+        if (from.isNumber()) {
+            auto payload = m_data.payload;
+
+            if (!HAS_SMI_TAG(payload) && ((size_t)payload > (size_t)ValueLast)) {
+                PointerValue* v = (PointerValue*)payload;
+                if (g_doubleInSmallValueTag == *((size_t*)v)) {
+                    ((DoubleInSmallValue*)m_data.payload)->m_value = from.asNumber();
+                    return;
+                }
+            }
+            m_data.payload = reinterpret_cast<intptr_t>(new DoubleInSmallValue(from.asNumber()));
+            return;
+        }
+
+#ifdef ESCARGOT_32
+        m_data.payload = ~from.tag();
+#else
+        m_data.payload = from.payload();
+#endif
     }
 
 protected:
