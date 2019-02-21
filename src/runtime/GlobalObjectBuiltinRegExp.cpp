@@ -57,11 +57,12 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().exec.string(), errorMessage_GlobalObject_ThisNotRegExpObject);
     }
     RegExpObject* regexp = thisObject->asRegExpObject();
+    unsigned int option = regexp->option();
     String* str = argv[0].toString(state);
     double lastIndex = 0;
-    if (regexp->option() & (RegExpObject::Global | RegExpObject::Sticky)) {
+    if (option & (RegExpObject::Global | RegExpObject::Sticky)) {
         lastIndex = regexp->computedLastIndex(state);
-        if (lastIndex < 0 || lastIndex > str->length()) {
+        if (lastIndex > str->length()) {
             regexp->setLastIndex(state, Value(0));
             return Value(Value::Null);
         }
@@ -69,10 +70,29 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
 
     RegexMatchResult result;
     if (regexp->matchNonGlobally(state, str, result, false, lastIndex)) {
-        // TODO(ES6): consider Sticky and Unicode
-        if (regexp->option() & RegExpObject::Option::Global)
-            regexp->setLastIndex(state, Value(result.m_matchResults[0][0].m_end));
+        int e = result.m_matchResults[0][0].m_end;
+        if (option & (RegExpObject::Option::Global | RegExpObject::Option::Sticky))
+            regexp->setLastIndex(state, Value(e));
+
+        if (option & RegExpObject::Option::Unicode) {
+            char16_t utfRes = str->charAt(e);
+            size_t eUTF = str->find(new ASCIIString((const char*)&utfRes), 0);
+            if (eUTF >= str->length()) {
+                e = str->length();
+            } else {
+                e = eUTF;
+            }
+        }
+
+        if (option & (RegExpObject::Option::Sticky | RegExpObject::Option::Global)) {
+            regexp->setLastIndex(state, Value(e));
+        }
+
         return regexp->createRegExpMatchedArray(state, result, str);
+    }
+
+    if (option & (RegExpObject::Option::Sticky | RegExpObject::Option::Global)) {
+        regexp->setLastIndex(state, Value(0));
     }
 
     return Value(Value::Null);
@@ -85,16 +105,17 @@ static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t ar
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().test.string(), errorMessage_GlobalObject_ThisNotRegExpObject);
     }
     RegExpObject* regexp = thisObject->asRegExpObject();
+    unsigned int option = regexp->option();
     String* str = argv[0].toString(state);
-
     double lastIndex = 0;
-    if (regexp->option() & (RegExpObject::Global | RegExpObject::Sticky)) {
+    if (option & (RegExpObject::Global | RegExpObject::Sticky)) {
         lastIndex = regexp->computedLastIndex(state);
-        if (lastIndex < 0 || lastIndex > str->length()) {
+        if (lastIndex > str->length()) {
             regexp->setLastIndex(state, Value(0));
             return Value(false);
         }
     }
+
     RegexMatchResult result;
     bool testResult = regexp->match(state, str, result, true, lastIndex);
     return Value(testResult);

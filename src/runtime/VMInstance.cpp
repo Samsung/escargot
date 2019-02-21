@@ -146,6 +146,24 @@ Value VMInstance::regexpMultilineNativeGetter(ExecutionState& state, Object* sel
 static ObjectPropertyNativeGetterSetterData regexpMultilineGetterData(
     false, false, false, &VMInstance::regexpMultilineNativeGetter, &VMInstance::undefinedNativeSetter);
 
+Value VMInstance::regexpStickyNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
+{
+    ASSERT(self->isRegExpObject());
+    return Value((bool)(self->asRegExpObject()->option() & RegExpObject::Option::Sticky));
+}
+
+static ObjectPropertyNativeGetterSetterData regexpStickyGetterData(
+    false, false, false, &VMInstance::regexpStickyNativeGetter, &VMInstance::undefinedNativeSetter);
+
+Value VMInstance::regexpUnicodeNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
+{
+    ASSERT(self->isRegExpObject());
+    return Value((bool)(self->asRegExpObject()->option() & RegExpObject::Option::Unicode));
+}
+
+static ObjectPropertyNativeGetterSetterData regexpUnicodeGetterData(
+    false, false, false, &VMInstance::regexpUnicodeNativeGetter, &VMInstance::undefinedNativeSetter);
+
 Value VMInstance::regexpLastIndexNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isRegExpObject());
@@ -299,6 +317,10 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
                                                                                        ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpIgnoreCaseGetterData));
     m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.multiline,
                                                                                        ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpMultilineGetterData));
+    m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.sticky,
+                                                                                       ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpStickyGetterData));
+    m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.unicode,
+                                                                                       ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpUnicodeGetterData));
 
     m_defaultStructureForArgumentsObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length, ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
     m_defaultStructureForArgumentsObject = m_defaultStructureForArgumentsObject->addProperty(stateForInit, m_staticStrings.callee, ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));

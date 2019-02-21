@@ -185,7 +185,7 @@ void RegExpObject::initWithOption(ExecutionState& state, String* source, Option 
 
 void RegExpObject::setLastIndex(ExecutionState& state, const Value& v)
 {
-    if (UNLIKELY(rareData() && rareData()->m_hasNonWritableLastIndexRegexpObject)) {
+    if (UNLIKELY(rareData() && rareData()->m_hasNonWritableLastIndexRegexpObject && (m_option & (Option::Sticky | Option::Global)))) {
         Object::throwCannotWriteError(state, PropertyName(state.context()->staticStrings().lastIndex));
     }
     m_lastIndex = v;
@@ -413,11 +413,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
         }
     } while (result != JSC::Yarr::offsetNoMatch);
 
-    if (!gotResult && ((option() & RegExpObject::Global) || (option() & RegExpObject::Sticky))) {
-        setLastIndex(state, Value(0));
-    }
-
-    if (!(option() & RegExpObject::Global) && reachToEnd) {
+    if (!gotResult && ((option() & (RegExpObject::Option::Global | RegExpObject::Option::Sticky)))) {
         setLastIndex(state, Value(0));
     }
 
