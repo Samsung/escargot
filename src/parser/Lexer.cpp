@@ -485,7 +485,7 @@ void Scanner::ScannerResult::constructStringLiteral()
 
     this->scanner->index = this->start;
     const size_t start = this->start;
-    char16_t quote = this->scanner->source.bufferedCharAt(start);
+    char16_t quote = this->scanner->peekChar();
     ASSERT((quote == '\'' || quote == '"'));
     // 'String literal must starts with a quote');
 
@@ -494,19 +494,19 @@ void Scanner::ScannerResult::constructStringLiteral()
 
     UTF16StringDataNonGCStd stringUTF16;
     while (true) {
-        char16_t ch = this->scanner->source.bufferedCharAt(this->scanner->index);
+        char16_t ch = this->scanner->peekChar();
         ++this->scanner->index;
         if (ch == quote) {
             quote = '\0';
             break;
         } else if (UNLIKELY(ch == '\\')) {
-            ch = this->scanner->source.bufferedCharAt(this->scanner->index);
+            ch = this->scanner->peekChar();
             ++this->scanner->index;
             if (!ch || !isLineTerminator(ch)) {
                 switch (ch) {
                 case 'u':
                 case 'x':
-                    if (this->scanner->source.bufferedCharAt(this->scanner->index) == '{') {
+                    if (this->scanner->peekChar() == '{') {
                         ++this->scanner->index;
                         ParserCharPiece piece(this->scanner->scanUnicodeCodePointEscape());
                         stringUTF16.append(piece.data, piece.data + piece.length);
@@ -561,9 +561,9 @@ void Scanner::ScannerResult::constructStringLiteral()
                 }
             } else {
                 ++this->scanner->lineNumber;
-                if (ch == '\r' && this->scanner->source.bufferedCharAt(this->scanner->index) == '\n') {
+                if (ch == '\r' && this->scanner->peekChar() == '\n') {
                     ++this->scanner->index;
-                } else if (ch == '\n' && this->scanner->source.bufferedCharAt(this->scanner->index) == '\r') {
+                } else if (ch == '\n' && this->scanner->peekChar() == '\r') {
                     ++this->scanner->index;
                 }
                 this->scanner->lineStart = this->scanner->index;
@@ -630,11 +630,11 @@ Scanner::ScannerResult* Scanner::createScannerResult()
 void Scanner::skipSingleLineComment(void)
 {
     while (!this->eof()) {
-        char16_t ch = this->source.bufferedCharAt(this->index);
+        char16_t ch = this->peekChar();
         ++this->index;
 
         if (isLineTerminator(ch)) {
-            if (ch == 13 && this->source.bufferedCharAt(this->index) == 10) {
+            if (ch == 13 && this->peekChar() == 10) {
                 ++this->index;
             }
             ++this->lineNumber;
@@ -648,23 +648,21 @@ void Scanner::skipSingleLineComment(void)
 void Scanner::skipMultiLineComment(void)
 {
     while (!this->eof()) {
-        char16_t ch = this->source.bufferedCharAt(this->index);
+        char16_t ch = this->peekChar();
+        ++this->index;
+
         if (isLineTerminator(ch)) {
-            if (ch == 0x0D && this->source.bufferedCharAt(this->index + 1) == 0x0A) {
+            if (ch == 0x0D && this->peekChar() == 0x0A) {
                 ++this->index;
             }
             ++this->lineNumber;
-            ++this->index;
             this->lineStart = this->index;
         } else if (ch == 0x2A) {
             // Block comment ends with '*/'.
-            if (this->source.bufferedCharAt(this->index + 1) == 0x2F) {
-                this->index += 2;
+            if (this->peekChar() == 0x2F) {
+                ++this->index;
                 return;
             }
-            ++this->index;
-        } else {
-            ++this->index;
         }
     }
 
@@ -677,8 +675,8 @@ char32_t Scanner::scanHexEscape(char prefix)
     char32_t code = 0;
 
     for (size_t i = 0; i < len; ++i) {
-        if (!this->eof() && isHexDigit(this->source.bufferedCharAt(this->index))) {
-            code = code * 16 + hexValue(this->source.bufferedCharAt(this->index));
+        if (!this->eof() && isHexDigit(this->peekChar())) {
+            code = code * 16 + hexValue(this->peekChar());
             ++this->index;
         } else {
             return EMPTY_CODE_POINT;
@@ -690,7 +688,7 @@ char32_t Scanner::scanHexEscape(char prefix)
 
 char32_t Scanner::scanUnicodeCodePointEscape()
 {
-    char16_t ch = this->source.bufferedCharAt(this->index);
+    char16_t ch = this->peekChar();
     char32_t code = 0;
 
     // At least, one hex digit is required.
@@ -699,7 +697,7 @@ char32_t Scanner::scanUnicodeCodePointEscape()
     }
 
     while (!this->eof()) {
-        ch = this->source.bufferedCharAt(this->index);
+        ch = this->peekChar();
         ++this->index;
         if (!isHexDigit(ch)) {
             break;
@@ -719,7 +717,7 @@ StringView Scanner::getIdentifier()
     const size_t start = this->index;
     ++this->index;
     while (UNLIKELY(!this->eof())) {
-        const char16_t ch = this->source.bufferedCharAt(this->index);
+        const char16_t ch = this->peekChar();
         if (UNLIKELY(ch == 0x5C)) {
             // Blackslash (U+005C) marks Unicode escape sequence.
             this->index = start;
@@ -749,11 +747,11 @@ StringView Scanner::getComplexIdentifier()
     // '\u' (U+005C, U+0075) denotes an escaped character.
     char32_t ch;
     if (cp == 0x5C) {
-        if (this->source.bufferedCharAt(this->index) != 0x75) {
+        if (this->peekChar() != 0x75) {
             this->throwUnexpectedToken();
         }
         ++this->index;
-        if (this->source.bufferedCharAt(this->index) == '{') {
+        if (this->peekChar() == '{') {
             ++this->index;
             ch = this->scanUnicodeCodePointEscape();
         } else {
@@ -783,11 +781,11 @@ StringView Scanner::getComplexIdentifier()
             // id = id.substr(0, id.length - 1);
             id.erase(id.length() - 1);
 
-            if (this->source.bufferedCharAt(this->index) != 0x75) {
+            if (this->peekChar() != 0x75) {
                 this->throwUnexpectedToken();
             }
             ++this->index;
-            if (this->source.bufferedCharAt(this->index) == '{') {
+            if (this->peekChar() == '{') {
                 ++this->index;
                 ch = this->scanUnicodeCodePointEscape();
             } else {
@@ -813,16 +811,17 @@ uint16_t Scanner::octalToDecimal(char16_t ch, bool octal)
 
     octal |= (ch != '0');
 
-    if (!this->eof() && isOctalDigit(this->source.bufferedCharAt(this->index))) {
+    if (!this->eof() && isOctalDigit(this->peekChar())) {
         octal = true;
-        code = code * 8 + octalValue(this->source.bufferedCharAt(this->index));
+        code = code * 8 + octalValue(this->peekChar());
         ++this->index;
 
         // 3 digits are only allowed when string starts
         // with 0, 1, 2, 3
         // if ('0123'.indexOf(ch) >= 0 && !this->eof() && Character.isOctalDigit(this->source.charCodeAt(this->index))) {
-        if ((ch >= '0' && ch <= '3') && !this->eof() && isOctalDigit(this->source.bufferedCharAt(this->index))) {
-            code = code * 8 + octalValue(this->source.bufferedCharAt(this->index++));
+        if ((ch >= '0' && ch <= '3') && !this->eof() && isOctalDigit(this->peekChar())) {
+            code = code * 8 + octalValue(this->peekChar());
+            ++this->index;
         }
     }
 
@@ -830,266 +829,229 @@ uint16_t Scanner::octalToDecimal(char16_t ch, bool octal)
     return octal ? code : NON_OCTAL_VALUE;
 };
 
-PassRefPtr<Scanner::ScannerResult> Scanner::scanPunctuator(char16_t ch0)
+PassRefPtr<Scanner::ScannerResult> Scanner::scanPunctuator(char16_t ch)
 {
     PassRefPtr<Scanner::ScannerResult> token = adoptRef(new (createScannerResult()) Scanner::ScannerResult(this, Token::PunctuatorToken, this->lineNumber, this->lineStart, this->index, this->index));
 
     PunctuatorKind kind;
     // Check for most common single-character punctuators.
-    size_t start = this->index;
-    char16_t ch1, ch2, ch3;
-    switch (ch0) {
+    ++this->index;
+
+    switch (ch) {
     case '(':
-        ++this->index;
         kind = LeftParenthesis;
         break;
 
     case '{':
-        ++this->index;
         kind = LeftBrace;
         break;
 
     case '.':
-        ++this->index;
         kind = Period;
-        if (this->source.bufferedCharAt(this->index) == '.' && this->source.bufferedCharAt(this->index + 1) == '.') {
-            // Spread operator: ...
+        if (this->peekChar() == '.' && this->source.bufferedCharAt(this->index + 1) == '.') {
+            // Spread operator "..."
             this->index += 2;
-            // resultStr = "...";
             kind = PeriodPeriodPeriod;
         }
         break;
 
     case '}':
-        ++this->index;
         kind = RightBrace;
         break;
     case ')':
         kind = RightParenthesis;
-        ++this->index;
         break;
     case ';':
         kind = SemiColon;
-        ++this->index;
         break;
     case ',':
         kind = Comma;
-        ++this->index;
         break;
     case '[':
         kind = LeftSquareBracket;
-        ++this->index;
         break;
     case ']':
         kind = RightSquareBracket;
-        ++this->index;
         break;
     case ':':
         kind = Colon;
-        ++this->index;
         break;
     case '?':
         kind = GuessMark;
-        ++this->index;
         break;
     case '~':
         kind = Wave;
-        ++this->index;
         break;
 
     case '>':
-        ch1 = this->source.bufferedCharAt(this->index + 1);
-        if (ch1 == '>') {
-            ch2 = this->source.bufferedCharAt(this->index + 2);
-            if (ch2 == '>') {
-                ch3 = this->source.bufferedCharAt(this->index + 3);
-                if (ch3 == '=') {
-                    this->index += 4;
+        ch = this->peekChar();
+        kind = RightInequality;
+
+        if (ch == '>') {
+            ++this->index;
+            ch = this->peekChar();
+            kind = RightShift;
+
+            if (ch == '>') {
+                ++this->index;
+                kind = UnsignedRightShift;
+
+                if (this->peekChar() == '=') {
+                    ++this->index;
                     kind = UnsignedRightShiftEqual;
-                } else {
-                    kind = UnsignedRightShift;
-                    this->index += 3;
                 }
-            } else if (ch2 == '=') {
+            } else if (ch == '=') {
                 kind = RightShiftEqual;
-                this->index += 3;
-            } else {
-                kind = RightShift;
-                this->index += 2;
+                ++this->index;
             }
-        } else if (ch1 == '=') {
+        } else if (ch == '=') {
             kind = RightInequalityEqual;
-            this->index += 2;
-        } else {
-            kind = RightInequality;
-            this->index += 1;
+            ++this->index;
         }
         break;
 
     case '<':
-        ch1 = this->source.bufferedCharAt(this->index + 1);
-        if (ch1 == '<') {
-            ch2 = this->source.bufferedCharAt(this->index + 2);
-            if (ch2 == '=') {
+        ch = this->peekChar();
+        kind = LeftInequality;
+
+        if (ch == '<') {
+            ++this->index;
+            kind = LeftShift;
+
+            if (this->peekChar() == '=') {
                 kind = LeftShiftEqual;
-                this->index += 3;
-            } else {
-                kind = LeftShift;
-                this->index += 2;
+                ++this->index;
             }
-        } else if (ch1 == '=') {
+        } else if (ch == '=') {
             kind = LeftInequalityEqual;
-            this->index += 2;
-        } else {
-            kind = LeftInequality;
-            this->index += 1;
+            ++this->index;
         }
         break;
 
     case '=':
-        ch1 = this->source.bufferedCharAt(this->index + 1);
-        if (ch1 == '=') {
-            ch2 = this->source.bufferedCharAt(this->index + 2);
-            if (ch2 == '=') {
+        ch = this->peekChar();
+        kind = Substitution;
+
+        if (ch == '=') {
+            ++this->index;
+            kind = Equal;
+
+            if (this->peekChar() == '=') {
                 kind = StrictEqual;
-                this->index += 3;
-            } else {
-                kind = Equal;
-                this->index += 2;
+                ++this->index;
             }
-        } else if (ch1 == '>') {
+        } else if (ch == '>') {
             kind = Arrow;
-            this->index += 2;
-        } else {
-            kind = Substitution;
-            this->index += 1;
+            ++this->index;
         }
         break;
 
     case '!':
-        ch1 = this->source.bufferedCharAt(this->index + 1);
-        if (ch1 == '=') {
-            ch2 = this->source.bufferedCharAt(this->index + 2);
-            if (ch2 == '=') {
+        kind = ExclamationMark;
+
+        if (this->peekChar() == '=') {
+            ++this->index;
+            kind = NotEqual;
+
+            if (this->peekChar() == '=') {
                 kind = NotStrictEqual;
-                this->index += 3;
-            } else {
-                kind = NotEqual;
-                this->index += 2;
+                ++this->index;
             }
-        } else {
-            kind = ExclamationMark;
-            this->index += 1;
         }
         break;
 
     case '&':
-        ch1 = this->source.bufferedCharAt(this->index + 1);
-        if (ch1 == '&') {
+        ch = this->peekChar();
+        kind = BitwiseAnd;
+
+        if (ch == '&') {
             kind = LogicalAnd;
-            this->index += 2;
-        } else if (ch1 == '=') {
+            ++this->index;
+        } else if (ch == '=') {
             kind = BitwiseAndEqual;
-            this->index += 2;
-        } else {
-            kind = BitwiseAnd;
-            this->index += 1;
+            ++this->index;
         }
         break;
 
     case '|':
-        ch1 = this->source.bufferedCharAt(this->index + 1);
-        if (ch1 == '|') {
+        ch = this->peekChar();
+        kind = BitwiseOr;
+
+        if (ch == '|') {
             kind = LogicalOr;
-            this->index += 2;
-        } else if (ch1 == '=') {
+            ++this->index;
+        } else if (ch == '=') {
             kind = BitwiseOrEqual;
-            this->index += 2;
-        } else {
-            kind = BitwiseOr;
-            this->index += 1;
+            ++this->index;
         }
         break;
 
     case '^':
-        ch1 = this->source.bufferedCharAt(this->index + 1);
-        if (ch1 == '=') {
+        kind = BitwiseXor;
+
+        if (this->peekChar() == '=') {
             kind = BitwiseXorEqual;
-            this->index += 2;
-        } else {
-            kind = BitwiseXor;
-            this->index += 1;
+            ++this->index;
         }
         break;
 
     case '+':
-        ch1 = this->source.bufferedCharAt(this->index + 1);
-        if (ch1 == '+') {
+        ch = this->peekChar();
+        kind = Plus;
+
+        if (ch == '+') {
             kind = PlusPlus;
-            this->index += 2;
-        } else if (ch1 == '=') {
+            ++this->index;
+        } else if (ch == '=') {
             kind = PlusEqual;
-            this->index += 2;
-        } else {
-            kind = Plus;
-            this->index += 1;
+            ++this->index;
         }
         break;
 
     case '-':
-        ch1 = this->source.bufferedCharAt(this->index + 1);
-        if (ch1 == '-') {
+        ch = this->peekChar();
+        kind = Minus;
+
+        if (ch == '-') {
             kind = MinusMinus;
-            this->index += 2;
-        } else if (ch1 == '=') {
+            ++this->index;
+        } else if (ch == '=') {
             kind = MinusEqual;
-            this->index += 2;
-        } else {
-            kind = Minus;
-            this->index += 1;
+            ++this->index;
         }
         break;
 
     case '*':
-        ch1 = this->source.bufferedCharAt(this->index + 1);
-        if (ch1 == '=') {
+        kind = Multiply;
+
+        if (this->peekChar() == '=') {
             kind = MultiplyEqual;
-            this->index += 2;
-        } else {
-            kind = Multiply;
-            this->index += 1;
+            ++this->index;
         }
         break;
 
     case '/':
-        ch1 = this->source.bufferedCharAt(this->index + 1);
-        if (ch1 == '=') {
+        kind = Divide;
+
+        if (this->peekChar() == '=') {
             kind = DivideEqual;
-            this->index += 2;
-        } else {
-            kind = Divide;
-            this->index += 1;
+            ++this->index;
         }
         break;
 
     case '%':
-        ch1 = this->source.bufferedCharAt(this->index + 1);
-        if (ch1 == '=') {
+        kind = Mod;
+
+        if (this->peekChar() == '=') {
             kind = ModEqual;
-            this->index += 2;
-        } else {
-            kind = Mod;
-            this->index += 1;
+            ++this->index;
         }
         break;
 
     default:
+        this->throwUnexpectedToken();
         kind = PunctuatorKindEnd;
         break;
-    }
-
-    if (UNLIKELY(this->index == token->start)) {
-        this->throwUnexpectedToken();
     }
 
     token->valuePunctuatorKind = kind;
@@ -1105,7 +1067,7 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanHexLiteral(size_t start)
 
     size_t shiftCount = 0;
     while (!this->eof()) {
-        char16_t ch = this->source.bufferedCharAt(this->index);
+        char16_t ch = this->peekChar();
         if (!isHexDigit(ch)) {
             break;
         }
@@ -1127,7 +1089,7 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanHexLiteral(size_t start)
         this->throwUnexpectedToken();
     }
 
-    if (isIdentifierStart(this->source.bufferedCharAt(this->index))) {
+    if (isIdentifierStart(this->peekChar())) {
         this->throwUnexpectedToken();
     }
 
@@ -1146,7 +1108,7 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanBinaryLiteral(size_t start)
     bool scanned = false;
 
     while (!this->eof()) {
-        char16_t ch = this->source.bufferedCharAt(this->index);
+        char16_t ch = this->peekChar();
         if (ch != '0' && ch != '1') {
             break;
         }
@@ -1161,7 +1123,7 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanBinaryLiteral(size_t start)
     }
 
     if (!this->eof()) {
-        char16_t ch = this->source.bufferedCharAt(this->index);
+        char16_t ch = this->peekChar();
         /* istanbul ignore else */
         if (isIdentifierStart(ch) || isDecimalDigit(ch)) {
             this->throwUnexpectedToken();
@@ -1178,7 +1140,7 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanOctalLiteral(char16_t prefix, si
     bool octal = isOctalDigit(prefix);
 
     while (!this->eof()) {
-        char16_t ch = this->source.bufferedCharAt(this->index);
+        char16_t ch = this->peekChar();
         if (!isOctalDigit(ch)) {
             break;
         }
@@ -1192,9 +1154,11 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanOctalLiteral(char16_t prefix, si
         throwUnexpectedToken();
     }
 
-    if (isIdentifierStart(this->source.bufferedCharAt(this->index)) || isDecimalDigit(this->source.bufferedCharAt(this->index))) {
+    char16_t ch = this->peekChar();
+    if (isIdentifierStart(ch) || isDecimalDigit(ch)) {
         throwUnexpectedToken();
     }
+
     PassRefPtr<Scanner::ScannerResult> ret = adoptRef(new (createScannerResult()) Scanner::ScannerResult(this, Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index));
     ret->octal = octal;
 
@@ -1220,7 +1184,7 @@ bool Scanner::isImplicitOctalLiteral()
 PassRefPtr<Scanner::ScannerResult> Scanner::scanNumericLiteral()
 {
     const size_t start = this->index;
-    char16_t ch = this->source.bufferedCharAt(start);
+    char16_t ch = this->peekChar();
     char16_t startChar = ch;
     ASSERT(isDecimalDigit(ch) || (ch == '.'));
     // 'Numeric literal must start with a decimal digit or a decimal point');
@@ -1229,9 +1193,9 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanNumericLiteral()
     number.reserve(32);
 
     if (ch != '.') {
-        number = this->source.bufferedCharAt(this->index);
+        number = this->peekChar();
         ++this->index;
-        ch = this->source.bufferedCharAt(this->index);
+        ch = this->peekChar();
 
         // Hex number starts with '0x'.
         // Octal number starts with '0'.
@@ -1257,42 +1221,46 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanNumericLiteral()
             }
         }
 
-        while (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
-            number += this->source.bufferedCharAt(this->index);
+        while (isDecimalDigit(this->peekChar())) {
+            number += this->peekChar();
             ++this->index;
         }
-        ch = this->source.bufferedCharAt(this->index);
+        ch = this->peekChar();
     }
 
     if (ch == '.') {
-        number += this->source.bufferedCharAt(this->index);
+        number += this->peekChar();
         ++this->index;
-        while (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
-            number += this->source.bufferedCharAt(this->index);
+        while (isDecimalDigit(this->peekChar())) {
+            number += this->peekChar();
             ++this->index;
         }
-        ch = this->source.bufferedCharAt(this->index);
+        ch = this->peekChar();
     }
 
     if (ch == 'e' || ch == 'E') {
-        number += this->source.bufferedCharAt(this->index++);
+        number += this->peekChar();
+        ++this->index;
 
-        ch = this->source.bufferedCharAt(this->index);
+        ch = this->peekChar();
         if (ch == '+' || ch == '-') {
-            number += this->source.bufferedCharAt(this->index);
+            number += ch;
             ++this->index;
+            ch = this->peekChar();
         }
-        if (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
-            while (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
-                number += this->source.bufferedCharAt(this->index);
+
+        if (isDecimalDigit(ch)) {
+            do {
+                number += ch;
                 ++this->index;
-            }
+                ch = this->peekChar();
+            } while (isDecimalDigit(ch));
         } else {
             this->throwUnexpectedToken();
         }
     }
 
-    if (isIdentifierStart(this->source.bufferedCharAt(this->index))) {
+    if (isIdentifierStart(this->peekChar())) {
         this->throwUnexpectedToken();
     }
 
@@ -1315,7 +1283,7 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanNumericLiteral()
 PassRefPtr<Scanner::ScannerResult> Scanner::scanStringLiteral()
 {
     const size_t start = this->index;
-    char16_t quote = this->source.bufferedCharAt(start);
+    char16_t quote = this->peekChar();
     ASSERT((quote == '\'' || quote == '"'));
     // 'String literal must starts with a quote');
 
@@ -1324,20 +1292,20 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanStringLiteral()
     bool isPlainCase = true;
 
     while (LIKELY(!this->eof())) {
-        char16_t ch = this->source.bufferedCharAt(this->index);
+        char16_t ch = this->peekChar();
         ++this->index;
         if (ch == quote) {
             quote = '\0';
             break;
         } else if (UNLIKELY(ch == '\\')) {
-            ch = this->source.bufferedCharAt(this->index);
+            ch = this->peekChar();
             ++this->index;
             isPlainCase = false;
             if (!ch || !isLineTerminator(ch)) {
                 switch (ch) {
                 case 'u':
                 case 'x':
-                    if (this->source.bufferedCharAt(this->index) == '{') {
+                    if (this->peekChar() == '{') {
                         ++this->index;
                         this->scanUnicodeCodePointEscape();
                     } else if (this->scanHexEscape(ch) == EMPTY_CODE_POINT) {
@@ -1362,9 +1330,9 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanStringLiteral()
                 }
             } else {
                 ++this->lineNumber;
-                if (ch == '\r' && this->source.bufferedCharAt(this->index) == '\n') {
+                if (ch == '\r' && this->peekChar() == '\n') {
                     ++this->index;
-                } else if (ch == '\n' && this->source.bufferedCharAt(this->index) == '\r') {
+                } else if (ch == '\n' && this->peekChar() == '\r') {
                     ++this->index;
                 }
                 this->lineStart = this->index;
@@ -1406,7 +1374,7 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanTemplate(bool head)
     size_t rawOffset = 2;
 
     while (!this->eof()) {
-        char16_t ch = this->source.bufferedCharAt(this->index);
+        char16_t ch = this->peekChar();
         ++this->index;
         if (ch == '`') {
             rawOffset = 1;
@@ -1414,14 +1382,14 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanTemplate(bool head)
             terminated = true;
             break;
         } else if (ch == '$') {
-            if (this->source.bufferedCharAt(this->index) == '{') {
+            if (this->peekChar() == '{') {
                 ++this->index;
                 terminated = true;
                 break;
             }
             cooked += ch;
         } else if (ch == '\\') {
-            ch = this->source.bufferedCharAt(this->index);
+            ch = this->peekChar();
             ++this->index;
             if (!isLineTerminator(ch)) {
                 switch (ch) {
@@ -1436,7 +1404,7 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanTemplate(bool head)
                     break;
                 case 'u':
                 case 'x':
-                    if (this->source.bufferedCharAt(this->index) == '{') {
+                    if (this->peekChar() == '{') {
                         ++this->index;
                         cooked += this->scanUnicodeCodePointEscape();
                     } else {
@@ -1462,7 +1430,7 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanTemplate(bool head)
                     break;
                 default:
                     if (ch == '0') {
-                        if (isDecimalDigit(this->source.bufferedCharAt(this->index))) {
+                        if (isDecimalDigit(this->peekChar())) {
                             // Illegal: \01 \02 and so on
                             this->throwUnexpectedToken(Messages::TemplateOctalLiteral);
                         }
@@ -1477,14 +1445,14 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanTemplate(bool head)
                 }
             } else {
                 ++this->lineNumber;
-                if (ch == '\r' && this->source.bufferedCharAt(this->index) == '\n') {
+                if (ch == '\r' && this->peekChar() == '\n') {
                     ++this->index;
                 }
                 this->lineStart = this->index;
             }
         } else if (isLineTerminator(ch)) {
             ++this->lineNumber;
-            if (ch == '\r' && this->source.bufferedCharAt(this->index) == '\n') {
+            if (ch == '\r' && this->peekChar() == '\n') {
                 ++this->index;
             }
             this->lineStart = this->index;
@@ -1509,23 +1477,23 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanTemplate(bool head)
 
 String* Scanner::scanRegExpBody()
 {
-    char16_t ch = this->source.bufferedCharAt(this->index);
+    char16_t ch = this->peekChar();
     ASSERT(ch == '/');
     // assert(ch == '/', 'Regular expression literal must start with a slash');
 
     // TODO apply rope-string
-    char16_t ch0 = this->source.bufferedCharAt(this->index);
+    char16_t ch0 = this->peekChar();
     ++this->index;
     UTF16StringDataNonGCStd str(&ch0, 1);
     bool classMarker = false;
     bool terminated = false;
 
     while (!this->eof()) {
-        ch = this->source.bufferedCharAt(this->index);
+        ch = this->peekChar();
         ++this->index;
         str += ch;
         if (ch == '\\') {
-            ch = this->source.bufferedCharAt(this->index);
+            ch = this->peekChar();
             ++this->index;
             // ECMA-262 7.8.5
             if (isLineTerminator(ch)) {
@@ -1566,14 +1534,14 @@ String* Scanner::scanRegExpFlags()
     // UTF16StringData str = '';
     UTF16StringDataNonGCStd flags;
     while (!this->eof()) {
-        char16_t ch = this->source.bufferedCharAt(this->index);
+        char16_t ch = this->peekChar();
         if (!isIdentifierPart(ch)) {
             break;
         }
 
         ++this->index;
         if (ch == '\\' && !this->eof()) {
-            ch = this->source.bufferedCharAt(this->index);
+            ch = this->peekChar();
             if (ch == 'u') {
                 ++this->index;
                 const size_t restore = this->index;
@@ -1848,18 +1816,11 @@ PassRefPtr<Scanner::ScannerResult> Scanner::lex()
         return adoptRef(new (createScannerResult()) Scanner::ScannerResult(this, Token::EOFToken, this->lineNumber, this->lineStart, this->index, this->index));
     }
 
-    const char16_t cp = this->source.bufferedCharAt(this->index);
+    const char16_t cp = this->peekChar();
 
     if (isIdentifierStart(cp)) {
         goto ScanID;
     }
-
-    // Very common: ( and ) and ;
-    /*
-    if (cp == 0x28 || cp == 0x29 || cp == 0x3B) {
-        return this->scanPunctuator(cp0);
-    }
-    */
 
     // String literal starts with single quote (U+0027) or double quote (U+0022).
     if (cp == 0x27 || cp == 0x22) {
@@ -1868,11 +1829,8 @@ PassRefPtr<Scanner::ScannerResult> Scanner::lex()
 
     // Dot (.) U+002E can also start a floating-point number, hence the need
     // to check the next character.
-    if (UNLIKELY(cp == 0x2E)) {
-        if (isDecimalDigit(this->source.bufferedCharAt(this->index + 1))) {
-            return this->scanNumericLiteral();
-        }
-        return this->scanPunctuator(cp);
+    if (UNLIKELY(cp == 0x2E) && isDecimalDigit(this->source.bufferedCharAt(this->index + 1))) {
+        return this->scanNumericLiteral();
     }
 
     if (isDecimalDigit(cp)) {
