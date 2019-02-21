@@ -429,6 +429,24 @@ public:
         }
     }
 
+    const char* checkTokenIdentifier(const unsigned char type)
+    {
+        switch (type) {
+        case Token::EOFToken:
+            return Messages::UnexpectedEOS;
+        case Token::IdentifierToken:
+            return Messages::UnexpectedIdentifier;
+        case Token::NumericLiteralToken:
+            return Messages::UnexpectedNumber;
+        case Token::StringLiteralToken:
+            return Messages::UnexpectedString;
+        case Token::TemplateToken:
+            return Messages::UnexpectedTemplate;
+        default:
+            return Messages::UnexpectedToken;
+        }
+    }
+
     // Throw an exception because of the token.
     Error unexpectedTokenError(RefPtr<Scanner::ScannerResult> token = nullptr, const char* message = nullptr)
     {
@@ -442,7 +460,7 @@ public:
         String* value;
         if (token) {
             if (!msg) {
-                msg = (token->type == Token::EOFToken) ? Messages::UnexpectedEOS : (token->type == Token::IdentifierToken) ? Messages::UnexpectedIdentifier : (token->type == Token::NumericLiteralToken) ? Messages::UnexpectedNumber : (token->type == Token::StringLiteralToken) ? Messages::UnexpectedString : (token->type == Token::TemplateToken) ? Messages::UnexpectedTemplate : Messages::UnexpectedToken;
+                msg = checkTokenIdentifier(token->type);
 
                 if (token->type == Token::KeywordToken) {
                     if (this->scanner->isFutureReservedWord(token->relatedSource())) {
@@ -454,7 +472,6 @@ public:
             } else if (token->type == Token::EOFToken) {
                 msg = Messages::UnexpectedEOS;
             }
-
             value = new StringView((token->type == Token::TemplateToken) ? token->valueTemplate->raw : token->relatedSource());
         } else {
             value = new ASCIIString("ILLEGAL");
@@ -3309,66 +3326,66 @@ public:
 
     Node* finishBinaryExpression(Node* left, Node* right, Scanner::ScannerResult* token)
     {
-        Node* nd;
         if (token->type == Token::PunctuatorToken) {
             PunctuatorKind oper = token->valuePunctuatorKind;
             // Additive Operators
-            if (oper == Plus) {
-                nd = new BinaryExpressionPlusNode(left, right);
-            } else if (oper == Minus) {
-                nd = new BinaryExpressionMinusNode(left, right);
-            } else if (oper == LeftShift) { // Bitwise Shift Operators
-                nd = new BinaryExpressionLeftShiftNode(left, right);
-            } else if (oper == RightShift) {
-                nd = new BinaryExpressionSignedRightShiftNode(left, right);
-            } else if (oper == UnsignedRightShift) {
-                nd = new BinaryExpressionUnsignedRightShiftNode(left, right);
-            } else if (oper == Multiply) { // Multiplicative Operators
-                nd = new BinaryExpressionMultiplyNode(left, right);
-            } else if (oper == Divide) {
-                nd = new BinaryExpressionDivisionNode(left, right);
-            } else if (oper == Mod) {
-                nd = new BinaryExpressionModNode(left, right);
-            } else if (oper == LeftInequality) { // Relational Operators
-                nd = new BinaryExpressionLessThanNode(left, right);
-            } else if (oper == RightInequality) {
-                nd = new BinaryExpressionGreaterThanNode(left, right);
-            } else if (oper == LeftInequalityEqual) {
-                nd = new BinaryExpressionLessThanOrEqualNode(left, right);
-            } else if (oper == RightInequalityEqual) {
-                nd = new BinaryExpressionGreaterThanOrEqualNode(left, right);
-            } else if (oper == Equal) { // Equality Operators
-                nd = new BinaryExpressionEqualNode(left, right);
-            } else if (oper == NotEqual) {
-                nd = new BinaryExpressionNotEqualNode(left, right);
-            } else if (oper == StrictEqual) {
-                nd = new BinaryExpressionStrictEqualNode(left, right);
-            } else if (oper == NotStrictEqual) {
-                nd = new BinaryExpressionNotStrictEqualNode(left, right);
-            } else if (oper == BitwiseAnd) { // Binary Bitwise Operator
-                nd = new BinaryExpressionBitwiseAndNode(left, right);
-            } else if (oper == BitwiseXor) {
-                nd = new BinaryExpressionBitwiseXorNode(left, right);
-            } else if (oper == BitwiseOr) {
-                nd = new BinaryExpressionBitwiseOrNode(left, right);
-            } else if (oper == LogicalOr) {
-                nd = new BinaryExpressionLogicalOrNode(left, right);
-            } else if (oper == LogicalAnd) {
-                nd = new BinaryExpressionLogicalAndNode(left, right);
-            } else {
+            switch (oper) {
+            case Plus:
+                return new BinaryExpressionPlusNode(left, right);
+            case Minus:
+                return new BinaryExpressionMinusNode(left, right);
+            case LeftShift:
+                return new BinaryExpressionLeftShiftNode(left, right);
+            case RightShift:
+                return new BinaryExpressionSignedRightShiftNode(left, right);
+            case UnsignedRightShift:
+                return new BinaryExpressionUnsignedRightShiftNode(left, right);
+            case Multiply:
+                return new BinaryExpressionMultiplyNode(left, right);
+            case Divide:
+                return new BinaryExpressionDivisionNode(left, right);
+            case Mod:
+                return new BinaryExpressionModNode(left, right);
+            case LeftInequality:
+                return new BinaryExpressionLessThanNode(left, right);
+            case RightInequality:
+                return new BinaryExpressionGreaterThanNode(left, right);
+            case LeftInequalityEqual:
+                return new BinaryExpressionLessThanOrEqualNode(left, right);
+            case RightInequalityEqual:
+                return new BinaryExpressionGreaterThanOrEqualNode(left, right);
+            case Equal:
+                return new BinaryExpressionEqualNode(left, right);
+            case NotEqual:
+                return new BinaryExpressionNotEqualNode(left, right);
+            case StrictEqual:
+                return new BinaryExpressionStrictEqualNode(left, right);
+            case NotStrictEqual:
+                return new BinaryExpressionNotStrictEqualNode(left, right);
+            case BitwiseAnd:
+                return new BinaryExpressionBitwiseAndNode(left, right);
+            case BitwiseXor:
+                return new BinaryExpressionBitwiseXorNode(left, right);
+            case BitwiseOr:
+                return new BinaryExpressionBitwiseOrNode(left, right);
+            case LogicalOr:
+                return new BinaryExpressionLogicalOrNode(left, right);
+            case LogicalAnd:
+                return new BinaryExpressionLogicalAndNode(left, right);
+            default:
                 RELEASE_ASSERT_NOT_REACHED();
             }
         } else {
             ASSERT(token->type == Token::KeywordToken);
-            if (token->valueKeywordKind == InKeyword) {
-                nd = new BinaryExpressionInNode(left, right);
-            } else if (token->valueKeywordKind == KeywordKind::InstanceofKeyword) {
-                nd = new BinaryExpressionInstanceOfNode(left, right);
-            } else {
+            switch (token->valueKeywordKind) {
+            case InKeyword:
+                return new BinaryExpressionInNode(left, right);
+            case KeywordKind::InstanceofKeyword:
+                return new BinaryExpressionInstanceOfNode(left, right);
+            default:
                 RELEASE_ASSERT_NOT_REACHED();
             }
         }
-        return nd;
     }
 
     ScanExpressionResult scanBinaryExpression(ScanExpressionResult left, ScanExpressionResult right, Scanner::ScannerResult* token)
@@ -3377,62 +3394,86 @@ public:
         if (token->type == Token::PunctuatorToken) {
             PunctuatorKind oper = token->valuePunctuatorKind;
             // Additive Operators
-            if (oper == Plus) {
+            switch (oper) {
+            case Plus:
                 nd.first = ASTNodeType::BinaryExpressionPlus;
-            } else if (oper == Minus) {
+                return nd;
+            case Minus:
                 nd.first = ASTNodeType::BinaryExpressionMinus;
-            } else if (oper == LeftShift) { // Bitwise Shift Operators
+                return nd;
+            case LeftShift: //Bitse Shift Oerators
                 nd.first = ASTNodeType::BinaryExpressionLeftShift;
-            } else if (oper == RightShift) {
+                return nd;
+            case RightShift:
                 nd.first = ASTNodeType::BinaryExpressionSignedRightShift;
-            } else if (oper == UnsignedRightShift) {
+                return nd;
+            case UnsignedRightShift:
                 nd.first = ASTNodeType::BinaryExpressionUnsignedRightShift;
-            } else if (oper == Multiply) { // Multiplicative Operators
+                return nd;
+            case Multiply: // Multiplicative Operators
                 nd.first = ASTNodeType::BinaryExpressionMultiply;
-            } else if (oper == Divide) {
+                return nd;
+            case Divide:
                 nd.first = ASTNodeType::BinaryExpressionDivison;
-            } else if (oper == Mod) {
+                return nd;
+            case Mod:
                 nd.first = ASTNodeType::BinaryExpressionMod;
-            } else if (oper == LeftInequality) { // Relational Operators
+                return nd;
+            case LeftInequality: //Relative Operators
                 nd.first = ASTNodeType::BinaryExpressionLessThan;
-            } else if (oper == RightInequality) {
+                return nd;
+            case RightInequality:
                 nd.first = ASTNodeType::BinaryExpressionGreaterThan;
-            } else if (oper == LeftInequalityEqual) {
+                return nd;
+            case LeftInequalityEqual:
                 nd.first = ASTNodeType::BinaryExpressionLessThanOrEqual;
-            } else if (oper == RightInequalityEqual) {
+                return nd;
+            case RightInequalityEqual:
                 nd.first = ASTNodeType::BinaryExpressionGreaterThanOrEqual;
-            } else if (oper == Equal) { // Equality Operators
+                return nd;
+            case Equal: //Equality Operators
                 nd.first = ASTNodeType::BinaryExpressionEqual;
-            } else if (oper == NotEqual) {
+                return nd;
+            case NotEqual:
                 nd.first = ASTNodeType::BinaryExpressionNotEqual;
-            } else if (oper == StrictEqual) {
+                return nd;
+            case StrictEqual:
                 nd.first = ASTNodeType::BinaryExpressionStrictEqual;
-            } else if (oper == NotStrictEqual) {
+                return nd;
+            case NotStrictEqual:
                 nd.first = ASTNodeType::BinaryExpressionNotStrictEqual;
-            } else if (oper == BitwiseAnd) { // Binary Bitwise Operator
+                return nd;
+            case BitwiseAnd: //Binary Bitwise Operator
                 nd.first = ASTNodeType::BinaryExpressionBitwiseAnd;
-            } else if (oper == BitwiseXor) {
+                return nd;
+            case BitwiseXor:
                 nd.first = ASTNodeType::BinaryExpressionBitwiseXor;
-            } else if (oper == BitwiseOr) {
+                return nd;
+            case BitwiseOr:
                 nd.first = ASTNodeType::BinaryExpressionBitwiseOr;
-            } else if (oper == LogicalOr) {
+                return nd;
+            case LogicalOr:
                 nd.first = ASTNodeType::BinaryExpressionLogicalOr;
-            } else if (oper == LogicalAnd) {
+                return nd;
+            case LogicalAnd:
                 nd.first = ASTNodeType::BinaryExpressionLogicalAnd;
-            } else {
+                return nd;
+            default:
                 RELEASE_ASSERT_NOT_REACHED();
             }
         } else {
             ASSERT(token->type == Token::KeywordToken);
-            if (token->valueKeywordKind == InKeyword) {
+            switch (token->valueKeywordKind) {
+            case InKeyword:
                 nd.first = ASTNodeType::BinaryExpressionIn;
-            } else if (token->valueKeywordKind == KeywordKind::InstanceofKeyword) {
+                return nd;
+            case KeywordKind::InstanceofKeyword:
                 nd.first = ASTNodeType::BinaryExpressionInstanceOf;
-            } else {
+                return nd;
+            default:
                 RELEASE_ASSERT_NOT_REACHED();
             }
         }
-        return nd;
     }
 
     // ECMA-262 12.14 Conditional Operator
