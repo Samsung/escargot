@@ -114,12 +114,27 @@ DEFINE_CAST(Float64ArrayObject);
 
 inline ValueRef* toRef(const Value& v)
 {
+    ASSERT(!v.isEmpty());
     return reinterpret_cast<ValueRef*>(SmallValue(v).payload());
 }
 
 inline Value toImpl(ValueRef* v)
 {
+    ASSERT(v);
     return Value(SmallValue::fromPayload(v));
+}
+
+inline NullablePtr<ValueRef> toNullablePtr(const Value& v)
+{
+    return NullablePtr<ValueRef>(reinterpret_cast<ValueRef*>(SmallValue(v).payload()));
+}
+
+inline Value toImpl(const NullablePtr<ValueRef>& v)
+{
+    if (LIKELY(v.hasValue())) {
+        return Value(SmallValue::fromPayload(v.getValue()));
+    }
+    return Value(Value::EmptyValue);
 }
 
 inline ValueVectorRef* toRef(const SmallValueVector* v)
@@ -614,8 +629,8 @@ public:
         Value PV = P.toPlainValue(state);
         if (!PV.isSymbol()) {
             auto result = m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(PV));
-            if (!result.m_value->isEmpty()) {
-                return ObjectGetResult(toImpl(result.m_value), result.m_isWritable, result.m_isEnumerable, result.m_isConfigurable);
+            if (result.m_value.hasValue()) {
+                return ObjectGetResult(toImpl(result.m_value.getValue()), result.m_isWritable, result.m_isEnumerable, result.m_isConfigurable);
             }
         }
         return Object::getOwnProperty(state, P);
@@ -636,7 +651,7 @@ public:
         Value PV = P.toPlainValue(state);
         if (!PV.isSymbol()) {
             auto result = m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(P.toPlainValue(state)));
-            if (!result.m_value->isEmpty()) {
+            if (result.m_value.hasValue()) {
                 return m_deleteOwnPropertyCallback(toRef(&state), toRef(this), toRef(P.toPlainValue(state)));
             }
         }
@@ -1303,7 +1318,7 @@ SandBoxRef::SandBoxResult::SandBoxResult()
 static SandBoxRef::SandBoxResult toSandBoxResultRef(SandBox::SandBoxResult& result)
 {
     SandBoxRef::SandBoxResult r;
-    r.error = toRef(result.error);
+    r.error = toNullablePtr(result.error);
     r.msgStr = toRef(result.msgStr);
     r.result = toRef(result.result);
 
@@ -1566,11 +1581,6 @@ bool ValueRef::isTrue() const
 bool ValueRef::isFalse() const
 {
     return Value(SmallValue::fromPayload(this)).isFalse();
-}
-
-bool ValueRef::isEmpty() const
-{
-    return Value(SmallValue::fromPayload(this)).isEmpty();
 }
 
 bool ValueRef::isFunction() const
