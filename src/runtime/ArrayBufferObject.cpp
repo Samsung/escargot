@@ -39,7 +39,7 @@ ArrayBufferObject::ArrayBufferObject(ExecutionState& state)
     , m_data(nullptr)
     , m_bytelength(0)
 {
-    setPrototype(state, state.context()->globalObject()->arrayBufferPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->arrayBufferPrototype());
 }
 
 void ArrayBufferObject::allocateBuffer(size_t bytelength)

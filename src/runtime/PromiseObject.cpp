@@ -29,7 +29,7 @@ namespace Escargot {
 PromiseObject::PromiseObject(ExecutionState& state)
     : Object(state)
 {
-    setPrototype(state, state.context()->globalObject()->promisePrototype());
+    Object::setPrototype(state, state.context()->globalObject()->promisePrototype());
 }
 
 void* PromiseObject::operator new(size_t size)

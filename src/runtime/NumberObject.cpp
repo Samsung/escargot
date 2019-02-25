@@ -30,7 +30,7 @@ NumberObject::NumberObject(ExecutionState& state, double value)
     : Object(state)
     , m_primitiveValue(value)
 {
-    setPrototype(state, state.context()->globalObject()->numberPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->numberPrototype());
 }
 
 void* NumberObject::operator new(size_t size)

@@ -27,7 +27,7 @@ BooleanObject::BooleanObject(ExecutionState& state, bool value)
     : Object(state)
     , m_primitiveValue(value)
 {
-    setPrototype(state, state.context()->globalObject()->booleanPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->booleanPrototype());
 }
 
 void* BooleanObject::operator new(size_t size)

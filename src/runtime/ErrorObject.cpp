@@ -142,7 +142,7 @@ ErrorObject::ErrorObject(ExecutionState& state, String* errorMessage)
         defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,
                                                        ObjectPropertyDescriptor(errorMessage, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
     }
-    setPrototype(state, state.context()->globalObject()->errorPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->errorPrototype());
 }
 
 ErrorObject* ErrorObject::createError(ExecutionState& state, ErrorObject::Code code, String* errorMessage)
@@ -166,36 +166,36 @@ ErrorObject* ErrorObject::createError(ExecutionState& state, ErrorObject::Code c
 ReferenceErrorObject::ReferenceErrorObject(ExecutionState& state, String* errorMessage)
     : ErrorObject(state, errorMessage)
 {
-    setPrototype(state, state.context()->globalObject()->referenceErrorPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->referenceErrorPrototype());
 }
 
 TypeErrorObject::TypeErrorObject(ExecutionState& state, String* errorMessage)
     : ErrorObject(state, errorMessage)
 {
-    setPrototype(state, state.context()->globalObject()->typeErrorPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->typeErrorPrototype());
 }
 
 RangeErrorObject::RangeErrorObject(ExecutionState& state, String* errorMessage)
     : ErrorObject(state, errorMessage)
 {
-    setPrototype(state, state.context()->globalObject()->rangeErrorPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->rangeErrorPrototype());
 }
 
 SyntaxErrorObject::SyntaxErrorObject(ExecutionState& state, String* errorMessage)
     : ErrorObject(state, errorMessage)
 {
-    setPrototype(state, state.context()->globalObject()->syntaxErrorPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->syntaxErrorPrototype());
 }
 
 URIErrorObject::URIErrorObject(ExecutionState& state, String* errorMessage)
     : ErrorObject(state, errorMessage)
 {
-    setPrototype(state, state.context()->globalObject()->uriErrorPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->uriErrorPrototype());
 }
 
 EvalErrorObject::EvalErrorObject(ExecutionState& state, String* errorMessage)
     : ErrorObject(state, errorMessage)
 {
-    setPrototype(state, state.context()->globalObject()->evalErrorPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->evalErrorPrototype());
 }
 } // namespace Escargot

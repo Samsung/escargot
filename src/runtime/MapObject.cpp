@@ -27,7 +27,7 @@ namespace Escargot {
 MapObject::MapObject(ExecutionState& state)
     : Object(state)
 {
-    setPrototype(state, state.context()->globalObject()->mapPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->mapPrototype());
 }
 
 void* MapObject::operator new(size_t size)
@@ -151,7 +151,7 @@ MapIteratorObject::MapIteratorObject(ExecutionState& state, MapObject* map, Type
     , m_iteratorIndex(0)
     , m_type(type)
 {
-    setPrototype(state, state.context()->globalObject()->mapIteratorPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->mapIteratorPrototype());
 }
 
 void* MapIteratorObject::operator new(size_t size)

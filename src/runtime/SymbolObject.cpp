@@ -28,7 +28,7 @@ SymbolObject::SymbolObject(ExecutionState& state, Symbol* value)
     , m_primitiveValue(value)
 {
     m_structure = state.context()->defaultStructureForSymbolObject();
-    setPrototype(state, state.context()->globalObject()->symbolPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->symbolPrototype());
 }
 
 void* SymbolObject::operator new(size_t size)
