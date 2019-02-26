@@ -570,7 +570,8 @@ public:
 #endif
 };
 
-struct ObjectStructureChainItem : public gc {
+class ObjectStructureChainItem : public gc {
+public:
     ObjectStructure* m_objectStructure;
     bool operator==(const ObjectStructureChainItem& item) const
     {
@@ -1383,7 +1384,8 @@ public:
 #endif
 };
 
-struct EnumerateObjectData : public PointerValue {
+class EnumerateObjectData : public PointerValue {
+public:
     EnumerateObjectData()
     {
         m_object = nullptr;

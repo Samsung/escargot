@@ -332,8 +332,6 @@ public:
     StringRef* asString();
     ObjectRef* asObject();
     FunctionObjectRef* asFunction();
-
-protected:
 };
 
 class EXPORT ValueVectorRef {
@@ -639,8 +637,6 @@ public:
         EvalError
     };
     static ErrorObjectRef* create(ExecutionStateRef* state, ErrorObjectRef::Code code, StringRef* errorMessage);
-
-protected:
 };
 
 class EXPORT ReferenceErrorObjectRef : public ErrorObjectRef {
