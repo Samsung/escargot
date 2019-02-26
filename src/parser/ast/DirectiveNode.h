@@ -29,9 +29,9 @@ class DirectiveNode : public StatementNode {
 public:
     DirectiveNode(ExpressionNode* expr, StringView value)
         : StatementNode()
+        , m_expr(expr)
+        , m_value(value)
     {
-        m_expr = expr;
-        m_value = value;
     }
 
     virtual ~DirectiveNode()

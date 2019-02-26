@@ -30,9 +30,9 @@ public:
     friend class ScriptParser;
     WhileStatementNode(Node *test, Node *body)
         : StatementNode()
+        , m_test((ExpressionNode *)test)
+        , m_body((StatementNode *)body)
     {
-        m_test = (ExpressionNode *)test;
-        m_body = (StatementNode *)body;
     }
 
     virtual ~WhileStatementNode()

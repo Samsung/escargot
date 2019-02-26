@@ -32,9 +32,9 @@ public:
     friend class ScriptParser;
     VariableDeclaratorNode(Node* id, Node* init = nullptr)
         : Node()
+        , m_id(id)
+        , m_init(init)
     {
-        m_id = id;
-        m_init = init;
     }
 
     virtual ~VariableDeclaratorNode()

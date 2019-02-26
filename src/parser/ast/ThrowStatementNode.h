@@ -30,8 +30,8 @@ public:
     friend class ScriptParser;
     explicit ThrowStatementNode(Node* argument)
         : StatementNode()
+        , m_argument(argument)
     {
-        m_argument = argument;
     }
     virtual ~ThrowStatementNode()
     {

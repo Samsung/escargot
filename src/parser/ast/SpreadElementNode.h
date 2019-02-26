@@ -28,8 +28,8 @@ class SpreadElementNode : public Node {
 public:
     explicit SpreadElementNode(Node* arg)
         : Node()
+        , m_arg(arg)
     {
-        m_arg = arg;
     }
 
     virtual ~SpreadElementNode()

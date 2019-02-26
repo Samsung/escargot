@@ -30,8 +30,8 @@ public:
     friend class ScriptParser;
     explicit SequenceExpressionNode(ExpressionNodeVector&& expressions)
         : ExpressionNode()
+        , m_expressions(expressions)
     {
-        m_expressions = expressions;
     }
 
     virtual ~SequenceExpressionNode()

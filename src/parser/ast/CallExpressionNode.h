@@ -31,9 +31,9 @@ public:
     friend class ScriptParser;
     CallExpressionNode(Node* callee, ArgumentVector&& arguments)
         : ExpressionNode()
+        , m_callee(callee)
+        , m_arguments(std::move(arguments))
     {
-        m_callee = callee;
-        m_arguments = std::move(arguments);
     }
 
     virtual ~CallExpressionNode()

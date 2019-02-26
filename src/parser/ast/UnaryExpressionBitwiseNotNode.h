@@ -29,8 +29,8 @@ public:
     friend class ScriptParser;
     UnaryExpressionBitwiseNotNode(Node* argument)
         : ExpressionNode()
+        , m_argument(argument)
     {
-        m_argument = argument;
     }
     virtual ~UnaryExpressionBitwiseNotNode()
     {

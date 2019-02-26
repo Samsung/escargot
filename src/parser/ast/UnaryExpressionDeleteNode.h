@@ -29,8 +29,8 @@ public:
     friend class ScriptParser;
     explicit UnaryExpressionDeleteNode(Node* argument)
         : ExpressionNode()
+        , m_argument((ExpressionNode*)argument)
     {
-        m_argument = (ExpressionNode*)argument;
     }
     virtual ~UnaryExpressionDeleteNode()
     {

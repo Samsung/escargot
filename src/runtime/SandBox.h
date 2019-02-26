@@ -31,8 +31,8 @@ class SandBox : public gc {
 
 public:
     explicit SandBox(Context* s)
+        : m_context(s)
     {
-        m_context = s;
         m_context->m_sandBoxStack.pushBack(this);
     }
 

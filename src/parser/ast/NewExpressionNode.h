@@ -30,9 +30,9 @@ public:
     friend class ScriptParser;
     NewExpressionNode(Node* callee, ArgumentVector&& arguments)
         : ExpressionNode()
+        , m_callee(callee)
+        , m_arguments(arguments)
     {
-        m_callee = callee;
-        m_arguments = arguments;
     }
 
     virtual ~NewExpressionNode()

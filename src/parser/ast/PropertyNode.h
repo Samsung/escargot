@@ -36,11 +36,11 @@ public:
 
     PropertyNode(Node* key, Node* value, Kind kind, bool computed)
         : Node()
+        , m_kind(kind)
+        , m_computed(computed)
+        , m_key(key)
+        , m_value(value)
     {
-        m_kind = kind;
-        m_computed = computed;
-        m_key = key;
-        m_value = value;
     }
 
     virtual ~PropertyNode()

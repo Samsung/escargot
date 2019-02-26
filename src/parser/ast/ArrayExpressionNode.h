@@ -29,10 +29,10 @@ public:
     friend class ScriptParser;
     ArrayExpressionNode(ExpressionNodeVector&& elements, AtomicString additionalPropertyName = AtomicString(), Node* additionalPropertyExpression = nullptr)
         : ExpressionNode()
+        , m_elements(elements)
+        , m_additionalPropertyName(additionalPropertyName)
+        , m_additionalPropertyExpression(additionalPropertyExpression)
     {
-        m_elements = elements;
-        m_additionalPropertyName = additionalPropertyName;
-        m_additionalPropertyExpression = additionalPropertyExpression;
     }
 
     virtual ~ArrayExpressionNode()

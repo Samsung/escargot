@@ -30,10 +30,10 @@ class MemberExpressionNode : public ExpressionNode {
 public:
     MemberExpressionNode(Node* object, Node* property, bool computed)
         : ExpressionNode()
+        , m_object(object)
+        , m_property(property)
+        , m_computed(computed)
     {
-        m_object = object;
-        m_property = property;
-        m_computed = computed;
     }
 
     virtual ~MemberExpressionNode()

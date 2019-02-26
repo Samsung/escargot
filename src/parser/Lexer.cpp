@@ -592,18 +592,16 @@ void Scanner::ScannerResult::constructStringLiteral()
 }
 
 Scanner::Scanner(::Escargot::Context* escargotContext, StringView code, ErrorHandler* handler, size_t startLine, size_t startColumn)
+    : source(code)
+    , escargotContext(escargotContext)
+    , errorHandler(handler)
+    , length(code.length())
+    , index(0)
+    , lineNumber(((length > 0) ? 1 : 0) + startLine)
+    , lineStart(startColumn)
+    , isPoolEnabled(true)
 {
-    this->escargotContext = escargotContext;
-    isPoolEnabled = true;
-    source = code;
-    errorHandler = handler;
     // trackComment = false;
-
-    length = code.length();
-    index = 0;
-    lineNumber = ((length > 0) ? 1 : 0) + startLine;
-    lineStart = startColumn;
-
     initialResultMemoryPoolSize = SCANNER_RESULT_POOL_INITIAL_SIZE;
     Scanner::ScannerResult* ptr = (Scanner::ScannerResult*)scannerResultInnerPool;
     for (size_t i = 0; i < SCANNER_RESULT_POOL_INITIAL_SIZE; i++) {

@@ -28,9 +28,9 @@ class BinaryExpressionInstanceOfNode : public ExpressionNode {
 public:
     BinaryExpressionInstanceOfNode(Node* left, Node* right)
         : ExpressionNode()
+        , m_left((ExpressionNode*)left)
+        , m_right((ExpressionNode*)right)
     {
-        m_left = (ExpressionNode*)left;
-        m_right = (ExpressionNode*)right;
     }
 
     virtual ~BinaryExpressionInstanceOfNode()

@@ -298,60 +298,63 @@ public:
         }
 
         ScannerResult(Scanner* scanner, Token type, size_t lineNumber, size_t lineStart, size_t start, size_t end)
-            : valueNumber(0)
+            : scanner(scanner)
+            , type(type)
+            , startWithZero(false)
+            , octal(false)
+            , plain(false)
+            , hasKeywordButUseString(false)
+            , lineNumber(lineNumber)
+            , lineStart(lineStart)
+            , start(start)
+            , end(end)
+            , valueNumber(0)
         {
-            this->scanner = scanner;
-            this->type = type;
-            this->startWithZero = this->octal = false;
-            this->hasKeywordButUseString = true;
-            this->plain = false;
-            this->lineNumber = lineNumber;
-            this->lineStart = lineStart;
-            this->start = start;
-            this->end = end;
         }
 
         ScannerResult(Scanner* scanner, Token type, const StringView& valueString, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool plain)
-            : valueStringLiteralData(valueString)
+            : scanner(scanner)
+            , type(type)
+            , startWithZero(false)
+            , octal(false)
+            , plain(plain)
+            , hasKeywordButUseString(true)
+            , lineNumber(lineNumber)
+            , lineStart(lineStart)
+            , start(start)
+            , end(end)
+            , valueStringLiteralData(valueString)
         {
-            this->scanner = scanner;
-            this->type = type;
-            this->startWithZero = this->octal = false;
-            this->hasKeywordButUseString = true;
-            this->plain = plain;
-            this->lineNumber = lineNumber;
-            this->lineStart = lineStart;
-            this->start = start;
-            this->end = end;
         }
 
         ScannerResult(Scanner* scanner, Token type, double value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
-            : valueNumber(value)
+            : scanner(scanner)
+            , type(type)
+            , startWithZero(false)
+            , octal(false)
+            , plain(false)
+            , hasKeywordButUseString(true)
+            , lineNumber(lineNumber)
+            , lineStart(lineStart)
+            , start(start)
+            , end(end)
+            , valueNumber(value)
         {
-            this->scanner = scanner;
-            this->type = type;
-            this->startWithZero = this->octal = false;
-            this->hasKeywordButUseString = true;
-            this->plain = false;
-            this->valueNumber = value;
-            this->lineNumber = lineNumber;
-            this->lineStart = lineStart;
-            this->start = start;
-            this->end = end;
         }
 
         ScannerResult(Scanner* scanner, Token type, ScanTemplteResult* value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
-            : valueTemplate(value)
+            : scanner(scanner)
+            , type(type)
+            , startWithZero(false)
+            , octal(false)
+            , plain(false)
+            , hasKeywordButUseString(true)
+            , lineNumber(lineNumber)
+            , lineStart(lineStart)
+            , start(start)
+            , end(end)
+            , valueTemplate(value)
         {
-            this->scanner = scanner;
-            this->type = type;
-            this->startWithZero = this->octal = false;
-            this->hasKeywordButUseString = true;
-            this->plain = false;
-            this->lineNumber = lineNumber;
-            this->lineStart = lineStart;
-            this->start = start;
-            this->end = end;
         }
 
     private:

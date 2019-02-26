@@ -30,8 +30,8 @@ public:
     friend class ScriptParser;
     explicit VariableDeclarationNode(VariableDeclaratorVector&& decl)
         : DeclarationNode()
+        , m_declarations(decl)
     {
-        m_declarations = decl;
     }
 
     virtual ~VariableDeclarationNode()

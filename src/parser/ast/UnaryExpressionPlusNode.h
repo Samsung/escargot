@@ -29,8 +29,8 @@ public:
     friend class ScriptParser;
     explicit UnaryExpressionPlusNode(Node* argument)
         : ExpressionNode()
+        , m_argument(argument)
     {
-        m_argument = argument;
     }
     virtual ~UnaryExpressionPlusNode()
     {

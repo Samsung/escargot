@@ -29,9 +29,9 @@ class RegExpLiteralNode : public Node {
 public:
     RegExpLiteralNode(String* body, String* flag)
         : Node()
+        , m_body(body)
+        , m_flag(flag)
     {
-        m_body = body;
-        m_flag = flag;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::RegExpLiteral; }

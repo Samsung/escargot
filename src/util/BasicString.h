@@ -38,16 +38,16 @@ public:
     }
 
     BasicString(const T* src, size_t len)
+        : m_buffer(allocate(len))
+        , m_size(len)
     {
-        m_size = len;
-        m_buffer = allocate(m_size);
         memcpy(m_buffer, src, sizeof(T) * m_size);
     }
 
     BasicString(BasicString<T, Allocator>&& other)
+        : m_buffer(other.m_buffer)
+        , m_size(other.size())
     {
-        m_size = other.size();
-        m_buffer = other.m_buffer;
         other.makeEmpty();
     }
 

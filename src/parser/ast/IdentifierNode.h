@@ -33,8 +33,8 @@ public:
     friend class ScriptParser;
     explicit IdentifierNode(const AtomicString& name)
         : Node()
+        , m_name(name)
     {
-        m_name = name;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::Identifier; }

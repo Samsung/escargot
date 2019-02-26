@@ -29,9 +29,9 @@ public:
     friend class ScriptParser;
     LabeledStatementNode(StatementNode* statementNode, String* label)
         : StatementNode()
+        , m_statementNode(statementNode)
+        , m_label(label)
     {
-        m_statementNode = statementNode;
-        m_label = label;
     }
 
     virtual ~LabeledStatementNode()

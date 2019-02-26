@@ -30,8 +30,8 @@ public:
     friend class ScriptParser;
     explicit ExpressionStatementNode(Node* expression)
         : StatementNode()
+        , m_expression(expression)
     {
-        m_expression = expression;
     }
 
     virtual ~ExpressionStatementNode()

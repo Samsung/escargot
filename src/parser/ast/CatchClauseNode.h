@@ -35,11 +35,11 @@ public:
     friend class ScriptParser;
     CatchClauseNode(Node *param, Node *guard, Node *body, std::vector<FunctionDeclarationNode *> &fd)
         : Node()
+        , m_param((IdentifierNode *)param)
+        , m_guard((ExpressionNode *)guard)
+        , m_body((BlockStatementNode *)body)
+        , m_innerFDs(std::move(fd))
     {
-        m_param = (IdentifierNode *)param;
-        m_guard = (ExpressionNode *)guard;
-        m_body = (BlockStatementNode *)body;
-        m_innerFDs = std::move(fd);
     }
 
     virtual ~CatchClauseNode()

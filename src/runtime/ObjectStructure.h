@@ -64,20 +64,20 @@ class ObjectStructure : public gc {
 
 public:
     ObjectStructure(ExecutionState&, bool needsTransitionTable = true)
+        : m_isProtectedByTransitionTable(false)
+        , m_hasIndexPropertyName(false)
+        , m_needsTransitionTable(needsTransitionTable)
+        , m_isStructureWithFastAccess(false)
     {
-        m_needsTransitionTable = needsTransitionTable;
-        m_isProtectedByTransitionTable = false;
-        m_hasIndexPropertyName = false;
-        m_isStructureWithFastAccess = false;
     }
 
     ObjectStructure(ExecutionState&, ObjectStructureItemVector&& properties, bool needsTransitionTable, bool hasIndexPropertyName)
-        : m_properties(std::move(properties))
+        : m_isProtectedByTransitionTable(false)
+        , m_hasIndexPropertyName(hasIndexPropertyName)
+        , m_needsTransitionTable(needsTransitionTable)
+        , m_isStructureWithFastAccess(false)
+        , m_properties(std::move(properties))
     {
-        m_needsTransitionTable = needsTransitionTable;
-        m_isProtectedByTransitionTable = false;
-        m_hasIndexPropertyName = hasIndexPropertyName;
-        m_isStructureWithFastAccess = false;
     }
 
     size_t findProperty(ExecutionState& state, String* propertyName)

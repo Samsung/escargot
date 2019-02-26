@@ -31,8 +31,8 @@ public:
     friend class ScriptParser;
     explicit ObjectExpressionNode(PropertiesNodeVector&& properties)
         : ExpressionNode()
+        , m_properties(properties)
     {
-        m_properties = properties;
     }
 
     virtual ~ObjectExpressionNode()

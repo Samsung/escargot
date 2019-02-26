@@ -35,9 +35,9 @@ uint64_t timestamp(); // increase 1000 by 1 second
 class ProfilerTimer {
 public:
     explicit ProfilerTimer(const char *msg)
+        : m_start(longTickCount())
+        , m_msg(msg)
     {
-        m_start = longTickCount();
-        m_msg = msg;
     }
     ~ProfilerTimer();
 
@@ -49,10 +49,10 @@ private:
 class LongTaskFinder {
 public:
     LongTaskFinder(const char *msg, size_t loggingTimeInMS)
+        : m_loggingTime(loggingTimeInMS)
+        , m_start(longTickCount())
+        , m_msg(msg)
     {
-        m_loggingTime = loggingTimeInMS;
-        m_start = longTickCount();
-        m_msg = msg;
     }
     ~LongTaskFinder();
 
