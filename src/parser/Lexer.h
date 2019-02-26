@@ -568,6 +568,11 @@ public:
     PassRefPtr<ScannerResult> lex();
 
 private:
+    ALWAYS_INLINE char16_t peekChar()
+    {
+        return this->source.bufferedCharAt(this->index);
+    }
+
     char32_t scanHexEscape(char prefix);
     char32_t scanUnicodeCodePointEscape();
 
