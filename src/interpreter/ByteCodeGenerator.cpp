@@ -138,6 +138,14 @@ void ByteCodeGenerator::generateLoadThisValueByteCode(ByteCodeBlock* block, Byte
     }
 }
 
+static const uint8_t byteCodeLengths[] = {
+#define ITER_BYTE_CODE(code, pushCount, popCount) \
+    (uint8_t)sizeof(code),
+
+    FOR_EACH_BYTECODE_OP(ITER_BYTE_CODE)
+#undef ITER_BYTE_CODE
+};
+
 ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBlock* codeBlock, Node* ast, ASTScopeContext* scopeCtx, bool isEvalMode, bool isOnGlobal, bool shouldGenerateLOCData)
 {
     ByteCodeBlock* block = new ByteCodeBlock(codeBlock);
@@ -231,14 +239,13 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
         ByteCodeRegisterIndex stackBase = REGULAR_REGISTER_LIMIT;
         ByteCodeRegisterIndex stackBaseWillBe = block->m_requiredRegisterFileSizeInValueSize;
         ByteCodeRegisterIndex stackVariableSize = codeBlock->identifierOnStackCount();
-        size_t idx = 0;
-        size_t bytecodeCounter = 0;
 
         char* code = block->m_code.data();
         size_t codeBase = (size_t)code;
-        char* end = &block->m_code.data()[block->m_code.size()];
-        while (&code[idx] < end) {
-            ByteCode* currentCode = (ByteCode*)(&code[idx]);
+        char* end = code + block->m_code.size();
+
+        while (code < end) {
+            ByteCode* currentCode = (ByteCode*)code;
 #if defined(COMPILER_GCC)
             Opcode opcode = (Opcode)(size_t)currentCode->m_opcodeInAddress;
 #else
@@ -449,10 +456,6 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
                 break;
             }
-            case JumpComplexCaseOpcode: {
-                JumpComplexCase* cd = (JumpComplexCase*)currentCode;
-                break;
-            }
             case JumpIfTrueOpcode: {
                 JumpIfTrue* cd = (JumpIfTrue*)currentCode;
                 cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
@@ -511,18 +514,8 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 break;
             }
 
-            switch (opcode) {
-#define ITER_BYTE_CODE(code, pushCount, popCount) \
-    case code##Opcode:                            \
-        idx += sizeof(code);                      \
-        continue;
-
-                FOR_EACH_BYTECODE_OP(ITER_BYTE_CODE)
-#undef ITER_BYTE_CODE
-            default:
-                RELEASE_ASSERT_NOT_REACHED();
-                break;
-            };
+            ASSERT(opcode <= EndOpcode);
+            code += byteCodeLengths[opcode];
         }
     }
 
@@ -553,21 +546,20 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
         }
 
         printf("]\n");
-        size_t idx = 0;
-        size_t bytecodeCounter = 0;
+
         char* code = block->m_code.data();
-        size_t codeBase = (size_t)code;
-        char* end = &block->m_code.data()[block->m_code.size()];
-        while (&code[idx] < end) {
-            ByteCode* currentCode = (ByteCode*)(&code[idx]);
+        size_t idx = 0;
+        size_t end = block->m_code.size();
+
+        while (idx < end) {
+            ByteCode* currentCode = (ByteCode*)(code + idx);
 
             Opcode opcode = currentCode->m_orgOpcode;
             switch (opcode) {
 #define DUMP_BYTE_CODE(code, pushCount, popCount) \
     case code##Opcode:                            \
         currentCode->dumpCode(idx);               \
-        idx += sizeof(code);                      \
-        continue;
+        break;
 
                 FOR_EACH_BYTECODE_OP(DUMP_BYTE_CODE)
 
@@ -576,6 +568,8 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 RELEASE_ASSERT_NOT_REACHED();
                 break;
             };
+
+            idx += byteCodeLengths[opcode];
         }
         printf("dumpBytecode...<<<<<<<<<<<<<<<<<<<<<<\n");
     }
