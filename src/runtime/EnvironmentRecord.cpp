@@ -71,7 +71,7 @@ void GlobalEnvironmentRecord::setMutableBinding(ExecutionState& state, const Ato
     m_globalObject->setThrowsExceptionWhenStrictMode(state, name, V, m_globalObject);
 }
 
-void GlobalEnvironmentRecord::setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& V)
+void GlobalEnvironmentRecord::setMutableBindingByIndex(ExecutionState& state, const size_t idx, const AtomicString& name, const Value& V)
 {
     m_globalObject->setThrowsExceptionWhenStrictMode(state, name, V, m_globalObject);
 }
@@ -174,7 +174,7 @@ void DeclarativeEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& s
     ASSERT_NOT_REACHED();
 }
 
-void DeclarativeEnvironmentRecordNotIndexed::setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
+void DeclarativeEnvironmentRecordNotIndexed::setMutableBindingByIndex(ExecutionState& state, const size_t idx, const AtomicString& name, const Value& v)
 {
     m_heapStorage[idx] = v;
 }
@@ -232,7 +232,7 @@ void FunctionEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& stat
     ASSERT_NOT_REACHED();
 }
 
-void FunctionEnvironmentRecordNotIndexed::setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
+void FunctionEnvironmentRecordNotIndexed::setMutableBindingByIndex(ExecutionState& state, const size_t idx, const AtomicString& name, const Value& v)
 {
     if (UNLIKELY(!m_recordVector[idx].m_isMutable)) {
         if (state.inStrictMode())

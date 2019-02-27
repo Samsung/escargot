@@ -104,7 +104,7 @@ private:
         return m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER].toUint32(state);
     }
 
-    bool setArrayLength(ExecutionState& state, const uint64_t& newLength);
+    bool setArrayLength(ExecutionState& state, const uint64_t newLength);
     bool defineArrayLengthProperty(ExecutionState& state, const ObjectPropertyDescriptor& desc);
     void convertIntoNonFastMode(ExecutionState& state);
 

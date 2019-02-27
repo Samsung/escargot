@@ -391,8 +391,8 @@ public:
     void insert(size_t pos, ValueRef* val);
     void erase(size_t pos);
     void erase(size_t start, size_t end);
-    ValueRef* at(const size_t& idx);
-    void set(const size_t& idx, ValueRef* newValue);
+    ValueRef* at(const size_t idx);
+    void set(const size_t idx, ValueRef* newValue);
     void resize(size_t newSize);
 };
 
@@ -652,9 +652,9 @@ public:
     bool setFunctionPrototype(ExecutionStateRef* state, ValueRef* v);
 
     bool isConstructor();
-    ValueRef* call(ExecutionStateRef* state, ValueRef* receiver, const size_t& argc, ValueRef** argv);
+    ValueRef* call(ExecutionStateRef* state, ValueRef* receiver, const size_t argc, ValueRef** argv);
     // ECMAScript new operation
-    ObjectRef* newInstance(ExecutionStateRef* state, const size_t& argc, ValueRef** argv);
+    ObjectRef* newInstance(ExecutionStateRef* state, const size_t argc, ValueRef** argv);
 
     void markFunctionNeedsSlowVirtualIdentifierOperation();
 };

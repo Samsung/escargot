@@ -156,7 +156,7 @@ public:
         m_data.payload = from.m_data.payload;
     }
 
-    explicit SmallValue(const uint32_t& from)
+    explicit SmallValue(const uint32_t from)
     {
         if (LIKELY(SmallValueImpl::PlatformSmiTagging::IsValidSmi(from))) {
             m_data.payload = SmallValueImpl::PlatformSmiTagging::IntToSmi(from);

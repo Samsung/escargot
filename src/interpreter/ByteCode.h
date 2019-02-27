@@ -193,7 +193,7 @@ public:
 
 class LoadLiteral : public ByteCode {
 public:
-    LoadLiteral(const ByteCodeLOC& loc, const size_t& registerIndex, const Value& v)
+    LoadLiteral(const ByteCodeLOC& loc, const size_t registerIndex, const Value& v)
         : ByteCode(Opcode::LoadLiteralOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_value(v)
@@ -226,7 +226,7 @@ public:
 
 class LoadByName : public ByteCode {
 public:
-    LoadByName(const ByteCodeLOC& loc, const size_t& registerIndex, const AtomicString& name)
+    LoadByName(const ByteCodeLOC& loc, const size_t registerIndex, const AtomicString& name)
         : ByteCode(Opcode::LoadByNameOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_name(name)
@@ -245,7 +245,7 @@ public:
 
 class StoreByName : public ByteCode {
 public:
-    StoreByName(const ByteCodeLOC& loc, const size_t& registerIndex, const AtomicString& name)
+    StoreByName(const ByteCodeLOC& loc, const size_t registerIndex, const AtomicString& name)
         : ByteCode(Opcode::StoreByNameOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_name(name)
@@ -264,7 +264,7 @@ public:
 
 class LoadByHeapIndex : public ByteCode {
 public:
-    LoadByHeapIndex(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& upperIndex, const size_t& index)
+    LoadByHeapIndex(const ByteCodeLOC& loc, const size_t registerIndex, const size_t upperIndex, const size_t index)
         : ByteCode(Opcode::LoadByHeapIndexOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_upperIndex(upperIndex)
@@ -285,7 +285,7 @@ public:
 
 class StoreByHeapIndex : public ByteCode {
 public:
-    StoreByHeapIndex(const ByteCodeLOC& loc, const size_t& registerIndex, const size_t& upperIndex, const size_t& index)
+    StoreByHeapIndex(const ByteCodeLOC& loc, const size_t registerIndex, const size_t upperIndex, const size_t index)
         : ByteCode(Opcode::StoreByHeapIndexOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_upperIndex(upperIndex)
@@ -323,7 +323,7 @@ public:
 
 class CreateFunction : public ByteCode {
 public:
-    CreateFunction(const ByteCodeLOC& loc, const size_t& registerIndex, CodeBlock* cb)
+    CreateFunction(const ByteCodeLOC& loc, const size_t registerIndex, CodeBlock* cb)
         : ByteCode(Opcode::CreateFunctionOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_codeBlock(cb)
@@ -350,20 +350,20 @@ public:
     }
 #endif
 
-#define DEFINE_BINARY_OPERATION(CodeName, HumanName)                                                                                         \
-    class Binary##CodeName : public ByteCode {                                                                                               \
-    public:                                                                                                                                  \
-        Binary##CodeName(const ByteCodeLOC& loc, const size_t& registerIndex0, const size_t& registerIndex1, const size_t& dstRegisterIndex) \
-            : ByteCode(Opcode::Binary##CodeName##Opcode, loc)                                                                                \
-            , m_srcIndex0(registerIndex0)                                                                                                    \
-            , m_srcIndex1(registerIndex1)                                                                                                    \
-            , m_dstIndex(dstRegisterIndex)                                                                                                   \
-        {                                                                                                                                    \
-        }                                                                                                                                    \
-        ByteCodeRegisterIndex m_srcIndex0;                                                                                                   \
-        ByteCodeRegisterIndex m_srcIndex1;                                                                                                   \
-        ByteCodeRegisterIndex m_dstIndex;                                                                                                    \
-        DEFINE_BINARY_OPERATION_DUMP(HumanName)                                                                                              \
+#define DEFINE_BINARY_OPERATION(CodeName, HumanName)                                                                                      \
+    class Binary##CodeName : public ByteCode {                                                                                            \
+    public:                                                                                                                               \
+        Binary##CodeName(const ByteCodeLOC& loc, const size_t registerIndex0, const size_t registerIndex1, const size_t dstRegisterIndex) \
+            : ByteCode(Opcode::Binary##CodeName##Opcode, loc)                                                                             \
+            , m_srcIndex0(registerIndex0)                                                                                                 \
+            , m_srcIndex1(registerIndex1)                                                                                                 \
+            , m_dstIndex(dstRegisterIndex)                                                                                                \
+        {                                                                                                                                 \
+        }                                                                                                                                 \
+        ByteCodeRegisterIndex m_srcIndex0;                                                                                                \
+        ByteCodeRegisterIndex m_srcIndex1;                                                                                                \
+        ByteCodeRegisterIndex m_dstIndex;                                                                                                 \
+        DEFINE_BINARY_OPERATION_DUMP(HumanName)                                                                                           \
     };
 
 DEFINE_BINARY_OPERATION(Plus, "plus");
@@ -391,7 +391,7 @@ DEFINE_BINARY_OPERATION(InstanceOfOperation, "instance of");
 
 class CreateObject : public ByteCode {
 public:
-    CreateObject(const ByteCodeLOC& loc, const size_t& registerIndex)
+    CreateObject(const ByteCodeLOC& loc, const size_t registerIndex)
         : ByteCode(Opcode::CreateObjectOpcode, loc)
         , m_registerIndex(registerIndex)
     {
@@ -409,7 +409,7 @@ public:
 
 class CreateArray : public ByteCode {
 public:
-    CreateArray(const ByteCodeLOC& loc, const size_t& registerIndex)
+    CreateArray(const ByteCodeLOC& loc, const size_t registerIndex)
         : ByteCode(Opcode::CreateArrayOpcode, loc)
         , m_registerIndex(registerIndex)
     {
@@ -429,7 +429,7 @@ public:
 
 class GetObject : public ByteCode {
 public:
-    GetObject(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, const size_t& propertyRegisterIndex, const size_t& storeRegisterIndex)
+    GetObject(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t propertyRegisterIndex, const size_t storeRegisterIndex)
         : ByteCode(Opcode::GetObjectOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_propertyRegisterIndex(propertyRegisterIndex)
@@ -451,7 +451,7 @@ public:
 
 class SetObjectOperation : public ByteCode {
 public:
-    SetObjectOperation(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, const size_t& propertyRegisterIndex, const size_t& loadRegisterIndex)
+    SetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t propertyRegisterIndex, const size_t loadRegisterIndex)
         : ByteCode(Opcode::SetObjectOperationOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_propertyRegisterIndex(propertyRegisterIndex)
@@ -473,7 +473,7 @@ public:
 
 class ObjectDefineOwnPropertyOperation : public ByteCode {
 public:
-    ObjectDefineOwnPropertyOperation(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, const size_t& propertyRegisterIndex, const size_t& loadRegisterIndex)
+    ObjectDefineOwnPropertyOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t propertyRegisterIndex, const size_t loadRegisterIndex)
         : ByteCode(Opcode::ObjectDefineOwnPropertyOperationOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_propertyRegisterIndex(propertyRegisterIndex)
@@ -495,7 +495,7 @@ public:
 
 class ObjectDefineOwnPropertyWithNameOperation : public ByteCode {
 public:
-    ObjectDefineOwnPropertyWithNameOperation(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, AtomicString propertyName, const size_t& loadRegisterIndex)
+    ObjectDefineOwnPropertyWithNameOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, AtomicString propertyName, const size_t loadRegisterIndex)
         : ByteCode(Opcode::ObjectDefineOwnPropertyWithNameOperationOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_loadRegisterIndex(loadRegisterIndex)
@@ -519,7 +519,7 @@ public:
 
 class ArrayDefineOwnPropertyOperation : public ByteCode {
 public:
-    ArrayDefineOwnPropertyOperation(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, const uint32_t& baseIndex, uint8_t count)
+    ArrayDefineOwnPropertyOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const uint32_t baseIndex, uint8_t count)
         : ByteCode(Opcode::ArrayDefineOwnPropertyOperationOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_count(count)
@@ -606,7 +606,7 @@ struct GetObjectInlineCache {
 class GetObjectPreComputedCase : public ByteCode {
 public:
     // [object] -> [value]
-    GetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, const size_t& storeRegisterIndex, PropertyName propertyName)
+    GetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t storeRegisterIndex, PropertyName propertyName)
         : ByteCode(Opcode::GetObjectPreComputedCaseOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_storeRegisterIndex(storeRegisterIndex)
@@ -651,7 +651,7 @@ struct SetObjectInlineCache {
 
 class SetObjectPreComputedCase : public ByteCode {
 public:
-    SetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t& objectRegisterIndex, PropertyName propertyName, const size_t& loadRegisterIndex, SetObjectInlineCache* inlineCache)
+    SetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t objectRegisterIndex, PropertyName propertyName, const size_t loadRegisterIndex, SetObjectInlineCache* inlineCache)
         : ByteCode(Opcode::SetObjectPreComputedCaseOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_loadRegisterIndex(loadRegisterIndex)
@@ -674,7 +674,7 @@ public:
 
 class GetGlobalObject : public ByteCode {
 public:
-    GetGlobalObject(const ByteCodeLOC& loc, const size_t& registerIndex, PropertyName propertyName)
+    GetGlobalObject(const ByteCodeLOC& loc, const size_t registerIndex, PropertyName propertyName)
         : ByteCode(Opcode::GetGlobalObjectOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_propertyName(propertyName)
@@ -698,7 +698,7 @@ public:
 
 class SetGlobalObject : public ByteCode {
 public:
-    SetGlobalObject(const ByteCodeLOC& loc, const size_t& registerIndex, PropertyName propertyName)
+    SetGlobalObject(const ByteCodeLOC& loc, const size_t registerIndex, PropertyName propertyName)
         : ByteCode(Opcode::SetGlobalObjectOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_propertyName(propertyName)
@@ -723,7 +723,7 @@ public:
 
 class Move : public ByteCode {
 public:
-    Move(const ByteCodeLOC& loc, const size_t& registerIndex0, const size_t& registerIndex1) // 1 <= 0
+    Move(const ByteCodeLOC& loc, const size_t registerIndex0, const size_t registerIndex1) // 1 <= 0
         : ByteCode(Opcode::MoveOpcode, loc),
           m_registerIndex0(registerIndex0),
           m_registerIndex1(registerIndex1)
@@ -743,7 +743,7 @@ public:
 
 class ToNumber : public ByteCode {
 public:
-    ToNumber(const ByteCodeLOC& loc, const size_t& srcIndex, const size_t& dstIndex)
+    ToNumber(const ByteCodeLOC& loc, const size_t srcIndex, const size_t dstIndex)
         : ByteCode(Opcode::ToNumberOpcode, loc)
         , m_srcIndex(srcIndex)
         , m_dstIndex(dstIndex)
@@ -763,7 +763,7 @@ public:
 
 class Increment : public ByteCode {
 public:
-    Increment(const ByteCodeLOC& loc, const size_t& srcIndex, const size_t& dstIndex)
+    Increment(const ByteCodeLOC& loc, const size_t srcIndex, const size_t dstIndex)
         : ByteCode(Opcode::IncrementOpcode, loc)
         , m_srcIndex(srcIndex)
         , m_dstIndex(dstIndex)
@@ -783,7 +783,7 @@ public:
 
 class Decrement : public ByteCode {
 public:
-    Decrement(const ByteCodeLOC& loc, const size_t& srcIndex, const size_t& dstIndex)
+    Decrement(const ByteCodeLOC& loc, const size_t srcIndex, const size_t dstIndex)
         : ByteCode(Opcode::DecrementOpcode, loc)
         , m_srcIndex(srcIndex)
         , m_dstIndex(dstIndex)
@@ -803,7 +803,7 @@ public:
 
 class UnaryMinus : public ByteCode {
 public:
-    UnaryMinus(const ByteCodeLOC& loc, const size_t& srcIndex, const size_t& dstIndex)
+    UnaryMinus(const ByteCodeLOC& loc, const size_t srcIndex, const size_t dstIndex)
         : ByteCode(Opcode::UnaryMinusOpcode, loc)
         , m_srcIndex(srcIndex)
         , m_dstIndex(dstIndex)
@@ -823,7 +823,7 @@ public:
 
 class UnaryNot : public ByteCode {
 public:
-    UnaryNot(const ByteCodeLOC& loc, const size_t& srcIndex, const size_t& dstIndex)
+    UnaryNot(const ByteCodeLOC& loc, const size_t srcIndex, const size_t dstIndex)
         : ByteCode(Opcode::UnaryNotOpcode, loc)
         , m_srcIndex(srcIndex)
         , m_dstIndex(dstIndex)
@@ -843,7 +843,7 @@ public:
 
 class UnaryBitwiseNot : public ByteCode {
 public:
-    UnaryBitwiseNot(const ByteCodeLOC& loc, const size_t& srcIndex, const size_t& dstIndex)
+    UnaryBitwiseNot(const ByteCodeLOC& loc, const size_t srcIndex, const size_t dstIndex)
         : ByteCode(Opcode::UnaryBitwiseNotOpcode, loc)
         , m_srcIndex(srcIndex)
         , m_dstIndex(dstIndex)
@@ -863,7 +863,7 @@ public:
 
 class UnaryTypeof : public ByteCode {
 public:
-    UnaryTypeof(const ByteCodeLOC& loc, const size_t& srcIndex, const size_t& dstIndex, AtomicString name)
+    UnaryTypeof(const ByteCodeLOC& loc, const size_t srcIndex, const size_t dstIndex, AtomicString name)
         : ByteCode(Opcode::UnaryTypeofOpcode, loc)
         , m_srcIndex(srcIndex)
         , m_dstIndex(dstIndex)
@@ -885,7 +885,7 @@ public:
 
 class UnaryDelete : public ByteCode {
 public:
-    UnaryDelete(const ByteCodeLOC& loc, const size_t& srcIndex0, const size_t& srcIndex1, const size_t& dstIndex, AtomicString name)
+    UnaryDelete(const ByteCodeLOC& loc, const size_t srcIndex0, const size_t srcIndex1, const size_t dstIndex, AtomicString name)
         : ByteCode(Opcode::UnaryDeleteOpcode, loc)
         , m_srcIndex0(srcIndex0)
         , m_srcIndex1(srcIndex1)
@@ -909,7 +909,7 @@ public:
 
 class TemplateOperation : public ByteCode {
 public:
-    TemplateOperation(const ByteCodeLOC& loc, const size_t& src0Index, const size_t& src1Index, const size_t& dstIndex)
+    TemplateOperation(const ByteCodeLOC& loc, const size_t src0Index, const size_t src1Index, const size_t dstIndex)
         : ByteCode(Opcode::TemplateOperationOpcode, loc)
         , m_src0Index(src0Index)
         , m_src1Index(src1Index)
@@ -966,7 +966,7 @@ public:
     {
     }
 
-    ControlFlowRecord(const ControlFlowReason& reason, const size_t& value, size_t count = 0, size_t outerLimitCount = SIZE_MAX)
+    ControlFlowRecord(const ControlFlowReason& reason, const size_t value, size_t count = 0, size_t outerLimitCount = SIZE_MAX)
         : m_reason(reason)
         , m_wordValue(value)
         , m_count(count)
@@ -994,7 +994,7 @@ public:
         return m_wordValue;
     }
 
-    void setWordValue(const size_t& value)
+    void setWordValue(const size_t value)
     {
         m_wordValue = value;
     }
@@ -1050,14 +1050,14 @@ COMPILE_ASSERT(sizeof(Jump) == sizeof(JumpComplexCase), "");
 
 class JumpIfTrue : public ByteCode {
 public:
-    JumpIfTrue(const ByteCodeLOC& loc, const size_t& registerIndex)
+    JumpIfTrue(const ByteCodeLOC& loc, const size_t registerIndex)
         : ByteCode(Opcode::JumpIfTrueOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_jumpPosition(SIZE_MAX)
     {
     }
 
-    JumpIfTrue(const ByteCodeLOC& loc, const size_t& registerIndex, size_t pos)
+    JumpIfTrue(const ByteCodeLOC& loc, const size_t registerIndex, size_t pos)
         : ByteCode(Opcode::JumpIfTrueOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_jumpPosition(pos)
@@ -1077,7 +1077,7 @@ public:
 
 class JumpIfFalse : public ByteCode {
 public:
-    JumpIfFalse(const ByteCodeLOC& loc, const size_t& registerIndex)
+    JumpIfFalse(const ByteCodeLOC& loc, const size_t registerIndex)
         : ByteCode(Opcode::JumpIfFalseOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_jumpPosition(SIZE_MAX)
@@ -1097,7 +1097,7 @@ public:
 
 class CallFunction : public ByteCode {
 public:
-    CallFunction(const ByteCodeLOC& loc, const size_t& calleeIndex, const size_t& argumentsStartIndex, const size_t& argumentCount, const size_t& resultIndex)
+    CallFunction(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount, const size_t resultIndex)
         : ByteCode(Opcode::CallFunctionOpcode, loc)
         , m_calleeIndex(calleeIndex)
         , m_argumentsStartIndex(argumentsStartIndex)
@@ -1120,7 +1120,7 @@ public:
 
 class CallFunctionWithReceiver : public ByteCode {
 public:
-    CallFunctionWithReceiver(const ByteCodeLOC& loc, const size_t& receiverIndex, const size_t& calleeIndex, const size_t& argumentsStartIndex, const size_t& argumentCount, const size_t& resultIndex)
+    CallFunctionWithReceiver(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount, const size_t resultIndex)
         : ByteCode(Opcode::CallFunctionWithReceiverOpcode, loc)
         , m_receiverIndex(receiverIndex)
         , m_calleeIndex(calleeIndex)
@@ -1146,7 +1146,7 @@ public:
 
 class CallEvalFunction : public ByteCode {
 public:
-    CallEvalFunction(const ByteCodeLOC& loc, const size_t& evalIndex, const size_t& argumentsStartIndex, size_t argumentCount, const size_t& resultIndex, bool inWithScope)
+    CallEvalFunction(const ByteCodeLOC& loc, const size_t evalIndex, const size_t argumentsStartIndex, size_t argumentCount, const size_t resultIndex, bool inWithScope)
         : ByteCode(Opcode::CallEvalFunctionOpcode, loc)
         , m_evalIndex(evalIndex)
         , m_argumentsStartIndex(argumentsStartIndex)
@@ -1171,7 +1171,7 @@ public:
 
 class CallFunctionInWithScope : public ByteCode {
 public:
-    CallFunctionInWithScope(const ByteCodeLOC& loc, const AtomicString& calleeName, const size_t& argumentsStartIndex, size_t argumentCount, const size_t& resultIndex)
+    CallFunctionInWithScope(const ByteCodeLOC& loc, const AtomicString& calleeName, const size_t argumentsStartIndex, size_t argumentCount, const size_t resultIndex)
         : ByteCode(Opcode::CallFunctionInWithScopeOpcode, loc)
         , m_calleeName(calleeName)
         , m_argumentsStartIndex(argumentsStartIndex)
@@ -1195,7 +1195,7 @@ public:
 
 class NewOperation : public ByteCode {
 public:
-    NewOperation(const ByteCodeLOC& loc, const size_t& calleeIndex, const size_t& argumentsStartIndex, const size_t& argumentCount, const size_t& resultIndex)
+    NewOperation(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount, const size_t resultIndex)
         : ByteCode(Opcode::NewOperationOpcode, loc)
         , m_calleeIndex(calleeIndex)
         , m_argumentsStartIndex(argumentsStartIndex)
@@ -1232,7 +1232,7 @@ public:
 
 class ReturnFunctionWithValue : public ByteCode {
 public:
-    ReturnFunctionWithValue(const ByteCodeLOC& loc, const size_t& registerIndex)
+    ReturnFunctionWithValue(const ByteCodeLOC& loc, const size_t registerIndex)
         : ByteCode(Opcode::ReturnFunctionWithValueOpcode, loc)
         , m_registerIndex(registerIndex)
     {
@@ -1249,7 +1249,7 @@ public:
 
 class ReturnFunctionSlowCase : public ByteCode {
 public:
-    ReturnFunctionSlowCase(const ByteCodeLOC& loc, const size_t& registerIndex)
+    ReturnFunctionSlowCase(const ByteCodeLOC& loc, const size_t registerIndex)
         : ByteCode(Opcode::ReturnFunctionSlowCaseOpcode, loc)
         , m_registerIndex(registerIndex)
     {
@@ -1320,7 +1320,7 @@ public:
 
 class ThrowOperation : public ByteCode {
 public:
-    ThrowOperation(const ByteCodeLOC& loc, const size_t& registerIndex)
+    ThrowOperation(const ByteCodeLOC& loc, const size_t registerIndex)
         : ByteCode(Opcode::ThrowOperationOpcode, loc)
         , m_registerIndex(registerIndex)
     {
@@ -1430,7 +1430,7 @@ public:
 
 class LoadRegexp : public ByteCode {
 public:
-    LoadRegexp(const ByteCodeLOC& loc, const size_t& registerIndex, String* body, String* opt)
+    LoadRegexp(const ByteCodeLOC& loc, const size_t registerIndex, String* body, String* opt)
         : ByteCode(Opcode::LoadRegexpOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_body(body)

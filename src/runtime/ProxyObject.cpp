@@ -774,7 +774,7 @@ bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyN
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-call-thisargument-argumentslist
-Value ProxyObject::call(ExecutionState& state, const Value& callee, const Value& receiver, const size_t& argc, Value* argv)
+Value ProxyObject::call(ExecutionState& state, const Value& callee, const Value& receiver, const size_t argc, Value* argv)
 {
     auto strings = &state.context()->staticStrings();
     // 2. If handler is null, throw a TypeError exception.
@@ -816,7 +816,7 @@ Value ProxyObject::call(ExecutionState& state, const Value& callee, const Value&
 
 // FIXME newTarget is missing [[Construct]] ( argumentsList, newTarget)
 // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-construct-argumentslist-newtarget
-Object* ProxyObject::construct(ExecutionState& state, const size_t& argc, Value* argv)
+Object* ProxyObject::construct(ExecutionState& state, const size_t argc, Value* argv)
 {
     auto strings = &state.context()->staticStrings();
     // 2. If handler is null, throw a TypeError exception.

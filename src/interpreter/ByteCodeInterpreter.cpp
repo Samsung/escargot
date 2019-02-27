@@ -42,7 +42,7 @@ namespace Escargot {
 
 #define ADD_PROGRAM_COUNTER(CodeType) programCounter += sizeof(CodeType);
 
-ALWAYS_INLINE size_t jumpTo(char* codeBuffer, const size_t& jumpPosition)
+ALWAYS_INLINE size_t jumpTo(char* codeBuffer, const size_t jumpPosition)
 {
     return (size_t)&codeBuffer[jumpPosition];
 }

@@ -264,7 +264,7 @@ void ArrayObject::convertIntoNonFastMode(ExecutionState& state)
     m_fastModeData.clear();
 }
 
-bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t& newLength)
+bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t newLength)
 {
     if (UNLIKELY(isFastModeArray() && (newLength > ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE))) {
         uint32_t orgLength = getArrayLength(state);

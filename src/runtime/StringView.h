@@ -26,7 +26,7 @@ namespace Escargot {
 
 class StringView : public String {
 public:
-    ALWAYS_INLINE StringView(String* str, const size_t& s, const size_t& e)
+    ALWAYS_INLINE StringView(String* str, const size_t s, const size_t e)
         : String()
         , m_string(str)
     {
@@ -35,7 +35,7 @@ public:
         initBufferAccessData(str->bufferAccessData(), s, e);
     }
 
-    ALWAYS_INLINE StringView(const StringView& str, const size_t& s, const size_t& e)
+    ALWAYS_INLINE StringView(const StringView& str, const size_t s, const size_t e)
         : String()
         , m_string(str.string())
     {
@@ -49,7 +49,7 @@ public:
         initBufferAccessData(String::emptyString->bufferAccessData(), 0, 0);
     }
 
-    virtual char16_t charAt(const size_t& idx) const
+    virtual char16_t charAt(const size_t idx) const
     {
         return bufferAccessData().charAt(idx);
     }
@@ -124,7 +124,7 @@ public:
         return (const char16_t*)m_bufferAccessData.buffer;
     }
 
-    char16_t bufferedCharAt(const size_t& idx) const
+    char16_t bufferedCharAt(const size_t idx) const
     {
         if (m_bufferAccessData.has8BitContent) {
             return ((const LChar*)m_bufferAccessData.buffer)[idx];
@@ -182,7 +182,7 @@ public:
         m_bufferAccessData = str.bufferAccessData();
     }
 
-    virtual char16_t charAt(const size_t& idx) const
+    virtual char16_t charAt(const size_t idx) const
     {
         return bufferAccessData().charAt(idx);
     }
@@ -257,7 +257,7 @@ public:
         return (const char16_t*)m_bufferAccessData.buffer;
     }
 
-    char16_t bufferedCharAt(const size_t& idx) const
+    char16_t bufferedCharAt(const size_t idx) const
     {
         if (m_bufferAccessData.has8BitContent) {
             return ((const LChar*)m_bufferAccessData.buffer)[idx];

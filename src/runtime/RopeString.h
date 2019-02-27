@@ -48,7 +48,7 @@ public:
     {
         return m_contentLength;
     }
-    virtual char16_t charAt(const size_t& idx) const
+    virtual char16_t charAt(const size_t idx) const
     {
         return normalString()->charAt(idx);
     }

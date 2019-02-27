@@ -41,14 +41,14 @@ typedef std::basic_string<char, std::char_traits<char>> UTF8StringDataNonGCStd;
 typedef std::basic_string<char16_t, std::char_traits<char16_t>> UTF16StringDataNonGCStd;
 typedef std::basic_string<char32_t, std::char_traits<char32_t>> UTF32StringDataNonGCStd;
 
-bool isAllASCII(const char* buf, const size_t& len);
-bool isAllASCII(const char16_t* buf, const size_t& len);
-bool isAllLatin1(const char16_t* buf, const size_t& len);
+bool isAllASCII(const char* buf, const size_t len);
+bool isAllASCII(const char16_t* buf, const size_t len);
+bool isAllLatin1(const char16_t* buf, const size_t len);
 bool isIndexString(String* str);
 char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen);
-UTF16StringData utf8StringToUTF16String(const char* buf, const size_t& len);
-UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t& len);
-ASCIIStringData utf16StringToASCIIString(const char16_t* buf, const size_t& len);
+UTF16StringData utf8StringToUTF16String(const char* buf, const size_t len);
+UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t len);
+ASCIIStringData utf16StringToASCIIString(const char16_t* buf, const size_t len);
 ASCIIStringData dtoa(double number);
 size_t utf32ToUtf8(char32_t uc, char* UTF8);
 // these functions only care ascii range(0~127)
@@ -191,8 +191,8 @@ public:
     static String* fromUTF8(const char* src, size_t len);
 
     virtual size_t length() const = 0;
-    virtual char16_t charAt(const size_t& idx) const = 0;
-    char16_t operator[](const size_t& idx) const
+    virtual char16_t charAt(const size_t idx) const = 0;
+    char16_t operator[](const size_t idx) const
     {
         return charAt(idx);
     }
@@ -314,12 +314,12 @@ protected:
     static int stringCompare(size_t l1, size_t l2, const String* c1, const String* c2);
 
     template <typename T>
-    static ALWAYS_INLINE bool stringEqual(const T* s, const T* s1, const size_t& len)
+    static ALWAYS_INLINE bool stringEqual(const T* s, const T* s1, const size_t len)
     {
         return memcmp(s, s1, sizeof(T) * len) == 0;
     }
 
-    static ALWAYS_INLINE bool stringEqual(const char16_t* s, const LChar* s1, const size_t& len)
+    static ALWAYS_INLINE bool stringEqual(const char16_t* s, const LChar* s1, const size_t len)
     {
         for (size_t i = 0; i < len; i++) {
             if (s[i] != s1[i]) {
@@ -394,7 +394,7 @@ public:
         initBufferAccessData(stringData);
     }
 
-    virtual char16_t charAt(const size_t& idx) const
+    virtual char16_t charAt(const size_t idx) const
     {
         return m_bufferAccessData.uncheckedCharAtFor8Bit(idx);
     }
@@ -489,7 +489,7 @@ public:
         m_bufferAccessData.buffer = stringData.takeBuffer();
     }
 
-    virtual char16_t charAt(const size_t& idx) const
+    virtual char16_t charAt(const size_t idx) const
     {
         return m_bufferAccessData.uncheckedCharAtFor8Bit(idx);
     }
@@ -560,7 +560,7 @@ public:
         m_bufferAccessData.buffer = stringData.takeBuffer();
     }
 
-    virtual char16_t charAt(const size_t& idx) const
+    virtual char16_t charAt(const size_t idx) const
     {
         return m_bufferAccessData.uncheckedCharAtFor16Bit(idx);
     }

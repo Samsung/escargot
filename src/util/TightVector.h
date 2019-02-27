@@ -169,13 +169,13 @@ public:
         erase(m_size - 1);
     }
 
-    T& operator[](const size_t& idx)
+    T& operator[](const size_t idx)
     {
         ASSERT(idx < m_size);
         return m_buffer[idx];
     }
 
-    const T& operator[](const size_t& idx) const
+    const T& operator[](const size_t idx) const
     {
         ASSERT(idx < m_size);
         return m_buffer[idx];
@@ -292,12 +292,12 @@ public:
         pushBack(val, newSize);
     }
 
-    T& operator[](const size_t& idx)
+    T& operator[](const size_t idx)
     {
         return m_buffer[idx];
     }
 
-    const T& operator[](const size_t& idx) const
+    const T& operator[](const size_t idx) const
     {
         return m_buffer[idx];
     }
