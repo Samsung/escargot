@@ -106,7 +106,7 @@ static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t
         if (isInteger) {
             char buffer[256];
             itoa(static_cast<int64_t>(number), buffer, 10);
-            return new ASCIIString(buffer);
+            return new Char8String(buffer);
         } else {
             return Value(round(number)).toString(state);
         }
@@ -128,7 +128,7 @@ static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t
         char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
         double_conversion::StringBuilder builder(buffer, NUMBER_TO_STRING_BUFFER_LENGTH);
         double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToFixed(number, digit, &builder);
-        return Value(new ASCIIString(builder.Finalize()));
+        return Value(new Char8String(builder.Finalize()));
     }
     return Value();
 }
@@ -173,7 +173,7 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
     } else {
         double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToExponential(number, digit, &builder);
     }
-    return Value(new ASCIIString(builder.Finalize()));
+    return Value(new Char8String(builder.Finalize()));
 }
 
 static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -209,7 +209,7 @@ static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, si
             char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
             double_conversion::StringBuilder builder(buffer, NUMBER_TO_STRING_BUFFER_LENGTH);
             double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToPrecision(number, p, &builder);
-            return Value(new ASCIIString(builder.Finalize()));
+            return Value(new Char8String(builder.Finalize()));
         }
     }
     return Value();
@@ -251,12 +251,12 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
             } else {
                 itoa(static_cast<int64_t>(number), buffer, radix);
             }
-            return (new ASCIIString(buffer));
+            return (new Char8String(buffer));
         } else {
             ASSERT(Value(number).isDouble());
             NumberObject::RadixBuffer s;
             const char* str = NumberObject::toStringWithRadix(state, s, number, radix);
-            return new ASCIIString(str);
+            return new Char8String(str);
         }
     }
     return Value();

@@ -1179,9 +1179,9 @@ String* DateObject::toDateString(ExecutionState& state)
     char buffer[32];
     if (IS_VALID_TIME(m_primitiveValue)) {
         snprintf(buffer, sizeof(buffer), "%s %s %02d %d", days[getDay(state)], months[getMonth(state)], getDate(state), getFullYear(state));
-        return new ASCIIString(buffer);
+        return new Char8String(buffer);
     } else {
-        return new ASCIIString(invalidDate);
+        return new Char8String(invalidDate);
     }
 }
 
@@ -1206,10 +1206,10 @@ String* DateObject::toTimeString(ExecutionState& state)
 #else
         const char* timeZoneName = m_cachedLocal.isdst ? tzname[1] : tzname[0];
         snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d GMT%s%04d (%s)", getHours(state), getMinutes(state), getSeconds(state), (tzOffsetAsMin < 0) ? "-" : "+", std::abs(tzOffsetHour + tzOffsetMin), timeZoneName);
-        return new ASCIIString(buffer);
+        return new Char8String(buffer);
 #endif
     } else {
-        return new ASCIIString(invalidDate);
+        return new Char8String(invalidDate);
     }
 }
 
@@ -1222,7 +1222,7 @@ String* DateObject::toFullString(ExecutionState& state)
         builder.appendString(toTimeString(state));
         return builder.finalize();
     } else {
-        return new ASCIIString(invalidDate);
+        return new Char8String(invalidDate);
     }
 }
 
@@ -1235,7 +1235,7 @@ String* DateObject::toISOString(ExecutionState& state)
         } else {
             snprintf(buffer, sizeof(buffer), "%+07d-%02d-%02dT%02d:%02d:%02d.%03dZ", getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
         }
-        return new ASCIIString(buffer);
+        return new Char8String(buffer);
     } else {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toISOString.string(), errorMessage_GlobalObject_InvalidDate);
     }
@@ -1250,9 +1250,9 @@ String* DateObject::toUTCString(ExecutionState& state, String* functionName)
         snprintf(buffer, sizeof(buffer), "%s, %02d %s %d %02d:%02d:%02d GMT", days[getUTCDay(state)], getUTCDate(state),
                  months[getUTCMonth(state)], getUTCFullYear(state),
                  getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state));
-        return new ASCIIString(buffer);
+        return new Char8String(buffer);
     } else {
-        return new ASCIIString("Invalid Date");
+        return new Char8String("Invalid Date");
     }
 }
 
@@ -1271,7 +1271,7 @@ String* DateObject::toLocaleDateString(ExecutionState& state)
         return toDateString(state);
 #endif
     } else {
-        return new ASCIIString(invalidDate);
+        return new Char8String(invalidDate);
     }
 }
 
@@ -1290,7 +1290,7 @@ String* DateObject::toLocaleTimeString(ExecutionState& state)
         return toTimeString(state);
 #endif
     } else {
-        return new ASCIIString(invalidDate);
+        return new Char8String(invalidDate);
     }
 }
 
@@ -1303,7 +1303,7 @@ String* DateObject::toLocaleFullString(ExecutionState& state)
         builder.appendString(toLocaleTimeString(state));
         return builder.finalize();
     } else {
-        return new ASCIIString(invalidDate);
+        return new Char8String(invalidDate);
     }
 }
 

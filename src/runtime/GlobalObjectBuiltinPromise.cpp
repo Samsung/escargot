@@ -94,7 +94,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
         uint32_t index = 0;
 
         if (!iterable->isArrayObject()) {
-            Value arguments[] = { new TypeErrorObject(state, new ASCIIString("Second argument is not an array")) };
+            Value arguments[] = { new TypeErrorObject(state, new Char8String("Second argument is not an array")) };
             FunctionObject::call(state, capability.m_rejectFunction, Value(), 1, arguments);
             return capability.m_promise;
         }
@@ -211,7 +211,7 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
         uint32_t index = 0;
 
         if (!iterable->isArrayObject()) {
-            Value arguments[] = { new TypeErrorObject(state, new ASCIIString("Second argument is not an array")) };
+            Value arguments[] = { new TypeErrorObject(state, new Char8String("Second argument is not an array")) };
             FunctionObject::call(state, capability.m_rejectFunction, Value(), 1, arguments);
             return capability.m_promise;
         }
@@ -346,7 +346,7 @@ Value getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, si
     Object* executorInternalSlot = executor->ensureInternalSlot(state);
     if (!executorInternalSlot->getOwnProperty(state, strings->resolve).value(state, executorInternalSlot).isUndefined()
         || !executorInternalSlot->getOwnProperty(state, strings->reject).value(state, executorInternalSlot).isUndefined())
-        state.throwException(new TypeErrorObject(state, new ASCIIString("Executor function has already called")));
+        state.throwException(new TypeErrorObject(state, new Char8String("Executor function has already called")));
 
     Value resolve = argv[0];
     Value reject = argv[1];
@@ -371,7 +371,7 @@ Value promiseResolveFunction(ExecutionState& state, Value thisValue, size_t argc
 
     Value resolutionValue = argv[0];
     if (resolutionValue == Value(promise)) {
-        promise->rejectPromise(state, new TypeErrorObject(state, new ASCIIString("Self resolution error")));
+        promise->rejectPromise(state, new TypeErrorObject(state, new Char8String("Self resolution error")));
         return Value();
     }
 

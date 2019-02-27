@@ -96,7 +96,7 @@ static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size
             }
             if (UNLIKELY(!isInValidRange(year, month, date, hour, minute, second, millisecond))) {
                 thisObject->setTimeValueAsNaN();
-                return new ASCIIString("Invalid Date");
+                return new Char8String("Invalid Date");
             }
             thisObject->setTimeValue(state, (int)year, (int)month, (int)date, (int)hour, (int)minute, second, millisecond);
         }

@@ -117,7 +117,7 @@ struct ParserError : public gc {
     }
 
     ParserError(size_t index, size_t line, size_t col, const char* description)
-        : description(new ASCIIString(description))
+        : description(new Char8String(description))
         , index(index)
         , line(line)
         , col(col)
@@ -457,7 +457,7 @@ public:
 
             value = new StringView((token->type == Token::TemplateToken) ? token->valueTemplate->raw : token->relatedSource());
         } else {
-            value = new ASCIIString("ILLEGAL");
+            value = new Char8String("ILLEGAL");
         }
 
         // msg = msg.replace('%0', value);
@@ -4601,7 +4601,7 @@ public:
                     RefPtr<VariableDeclaratorNode> decl = declarations[0];
                     // if (decl->init() && (decl.id.type === Syntax.ArrayPattern || decl.id.type === Syntax.ObjectPattern || this->context->strict)) {
                     if (decl->init() && (decl->id()->type() == ArrayExpression || decl->id()->type() == ObjectExpression || this->context->strict)) {
-                        this->tolerateError(Messages::ForInOfLoopInitializer, new ASCIIString("for-in"));
+                        this->tolerateError(Messages::ForInOfLoopInitializer, new Char8String("for-in"));
                     }
                     init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
                     this->nextToken();
@@ -4780,7 +4780,7 @@ public:
                     RefPtr<VariableDeclaratorNode> decl = declarations[0];
                     // if (decl->init() && (decl.id.type === Syntax.ArrayPattern || decl.id.type === Syntax.ObjectPattern || this->context->strict)) {
                     if (decl->init() && (decl->id()->type() == ArrayExpression || decl->id()->type() == ObjectExpression || this->context->strict)) {
-                        this->tolerateError(Messages::ForInOfLoopInitializer, new ASCIIString("for-in"));
+                        this->tolerateError(Messages::ForInOfLoopInitializer, new Char8String("for-in"));
                     }
                     init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
                     this->nextToken();
@@ -5250,7 +5250,7 @@ public:
 
             RefPtr<IdentifierNode> id = (IdentifierNode*)expr.get();
             if (hasLabel(id->name())) {
-                this->throwError(Messages::Redeclaration, new ASCIIString("Label"), id->name().string());
+                this->throwError(Messages::Redeclaration, new Char8String("Label"), id->name().string());
             }
 
             this->context->labelSet.push_back(std::make_pair(id->name(), 0));
@@ -5274,7 +5274,7 @@ public:
             this->nextToken();
 
             if (hasLabel(expr.second)) {
-                this->throwError(Messages::Redeclaration, new ASCIIString("Label"), expr.second.string());
+                this->throwError(Messages::Redeclaration, new Char8String("Label"), expr.second.string());
             }
 
             this->context->labelSet.push_back(std::make_pair(expr.second, 0));

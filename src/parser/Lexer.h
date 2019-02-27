@@ -392,7 +392,7 @@ public:
 
     ALWAYS_INLINE void throwUnexpectedToken(const char* message = Messages::UnexpectedTokenIllegal)
     {
-        this->errorHandler->throwError(this->index, this->lineNumber, this->index - this->lineStart + 1, new ASCIIString(message), ErrorObject::SyntaxError);
+        this->errorHandler->throwError(this->index, this->lineNumber, this->index - this->lineStart + 1, new Char8String(message), ErrorObject::SyntaxError);
     }
 
     // ECMA-262 11.4 Comments

@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
                 if (strcmp(argv[i], "-e") == 0) {
                     runShell = false;
                     i++;
-                    Escargot::String* src = new Escargot::ASCIIString(argv[i], strlen(argv[i]));
+                    Escargot::String* src = new Escargot::Char8String(argv[i], strlen(argv[i]));
                     const char* source = "shell input";
                     if (!eval(context, src, Escargot::String::fromUTF8(source, strlen(source)), false))
                         return 3;

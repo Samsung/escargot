@@ -98,16 +98,16 @@ private:
     void init(AtomicStringMap* ec, String* name);
     void init(AtomicStringMap* ec, const LChar* str, size_t len)
     {
-        init(ec, new Latin1String(str, len));
+        init(ec, new Char8String(str, len));
     }
     void init(AtomicStringMap* ec, const char* str, size_t len)
     {
-        init(ec, new ASCIIString(str, len));
+        init(ec, new Char8String(str, len));
     }
     void init(AtomicStringMap* ec, const char16_t* src, size_t len)
     {
         if (isAllASCII(src, len)) {
-            init(ec, new ASCIIString(src, len));
+            init(ec, new Char8String(src, len));
         } else {
             init(ec, new UTF16String(src, len));
         }

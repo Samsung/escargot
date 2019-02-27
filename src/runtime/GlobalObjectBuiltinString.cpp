@@ -733,7 +733,7 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
             newStr[i] = u2;
         }
         if (result)
-            return new Latin1String(std::move(newStr));
+            return new Char8String(std::move(newStr));
     }
 
     size_t len = str->length();
@@ -781,7 +781,7 @@ static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, si
             newStr[i] = u2;
         }
         if (result)
-            return new Latin1String(std::move(newStr));
+            return new Char8String(std::move(newStr));
     }
 
     size_t len = str->length();

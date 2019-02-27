@@ -35,7 +35,7 @@ namespace Escargot {
 Value builtinRegisterLeakCheck(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (!argv[0].isPointerValue())
-        state.throwException(new ErrorObject(state, new ASCIIString("builtinRegisterLeakCheck should get pointer-type argument")));
+        state.throwException(new ErrorObject(state, new Char8String("builtinRegisterLeakCheck should get pointer-type argument")));
 
     PointerValue* ptr = argv[0].asPointerValue();
     std::string description = argv[1].toString(state)->toUTF8StringData().data();

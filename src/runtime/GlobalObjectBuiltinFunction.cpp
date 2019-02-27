@@ -102,7 +102,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     src.appendString("\n}");
 
     ScriptParser parser(state.context());
-    auto parserResult = parser.parse(src.finalize(&state), new ASCIIString("Function Constructor input"));
+    auto parserResult = parser.parse(src.finalize(&state), new Char8String("Function Constructor input"));
 
     if (parserResult.m_error) {
         ErrorObject* err = ErrorObject::createError(state, parserResult.m_error->errorCode, parserResult.m_error->message);

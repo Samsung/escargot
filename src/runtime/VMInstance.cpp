@@ -155,7 +155,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
     , m_cachedUTC(nullptr)
 {
     if (!String::emptyString) {
-        String::emptyString = new (NoGC) ASCIIString("");
+        String::emptyString = new (NoGC) Char8String("");
     }
     m_staticStrings.initStaticStrings(&m_atomicStringMap);
 

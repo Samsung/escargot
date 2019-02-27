@@ -62,7 +62,7 @@ String* RopeString::createRopeString(String* lstr, String* rstr, ExecutionState*
             for (size_t i = 0; i < rData.length; i++) {
                 result[i] = buffer[i];
             }
-            return new Latin1String(std::move(ret));
+            return new Char8String(std::move(ret));
         } else {
             StringBuilder builder;
             builder.appendString(lstr);
@@ -163,7 +163,7 @@ void RopeString::flattenRopeString()
 {
     ASSERT(m_right);
     if (m_has8BitContent) {
-        flattenRopeStringWorker<Latin1StringData, Latin1String>();
+        flattenRopeStringWorker<Latin1StringData, Char8String>();
     } else {
         flattenRopeStringWorker<UTF16StringData, UTF16String>();
     }

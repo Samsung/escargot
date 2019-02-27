@@ -33,13 +33,11 @@ typedef BasicString<char, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<cha
 typedef BasicString<LChar, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<LChar>> Latin1StringData;
 typedef BasicString<char, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<char>> UTF8StringData;
 typedef BasicString<char16_t, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<char16_t>> UTF16StringData;
-typedef BasicString<char32_t, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<char32_t>> UTF32StringData;
 
 typedef std::basic_string<char, std::char_traits<char>> ASCIIStringDataNonGCStd;
 typedef std::basic_string<LChar, std::char_traits<LChar>> Latin1StringDataNonGCStd;
 typedef std::basic_string<char, std::char_traits<char>> UTF8StringDataNonGCStd;
 typedef std::basic_string<char16_t, std::char_traits<char16_t>> UTF16StringDataNonGCStd;
-typedef std::basic_string<char32_t, std::char_traits<char32_t>> UTF32StringDataNonGCStd;
 
 bool isAllASCII(const char* buf, const size_t& len);
 bool isAllASCII(const char16_t* buf, const size_t& len);
@@ -59,8 +57,7 @@ char16_t toupper(char16_t ch);
 bool isspace(char16_t ch);
 bool isdigit(char16_t ch);
 
-class ASCIIString;
-class Latin1String;
+class Char8String;
 class UTF16String;
 class RopeString;
 class StringView;
@@ -355,18 +352,25 @@ inline int stringCompare(const String& a, const String& b)
     return String::stringCompare(a.length(), b.length(), &a, &b);
 }
 
-class ASCIIString : public String {
+class Char8String : public String {
     friend class String;
 
 public:
-    explicit ASCIIString(ASCIIStringData&& src)
+    explicit Char8String(ASCIIStringData&& src)
         : String()
     {
         ASCIIStringData stringData = std::move(src);
         initBufferAccessData(stringData);
     }
 
-    explicit ASCIIString(const char* str)
+    explicit Char8String(Latin1StringData&& src)
+        : String()
+    {
+        Latin1StringData data = std::move(src);
+        initBufferAccessData(data);
+    }
+
+    Char8String(const char* str)
         : String()
     {
         ASCIIStringData stringData;
@@ -374,7 +378,15 @@ public:
         initBufferAccessData(stringData);
     }
 
-    ASCIIString(const char* str, size_t len)
+    Char8String(const LChar* str, size_t len)
+        : String()
+    {
+        Latin1StringData data;
+        data.append(str, len);
+        initBufferAccessData(data);
+    }
+
+    Char8String(const char* str, size_t len)
         : String()
     {
         ASCIIStringData stringData;
@@ -382,16 +394,17 @@ public:
         initBufferAccessData(stringData);
     }
 
-    ASCIIString(const char16_t* str, size_t len)
+    Char8String(const char16_t* str, size_t len)
         : String()
     {
-        ASCIIStringData stringData;
-        stringData.resizeWithUninitializedValues(len);
+        Latin1StringData data;
+
+        data.resizeWithUninitializedValues(len);
         for (size_t i = 0; i < len; i++) {
-            ASSERT(str[i] < 128);
-            stringData[i] = str[i];
+            ASSERT(str[i] < 256);
+            data[i] = str[i];
         }
-        initBufferAccessData(stringData);
+        initBufferAccessData(data);
     }
 
     virtual char16_t charAt(const size_t& idx) const
@@ -416,72 +429,6 @@ public:
         m_bufferAccessData.buffer = stringData.takeBuffer();
     }
 
-    virtual UTF16StringData toUTF16StringData() const;
-    virtual UTF8StringData toUTF8StringData() const;
-    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const;
-
-    void* operator new(size_t size);
-    void* operator new(size_t size, GCPlacement p)
-    {
-        return gc::operator new(size, p);
-    }
-    void* operator new(size_t, void* ptr)
-    {
-        return ptr;
-    }
-    void* operator new[](size_t size) = delete;
-
-protected:
-};
-
-class Latin1String : public String {
-    friend class Latin1;
-
-public:
-    explicit Latin1String(Latin1StringData&& src)
-        : String()
-    {
-        Latin1StringData data = std::move(src);
-        initBufferAccessData(data);
-    }
-
-    explicit Latin1String(const char* str)
-        : String()
-    {
-        Latin1StringData data;
-        data.append((const LChar*)str, strlen(str));
-        initBufferAccessData(data);
-    }
-
-    Latin1String(const char* str, size_t len)
-        : String()
-    {
-        Latin1StringData data;
-        data.append((const LChar*)str, len);
-        initBufferAccessData(data);
-    }
-
-    Latin1String(const LChar* str, size_t len)
-        : String()
-    {
-        Latin1StringData data;
-        data.append(str, len);
-        initBufferAccessData(data);
-    }
-
-    Latin1String(const char16_t* str, size_t len)
-        : String()
-    {
-        Latin1StringData data;
-
-        data.resizeWithUninitializedValues(len);
-        for (size_t i = 0; i < len; i++) {
-            ASSERT(str[i] < 256);
-            data[i] = str[i];
-        }
-        initBufferAccessData(data);
-    }
-
     void initBufferAccessData(Latin1StringData& stringData)
     {
         m_bufferAccessData.has8BitContent = true;
@@ -489,21 +436,6 @@ public:
         m_bufferAccessData.buffer = stringData.takeBuffer();
     }
 
-    virtual char16_t charAt(const size_t& idx) const
-    {
-        return m_bufferAccessData.uncheckedCharAtFor8Bit(idx);
-    }
-
-    virtual size_t length() const
-    {
-        return m_bufferAccessData.length;
-    }
-
-    virtual const LChar* characters8() const
-    {
-        return (const LChar*)m_bufferAccessData.buffer;
-    }
-
     virtual UTF16StringData toUTF16StringData() const;
     virtual UTF8StringData toUTF8StringData() const;
     virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const;
@@ -518,8 +450,6 @@ public:
         return ptr;
     }
     void* operator new[](size_t size) = delete;
-
-protected:
 };
 
 class UTF16String : public String {
@@ -590,7 +520,7 @@ inline String* String::fromCharCode(char32_t code)
     if (code < 128) {
         char c = (char)code;
         ASCIIStringData s(&c, 1);
-        return new ASCIIString(std::move(s));
+        return new Char8String(std::move(s));
     } else if (code <= 0x10000) {
         char16_t c = (char16_t)code;
         UTF16StringData s(&c, 1);

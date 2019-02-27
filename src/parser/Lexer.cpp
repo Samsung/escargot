@@ -584,7 +584,7 @@ void Scanner::ScannerResult::constructStringLiteral()
 
     String* newStr;
     if (isEveryCharLatin1) {
-        newStr = new Latin1String(stringUTF16.data(), stringUTF16.length());
+        newStr = new Char8String(stringUTF16.data(), stringUTF16.length());
     } else {
         newStr = new UTF16String(stringUTF16.data(), stringUTF16.length());
     }
@@ -1519,7 +1519,7 @@ String* Scanner::scanRegExpBody()
     // Exclude leading and trailing slash.
     str = str.substr(1, str.length() - 2);
     if (isAllASCII(str.data(), str.length())) {
-        return new ASCIIString(str.data(), str.length());
+        return new Char8String(str.data(), str.length());
     }
 
     return new UTF16String(str.data(), str.length());
@@ -1566,7 +1566,7 @@ String* Scanner::scanRegExpFlags()
     }
 
     if (isAllASCII(flags.data(), flags.length())) {
-        return new ASCIIString(flags.data(), flags.length());
+        return new Char8String(flags.data(), flags.length());
     }
 
     return new UTF16String(flags.data(), flags.length());

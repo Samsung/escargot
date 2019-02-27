@@ -83,7 +83,7 @@ static String* builtinHelperFileRead(ExecutionState& state, const char* fileName
             auto s = utf8StringToUTF16String(utf8Str.data(), utf8Str.length());
             src = new UTF16String(std::move(s));
         } else {
-            src = new Latin1String(str.data(), str.length());
+            src = new Char8String(str.data(), str.length());
         }
     } else {
         char msg[1024];
@@ -777,7 +777,7 @@ static Value builtinEscape(ExecutionState& state, Value thisValue, size_t argc, 
         }
     }
 
-    return new ASCIIString(R.data(), R.size());
+    return new Char8String(R.data(), R.size());
 }
 
 char16_t hex2char(char16_t first, char16_t second)
@@ -871,7 +871,7 @@ static Value builtinUnescape(ExecutionState& state, Value thisValue, size_t argc
         for (size_t i = 0; i < data.length(); i++) {
             data[i] = R[i];
         }
-        return new ASCIIString(std::move(data));
+        return new Char8String(std::move(data));
     }
 }
 

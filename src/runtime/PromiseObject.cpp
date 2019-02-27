@@ -84,7 +84,7 @@ PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& 
     const StaticStrings* strings = &state.context()->staticStrings();
 
     if (!constructor->isFunctionObject())
-        state.throwException(new TypeErrorObject(state, new ASCIIString("Constructor is not a function object")));
+        state.throwException(new TypeErrorObject(state, new Char8String("Constructor is not a function object")));
 
     FunctionObject* executor = new FunctionObject(state, NativeFunctionInfo(strings->Empty, getCapabilitiesExecutorFunction, 2, nullptr, NativeFunctionInfo::Strict));
     Object* internalSlot = executor->ensureInternalSlot(state);
@@ -97,7 +97,7 @@ PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& 
     Value rejectFunction = internalSlot->get(state, strings->reject).value(state, internalSlot);
 
     if (!resolveFunction.isFunction() || !rejectFunction.isFunction())
-        state.throwException(new TypeErrorObject(state, new ASCIIString("Promise resolve or reject function is not callable")));
+        state.throwException(new TypeErrorObject(state, new Char8String("Promise resolve or reject function is not callable")));
 
     return PromiseReaction::Capability(promise, resolveFunction.asFunction(), rejectFunction.asFunction());
 }

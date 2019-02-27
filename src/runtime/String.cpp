@@ -258,7 +258,7 @@ size_t utf32ToUtf8(char32_t uc, char* UTF8)
     return tRequiredSize;
 }
 
-UTF16StringData ASCIIString::toUTF16StringData() const
+UTF16StringData Char8String::toUTF16StringData() const
 {
     UTF16StringData ret;
     size_t len = length();
@@ -269,28 +269,7 @@ UTF16StringData ASCIIString::toUTF16StringData() const
     return ret;
 }
 
-UTF8StringData ASCIIString::toUTF8StringData() const
-{
-    return UTF8StringData((const char*)ASCIIString::characters8(), ASCIIString::length());
-}
-
-UTF8StringDataNonGCStd ASCIIString::toNonGCUTF8StringData() const
-{
-    return UTF8StringDataNonGCStd((const char*)ASCIIString::characters8(), ASCIIString::length());
-}
-
-UTF16StringData Latin1String::toUTF16StringData() const
-{
-    UTF16StringData ret;
-    size_t len = length();
-    ret.resizeWithUninitializedValues(len);
-    for (size_t i = 0; i < len; i++) {
-        ret[i] = charAt(i);
-    }
-    return ret;
-}
-
-UTF8StringData Latin1String::toUTF8StringData() const
+UTF8StringData Char8String::toUTF8StringData() const
 {
     UTF8StringData ret;
     size_t len = length();
@@ -307,7 +286,7 @@ UTF8StringData Latin1String::toUTF8StringData() const
     return ret;
 }
 
-UTF8StringDataNonGCStd Latin1String::toNonGCUTF8StringData() const
+UTF8StringDataNonGCStd Char8String::toNonGCUTF8StringData() const
 {
     UTF8StringDataNonGCStd ret;
     size_t len = length();
@@ -501,19 +480,19 @@ ASCIIStringData dtoa(double number)
 
 String* String::fromASCII(const char* src)
 {
-    return new ASCIIString(src, strlen(src));
+    return new Char8String(src, strlen(src));
 }
 
 String* String::fromDouble(double v)
 {
     auto s = dtoa(v);
-    return new ASCIIString(std::move(s));
+    return new Char8String(std::move(s));
 }
 
 String* String::fromUTF8(const char* src, size_t len)
 {
     if (isAllASCII(src, len)) {
-        return new ASCIIString(src, len);
+        return new Char8String(src, len);
     } else {
         auto s = utf8StringToUTF16String(src, len);
         return new UTF16String(std::move(s));
@@ -722,27 +701,14 @@ String* String::substring(size_t from, size_t to)
 }
 
 
-void* ASCIIString::operator new(size_t size)
+void* Char8String::operator new(size_t size)
 {
     static bool typeInited = false;
     static GC_descr descr;
     if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(ASCIIString)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASCIIString, m_bufferAccessData.buffer));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ASCIIString));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-}
-
-void* Latin1String::operator new(size_t size)
-{
-    static bool typeInited = false;
-    static GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(Latin1String)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Latin1String, m_bufferAccessData.buffer));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(Latin1String));
+        GC_word obj_bitmap[GC_BITMAP_SIZE(Char8String)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Char8String, m_bufferAccessData.buffer));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(Char8String));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);

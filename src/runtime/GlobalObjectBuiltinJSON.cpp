@@ -114,14 +114,14 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
             const char16_t* chars = (const char16_t*)value.GetString();
             unsigned len = value.GetStringLength();
             if (isAllLatin1(chars, len)) {
-                return new Latin1String(chars, len);
+                return new Char8String(chars, len);
             } else {
                 return new UTF16String(chars, len);
             }
         } else {
             const char* valueAsString = (const char*)value.GetString();
             if (isAllASCII(valueAsString, strlen(valueAsString))) {
-                return new ASCIIString(valueAsString);
+                return new Char8String(valueAsString);
             } else {
                 return new UTF16String(utf8StringToUTF16String(valueAsString, strlen(valueAsString)));
             }
@@ -285,7 +285,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
     Value value = argv[0];
     Value replacer = argv[1];
     Value space = argv[2];
-    String* indent = new ASCIIString("");
+    String* indent = new Char8String("");
     ValueVector stack;
     std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>> propertyList;
     bool propertyListTouched = false;
@@ -355,7 +355,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
             for (int i = 0; i < space_cnt; i++) {
                 gapData[i] = ' ';
             }
-            gap = new ASCIIString(gapData.data(), gapData.length());
+            gap = new Char8String(gapData.data(), gapData.length());
         }
     } else if (space.isString()) {
         if (space.asString()->length() <= 10) {

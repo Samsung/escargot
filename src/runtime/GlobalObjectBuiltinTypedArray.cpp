@@ -225,12 +225,12 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             }
         } else {
             // TODO
-            state.throwException(new ASCIIString(errorMessage_NotImplemented));
+            state.throwException(new Char8String(errorMessage_NotImplemented));
             RELEASE_ASSERT_NOT_REACHED();
         }
         // TODO
         if (obj->arraylength() >= ArrayBufferObject::maxArrayBufferSize) {
-            state.throwException(new ASCIIString(errorMessage_NotImplemented));
+            state.throwException(new Char8String(errorMessage_NotImplemented));
         }
         RELEASE_ASSERT(obj->arraylength() < ArrayBufferObject::maxArrayBufferSize);
     }

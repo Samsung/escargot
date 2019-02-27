@@ -166,7 +166,7 @@ String* StringBuilder::finalize(ExecutionState* state)
             }
         }
 
-        return new Latin1String(std::move(ret));
+        return new Char8String(std::move(ret));
     } else {
         UTF16StringData ret;
         ret.resizeWithUninitializedValues(m_contentLength);

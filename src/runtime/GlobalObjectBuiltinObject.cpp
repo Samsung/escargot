@@ -72,9 +72,9 @@ static Value builtinObjectPreventExtensions(ExecutionState& state, Value thisVal
 static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (thisValue.isUndefined()) {
-        return new ASCIIString("[object Undefined]");
+        return new Char8String("[object Undefined]");
     } else if (thisValue.isNull()) {
-        return new ASCIIString("[object Null]");
+        return new Char8String("[object Null]");
     }
 
     Object* thisObject = thisValue.toObject(state);

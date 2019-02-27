@@ -154,12 +154,12 @@ void Globals::finalize()
 
 StringRef* StringRef::fromASCII(const char* s)
 {
-    return toRef(new ASCIIString(s, strlen(s)));
+    return toRef(new Char8String(s, strlen(s)));
 }
 
 StringRef* StringRef::fromASCII(const char* s, size_t len)
 {
-    return toRef(new ASCIIString(s, len));
+    return toRef(new Char8String(s, len));
 }
 
 StringRef* StringRef::fromUTF8(const char* s, size_t len)
