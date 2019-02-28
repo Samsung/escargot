@@ -228,12 +228,16 @@ static Value builtinObjectToLocaleString(ExecutionState& state, Value thisValue,
 
 static Value builtinObjectGetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+#if ESCARGOT_ENABLE_ES2015
+    return argv[0].toObject(state)->getPrototype(state);
+#else
     // Object.getPrototypeOf ( O )
     // If Type(O) is not Object throw a TypeError exception.
     if (!argv[0].isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().getPrototypeOf.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
     }
     return argv[0].asObject()->getPrototype(state);
+#endif
 }
 
 static Value builtinObjectSetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
