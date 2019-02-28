@@ -192,7 +192,6 @@ static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t a
         regexp = new RegExpObject(state, argument.isUndefined() ? String::emptyString : argument.toString(state), String::emptyString);
     }
 
-    (void)regexp->lastIndex().toInteger(state);
     bool isGlobal = regexp->option() & RegExpObject::Option::Global;
     if (isGlobal) {
         regexp->setLastIndex(state, Value(0));
