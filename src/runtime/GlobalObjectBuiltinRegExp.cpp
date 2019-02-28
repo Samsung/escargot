@@ -102,35 +102,25 @@ static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t ar
 
 static Value builtinRegExpToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, RegExp, toString);
-
-    if (!thisObject->isRegExpObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotRegExpObject);
+    if (!thisValue.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotObject);
     }
-    RegExpObject* regexp = thisObject->asRegExpObject();
 
+    Object* thisObject = thisValue.asObject();
     StringBuilder builder;
+    String* pattern = thisObject->get(state, state.context()->staticStrings().source).value(state, thisObject).toString(state);
+    Value flagsValue = thisObject->get(state, state.context()->staticStrings().flags).value(state, thisObject);
+
     builder.appendString("/");
-    builder.appendString(regexp->get(state, ObjectPropertyName(state.context()->staticStrings().source)).value(state, thisObject).toString(state));
+    builder.appendString(pattern);
     builder.appendString("/");
 
-    RegExpObject::Option option = regexp->option();
+    if (!flagsValue.isUndefined()) {
+        builder.appendString(flagsValue.toString(state));
+    } else {
+        builder.appendString("\0");
+    }
 
-    char flags[5] = { 0 };
-    int flags_idx = 0;
-    if (option & RegExpObject::Option::Global) {
-        flags[flags_idx++] = 'g';
-    }
-    if (option & RegExpObject::Option::IgnoreCase) {
-        flags[flags_idx++] = 'i';
-    }
-    if (option & RegExpObject::Option::MultiLine) {
-        flags[flags_idx++] = 'm';
-    }
-    if (option & RegExpObject::Option::Sticky) {
-        flags[flags_idx++] = 'y';
-    }
-    builder.appendString(flags);
     return builder.finalize(&state);
 }
 

@@ -111,6 +111,14 @@ Value VMInstance::regexpSourceNativeGetter(ExecutionState& state, Object* self, 
 static ObjectPropertyNativeGetterSetterData regexpSourceGetterData(
     false, false, false, &VMInstance::regexpSourceNativeGetter, &VMInstance::undefinedNativeSetter);
 
+Value VMInstance::regexpFlagsNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
+{
+    ASSERT(self->isRegExpObject());
+    return Value(self->asRegExpObject()->optionString());
+}
+static ObjectPropertyNativeGetterSetterData regexpFlagsGetterData(
+    false, false, true, &VMInstance::regexpFlagsNativeGetter, &VMInstance::undefinedNativeSetter);
+
 Value VMInstance::regexpGlobalNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isRegExpObject());
@@ -266,6 +274,8 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
     // TODO(ES6): Below RegExp data properties is changed to accessor properties of RegExp.prototype in ES6.
     m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.source,
                                                                                        ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpSourceGetterData));
+    m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.flags,
+                                                                                       ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpFlagsGetterData));
     m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.global,
                                                                                        ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpGlobalGetterData));
     m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.ignoreCase,

@@ -162,6 +162,7 @@ namespace Escargot {
     F(string)                     \
     F(object)                     \
     F(function)                   \
+    F(flags)                      \
     F(RegExp)                     \
     F(source)                     \
     F(lastIndex)                  \

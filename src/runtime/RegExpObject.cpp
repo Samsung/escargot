@@ -71,6 +71,7 @@ void* RegExpObject::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_prototype));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_values));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_source));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_optionString));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_yarrPattern));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_bytecodePattern));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_lastIndex));
@@ -157,7 +158,7 @@ void RegExpObject::internalInit(ExecutionState& state, String* source)
 
 void RegExpObject::init(ExecutionState& state, String* source, String* option)
 {
-    m_option = parseOption(state, option);
+    parseOption(state, option);
     this->internalInit(state, source);
 }
 
@@ -188,43 +189,51 @@ bool RegExpObject::defineOwnProperty(ExecutionState& state, const ObjectProperty
     return returnValue;
 }
 
-RegExpObject::Option RegExpObject::parseOption(ExecutionState& state, const String* optionString)
+void RegExpObject::parseOption(ExecutionState& state, const String* optionString)
 {
-    RegExpObject::Option option = RegExpObject::Option::None;
+    this->m_option = RegExpObject::Option::None;
+    std::string optionStr;
+    this->m_optionString = String::emptyString;
 
     for (size_t i = 0; i < optionString->length(); i++) {
         switch (optionString->charAt(i)) {
         case 'g':
-            if (option & Option::Global)
+            if (this->m_option & Option::Global)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'g' flags");
-            option = (Option)(option | Option::Global);
+            this->m_option = (Option)(this->m_option | Option::Global);
+            optionStr.append("g");
             break;
         case 'i':
-            if (option & Option::IgnoreCase)
+            if (this->m_option & Option::IgnoreCase)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'i' flags");
-            option = (Option)(option | Option::IgnoreCase);
+            this->m_option = (Option)(this->m_option | Option::IgnoreCase);
+            optionStr.append("i");
             break;
         case 'm':
-            if (option & Option::MultiLine)
+            if (this->m_option & Option::MultiLine)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'm' flags");
-            option = (Option)(option | Option::MultiLine);
-            break;
-        case 'y':
-            if (option & Option::Sticky)
-                ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'y' flags");
-            option = (Option)(option | Option::Sticky);
+            this->m_option = (Option)(this->m_option | Option::MultiLine);
+            optionStr.append("m");
             break;
         case 'u':
-            if (option & Option::Unicode)
+            if (this->m_option & Option::Unicode)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'u' flags");
-            option = (Option)(option | Option::Unicode);
+            this->m_option = (Option)(this->m_option | Option::Unicode);
+            optionStr.append("u");
+            break;
+        case 'y':
+            if (this->m_option & Option::Sticky)
+                ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'y' flags");
+            this->m_option = (Option)(this->m_option | Option::Sticky);
+            optionStr.append("y");
             break;
         default:
             ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has invalid flag");
         }
     }
 
-    return option;
+    std::sort(optionStr.begin(), optionStr.end());
+    this->m_optionString = String::fromASCII(optionStr.c_str());
 }
 
 void RegExpObject::setOption(const Option& option)
