@@ -477,6 +477,59 @@ StringView Scanner::ScannerResult::valueStringLiteral()
     return valueStringLiteralData;
 }
 
+void Scanner::ScannerResult::constructStringLiteralHelperAppendUTF16(char16_t ch, UTF16StringDataNonGCStd& stringUTF16, bool& isEveryCharLatin1)
+{
+    switch (ch) {
+    case 'u':
+    case 'x': {
+        char32_t param;
+        if (this->scanner->peekChar() == '{') {
+            ++this->scanner->index;
+            param = this->scanner->scanUnicodeCodePointEscape();
+        } else {
+            param = this->scanner->scanHexEscape(ch);
+        }
+        ParserCharPiece piece(param);
+        stringUTF16.append(piece.data, piece.data + piece.length);
+        if (piece.length != 1 || piece.data[0] >= 256) {
+            isEveryCharLatin1 = false;
+        }
+        return;
+    }
+    case 'n':
+        stringUTF16 += '\n';
+        return;
+    case 'r':
+        stringUTF16 += '\r';
+        return;
+    case 't':
+        stringUTF16 += '\t';
+        return;
+    case 'b':
+        stringUTF16 += '\b';
+        return;
+    case 'f':
+        stringUTF16 += '\f';
+        return;
+    case 'v':
+        stringUTF16 += '\x0B';
+        return;
+
+    default:
+        if (ch && isOctalDigit(ch)) {
+            uint16_t octToDec = this->scanner->octalToDecimal(ch, true);
+            stringUTF16 += octToDec;
+            ASSERT(octToDec < 256);
+        } else {
+            stringUTF16 += ch;
+            if (ch >= 256) {
+                isEveryCharLatin1 = false;
+            }
+        }
+        return;
+    }
+}
+
 void Scanner::ScannerResult::constructStringLiteral()
 {
     size_t indexBackup = this->scanner->index;
@@ -503,67 +556,11 @@ void Scanner::ScannerResult::constructStringLiteral()
             ch = this->scanner->peekChar();
             ++this->scanner->index;
             if (!ch || !isLineTerminator(ch)) {
-                switch (ch) {
-                case 'u':
-                case 'x':
-                    if (this->scanner->peekChar() == '{') {
-                        ++this->scanner->index;
-                        ParserCharPiece piece(this->scanner->scanUnicodeCodePointEscape());
-                        stringUTF16.append(piece.data, piece.data + piece.length);
-                        if (piece.length != 1 || piece.data[0] >= 256) {
-                            isEveryCharLatin1 = false;
-                        }
-                    } else {
-                        const char32_t unescaped = this->scanner->scanHexEscape(ch);
-                        ParserCharPiece piece(unescaped);
-                        stringUTF16.append(piece.data, piece.data + piece.length);
-                        if (piece.length != 1 || piece.data[0] >= 256) {
-                            isEveryCharLatin1 = false;
-                        }
-                    }
-                    break;
-                case 'n':
-                    stringUTF16 += '\n';
-                    break;
-                case 'r':
-                    stringUTF16 += '\r';
-                    break;
-                case 't':
-                    stringUTF16 += '\t';
-                    break;
-                case 'b':
-                    stringUTF16 += '\b';
-                    break;
-                case 'f':
-                    stringUTF16 += '\f';
-                    break;
-                case 'v':
-                    stringUTF16 += '\x0B';
-                    break;
-
-                default:
-                    if (ch && isOctalDigit(ch)) {
-                        uint16_t octToDec = this->scanner->octalToDecimal(ch, true);
-                        stringUTF16 += octToDec;
-                        ASSERT(octToDec < 256);
-                    } else if (isDecimalDigit(ch)) {
-                        stringUTF16 += ch;
-                        if (ch >= 256) {
-                            isEveryCharLatin1 = false;
-                        }
-                    } else {
-                        stringUTF16 += ch;
-                        if (ch >= 256) {
-                            isEveryCharLatin1 = false;
-                        }
-                    }
-                    break;
-                }
+                this->constructStringLiteralHelperAppendUTF16(ch, stringUTF16, isEveryCharLatin1);
             } else {
                 ++this->scanner->lineNumber;
-                if (ch == '\r' && this->scanner->peekChar() == '\n') {
-                    ++this->scanner->index;
-                } else if (ch == '\n' && this->scanner->peekChar() == '\r') {
+                char16_t bufferedChar = this->scanner->peekChar();
+                if ((ch == '\r' && bufferedChar == '\n') || (ch == '\n' && bufferedChar == '\r')) {
                     ++this->scanner->index;
                 }
                 this->scanner->lineStart = this->scanner->index;

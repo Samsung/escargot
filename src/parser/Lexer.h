@@ -359,6 +359,7 @@ public:
 
     private:
         void constructStringLiteral();
+        void constructStringLiteralHelperAppendUTF16(char16_t ch, UTF16StringDataNonGCStd& stringUTF16, bool& isEveryCharLatin1);
     };
 
     StringView source;
