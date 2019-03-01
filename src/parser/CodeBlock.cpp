@@ -91,6 +91,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_isFunctionDeclaration(false)
     , m_isFunctionDeclarationWithSpecialBinding(false)
     , m_isArrowFunctionExpression(false)
+    , m_isClassConstructor(info.m_isClassConstructor)
     , m_isInWithScope(false)
     , m_isEvalCodeInFunction(false)
     , m_isBindedFunction(false)
@@ -127,6 +128,7 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_isFunctionDeclaration(false)
     , m_isFunctionDeclarationWithSpecialBinding(false)
     , m_isArrowFunctionExpression(false)
+    , m_isClassConstructor(false)
     , m_isInWithScope(false)
     , m_isEvalCodeInFunction(false)
     , m_isBindedFunction(false)
@@ -182,6 +184,7 @@ CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Valu
     , m_isFunctionDeclaration(false)
     , m_isFunctionDeclarationWithSpecialBinding(false)
     , m_isArrowFunctionExpression(false)
+    , m_isClassConstructor(false)
     , m_isInWithScope(false)
     , m_isEvalCodeInFunction(false)
     , m_isBindedFunction(true)
@@ -235,6 +238,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isFunctionExpression = false;
     m_isArrowFunctionExpression = false;
     m_isStrict = scopeCtx->m_isStrict;
+    m_isClassConstructor = scopeCtx->m_isClassConstructor;
 
     m_hasEval = scopeCtx->m_hasEval;
     m_hasWith = scopeCtx->m_hasWith;
@@ -308,6 +312,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isFunctionExpression = isFE;
     m_isArrowFunctionExpression = scopeCtx->m_isArrowFunctionExpression;
     m_isConstructor = !scopeCtx->m_isArrowFunctionExpression;
+    m_isClassConstructor = scopeCtx->m_isClassConstructor;
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;
     m_needsComplexParameterCopy = false;

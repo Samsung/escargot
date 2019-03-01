@@ -132,6 +132,12 @@ enum ASTNodeType {
     TryStatement,
     CatchClause,
     ThrowStatement,
+    ClassDeclaration,
+    ClassExpression,
+    Class,
+    ClassBody,
+    ClassElement,
+    ClassMethod,
 };
 
 struct NodeLOC {
@@ -328,6 +334,7 @@ struct ASTScopeContext : public gc {
     bool m_inCatch : 1;
     bool m_inWith : 1;
     bool m_isArrowFunctionExpression : 1;
+    bool m_isClassConstructor : 1;
     bool m_hasManyNumeralLiteral : 1;
     bool m_needsSpecialInitialize : 1; // flag for fd in catch
     ASTNodeType m_nodeType : 12;
@@ -408,6 +415,7 @@ struct ASTScopeContext : public gc {
         , m_inCatch(false)
         , m_inWith(false)
         , m_isArrowFunctionExpression(false)
+        , m_isClassConstructor(false)
         , m_hasManyNumeralLiteral(false)
         , m_needsSpecialInitialize(false)
         , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)

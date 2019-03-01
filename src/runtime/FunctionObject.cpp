@@ -298,6 +298,10 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
     Context* ctx = m_codeBlock->context();
     bool isStrict = m_codeBlock->isStrict();
 
+    if (UNLIKELY(!isNewExpression && m_codeBlock->isClassConstructor())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Class constructor cannot be invoked without 'new'");
+    }
+
     if (!m_codeBlock->isInterpretedCodeBlock()) {
         CallNativeFunctionData* code = m_codeBlock->nativeFunctionData();
         FunctionEnvironmentRecordSimple record(this);

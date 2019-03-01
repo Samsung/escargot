@@ -77,6 +77,11 @@ public:
         return m_codeBlock->isArrowFunctionExpression();
     }
 
+    bool isClassConstructor()
+    {
+        return m_codeBlock->isClassConstructor();
+    }
+
     virtual bool isFunctionObject() const
     {
         return true;

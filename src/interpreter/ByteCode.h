@@ -64,6 +64,7 @@ class Node;
     F(CreateObject, 1, 0)                             \
     F(CreateArray, 1, 0)                              \
     F(CreateFunction, 1, 0)                           \
+    F(CreateImplicitConstructor, 1, 0)                \
     F(ObjectDefineOwnPropertyOperation, 0, 0)         \
     F(ObjectDefineOwnPropertyWithNameOperation, 0, 0) \
     F(ArrayDefineOwnPropertyOperation, 0, 0)          \
@@ -336,6 +337,24 @@ public:
     void dump()
     {
         printf("create function %s -> r%d", m_codeBlock->functionName().string()->toUTF8StringData().data(), (int)m_registerIndex);
+    }
+#endif
+};
+
+class CreateImplicitConstructor : public ByteCode {
+public:
+    CreateImplicitConstructor(const ByteCodeLOC& loc, const size_t& registerIndex)
+        : ByteCode(Opcode::CreateImplicitConstructorOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_registerIndex;
+    CodeBlock* m_codeBlock;
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("create implicit constructor -> r%d", (int)m_registerIndex);
     }
 #endif
 };
