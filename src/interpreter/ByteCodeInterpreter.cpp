@@ -57,27 +57,42 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
 #if defined(COMPILER_GCC)
     *((size_t*)initAddressFiller) = ((size_t) && FillOpcodeTableOpcodeLbl);
 #endif
-    {
-        ExecutionContext* ec = state.executionContext();
-        char* codeBuffer = byteCodeBlock->m_code.data();
-        programCounter = (size_t)(&codeBuffer[programCounter]);
 
+    ExecutionContext* ec = state.executionContext();
+    char* codeBuffer = byteCodeBlock->m_code.data();
+    programCounter = (size_t)(codeBuffer + programCounter);
+
+    {
         try {
-#define NEXT_INSTRUCTION() goto NextInstruction;
+#if defined(COMPILER_GCC)
+
+#define DEFINE_OPCODE(codeName) codeName##OpcodeLbl
+#define DEFINE_DEFAULT
+#define NEXT_INSTRUCTION() \
+    goto*(((ByteCode*)programCounter)->m_opcodeInAddress);
+#define JUMP_INSTRUCTION(opcode) \
+    goto opcode##OpcodeLbl;
+
+            /* Execute first instruction. */
+            NEXT_INSTRUCTION();
+#else
+
+#define DEFINE_OPCODE(codeName) case codeName##Opcode
+#define DEFINE_DEFAULT                \
+    default:                          \
+        RELEASE_ASSERT_NOT_REACHED(); \
+        }
+#define NEXT_INSTRUCTION() \
+    goto NextInstruction;
+#define JUMP_INSTRUCTION(opcode)    \
+    currentOpcode = opcode##Opcode; \
+    goto NextInstructionWithoutFetchOpcode;
 
         NextInstruction:
-#if defined(COMPILER_GCC)
-            goto*(((ByteCode*)programCounter)->m_opcodeInAddress);
-#else
             Opcode currentOpcode = ((ByteCode*)programCounter)->m_opcode;
+
         NextInstructionWithoutFetchOpcode:
             switch (currentOpcode) {
-#endif
-
-#if defined(COMPILER_GCC)
-#define DEFINE_OPCODE(codeName) codeName##OpcodeLbl
-#else
-#define DEFINE_OPCODE(codeName) case codeName##Opcode
 #endif
 
             DEFINE_OPCODE(LoadLiteral)
@@ -398,12 +413,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                         }
                     }
                 }
-#if defined(COMPILER_GCC)
-                goto GetObjectOpcodeSlowCaseOpcodeLbl;
-#else
-                    currentOpcode = GetObjectOpcodeSlowCaseOpcode;
-                    goto NextInstructionWithoutFetchOpcode;
-#endif
+                JUMP_INSTRUCTION(GetObjectOpcodeSlowCase);
             }
 
             DEFINE_OPCODE(SetObjectOperation)
@@ -420,20 +430,10 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                             uint32_t len = arr->getArrayLength(state);
                             if (UNLIKELY(len <= idx)) {
                                 if (UNLIKELY(!arr->isExtensible(state))) {
-#if defined(COMPILER_GCC)
-                                    goto SetObjectOpcodeSlowCaseOpcodeLbl;
-#else
-                                        currentOpcode = SetObjectOpcodeSlowCaseOpcode;
-                                        goto NextInstructionWithoutFetchOpcode;
-#endif
+                                    JUMP_INSTRUCTION(SetObjectOpcodeSlowCase);
                                 }
                                 if (UNLIKELY(!arr->setArrayLength(state, idx + 1)) || UNLIKELY(!arr->isFastModeArray())) {
-#if defined(COMPILER_GCC)
-                                    goto SetObjectOpcodeSlowCaseOpcodeLbl;
-#else
-                                        currentOpcode = SetObjectOpcodeSlowCaseOpcode;
-                                        goto NextInstructionWithoutFetchOpcode;
-#endif
+                                    JUMP_INSTRUCTION(SetObjectOpcodeSlowCase);
                                 }
                             }
                             arr->m_fastModeData[idx] = registerFile[code->m_loadRegisterIndex];
@@ -442,12 +442,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                         }
                     }
                 }
-#if defined(COMPILER_GCC)
-                goto SetObjectOpcodeSlowCaseOpcodeLbl;
-#else
-                    currentOpcode = SetObjectOpcodeSlowCaseOpcode;
-                    goto NextInstructionWithoutFetchOpcode;
-#endif
+                JUMP_INSTRUCTION(SetObjectOpcodeSlowCase);
             }
 
             DEFINE_OPCODE(GetObjectPreComputedCase)
@@ -1125,34 +1120,33 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 ThrowStaticErrorOperation* code = (ThrowStaticErrorOperation*)programCounter;
                 ErrorObject::throwBuiltinError(state, (ErrorObject::Code)code->m_errorKind, code->m_errorMessage);
             }
-            DEFINE_OPCODE(End)
-                : return registerFile[0];
 
-#if !defined(COMPILER_GCC)
-        default:
-            RELEASE_ASSERT_NOT_REACHED();
+            DEFINE_OPCODE(End)
+                :
+            {
+                return registerFile[0];
+            }
+
+            DEFINE_DEFAULT
+
+        } catch (const Value& v) {
+            if (byteCodeBlock->m_codeBlock->isInterpretedCodeBlock() && byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->byteCodeBlock() == nullptr) {
+                byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->m_byteCodeBlock = byteCodeBlock;
+            }
+            processException(state, v, ec, programCounter);
         }
-#endif
     }
-    catch (const Value& v)
-    {
-        if (byteCodeBlock->m_codeBlock->isInterpretedCodeBlock() && byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->byteCodeBlock() == nullptr) {
-            byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->m_byteCodeBlock = byteCodeBlock;
-        }
-        processException(state, v, ec, programCounter);
-    }
-}
+
+    ASSERT_NOT_REACHED();
+
 #if defined(COMPILER_GCC)
 FillOpcodeTableOpcodeLbl:
-{
 #define REGISTER_TABLE(opcode, pushCount, popCount) g_opcodeTable.m_table[opcode##Opcode] = &&opcode##OpcodeLbl;
     FOR_EACH_BYTECODE_OP(REGISTER_TABLE);
 #undef REGISTER_TABLE
-    return Value();
-}
-#else
-        return Value();
 #endif
+
+    return Value();
 }
 
 NEVER_INLINE EnvironmentRecord* ByteCodeInterpreter::getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue, bool throwException)
