@@ -109,7 +109,7 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForB
     , m_outerEnvironment(nullptr)
 {
     initFunctionObject(state);
-    setPrototype(state, state.context()->globalObject()->functionPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
     if (isConstructor())
         m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
 }
@@ -120,7 +120,7 @@ FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info)
     , m_outerEnvironment(nullptr)
 {
     initFunctionObject(state);
-    setPrototype(state, state.context()->globalObject()->functionPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
 }
 
 FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltin)
@@ -130,7 +130,7 @@ FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, F
 {
     ASSERT(isConstructor());
     initFunctionObject(state);
-    setPrototype(state, state.context()->globalObject()->functionPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
     m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
 }
 
@@ -142,7 +142,7 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Lexi
     , m_outerEnvironment(outerEnv)
 {
     initFunctionObject(state);
-    setPrototype(state, state.context()->globalObject()->functionPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
 }
 
 FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, String* name, ForBind)
@@ -154,7 +154,7 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Stri
 {
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = Value(name);
     initFunctionObject(state);
-    setPrototype(state, state.context()->globalObject()->functionPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
 }
 
 bool FunctionObject::hasInstance(ExecutionState& state, const Value& left)

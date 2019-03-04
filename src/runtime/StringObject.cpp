@@ -29,7 +29,7 @@ StringObject::StringObject(ExecutionState& state, String* value)
 {
     m_structure = state.context()->defaultStructureForStringObject();
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value();
-    setPrototype(state, state.context()->globalObject()->stringPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->stringPrototype());
 }
 
 void* StringObject::operator new(size_t size)
@@ -105,7 +105,7 @@ StringIteratorObject::StringIteratorObject(ExecutionState& state, String* s)
     , m_string(s)
     , m_iteratorNextIndex(0)
 {
-    setPrototype(state, state.context()->globalObject()->stringIteratorPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->stringIteratorPrototype());
 }
 
 void* StringIteratorObject::operator new(size_t size)

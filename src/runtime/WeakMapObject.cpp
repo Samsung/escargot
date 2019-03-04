@@ -27,7 +27,7 @@ namespace Escargot {
 WeakMapObject::WeakMapObject(ExecutionState& state)
     : Object(state)
 {
-    setPrototype(state, state.context()->globalObject()->weakMapPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->weakMapPrototype());
 }
 
 void* WeakMapObject::WeakMapObjectDataItem::operator new(size_t size)

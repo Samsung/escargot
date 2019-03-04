@@ -27,7 +27,7 @@ namespace Escargot {
 SetObject::SetObject(ExecutionState& state)
     : Object(state)
 {
-    setPrototype(state, state.context()->globalObject()->setPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->setPrototype());
 }
 
 void* SetObject::operator new(size_t size)
@@ -136,7 +136,7 @@ SetIteratorObject::SetIteratorObject(ExecutionState& state, SetObject* set, Type
     , m_iteratorIndex(0)
     , m_type(type)
 {
-    setPrototype(state, state.context()->globalObject()->setIteratorPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->setIteratorPrototype());
 }
 
 void* SetIteratorObject::operator new(size_t size)

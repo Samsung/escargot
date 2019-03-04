@@ -33,7 +33,7 @@ ArrayObject::ArrayObject(ExecutionState& state)
 {
     m_structure = state.context()->defaultStructureForArrayObject();
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(0);
-    setPrototype(state, state.context()->globalObject()->arrayPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->arrayPrototype());
 
     if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
         ensureObjectRareData()->m_isFastModeArrayObject = false;
@@ -415,7 +415,7 @@ ArrayIteratorObject::ArrayIteratorObject(ExecutionState& state, Object* a, Type 
     , m_iteratorNextIndex(0)
     , m_type(type)
 {
-    setPrototype(state, state.context()->globalObject()->arrayIteratorPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->arrayIteratorPrototype());
 }
 
 void* ArrayIteratorObject::operator new(size_t size)

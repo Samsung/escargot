@@ -27,7 +27,7 @@ namespace Escargot {
 WeakSetObject::WeakSetObject(ExecutionState& state)
     : Object(state)
 {
-    setPrototype(state, state.context()->globalObject()->weakSetPrototype());
+    Object::setPrototype(state, state.context()->globalObject()->weakSetPrototype());
 }
 
 void* WeakSetObject::operator new(size_t size)
