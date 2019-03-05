@@ -355,7 +355,8 @@ def run_es2015(engine, arch):
     ES2015_ASSERT_JS = join(ES2015_DIR, 'assert.js')
 
     print('Running es2015 test:')
-    files = glob(join(ES2015_DIR, 'proxy-*.js'))
+    files = glob(join(ES2015_DIR, '*.js'))
+    files.remove(ES2015_ASSERT_JS)
     fails = 0
     for file in files:
         proc = Popen([engine, ES2015_ASSERT_JS, file], stdout=PIPE)
