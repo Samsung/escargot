@@ -130,22 +130,6 @@ struct OpcodeTable {
 
 extern OpcodeTable g_opcodeTable;
 
-#ifndef NDEBUG
-inline const char* getByteCodeName(Opcode opcode)
-{
-    switch (opcode) {
-#define RETURN_BYTECODE_NAME(name, pushCount, popCount) \
-    case name##Opcode:                                  \
-        return #name;
-        FOR_EACH_BYTECODE_OP(RETURN_BYTECODE_NAME)
-#undef RETURN_BYTECODE_NAME
-    default:
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-}
-#endif
-
-
 struct ByteCodeLOC {
     size_t index;
 #ifndef NDEBUG
@@ -163,13 +147,9 @@ struct ByteCodeLOC {
     }
 };
 
-class ByteCode : public gc {
+/* Byte code is never instantiated on the heap, it is part of the byte code stream. */
+class ByteCode {
 public:
-#ifndef NDEBUG
-    virtual ~ByteCode()
-    {
-    }
-#endif
     ByteCode(Opcode code, const ByteCodeLOC& loc)
 #if defined(COMPILER_GCC)
         : m_opcodeInAddress((void*)code)
@@ -202,22 +182,12 @@ public:
 #else
     Opcode m_opcode;
 #endif
+
 #ifndef NDEBUG
     ByteCodeLOC m_loc;
     Opcode m_orgOpcode;
 
-    void dumpCode(size_t pos)
-    {
-        printf("%d\t\t", (int)pos);
-        dump();
-        printf(" | %s ", getByteCodeName(m_orgOpcode));
-        printf("(line: %d:%d)\n", (int)m_loc.line, (int)m_loc.column);
-    }
-
-    virtual void dump()
-    {
-    }
-
+    void dumpCode(size_t pos);
 #endif
 };
 
@@ -233,7 +203,7 @@ public:
     Value m_value;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("load r%d <- ", (int)m_registerIndex);
         Value v = m_value;
@@ -266,7 +236,7 @@ public:
     AtomicString m_name;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("load r%d <- %s", (int)m_registerIndex, m_name.string()->toUTF8StringData().data());
     }
@@ -285,7 +255,7 @@ public:
     AtomicString m_name;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("store %s <- r%d", m_name.string()->toUTF8StringData().data(), (int)m_registerIndex);
     }
@@ -306,7 +276,7 @@ public:
     ByteCodeRegisterIndex m_index;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("load r%d <- heap[%d][%d]", (int)m_registerIndex, (int)m_upperIndex, (int)m_index);
     }
@@ -327,7 +297,7 @@ public:
     ByteCodeRegisterIndex m_index;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("store heap[%d][%d] <- r%d", (int)m_upperIndex, (int)m_index, (int)m_registerIndex);
     }
@@ -344,7 +314,7 @@ public:
     InterpretedCodeBlock* m_codeBlock;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("function declarations");
     }
@@ -363,7 +333,7 @@ public:
     ByteCodeRegisterIndex m_registerIndex;
     CodeBlock* m_codeBlock;
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("create function %s -> r%d", m_codeBlock->functionName().string()->toUTF8StringData().data(), (int)m_registerIndex);
     }
@@ -374,7 +344,7 @@ public:
 #define DEFINE_BINARY_OPERATION_DUMP(name)
 #else
 #define DEFINE_BINARY_OPERATION_DUMP(name)                                                     \
-    virtual void dump()                                                                        \
+    void dump()                                                                                \
     {                                                                                          \
         printf(name " r%d <- r%d , r%d", (int)m_dstIndex, (int)m_srcIndex0, (int)m_srcIndex1); \
     }
@@ -430,7 +400,7 @@ public:
     ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("createobject -> r%d", (int)m_registerIndex);
     }
@@ -450,7 +420,7 @@ public:
     size_t m_length;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("createarray -> r%d", (int)m_registerIndex);
     }
@@ -472,7 +442,7 @@ public:
     ByteCodeRegisterIndex m_storeRegisterIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("get object r%d <- r%d[r%d]", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, (int)m_propertyRegisterIndex);
     }
@@ -494,7 +464,7 @@ public:
     ByteCodeRegisterIndex m_loadRegisterIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("set object r%d[r%d] <- r%d", (int)m_objectRegisterIndex, (int)m_propertyRegisterIndex, (int)m_loadRegisterIndex);
     }
@@ -516,7 +486,7 @@ public:
     ByteCodeRegisterIndex m_loadRegisterIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("object define own property r%d[r%d] <- r%d", (int)m_objectRegisterIndex, (int)m_propertyRegisterIndex, (int)m_loadRegisterIndex);
     }
@@ -538,7 +508,7 @@ public:
     AtomicString m_propertyName;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("object define own property with name r%d.%s <- r%d", (int)m_objectRegisterIndex, m_propertyName.string()->toUTF8StringData().data(), (int)m_loadRegisterIndex);
     }
@@ -563,7 +533,7 @@ public:
     ByteCodeRegisterIndex m_loadRegisterIndexs[ARRAY_DEFINE_OPERATION_MERGE_COUNT];
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("array define own property r%d[%d - %d] <- r<--->", (int)m_objectRegisterIndex, (int)m_baseIndex, (int)m_count);
     }
@@ -649,7 +619,7 @@ public:
     ByteCodeRegisterIndex m_storeRegisterIndex;
     PropertyName m_propertyName;
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("get object r%d <- r%d.%s", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, m_propertyName.plainString()->toUTF8StringData().data());
     }
@@ -695,7 +665,7 @@ public:
     PropertyName m_propertyName;
     SetObjectInlineCache* m_inlineCache;
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("set object r%d.%s <- r%d", (int)m_objectRegisterIndex, m_propertyName.plainString()->toUTF8StringData().data(), (int)m_loadRegisterIndex);
     }
@@ -719,7 +689,7 @@ public:
     void* m_cachedAddress;
     ObjectStructure* m_cachedStructure;
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("get global object r%d <- global.%s", (int)m_registerIndex, m_propertyName.plainString()->toUTF8StringData().data());
     }
@@ -744,7 +714,7 @@ public:
     ObjectStructure* m_cachedStructure;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("set global object global.%s <- r%d", m_propertyName.plainString()->toUTF8StringData().data(), (int)m_registerIndex);
     }
@@ -764,7 +734,7 @@ public:
     ByteCodeRegisterIndex m_registerIndex1;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("mov r%d <- r%d", (int)m_registerIndex1, (int)m_registerIndex0);
     }
@@ -784,7 +754,7 @@ public:
     ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("to number r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
@@ -804,7 +774,7 @@ public:
     ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("increment r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
@@ -824,7 +794,7 @@ public:
     ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("decrement r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
@@ -844,7 +814,7 @@ public:
     ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("unary minus r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
@@ -864,7 +834,7 @@ public:
     ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("unary not r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
@@ -884,7 +854,7 @@ public:
     ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("unary bitwise not r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
@@ -906,7 +876,7 @@ public:
     AtomicString m_id;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("unary typeof r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
@@ -930,7 +900,7 @@ public:
     AtomicString m_id;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("unary delete r%d <- r%d r%d %s", (int)m_dstIndex, (int)m_srcIndex0, (int)m_srcIndex1, m_id.string()->toUTF8StringData().data());
     }
@@ -953,7 +923,7 @@ public:
     ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("template operation(+) r%d <- r%d + r%d", (int)m_dstIndex, (int)m_src0Index, (int)m_src1Index);
     }
@@ -971,7 +941,7 @@ public:
     size_t m_jumpPosition;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("jump %d", (int)m_jumpPosition);
     }
@@ -1069,7 +1039,7 @@ public:
     ControlFlowRecord* m_controlFlowRecord;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("jump complex");
     }
@@ -1098,7 +1068,7 @@ public:
     size_t m_jumpPosition;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("jump if true r%d -> %d", (int)m_registerIndex, (int)m_jumpPosition);
     }
@@ -1118,7 +1088,7 @@ public:
     size_t m_jumpPosition;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("jump if false r%d -> %d", (int)m_registerIndex, (int)m_jumpPosition);
     }
@@ -1141,7 +1111,7 @@ public:
     ByteCodeRegisterIndex m_resultIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("call r%d <- r%d(r%d-r%d)", (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
     }
@@ -1167,7 +1137,7 @@ public:
     ByteCodeRegisterIndex m_resultIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("call r%d <- r%d,r%d(r%d-r%d)", (int)m_resultIndex, (int)m_receiverIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
     }
@@ -1192,7 +1162,7 @@ public:
     bool m_inWithScope;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("call eval r%d <- r%d, r%d-r%d", (int)m_resultIndex, (int)m_evalIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
     }
@@ -1216,7 +1186,7 @@ public:
     ByteCodeRegisterIndex m_resultIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("call in with r%d <- r%d-r%d", (int)m_resultIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount - 1);
     }
@@ -1239,7 +1209,7 @@ public:
     uint16_t m_argumentCount;
     ByteCodeRegisterIndex m_resultIndex;
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("new r%d <- r%d(r%d-r%d)", (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
     }
@@ -1253,7 +1223,7 @@ public:
     {
     }
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("return");
     }
@@ -1270,7 +1240,7 @@ public:
     ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("return r%d", (int)m_registerIndex);
     }
@@ -1287,7 +1257,7 @@ public:
     ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("return r%d", (int)m_registerIndex);
     }
@@ -1308,7 +1278,7 @@ public:
     size_t m_tryCatchEndPosition;
     AtomicString m_catchVariableName;
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("try (hasCatch:%d)", (int)m_hasCatch);
     }
@@ -1323,7 +1293,7 @@ public:
     }
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("try-catch-with end");
     }
@@ -1341,7 +1311,7 @@ public:
     size_t m_tryDupCount;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("finally end");
     }
@@ -1358,7 +1328,7 @@ public:
     ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("throw r%d", (int)m_registerIndex);
     }
@@ -1377,7 +1347,7 @@ public:
     const char* m_errorMessage;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("throw static error %s", m_errorMessage);
     }
@@ -1415,7 +1385,7 @@ public:
     ByteCodeRegisterIndex m_dataRegisterIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("enumerate object r%d, r%d", (int)m_objectRegisterIndex, (int)m_dataRegisterIndex);
     }
@@ -1433,7 +1403,7 @@ public:
     ByteCodeRegisterIndex m_dataRegisterIndex;
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("enumerate object key r%d r%d", (int)m_registerIndex, (int)m_dataRegisterIndex);
     }
@@ -1451,7 +1421,7 @@ public:
     ByteCodeRegisterIndex m_registerIndex;
     size_t m_forInEndPosition;
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("check if key is last r%d", (int)m_registerIndex);
     }
@@ -1472,7 +1442,7 @@ public:
     String* m_body;
     String* m_option;
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("load regexp %s -> r%d", m_body->toUTF8StringData().data(), (int)m_registerIndex);
     }
@@ -1491,7 +1461,7 @@ public:
     ByteCodeRegisterIndex m_registerIndex;
     size_t m_withEndPostion;
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("with r%d", (int)m_registerIndex);
     }
@@ -1512,7 +1482,7 @@ public:
     ByteCodeRegisterIndex m_objectPropertyNameRegisterIndex;
     ByteCodeRegisterIndex m_objectPropertyValueRegisterIndex;
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("object define getter r%d[r%d] = r%d", (int)m_objectRegisterIndex, (int)m_objectPropertyNameRegisterIndex, (int)m_objectPropertyValueRegisterIndex);
     }
@@ -1533,7 +1503,7 @@ public:
     ByteCodeRegisterIndex m_objectPropertyNameRegisterIndex;
     ByteCodeRegisterIndex m_objectPropertyValueRegisterIndex;
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("object define setter r%d[r%d] = r%d", (int)m_objectRegisterIndex, (int)m_objectPropertyNameRegisterIndex, (int)m_objectPropertyValueRegisterIndex);
     }
@@ -1548,7 +1518,7 @@ public:
     }
 
 #ifndef NDEBUG
-    virtual void dump()
+    void dump()
     {
         printf("end");
     }
@@ -1561,6 +1531,13 @@ public:
         : ByteCode(Opcode::FillOpcodeTableOpcode, ByteCodeLOC(0))
     {
     }
+
+#ifndef NDEBUG
+    void dump()
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+#endif
 };
 
 
