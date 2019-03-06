@@ -42,6 +42,29 @@ OpcodeTable::OpcodeTable()
 #endif
 }
 
+#ifndef NDEBUG
+void ByteCode::dumpCode(size_t pos)
+{
+    printf("%d\t\t", (int)pos);
+
+    const char* opcodeName = NULL;
+    switch (m_orgOpcode) {
+#define RETURN_BYTECODE_NAME(name, pushCount, popCount) \
+    case name##Opcode:                                  \
+        ((name*)this)->dump();                          \
+        opcodeName = #name;                             \
+        break;
+        FOR_EACH_BYTECODE_OP(RETURN_BYTECODE_NAME)
+#undef RETURN_BYTECODE_NAME
+    default:
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    printf(" | %s ", opcodeName);
+    printf("(line: %d:%d)\n", (int)m_loc.line, (int)m_loc.column);
+}
+#endif
+
 void* ByteCodeBlock::operator new(size_t size)
 {
     static bool typeInited = false;
