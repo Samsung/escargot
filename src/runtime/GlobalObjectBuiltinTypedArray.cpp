@@ -528,6 +528,56 @@ Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, 
     }
 }
 
+static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, some);
+    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
+    validateTypedArray(state, O, state.context()->staticStrings().some.string());
+
+    // Array.prototype.some as defined in 22.1.3.23 except
+    // that the this object’s [[ArrayLength]] internal slot is accessed
+    // in place of performing a [[Get]] of "length"
+    double len = O->asArrayBufferView()->arraylength();
+
+    // If IsCallable(callbackfn) is false, throw a TypeError exception.
+    Value callbackfn = argv[0];
+    if (!callbackfn.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true,
+                                       state.context()->staticStrings().some.string(), errorMessage_GlobalObject_CallbackNotCallable);
+    }
+
+    Value T;
+    // If thisArg was supplied, let T be thisArg; else let T be undefined.
+    if (argc > 1) {
+        T = argv[1];
+    }
+
+    // Let k be 0.
+    int64_t k = 0;
+
+    // Repeat, while k < len
+    while (k < len) {
+        ObjectGetResult kResult = O->getIndexedProperty(state, Value(k));
+        RELEASE_ASSERT(kResult.hasValue());
+        // Let kValue be the result of calling the [[Get]] internal method of O with argument ToString(k).
+        Value kValue = kResult.value(state, O);
+        // Let testResult be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
+        Value args[] = { kValue, Value(k), O };
+        Value testResult = FunctionObject::call(state, callbackfn, T, 3, args);
+
+        // If ToBoolean(testResult) is true, return true.
+        if (testResult.toBoolean(state)) {
+            return Value(true);
+        }
+
+        // Increase k by 1.
+        k++;
+    }
+    // Return false.
+    return Value(false);
+}
+
 Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, TypedArray, subarray);
@@ -952,6 +1002,99 @@ Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, size_t ar
     return O;
 }
 
+static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, some);
+    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
+    validateTypedArray(state, O, state.context()->staticStrings().toLocaleString.string());
+
+    // Array.prototype.toLocaleString as defined in 22.1.3.26 except
+    // that the this object’s [[ArrayLength]] internal slot is accessed
+    // in place of performing a [[Get]] of "length"
+    double len = O->asArrayBufferView()->arraylength();
+
+    if (!state.context()->toStringRecursionPreventer()->canInvokeToString(O)) {
+        return String::emptyString;
+    }
+    ToStringRecursionPreventerItemAutoHolder holder(state, O);
+
+    // Let separator be the String value for the list-separator String appropriate for the host environment’s current locale (this is derived in an implementation-defined way).
+    String* separator = state.context()->staticStrings().asciiTable[(size_t)','].string();
+
+    // If len is zero, return the empty String.
+    if (len == 0) {
+        return String::emptyString;
+    }
+
+    // Let firstElement be the result of calling the [[Get]] internal method of array with argument "0".
+    Value firstElement = O->getIndexedProperty(state, Value(0)).value(state, O);
+
+    // If firstElement is undefined or null, then
+    Value R;
+    RELEASE_ASSERT(!firstElement.isUndefinedOrNull());
+    // Let elementObj be ToObject(firstElement).
+    Object* elementObj = firstElement.toObject(state);
+    // Let func be the result of calling the [[Get]] internal method of elementObj with argument "toLocaleString".
+    Value func = elementObj->get(state, state.context()->staticStrings().toLocaleString).value(state, elementObj);
+    // If IsCallable(func) is false, throw a TypeError exception.
+    if (!func.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLocaleStringNotCallable);
+    }
+    // Let R be the result of calling the [[Call]] internal method of func providing elementObj as the this value and an empty arguments list.
+    R = FunctionObject::call(state, func, elementObj, 0, nullptr);
+
+    // Let k be 1.
+    int64_t k = 1;
+
+    // Repeat, while k < len
+    while (k < len) {
+        // Let S be a String value produced by concatenating R and separator.
+        StringBuilder builder;
+        builder.appendString(R.toString(state));
+        builder.appendString(separator);
+        String* S = builder.finalize(&state);
+
+        // Let nextElement be the result of calling the [[Get]] internal method of array with argument ToString(k).
+        Value nextElement = O->getIndexedProperty(state, Value(k)).value(state, O);
+
+        // If nextElement is undefined or null, then
+        RELEASE_ASSERT(!nextElement.isUndefinedOrNull());
+        // Let elementObj be ToObject(nextElement).
+        Object* elementObj = nextElement.toObject(state);
+        // Let func be the result of calling the [[Get]] internal method of elementObj with argument "toLocaleString".
+        Value func = elementObj->get(state, state.context()->staticStrings().toLocaleString).value(state, elementObj);
+        // If IsCallable(func) is false, throw a TypeError exception.
+        if (!func.isFunction()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLocaleStringNotCallable);
+        }
+        // Let R be the result of calling the [[Call]] internal method of func providing elementObj as the this value and an empty arguments list.
+        R = FunctionObject::call(state, func, elementObj, 0, nullptr);
+
+        // Let R be a String value produced by concatenating S and R.
+        StringBuilder builder2;
+        builder2.appendString(S);
+        builder2.appendString(R.toString(state));
+        R = builder2.finalize(&state);
+        // Increase k by 1.
+        k++;
+    }
+    // Return R.
+    return R;
+}
+
+static Value builtinTypedArrayToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, toString);
+    validateTypedArray(state, O, state.context()->staticStrings().toString.string());
+
+    Value toString = O->get(state, state.context()->staticStrings().join).value(state, O);
+    if (!toString.isFunction()) {
+        toString = state.context()->globalObject()->objectPrototypeToString();
+    }
+    return FunctionObject::call(state, toString, O, 0, nullptr);
+}
+
 template <typename TA, int elementSize>
 FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction)
 {
@@ -1065,6 +1208,8 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->subarray, builtinTypedArraySubArray, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->set),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->set, builtinTypedArraySet, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->some),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->some, builtinTypedArraySome, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->copyWithin),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->copyWithin, builtinTypedArrayCopyWithin, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->every),
@@ -1085,6 +1230,10 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->reduceRight, builtinTypedArrayReduceRight, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->reverse),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->reverse, builtinTypedArrayReverse, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toLocaleString),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toLocaleString, builtinTypedArrayToLocaleString, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toString),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toString, builtinTypedArrayToString, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->indexOf),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->indexOf, builtinTypedArrayIndexOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->lastIndexOf),
