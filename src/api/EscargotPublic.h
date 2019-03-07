@@ -78,6 +78,60 @@ public:
     static void finalize();
 };
 
+template <typename T>
+struct NullablePtr {
+public:
+    NullablePtr()
+        : m_value(nullptr)
+    {
+    }
+
+    NullablePtr(T* value)
+        : m_value(value ? value : nullptr)
+    {
+    }
+
+    T* getValue()
+    {
+        ASSERT(!!m_value);
+        return m_value;
+    }
+
+    const T* getValue() const
+    {
+        ASSERT(!!m_value);
+        return m_value;
+    }
+
+    bool hasValue() const
+    {
+        return !!m_value;
+    }
+
+    bool operator==(const NullablePtr<T>& other) const
+    {
+        return m_value == other.m_value;
+    }
+
+    bool operator!=(const NullablePtr<T>& other) const
+    {
+        return !this->operator==(other);
+    }
+
+    bool operator==(const T* other) const
+    {
+        return m_value == other;
+    }
+
+    bool operator!=(const T* other) const
+    {
+        return !this->operator==(other);
+    }
+
+private:
+    T* m_value;
+};
+
 // `double` value is not presented in PointerValue, but it is stored in heap
 class EXPORT PointerValueRef {
 public:
@@ -300,7 +354,6 @@ public:
     bool isDouble() const;
     bool isTrue() const;
     bool isFalse() const;
-    bool isEmpty() const;
     bool isString() const;
     bool isObject() const;
     bool isFunction() const;
@@ -365,7 +418,7 @@ struct EXPORT ExposableObjectGetOwnPropertyCallbackResult {
     {
     }
 
-    ValueRef* m_value;
+    NullablePtr<ValueRef> m_value;
     bool m_isWritable;
     bool m_isEnumerable;
     bool m_isConfigurable;
@@ -436,7 +489,7 @@ public:
         // only undefined, empty, function are allowed to getter, setter parameter
         // empty means unspecified state
         // undefined means truely undefined -> ex) { get: undefined }
-        AccessorPropertyDescriptor(ValueRef* getter, ValueRef* setter, PresentAttribute attr)
+        AccessorPropertyDescriptor(ValueRef* getter, NullablePtr<ValueRef> setter, PresentAttribute attr)
             : m_getter(getter)
             , m_setter(setter)
             , m_attribute(attr)
@@ -444,7 +497,7 @@ public:
         }
 
         ValueRef* m_getter;
-        ValueRef* m_setter;
+        NullablePtr<ValueRef> m_setter;
         PresentAttribute m_attribute;
     };
 
@@ -835,7 +888,7 @@ public:
 
     struct SandBoxResult {
         ValueRef* result;
-        ValueRef* error;
+        NullablePtr<ValueRef> error;
         StringRef* msgStr;
         std::vector<StackTraceData, GCUtil::gc_malloc_allocator<StackTraceData>> stackTraceData;
         SandBoxResult();
