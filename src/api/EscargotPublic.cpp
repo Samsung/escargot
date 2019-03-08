@@ -111,7 +111,6 @@ DEFINE_CAST(Float64ArrayObject);
 
 #undef DEFINE_CAST
 
-
 inline ValueRef* toRef(const Value& v)
 {
     ASSERT(!v.isEmpty());
@@ -1499,6 +1498,12 @@ ValueRef* ValueRef::create(long long value)
 ValueRef* ValueRef::create(unsigned long long value)
 {
     return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
+}
+
+ValueRef* ValueRef::create(ValueRef* value)
+{
+    ASSERT(value);
+    return reinterpret_cast<ValueRef*>(value);
 }
 
 ValueRef* ValueRef::createNull()
