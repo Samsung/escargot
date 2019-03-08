@@ -438,6 +438,40 @@ AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
     }
 }
 
+void ErrorHandler::throwError(size_t index, size_t line, size_t col, String* description, ErrorObject::Code code)
+{
+    UTF16StringDataNonGCStd msg = u"Line ";
+    const size_t bufferLength = 64;
+    char lineStringBuf[bufferLength];
+    char* bufPtr = lineStringBuf + bufferLength - 2;
+
+    /* Adds ": " at the end. */
+    bufPtr[0] = ':';
+    bufPtr[1] = ' ';
+
+    do {
+        ASSERT(bufPtr > lineStringBuf);
+        --bufPtr;
+        *bufPtr = line % 10 + '0';
+        line /= 10;
+    } while (line > 0);
+
+    msg += UTF16StringDataNonGCStd(bufPtr, lineStringBuf + bufferLength);
+
+    if (description->length()) {
+        msg += UTF16StringDataNonGCStd(description->toUTF16StringData().data());
+    }
+
+    esprima::Error* error = new (NoGC) esprima::Error(new UTF16String(msg.data(), msg.length()));
+    error->index = index;
+    error->lineNumber = line;
+    error->column = col;
+    error->description = description;
+    error->errorCode = code;
+
+    throw * error;
+};
+
 Scanner::ScannerResult::~ScannerResult()
 {
     if (this->scanner->isPoolEnabled) {

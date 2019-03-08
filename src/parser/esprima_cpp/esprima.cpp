@@ -410,7 +410,8 @@ public:
         size_t index = this->lastMarker.index;
         size_t line = this->lastMarker.lineNumber;
         size_t column = this->lastMarker.index - this->lastMarker.lineStart + 1;
-        throw this->errorHandler->createError(index, line, column, new UTF16String(msg.data(), msg.length()), code);
+
+        this->errorHandler->throwError(index, line, column, new UTF16String(msg.data(), msg.length()), code);
     }
 
     void tolerateError(const char* messageFormat, String* arg0 = String::emptyString, String* arg1 = String::emptyString, ErrorObject::Code code = ErrorObject::SyntaxError)
@@ -447,8 +448,8 @@ public:
         }
     }
 
-    // Throw an exception because of the token.
-    Error unexpectedTokenError(RefPtr<Scanner::ScannerResult> token = nullptr, const char* message = nullptr)
+    // Throw an exception because of an unexpected token.
+    void throwUnexpectedToken(RefPtr<Scanner::ScannerResult> token, const char* message = nullptr)
     {
         const char* msg;
         if (message) {
@@ -488,18 +489,13 @@ public:
             const size_t index = token->start;
             const size_t line = token->lineNumber;
             const size_t column = token->start - this->lastMarker.lineStart + 1;
-            return this->errorHandler->createError(index, line, column, new UTF16String(msgData.data(), msgData.length()), ErrorObject::SyntaxError);
+            this->errorHandler->throwError(index, line, column, new UTF16String(msgData.data(), msgData.length()), ErrorObject::SyntaxError);
         } else {
             const size_t index = this->lastMarker.index;
             const size_t line = this->lastMarker.lineNumber;
             const size_t column = index - this->lastMarker.lineStart + 1;
-            return this->errorHandler->createError(index, line, column, new UTF16String(msgData.data(), msgData.length()), ErrorObject::SyntaxError);
+            this->errorHandler->throwError(index, line, column, new UTF16String(msgData.data(), msgData.length()), ErrorObject::SyntaxError);
         }
-    }
-
-    void throwUnexpectedToken(RefPtr<Scanner::ScannerResult> token, const char* message = nullptr)
-    {
-        throw this->unexpectedTokenError(token, message);
     }
 
     ALWAYS_INLINE void collectComments()

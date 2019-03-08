@@ -202,47 +202,7 @@ public:
     {
     }
 
-    void tolerate(esprima::Error* error)
-    {
-        throw * error;
-    }
-
-    esprima::Error constructError(String* msg, size_t column)
-    {
-        esprima::Error* error = new (NoGC) esprima::Error(msg);
-        error->column = column;
-        return *error;
-    }
-
-    esprima::Error createError(size_t index, size_t line, size_t col, String* description, ErrorObject::Code code)
-    {
-        UTF16StringDataNonGCStd msg = u"Line ";
-        char lineStringBuf[512];
-        snprintf(lineStringBuf, sizeof(lineStringBuf), "%zu", line);
-        std::string lineString = lineStringBuf;
-        msg += UTF16StringDataNonGCStd(lineString.begin(), lineString.end());
-        msg += u": ";
-        if (description->length()) {
-            msg += UTF16StringDataNonGCStd(description->toUTF16StringData().data());
-        }
-        esprima::Error error = constructError(new UTF16String(msg.data(), msg.length()), col);
-        error.index = index;
-        error.lineNumber = line;
-        error.description = description;
-        error.errorCode = code;
-        return error;
-    };
-
-    void throwError(size_t index, size_t line, size_t col, String* description, ErrorObject::Code code)
-    {
-        throw this->createError(index, line, col, description, code);
-    }
-
-    void tolerateError(size_t index, size_t line, size_t col, String* description, ErrorObject::Code code)
-    {
-        esprima::Error error = this->createError(index, line, col, description, code);
-        throw error;
-    }
+    void throwError(size_t index, size_t line, size_t col, String* description, ErrorObject::Code code);
 };
 
 namespace Messages {
