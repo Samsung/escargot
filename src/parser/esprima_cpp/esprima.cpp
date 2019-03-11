@@ -601,7 +601,7 @@ public:
         auto type = node->type();
         if (type == CallExpression) {
             CallExpressionNode* c = (CallExpressionNode*)node;
-            if (c->callee()->isIdentifier() && ((IdentifierNode*)c->callee())->name() == this->escargotContext->staticStrings().eval) {
+            if (c->callee() && c->callee()->isIdentifier() && ((IdentifierNode*)c->callee())->name() == this->escargotContext->staticStrings().eval) {
                 scopeContexts.back()->m_hasEval = true;
                 if (this->context->inArrowFunction) {
                     insertUsingName(this->escargotContext->staticStrings().stringThis);
