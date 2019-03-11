@@ -30,6 +30,11 @@ extern size_t g_doubleInSmallValueTag;
 extern size_t g_objectRareDataTag;
 extern size_t g_symbolTag;
 
+bool VMInstance::undefinedNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
+{
+    return false;
+}
+
 Value VMInstance::functionPrototypeNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isFunctionObject());
@@ -104,7 +109,7 @@ Value VMInstance::regexpSourceNativeGetter(ExecutionState& state, Object* self, 
     return Value(self->asRegExpObject()->source());
 }
 static ObjectPropertyNativeGetterSetterData regexpSourceGetterData(
-    false, false, false, &VMInstance::regexpSourceNativeGetter, nullptr);
+    false, false, false, &VMInstance::regexpSourceNativeGetter, &VMInstance::undefinedNativeSetter);
 
 Value VMInstance::regexpGlobalNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
@@ -113,7 +118,7 @@ Value VMInstance::regexpGlobalNativeGetter(ExecutionState& state, Object* self, 
 }
 
 static ObjectPropertyNativeGetterSetterData regexpGlobalGetterData(
-    false, false, false, &VMInstance::regexpGlobalNativeGetter, nullptr);
+    false, false, false, &VMInstance::regexpGlobalNativeGetter, &VMInstance::undefinedNativeSetter);
 
 Value VMInstance::regexpIgnoreCaseNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
@@ -122,7 +127,7 @@ Value VMInstance::regexpIgnoreCaseNativeGetter(ExecutionState& state, Object* se
 }
 
 static ObjectPropertyNativeGetterSetterData regexpIgnoreCaseGetterData(
-    false, false, false, &VMInstance::regexpIgnoreCaseNativeGetter, nullptr);
+    false, false, false, &VMInstance::regexpIgnoreCaseNativeGetter, &VMInstance::undefinedNativeSetter);
 
 Value VMInstance::regexpMultilineNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
@@ -131,7 +136,7 @@ Value VMInstance::regexpMultilineNativeGetter(ExecutionState& state, Object* sel
 }
 
 static ObjectPropertyNativeGetterSetterData regexpMultilineGetterData(
-    false, false, false, &VMInstance::regexpMultilineNativeGetter, nullptr);
+    false, false, false, &VMInstance::regexpMultilineNativeGetter, &VMInstance::undefinedNativeSetter);
 
 Value VMInstance::regexpLastIndexNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
