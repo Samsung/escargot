@@ -79,7 +79,7 @@ public:
 };
 
 template <typename T>
-struct NullablePtr {
+struct EXPORT NullablePtr {
 public:
     NullablePtr()
         : m_value(nullptr)
@@ -93,13 +93,11 @@ public:
 
     T* getValue()
     {
-        ASSERT(!!m_value);
         return m_value;
     }
 
     const T* getValue() const
     {
-        ASSERT(!!m_value);
         return m_value;
     }
 
@@ -279,8 +277,8 @@ public:
     GlobalObjectRef* globalObject();
     VMInstanceRef* vmInstance();
 
-    typedef ValueRef* (*VirtualIdentifierCallback)(ExecutionStateRef* state, ValueRef* name);
-    typedef ValueRef* (*SecurityPolicyCheckCallback)(ExecutionStateRef* state, bool isEval);
+    typedef NullablePtr<ValueRef> (*VirtualIdentifierCallback)(ExecutionStateRef* state, ValueRef* name);
+    typedef NullablePtr<ValueRef> (*SecurityPolicyCheckCallback)(ExecutionStateRef* state, bool isEval);
 
     // this is not compatible with ECMAScript
     // but this callback is needed for browser-implementation
@@ -332,11 +330,8 @@ public:
     static ValueRef* create(unsigned long);
     static ValueRef* create(long long);
     static ValueRef* create(unsigned long long);
+    static ValueRef* create(ValueRef* value);
     static ValueRef* create(PointerValueRef* value)
-    {
-        return reinterpret_cast<ValueRef*>(value);
-    }
-    static ValueRef* create(ValueRef* value)
     {
         return reinterpret_cast<ValueRef*>(value);
     }
