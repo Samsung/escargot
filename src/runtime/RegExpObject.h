@@ -110,6 +110,11 @@ public:
         return m_source;
     }
 
+    String* optionString()
+    {
+        return m_optionString;
+    }
+
     Option option()
     {
         return m_option;
@@ -163,10 +168,11 @@ private:
 
     static RegExpCacheEntry& getCacheEntryAndCompileIfNeeded(ExecutionState& state, String* source, const Option& option);
 
-    static Option parseOption(ExecutionState& state, const String* optionString);
+    void parseOption(ExecutionState& state, const String* optionString);
 
 
     String* m_source;
+    String* m_optionString;
     Option m_option;
     JSC::Yarr::YarrPattern* m_yarrPattern;
     JSC::Yarr::BytecodePattern* m_bytecodePattern;
