@@ -92,23 +92,16 @@ struct StringBufferAccessData {
         }
     }
 
+    static bool equals16Bit(const char16_t* c1, const char* c2, size_t len);
+
     ALWAYS_INLINE bool equalsSameLength(const char* str, size_t compareStartAt = 0) const
     {
         ASSERT(strlen(str) == length);
+
         if (LIKELY(has8BitContent)) {
-            for (size_t i = compareStartAt; i < length; i++) {
-                if (str[i] != ((char*)buffer)[i]) {
-                    return false;
-                }
-            }
-            return true;
+            return memcmp((const char*)buffer + compareStartAt, str + compareStartAt, length - compareStartAt) == 0;
         } else {
-            for (size_t i = compareStartAt; i < length; i++) {
-                if (str[i] != ((char16_t*)buffer)[i]) {
-                    return false;
-                }
-            }
-            return true;
+            return equals16Bit((const char16_t*)buffer + compareStartAt, str + compareStartAt, length - compareStartAt);
         }
     }
 

@@ -258,6 +258,18 @@ size_t utf32ToUtf8(char32_t uc, char* UTF8)
     return tRequiredSize;
 }
 
+bool StringBufferAccessData::equals16Bit(const char16_t* c1, const char* c2, size_t len)
+{
+    while (len > 0) {
+        if (*c1++ != *c2++) {
+            return false;
+        }
+        len--;
+    }
+
+    return true;
+}
+
 UTF16StringData ASCIIString::toUTF16StringData() const
 {
     UTF16StringData ret;
