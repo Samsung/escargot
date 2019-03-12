@@ -493,42 +493,42 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
             index++;
         }
         // 9
-        StringBuilder final;
-        final.appendChar('[');
+        StringBuilder finalValue;
+        finalValue.appendChar('[');
         if (partial.size() != 0) {
             if (gap->length() == 0) {
                 for (size_t i = 0; i < partial.size(); ++i) {
-                    final.appendString(partial[i]);
+                    finalValue.appendString(partial[i]);
                     if (i < partial.size() - 1) {
-                        final.appendChar(',');
+                        finalValue.appendChar(',');
                     }
                 }
             } else {
-                final.appendChar('\n');
-                final.appendString(indent);
+                finalValue.appendChar('\n');
+                finalValue.appendString(indent);
                 StringBuilder seperatorBuilder;
                 seperatorBuilder.appendChar(',');
                 seperatorBuilder.appendChar('\n');
                 seperatorBuilder.appendString(indent);
                 String* seperator = seperatorBuilder.finalize(&state);
                 for (size_t i = 0; i < partial.size(); ++i) {
-                    final.appendString(partial[i]);
+                    finalValue.appendString(partial[i]);
                     if (i < partial.size() - 1) {
-                        final.appendString(seperator);
+                        finalValue.appendString(seperator);
                     }
                 }
-                final.appendChar('\n');
-                final.appendString(stepback);
+                finalValue.appendChar('\n');
+                finalValue.appendString(stepback);
             }
         }
-        final.appendChar(']');
+        finalValue.appendChar(']');
 
         // 11
         stack.pop_back();
         // 12
         indent = stepback;
 
-        return final.finalize(&state);
+        return finalValue.finalize(&state);
     };
 
     JO = [&](Object* value) -> String* {
@@ -580,41 +580,41 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
             }
         }
         // 9
-        StringBuilder final;
-        final.appendChar('{');
+        StringBuilder finalValue;
+        finalValue.appendChar('{');
         if (partial.size() != 0) {
             if (gap->length() == 0) {
                 for (size_t i = 0; i < partial.size(); ++i) {
-                    final.appendString(partial[i]);
+                    finalValue.appendString(partial[i]);
                     if (i < partial.size() - 1) {
-                        final.appendChar(',');
+                        finalValue.appendChar(',');
                     }
                 }
             } else {
-                final.appendChar('\n');
-                final.appendString(indent);
+                finalValue.appendChar('\n');
+                finalValue.appendString(indent);
                 StringBuilder seperatorBuilder;
                 seperatorBuilder.appendChar(',');
                 seperatorBuilder.appendChar('\n');
                 seperatorBuilder.appendString(indent);
                 String* seperator = seperatorBuilder.finalize(&state);
                 for (size_t i = 0; i < partial.size(); ++i) {
-                    final.appendString(partial[i]);
+                    finalValue.appendString(partial[i]);
                     if (i < partial.size() - 1) {
-                        final.appendString(seperator);
+                        finalValue.appendString(seperator);
                     }
                 }
-                final.appendChar('\n');
-                final.appendString(stepback);
+                finalValue.appendChar('\n');
+                finalValue.appendString(stepback);
             }
         }
-        final.appendChar('}');
+        finalValue.appendChar('}');
         // 11
         stack.pop_back();
         // 12
         indent = stepback;
 
-        return final.finalize(&state);
+        return finalValue.finalize(&state);
     };
 
     // 9
