@@ -583,6 +583,8 @@ public:
     }
 #endif
 
+    bool isConcatSpreadable(ExecutionState& state);
+
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-isextensiblie
 #if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual bool isExtensible(ExecutionState&)
