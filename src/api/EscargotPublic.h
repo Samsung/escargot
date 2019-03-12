@@ -91,15 +91,8 @@ public:
     {
     }
 
-    T* getValue()
-    {
-        return m_value;
-    }
-
-    const T* getValue() const
-    {
-        return m_value;
-    }
+    T* getValue();
+    const T* getValue() const;
 
     bool hasValue() const
     {
