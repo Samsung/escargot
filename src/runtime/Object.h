@@ -827,6 +827,8 @@ public:
     IteratorObject* keys(ExecutionState& state);
     IteratorObject* entries(ExecutionState& state);
 
+    Value speciesConstructor(ExecutionState& state, const Value& defaultConstructor);
+
 protected:
     Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);
     void initPlainObject(ExecutionState& state);

@@ -551,10 +551,46 @@ static Value builtinArrayToString(ExecutionState& state, Value thisValue, size_t
     return FunctionObject::call(state, toString, thisObject, 0, nullptr);
 }
 
+static Value arraySpeciesCreate(ExecutionState& state, Object* originalArray, const size_t length)
+{
+    // Assert: length is an integer Number >= 0.
+    ASSERT((int64_t)length >= 0);
+    Value originalArrayConstructor = originalArray->get(state, ObjectPropertyName(state.context()->staticStrings().constructor)).value(state, originalArray);
+
+    // Let C be undefined.
+    Value C;
+    // Let isArray be IsArray(originalArray).
+    // If isArray is true, then
+    if (originalArray->isArrayObject()) {
+        // Let C be Get(originalArray, "constructor").
+        C = originalArrayConstructor;
+
+        // TODO 9.4.2.3. 6.c. (after Realm is implemented)
+        // If Type(C) is Object, then
+        if (C.isObject()) {
+            // Let C be Get(C, @@species).
+            C = C.asObject()->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, C);
+        }
+    }
+
+    // If C is null, let C be undefined.
+    // If C is undefined, return ArrayCreate(length).
+    if (C.isUndefinedOrNull()) {
+        return new ArrayObject(state, length);
+    }
+    // If IsConstructor(C) is false, throw a TypeError exception.
+    if (!C.isConstructor()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), false, String::emptyString, errorMessage_GlobalObject_ThisNotConstructor);
+    }
+    // Return Construct(C, <<length>>).
+    Value argv[1] = { Value(length) };
+    return C.asFunction()->call(state, C, 1, argv);
+}
+
 static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, concat);
-    ArrayObject* array = new ArrayObject(state);
+    ArrayObject* array = arraySpeciesCreate(state, thisObject, 0).asPointerValue()->asArrayObject();
     uint64_t n = 0;
     for (size_t i = 0; i < argc + 1; i++) {
         Value argi = (i == 0) ? thisObject : argv[i - 1];
@@ -1681,6 +1717,14 @@ void GlobalObject::installArray(ExecutionState& state)
                                  FunctionObject::__ForBuiltin__);
     m_array->markThisObjectDontNeedStructureTransitionTable(state);
     m_array->setPrototype(state, m_functionPrototype);
+
+    {
+        JSGetterSetter gs(
+            new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSymbolSpecies, builtinSpeciesGetter, 0, nullptr, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_array->defineOwnProperty(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species), desc);
+    }
+
     m_arrayPrototype = m_objectPrototype;
     m_arrayPrototype = new ArrayObject(state);
     m_arrayPrototype->markThisObjectDontNeedStructureTransitionTable(state);

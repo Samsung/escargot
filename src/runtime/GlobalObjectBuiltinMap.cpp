@@ -204,6 +204,14 @@ void GlobalObject::installMap(ExecutionState& state)
                                FunctionObject::__ForBuiltin__);
     m_map->markThisObjectDontNeedStructureTransitionTable(state);
     m_map->setPrototype(state, m_functionPrototype);
+
+    {
+        JSGetterSetter gs(
+            new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSymbolSpecies, builtinSpeciesGetter, 0, nullptr, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_map->defineOwnProperty(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species), desc);
+    }
+
     m_mapPrototype = m_objectPrototype;
     m_mapPrototype = new MapObject(state);
     m_mapPrototype->markThisObjectDontNeedStructureTransitionTable(state);
