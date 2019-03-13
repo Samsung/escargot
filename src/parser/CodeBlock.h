@@ -104,20 +104,6 @@ public:
     // init for public api
     CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict, bool isCtor, CallNativeFunctionData* info);
 
-    enum CodeBlockInitFlag {
-        CodeBlockInitDefault = 0,
-        CodeBlockHasEval = 1,
-        CodeBlockHasWith = 1 << 1,
-        CodeBlockHasCatch = 1 << 2,
-        CodeBlockHasYield = 1 << 3,
-        CodeBlockInCatch = 1 << 4,
-        CodeBlockInWith = 1 << 5,
-        CodeBlockIsFunctionDeclaration = 1 << 6,
-        CodeBlockIsFunctionDeclarationWithSpecialBinding = 1 << 7,
-        CodeBlockIsFunctionExpression = 1 << 8,
-        CodeBlockIsArrowFunctionExpression = 1 << 9,
-    };
-
     struct IdentifierInfo {
         bool m_needToAllocateOnStack;
         bool m_isMutable;
@@ -579,9 +565,9 @@ public:
 
 protected:
     // init global codeBlock
-    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const ASTScopeContextNameInfoVector& innerIdentifiers, CodeBlockInitFlag initFlags);
+    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart);
     // init function codeBlock
-    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringTightVector& parameterNames, const ASTScopeContextNameInfoVector& innerIdentifiers, InterpretedCodeBlock* parentBlock, CodeBlockInitFlag initFlags);
+    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, InterpretedCodeBlock* parentBlock);
 
     Script* m_script;
     StringView m_src; // function source elements src

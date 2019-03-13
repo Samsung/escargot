@@ -39,32 +39,9 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
     InterpretedCodeBlock* codeBlock;
     if (parentCodeBlock == nullptr) {
         // globalBlock
-        codeBlock = new InterpretedCodeBlock(ctx, script, source, scopeCtx->m_isStrict, ExtendedNodeLOC(1, 1, 0), scopeCtx->m_names,
-                                             (CodeBlock::CodeBlockInitFlag)((scopeCtx->m_hasEval ? CodeBlock::CodeBlockHasEval : 0)
-                                                                            | (scopeCtx->m_hasWith ? CodeBlock::CodeBlockHasWith : 0)
-                                                                            | (scopeCtx->m_hasCatch ? CodeBlock::CodeBlockHasCatch : 0)
-                                                                            | (scopeCtx->m_hasYield ? CodeBlock::CodeBlockHasYield : 0)));
+        codeBlock = new InterpretedCodeBlock(ctx, script, source, scopeCtx, ExtendedNodeLOC(1, 1, 0));
     } else {
-        bool isFE = scopeCtx->m_nodeType == FunctionExpression || scopeCtx->m_nodeType == ArrowFunctionExpression;
-        bool isFD = scopeCtx->m_nodeType == FunctionDeclaration;
-
-        if (scopeCtx->m_needsSpecialInitialize)
-            isFD = false;
-
-        codeBlock = new InterpretedCodeBlock(ctx, script, StringView(source, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index),
-                                             scopeCtx->m_locStart,
-                                             scopeCtx->m_isStrict,
-                                             scopeCtx->m_functionName, scopeCtx->m_parameters, scopeCtx->m_names, parentCodeBlock,
-                                             (CodeBlock::CodeBlockInitFlag)((scopeCtx->m_hasEval ? CodeBlock::CodeBlockHasEval : 0)
-                                                                            | (scopeCtx->m_hasWith ? CodeBlock::CodeBlockHasWith : 0)
-                                                                            | (scopeCtx->m_hasCatch ? CodeBlock::CodeBlockHasCatch : 0)
-                                                                            | (scopeCtx->m_hasYield ? CodeBlock::CodeBlockHasYield : 0)
-                                                                            | (scopeCtx->m_inCatch ? CodeBlock::CodeBlockInCatch : 0)
-                                                                            | (scopeCtx->m_inWith ? CodeBlock::CodeBlockInWith : 0)
-                                                                            | (isFE ? CodeBlock::CodeBlockIsFunctionExpression : 0)
-                                                                            | (isFD ? CodeBlock::CodeBlockIsFunctionDeclaration : 0)
-                                                                            | (scopeCtx->m_isArrowFunctionExpression ? CodeBlock::CodeBlockIsArrowFunctionExpression : 0)
-                                                                            | (scopeCtx->m_needsSpecialInitialize ? CodeBlock::CodeBlockIsFunctionDeclarationWithSpecialBinding : 0)));
+        codeBlock = new InterpretedCodeBlock(ctx, script, source, scopeCtx, scopeCtx->m_locStart, parentCodeBlock);
     }
 
 #ifndef NDEBUG

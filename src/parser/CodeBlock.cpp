@@ -211,7 +211,7 @@ CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Valu
     }
 }
 
-InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, bool isStrict, ExtendedNodeLOC sourceElementStart, const ASTScopeContextNameInfoVector& innerIdentifiers, CodeBlockInitFlag initFlags)
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart)
     : m_script(script)
     , m_src(src)
     , m_sourceElementStart(sourceElementStart)
@@ -234,14 +234,14 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isFunctionDeclarationWithSpecialBinding = false;
     m_isFunctionExpression = false;
     m_isArrowFunctionExpression = false;
-    m_isStrict = isStrict;
+    m_isStrict = scopeCtx->m_isStrict;
 
-    m_hasEval = initFlags & CodeBlockInitFlag::CodeBlockHasEval;
-    m_hasWith = initFlags & CodeBlockInitFlag::CodeBlockHasWith;
-    m_hasCatch = initFlags & CodeBlockInitFlag::CodeBlockHasCatch;
-    m_hasYield = initFlags & CodeBlockInitFlag::CodeBlockHasYield;
-    m_inCatch = initFlags & CodeBlockInitFlag::CodeBlockInCatch;
-    m_inWith = initFlags & CodeBlockInitFlag::CodeBlockInWith;
+    m_hasEval = scopeCtx->m_hasEval;
+    m_hasWith = scopeCtx->m_hasWith;
+    m_hasCatch = scopeCtx->m_hasCatch;
+    m_hasYield = scopeCtx->m_hasYield;
+    m_inCatch = false;
+    m_inWith = false;
 
     m_usesArgumentsObject = false;
     m_canUseIndexedVariableStorage = false;
@@ -255,6 +255,8 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;
 
+    const ASTScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_names;
+
     for (size_t i = 0; i < innerIdentifiers.size(); i++) {
         IdentifierInfo info;
         info.m_name = innerIdentifiers[i].name();
@@ -266,10 +268,9 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     }
 }
 
-InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ExtendedNodeLOC sourceElementStart, bool isStrict, AtomicString functionName, const AtomicStringTightVector& parameterNames, const ASTScopeContextNameInfoVector& innerIdentifiers,
-                                           InterpretedCodeBlock* parentBlock, CodeBlockInitFlag initFlags)
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, InterpretedCodeBlock* parentBlock)
     : m_script(script)
-    , m_src(src)
+    , m_src(StringView(src, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index))
     , m_sourceElementStart(sourceElementStart)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
@@ -280,25 +281,33 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_scopeContext(nullptr)
 #endif
 {
+    bool isFE = scopeCtx->m_nodeType == FunctionExpression || scopeCtx->m_nodeType == ArrowFunctionExpression;
+    bool isFD = scopeCtx->m_nodeType == FunctionDeclaration;
+
+    if (scopeCtx->m_needsSpecialInitialize)
+        isFD = false;
+
+    const AtomicStringTightVector& parameterNames = scopeCtx->m_parameters;
+
     m_context = ctx;
     m_byteCodeBlock = nullptr;
-    m_functionName = functionName;
+    m_functionName = scopeCtx->m_functionName;
     m_parameterCount = parameterNames.size();
     m_isConstructor = true;
     m_hasCallNativeFunctionCode = false;
-    m_isStrict = isStrict;
-    m_hasEval = initFlags & CodeBlockInitFlag::CodeBlockHasEval;
-    m_hasWith = initFlags & CodeBlockInitFlag::CodeBlockHasWith;
-    m_hasCatch = initFlags & CodeBlockInitFlag::CodeBlockHasCatch;
-    m_hasYield = initFlags & CodeBlockInitFlag::CodeBlockHasYield;
-    m_inCatch = initFlags & CodeBlockInitFlag::CodeBlockInCatch;
-    m_inWith = initFlags & CodeBlockInitFlag::CodeBlockInWith;
+    m_isStrict = scopeCtx->m_isStrict;
+    m_hasEval = scopeCtx->m_hasEval;
+    m_hasWith = scopeCtx->m_hasWith;
+    m_hasCatch = scopeCtx->m_hasCatch;
+    m_hasYield = scopeCtx->m_hasYield;
+    m_inCatch = scopeCtx->m_inCatch;
+    m_inWith = scopeCtx->m_inWith;
     m_usesArgumentsObject = false;
-    m_isFunctionDeclaration = initFlags & CodeBlockInitFlag::CodeBlockIsFunctionDeclaration;
-    m_isFunctionDeclarationWithSpecialBinding = initFlags & CodeBlockInitFlag::CodeBlockIsFunctionDeclarationWithSpecialBinding;
-    m_isFunctionExpression = initFlags & CodeBlockInitFlag::CodeBlockIsFunctionExpression;
-    m_isArrowFunctionExpression = initFlags & CodeBlockInitFlag::CodeBlockIsArrowFunctionExpression;
-    m_isConstructor = !(initFlags & CodeBlockInitFlag::CodeBlockIsArrowFunctionExpression);
+    m_isFunctionDeclaration = isFD;
+    m_isFunctionDeclarationWithSpecialBinding = scopeCtx->m_needsSpecialInitialize;
+    m_isFunctionExpression = isFE;
+    m_isArrowFunctionExpression = scopeCtx->m_isArrowFunctionExpression;
+    m_isConstructor = !scopeCtx->m_isArrowFunctionExpression;
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;
     m_needsComplexParameterCopy = false;
@@ -317,6 +326,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_canUseIndexedVariableStorage = !hasEvalWithYield() && !m_inCatch && !m_inWith;
     m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage;
 
+    const ASTScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_names;
     for (size_t i = 0; i < innerIdentifiers.size(); i++) {
         IdentifierInfo info;
         info.m_name = innerIdentifiers[i].name();
