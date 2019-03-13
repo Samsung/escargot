@@ -68,8 +68,16 @@ class StringView;
 struct StringBufferAccessData {
     bool has8BitContent;
     bool hasSpecialImpl;
+    size_t hash;
     size_t length;
     const void* buffer;
+
+    StringBufferAccessData()
+        : hash(0)
+        , length(0)
+        , buffer(nullptr)
+    {
+    }
 
     char16_t uncheckedCharAtFor8Bit(size_t idx) const
     {
@@ -242,7 +250,11 @@ public:
 
     size_t hashValue() const
     {
-        const auto& data = bufferAccessData();
+        auto& data = const_cast<StringBufferAccessData&>(bufferAccessData());
+
+        if (data.hash)
+            return data.hash;
+
         size_t len = data.length;
         size_t hash;
         if (LIKELY(data.has8BitContent)) {
@@ -256,6 +268,8 @@ public:
         if (UNLIKELY((hash % sizeof(size_t)) == 0)) {
             hash++;
         }
+
+        data.hash = hash;
 
         return hash;
     }
