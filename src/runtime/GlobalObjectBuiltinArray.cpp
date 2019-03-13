@@ -537,30 +537,38 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
     uint64_t n = 0;
     for (size_t i = 0; i < argc + 1; i++) {
         Value argi = (i == 0) ? thisObject : argv[i - 1];
-        if (argi.isObject() && argi.asObject()->isArrayObject()) {
-            ArrayObject* arr = argi.asObject()->asArrayObject();
+        if (argi.isObject()) {
+            Object* arr = argi.asObject();
 
-            // Let k be 0.
-            uint64_t k = 0;
-            // Let len be the result of calling the [[Get]] internal method of E with argument "length".
-            uint64_t len = arr->length(state);
+            // Let spreadable be IsConcatSpreadable(E).
+            bool spreadable = arr->isConcatSpreadable(state);
 
-            // Repeat, while k < len
-            while (k < len) {
-                // Let exists be the result of calling the [[HasProperty]] internal method of E with P.
-                ObjectGetResult exists = arr->getIndexedProperty(state, Value(k));
-                if (exists.hasValue()) {
-                    array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n + k)), ObjectPropertyDescriptor(exists.value(state, arr), ObjectPropertyDescriptor::AllPresent));
-                    k++;
-                } else {
-                    double result;
-                    Object::nextIndexForward(state, arr, k, len, false, result);
-                    k = result;
+            if (spreadable) {
+                // Let k be 0.
+                uint64_t k = 0;
+                // Let len be the result of calling the [[Get]] internal method of E with argument "length".
+                uint64_t len = arr->length(state);
+
+                // Repeat, while k < len
+                while (k < len) {
+                    // Let exists be the result of calling the [[HasProperty]] internal method of E with P.
+                    ObjectGetResult exists = arr->getIndexedProperty(state, Value(k));
+                    if (exists.hasValue()) {
+                        array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n + k)), ObjectPropertyDescriptor(exists.value(state, arr), ObjectPropertyDescriptor::AllPresent));
+                        k++;
+                    } else {
+                        double result;
+                        Object::nextIndexForward(state, arr, k, len, false, result);
+                        k = result;
+                    }
                 }
-            }
 
-            n += len;
-            array->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(n), array);
+                n += len;
+                array->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(n), array);
+            } else {
+                array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(arr, ObjectPropertyDescriptor::AllPresent));
+                n++;
+            }
         } else {
             array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n++)), ObjectPropertyDescriptor(argi, ObjectPropertyDescriptor::AllPresent));
         }

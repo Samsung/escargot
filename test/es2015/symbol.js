@@ -72,7 +72,7 @@ assert (Object (a) !== a);
 // Test built-in symbols
 // TODO enable the commented-out well-known symbols (after implementing them)
 var a = ['hasInstance',
-         // 'isConcatSpreadable',
+         'isConcatSpreadable',
          'iterator',
          // 'match',
          // 'replace',

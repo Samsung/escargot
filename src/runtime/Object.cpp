@@ -387,6 +387,24 @@ Object::Object(ExecutionState& state)
     initPlainObject(state);
 }
 
+// https://www.ecma-international.org/ecma-262/6.0/#sec-isconcatspreadable
+bool Object::isConcatSpreadable(ExecutionState& state)
+{
+    // If Type(O) is not Object, return false.
+    if (!isObject()) {
+        return false;
+    }
+    // Let spreadable be Get(O, @@isConcatSpreadable).
+    ObjectGetResult spreadable = get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().isConcatSpreadable));
+    Value val = spreadable.value(state, Value());
+    // If spreadable is not undefined, return ToBoolean(spreadable).
+    if (!val.isUndefined()) {
+        return val.toBoolean(state);
+    }
+    // Return IsArray(O).
+    return isArrayObject();
+}
+
 void Object::initPlainObject(ExecutionState& state)
 {
     m_prototype = state.context()->globalObject()->objectPrototype()->asObject();
