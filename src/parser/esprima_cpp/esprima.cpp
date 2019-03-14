@@ -180,6 +180,9 @@ struct DeclarationOptions : public gc {
     bool inFor;
 };
 
+#define Parse PassRefNode, true
+#define Scan ScanExpressionResult, false
+
 class Parser : public gc {
 public:
     ::Escargot::Context* escargotContext;
@@ -199,6 +202,7 @@ public:
         Script,
         Module
     };
+
     SourceType sourceType;
     RefPtr<Scanner::ScannerResult> lookahead;
     bool hasLineTerminator;
@@ -215,7 +219,61 @@ public:
     AtomicString lastUsingName;
     size_t stackLimit;
 
-    typedef std::pair<ASTNodeType, AtomicString> ScanExpressionResult;
+    class PassRefNode;
+
+    class ScanExpressionResult {
+    public:
+        ScanExpressionResult(ASTNodeType first, AtomicString second)
+            : first(first)
+            , second(second)
+        {
+        }
+
+        ScanExpressionResult()
+            : first(ASTNodeTypeError)
+            , second(AtomicString())
+        {
+        }
+
+        operator PassRefPtr<Node>()
+        {
+            return nullptr;
+        }
+
+        operator PassRefNode()
+        {
+            return PassRefNode(nullptr);
+        }
+
+        operator std::pair<ASTNodeType, AtomicString>()
+        {
+            return std::pair<ASTNodeType, AtomicString>(first, second);
+        }
+
+        ASTNodeType first;
+        AtomicString second;
+    };
+
+    /* Structure for conversion. Do not use it for storing a value! */
+    class PassRefNode {
+    public:
+        PassRefNode(PassRefPtr<Node> nodeRef)
+            : nodeRef(nodeRef)
+        {
+        }
+
+        operator PassRefPtr<Node>()
+        {
+            return nodeRef;
+        }
+
+        operator ScanExpressionResult()
+        {
+            return ScanExpressionResult();
+        }
+
+        PassRefPtr<Node> nodeRef;
+    };
 
     ASTScopeContext fakeContext;
 
@@ -923,7 +981,7 @@ public:
             insertUsingName(name);
         }
 
-        return std::make_pair(ASTNodeType::Identifier, name);
+        return ScanExpressionResult(ASTNodeType::Identifier, name);
     }
 
 #define DEFINE_AS_NODE(TypeName)                                 \
@@ -940,7 +998,8 @@ public:
 
     // ECMA-262 12.2 Primary Expressions
 
-    PassRefPtr<Node> parsePrimaryExpression()
+    template <typename T, bool isParse>
+    T primaryExpression(void)
     {
         MetaNode node = this->createNode();
 
@@ -950,135 +1009,10 @@ public:
             if (this->sourceType == SourceType::Module && this->lookahead->valueKeywordKind == AwaitKeyword) {
                 this->throwUnexpectedToken(this->lookahead);
             }
-            return this->finalize(node, finishIdentifier(this->nextToken(), true));
-            break;
-        case Token::NumericLiteralToken:
-        case Token::StringLiteralToken:
-            if (this->context->strict && this->lookahead->octal) {
-                this->throwUnexpectedToken(this->lookahead, Messages::StrictOctalLiteral);
-            }
-            if (this->context->strict && this->lookahead->startWithZero) {
-                this->throwUnexpectedToken(this->lookahead, Messages::StrictLeadingZeroLiteral);
-            }
-            this->context->isAssignmentTarget = false;
-            this->context->isBindingElement = false;
-            {
-                PassRefPtr<Scanner::ScannerResult> token = this->nextToken();
-                // raw = this->getTokenRaw(token);
-                if (token->type == Token::NumericLiteralToken) {
-                    if (this->context->inLoop || token->valueNumber == 0)
-                        this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
-                    return this->finalize(node, new LiteralNode(Value(token->valueNumber)));
-                } else {
-                    if (shouldCreateAST()) {
-                        return this->finalize(node, new LiteralNode(token->valueStringLiteralForAST()));
-                    } else {
-                        return this->finalize(node, new LiteralNode(Value(String::emptyString)));
-                    }
-                }
-            }
-            break;
-
-        case Token::BooleanLiteralToken: {
-            this->context->isAssignmentTarget = false;
-            this->context->isBindingElement = false;
-            PassRefPtr<Scanner::ScannerResult> token = this->nextToken();
-            // token.value = (token.value === 'true');
-            // raw = this->getTokenRaw(token);
-            {
-                bool value = token->relatedSource() == "true";
-                this->scopeContexts.back()->insertNumeralLiteral(Value(value));
-                return this->finalize(node, new LiteralNode(Value(value)));
-            }
-            break;
-        }
-
-        case Token::NullLiteralToken: {
-            this->context->isAssignmentTarget = false;
-            this->context->isBindingElement = false;
-            PassRefPtr<Scanner::ScannerResult> token = this->nextToken();
-            // token.value = null;
-            // raw = this->getTokenRaw(token);
-            this->scopeContexts.back()->insertNumeralLiteral(Value(Value::Null));
-            return this->finalize(node, new LiteralNode(Value(Value::Null)));
-            break;
-        }
-        case Token::TemplateToken:
-            return this->parseTemplateLiteral();
-            break;
-
-        case Token::PunctuatorToken: {
-            PunctuatorKind value = this->lookahead->valuePunctuatorKind;
-            switch (value) {
-            case LeftParenthesis:
-                this->context->isBindingElement = false;
-                return this->inheritCoverGrammar(&Parser::parseGroupExpression);
-                break;
-            case LeftSquareBracket:
-                return this->inheritCoverGrammar(&Parser::parseArrayInitializer);
-                break;
-            case LeftBrace:
-                return this->inheritCoverGrammar(&Parser::parseObjectInitializer);
-                break;
-            case Divide:
-            case DivideEqual: {
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-                this->scanner->index = this->startMarker.index;
-                PassRefPtr<Scanner::ScannerResult> token = this->nextRegexToken();
-                // raw = this->getTokenRaw(token);
-                return this->finalize(node, new RegExpLiteralNode(token->valueRegexp.body, token->valueRegexp.flags));
-                break;
-            }
-            default:
-                this->throwUnexpectedToken(this->nextToken());
-            }
-            break;
-        }
-
-        case Token::KeywordToken:
-            if (!this->context->strict && this->context->allowYield && this->matchKeyword(YieldKeyword)) {
-                return this->parseIdentifierName();
-            } else if (!this->context->strict && this->matchKeyword(LetKeyword)) {
-                throwUnexpectedToken(this->nextToken());
-            } else {
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-                if (this->matchKeyword(FunctionKeyword)) {
-                    return this->parseFunctionExpression();
-                } else if (this->matchKeyword(ThisKeyword)) {
-                    if (this->context->inArrowFunction) {
-                        insertUsingName(this->escargotContext->staticStrings().stringThis);
-                    }
-                    this->nextToken();
-                    return this->finalize(node, new ThisExpressionNode());
-                } else if (this->matchKeyword(ClassKeyword)) {
-                    return this->parseClassExpression();
-                } else {
-                    this->throwUnexpectedToken(this->nextToken());
-                }
-            }
-            break;
-        default:
-            this->throwUnexpectedToken(this->nextToken());
-        }
-
-        ASSERT_NOT_REACHED();
-        return nullptr;
-    }
-
-    ScanExpressionResult scanPrimaryExpression()
-    {
-        MetaNode node = this->createNode();
-
-        // let value, token, raw;
-        switch (this->lookahead->type) {
-        case Token::IdentifierToken:
-            if (this->sourceType == SourceType::Module && this->lookahead->valueKeywordKind == AwaitKeyword) {
-                this->throwUnexpectedToken(this->lookahead);
+            if (isParse) {
+                return PassRefNode(this->finalize(node, finishIdentifier(this->nextToken(), true)));
             }
             return finishScanIdentifier(this->nextToken(), true);
-            break;
         case Token::NumericLiteralToken:
         case Token::StringLiteralToken:
             if (this->context->strict && this->lookahead->octal) {
@@ -1095,9 +1029,18 @@ public:
                 if (token->type == Token::NumericLiteralToken) {
                     if (this->context->inLoop || token->valueNumber == 0)
                         this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
-                    return std::make_pair(ASTNodeType::Literal, AtomicString());
+                    if (isParse) {
+                        return PassRefNode(this->finalize(node, new LiteralNode(Value(token->valueNumber))));
+                    }
+                    return ScanExpressionResult(ASTNodeType::Literal, AtomicString());
                 } else {
-                    return std::make_pair(ASTNodeType::Literal, AtomicString());
+                    if (isParse) {
+                        if (shouldCreateAST()) {
+                            return PassRefNode(this->finalize(node, new LiteralNode(token->valueStringLiteralForAST())));
+                        }
+                        return PassRefNode(this->finalize(node, new LiteralNode(Value(String::emptyString))));
+                    }
+                    return ScanExpressionResult(ASTNodeType::Literal, AtomicString());
                 }
             }
             break;
@@ -1111,7 +1054,10 @@ public:
             {
                 bool value = token->relatedSource() == "true";
                 this->scopeContexts.back()->insertNumeralLiteral(Value(value));
-                return std::make_pair(ASTNodeType::Literal, AtomicString());
+                if (isParse) {
+                    return PassRefNode(this->finalize(node, new LiteralNode(Value(value))));
+                }
+                return ScanExpressionResult(ASTNodeType::Literal, AtomicString());
             }
             break;
         }
@@ -1123,29 +1069,39 @@ public:
             // token.value = null;
             // raw = this->getTokenRaw(token);
             this->scopeContexts.back()->insertNumeralLiteral(Value(Value::Null));
-            return std::make_pair(ASTNodeType::Literal, AtomicString());
-            break;
+            if (isParse) {
+                return PassRefNode(this->finalize(node, new LiteralNode(Value(Value::Null))));
+            }
+            return ScanExpressionResult(ASTNodeType::Literal, AtomicString());
         }
         case Token::TemplateToken:
+            if (isParse) {
+                return PassRefNode(this->parseTemplateLiteral());
+            }
             this->parseTemplateLiteral();
-            return std::make_pair(ASTNodeType::TemplateLiteral, AtomicString());
-            break;
+            return ScanExpressionResult(ASTNodeType::TemplateLiteral, AtomicString());
 
         case Token::PunctuatorToken: {
             PunctuatorKind value = this->lookahead->valuePunctuatorKind;
             switch (value) {
             case LeftParenthesis:
                 this->context->isBindingElement = false;
+                if (isParse) {
+                    return PassRefNode(this->inheritCoverGrammar(&Parser::parseGroupExpression));
+                }
                 return this->scanInheritCoverGrammar(&Parser::scanGroupExpression);
-                break;
             case LeftSquareBracket:
+                if (isParse) {
+                    return PassRefNode(this->inheritCoverGrammar(&Parser::parseArrayInitializer));
+                }
                 this->scanInheritCoverGrammar(&Parser::scanArrayInitializer);
-                return std::make_pair(ASTNodeType::ArrayExpression, AtomicString());
-                break;
+                return ScanExpressionResult(ASTNodeType::ArrayExpression, AtomicString());
             case LeftBrace:
+                if (isParse) {
+                    return PassRefNode(this->inheritCoverGrammar(&Parser::parseObjectInitializer));
+                }
                 this->scanInheritCoverGrammar(&Parser::scanObjectInitializer);
-                return std::make_pair(ASTNodeType::ObjectExpression, AtomicString());
-                break;
+                return ScanExpressionResult(ASTNodeType::ObjectExpression, AtomicString());
             case Divide:
             case DivideEqual: {
                 this->context->isAssignmentTarget = false;
@@ -1153,9 +1109,11 @@ public:
                 this->scanner->index = this->startMarker.index;
                 PassRefPtr<Scanner::ScannerResult> token = this->nextRegexToken();
                 // raw = this->getTokenRaw(token);
+                if (isParse) {
+                    return PassRefNode(this->finalize(node, new RegExpLiteralNode(token->valueRegexp.body, token->valueRegexp.flags)));
+                }
                 this->finalize(node, new RegExpLiteralNode(token->valueRegexp.body, token->valueRegexp.flags));
-                return std::make_pair(ASTNodeType::Literal, AtomicString());
-                break;
+                return ScanExpressionResult(ASTNodeType::Literal, AtomicString());
             }
             default:
                 this->throwUnexpectedToken(this->nextToken());
@@ -1165,6 +1123,9 @@ public:
 
         case Token::KeywordToken:
             if (!this->context->strict && this->context->allowYield && this->matchKeyword(YieldKeyword)) {
+                if (isParse) {
+                    return PassRefNode(this->parseIdentifierName());
+                }
                 return this->scanIdentifierName();
             } else if (!this->context->strict && this->matchKeyword(LetKeyword)) {
                 throwUnexpectedToken(this->nextToken());
@@ -1172,17 +1133,26 @@ public:
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
                 if (this->matchKeyword(FunctionKeyword)) {
+                    if (isParse) {
+                        return PassRefNode(this->parseFunctionExpression());
+                    }
                     this->parseFunctionExpression();
-                    return std::make_pair(ASTNodeType::FunctionExpression, AtomicString());
+                    return ScanExpressionResult(ASTNodeType::FunctionExpression, AtomicString());
                 } else if (this->matchKeyword(ThisKeyword)) {
                     if (this->context->inArrowFunction) {
                         insertUsingName(this->escargotContext->staticStrings().stringThis);
                     }
                     this->nextToken();
-                    return std::make_pair(ASTNodeType::ThisExpression, AtomicString());
+                    if (isParse) {
+                        return PassRefNode(this->finalize(node, new ThisExpressionNode()));
+                    }
+                    return ScanExpressionResult(ASTNodeType::ThisExpression, AtomicString());
                 } else if (this->matchKeyword(ClassKeyword)) {
+                    if (isParse) {
+                        return PassRefNode(this->parseClassExpression());
+                    }
                     this->parseClassExpression();
-                    return std::make_pair(ASTNodeType::ASTNodeTypeError, AtomicString());
+                    return ScanExpressionResult(ASTNodeType::ASTNodeTypeError, AtomicString());
                 } else {
                     this->throwUnexpectedToken(this->nextToken());
                 }
@@ -1193,7 +1163,10 @@ public:
         }
 
         ASSERT_NOT_REACHED();
-        return std::make_pair(ASTNodeType::ASTNodeTypeError, AtomicString());
+        if (isParse) {
+            return PassRefNode(nullptr);
+        }
+        return ScanExpressionResult();
     }
 
     struct ParseParameterOptions {
@@ -1209,7 +1182,6 @@ public:
             message = nullptr;
         }
     };
-
 
     void validateParam(ParseParameterOptions& options, const RefPtr<Scanner::ScannerResult>& param, AtomicString name)
     {
@@ -1404,7 +1376,7 @@ public:
         this->scanInheritCoverGrammar(&Parser::scanAssignmentExpression);
         this->throwError("Spread element is not supported yet");
 
-        return std::make_pair(ASTNodeType::SpreadElement, AtomicString());
+        return ScanExpressionResult(ASTNodeType::SpreadElement, AtomicString());
     }
 
     PassRefPtr<Node> parseArrayInitializer()
@@ -1462,7 +1434,7 @@ public:
         }
         this->expect(RightSquareBracket);
 
-        return std::make_pair(ASTNodeType::ArrayExpression, AtomicString());
+        return ScanExpressionResult(ASTNodeType::ArrayExpression, AtomicString());
     }
 
     // ECMA-262 12.2.6 Object Initializer
@@ -1563,7 +1535,7 @@ public:
     std::pair<ScanExpressionResult, String*> scanObjectPropertyKey()
     {
         RefPtr<Scanner::ScannerResult> token = this->nextToken();
-        ScanExpressionResult key(std::make_pair(ASTNodeType::ASTNodeTypeError, AtomicString()));
+        ScanExpressionResult key(ASTNodeType::ASTNodeTypeError, AtomicString());
         String* keyString = String::emptyString;
         switch (token->type) {
         case Token::NumericLiteralToken:
@@ -1782,7 +1754,7 @@ public:
         RefPtr<Scanner::ScannerResult> token = this->lookahead;
 
         PropertyNode::Kind kind;
-        ScanExpressionResult key(std::make_pair(ASTNodeType::ASTNodeTypeError, AtomicString()));
+        ScanExpressionResult key(ASTNodeType::ASTNodeTypeError, AtomicString());
         String* keyString = String::emptyString;
 
         bool computed = false;
@@ -1944,7 +1916,7 @@ public:
         }
         this->expect(RightBrace);
 
-        return std::make_pair(ASTNodeType::ObjectExpression, AtomicString());
+        return ScanExpressionResult(ASTNodeType::ObjectExpression, AtomicString());
     }
 
     // ECMA-262 12.2.9 Template Literals
@@ -2289,7 +2261,7 @@ public:
 
     ScanExpressionResult scanGroupExpression()
     {
-        ScanExpressionResult expr(std::make_pair(ASTNodeType::ASTNodeTypeError, AtomicString()));
+        ScanExpressionResult expr(ASTNodeType::ASTNodeTypeError, AtomicString());
 
         this->expect(LeftParenthesis);
         if (this->match(RightParenthesis)) {
@@ -2522,8 +2494,10 @@ public:
             if (!this->match(LeftParenthesis) && !this->match(Period) && !this->match(LeftSquareBracket)) {
                 this->throwUnexpectedToken(this->lookahead);
             }
+        } else if (this->matchKeyword(NewKeyword)) {
+            expr = this->inheritCoverGrammar(&Parser::parseNewExpression);
         } else {
-            expr = this->inheritCoverGrammar(this->matchKeyword(NewKeyword) ? &Parser::parseNewExpression : &Parser::parsePrimaryExpression);
+            expr = this->inheritCoverGrammar(&Parser::primaryExpression<Parse>);
         }
 
         while (true) {
@@ -2570,7 +2544,7 @@ public:
         bool previousAllowIn = this->context->allowIn;
         this->context->allowIn = true;
 
-        ScanExpressionResult expr(std::make_pair(ASTNodeType::ASTNodeTypeError, AtomicString()));
+        ScanExpressionResult expr(ASTNodeType::ASTNodeTypeError, AtomicString());
         if (this->context->inFunctionBody && this->matchKeyword(SuperKeyword)) {
             this->nextToken();
             this->throwError("super keyword is not supported yet");
@@ -2580,7 +2554,7 @@ public:
                 this->throwUnexpectedToken(this->lookahead);
             }
         } else {
-            expr = this->scanInheritCoverGrammar(this->matchKeyword(NewKeyword) ? &Parser::scanNewExpression : &Parser::scanPrimaryExpression);
+            expr = this->scanInheritCoverGrammar(this->matchKeyword(NewKeyword) ? &Parser::scanNewExpression : &Parser::primaryExpression<Scan>);
         }
 
         while (true) {
@@ -2661,8 +2635,7 @@ public:
         this->throwError("super keyword is not supported yet");
         RELEASE_ASSERT_NOT_REACHED();
         // return this->finalize(node, new Node.Super());
-        ScanExpressionResult expr(std::make_pair(ASTNodeType::ASTNodeTypeError, AtomicString()));
-        return expr;
+        return ScanExpressionResult(ASTNodeType::ASTNodeTypeError, AtomicString());
     }
 
     PassRefPtr<Node> parseLeftHandSideExpression()
@@ -2671,7 +2644,15 @@ public:
         ASSERT(this->context->allowIn);
 
         MetaNode node = this->startNode(this->lookahead);
-        RefPtr<Node> expr = (this->matchKeyword(SuperKeyword) && this->context->inFunctionBody) ? this->parseSuper() : this->inheritCoverGrammar(this->matchKeyword(NewKeyword) ? &Parser::parseNewExpression : &Parser::parsePrimaryExpression);
+        RefPtr<Node> expr;
+
+        if (this->matchKeyword(SuperKeyword) && this->context->inFunctionBody) {
+            expr = this->parseSuper();
+        } else if (this->matchKeyword(NewKeyword)) {
+            expr = this->inheritCoverGrammar(&Parser::parseNewExpression);
+        } else {
+            expr = this->inheritCoverGrammar(&Parser::primaryExpression<Parse>);
+        }
 
         while (true) {
             if (this->match(LeftSquareBracket)) {
@@ -2709,7 +2690,7 @@ public:
         ASSERT(this->context->allowIn);
 
         MetaNode node = this->startNode(this->lookahead);
-        ScanExpressionResult expr = (this->matchKeyword(SuperKeyword) && this->context->inFunctionBody) ? this->scanSuper() : this->scanInheritCoverGrammar(this->matchKeyword(NewKeyword) ? &Parser::scanNewExpression : &Parser::scanPrimaryExpression);
+        ScanExpressionResult expr = (this->matchKeyword(SuperKeyword) && this->context->inFunctionBody) ? this->scanSuper() : this->scanInheritCoverGrammar(this->matchKeyword(NewKeyword) ? &Parser::scanNewExpression : &Parser::primaryExpression<Scan>);
 
         while (true) {
             if (this->match(LeftSquareBracket)) {
@@ -2829,7 +2810,7 @@ public:
 
     ScanExpressionResult scanUpdateExpression()
     {
-        ScanExpressionResult expr(std::make_pair(ASTNodeType::ASTNodeTypeError, AtomicString()));
+        ScanExpressionResult expr(ASTNodeType::ASTNodeTypeError, AtomicString());
         RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
 
         if (this->match(PlusPlus) || this->match(MinusMinus)) {
@@ -2849,9 +2830,9 @@ public:
             bool prefix = true;
 
             if (isPlus) {
-                expr = std::make_pair(ASTNodeType::UpdateExpressionIncrementPrefix, AtomicString());
+                expr = ScanExpressionResult(ASTNodeType::UpdateExpressionIncrementPrefix, AtomicString());
             } else {
-                expr = std::make_pair(ASTNodeType::UpdateExpressionDecrementPrefix, AtomicString());
+                expr = ScanExpressionResult(ASTNodeType::UpdateExpressionDecrementPrefix, AtomicString());
             }
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
@@ -2875,9 +2856,9 @@ public:
                     }
 
                     if (isPlus) {
-                        expr = std::make_pair(ASTNodeType::UpdateExpressionIncrementPostfix, AtomicString());
+                        expr = ScanExpressionResult(ASTNodeType::UpdateExpressionIncrementPostfix, AtomicString());
                     } else {
-                        expr = std::make_pair(ASTNodeType::UpdateExpressionDecrementPostfix, AtomicString());
+                        expr = ScanExpressionResult(ASTNodeType::UpdateExpressionDecrementPostfix, AtomicString());
                     }
                 }
             }
@@ -3512,7 +3493,7 @@ public:
             this->expect(Colon);
             ScanExpressionResult alternate = this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
 
-            expr = std::make_pair(ASTNodeType::ConditionalExpression, AtomicString());
+            expr = ScanExpressionResult(ASTNodeType::ConditionalExpression, AtomicString());
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         }
@@ -3636,7 +3617,7 @@ public:
 
             /*
             if (token.type === Token.Identifier && (token.lineNumber === this.lookahead.lineNumber) && token.value === 'async' && (this.lookahead.type === Token.Identifier)) {
-                const arg = this.parsePrimaryExpression();
+                const arg = this.primaryExpression<Parse>();
                 expr = {
                     type: ArrowParameterPlaceHolder,
                     params: [arg],
@@ -3778,7 +3759,7 @@ public:
 
             /*
             if (token.type === Token.Identifier && (token.lineNumber === this.lookahead.lineNumber) && token.value === 'async' && (this.lookahead.type === Token.Identifier)) {
-                const arg = this.parsePrimaryExpression();
+                const arg = this.primaryExpression<Parse>();
                 expr = {
                     type: ArrowParameterPlaceHolder,
                     params: [arg],
@@ -3878,7 +3859,7 @@ public:
                         this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
                     }
 
-                    ScanExpressionResult exprResult(std::make_pair(ASTNodeType::ASTNodeTypeError, AtomicString()));
+                    ScanExpressionResult exprResult(ASTNodeType::ASTNodeTypeError, AtomicString());
                     token = this->nextToken();
                     ScanExpressionResult right = this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
                     if (token->valuePunctuatorKind == Substitution) {
@@ -3953,7 +3934,7 @@ public:
                 this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
             }
 
-            expr = std::make_pair(ASTNodeType::SequenceExpression, AtomicString());
+            expr = ScanExpressionResult(ASTNodeType::SequenceExpression, AtomicString());
         }
 
         return expr;

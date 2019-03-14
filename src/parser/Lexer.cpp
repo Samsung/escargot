@@ -449,12 +449,13 @@ void ErrorHandler::throwError(size_t index, size_t line, size_t col, String* des
     bufPtr[0] = ':';
     bufPtr[1] = ' ';
 
+    size_t value = line;
     do {
         ASSERT(bufPtr > lineStringBuf);
         --bufPtr;
-        *bufPtr = line % 10 + '0';
-        line /= 10;
-    } while (line > 0);
+        *bufPtr = value % 10 + '0';
+        value /= 10;
+    } while (value > 0);
 
     msg += UTF16StringDataNonGCStd(bufPtr, lineStringBuf + bufferLength);
 
