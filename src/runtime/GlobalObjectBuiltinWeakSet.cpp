@@ -23,6 +23,7 @@
 #include "VMInstance.h"
 #include "WeakSetObject.h"
 #include "IteratorObject.h"
+#include "IteratorOperations.h"
 #include "ToStringRecursionPreventer.h"
 
 namespace Escargot {
@@ -45,10 +46,8 @@ Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t a
     }
     // If iterable is either undefined or null, let iter be undefined.
     Value adder;
-    Object* iter = nullptr;
-    if (iterable.isUndefinedOrNull()) {
-        iterable = Value();
-    } else {
+    Value iter;
+    if (!iterable.isUndefinedOrNull()) {
         // Else,
         // Let adder be ? Get(set, "add").
         adder = set->Object::get(state, ObjectPropertyName(state.context()->staticStrings().add)).value(state, set);
@@ -57,27 +56,23 @@ Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t a
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
         }
         // Let iter be ? GetIterator(iterable).
-        iterable = iterable.toObject(state);
-        iter = iterable.asObject()->iterator(state);
-        if (iter == nullptr) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "object is not iterable");
-        }
+        iter = getIterator(state, iterable);
     }
     // If iter is undefined, return Set.
-    if (!iter) {
+    if (iter.isUndefined()) {
         return set;
     }
 
     // Repeat
     while (true) {
         // Let next be ? IteratorStep(iter).
-        auto next = iter->iteratorNext(state);
+        Value next = iteratorStep(state, iter);
         // If next is false, return set.
-        if (next.second) {
+        if (next.isFalse()) {
             return set;
         }
         // Let nextValue be ? IteratorValue(next).
-        Value nextValue = next.first;
+        Value nextValue = iteratorValue(state, next);
 
         // Let status be Call(adder, set, « nextValue.[[Value]] »).
         // TODO If status is an abrupt completion, return ? IteratorClose(iter, status).

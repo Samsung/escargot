@@ -825,8 +825,6 @@ public:
     IteratorObject* values(ExecutionState& state);
     IteratorObject* keys(ExecutionState& state);
     IteratorObject* entries(ExecutionState& state);
-    Object* iterator(ExecutionState& state);
-    std::pair<Value, bool> iteratorNext(ExecutionState& state); // http://www.ecma-international.org/ecma-262/7.0/index.html#sec-iteratornext
 
 protected:
     Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);

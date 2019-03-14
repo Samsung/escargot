@@ -1091,31 +1091,4 @@ IteratorObject* Object::entries(ExecutionState& state)
 {
     return new ArrayIteratorObject(state, this, ArrayIteratorObject::TypeKeyValue);
 }
-
-Object* Object::iterator(ExecutionState& state)
-{
-    Value v = get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator)).value(state, this);
-    if (!v.isFunction()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "object is not iterable");
-    }
-    v = v.asFunction()->call(state, this, 0, nullptr);
-    if (!v.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "object is not iterable");
-    }
-
-    return v.asObject();
-}
-
-std::pair<Value, bool> Object::iteratorNext(ExecutionState& state)
-{
-    Value mayBeFn = get(state, ObjectPropertyName(state.context()->staticStrings().next)).value(state, this);
-    Value returnValue = FunctionObject::call(state, mayBeFn, this, 0, nullptr);
-    if (!returnValue.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "iterator next function returns illegal value");
-    }
-
-    Value done = returnValue.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().done)).value(state, returnValue);
-    Value value = returnValue.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().value)).value(state, returnValue);
-    return std::make_pair(value, done.toBoolean(state));
-}
 }
