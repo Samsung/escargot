@@ -1390,6 +1390,20 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanStringLiteral()
     }
 }
 
+bool Scanner::isFutureReservedWord(const StringView& id)
+{
+    const StringBufferAccessData& data = id.bufferAccessData();
+    switch (data.length) {
+    case 4:
+        return data.equalsSameLength("enum");
+    case 5:
+        return data.equalsSameLength("super");
+    case 6:
+        return data.equalsSameLength("export") || data.equalsSameLength("import");
+    }
+    return false;
+}
+
 PassRefPtr<Scanner::ScannerResult> Scanner::scanTemplate(bool head)
 {
     // TODO apply rope-string

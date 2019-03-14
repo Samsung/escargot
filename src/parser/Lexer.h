@@ -418,76 +418,26 @@ public:
         }
     }
 
-    static bool equals(const char16_t* c1, const char* c2, size_t len)
-    {
-        for (size_t i = 0; i < len; i++) {
-            if (c1[i] != c2[i]) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-// ECMA-262 11.6.2.2 Future Reserved Words
-#define STRING_CMP(str, len)                               \
-    if (LIKELY(data.has8BitContent)) {                     \
-        return strncmp(str, (char*)data.buffer, len) == 0; \
-    } else {                                               \
-        return equals((char16_t*)data.buffer, str, len);   \
-    }
-
-#define STRING_CMP2(str1, str2, len)                                                                   \
-    if (LIKELY(data.has8BitContent)) {                                                                 \
-        if (strncmp(str1, (char*)data.buffer, len) == 0) {                                             \
-            return true;                                                                               \
-        } else if (strncmp(str2, (char*)data.buffer, len) == 0) {                                      \
-            return true;                                                                               \
-        }                                                                                              \
-    } else {                                                                                           \
-        return equals((char16_t*)data.buffer, str1, len) || equals((char16_t*)data.buffer, str2, len); \
-    }
-
-    bool isFutureReservedWord(const StringView& id)
-    {
-        const StringBufferAccessData& data = id.bufferAccessData();
-        if (data.length == 4) {
-            STRING_CMP("enum", 4)
-        } else if (data.length == 5) {
-            STRING_CMP("super", 5)
-        } else if (data.length == 6) {
-            STRING_CMP2("export", "import", 6)
-        }
-        return false;
-    }
+    bool isFutureReservedWord(const StringView& id);
 
     template <typename T>
-    ALWAYS_INLINE bool isStrictModeReservedWord(const T& id)
+    bool isStrictModeReservedWord(const T& id)
     {
         const StringBufferAccessData& data = id.bufferAccessData();
         switch (data.length) {
         case 3: // let
-            STRING_CMP("let", 3)
-            break;
+            return data.equalsSameLength("let");
         case 5: // yield
-            STRING_CMP("yield", 3)
-            break;
+            return data.equalsSameLength("yield");
         case 6: // static public
-            STRING_CMP2("static", "public", 6)
-            break;
+            return data.equalsSameLength("static") || data.equalsSameLength("public");
         case 7: // private package
-            STRING_CMP2("private", "package", 7)
-            break;
+            return data.equalsSameLength("private") || data.equalsSameLength("package");
         case 9: // protected interface
-            STRING_CMP2("protected", "interface", 9)
-            break;
+            return data.equalsSameLength("protected") || data.equalsSameLength("interface");
         case 10: // implements
-            STRING_CMP("implements", 10)
-            break;
+            return data.equalsSameLength("implements");
         }
-
-#undef STRING_CMP
-#undef STRING_CMP2
 
         return false;
     }
