@@ -22,6 +22,7 @@
 #include "Context.h"
 #include "VMInstance.h"
 #include "ArrayObject.h"
+#include "IteratorOperations.h"
 #include "ToStringRecursionPreventer.h"
 
 namespace Escargot {
@@ -97,12 +98,10 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
     }
     // Let C be the this value.
     Value C = thisValue;
-    // If mapfn is undefined, let mapping be false.
     Value T;
-    bool mapping = true;
-    if (mapfn.isUndefined()) {
-        mapping = false;
-    } else {
+    // If mapfn is undefined, let mapping be false.
+    bool mapping = false;
+    if (!mapfn.isUndefined()) {
         // If IsCallable(mapfn) is false, throw a TypeError exception.
         if (!mapfn.isFunction()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "argument map function should be undefined or function");
@@ -110,13 +109,14 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
         // If thisArg was supplied, let T be thisArg; else let T be undefined.
         T = thisArg;
         // Let mapping be true.
+        mapping = true;
     }
 
     // Let usingIterator be ? GetMethod(items, @@iterator).
     items = items.toObject(state);
     Value usingIterator = items.asObject()->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator)).value(state, items);
     // If usingIterator is not undefined, then
-    if (!usingIterator.isUndefinedOrNull()) {
+    if (!usingIterator.isUndefined()) {
         Object* A;
         // If IsConstructor(C) is true, then
         if (C.isFunction() && C.asFunction()->isConstructor()) {
@@ -127,13 +127,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
             A = new ArrayObject(state);
         }
         // Let iterator be ? GetIterator(items, usingIterator).
-        // Let iterator be ? Call(method, obj).
-        Value willIterator = FunctionObject::call(state, usingIterator, items, 0, nullptr);
-        // If Type(iterator) is not Object, throw a TypeError exception.
-        if (!willIterator.isObject()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Got invalid Iterator");
-        }
-        Object* iterator = willIterator.asObject();
+        Value iterator = getIterator(state, items, usingIterator);
         // Let k be 0.
         double k = 0;
         // Repeat
@@ -147,16 +141,16 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
             // Let Pk be ! ToString(k).
             ObjectPropertyName pk(state, Value(k));
             // Let next be ? IteratorStep(iterator).
-            std::pair<Value, bool> next = iterator->iteratorNext(state);
+            Value next = iteratorStep(state, iterator);
             // If next is false, then
-            if (next.second) {
+            if (next.isFalse()) {
                 // Perform ? Set(A, "length", k, true).
                 A->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().length), Value(k), A);
                 // Return A.
                 return A;
             }
             // Let nextValue be ? IteratorValue(next).
-            const Value& nextValue = next.first;
+            Value nextValue = iteratorValue(state, next);
             Value mappedValue;
             // If mapping is true, then
             if (mapping) {

@@ -22,6 +22,7 @@
 #include "Context.h"
 #include "VMInstance.h"
 #include "MapObject.h"
+#include "IteratorOperations.h"
 #include "ToStringRecursionPreventer.h"
 
 namespace Escargot {
@@ -42,10 +43,8 @@ Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc,
     }
     // If iterable is either undefined or null, let iter be undefined.
     Value adder;
-    Object* iter = nullptr;
-    if (iterable.isUndefinedOrNull()) {
-        iterable = Value();
-    } else {
+    Value iter;
+    if (!iterable.isUndefinedOrNull()) {
         // Else,
         // Let adder be ? Get(map, "set").
         adder = map->Object::get(state, ObjectPropertyName(state.context()->staticStrings().set)).value(state, map);
@@ -54,27 +53,23 @@ Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc,
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
         }
         // Let iter be ? GetIterator(iterable).
-        iterable = iterable.toObject(state);
-        iter = iterable.asObject()->iterator(state);
-        if (iter == nullptr) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "object is not iterable");
-        }
+        iter = getIterator(state, iterable);
     }
     // If iter is undefined, return map.
-    if (!iter) {
+    if (iter.isUndefined()) {
         return map;
     }
 
     // Repeat
     while (true) {
         // Let next be ? IteratorStep(iter).
-        auto next = iter->iteratorNext(state);
+        Value next = iteratorStep(state, iter);
         // If next is false(done is true), return map.
-        if (next.second) {
+        if (next.isFalse()) {
             return map;
         }
         // Let nextItem be ? IteratorValue(next).
-        Value nextItem = next.first;
+        Value nextItem = iteratorValue(state, next);
 
         // If Type(nextItem) is not Object, then
         if (!nextItem.isObject()) {
