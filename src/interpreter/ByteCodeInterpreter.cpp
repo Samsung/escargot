@@ -40,6 +40,17 @@
 
 namespace Escargot {
 
+
+static Value implicitClassConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    return Value();
+}
+
+static Object* implicitClassConstructorCtor(ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv)
+{
+    return new Object(state);
+}
+
 #define ADD_PROGRAM_COUNTER(CodeType) programCounter += sizeof(CodeType);
 
 ALWAYS_INLINE size_t jumpTo(char* codeBuffer, const size_t& jumpPosition)
@@ -856,6 +867,15 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 CreateFunction* code = (CreateFunction*)programCounter;
                 registerFile[code->m_registerIndex] = new FunctionObject(state, code->m_codeBlock, ec->lexicalEnvironment());
                 ADD_PROGRAM_COUNTER(CreateFunction);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(CreateImplicitConstructor)
+                :
+            {
+                CreateImplicitConstructor* code = (CreateImplicitConstructor*)programCounter;
+                registerFile[code->m_registerIndex] = new FunctionObject(state, NativeFunctionInfo(::Escargot::AtomicString::fromPayload(String::emptyString), implicitClassConstructor, 1, implicitClassConstructorCtor, NativeFunctionInfo::Flags::Strict | NativeFunctionInfo::Flags::Constructor | NativeFunctionInfo::Flags::ClassConstructor));
+                ADD_PROGRAM_COUNTER(CreateImplicitConstructor);
                 NEXT_INSTRUCTION();
             }
 
