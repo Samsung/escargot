@@ -209,6 +209,7 @@ public:
         }
         return toStringSlowCase(ec);
     }
+    String* toStringWithoutException(ExecutionState& ec) const;
     Object* toObject(ExecutionState& ec) const; // $7.1.13 ToObject
     Value toPropertyKey(ExecutionState& state) const;
 

@@ -61,6 +61,21 @@ bool Value::isIterable() const
 }
 #endif
 
+String* Value::toStringWithoutException(ExecutionState& ec) const
+{
+    if (LIKELY(isString())) {
+        return asString();
+    }
+
+    String* result;
+    try {
+        result = toStringSlowCase(ec);
+    } catch (const Value&) {
+        result = String::fromASCII("Error while converting to string, but do not throw an exception");
+    }
+    return result;
+}
+
 Value Value::toPropertyKey(ExecutionState& state) const
 {
     // Let key be ? ToPrimitive(argument, hint String).

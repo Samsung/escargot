@@ -34,15 +34,10 @@ SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner)
     ExecutionState state(m_context);
     try {
         result.result = scriptRunner();
-        result.msgStr = result.result.toString(state);
+        result.msgStr = result.result.toStringWithoutException(state);
     } catch (const Value& err) {
         result.error = err;
-
-        try {
-            result.msgStr = result.error.toString(state);
-        } catch (const Value&) {
-            result.msgStr = String::fromASCII("Error while executing script but could not convert error to string");
-        }
+        result.msgStr = result.error.toStringWithoutException(state);
 
         fillStackDataIntoErrorObject(err);
 
