@@ -233,3 +233,19 @@ SET (ESCARGOT_LDFLAGS_STATICLIB -Wl,--gc-sections)
 # FLAGS FOR TEST
 #######################################################
 SET (ESCARGOT_DEFINITIONS_VENDORTEST -DESCARGOT_ENABLE_VENDORTEST)
+
+
+#######################################################
+# FLAGS FOR MEMORY PROFILING
+#######################################################
+SET (PROFILER_FLAGS)
+
+IF (ESCARGOT_PROFILE_BDWGC)
+    SET (PROFILER_FLAGS "${PROFILE_FLAGS} -DPROFILE_BDWGC")
+ENDIF()
+
+IF (ESCARGOT_PROFILE_MASSIF)
+    SET (PROFILER_FLAGS "${PROFILE_FLAGS} -DPROFILE_MASSIF")
+ENDIF()
+
+string(STRIP "${PROFILER_FLAGS}" PROFILER_FLAGS)
