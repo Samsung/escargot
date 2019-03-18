@@ -1092,9 +1092,9 @@ public:
                 return this->scanInheritCoverGrammar(&Parser::scanGroupExpression);
             case LeftSquareBracket:
                 if (isParse) {
-                    return PassRefNode(this->inheritCoverGrammar(&Parser::parseArrayInitializer));
+                    return PassRefNode(this->inheritCoverGrammar(&Parser::arrayInitializer<Parse>));
                 }
-                this->scanInheritCoverGrammar(&Parser::scanArrayInitializer);
+                this->scanInheritCoverGrammar(&Parser::arrayInitializer<Scan>);
                 return ScanExpressionResult(ASTNodeType::ArrayExpression, AtomicString());
             case LeftBrace:
                 if (isParse) {
@@ -1232,7 +1232,8 @@ public:
         return this->finalize(node, new RestElementNode(param.get()));
     }
 
-    PassRefPtr<Node> parsePattern(std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>>& params, KeywordKind kind = KeywordKindEnd)
+    template <typename T, bool isParse>
+    T pattern(std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>>& params, KeywordKind kind = KeywordKindEnd)
     {
         if (this->match(LeftSquareBracket)) {
             this->throwError("Array pattern is not supported yet");
@@ -1247,26 +1248,10 @@ public:
                 this->throwUnexpectedToken(this->lookahead, Messages::UnexpectedToken);
             }
             params.push_back(this->lookahead);
-            return this->parseVariableIdentifier(kind);
-        }
-    }
-
-    std::pair<ASTNodeType, AtomicString> scanPattern(std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>>& params, KeywordKind kind = KeywordKindEnd)
-    {
-        if (this->match(LeftSquareBracket)) {
-            this->throwError("Array pattern is not supported yet");
-            RELEASE_ASSERT_NOT_REACHED();
-            // pattern = this->parseArrayPattern(params, kind);
-        } else if (this->match(LeftBrace)) {
-            this->throwError("Object pattern is not supported yet");
-            RELEASE_ASSERT_NOT_REACHED();
-            // pattern = this->parseObjectPattern(params, kind);
-        } else {
-            if (this->matchKeyword(LetKeyword) && (kind == ConstKeyword || kind == LetKeyword)) {
-                this->throwUnexpectedToken(this->lookahead, Messages::UnexpectedToken);
+            if (isParse) {
+                return PassRefNode(this->parseVariableIdentifier(kind));
             }
-            params.push_back(this->lookahead);
-            return std::make_pair(ASTNodeType::Identifier, this->scanVariableIdentifier(kind));
+            return ScanExpressionResult(ASTNodeType::Identifier, this->scanVariableIdentifier(kind));
         }
     }
 
@@ -1274,7 +1259,7 @@ public:
     {
         RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
 
-        PassRefPtr<Node> pattern = this->parsePattern(params, kind);
+        PassRefPtr<Node> pattern = this->pattern<Parse>(params, kind);
         if (this->match(PunctuatorKind::Substitution)) {
             this->throwError("Assignment in parameter is not supported yet");
 
@@ -1358,49 +1343,51 @@ public:
 
     // ECMA-262 12.2.5 Array Initializer
 
-    PassRefPtr<SpreadElementNode> parseSpreadElement()
+    template <typename T, bool isParse>
+    T spreadElement()
     {
         this->expect(PunctuatorKind::PeriodPeriodPeriod);
         MetaNode node = this->createNode();
 
         RefPtr<Node> arg = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
         this->throwError("Spread element is not supported yet");
-        return this->finalize(node, new SpreadElementNode(arg.get()));
-    }
-
-    ScanExpressionResult scanSpreadElement()
-    {
-        this->expect(PunctuatorKind::PeriodPeriodPeriod);
-        MetaNode node = this->createNode();
-
-        this->scanInheritCoverGrammar(&Parser::scanAssignmentExpression);
-        this->throwError("Spread element is not supported yet");
-
+        if (isParse) {
+            return PassRefNode(this->finalize(node, new SpreadElementNode(arg.get())));
+        }
         return ScanExpressionResult(ASTNodeType::SpreadElement, AtomicString());
     }
 
-    PassRefPtr<Node> parseArrayInitializer()
+    template <typename T, bool isParse>
+    T arrayInitializer()
     {
         // const elements: Node.ArrayExpressionElement[] = [];
         ExpressionNodeVector elements;
 
         this->expect(LeftSquareBracket);
-        MetaNode node = this->createNode();
 
         while (!this->match(RightSquareBracket)) {
             if (this->match(Comma)) {
                 this->nextToken();
-                elements.push_back(nullptr);
+                if (isParse) {
+                    elements.push_back(nullptr);
+                }
             } else if (this->match(PeriodPeriodPeriod)) {
-                PassRefPtr<SpreadElementNode> element = this->parseSpreadElement();
+                if (isParse) {
+                    elements.push_back(this->spreadElement<Parse>().nodeRef);
+                } else {
+                    this->spreadElement<Scan>();
+                }
                 if (!this->match(RightSquareBracket)) {
                     this->context->isAssignmentTarget = false;
                     this->context->isBindingElement = false;
                     this->expect(Comma);
                 }
-                elements.push_back(element);
             } else {
-                elements.push_back(this->inheritCoverGrammar(&Parser::parseAssignmentExpression));
+                if (isParse) {
+                    elements.push_back(this->inheritCoverGrammar(&Parser::parseAssignmentExpression));
+                } else {
+                    this->scanInheritCoverGrammar(&Parser::scanAssignmentExpression);
+                }
                 if (!this->match(RightSquareBracket)) {
                     this->expect(Comma);
                 }
@@ -1408,32 +1395,10 @@ public:
         }
         this->expect(RightSquareBracket);
 
-        return this->finalize(node, new ArrayExpressionNode(std::move(elements)));
-    }
-
-    ScanExpressionResult scanArrayInitializer()
-    {
-        this->expect(LeftSquareBracket);
-
-        while (!this->match(RightSquareBracket)) {
-            if (this->match(Comma)) {
-                this->nextToken();
-            } else if (this->match(PeriodPeriodPeriod)) {
-                this->scanSpreadElement();
-                if (!this->match(RightSquareBracket)) {
-                    this->context->isAssignmentTarget = false;
-                    this->context->isBindingElement = false;
-                    this->expect(Comma);
-                }
-            } else {
-                this->scanInheritCoverGrammar(&Parser::scanAssignmentExpression);
-                if (!this->match(RightSquareBracket)) {
-                    this->expect(Comma);
-                }
-            }
+        if (isParse) {
+            MetaNode node = this->createNode();
+            return PassRefNode(this->finalize(node, new ArrayExpressionNode(std::move(elements))));
         }
-        this->expect(RightSquareBracket);
-
         return ScanExpressionResult(ASTNodeType::ArrayExpression, AtomicString());
     }
 
@@ -2350,7 +2315,7 @@ public:
             while (true) {
                 RefPtr<Node> expr;
                 if (this->match(PeriodPeriodPeriod)) {
-                    expr = this->parseSpreadElement();
+                    expr = this->spreadElement<Parse>().nodeRef;
                 } else {
                     expr = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
                 }
@@ -2377,7 +2342,7 @@ public:
         if (!this->match(RightParenthesis)) {
             while (true) {
                 if (this->match(PeriodPeriodPeriod)) {
-                    this->parseSpreadElement();
+                    this->spreadElement<Parse>();
                 } else {
                     this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
                 }
@@ -4336,7 +4301,7 @@ public:
         MetaNode node = this->createNode();
 
         std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> params;
-        RefPtr<Node> id = this->parsePattern(params, VarKeyword);
+        RefPtr<Node> id = this->pattern<Parse>(params, VarKeyword).nodeRef;
 
         // ECMA-262 12.2.1
         if (this->context->strict && id->type() == Identifier && this->scanner->isRestrictedWord(((IdentifierNode*)id.get())->name())) {
@@ -4361,7 +4326,7 @@ public:
     void scanVariableDeclaration(DeclarationOptions& options)
     {
         std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> params;
-        std::pair<ASTNodeType, AtomicString> id = this->scanPattern(params, VarKeyword);
+        std::pair<ASTNodeType, AtomicString> id = this->pattern<Scan>(params, VarKeyword);
 
         // ECMA-262 12.2.1
         if (this->context->strict && id.first == Identifier && this->scanner->isRestrictedWord(id.second)) {
@@ -5353,7 +5318,7 @@ public:
         this->context->inDirectCatchScope = true;
 
         std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> params;
-        RefPtr<Node> param = this->parsePattern(params);
+        RefPtr<Node> param = this->pattern<Parse>(params).nodeRef;
 
         std::vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> paramMap;
         for (size_t i = 0; i < params.size(); i++) {
@@ -5409,7 +5374,7 @@ public:
         this->context->inDirectCatchScope = true;
 
         std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> params;
-        RefPtr<Node> param = this->parsePattern(params);
+        RefPtr<Node> param = this->pattern<Parse>(params).nodeRef;
 
         std::vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> paramMap;
         for (size_t i = 0; i < params.size(); i++) {
