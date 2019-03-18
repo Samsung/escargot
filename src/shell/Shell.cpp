@@ -35,41 +35,42 @@ void installTestFunctions(Escargot::ExecutionState& state);
 
 NEVER_INLINE bool eval(Escargot::Context* context, Escargot::String* str, Escargot::String* fileName, bool shouldPrintScriptResult)
 {
-    auto result = context->scriptParser().parse(str, fileName);
-    if (result.m_error) {
+    auto parserResult = context->scriptParser().parse(str, fileName);
+    if (UNLIKELY(!!parserResult.m_error)) {
         static char msg[10240];
-        auto err = result.m_error->message->toUTF8StringData();
+        auto err = parserResult.m_error->message->toUTF8StringData();
         puts(err.data());
         return false;
-    } else {
-        Escargot::ExecutionState state(context);
-        Escargot::Script::ScriptSandboxExecuteResult resultValue = result.m_script->sandboxExecute(state);
-        if (!resultValue.result.isEmpty()) {
-            if (shouldPrintScriptResult)
-                puts(resultValue.msgStr->toUTF8StringData().data());
+    }
 
+    Escargot::ExecutionState state(context);
+    Escargot::Script::ScriptSandboxExecuteResult executeResult = parserResult.m_script->sandboxExecute(state);
+
+    if (UNLIKELY(!executeResult.error.errorValue.isEmpty())) {
+        printf("Uncaught %s:\n", executeResult.msgStr->toUTF8StringData().data());
+        for (size_t i = 0; i < executeResult.error.stackTrace.size(); i++) {
+            printf("%s (%d:%d)\n", executeResult.error.stackTrace[i].fileName->toUTF8StringData().data(), (int)executeResult.error.stackTrace[i].line, (int)executeResult.error.stackTrace[i].column);
+        }
+        return false;
+    }
+
+    if (shouldPrintScriptResult) {
+        puts(executeResult.msgStr->toUTF8StringData().data());
+    }
 #ifdef ESCARGOT_ENABLE_PROMISE
-            Escargot::DefaultJobQueue* jobQueue = Escargot::DefaultJobQueue::get(context->jobQueue());
-            while (jobQueue->hasNextJob()) {
-                auto jobResult = jobQueue->nextJob()->run();
-                if (shouldPrintScriptResult) {
-                    if (!jobResult.result.isEmpty()) {
-                        printf("%s\n", jobResult.result.toString(state)->toUTF8StringData().data());
-                    } else {
-                        printf("Uncaught %s:\n", jobResult.msgStr->toUTF8StringData().data());
-                    }
-                }
+    Escargot::DefaultJobQueue* jobQueue = Escargot::DefaultJobQueue::get(context->jobQueue());
+    while (jobQueue->hasNextJob()) {
+        auto jobResult = jobQueue->nextJob()->run();
+        if (shouldPrintScriptResult) {
+            if (jobResult.error.isEmpty()) {
+                printf("%s\n", jobResult.result.toString(state)->toUTF8StringData().data());
+            } else {
+                printf("Uncaught %s:\n", jobResult.msgStr->toUTF8StringData().data());
             }
-#endif
-
-        } else {
-            printf("Uncaught %s:\n", resultValue.msgStr->toUTF8StringData().data());
-            for (size_t i = 0; i < resultValue.error.stackTrace.size(); i++) {
-                printf("%s (%d:%d)\n", resultValue.error.stackTrace[i].fileName->toUTF8StringData().data(), (int)resultValue.error.stackTrace[i].line, (int)resultValue.error.stackTrace[i].column);
-            }
-            return false;
         }
     }
+#endif
+
     return true;
 }
 

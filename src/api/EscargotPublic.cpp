@@ -111,6 +111,22 @@ DEFINE_CAST(Float64ArrayObject);
 
 #undef DEFINE_CAST
 
+template <typename T>
+inline T* NullablePtr<T>::getValue()
+{
+    ASSERT(!!m_value);
+    return m_value;
+}
+
+template <typename T>
+inline const T* NullablePtr<T>::getValue() const
+{
+    ASSERT(!!m_value);
+    return m_value;
+}
+
+template struct NullablePtr<ValueRef>;
+
 inline ValueRef* toRef(const Value& v)
 {
     ASSERT(!v.isEmpty());
