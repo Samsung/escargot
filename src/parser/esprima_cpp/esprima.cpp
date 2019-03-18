@@ -5832,10 +5832,10 @@ public:
         }
     }
 
-    PassRefPtr<FunctionDeclarationNode> parseFunctionDeclaration(bool identifierIsOptional = false)
+    template <class FunctionType, bool isFunctionDeclaration>
+    PassRefPtr<FunctionType> parseFunction(MetaNode node)
     {
         this->expectKeyword(FunctionKeyword);
-        MetaNode node = this->createNode();
 
         bool isGenerator = this->match(Multiply);
         if (isGenerator) {
@@ -5846,9 +5846,14 @@ public:
         RefPtr<IdentifierNode> id;
         RefPtr<Scanner::ScannerResult> firstRestricted = nullptr;
 
-        if (!identifierIsOptional || !this->match(LeftParenthesis)) {
+        bool previousAllowYield = this->context->allowYield;
+        bool previousInArrowFunction = this->context->inArrowFunction;
+        this->context->allowYield = !isGenerator;
+        this->context->inArrowFunction = false;
+
+        if (isFunctionDeclaration || !this->match(LeftParenthesis)) {
             RefPtr<Scanner::ScannerResult> token = this->lookahead;
-            id = this->parseVariableIdentifier();
+            id = (!isFunctionDeclaration && !this->context->strict && !isGenerator && this->matchKeyword(YieldKeyword)) ? this->parseIdentifierName() : this->parseVariableIdentifier();
             if (this->context->strict) {
                 if (this->scanner->isRestrictedWord(token->relatedSource())) {
                     this->throwUnexpectedToken(token, Messages::StrictFunctionName);
@@ -5864,11 +5869,6 @@ public:
             }
         }
 
-        bool previousAllowYield = this->context->allowYield;
-        bool previousInArrowFunction = this->context->inArrowFunction;
-        this->context->allowYield = !isGenerator;
-        this->context->inArrowFunction = false;
-
         this->expect(LeftParenthesis);
         ParseFormalParametersResult formalParameters = this->parseFormalParameters(firstRestricted);
         PatternNodeVector params = std::move(formalParameters.params);
@@ -5878,11 +5878,22 @@ public:
             message = formalParameters.message;
         }
 
-        scopeContexts.back()->insertName(id->name(), true);
-        insertUsingName(id->name());
-        pushScopeContext(params, id->name());
-        extractNamesFromFunctionParams(params);
+        AtomicString fnName = id ? id->name() : AtomicString();
 
+        if (!isFunctionDeclaration) {
+            pushScopeContext(params, fnName);
+        }
+
+        if (id) {
+            scopeContexts.back()->insertName(fnName, isFunctionDeclaration);
+            insertUsingName(fnName);
+        }
+
+        if (isFunctionDeclaration) {
+            pushScopeContext(params, fnName);
+        }
+
+        extractNamesFromFunctionParams(params);
         bool previousStrict = this->context->strict;
         RefPtr<Node> body = this->parseFunctionSourceElements();
         if (this->context->strict && firstRestricted) {
@@ -5891,16 +5902,22 @@ public:
         if (this->context->strict && stricted) {
             this->throwUnexpectedToken(stricted, message);
         }
-
         this->context->strict = previousStrict;
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
 
-        if (this->context->inDirectCatchScope) {
+        if (isFunctionDeclaration && this->context->inDirectCatchScope) {
             scopeContexts.back()->m_needsSpecialInitialize = true;
         }
 
-        RefPtr<FunctionDeclarationNode> fd = this->finalize(node, new FunctionDeclarationNode(id->name(), std::move(params), body.get(), popScopeContext(node), isGenerator));
+        return this->finalize(node, new FunctionType(fnName, std::move(params), body.get(), popScopeContext(node), isGenerator));
+    }
+
+    PassRefPtr<FunctionDeclarationNode> parseFunctionDeclaration()
+    {
+        MetaNode node = this->createNode();
+
+        RefPtr<FunctionDeclarationNode> fd = parseFunction<FunctionDeclarationNode, true>(node);
 
         if (this->context->inDirectCatchScope) {
             this->context->functionDeclarationsInDirectCatchScope.push_back(fd.get());
@@ -5911,76 +5928,8 @@ public:
 
     PassRefPtr<FunctionExpressionNode> parseFunctionExpression()
     {
-        this->expectKeyword(FunctionKeyword);
         MetaNode node = this->createNode();
-
-        bool isGenerator = this->match(Multiply);
-        if (isGenerator) {
-            this->nextToken();
-        }
-
-        const char* message = nullptr;
-        RefPtr<IdentifierNode> id;
-        RefPtr<Scanner::ScannerResult> firstRestricted = nullptr;
-
-        bool previousAllowYield = this->context->allowYield;
-        bool previousInArrowFunction = this->context->inArrowFunction;
-        this->context->allowYield = !isGenerator;
-        this->context->inArrowFunction = false;
-
-        if (!this->match(LeftParenthesis)) {
-            RefPtr<Scanner::ScannerResult> token = this->lookahead;
-            id = (!this->context->strict && !isGenerator && this->matchKeyword(YieldKeyword)) ? this->parseIdentifierName() : this->parseVariableIdentifier();
-            if (this->context->strict) {
-                if (this->scanner->isRestrictedWord(token->relatedSource())) {
-                    this->throwUnexpectedToken(token, Messages::StrictFunctionName);
-                }
-            } else {
-                if (this->scanner->isRestrictedWord(token->relatedSource())) {
-                    firstRestricted = token;
-                    message = Messages::StrictFunctionName;
-                } else if (this->scanner->isStrictModeReservedWord(token->relatedSource())) {
-                    firstRestricted = token;
-                    message = Messages::StrictReservedWord;
-                }
-            }
-        }
-
-        this->expect(LeftParenthesis);
-        ParseFormalParametersResult formalParameters = this->parseFormalParameters(firstRestricted);
-        PatternNodeVector params = std::move(formalParameters.params);
-        RefPtr<Scanner::ScannerResult> stricted = formalParameters.stricted;
-        firstRestricted = formalParameters.firstRestricted;
-        if (formalParameters.message) {
-            message = formalParameters.message;
-        }
-
-        AtomicString fnName;
-        if (id) {
-            fnName = id->name();
-        }
-
-        pushScopeContext(params, fnName);
-
-        if (id) {
-            scopeContexts.back()->insertName(fnName, false);
-            insertUsingName(fnName);
-        }
-
-        extractNamesFromFunctionParams(params);
-        bool previousStrict = this->context->strict;
-        RefPtr<Node> body = this->parseFunctionSourceElements();
-        if (this->context->strict && firstRestricted) {
-            this->throwUnexpectedToken(firstRestricted, message);
-        }
-        if (this->context->strict && stricted) {
-            this->throwUnexpectedToken(stricted, message);
-        }
-        this->context->strict = previousStrict;
-        this->context->allowYield = previousAllowYield;
-        this->context->inArrowFunction = previousInArrowFunction;
-
-        return this->finalize(node, new FunctionExpressionNode(fnName, std::move(params), body.get(), popScopeContext(node), isGenerator));
+        return parseFunction<FunctionExpressionNode, false>(node);
     }
 
     // ECMA-262 14.1.1 Directive Prologues
