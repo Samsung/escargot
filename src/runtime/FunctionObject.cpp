@@ -237,7 +237,7 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
     currentCodeSizeTotal += m_codeBlock->m_byteCodeBlock->memoryAllocatedSize();
 }
 
-Value FunctionObject::callSlowCase(ExecutionState& state, const Value& callee, const Value& receiver, const size_t& argc, Value* argv, bool isNewExpression)
+Value FunctionObject::callSlowCase(ExecutionState& state, const Value& callee, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression)
 {
     if (LIKELY(callee.isObject())) {
         if (LIKELY(callee.asPointerValue()->isFunctionObject()))
@@ -251,7 +251,7 @@ Value FunctionObject::callSlowCase(ExecutionState& state, const Value& callee, c
     return Value();
 }
 
-Object* FunctionObject::newInstance(ExecutionState& state, const size_t& argc, Value* argv)
+Object* FunctionObject::newInstance(ExecutionState& state, const size_t argc, Value* argv)
 {
     CodeBlock* cb = codeBlock();
     FunctionObject* targetFunction = this;
@@ -283,7 +283,7 @@ Object* FunctionObject::newInstance(ExecutionState& state, const size_t& argc, V
         return receiver;
 }
 
-Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSrc, const size_t& argc, Value* argv, bool isNewExpression)
+Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, Value* argv, bool isNewExpression)
 {
     volatile int sp;
     size_t currentStackBase = (size_t)&sp;

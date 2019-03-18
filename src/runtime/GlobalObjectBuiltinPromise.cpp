@@ -30,7 +30,7 @@
 
 namespace Escargot {
 
-static SandBox::SandBoxResult tryCallMethodAndCatchError(ExecutionState& state, ObjectPropertyName name, Value receiver, Value arguments[], const size_t& argumentCount, bool isNewExpression)
+static SandBox::SandBoxResult tryCallMethodAndCatchError(ExecutionState& state, ObjectPropertyName name, Value receiver, Value arguments[], const size_t argumentCount, bool isNewExpression)
 {
     SandBox sb(state.context());
     return sb.run([&]() -> Value {

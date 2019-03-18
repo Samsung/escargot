@@ -60,7 +60,7 @@ size_t g_utf16StringTag;
 size_t g_ropeStringTag;
 size_t g_stringViewTag;
 
-bool isAllASCII(const char* buf, const size_t& len)
+bool isAllASCII(const char* buf, const size_t len)
 {
     for (unsigned i = 0; i < len; i++) {
         if ((buf[i] & 0x80) != 0) {
@@ -70,7 +70,7 @@ bool isAllASCII(const char* buf, const size_t& len)
     return true;
 }
 
-bool isAllASCII(const char16_t* buf, const size_t& len)
+bool isAllASCII(const char16_t* buf, const size_t len)
 {
     for (unsigned i = 0; i < len; i++) {
         if (buf[i] >= 128) {
@@ -80,7 +80,7 @@ bool isAllASCII(const char16_t* buf, const size_t& len)
     return true;
 }
 
-bool isAllLatin1(const char16_t* buf, const size_t& len)
+bool isAllLatin1(const char16_t* buf, const size_t len)
 {
     for (unsigned i = 0; i < len; i++) {
         if (buf[i] >= 256) {
@@ -156,7 +156,7 @@ char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen)
     return ch - offsetsFromUTF8[length - 1];
 }
 
-UTF16StringData utf8StringToUTF16String(const char* buf, const size_t& len)
+UTF16StringData utf8StringToUTF16String(const char* buf, const size_t len)
 {
     UTF16StringDataNonGCStd str;
     const char* source = buf;
@@ -185,7 +185,7 @@ UTF16StringData utf8StringToUTF16String(const char* buf, const size_t& len)
     return UTF16StringData(str.data(), str.length());
 }
 
-ASCIIStringData utf16StringToASCIIString(const char16_t* buf, const size_t& len)
+ASCIIStringData utf16StringToASCIIString(const char16_t* buf, const size_t len)
 {
     ASCIIStringData str;
     str.resizeWithUninitializedValues(len);

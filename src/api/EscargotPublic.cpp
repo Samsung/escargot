@@ -590,12 +590,12 @@ void ValueVectorRef::erase(size_t start, size_t end)
     toImpl(this)->erase(start, end);
 }
 
-ValueRef* ValueVectorRef::at(const size_t& idx)
+ValueRef* ValueVectorRef::at(const size_t idx)
 {
     return reinterpret_cast<ValueRef*>((*toImpl(this))[idx].payload());
 }
 
-void ValueVectorRef::set(const size_t& idx, ValueRef* newValue)
+void ValueVectorRef::set(const size_t idx, ValueRef* newValue)
 {
     toImpl(this)->data()[idx] = SmallValue::fromPayload(newValue);
 }
@@ -1249,7 +1249,7 @@ bool FunctionObjectRef::isConstructor()
     return o->isConstructor();
 }
 
-ValueRef* FunctionObjectRef::call(ExecutionStateRef* state, ValueRef* receiver, const size_t& argc, ValueRef** argv)
+ValueRef* FunctionObjectRef::call(ExecutionStateRef* state, ValueRef* receiver, const size_t argc, ValueRef** argv)
 {
     FunctionObject* o = toImpl(this);
     Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
@@ -1259,7 +1259,7 @@ ValueRef* FunctionObjectRef::call(ExecutionStateRef* state, ValueRef* receiver, 
     return toRef(o->call(*toImpl(state), toImpl(receiver), argc, newArgv));
 }
 
-ObjectRef* FunctionObjectRef::newInstance(ExecutionStateRef* state, const size_t& argc, ValueRef** argv)
+ObjectRef* FunctionObjectRef::newInstance(ExecutionStateRef* state, const size_t argc, ValueRef** argv)
 {
     FunctionObject* o = toImpl(this);
     Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);

@@ -86,7 +86,7 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const AtomicString& name, const Value& v)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -117,7 +117,7 @@ public:
         return GetBindingValueResult();
     }
 
-    virtual Value getBindingValue(ExecutionState& state, const size_t& idx)
+    virtual Value getBindingValue(ExecutionState& state, const size_t idx)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -227,7 +227,7 @@ public:
         }
     }
 
-    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const AtomicString& name, const Value& v)
     {
         m_bindingObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(name), v, m_bindingObject);
     }
@@ -264,7 +264,7 @@ public:
     virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true);
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
-    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v);
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const AtomicString& name, const Value& v);
     virtual bool deleteBinding(ExecutionState& state, const AtomicString& name);
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName);
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V);
@@ -312,7 +312,7 @@ public:
         return reinterpret_cast<FunctionEnvironmentRecord*>(this);
     }
 
-    virtual void setHeapValueByIndex(const size_t& idx, const Value& v)
+    virtual void setHeapValueByIndex(const size_t idx, const Value& v)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -366,7 +366,7 @@ public:
     virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true);
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
-    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v);
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const AtomicString& name, const Value& v);
 
     virtual bool deleteBinding(ExecutionState& state, const AtomicString& name)
     {
@@ -426,7 +426,7 @@ public:
         return false;
     }
 
-    virtual Value getHeapValueByIndex(const size_t& idx)
+    virtual Value getHeapValueByIndex(const size_t idx)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -478,12 +478,12 @@ public:
         return true;
     }
 
-    virtual void setHeapValueByIndex(const size_t& idx, const Value& v)
+    virtual void setHeapValueByIndex(const size_t idx, const Value& v)
     {
         m_heapStorage[idx] = v;
     }
 
-    virtual Value getHeapValueByIndex(const size_t& idx)
+    virtual Value getHeapValueByIndex(const size_t idx)
     {
         return m_heapStorage[idx];
     }
@@ -512,7 +512,7 @@ public:
         return BindingSlot(this, SIZE_MAX);
     }
 
-    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v)
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const AtomicString& name, const Value& v)
     {
         m_heapStorage[idx] = v;
     }
@@ -557,12 +557,12 @@ public:
         return true;
     }
 
-    virtual void setHeapValueByIndex(const size_t& idx, const Value& v)
+    virtual void setHeapValueByIndex(const size_t idx, const Value& v)
     {
         m_heapStorage[idx] = v;
     }
 
-    virtual Value getHeapValueByIndex(const size_t& idx)
+    virtual Value getHeapValueByIndex(const size_t idx)
     {
         return m_heapStorage[idx];
     }
@@ -603,7 +603,7 @@ public:
     virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true);
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
-    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t& idx, const AtomicString& name, const Value& v);
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const AtomicString& name, const Value& v);
 
     virtual size_t argc()
     {
