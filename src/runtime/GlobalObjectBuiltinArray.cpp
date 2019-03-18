@@ -25,6 +25,7 @@
 #include "IteratorOperations.h"
 #include "interpreter/ByteCodeInterpreter.h"
 #include "ToStringRecursionPreventer.h"
+#include "ErrorObject.h"
 
 namespace Escargot {
 
@@ -587,6 +588,12 @@ static Value arraySpeciesCreate(ExecutionState& state, Object* originalArray, co
     return C.asFunction()->call(state, C, 1, argv);
 }
 
+#define CHECK_ARRAY_LENGTH(num, limit)                                                                               \
+    if ((num) >= (limit)) {                                                                                          \
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_InvalidArrayLength); \
+    }
+
+
 static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, concat);
@@ -606,6 +613,11 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
                 // Let len be the result of calling the [[Get]] internal method of E with argument "length".
                 uint64_t len = arr->length(state);
 
+#ifdef ESCARGOT_ENABLE_ES2015
+                // If n + len > 2^53 - 1, throw a TypeError exception.
+                CHECK_ARRAY_LENGTH(n + len, (1ULL << 53));
+#endif /* ESCARGOT_ENABLE_ES2015 */
+
                 // Repeat, while k < len
                 while (k < len) {
                     // Let exists be the result of calling the [[HasProperty]] internal method of E with P.
@@ -623,6 +635,10 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
                 n += len;
                 array->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(n), array);
             } else {
+#ifdef ESCARGOT_ENABLE_ES2015
+                // If n + len >= 2^53 - 1, throw a TypeError exception.
+                CHECK_ARRAY_LENGTH(n, (1ULL << 53) - 1);
+#endif /* ESCARGOT_ENABLE_ES2015 */
                 array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(arr, ObjectPropertyDescriptor::AllPresent));
                 n++;
             }
@@ -1491,6 +1507,10 @@ static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t 
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-array.prototype.unshift
     // http://www.ecma-international.org/ecma-262/5.1/#sec-15.4.4.13
     if (argCount) {
+#ifdef ESCARGOT_ENABLE_ES2015
+        // If len + argCount > 2^53 - 1, throw a TypeError exception.
+        CHECK_ARRAY_LENGTH(size_t(len + argCount), (1ULL << 53));
+#endif /* ESCARGOT_ENABLE_ES2015 */
         // Repeat, while k > 0,
         while (k > 0) {
             // Let from be ToString(k–1).
