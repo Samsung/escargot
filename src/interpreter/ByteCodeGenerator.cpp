@@ -554,23 +554,10 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
         while (idx < end) {
             ByteCode* currentCode = (ByteCode*)(code + idx);
 
-            Opcode opcode = currentCode->m_orgOpcode;
-            switch (opcode) {
-#define DUMP_BYTE_CODE(code, pushCount, popCount) \
-    case code##Opcode:                            \
-        currentCode->dumpCode(idx);               \
-        break;
-
-                FOR_EACH_BYTECODE_OP(DUMP_BYTE_CODE)
-
-#undef DUMP_BYTE_CODE
-            default:
-                RELEASE_ASSERT_NOT_REACHED();
-                break;
-            };
-
-            idx += byteCodeLengths[opcode];
+            currentCode->dumpCode(idx, (const char*)code);
+            idx += byteCodeLengths[currentCode->m_orgOpcode];
         }
+
         printf("dumpBytecode...<<<<<<<<<<<<<<<<<<<<<<\n");
     }
 #endif
