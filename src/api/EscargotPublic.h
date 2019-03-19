@@ -789,6 +789,8 @@ public:
 class EXPORT ArrayBufferViewRef : public ObjectRef {
 public:
     ArrayBufferObjectRef* buffer();
+    void setBuffer(ArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength, unsigned arrayLength);
+    void setBuffer(ArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength);
     uint8_t* rawBuffer();
     unsigned bytelength();
 };

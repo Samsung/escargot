@@ -1299,6 +1299,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     m_int16ArrayPrototype = m_int16Array->getFunctionPrototype(state).asObject();
     m_int32ArrayPrototype = m_int32Array->getFunctionPrototype(state).asObject();
     m_uint8ArrayPrototype = m_uint8Array->getFunctionPrototype(state).asObject();
+    m_uint8ClampedArrayPrototype = m_uint8ClampedArray->getFunctionPrototype(state).asObject();
     m_uint16ArrayPrototype = m_uint16Array->getFunctionPrototype(state).asObject();
     m_uint32ArrayPrototype = m_uint32Array->getFunctionPrototype(state).asObject();
     m_float32ArrayPrototype = m_float32Array->getFunctionPrototype(state).asObject();
