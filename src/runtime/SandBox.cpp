@@ -36,6 +36,9 @@ SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner)
         result.result = scriptRunner();
         result.msgStr = result.result.toStringWithoutException(state);
     } catch (const Value& err) {
+        // when exception occurred, an undefined value is allocated for result value which will be never used.
+        // this is to avoid dereferencing of null pointer.
+        result.result = Value();
         result.error = err;
         result.msgStr = result.error.toStringWithoutException(state);
 
