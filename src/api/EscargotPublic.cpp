@@ -1926,6 +1926,16 @@ ArrayBufferObjectRef* ArrayBufferViewRef::buffer()
     return toRef(toImpl(this)->buffer());
 }
 
+void ArrayBufferViewRef::setBuffer(ArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength, unsigned arrayLength)
+{
+    toImpl(this)->setBuffer(toImpl(bo), byteOffset, byteLength, arrayLength);
+}
+
+void ArrayBufferViewRef::setBuffer(ArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength)
+{
+    toImpl(this)->setBuffer(toImpl(bo), byteOffset, byteLength);
+}
+
 uint8_t* ArrayBufferViewRef::rawBuffer()
 {
     return toImpl(this)->rawBuffer();
