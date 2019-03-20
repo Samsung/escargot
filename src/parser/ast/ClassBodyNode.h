@@ -51,10 +51,9 @@ public:
         return m_constructor.get();
     }
 
-    void generateClassInitializer(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex classIndex, Context* ctx)
+    void generateClassInitializer(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex classIndex)
     {
-        size_t objIndex = context->getRegister();
-        codeBlock->pushCode(CreateObject(ByteCodeLOC(m_loc.index), objIndex), context, this);
+        size_t objIndex = context->m_classInfo.m_bodyIndex;
 
         for (unsigned i = 0; i < m_elementList.size(); i++) {
             ClassElementNode* p = m_elementList[i].get();
@@ -98,12 +97,6 @@ public:
 
             context->giveUpRegister(); // for drop value index
         }
-
-        SetObjectInlineCache* inlineCache = new SetObjectInlineCache();
-        codeBlock->m_literalData.pushBack(inlineCache);
-        codeBlock->pushCode(SetObjectPreComputedCase(ByteCodeLOC(m_loc.index), classIndex, PropertyName(ctx->staticStrings().prototype), objIndex, inlineCache), context, this);
-
-        context->giveUpRegister(); // for drop objIndex
 
         codeBlock->m_shouldClearStack = true;
     }

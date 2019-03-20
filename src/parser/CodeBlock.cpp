@@ -106,7 +106,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_isFunctionDeclaration(false)
     , m_isFunctionDeclarationWithSpecialBinding(false)
     , m_isArrowFunctionExpression(false)
-    , m_isClassConstructor(info.m_isClassConstructor)
+    , m_isClassConstructor(false)
     , m_isInWithScope(false)
     , m_isEvalCodeInFunction(false)
     , m_isBindedFunction(false)
@@ -351,7 +351,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
         m_parametersInfomation[i].m_isDuplicated = false;
     }
 
-    m_canUseIndexedVariableStorage = !hasEvalWithYield() && !m_inCatch && !m_inWith;
+    m_canUseIndexedVariableStorage = !hasEvalWithYield() && !m_inCatch && !m_inWith && !scopeCtx->m_hasArrowSuper;
     m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage;
 
     const ASTScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_names;

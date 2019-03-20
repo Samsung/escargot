@@ -44,11 +44,10 @@ struct NativeFunctionInfo {
     enum Flags {
         Strict = 1,
         Constructor = 1 << 1,
-        ClassConstructor = 1 << 2,
     };
+
     bool m_isStrict : 1;
     bool m_isConstructor : 1;
-    bool m_isClassConstructor : 1;
     AtomicString m_name;
     NativeFunctionPointer m_nativeFunction;
     NativeFunctionConstructor m_nativeFunctionConstructor;
@@ -57,7 +56,6 @@ struct NativeFunctionInfo {
     NativeFunctionInfo(AtomicString name, NativeFunctionPointer fn, size_t argc, NativeFunctionConstructor ctor = nullptr, int flags = Flags::Strict | Flags::Constructor)
         : m_isStrict(flags & Strict)
         , m_isConstructor(flags & Constructor)
-        , m_isClassConstructor(flags & ClassConstructor)
         , m_name(name)
         , m_nativeFunction(fn)
         , m_nativeFunctionConstructor(ctor)
@@ -252,6 +250,11 @@ public:
         m_canUseIndexedVariableStorage = false;
     }
 
+    void setAsClassConstructor()
+    {
+        m_isClassConstructor = true;
+    }
+
     void setNeedsVirtualIDOperation()
     {
         ASSERT(isInterpretedCodeBlock());
@@ -309,6 +312,7 @@ protected:
     bool m_needsComplexParameterCopy : 1;
     bool m_hasEval : 1;
     bool m_hasWith : 1;
+    bool m_hasSuper : 1;
     bool m_hasCatch : 1;
     bool m_hasYield : 1;
     bool m_inCatch : 1;

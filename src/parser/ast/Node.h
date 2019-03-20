@@ -140,6 +140,7 @@ enum ASTNodeType {
     ClassBody,
     ClassElement,
     ClassMethod,
+    SuperExpression,
     DefaultArgument,
 };
 
@@ -271,6 +272,11 @@ public:
         return type() == ASTNodeType::MemberExpression;
     }
 
+    bool isSuperNode()
+    {
+        return type() == ASTNodeType::SuperExpression;
+    }
+
     virtual bool isExpressionNode()
     {
         return false;
@@ -369,6 +375,7 @@ struct ASTScopeContext : public gc {
     bool m_inWith : 1;
     bool m_isArrowFunctionExpression : 1;
     bool m_isClassConstructor : 1;
+    bool m_hasArrowSuper : 1;
     bool m_hasManyNumeralLiteral : 1;
     bool m_needsSpecialInitialize : 1; // flag for fd in catch
     bool m_hasRestElement : 1;
@@ -453,6 +460,7 @@ struct ASTScopeContext : public gc {
         , m_inWith(false)
         , m_isArrowFunctionExpression(false)
         , m_isClassConstructor(false)
+        , m_hasArrowSuper(false)
         , m_hasManyNumeralLiteral(false)
         , m_needsSpecialInitialize(false)
         , m_hasRestElement(false)

@@ -1152,6 +1152,16 @@ public:
                         return T(this->finalize(node, new ThisExpressionNode()));
                     }
                     return ScanExpressionResult(ASTNodeType::ThisExpression);
+                } else if (this->matchKeyword(SuperKeyword)) {
+                    this->nextToken();
+                    if (!this->match(LeftParenthesis) && !this->match(Period) && !this->match(LeftSquareBracket)) {
+                        this->throwUnexpectedToken(this->lookahead);
+                    }
+
+                    if (isParse) {
+                        return T(this->finalize(node, new SuperExpressionNode(this->lookahead->valuePunctuatorKind == LeftParenthesis)));
+                    }
+                    return ScanExpressionResult(ASTNodeType::SuperExpression);
                 } else if (this->matchKeyword(ClassKeyword)) {
                     if (isParse) {
                         return T(this->parseClassExpression());
@@ -2330,12 +2340,19 @@ public:
 
         if (this->context->inFunctionBody && this->matchKeyword(SuperKeyword)) {
             this->nextToken();
-            this->throwError("super keyword is not supported yet");
-            RELEASE_ASSERT_NOT_REACHED();
-            // MetaNode node = this->createNode();
-            // expr = this->finalize(node, new Node.Super());
             if (!this->match(LeftParenthesis) && !this->match(Period) && !this->match(LeftSquareBracket)) {
                 this->throwUnexpectedToken(this->lookahead);
+            }
+
+            if (this->context->inArrowFunction) {
+                scopeContexts.back()->m_hasArrowSuper = true;
+            }
+
+            if (isParse) {
+                insertUsingName(this->escargotContext->staticStrings().stringThis);
+                exprNode = this->finalize(this->createNode(), new SuperExpressionNode(this->lookahead->valuePunctuatorKind == LeftParenthesis));
+            } else {
+                expr = ScanExpressionResult(ASTNodeType::SuperExpression);
             }
         } else if (this->matchKeyword(NewKeyword)) {
             if (isParse) {
@@ -2432,13 +2449,14 @@ public:
             this->throwUnexpectedToken(this->lookahead);
         }
 
-        this->throwError("super keyword is not supported yet");
-        RELEASE_ASSERT_NOT_REACHED();
-        if (isParse) {
-            // return this->finalize(node, new Node.Super());
-            return PassNode<Node>(nullptr);
+        if (this->context->inArrowFunction) {
+            scopeContexts.back()->m_hasArrowSuper = true;
         }
-        return ScanExpressionResult(ASTNodeType::ASTNodeTypeError);
+
+        if (isParse) {
+            return T(this->finalize(node, new SuperExpressionNode(false)));
+        }
+        return ScanExpressionResult(ASTNodeType::SuperExpression);
     }
 
     template <typename T, bool isParse>
@@ -3336,7 +3354,7 @@ public:
                     this->expect(LeftParenthesis);
 
                     list = this->parseFormalParameters();
-                    scopeContexts.back()->m_paramsStart.index = startNode.index;
+                    scopeContexts.back()->m_paramsStart.index = startMarker.index;
                 }
 
                 if (isParse) {
@@ -5604,7 +5622,7 @@ public:
                 key = this->parseObjectPropertyKey();
                 value = this->parseSetterMethod();
             }
-        } else if (token->type == Token::PunctuatorToken && token->valueStringLiteral() == "*" && lookaheadPropertyKey) {
+        } else if (lookaheadPropertyKey && token->type == Token::PunctuatorToken && token->valueStringLiteral() == "*") {
             kind = ClassElementNode::Kind::Method;
             computed = this->match(LeftSquareBracket);
             key = this->parseObjectPropertyKey();
@@ -5663,17 +5681,13 @@ public:
         return this->finalize(node, new ClassBodyNode(std::move(body), constructor));
     }
 
-    struct ClassProperty {
-        RefPtr<IdentifierNode> id;
-        RefPtr<ClassBodyNode> classBody;
-        RefPtr<Node> superClass;
-    };
-
-    ClassProperty parseClassProperties(bool identifierIsOptional)
+    template <class ClassType>
+    PassRefPtr<ClassType> parseClass(bool identifierIsOptional)
     {
         bool previousStrict = this->context->strict;
         this->context->strict = true;
         this->expectKeyword(ClassKeyword);
+        MetaNode node = this->createNode();
 
         RefPtr<IdentifierNode> id = (identifierIsOptional && this->lookahead->type != Token::IdentifierToken) ? nullptr : this->parseVariableIdentifier();
 
@@ -5684,7 +5698,6 @@ public:
 
         RefPtr<Node> superClass = nullptr;
         if (this->matchKeyword(ExtendsKeyword)) {
-            this->throwError("extends keyword is not supported yet");
             this->nextToken();
             superClass = this->isolateCoverGrammar(&Parser::leftHandSideExpressionAllowCall<Parse>);
         }
@@ -5692,21 +5705,18 @@ public:
         RefPtr<ClassBodyNode> classBody = this->parseClassBody();
         this->context->strict = previousStrict;
 
-        return ClassProperty{ id, classBody, superClass };
+
+        return this->finalize(node, new ClassType(id, superClass, classBody.get()));
     }
 
     PassRefPtr<ClassDeclarationNode> parseClassDeclaration()
     {
-        ClassProperty classProperties = parseClassProperties(false);
-
-        return this->finalize(this->createNode(), new ClassDeclarationNode(classProperties.id, classProperties.superClass, classProperties.classBody.get(), this->escargotContext));
+        return parseClass<ClassDeclarationNode>(false);
     }
 
     PassRefPtr<ClassExpressionNode> parseClassExpression()
     {
-        ClassProperty classProperties = parseClassProperties(true);
-
-        return this->finalize(this->createNode(), new ClassExpressionNode(classProperties.id, classProperties.superClass, classProperties.classBody.get(), this->escargotContext));
+        return parseClass<ClassExpressionNode>(true);
     }
 
     // ECMA-262 15.1 Scripts

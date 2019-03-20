@@ -66,7 +66,9 @@ class Node;
     F(CreateArray, 1, 0)                              \
     F(CreateSpreadObject, 1, 0)                       \
     F(CreateFunction, 1, 0)                           \
-    F(CreateImplicitConstructor, 1, 0)                \
+    F(CreateClass, 0, 0)                              \
+    F(SuperReference, 1, 0)                           \
+    F(LoadThisBinding, 0, 0)                          \
     F(ObjectDefineOwnPropertyOperation, 0, 0)         \
     F(ObjectDefineOwnPropertyWithNameOperation, 0, 0) \
     F(ArrayDefineOwnPropertyOperation, 0, 0)          \
@@ -368,21 +370,77 @@ public:
 #endif
 };
 
-class CreateImplicitConstructor : public ByteCode {
+class CreateClass : public ByteCode {
 public:
-    CreateImplicitConstructor(const ByteCodeLOC& loc, const size_t& registerIndex)
-        : ByteCode(Opcode::CreateImplicitConstructorOpcode, loc)
-        , m_registerIndex(registerIndex)
-        , m_codeBlock(NULL)
+    CreateClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex, const size_t superClassRegisterIndex, AtomicString name, CodeBlock* cb, uint8_t stage)
+        : ByteCode(Opcode::CreateClassOpcode, loc)
+        , m_classRegisterIndex(classRegisterIndex)
+        , m_classPrototypeRegisterIndex(classPrototypeRegisterIndex)
+        , m_superClassRegisterIndex(superClassRegisterIndex)
+        , m_name(name)
+        , m_codeBlock(cb)
+        , m_stage(stage)
     {
     }
 
-    ByteCodeRegisterIndex m_registerIndex;
+    ByteCodeRegisterIndex m_classRegisterIndex;
+    ByteCodeRegisterIndex m_classPrototypeRegisterIndex;
+    ByteCodeRegisterIndex m_superClassRegisterIndex;
+    AtomicString m_name;
     CodeBlock* m_codeBlock;
+    uint8_t m_stage;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("create implicit constructor -> r%d", (int)m_registerIndex);
+        if (m_superClassRegisterIndex == std::numeric_limits<ByteCodeRegisterIndex>::max()) {
+            printf("create class(%d) r%d(%s) { r%d }", (int)m_stage, (int)m_classRegisterIndex, m_name.string()->toUTF8StringData().data(), (int)m_classPrototypeRegisterIndex);
+        } else {
+            printf("create class(%d) r%d : r%d { r%d }", (int)m_stage, (int)m_classRegisterIndex, (int)m_superClassRegisterIndex, (int)m_classPrototypeRegisterIndex);
+        }
+    }
+#endif
+};
+
+class SuperReference : public ByteCode {
+public:
+    SuperReference(const ByteCodeLOC& loc, const size_t dstIndex, bool isCall)
+        : ByteCode(Opcode::SuperReferenceOpcode, loc)
+        , m_dstIndex(dstIndex)
+        , m_isCall(isCall)
+    {
+    }
+
+    ByteCodeRegisterIndex m_dstIndex;
+    bool m_isCall;
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        if (m_isCall) {
+            printf("Super constructor -> r%d", (int)m_dstIndex);
+        } else {
+            printf("Super property -> r%d", (int)m_dstIndex);
+        }
+    }
+#endif
+};
+
+class LoadThisBinding : public ByteCode {
+public:
+    LoadThisBinding(const ByteCodeLOC& loc, const size_t dstIndex)
+        : ByteCode(Opcode::LoadThisBindingOpcode, loc)
+        , m_dstIndex(dstIndex == REGULAR_REGISTER_LIMIT ? SIZE_MAX : dstIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_dstIndex;
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        if (m_dstIndex == std::numeric_limits<ByteCodeRegisterIndex>::max()) {
+            printf("Load this binding");
+        } else {
+            printf("Load this binding -> r%d", (int)m_dstIndex);
+        }
     }
 #endif
 };

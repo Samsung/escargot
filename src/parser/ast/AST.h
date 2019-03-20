@@ -97,6 +97,7 @@
 #include "SequenceExpressionNode.h"
 #include "SpreadElementNode.h"
 #include "StatementNode.h"
+#include "SuperExpressionNode.h"
 #include "SwitchCaseNode.h"
 #include "SwitchStatementNode.h"
 #include "TaggedTemplateExpressionNode.h"

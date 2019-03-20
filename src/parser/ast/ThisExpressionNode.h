@@ -40,6 +40,10 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
+        if (codeBlock->m_codeBlock->isClassConstructor()) {
+            codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT), context, this);
+        }
+
         if (dstRegister != REGULAR_REGISTER_LIMIT) {
             codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT, dstRegister), context, this);
         }

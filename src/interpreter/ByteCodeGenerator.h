@@ -31,6 +31,21 @@ class CodeBlock;
 class ByteCodeBlock;
 class Node;
 
+struct ClassContextInformation {
+    ClassContextInformation()
+        : m_bodyIndex(SIZE_MAX)
+        , m_superIndex(SIZE_MAX)
+        , m_name(AtomicString())
+        , isAssigmentTarget(false)
+    {
+    }
+
+    size_t m_bodyIndex;
+    size_t m_superIndex;
+    AtomicString m_name;
+    bool isAssigmentTarget : 1;
+};
+
 struct ParserContextInformation {
     ParserContextInformation(bool isEvalCode = false, bool isForGlobalScope = false, bool isStrict = false, bool isWithScope = false)
         : m_isEvalCode(isEvalCode)
@@ -76,6 +91,7 @@ struct ByteCodeGenerateContext {
         m_inCallingExpressionScope = false;
         m_isHeadOfMemberExpression = false;
         m_shouldGenerateByteCodeInstantly = true;
+        m_classInfo = ClassContextInformation();
     }
 
     ByteCodeGenerateContext(const ByteCodeGenerateContext& contextBefore)
@@ -98,6 +114,7 @@ struct ByteCodeGenerateContext {
         , m_positionToContinue(contextBefore.m_positionToContinue)
         , m_tryStatementScopeCount(contextBefore.m_tryStatementScopeCount)
         , m_feCounter(contextBefore.m_feCounter)
+        , m_classInfo(contextBefore.m_classInfo)
         , m_numeralLiteralData(contextBefore.m_numeralLiteralData)
     {
         m_isHeadOfMemberExpression = false;
@@ -119,6 +136,7 @@ struct ByteCodeGenerateContext {
         ctx.m_offsetToBasePointer = m_offsetToBasePointer;
         ctx.m_positionToContinue = m_positionToContinue;
         ctx.m_feCounter = m_feCounter;
+        ctx.m_classInfo = m_classInfo;
 
         m_breakStatementPositions.clear();
         m_continueStatementPositions.clear();
@@ -258,6 +276,7 @@ struct ByteCodeGenerateContext {
     // code position, tryStatement count
     int m_tryStatementScopeCount;
     size_t m_feCounter;
+    ClassContextInformation m_classInfo;
     std::map<size_t, size_t> m_complexCaseStatementPositions;
     Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>>* m_numeralLiteralData;
 };
