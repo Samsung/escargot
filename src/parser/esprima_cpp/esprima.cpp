@@ -235,11 +235,6 @@ public:
         {
         }
 
-        operator PassRefPtr<Node>()
-        {
-            return nullptr;
-        }
-
         operator PassRefNode()
         {
             return PassRefNode(nullptr);
@@ -255,24 +250,17 @@ public:
     };
 
     /* Structure for conversion. Do not use it for storing a value! */
-    class PassRefNode {
+    class PassRefNode : public PassRefPtr<Node> {
     public:
-        PassRefNode(PassRefPtr<Node> nodeRef)
-            : nodeRef(nodeRef)
+        PassRefNode(PassRefPtr<Node> node)
+            : PassRefPtr<Node>(node.leakRef())
         {
-        }
-
-        operator PassRefPtr<Node>()
-        {
-            return nodeRef;
         }
 
         operator ScanExpressionResult()
         {
             return ScanExpressionResult();
         }
-
-        PassRefPtr<Node> nodeRef;
     };
 
     ASTScopeContext fakeContext;
@@ -1098,9 +1086,9 @@ public:
                 return ScanExpressionResult(ASTNodeType::ArrayExpression, AtomicString());
             case LeftBrace:
                 if (isParse) {
-                    return PassRefNode(this->inheritCoverGrammar(&Parser::parseObjectInitializer));
+                    return PassRefNode(this->inheritCoverGrammar(&Parser::objectInitializer<Parse>));
                 }
-                this->scanInheritCoverGrammar(&Parser::scanObjectInitializer);
+                this->scanInheritCoverGrammar(&Parser::objectInitializer<Scan>);
                 return ScanExpressionResult(ASTNodeType::ObjectExpression, AtomicString());
             case Divide:
             case DivideEqual: {
@@ -1373,7 +1361,7 @@ public:
                 }
             } else if (this->match(PeriodPeriodPeriod)) {
                 if (isParse) {
-                    elements.push_back(this->spreadElement<Parse>().nodeRef);
+                    elements.push_back(this->spreadElement<Parse>());
                 } else {
                     this->spreadElement<Scan>();
                 }
@@ -1580,146 +1568,16 @@ public:
         return false;
     }
 
-    PassRefPtr<PropertyNode> parseObjectProperty(bool& hasProto, std::vector<std::pair<AtomicString, size_t>>& usedNames) //: Node.Property
+    template <typename T, bool isParse>
+    T objectProperty(bool& hasProto, std::vector<std::pair<AtomicString, size_t>>& usedNames) //: Node.Property
     {
+        RefPtr<Scanner::ScannerResult> token = this->lookahead;
         MetaNode node = this->createNode();
-        RefPtr<Scanner::ScannerResult> token = this->lookahead;
 
         PropertyNode::Kind kind;
-        RefPtr<Node> key; //'': Node.PropertyKey;
-        RefPtr<Node> value; //: Node.PropertyValue;
-
-        bool computed = false;
-        bool method = false;
-        bool shorthand = false;
-
-        if (token->type == Token::IdentifierToken) {
-            this->nextToken();
-            MetaNode node = this->createNode();
-            key = this->finalize(node, finishIdentifier(token, true));
-        } else if (this->match(PunctuatorKind::Multiply)) {
-            this->nextToken();
-        } else {
-            computed = this->match(LeftSquareBracket);
-            key = this->parseObjectPropertyKey();
-        }
-
-        bool lookaheadPropertyKey = this->qualifiedPropertyName(this->lookahead);
-        bool isGet = false;
-        bool isSet = false;
-        bool isGenerator = false;
-
-        if (token->type == Token::IdentifierToken && lookaheadPropertyKey) {
-            StringView sv = token->valueStringLiteral();
-            const auto& d = sv.bufferAccessData();
-            if (d.length == 3) {
-                if (d.equalsSameLength("get")) {
-                    isGet = true;
-                } else if (d.equalsSameLength("set")) {
-                    isSet = true;
-                }
-            }
-        }
-
-        if (isGet) {
-            kind = PropertyNode::Kind::Get;
-            computed = this->match(LeftSquareBracket);
-            key = this->parseObjectPropertyKey();
-            this->context->allowYield = false;
-            value = this->parseGetterMethod();
-        } else if (isSet) {
-            kind = PropertyNode::Kind::Set;
-            computed = this->match(LeftSquareBracket);
-            key = this->parseObjectPropertyKey();
-            value = this->parseSetterMethod();
-        } else if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::Multiply && lookaheadPropertyKey) {
-            kind = PropertyNode::Kind::Init;
-            computed = this->match(LeftSquareBracket);
-            key = this->parseObjectPropertyKey();
-            value = this->parseGeneratorMethod();
-            method = true;
-        } else {
-            if (!key) {
-                this->throwUnexpectedToken(this->lookahead);
-            }
-            kind = PropertyNode::Kind::Init;
-            if (this->match(PunctuatorKind::Colon)) {
-                if (!this->config.parseSingleFunction && !computed && this->isPropertyKey(key.get(), "__proto__")) {
-                    if (hasProto) {
-                        this->tolerateError(Messages::DuplicateProtoProperty);
-                    }
-                    hasProto = true;
-                }
-                this->nextToken();
-                value = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
-            } else if (this->match(LeftParenthesis)) {
-                value = this->parsePropertyMethodFunction();
-                method = true;
-            } else if (token->type == Token::IdentifierToken) {
-                this->throwError("Property shorthand is not supported yet");
-                RefPtr<Node> id = this->finalize(node, finishIdentifier(token, true));
-                if (this->match(Substitution)) {
-                    this->context->firstCoverInitializedNameError = this->lookahead;
-                    this->nextToken();
-                    shorthand = true;
-                    RefPtr<Node> init = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
-                    //value = this->finalize(node, new AssignmentPatternNode(id, init));
-                } else {
-                    shorthand = true;
-                    value = id;
-                }
-            } else {
-                this->throwUnexpectedToken(this->nextToken());
-            }
-        }
-
-        if (!this->config.parseSingleFunction && key->isIdentifier()) {
-            AtomicString as = key->asIdentifier()->name();
-            bool seenInit = kind == PropertyNode::Kind::Init;
-            bool seenGet = kind == PropertyNode::Kind::Get;
-            bool seenSet = kind == PropertyNode::Kind::Set;
-            size_t len = usedNames.size();
-
-            for (size_t i = 0; i < len; i++) {
-                const auto& n = usedNames[i];
-                if (n.first == as) {
-                    if (n.second == PropertyNode::Kind::Init) {
-                        if (this->context->strict) {
-                            if (seenInit || seenGet || seenSet) {
-                                this->throwError("invalid object literal");
-                            }
-                        } else {
-                            if (seenGet || seenSet) {
-                                this->throwError("invalid object literal");
-                            }
-                        }
-                        seenInit = true;
-                    } else if (n.second == PropertyNode::Kind::Get) {
-                        if (seenInit || seenGet) {
-                            this->throwError("invalid object literal");
-                        }
-                        seenGet = true;
-                    } else if (n.second == PropertyNode::Kind::Set) {
-                        if (seenInit || seenSet) {
-                            this->throwError("invalid object literal");
-                        }
-                        seenSet = true;
-                    }
-                }
-            }
-            usedNames.push_back(std::make_pair(as, kind));
-        }
-
-        // return this->finalize(node, new PropertyNode(kind, key, computed, value, method, shorthand));
-        return this->finalize(node, new PropertyNode(key.get(), value.get(), kind, computed));
-    }
-
-    void scanObjectProperty(bool& hasProto, std::vector<std::pair<AtomicString, size_t>>& usedNames) //: Node.Property
-    {
-        RefPtr<Scanner::ScannerResult> token = this->lookahead;
-
-        PropertyNode::Kind kind;
-        ScanExpressionResult key(ASTNodeType::ASTNodeTypeError, AtomicString());
+        RefPtr<Node> keyNode; //'': Node.PropertyKey;
+        RefPtr<Node> valueNode; //: Node.PropertyValue;
+        ScanExpressionResult key;
         String* keyString = String::emptyString;
 
         bool computed = false;
@@ -1728,14 +1586,23 @@ public:
 
         if (token->type == Token::IdentifierToken) {
             this->nextToken();
-            key = finishScanIdentifier(token, true);
+            MetaNode node = this->createNode();
+            if (isParse) {
+                keyNode = this->finalize(node, finishIdentifier(token, true));
+            } else {
+                key = finishScanIdentifier(token, true);
+            }
         } else if (this->match(PunctuatorKind::Multiply)) {
             this->nextToken();
         } else {
             computed = this->match(LeftSquareBracket);
-            auto keyValue = this->scanObjectPropertyKey();
-            key = keyValue.first;
-            keyString = keyValue.second;
+            if (isParse) {
+                keyNode = this->parseObjectPropertyKey();
+            } else {
+                auto keyValue = this->scanObjectPropertyKey();
+                key = keyValue.first;
+                keyString = keyValue.second;
+            }
         }
 
         bool lookaheadPropertyKey = this->qualifiedPropertyName(this->lookahead);
@@ -1758,34 +1625,61 @@ public:
         if (isGet) {
             kind = PropertyNode::Kind::Get;
             computed = this->match(LeftSquareBracket);
-            auto keyValue = this->scanObjectPropertyKey();
-            key = keyValue.first;
-            keyString = keyValue.second;
-            this->context->allowYield = false;
-            this->parseGetterMethod();
+            if (isParse) {
+                keyNode = this->parseObjectPropertyKey();
+                this->context->allowYield = false;
+                valueNode = this->parseGetterMethod();
+            } else {
+                auto keyValue = this->scanObjectPropertyKey();
+                key = keyValue.first;
+                keyString = keyValue.second;
+                this->context->allowYield = false;
+                this->parseGetterMethod();
+            }
         } else if (isSet) {
             kind = PropertyNode::Kind::Set;
             computed = this->match(LeftSquareBracket);
-            auto keyValue = this->scanObjectPropertyKey();
-            key = keyValue.first;
-            keyString = keyValue.second;
-            this->parseSetterMethod();
+            if (isParse) {
+                keyNode = this->parseObjectPropertyKey();
+                valueNode = this->parseSetterMethod();
+            } else {
+                auto keyValue = this->scanObjectPropertyKey();
+                key = keyValue.first;
+                keyString = keyValue.second;
+                this->parseSetterMethod();
+            }
         } else if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::Multiply && lookaheadPropertyKey) {
             kind = PropertyNode::Kind::Init;
             computed = this->match(LeftSquareBracket);
-            auto keyValue = this->scanObjectPropertyKey();
-            key = keyValue.first;
-            keyString = keyValue.second;
-            this->parseGeneratorMethod();
+            if (isParse) {
+                keyNode = this->parseObjectPropertyKey();
+                valueNode = this->parseGeneratorMethod();
+            } else {
+                auto keyValue = this->scanObjectPropertyKey();
+                key = keyValue.first;
+                this->parseGeneratorMethod();
+            }
             method = true;
         } else {
-            if (key.first == ASTNodeType::ASTNodeTypeError) {
-                this->throwUnexpectedToken(this->lookahead);
+            if (isParse) {
+                if (!keyNode) {
+                    this->throwUnexpectedToken(this->lookahead);
+                }
+            } else {
+                if (key.first == ASTNodeType::ASTNodeTypeError) {
+                    this->throwUnexpectedToken(this->lookahead);
+                }
             }
             kind = PropertyNode::Kind::Init;
             if (this->match(PunctuatorKind::Colon)) {
-                bool isProto = (key.first == ASTNodeType::Identifier && key.second == this->escargotContext->staticStrings().__proto__)
-                    || (key.first == ASTNodeType::Literal && keyString->equals("__proto__"));
+                bool isProto;
+                if (isParse) {
+                    isProto = !this->config.parseSingleFunction && this->isPropertyKey(keyNode.get(), "__proto__");
+                } else {
+                    isProto = (key.first == ASTNodeType::Identifier && key.second == this->escargotContext->staticStrings().__proto__)
+                        || (key.first == ASTNodeType::Literal && keyString->equals("__proto__"));
+                }
+
                 if (!computed && isProto) {
                     if (hasProto) {
                         this->tolerateError(Messages::DuplicateProtoProperty);
@@ -1793,27 +1687,48 @@ public:
                     hasProto = true;
                 }
                 this->nextToken();
-                this->scanInheritCoverGrammar(&Parser::scanAssignmentExpression);
+
+                if (isParse) {
+                    valueNode = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
+                } else {
+                    this->scanInheritCoverGrammar(&Parser::scanAssignmentExpression);
+                }
             } else if (this->match(LeftParenthesis)) {
-                this->parsePropertyMethodFunction();
+                if (isParse) {
+                    valueNode = this->parsePropertyMethodFunction();
+                } else {
+                    this->parsePropertyMethodFunction();
+                }
                 method = true;
             } else if (token->type == Token::IdentifierToken) {
                 this->throwError("Property shorthand is not supported yet");
+                RefPtr<Node> id;
+                if (isParse) {
+                    id = this->finalize(node, finishIdentifier(token, true));
+                }
                 if (this->match(Substitution)) {
                     this->context->firstCoverInitializedNameError = this->lookahead;
                     this->nextToken();
                     shorthand = true;
-                    this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
+                    if (isParse) {
+                        RefPtr<Node> init = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+                        //value = this->finalize(node, new AssignmentPatternNode(id, init));
+                    } else {
+                        this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
+                    }
                 } else {
                     shorthand = true;
+                    if (isParse) {
+                        valueNode = id;
+                    }
                 }
             } else {
                 this->throwUnexpectedToken(this->nextToken());
             }
         }
 
-        if (key.first == ASTNodeType::Identifier) {
-            AtomicString as = key.second;
+        if (!this->config.parseSingleFunction && (isParse ? keyNode->isIdentifier() : key.first == ASTNodeType::Identifier)) {
+            AtomicString as = isParse ? keyNode->asIdentifier()->name() : key.second;
             bool seenInit = kind == PropertyNode::Kind::Init;
             bool seenGet = kind == PropertyNode::Kind::Get;
             bool seenSet = kind == PropertyNode::Kind::Set;
@@ -1848,9 +1763,16 @@ public:
             }
             usedNames.push_back(std::make_pair(as, kind));
         }
+
+        if (isParse) {
+            // return this->finalize(node, new PropertyNode(kind, key, computed, value, method, shorthand));
+            return PassRefNode(this->finalize(node, new PropertyNode(keyNode.get(), valueNode.get(), kind, computed)));
+        }
+        return ScanExpressionResult();
     }
 
-    PassRefPtr<Node> parseObjectInitializer()
+    template <typename T, bool isParse>
+    T objectInitializer()
     {
         this->expect(LeftBrace);
         MetaNode node = this->createNode();
@@ -1858,29 +1780,20 @@ public:
         bool hasProto = false;
         std::vector<std::pair<AtomicString, size_t>> usedNames;
         while (!this->match(RightBrace)) {
-            properties.push_back(this->parseObjectProperty(hasProto, usedNames));
+            if (isParse) {
+                properties.push_back((PropertyNode*)this->objectProperty<Parse>(hasProto, usedNames).get());
+            } else {
+                this->objectProperty<Scan>(hasProto, usedNames);
+            }
             if (!this->match(RightBrace)) {
                 this->expectCommaSeparator();
             }
         }
         this->expect(RightBrace);
 
-        return this->finalize(node, new ObjectExpressionNode(std::move(properties)));
-    }
-
-    ScanExpressionResult scanObjectInitializer()
-    {
-        this->expect(LeftBrace);
-        bool hasProto = false;
-        std::vector<std::pair<AtomicString, size_t>> usedNames;
-        while (!this->match(RightBrace)) {
-            this->scanObjectProperty(hasProto, usedNames);
-            if (!this->match(RightBrace)) {
-                this->expectCommaSeparator();
-            }
+        if (isParse) {
+            return PassRefNode(this->finalize(node, new ObjectExpressionNode(std::move(properties))));
         }
-        this->expect(RightBrace);
-
         return ScanExpressionResult(ASTNodeType::ObjectExpression, AtomicString());
     }
 
@@ -2315,7 +2228,7 @@ public:
             while (true) {
                 RefPtr<Node> expr;
                 if (this->match(PeriodPeriodPeriod)) {
-                    expr = this->spreadElement<Parse>().nodeRef;
+                    expr = this->spreadElement<Parse>();
                 } else {
                     expr = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
                 }
@@ -4301,7 +4214,7 @@ public:
         MetaNode node = this->createNode();
 
         std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> params;
-        RefPtr<Node> id = this->pattern<Parse>(params, VarKeyword).nodeRef;
+        RefPtr<Node> id = this->pattern<Parse>(params, VarKeyword);
 
         // ECMA-262 12.2.1
         if (this->context->strict && id->type() == Identifier && this->scanner->isRestrictedWord(((IdentifierNode*)id.get())->name())) {
@@ -5318,7 +5231,7 @@ public:
         this->context->inDirectCatchScope = true;
 
         std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> params;
-        RefPtr<Node> param = this->pattern<Parse>(params).nodeRef;
+        RefPtr<Node> param = this->pattern<Parse>(params);
 
         std::vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> paramMap;
         for (size_t i = 0; i < params.size(); i++) {
@@ -5374,7 +5287,7 @@ public:
         this->context->inDirectCatchScope = true;
 
         std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> params;
-        RefPtr<Node> param = this->pattern<Parse>(params).nodeRef;
+        RefPtr<Node> param = this->pattern<Parse>(params);
 
         std::vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> paramMap;
         for (size_t i = 0; i < params.size(); i++) {
