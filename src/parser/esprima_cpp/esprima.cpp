@@ -1350,7 +1350,6 @@ public:
         MetaNode node = this->createNode();
 
         RefPtr<Node> arg = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>);
-        this->throwError("Spread element is not supported yet");
         if (isParse) {
             return T(this->finalize(node, new SpreadElementNode(arg.get())));
         }
@@ -1365,6 +1364,8 @@ public:
 
         this->expect(LeftSquareBracket);
 
+        bool hasSpreadElement = false;
+
         while (!this->match(RightSquareBracket)) {
             if (this->match(Comma)) {
                 this->nextToken();
@@ -1377,6 +1378,9 @@ public:
                 } else {
                     this->spreadElement<Scan>();
                 }
+
+                hasSpreadElement = true;
+
                 if (!this->match(RightSquareBracket)) {
                     this->context->isAssignmentTarget = false;
                     this->context->isBindingElement = false;
@@ -1397,7 +1401,7 @@ public:
 
         if (isParse) {
             MetaNode node = this->createNode();
-            return T(this->finalize(node, new ArrayExpressionNode(std::move(elements))));
+            return T(this->finalize(node, new ArrayExpressionNode(std::move(elements), AtomicString(), nullptr, hasSpreadElement)));
         }
         return ScanExpressionResult(ASTNodeType::ArrayExpression, AtomicString());
     }

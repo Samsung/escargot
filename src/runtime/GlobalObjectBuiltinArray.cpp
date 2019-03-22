@@ -227,7 +227,7 @@ static Value builtinArrayOf(ExecutionState& state, Value thisValue, size_t argc,
         Value arg[1] = { Value(len) };
         A = ByteCodeInterpreter::newOperation(state, C, 1, arg);
     } else {
-        A = new ArrayObject(state, len);
+        A = new ArrayObject(state, static_cast<double>(len));
     }
 
     size_t k = 0;
@@ -577,7 +577,7 @@ static Value arraySpeciesCreate(ExecutionState& state, Object* originalArray, co
     // If C is null, let C be undefined.
     // If C is undefined, return ArrayCreate(length).
     if (C.isUndefinedOrNull()) {
-        return new ArrayObject(state, length);
+        return new ArrayObject(state, static_cast<double>(length));
     }
     // If IsConstructor(C) is false, throw a TypeError exception.
     if (!C.isConstructor()) {

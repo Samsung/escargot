@@ -40,6 +40,7 @@ class Node;
     F(StoreByHeapIndex, 0, 0)                         \
     F(DeclareFunctionDeclarations, 1, 0)              \
     F(NewOperation, 1, 0)                             \
+    F(NewOperationWithSpreadElement, 1, 0)            \
     F(BinaryPlus, 1, 2)                               \
     F(BinaryMinus, 1, 2)                              \
     F(BinaryMultiply, 1, 2)                           \
@@ -63,6 +64,7 @@ class Node;
     F(BinaryInstanceOfOperation, 1, 2)                \
     F(CreateObject, 1, 0)                             \
     F(CreateArray, 1, 0)                              \
+    F(CreateSpreadObject, 1, 0)                       \
     F(CreateFunction, 1, 0)                           \
     F(CreateImplicitConstructor, 1, 0)                \
     F(ObjectDefineOwnPropertyOperation, 0, 0)         \
@@ -90,6 +92,7 @@ class Node;
     F(JumpIfFalse, 0, 0)                              \
     F(CallFunction, -1, 0)                            \
     F(CallFunctionWithReceiver, -1, 0)                \
+    F(CallFunctionWithSpreadElement, -1, 0)           \
     F(ReturnFunction, 0, 0)                           \
     F(ReturnFunctionWithValue, 0, 0)                  \
     F(ReturnFunctionSlowCase, 0, 0)                   \
@@ -430,20 +433,42 @@ public:
 
 class CreateArray : public ByteCode {
 public:
-    CreateArray(const ByteCodeLOC& loc, const size_t registerIndex)
+    CreateArray(const ByteCodeLOC& loc, const size_t registerIndex, bool hasSpreadElement)
         : ByteCode(Opcode::CreateArrayOpcode, loc)
         , m_registerIndex(registerIndex)
+        , m_hasSpreadElement(hasSpreadElement)
     {
         m_length = 0;
     }
 
     ByteCodeRegisterIndex m_registerIndex;
     size_t m_length;
+    bool m_hasSpreadElement;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
         printf("createarray -> r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class CreateSpreadObject : public ByteCode {
+public:
+    CreateSpreadObject(const ByteCodeLOC& loc, const size_t registerIndex, const size_t spreadIndex)
+        : ByteCode(Opcode::CreateSpreadObjectOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_spreadIndex(spreadIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_registerIndex;
+    ByteCodeRegisterIndex m_spreadIndex;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("create spread object(r%d) -> r%d", (int)m_spreadIndex, (int)m_registerIndex);
     }
 #endif
 };
@@ -1166,15 +1191,46 @@ public:
 #endif
 };
 
+class CallFunctionWithSpreadElement : public ByteCode {
+public:
+    CallFunctionWithSpreadElement(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount, const size_t resultIndex)
+        : ByteCode(Opcode::CallFunctionWithSpreadElementOpcode, loc)
+        , m_receiverIndex(receiverIndex)
+        , m_calleeIndex(calleeIndex)
+        , m_argumentsStartIndex(argumentsStartIndex)
+        , m_argumentCount(argumentCount)
+        , m_resultIndex(resultIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_receiverIndex;
+    ByteCodeRegisterIndex m_calleeIndex;
+    ByteCodeRegisterIndex m_argumentsStartIndex;
+    uint16_t m_argumentCount;
+    ByteCodeRegisterIndex m_resultIndex;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        if (m_receiverIndex != std::numeric_limits<ByteCodeRegisterIndex>::max()) {
+            printf("call(spread) r%d <- r%d,r%d(r%d-r%d)", (int)m_resultIndex, (int)m_receiverIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
+        } else {
+            printf("call(spread) r%d <- r%d(r%d-r%d)", (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
+        }
+    }
+#endif
+};
+
 class CallEvalFunction : public ByteCode {
 public:
-    CallEvalFunction(const ByteCodeLOC& loc, const size_t evalIndex, const size_t argumentsStartIndex, size_t argumentCount, const size_t resultIndex, bool inWithScope)
+    CallEvalFunction(const ByteCodeLOC& loc, const size_t evalIndex, const size_t argumentsStartIndex, size_t argumentCount, const size_t resultIndex, bool inWithScope, bool hasSpreadElement)
         : ByteCode(Opcode::CallEvalFunctionOpcode, loc)
         , m_evalIndex(evalIndex)
         , m_argumentsStartIndex(argumentsStartIndex)
         , m_argumentCount(argumentCount)
         , m_resultIndex(resultIndex)
         , m_inWithScope(inWithScope)
+        , m_hasSpreadElement(hasSpreadElement)
     {
     }
     ByteCodeRegisterIndex m_evalIndex;
@@ -1182,6 +1238,7 @@ public:
     uint16_t m_argumentCount;
     ByteCodeRegisterIndex m_resultIndex;
     bool m_inWithScope;
+    bool m_hasSpreadElement;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
@@ -1193,12 +1250,13 @@ public:
 
 class CallFunctionInWithScope : public ByteCode {
 public:
-    CallFunctionInWithScope(const ByteCodeLOC& loc, const AtomicString& calleeName, const size_t argumentsStartIndex, size_t argumentCount, const size_t resultIndex)
+    CallFunctionInWithScope(const ByteCodeLOC& loc, const AtomicString& calleeName, const size_t argumentsStartIndex, size_t argumentCount, const size_t resultIndex, bool hasSpreadElement)
         : ByteCode(Opcode::CallFunctionInWithScopeOpcode, loc)
         , m_calleeName(calleeName)
         , m_argumentsStartIndex(argumentsStartIndex)
         , m_argumentCount(argumentCount)
         , m_resultIndex(resultIndex)
+        , m_hasSpreadElement(hasSpreadElement)
     {
     }
 
@@ -1206,6 +1264,7 @@ public:
     ByteCodeRegisterIndex m_argumentsStartIndex;
     uint16_t m_argumentCount;
     ByteCodeRegisterIndex m_resultIndex;
+    bool m_hasSpreadElement;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
@@ -1234,6 +1293,29 @@ public:
     void dump(const char* byteCodeStart)
     {
         printf("new r%d <- r%d(r%d-r%d)", (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
+    }
+#endif
+};
+
+class NewOperationWithSpreadElement : public ByteCode {
+public:
+    NewOperationWithSpreadElement(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount, const size_t resultIndex)
+        : ByteCode(Opcode::NewOperationWithSpreadElementOpcode, loc)
+        , m_calleeIndex(calleeIndex)
+        , m_argumentsStartIndex(argumentsStartIndex)
+        , m_argumentCount(argumentCount)
+        , m_resultIndex(resultIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_calleeIndex;
+    ByteCodeRegisterIndex m_argumentsStartIndex;
+    uint16_t m_argumentCount;
+    ByteCodeRegisterIndex m_resultIndex;
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("new(spread) r%d <- r%d(r%d-r%d)", (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
     }
 #endif
 };

@@ -510,6 +510,27 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 assignStackIndexIfNeeded(plus->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
+            case CreateSpreadObjectOpcode: {
+                CreateSpreadObject* cd = (CreateSpreadObject*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_spreadIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
+            case NewOperationWithSpreadElementOpcode: {
+                NewOperationWithSpreadElement* cd = (NewOperationWithSpreadElement*)currentCode;
+                assignStackIndexIfNeeded(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
+            case CallFunctionWithSpreadElementOpcode: {
+                CallFunctionWithSpreadElement* cd = (CallFunctionWithSpreadElement*)currentCode;
+                assignStackIndexIfNeeded(cd->m_receiverIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
             default:
                 break;
             }

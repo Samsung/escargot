@@ -43,7 +43,7 @@ class ArrayObject : public Object {
     friend int getValidValueInArrayObject(void* ptr, GC_mark_custom_result* arr);
 
 public:
-    explicit ArrayObject(ExecutionState& state);
+    explicit ArrayObject(ExecutionState& state, bool hasSpreadElement = false);
     ArrayObject(ExecutionState& state, double size); // http://www.ecma-international.org/ecma-262/7.0/index.html#sec-arraycreate
     virtual bool isArrayObject() const override
     {
