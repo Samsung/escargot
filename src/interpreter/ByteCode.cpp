@@ -43,7 +43,7 @@ OpcodeTable::OpcodeTable()
 }
 
 #ifndef NDEBUG
-void ByteCode::dumpCode(size_t pos)
+void ByteCode::dumpCode(size_t pos, const char* byteCodeStart)
 {
     printf("%d\t\t", (int)pos);
 
@@ -51,7 +51,7 @@ void ByteCode::dumpCode(size_t pos)
     switch (m_orgOpcode) {
 #define RETURN_BYTECODE_NAME(name, pushCount, popCount) \
     case name##Opcode:                                  \
-        ((name*)this)->dump();                          \
+        ((name*)this)->dump(byteCodeStart);             \
         opcodeName = #name;                             \
         break;
         FOR_EACH_BYTECODE_OP(RETURN_BYTECODE_NAME)
@@ -62,6 +62,11 @@ void ByteCode::dumpCode(size_t pos)
 
     printf(" | %s ", opcodeName);
     printf("(line: %d:%d)\n", (int)m_loc.line, (int)m_loc.column);
+}
+
+int ByteCode::dumpJumpPosition(size_t pos, const char* byteCodeStart)
+{
+    return (int)(pos - (size_t)byteCodeStart);
 }
 #endif
 
