@@ -119,7 +119,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
     if (!usingIterator.isUndefined()) {
         Object* A;
         // If IsConstructor(C) is true, then
-        if (C.isFunction() && C.asFunction()->isConstructor()) {
+        if (C.isConstructor()) {
             // Let A be ? Construct(C).
             A = C.asFunction()->newInstance(state, 0, nullptr);
         } else {
@@ -175,7 +175,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
     auto len = arrayLike->lengthES6(state);
     // If IsConstructor(C) is true, then
     Object* A;
-    if (C.isFunction() && C.asFunction()->isConstructor()) {
+    if (C.isConstructor()) {
         // Let A be ? Construct(C, « len »).
         Value vlen(len);
         A = C.asFunction()->newInstance(state, 1, &vlen);

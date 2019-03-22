@@ -71,6 +71,7 @@ namespace Escargot {
     F(valueOf)                    \
     F(Array)                      \
     F(isArray)                    \
+    F(of)                         \
     F(from)                       \
     F(concat)                     \
     F(forEach)                    \

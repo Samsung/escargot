@@ -471,6 +471,14 @@ public:
     {
         return m_dataViewPrototype;
     }
+    Object* typedArray()
+    {
+        return m_typedArray;
+    }
+    Object* typedArrayPrototype()
+    {
+        return m_typedArrayPrototype;
+    }
     Object* int8Array()
     {
         return m_int8Array;

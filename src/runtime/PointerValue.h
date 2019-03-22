@@ -214,6 +214,11 @@ public:
         return false;
     }
 
+    virtual bool isConstructor() const
+    {
+        return false;
+    }
+
     String* asString()
     {
         ASSERT(isString());

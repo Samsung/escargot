@@ -67,11 +67,6 @@ public:
         }
     }
 
-    bool isConstructor()
-    {
-        return m_codeBlock->isConstructor();
-    }
-
     bool isArrowFunction()
     {
         return m_codeBlock->isArrowFunctionExpression();
@@ -87,9 +82,14 @@ public:
         return true;
     }
 
-    virtual bool isCallable() const
+    virtual bool isCallable() const override
     {
         return true;
+    }
+
+    virtual bool isConstructor() const override
+    {
+        return m_codeBlock->isConstructor();
     }
 
     CodeBlock* codeBlock()

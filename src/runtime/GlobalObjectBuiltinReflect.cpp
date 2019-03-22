@@ -71,16 +71,13 @@ static Value builtinReflectConstruct(ExecutionState& state, Value thisValue, siz
     Value newTarget = argc > 2 ? argv[2] : target;
 
     // 1. If IsConstructor(target) is false, throw a TypeError exception.
-    if (!target.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Reflect.string(), false, String::emptyString, "%s: The target of Reflect.construct should be an Object");
-    }
-    if ((!target.isFunction() && !target.asObject()->isProxyObject()) || (target.asObject()->isProxyObject() && !target.asObject()->asProxyObject()->isConstructible())) {
+    if (!target.isConstructor()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Reflect.string(), false, String::emptyString, "%s: The target of Reflect.construct should has a construct method");
     }
 
     // 2. If newTarget is not present, let newTarget be target.
     // 3. Else, if IsConstructor(newTarget) is false, throw a TypeError exception.
-    if ((!newTarget.isFunction() && !newTarget.asObject()->isProxyObject()) || (newTarget.asObject()->isProxyObject() && !newTarget.asObject()->asProxyObject()->isConstructible())) {
+    if (!newTarget.isConstructor()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Reflect.string(), false, String::emptyString, "%s: The new target of Reflect.construct should be a constructor");
     }
 

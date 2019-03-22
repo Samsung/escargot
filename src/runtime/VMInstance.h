@@ -36,11 +36,12 @@ class CodeBlock;
 class JobQueue;
 class Job;
 
-// TODO species, match, replace, search, split
+// TODO match, replace, search, split
 #define DEFINE_GLOBAL_SYMBOLS(F) \
     F(hasInstance)               \
     F(isConcatSpreadable)        \
     F(iterator)                  \
+    F(species)                   \
     F(toPrimitive)               \
     F(toStringTag)               \
     F(unscopables)

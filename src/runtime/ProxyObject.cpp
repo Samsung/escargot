@@ -96,11 +96,11 @@ Value ProxyObject::createProxy(ExecutionState& state, const Value& target, const
 
     // 7. If IsCallable(target) is true, then
     // 7.a Set the [[Call]] internal method of P as specified in 9.5.13.
-    if (target.asObject()->isCallable()) {
+    if (target.isCallable()) {
         proxy->m_isCallable = true;
     }
     // 7.b If target has a [[Construct]] internal method, then Set the [[Construct]] internal method of P as specified in 9.5.14.
-    if (target.isFunction() || (target.asObject()->isProxyObject() && target.asObject()->asProxyObject()->isConstructible())) {
+    if (target.isConstructor()) {
         proxy->m_isConstructible = true;
     }
 
@@ -135,7 +135,7 @@ bool ProxyObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
     // 6. Let trap be GetMethod(handler, "defineProperty").
     // 7. ReturnIfAbrupt(trap).
     Value trap;
-    trap = handler.asObject()->getMethod(state, ObjectPropertyName(state, strings->defineProperty.string()));
+    trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->defineProperty.string()));
 
     // 8. If trap is undefined, then
     // a. Return target.[[DefineOwnProperty]](P, Desc).
@@ -211,7 +211,7 @@ bool ProxyObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
     // 6. Let trap be GetMethod(handler, "deleteProperty").
     // 7. ReturnIfAbrupt(trap).
     Value trap;
-    trap = handler.asObject()->getMethod(state, ObjectPropertyName(state, strings->deleteProperty.string()));
+    trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->deleteProperty.string()));
 
     // 8. If trap is undefined, then
     // a. Return target.[[Delete]](P).
@@ -268,7 +268,7 @@ ObjectGetResult ProxyObject::getOwnProperty(ExecutionState& state, const ObjectP
     // 6. Let trap be GetMethod(handler, "getOwnPropertyDescriptor").
     // 7. ReturnIfAbrupt(trap).
     Value trap;
-    trap = handler.asObject()->getMethod(state, ObjectPropertyName(state, strings->getOwnPropertyDescriptor.string()));
+    trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->getOwnPropertyDescriptor.string()));
 
     // 8. If trap is undefined, then
     // a. Return target.[[GetOwnProperty]](P).
@@ -364,7 +364,7 @@ bool ProxyObject::preventExtensions(ExecutionState& state)
     // 5. Let trap be GetMethod(handler, "preventExtensions").
     // 6. ReturnIfAbrupt(trap).
     Value trap;
-    trap = handler.asObject()->getMethod(state, ObjectPropertyName(state, strings->preventExtensions.string()));
+    trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->preventExtensions.string()));
 
     // 7. If trap is undefined, then
     // a. Return target.[[PreventExtensions]]().
@@ -415,7 +415,7 @@ bool ProxyObject::hasProperty(ExecutionState& state, const ObjectPropertyName& p
     // 6. Let trap be GetMethod(handler, "has").
     // 7. ReturnIfAbrupt(trap).
     Value trap;
-    trap = handler.asObject()->getMethod(state, ObjectPropertyName(state, strings->has.string()));
+    trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->has.string()));
 
     // 8. If trap is undefined, then
     // a. Return target.[[HasProperty]](P).
@@ -475,7 +475,7 @@ bool ProxyObject::isExtensible(ExecutionState& state)
     // 5. Let trap be GetMethod(handler, "isExtensible").
     // 6. ReturnIfAbrupt(trap).
     Value trap;
-    trap = handler.asObject()->getMethod(state, ObjectPropertyName(state, strings->isExtensible.string()));
+    trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->isExtensible.string()));
 
     // 7. If trap is undefined, then
     // a. Return target.[[IsExtensible]]().
@@ -526,7 +526,7 @@ bool ProxyObject::setPrototype(ExecutionState& state, const Value& value)
     // 6. Let trap be GetMethod(handler, "setPrototypeOf").
     // 7. ReturnIfAbrupt(trap).
     Value trap;
-    trap = handler.asObject()->getMethod(state, ObjectPropertyName(state, strings->setPrototypeOf.string()));
+    trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->setPrototypeOf.string()));
 
     // 8. If trap is undefined, then
     // a. Return target.[[SetPrototypeOf]](V).
@@ -601,7 +601,7 @@ Value ProxyObject::getPrototype(ExecutionState& state)
     // 5. Let trap be GetMethod(handler, "getPrototypeOf").
     // 6. ReturnIfAbrupt(trap).
     Value trap;
-    trap = handler.asObject()->getMethod(state, ObjectPropertyName(state, strings->getPrototypeOf.string()));
+    trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->getPrototypeOf.string()));
 
     // 7. If trap is undefined, then
     // a. Return target.[[GetPrototypeOf]]().
@@ -664,7 +664,7 @@ ObjectGetResult ProxyObject::get(ExecutionState& state, const ObjectPropertyName
     // 6. Let trap be GetMethod(handler, "get").
     // 7. ReturnIfAbrupt(trap).
     Value trap;
-    trap = handler.asObject()->getMethod(state, ObjectPropertyName(state, strings->get.string()));
+    trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->get.string()));
 
     // 8. If trap is undefined, then
     // a. Return target.[[Get]](P, Receiver).
@@ -727,7 +727,7 @@ bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyN
     // 6. Let trap be GetMethod(handler, "set").
     // 7. ReturnIfAbrupt(trap).
     Value trap;
-    trap = handler.asObject()->getMethod(state, ObjectPropertyName(state, strings->set.string()));
+    trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->set.string()));
 
     // 8. If trap is undefined, then
     // a. Return target.[[Set]](P, V, Receiver).
@@ -795,7 +795,7 @@ Value ProxyObject::call(ExecutionState& state, const Value& callee, const Value&
     // 5. Let trap be GetMethod(handler, "apply").
     // 6. ReturnIfAbrupt(trap).
     Value trap;
-    trap = handler.asObject()->getMethod(state, ObjectPropertyName(state, strings->apply.string()));
+    trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->apply.string()));
 
     // 7. If trap is undefined, then
     // a. Return Call(target, thisArgument, argumentsList).
@@ -837,13 +837,13 @@ Object* ProxyObject::construct(ExecutionState& state, const size_t argc, Value* 
     // 5. Let trap be GetMethod(handler, "construct").
     // 6. ReturnIfAbrupt(trap).
     Value trap;
-    trap = handler.asObject()->getMethod(state, ObjectPropertyName(state, strings->construct.string()));
+    trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->construct.string()));
 
     // 7. If trap is undefined, then
     // a. Assert: target has a [[Construct]] internal method.
     // b. Return Construct(target, argumentsList, newTarget).
     if (trap.isUndefined()) {
-        ASSERT(target.isFunction() || (target.asObject()->isProxyObject() && target.asObject()->asProxyObject()->isConstructible()));
+        ASSERT(target.isConstructor());
         // FIXME Construct (F, [argumentsList], [newTarget])
         return ByteCodeInterpreter::newOperation(state, target, argc, argv);
     }
