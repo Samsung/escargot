@@ -180,7 +180,8 @@ struct DeclarationOptions : public gc {
     bool inFor;
 };
 
-#define Parse PassRefNode, true
+#define Parse PassNode<Node>, true
+#define ParseAs(nodeType) PassNode<nodeType>, true
 #define Scan ScanExpressionResult, false
 
 class Parser : public gc {
@@ -219,7 +220,22 @@ public:
     AtomicString lastUsingName;
     size_t stackLimit;
 
-    class PassRefNode;
+    class ScanExpressionResult;
+
+    /* Structure for conversion. Do not use it for storing a value! */
+    template <typename T>
+    class PassNode : public PassRefPtr<T> {
+    public:
+        PassNode(PassRefPtr<T> node)
+            : PassRefPtr<T>(node.leakRef())
+        {
+        }
+
+        operator ScanExpressionResult()
+        {
+            return ScanExpressionResult();
+        }
+    };
 
     class ScanExpressionResult {
     public:
@@ -235,9 +251,17 @@ public:
         {
         }
 
-        operator PassRefNode()
+        template <typename T>
+        ScanExpressionResult(PassRefPtr<T>)
+            : first(ASTNodeTypeError)
+            , second(AtomicString())
         {
-            return PassRefNode(nullptr);
+        }
+
+        template <typename T>
+        operator PassNode<T>()
+        {
+            return PassNode<T>(nullptr);
         }
 
         operator std::pair<ASTNodeType, AtomicString>()
@@ -249,19 +273,6 @@ public:
         AtomicString second;
     };
 
-    /* Structure for conversion. Do not use it for storing a value! */
-    class PassRefNode : public PassRefPtr<Node> {
-    public:
-        PassRefNode(PassRefPtr<Node> node)
-            : PassRefPtr<Node>(node.leakRef())
-        {
-        }
-
-        operator ScanExpressionResult()
-        {
-            return ScanExpressionResult();
-        }
-    };
 
     ASTScopeContext fakeContext;
 
@@ -998,7 +1009,7 @@ public:
                 this->throwUnexpectedToken(this->lookahead);
             }
             if (isParse) {
-                return PassRefNode(this->finalize(node, finishIdentifier(this->nextToken(), true)));
+                return T(this->finalize(node, finishIdentifier(this->nextToken(), true)));
             }
             return finishScanIdentifier(this->nextToken(), true);
         case Token::NumericLiteralToken:
@@ -1018,15 +1029,15 @@ public:
                     if (this->context->inLoop || token->valueNumber == 0)
                         this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
                     if (isParse) {
-                        return PassRefNode(this->finalize(node, new LiteralNode(Value(token->valueNumber))));
+                        return T(this->finalize(node, new LiteralNode(Value(token->valueNumber))));
                     }
                     return ScanExpressionResult(ASTNodeType::Literal, AtomicString());
                 } else {
                     if (isParse) {
                         if (shouldCreateAST()) {
-                            return PassRefNode(this->finalize(node, new LiteralNode(token->valueStringLiteralForAST())));
+                            return T(this->finalize(node, new LiteralNode(token->valueStringLiteralForAST())));
                         }
-                        return PassRefNode(this->finalize(node, new LiteralNode(Value(String::emptyString))));
+                        return T(this->finalize(node, new LiteralNode(Value(String::emptyString))));
                     }
                     return ScanExpressionResult(ASTNodeType::Literal, AtomicString());
                 }
@@ -1043,7 +1054,7 @@ public:
                 bool value = token->relatedSource() == "true";
                 this->scopeContexts.back()->insertNumeralLiteral(Value(value));
                 if (isParse) {
-                    return PassRefNode(this->finalize(node, new LiteralNode(Value(value))));
+                    return T(this->finalize(node, new LiteralNode(Value(value))));
                 }
                 return ScanExpressionResult(ASTNodeType::Literal, AtomicString());
             }
@@ -1058,13 +1069,13 @@ public:
             // raw = this->getTokenRaw(token);
             this->scopeContexts.back()->insertNumeralLiteral(Value(Value::Null));
             if (isParse) {
-                return PassRefNode(this->finalize(node, new LiteralNode(Value(Value::Null))));
+                return T(this->finalize(node, new LiteralNode(Value(Value::Null))));
             }
             return ScanExpressionResult(ASTNodeType::Literal, AtomicString());
         }
         case Token::TemplateToken:
             if (isParse) {
-                return PassRefNode(this->parseTemplateLiteral());
+                return T(this->parseTemplateLiteral());
             }
             this->parseTemplateLiteral();
             return ScanExpressionResult(ASTNodeType::TemplateLiteral, AtomicString());
@@ -1075,18 +1086,18 @@ public:
             case LeftParenthesis:
                 this->context->isBindingElement = false;
                 if (isParse) {
-                    return PassRefNode(this->inheritCoverGrammar(&Parser::parseGroupExpression));
+                    return T(this->inheritCoverGrammar(&Parser::groupExpression<Parse>));
                 }
-                return this->scanInheritCoverGrammar(&Parser::scanGroupExpression);
+                return this->scanInheritCoverGrammar(&Parser::groupExpression<Scan>);
             case LeftSquareBracket:
                 if (isParse) {
-                    return PassRefNode(this->inheritCoverGrammar(&Parser::arrayInitializer<Parse>));
+                    return T(this->inheritCoverGrammar(&Parser::arrayInitializer<Parse>));
                 }
                 this->scanInheritCoverGrammar(&Parser::arrayInitializer<Scan>);
                 return ScanExpressionResult(ASTNodeType::ArrayExpression, AtomicString());
             case LeftBrace:
                 if (isParse) {
-                    return PassRefNode(this->inheritCoverGrammar(&Parser::objectInitializer<Parse>));
+                    return T(this->inheritCoverGrammar(&Parser::objectInitializer<Parse>));
                 }
                 this->scanInheritCoverGrammar(&Parser::objectInitializer<Scan>);
                 return ScanExpressionResult(ASTNodeType::ObjectExpression, AtomicString());
@@ -1098,7 +1109,7 @@ public:
                 PassRefPtr<Scanner::ScannerResult> token = this->nextRegexToken();
                 // raw = this->getTokenRaw(token);
                 if (isParse) {
-                    return PassRefNode(this->finalize(node, new RegExpLiteralNode(token->valueRegexp.body, token->valueRegexp.flags)));
+                    return T(this->finalize(node, new RegExpLiteralNode(token->valueRegexp.body, token->valueRegexp.flags)));
                 }
                 this->finalize(node, new RegExpLiteralNode(token->valueRegexp.body, token->valueRegexp.flags));
                 return ScanExpressionResult(ASTNodeType::Literal, AtomicString());
@@ -1112,7 +1123,7 @@ public:
         case Token::KeywordToken:
             if (!this->context->strict && this->context->allowYield && this->matchKeyword(YieldKeyword)) {
                 if (isParse) {
-                    return PassRefNode(this->parseIdentifierName());
+                    return T(this->parseIdentifierName());
                 }
                 return this->scanIdentifierName();
             } else if (!this->context->strict && this->matchKeyword(LetKeyword)) {
@@ -1122,7 +1133,7 @@ public:
                 this->context->isBindingElement = false;
                 if (this->matchKeyword(FunctionKeyword)) {
                     if (isParse) {
-                        return PassRefNode(this->parseFunctionExpression());
+                        return T(this->parseFunctionExpression());
                     }
                     this->parseFunctionExpression();
                     return ScanExpressionResult(ASTNodeType::FunctionExpression, AtomicString());
@@ -1132,12 +1143,12 @@ public:
                     }
                     this->nextToken();
                     if (isParse) {
-                        return PassRefNode(this->finalize(node, new ThisExpressionNode()));
+                        return T(this->finalize(node, new ThisExpressionNode()));
                     }
                     return ScanExpressionResult(ASTNodeType::ThisExpression, AtomicString());
                 } else if (this->matchKeyword(ClassKeyword)) {
                     if (isParse) {
-                        return PassRefNode(this->parseClassExpression());
+                        return T(this->parseClassExpression());
                     }
                     this->parseClassExpression();
                     return ScanExpressionResult(ASTNodeType::ASTNodeTypeError, AtomicString());
@@ -1152,7 +1163,7 @@ public:
 
         ASSERT_NOT_REACHED();
         if (isParse) {
-            return PassRefNode(nullptr);
+            return T(PassRefPtr<Node>());
         }
         return ScanExpressionResult();
     }
@@ -1237,7 +1248,7 @@ public:
             }
             params.push_back(this->lookahead);
             if (isParse) {
-                return PassRefNode(this->parseVariableIdentifier(kind));
+                return T(this->parseVariableIdentifier(kind));
             }
             return ScanExpressionResult(ASTNodeType::Identifier, this->scanVariableIdentifier(kind));
         }
@@ -1340,7 +1351,7 @@ public:
         RefPtr<Node> arg = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
         this->throwError("Spread element is not supported yet");
         if (isParse) {
-            return PassRefNode(this->finalize(node, new SpreadElementNode(arg.get())));
+            return T(this->finalize(node, new SpreadElementNode(arg.get())));
         }
         return ScanExpressionResult(ASTNodeType::SpreadElement, AtomicString());
     }
@@ -1385,7 +1396,7 @@ public:
 
         if (isParse) {
             MetaNode node = this->createNode();
-            return PassRefNode(this->finalize(node, new ArrayExpressionNode(std::move(elements))));
+            return T(this->finalize(node, new ArrayExpressionNode(std::move(elements))));
         }
         return ScanExpressionResult(ASTNodeType::ArrayExpression, AtomicString());
     }
@@ -1766,7 +1777,7 @@ public:
 
         if (isParse) {
             // return this->finalize(node, new PropertyNode(kind, key, computed, value, method, shorthand));
-            return PassRefNode(this->finalize(node, new PropertyNode(keyNode.get(), valueNode.get(), kind, computed)));
+            return T(this->finalize(node, new PropertyNode(keyNode.get(), valueNode.get(), kind, computed)));
         }
         return ScanExpressionResult();
     }
@@ -1781,7 +1792,7 @@ public:
         std::vector<std::pair<AtomicString, size_t>> usedNames;
         while (!this->match(RightBrace)) {
             if (isParse) {
-                properties.push_back((PropertyNode*)this->objectProperty<Parse>(hasProto, usedNames).get());
+                properties.push_back(this->objectProperty<ParseAs(PropertyNode)>(hasProto, usedNames));
             } else {
                 this->objectProperty<Scan>(hasProto, usedNames);
             }
@@ -1792,7 +1803,7 @@ public:
         this->expect(RightBrace);
 
         if (isParse) {
-            return PassRefNode(this->finalize(node, new ObjectExpressionNode(std::move(properties))));
+            return T(this->finalize(node, new ObjectExpressionNode(std::move(properties))));
         }
         return ScanExpressionResult(ASTNodeType::ObjectExpression, AtomicString());
     }
@@ -2053,10 +2064,9 @@ public:
         }
     }
 
-    PassRefPtr<Node> parseGroupExpression()
+    template <typename T, bool isParse>
+    T groupExpression()
     {
-        RefPtr<Node> expr;
-
         this->expect(LeftParenthesis);
         if (this->match(RightParenthesis)) {
             this->nextToken();
@@ -2065,159 +2075,103 @@ public:
             }
 
             //TODO
-            expr = this->finalize(this->startNode(this->lookahead), new ArrowParameterPlaceHolderNode());
-        } else {
-            RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
-
-            bool arrow = false;
-            this->context->isBindingElement = true;
-            expr = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
-
-            if (this->match(Comma)) {
-                ExpressionNodeVector expressions;
-
-                this->context->isAssignmentTarget = false;
-                expressions.push_back(expr);
-                while (this->startMarker.index < this->scanner->length) {
-                    if (!this->match(Comma)) {
-                        break;
-                    }
-                    this->nextToken();
-
-                    expressions.push_back(this->inheritCoverGrammar(&Parser::parseAssignmentExpression));
-                }
-                if (!arrow) {
-                    expr = this->finalize(this->startNode(startToken), new SequenceExpressionNode(std::move(expressions)));
-                }
+            if (isParse) {
+                return T(this->finalize(this->startNode(this->lookahead), new ArrowParameterPlaceHolderNode()));
             }
-
-            if (!arrow) {
-                this->expect(RightParenthesis);
-                if (this->match(Arrow)) {
-                    if (expr->type() == Identifier && expr->asIdentifier()->name() == "yield") {
-                        this->throwError("Yield property is not supported yet");
-                        RELEASE_ASSERT_NOT_REACHED();
-                        /*
-                        arrow = true;
-                        expr = this->finalize(this->startNode(startToken), new ArrowParameterPlaceHolderNode());
-                        expr = {
-                            type: ArrowParameterPlaceHolder,
-                            params: [expr],
-                        };
-                        */
-                    }
-                    if (!arrow) {
-                        if (!this->context->isBindingElement) {
-                            this->throwUnexpectedToken(this->lookahead);
-                        }
-                        if (expr->type() == SequenceExpression) {
-                            const ExpressionNodeVector& expressions = ((SequenceExpressionNode*)expr.get())->expressions();
-                            for (size_t i = 0; i < expressions.size(); i++) {
-                                this->reinterpretExpressionAsPattern(expressions[i].get());
-                            }
-                        } else {
-                            this->reinterpretExpressionAsPattern(expr.get());
-                        }
-
-                        //TODO
-                        ExpressionNodeVector params;
-                        if (expr->type() == SequenceExpression) {
-                            params = ((SequenceExpressionNode*)expr.get())->expressions();
-                        } else {
-                            params.push_back(expr);
-                        }
-
-                        expr = this->finalize(this->startNode(this->lookahead), new ArrowParameterPlaceHolderNode(std::move(params)));
-                    }
-                }
-                this->context->isBindingElement = false;
-            }
+            return ScanExpressionResult(ASTNodeType::ArrowParameterPlaceHolder, AtomicString());
         }
 
-        return expr.release();
-    }
+        RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
 
-    ScanExpressionResult scanGroupExpression()
-    {
-        ScanExpressionResult expr(ASTNodeType::ASTNodeTypeError, AtomicString());
+        this->context->isBindingElement = true;
+        RefPtr<Node> exprNode;
+        ScanExpressionResult expr;
 
-        this->expect(LeftParenthesis);
-        if (this->match(RightParenthesis)) {
-            this->nextToken();
-            if (!this->match(Arrow)) {
-                this->expect(Arrow);
+        if (isParse) {
+            exprNode = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
+        } else {
+            expr = this->scanInheritCoverGrammar(&Parser::scanAssignmentExpression);
+        }
+
+        if (this->match(Comma)) {
+            ExpressionNodeVector expressions;
+
+            this->context->isAssignmentTarget = false;
+            if (isParse) {
+                expressions.push_back(exprNode);
             }
 
-            //TODO
-            expr.first = ASTNodeType::ArrowParameterPlaceHolder;
-        } else {
-            RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
+            while (this->startMarker.index < this->scanner->length) {
+                if (!this->match(Comma)) {
+                    break;
+                }
+                this->nextToken();
 
-            bool arrow = false;
-            this->context->isBindingElement = true;
-            expr = this->scanInheritCoverGrammar(&Parser::scanAssignmentExpression);
-
-            if (this->match(Comma)) {
-                this->context->isAssignmentTarget = false;
-                while (this->startMarker.index < this->scanner->length) {
-                    if (!this->match(Comma)) {
-                        break;
-                    }
-                    this->nextToken();
-
+                if (isParse) {
+                    expressions.push_back(this->inheritCoverGrammar(&Parser::parseAssignmentExpression));
+                } else {
                     this->scanInheritCoverGrammar(&Parser::scanAssignmentExpression);
                 }
-                if (!arrow) {
-                    expr.first = ASTNodeType::SequenceExpression;
-                }
             }
 
-            if (!arrow) {
-                this->expect(RightParenthesis);
-                if (this->match(Arrow)) {
-                    if (expr.first == Identifier && expr.second.string()->equals("yield")) {
-                        this->throwError("Yield property is not supported yet");
-                        RELEASE_ASSERT_NOT_REACHED();
-                        /*
-                        arrow = true;
-                        expr = this->finalize(this->startNode(startToken), new ArrowParameterPlaceHolderNode());
-                        expr = {
-                            type: ArrowParameterPlaceHolder,
-                            params: [expr],
-                        };
-                        */
-                    }
-                    if (!arrow) {
-                        if (!this->context->isBindingElement) {
-                            this->throwUnexpectedToken(this->lookahead);
-                        }
-                        /*
-                        // TODO
-                        if (expr->type() == SequenceExpression) {
-                            const ExpressionNodeVector& expressions = ((SequenceExpressionNode*)expr.get())->expressions();
-                            for (size_t i = 0; i < expressions.size(); i++) {
-                                this->reinterpretExpressionAsPattern(expressions[i].get());
-                            }
-                        } else {
-                            this->reinterpretExpressionAsPattern(expr.get());
-                        }
-                        ExpressionNodeVector params;
-                        if (expr->type() == SequenceExpression) {
-                            params =((SequenceExpressionNode*)expr.get())->expressions();
-                        } else {
-                            params.push_back(expr);
-                        }
-                        */
-
-                        expr.first = ASTNodeType::SequenceExpression;
-                    }
-                }
-                this->context->isBindingElement = false;
+            if (isParse) {
+                exprNode = this->finalize(this->startNode(startToken), new SequenceExpressionNode(std::move(expressions)));
+            } else {
+                expr.first = ASTNodeType::SequenceExpression;
             }
         }
 
+        this->expect(RightParenthesis);
+        //TODO Scanning has not been implemented yet
+        if (this->match(Arrow) && isParse) {
+            bool arrow = false;
+
+            if (exprNode->type() == Identifier && exprNode->asIdentifier()->name() == "yield") {
+                this->throwError("Yield property is not supported yet");
+                RELEASE_ASSERT_NOT_REACHED();
+                /*
+                arrow = true;
+                expr = this->finalize(this->startNode(startToken), new ArrowParameterPlaceHolderNode());
+                expr = {
+                    type: ArrowParameterPlaceHolder,
+                    params: [expr],
+                };
+                */
+            }
+
+            if (!arrow) {
+                if (!this->context->isBindingElement) {
+                    this->throwUnexpectedToken(this->lookahead);
+                }
+
+                if (exprNode->type() == SequenceExpression) {
+                    const ExpressionNodeVector& expressions = ((SequenceExpressionNode*)exprNode.get())->expressions();
+                    for (size_t i = 0; i < expressions.size(); i++) {
+                        this->reinterpretExpressionAsPattern(expressions[i].get());
+                    }
+                } else {
+                    this->reinterpretExpressionAsPattern(exprNode.get());
+                }
+
+                //TODO
+                ExpressionNodeVector params;
+                if (exprNode->type() == SequenceExpression) {
+                    params = ((SequenceExpressionNode*)exprNode.get())->expressions();
+                } else {
+                    params.push_back(exprNode);
+                }
+
+                exprNode = this->finalize(this->startNode(this->lookahead), new ArrowParameterPlaceHolderNode(std::move(params)));
+            }
+            this->context->isBindingElement = false;
+        }
+
+        if (isParse) {
+            return T(exprNode.release());
+        }
         return expr;
     }
+
     // ECMA-262 12.3 Left-Hand-Side Expressions
 
     ArgumentVector parseArguments()
@@ -2297,10 +2251,9 @@ public:
         return finishScanIdentifier(token, false);
     }
 
-    PassRefPtr<Node> parseNewExpression()
+    template <typename T, bool isParse>
+    T newExpression()
     {
-        MetaNode node = this->createNode();
-
         this->nextToken();
 
         if (this->match(Period)) {
@@ -2316,34 +2269,18 @@ public:
             }
         }
 
-        Node* expr;
-        RefPtr<Node> callee = this->isolateCoverGrammar(&Parser::parseLeftHandSideExpression);
-        ArgumentVector args;
-        if (this->match(LeftParenthesis)) {
-            args = this->parseArguments();
-        }
-        expr = new NewExpressionNode(callee.get(), std::move(args));
-        this->context->isAssignmentTarget = false;
-        this->context->isBindingElement = false;
-        return this->finalize(node, expr);
-    }
-
-
-    ScanExpressionResult scanNewExpression()
-    {
-        this->nextToken();
-
-        if (this->match(Period)) {
-            this->nextToken();
-            if (this->lookahead->type == Token::IdentifierToken && this->context->inFunctionBody && this->lookahead->relatedSource() == "target") {
-                // TODO
-                RefPtr<IdentifierNode> property = this->parseIdentifierName();
-                this->throwError("Meta property is not supported yet");
-                RELEASE_ASSERT_NOT_REACHED();
-                // expr = new Node.MetaProperty(id, property);
-            } else {
-                this->throwUnexpectedToken(this->lookahead);
+        if (isParse) {
+            RefPtr<Node> callee = this->isolateCoverGrammar(&Parser::parseLeftHandSideExpression);
+            ArgumentVector args;
+            if (this->match(LeftParenthesis)) {
+                args = this->parseArguments();
             }
+            Node* expr = new NewExpressionNode(callee.get(), std::move(args));
+            this->context->isAssignmentTarget = false;
+            this->context->isBindingElement = false;
+
+            MetaNode node = this->createNode();
+            return T(this->finalize(node, expr));
         }
 
         ScanExpressionResult callee = this->scanIsolateCoverGrammar(&Parser::scanLeftHandSideExpression);
@@ -2373,7 +2310,7 @@ public:
                 this->throwUnexpectedToken(this->lookahead);
             }
         } else if (this->matchKeyword(NewKeyword)) {
-            expr = this->inheritCoverGrammar(&Parser::parseNewExpression);
+            expr = this->inheritCoverGrammar(&Parser::newExpression<Parse>);
         } else {
             expr = this->inheritCoverGrammar(&Parser::primaryExpression<Parse>);
         }
@@ -2432,7 +2369,7 @@ public:
                 this->throwUnexpectedToken(this->lookahead);
             }
         } else {
-            expr = this->scanInheritCoverGrammar(this->matchKeyword(NewKeyword) ? &Parser::scanNewExpression : &Parser::primaryExpression<Scan>);
+            expr = this->scanInheritCoverGrammar(this->matchKeyword(NewKeyword) ? &Parser::newExpression<Scan> : &Parser::primaryExpression<Scan>);
         }
 
         while (true) {
@@ -2527,7 +2464,7 @@ public:
         if (this->matchKeyword(SuperKeyword) && this->context->inFunctionBody) {
             expr = this->parseSuper();
         } else if (this->matchKeyword(NewKeyword)) {
-            expr = this->inheritCoverGrammar(&Parser::parseNewExpression);
+            expr = this->inheritCoverGrammar(&Parser::newExpression<Parse>);
         } else {
             expr = this->inheritCoverGrammar(&Parser::primaryExpression<Parse>);
         }
@@ -2568,7 +2505,7 @@ public:
         ASSERT(this->context->allowIn);
 
         MetaNode node = this->startNode(this->lookahead);
-        ScanExpressionResult expr = (this->matchKeyword(SuperKeyword) && this->context->inFunctionBody) ? this->scanSuper() : this->scanInheritCoverGrammar(this->matchKeyword(NewKeyword) ? &Parser::scanNewExpression : &Parser::primaryExpression<Scan>);
+        ScanExpressionResult expr = (this->matchKeyword(SuperKeyword) && this->context->inFunctionBody) ? this->scanSuper() : this->scanInheritCoverGrammar(this->matchKeyword(NewKeyword) ? &Parser::newExpression<Scan> : &Parser::primaryExpression<Scan>);
 
         while (true) {
             if (this->match(LeftSquareBracket)) {
