@@ -51,6 +51,7 @@ extern const char* errorMessage_ArgumentsOrCaller_InStrictMode;
 extern const char* errorMessage_GlobalObject_ThisUndefinedOrNull;
 extern const char* errorMessage_GlobalObject_ThisNotObject;
 extern const char* errorMessage_GlobalObject_ThisNotRegExpObject;
+extern const char* errorMessage_GlobalObject_ThisNotConstructor;
 extern const char* errorMessage_GlobalObject_ThisNotDateObject;
 extern const char* errorMessage_GlobalObject_ThisNotFunctionObject;
 extern const char* errorMessage_GlobalObject_ThisNotBoolean;

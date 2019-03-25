@@ -1300,7 +1300,7 @@ NEVER_INLINE Object* ByteCodeInterpreter::newOperation(ExecutionState& state, co
     }
 
 #if ESCARGOT_ENABLE_PROXY_REFLECT
-    if (callee.isObject() && callee.asObject()->isProxyObject() && callee.asPointerValue()->asProxyObject()->isConstructible()) {
+    if (callee.isObject() && callee.asObject()->isProxyObject() && callee.asPointerValue()->asProxyObject()->isConstructor()) {
         return callee.asPointerValue()->asProxyObject()->construct(state, argc, argv);
     }
 #endif

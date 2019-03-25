@@ -46,6 +46,7 @@ const char* errorMessage_ArgumentsOrCaller_InStrictMode = "'caller' and 'argumen
 const char* errorMessage_GlobalObject_ThisUndefinedOrNull = "%s: this value is undefined or null";
 const char* errorMessage_GlobalObject_ThisNotObject = "%s: this value is not an object";
 const char* errorMessage_GlobalObject_ThisNotRegExpObject = "%s: this value is not a RegExp object";
+const char* errorMessage_GlobalObject_ThisNotConstructor = "%s: this value is not a Constructor";
 const char* errorMessage_GlobalObject_ThisNotDateObject = "%s: this value is not a Date object";
 const char* errorMessage_GlobalObject_ThisNotFunctionObject = "%s: this value is not a Function object";
 const char* errorMessage_GlobalObject_ThisNotBoolean = "%s: this value is not Boolean nor Boolean object";

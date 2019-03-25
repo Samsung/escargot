@@ -702,7 +702,6 @@ public:
     bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
 #endif
 
-    Value getMethod(ExecutionState& state, const ObjectPropertyName& propertyName);
     void setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
     void setThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
     void defineOwnPropertyThrowsException(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
@@ -813,6 +812,8 @@ public:
     {
         ensureObjectRareData()->m_internalSlot = object;
     }
+
+    static Value getMethod(ExecutionState& state, const Value& object, const ObjectPropertyName& propertyName);
 
     static void throwCannotDefineError(ExecutionState& state, const PropertyName& P);
     static void throwCannotWriteError(ExecutionState& state, const PropertyName& P);

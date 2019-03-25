@@ -190,6 +190,8 @@ public:
     inline bool isPointerValue() const;
     bool isObject() const;
     bool isIterable() const;
+    bool isCallable() const;
+    bool isConstructor() const;
 
     enum PrimitiveTypeHint { PreferString,
                              PreferNumber,

@@ -71,7 +71,7 @@ public:
         return m_isCallable;
     }
 
-    bool isConstructible() const
+    virtual bool isConstructor() const override
     {
         return m_isConstructible;
     }

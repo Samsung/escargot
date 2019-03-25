@@ -61,6 +61,22 @@ bool Value::isIterable() const
 }
 #endif
 
+bool Value::isCallable() const
+{
+    if (!isObject() || !asObject()->isCallable()) {
+        return false;
+    }
+    return true;
+}
+
+bool Value::isConstructor() const
+{
+    if (!isObject() || !asObject()->isConstructor()) {
+        return false;
+    }
+    return true;
+}
+
 String* Value::toStringWithoutException(ExecutionState& ec) const
 {
     if (LIKELY(isString())) {

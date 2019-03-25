@@ -33,7 +33,7 @@ Value getIterator(ExecutionState& state, const Value& obj, const Value& method)
     Object* object = obj.toObject(state);
     Value func = method;
     if (method.isEmpty()) {
-        func = object->getMethod(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator));
+        func = Object::getMethod(state, Value(object), ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator));
     }
 
     Value iterator = FunctionObject::call(state, func, object, 0, nullptr);

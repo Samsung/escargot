@@ -25,6 +25,7 @@
 #include "VMInstance.h"
 #include "TypedArrayObject.h"
 #include "IteratorObject.h"
+#include "IteratorOperations.h"
 #include "interpreter/ByteCode.h"
 #include "interpreter/ByteCodeInterpreter.h"
 
@@ -114,9 +115,183 @@ static Value builtinArrayBufferIsView(ExecutionState& state, Value thisValue, si
     return Value(false);
 }
 
+static Value TypedArrayFrom(ExecutionState& state, Value& constructor, Value& items, Value& mapfn, Value& thisArg)
+{
+    // Let C be constructor.
+    Value C = constructor;
+    // Assert: IsConstructor(C) is true.
+    ASSERT(C.isConstructor());
+    // Assert: mapfn is either a callable Object or undefined.
+    ASSERT(mapfn.isUndefined() || mapfn.isCallable());
+
+    // If mapfn is undefined, let mapping be false.
+    bool mapping = false;
+    // Else
+    // Let T be thisArg.
+    // Let mapping be true
+    Value T;
+    if (!mapfn.isUndefined()) {
+        T = thisArg;
+        mapping = true;
+    }
+    // Let usingIterator be GetMethod(items, @@iterator).
+    Value usingIterator = Object::getMethod(state, items, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().iterator)));
+
+    // If usingIterator is not undefined, then
+    if (!usingIterator.isUndefined()) {
+        // Let iterator be GetIterator(items, usingIterator).
+        Value iterator = getIterator(state, items, usingIterator);
+        // Let values be a new empty List.
+        ValueVector values;
+        // Let next be true.
+        Value next(Value::True);
+        // Repeat, while next is not false
+        while (!next.isFalse()) {
+            // Let next be IteratorStep(iterator).
+            next = iteratorStep(state, iterator);
+            // If next is not false, then
+            if (!next.isFalse()) {
+                // Let nextValue be IteratorValue(next).
+                Value nextValue = iteratorValue(state, next);
+                // Append nextValue to the end of the List values.
+                values.push_back(nextValue);
+            }
+        }
+        // Let len be the number of elements in values.
+        size_t len = values.size();
+
+        // FIXME Let targetObj be AllocateTypedArray(C, len).
+        Value arg[1] = { Value(len) };
+        Value targetObj = ByteCodeInterpreter::newOperation(state, C, 1, arg);
+
+        // Let k be 0.
+        size_t k = 0;
+        // Repeat, while k < len
+        while (k < len) {
+            // Let Pk be ToString(k).
+            // Let kValue be the first element of values and remove that element from values.
+            Value kValue = values[k];
+            Value mappedValue = kValue;
+            // If mapping is true, then
+            if (mapping) {
+                // Let mappedValue be Call(mapfn, T, «kValue, k»).
+                Value args[2] = { kValue, Value(k) };
+                mappedValue = FunctionObject::call(state, mapfn, T, 2, args);
+            }
+            // Let setStatus be Set(targetObj, Pk, mappedValue, true).
+            targetObj.asObject()->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
+            // Increase k by 1.
+            k++;
+        }
+        // Return targetObj.
+        return targetObj;
+    }
+
+    // Let arrayLike be ToObject(items).
+    Object* arrayLike = items.toObject(state);
+    // Let len be ToLength(Get(arrayLike, "length")).
+    size_t len = arrayLike->get(state, ObjectPropertyName(state.context()->staticStrings().length)).value(state, arrayLike).toLength(state);
+
+    // FIXME Let targetObj be AllocateTypedArray(C, len).
+    Value arg[1] = { Value(len) };
+    Value targetObj = ByteCodeInterpreter::newOperation(state, C, 1, arg);
+
+    // Let k be 0.
+    size_t k = 0;
+    // Repeat, while k < len
+    while (k < len) {
+        // Let Pk be ToString(k).
+        // Let kValue be Get(arrayLike, Pk).
+        Value kValue = arrayLike->get(state, ObjectPropertyName(state, Value(k))).value(state, arrayLike);
+        Value mappedValue = kValue;
+        // If mapping is true, then
+        if (mapping) {
+            // Let mappedValue be Call(mapfn, T, «kValue, k»).
+            Value args[2] = { kValue, Value(k) };
+            mappedValue = FunctionObject::call(state, mapfn, T, 2, args);
+        }
+        // Let setStatus be Set(targetObj, Pk, mappedValue, true).
+        targetObj.asObject()->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
+        // Increase k by 1.
+        k++;
+    }
+    // Return targetObj.
+    return targetObj;
+}
+
+static Value validateTypedArray(ExecutionState& state, Object* thisObject, String* func)
+{
+    const StaticStrings* strings = &state.context()->staticStrings();
+    if (!thisObject->isTypedArrayObject() || !thisObject->isArrayBufferView()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, errorMessage_GlobalObject_ThisNotTypedArrayObject);
+    }
+
+    auto wrapper = thisObject->asArrayBufferView();
+    ArrayBufferObject* buffer = wrapper->buffer();
+    if (buffer->isDetachedBuffer()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, errorMessage_GlobalObject_DetachedBuffer);
+    }
+    return buffer;
+}
+
 Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     return Value();
+}
+
+// https://www.ecma-international.org/ecma-262/6.0/#sec-%typedarray%.from
+static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    Value C = thisValue;
+    Value source = argv[0];
+
+    if (!C.isConstructor()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_ThisNotConstructor);
+    }
+
+    Value f;
+    if (argc > 1) {
+        f = argv[1];
+    }
+
+    if (!f.isUndefined()) {
+        if (!f.isObject() || !f.asObject()->isCallable()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "mapfn is not callable");
+        }
+    }
+
+    Value t;
+    if (argc > 2) {
+        t = argv[2];
+    }
+    return TypedArrayFrom(state, C, source, f, t);
+}
+
+// https://www.ecma-international.org/ecma-262/6.0/#sec-%typedarray%.of
+static Value builtinTypedArrayOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    size_t len = argc;
+    Value C = thisValue;
+    if (!C.isConstructor()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_ThisNotConstructor);
+    }
+
+    // FIXME AllocateTypedArray(C, len)
+    Value arg[1] = { Value(len) };
+    Value newObj = ByteCodeInterpreter::newOperation(state, C, 1, arg);
+
+    size_t k = 0;
+    while (k < len) {
+        Value kValue = argv[k];
+        newObj.asObject()->setIndexedPropertyThrowsException(state, Value(k), kValue);
+        k++;
+    }
+    return newObj;
+}
+
+static Value builtinTypedArraySpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    return thisValue;
 }
 
 static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -178,8 +353,9 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             unsigned elementSize = obj->elementSize();
             int64_t offset = 0;
             Value lenVal;
-            if (argc >= 2)
+            if (argc >= 2) {
                 offset = argv[1].toInt32(state);
+            }
             if (offset < 0) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
             }
@@ -235,21 +411,6 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
         RELEASE_ASSERT(obj->arraylength() < ArrayBufferObject::maxArrayBufferSize);
     }
     return obj;
-}
-
-Value validateTypedArray(ExecutionState& state, Object* thisObject, String* func)
-{
-    const StaticStrings* strings = &state.context()->staticStrings();
-    if (!thisObject->isTypedArrayObject() || !thisObject->isArrayBufferView()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, errorMessage_GlobalObject_ThisNotTypedArrayObject);
-    }
-
-    auto wrapper = thisObject->asArrayBufferView();
-    ArrayBufferObject* buffer = wrapper->buffer();
-    if (buffer->isDetachedBuffer()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, errorMessage_GlobalObject_DetachedBuffer);
-    }
-    return buffer;
 }
 
 Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -1149,7 +1310,7 @@ static Value builtinTypedArrayEntries(ExecutionState& state, Value thisValue, si
     return M->entries(state);
 }
 
-static Value builtinTypedArrayGetToStringTag(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayToStringTagGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     Value O = thisValue;
     if (!O.isObject()) {
@@ -1202,6 +1363,19 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                             },
                                                                                       (NativeFunctionInfo::Flags)(NativeFunctionInfo::Strict | NativeFunctionInfo::Constructor)),
                                                             FunctionObject::__ForBuiltin__);
+
+    typedArrayFunction->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->from),
+                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->from, builtinTypedArrayFrom, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayFunction->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->of),
+                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->of, builtinTypedArrayOf, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    {
+        JSGetterSetter gs(
+            new FunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("get [Symbol.species]")), builtinTypedArraySpeciesGetter, 0, nullptr, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        typedArrayFunction->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species), desc);
+    }
+
+
     // %TypedArray%.prototype
     Object* typedArrayPrototype = typedArrayFunction->getFunctionPrototype(state).asObject();
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->subarray),
@@ -1252,7 +1426,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     {
         JSGetterSetter gs(
-            new FunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("get [Symbol.toStringTag]")), builtinTypedArrayGetToStringTag, 0, nullptr, NativeFunctionInfo::Strict)),
+            new FunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("get [Symbol.toStringTag]")), builtinTypedArrayToStringTagGetter, 0, nullptr, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         typedArrayPrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().toStringTag), desc);
@@ -1262,30 +1436,31 @@ void GlobalObject::installTypedArray(ExecutionState& state)
             new FunctionObject(state, NativeFunctionInfo(strings->getbyteLength, builtinTypedArrayByteLengthGetter, 0, nullptr, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor byteLengthDesc2(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-        typedArrayFunction->getFunctionPrototype(state).asObject()->defineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc2);
+        typedArrayPrototype->defineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc2);
     }
     {
         JSGetterSetter gs(
             new FunctionObject(state, NativeFunctionInfo(strings->getbyteOffset, builtinTypedArrayByteOffsetGetter, 0, nullptr, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor byteOffsetDesc2(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-        typedArrayFunction->getFunctionPrototype(state).asObject()->defineOwnProperty(state, ObjectPropertyName(strings->byteOffset), byteOffsetDesc2);
+        typedArrayPrototype->defineOwnProperty(state, ObjectPropertyName(strings->byteOffset), byteOffsetDesc2);
     }
     {
         JSGetterSetter gs(
             new FunctionObject(state, NativeFunctionInfo(strings->getLength, builtinTypedArrayLengthGetter, 0, nullptr, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor lengthDesc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-        typedArrayFunction->getFunctionPrototype(state).asObject()->defineOwnProperty(state, ObjectPropertyName(strings->length), lengthDesc);
+        typedArrayPrototype->defineOwnProperty(state, ObjectPropertyName(strings->length), lengthDesc);
     }
     {
         JSGetterSetter gs(
             new FunctionObject(state, NativeFunctionInfo(strings->getBuffer, builtinTypedArrayBufferGetter, 0, nullptr, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor bufferDesc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-        typedArrayFunction->getFunctionPrototype(state).asObject()->defineOwnProperty(state, ObjectPropertyName(strings->buffer), bufferDesc);
+        typedArrayPrototype->defineOwnProperty(state, ObjectPropertyName(strings->buffer), bufferDesc);
     }
 
+    m_typedArray = typedArrayFunction;
     m_int8Array = installTypedArray<Int8ArrayObject, 1>(state, strings->Int8Array, &m_int8ArrayPrototype, typedArrayFunction);
     m_int16Array = installTypedArray<Int16ArrayObject, 2>(state, strings->Int16Array, &m_int16ArrayPrototype, typedArrayFunction);
     m_int32Array = installTypedArray<Int32ArrayObject, 4>(state, strings->Int32Array, &m_int32ArrayPrototype, typedArrayFunction);
@@ -1295,6 +1470,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     m_uint8ClampedArray = installTypedArray<Uint8ClampedArrayObject, 1>(state, strings->Uint8ClampedArray, &m_uint8ClampedArrayPrototype, typedArrayFunction);
     m_float32Array = installTypedArray<Float32ArrayObject, 4>(state, strings->Float32Array, &m_float32ArrayPrototype, typedArrayFunction);
     m_float64Array = installTypedArray<Float64ArrayObject, 8>(state, strings->Float64Array, &m_float64ArrayPrototype, typedArrayFunction);
+    m_typedArrayPrototype = typedArrayFunction->getFunctionPrototype(state).asObject();
     m_int8ArrayPrototype = m_int8Array->getFunctionPrototype(state).asObject();
     m_int16ArrayPrototype = m_int16Array->getFunctionPrototype(state).asObject();
     m_int32ArrayPrototype = m_int32Array->getFunctionPrototype(state).asObject();

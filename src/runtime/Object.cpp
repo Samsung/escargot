@@ -824,16 +824,17 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-getmethod
-Value Object::getMethod(ExecutionState& state, const ObjectPropertyName& propertyName)
+Value Object::getMethod(ExecutionState& state, const Value& object, const ObjectPropertyName& propertyName)
 {
     // 2. Let func be GetV(O, P).
-    Value func = this->get(state, propertyName).value(state, this);
+    Object* obj = object.toObject(state);
+    Value func = obj->get(state, propertyName).value(state, obj);
     // 4. If func is either undefined or null, return undefined.
     if (func.isUndefinedOrNull()) {
         return Value();
     }
     // 5. If IsCallable(func) is false, throw a TypeError exception.
-    if (!func.isObject() || !func.asObject()->isCallable()) {
+    if (!func.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, String::emptyString, false, String::emptyString, "%s: return value of getMethod is not callable");
     }
     // 6. Return func.
