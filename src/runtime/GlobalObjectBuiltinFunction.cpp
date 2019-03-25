@@ -159,12 +159,10 @@ static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t
     FunctionObject* thisVal = thisValue.asFunction();
     Value thisArg = argv[0];
     Value argArray = argv[1];
-    size_t arrlen;
+    size_t arrlen = 0;
     Value* arguments = nullptr;
     if (argArray.isUndefinedOrNull()) {
         // do nothing
-        arrlen = 0;
-        arguments = nullptr;
     } else if (argArray.isObject()) {
         Object* obj = argArray.asObject();
         arrlen = obj->length(state);
