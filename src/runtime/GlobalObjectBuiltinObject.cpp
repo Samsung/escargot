@@ -483,11 +483,15 @@ static Value builtinObjectIsSealed(ExecutionState& state, Value thisValue, size_
 
 static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+#if ESCARGOT_ENABLE_ES2015
+    Object* O = argv[0].toObject(state);
+#else
     // If Type(O) is not Object throw a TypeError exception.
     if (!argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().getOwnPropertyNames.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().keys.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
     }
     Object* O = argv[0].asObject();
+#endif
 
     // Let array be the result of creating a new object as if by the expression new Array(n) where Array is the standard built-in constructor with that name.
     ArrayObject* array = new ArrayObject(state);
