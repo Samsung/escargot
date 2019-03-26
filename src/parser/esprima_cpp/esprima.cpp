@@ -2270,7 +2270,7 @@ public:
         }
 
         if (isParse) {
-            RefPtr<Node> callee = this->isolateCoverGrammar(&Parser::parseLeftHandSideExpression);
+            RefPtr<Node> callee = this->isolateCoverGrammar(&Parser::leftHandSideExpression<Parse>);
             ArgumentVector args;
             if (this->match(LeftParenthesis)) {
                 args = this->parseArguments();
@@ -2283,7 +2283,7 @@ public:
             return T(this->finalize(node, expr));
         }
 
-        ScanExpressionResult callee = this->scanIsolateCoverGrammar(&Parser::scanLeftHandSideExpression);
+        ScanExpressionResult callee = this->scanIsolateCoverGrammar(&Parser::leftHandSideExpression<Scan>);
         if (this->match(LeftParenthesis)) {
             this->scanArguments();
         }
@@ -2293,26 +2293,37 @@ public:
         return expr;
     }
 
-    PassRefPtr<Node> parseLeftHandSideExpressionAllowCall()
+    template <typename T, bool isParse>
+    T leftHandSideExpressionAllowCall()
     {
         RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
         bool previousAllowIn = this->context->allowIn;
         this->context->allowIn = true;
 
-        RefPtr<Node> expr;
+        RefPtr<Node> exprNode;
+        ScanExpressionResult expr;
+
         if (this->context->inFunctionBody && this->matchKeyword(SuperKeyword)) {
-            MetaNode node = this->createNode();
             this->nextToken();
             this->throwError("super keyword is not supported yet");
             RELEASE_ASSERT_NOT_REACHED();
+            // MetaNode node = this->createNode();
             // expr = this->finalize(node, new Node.Super());
             if (!this->match(LeftParenthesis) && !this->match(Period) && !this->match(LeftSquareBracket)) {
                 this->throwUnexpectedToken(this->lookahead);
             }
         } else if (this->matchKeyword(NewKeyword)) {
-            expr = this->inheritCoverGrammar(&Parser::newExpression<Parse>);
+            if (isParse) {
+                exprNode = this->inheritCoverGrammar(&Parser::newExpression<Parse>);
+            } else {
+                expr = this->scanInheritCoverGrammar(&Parser::newExpression<Scan>);
+            }
         } else {
-            expr = this->inheritCoverGrammar(&Parser::primaryExpression<Parse>);
+            if (isParse) {
+                exprNode = this->inheritCoverGrammar(&Parser::primaryExpression<Parse>);
+            } else {
+                expr = this->scanInheritCoverGrammar(&Parser::primaryExpression<Scan>);
+            }
         }
 
         while (true) {
@@ -2324,92 +2335,55 @@ public:
                     this->nextToken();
                     bool trackUsingNamesBefore = this->trackUsingNames;
                     this->trackUsingNames = false;
-                    PassRefPtr<IdentifierNode> property = this->parseIdentifierName();
+                    if (isParse) {
+                        PassRefPtr<IdentifierNode> property = this->parseIdentifierName();
+                        exprNode = this->finalize(this->startNode(startToken), new MemberExpressionNode(exprNode.get(), property.get(), true));
+                    } else {
+                        this->scanIdentifierName();
+                        expr.first = ASTNodeType::MemberExpression;
+                    }
                     this->trackUsingNames = trackUsingNamesBefore;
-                    expr = this->finalize(this->startNode(startToken), new MemberExpressionNode(expr.get(), property.get(), true));
                 } else if (this->lookahead->valuePunctuatorKind == LeftParenthesis) {
                     this->context->isBindingElement = false;
                     this->context->isAssignmentTarget = false;
-                    expr = this->finalize(this->startNode(startToken), new CallExpressionNode(expr.get(), this->parseArguments()));
+                    if (isParse) {
+                        exprNode = this->finalize(this->startNode(startToken), new CallExpressionNode(exprNode.get(), this->parseArguments()));
+                    } else {
+                        testCalleeExpressionInScan(expr);
+                        this->scanArguments();
+                        expr.first = ASTNodeType::CallExpression;
+                    }
                 } else if (this->lookahead->valuePunctuatorKind == LeftSquareBracket) {
                     this->context->isBindingElement = false;
                     this->context->isAssignmentTarget = true;
                     this->nextToken();
-                    RefPtr<Node> property = this->isolateCoverGrammar(&Parser::parseExpression);
+                    if (isParse) {
+                        RefPtr<Node> property = this->isolateCoverGrammar(&Parser::parseExpression);
+                        exprNode = this->finalize(this->startNode(startToken), new MemberExpressionNode(exprNode.get(), property.get(), false));
+                    } else {
+                        this->scanIsolateCoverGrammar(&Parser::scanExpression);
+                        expr.first = ASTNodeType::MemberExpression;
+                    }
                     this->expect(RightSquareBracket);
-                    expr = this->finalize(this->startNode(startToken), new MemberExpressionNode(expr.get(), property.get(), false));
                 } else {
                     break;
                 }
             } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->valueTemplate->head) {
                 RefPtr<Node> quasi = this->parseTemplateLiteral();
-                expr = this->convertTaggedTempleateExpressionToCallExpression(this->startNode(startToken), this->finalize(this->startNode(startToken), new TaggedTemplateExpressionNode(expr.get(), quasi.get())));
+                // Note: exprNode is nullptr for Scan
+                exprNode = this->convertTaggedTempleateExpressionToCallExpression(this->startNode(startToken), this->finalize(this->startNode(startToken), new TaggedTemplateExpressionNode(exprNode.get(), quasi.get())));
+                if (!isParse) {
+                    expr.first = exprNode->type();
+                }
             } else {
                 break;
             }
         }
         this->context->allowIn = previousAllowIn;
 
-        return expr;
-    }
-
-    ScanExpressionResult scanLeftHandSideExpressionAllowCall()
-    {
-        RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
-        bool previousAllowIn = this->context->allowIn;
-        this->context->allowIn = true;
-
-        ScanExpressionResult expr(ASTNodeType::ASTNodeTypeError, AtomicString());
-        if (this->context->inFunctionBody && this->matchKeyword(SuperKeyword)) {
-            this->nextToken();
-            this->throwError("super keyword is not supported yet");
-            RELEASE_ASSERT_NOT_REACHED();
-            // expr = this->finalize(node, new Node.Super());
-            if (!this->match(LeftParenthesis) && !this->match(Period) && !this->match(LeftSquareBracket)) {
-                this->throwUnexpectedToken(this->lookahead);
-            }
-        } else {
-            expr = this->scanInheritCoverGrammar(this->matchKeyword(NewKeyword) ? &Parser::newExpression<Scan> : &Parser::primaryExpression<Scan>);
+        if (isParse) {
+            return exprNode.release();
         }
-
-        while (true) {
-            bool isPunctuatorTokenLookahead = this->lookahead->type == Token::PunctuatorToken;
-            if (isPunctuatorTokenLookahead) {
-                if (this->lookahead->valuePunctuatorKind == Period) {
-                    this->context->isBindingElement = false;
-                    this->context->isAssignmentTarget = true;
-                    this->nextToken();
-                    bool trackUsingNamesBefore = this->trackUsingNames;
-                    this->trackUsingNames = false;
-                    ScanExpressionResult property = this->scanIdentifierName();
-                    this->trackUsingNames = trackUsingNamesBefore;
-                    expr.first = ASTNodeType::MemberExpression;
-                } else if (this->lookahead->valuePunctuatorKind == LeftParenthesis) {
-                    this->context->isBindingElement = false;
-                    this->context->isAssignmentTarget = false;
-                    testCalleeExpressionInScan(expr);
-                    this->scanArguments();
-                    expr.first = ASTNodeType::CallExpression;
-                } else if (this->lookahead->valuePunctuatorKind == LeftSquareBracket) {
-                    this->context->isBindingElement = false;
-                    this->context->isAssignmentTarget = true;
-                    this->nextToken();
-                    ScanExpressionResult property = this->scanIsolateCoverGrammar(&Parser::scanExpression);
-                    this->expect(RightSquareBracket);
-                    expr.first = ASTNodeType::MemberExpression;
-                } else {
-                    break;
-                }
-            } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->valueTemplate->head) {
-                RefPtr<Node> quasi = this->parseTemplateLiteral();
-                auto exprNode = this->convertTaggedTempleateExpressionToCallExpression(this->startNode(startToken), this->finalize(this->startNode(startToken), new TaggedTemplateExpressionNode(nullptr, quasi.get())));
-                expr.first = exprNode->type();
-            } else {
-                break;
-            }
-        }
-        this->context->allowIn = previousAllowIn;
-
         return expr;
     }
 
@@ -2423,7 +2397,8 @@ public:
         }
     }
 
-    PassRefPtr<Node> parseSuper()
+    template <typename T, bool isParse>
+    T super()
     {
         MetaNode node = this->createNode();
 
@@ -2434,104 +2409,86 @@ public:
 
         this->throwError("super keyword is not supported yet");
         RELEASE_ASSERT_NOT_REACHED();
-        // return this->finalize(node, new Node.Super());
-        return nullptr;
-    }
-
-    ScanExpressionResult scanSuper()
-    {
-        MetaNode node = this->createNode();
-
-        this->expectKeyword(SuperKeyword);
-        if (!this->match(LeftSquareBracket) && !this->match(Period)) {
-            this->throwUnexpectedToken(this->lookahead);
+        if (isParse) {
+            // return this->finalize(node, new Node.Super());
+            return PassNode<Node>(nullptr);
         }
-
-        this->throwError("super keyword is not supported yet");
-        RELEASE_ASSERT_NOT_REACHED();
-        // return this->finalize(node, new Node.Super());
         return ScanExpressionResult(ASTNodeType::ASTNodeTypeError, AtomicString());
     }
 
-    PassRefPtr<Node> parseLeftHandSideExpression()
+    template <typename T, bool isParse>
+    T leftHandSideExpression()
     {
         // assert(this->context->allowIn, 'callee of new expression always allow in keyword.');
         ASSERT(this->context->allowIn);
 
-        MetaNode node = this->startNode(this->lookahead);
-        RefPtr<Node> expr;
+        RefPtr<Node> exprNode;
+        ScanExpressionResult expr;
 
         if (this->matchKeyword(SuperKeyword) && this->context->inFunctionBody) {
-            expr = this->parseSuper();
-        } else if (this->matchKeyword(NewKeyword)) {
-            expr = this->inheritCoverGrammar(&Parser::newExpression<Parse>);
-        } else {
-            expr = this->inheritCoverGrammar(&Parser::primaryExpression<Parse>);
-        }
-
-        while (true) {
-            if (this->match(LeftSquareBracket)) {
-                this->context->isBindingElement = false;
-                this->context->isAssignmentTarget = true;
-                this->expect(LeftSquareBracket);
-                RefPtr<Node> property = this->isolateCoverGrammar(&Parser::parseExpression);
-                this->expect(RightSquareBracket);
-                expr = this->finalize(node, new MemberExpressionNode(expr.get(), property.get(), false));
-
-            } else if (this->match(Period)) {
-                this->context->isBindingElement = false;
-                this->context->isAssignmentTarget = true;
-                this->expect(Period);
-                bool trackUsingNamesBefore = this->trackUsingNames;
-                this->trackUsingNames = false;
-                RefPtr<IdentifierNode> property = this->parseIdentifierName();
-                this->trackUsingNames = trackUsingNamesBefore;
-                expr = this->finalize(node, new MemberExpressionNode(expr.get(), property.get(), true));
-
-            } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->valueTemplate->head) {
-                RefPtr<Node> quasi = this->parseTemplateLiteral();
-                expr = this->convertTaggedTempleateExpressionToCallExpression(node, this->finalize(node, new TaggedTemplateExpressionNode(expr.get(), quasi.get())).get());
+            if (isParse) {
+                exprNode = this->super<Parse>();
             } else {
-                break;
+                this->super<Scan>();
+            }
+        } else if (this->matchKeyword(NewKeyword)) {
+            if (isParse) {
+                exprNode = this->inheritCoverGrammar(&Parser::newExpression<Parse>);
+            } else {
+                this->scanInheritCoverGrammar(&Parser::newExpression<Scan>);
+            }
+        } else {
+            if (isParse) {
+                exprNode = this->inheritCoverGrammar(&Parser::primaryExpression<Parse>);
+            } else {
+                this->scanInheritCoverGrammar(&Parser::primaryExpression<Scan>);
             }
         }
-
-        return expr;
-    }
-
-    ScanExpressionResult scanLeftHandSideExpression()
-    {
-        // assert(this->context->allowIn, 'callee of new expression always allow in keyword.');
-        ASSERT(this->context->allowIn);
 
         MetaNode node = this->startNode(this->lookahead);
-        ScanExpressionResult expr = (this->matchKeyword(SuperKeyword) && this->context->inFunctionBody) ? this->scanSuper() : this->scanInheritCoverGrammar(this->matchKeyword(NewKeyword) ? &Parser::newExpression<Scan> : &Parser::primaryExpression<Scan>);
 
         while (true) {
             if (this->match(LeftSquareBracket)) {
                 this->context->isBindingElement = false;
                 this->context->isAssignmentTarget = true;
                 this->expect(LeftSquareBracket);
-                ScanExpressionResult property = this->scanIsolateCoverGrammar(&Parser::scanExpression);
+                if (isParse) {
+                    RefPtr<Node> property = this->isolateCoverGrammar(&Parser::parseExpression);
+                    exprNode = this->finalize(node, new MemberExpressionNode(exprNode.get(), property.get(), false));
+                } else {
+                    this->scanIsolateCoverGrammar(&Parser::scanExpression);
+                    expr.first = ASTNodeType::MemberExpression;
+                }
                 this->expect(RightSquareBracket);
-                expr.first = ASTNodeType::MemberExpression;
             } else if (this->match(Period)) {
                 this->context->isBindingElement = false;
                 this->context->isAssignmentTarget = true;
                 this->expect(Period);
                 bool trackUsingNamesBefore = this->trackUsingNames;
                 this->trackUsingNames = false;
-                this->scanIdentifierName();
+                if (isParse) {
+                    RefPtr<IdentifierNode> property = this->parseIdentifierName();
+                    exprNode = this->finalize(node, new MemberExpressionNode(exprNode.get(), property.get(), true));
+                } else {
+                    this->scanIdentifierName();
+                    expr.first = ASTNodeType::MemberExpression;
+                }
                 this->trackUsingNames = trackUsingNamesBefore;
-                expr.first = ASTNodeType::MemberExpression;
             } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->valueTemplate->head) {
                 RefPtr<Node> quasi = this->parseTemplateLiteral();
-                expr.first = this->convertTaggedTempleateExpressionToCallExpression(node, this->finalize(node, new TaggedTemplateExpressionNode(nullptr, quasi.get())).get())->type();
+                // Note: exprNode is nullptr for Scan
+                exprNode = this->convertTaggedTempleateExpressionToCallExpression(node, this->finalize(node, new TaggedTemplateExpressionNode(exprNode.get(), quasi.get())).get());
+                if (!isParse) {
+                    expr.first = exprNode->type();
+                }
             } else {
                 break;
             }
         }
 
+        if (isParse) {
+            return exprNode.release();
+        }
         return expr;
     }
 
@@ -2595,7 +2552,7 @@ public:
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         } else {
-            expr = this->inheritCoverGrammar(&Parser::parseLeftHandSideExpressionAllowCall);
+            expr = this->inheritCoverGrammar(&Parser::leftHandSideExpressionAllowCall<Parse>);
             if (!this->hasLineTerminator && this->lookahead->type == Token::PunctuatorToken && (this->match(PlusPlus) || this->match(MinusMinus))) {
                 bool isPlus = this->match(PlusPlus);
                 if (this->context->strict && expr->isIdentifier() && this->scanner->isRestrictedWord(((IdentifierNode*)expr.get())->name())) {
@@ -2652,7 +2609,7 @@ public:
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         } else {
-            expr = this->scanInheritCoverGrammar(&Parser::scanLeftHandSideExpressionAllowCall);
+            expr = this->scanInheritCoverGrammar(&Parser::leftHandSideExpressionAllowCall<Scan>);
             if (!this->hasLineTerminator && this->lookahead->type == Token::PunctuatorToken) {
                 if (this->match(PlusPlus) || this->match(MinusMinus)) {
                     bool isPlus = this->match(PlusPlus);
@@ -6059,7 +6016,7 @@ public:
         if (this->matchKeyword(ExtendsKeyword)) {
             this->throwError("extends keyword is not supported yet");
             this->nextToken();
-            superClass = this->isolateCoverGrammar(&Parser::parseLeftHandSideExpressionAllowCall);
+            superClass = this->isolateCoverGrammar(&Parser::leftHandSideExpressionAllowCall<Parse>);
         }
 
         RefPtr<ClassBodyNode> classBody = this->parseClassBody();
