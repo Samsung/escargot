@@ -227,7 +227,7 @@ public:
     class PassNode : public PassRefPtr<T> {
     public:
         PassNode(PassRefPtr<T> node)
-            : PassRefPtr<T>(node.leakRef())
+            : PassRefPtr<T>(node)
         {
         }
 
