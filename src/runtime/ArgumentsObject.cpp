@@ -194,9 +194,8 @@ bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPrope
                     return true;
                 }
             } else {
-                if (m_argumentPropertyInfo[idx].second.string()->length() && desc.isDataDescriptor()) {
-                    if (desc.isValuePresent())
-                        ArgumentsObjectNativeSetter(state, this, desc.value(), m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second);
+                if (m_argumentPropertyInfo[idx].second.string()->length() && desc.isDataDescriptor() && desc.isValuePresent()) {
+                    ArgumentsObjectNativeSetter(state, this, desc.value(), m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second);
                 }
                 ObjectPropertyDescriptor descCpy(desc);
                 if (!desc.isAccessorDescriptor() && !desc.isValuePresent()) {
@@ -255,10 +254,8 @@ void ArgumentsObject::enumeration(ExecutionState& state, bool (*callback)(Execut
 {
     for (size_t i = 0; i < m_argumentPropertyInfo.size(); i++) {
         Value v = m_argumentPropertyInfo[i].first;
-        if (!v.isEmpty()) {
-            if (!callback(state, this, ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent), data)) {
-                return;
-            }
+        if (!v.isEmpty() && !callback(state, this, ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent), data)) {
+            return;
         }
     }
     Object::enumeration(state, callback, data, shouldSkipSymbolKey);

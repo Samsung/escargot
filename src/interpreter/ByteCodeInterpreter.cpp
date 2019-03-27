@@ -1126,10 +1126,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 if (code->m_registerIndex != std::numeric_limits<ByteCodeRegisterIndex>::max()) {
                     ret = registerFile[code->m_registerIndex];
                 }
-                if (UNLIKELY(state.rareData() != nullptr)) {
-                    if (state.rareData()->m_controlFlowRecord && state.rareData()->m_controlFlowRecord->size()) {
-                        state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, ret, state.rareData()->m_controlFlowRecord->size());
-                    }
+                if (UNLIKELY(state.rareData() != nullptr) && state.rareData()->m_controlFlowRecord && state.rareData()->m_controlFlowRecord->size()) {
+                    state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, ret, state.rareData()->m_controlFlowRecord->size());
                 }
                 return ret;
             }
@@ -1564,15 +1562,13 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
                 obj = o;
             }
         }
-        if (LIKELY(!miss)) {
-            if (inlineCache.m_cachedhiddenClassChain[cSiz - 1].m_objectStructure == obj->structure()) {
-                // cache hit!
-                obj = originalObject;
-                ASSERT(!obj->structure()->isStructureWithFastAccess());
-                obj->m_values.push_back(value, inlineCache.m_hiddenClassWillBe->propertyCount());
-                obj->m_structure = inlineCache.m_hiddenClassWillBe;
-                return;
-            }
+        if (LIKELY(!miss) && inlineCache.m_cachedhiddenClassChain[cSiz - 1].m_objectStructure == obj->structure()) {
+            // cache hit!
+            obj = originalObject;
+            ASSERT(!obj->structure()->isStructureWithFastAccess());
+            obj->m_values.push_back(value, inlineCache.m_hiddenClassWillBe->propertyCount());
+            obj->m_structure = inlineCache.m_hiddenClassWillBe;
+            return;
         }
     }
 

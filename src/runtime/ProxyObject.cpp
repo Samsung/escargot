@@ -333,10 +333,8 @@ ObjectGetResult ProxyObject::getOwnProperty(ExecutionState& state, const ObjectP
     // 22. If resultDesc.[[Configurable]] is false, then
     // a. If targetDesc is undefined or targetDesc.[[Configurable]] is true, then
     // i. Throw a TypeError exception.
-    if (!resultDesc.isConfigurable()) {
-        if (targetDesc.value(state, target).isUndefined() || targetDesc.isConfigurable()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Proxy::getOwnPropertyDescriptor error");
-        }
+    if (!resultDesc.isConfigurable() && (targetDesc.value(state, target).isUndefined() || targetDesc.isConfigurable())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Proxy::getOwnPropertyDescriptor error");
     }
 
     // 23. Return resultDesc.
