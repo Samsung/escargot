@@ -347,6 +347,7 @@ public:
     CreateImplicitConstructor(const ByteCodeLOC& loc, const size_t& registerIndex)
         : ByteCode(Opcode::CreateImplicitConstructorOpcode, loc)
         , m_registerIndex(registerIndex)
+        , m_codeBlock(NULL)
     {
     }
 
@@ -931,6 +932,7 @@ class TemplateOperation : public ByteCode {
 public:
     TemplateOperation(const ByteCodeLOC& loc, const size_t src0Index, const size_t src1Index, const size_t dstIndex)
         : ByteCode(Opcode::TemplateOperationOpcode, loc)
+        , m_quasi(NULL)
         , m_src0Index(src0Index)
         , m_src1Index(src1Index)
         , m_dstIndex(dstIndex)
