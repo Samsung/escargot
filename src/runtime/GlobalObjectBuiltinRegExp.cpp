@@ -144,6 +144,22 @@ static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t
 
     return retVal;
 }
+static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // $21.2.5.9 RegExp.prototype[@@search]
+    RESOLVE_THIS_BINDING_TO_OBJECT(rx, Object, search);
+    String* s = argv[0].toString(state);
+    Value previousLastIndex = rx->get(state, ObjectPropertyName(state.context()->staticStrings().lastIndex)).value(state, thisValue);
+
+    bool status = rx->set(state, ObjectPropertyName(state.context()->staticStrings().lastIndex), Value(0), thisValue);
+    Value result = builtinRegExpExec(state, rx, 1, argv, true);
+    status = rx->set(state, ObjectPropertyName(state.context()->staticStrings().lastIndex), previousLastIndex, thisValue);
+    if (result.isUndefinedOrNull()) {
+        return Value(-1);
+    } else {
+        return result.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().index)).value(state, thisValue);
+    }
+}
 
 GlobalRegExpFunctionObject::GlobalRegExpFunctionObject(ExecutionState& state)
     : FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().RegExp, builtinRegExpConstructor, 2, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
@@ -190,6 +206,9 @@ void GlobalObject::installRegExp(ExecutionState& state)
     // $B.2.5.1 RegExp.prototype.compile
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->compile),
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->compile, builtinRegExpCompile, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // $21.2.5.9 RegExp.prototype[@@search]
+    m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().search),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSymbolSearch, builtinRegExpSearch, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().RegExp),
                       ObjectPropertyDescriptor(m_regexp, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
