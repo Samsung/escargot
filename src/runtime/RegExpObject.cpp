@@ -28,6 +28,11 @@ namespace Escargot {
 
 RegExpObject::RegExpObject(ExecutionState& state, String* source, String* option)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5, true)
+    , m_source(NULL)
+    , m_optionString(NULL)
+    , m_option(None)
+    , m_yarrPattern(NULL)
+    , m_bytecodePattern(NULL)
     , m_lastIndex(Value(0))
     , m_lastExecutedString(NULL)
 {
@@ -37,6 +42,11 @@ RegExpObject::RegExpObject(ExecutionState& state, String* source, String* option
 
 RegExpObject::RegExpObject(ExecutionState& state, String* source, unsigned int option)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5, true)
+    , m_source(NULL)
+    , m_optionString(NULL)
+    , m_option(None)
+    , m_yarrPattern(NULL)
+    , m_bytecodePattern(NULL)
     , m_lastIndex(Value(0))
     , m_lastExecutedString(NULL)
 {
@@ -46,6 +56,11 @@ RegExpObject::RegExpObject(ExecutionState& state, String* source, unsigned int o
 
 RegExpObject::RegExpObject(ExecutionState& state)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5, true)
+    , m_source(NULL)
+    , m_optionString(NULL)
+    , m_option(None)
+    , m_yarrPattern(NULL)
+    , m_bytecodePattern(NULL)
     , m_lastIndex(Value(0))
     , m_lastExecutedString(NULL)
 {
