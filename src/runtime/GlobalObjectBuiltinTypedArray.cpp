@@ -115,7 +115,7 @@ static Value builtinArrayBufferIsView(ExecutionState& state, Value thisValue, si
     return Value(false);
 }
 
-static Value TypedArrayFrom(ExecutionState& state, Value& constructor, Value& items, Value& mapfn, Value& thisArg)
+static Value TypedArrayFrom(ExecutionState& state, const Value& constructor, const Value& items, const Value& mapfn, const Value& thisArg)
 {
     // Let C be constructor.
     Value C = constructor;
@@ -135,7 +135,7 @@ static Value TypedArrayFrom(ExecutionState& state, Value& constructor, Value& it
         mapping = true;
     }
     // Let usingIterator be GetMethod(items, @@iterator).
-    Value usingIterator = Object::getMethod(state, items, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().iterator)));
+    Value usingIterator = Object::getMethod(state, items, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator));
 
     // If usingIterator is not undefined, then
     if (!usingIterator.isUndefined()) {
@@ -219,7 +219,7 @@ static Value TypedArrayFrom(ExecutionState& state, Value& constructor, Value& it
     return targetObj;
 }
 
-static Value validateTypedArray(ExecutionState& state, Object* thisObject, String* func)
+static ArrayBufferObject* validateTypedArray(ExecutionState& state, Object* thisObject, String* func)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
     if (!thisObject->isTypedArrayObject() || !thisObject->isArrayBufferView()) {
@@ -232,6 +232,61 @@ static Value validateTypedArray(ExecutionState& state, Object* thisObject, Strin
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, errorMessage_GlobalObject_DetachedBuffer);
     }
     return buffer;
+}
+
+static Value speciesConstructor(ExecutionState& state, const Value& O, const Value& defaultConstructor)
+{
+    ASSERT(O.isObject());
+    Value C = O.asObject()->get(state, state.context()->staticStrings().constructor).value(state, O);
+
+    if (C.isUndefined()) {
+        return defaultConstructor;
+    }
+
+    if (!C.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "constructor is not an object");
+    }
+
+    Value S = C.asObject()->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, C);
+
+    if (S.isUndefinedOrNull()) {
+        return defaultConstructor;
+    }
+
+    if (S.isConstructor()) {
+        return S;
+    }
+
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "invalid speciesConstructor return");
+    return Value();
+}
+
+static Value getDefaultTypedArrayConstructor(ExecutionState& state, const TypedArrayType type)
+{
+    GlobalObject* glob = state.context()->globalObject();
+    switch (type) {
+    case TypedArrayType::Int8:
+        return glob->int8Array();
+    case TypedArrayType::Uint8:
+        return glob->uint8Array();
+    case TypedArrayType::Uint8Clamped:
+        return glob->uint8ClampedArray();
+    case TypedArrayType::Int16:
+        return glob->int16Array();
+    case TypedArrayType::Uint16:
+        return glob->uint16Array();
+    case TypedArrayType::Int32:
+        return glob->int32Array();
+    case TypedArrayType::Uint32:
+        return glob->uint32Array();
+    case TypedArrayType::Float32:
+        return glob->float32Array();
+    case TypedArrayType::Float64:
+        return glob->float64Array();
+    default:
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    return Value();
 }
 
 Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -739,6 +794,38 @@ static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_
     return Value(false);
 }
 
+static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, sort);
+    // Let buffer be ValidateTypedArray(obj).
+    ArrayBufferObject* buffer = validateTypedArray(state, O, state.context()->staticStrings().sort.string());
+
+    // Let len be the value of O’s [[ArrayLength]] internal slot.
+    double len = O->asArrayBufferView()->arraylength();
+
+    Value cmpfn = argv[0];
+    if (!cmpfn.isUndefined() && !cmpfn.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().sort.string(), errorMessage_GlobalObject_FirstArgumentNotCallable);
+    }
+    bool defaultSort = (argc == 0) || cmpfn.isUndefined();
+
+    // [defaultSort, &cmpfn, &state, &buffer]
+    O->sort(state, [&](const Value& x, const Value& y) -> bool {
+        ASSERT(x.isNumber() && y.isNumber());
+        if (!defaultSort) {
+            Value args[] = { x, y };
+            Value v = FunctionObject::call(state, cmpfn, Value(), 2, args);
+            if (buffer->isDetachedBuffer()) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().sort.string(), errorMessage_GlobalObject_DetachedBuffer);
+            }
+            return (v.toNumber(state) < 0);
+        } else {
+            return (x.toNumber(state) < y.toNumber(state));
+        } });
+    return O;
+}
+
 Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, TypedArray, subarray);
@@ -854,6 +941,68 @@ Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_t argc,
     }
     // return O.
     return O;
+}
+
+Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, filter);
+    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
+    validateTypedArray(state, O, state.context()->staticStrings().filter.string());
+
+    // Let len be the value of O’s [[ArrayLength]] internal slot.
+    double len = O->asArrayBufferView()->arraylength();
+
+    // If IsCallable(callbackfn) is false, throw a TypeError exception.
+    Value callbackfn = argv[0];
+    if (!callbackfn.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().filter.string(), errorMessage_GlobalObject_CallbackNotCallable);
+    }
+
+    // If thisArg was supplied, let T be thisArg; else let T be undefined.
+    Value T;
+    if (argc > 1) {
+        T = argv[1];
+    }
+
+    // Let defaultConstructor be the intrinsic object listed in column one of Table 49 for the value of O’s [[TypedArrayName]] internal slot.
+    Value defaultConstructor = getDefaultTypedArrayConstructor(state, O->asArrayBufferView()->typedArrayType());
+    // Let C be SpeciesConstructor(O, defaultConstructor).
+    Value C = speciesConstructor(state, O, defaultConstructor);
+
+    // Let kept be a new empty List.
+    ValueVector kept;
+    // Let k be 0.
+    size_t k = 0;
+    // Let captured be 0.
+    size_t captured = 0;
+    // Repeat, while k < len
+    while (k < len) {
+        Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        Value args[] = { kValue, Value(k), O };
+        bool selected = FunctionObject::call(state, callbackfn, T, 3, args).toBoolean(state);
+        if (selected) {
+            kept.push_back(kValue);
+            captured++;
+        }
+        k++;
+    }
+
+    // FIXME Let A be AllocateTypedArray(C, captured).
+    Value arg[1] = { Value(captured) };
+    Value A = ByteCodeInterpreter::newOperation(state, C, 1, arg);
+
+    // Let n be 0.
+    size_t n = 0;
+    // For each element e of kept
+    for (size_t i = 0; i < kept.size(); i++) {
+        // Let status be Set(A, ToString(n), e, true ).
+        A.asObject()->setIndexedPropertyThrowsException(state, Value(n), kept[i]);
+        // Increment n by 1.
+        n++;
+    }
+    // Return A.
+    return A;
 }
 
 Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -1033,6 +1182,51 @@ Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_t argc,
     return builder.finalize(&state);
 }
 
+Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, map);
+    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
+    validateTypedArray(state, O, state.context()->staticStrings().map.string());
+
+    // Let len be the value of O’s [[ArrayLength]] internal slot.
+    size_t len = O->asArrayBufferView()->arraylength();
+
+    // If IsCallable(callbackfn) is false, throw a TypeError exception.
+    Value callbackfn = argv[0];
+    if (!callbackfn.isFunction()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().map.string(), errorMessage_GlobalObject_CallbackNotCallable);
+    }
+
+    // If thisArg was supplied, let T be thisArg; else let T be undefined.
+    Value T;
+    if (argc > 1) {
+        T = argv[1];
+    }
+
+    // Let defaultConstructor be the intrinsic object listed in column one of Table 49 for the value of O’s [[TypedArrayName]] internal slot.
+    Value defaultConstructor = getDefaultTypedArrayConstructor(state, O->asArrayBufferView()->typedArrayType());
+    // Let C be SpeciesConstructor(O, defaultConstructor).
+    Value C = speciesConstructor(state, O, defaultConstructor);
+
+    // FIXME Let A be AllocateTypedArray(C, len).
+    Value arg[1] = { Value(len) };
+    Value A = ByteCodeInterpreter::newOperation(state, C, 1, arg);
+
+    // Let k be 0.
+    size_t k = 0;
+    // Repeat, while k < len
+    while (k < len) {
+        Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        Value args[] = { kValue, Value(k), O };
+        Value mappedValue = FunctionObject::call(state, callbackfn, T, 3, args);
+        A.asObject()->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
+        k++;
+    }
+    // Return A.
+    return A;
+}
+
 Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ToObject(this value).
@@ -1163,10 +1357,73 @@ Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, size_t ar
     return O;
 }
 
+Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, slice);
+    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
+    validateTypedArray(state, O, state.context()->staticStrings().slice.string());
+
+    // Let len be the value of O’s [[ArrayLength]] internal slot.
+    int64_t len = O->asArrayBufferView()->arraylength();
+    // Let relativeStart be ToInteger(start).
+    double relativeStart = argv[0].toInteger(state);
+    // If relativeStart < 0, let k be max((len + relativeStart),0); else let k be min(relativeStart, len).
+    double k = (relativeStart < 0) ? std::max((double)len + relativeStart, 0.0) : std::min(relativeStart, (double)len);
+    // If end is undefined, let relativeEnd be len; else let relativeEnd be ToInteger(end).
+    double relativeEnd = (argv[1].isUndefined()) ? len : argv[1].toInteger(state);
+    // If relativeEnd < 0, let final be max((len + relativeEnd),0); else let final be min(relativeEnd, len).
+    double finalEnd = (relativeEnd < 0) ? std::max((double)len + relativeEnd, 0.0) : std::min(relativeEnd, (double)len);
+    // Let count be max(final – k, 0).
+    double count = std::max((double)finalEnd - k, 0.0);
+
+    // Let defaultConstructor be the intrinsic object listed in column one of Table 49 for the value of O’s [[TypedArrayName]] internal slot.
+    Value defaultConstructor = getDefaultTypedArrayConstructor(state, O->asArrayBufferView()->typedArrayType());
+    // Let C be SpeciesConstructor(O, defaultConstructor).
+    Value C = speciesConstructor(state, O, defaultConstructor);
+    // FIXME Let A be AllocateTypedArray(C, count).
+    Value arg[1] = { Value(count) };
+    Value A = ByteCodeInterpreter::newOperation(state, C, 1, arg);
+
+    // If SameValue(srcType, targetType) is false, then
+    if (O->asArrayBufferView()->typedArrayType() != A.asObject()->asArrayBufferView()->typedArrayType()) {
+        size_t n = 0;
+        while (k < finalEnd) {
+            Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+            A.asObject()->setIndexedPropertyThrowsException(state, Value(n), kValue);
+            k++;
+            n++;
+        }
+        // Else if count > 0,
+    } else if (count > 0) {
+        auto srcWrapper = O->asArrayBufferView();
+        auto targetWrapper = A.asObject()->asArrayBufferView();
+
+        ArrayBufferObject* srcBuffer = srcWrapper->buffer();
+        if (srcBuffer->isDetachedBuffer()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_DetachedBuffer);
+        }
+        ArrayBufferObject* targetBuffer = targetWrapper->buffer();
+        unsigned elementSize = ArrayBufferView::getElementSize(srcWrapper->typedArrayType());
+        unsigned srcByteOffset = srcWrapper->byteoffset();
+        unsigned targetByteIndex = 0;
+        unsigned srcByteIndex = k * elementSize + srcByteOffset;
+
+        while (targetByteIndex < count * elementSize) {
+            Value value = srcWrapper->getValueFromBuffer<uint8_t>(state, srcByteIndex);
+            targetWrapper->setValueInBuffer<Uint8Adaptor>(state, targetByteIndex, value);
+            srcByteIndex++;
+            targetByteIndex++;
+        }
+    }
+    // Return A.
+    return A;
+}
+
 static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, some);
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, toLocaleString);
     // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
     validateTypedArray(state, O, state.context()->staticStrings().toLocaleString.string());
 
@@ -1338,7 +1595,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     m_arrayBufferPrototype = new ArrayBufferObject(state);
     m_arrayBufferPrototype->setPrototype(state, m_objectPrototype);
     m_arrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_arrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_arrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+    m_arrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().toStringTag),
                                                              ObjectPropertyDescriptor(Value(state.context()->staticStrings().ArrayBuffer.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
@@ -1384,12 +1641,16 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->set, builtinTypedArraySet, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->some),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->some, builtinTypedArraySome, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->sort),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->sort, builtinTypedArraySort, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->copyWithin),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->copyWithin, builtinTypedArrayCopyWithin, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->every),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->every, builtinTypedArrayEvery, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->fill),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->fill, builtinTypedArrayFill, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->filter),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->filter, builtinTypedArrayFilter, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->find),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->find, builtinTypedArrayFind, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->findIndex),
@@ -1398,12 +1659,16 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->forEach, builtinTypedArrayForEach, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->join),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->join, builtinTypedArrayJoin, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->map),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->map, builtinTypedArrayMap, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->reduce),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->reduce, builtinTypedArrayReduce, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->reduceRight),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->reduceRight, builtinTypedArrayReduceRight, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->reverse),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->reverse, builtinTypedArrayReverse, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->slice),
+                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->slice, builtinTypedArraySlice, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toLocaleString),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toLocaleString, builtinTypedArrayToLocaleString, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toString),
