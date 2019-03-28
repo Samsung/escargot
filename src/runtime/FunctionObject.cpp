@@ -473,8 +473,7 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
     }
 
     // run function
-    size_t unused;
-    const Value returnValue = ByteCodeInterpreter::interpret(newState, blk, 0, registerFile, &unused);
+    const Value returnValue = ByteCodeInterpreter::interpret(newState, blk, 0, registerFile);
     if (UNLIKELY(blk->m_shouldClearStack))
         clearStack<512>();
 

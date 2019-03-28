@@ -66,7 +66,9 @@ ALWAYS_INLINE size_t resolveProgramCounter(char* codeBuffer, const size_t progra
 Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile, void* initAddressFiller)
 {
 #if defined(COMPILER_GCC)
-    *((size_t*)initAddressFiller) = ((size_t) && FillOpcodeTableOpcodeLbl);
+    if (UNLIKELY(initAddressFiller != nullptr)) {
+        *((size_t*)initAddressFiller) = ((size_t) && FillOpcodeTableOpcodeLbl);
+    }
 #endif
 
     ExecutionContext* ec = state.executionContext();
@@ -1878,8 +1880,7 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
         state.ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
         size_t newPc = programCounter + sizeof(TryOperation);
         clearStack<386>();
-        size_t unused;
-        interpret(state, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile, &unused);
+        interpret(state, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
         programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
     } catch (const Value& val) {
         state.context()->m_sandBoxStack.back()->fillStackDataIntoErrorObject(val);
@@ -1909,8 +1910,7 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
                 ExecutionState newState(&state, newEc);
                 newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
                 clearStack<386>();
-                size_t unused;
-                interpret(newState, byteCodeBlock, code->m_catchPosition, registerFile, &unused);
+                interpret(newState, byteCodeBlock, code->m_catchPosition, registerFile);
                 programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
             } catch (const Value& val) {
                 state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
@@ -1991,8 +1991,7 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, Wit
     ExecutionState newState(&state, newEc);
     newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
 
-    size_t unused;
-    interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile, &unused);
+    interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
 
     ControlFlowRecord* record = state.rareData()->m_controlFlowRecord->back();
     state.rareData()->m_controlFlowRecord->erase(state.rareData()->m_controlFlowRecord->size() - 1);
