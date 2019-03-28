@@ -23,6 +23,7 @@
 #include "VMInstance.h"
 #include "ArrayObject.h"
 #include "IteratorOperations.h"
+#include "interpreter/ByteCodeInterpreter.h"
 #include "ToStringRecursionPreventer.h"
 
 namespace Escargot {
@@ -84,9 +85,9 @@ static Value builtinArrayIsArray(ExecutionState& state, Value thisValue, size_t 
         return Value(false);
 }
 
+// Array.from ( items [ , mapfn [ , thisArg ] ] )#
 static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // Array.from ( items [ , mapfn [ , thisArg ] ] )#
     Value items = argv[0];
     Value mapfn;
     if (argc > 1) {
@@ -211,6 +212,32 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
     // Perform ? Set(A, "length", len, true).
     A->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().length), Value(len), A);
     // Return A.
+    return A;
+}
+
+// Array.of ( ...items )
+static Value builtinArrayOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    size_t len = argc;
+    Value C = thisValue;
+
+    Object* A;
+    if (C.isConstructor()) {
+        Value arg[1] = { Value(len) };
+        A = ByteCodeInterpreter::newOperation(state, C, 1, arg);
+    } else {
+        A = new ArrayObject(state, len);
+    }
+
+    size_t k = 0;
+    while (k < len) {
+        Value kValue = argv[k];
+        ObjectPropertyName Pk(state, Value(k));
+        A->defineOwnPropertyThrowsException(state, Pk, ObjectPropertyDescriptor(kValue, ObjectPropertyDescriptor::AllPresent));
+        k++;
+    }
+    A->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().length), Value(len), A);
+
     return A;
 }
 
@@ -1561,6 +1588,64 @@ static Value builtinArrayFindIndex(ExecutionState& state, Value thisValue, size_
     return Value(-1);
 }
 
+// Array.prototype.copyWithin (target, start [ , end ] )
+static Value builtinArrayCopyWithin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, copyWithin);
+    // Let len be ToLength(Get(O, "length")).
+    double len = O->lengthES6(state);
+    // Let relativeTarget be ToInteger(target).
+    double relativeTarget = argv[0].toInteger(state);
+    // If relativeTarget < 0, let to be max((len + relativeTarget),0); else let to be min(relativeTarget, len).
+    double to = (relativeTarget < 0.0) ? std::max((len + relativeTarget), 0.0) : std::min(relativeTarget, len);
+    // Let relativeStart be ToInteger(start).
+    double relativeStart = argv[1].toInteger(state);
+    // If relativeStart < 0, let from be max((len + relativeStart),0); else let from be min(relativeStart, len).
+    double from = (relativeStart < 0.0) ? std::max((len + relativeStart), 0.0) : std::min(relativeStart, len);
+    // If end is undefined, let relativeEnd be len; else let relativeEnd be ToInteger(end).
+    double relativeEnd = (argc < 3 || argv[2].isUndefined()) ? len : argv[2].toInteger(state);
+    // If relativeEnd < 0, let final be max((len + relativeEnd),0); else let final be min(relativeEnd, len).
+    double finalEnd = (relativeEnd < 0.0) ? std::max((len + relativeEnd), 0.0) : std::min(relativeEnd, len);
+    // Let count be min(final-from, len-to).
+    double count = std::min(finalEnd - from, len - to);
+    int8_t direction;
+    // If from<to and to<from+count
+    if (from < to && to < from + count) {
+        // Let direction be -1.
+        direction = -1;
+        // Let from be from + count -1.
+        from = from + count - 1;
+        // Let to be to + count -1.
+        to = to + count - 1;
+    } else {
+        // Let direction = 1.
+        direction = 1;
+    }
+
+    // Repeat, while count > 0
+    while (count > 0) {
+        // Let fromPresent be HasProperty(O, fromKey).
+        ObjectGetResult fromValue = O->getIndexedProperty(state, Value(from));
+        // If fromPresent is true, then
+        if (fromValue.hasValue()) {
+            // Let setStatus be Set(O, toKey, fromVal, true).
+            O->setIndexedPropertyThrowsException(state, Value(to), fromValue.value(state, O));
+        } else {
+            // Let deleteStatus be DeletePropertyOrThrow(O, toKey).
+            O->deleteOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(to)));
+        }
+        // Let from be from + direction.
+        from += direction;
+        // Let to be to + direction.
+        to += direction;
+        // Let count be count − 1.
+        count--;
+    }
+    // Return O.
+    return O;
+}
+
 static Value builtinArrayKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(M, Array, keys);
@@ -1607,6 +1692,9 @@ void GlobalObject::installArray(ExecutionState& state)
 
     m_array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().from),
                                               ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().from, builtinArrayFrom, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().of),
+                                              ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().of, builtinArrayOf, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().concat),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().concat, builtinArrayConcat, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -1660,6 +1748,8 @@ void GlobalObject::installArray(ExecutionState& state)
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().find, builtinArrayFind, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().findIndex),
                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().findIndex, builtinArrayFindIndex, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().copyWithin),
+                                                       ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().copyWithin, builtinArrayCopyWithin, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     FunctionObject* values = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinArrayValues, 0, nullptr, NativeFunctionInfo::Strict));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().values),
