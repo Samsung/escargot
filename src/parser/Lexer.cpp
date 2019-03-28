@@ -687,12 +687,10 @@ void Scanner::skipMultiLineComment(void)
             }
             ++this->lineNumber;
             this->lineStart = this->index;
-        } else if (ch == 0x2A) {
+        } else if (ch == 0x2A && this->peekChar() == 0x2F) {
             // Block comment ends with '*/'.
-            if (this->peekChar() == 0x2F) {
-                ++this->index;
-                return;
-            }
+            ++this->index;
+            return;
         }
     }
 
@@ -1671,10 +1669,8 @@ static ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
             } else if (second == 'l' && data.equalsSameLength("class", 2)) {
                 return ClassKeyword;
             }
-        } else if (length == 8) {
-            if (data.equalsSameLength("continue", 1)) {
-                return ContinueKeyword;
-            }
+        } else if (length == 8 && data.equalsSameLength("continue", 1)) {
+            return ContinueKeyword;
         }
         break;
     case 'd':
@@ -1704,29 +1700,19 @@ static ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
             } else if (second == 'n' && data.equalsSameLength("enum", 2)) {
                 return EnumKeyword;
             }
-        } else if (length == 6) {
-            if (data.equalsSameLength("export", 1)) {
-                return ExportKeyword;
-            }
-        } else if (length == 7) {
-            if (data.equalsSameLength("extends", 1)) {
-                return ExtendsKeyword;
-            }
+        } else if (length == 6 && data.equalsSameLength("export", 1)) {
+            return ExportKeyword;
+        } else if (length == 7 && data.equalsSameLength("extends", 1)) {
+            return ExtendsKeyword;
         }
         break;
     case 'f':
-        if (length == 3) {
-            if (data.equalsSameLength("for", 1)) {
-                return ForKeyword;
-            }
-        } else if (length == 7) {
-            if (data.equalsSameLength("finally", 1)) {
-                return FinallyKeyword;
-            }
-        } else if (length == 8) {
-            if (data.equalsSameLength("function", 1)) {
-                return FunctionKeyword;
-            }
+        if (length == 3 && data.equalsSameLength("for", 1)) {
+            return ForKeyword;
+        } else if (length == 7 && data.equalsSameLength("finally", 1)) {
+            return FinallyKeyword;
+        } else if (length == 8 && data.equalsSameLength("function", 1)) {
+            return FunctionKeyword;
         }
         break;
     case 'i':
@@ -1737,14 +1723,10 @@ static ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
             } else if (second == 'n') {
                 return InKeyword;
             }
-        } else if (length == 6) {
-            if (data.equalsSameLength("import", 1)) {
-                return ImportKeyword;
-            }
-        } else if (length == 10) {
-            if (data.equalsSameLength("instanceof", 1)) {
-                return InstanceofKeyword;
-            }
+        } else if (length == 6 && data.equalsSameLength("import", 1)) {
+            return ImportKeyword;
+        } else if (length == 10 && data.equalsSameLength("instanceof", 1)) {
+            return InstanceofKeyword;
         }
         break;
     case 'l':
