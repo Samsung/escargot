@@ -2523,106 +2523,87 @@ public:
 
     // ECMA-262 12.4 Update Expressions
 
-    PassRefPtr<Node> parseUpdateExpression()
+    template <typename T, bool isParse>
+    T updateExpression()
     {
-        RefPtr<Node> expr;
+        RefPtr<Node> exprNode;
+        ScanExpressionResult expr;
         RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
 
         if (this->match(PlusPlus) || this->match(MinusMinus)) {
             bool isPlus = this->match(PlusPlus);
-            MetaNode node = this->startNode(startToken);
             RefPtr<Scanner::ScannerResult> token = this->nextToken();
-            expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-            if (expr->isLiteral() || expr->type() == ASTNodeType::ThisExpression) {
-                this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
-            }
-            if (this->context->strict && expr->type() == Identifier && this->scanner->isRestrictedWord(((IdentifierNode*)expr.get())->name())) {
-                this->tolerateError(Messages::StrictLHSPrefix);
-            }
-            if (!this->context->isAssignmentTarget && this->context->strict) {
-                this->tolerateError(Messages::InvalidLHSInAssignment);
-            }
-            bool prefix = true;
 
-            if (isPlus) {
-                expr = this->finalize(node, new UpdateExpressionIncrementPrefixNode(expr.get()));
+            if (isParse) {
+                exprNode = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
+                if (exprNode->isLiteral() || exprNode->type() == ASTNodeType::ThisExpression) {
+                    this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                }
+                if (this->context->strict && exprNode->type() == Identifier && this->scanner->isRestrictedWord(((IdentifierNode*)exprNode.get())->name())) {
+                    this->throwError(Messages::StrictLHSPrefix);
+                }
             } else {
-                expr = this->finalize(node, new UpdateExpressionDecrementPrefixNode(expr.get()));
+                expr = this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
+                if (expr.first == ASTNodeType::Literal || expr.first == ASTNodeType::ThisExpression) {
+                    this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                }
+                if (this->context->strict && expr.first == ASTNodeType::Identifier && this->scanner->isRestrictedWord(expr.second)) {
+                    this->throwError(Messages::StrictLHSPrefix);
+                }
+            }
+
+            if (!this->context->isAssignmentTarget && this->context->strict) {
+                this->throwError(Messages::InvalidLHSInAssignment);
+            }
+
+            if (isParse) {
+                MetaNode node = this->startNode(startToken);
+                if (isPlus) {
+                    exprNode = this->finalize(node, new UpdateExpressionIncrementPrefixNode(exprNode.get()));
+                } else {
+                    exprNode = this->finalize(node, new UpdateExpressionDecrementPrefixNode(exprNode.get()));
+                }
+            } else {
+                if (isPlus) {
+                    expr = ScanExpressionResult(ASTNodeType::UpdateExpressionIncrementPrefix, AtomicString());
+                } else {
+                    expr = ScanExpressionResult(ASTNodeType::UpdateExpressionDecrementPrefix, AtomicString());
+                }
             }
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         } else {
-            expr = this->inheritCoverGrammar(&Parser::leftHandSideExpressionAllowCall<Parse>);
+            if (isParse) {
+                exprNode = this->inheritCoverGrammar(&Parser::leftHandSideExpressionAllowCall<Parse>);
+            } else {
+                expr = this->scanInheritCoverGrammar(&Parser::leftHandSideExpressionAllowCall<Scan>);
+            }
             if (!this->hasLineTerminator && this->lookahead->type == Token::PunctuatorToken && (this->match(PlusPlus) || this->match(MinusMinus))) {
                 bool isPlus = this->match(PlusPlus);
-                if (this->context->strict && expr->isIdentifier() && this->scanner->isRestrictedWord(((IdentifierNode*)expr.get())->name())) {
-                    this->tolerateError(Messages::StrictLHSPostfix);
+                if (isParse && this->context->strict && exprNode->isIdentifier() && this->scanner->isRestrictedWord(((IdentifierNode*)exprNode.get())->name())) {
+                    this->throwError(Messages::StrictLHSPostfix);
+                }
+                if (!isParse && this->context->strict && expr.first == ASTNodeType::Identifier && this->scanner->isRestrictedWord(expr.second)) {
+                    this->throwError(Messages::StrictLHSPostfix);
                 }
                 if (!this->context->isAssignmentTarget && this->context->strict) {
-                    this->tolerateError(Messages::InvalidLHSInAssignment);
+                    this->throwError(Messages::InvalidLHSInAssignment);
                 }
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
                 this->nextToken();
 
-                if (expr->isLiteral() || expr->type() == ASTNodeType::ThisExpression) {
-                    this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
-                }
+                if (isParse) {
+                    if (exprNode->isLiteral() || exprNode->type() == ASTNodeType::ThisExpression) {
+                        this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                    }
 
-                if (isPlus) {
-                    expr = this->finalize(this->startNode(startToken), new UpdateExpressionIncrementPostfixNode(expr.get()));
+                    if (isPlus) {
+                        exprNode = this->finalize(this->startNode(startToken), new UpdateExpressionIncrementPostfixNode(exprNode.get()));
+                    } else {
+                        exprNode = this->finalize(this->startNode(startToken), new UpdateExpressionDecrementPostfixNode(exprNode.get()));
+                    }
                 } else {
-                    expr = this->finalize(this->startNode(startToken), new UpdateExpressionDecrementPostfixNode(expr.get()));
-                }
-            }
-        }
-
-        return expr;
-    }
-
-    ScanExpressionResult scanUpdateExpression()
-    {
-        ScanExpressionResult expr(ASTNodeType::ASTNodeTypeError, AtomicString());
-        RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
-
-        if (this->match(PlusPlus) || this->match(MinusMinus)) {
-            bool isPlus = this->match(PlusPlus);
-            MetaNode node = this->startNode(startToken);
-            RefPtr<Scanner::ScannerResult> token = this->nextToken();
-            expr = this->scanInheritCoverGrammar(&Parser::scanUnaryExpression);
-            if (expr.first == ASTNodeType::Literal || expr.first == ASTNodeType::ThisExpression) {
-                this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
-            }
-            if (this->context->strict && expr.first == ASTNodeType::Identifier && this->scanner->isRestrictedWord(expr.second)) {
-                this->tolerateError(Messages::StrictLHSPrefix);
-            }
-            if (!this->context->isAssignmentTarget && this->context->strict) {
-                this->tolerateError(Messages::InvalidLHSInAssignment);
-            }
-            bool prefix = true;
-
-            if (isPlus) {
-                expr = ScanExpressionResult(ASTNodeType::UpdateExpressionIncrementPrefix, AtomicString());
-            } else {
-                expr = ScanExpressionResult(ASTNodeType::UpdateExpressionDecrementPrefix, AtomicString());
-            }
-            this->context->isAssignmentTarget = false;
-            this->context->isBindingElement = false;
-        } else {
-            expr = this->scanInheritCoverGrammar(&Parser::leftHandSideExpressionAllowCall<Scan>);
-            if (!this->hasLineTerminator && this->lookahead->type == Token::PunctuatorToken) {
-                if (this->match(PlusPlus) || this->match(MinusMinus)) {
-                    bool isPlus = this->match(PlusPlus);
-                    if (this->context->strict && expr.first == ASTNodeType::Identifier && this->scanner->isRestrictedWord(expr.second)) {
-                        this->tolerateError(Messages::StrictLHSPostfix);
-                    }
-                    if (!this->context->isAssignmentTarget && this->context->strict) {
-                        this->tolerateError(Messages::InvalidLHSInAssignment);
-                    }
-                    this->context->isAssignmentTarget = false;
-                    this->context->isBindingElement = false;
-                    this->nextToken();
-
                     if (expr.first == ASTNodeType::Literal || expr.first == ASTNodeType::ThisExpression) {
                         this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
                     }
@@ -2636,187 +2617,177 @@ public:
             }
         }
 
+        if (isParse) {
+            return exprNode.release();
+        }
         return expr;
     }
 
     // ECMA-262 12.5 Unary Operators
 
-    PassRefPtr<Node> parseUnaryExpression()
+    template <typename T, bool isParse>
+    T unaryExpression()
     {
-        bool matchPun = this->lookahead->type == Token::PunctuatorToken;
-        if (matchPun) {
+        if (this->lookahead->type == Token::PunctuatorToken) {
             auto punctuatorsKind = this->lookahead->valuePunctuatorKind;
+            RefPtr<Node> exprNode;
+
             if (punctuatorsKind == Plus) {
-                MetaNode node = this->startNode(this->lookahead);
                 this->nextToken();
-                auto subExpr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-                auto expr(this->finalize(node, new UnaryExpressionPlusNode(subExpr.get())));
+                if (isParse) {
+                    MetaNode node = this->startNode(this->lookahead);
+                    RefPtr<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
+                    exprNode = this->finalize(node, new UnaryExpressionPlusNode(subExpr.get()));
+                } else {
+                    this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
+                }
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
-                return expr;
+                if (isParse) {
+                    return exprNode.release();
+                }
+                return ScanExpressionResult(ASTNodeType::UnaryExpressionPlus, AtomicString());
             } else if (punctuatorsKind == Minus) {
-                MetaNode node = this->startNode(this->lookahead);
                 this->nextToken();
-                auto subExpr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-                auto expr(this->finalize(node, new UnaryExpressionMinusNode(subExpr.get())));
+                if (isParse) {
+                    MetaNode node = this->startNode(this->lookahead);
+                    RefPtr<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
+                    exprNode = this->finalize(node, new UnaryExpressionMinusNode(subExpr.get()));
+                } else {
+                    this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
+                }
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
-                return expr;
+                if (isParse) {
+                    return exprNode.release();
+                }
+                return ScanExpressionResult(ASTNodeType::UnaryExpressionMinus, AtomicString());
             } else if (punctuatorsKind == Wave) {
-                MetaNode node = this->startNode(this->lookahead);
                 this->nextToken();
-                auto subExpr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-                auto expr(this->finalize(node, new UnaryExpressionBitwiseNotNode(subExpr.get())));
+                if (isParse) {
+                    MetaNode node = this->startNode(this->lookahead);
+                    RefPtr<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
+                    exprNode = this->finalize(node, new UnaryExpressionBitwiseNotNode(subExpr.get()));
+                } else {
+                    this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
+                }
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
-                return expr;
+                if (isParse) {
+                    return exprNode.release();
+                }
+                return ScanExpressionResult(ASTNodeType::UnaryExpressionBitwiseNot, AtomicString());
             } else if (punctuatorsKind == ExclamationMark) {
-                MetaNode node = this->startNode(this->lookahead);
                 this->nextToken();
-                auto subExpr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-                auto expr(this->finalize(node, new UnaryExpressionLogicalNotNode(subExpr.get())));
+                if (isParse) {
+                    MetaNode node = this->startNode(this->lookahead);
+                    RefPtr<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
+                    exprNode = this->finalize(node, new UnaryExpressionLogicalNotNode(subExpr.get()));
+                } else {
+                    this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
+                }
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
-                return expr;
+                if (isParse) {
+                    return exprNode.release();
+                }
+                return ScanExpressionResult(ASTNodeType::UnaryExpressionBitwiseNot, AtomicString());
             }
         }
 
         bool isKeyword = this->lookahead->type == Token::KeywordToken;
 
         if (isKeyword) {
+            RefPtr<Node> exprNode;
+
             if (this->lookahead->valueKeywordKind == DeleteKeyword) {
-                MetaNode node = this->startNode(this->lookahead);
                 this->nextToken();
-                auto subExpr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-                auto expr(this->finalize(node, new UnaryExpressionDeleteNode(subExpr.get())));
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
+                if (isParse) {
+                    MetaNode node = this->startNode(this->lookahead);
+                    RefPtr<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
 
-                if (this->context->strict && subExpr->isIdentifier()) {
-                    this->tolerateError(Messages::StrictDelete);
-                }
-                if (subExpr->isIdentifier()) {
-                    this->scopeContexts.back()->m_hasEvaluateBindingId = true;
-                }
-                return expr;
-            } else if (this->lookahead->valueKeywordKind == VoidKeyword) {
-                MetaNode node = this->startNode(this->lookahead);
-                this->nextToken();
-                auto subExpr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-                auto expr(this->finalize(node, new UnaryExpressionVoidNode(subExpr.get())));
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-                return expr;
-            } else if (this->lookahead->valueKeywordKind == TypeofKeyword) {
-                MetaNode node = this->startNode(this->lookahead);
-                this->nextToken();
-                auto subExpr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
-                auto expr(this->finalize(node, new UnaryExpressionTypeOfNode(subExpr.get())));
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
+                    if (this->context->strict && subExpr->isIdentifier()) {
+                        this->throwError(Messages::StrictDelete);
+                    }
+                    if (subExpr->isIdentifier()) {
+                        this->scopeContexts.back()->m_hasEvaluateBindingId = true;
+                    }
 
-                if (subExpr->isIdentifier()) {
-                    AtomicString s = subExpr->asIdentifier()->name();
-                    if (!this->scopeContexts.back()->hasName(s)) {
+                    exprNode = this->finalize(node, new UnaryExpressionDeleteNode(subExpr.get()));
+                } else {
+                    ScanExpressionResult subExpr = this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
+
+                    if (this->context->strict && subExpr.first == ASTNodeType::Identifier) {
+                        this->throwError(Messages::StrictDelete);
+                    }
+                    if (subExpr.first == ASTNodeType::Identifier) {
                         this->scopeContexts.back()->m_hasEvaluateBindingId = true;
                     }
                 }
-                return expr;
-            }
-        }
-
-        return this->parseUpdateExpression();
-    }
-
-    ScanExpressionResult scanUnaryExpression()
-    {
-        bool matchPun = this->lookahead->type == Token::PunctuatorToken;
-        if (matchPun) {
-            auto punctuatorsKind = this->lookahead->valuePunctuatorKind;
-            if (punctuatorsKind == Plus) {
-                this->nextToken();
-                auto subExpr = this->scanInheritCoverGrammar(&Parser::scanUnaryExpression);
-                auto expr = ScanExpressionResult(ASTNodeType::UnaryExpressionPlus, AtomicString());
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-                return expr;
-            } else if (punctuatorsKind == Minus) {
-                this->nextToken();
-                auto subExpr = this->scanInheritCoverGrammar(&Parser::scanUnaryExpression);
-                auto expr = ScanExpressionResult(ASTNodeType::UnaryExpressionMinus, AtomicString());
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-                return expr;
-            } else if (punctuatorsKind == Wave) {
-                MetaNode node = this->startNode(this->lookahead);
-                this->nextToken();
-                auto subExpr = this->scanInheritCoverGrammar(&Parser::scanUnaryExpression);
-                auto expr = ScanExpressionResult(ASTNodeType::UnaryExpressionBitwiseNot, AtomicString());
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-                return expr;
-            } else if (punctuatorsKind == ExclamationMark) {
-                MetaNode node = this->startNode(this->lookahead);
-                this->nextToken();
-                auto subExpr = this->scanInheritCoverGrammar(&Parser::scanUnaryExpression);
-                auto expr = ScanExpressionResult(ASTNodeType::UnaryExpressionLogicalNot, AtomicString());
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-                return expr;
-            }
-        }
-
-        bool isKeyword = this->lookahead->type == Token::KeywordToken;
-
-        if (isKeyword) {
-            if (this->lookahead->valueKeywordKind == DeleteKeyword) {
-                MetaNode node = this->startNode(this->lookahead);
-                this->nextToken();
-                auto subExpr = this->scanInheritCoverGrammar(&Parser::scanUnaryExpression);
-                auto expr = ScanExpressionResult(ASTNodeType::UnaryExpressionDelete, AtomicString());
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
 
-                if (this->context->strict && subExpr.first == ASTNodeType::Identifier) {
-                    this->tolerateError(Messages::StrictDelete);
+                if (isParse) {
+                    return exprNode.release();
                 }
-                if (subExpr.first == ASTNodeType::Identifier) {
-                    this->scopeContexts.back()->m_hasEvaluateBindingId = true;
-                }
-                return expr;
+                return ScanExpressionResult(ASTNodeType::UnaryExpressionDelete, AtomicString());
             } else if (this->lookahead->valueKeywordKind == VoidKeyword) {
-                MetaNode node = this->startNode(this->lookahead);
                 this->nextToken();
-                auto subExpr = this->scanInheritCoverGrammar(&Parser::scanUnaryExpression);
-                auto expr = ScanExpressionResult(ASTNodeType::UnaryExpressionVoid, AtomicString());
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-                return expr;
-            } else if (this->lookahead->valueKeywordKind == TypeofKeyword) {
-                MetaNode node = this->startNode(this->lookahead);
-                this->nextToken();
-                auto subExpr = this->scanInheritCoverGrammar(&Parser::scanUnaryExpression);
-                auto expr = ScanExpressionResult(ASTNodeType::UnaryExpressionTypeOf, AtomicString());
+                if (isParse) {
+                    MetaNode node = this->startNode(this->lookahead);
+                    RefPtr<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
+                    exprNode = this->finalize(node, new UnaryExpressionVoidNode(subExpr.get()));
+                } else {
+                    this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
+                }
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
 
-                if (subExpr.first == ASTNodeType::Identifier) {
-                    AtomicString s = subExpr.second;
-                    if (!this->scopeContexts.back()->hasName(s)) {
-                        this->scopeContexts.back()->m_hasEvaluateBindingId = true;
+                if (isParse) {
+                    return exprNode.release();
+                }
+                return ScanExpressionResult(ASTNodeType::UnaryExpressionVoid, AtomicString());
+            } else if (this->lookahead->valueKeywordKind == TypeofKeyword) {
+                this->nextToken();
+
+                if (isParse) {
+                    MetaNode node = this->startNode(this->lookahead);
+                    RefPtr<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
+
+                    if (subExpr->isIdentifier()) {
+                        AtomicString s = subExpr->asIdentifier()->name();
+                        if (!this->scopeContexts.back()->hasName(s)) {
+                            this->scopeContexts.back()->m_hasEvaluateBindingId = true;
+                        }
+                    }
+                    exprNode = this->finalize(node, new UnaryExpressionTypeOfNode(subExpr.get()));
+                } else {
+                    ScanExpressionResult subExpr = this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
+
+                    if (subExpr.first == ASTNodeType::Identifier) {
+                        AtomicString s = subExpr.second;
+                        if (!this->scopeContexts.back()->hasName(s)) {
+                            this->scopeContexts.back()->m_hasEvaluateBindingId = true;
+                        }
                     }
                 }
-                return expr;
+                this->context->isAssignmentTarget = false;
+                this->context->isBindingElement = false;
+
+                if (isParse) {
+                    return exprNode.release();
+                }
+                return ScanExpressionResult(ASTNodeType::UnaryExpressionTypeOf, AtomicString());
             }
         }
 
-        return this->scanUpdateExpression();
+        return this->updateExpression<T, isParse>();
     }
 
     PassRefPtr<Node> parseExponentiationExpression()
     {
         RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
-        RefPtr<Node> expr = this->inheritCoverGrammar(&Parser::parseUnaryExpression);
+        RefPtr<Node> expr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
         // TODO
         /*
          if (expr->type != Syntax.UnaryExpression && this->match('**')) {
@@ -2833,7 +2804,7 @@ public:
 
     ScanExpressionResult scanExponentiationExpression()
     {
-        ScanExpressionResult expr = this->scanInheritCoverGrammar(&Parser::scanUnaryExpression);
+        ScanExpressionResult expr = this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
         // TODO
         /*
          if (expr->type != Syntax.UnaryExpression && this->match('**')) {
