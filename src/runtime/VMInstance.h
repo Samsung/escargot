@@ -42,6 +42,7 @@ class Job;
     F(isConcatSpreadable)        \
     F(iterator)                  \
     F(species)                   \
+    F(split)                     \
     F(toPrimitive)               \
     F(toStringTag)               \
     F(unscopables)

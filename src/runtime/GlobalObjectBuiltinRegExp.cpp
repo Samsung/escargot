@@ -145,6 +145,66 @@ static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t
     return retVal;
 }
 
+static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+  RESOLVE_THIS_BINDING_TO_OBJECT(rx, Object, split);
+  String* S = argv[0].toString(state);
+
+  Value C = getDefaultTypedArrayConstructor(state, rx->asRegExpObject());
+
+  String* flags = rx.optionString();
+  bool unicodeMatching = false;
+  bool newFlags = false;
+
+  String * newFlags;
+  if(flags.find("u") != SIZE_MAX) {
+    unicodeMatching = true;
+  }
+
+  if(flags.find("y") != SIZE_MAX) {
+    newFlags = flags;
+  } else {
+    newFlags = flags.append("y");
+  }
+
+  Value params[2] = {rx,newFlags};
+  RegExpObject splitter = C.asFunction()->newInstance(state, 2, nullptr);
+
+  Value A = new ArrayObject(state);
+
+  size_t lengthA = 0;
+  size_t lim;
+  if (argv[1].isUndefined()) {
+    lim = SIZE_MAX;
+  } else {
+    lim = S.length();
+  }
+
+  size_t size = S.length();
+  size_t p = 0;
+  if (lim == 0) {
+    return A;
+  }
+
+  //21.2.5.11.21
+  if (size == 0) {
+    Value z = splitter.exec(S);
+    if (z != nullptr) {
+      return A;
+
+
+    }
+  }
+
+  size_t q = p;
+
+  //21.2.5.11.24
+  while(q < size){
+
+  }
+
+}
+
 GlobalRegExpFunctionObject::GlobalRegExpFunctionObject(ExecutionState& state)
     : FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().RegExp, builtinRegExpConstructor, 2, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
                          return new RegExpObject(state, String::emptyString, String::emptyString);
@@ -183,6 +243,9 @@ void GlobalObject::installRegExp(ExecutionState& state)
     // $B.2.5.1 RegExp.prototype.compile
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->compile),
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->compile, builtinRegExpCompile, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->split),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->split, builtinRegExpCompile, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().RegExp),
                       ObjectPropertyDescriptor(m_regexp, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

@@ -501,9 +501,23 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
 static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // 1, 2, 3
-    RESOLVE_THIS_BINDING_TO_STRING(S, String, split);
+    RESOLVE_THIS_BINDING_TO_OBJECT(obj, Object, split);
     ArrayObject* A = new ArrayObject(state);
+    Value separator = argv[0];
+    Value limit = argv[1];
+    Value searcher;
+
+    // 21.1.3.17.3
+    if(!separator.isUndefinedOrNull()) {
+      Value splitter = obj->getMethod(state, separator, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().split));
+      if(!searcher.isUndefined()) {
+          Value params[2] = {obj, limit};
+          return FunctionObject::call(state, splitter, separator, 2, params);
+      }
+    }
+
     // 4, 5
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, split);
     size_t lengthA = 0;
     size_t lim;
     if (argv[1].isUndefined()) {
@@ -516,7 +530,6 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
     size_t s = S->length(), p = 0;
 
     // 8
-    Value separator = argv[0];
     PointerValue* P;
     if (separator.isPointerValue() && separator.asPointerValue()->isRegExpObject()) {
         P = separator.asPointerValue()->asRegExpObject();
