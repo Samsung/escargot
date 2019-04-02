@@ -79,6 +79,10 @@ public:
 
 class CallBoundFunctionData : public CallNativeFunctionData {
 public:
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+    SmallValue m_boundTargetFunction;
     SmallValue m_boundThis;
     SmallValue* m_boundArguments;
     size_t m_boundArgumentsCount;
