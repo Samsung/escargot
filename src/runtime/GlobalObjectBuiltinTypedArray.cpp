@@ -31,7 +31,7 @@
 
 namespace Escargot {
 
-Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (!isNewExpression)
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, errorMessage_GlobalObject_NotExistNewInArrayBufferConstructor);
@@ -468,7 +468,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
     return obj;
 }
 
-Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, copyWithin);
@@ -534,7 +534,7 @@ Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue, size_t
     return O;
 }
 
-Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // NOTE: Same algorithm as Array.prototype.indexOf
     // Let O be the result of calling ToObject passing the this value as the argument.
@@ -599,7 +599,7 @@ Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, size_t ar
     return Value(-1);
 }
 
-Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // NOTE: Same algorithm as Array.prototype.lastIndexOf
     // Let O be the result of calling ToObject passing the this value as the argument.
@@ -661,7 +661,7 @@ Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue, size_
     return Value(-1);
 }
 
-Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, TypedArray, set);
     if (!thisBinded->isTypedArrayObject() || argc < 1) {
@@ -826,7 +826,7 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
     return O;
 }
 
-Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, TypedArray, subarray);
     const StaticStrings* strings = &state.context()->staticStrings();
@@ -858,7 +858,7 @@ Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t a
     return ByteCodeInterpreter::newOperation(state, thisBinded->get(state, strings->constructor).value(state, thisBinded), 3, arg);
 }
 
-Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, every);
@@ -904,7 +904,7 @@ Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size_t argc
     return Value(true);
 }
 
-Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, fill);
@@ -943,7 +943,7 @@ Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_t argc,
     return O;
 }
 
-Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, filter);
@@ -1005,7 +1005,7 @@ Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, size_t arg
     return A;
 }
 
-Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, find);
@@ -1050,7 +1050,7 @@ Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_t argc,
     return Value();
 }
 
-Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, findIndex);
@@ -1095,7 +1095,7 @@ Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, size_t 
     return Value(-1);
 }
 
-Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, forEach);
@@ -1133,7 +1133,7 @@ Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, size_t ar
     return Value();
 }
 
-Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, join);
@@ -1182,7 +1182,7 @@ Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_t argc,
     return builder.finalize(&state);
 }
 
-Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, map);
@@ -1227,7 +1227,7 @@ Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t argc, 
     return A;
 }
 
-Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, reduce);
@@ -1269,7 +1269,7 @@ Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, size_t arg
     return accumulator;
 }
 
-Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, reduceRight);
@@ -1322,7 +1322,7 @@ Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue, size_
     return accumulator;
 }
 
-Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, reverse);
@@ -1357,7 +1357,7 @@ Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, size_t ar
     return O;
 }
 
-Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, slice);
