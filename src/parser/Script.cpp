@@ -76,8 +76,7 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
         literalStorage[i] = src[i];
     }
 
-    size_t unused;
-    Value resultValue = ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile, &unused);
+    Value resultValue = ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
     clearStack<512>();
 
     return resultValue;
@@ -183,8 +182,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
         }
     }
 
-    size_t unused;
-    Value resultValue = ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile, &unused);
+    Value resultValue = ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
     clearStack<512>();
 
     return resultValue;
