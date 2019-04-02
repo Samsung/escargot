@@ -1265,7 +1265,7 @@ public:
             this->nextToken();
             const bool previousAllowYield = this->context->allowYield;
             this->context->allowYield = true;
-            PassRefPtr<Node> right = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+            PassRefPtr<Node> right = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
             this->context->allowYield = previousAllowYield;
             return this->finalize(this->startNode(startToken), new AssignmentExpressionSimpleNode(pattern.get(), right.get()));
         }
@@ -1348,7 +1348,7 @@ public:
         this->expect(PunctuatorKind::PeriodPeriodPeriod);
         MetaNode node = this->createNode();
 
-        RefPtr<Node> arg = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
+        RefPtr<Node> arg = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>);
         this->throwError("Spread element is not supported yet");
         if (isParse) {
             return T(this->finalize(node, new SpreadElementNode(arg.get())));
@@ -1383,9 +1383,9 @@ public:
                 }
             } else {
                 if (isParse) {
-                    elements.push_back(this->inheritCoverGrammar(&Parser::parseAssignmentExpression));
+                    elements.push_back(this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>));
                 } else {
-                    this->scanInheritCoverGrammar(&Parser::scanAssignmentExpression);
+                    this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan>);
                 }
                 if (!this->match(RightSquareBracket)) {
                     this->expect(Comma);
@@ -1482,7 +1482,7 @@ public:
         }
         case Token::PunctuatorToken:
             if (token->valuePunctuatorKind == LeftSquareBracket) {
-                key = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+                key = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
                 this->expect(RightSquareBracket);
             } else {
                 this->throwUnexpectedToken(token);
@@ -1534,7 +1534,7 @@ public:
         }
         case Token::PunctuatorToken:
             if (token->valuePunctuatorKind == LeftSquareBracket) {
-                key = this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
+                key = this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
                 this->expect(RightSquareBracket);
             } else {
                 this->throwUnexpectedToken(token);
@@ -1700,9 +1700,9 @@ public:
                 this->nextToken();
 
                 if (isParse) {
-                    valueNode = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
+                    valueNode = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>);
                 } else {
-                    this->scanInheritCoverGrammar(&Parser::scanAssignmentExpression);
+                    this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan>);
                 }
             } else if (this->match(LeftParenthesis)) {
                 if (isParse) {
@@ -1722,10 +1722,10 @@ public:
                     this->nextToken();
                     shorthand = true;
                     if (isParse) {
-                        RefPtr<Node> init = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+                        RefPtr<Node> init = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
                         //value = this->finalize(node, new AssignmentPatternNode(id, init));
                     } else {
-                        this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
+                        this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
                     }
                 } else {
                     shorthand = true;
@@ -1923,7 +1923,7 @@ public:
             } else {
                 let arrow = false;
                 this->context.isBindingElement = true;
-                expr = this->inheritCoverGrammar(this->parseAssignmentExpression);
+                expr = this->inheritCoverGrammar(this->assignmentExpression<Parse>);
 
                 if (this->match(',')) {
                     const expressions = [];
@@ -1955,7 +1955,7 @@ public:
                                 params: expressions
                             };
                         } else {
-                            expressions.push(this->inheritCoverGrammar(this->parseAssignmentExpression));
+                            expressions.push(this->inheritCoverGrammar(this->assignmentExpression<Parse>));
                         }
                         if (arrow) {
                             break;
@@ -2088,9 +2088,9 @@ public:
         ScanExpressionResult expr;
 
         if (isParse) {
-            exprNode = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
+            exprNode = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>);
         } else {
-            expr = this->scanInheritCoverGrammar(&Parser::scanAssignmentExpression);
+            expr = this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan>);
         }
 
         if (this->match(Comma)) {
@@ -2108,9 +2108,9 @@ public:
                 this->nextToken();
 
                 if (isParse) {
-                    expressions.push_back(this->inheritCoverGrammar(&Parser::parseAssignmentExpression));
+                    expressions.push_back(this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>));
                 } else {
-                    this->scanInheritCoverGrammar(&Parser::scanAssignmentExpression);
+                    this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan>);
                 }
             }
 
@@ -2184,7 +2184,7 @@ public:
                 if (this->match(PeriodPeriodPeriod)) {
                     expr = this->spreadElement<Parse>();
                 } else {
-                    expr = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+                    expr = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
                 }
                 args.push_back(expr);
                 if (this->match(RightParenthesis)) {
@@ -2211,7 +2211,7 @@ public:
                 if (this->match(PeriodPeriodPeriod)) {
                     this->spreadElement<Parse>();
                 } else {
-                    this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
+                    this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
                 }
                 count++;
                 if (this->match(RightParenthesis)) {
@@ -3198,49 +3198,48 @@ public:
 
     // ECMA-262 12.14 Conditional Operator
 
-    PassRefPtr<Node> parseConditionalExpression()
+    template <typename T, bool isParse>
+    T conditionalExpression()
     {
         RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
+        RefPtr<Node> exprNode;
+        ScanExpressionResult expr;
 
-        RefPtr<Node> expr = this->inheritCoverGrammar(&Parser::parseBinaryExpression);
+        if (isParse) {
+            exprNode = this->inheritCoverGrammar(&Parser::parseBinaryExpression);
+        } else {
+            expr = this->scanInheritCoverGrammar(&Parser::scanBinaryExpressions);
+        }
+
         if (this->match(GuessMark)) {
+            RefPtr<Node> consequent;
+
             this->nextToken();
 
             bool previousAllowIn = this->context->allowIn;
             this->context->allowIn = true;
-            RefPtr<Node> consequent = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+            if (isParse) {
+                consequent = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+            } else {
+                this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+            }
             this->context->allowIn = previousAllowIn;
 
             this->expect(Colon);
-            RefPtr<Node> alternate = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+            if (isParse) {
+                RefPtr<Node> alternate = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                exprNode = this->finalize(this->startNode(startToken), new ConditionalExpressionNode(exprNode.get(), consequent.get(), alternate.get()));
+            } else {
+                this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+            }
 
-            expr = this->finalize(this->startNode(startToken), new ConditionalExpressionNode(expr.get(), consequent.get(), alternate.get()));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         }
 
-        return expr.release();
-    }
-
-    ScanExpressionResult scanConditionalExpression()
-    {
-        ScanExpressionResult expr = this->scanInheritCoverGrammar(&Parser::scanBinaryExpressions);
-        if (this->match(GuessMark)) {
-            this->nextToken();
-
-            bool previousAllowIn = this->context->allowIn;
-            this->context->allowIn = true;
-            ScanExpressionResult consequent = this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
-            this->context->allowIn = previousAllowIn;
-
-            this->expect(Colon);
-            ScanExpressionResult alternate = this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
-
-            expr = ScanExpressionResult(ASTNodeType::ConditionalExpression, AtomicString());
-            this->context->isAssignmentTarget = false;
-            this->context->isBindingElement = false;
+        if (isParse) {
+            return exprNode.release();
         }
-
         return expr;
     }
 
@@ -3347,158 +3346,32 @@ public:
         return ParseFormalParametersResult(params, options.stricted, options.firstRestricted, options.message);
     }
 
-    PassRefPtr<Node> parseAssignmentExpression()
+    template <typename T, bool isParse>
+    T assignmentExpression()
     {
-        RefPtr<Node> expr;
-
-        if (!this->context->allowYield && this->matchKeyword(YieldKeyword)) {
-            expr = this->parseYieldExpression();
-        } else {
-            RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
-            RefPtr<Scanner::ScannerResult> token = startToken;
-            expr = this->parseConditionalExpression();
-
-            /*
-            if (token.type === Token.Identifier && (token.lineNumber === this.lookahead.lineNumber) && token.value === 'async' && (this.lookahead.type === Token.Identifier)) {
-                const arg = this.primaryExpression<Parse>();
-                expr = {
-                    type: ArrowParameterPlaceHolder,
-                    params: [arg],
-                    async: true
-                };
-            } */
-
-            if (expr->type() == ArrowParameterPlaceHolder || this->match(Arrow)) {
-                // ECMA-262 14.2 Arrow Function Definitions
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-                ParseFormalParametersResult list = this->reinterpretAsCoverFormalsList(expr.get()); //TODO
-
-                if (list.valid) {
-                    if (this->hasLineTerminator) {
-                        this->throwUnexpectedToken(this->lookahead);
-                    }
-                    this->context->firstCoverInitializedNameError = nullptr;
-
-                    pushScopeContext(list.params, AtomicString());
-
-                    extractNamesFromFunctionParams(list.params);
-                    bool previousStrict = this->context->strict;
-                    bool previousAllowYield = this->context->allowYield;
-                    bool previousInArrowFunction = this->context->inArrowFunction;
-                    this->context->allowYield = true;
-                    this->context->inArrowFunction = true;
-
-                    MetaNode node = this->startNode(startToken);
-                    MetaNode nodeStart = this->createNode();
-
-                    this->expect(Arrow);
-                    RefPtr<Node> body = this->match(LeftBrace) ? this->parseFunctionSourceElements() : this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
-                    bool expression = body->type() != BlockStatement;
-                    if (expression) {
-                        if (this->config.parseSingleFunction) {
-                            ASSERT(this->config.parseSingleFunctionChildIndex.asUint32());
-                            this->config.parseSingleFunctionChildIndex = SmallValue(this->config.parseSingleFunctionChildIndex.asUint32() + 1);
-                        }
-                        scopeContexts.back()->m_locStart.line = nodeStart.line;
-                        scopeContexts.back()->m_locStart.column = nodeStart.column;
-                        scopeContexts.back()->m_locStart.index = nodeStart.index;
-
-                        scopeContexts.back()->m_locEnd.index = this->lastMarker.index;
-#ifndef NDEBUG
-                        scopeContexts.back()->m_locEnd.line = this->lastMarker.lineNumber;
-                        scopeContexts.back()->m_locEnd.column = this->lastMarker.index - this->lastMarker.lineStart;
-#endif
-                    }
-
-                    if (this->context->strict && list.firstRestricted) {
-                        this->throwUnexpectedToken(list.firstRestricted, list.message);
-                    }
-                    if (this->context->strict && list.stricted) {
-                        this->throwUnexpectedToken(list.stricted, list.message);
-                    }
-                    expr = this->finalize(node, new ArrowFunctionExpressionNode(std::move(list.params), body.get(), popScopeContext(node), expression)); //TODO
-
-                    this->context->strict = previousStrict;
-                    this->context->allowYield = previousAllowYield;
-                    this->context->inArrowFunction = previousInArrowFunction;
-                }
-            } else {
-                if (this->matchAssign()) {
-                    if (!this->context->isAssignmentTarget && this->context->strict) {
-                        this->tolerateError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
-                    }
-
-                    if (this->context->strict && expr->type() == Identifier) {
-                        IdentifierNode* id = expr->asIdentifier();
-                        if (this->scanner->isRestrictedWord(id->name())) {
-                            this->throwUnexpectedToken(token, Messages::StrictLHSAssignment);
-                        }
-                        if (this->scanner->isStrictModeReservedWord(id->name())) {
-                            this->throwUnexpectedToken(token, Messages::StrictReservedWord);
-                        }
-                    }
-
-                    if (!this->match(Substitution)) {
-                        this->context->isAssignmentTarget = false;
-                        this->context->isBindingElement = false;
-                    } else {
-                        this->reinterpretExpressionAsPattern(expr.get());
-                    }
-
-                    if (expr->isLiteral() || expr->type() == ASTNodeType::ThisExpression) {
-                        this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
-                    }
-
-                    Node* exprResult;
-                    token = this->nextToken();
-                    RefPtr<Node> right = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
-                    if (token->valuePunctuatorKind == Substitution) {
-                        exprResult = new AssignmentExpressionSimpleNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorKind == PlusEqual) {
-                        exprResult = new AssignmentExpressionPlusNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorKind == MinusEqual) {
-                        exprResult = new AssignmentExpressionMinusNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorKind == MultiplyEqual) {
-                        exprResult = new AssignmentExpressionMultiplyNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorKind == DivideEqual) {
-                        exprResult = new AssignmentExpressionDivisionNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorKind == ModEqual) {
-                        exprResult = new AssignmentExpressionModNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorKind == LeftShiftEqual) {
-                        exprResult = new AssignmentExpressionLeftShiftNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorKind == RightShiftEqual) {
-                        exprResult = new AssignmentExpressionSignedRightShiftNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorKind == UnsignedRightShiftEqual) {
-                        exprResult = new AssignmentExpressionUnsignedShiftNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorKind == BitwiseXorEqual) {
-                        exprResult = new AssignmentExpressionBitwiseXorNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorKind == BitwiseAndEqual) {
-                        exprResult = new AssignmentExpressionBitwiseAndNode(expr.get(), right.get());
-                    } else if (token->valuePunctuatorKind == BitwiseOrEqual) {
-                        exprResult = new AssignmentExpressionBitwiseOrNode(expr.get(), right.get());
-                    } else {
-                        RELEASE_ASSERT_NOT_REACHED();
-                    }
-                    expr = this->finalize(this->startNode(startToken), exprResult);
-                    this->context->firstCoverInitializedNameError = nullptr;
-                }
-            }
-        }
-        return expr.release();
-    }
-
-    ScanExpressionResult scanAssignmentExpression()
-    {
+        RefPtr<Node> exprNode;
         ScanExpressionResult expr;
 
         if (!this->context->allowYield && this->matchKeyword(YieldKeyword)) {
-            expr = this->scanYieldExpression();
+            if (isParse) {
+                exprNode = this->parseYieldExpression();
+            } else {
+                expr = this->scanYieldExpression();
+            }
         } else {
             RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
             RefPtr<Scanner::ScannerResult> token = startToken;
-            auto lastMarker = this->lastMarker;
-            expr = this->scanConditionalExpression();
+            Marker lastMarker;
+            ASTNodeType type;
+
+            if (isParse) {
+                exprNode = this->conditionalExpression<Parse>();
+                type = exprNode->type();
+            } else {
+                lastMarker = this->lastMarker;
+                expr = this->conditionalExpression<Scan>();
+                type = expr.first;
+            }
 
             /*
             if (token.type === Token.Identifier && (token.lineNumber === this.lookahead.lineNumber) && token.value === 'async' && (this.lookahead.type === Token.Identifier)) {
@@ -3510,18 +3383,20 @@ public:
                 };
             } */
 
-            if (expr.first == ArrowParameterPlaceHolder || this->match(Arrow)) {
+            if (type == ArrowParameterPlaceHolder || this->match(Arrow)) {
                 // ECMA-262 14.2 Arrow Function Definitions
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
 
-                // rewind scanner for return to normal mode
-                this->scanner->index = lastMarker.index;
-                this->scanner->lineNumber = lastMarker.lineNumber;
-                this->scanner->lineStart = lastMarker.lineStart;
-                this->nextToken();
+                if (!isParse) {
+                    // rewind scanner for return to normal mode
+                    this->scanner->index = lastMarker.index;
+                    this->scanner->lineNumber = lastMarker.lineNumber;
+                    this->scanner->lineStart = lastMarker.lineStart;
+                    this->nextToken();
 
-                RefPtr<Node> exprNode = this->parseConditionalExpression();
+                    exprNode = this->conditionalExpression<Parse>();
+                }
 
                 ParseFormalParametersResult list = this->reinterpretAsCoverFormalsList(exprNode.get()); //TODO
 
@@ -3544,9 +3419,9 @@ public:
                     MetaNode nodeStart = this->createNode();
 
                     this->expect(Arrow);
-                    RefPtr<Node> body = this->match(LeftBrace) ? this->parseFunctionSourceElements() : this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
-                    bool expression = body->type() != BlockStatement;
-                    if (expression) {
+                    RefPtr<Node> body = this->match(LeftBrace) ? this->parseFunctionSourceElements() : this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                    bool isExpression = body->type() != BlockStatement;
+                    if (isExpression) {
                         if (this->config.parseSingleFunction) {
                             ASSERT(this->config.parseSingleFunctionChildIndex.asUint32());
                             this->config.parseSingleFunctionChildIndex = SmallValue(this->config.parseSingleFunctionChildIndex.asUint32() + 1);
@@ -3568,25 +3443,36 @@ public:
                     if (this->context->strict && list.stricted) {
                         this->throwUnexpectedToken(list.stricted, list.message);
                     }
-                    exprNode = this->finalize(node, new ArrowFunctionExpressionNode(std::move(list.params), body.get(), popScopeContext(node), expression)); //TODO
+
+                    exprNode = this->finalize(node, new ArrowFunctionExpressionNode(std::move(list.params), body.get(), popScopeContext(node), isExpression)); //TODO
+                    if (!isParse) {
+                        expr.first = ASTNodeType::ArrowFunctionExpression;
+                    }
 
                     this->context->strict = previousStrict;
                     this->context->allowYield = previousAllowYield;
                     this->context->inArrowFunction = previousInArrowFunction;
                 }
-
-                expr.first = ASTNodeType::ArrowFunctionExpression;
             } else {
                 if (this->matchAssign()) {
                     if (!this->context->isAssignmentTarget && this->context->strict) {
                         this->tolerateError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
                     }
 
-                    if (this->context->strict && expr.first == ASTNodeType::Identifier) {
-                        if (this->scanner->isRestrictedWord(expr.second)) {
+                    if (this->context->strict && type == Identifier) {
+                        AtomicString name;
+
+                        if (isParse) {
+                            IdentifierNode* id = exprNode->asIdentifier();
+                            name = id->name();
+                        } else {
+                            name = expr.second;
+                        }
+
+                        if (this->scanner->isRestrictedWord(name)) {
                             this->throwUnexpectedToken(token, Messages::StrictLHSAssignment);
                         }
-                        if (this->scanner->isStrictModeReservedWord(expr.second)) {
+                        if (this->scanner->isStrictModeReservedWord(name)) {
                             this->throwUnexpectedToken(token, Messages::StrictReservedWord);
                         }
                     }
@@ -3594,48 +3480,129 @@ public:
                     if (!this->match(Substitution)) {
                         this->context->isAssignmentTarget = false;
                         this->context->isBindingElement = false;
+                    } else if (isParse) {
+                        this->reinterpretExpressionAsPattern(exprNode.get());
+
+                        if (exprNode->isLiteral() || exprNode->type() == ASTNodeType::ThisExpression) {
+                            this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                        }
                     } else {
                         this->scanReinterpretExpressionAsPattern(expr);
+
+                        if (expr.first == ASTNodeType::Literal || expr.first == ASTNodeType::ThisExpression) {
+                            this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                        }
                     }
 
-                    if (expr.first == ASTNodeType::Literal || expr.first == ASTNodeType::ThisExpression) {
-                        this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
-                    }
-
-                    ScanExpressionResult exprResult(ASTNodeType::ASTNodeTypeError, AtomicString());
                     token = this->nextToken();
-                    ScanExpressionResult right = this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
-                    if (token->valuePunctuatorKind == Substitution) {
-                        exprResult.first = ASTNodeType::AssignmentExpressionSimple;
-                    } else if (token->valuePunctuatorKind == PlusEqual) {
-                        exprResult.first = ASTNodeType::AssignmentExpressionPlus;
-                    } else if (token->valuePunctuatorKind == MinusEqual) {
-                        exprResult.first = ASTNodeType::AssignmentExpressionMinus;
-                    } else if (token->valuePunctuatorKind == MultiplyEqual) {
-                        exprResult.first = ASTNodeType::AssignmentExpressionMultiply;
-                    } else if (token->valuePunctuatorKind == DivideEqual) {
-                        exprResult.first = ASTNodeType::AssignmentExpressionDivision;
-                    } else if (token->valuePunctuatorKind == ModEqual) {
-                        exprResult.first = ASTNodeType::AssignmentExpressionMod;
-                    } else if (token->valuePunctuatorKind == LeftShiftEqual) {
-                        exprResult.first = ASTNodeType::AssignmentExpressionLeftShift;
-                    } else if (token->valuePunctuatorKind == RightShiftEqual) {
-                        exprResult.first = ASTNodeType::AssignmentExpressionSignedRightShift;
-                    } else if (token->valuePunctuatorKind == UnsignedRightShiftEqual) {
-                        exprResult.first = ASTNodeType::AssignmentExpressionUnsignedRightShift;
-                    } else if (token->valuePunctuatorKind == BitwiseXorEqual) {
-                        exprResult.first = ASTNodeType::AssignmentExpressionBitwiseXor;
-                    } else if (token->valuePunctuatorKind == BitwiseAndEqual) {
-                        exprResult.first = ASTNodeType::AssignmentExpressionBitwiseAnd;
-                    } else if (token->valuePunctuatorKind == BitwiseOrEqual) {
-                        exprResult.first = ASTNodeType::AssignmentExpressionBitwiseOr;
+                    RefPtr<Node> rightNode;
+                    Node* exprResult;
+
+                    if (isParse) {
+                        rightNode = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
                     } else {
+                        this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+                    }
+
+                    switch (token->valuePunctuatorKind) {
+                    case Substitution:
+                        if (isParse) {
+                            exprResult = new AssignmentExpressionSimpleNode(exprNode.get(), rightNode.get());
+                            break;
+                        }
+                        expr.first = ASTNodeType::AssignmentExpressionSimple;
+                        break;
+                    case PlusEqual:
+                        if (isParse) {
+                            exprResult = new AssignmentExpressionPlusNode(exprNode.get(), rightNode.get());
+                            break;
+                        }
+                        expr.first = ASTNodeType::AssignmentExpressionPlus;
+                        break;
+                    case MinusEqual:
+                        if (isParse) {
+                            exprResult = new AssignmentExpressionMinusNode(exprNode.get(), rightNode.get());
+                            break;
+                        }
+                        expr.first = ASTNodeType::AssignmentExpressionMinus;
+                        break;
+                    case MultiplyEqual:
+                        if (isParse) {
+                            exprResult = new AssignmentExpressionMultiplyNode(exprNode.get(), rightNode.get());
+                            break;
+                        }
+                        expr.first = ASTNodeType::AssignmentExpressionMultiply;
+                        break;
+                    case DivideEqual:
+                        if (isParse) {
+                            exprResult = new AssignmentExpressionDivisionNode(exprNode.get(), rightNode.get());
+                            break;
+                        }
+                        expr.first = ASTNodeType::AssignmentExpressionDivision;
+                        break;
+                    case ModEqual:
+                        if (isParse) {
+                            exprResult = new AssignmentExpressionModNode(exprNode.get(), rightNode.get());
+                            break;
+                        }
+                        expr.first = ASTNodeType::AssignmentExpressionMod;
+                        break;
+                    case LeftShiftEqual:
+                        if (isParse) {
+                            exprResult = new AssignmentExpressionLeftShiftNode(exprNode.get(), rightNode.get());
+                            break;
+                        }
+                        expr.first = ASTNodeType::AssignmentExpressionLeftShift;
+                        break;
+                    case RightShiftEqual:
+                        if (isParse) {
+                            exprResult = new AssignmentExpressionSignedRightShiftNode(exprNode.get(), rightNode.get());
+                            break;
+                        }
+                        expr.first = ASTNodeType::AssignmentExpressionSignedRightShift;
+                        break;
+                    case UnsignedRightShiftEqual:
+                        if (isParse) {
+                            exprResult = new AssignmentExpressionUnsignedShiftNode(exprNode.get(), rightNode.get());
+                            break;
+                        }
+                        expr.first = ASTNodeType::AssignmentExpressionUnsignedRightShift;
+                        break;
+                    case BitwiseXorEqual:
+                        if (isParse) {
+                            exprResult = new AssignmentExpressionBitwiseXorNode(exprNode.get(), rightNode.get());
+                            break;
+                        }
+                        expr.first = ASTNodeType::AssignmentExpressionBitwiseXor;
+                        break;
+                    case BitwiseAndEqual:
+                        if (isParse) {
+                            exprResult = new AssignmentExpressionBitwiseAndNode(exprNode.get(), rightNode.get());
+                            break;
+                        }
+                        expr.first = ASTNodeType::AssignmentExpressionBitwiseAnd;
+                        break;
+                    case BitwiseOrEqual:
+                        if (isParse) {
+                            exprResult = new AssignmentExpressionBitwiseOrNode(exprNode.get(), rightNode.get());
+                            break;
+                        }
+                        expr.first = ASTNodeType::AssignmentExpressionBitwiseOr;
+                        break;
+                    default:
                         RELEASE_ASSERT_NOT_REACHED();
                     }
-                    expr = exprResult;
+
+                    if (isParse) {
+                        exprNode = this->finalize(this->startNode(startToken), exprResult);
+                    }
                     this->context->firstCoverInitializedNameError = nullptr;
                 }
             }
+        }
+
+        if (isParse) {
+            return exprNode.release();
         }
         return expr;
     }
@@ -3645,7 +3612,7 @@ public:
     PassRefPtr<Node> parseExpression()
     {
         RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
-        RefPtr<Node> expr = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+        RefPtr<Node> expr = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
 
         if (this->match(Comma)) {
             ExpressionNodeVector expressions;
@@ -3655,7 +3622,7 @@ public:
                     break;
                 }
                 this->nextToken();
-                expressions.push_back(this->isolateCoverGrammar(&Parser::parseAssignmentExpression));
+                expressions.push_back(this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>));
             }
 
             expr = this->finalize(this->startNode(startToken), new SequenceExpressionNode(std::move(expressions)));
@@ -3666,7 +3633,7 @@ public:
 
     ScanExpressionResult scanExpression()
     {
-        ScanExpressionResult expr = this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
+        ScanExpressionResult expr = this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
 
         if (this->match(Comma)) {
             while (this->startMarker.index < this->scanner->length) {
@@ -3674,7 +3641,7 @@ public:
                     break;
                 }
                 this->nextToken();
-                this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
+                this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
             }
 
             expr = ScanExpressionResult(ASTNodeType::SequenceExpression, AtomicString());
@@ -3841,11 +3808,11 @@ public:
         if (kind === 'const') {
             if (!this->matchKeyword('in') && !this->matchContextualKeyword('of')) {
                 this->expect('=');
-                init = this->isolateCoverGrammar(this->parseAssignmentExpression);
+                init = this->isolateCoverGrammar(this->assignmentExpression<Parse>);
             }
         } else if ((!options.inFor && id.type !== Syntax.Identifier) || this->match('=')) {
             this->expect('=');
-            init = this->isolateCoverGrammar(this->parseAssignmentExpression);
+            init = this->isolateCoverGrammar(this->assignmentExpression<Parse>);
         }
 
         return this->finalize(node, new Node.VariableDeclarator(id, init));
@@ -3946,7 +3913,7 @@ public:
                 params.push(keyToken);
                 shorthand = true;
                 this->nextToken();
-                const expr = this->parseAssignmentExpression();
+                const expr = this->assignmentExpression<Parse>();
                 value = this->finalize(this->startNode(keyToken), new Node.AssignmentPattern(init, expr));
             } else if (!this->match(':')) {
                 params.push(keyToken);
@@ -4008,7 +3975,7 @@ public:
             this->nextToken();
             const previousAllowYield = this->context.allowYield;
             this->context.allowYield = true;
-            const right = this->isolateCoverGrammar(this->parseAssignmentExpression);
+            const right = this->isolateCoverGrammar(this->assignmentExpression<Parse>);
             this->context.allowYield = previousAllowYield;
             pattern = this->finalize(this->startNode(startToken), new Node.AssignmentPattern(pattern, right));
         }
@@ -4093,7 +4060,7 @@ public:
         RefPtr<Node> init;
         if (this->match(Substitution)) {
             this->nextToken();
-            init = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+            init = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
         } else if (id->type() != Identifier && !options.inFor) {
             this->expect(Substitution);
         }
@@ -4117,7 +4084,7 @@ public:
 
         if (this->match(Substitution)) {
             this->nextToken();
-            this->scanIsolateCoverGrammar(&Parser::scanAssignmentExpression);
+            this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
         } else if (id.first != Identifier && !options.inFor) {
             this->expect(Substitution);
         }
@@ -4374,7 +4341,7 @@ public:
                     init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
                     this->nextToken();
                     left = init;
-                    right = this->parseAssignmentExpression();
+                    right = this->assignmentExpression<Parse>();
                     init = nullptr;
                     forIn = false;
                 } else {
@@ -4410,7 +4377,7 @@ public:
                         init = this->finalize(init, new Node.VariableDeclaration(declarations, kind));
                         this->nextToken();
                         left = init;
-                        right = this->parseAssignmentExpression();
+                        right = this->assignmentExpression<Parse>();
                         init = null;
                         forIn = false;
                     } else {
@@ -4423,7 +4390,7 @@ public:
                 RefPtr<Scanner::ScannerResult> initStartToken = this->lookahead;
                 bool previousAllowIn = this->context->allowIn;
                 this->context->allowIn = false;
-                init = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
+                init = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>);
                 this->context->allowIn = previousAllowIn;
 
                 if (this->matchKeyword(InKeyword)) {
@@ -4447,7 +4414,7 @@ public:
                     this->nextToken();
                     this->reinterpretExpressionAsPattern(init);
                     left = init;
-                    right = this->parseAssignmentExpression();
+                    right = this->assignmentExpression<Parse>();
                     init = null;
                     forIn = false;
                     */
@@ -4457,7 +4424,7 @@ public:
                         initSeq.push_back(init);
                         while (this->match(Comma)) {
                             this->nextToken();
-                            initSeq.push_back(this->isolateCoverGrammar(&Parser::parseAssignmentExpression));
+                            initSeq.push_back(this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>));
                         }
                         init = this->finalize(this->startNode(initStartToken), new SequenceExpressionNode(std::move(initSeq)));
                     }
@@ -4553,7 +4520,7 @@ public:
                     init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
                     this->nextToken();
                     left = init;
-                    right = this->parseAssignmentExpression();
+                    right = this->assignmentExpression<Parse>();
                     init = nullptr;
                     forIn = false;
                 } else {
@@ -4589,7 +4556,7 @@ public:
                         init = this->finalize(init, new Node.VariableDeclaration(declarations, kind));
                         this->nextToken();
                         left = init;
-                        right = this->parseAssignmentExpression();
+                        right = this->assignmentExpression<Parse>();
                         init = null;
                         forIn = false;
                     } else {
@@ -4602,7 +4569,7 @@ public:
                 RefPtr<Scanner::ScannerResult> initStartToken = this->lookahead;
                 bool previousAllowIn = this->context->allowIn;
                 this->context->allowIn = false;
-                init = this->inheritCoverGrammar(&Parser::parseAssignmentExpression);
+                init = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>);
                 this->context->allowIn = previousAllowIn;
 
                 if (this->matchKeyword(InKeyword)) {
@@ -4626,7 +4593,7 @@ public:
                     this->nextToken();
                     this->reinterpretExpressionAsPattern(init);
                     left = init;
-                    right = this->parseAssignmentExpression();
+                    right = this->assignmentExpression<Parse>();
                     init = null;
                     forIn = false;
                     */
@@ -4636,7 +4603,7 @@ public:
                         initSeq.push_back(init);
                         while (this->match(Comma)) {
                             this->nextToken();
-                            initSeq.push_back(this->isolateCoverGrammar(&Parser::parseAssignmentExpression));
+                            initSeq.push_back(this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>));
                         }
                         init = this->finalize(this->startNode(initStartToken), new SequenceExpressionNode(std::move(initSeq)));
                     }
@@ -5460,7 +5427,7 @@ public:
         this->expect(Arrow);
         MetaNode nodeStart = this->createNode();
 
-        RefPtr<Node> expr = this->isolateCoverGrammar(&Parser::parseAssignmentExpression);
+        RefPtr<Node> expr = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
 
         RefPtr<StatementContainer> body = StatementContainer::create();
         body->appendChild(this->finalize(nodeStart, new ReturnStatmentNode(expr.get())), nullptr);
@@ -5818,10 +5785,10 @@ public:
             delegate = this->match('*');
             if (delegate) {
                 this->nextToken();
-                argument = this->parseAssignmentExpression();
+                argument = this->assignmentExpression<Parse>();
             } else {
                 if (!this->match(';') && !this->match('}') && !this->match(')') && this->lookahead.type !== Token.EOF) {
-                    argument = this->parseAssignmentExpression();
+                    argument = this->assignmentExpression<Parse>();
                 }
             }
             this->context.allowYield = previousAllowYield;
@@ -5847,10 +5814,10 @@ public:
             delegate = this->match('*');
             if (delegate) {
                 this->nextToken();
-                argument = this->parseAssignmentExpression();
+                argument = this->assignmentExpression<Parse>();
             } else {
                 if (!this->match(';') && !this->match('}') && !this->match(')') && this->lookahead.type !== Token.EOF) {
-                    argument = this->parseAssignmentExpression();
+                    argument = this->assignmentExpression<Parse>();
                 }
             }
             this->context.allowYield = previousAllowYield;
@@ -6196,7 +6163,7 @@ public:
                 // export default [];
                 // export default (1 + 2);
                 const declaration = this.match('{') ? this.parseObjectInitializer() :
-                    this.match('[') ? this.parseArrayInitializer() : this.parseAssignmentExpression();
+                    this.match('[') ? this.parseArrayInitializer() : this.assignmentExpression<Parse>();
                 this.consumeSemicolon();
                 exportDeclaration = this.finalize(node, new Node.ExportDefaultDeclaration(declaration));
             }
