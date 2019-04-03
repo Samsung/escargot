@@ -157,22 +157,38 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Stri
     Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
 }
 
+// http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinaryhasinstance
 bool FunctionObject::hasInstance(ExecutionState& state, const Value& left)
 {
-    if (left.isObject()) {
-        FunctionObject* C = this;
-        Value P = C->getFunctionPrototype(state);
-        Value O = left.asObject()->getPrototype(state);
-        if (P.isObject()) {
-            while (O.isObject()) {
-                if (P.asObject() == O.asObject()) {
-                    return true;
-                }
-                O = O.asObject()->getPrototype(state);
-            }
-        } else {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_InvalidPrototypeProperty);
+    // If IsCallable(C) is false, return false.
+    // If C has a [[BoundTargetFunction]] internal slot, then
+    if (UNLIKELY(m_codeBlock->isBindedFunction())) {
+        // Let BC be the value of C’s [[BoundTargetFunction]] internal slot.
+        CallBoundFunctionData* code = (CallBoundFunctionData*)(m_codeBlock->nativeFunctionData());
+        Value bc = (FunctionObject*)code->m_ctorFn;
+        // Return InstanceofOperator(O,BC) (see 12.9.4).
+        return ByteCodeInterpreter::instanceOfOperation(state, left, bc).toBoolean(state);
+    }
+    // If Type(O) is not Object, return false.
+    if (!left.isObject()) {
+        return false;
+    }
+    // Let P be Get(C, "prototype").
+    Value P = this->getFunctionPrototype(state);
+    // If Type(P) is not Object, throw a TypeError exception.
+    if (!P.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_InvalidPrototypeProperty);
+    }
+    // Repeat
+    Value O = left.asObject()->getPrototype(state);
+    while (!O.isNull()) {
+        // If O is null, return false.
+        // If SameValue(P, O) is true, return true.
+        if (P == O) {
+            return true;
         }
+        // Let O be O.[[GetPrototypeOf]]().
+        O = O.asObject()->getPrototype(state);
     }
     return false;
 }

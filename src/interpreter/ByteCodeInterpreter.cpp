@@ -30,6 +30,7 @@
 #include "runtime/NumberObject.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/ArrayObject.h"
+#include "runtime/VMInstance.h"
 #include "parser/ScriptParser.h"
 #include "util/Util.h"
 #include "../third_party/checked_arithmetic/CheckedArithmetic.h"
@@ -1309,11 +1310,28 @@ NEVER_INLINE Object* ByteCodeInterpreter::newOperation(ExecutionState& state, co
     return nullptr;
 }
 
+// http://www.ecma-international.org/ecma-262/6.0/index.html#sec-instanceofoperator
 NEVER_INLINE Value ByteCodeInterpreter::instanceOfOperation(ExecutionState& state, const Value& left, const Value& right)
 {
-    if (!right.isFunction()) {
+#if ESCARGOT_ENABLE_ES2015
+    // If Type(C) is not Object, throw a TypeError exception.
+    if (!right.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
     }
+    // Let instOfHandler be GetMethod(C,@@hasInstance).
+    Value instOfHandler = Object::getMethod(state, right, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().hasInstance));
+    // If instOfHandler is not undefined, then
+    if (!instOfHandler.isUndefined()) {
+        // Return ToBoolean(Call(instOfHandler, C, «O»)).
+        Value arg[1] = { left };
+        return Value(FunctionObject::call(state, instOfHandler, right, 1, arg).toBoolean(state));
+    }
+#endif
+    // If IsCallable(C) is false, throw a TypeError exception.
+    if (!right.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
+    }
+    // Return OrdinaryHasInstance(C, O).
     return Value(right.asFunction()->hasInstance(state, left));
 }
 
