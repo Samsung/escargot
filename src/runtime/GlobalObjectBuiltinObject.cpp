@@ -60,9 +60,13 @@ static Value builtinObjectValueOf(ExecutionState& state, Value thisValue, size_t
 
 static Value builtinObjectPreventExtensions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // If Type(O) is not Object, throw a TypeError exception.
     if (!argv[0].isObject()) {
+#if ESCARGOT_ENABLE_ES2015
+        return argv[0];
+#else
+        // If Type(O) is not Object, throw a TypeError exception.
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().defineProperty.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+#endif
     }
     Object* o = argv[0].asObject();
     o->preventExtensions(state);
@@ -265,17 +269,15 @@ static Value builtinObjectSetPrototypeOf(ExecutionState& state, Value thisValue,
 
 static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-#if defined(ESCARGOT_ENABLE_VENDORTEST) || defined(ESCARGOT_SHELL)
-    // If Type(O) is not Object throw a TypeError exception. (ES5)
     if (!argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().freeze.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
-    }
-#else
-    // If Type(O) is not Object, return O. (ES6)
-    if (!argv[0].isObject()) {
+#if ESCARGOT_ENABLE_ES2015
+        // If Type(O) is not Object, return O. (ES6)
         return argv[0];
-    }
+#else
+        // If Type(O) is not Object throw a TypeError exception. (ES5)
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().freeze.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
 #endif
+    }
 
     Object* O = argv[0].asObject();
     //O->markThisObjectDontNeedStructureTransitionTable(state);
@@ -411,9 +413,13 @@ static Value builtinObjectGetOwnPropertySymbols(ExecutionState& state, Value thi
 
 static Value builtinObjectIsExtensible(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // If Type(O) is not Object throw a TypeError exception.
     if (!argv[0].isObject()) {
+#if ESCARGOT_ENABLE_ES2015
+        return Value(Value::False);
+#else
+        // If Type(O) is not Object throw a TypeError exception.
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().seal.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+#endif
     }
     // Return the Boolean value of the [[Extensible]] internal property of O.
     return Value(argv[0].asObject()->isExtensible(state));
@@ -421,9 +427,13 @@ static Value builtinObjectIsExtensible(ExecutionState& state, Value thisValue, s
 
 static Value builtinObjectIsFrozen(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // If Type(O) is not Object throw a TypeError exception.
     if (!argv[0].isObject()) {
+#if ESCARGOT_ENABLE_ES2015
+        return Value(Value::True);
+#else
+        // If Type(O) is not Object throw a TypeError exception.
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().seal.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+#endif
     }
     Object* O = argv[0].asObject();
 
@@ -451,9 +461,13 @@ static Value builtinObjectIsFrozen(ExecutionState& state, Value thisValue, size_
 
 static Value builtinObjectIsSealed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // If Type(O) is not Object throw a TypeError exception.
     if (!argv[0].isObject()) {
+#if ESCARGOT_ENABLE_ES2015
+        return Value(Value::True);
+#else
+        // If Type(O) is not Object throw a TypeError exception.
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().seal.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+#endif
     }
     Object* O = argv[0].asObject();
 
@@ -525,9 +539,13 @@ static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t ar
 
 static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // If Type(O) is not Object throw a TypeError exception.
     if (!argv[0].isObject()) {
+#if ESCARGOT_ENABLE_ES2015
+        return argv[0];
+#else
+        // If Type(O) is not Object throw a TypeError exception.
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().seal.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+#endif
     }
     Object* O = argv[0].asObject();
 
