@@ -107,20 +107,20 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
 
 ::Escargot::String* StaticStrings::dtoa(double d) const
 {
-    auto iter = dtoaCache.begin();
+    size_t size = dtoaCache.size();
 
-    while (iter != dtoaCache.end()) {
-        if ((*iter).first == d) {
-            return (*iter).second;
+    for (size_t i = 0; i < size; ++i) {
+        if (dtoaCache[i].first == d) {
+            return dtoaCache[i].second;
         }
-        iter++;
     }
 
     ::Escargot::String* s = String::fromDouble(d);
-    dtoaCache.push_front(std::make_pair(d, s));
+    dtoaCache.insert(0, std::make_pair(d, s));
     if (dtoaCache.size() > dtoaCacheSize) {
-        dtoaCache.pop_back();
+        dtoaCache.erase(dtoaCache.size() - 1);
     }
+
     return s;
 }
 }
