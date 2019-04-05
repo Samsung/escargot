@@ -67,6 +67,7 @@ public:
     virtual void sort(ExecutionState& state, const std::function<bool(const Value& a, const Value& b)>& comp) override;
     virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property) override;
     virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value) override;
+    virtual bool preventExtensions(ExecutionState&) override;
 
     // Use custom allocator for Array object (for Badtime)
     void* operator new(size_t size);

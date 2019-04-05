@@ -409,6 +409,14 @@ bool ArrayObject::setIndexedProperty(ExecutionState& state, const Value& propert
     return set(state, ObjectPropertyName(state, property), value, this);
 }
 
+bool ArrayObject::preventExtensions(ExecutionState& state)
+{
+    // first, convert to non-fast-mode.
+    // then, set preventExtensions
+    convertIntoNonFastMode(state);
+    return Object::preventExtensions(state);
+}
+
 ArrayIteratorObject::ArrayIteratorObject(ExecutionState& state, Object* a, Type type)
     : IteratorObject(state)
     , m_array(a)

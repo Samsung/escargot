@@ -855,9 +855,9 @@ bool ObjectRef::isExtensible(ExecutionStateRef* state)
     return toImpl(this)->isExtensible(*toImpl(state));
 }
 
-void ObjectRef::preventExtensions(ExecutionStateRef* state)
+bool ObjectRef::preventExtensions(ExecutionStateRef* state)
 {
-    toImpl(this)->preventExtensions(*toImpl(state));
+    return toImpl(this)->preventExtensions(*toImpl(state));
 }
 
 void* ObjectRef::extraData()
