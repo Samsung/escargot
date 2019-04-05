@@ -202,24 +202,24 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     if (!thisValue.isFunction())
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().bind.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
 
-    FunctionObject* targetFunction = thisValue.asFunction();
+    FunctionObject* target = thisValue.asFunction();
 
     Value boundThis = argv[0];
     size_t boundArgc = (argc >= 1) ? argc - 1 : argc;
     Value* boundArgv = (boundArgc == 0) ? nullptr : argv + 1;
-    CodeBlock* cb = new CodeBlock(state, targetFunction, boundThis, boundArgc, boundArgv);
+    CodeBlock* cb = new CodeBlock(state, target, boundThis, boundArgc, boundArgv);
 
     StringBuilder builder;
     builder.appendString("bound ");
-    ObjectGetResult r = targetFunction->getOwnProperty(state, state.context()->staticStrings().name);
+    ObjectGetResult r = target->getOwnProperty(state, state.context()->staticStrings().name);
     Value fn;
     if (r.hasValue()) {
-        fn = r.value(state, targetFunction);
+        fn = r.value(state, target);
     }
     if (fn.isString())
         builder.appendString(fn.asString());
 
-    return new FunctionObject(state, cb, builder.finalize(&state), FunctionObject::ForBind::__ForBind__);
+    return new FunctionObject(state, cb, builder.finalize(&state), target->getPrototype(state), FunctionObject::ForBind::__ForBind__);
 }
 
 static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

@@ -13,6 +13,18 @@
  * limitations under the License.
  */
 
+function foo(x, y, z) {
+      return [this, arguments.length, x];
+}
+
+var f = foo.bind(foo);
+arr = f(1, 2, 3);
+assert(foo === arr[0]);
+assert(3 === arr[1]);
+assert(1 === arr[2]);
+assert(3 === f.length);
+assert("function () { [native code] }" === f.toString());
+
 function bar(x, y, z) {
     this.x = x;
     this.y = y;
@@ -21,6 +33,13 @@ function bar(x, y, z) {
 
 f = bar.bind(bar, 1); 
 obj1 = new f();
-
 assert(obj1 instanceof bar);
 assert(obj1 instanceof f);
+
+f = bar.bind(bar, 1).bind(bar, 2).bind(bar, 3);
+obj2 = new f();
+assert(1 === obj2.x);
+assert(2 === obj2.y);
+assert(3 === obj2.z);
+assert(obj2 instanceof bar);
+assert(obj2 instanceof f);

@@ -145,7 +145,7 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Lexi
     Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
 }
 
-FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, String* name, ForBind)
+FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, String* name, const Value& proto, ForBind)
     : Object(state,
              ((ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2 + 2 /* for bind */)),
              false)
@@ -154,7 +154,7 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Stri
 {
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = Value(name);
     initFunctionObject(state);
-    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
+    Object::setPrototype(state, proto);
 }
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinaryhasinstance
@@ -165,7 +165,7 @@ bool FunctionObject::hasInstance(ExecutionState& state, const Value& left)
     if (UNLIKELY(m_codeBlock->isBindedFunction())) {
         // Let BC be the value of C’s [[BoundTargetFunction]] internal slot.
         CallBoundFunctionData* code = (CallBoundFunctionData*)(m_codeBlock->nativeFunctionData());
-        Value bc = (FunctionObject*)code->m_ctorFn;
+        Value bc = code->m_boundTargetFunction;
         // Return InstanceofOperator(O,BC) (see 12.9.4).
         return ByteCodeInterpreter::instanceOfOperation(state, left, bc).toBoolean(state);
     }
@@ -271,15 +271,19 @@ Object* FunctionObject::newInstance(ExecutionState& state, const size_t argc, Va
 {
     CodeBlock* cb = codeBlock();
     FunctionObject* targetFunction = this;
-    if (UNLIKELY(!isConstructor())) {
-        if (cb->isBindedFunction()) {
-            targetFunction = (FunctionObject*)cb->boundFunctionInfo()->m_ctorFn;
+
+    if (UNLIKELY(cb->isBindedFunction())) {
+        // for nested bind function
+        while (cb->isBindedFunction()) {
+            targetFunction = Value(cb->boundFunctionInfo()->m_boundTargetFunction).asFunction();
             cb = targetFunction->codeBlock();
         }
-        if (!cb->isConstructor()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, codeBlock()->functionName().string(), false, String::emptyString, errorMessage_New_NotConstructor);
-        }
     }
+
+    if (UNLIKELY(!cb->isConstructor())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, codeBlock()->functionName().string(), false, String::emptyString, errorMessage_New_NotConstructor);
+    }
+
     Object* receiver;
     if (cb->hasCallNativeFunctionCode()) {
         receiver = cb->nativeFunctionData()->m_ctorFn(state, cb, argc, argv);

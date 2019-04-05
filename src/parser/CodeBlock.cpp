@@ -26,6 +26,21 @@
 
 namespace Escargot {
 
+void* CallBoundFunctionData::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(CallBoundFunctionData)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CallBoundFunctionData, m_boundTargetFunction));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CallBoundFunctionData, m_boundThis));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CallBoundFunctionData, m_boundArguments));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(CallBoundFunctionData));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
 void* CodeBlock::operator new(size_t size)
 {
 #ifdef GC_DEBUG
@@ -156,11 +171,10 @@ static Value functionBindImpl(ExecutionState& state, Value thisValue, size_t cal
     if (calledArgc) {
         memcpy(mergedArgv + code->m_boundArgumentsCount, calledArgv, sizeof(Value) * calledArgc);
     }
-    if (!isNewExpression) {
-        return FunctionObject::call(state, (FunctionObject*)code->m_ctorFn, code->m_boundThis, mergedArgc, mergedArgv);
-    } else {
-        return FunctionObject::call(state, (FunctionObject*)code->m_ctorFn, thisValue, mergedArgc, mergedArgv);
-    }
+
+    FunctionObject* targetFunction = Value(code->m_boundTargetFunction).asFunction();
+    Value receiver = isNewExpression ? thisValue : Value(code->m_boundThis);
+    return FunctionObject::call(state, targetFunction, receiver, mergedArgc, mergedArgv, isNewExpression);
 }
 
 CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv)
@@ -190,7 +204,7 @@ CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Valu
     , m_isBindedFunction(true)
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
-    , m_functionName(state.context()->staticStrings().boundFunction)
+    , m_functionName()
 {
     CodeBlock* targetCodeBlock = targetFunction->codeBlock();
 
@@ -201,7 +215,8 @@ CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Valu
     m_nativeFunctionData = data;
 
     data->m_fn = functionBindImpl;
-    data->m_ctorFn = (NativeFunctionConstructor)targetFunction;
+    data->m_ctorFn = nullptr;
+    data->m_boundTargetFunction = targetFunction;
     data->m_boundThis = boundThis;
     data->m_boundArgumentsCount = boundArgc;
     if (boundArgc) {

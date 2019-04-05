@@ -339,7 +339,6 @@ namespace Escargot {
     F(resolve)                    \
     F(then)                       \
     F(gc)                         \
-    F(boundFunction)              \
     F($_)                         \
     F(lastMatch)                  \
     F(lastParen)                  \

@@ -42,7 +42,7 @@ public:
     FunctionObject(ExecutionState& state, NativeFunctionInfo info);
     FunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment);
     enum ForBind { __ForBind__ };
-    FunctionObject(ExecutionState& state, CodeBlock* codeBlock, String* functionName, ForBind);
+    FunctionObject(ExecutionState& state, CodeBlock* codeBlock, String* functionName, const Value& proto, ForBind);
     enum ForBuiltin { __ForBuiltin__ };
     FunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltin);
     FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltin);
@@ -104,12 +104,12 @@ public:
     // ECMAScript new operation
     Object* newInstance(ExecutionState& state, const size_t argc, Value* argv);
 
-    ALWAYS_INLINE static Value call(ExecutionState& state, const Value& callee, const Value& receiver, const size_t argc, Value* argv)
+    ALWAYS_INLINE static Value call(ExecutionState& state, const Value& callee, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression = false)
     {
         if (LIKELY(callee.isObject() && callee.asPointerValue()->hasTag(g_functionObjectTag))) {
-            return callee.asFunction()->processCall(state, receiver, argc, argv, false);
+            return callee.asFunction()->processCall(state, receiver, argc, argv, isNewExpression);
         } else {
-            return callSlowCase(state, callee, receiver, argc, argv, false);
+            return callSlowCase(state, callee, receiver, argc, argv, isNewExpression);
         }
     }
 
