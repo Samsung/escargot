@@ -337,6 +337,7 @@ struct ASTScopeContext : public gc {
     bool m_isClassConstructor : 1;
     bool m_hasManyNumeralLiteral : 1;
     bool m_needsSpecialInitialize : 1; // flag for fd in catch
+    bool m_hasRestElement : 1;
     ASTNodeType m_nodeType : 12;
     ASTScopeContextNameInfoVector m_names;
     AtomicStringVector m_usingNames;
@@ -418,6 +419,7 @@ struct ASTScopeContext : public gc {
         , m_isClassConstructor(false)
         , m_hasManyNumeralLiteral(false)
         , m_needsSpecialInitialize(false)
+        , m_hasRestElement(false)
         , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 #ifndef NDEBUG
         , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)

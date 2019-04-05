@@ -92,7 +92,6 @@
 #include "PatternNode.h"
 #include "ProgramNode.h"
 #include "RegExpLiteralNode.h"
-#include "RestElementNode.h"
 #include "ReturnStatmentNode.h"
 #include "SequenceExpressionNode.h"
 #include "SpreadElementNode.h"

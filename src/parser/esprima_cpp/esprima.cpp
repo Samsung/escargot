@@ -1175,11 +1175,13 @@ public:
         RefPtr<Scanner::ScannerResult> stricted;
         const char* message;
         RefPtr<Scanner::ScannerResult> firstRestricted;
+        bool hasRestElement;
         ParseParameterOptions()
         {
             firstRestricted = nullptr;
             stricted = nullptr;
             message = nullptr;
+            hasRestElement = false;
         }
     };
 
@@ -1206,13 +1208,24 @@ public:
                 options.message = Messages::StrictParamDupe;
             }
         }
+
         options.paramSet.push_back(name);
+
+        if (options.hasRestElement) {
+            for (size_t i = 0; i < options.paramSet.size() - 1; i++) {
+                // Check if any identifier names are duplicated.
+                // Note: using this inner for loop because std::find didn't work for some reason.
+                for (size_t j = i + 1; j < options.paramSet.size(); j++) {
+                    if (options.paramSet[i] == options.paramSet[j]) {
+                        this->throwError("duplicate argument names are not allowed in this context");
+                    }
+                }
+            }
+        }
     }
 
-    PassRefPtr<RestElementNode> parseRestElement(std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>>& params)
+    PassRefPtr<IdentifierNode> parseRestElement(std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>>& params)
     {
-        this->throwError("Rest element is not supported yet");
-
         this->nextToken();
         if (this->match(LeftBrace)) {
             this->throwError(Messages::ObjectPatternAsRestParameter);
@@ -1229,7 +1242,7 @@ public:
             this->throwError(Messages::ParameterAfterRestParameter);
         }
 
-        return this->finalize(node, new RestElementNode(param.get()));
+        return this->finalize(node, new IdentifierNode(param.get()->name()));
     }
 
     template <typename T, bool isParse>
@@ -1282,8 +1295,9 @@ public:
         std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> params;
         RefPtr<Scanner::ScannerResult> token = this->lookahead;
         if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::PeriodPeriodPeriod) {
-            RefPtr<RestElementNode> param = this->parseRestElement(params);
-            this->validateParam(options, params.back(), param->argument()->name());
+            RefPtr<IdentifierNode> param = this->parseRestElement(params);
+            options.hasRestElement = true;
+            this->validateParam(options, params.back(), param.get()->name());
             options.params.push_back(param);
             trackUsingNames = true;
             return false;
@@ -1305,10 +1319,12 @@ public:
         RefPtr<Scanner::ScannerResult> firstRestricted;
         const char* message;
         bool valid;
+        bool hasRestElement;
 
         ParseFormalParametersResult()
             : message(nullptr)
             , valid(false)
+            , hasRestElement(false)
         {
         }
         ParseFormalParametersResult(PatternNodeVector params, RefPtr<Scanner::ScannerResult> stricted, RefPtr<Scanner::ScannerResult> firstRestricted, const char* message)
@@ -1317,6 +1333,16 @@ public:
             , firstRestricted(firstRestricted)
             , message(nullptr)
             , valid(true)
+            , hasRestElement(false)
+        {
+        }
+        ParseFormalParametersResult(PatternNodeVector params, RefPtr<Scanner::ScannerResult> stricted, RefPtr<Scanner::ScannerResult> firstRestricted, const char* message, bool hasRestElement)
+            : params(std::move(params))
+            , stricted(stricted)
+            , firstRestricted(firstRestricted)
+            , message(nullptr)
+            , valid(true)
+            , hasRestElement(hasRestElement)
         {
         }
     };
@@ -1338,7 +1364,7 @@ public:
         }
         this->expect(RightParenthesis);
 
-        return ParseFormalParametersResult(options.params, options.stricted, options.firstRestricted, options.message);
+        return ParseFormalParametersResult(options.params, options.stricted, options.firstRestricted, options.message, options.hasRestElement);
     }
 
     // ECMA-262 12.2.5 Array Initializer
@@ -3254,9 +3280,6 @@ public:
         switch (param->type()) {
         case Identifier:
             this->validateParam(options, nullptr, ((IdentifierNode*)param)->name());
-            break;
-        case RestElement:
-            this->checkPatternParam(options, ((RestElementNode*)param)->argument());
             break;
         /*
         // case AssignmentPattern:
@@ -5579,6 +5602,7 @@ public:
             pushScopeContext(params, fnName);
         }
 
+        scopeContexts.back()->m_hasRestElement = formalParameters.hasRestElement;
         extractNamesFromFunctionParams(params);
         bool previousStrict = this->context->strict;
         RefPtr<Node> body = this->parseFunctionSourceElements();

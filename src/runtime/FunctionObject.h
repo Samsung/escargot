@@ -28,6 +28,7 @@ namespace Escargot {
 
 extern size_t g_functionObjectTag;
 
+class ArrayObject;
 class FunctionEnvironmentRecord;
 
 class FunctionObject : public Object {

@@ -18,6 +18,7 @@
  */
 
 #include "Escargot.h"
+#include "ArrayObject.h"
 #include "FunctionObject.h"
 #include "ExecutionContext.h"
 #include "Context.h"
@@ -455,6 +456,17 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
             for (size_t i = parameterCopySize; i < info.size(); i++) {
                 record->initializeBinding(state, info[i].m_name, Value());
             }
+
+            // Handle rest param
+            if (m_codeBlock->m_hasRestElement) {
+                size_t argListLen = (size_t)m_codeBlock->parameterCount();
+                size_t arrayLen = argc - parameterCopySize;
+                ArrayObject* newArray = new ArrayObject(state, (double)arrayLen);
+                for (size_t i = 0; i < arrayLen; i++) {
+                    newArray->setIndexedProperty(state, Value(i), argv[argListLen + i]);
+                }
+                record->initializeBinding(state, const_cast<InterpretedCodeBlock::FunctionParametersInfoVector&>(info).back().m_name, Value(newArray));
+            }
         } else {
             Value* parameterStorageInStack = stackStorage + 2;
             const InterpretedCodeBlock::FunctionParametersInfoVector& info = m_codeBlock->asInterpretedCodeBlock()->parametersInfomation();
@@ -474,6 +486,23 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
                     parameterStorageInStack[info[i].m_index] = val;
                 }
             }
+
+            // Handle rest param
+            if (m_codeBlock->m_hasRestElement) {
+                size_t argListLen = (size_t)m_codeBlock->parameterCount();
+                size_t arrayLen = argc - parameterCopySize;
+                ArrayObject* newArray = new ArrayObject(state, (double)arrayLen);
+                for (size_t i = 0; i < arrayLen; i++) {
+                    newArray->setIndexedProperty(state, Value(i), argv[argListLen + i]);
+                }
+                InterpretedCodeBlock::FunctionParametersInfo lastInfo = const_cast<InterpretedCodeBlock::FunctionParametersInfoVector&>(info).back();
+                if (lastInfo.m_isHeapAllocated) {
+                    ASSERT(record->isFunctionEnvironmentRecordOnHeap());
+                    ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[lastInfo.m_index] = newArray;
+                } else {
+                    parameterStorageInStack[lastInfo.m_index] = newArray;
+                }
+            }
         }
     } else {
         Value* parameterStorageInStack = stackStorage + 2;
@@ -483,6 +512,17 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
 
         for (size_t i = parameterCopySize + 2; i < stackStorageSize; i++) {
             stackStorage[i] = Value();
+        }
+
+        // Handle rest param
+        if (m_codeBlock->m_hasRestElement) {
+            size_t argListLen = (size_t)m_codeBlock->parameterCount();
+            size_t arrayLen = argc - parameterCopySize;
+            ArrayObject* newArray = new ArrayObject(state, (double)arrayLen);
+            for (size_t i = 0; i < arrayLen; i++) {
+                newArray->setIndexedProperty(state, Value(i), argv[argListLen + i]);
+            }
+            parameterStorageInStack[argListLen] = newArray;
         }
     }
 
