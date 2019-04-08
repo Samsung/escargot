@@ -234,33 +234,6 @@ static ArrayBufferObject* validateTypedArray(ExecutionState& state, Object* this
     return buffer;
 }
 
-static Value speciesConstructor(ExecutionState& state, const Value& O, const Value& defaultConstructor)
-{
-    ASSERT(O.isObject());
-    Value C = O.asObject()->get(state, state.context()->staticStrings().constructor).value(state, O);
-
-    if (C.isUndefined()) {
-        return defaultConstructor;
-    }
-
-    if (!C.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "constructor is not an object");
-    }
-
-    Value S = C.asObject()->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, C);
-
-    if (S.isUndefinedOrNull()) {
-        return defaultConstructor;
-    }
-
-    if (S.isConstructor()) {
-        return S;
-    }
-
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "invalid speciesConstructor return");
-    return Value();
-}
-
 static Value getDefaultTypedArrayConstructor(ExecutionState& state, const TypedArrayType type)
 {
     GlobalObject* glob = state.context()->globalObject();
@@ -342,11 +315,6 @@ static Value builtinTypedArrayOf(ExecutionState& state, Value thisValue, size_t 
         k++;
     }
     return newObj;
-}
-
-static Value builtinTypedArraySpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    return thisValue;
 }
 
 static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -968,7 +936,7 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
     // Let defaultConstructor be the intrinsic object listed in column one of Table 49 for the value of O’s [[TypedArrayName]] internal slot.
     Value defaultConstructor = getDefaultTypedArrayConstructor(state, O->asArrayBufferView()->typedArrayType());
     // Let C be SpeciesConstructor(O, defaultConstructor).
-    Value C = speciesConstructor(state, O, defaultConstructor);
+    Value C = O->speciesConstructor(state, defaultConstructor);
 
     // Let kept be a new empty List.
     ValueVector kept;
@@ -1207,7 +1175,7 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
     // Let defaultConstructor be the intrinsic object listed in column one of Table 49 for the value of O’s [[TypedArrayName]] internal slot.
     Value defaultConstructor = getDefaultTypedArrayConstructor(state, O->asArrayBufferView()->typedArrayType());
     // Let C be SpeciesConstructor(O, defaultConstructor).
-    Value C = speciesConstructor(state, O, defaultConstructor);
+    Value C = O->speciesConstructor(state, defaultConstructor);
 
     // FIXME Let A be AllocateTypedArray(C, len).
     Value arg[1] = { Value(len) };
@@ -1380,7 +1348,7 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
     // Let defaultConstructor be the intrinsic object listed in column one of Table 49 for the value of O’s [[TypedArrayName]] internal slot.
     Value defaultConstructor = getDefaultTypedArrayConstructor(state, O->asArrayBufferView()->typedArrayType());
     // Let C be SpeciesConstructor(O, defaultConstructor).
-    Value C = speciesConstructor(state, O, defaultConstructor);
+    Value C = O->speciesConstructor(state, defaultConstructor);
     // FIXME Let A be AllocateTypedArray(C, count).
     Value arg[1] = { Value(count) };
     Value A = ByteCodeInterpreter::newOperation(state, C, 1, arg);
@@ -1598,8 +1566,14 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     m_arrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().toStringTag),
                                                              ObjectPropertyDescriptor(Value(state.context()->staticStrings().ArrayBuffer.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
-
     const StaticStrings* strings = &state.context()->staticStrings();
+
+    {
+        JSGetterSetter gs(
+            new FunctionObject(state, NativeFunctionInfo(strings->getSymbolSpecies, builtinSpeciesGetter, 0, nullptr, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_arrayBuffer->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species), desc);
+    }
 
     JSGetterSetter gs(
         new FunctionObject(state, NativeFunctionInfo(strings->getbyteLength, builtinArrayBufferByteLengthGetter, 0, nullptr, NativeFunctionInfo::Strict)),
@@ -1627,7 +1601,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->of, builtinTypedArrayOf, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     {
         JSGetterSetter gs(
-            new FunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("get [Symbol.species]")), builtinTypedArraySpeciesGetter, 0, nullptr, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
+            new FunctionObject(state, NativeFunctionInfo(strings->getSymbolSpecies, builtinSpeciesGetter, 0, nullptr, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         typedArrayFunction->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species), desc);
     }

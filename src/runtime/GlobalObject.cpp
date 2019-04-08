@@ -38,6 +38,11 @@
 
 namespace Escargot {
 
+Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    return thisValue;
+}
+
 #ifdef ESCARGOT_SHELL
 static Value builtinPrint(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {

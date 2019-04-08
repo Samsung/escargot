@@ -1092,4 +1092,31 @@ IteratorObject* Object::entries(ExecutionState& state)
 {
     return new ArrayIteratorObject(state, this, ArrayIteratorObject::TypeKeyValue);
 }
+
+Value Object::speciesConstructor(ExecutionState& state, const Value& defaultConstructor)
+{
+    ASSERT(isObject());
+    Value C = asObject()->get(state, state.context()->staticStrings().constructor).value(state, this);
+
+    if (C.isUndefined()) {
+        return defaultConstructor;
+    }
+
+    if (!C.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "constructor is not an object");
+    }
+
+    Value S = C.asObject()->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, C);
+
+    if (S.isUndefinedOrNull()) {
+        return defaultConstructor;
+    }
+
+    if (S.isConstructor()) {
+        return S;
+    }
+
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "invalid speciesConstructor return");
+    return Value();
+}
 }

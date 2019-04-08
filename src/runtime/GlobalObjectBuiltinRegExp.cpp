@@ -160,6 +160,13 @@ void GlobalObject::installRegExp(ExecutionState& state)
     m_regexp->markThisObjectDontNeedStructureTransitionTable(state);
     m_regexp->setPrototype(state, m_functionPrototype);
 
+    {
+        JSGetterSetter gs(
+            new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSymbolSpecies, builtinSpeciesGetter, 0, nullptr, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_regexp->defineOwnProperty(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species), desc);
+    }
+
     m_regexpPrototype = m_objectPrototype;
     m_regexpPrototype = new RegExpObject(state);
     m_regexpPrototype->markThisObjectDontNeedStructureTransitionTable(state);

@@ -182,6 +182,14 @@ void GlobalObject::installSet(ExecutionState& state)
                                FunctionObject::__ForBuiltin__);
     m_set->markThisObjectDontNeedStructureTransitionTable(state);
     m_set->setPrototype(state, m_functionPrototype);
+
+    {
+        JSGetterSetter gs(
+            new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSymbolSpecies, builtinSpeciesGetter, 0, nullptr, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_set->defineOwnProperty(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species), desc);
+    }
+
     m_setPrototype = m_objectPrototype;
     m_setPrototype = new SetObject(state);
     m_setPrototype->markThisObjectDontNeedStructureTransitionTable(state);

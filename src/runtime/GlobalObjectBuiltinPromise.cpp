@@ -77,6 +77,14 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
     Object* thisObject = thisValue.toObject(state);
     Value iterableValue = argv[0];
 
+    // Let S be Get(C, @@species).
+    Value species = thisObject->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, thisValue);
+
+    // If S is neither undefined nor null, let C be S.
+    if (!species.isUndefinedOrNull()) {
+        thisObject = species.toObject(state);
+    }
+
     PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, thisObject);
 
     if (!iterableValue.isIterable()) {
@@ -196,6 +204,14 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
     Object* thisObject = thisValue.toObject(state);
     Value iterableValue = argv[0];
 
+    // Let S be Get(C, @@species).
+    Value species = thisObject->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, thisValue);
+
+    // If S is neither undefined nor null, let C be S.
+    if (!species.isUndefinedOrNull()) {
+        thisObject = species.toObject(state);
+    }
+
     PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, thisObject);
 
     if (!iterableValue.isIterable()) {
@@ -314,7 +330,11 @@ static Value builtinPromiseThen(ExecutionState& state, Value thisValue, size_t a
     FunctionObject* onFulfilled = onFulfilledValue.isFunction() ? onFulfilledValue.asFunction() : (FunctionObject*)(1);
     FunctionObject* onRejected = onRejectedValue.isFunction() ? onRejectedValue.asFunction() : (FunctionObject*)(2);
 
-    PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, promise->get(state, strings->constructor).value(state, promise).toObject(state));
+    // Let C be SpeciesConstructor(promise, %Promise%)
+    Value C = promise->speciesConstructor(state, state.context()->globalObject()->promise());
+
+    // Let resultCapability be NewPromiseCapability(C).
+    PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, C.toObject(state));
 
     switch (promise->state()) {
     case PromiseObject::PromiseState::Pending: {
@@ -459,6 +479,14 @@ void GlobalObject::installPromise(ExecutionState& state)
                                    FunctionObject::__ForBuiltin__);
     m_promise->markThisObjectDontNeedStructureTransitionTable(state);
     m_promise->setPrototype(state, m_functionPrototype);
+
+    {
+        JSGetterSetter gs(
+            new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSymbolSpecies, builtinSpeciesGetter, 0, nullptr, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_promise->defineOwnProperty(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species), desc);
+    }
+
     m_promisePrototype = m_objectPrototype;
     m_promisePrototype = new PromiseObject(state);
     m_promisePrototype->markThisObjectDontNeedStructureTransitionTable(state);
