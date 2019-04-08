@@ -595,12 +595,8 @@ public:
         return rareData() == nullptr ? true : rareData()->m_isExtensible;
     }
 
-// http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-preventextensions
-#if ESCARGOT_ENABLE_PROXY_REFLECT
+    // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-preventextensions
     virtual bool preventExtensions(ExecutionState&)
-#else
-    bool preventExtensions(ExecutionState&)
-#endif
     {
         ensureObjectRareData()->m_isExtensible = false;
         return true;
