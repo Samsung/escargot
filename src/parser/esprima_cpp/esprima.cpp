@@ -183,6 +183,7 @@ struct DeclarationOptions : public gc {
 #define Parse PassNode<Node>, true
 #define ParseAs(nodeType) PassNode<nodeType>, true
 #define Scan ScanExpressionResult, false
+#define ScanAsVoid void, false
 
 class Parser : public gc {
 public:
@@ -1848,7 +1849,7 @@ public:
         TemplateElementVector* quasis = new (GC) TemplateElementVector;
         quasis->push_back(this->parseTemplateHead());
         while (!quasis->back()->tail) {
-            expressions.push_back(this->parseExpression());
+            expressions.push_back(this->expression<Parse>());
             TemplateElement* quasi = this->parseTemplateElement();
             quasis->push_back(quasi);
         }
@@ -2358,10 +2359,10 @@ public:
                     this->context->isAssignmentTarget = true;
                     this->nextToken();
                     if (isParse) {
-                        RefPtr<Node> property = this->isolateCoverGrammar(&Parser::parseExpression);
+                        RefPtr<Node> property = this->isolateCoverGrammar(&Parser::expression<Parse>);
                         exprNode = this->finalize(this->startNode(startToken), new MemberExpressionNode(exprNode.get(), property.get(), false));
                     } else {
-                        this->scanIsolateCoverGrammar(&Parser::scanExpression);
+                        this->scanIsolateCoverGrammar(&Parser::expression<Scan>);
                         expr.first = ASTNodeType::MemberExpression;
                     }
                     this->expect(RightSquareBracket);
@@ -2453,10 +2454,10 @@ public:
                 this->context->isAssignmentTarget = true;
                 this->expect(LeftSquareBracket);
                 if (isParse) {
-                    RefPtr<Node> property = this->isolateCoverGrammar(&Parser::parseExpression);
+                    RefPtr<Node> property = this->isolateCoverGrammar(&Parser::expression<Parse>);
                     exprNode = this->finalize(node, new MemberExpressionNode(exprNode.get(), property.get(), false));
                 } else {
-                    this->scanIsolateCoverGrammar(&Parser::scanExpression);
+                    this->scanIsolateCoverGrammar(&Parser::expression<Scan>);
                     expr.first = ASTNodeType::MemberExpression;
                 }
                 this->expect(RightSquareBracket);
@@ -3609,50 +3610,53 @@ public:
 
     // ECMA-262 12.16 Comma Operator
 
-    PassRefPtr<Node> parseExpression()
+    template <typename T, bool isParse>
+    T expression()
     {
         RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
-        RefPtr<Node> expr = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+        RefPtr<Node> exprNode;
+        ScanExpressionResult expr;
+
+        if (isParse) {
+            exprNode = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+        } else {
+            expr = this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+        }
 
         if (this->match(Comma)) {
             ExpressionNodeVector expressions;
-            expressions.push_back(expr);
+            if (isParse) {
+                expressions.push_back(exprNode);
+            }
             while (this->startMarker.index < this->scanner->length) {
                 if (!this->match(Comma)) {
                     break;
                 }
                 this->nextToken();
-                expressions.push_back(this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>));
-            }
-
-            expr = this->finalize(this->startNode(startToken), new SequenceExpressionNode(std::move(expressions)));
-        }
-
-        return expr.release();
-    }
-
-    ScanExpressionResult scanExpression()
-    {
-        ScanExpressionResult expr = this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
-
-        if (this->match(Comma)) {
-            while (this->startMarker.index < this->scanner->length) {
-                if (!this->match(Comma)) {
-                    break;
+                if (isParse) {
+                    expressions.push_back(this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>));
+                } else {
+                    this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
                 }
-                this->nextToken();
-                this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
             }
 
-            expr = ScanExpressionResult(ASTNodeType::SequenceExpression, AtomicString());
+            if (isParse) {
+                exprNode = this->finalize(this->startNode(startToken), new SequenceExpressionNode(std::move(expressions)));
+            } else {
+                expr = ScanExpressionResult(ASTNodeType::SequenceExpression, AtomicString());
+            }
         }
 
+        if (isParse) {
+            return exprNode.release();
+        }
         return expr;
     }
 
     // ECMA-262 13.2 Block
 
-    PassRefPtr<StatementNode> parseStatementListItem()
+    template <typename T, bool isParse>
+    T statementListItem()
     {
         RefPtr<StatementNode> statement;
         this->context->isAssignmentTarget = true;
@@ -3660,69 +3664,26 @@ public:
         if (this->lookahead->type == KeywordToken) {
             switch (this->lookahead->valueKeywordKind) {
             case FunctionKeyword:
-                statement = this->parseFunctionDeclaration();
+                if (isParse) {
+                    statement = this->parseFunctionDeclaration();
+                } else {
+                    this->parseFunctionDeclaration();
+                }
                 break;
             default:
-                statement = this->parseStatement();
+                if (isParse) {
+                    statement = this->parseStatement();
+                } else {
+                    this->scanStatement();
+                }
                 break;
             }
-        } else {
+        } else if (isParse) {
             statement = this->parseStatement();
-        }
-        /*
-         if (this->lookahead.type === Token.Keyword) {
-             switch (this->lookahead.value) {
-                 case 'export':
-                     if (this->sourceType !== 'module') {
-                         this->throwUnexpectedToken(this->lookahead, Messages.IllegalExportDeclaration);
-                     }
-                     statement = this->parseExportDeclaration();
-                     break;
-                 case 'import':
-                     if (this->sourceType !== 'module') {
-                         this->throwUnexpectedToken(this->lookahead, Messages.IllegalImportDeclaration);
-                     }
-                     statement = this->parseImportDeclaration();
-                     break;
-                 case 'const':
-                     statement = this->parseLexicalDeclaration({ inFor: false });
-                     break;
-                 case 'function':
-                     statement = this->parseFunctionDeclaration();
-                     break;
-                 case 'class':
-                     statement = this->parseClassDeclaration();
-                     break;
-                 case 'let':
-                     statement = this->isLexicalDeclaration() ? this->parseLexicalDeclaration({ inFor: false }) : this->parseStatement();
-                     break;
-                 default:
-                     statement = this->parseStatement();
-                     break;
-             }
-         } else {
-             statement = this->parseStatement();
-         }*/
-
-        return statement.release();
-    }
-
-    void scanStatementListItem()
-    {
-        this->context->isAssignmentTarget = true;
-        this->context->isBindingElement = true;
-        if (this->lookahead->type == KeywordToken) {
-            switch (this->lookahead->valueKeywordKind) {
-            case FunctionKeyword:
-                this->parseFunctionDeclaration();
-                break;
-            default:
-                this->scanStatement();
-                break;
-            }
         } else {
             this->scanStatement();
         }
+
         /*
          if (this->lookahead.type === Token.Keyword) {
              switch (this->lookahead.value) {
@@ -3757,36 +3718,41 @@ public:
          } else {
              statement = this->parseStatement();
          }*/
+
+        if (isParse) {
+            return T(statement.release());
+        }
+        return T(nullptr);
     }
 
-    PassRefPtr<BlockStatementNode> parseBlock()
+    template <typename T, bool isParse>
+    T block()
     {
         this->expect(LeftBrace);
-        MetaNode node = this->createNode();
-        RefPtr<StatementContainer> block = StatementContainer::create();
+        RefPtr<StatementContainer> block;
         StatementNode* referNode = nullptr;
+
+        if (isParse) {
+            block = StatementContainer::create();
+        }
+
         while (true) {
             if (this->match(RightBrace)) {
                 break;
             }
-            referNode = block->appendChild(this->parseStatementListItem().get(), referNode);
-        }
-        this->expect(RightBrace);
-
-        return this->finalize(node, new BlockStatementNode(block.get()));
-    }
-
-    void scanBlock()
-    {
-        this->expect(LeftBrace);
-        MetaNode node = this->createNode();
-        while (true) {
-            if (this->match(RightBrace)) {
-                break;
+            if (isParse) {
+                referNode = block->appendChild(this->statementListItem<ParseAs(StatementNode)>().get(), referNode);
+            } else {
+                this->statementListItem<ScanAsVoid>();
             }
-            this->scanStatementListItem();
         }
         this->expect(RightBrace);
+
+        if (isParse) {
+            MetaNode node = this->createNode();
+            return T(this->finalize(node, new BlockStatementNode(block.get())));
+        }
+        return T(nullptr);
     }
 
     /*
@@ -4161,14 +4127,14 @@ public:
     PassRefPtr<ExpressionStatementNode> parseExpressionStatement()
     {
         MetaNode node = this->createNode();
-        RefPtr<Node> expr = this->parseExpression();
+        RefPtr<Node> expr = this->expression<Parse>();
         this->consumeSemicolon();
         return this->finalize(node, new ExpressionStatementNode(expr.get()));
     }
 
     void scanExpressionStatement()
     {
-        this->scanExpression();
+        this->expression<Scan>();
         this->consumeSemicolon();
     }
 
@@ -4182,7 +4148,7 @@ public:
         this->expectKeyword(IfKeyword);
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
-        RefPtr<Node> test = this->parseExpression();
+        RefPtr<Node> test = this->expression<Parse>();
 
         this->expect(RightParenthesis);
         consequent = this->parseStatement(this->context->strict ? false : true);
@@ -4198,7 +4164,7 @@ public:
     {
         this->expectKeyword(IfKeyword);
         this->expect(LeftParenthesis);
-        this->scanExpression();
+        this->expression<Scan>();
 
         this->expect(RightParenthesis);
         this->scanStatement(this->context->strict ? false : true);
@@ -4222,7 +4188,7 @@ public:
 
         this->expectKeyword(WhileKeyword);
         this->expect(LeftParenthesis);
-        RefPtr<Node> test = this->parseExpression();
+        RefPtr<Node> test = this->expression<Parse>();
         this->expect(RightParenthesis);
         if (this->match(SemiColon)) {
             this->nextToken();
@@ -4243,7 +4209,7 @@ public:
 
         this->expectKeyword(WhileKeyword);
         this->expect(LeftParenthesis);
-        this->scanExpression();
+        this->expression<Scan>();
         this->expect(RightParenthesis);
         if (this->match(SemiColon)) {
             this->nextToken();
@@ -4262,7 +4228,7 @@ public:
         this->expectKeyword(WhileKeyword);
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
-        RefPtr<Node> test = this->parseExpression();
+        RefPtr<Node> test = this->expression<Parse>();
 
         this->expect(RightParenthesis);
 
@@ -4283,7 +4249,7 @@ public:
         this->expectKeyword(WhileKeyword);
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
-        this->scanExpression();
+        this->expression<Scan>();
 
         this->expect(RightParenthesis);
         bool previousInIteration = this->context->inIteration;
@@ -4334,7 +4300,7 @@ public:
                     init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
                     this->nextToken();
                     left = init;
-                    right = this->parseExpression();
+                    right = this->expression<Parse>();
                     init = nullptr;
                 } else if (declarations.size() == 1 && declarations[0]->init() == nullptr
                            && this->lookahead->type == Token::IdentifierToken && this->lookahead->relatedSource() == "of") {
@@ -4359,7 +4325,7 @@ public:
                     init = this->finalize(init, new Node.Identifier(kind));
                     this->nextToken();
                     left = init;
-                    right = this->parseExpression();
+                    right = this->expression<Parse>();
                     init = null;
                 } else {
                     const previousAllowIn = this->context->allowIn;
@@ -4371,7 +4337,7 @@ public:
                         init = this->finalize(init, new Node.VariableDeclaration(declarations, kind));
                         this->nextToken();
                         left = init;
-                        right = this->parseExpression();
+                        right = this->expression<Parse>();
                         init = null;
                     } else if (declarations.length === 1 && declarations[0].init === null && this->matchContextualKeyword('of')) {
                         init = this->finalize(init, new Node.VariableDeclaration(declarations, kind));
@@ -4401,7 +4367,7 @@ public:
                     this->nextToken();
                     this->reinterpretExpressionAsPattern(init.get());
                     left = init;
-                    right = this->parseExpression();
+                    right = this->expression<Parse>();
                     init = nullptr;
                 } else if (this->lookahead->type == Token::IdentifierToken && this->lookahead->relatedSource() == "of") {
                     this->throwError("for of is not supported yet");
@@ -4436,11 +4402,11 @@ public:
         if (left == nullptr) {
             this->context->inLoop = true;
             if (!this->match(SemiColon)) {
-                test = this->parseExpression();
+                test = this->expression<Parse>();
             }
             this->expect(SemiColon);
             if (!this->match(RightParenthesis)) {
-                update = this->parseExpression();
+                update = this->expression<Parse>();
             }
         }
 
@@ -4513,7 +4479,7 @@ public:
                     init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
                     this->nextToken();
                     left = init;
-                    right = this->parseExpression();
+                    right = this->expression<Parse>();
                     init = nullptr;
                 } else if (declarations.size() == 1 && declarations[0]->init() == nullptr
                            && this->lookahead->type == Token::IdentifierToken && this->lookahead->relatedSource() == "of") {
@@ -4538,7 +4504,7 @@ public:
                     init = this->finalize(init, new Node.Identifier(kind));
                     this->nextToken();
                     left = init;
-                    right = this->parseExpression();
+                    right = this->expression<Parse>();
                     init = null;
                 } else {
                     const previousAllowIn = this->context->allowIn;
@@ -4550,7 +4516,7 @@ public:
                         init = this->finalize(init, new Node.VariableDeclaration(declarations, kind));
                         this->nextToken();
                         left = init;
-                        right = this->parseExpression();
+                        right = this->expression<Parse>();
                         init = null;
                     } else if (declarations.length === 1 && declarations[0].init === null && this->matchContextualKeyword('of')) {
                         init = this->finalize(init, new Node.VariableDeclaration(declarations, kind));
@@ -4580,7 +4546,7 @@ public:
                     this->nextToken();
                     this->reinterpretExpressionAsPattern(init.get());
                     left = init;
-                    right = this->parseExpression();
+                    right = this->expression<Parse>();
                     init = nullptr;
                 } else if (this->lookahead->type == Token::IdentifierToken && this->lookahead->relatedSource() == "of") {
                     this->throwError("for of is not supported yet");
@@ -4615,11 +4581,11 @@ public:
         if (left == nullptr) {
             this->context->inLoop = true;
             if (!this->match(SemiColon)) {
-                this->scanExpression();
+                this->expression<Scan>();
             }
             this->expect(SemiColon);
             if (!this->match(RightParenthesis)) {
-                this->scanExpression();
+                this->expression<Scan>();
             }
         }
 
@@ -4788,7 +4754,7 @@ public:
         bool hasArgument = !this->match(SemiColon) && !this->match(RightBrace) && !this->hasLineTerminator && this->lookahead->type != EOFToken;
         RefPtr<Node> argument = nullptr;
         if (hasArgument) {
-            argument = this->parseExpression();
+            argument = this->expression<Parse>();
         }
         this->consumeSemicolon();
 
@@ -4805,7 +4771,7 @@ public:
 
         bool hasArgument = !this->match(SemiColon) && !this->match(RightBrace) && !this->hasLineTerminator && this->lookahead->type != EOFToken;
         if (hasArgument) {
-            this->scanExpression();
+            this->expression<Scan>();
         }
         this->consumeSemicolon();
     }
@@ -4821,7 +4787,7 @@ public:
         this->expectKeyword(WithKeyword);
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
-        RefPtr<Node> object = this->parseExpression();
+        RefPtr<Node> object = this->expression<Parse>();
         this->expect(RightParenthesis);
 
         bool prevInWith = this->context->inWith;
@@ -4855,7 +4821,7 @@ public:
         } else {
             this->expectKeyword(CaseKeyword);
             node = this->createNode();
-            test = this->parseExpression();
+            test = this->expression<Parse>();
         }
         this->expect(Colon);
 
@@ -4864,7 +4830,7 @@ public:
             if (this->match(RightBrace) || this->matchKeyword(DefaultKeyword) || this->matchKeyword(CaseKeyword)) {
                 break;
             }
-            consequent->appendChild(this->parseStatementListItem());
+            consequent->appendChild(this->statementListItem<ParseAs(StatementNode)>());
         }
 
         return this->finalize(node, new SwitchCaseNode(test.get(), consequent.get()));
@@ -4878,7 +4844,7 @@ public:
             isDefaultNode = true;
         } else {
             this->expectKeyword(CaseKeyword);
-            this->scanExpression();
+            this->expression<Scan>();
             isDefaultNode = false;
         }
         this->expect(Colon);
@@ -4887,7 +4853,7 @@ public:
             if (this->match(RightBrace) || this->matchKeyword(DefaultKeyword) || this->matchKeyword(CaseKeyword)) {
                 break;
             }
-            this->scanStatementListItem();
+            this->statementListItem<ScanAsVoid>();
         }
         return isDefaultNode;
     }
@@ -4898,7 +4864,7 @@ public:
         MetaNode node = this->createNode();
 
         this->expect(LeftParenthesis);
-        RefPtr<Node> discriminant = this->parseExpression();
+        RefPtr<Node> discriminant = this->expression<Parse>();
         this->expect(RightParenthesis);
 
         bool previousInSwitch = this->context->inSwitch;
@@ -4939,7 +4905,7 @@ public:
         this->expectKeyword(SwitchKeyword);
 
         this->expect(LeftParenthesis);
-        this->scanExpression();
+        this->expression<Scan>();
         this->expect(RightParenthesis);
 
         bool previousInSwitch = this->context->inSwitch;
@@ -4969,7 +4935,7 @@ public:
 
     PassRefPtr<Node> parseLabelledStatement()
     {
-        RefPtr<Node> expr = this->parseExpression();
+        RefPtr<Node> expr = this->expression<Parse>();
         MetaNode node = this->createNode();
 
         StatementNode* statement;
@@ -4995,7 +4961,7 @@ public:
 
     void scanLabelledStatement()
     {
-        ScanExpressionResult expr = this->scanExpression();
+        ScanExpressionResult expr = this->expression<Scan>();
 
         StatementNode* statement;
         if ((expr.first == Identifier) && this->match(Colon)) {
@@ -5024,7 +4990,7 @@ public:
         }
 
         MetaNode node = this->createNode();
-        RefPtr<Node> argument = this->parseExpression();
+        RefPtr<Node> argument = this->expression<Parse>();
         this->consumeSemicolon();
 
         return this->finalize(node, new ThrowStatementNode(argument.get()));
@@ -5038,7 +5004,7 @@ public:
             this->throwError(Messages::NewlineAfterThrow);
         }
 
-        this->scanExpression();
+        this->expression<Scan>();
         this->consumeSemicolon();
     }
 
@@ -5089,7 +5055,7 @@ public:
         }
 
         this->expect(RightParenthesis);
-        RefPtr<Node> body = this->parseBlock();
+        RefPtr<Node> body = this->block<Parse>();
 
         this->context->inCatch = prevInCatch;
 
@@ -5145,7 +5111,7 @@ public:
         }
 
         this->expect(RightParenthesis);
-        this->scanBlock();
+        this->block<ScanAsVoid>();
 
         this->context->inCatch = prevInCatch;
 
@@ -5161,13 +5127,13 @@ public:
     PassRefPtr<BlockStatementNode> parseFinallyClause()
     {
         this->expectKeyword(FinallyKeyword);
-        return this->parseBlock();
+        return this->block<ParseAs(BlockStatementNode)>();
     }
 
     void scanFinallyClause()
     {
         this->expectKeyword(FinallyKeyword);
-        this->scanBlock();
+        this->block<ScanAsVoid>();
     }
 
     PassRefPtr<TryStatementNode> parseTryStatement()
@@ -5175,7 +5141,7 @@ public:
         this->expectKeyword(TryKeyword);
         MetaNode node = this->createNode();
 
-        RefPtr<BlockStatementNode> block = this->parseBlock();
+        RefPtr<BlockStatementNode> block = this->block<ParseAs(BlockStatementNode)>();
         RefPtr<CatchClauseNode> handler = this->matchKeyword(CatchKeyword) ? this->parseCatchClause() : nullptr;
         RefPtr<BlockStatementNode> finalizer = this->matchKeyword(FinallyKeyword) ? this->parseFinallyClause() : nullptr;
 
@@ -5190,7 +5156,7 @@ public:
     {
         this->expectKeyword(TryKeyword);
 
-        this->scanBlock();
+        this->block<ScanAsVoid>();
         bool meetHandler = this->matchKeyword(CatchKeyword) ? (this->scanCatchClause(), true) : false;
         bool meetFinalizer = this->matchKeyword(FinallyKeyword) ? (this->scanFinallyClause(), true) : false;
 
@@ -5231,7 +5197,7 @@ public:
         case Token::PunctuatorToken: {
             PunctuatorKind value = this->lookahead->valuePunctuatorKind;
             if (value == LeftBrace) {
-                statement = this->parseBlock();
+                statement = this->block<ParseAs(BlockStatementNode)>();
             } else if (value == LeftParenthesis) {
                 statement = this->parseExpressionStatement();
             } else if (value == SemiColon) {
@@ -5325,7 +5291,7 @@ public:
         case Token::PunctuatorToken: {
             PunctuatorKind value = this->lookahead->valuePunctuatorKind;
             if (value == LeftBrace) {
-                this->scanBlock();
+                this->block<ScanAsVoid>();
             } else if (value == LeftParenthesis) {
                 this->scanExpressionStatement();
             } else if (value == SemiColon) {
@@ -5504,7 +5470,7 @@ public:
                 if (this->match(RightBrace)) {
                     break;
                 }
-                referNode = body->appendChild(this->parseStatementListItem().get(), referNode);
+                referNode = body->appendChild(this->statementListItem<ParseAs(StatementNode)>().get(), referNode);
             }
         } else {
             StatementNode* referNode = nullptr;
@@ -5512,7 +5478,7 @@ public:
                 if (this->match(RightBrace)) {
                     break;
                 }
-                this->scanStatementListItem();
+                this->statementListItem<ScanAsVoid>();
             }
         }
 
@@ -5651,7 +5617,7 @@ public:
         bool isLiteral = false;
 
         MetaNode node = this->createNode();
-        RefPtr<Node> expr = this->parseExpression();
+        RefPtr<Node> expr = this->expression<Parse>();
         if (expr->type() == Literal) {
             isLiteral = true;
             directiveValue = token->valueStringLiteral();
@@ -5987,7 +5953,7 @@ public:
         RefPtr<StatementContainer> body = this->parseDirectivePrologues();
         StatementNode* referNode = nullptr;
         while (this->startMarker.index < this->scanner->length) {
-            referNode = body->appendChild(this->parseStatementListItem().get(), referNode);
+            referNode = body->appendChild(this->statementListItem<ParseAs(StatementNode)>().get(), referNode);
         }
         scopeContexts.back()->m_locStart.line = node.line;
         scopeContexts.back()->m_locStart.column = node.column;
@@ -6191,7 +6157,7 @@ public:
                 case 'var':
                 case 'class':
                 case 'function':
-                    declaration = this.parseStatementListItem();
+                    declaration = this.statementListItem<ParseAs(StatementNode)>();
                     break;
                 default:
                     this.throwUnexpectedToken(this.lookahead);
