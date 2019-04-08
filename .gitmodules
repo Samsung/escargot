@@ -1,33 +1,44 @@
 [submodule "third_party/GCutil"]
     path = third_party/GCutil
     url = https://github.com/pando-project/gcutil.git
+    ignore = untracked
 [submodule "third_party/checked_arithmetic"]
     path = third_party/checked_arithmetic
     url = https://github.com/pando-submodules/checked_arithmetic.git
+    ignore = untracked
 [submodule "third_party/double_conversion"]
     path = third_party/double_conversion
     url = https://github.com/pando-submodules/double_conversion.git
+    ignore = untracked
 [submodule "third_party/rapidjson"]
     path = third_party/rapidjson
     url = https://github.com/pando-submodules/rapidjson.git
+    ignore = untracked
 [submodule "third_party/yarr"]
     path = third_party/yarr
     url = https://github.com/pando-submodules/yarr.git
+    ignore = untracked
 [submodule "third_party/windows/icu"]
     path = third_party/windows/icu
     url = https://github.com/pando-submodules/icu.git
+    ignore = untracked
 [submodule "test/vendortest"]
     path = test/vendortest
     url = https://github.com/pando-tests/js_vendor_tc.git
+    ignore = untracked
 [submodule "test/test262"]
-	path = test/test262
-	url = https://github.com/tc39/test262.git
+    path = test/test262
+    url = https://github.com/tc39/test262.git
+    ignore = untracked
 [submodule "test/test262-master"]
-	path = test/test262-master
-	url = https://github.com/tc39/test262.git
+    path = test/test262-master
+    url = https://github.com/tc39/test262.git
+    ignore = untracked
 [submodule "test/test262-harness-py"]
-	path = test/test262-harness-py
-	url = https://github.com/test262-utils/test262-harness-py
+    path = test/test262-harness-py
+    url = https://github.com/test262-utils/test262-harness-py
+    ignore = untracked
 [submodule "test/octane"]
-	path = test/octane
-	url = https://github.com/chromium/octane.git
+    path = test/octane
+    url = https://github.com/chromium/octane.git
+    ignore = untracked
