@@ -4007,53 +4007,55 @@ public:
         bool inFor;
     };
 
-    PassRefPtr<VariableDeclaratorNode> parseVariableDeclaration(DeclarationOptions& options)
+    template <typename T, bool isParse>
+    T variableDeclaration(DeclarationOptions& options)
     {
-        MetaNode node = this->createNode();
-
         std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> params;
-        RefPtr<Node> id = this->pattern<Parse>(params, VarKeyword);
+        RefPtr<Node> idNode;
+        ScanExpressionResult id;
+        bool isIdentifier;
+        AtomicString name;
+
+        if (isParse) {
+            idNode = this->pattern<Parse>(params, VarKeyword);
+            isIdentifier = (idNode->type() == Identifier);
+            if (isIdentifier) {
+                name = ((IdentifierNode*)idNode.get())->name();
+            }
+        } else {
+            id = this->pattern<Scan>(params, VarKeyword);
+            isIdentifier = (id.first == Identifier);
+            if (isIdentifier) {
+                name = id.second;
+            }
+        }
 
         // ECMA-262 12.2.1
-        if (this->context->strict && id->type() == Identifier && this->scanner->isRestrictedWord(((IdentifierNode*)id.get())->name())) {
-            this->tolerateError(Messages::StrictVarName);
+        if (this->context->strict && isIdentifier && this->scanner->isRestrictedWord(name)) {
+            this->throwError(Messages::StrictVarName);
         }
 
-        if (id->type() == Identifier && !this->config.parseSingleFunction) {
-            this->scopeContexts.back()->insertName(((IdentifierNode*)id.get())->name(), true);
+        if (isIdentifier && !this->config.parseSingleFunction) {
+            this->scopeContexts.back()->insertName(name, true);
         }
 
-        RefPtr<Node> init;
+        RefPtr<Node> initNode;
         if (this->match(Substitution)) {
             this->nextToken();
-            init = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
-        } else if (id->type() != Identifier && !options.inFor) {
+            if (isParse) {
+                initNode = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+            } else {
+                this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+            }
+        } else if (!isIdentifier && !options.inFor) {
             this->expect(Substitution);
         }
 
-        return this->finalize(node, new VariableDeclaratorNode(id.get(), init.get()));
-    }
-
-    void scanVariableDeclaration(DeclarationOptions& options)
-    {
-        std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> params;
-        std::pair<ASTNodeType, AtomicString> id = this->pattern<Scan>(params, VarKeyword);
-
-        // ECMA-262 12.2.1
-        if (this->context->strict && id.first == Identifier && this->scanner->isRestrictedWord(id.second)) {
-            this->tolerateError(Messages::StrictVarName);
+        if (isParse) {
+            MetaNode node = this->createNode();
+            return T(this->finalize(node, new VariableDeclaratorNode(idNode.get(), initNode.get())));
         }
-
-        if (id.first == Identifier && !this->config.parseSingleFunction) {
-            this->scopeContexts.back()->insertName(id.second, true);
-        }
-
-        if (this->match(Substitution)) {
-            this->nextToken();
-            this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
-        } else if (id.first != Identifier && !options.inFor) {
-            this->expect(Substitution);
-        }
+        return T(nullptr);
     }
 
     VariableDeclaratorVector parseVariableDeclarationList(DeclarationOptions& options)
@@ -4062,29 +4064,26 @@ public:
         opt.inFor = options.inFor;
 
         VariableDeclaratorVector list;
-        list.push_back(this->parseVariableDeclaration(opt));
+        list.push_back(this->variableDeclaration<ParseAs(VariableDeclaratorNode)>(opt));
         while (this->match(Comma)) {
             this->nextToken();
-            list.push_back(this->parseVariableDeclaration(opt));
+            list.push_back(this->variableDeclaration<ParseAs(VariableDeclaratorNode)>(opt));
         }
 
         return list;
     }
 
-    size_t scanVariableDeclarationList(DeclarationOptions& options)
+    void scanVariableDeclarationList(DeclarationOptions& options)
     {
         DeclarationOptions opt;
         opt.inFor = options.inFor;
         size_t listSize = 0;
 
-        this->scanVariableDeclaration(opt);
-        listSize++;
+        this->variableDeclaration<ScanAsVoid>(opt);
         while (this->match(Comma)) {
             this->nextToken();
-            this->scanVariableDeclaration(opt);
-            listSize++;
+            this->variableDeclaration<ScanAsVoid>(opt);
         }
-        return listSize;
     }
 
     PassRefPtr<VariableDeclarationNode> parseVariableStatement()
@@ -4110,16 +4109,16 @@ public:
 
     // ECMA-262 13.4 Empty Statement
 
-    PassRefPtr<EmptyStatementNode> parseEmptyStatement()
+    template <typename T, bool isParse>
+    T emptyStatement()
     {
         this->expect(SemiColon);
-        MetaNode node = this->createNode();
-        return this->finalize(node, new EmptyStatementNode());
-    }
 
-    void scanEmptyStatement()
-    {
-        this->expect(SemiColon);
+        if (isParse) {
+            MetaNode node = this->createNode();
+            return T(this->finalize(node, new EmptyStatementNode()));
+        }
+        return T(nullptr);
     }
 
     // ECMA-262 13.5 Expression Statement
@@ -4140,38 +4139,45 @@ public:
 
     // ECMA-262 13.6 If statement
 
-    PassRefPtr<IfStatementNode> parseIfStatement()
+    template <typename T, bool isParse>
+    T ifStatement()
     {
+        RefPtr<Node> test;
         RefPtr<Node> consequent;
         RefPtr<Node> alternate;
+        bool allowFunctionDeclaration = !this->context->strict;
 
         this->expectKeyword(IfKeyword);
-        MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
-        RefPtr<Node> test = this->expression<Parse>();
 
-        this->expect(RightParenthesis);
-        consequent = this->parseStatement(this->context->strict ? false : true);
-        if (this->matchKeyword(ElseKeyword)) {
-            this->nextToken();
-            alternate = this->parseStatement();
+        if (isParse) {
+            test = this->expression<Parse>();
+        } else {
+            this->expression<Scan>();
         }
 
-        return this->finalize(node, new IfStatementNode(test.get(), consequent.get(), alternate.get()));
-    }
-
-    void scanIfStatement()
-    {
-        this->expectKeyword(IfKeyword);
-        this->expect(LeftParenthesis);
-        this->expression<Scan>();
-
         this->expect(RightParenthesis);
-        this->scanStatement(this->context->strict ? false : true);
+
+        if (isParse) {
+            consequent = this->parseStatement(allowFunctionDeclaration);
+        } else {
+            this->scanStatement(allowFunctionDeclaration);
+        }
+
         if (this->matchKeyword(ElseKeyword)) {
             this->nextToken();
-            this->scanStatement();
+            if (isParse) {
+                alternate = this->parseStatement(allowFunctionDeclaration);
+            } else {
+                this->scanStatement(allowFunctionDeclaration);
+            }
         }
+
+        if (isParse) {
+            MetaNode node = this->createNode();
+            return T(this->finalize(node, new IfStatementNode(test.get(), consequent.get(), alternate.get())));
+        }
+        return T(nullptr);
     }
 
     // ECMA-262 13.7.2 The do-while Statement
@@ -5201,7 +5207,7 @@ public:
             } else if (value == LeftParenthesis) {
                 statement = this->parseExpressionStatement();
             } else if (value == SemiColon) {
-                statement = this->parseEmptyStatement();
+                statement = this->emptyStatement<ParseAs(StatementNode)>();
             } else {
                 statement = this->parseExpressionStatement();
             }
@@ -5236,7 +5242,7 @@ public:
                 break;
             }
             case IfKeyword:
-                statement = asStatementNode(this->parseIfStatement());
+                statement = this->ifStatement<ParseAs(StatementNode)>();
                 break;
             case ReturnKeyword:
                 statement = asStatementNode(this->parseReturnStatement());
@@ -5295,7 +5301,7 @@ public:
             } else if (value == LeftParenthesis) {
                 this->scanExpressionStatement();
             } else if (value == SemiColon) {
-                this->scanEmptyStatement();
+                this->emptyStatement<ScanAsVoid>();
             } else {
                 this->scanExpressionStatement();
             }
@@ -5330,7 +5336,7 @@ public:
                 break;
             }
             case IfKeyword:
-                this->scanIfStatement();
+                this->ifStatement<ScanAsVoid>();
                 break;
             case ReturnKeyword:
                 this->scanReturnStatement();
