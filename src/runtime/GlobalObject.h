@@ -220,7 +220,7 @@ public:
 #if ESCARGOT_ENABLE_TYPEDARRAY
     void installDataView(ExecutionState& state);
     void installTypedArray(ExecutionState& state);
-    template <typename TA, int elementSize>
+    template <typename TA, int elementSize, typename TypeAdaptor>
     FunctionObject* installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction);
 #endif
     void installIterator(ExecutionState& state);
