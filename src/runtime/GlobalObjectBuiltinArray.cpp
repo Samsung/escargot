@@ -76,8 +76,51 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
     return array;
 }
 
+#define CHECK_ARRAY_LENGTH(num, limit)                                                                               \
+    if ((num) >= (limit)) {                                                                                          \
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_InvalidArrayLength); \
+    }
+
+static Value arraySpeciesCreate(ExecutionState& state, Object* originalArray, const size_t length)
+{
+    ASSERT(originalArray != nullptr);
+    // Assert: length is an integer Number >= 0.
+    ASSERT((int64_t)length >= 0);
+    Value originalArrayConstructor = originalArray->get(state, ObjectPropertyName(state.context()->staticStrings().constructor)).value(state, originalArray);
+
+    // Let C be undefined.
+    Value C;
+    // Let isArray be IsArray(originalArray).
+    // If isArray is true, then
+    if (originalArray->isArrayObject() == true) {
+        // Let C be Get(originalArray, "constructor").
+        C = originalArrayConstructor;
+
+        // TODO 9.4.2.3. 6.c. (after Realm is implemented)
+        // If Type(C) is Object, then
+        if (C.isObject() == true) {
+            // Let C be Get(C, @@species).
+            C = C.asObject()->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, C);
+        }
+    }
+
+    // If C is null, let C be undefined.
+    // If C is undefined, return ArrayCreate(length).
+    if (C.isUndefinedOrNull() == true) {
+        return new ArrayObject(state, static_cast<double>(length));
+    }
+    // If IsConstructor(C) is false, throw a TypeError exception.
+    if (C.isConstructor() == false) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), false, String::emptyString, errorMessage_GlobalObject_ThisNotConstructor);
+    }
+    // Return Construct(C, <<length>>).
+    Value argv[1] = { Value(length) };
+    return ByteCodeInterpreter::newOperation(state, C, 1, argv);
+}
+
 static Value builtinArrayIsArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+    ASSERT(argv != nullptr);
     if (!argv[0].isObject())
         return Value(false);
     if (argv[0].asObject()->isArrayObject())
@@ -395,8 +438,10 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, splice);
 
+#ifndef ESCARGOT_ENABLE_ES2015
     // Let A be a new array created as if by the expression new Array()where Array is the standard built-in constructor with that name.
     ArrayObject* A = new ArrayObject(state);
+#endif /* !ESCARGOT_ENABLE_ES2015 */
 
     // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
     // Let len be ToUint32(lenVal).
@@ -408,16 +453,49 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
     // If relativeStart is negative, let actualStart be max((len + relativeStart),0); else let actualStart be min(relativeStart, len).
     int64_t actualStart = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, (double)len);
 
+    int64_t insertCount;
+    int64_t actualDeleteCount;
+#ifdef ESCARGOT_ENABLE_ES2015
+    // If the number of actual arguments is 0, then
+    if (argc == 0) {
+        // Let insertCount be 0.
+        insertCount = 0;
+        // Let actualDeleteCount be 0.
+        actualDeleteCount = 0;
+    } else if (argc == 1) {
+        // Else if the number of actual arguments is 1, then
+        // Let insertCount be 0.
+        insertCount = 0;
+        // Let actualDeleteCount be len – actualStart.
+        actualDeleteCount = len - actualStart;
+    } else {
+        // Else,
+        // Let insertCount be the number of actual arguments minus 2.
+        insertCount = argc - 2;
+        // Let dc be ToInteger(deleteCount).
+        double dc = argv[1].toInteger(state);
+        // Let actualDeleteCount be min(max(dc,0), len – actualStart).
+        actualDeleteCount = std::min(std::max(dc, 0.0), (double)(len - actualStart));
+    }
+    // If len+insertCount−actualDeleteCount > 2^53-1, throw a TypeError exception.
+    CHECK_ARRAY_LENGTH(len + insertCount - actualDeleteCount, (1LL << 53));
+    // Let A be ArraySpeciesCreate(O, actualDeleteCount).
+    Value val = arraySpeciesCreate(state, O, actualDeleteCount);
+    ASSERT(val.isObject() == true);
+    ASSERT(val.asObject()->isArrayObject() == true);
+    ArrayObject* A = val.asObject()->asArrayObject();
+#else
     // Let actualDeleteCount be min(max(ToInteger(deleteCount),0), len – actualStart).
     // below code does not follow ECMA-262, but SpiderMonkey, v8 and JSC to this..
     // int64_t actualDeleteCount = std::min(std::max(argv[1].toInteger(state), 0.0), (double)len - actualStart); // org code
-    int64_t actualDeleteCount;
     double deleteCount = argv[1].toInteger(state);
     if (argc != 1) {
         actualDeleteCount = std::min(std::max(deleteCount, 0.0), (double)len - actualStart);
     } else {
         actualDeleteCount = len - actualStart;
     }
+#endif /* ESCARGOT_ENABLE_ES2015 */
+    ASSERT(A != nullptr);
 
     // Let k be 0.
     int64_t k = 0;
@@ -432,8 +510,8 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
         ObjectGetResult fromValue = O->getIndexedProperty(state, Value(actualStart + k));
         if (fromValue.hasValue()) {
             // Call the [[DefineOwnProperty]] internal method of A with arguments ToString(k), Property Descriptor {[[Value]]: fromValue, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
-            A->ArrayObject::defineOwnProperty(state, ObjectPropertyName(state, Value(k)),
-                                              ObjectPropertyDescriptor(fromValue.value(state, O), ObjectPropertyDescriptor::AllPresent));
+            A->ArrayObject::defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(k)),
+                                                             ObjectPropertyDescriptor(fromValue.value(state, O), ObjectPropertyDescriptor::AllPresent));
             // Increment k by 1.
             k++;
         } else {
@@ -552,48 +630,6 @@ static Value builtinArrayToString(ExecutionState& state, Value thisValue, size_t
     return FunctionObject::call(state, toString, thisObject, 0, nullptr);
 }
 
-static Value arraySpeciesCreate(ExecutionState& state, Object* originalArray, const size_t length)
-{
-    // Assert: length is an integer Number >= 0.
-    ASSERT((int64_t)length >= 0);
-    Value originalArrayConstructor = originalArray->get(state, ObjectPropertyName(state.context()->staticStrings().constructor)).value(state, originalArray);
-
-    // Let C be undefined.
-    Value C;
-    // Let isArray be IsArray(originalArray).
-    // If isArray is true, then
-    if (originalArray->isArrayObject()) {
-        // Let C be Get(originalArray, "constructor").
-        C = originalArrayConstructor;
-
-        // TODO 9.4.2.3. 6.c. (after Realm is implemented)
-        // If Type(C) is Object, then
-        if (C.isObject()) {
-            // Let C be Get(C, @@species).
-            C = C.asObject()->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, C);
-        }
-    }
-
-    // If C is null, let C be undefined.
-    // If C is undefined, return ArrayCreate(length).
-    if (C.isUndefinedOrNull()) {
-        return new ArrayObject(state, static_cast<double>(length));
-    }
-    // If IsConstructor(C) is false, throw a TypeError exception.
-    if (!C.isConstructor()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), false, String::emptyString, errorMessage_GlobalObject_ThisNotConstructor);
-    }
-    // Return Construct(C, <<length>>).
-    Value argv[1] = { Value(length) };
-    return C.asFunction()->call(state, C, 1, argv);
-}
-
-#define CHECK_ARRAY_LENGTH(num, limit)                                                                               \
-    if ((num) >= (limit)) {                                                                                          \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_InvalidArrayLength); \
-    }
-
-
 static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, concat);
@@ -661,7 +697,16 @@ static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t ar
     uint32_t finalEnd = (relativeEnd < 0) ? std::max((double)len + relativeEnd, 0.0) : std::min(relativeEnd, (double)len);
 
     int64_t n = 0;
+#ifdef ESCARGOT_ENABLE_ES2015
+    // Let count be max(final - k, 0).
+    // Let A be ArraySpeciesCreate(O, count).
+    Value val = arraySpeciesCreate(state, thisObject, std::max(finalEnd - k, (int64_t)0));
+    ASSERT(val.isObject() == true);
+    ASSERT(val.asObject()->isArrayObject() == true);
+    ArrayObject* array = val.asObject()->asArrayObject();
+#else
     ArrayObject* array = new ArrayObject(state);
+#endif /* ESCARGOT_ENABLE_ES2015 */
     while (k < finalEnd) {
         ObjectGetResult exists = thisObject->get(state, ObjectPropertyName(state, Value(k)));
         if (exists.hasValue()) {
@@ -953,8 +998,16 @@ static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t a
     if (argc > 1)
         T = argv[1];
 
+#ifdef ESCARGOT_ENABLE_ES2015
+    // Let A be ArraySpeciesCreate(O, 0).
+    Value val = arraySpeciesCreate(state, O, 0);
+    ASSERT(val.isObject() == true);
+    ASSERT(val.asObject()->isArrayObject() == true);
+    ArrayObject* A = val.asObject()->asArrayObject();
+#else
     // Let A be a new array created as if by the expression new Array() where Array is the standard built-in constructor with that name.
     ArrayObject* A = new ArrayObject(state);
+#endif /* ESCARGOT_ENABLE_ES2015 */
 
     // Let k be 0.
     uint64_t k = 0;
@@ -977,8 +1030,9 @@ static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t a
 
             // If ToBoolean(selected) is true, then
             if (selected.toBoolean(state)) {
-                // Call the [[DefineOwnProperty]] internal method of A with arguments ToString(to), Property Descriptor {[[Value]]: kValue, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
-                A->defineOwnProperty(state, ObjectPropertyName(state, Value(to)), ObjectPropertyDescriptor(kValue, ObjectPropertyDescriptor::AllPresent));
+                // Let status be CreateDataPropertyOrThrow (A, ToString(to), kValue).
+                ASSERT(A != nullptr);
+                A->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(to)), ObjectPropertyDescriptor(kValue, ObjectPropertyDescriptor::AllPresent));
                 // Increase to by 1
                 to++;
             }
@@ -1015,8 +1069,17 @@ static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc
     if (argc > 1)
         T = argv[1];
 
+#ifdef ESCARGOT_ENABLE_ES2015
+    // Let A be ArraySpeciesCreate(O, len).
+    Value val = arraySpeciesCreate(state, O, len);
+    ASSERT(val.isObject() == true);
+    ASSERT(val.asObject()->isArrayObject() == true);
+    ArrayObject* A = val.asObject()->asArrayObject();
+#else
     // Let A be a new array created as if by the expression new Array(len) where Array is the standard built-in constructor with that name and len is the value of len.
     ArrayObject* A = new ArrayObject(state);
+#endif /* ESCARGOT_ENABLE_ES2015 */
+    ASSERT(A != nullptr);
 
     // Let k be 0.
     uint64_t k = 0;
@@ -1034,8 +1097,8 @@ static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc
             // Let mappedValue be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
             Value v[] = { kValue, Value(k), O };
             Value mappedValue = callbackfn.asFunction()->call(state, T, 3, v);
-            // Call the [[DefineOwnProperty]] internal method of A with arguments Pk, Property Descriptor {[[Value]]: mappedValue, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
-            A->defineOwnProperty(state, Pk, ObjectPropertyDescriptor(mappedValue, ObjectPropertyDescriptor::AllPresent));
+            // Let status be CreateDataPropertyOrThrow (A, Pk, mappedValue).
+            A->defineOwnPropertyThrowsException(state, Pk, ObjectPropertyDescriptor(mappedValue, ObjectPropertyDescriptor::AllPresent));
             k++;
         } else {
             double result;
@@ -1411,6 +1474,10 @@ static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t arg
     // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
     // Let n be ToUint32(lenVal).
     int64_t n = O->length(state);
+#ifdef ESCARGOT_ENABLE_ES2015
+    // If len + argCount > 2^53 - 1, throw a TypeError exception.
+    CHECK_ARRAY_LENGTH((size_t)n + argc, (1ULL << 53));
+#endif /* ESCARGOT_ENABLE_ES2015 */
     // Let items be an internal List whose elements are, in left to right order, the arguments that were passed to this function invocation.
     // Repeat, while items is not empty
     // Remove the first element from items and let E be the value of the element.
