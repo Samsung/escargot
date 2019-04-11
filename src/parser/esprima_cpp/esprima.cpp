@@ -4174,120 +4174,110 @@ public:
         }
 
         if (isParse) {
-            MetaNode node = this->createNode();
-            return T(this->finalize(node, new IfStatementNode(test.get(), consequent.get(), alternate.get())));
+            return T(this->finalize(this->createNode(), new IfStatementNode(test.get(), consequent.get(), alternate.get())));
         }
         return T(nullptr);
     }
 
     // ECMA-262 13.7.2 The do-while Statement
 
-    PassRefPtr<DoWhileStatementNode> parseDoWhileStatement()
+    template <typename T, bool isParse>
+    T doWhileStatement()
     {
         this->expectKeyword(DoKeyword);
-        MetaNode node = this->createNode();
 
         bool previousInIteration = this->context->inIteration;
         this->context->inIteration = true;
-        RefPtr<Node> body = this->parseStatement(false);
+        RefPtr<Node> body;
+        if (isParse) {
+            body = this->parseStatement(false);
+        } else {
+            this->scanStatement(false);
+        }
         this->context->inIteration = previousInIteration;
 
         this->expectKeyword(WhileKeyword);
         this->expect(LeftParenthesis);
-        RefPtr<Node> test = this->expression<Parse>();
+        RefPtr<Node> test;
+        if (isParse) {
+            test = this->expression<Parse>();
+        } else {
+            this->expression<Scan>();
+        }
+
         this->expect(RightParenthesis);
         if (this->match(SemiColon)) {
             this->nextToken();
         }
 
-        return this->finalize(node, new DoWhileStatementNode(test.get(), body.get()));
-    }
-
-    void scanDoWhileStatement()
-    {
-        this->expectKeyword(DoKeyword);
-        MetaNode node = this->createNode();
-
-        bool previousInIteration = this->context->inIteration;
-        this->context->inIteration = true;
-        this->scanStatement(false);
-        this->context->inIteration = previousInIteration;
-
-        this->expectKeyword(WhileKeyword);
-        this->expect(LeftParenthesis);
-        this->expression<Scan>();
-        this->expect(RightParenthesis);
-        if (this->match(SemiColon)) {
-            this->nextToken();
+        if (isParse) {
+            return T(this->finalize(this->createNode(), new DoWhileStatementNode(test.get(), body.get())));
         }
+        return T(nullptr);
     }
 
     // ECMA-262 13.7.3 The while Statement
 
-    PassRefPtr<WhileStatementNode> parseWhileStatement()
+    template <typename T, bool isParse>
+    T whileStatement()
     {
+        bool prevInLoop = this->context->inLoop;
+        this->context->inLoop = true;
+
+        this->expectKeyword(WhileKeyword);
+        this->expect(LeftParenthesis);
+        RefPtr<Node> test;
+        if (isParse) {
+            test = this->expression<Parse>();
+        } else {
+            this->expression<Scan>();
+        }
+        this->expect(RightParenthesis);
+
+        bool previousInIteration = this->context->inIteration;
+        this->context->inIteration = true;
         RefPtr<Node> body;
-
-        bool prevInLoop = this->context->inLoop;
-        this->context->inLoop = true;
-
-        this->expectKeyword(WhileKeyword);
-        MetaNode node = this->createNode();
-        this->expect(LeftParenthesis);
-        RefPtr<Node> test = this->expression<Parse>();
-
-        this->expect(RightParenthesis);
-
-        bool previousInIteration = this->context->inIteration;
-        this->context->inIteration = true;
-        body = this->parseStatement(false);
+        if (isParse) {
+            body = this->parseStatement(false);
+        } else {
+            this->scanStatement(false);
+        }
         this->context->inIteration = previousInIteration;
         this->context->inLoop = prevInLoop;
 
-        return this->finalize(node, new WhileStatementNode(test.get(), body.get()));
-    }
-
-    void scanWhileStatement()
-    {
-        bool prevInLoop = this->context->inLoop;
-        this->context->inLoop = true;
-
-        this->expectKeyword(WhileKeyword);
-        MetaNode node = this->createNode();
-        this->expect(LeftParenthesis);
-        this->expression<Scan>();
-
-        this->expect(RightParenthesis);
-        bool previousInIteration = this->context->inIteration;
-        this->context->inIteration = true;
-        this->scanStatement(false);
-        this->context->inIteration = previousInIteration;
-        this->context->inLoop = prevInLoop;
+        if (isParse) {
+            return T(this->finalize(this->createNode(), new WhileStatementNode(test.get(), body.get())));
+        }
+        return T(nullptr);
     }
 
     // ECMA-262 13.7.4 The for Statement
     // ECMA-262 13.7.5 The for-in and for-of Statements
 
-    PassRefPtr<StatementNode> parseForStatement()
+    enum ForStatementType {
+        statementTypeFor,
+        statementTypeForIn,
+        statementTypeForOf
+    };
+
+    template <typename T, bool isParse>
+    T forStatement()
     {
         RefPtr<Node> init;
         RefPtr<Node> test;
         RefPtr<Node> update;
-        bool forIn = true;
         RefPtr<Node> left;
         RefPtr<Node> right;
-
+        ForStatementType type = statementTypeFor;
         bool prevInLoop = this->context->inLoop;
 
         this->expectKeyword(ForKeyword);
-        MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
 
         if (this->match(SemiColon)) {
             this->nextToken();
         } else {
             if (this->matchKeyword(VarKeyword)) {
-                MetaNode metaInit = this->createNode();
                 this->nextToken();
 
                 bool previousAllowIn = this->context->allowIn;
@@ -4303,21 +4293,24 @@ public:
                     if (decl->init() && (decl->id()->type() == ArrayExpression || decl->id()->type() == ObjectExpression || this->context->strict)) {
                         this->tolerateError(Messages::ForInOfLoopInitializer, new ASCIIString("for-in"));
                     }
-                    init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
+                    if (isParse) {
+                        left = this->finalize(this->createNode(), new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
+                    }
+
                     this->nextToken();
-                    left = init;
-                    right = this->expression<Parse>();
-                    init = nullptr;
+                    type = statementTypeForIn;
                 } else if (declarations.size() == 1 && declarations[0]->init() == nullptr
                            && this->lookahead->type == Token::IdentifierToken && this->lookahead->relatedSource() == "of") {
-                    init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
+                    if (isParse) {
+                        left = this->finalize(this->createNode(), new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
+                    }
+
                     this->nextToken();
-                    left = init;
-                    right = this->assignmentExpression<Parse>();
-                    init = nullptr;
-                    forIn = false;
+                    type = statementTypeForOf;
                 } else {
-                    init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
+                    if (isParse) {
+                        init = this->finalize(this->createNode(), new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
+                    }
                     this->expect(SemiColon);
                 }
             } else if (this->matchKeyword(ConstKeyword) || this->matchKeyword(LetKeyword)) {
@@ -4373,23 +4366,18 @@ public:
                     this->nextToken();
                     this->reinterpretExpressionAsPattern(init.get());
                     left = init;
-                    right = this->expression<Parse>();
                     init = nullptr;
+                    type = statementTypeForIn;
                 } else if (this->lookahead->type == Token::IdentifierToken && this->lookahead->relatedSource() == "of") {
-                    this->throwError("for of is not supported yet");
-                    RELEASE_ASSERT_NOT_REACHED();
-                    /*
-                    if (!this->context->isAssignmentTarget || init.type === Syntax.AssignmentExpression) {
-                        this->tolerateError(Messages.InvalidLHSInForLoop);
+                    if (!this->context->isAssignmentTarget || init->type() == ASTNodeType::AssignmentExpression) {
+                        this->tolerateError(Messages::InvalidLHSInForLoop);
                     }
 
                     this->nextToken();
-                    this->reinterpretExpressionAsPattern(init);
+                    this->reinterpretExpressionAsPattern(init.get());
                     left = init;
-                    right = this->assignmentExpression<Parse>();
-                    init = null;
-                    forIn = false;
-                    */
+                    init = nullptr;
+                    type = statementTypeForOf;
                 } else {
                     if (this->match(Comma)) {
                         ExpressionNodeVector initSeq;
@@ -4405,7 +4393,7 @@ public:
             }
         }
 
-        if (left == nullptr) {
+        if (type == statementTypeFor) {
             this->context->inLoop = true;
             if (!this->match(SemiColon)) {
                 test = this->expression<Parse>();
@@ -4414,204 +4402,58 @@ public:
             if (!this->match(RightParenthesis)) {
                 update = this->expression<Parse>();
             }
+        } else if (type == statementTypeForIn) {
+            ASSERT(!isParse || left != nullptr);
+
+            if (isParse) {
+                right = this->expression<Parse>();
+            } else {
+                this->expression<Scan>();
+            }
+        } else {
+            ASSERT(type == statementTypeForOf);
+            ASSERT(!isParse || left != nullptr);
+
+            if (isParse) {
+                right = this->assignmentExpression<Parse>();
+            } else {
+                this->assignmentExpression<Scan>();
+            }
         }
 
-        RefPtr<Node> body = nullptr;
 
         this->expect(RightParenthesis);
 
         bool previousInIteration = this->context->inIteration;
         this->context->inIteration = true;
-        auto functor = std::bind(&Parser::parseStatement, std::ref(*this), false);
-        body = this->isolateCoverGrammarWithFunctor(functor);
+        RefPtr<Node> body;
+        if (isParse) {
+            auto functor = std::bind(&Parser::parseStatement, std::ref(*this), false);
+            body = this->isolateCoverGrammarWithFunctor(functor);
+        } else {
+            auto functor = std::bind(&Parser::scanStatement, std::ref(*this), false);
+            this->scanIsolateCoverGrammarWithFunctor(functor);
+        }
         this->context->inIteration = previousInIteration;
         this->context->inLoop = prevInLoop;
 
-        if (left == nullptr) {
-            return this->finalize(node, new ForStatementNode(init.get(), test.get(), update.get(), body.get()));
-        } else {
-            if (forIn) {
-                return this->finalize(node, new ForInStatementNode(left.get(), right.get(), body.get(), false));
-            } else {
-                this->throwError("For of is not supported yet");
-                RELEASE_ASSERT_NOT_REACHED();
-                // return this->finalize(node, new Node.ForOfStatement(left, right, body));
-            }
+        if (!isParse) {
+            return T(nullptr);
         }
-        /*
-        return (typeof left === 'undefined') ?
-            this->finalize(node, new Node.ForStatement(init, test, update, body)) :
-            forIn ? this->finalize(node, new Node.ForInStatement(left, right, body)) :
-                this->finalize(node, new Node.ForOfStatement(left, right, body));
 
-        */
-    }
-
-    void scanForStatement()
-    {
-        RefPtr<Node> init;
-        RefPtr<Node> test;
-        RefPtr<Node> update;
-        bool forIn = true;
-        RefPtr<Node> left;
-        RefPtr<Node> right;
-
-        bool prevInLoop = this->context->inLoop;
-
-        this->expectKeyword(ForKeyword);
         MetaNode node = this->createNode();
-        this->expect(LeftParenthesis);
 
-        if (this->match(SemiColon)) {
-            this->nextToken();
-        } else {
-            if (this->matchKeyword(VarKeyword)) {
-                MetaNode metaInit = this->createNode();
-                this->nextToken();
-
-                bool previousAllowIn = this->context->allowIn;
-                this->context->allowIn = false;
-                DeclarationOptions opt;
-                opt.inFor = true;
-                VariableDeclaratorVector declarations = this->parseVariableDeclarationList(opt);
-                this->context->allowIn = previousAllowIn;
-
-                if (declarations.size() == 1 && this->matchKeyword(InKeyword)) {
-                    RefPtr<VariableDeclaratorNode> decl = declarations[0];
-                    // if (decl->init() && (decl.id.type === Syntax.ArrayPattern || decl.id.type === Syntax.ObjectPattern || this->context->strict)) {
-                    if (decl->init() && (decl->id()->type() == ArrayExpression || decl->id()->type() == ObjectExpression || this->context->strict)) {
-                        this->tolerateError(Messages::ForInOfLoopInitializer, new ASCIIString("for-in"));
-                    }
-                    init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
-                    this->nextToken();
-                    left = init;
-                    right = this->expression<Parse>();
-                    init = nullptr;
-                } else if (declarations.size() == 1 && declarations[0]->init() == nullptr
-                           && this->lookahead->type == Token::IdentifierToken && this->lookahead->relatedSource() == "of") {
-                    init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
-                    this->nextToken();
-                    left = init;
-                    right = this->assignmentExpression<Parse>();
-                    init = nullptr;
-                    forIn = false;
-                } else {
-                    init = this->finalize(metaInit, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
-                    this->expect(SemiColon);
-                }
-            } else if (this->matchKeyword(ConstKeyword) || this->matchKeyword(LetKeyword)) {
-                // TODO
-                this->throwUnexpectedToken(this->nextToken());
-                /*
-                init = this->createNode();
-                const kind = this->nextToken().value;
-
-                if (!this->context->strict && this->lookahead.value === 'in') {
-                    init = this->finalize(init, new Node.Identifier(kind));
-                    this->nextToken();
-                    left = init;
-                    right = this->expression<Parse>();
-                    init = null;
-                } else {
-                    const previousAllowIn = this->context->allowIn;
-                    this->context->allowIn = false;
-                    const declarations = this->parseBindingList(kind, { inFor: true });
-                    this->context->allowIn = previousAllowIn;
-
-                    if (declarations.length === 1 && declarations[0].init === null && this->matchKeyword('in')) {
-                        init = this->finalize(init, new Node.VariableDeclaration(declarations, kind));
-                        this->nextToken();
-                        left = init;
-                        right = this->expression<Parse>();
-                        init = null;
-                    } else if (declarations.length === 1 && declarations[0].init === null && this->matchContextualKeyword('of')) {
-                        init = this->finalize(init, new Node.VariableDeclaration(declarations, kind));
-                        this->nextToken();
-                        left = init;
-                        right = this->assignmentExpression<Parse>();
-                        init = null;
-                        forIn = false;
-                    } else {
-                        this->consumeSemicolon();
-                        init = this->finalize(init, new Node.VariableDeclaration(declarations, kind));
-                    }
-                }
-                */
-            } else {
-                RefPtr<Scanner::ScannerResult> initStartToken = this->lookahead;
-                bool previousAllowIn = this->context->allowIn;
-                this->context->allowIn = false;
-                init = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>);
-                this->context->allowIn = previousAllowIn;
-
-                if (this->matchKeyword(InKeyword)) {
-                    if (init->isLiteral() || init->type() == ASTNodeType::AssignmentExpression || init->type() == ASTNodeType::ThisExpression) {
-                        this->tolerateError(Messages::InvalidLHSInForIn);
-                    }
-
-                    this->nextToken();
-                    this->reinterpretExpressionAsPattern(init.get());
-                    left = init;
-                    right = this->expression<Parse>();
-                    init = nullptr;
-                } else if (this->lookahead->type == Token::IdentifierToken && this->lookahead->relatedSource() == "of") {
-                    this->throwError("for of is not supported yet");
-                    RELEASE_ASSERT_NOT_REACHED();
-                    /*
-                    if (!this->context->isAssignmentTarget || init.type === Syntax.AssignmentExpression) {
-                        this->tolerateError(Messages.InvalidLHSInForLoop);
-                    }
-
-                    this->nextToken();
-                    this->reinterpretExpressionAsPattern(init);
-                    left = init;
-                    right = this->assignmentExpression<Parse>();
-                    init = null;
-                    forIn = false;
-                    */
-                } else {
-                    if (this->match(Comma)) {
-                        ExpressionNodeVector initSeq;
-                        initSeq.push_back(init);
-                        while (this->match(Comma)) {
-                            this->nextToken();
-                            initSeq.push_back(this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>));
-                        }
-                        init = this->finalize(this->startNode(initStartToken), new SequenceExpressionNode(std::move(initSeq)));
-                    }
-                    this->expect(SemiColon);
-                }
-            }
+        if (type == statementTypeFor) {
+            return T(this->finalize(node, new ForStatementNode(init.get(), test.get(), update.get(), body.get())));
         }
 
-        if (left == nullptr) {
-            this->context->inLoop = true;
-            if (!this->match(SemiColon)) {
-                this->expression<Scan>();
-            }
-            this->expect(SemiColon);
-            if (!this->match(RightParenthesis)) {
-                this->expression<Scan>();
-            }
+        if (type == statementTypeForIn) {
+            return T(this->finalize(node, new ForInStatementNode(left.get(), right.get(), body.get(), false)));
         }
 
-        this->expect(RightParenthesis);
-
-        bool previousInIteration = this->context->inIteration;
-        this->context->inIteration = true;
-        auto functor = std::bind(&Parser::scanStatement, std::ref(*this), false);
-        this->scanIsolateCoverGrammarWithFunctor(functor);
-        this->context->inIteration = previousInIteration;
-        this->context->inLoop = prevInLoop;
-
-        if (left == nullptr) {
-        } else {
-            if (forIn) {
-            } else {
-                this->throwError("For of is not supported yet");
-                RELEASE_ASSERT_NOT_REACHED();
-            }
-        }
+        this->throwError("For of is not supported yet");
+        RELEASE_ASSERT_NOT_REACHED();
+        // return this->finalize(node, new Node.ForOfStatement(left, right, body));
     }
 
     void removeLabel(AtomicString label)
@@ -5229,10 +5071,10 @@ public:
                 statement = asStatementNode(this->parseDebuggerStatement());
                 break;
             case DoKeyword:
-                statement = asStatementNode(this->parseDoWhileStatement());
+                statement = asStatementNode(this->doWhileStatement<ParseAs(StatementNode)>());
                 break;
             case ForKeyword:
-                statement = asStatementNode(this->parseForStatement());
+                statement = asStatementNode(this->forStatement<ParseAs(StatementNode)>());
                 break;
             case FunctionKeyword: {
                 if (!allowFunctionDeclaration) {
@@ -5260,7 +5102,7 @@ public:
                 statement = asStatementNode(this->parseVariableStatement());
                 break;
             case WhileKeyword:
-                statement = asStatementNode(this->parseWhileStatement());
+                statement = asStatementNode(this->whileStatement<ParseAs(StatementNode)>());
                 break;
             case WithKeyword:
                 statement = asStatementNode(this->parseWithStatement());
@@ -5323,10 +5165,10 @@ public:
                 this->parseDebuggerStatement();
                 break;
             case DoKeyword:
-                this->scanDoWhileStatement();
+                this->doWhileStatement<ScanAsVoid>();
                 break;
             case ForKeyword:
-                this->scanForStatement();
+                this->forStatement<ScanAsVoid>();
                 break;
             case FunctionKeyword: {
                 if (!allowFunctionDeclaration) {
@@ -5354,7 +5196,7 @@ public:
                 this->scanVariableStatement();
                 break;
             case WhileKeyword:
-                this->scanWhileStatement();
+                this->whileStatement<ScanAsVoid>();
                 break;
             case WithKeyword:
                 this->parseWithStatement();
