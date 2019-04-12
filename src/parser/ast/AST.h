@@ -21,6 +21,7 @@
 #define AST_h
 
 #include "ArrayExpressionNode.h"
+#include "ArrayPatternNode.h"
 #include "ArrowFunctionExpressionNode.h"
 #include "AssignmentExpressionBitwiseAndNode.h"
 #include "AssignmentExpressionBitwiseOrNode.h"
@@ -90,9 +91,11 @@
 #include "NewExpressionNode.h"
 #include "Node.h"
 #include "ObjectExpressionNode.h"
+#include "ObjectPatternNode.h"
 #include "PatternNode.h"
 #include "ProgramNode.h"
 #include "RegExpLiteralNode.h"
+#include "RegisterReferenceNode.h"
 #include "ReturnStatmentNode.h"
 #include "SequenceExpressionNode.h"
 #include "SpreadElementNode.h"

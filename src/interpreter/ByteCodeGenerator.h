@@ -80,6 +80,7 @@ struct ByteCodeGenerateContext {
         , m_keepNumberalLiteralsInRegisterFile(numeralLiteralData)
         , m_catchScopeCount(0)
         , m_shouldGenerateLOCData(false)
+        , m_forInOfVarBinding(false)
         , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
         , m_currentLabels(new std::vector<std::pair<String*, size_t>>())
         , m_offsetToBasePointer(0)
@@ -108,6 +109,7 @@ struct ByteCodeGenerateContext {
         , m_shouldGenerateByteCodeInstantly(contextBefore.m_shouldGenerateByteCodeInstantly)
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
         , m_shouldGenerateLOCData(contextBefore.m_shouldGenerateLOCData)
+        , m_forInOfVarBinding(contextBefore.m_forInOfVarBinding)
         , m_registerStack(contextBefore.m_registerStack)
         , m_currentLabels(contextBefore.m_currentLabels)
         , m_offsetToBasePointer(contextBefore.m_offsetToBasePointer)
@@ -261,6 +263,7 @@ struct ByteCodeGenerateContext {
     bool m_inCallingExpressionScope : 1;
     bool m_isHeadOfMemberExpression : 1;
     bool m_shouldGenerateLOCData : 1;
+    bool m_forInOfVarBinding : 1;
 
     std::shared_ptr<std::vector<ByteCodeRegisterIndex>> m_registerStack;
     std::vector<size_t> m_breakStatementPositions;

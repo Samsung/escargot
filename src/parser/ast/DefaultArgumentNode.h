@@ -80,6 +80,14 @@ public:
         codeBlock->peekCode<JumpIfFalse>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
     }
 
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    {
+        // Note: This could only happen by destructuring a pattern
+        RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(m_left.get(), m_right.get()));
+        assign->m_loc = m_loc;
+        assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
+    }
+
 
 private:
     RefPtr<Node> m_left; // left: Identifier;

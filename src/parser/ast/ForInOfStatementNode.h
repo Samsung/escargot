@@ -58,8 +58,11 @@ public:
         ByteCodeGenerateContext newContext(*context);
 
         newContext.getRegister(); // ExecutionResult of m_right should not overwrite any reserved value
-        if (m_left->type() == ASTNodeType::VariableDeclaration)
+        if (m_left->type() == ASTNodeType::VariableDeclaration) {
+            newContext.m_forInOfVarBinding = true;
             m_left->generateResultNotRequiredExpressionByteCode(codeBlock, &newContext);
+            newContext.m_forInOfVarBinding = false;
+        }
 
         size_t baseCountBefore = newContext.m_registerStack->size();
         size_t rightIdx = m_right->getRegister(codeBlock, &newContext);

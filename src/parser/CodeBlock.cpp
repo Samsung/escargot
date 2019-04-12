@@ -351,7 +351,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
         m_parametersInfomation[i].m_isDuplicated = false;
     }
 
-    m_canUseIndexedVariableStorage = !hasEvalWithYield() && !m_inCatch && !m_inWith && !scopeCtx->m_hasArrowSuper;
+    m_canUseIndexedVariableStorage = !hasEvalWithYield() && !m_inCatch && !m_inWith && !scopeCtx->m_hasArrowSuper && !m_shouldReparseArguments;
     m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage;
 
     const ASTScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_names;
