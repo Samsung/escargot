@@ -28,14 +28,14 @@ namespace Escargot {
 
 size_t g_arrayObjectTag;
 
-ArrayObject::ArrayObject(ExecutionState& state)
+ArrayObject::ArrayObject(ExecutionState& state, bool hasSpreadElement)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1, true)
 {
     m_structure = state.context()->defaultStructureForArrayObject();
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(0);
     Object::setPrototype(state, state.context()->globalObject()->arrayPrototype());
 
-    if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
+    if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() || hasSpreadElement)) {
         ensureObjectRareData()->m_isFastModeArrayObject = false;
     }
 }

@@ -31,6 +31,8 @@
 #include "runtime/ErrorObject.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/VMInstance.h"
+#include "runtime/IteratorOperations.h"
+#include "runtime/SpreadObject.h"
 #include "parser/ScriptParser.h"
 #include "util/Util.h"
 #include "../third_party/checked_arithmetic/CheckedArithmetic.h"
@@ -702,7 +704,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 CreateArray* code = (CreateArray*)programCounter;
-                ArrayObject* arr = new ArrayObject(state);
+                ArrayObject* arr = new ArrayObject(state, code->m_hasSpreadElement);
                 arr->setArrayLength(state, code->m_length);
                 registerFile[code->m_registerIndex] = arr;
                 ADD_PROGRAM_COUNTER(CreateArray);
@@ -754,13 +756,42 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                         }
                     }
                 } else {
+                    size_t spreadCount = 0;
                     for (size_t i = 0; i < code->m_count; i++) {
                         if (LIKELY(code->m_loadRegisterIndexs[i] != std::numeric_limits<ByteCodeRegisterIndex>::max())) {
-                            arr->defineOwnProperty(state, ObjectPropertyName(state, Value(i + code->m_baseIndex)), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndexs[i]], ObjectPropertyDescriptor::AllPresent));
+                            const Value& element = registerFile[code->m_loadRegisterIndexs[i]];
+
+                            if (element.isObject() && element.asObject()->isSpreadObject()) {
+                                SpreadObject* spreadObj = element.asObject()->asSpreadObject();
+                                Value iterator = getIterator(state, spreadObj->spreadValue());
+
+                                while (true) {
+                                    Value next = iteratorStep(state, iterator);
+                                    if (next.isFalse()) {
+                                        spreadCount--;
+                                        break;
+                                    }
+
+                                    Value nextValue = iteratorValue(state, next);
+                                    arr->defineOwnProperty(state, ObjectPropertyName(state, Value(i + spreadCount + code->m_baseIndex)), ObjectPropertyDescriptor(nextValue, ObjectPropertyDescriptor::AllPresent));
+                                    spreadCount++;
+                                }
+                            } else {
+                                arr->defineOwnProperty(state, ObjectPropertyName(state, Value(i + spreadCount + code->m_baseIndex)), ObjectPropertyDescriptor(element, ObjectPropertyDescriptor::AllPresent));
+                            }
                         }
                     }
                 }
                 ADD_PROGRAM_COUNTER(ArrayDefineOwnPropertyOperation);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(CreateSpreadObject)
+                :
+            {
+                CreateSpreadObject* code = (CreateSpreadObject*)programCounter;
+                registerFile[code->m_registerIndex] = new SpreadObject(state, registerFile[code->m_spreadIndex]);
+                ADD_PROGRAM_COUNTER(CreateSpreadObject);
                 NEXT_INSTRUCTION();
             }
 
@@ -1140,6 +1171,31 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             {
                 ThrowStaticErrorOperation* code = (ThrowStaticErrorOperation*)programCounter;
                 ErrorObject::throwBuiltinError(state, (ErrorObject::Code)code->m_errorKind, code->m_errorMessage);
+            }
+
+            DEFINE_OPCODE(CallFunctionWithSpreadElement)
+                :
+            {
+                CallFunctionWithSpreadElement* code = (CallFunctionWithSpreadElement*)programCounter;
+                const Value& callee = registerFile[code->m_calleeIndex];
+                const Value& receiver = code->m_receiverIndex == std::numeric_limits<ByteCodeRegisterIndex>::max() ? Value() : registerFile[code->m_receiverIndex];
+                ValueVector spreadArgs;
+                spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
+                registerFile[code->m_resultIndex] = FunctionObject::call(state, callee, receiver, spreadArgs.size(), spreadArgs.data());
+                ADD_PROGRAM_COUNTER(CallFunctionWithSpreadElement);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(NewOperationWithSpreadElement)
+                :
+            {
+                NewOperationWithSpreadElement* code = (NewOperationWithSpreadElement*)programCounter;
+                const Value& callee = registerFile[code->m_calleeIndex];
+                ValueVector spreadArgs;
+                spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
+                registerFile[code->m_resultIndex] = newOperation(state, registerFile[code->m_calleeIndex], spreadArgs.size(), spreadArgs.data());
+                ADD_PROGRAM_COUNTER(NewOperationWithSpreadElement);
+                NEXT_INSTRUCTION();
             }
 
             DEFINE_OPCODE(End)
@@ -1964,12 +2020,25 @@ public:
 
 NEVER_INLINE void ByteCodeInterpreter::evalOperation(ExecutionState& state, CallEvalFunction* code, Value* registerFile, ByteCodeBlock* byteCodeBlock, ExecutionContext* ec)
 {
+    size_t argc;
+    Value* argv;
+    ValueVector spreadArgs;
+
+    if (code->m_hasSpreadElement) {
+        spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
+        argv = spreadArgs.data();
+        argc = spreadArgs.size();
+    } else {
+        argc = code->m_argumentCount;
+        argv = &registerFile[code->m_argumentsStartIndex];
+    }
+
     Value eval = registerFile[code->m_evalIndex];
     if (eval.equalsTo(state, state.context()->globalObject()->eval())) {
         // do eval
         Value arg;
-        if (code->m_argumentCount) {
-            arg = registerFile[code->m_argumentsStartIndex];
+        if (argc) {
+            arg = argv[0];
         }
         Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
         EvalCodeBlockWithFlagSetter s(byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(), code->m_inWithScope);
@@ -1989,7 +2058,7 @@ NEVER_INLINE void ByteCodeInterpreter::evalOperation(ExecutionState& state, Call
                 thisValue = env->record()->asObjectEnvironmentRecord()->bindingObject();
             }
         }
-        registerFile[code->m_resultIndex] = FunctionObject::call(state, eval, thisValue, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+        registerFile[code->m_resultIndex] = FunctionObject::call(state, eval, thisValue, argc, argv);
     }
 }
 
@@ -2064,7 +2133,35 @@ NEVER_INLINE Value ByteCodeInterpreter::callFunctionInWithScope(ExecutionState& 
         receiverObj = bindedRecord->asObjectEnvironmentRecord()->bindingObject();
     else
         receiverObj = state.context()->globalObject();
+
+    if (code->m_hasSpreadElement) {
+        ValueVector spreadArgs;
+        spreadFunctionArguments(state, argv, code->m_argumentCount, spreadArgs);
+        return FunctionObject::call(state, callee, receiverObj, spreadArgs.size(), spreadArgs.data());
+    }
     return FunctionObject::call(state, callee, receiverObj, code->m_argumentCount, argv);
+}
+
+void ByteCodeInterpreter::spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector)
+{
+    for (size_t i = 0; i < argc; i++) {
+        Value arg = argv[i];
+        if (arg.isObject() && arg.asObject()->isSpreadObject()) {
+            SpreadObject* spreadObj = arg.asObject()->asSpreadObject();
+            Value iterator = getIterator(state, spreadObj->spreadValue());
+
+            while (true) {
+                Value next = iteratorStep(state, iterator);
+                if (next.isFalse()) {
+                    break;
+                }
+
+                argVector.push_back(iteratorValue(state, next));
+            }
+        } else {
+            argVector.push_back(arg);
+        }
+    }
 }
 
 NEVER_INLINE void ByteCodeInterpreter::declareFunctionDeclarations(ExecutionState& state, DeclareFunctionDeclarations* code, LexicalEnvironment* lexicalEnvironment, Value* stackStorage)

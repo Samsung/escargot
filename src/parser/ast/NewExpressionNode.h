@@ -32,6 +32,7 @@ public:
         : ExpressionNode()
         , m_callee(callee)
         , m_arguments(arguments)
+        , m_hasSpreadElement(false)
     {
     }
 
@@ -50,6 +51,9 @@ public:
             ByteCodeRegisterIndex regs[smallAmountOfArguments];
             for (size_t i = 0; i < m_arguments.size(); i++) {
                 regs[i] = m_arguments[i]->getRegister(codeBlock, context);
+                if (m_arguments[i]->type() == ASTNodeType::SpreadElement) {
+                    m_hasSpreadElement = true;
+                }
             }
 
             bool isSorted = true;
@@ -103,7 +107,11 @@ public:
         // give up callee index
         context->giveUpRegister();
 
-        codeBlock->pushCode(NewOperation(ByteCodeLOC(m_loc.index), callee, argumentsStartIndex, m_arguments.size(), dstRegister), context, this);
+        if (m_hasSpreadElement) {
+            codeBlock->pushCode(NewOperationWithSpreadElement(ByteCodeLOC(m_loc.index), callee, argumentsStartIndex, m_arguments.size(), dstRegister), context, this);
+        } else {
+            codeBlock->pushCode(NewOperation(ByteCodeLOC(m_loc.index), callee, argumentsStartIndex, m_arguments.size(), dstRegister), context, this);
+        }
 
         codeBlock->m_shouldClearStack = true;
 
@@ -121,6 +129,7 @@ public:
 private:
     RefPtr<Node> m_callee;
     ArgumentVector m_arguments;
+    bool m_hasSpreadElement;
 };
 }
 

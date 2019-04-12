@@ -33,6 +33,7 @@ public:
         : ExpressionNode()
         , m_callee(callee)
         , m_arguments(std::move(arguments))
+        , m_hasSpreadElement(false)
     {
     }
 
@@ -54,6 +55,9 @@ public:
             ByteCodeRegisterIndex regs[smallAmountOfArguments];
             for (size_t i = 0; i < m_arguments.size(); i++) {
                 regs[i] = m_arguments[i]->getRegister(codeBlock, context);
+                if (m_arguments[i]->type() == ASTNodeType::SpreadElement) {
+                    m_hasSpreadElement = true;
+                }
             }
 
             bool isSorted = true;
@@ -141,7 +145,7 @@ public:
             codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), evalIndex, codeBlock->m_codeBlock->context()->staticStrings().eval), context, this);
             size_t startIndex = generateArguments(codeBlock, context, false);
             context->giveUpRegister();
-            codeBlock->pushCode(CallEvalFunction(ByteCodeLOC(m_loc.index), evalIndex, startIndex, m_arguments.size(), dstRegister, context->m_isWithScope), context, this);
+            codeBlock->pushCode(CallEvalFunction(ByteCodeLOC(m_loc.index), evalIndex, startIndex, m_arguments.size(), dstRegister, context->m_isWithScope, m_hasSpreadElement), context, this);
             return;
         }
 
@@ -159,7 +163,7 @@ public:
             AtomicString calleeName = m_callee->asIdentifier()->name();
             size_t startIndex = generateArguments(codeBlock, context);
             context->m_inCallingExpressionScope = prevInCallingExpressionScope;
-            codeBlock->pushCode(CallFunctionInWithScope(ByteCodeLOC(m_loc.index), calleeName, startIndex, m_arguments.size(), dstRegister), context, this);
+            codeBlock->pushCode(CallFunctionInWithScope(ByteCodeLOC(m_loc.index), calleeName, startIndex, m_arguments.size(), dstRegister, m_hasSpreadElement), context, this);
             return;
         }
 
@@ -191,7 +195,9 @@ public:
             context->giveUpRegister();
         }
 
-        if (isCalleeHasReceiver) {
+        if (m_hasSpreadElement) {
+            codeBlock->pushCode(CallFunctionWithSpreadElement(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, m_arguments.size(), dstRegister), context, this);
+        } else if (isCalleeHasReceiver) {
             codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, m_arguments.size(), dstRegister), context, this);
         } else {
             codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, m_arguments.size(), dstRegister), context, this);
@@ -213,6 +219,7 @@ public:
 private:
     RefPtr<Node> m_callee; // callee: Expression;
     ArgumentVector m_arguments; // arguments: [ Expression ];
+    bool m_hasSpreadElement;
 };
 }
 

@@ -27,11 +27,12 @@ namespace Escargot {
 class ArrayExpressionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    ArrayExpressionNode(ExpressionNodeVector&& elements, AtomicString additionalPropertyName = AtomicString(), Node* additionalPropertyExpression = nullptr)
+    ArrayExpressionNode(ExpressionNodeVector&& elements, AtomicString additionalPropertyName = AtomicString(), Node* additionalPropertyExpression = nullptr, bool hasSpreadElement = false)
         : ExpressionNode()
         , m_elements(elements)
         , m_additionalPropertyName(additionalPropertyName)
         , m_additionalPropertyExpression(additionalPropertyExpression)
+        , m_hasSpreadElement(hasSpreadElement)
     {
     }
 
@@ -44,7 +45,7 @@ public:
     {
         size_t arrayIndex = codeBlock->currentCodeSize();
         size_t arrLen = 0;
-        codeBlock->pushCode(CreateArray(ByteCodeLOC(m_loc.index), dstRegister), context, this);
+        codeBlock->pushCode(CreateArray(ByteCodeLOC(m_loc.index), dstRegister, m_hasSpreadElement), context, this);
         size_t objIndex = dstRegister;
         for (size_t i = 0; i < m_elements.size(); i += ARRAY_DEFINE_OPERATION_MERGE_COUNT) {
             size_t fillCount = 0;
@@ -97,6 +98,7 @@ private:
     ExpressionNodeVector m_elements;
     AtomicString m_additionalPropertyName;
     RefPtr<Node> m_additionalPropertyExpression;
+    bool m_hasSpreadElement;
 };
 }
 

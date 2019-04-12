@@ -24,10 +24,10 @@
 
 namespace Escargot {
 
-class SpreadElementNode : public Node {
+class SpreadElementNode : public ExpressionNode {
 public:
     explicit SpreadElementNode(Node* arg)
-        : Node()
+        : ExpressionNode()
         , m_arg(arg)
     {
     }
@@ -39,6 +39,14 @@ public:
     virtual ASTNodeType type()
     {
         return SpreadElement;
+    }
+
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    {
+        size_t spreadIndex = m_arg->getRegister(codeBlock, context);
+        m_arg->generateExpressionByteCode(codeBlock, context, spreadIndex);
+        codeBlock->pushCode(CreateSpreadObject(ByteCodeLOC(m_loc.index), dstRegister, spreadIndex), context, this);
+        context->giveUpRegister();
     }
 
 private:
