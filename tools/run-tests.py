@@ -57,7 +57,7 @@ class runner(object):
         return fn
 
 
-def run(args, cwd=None, env=None, stdout=None, checkresult=True):
+def run(args, cwd=None, env=None, stdout=None, checkresult=True, report=False):
     if cwd:
         print(COLOR_BLUE + 'cd ' + cwd + ' && \\' + COLOR_RESET)
     if env:
@@ -70,8 +70,22 @@ def run(args, cwd=None, env=None, stdout=None, checkresult=True):
         full_env.update(env)
         env = full_env
 
-    proc = Popen(args, cwd=cwd, env=env, stdout=stdout)
+    proc = Popen(args, cwd=cwd, env=env, stdout=PIPE if report else stdout)
+
+    counter = 0
+
+    while report:
+        nextline = proc.stdout.readline()
+        if nextline == '' and proc.poll() is not None:
+            break
+        stdout.write(nextline)
+        stdout.flush()
+        if counter % 250 == 0:
+            print('Ran %d tests..' % (counter))
+        counter += 1
+
     out, _ = proc.communicate()
+
     if out:
         print(out)
 
@@ -140,12 +154,26 @@ def run_test262(engine, arch):
     copy(join(TEST262_OVERRIDE_DIR, 'excludelist.orig.xml'), join(TEST262_DIR, 'test', 'config', 'excludelist.xml'))
     copy(join(TEST262_OVERRIDE_DIR, 'test262.py'), join(TEST262_DIR, 'tools', 'packaging', 'test262.py'))
 
+    out = open('test262_out', 'w')
+
     run(['python', join('tools', 'packaging', 'test262.py'),
          '--command', engine,
          '--full-summary'],
         cwd=TEST262_DIR,
-        env={'TZ': 'US/Pacific'})
+        env={'TZ': 'US/Pacific'},
+        stdout=out,
+        report=True)
 
+    out.close()
+
+    with open('test262_out', 'r') as out:
+        full = out.read()
+        summary = full.split('=== Summary ===')[1]
+        if summary.find('- All tests succeeded') < 0:
+            print(summary)
+            raise Exception('test262 failed')
+
+        print('test262: All tests passed')
 
 @runner('test262-master')
 def run_test262_master(engine, arch):
