@@ -36,7 +36,7 @@ class CodeBlock;
 class JobQueue;
 class Job;
 
-// TODO match, replace, search, split
+// TODO match, replace, split
 #define DEFINE_GLOBAL_SYMBOLS(F) \
     F(hasInstance)               \
     F(isConcatSpreadable)        \
@@ -44,7 +44,8 @@ class Job;
     F(species)                   \
     F(toPrimitive)               \
     F(toStringTag)               \
-    F(unscopables)
+    F(unscopables)               \
+    F(search)
 
 struct GlobalSymbols {
 #define DECLARE_GLOBAL_SYMBOLS(name) Symbol* name;

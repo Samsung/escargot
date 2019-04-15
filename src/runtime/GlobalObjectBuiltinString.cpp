@@ -475,8 +475,24 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
     // Let string be the result of calling ToString, giving it the this value as its argument.
     RESOLVE_THIS_BINDING_TO_STRING(string, String, search);
     Value regexp = argv[0];
-
     RegExpObject* rx;
+
+#ifdef ESCARGOT_ENABLE_ES2015
+    //http://www.ecma-international.org/ecma-262/6.0/#sec-string.prototype.search
+    RESOLVE_THIS_BINDING_TO_OBJECT(obj, Object, search);
+    if (!(regexp.isUndefinedOrNull())) {
+        Value searcher = obj->getMethod(state, regexp, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().search));
+
+        if (!searcher.isUndefined()) {
+            Value parameter[1] = { obj };
+            return FunctionObject::call(state, searcher, regexp, 1, parameter);
+        }
+    }
+    rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString : regexp.toString(state), String::emptyString);
+    Value func = rx->getMethod(state, rx, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().search));
+    Value parameter[1] = { Value(string) };
+    return func.asObject()->asFunctionObject()->call(state, rx, 1, parameter);
+#else
     if (regexp.isPointerValue() && regexp.asPointerValue()->isRegExpObject()) {
         // If Type(regexp) is Object and the value of the [[Class]] internal property of regexp is "RegExp", then let rx be regexp;
         rx = regexp.asPointerValue()->asRegExpObject();
@@ -484,7 +500,6 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
         // Else, let rx be a new RegExp object created as if by the expression new RegExp(regexp) where RegExp is the standard built-in constructor with that name.
         rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString : regexp.toString(state), String::emptyString);
     }
-
     // Search the value string from its beginning for an occurrence of the regular expression pattern rx.
     // Let result be a Number indicating the offset within string where the pattern matched, or –1 if there was no match.
     // The lastIndex and global properties of regexp are ignored when performing the search. The lastIndex property of regexp is left unchanged.
@@ -496,6 +511,7 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
     } else {
         return Value(-1);
     }
+#endif
 }
 
 static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
