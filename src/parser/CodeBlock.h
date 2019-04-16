@@ -324,6 +324,7 @@ protected:
     bool m_isBindedFunction : 1;
     bool m_needsVirtualIDOperation : 1;
     bool m_needToLoadThisValue : 1;
+    bool m_hasRestElement : 1;
     uint16_t m_parameterCount;
 
     AtomicString m_functionName;

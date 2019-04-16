@@ -112,6 +112,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_isBindedFunction(false)
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
+    , m_hasRestElement(false)
     , m_parameterCount(info.m_argumentCount)
     , m_functionName(info.m_name)
 {
@@ -149,6 +150,7 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_isBindedFunction(false)
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
+    , m_hasRestElement(false)
     , m_parameterCount(argc)
     , m_functionName(name)
     , m_nativeFunctionData(info)
@@ -204,6 +206,7 @@ CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Valu
     , m_isBindedFunction(true)
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
+    , m_hasRestElement(false)
     , m_functionName()
 {
     CodeBlock* targetCodeBlock = targetFunction->codeBlock();
@@ -271,6 +274,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isBindedFunction = false;
     m_needsVirtualIDOperation = false;
     m_needToLoadThisValue = false;
+    m_hasRestElement = scopeCtx->m_hasRestElement;
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;
 
@@ -311,7 +315,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_context = ctx;
     m_byteCodeBlock = nullptr;
     m_functionName = scopeCtx->m_functionName;
-    m_parameterCount = parameterNames.size();
+    m_parameterCount = scopeCtx->m_hasRestElement ? parameterNames.size() - 1 : parameterNames.size();
     m_isConstructor = true;
     m_hasCallNativeFunctionCode = false;
     m_isStrict = scopeCtx->m_isStrict;
@@ -336,6 +340,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isBindedFunction = false;
     m_needsVirtualIDOperation = false;
     m_needToLoadThisValue = false;
+    m_hasRestElement = scopeCtx->m_hasRestElement;
 
     m_parametersInfomation.resizeWithUninitializedValues(parameterNames.size());
     for (size_t i = 0; i < parameterNames.size(); i++) {
