@@ -1921,6 +1921,11 @@ unsigned ArrayBufferObjectRef::bytelength()
     return toImpl(this)->bytelength();
 }
 
+bool ArrayBufferObjectRef::isDetachedBuffer()
+{
+    return toImpl(this)->isDetachedBuffer();
+}
+
 ArrayBufferObjectRef* ArrayBufferViewRef::buffer()
 {
     return toRef(toImpl(this)->buffer());

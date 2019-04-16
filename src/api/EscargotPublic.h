@@ -784,6 +784,7 @@ public:
     void detachArrayBuffer();
     uint8_t* rawBuffer();
     unsigned bytelength();
+    bool isDetachedBuffer();
 };
 
 class EXPORT ArrayBufferViewRef : public ObjectRef {
