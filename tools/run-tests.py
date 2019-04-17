@@ -102,9 +102,20 @@ def run_sunspider_js(engine, arch):
 def run_octane(engine, arch):
     OCTANE_DIR = join(PROJECT_SOURCE_DIR, 'test', 'octane')
 
-    stdout = run([engine, 'run.js'],
+    stdout = run(['/usr/bin/time', '-f', '%M', '-o', 'mem.txt', engine, 'run.js'],
                  cwd=OCTANE_DIR,
                  stdout=PIPE)
+    f = open(join(OCTANE_DIR, 'mem.txt'))
+    for s in f:
+        rss = s.strip("\n")
+    mem = int(rss)
+    print('Octane maximum resident set size: ' + str(mem) + 'KB')
+
+    if arch == str('x86_64') and mem > 250000:
+        raise Exception('Exceed memory consumption')
+    if arch == str('x86') and mem > 150000:
+        raise Exception('Exceed memory consumption')
+
     if 'Score' not in stdout:
         raise Exception('no "Score" in stdout')
 
