@@ -4505,138 +4505,88 @@ public:
     }
     // ECMA-262 13.8 The continue statement
 
-    PassRefPtr<Node> parseContinueStatement()
-    {
-        this->expectKeyword(ContinueKeyword);
-        MetaNode node = this->createNode();
-
-        RefPtr<IdentifierNode> label = nullptr;
-        if (this->lookahead->type == IdentifierToken && !this->hasLineTerminator) {
-            label = this->parseVariableIdentifier();
-
-            if (!hasLabel(label->name())) {
-                this->throwError(Messages::UnknownLabel, label->name().string());
-            }
-        }
-
-        if (label) {
-            for (size_t i = 0; i < this->context->labelSet.size(); i++) {
-                if (this->context->labelSet[i].first == label->name() && this->context->labelSet[i].second == 1) {
-                    this->throwError(Messages::UnknownLabel, label->name().string());
-                }
-            }
-        }
-
-        this->consumeSemicolon();
-        if (label == nullptr && !this->context->inIteration) {
-            this->throwError(Messages::IllegalContinue);
-        }
-
-        if (label) {
-            auto string = label->name().string();
-            return this->finalize(node, new ContinueLabelStatementNode(string));
-        } else {
-            return this->finalize(node, new ContinueStatementNode());
-        }
-    }
-
-    void scanContinueStatement()
+    template <typename T, bool isParse>
+    T continueStatement()
     {
         this->expectKeyword(ContinueKeyword);
 
         AtomicString label;
         if (this->lookahead->type == IdentifierToken && !this->hasLineTerminator) {
-            label = this->scanVariableIdentifier();
+            if (isParse) {
+                RefPtr<IdentifierNode> labelNode = this->parseVariableIdentifier();
+                label = labelNode->name();
+            } else {
+                label = this->scanVariableIdentifier();
+            }
 
             if (!hasLabel(label)) {
                 this->throwError(Messages::UnknownLabel, label.string());
             }
-        }
 
-        if (label.string()->length()) {
             for (size_t i = 0; i < this->context->labelSet.size(); i++) {
                 if (this->context->labelSet[i].first == label && this->context->labelSet[i].second == 1) {
                     this->throwError(Messages::UnknownLabel, label.string());
                 }
             }
+        } else if (!this->context->inIteration) {
+            this->throwError(Messages::IllegalContinue);
         }
 
         this->consumeSemicolon();
-        if (label.string()->length() == 0 && !this->context->inIteration) {
-            this->throwError(Messages::IllegalContinue);
+
+        if (!isParse) {
+            return T(nullptr);
+        }
+
+        MetaNode node = this->createNode();
+        if (label.string()->length() != 0) {
+            return T(this->finalize(node, new ContinueLabelStatementNode(label.string())));
+        } else {
+            return T(this->finalize(node, new ContinueStatementNode()));
         }
     }
 
     // ECMA-262 13.9 The break statement
 
-    PassRefPtr<Node> parseBreakStatement()
-    {
-        this->expectKeyword(BreakKeyword);
-        MetaNode node = this->createNode();
-
-        RefPtr<IdentifierNode> label = nullptr;
-        if (this->lookahead->type == IdentifierToken && !this->hasLineTerminator) {
-            label = this->parseVariableIdentifier();
-
-            if (!hasLabel(label->name())) {
-                this->throwError(Messages::UnknownLabel, label->name().string());
-            }
-        }
-
-        this->consumeSemicolon();
-        if (label == nullptr && !this->context->inIteration && !this->context->inSwitch) {
-            this->throwError(Messages::IllegalBreak);
-        }
-
-        if (label) {
-            auto string = label->name().string();
-            return this->finalize(node, new BreakLabelStatementNode(string));
-        } else {
-            return this->finalize(node, new BreakStatementNode());
-        }
-    }
-
-    void scanBreakStatement()
+    template <typename T, bool isParse>
+    T breakStatement()
     {
         this->expectKeyword(BreakKeyword);
 
         AtomicString label;
         if (this->lookahead->type == IdentifierToken && !this->hasLineTerminator) {
-            label = this->scanVariableIdentifier();
+            if (isParse) {
+                RefPtr<IdentifierNode> labelNode = this->parseVariableIdentifier();
+                label = labelNode->name();
+            } else {
+                label = this->scanVariableIdentifier();
+            }
 
             if (!hasLabel(label)) {
                 this->throwError(Messages::UnknownLabel, label.string());
             }
+        } else if (!this->context->inIteration && !this->context->inSwitch) {
+            this->throwError(Messages::IllegalBreak);
         }
 
         this->consumeSemicolon();
-        if (label == AtomicString() && !this->context->inIteration && !this->context->inSwitch) {
-            this->throwError(Messages::IllegalBreak);
+
+        if (!isParse) {
+            return T(nullptr);
+        }
+
+        MetaNode node = this->createNode();
+        if (label.string()->length() != 0) {
+            return T(this->finalize(node, new BreakLabelStatementNode(label.string())));
+        } else {
+            return T(this->finalize(node, new BreakStatementNode()));
         }
     }
 
     // ECMA-262 13.10 The return statement
 
-    PassRefPtr<Node> parseReturnStatement()
-    {
-        if (!this->context->inFunctionBody) {
-            this->tolerateError(Messages::IllegalReturn);
-        }
-
-        this->expectKeyword(ReturnKeyword);
-        MetaNode node = this->createNode();
-
-        bool hasArgument = !this->match(SemiColon) && !this->match(RightBrace) && !this->hasLineTerminator && this->lookahead->type != EOFToken;
-        RefPtr<Node> argument = nullptr;
-        if (hasArgument) {
-            argument = this->expression<Parse>();
-        }
-        this->consumeSemicolon();
-
-        return this->finalize(node, new ReturnStatmentNode(argument.get()));
-    }
-
-    void scanReturnStatement()
+    template <typename T, bool isParse>
+    T returnStatement()
     {
         if (!this->context->inFunctionBody) {
             this->tolerateError(Messages::IllegalReturn);
@@ -4645,10 +4595,20 @@ public:
         this->expectKeyword(ReturnKeyword);
 
         bool hasArgument = !this->match(SemiColon) && !this->match(RightBrace) && !this->hasLineTerminator && this->lookahead->type != EOFToken;
+        RefPtr<Node> argument;
         if (hasArgument) {
-            this->expression<Scan>();
+            if (isParse) {
+                argument = this->expression<Parse>();
+            } else {
+                this->expression<Scan>();
+            }
         }
         this->consumeSemicolon();
+
+        if (isParse) {
+            return T(this->finalize(this->createNode(), new ReturnStatmentNode(argument.get())));
+        }
+        return T(nullptr);
     }
 
     // ECMA-262 13.11 The with statement
@@ -5089,19 +5049,19 @@ public:
         case Token::KeywordToken:
             switch (this->lookahead->valueKeywordKind) {
             case BreakKeyword:
-                statement = asStatementNode(this->parseBreakStatement());
+                statement = this->breakStatement<ParseAs(StatementNode)>();
                 break;
             case ContinueKeyword:
-                statement = asStatementNode(this->parseContinueStatement());
+                statement = this->continueStatement<ParseAs(StatementNode)>();
                 break;
             case DebuggerKeyword:
                 statement = asStatementNode(this->parseDebuggerStatement());
                 break;
             case DoKeyword:
-                statement = asStatementNode(this->doWhileStatement<ParseAs(StatementNode)>());
+                statement = this->doWhileStatement<ParseAs(StatementNode)>();
                 break;
             case ForKeyword:
-                statement = asStatementNode(this->forStatement<ParseAs(StatementNode)>());
+                statement = this->forStatement<ParseAs(StatementNode)>();
                 break;
             case FunctionKeyword: {
                 if (!allowFunctionDeclaration) {
@@ -5114,7 +5074,7 @@ public:
                 statement = this->ifStatement<ParseAs(StatementNode)>();
                 break;
             case ReturnKeyword:
-                statement = asStatementNode(this->parseReturnStatement());
+                statement = this->returnStatement<ParseAs(StatementNode)>();
                 break;
             case SwitchKeyword:
                 statement = asStatementNode(this->parseSwitchStatement());
@@ -5129,7 +5089,7 @@ public:
                 statement = asStatementNode(this->parseVariableStatement());
                 break;
             case WhileKeyword:
-                statement = asStatementNode(this->whileStatement<ParseAs(StatementNode)>());
+                statement = this->whileStatement<ParseAs(StatementNode)>();
                 break;
             case WithKeyword:
                 statement = asStatementNode(this->parseWithStatement());
@@ -5183,10 +5143,10 @@ public:
         case Token::KeywordToken:
             switch (this->lookahead->valueKeywordKind) {
             case BreakKeyword:
-                this->scanBreakStatement();
+                this->breakStatement<ScanAsVoid>();
                 break;
             case ContinueKeyword:
-                this->scanContinueStatement();
+                this->continueStatement<ScanAsVoid>();
                 break;
             case DebuggerKeyword:
                 this->parseDebuggerStatement();
@@ -5208,7 +5168,7 @@ public:
                 this->ifStatement<ScanAsVoid>();
                 break;
             case ReturnKeyword:
-                this->scanReturnStatement();
+                this->returnStatement<ScanAsVoid>();
                 break;
             case SwitchKeyword:
                 this->scanSwitchStatement();
