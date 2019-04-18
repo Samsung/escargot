@@ -4693,130 +4693,125 @@ public:
         return isDefaultNode;
     }
 
-    PassRefPtr<SwitchStatementNode> parseSwitchStatement()
+    template <typename T, bool isParse>
+    T switchStatement()
     {
         this->expectKeyword(SwitchKeyword);
-        MetaNode node = this->createNode();
 
         this->expect(LeftParenthesis);
-        RefPtr<Node> discriminant = this->expression<Parse>();
+        RefPtr<Node> discriminant;
+        if (isParse) {
+            discriminant = this->expression<Parse>();
+        } else {
+            this->expression<Scan>();
+        }
         this->expect(RightParenthesis);
 
         bool previousInSwitch = this->context->inSwitch;
         this->context->inSwitch = true;
 
-        RefPtr<StatementContainer> casesA = StatementContainer::create(), casesB = StatementContainer::create();
+        RefPtr<StatementContainer> casesA, casesB;
         RefPtr<Node> deflt;
+        if (isParse) {
+            casesA = StatementContainer::create();
+            casesB = StatementContainer::create();
+        }
+
         bool defaultFound = false;
         this->expect(LeftBrace);
         while (true) {
             if (this->match(RightBrace)) {
                 break;
             }
-            RefPtr<SwitchCaseNode> clause = this->parseSwitchCase();
-            if (clause->isDefaultNode()) {
-                if (defaultFound) {
-                    this->throwError(Messages::MultipleDefaultsInSwitch);
-                }
-                deflt = clause;
-                defaultFound = true;
-            } else {
-                if (defaultFound) {
-                    casesA->appendChild(clause);
+
+            if (isParse) {
+                RefPtr<SwitchCaseNode> clause = this->parseSwitchCase();
+                if (clause->isDefaultNode()) {
+                    if (defaultFound) {
+                        this->throwError(Messages::MultipleDefaultsInSwitch);
+                    }
+                    deflt = clause;
+                    defaultFound = true;
                 } else {
-                    casesB->appendChild(clause);
+                    if (defaultFound) {
+                        casesA->appendChild(clause);
+                    } else {
+                        casesB->appendChild(clause);
+                    }
                 }
-            }
-        }
-        this->expect(RightBrace);
-
-        this->context->inSwitch = previousInSwitch;
-
-        return this->finalize(node, new SwitchStatementNode(discriminant.get(), casesA.get(), deflt.get(), casesB.get(), false));
-    }
-
-    void scanSwitchStatement()
-    {
-        this->expectKeyword(SwitchKeyword);
-
-        this->expect(LeftParenthesis);
-        this->expression<Scan>();
-        this->expect(RightParenthesis);
-
-        bool previousInSwitch = this->context->inSwitch;
-        this->context->inSwitch = true;
-
-        bool defaultFound = false;
-        this->expect(LeftBrace);
-        while (true) {
-            if (this->match(RightBrace)) {
-                break;
-            }
-            bool isDefaultNode = this->scanSwitchCase();
-            if (isDefaultNode) {
+            } else if (this->scanSwitchCase()) {
                 if (defaultFound) {
                     this->throwError(Messages::MultipleDefaultsInSwitch);
                 }
                 defaultFound = true;
-            } else {
             }
         }
         this->expect(RightBrace);
 
         this->context->inSwitch = previousInSwitch;
+
+        if (isParse) {
+            return T(this->finalize(this->createNode(), new SwitchStatementNode(discriminant.get(), casesA.get(), deflt.get(), casesB.get(), false)));
+        }
+        return T(nullptr);
     }
 
     // ECMA-262 13.13 Labelled Statements
 
-    PassRefPtr<Node> parseLabelledStatement()
+    template <typename T, bool isParse>
+    T labelledStatement()
     {
-        RefPtr<Node> expr = this->expression<Parse>();
-        MetaNode node = this->createNode();
+        RefPtr<Node> expr;
+        AtomicString name;
+        bool isIdentifier = false;
+
+        if (isParse) {
+            expr = this->expression<Parse>();
+            if (expr->type() == Identifier) {
+                isIdentifier = true;
+                name = ((IdentifierNode*)expr.get())->name();
+            }
+        } else {
+            ScanExpressionResult result = this->expression<Scan>();
+            if (result.first == Identifier) {
+                isIdentifier = true;
+                name = result.second;
+            }
+        }
 
         StatementNode* statement;
-        if ((expr->type() == Identifier) && this->match(Colon)) {
+        if (isIdentifier && this->match(Colon)) {
             this->nextToken();
 
-            RefPtr<IdentifierNode> id = (IdentifierNode*)expr.get();
-            if (hasLabel(id->name())) {
-                this->throwError(Messages::Redeclaration, new ASCIIString("Label"), id->name().string());
+            if (hasLabel(name)) {
+                this->throwError(Messages::Redeclaration, new ASCIIString("Label"), name.string());
             }
 
-            this->context->labelSet.push_back(std::make_pair(id->name(), 0));
-            RefPtr<StatementNode> labeledBody = this->parseStatement(this->context->strict ? false : true);
-            removeLabel(id->name());
-
-            statement = new LabeledStatementNode(labeledBody.get(), id->name().string());
-        } else {
-            this->consumeSemicolon();
-            statement = new ExpressionStatementNode(expr.get());
-        }
-        return this->finalize(node, statement);
-    }
-
-    void scanLabelledStatement()
-    {
-        ScanExpressionResult expr = this->expression<Scan>();
-
-        StatementNode* statement;
-        if ((expr.first == Identifier) && this->match(Colon)) {
-            this->nextToken();
-
-            if (hasLabel(expr.second)) {
-                this->throwError(Messages::Redeclaration, new ASCIIString("Label"), expr.second.string());
+            this->context->labelSet.push_back(std::make_pair(name, 0));
+            if (isParse) {
+                RefPtr<StatementNode> labeledBody = this->parseStatement(!this->context->strict);
+                statement = new LabeledStatementNode(labeledBody.get(), name.string());
+            } else {
+                this->scanStatement(!this->context->strict);
             }
-
-            this->context->labelSet.push_back(std::make_pair(expr.second, 0));
-            this->scanStatement(this->context->strict ? false : true);
-            removeLabel(expr.second);
+            removeLabel(name);
         } else {
             this->consumeSemicolon();
+            if (isParse) {
+                statement = new ExpressionStatementNode(expr.get());
+            }
         }
+
+        if (isParse) {
+            return T(this->finalize(this->createNode(), statement));
+        }
+        return T(nullptr);
     }
 
     // ECMA-262 13.14 The throw statement
 
-    PassRefPtr<Node> parseThrowStatement()
+    template <typename T, bool isParse>
+    T throwStatement()
     {
         this->expectKeyword(ThrowKeyword);
 
@@ -4824,23 +4819,18 @@ public:
             this->throwError(Messages::NewlineAfterThrow);
         }
 
-        MetaNode node = this->createNode();
-        RefPtr<Node> argument = this->expression<Parse>();
-        this->consumeSemicolon();
-
-        return this->finalize(node, new ThrowStatementNode(argument.get()));
-    }
-
-    void scanThrowStatement()
-    {
-        this->expectKeyword(ThrowKeyword);
-
-        if (this->hasLineTerminator) {
-            this->throwError(Messages::NewlineAfterThrow);
+        RefPtr<Node> argument;
+        if (isParse) {
+            argument = this->expression<Parse>();
+        } else {
+            this->expression<Scan>();
         }
-
-        this->expression<Scan>();
         this->consumeSemicolon();
+
+        if (isParse) {
+            return T(this->finalize(this->createNode(), new ThrowStatementNode(argument.get())));
+        }
+        return T(nullptr);
     }
 
     // ECMA-262 13.15 The try statement
@@ -5043,7 +5033,7 @@ public:
             break;
         }
         case Token::IdentifierToken:
-            statement = asStatementNode(this->parseLabelledStatement());
+            statement = this->labelledStatement<ParseAs(StatementNode)>();
             break;
 
         case Token::KeywordToken:
@@ -5077,10 +5067,10 @@ public:
                 statement = this->returnStatement<ParseAs(StatementNode)>();
                 break;
             case SwitchKeyword:
-                statement = asStatementNode(this->parseSwitchStatement());
+                statement = this->switchStatement<ParseAs(StatementNode)>();
                 break;
             case ThrowKeyword:
-                statement = asStatementNode(this->parseThrowStatement());
+                statement = this->throwStatement<ParseAs(StatementNode)>();
                 break;
             case TryKeyword:
                 statement = asStatementNode(this->parseTryStatement());
@@ -5137,7 +5127,7 @@ public:
             break;
         }
         case Token::IdentifierToken:
-            this->scanLabelledStatement();
+            this->labelledStatement<ScanAsVoid>();
             break;
 
         case Token::KeywordToken:
@@ -5171,10 +5161,10 @@ public:
                 this->returnStatement<ScanAsVoid>();
                 break;
             case SwitchKeyword:
-                this->scanSwitchStatement();
+                this->switchStatement<ScanAsVoid>();
                 break;
             case ThrowKeyword:
-                this->scanThrowStatement();
+                this->throwStatement<ScanAsVoid>();
                 break;
             case TryKeyword:
                 this->scanTryStatement();
