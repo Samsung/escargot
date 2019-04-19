@@ -236,6 +236,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     : m_script(script)
     , m_src(src)
     , m_sourceElementStart(sourceElementStart)
+    , m_shouldReparseArguments(false)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
     , m_parentCodeBlock(nullptr)
@@ -293,6 +294,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
 
 InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, InterpretedCodeBlock* parentBlock)
     : m_script(script)
+    , m_paramsSrc(scopeCtx->m_hasNonIdentArgument ? StringView(src, scopeCtx->m_paramsStart.index, scopeCtx->m_locStart.index) : StringView())
     , m_src(StringView(src, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index))
     , m_sourceElementStart(sourceElementStart)
     , m_identifierOnStackCount(0)
@@ -341,6 +343,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_needsVirtualIDOperation = false;
     m_needToLoadThisValue = false;
     m_hasRestElement = scopeCtx->m_hasRestElement;
+    m_shouldReparseArguments = scopeCtx->m_hasNonIdentArgument;
 
     m_parametersInfomation.resizeWithUninitializedValues(parameterNames.size());
     for (size_t i = 0; i < parameterNames.size(); i++) {
