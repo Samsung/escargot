@@ -54,6 +54,8 @@ The following build options are supported when generating ninja rules using cmak
   Compile Escargot for either release or debug mode
 * -DESCARGOT_OUTPUT=[ bin | shared_lib | static_lib ]<br>
   Define target output type
+* -DESCARGOT_LIBICU_SUPPORT=[ ON | OFF ]<br>
+  Enable libicu library if set ON. (Optional, default = ON)
 
 ## Testing
 
