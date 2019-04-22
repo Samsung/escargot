@@ -1066,6 +1066,32 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 NEXT_INSTRUCTION();
             }
 
+            DEFINE_OPCODE(GetIterator)
+                :
+            {
+                GetIterator* code = (GetIterator*)programCounter;
+                Value obj = registerFile[code->m_objectRegisterIndex];
+                registerFile[code->m_registerIndex] = getIterator(state, obj);
+                ADD_PROGRAM_COUNTER(GetIterator);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(IteratorStep)
+                :
+            {
+                IteratorStep* code = (IteratorStep*)programCounter;
+                Value iterator = registerFile[code->m_iterRegisterIndex];
+                Value nextResult = iteratorStep(state, iterator);
+
+                if (nextResult.isFalse()) {
+                    programCounter = jumpTo(codeBuffer, code->m_forOfEndPosition);
+                } else {
+                    registerFile[code->m_registerIndex] = iteratorValue(state, nextResult);
+                    ADD_PROGRAM_COUNTER(IteratorStep);
+                }
+                NEXT_INSTRUCTION();
+            }
+
             DEFINE_OPCODE(LoadRegexp)
                 :
             {

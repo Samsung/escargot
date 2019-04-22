@@ -104,6 +104,8 @@ class Node;
     F(EnumerateObject, 1, 0)                          \
     F(EnumerateObjectKey, 1, 0)                       \
     F(CheckIfKeyIsLast, 0, 0)                         \
+    F(GetIterator, 1, 0)                              \
+    F(IteratorStep, 1, 0)                             \
     F(LoadRegexp, 1, 0)                               \
     F(WithOperation, 0, 0)                            \
     F(ObjectDefineGetter, 0, 0)                       \
@@ -1528,6 +1530,44 @@ public:
     void dump(const char* byteCodeStart)
     {
         printf("check if key is last r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class GetIterator : public ByteCode {
+public:
+    explicit GetIterator(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::GetIteratorOpcode, loc)
+    {
+        m_registerIndex = m_objectRegisterIndex = std::numeric_limits<ByteCodeRegisterIndex>::max();
+    }
+    ByteCodeRegisterIndex m_registerIndex;
+    ByteCodeRegisterIndex m_objectRegisterIndex;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("get iterator r%d r%d", (int)m_registerIndex, (int)m_objectRegisterIndex);
+    }
+#endif
+};
+
+class IteratorStep : public ByteCode {
+public:
+    explicit IteratorStep(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::IteratorStepOpcode, loc)
+    {
+        m_forOfEndPosition = SIZE_MAX;
+        m_registerIndex = m_iterRegisterIndex = std::numeric_limits<ByteCodeRegisterIndex>::max();
+    }
+    ByteCodeRegisterIndex m_registerIndex;
+    ByteCodeRegisterIndex m_iterRegisterIndex;
+    size_t m_forOfEndPosition;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("iterate step r%d r%d", (int)m_registerIndex, (int)m_iterRegisterIndex);
     }
 #endif
 };
