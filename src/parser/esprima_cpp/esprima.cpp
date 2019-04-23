@@ -4475,12 +4475,11 @@ public:
         }
 
         if (type == statementTypeForIn) {
-            return T(this->finalize(node, new ForInStatementNode(left.get(), right.get(), body.get(), false)));
+            return T(this->finalize(node, new ForInOfStatementNode(left.get(), right.get(), body.get(), true)));
         }
 
-        this->throwError("For of is not supported yet");
-        RELEASE_ASSERT_NOT_REACHED();
-        // return this->finalize(node, new Node.ForOfStatement(left, right, body));
+        ASSERT(type == statementTypeForOf);
+        return T(this->finalize(node, new ForInOfStatementNode(left.get(), right.get(), body.get(), false)));
     }
 
     void removeLabel(AtomicString label)
