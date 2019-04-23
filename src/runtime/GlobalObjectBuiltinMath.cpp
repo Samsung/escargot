@@ -380,8 +380,8 @@ static Value builtinMathLog2(ExecutionState& state, Value thisValue, size_t argc
 
 static Value builtinMathRandom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    double rand = (double)std::rand() / RAND_MAX;
-    return Value(rand);
+    std::uniform_real_distribution<double> distribution;
+    return Value(distribution(state.context()->vmInstance()->randEngine()));
 }
 
 static Value builtinMathExp(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
