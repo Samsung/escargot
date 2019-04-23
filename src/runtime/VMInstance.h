@@ -206,6 +206,11 @@ public:
         return m_compiledByteCodeSize;
     }
 
+    std::mt19937& randEngine()
+    {
+        return m_randEngine;
+    }
+
 private:
     StaticStrings m_staticStrings;
     AtomicStringMap m_atomicStringMap;
@@ -215,6 +220,8 @@ private:
     std::unordered_map<void*, size_t, std::hash<void*>, std::equal_to<void*>,
                        GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<void* const, size_t>>>
         m_rootSet;
+
+    std::mt19937 m_randEngine;
 
     // this flag should affect VM-wide array object
     bool m_didSomePrototypeObjectDefineIndexedProperty;

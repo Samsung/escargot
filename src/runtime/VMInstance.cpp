@@ -163,7 +163,8 @@ static ObjectPropertyNativeGetterSetterData regexpLastIndexGetterSetterData(
     true, false, false, &VMInstance::regexpLastIndexNativeGetter, &VMInstance::regexpLastIndexNativeSetter);
 
 VMInstance::VMInstance(const char* locale, const char* timezone)
-    : m_didSomePrototypeObjectDefineIndexedProperty(false)
+    : m_randEngine((unsigned int)time(NULL))
+    , m_didSomePrototypeObjectDefineIndexedProperty(false)
     , m_compiledByteCodeSize(0)
     , m_cachedUTC(nullptr)
 {

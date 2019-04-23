@@ -163,6 +163,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <random>
 
 #ifdef ENABLE_ICU
 #include <unicode/locid.h>
