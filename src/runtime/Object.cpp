@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "Object.h"
+#include "ObjectStructure.h"
 #include "ExecutionContext.h"
 #include "Context.h"
 #include "VMInstance.h"
@@ -714,9 +715,10 @@ bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& 
 
 void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
-    size_t cnt = m_structure->propertyCount();
+    ObjectStructure structure(*m_structure);
+    size_t cnt = structure.propertyCount();
     for (size_t i = 0; i < cnt; i++) {
-        const ObjectStructureItem& item = m_structure->readProperty(state, i);
+        const ObjectStructureItem& item = structure.readProperty(state, i);
         if (shouldSkipSymbolKey && item.m_propertyName.isSymbol()) {
             continue;
         }
