@@ -299,6 +299,8 @@ public:
         return nullptr;
     }
 
+    size_t advanceStringIndex(size_t index, bool unicode);
+
 private:
     size_t m_tag;
 

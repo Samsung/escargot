@@ -78,7 +78,7 @@ var a = ['hasInstance',
          // 'replace',
          'search',
          'species',
-         // 'split',
+         'split',
          'toPrimitive',
          'toStringTag',
          /* 'unscopables' */];

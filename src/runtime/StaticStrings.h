@@ -452,6 +452,7 @@ public:
     AtomicString getSymbolSpecies;
     AtomicString getSymbolSearch;
     AtomicString getSymbolToStringTag;
+    AtomicString symbolSplit;
     AtomicString $Ampersand;
     AtomicString $PlusSign;
     AtomicString $GraveAccent;

@@ -733,6 +733,37 @@ String* String::substring(size_t from, size_t to)
     return builder.finalize();
 }
 
+// https://www.ecma-international.org/ecma-262/6.0/#sec-advancestringindex
+size_t String::advanceStringIndex(size_t index, bool unicode)
+{
+    ASSERT(isString());
+    ASSERT(int64_t(index) >= 0 && index <= (1ULL << 53) - 1);
+    // If unicode is false, return index + 1.
+    if (!unicode) {
+        return index + 1;
+    }
+    // Let length be the number of code units in S.
+    size_t length = this->length();
+    // If index + 1 >= legnth, return index + 1.
+    if (index + 1 >= length) {
+        return index + 1;
+    }
+
+    // Let first be the code unit value at index `index` in S.
+    char16_t first = this->charAt(index);
+    // If first < 0xD800 or first > 0xDBFF, return index + 1.
+    if (first < 0xD800 || first > 0xDBFF) {
+        return index + 1;
+    }
+    // Let second be the code unit value at index `index + 1` in S.
+    char16_t second = this->charAt(index + 1);
+    // If second < 0xDC00 or second > 0xDFFF, return index + 1.
+    if (second < 0xDC00 || second > 0xDFFF) {
+        return index + 1;
+    }
+    // Return index + 2.
+    return index + 2;
+}
 
 void* ASCIIString::operator new(size_t size)
 {
