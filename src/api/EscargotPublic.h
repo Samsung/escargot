@@ -494,8 +494,10 @@ public:
     bool defineAccessorProperty(ExecutionStateRef* state, ValueRef* propertyName, const AccessorPropertyDescriptor& desc);
 
     struct NativeDataAccessorPropertyData;
-    typedef ValueRef* (*NativeDataAccessorPropertyGetter)(ExecutionStateRef* state, ObjectRef* self, NativeDataAccessorPropertyData* data);
-    typedef bool (*NativeDataAccessorPropertySetter)(ExecutionStateRef* state, ObjectRef* self, NativeDataAccessorPropertyData* data, ValueRef* setterInputData);
+    typedef std::function<ValueRef*(ExecutionStateRef* state, ObjectRef* self, NativeDataAccessorPropertyData* data)> NativeDataAccessorPropertyGetter;
+    typedef std::function<bool(ExecutionStateRef* state, ObjectRef* self, NativeDataAccessorPropertyData* data, ValueRef* setterInputData)> NativeDataAccessorPropertySetter;
+
+
     // client extend this struct to give data for getter, setter if needs
     // this struct must allocated in gc-heap
     // only setter can be null
@@ -614,7 +616,7 @@ public:
 
 class EXPORT FunctionObjectRef : public ObjectRef {
 public:
-    typedef ValueRef* (*NativeFunctionPointer)(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isNewExpression);
+    typedef std::function<ValueRef*(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isNewExpression)> NativeFunctionPointer;
     typedef ObjectRef* (*NativeFunctionConstructor)(ExecutionStateRef* state, size_t argc, ValueRef** argv);
 
     struct NativeFunctionInfo {
