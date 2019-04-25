@@ -4834,65 +4834,8 @@ public:
 
     // ECMA-262 13.15 The try statement
 
-    PassRefPtr<CatchClauseNode> parseCatchClause()
-    {
-        this->expectKeyword(CatchKeyword);
-
-        MetaNode node = this->createNode();
-
-        this->expect(LeftParenthesis);
-        if (this->match(RightParenthesis)) {
-            this->throwUnexpectedToken(this->lookahead);
-        }
-
-        bool prevInCatch = this->context->inCatch;
-        this->context->inCatch = true;
-
-        std::vector<FunctionDeclarationNode*> vecBefore = std::move(this->context->functionDeclarationsInDirectCatchScope);
-        bool prevInDirectCatchScope = this->context->inDirectCatchScope;
-        this->context->inDirectCatchScope = true;
-
-        std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> params;
-        RefPtr<Node> param = this->pattern<Parse>(params);
-
-        std::vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> paramMap;
-        for (size_t i = 0; i < params.size(); i++) {
-            bool has = false;
-            for (size_t j = 0; j < paramMap.size(); j++) {
-                StringView sv = params[i]->valueStringLiteral();
-                if (paramMap[j]->equals(&sv)) {
-                    has = true;
-                }
-            }
-            if (has) {
-                this->tolerateError(Messages::DuplicateBinding, new StringView(params[i]->relatedSource()));
-            } else {
-                paramMap.push_back(new StringView(params[i]->relatedSource()));
-            }
-        }
-
-        if (this->context->strict && param->type() == Identifier) {
-            IdentifierNode* id = (IdentifierNode*)param.get();
-            if (this->scanner->isRestrictedWord(id->name())) {
-                this->tolerateError(Messages::StrictCatchVariable);
-            }
-        }
-
-        this->expect(RightParenthesis);
-        RefPtr<Node> body = this->block<Parse>();
-
-        this->context->inCatch = prevInCatch;
-
-        this->context->inDirectCatchScope = prevInDirectCatchScope;
-
-        std::vector<FunctionDeclarationNode*> vec = std::move(this->context->functionDeclarationsInDirectCatchScope);
-
-        this->context->functionDeclarationsInDirectCatchScope = std::move(vecBefore);
-
-        return this->finalize(node, new CatchClauseNode(param.get(), nullptr, body.get(), vec));
-    }
-
-    void scanCatchClause()
+    template <typename T, bool isParse>
+    T catchClause()
     {
         this->expectKeyword(CatchKeyword);
 
@@ -4913,18 +4856,14 @@ public:
 
         std::vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> paramMap;
         for (size_t i = 0; i < params.size(); i++) {
-            bool has = false;
             for (size_t j = 0; j < paramMap.size(); j++) {
                 StringView sv = params[i]->valueStringLiteral();
                 if (paramMap[j]->equals(&sv)) {
-                    has = true;
+                    this->throwError(Messages::DuplicateBinding, new StringView(params[i]->relatedSource()));
                 }
             }
-            if (has) {
-                this->tolerateError(Messages::DuplicateBinding, new StringView(params[i]->relatedSource()));
-            } else {
-                paramMap.push_back(new StringView(params[i]->relatedSource()));
-            }
+
+            paramMap.push_back(new StringView(params[i]->relatedSource()));
         }
 
         if (this->context->strict && param->type() == Identifier) {
@@ -4935,7 +4874,12 @@ public:
         }
 
         this->expect(RightParenthesis);
-        this->block<ScanAsVoid>();
+        RefPtr<Node> body;
+        if (isParse) {
+            body = this->block<Parse>();
+        } else {
+            this->block<ScanAsVoid>();
+        }
 
         this->context->inCatch = prevInCatch;
 
@@ -4944,36 +4888,44 @@ public:
         std::vector<FunctionDeclarationNode*> vec = std::move(this->context->functionDeclarationsInDirectCatchScope);
 
         this->context->functionDeclarationsInDirectCatchScope = std::move(vecBefore);
+
+        if (isParse) {
+            return T(this->finalize(this->createNode(), new CatchClauseNode(param.get(), nullptr, body.get(), vec)));
+        }
 
         scopeContexts.back()->m_hasCatch = true;
+        return T(nullptr);
     }
 
-    PassRefPtr<BlockStatementNode> parseFinallyClause()
+    template <typename T, bool isParse>
+    T finallyClause()
     {
         this->expectKeyword(FinallyKeyword);
-        return this->block<ParseAs(BlockStatementNode)>();
-    }
-
-    void scanFinallyClause()
-    {
-        this->expectKeyword(FinallyKeyword);
-        this->block<ScanAsVoid>();
+        if (isParse) {
+            return T(this->block<ParseAs(BlockStatementNode)>());
+        }
+        return T(nullptr);
     }
 
     PassRefPtr<TryStatementNode> parseTryStatement()
     {
         this->expectKeyword(TryKeyword);
-        MetaNode node = this->createNode();
 
         RefPtr<BlockStatementNode> block = this->block<ParseAs(BlockStatementNode)>();
-        RefPtr<CatchClauseNode> handler = this->matchKeyword(CatchKeyword) ? this->parseCatchClause() : nullptr;
-        RefPtr<BlockStatementNode> finalizer = this->matchKeyword(FinallyKeyword) ? this->parseFinallyClause() : nullptr;
+        RefPtr<CatchClauseNode> handler;
+        if (this->matchKeyword(CatchKeyword)) {
+            handler = this->catchClause<ParseAs(CatchClauseNode)>();
+        }
+        RefPtr<BlockStatementNode> finalizer;
+        if (this->matchKeyword(FinallyKeyword)) {
+            finalizer = this->finallyClause<ParseAs(BlockStatementNode)>();
+        }
 
         if (!handler && !finalizer) {
             this->throwError(Messages::NoCatchOrFinally);
         }
 
-        return this->finalize(node, new TryStatementNode(block.get(), handler.get(), CatchClauseNodeVector(), finalizer.get()));
+        return this->finalize(this->createNode(), new TryStatementNode(block.get(), handler.get(), CatchClauseNodeVector(), finalizer.get()));
     }
 
     void scanTryStatement()
@@ -4981,8 +4933,14 @@ public:
         this->expectKeyword(TryKeyword);
 
         this->block<ScanAsVoid>();
-        bool meetHandler = this->matchKeyword(CatchKeyword) ? (this->scanCatchClause(), true) : false;
-        bool meetFinalizer = this->matchKeyword(FinallyKeyword) ? (this->scanFinallyClause(), true) : false;
+        bool meetHandler = this->matchKeyword(CatchKeyword);
+        if (meetHandler) {
+            this->catchClause<ScanAsVoid>();
+        }
+        bool meetFinalizer = this->matchKeyword(FinallyKeyword);
+        if (meetFinalizer) {
+            this->finallyClause<ScanAsVoid>();
+        }
 
         if (!meetHandler && !meetFinalizer) {
             this->throwError(Messages::NoCatchOrFinally);
