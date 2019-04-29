@@ -220,6 +220,7 @@ public:
     bool trackUsingNames;
     AtomicString lastUsingName;
     size_t stackLimit;
+    AtomicString lastScanIdentifierName;
 
     class ScanExpressionResult;
 
@@ -240,22 +241,19 @@ public:
 
     class ScanExpressionResult {
     public:
-        ScanExpressionResult(ASTNodeType first, AtomicString second)
+        ScanExpressionResult(ASTNodeType first)
             : first(first)
-            , second(second)
         {
         }
 
         ScanExpressionResult()
             : first(ASTNodeTypeError)
-            , second(AtomicString())
         {
         }
 
         template <typename T>
         ScanExpressionResult(PassRefPtr<T>)
             : first(ASTNodeTypeError)
-            , second(AtomicString())
         {
         }
 
@@ -265,13 +263,7 @@ public:
             return PassNode<T>(nullptr);
         }
 
-        operator std::pair<ASTNodeType, AtomicString>()
-        {
-            return std::pair<ASTNodeType, AtomicString>(first, second);
-        }
-
         ASTNodeType first;
-        AtomicString second;
     };
 
 
@@ -963,25 +955,24 @@ public:
 
     ScanExpressionResult finishScanIdentifier(PassRefPtr<Scanner::ScannerResult> token, bool isScopeVariableName)
     {
-        AtomicString name;
         StringView sv = token->valueStringLiteral();
         const auto& a = sv.bufferAccessData();
         char16_t firstCh = a.charAt(0);
         if (a.length == 1 && firstCh < ESCARGOT_ASCII_TABLE_MAX) {
-            name = this->escargotContext->staticStrings().asciiTable[firstCh];
+            lastScanIdentifierName = this->escargotContext->staticStrings().asciiTable[firstCh];
         } else {
             if (!token->plain) {
-                name = AtomicString(this->escargotContext, sv.string());
+                lastScanIdentifierName = AtomicString(this->escargotContext, sv.string());
             } else {
-                name = AtomicString(this->escargotContext, SourceStringView(sv));
+                lastScanIdentifierName = AtomicString(this->escargotContext, SourceStringView(sv));
             }
         }
 
         if (trackUsingNames) {
-            insertUsingName(name);
+            insertUsingName(lastScanIdentifierName);
         }
 
-        return ScanExpressionResult(ASTNodeType::Identifier, name);
+        return ScanExpressionResult(ASTNodeType::Identifier);
     }
 
 #define DEFINE_AS_NODE(TypeName)                                 \
@@ -1032,7 +1023,7 @@ public:
                     if (isParse) {
                         return T(this->finalize(node, new LiteralNode(Value(token->valueNumber))));
                     }
-                    return ScanExpressionResult(ASTNodeType::Literal, AtomicString());
+                    return ScanExpressionResult(ASTNodeType::Literal);
                 } else {
                     if (isParse) {
                         if (shouldCreateAST()) {
@@ -1040,7 +1031,7 @@ public:
                         }
                         return T(this->finalize(node, new LiteralNode(Value(String::emptyString))));
                     }
-                    return ScanExpressionResult(ASTNodeType::Literal, AtomicString());
+                    return ScanExpressionResult(ASTNodeType::Literal);
                 }
             }
             break;
@@ -1057,7 +1048,7 @@ public:
                 if (isParse) {
                     return T(this->finalize(node, new LiteralNode(Value(value))));
                 }
-                return ScanExpressionResult(ASTNodeType::Literal, AtomicString());
+                return ScanExpressionResult(ASTNodeType::Literal);
             }
             break;
         }
@@ -1072,14 +1063,14 @@ public:
             if (isParse) {
                 return T(this->finalize(node, new LiteralNode(Value(Value::Null))));
             }
-            return ScanExpressionResult(ASTNodeType::Literal, AtomicString());
+            return ScanExpressionResult(ASTNodeType::Literal);
         }
         case Token::TemplateToken:
             if (isParse) {
                 return T(this->parseTemplateLiteral());
             }
             this->parseTemplateLiteral();
-            return ScanExpressionResult(ASTNodeType::TemplateLiteral, AtomicString());
+            return ScanExpressionResult(ASTNodeType::TemplateLiteral);
 
         case Token::PunctuatorToken: {
             PunctuatorKind value = this->lookahead->valuePunctuatorKind;
@@ -1095,13 +1086,13 @@ public:
                     return T(this->inheritCoverGrammar(&Parser::arrayInitializer<Parse>));
                 }
                 this->scanInheritCoverGrammar(&Parser::arrayInitializer<Scan>);
-                return ScanExpressionResult(ASTNodeType::ArrayExpression, AtomicString());
+                return ScanExpressionResult(ASTNodeType::ArrayExpression);
             case LeftBrace:
                 if (isParse) {
                     return T(this->inheritCoverGrammar(&Parser::objectInitializer<Parse>));
                 }
                 this->scanInheritCoverGrammar(&Parser::objectInitializer<Scan>);
-                return ScanExpressionResult(ASTNodeType::ObjectExpression, AtomicString());
+                return ScanExpressionResult(ASTNodeType::ObjectExpression);
             case Divide:
             case DivideEqual: {
                 this->context->isAssignmentTarget = false;
@@ -1113,7 +1104,7 @@ public:
                     return T(this->finalize(node, new RegExpLiteralNode(token->valueRegexp.body, token->valueRegexp.flags)));
                 }
                 this->finalize(node, new RegExpLiteralNode(token->valueRegexp.body, token->valueRegexp.flags));
-                return ScanExpressionResult(ASTNodeType::Literal, AtomicString());
+                return ScanExpressionResult(ASTNodeType::Literal);
             }
             default:
                 this->throwUnexpectedToken(this->nextToken());
@@ -1137,7 +1128,7 @@ public:
                         return T(this->parseFunctionExpression());
                     }
                     this->parseFunctionExpression();
-                    return ScanExpressionResult(ASTNodeType::FunctionExpression, AtomicString());
+                    return ScanExpressionResult(ASTNodeType::FunctionExpression);
                 } else if (this->matchKeyword(ThisKeyword)) {
                     if (this->context->inArrowFunction) {
                         insertUsingName(this->escargotContext->staticStrings().stringThis);
@@ -1146,13 +1137,13 @@ public:
                     if (isParse) {
                         return T(this->finalize(node, new ThisExpressionNode()));
                     }
-                    return ScanExpressionResult(ASTNodeType::ThisExpression, AtomicString());
+                    return ScanExpressionResult(ASTNodeType::ThisExpression);
                 } else if (this->matchKeyword(ClassKeyword)) {
                     if (isParse) {
                         return T(this->parseClassExpression());
                     }
                     this->parseClassExpression();
-                    return ScanExpressionResult(ASTNodeType::ASTNodeTypeError, AtomicString());
+                    return ScanExpressionResult(ASTNodeType::ASTNodeTypeError);
                 } else {
                     this->throwUnexpectedToken(this->nextToken());
                 }
@@ -1264,7 +1255,9 @@ public:
             if (isParse) {
                 return T(this->parseVariableIdentifier(kind));
             }
-            return ScanExpressionResult(ASTNodeType::Identifier, this->scanVariableIdentifier(kind));
+
+            this->scanVariableIdentifier(kind);
+            return ScanExpressionResult(ASTNodeType::Identifier);
         }
     }
 
@@ -1379,7 +1372,7 @@ public:
         if (isParse) {
             return T(this->finalize(node, new SpreadElementNode(arg.get())));
         }
-        return ScanExpressionResult(ASTNodeType::SpreadElement, AtomicString());
+        return ScanExpressionResult(ASTNodeType::SpreadElement);
     }
 
     template <typename T, bool isParse>
@@ -1429,7 +1422,7 @@ public:
             MetaNode node = this->createNode();
             return T(this->finalize(node, new ArrayExpressionNode(std::move(elements), AtomicString(), nullptr, hasSpreadElement)));
         }
-        return ScanExpressionResult(ASTNodeType::ArrayExpression, AtomicString());
+        return ScanExpressionResult(ASTNodeType::ArrayExpression);
     }
 
     // ECMA-262 12.2.6 Object Initializer
@@ -1527,14 +1520,14 @@ public:
         return key;
     }
 
-    std::pair<ScanExpressionResult, String*> scanObjectPropertyKey()
+    std::pair<ScanExpressionResult, bool> scanObjectPropertyKey()
     {
         RefPtr<Scanner::ScannerResult> token = this->nextToken();
-        ScanExpressionResult key(ASTNodeType::ASTNodeTypeError, AtomicString());
-        String* keyString = String::emptyString;
+        ScanExpressionResult key(ASTNodeType::ASTNodeTypeError);
+        bool isProto = false;
+
         switch (token->type) {
         case Token::NumericLiteralToken:
-        case Token::StringLiteralToken:
             if (this->context->strict && token->octal) {
                 this->throwUnexpectedToken(token, Messages::StrictOctalLiteral);
             }
@@ -1542,15 +1535,13 @@ public:
                 this->throwUnexpectedToken(this->lookahead, Messages::StrictLeadingZeroLiteral);
             }
             // const raw = this->getTokenRaw(token);
-            {
-                if (token->type == Token::NumericLiteralToken) {
-                    if (this->context->inLoop || token->valueNumber == 0)
-                        this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
-                } else {
-                    keyString = token->valueStringLiteralForAST().asString();
-                }
-                key.first = Literal;
-            }
+            if (this->context->inLoop || token->valueNumber == 0)
+                this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
+            key.first = Literal;
+            break;
+        case Token::StringLiteralToken:
+            isProto = (token->valueStringLiteral() == "__proto__");
+            key.first = Literal;
             break;
 
         case Token::IdentifierToken:
@@ -1576,7 +1567,7 @@ public:
             this->throwUnexpectedToken(token);
         }
 
-        return std::make_pair(key, keyString);
+        return std::make_pair(key, isProto);
     }
 
     bool qualifiedPropertyName(RefPtr<Scanner::ScannerResult> token)
@@ -1620,19 +1611,20 @@ public:
         RefPtr<Node> keyNode; //'': Node.PropertyKey;
         RefPtr<Node> valueNode; //: Node.PropertyValue;
         ScanExpressionResult key;
-        String* keyString = String::emptyString;
+        AtomicString scanIdentifierName;
 
         bool computed = false;
         bool method = false;
         bool shorthand = false;
+        bool isProto = false;
 
         if (token->type == Token::IdentifierToken) {
             this->nextToken();
-            MetaNode node = this->createNode();
             if (isParse) {
-                keyNode = this->finalize(node, finishIdentifier(token, true));
+                keyNode = this->finalize(this->createNode(), finishIdentifier(token, true));
             } else {
                 key = finishScanIdentifier(token, true);
+                scanIdentifierName = lastScanIdentifierName;
             }
         } else if (this->match(PunctuatorKind::Multiply)) {
             this->nextToken();
@@ -1643,14 +1635,14 @@ public:
             } else {
                 auto keyValue = this->scanObjectPropertyKey();
                 key = keyValue.first;
-                keyString = keyValue.second;
+                isProto = keyValue.second;
+                scanIdentifierName = lastScanIdentifierName;
             }
         }
 
         bool lookaheadPropertyKey = this->qualifiedPropertyName(this->lookahead);
         bool isGet = false;
         bool isSet = false;
-        bool isGenerator = false;
 
         if (token->type == Token::IdentifierToken && lookaheadPropertyKey) {
             StringView sv = token->valueStringLiteral();
@@ -1674,7 +1666,8 @@ public:
             } else {
                 auto keyValue = this->scanObjectPropertyKey();
                 key = keyValue.first;
-                keyString = keyValue.second;
+                isProto = keyValue.second;
+                scanIdentifierName = lastScanIdentifierName;
                 this->context->allowYield = false;
                 this->parseGetterMethod();
             }
@@ -1687,7 +1680,8 @@ public:
             } else {
                 auto keyValue = this->scanObjectPropertyKey();
                 key = keyValue.first;
-                keyString = keyValue.second;
+                isProto = keyValue.second;
+                scanIdentifierName = lastScanIdentifierName;
                 this->parseSetterMethod();
             }
         } else if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::Multiply && lookaheadPropertyKey) {
@@ -1699,6 +1693,7 @@ public:
             } else {
                 auto keyValue = this->scanObjectPropertyKey();
                 key = keyValue.first;
+                scanIdentifierName = lastScanIdentifierName;
                 this->parseGeneratorMethod();
             }
             method = true;
@@ -1714,12 +1709,10 @@ public:
             }
             kind = PropertyNode::Kind::Init;
             if (this->match(PunctuatorKind::Colon)) {
-                bool isProto;
                 if (isParse) {
                     isProto = !this->config.parseSingleFunction && this->isPropertyKey(keyNode.get(), "__proto__");
                 } else {
-                    isProto = (key.first == ASTNodeType::Identifier && key.second == this->escargotContext->staticStrings().__proto__)
-                        || (key.first == ASTNodeType::Literal && keyString->equals("__proto__"));
+                    isProto |= (key.first == ASTNodeType::Identifier && scanIdentifierName == this->escargotContext->staticStrings().__proto__);
                 }
 
                 if (!computed && isProto) {
@@ -1770,7 +1763,7 @@ public:
         }
 
         if (!this->config.parseSingleFunction && (isParse ? keyNode->isIdentifier() : key.first == ASTNodeType::Identifier)) {
-            AtomicString as = isParse ? keyNode->asIdentifier()->name() : key.second;
+            AtomicString as = isParse ? keyNode->asIdentifier()->name() : scanIdentifierName;
             bool seenInit = kind == PropertyNode::Kind::Init;
             bool seenGet = kind == PropertyNode::Kind::Get;
             bool seenSet = kind == PropertyNode::Kind::Set;
@@ -1836,7 +1829,7 @@ public:
         if (isParse) {
             return T(this->finalize(node, new ObjectExpressionNode(std::move(properties))));
         }
-        return ScanExpressionResult(ASTNodeType::ObjectExpression, AtomicString());
+        return ScanExpressionResult(ASTNodeType::ObjectExpression);
     }
 
     // ECMA-262 12.2.9 Template Literals
@@ -2109,7 +2102,7 @@ public:
             if (isParse) {
                 return T(this->finalize(this->startNode(this->lookahead), new ArrowParameterPlaceHolderNode()));
             }
-            return ScanExpressionResult(ASTNodeType::ArrowParameterPlaceHolder, AtomicString());
+            return ScanExpressionResult(ASTNodeType::ArrowParameterPlaceHolder);
         }
 
         RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
@@ -2318,7 +2311,7 @@ public:
         if (this->match(LeftParenthesis)) {
             this->scanArguments();
         }
-        ScanExpressionResult expr(ASTNodeType::NewExpression, AtomicString());
+        ScanExpressionResult expr(ASTNodeType::NewExpression);
         this->context->isAssignmentTarget = false;
         this->context->isBindingElement = false;
         return expr;
@@ -2420,7 +2413,7 @@ public:
 
     void testCalleeExpressionInScan(ScanExpressionResult callee)
     {
-        if (callee.first == ASTNodeType::Identifier && callee.second == escargotContext->staticStrings().eval) {
+        if (callee.first == ASTNodeType::Identifier && lastScanIdentifierName == escargotContext->staticStrings().eval) {
             scopeContexts.back()->m_hasEval = true;
             if (this->context->inArrowFunction) {
                 insertUsingName(this->escargotContext->staticStrings().stringThis);
@@ -2444,7 +2437,7 @@ public:
             // return this->finalize(node, new Node.Super());
             return PassNode<Node>(nullptr);
         }
-        return ScanExpressionResult(ASTNodeType::ASTNodeTypeError, AtomicString());
+        return ScanExpressionResult(ASTNodeType::ASTNodeTypeError);
     }
 
     template <typename T, bool isParse>
@@ -2578,7 +2571,7 @@ public:
                 if (expr.first == ASTNodeType::Literal || expr.first == ASTNodeType::ThisExpression) {
                     this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
                 }
-                if (this->context->strict && expr.first == ASTNodeType::Identifier && this->scanner->isRestrictedWord(expr.second)) {
+                if (this->context->strict && expr.first == ASTNodeType::Identifier && this->scanner->isRestrictedWord(lastScanIdentifierName)) {
                     this->throwError(Messages::StrictLHSPrefix);
                 }
             }
@@ -2596,9 +2589,9 @@ public:
                 }
             } else {
                 if (isPlus) {
-                    expr = ScanExpressionResult(ASTNodeType::UpdateExpressionIncrementPrefix, AtomicString());
+                    expr = ScanExpressionResult(ASTNodeType::UpdateExpressionIncrementPrefix);
                 } else {
-                    expr = ScanExpressionResult(ASTNodeType::UpdateExpressionDecrementPrefix, AtomicString());
+                    expr = ScanExpressionResult(ASTNodeType::UpdateExpressionDecrementPrefix);
                 }
             }
             this->context->isAssignmentTarget = false;
@@ -2614,7 +2607,7 @@ public:
                 if (isParse && this->context->strict && exprNode->isIdentifier() && this->scanner->isRestrictedWord(((IdentifierNode*)exprNode.get())->name())) {
                     this->throwError(Messages::StrictLHSPostfix);
                 }
-                if (!isParse && this->context->strict && expr.first == ASTNodeType::Identifier && this->scanner->isRestrictedWord(expr.second)) {
+                if (!isParse && this->context->strict && expr.first == ASTNodeType::Identifier && this->scanner->isRestrictedWord(lastScanIdentifierName)) {
                     this->throwError(Messages::StrictLHSPostfix);
                 }
                 if (!this->context->isAssignmentTarget && this->context->strict) {
@@ -2640,9 +2633,9 @@ public:
                     }
 
                     if (isPlus) {
-                        expr = ScanExpressionResult(ASTNodeType::UpdateExpressionIncrementPostfix, AtomicString());
+                        expr = ScanExpressionResult(ASTNodeType::UpdateExpressionIncrementPostfix);
                     } else {
-                        expr = ScanExpressionResult(ASTNodeType::UpdateExpressionDecrementPostfix, AtomicString());
+                        expr = ScanExpressionResult(ASTNodeType::UpdateExpressionDecrementPostfix);
                     }
                 }
             }
@@ -2677,7 +2670,7 @@ public:
                 if (isParse) {
                     return exprNode.release();
                 }
-                return ScanExpressionResult(ASTNodeType::UnaryExpressionPlus, AtomicString());
+                return ScanExpressionResult(ASTNodeType::UnaryExpressionPlus);
             } else if (punctuatorsKind == Minus) {
                 this->nextToken();
                 if (isParse) {
@@ -2692,7 +2685,7 @@ public:
                 if (isParse) {
                     return exprNode.release();
                 }
-                return ScanExpressionResult(ASTNodeType::UnaryExpressionMinus, AtomicString());
+                return ScanExpressionResult(ASTNodeType::UnaryExpressionMinus);
             } else if (punctuatorsKind == Wave) {
                 this->nextToken();
                 if (isParse) {
@@ -2707,7 +2700,7 @@ public:
                 if (isParse) {
                     return exprNode.release();
                 }
-                return ScanExpressionResult(ASTNodeType::UnaryExpressionBitwiseNot, AtomicString());
+                return ScanExpressionResult(ASTNodeType::UnaryExpressionBitwiseNot);
             } else if (punctuatorsKind == ExclamationMark) {
                 this->nextToken();
                 if (isParse) {
@@ -2722,7 +2715,7 @@ public:
                 if (isParse) {
                     return exprNode.release();
                 }
-                return ScanExpressionResult(ASTNodeType::UnaryExpressionBitwiseNot, AtomicString());
+                return ScanExpressionResult(ASTNodeType::UnaryExpressionBitwiseNot);
             }
         }
 
@@ -2761,7 +2754,7 @@ public:
                 if (isParse) {
                     return exprNode.release();
                 }
-                return ScanExpressionResult(ASTNodeType::UnaryExpressionDelete, AtomicString());
+                return ScanExpressionResult(ASTNodeType::UnaryExpressionDelete);
             } else if (this->lookahead->valueKeywordKind == VoidKeyword) {
                 this->nextToken();
                 if (isParse) {
@@ -2777,7 +2770,7 @@ public:
                 if (isParse) {
                     return exprNode.release();
                 }
-                return ScanExpressionResult(ASTNodeType::UnaryExpressionVoid, AtomicString());
+                return ScanExpressionResult(ASTNodeType::UnaryExpressionVoid);
             } else if (this->lookahead->valueKeywordKind == TypeofKeyword) {
                 this->nextToken();
 
@@ -2796,8 +2789,7 @@ public:
                     ScanExpressionResult subExpr = this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
 
                     if (subExpr.first == ASTNodeType::Identifier) {
-                        AtomicString s = subExpr.second;
-                        if (!this->scopeContexts.back()->hasName(s)) {
+                        if (!this->scopeContexts.back()->hasName(lastScanIdentifierName)) {
                             this->scopeContexts.back()->m_hasEvaluateBindingId = true;
                         }
                     }
@@ -2808,7 +2800,7 @@ public:
                 if (isParse) {
                     return exprNode.release();
                 }
-                return ScanExpressionResult(ASTNodeType::UnaryExpressionTypeOf, AtomicString());
+                return ScanExpressionResult(ASTNodeType::UnaryExpressionTypeOf);
             }
         }
 
@@ -3141,7 +3133,7 @@ public:
 
     ScanExpressionResult scanBinaryExpression(ScanExpressionResult left, ScanExpressionResult right, Scanner::ScannerResult* token)
     {
-        ScanExpressionResult nd(ASTNodeType::ASTNodeTypeError, AtomicString());
+        ScanExpressionResult nd(ASTNodeType::ASTNodeTypeError);
         if (token->type == Token::PunctuatorToken) {
             PunctuatorKind oper = token->valuePunctuatorKind;
             // Additive Operators
@@ -3494,7 +3486,7 @@ public:
                             IdentifierNode* id = exprNode->asIdentifier();
                             name = id->name();
                         } else {
-                            name = expr.second;
+                            name = lastScanIdentifierName;
                         }
 
                         if (this->scanner->isRestrictedWord(name)) {
@@ -3670,7 +3662,7 @@ public:
             if (isParse) {
                 exprNode = this->finalize(this->startNode(startToken), new SequenceExpressionNode(std::move(expressions)));
             } else {
-                expr = ScanExpressionResult(ASTNodeType::SequenceExpression, AtomicString());
+                expr = ScanExpressionResult(ASTNodeType::SequenceExpression);
             }
         }
 
@@ -4005,7 +3997,7 @@ public:
         return this->finalize(node, finishIdentifier(token, true));
     }
 
-    AtomicString scanVariableIdentifier(KeywordKind kind = KeywordKindEnd)
+    void scanVariableIdentifier(KeywordKind kind = KeywordKindEnd)
     {
         RefPtr<Scanner::ScannerResult> token = this->nextToken();
         if (token->type == Token::KeywordToken && token->valueKeywordKind == YieldKeyword) {
@@ -4027,7 +4019,7 @@ public:
             this->throwUnexpectedToken(token);
         }
 
-        return finishScanIdentifier(token, true).second;
+        finishScanIdentifier(token, true);
     }
 
     struct DeclarationOptions {
@@ -4053,7 +4045,7 @@ public:
             id = this->pattern<Scan>(params, VarKeyword);
             isIdentifier = (id.first == Identifier);
             if (isIdentifier) {
-                name = id.second;
+                name = lastScanIdentifierName;
             }
         }
 
@@ -4515,7 +4507,8 @@ public:
                 RefPtr<IdentifierNode> labelNode = this->parseVariableIdentifier();
                 label = labelNode->name();
             } else {
-                label = this->scanVariableIdentifier();
+                this->scanVariableIdentifier();
+                label = lastScanIdentifierName;
             }
 
             if (!hasLabel(label)) {
@@ -4558,7 +4551,8 @@ public:
                 RefPtr<IdentifierNode> labelNode = this->parseVariableIdentifier();
                 label = labelNode->name();
             } else {
-                label = this->scanVariableIdentifier();
+                this->scanVariableIdentifier();
+                label = lastScanIdentifierName;
             }
 
             if (!hasLabel(label)) {
@@ -4774,7 +4768,7 @@ public:
             ScanExpressionResult result = this->expression<Scan>();
             if (result.first == Identifier) {
                 isIdentifier = true;
-                name = result.second;
+                name = lastScanIdentifierName;
             }
         }
 
