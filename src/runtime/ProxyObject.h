@@ -137,8 +137,8 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    bool m_isCallable;
-    bool m_isConstructible;
+    bool m_isCallable : 1;
+    bool m_isConstructible : 1;
 
     Object* m_target;
     Object* m_handler;

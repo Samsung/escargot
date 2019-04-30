@@ -149,7 +149,7 @@ private:
 
     time64_t m_primitiveValue; // 1LL << 63 is reserved for represent NaN
     struct timeinfo m_cachedLocal;
-    bool m_isCacheDirty;
+    bool m_isCacheDirty : 1;
 
     void resolveCache(ExecutionState& state);
     static time64_t parseStringToDate(ExecutionState& state, String* istr);

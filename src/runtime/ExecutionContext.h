@@ -65,7 +65,7 @@ public:
     FunctionObject* resolveCallee();
 
 private:
-    bool m_inStrictMode;
+    bool m_inStrictMode : 1;
     Context* m_context;
     ExecutionContext* m_parent;
     LexicalEnvironment* m_lexicalEnvironment;

@@ -445,7 +445,7 @@ public:
 
     ByteCodeRegisterIndex m_registerIndex;
     size_t m_length;
-    bool m_hasSpreadElement;
+    bool m_hasSpreadElement : 1;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
@@ -1239,8 +1239,8 @@ public:
     ByteCodeRegisterIndex m_argumentsStartIndex;
     uint16_t m_argumentCount;
     ByteCodeRegisterIndex m_resultIndex;
-    bool m_inWithScope;
-    bool m_hasSpreadElement;
+    bool m_inWithScope : 1;
+    bool m_hasSpreadElement : 1;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
@@ -1266,7 +1266,7 @@ public:
     ByteCodeRegisterIndex m_argumentsStartIndex;
     uint16_t m_argumentCount;
     ByteCodeRegisterIndex m_resultIndex;
-    bool m_hasSpreadElement;
+    bool m_hasSpreadElement : 1;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
@@ -1379,7 +1379,7 @@ public:
         m_tryCatchEndPosition = m_catchPosition = SIZE_MAX;
     }
 
-    bool m_hasCatch;
+    bool m_hasCatch : 1;
     size_t m_catchPosition;
     size_t m_tryCatchEndPosition;
     AtomicString m_catchVariableName;

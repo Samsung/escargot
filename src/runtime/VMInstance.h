@@ -224,7 +224,7 @@ private:
     std::mt19937 m_randEngine;
 
     // this flag should affect VM-wide array object
-    bool m_didSomePrototypeObjectDefineIndexedProperty;
+    bool m_didSomePrototypeObjectDefineIndexedProperty : 1;
 
     ObjectStructure* m_defaultStructureForObject;
     ObjectStructure* m_defaultStructureForFunctionObject;

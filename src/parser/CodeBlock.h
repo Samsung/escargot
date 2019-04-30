@@ -46,9 +46,9 @@ struct NativeFunctionInfo {
         Constructor = 1 << 1,
         ClassConstructor = 1 << 2,
     };
-    bool m_isStrict;
-    bool m_isConstructor;
-    bool m_isClassConstructor;
+    bool m_isStrict : 1;
+    bool m_isConstructor : 1;
+    bool m_isClassConstructor : 1;
     AtomicString m_name;
     NativeFunctionPointer m_nativeFunction;
     NativeFunctionConstructor m_nativeFunctionConstructor;
@@ -112,9 +112,9 @@ public:
     CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict, bool isCtor, CallNativeFunctionData* info);
 
     struct IdentifierInfo {
-        bool m_needToAllocateOnStack;
-        bool m_isMutable;
-        bool m_isExplicitlyDeclaredOrParameterName;
+        bool m_needToAllocateOnStack : 1;
+        bool m_isMutable : 1;
+        bool m_isExplicitlyDeclaredOrParameterName : 1;
         size_t m_indexForIndexedStorage;
         AtomicString m_name;
     };
@@ -358,8 +358,8 @@ public:
     void notifySelfOrChildHasEvalWithYield();
 
     struct FunctionParametersInfo {
-        bool m_isHeapAllocated;
-        bool m_isDuplicated;
+        bool m_isHeapAllocated : 1;
+        bool m_isDuplicated : 1;
         int32_t m_index;
         AtomicString m_name;
     };
@@ -370,9 +370,9 @@ public:
     }
 
     struct IndexedIdentifierInfo {
-        bool m_isResultSaved;
-        bool m_isStackAllocated;
-        bool m_isMutable;
+        bool m_isResultSaved : 1;
+        bool m_isStackAllocated : 1;
+        bool m_isMutable : 1;
         size_t m_upperIndex;
         size_t m_index;
     };

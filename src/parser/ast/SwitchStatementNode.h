@@ -125,7 +125,7 @@ protected:
     RefPtr<StatementContainer> m_casesA;
     RefPtr<StatementNode> m_default;
     RefPtr<StatementContainer> m_casesB;
-    bool m_lexical;
+    bool m_lexical : 1;
 };
 }
 

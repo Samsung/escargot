@@ -68,8 +68,8 @@ public:
             return (m_body == otherKey.m_body) && (m_multiline == otherKey.m_multiline) && (m_ignoreCase == otherKey.m_ignoreCase);
         }
         const String* m_body;
-        const bool m_multiline;
-        const bool m_ignoreCase;
+        const bool m_multiline : 1;
+        const bool m_ignoreCase : 1;
     };
 
     struct RegExpCacheEntry {

@@ -87,7 +87,7 @@ public:
     String* finalize(ExecutionState* state = nullptr); // provide ExecutionState if you need limit of string length(exception can be thrown only in ExecutionState area)
 
 private:
-    bool m_has8BitContent;
+    bool m_has8BitContent : 1;
     size_t m_piecesInlineStorageUsage;
     size_t m_contentLength;
     StringBuilderPiece m_piecesInlineStorage[STRING_BUILDER_INLINE_STORAGE_MAX];

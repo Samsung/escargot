@@ -40,8 +40,8 @@ class ArgumentsObject;
 
 struct IdentifierRecord {
     AtomicString m_name;
-    bool m_canDelete;
-    bool m_isMutable;
+    bool m_canDelete : 1;
+    bool m_isMutable : 1;
 };
 
 typedef Vector<IdentifierRecord, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<IdentifierRecord>> IdentifierRecordVector;
@@ -92,7 +92,7 @@ public:
     }
 
     struct GetBindingValueResult {
-        bool m_hasBindingValue;
+        bool m_hasBindingValue : 1;
         Value m_value;
         GetBindingValueResult()
             : m_hasBindingValue(false)

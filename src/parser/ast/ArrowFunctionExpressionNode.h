@@ -86,7 +86,7 @@ public:
 
 private:
     FunctionNode m_function;
-    bool m_expression;
+    bool m_expression : 1;
     // defaults: [ Expression ];
     // rest: Identifier | null;
 };
