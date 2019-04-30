@@ -1365,7 +1365,6 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanStringLiteral()
             }
         } else if (UNLIKELY(isLineTerminator(ch))) {
             break;
-        } else {
         }
     }
 
@@ -1825,7 +1824,7 @@ ALWAYS_INLINE PassRefPtr<Scanner::ScannerResult> Scanner::scanIdentifier(char16_
         } else {
             type = Token::IdentifierToken;
         }
-    } else if ((data.length == 5 && data.equalsSameLength("false"))) {
+    } else if (data.length == 5 && data.equalsSameLength("false")) {
         type = Token::BooleanLiteralToken;
     } else {
         type = Token::IdentifierToken;

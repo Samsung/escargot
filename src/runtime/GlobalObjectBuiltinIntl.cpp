@@ -683,8 +683,7 @@ static Value supportedLocales(ExecutionState& state, const Vector<String*, gc_al
             // Let matcher be ToString(matcher).
             matcher = matcher.toString(state);
             // If matcher is not "lookup" or "best fit", then throw a RangeError exception.
-            if (matcher.asString()->equals("lookup") || matcher.asString()->equals("best fit")) {
-            } else {
+            if (!(matcher.asString()->equals("lookup") || matcher.asString()->equals("best fit"))) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "got invalid value on options.localeMatcher");
             }
         }
@@ -1176,14 +1175,13 @@ static void initializeCollator(ExecutionState& state, Object* collator, Value lo
         UColAttributeValue strength = UCOL_PRIMARY;
         UColAttributeValue caseLevel = UCOL_OFF;
         String* sensitivity = opt.sensitivity;
-        if (sensitivity->equals("base")) {
-        } else if (sensitivity->equals("accent")) {
+        if (sensitivity->equals("accent")) {
             strength = UCOL_SECONDARY;
         } else if (sensitivity->equals("case")) {
             caseLevel = UCOL_ON;
         } else if (sensitivity->equals("variant")) {
             strength = UCOL_TERTIARY;
-        } else {
+        } else if (!sensitivity->equals("base")) {
             ASSERT_NOT_REACHED();
         }
 

@@ -166,14 +166,14 @@ UTF16StringData utf8StringToUTF16String(const char* buf, const size_t len)
         char32_t ch = readUTF8Sequence(source, valid, charlen);
         if (!valid) { // Invalid sequence
             str += 0xFFFD;
-        } else if (((uint32_t)(ch) <= 0xffff)) { // BMP
-            if ((((ch)&0xfffff800) == 0xd800)) { // SURROGATE
+        } else if ((uint32_t)(ch) <= 0xffff) { // BMP
+            if (((ch)&0xfffff800) == 0xd800) { // SURROGATE
                 str += 0xFFFD;
                 source -= (charlen - 1);
             } else {
                 str += ch; // normal case
             }
-        } else if (((uint32_t)((ch)-0x10000) <= 0xfffff)) { // SUPPLEMENTARY
+        } else if ((uint32_t)((ch)-0x10000) <= 0xfffff) { // SUPPLEMENTARY
             str += (char16_t)(((ch) >> 10) + 0xd7c0); // LEAD
             str += (char16_t)(((ch)&0x3ff) | 0xdc00); // TRAIL
         } else {

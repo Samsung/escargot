@@ -148,7 +148,7 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Lexi
 
 FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, String* name, const Value& proto, ForBind)
     : Object(state,
-             ((ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2 + 2 /* for bind */)),
+             (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2 + 2 /* for bind */),
              false)
     , m_codeBlock(codeBlock)
     , m_outerEnvironment(nullptr)

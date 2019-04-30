@@ -366,7 +366,7 @@ static Value builtinObjectGetOwnPropertyNames(ExecutionState& state, Value thisV
         // Let name be the String value that is the name of P.
         Value name = P.toPlainValue(state).toString(state);
         // Call the [[DefineOwnProperty]] internal method of array with arguments ToString(n), the PropertyDescriptor {[[Value]]: name, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
-        a->array->defineOwnProperty(state, ObjectPropertyName(state, Value((*a->n))), ObjectPropertyDescriptor(name, ObjectPropertyDescriptor::AllPresent));
+        a->array->defineOwnProperty(state, ObjectPropertyName(state, Value(*a->n)), ObjectPropertyDescriptor(name, ObjectPropertyDescriptor::AllPresent));
         // Increment n by 1.
         (*a->n)++;
         return true;
@@ -399,7 +399,7 @@ static Value builtinObjectGetOwnPropertySymbols(ExecutionState& state, Value thi
         Value name = P.toPlainValue(state);
         if (name.isSymbol()) {
             // Call the [[DefineOwnProperty]] internal method of array with arguments ToString(n), the PropertyDescriptor {[[Value]]: name, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
-            a->array->defineOwnProperty(state, ObjectPropertyName(state, Value((*a->n))), ObjectPropertyDescriptor(name, ObjectPropertyDescriptor::AllPresent));
+            a->array->defineOwnProperty(state, ObjectPropertyName(state, Value(*a->n)), ObjectPropertyDescriptor(name, ObjectPropertyDescriptor::AllPresent));
             // Increment n by 1.
             (*a->n)++;
         }
@@ -593,8 +593,7 @@ static Value builtinObjectAssign(ExecutionState& state, Value thisValue, size_t 
         // If nextSource is undefined or null, let keys be a new empty List.
         ValueVector keys;
         Object* from = nullptr;
-        if (nextSource.isUndefinedOrNull()) {
-        } else {
+        if (!nextSource.isUndefinedOrNull()) {
             // Let from be ! ToObject(nextSource).
             from = nextSource.toObject(state);
             // Let keys be ? from.[[OwnPropertyKeys]]().

@@ -138,7 +138,7 @@ public:
 
     std::pair<bool, ByteCodeRegisterIndex> isAllocatedOnStack(ByteCodeGenerateContext* context, bool checkMutable = true)
     {
-        if ((context->m_codeBlock->asInterpretedCodeBlock()->canUseIndexedVariableStorage() || context->m_codeBlock->asInterpretedCodeBlock()->isGlobalScopeCodeBlock())) {
+        if (context->m_codeBlock->asInterpretedCodeBlock()->canUseIndexedVariableStorage() || context->m_codeBlock->asInterpretedCodeBlock()->isGlobalScopeCodeBlock()) {
             InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {
                 return std::make_pair(false, std::numeric_limits<ByteCodeRegisterIndex>::max());
