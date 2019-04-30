@@ -139,6 +139,7 @@ enum ASTNodeType {
     ClassBody,
     ClassElement,
     ClassMethod,
+    DefaultArgument,
 };
 
 struct NodeLOC {
@@ -169,6 +170,7 @@ struct ExtendedNodeLOC {
 };
 
 class LiteralNode;
+class DefaultArgumentNode;
 class IdentifierNode;
 class MemberExpressionNode;
 class StatementNode;
@@ -208,6 +210,17 @@ public:
     {
         ASSERT(isIdentifier());
         return (IdentifierNode *)this;
+    }
+
+    bool isDefaultArgument()
+    {
+        return type() == ASTNodeType::DefaultArgument;
+    }
+
+    DefaultArgumentNode *asDefaultArgument()
+    {
+        ASSERT(isDefaultArgument());
+        return (DefaultArgumentNode *)this;
     }
 
     MemberExpressionNode *asMemberExpression()
@@ -339,6 +352,7 @@ struct ASTScopeContext : public gc {
     bool m_hasManyNumeralLiteral : 1;
     bool m_needsSpecialInitialize : 1; // flag for fd in catch
     bool m_hasRestElement : 1;
+    bool m_hasNonIdentArgument : 1;
     ASTNodeType m_nodeType : 12;
     ASTScopeContextNameInfoVector m_names;
     AtomicStringVector m_usingNames;
@@ -347,6 +361,7 @@ struct ASTScopeContext : public gc {
     Vector<ASTScopeContext *, GCUtil::gc_malloc_ignore_off_page_allocator<ASTScopeContext *>> m_childScopes;
     Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>> m_numeralLiteralData;
     ExtendedNodeLOC m_locStart;
+    NodeLOC m_paramsStart;
 #ifndef NDEBUG
     ExtendedNodeLOC m_locEnd;
 #else
@@ -421,7 +436,9 @@ struct ASTScopeContext : public gc {
         , m_hasManyNumeralLiteral(false)
         , m_needsSpecialInitialize(false)
         , m_hasRestElement(false)
+        , m_hasNonIdentArgument(false)
         , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+        , m_paramsStart(SIZE_MAX)
 #ifndef NDEBUG
         , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 #else

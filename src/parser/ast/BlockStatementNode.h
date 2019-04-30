@@ -28,9 +28,10 @@ namespace Escargot {
 class BlockStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    explicit BlockStatementNode(StatementContainer* body)
+    explicit BlockStatementNode(StatementContainer* body, StatementContainer* argumentInitializers = nullptr)
         : StatementNode()
         , m_container(body)
+        , m_argumentInitializers(argumentInitializers)
     {
     }
 
@@ -40,6 +41,9 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::BlockStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
+        if (m_argumentInitializers != nullptr) {
+            m_argumentInitializers->generateStatementByteCode(codeBlock, context);
+        }
         m_container->generateStatementByteCode(codeBlock, context);
     }
 
@@ -50,6 +54,7 @@ public:
 
 private:
     RefPtr<StatementContainer> m_container;
+    RefPtr<StatementContainer> m_argumentInitializers;
 };
 }
 
