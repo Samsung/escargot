@@ -139,7 +139,7 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-protected:
+private:
     Object* m_array;
     size_t m_iteratorNextIndex;
     Type m_type;

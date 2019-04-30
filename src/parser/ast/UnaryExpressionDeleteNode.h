@@ -88,7 +88,7 @@ public:
         m_argument->iterateChildrenIdentifier(fn);
     }
 
-protected:
+private:
     RefPtr<ExpressionNode> m_argument;
 };
 }

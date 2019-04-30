@@ -390,6 +390,12 @@ private:
     {
         return m_isDataProperty;
     }
+    bool m_isDataProperty : 1;
+    PresentAttribute m_property;
+    union {
+        Value m_value;
+        JSGetterSetter m_getterSetter;
+    };
 
 protected:
     void checkProperty()
@@ -411,12 +417,6 @@ protected:
         }
     }
     MAKE_STACK_ALLOCATED();
-    bool m_isDataProperty : 1;
-    PresentAttribute m_property;
-    union {
-        Value m_value;
-        JSGetterSetter m_getterSetter;
-    };
 };
 
 class ObjectGetResult {

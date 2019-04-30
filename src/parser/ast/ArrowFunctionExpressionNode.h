@@ -43,7 +43,7 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ArrowParameterPlaceHolder; }
-protected:
+private:
     ExpressionNodeVector m_params;
 };
 

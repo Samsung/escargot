@@ -51,7 +51,7 @@ public:
         m_consequent->generateStatementByteCode(codeBlock, context);
     }
 
-protected:
+private:
     RefPtr<ExpressionNode> m_test;
     RefPtr<StatementContainer> m_consequent;
 };

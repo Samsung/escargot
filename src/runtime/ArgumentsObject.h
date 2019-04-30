@@ -49,7 +49,7 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-protected:
+private:
     FunctionEnvironmentRecord* m_targetRecord;
     InterpretedCodeBlock* m_codeBlock;
     TightVector<std::pair<SmallValue, AtomicString>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<SmallValue, AtomicString>>> m_argumentPropertyInfo;
