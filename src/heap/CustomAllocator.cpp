@@ -148,27 +148,6 @@ void initializeCustomAllocators()
                                                                                  GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 8>), 0),
                                                                                  FALSE,
                                                                                  TRUE);
-
-#ifdef PROFILE_MASSIF
-    GC_is_valid_displacement_print_proc = [](void* ptr) {
-        g_freeList.push_back(ptr);
-    };
-    GC_set_on_collection_event([](GC_EventType evtType) {
-        if (GC_EVENT_PRE_START_WORLD == evtType) {
-            auto iter = g_addressTable.begin();
-            while (iter != g_addressTable.end()) {
-                GC_is_valid_displacement(iter->first);
-                iter++;
-            }
-
-            for (unsigned i = 0; i < g_freeList.size(); i++) {
-                unregisterGCAddress(g_freeList[i]);
-            }
-
-            g_freeList.clear();
-        }
-    });
-#endif
 }
 
 void iterateSpecificKindOfObject(ExecutionState& state, HeapObjectKind kind, HeapObjectIteratorCallback callback)
