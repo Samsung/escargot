@@ -90,6 +90,7 @@ int main(int argc, char* argv[])
 #endif
 
     bool runShell = true;
+    bool memStats = false;
 
     Escargot::FunctionObject* fnRead = context->globalObject()->getOwnProperty(stateForInit, Escargot::ObjectPropertyName(stateForInit, Escargot::String::fromUTF8("read", 4))).value(stateForInit, context->globalObject()).asFunction();
 
@@ -98,6 +99,10 @@ int main(int argc, char* argv[])
             if (argv[i][1] == '-') { // `--option` case
                 if (strcmp(argv[i], "--shell") == 0) {
                     runShell = true;
+                    continue;
+                }
+                if (strcmp(argv[i], "--mem-stats") == 0) {
+                    memStats = true;
                     continue;
                 }
             } else { // `-option` case
@@ -150,6 +155,10 @@ int main(int argc, char* argv[])
     delete instance;
 
     Escargot::Heap::finalize();
+
+    if (memStats) {
+        Escargot::Heap::printGCHeapUsage();
+    }
 
     return 0;
 }
