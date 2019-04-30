@@ -56,17 +56,17 @@ class ProxyObject : public Object {
 public:
     ProxyObject(ExecutionState& state);
 
-    virtual bool isProxyObject() const
+    virtual bool isProxyObject() const override
     {
         return true;
     }
 
-    virtual bool isOrdinary() const
+    virtual bool isOrdinary() const override
     {
         return false;
     }
 
-    virtual bool isCallable() const
+    virtual bool isCallable() const override
     {
         return m_isCallable;
     }
