@@ -1239,6 +1239,7 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanNumericLiteral()
                 return this->scanBinaryLiteral(start);
             }
             if (ch == 'o' || ch == 'O') {
+                ++this->index;
                 return this->scanOctalLiteral(ch, start);
             }
 
