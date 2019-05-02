@@ -120,7 +120,7 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::SwitchStatement; }
-protected:
+private:
     RefPtr<ExpressionNode> m_discriminant;
     RefPtr<StatementContainer> m_casesA;
     RefPtr<StatementNode> m_default;

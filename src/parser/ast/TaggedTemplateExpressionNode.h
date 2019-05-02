@@ -55,7 +55,7 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-protected:
+private:
     RefPtr<Node> m_expr;
     RefPtr<Node> m_quasi;
 };

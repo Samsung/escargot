@@ -646,7 +646,7 @@ public:
     }
     void* operator new[](size_t size) = delete;
 
-protected:
+private:
     Context* m_context;
 
     FunctionObject* m_object;
