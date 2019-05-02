@@ -6,37 +6,6 @@ CMAKE_MINIMUM_REQUIRED (VERSION 2.8)
 SET (ESCARGOT_CXXFLAGS_CONFIG)
 SET (ESCARGOT_LDFLAGS_CONFIG)
 
-IF (${ESCARGOT_HOST} STREQUAL "linux")
-    SET (CMAKE_C_COMPILER gcc)
-    SET (CMAKE_CXX_COMPILER g++)
-    SET (ARFLAGS)
-
-ELSEIF (${ESCARGOT_HOST} STREQUAL "darwin")
-    SET (CMAKE_C_COMPILER gcc)
-    SET (CMAKE_CXX_COMPILER g++)
-    SET (ARFLAGS)
-
-ELSEIF (${ESCARGOT_HOST} STREQUAL "android")
-    SET (COMPILER_PREFIX arm-linux-androideabi)
-    SET (CMAKE_C_COMPILER ${ANDROID_NDK_STANDALONE}/bin/${COMPILER_PREFIX}-gcc)
-    SET (CMAKE_CXX_COMPILER ${ANDROID_NDK_STANDALONE}/bin/${COMPILER_PREFIX}-g++)
-    SET (LINK ${ANDROID_NDK_STANDALONE}/bin/${COMPILER_PREFIX}-g++)
-    SET (LD ${ANDROID_NDK_STANDALONE}/bin/${COMPILER_PREFIX}-ld)
-    SET (AR ${ANDROID_NDK_STANDALONE}/bin/${COMPILER_PREFIX}-ar)
-
-    SET (ESCARGOT_CXXFLAGS_CONFIG --sysroot=${ANDROID_NDK_STANDALONE}/sysroot)
-    SET (ESCARGOT_LDFLAGS_CONFIG  --sysroot=${ANDROID_NDK_STANDALONE}/sysroot)
-    SET (ARFLAGS)
-
-ELSEIF (${ESCARGOT_HOST} STREQUAL "tizen_obs")
-    SET (CMAKE_C_COMPILER gcc)
-    SET (CMAKE_CXX_COMPILER g++)
-    SET (ARFLAGS)
-ELSE()
-    MESSAGE (FATAL_ERROR "Unsupported Host" )
-ENDIF()
-
-
 #######################################################
 # PATH
 #######################################################
@@ -80,14 +49,26 @@ SET (ESCARGOT_CXXFLAGS_COMMON
     -Wno-implicit-fallthrough
 )
 
-IF (NOT ${ESCARGOT_HOST} STREQUAL "darwin")
-    SET (ESCARGOT_CXXFLAGS_COMMON ${ESCARGOT_CXXFLAGS_COMMON} -frounding-math -fsignaling-nans)
-    SET (ESCARGOT_CXXFLAGS_COMMON ${ESCARGOT_CXXFLAGS_COMMON} -Wno-unused-but-set-variable -Wno-unused-but-set-parameter)
+IF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
+    SET (ESCARGOT_CXXFLAGS_COMMON ${ESCARGOT_CXXFLAGS_COMMON} -frounding-math -fsignaling-nans -Wno-unused-but-set-variable -Wno-unused-but-set-parameter -Wno-unused-parameter)
+ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+    SET (ESCARGOT_CXXFLAGS_COMMON ${ESCARGOT_CXXFLAGS_COMMON} -fno-fast-math -fno-unsafe-math-optimizations -fdenormal-fp-math=ieee -Wno-parentheses-equality -Wno-unused-parameter -Wno-dynamic-class-memaccess -Wno-deprecated-register -Wno-expansion-to-defined -Wno-return-type)
+ELSE()
+    MESSAGE (FATAL_ERROR ${CMAKE_CXX_COMPILER_ID} " is Unsupported Compiler")
 ENDIF()
 
 
 # ESCARGOT COMMON LDFLAGS
 SET (ESCARGOT_LDFLAGS_COMMON -fvisibility=hidden)
+
+IF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
+    SET (ESCARGOT_LDFLAGS_COMMON ${ESCARGOT_LDFLAGS_COMMON})
+ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+    SET (ESCARGOT_LDFLAGS_COMMON ${ESCARGOT_LDFLAGS_COMMON})
+ELSE()
+    MESSAGE (FATAL_ERROR ${CMAKE_CXX_COMPILER_ID} " is Unsupported Compiler")
+ENDIF()
+
 
 
 # bdwgc
