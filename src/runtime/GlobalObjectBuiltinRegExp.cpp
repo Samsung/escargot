@@ -126,6 +126,10 @@ static Value builtinRegExpToString(ExecutionState& state, Value thisValue, size_
 
 static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+    if (!thisValue.isPointerValue() || !thisValue.asPointerValue()->isObject() || !thisValue.asPointerValue()->asObject()->isRegExpObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'This' is not a RegExp object");
+    }
+
     if (argv[0].isObject() && argv[0].asObject()->isRegExpObject()) {
         if (!argv[1].isUndefined()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot supply flags when constructing one RegExp from another");
