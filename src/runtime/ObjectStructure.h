@@ -156,12 +156,12 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    bool m_isProtectedByTransitionTable;
+    bool m_isProtectedByTransitionTable : 1;
 
 protected:
-    bool m_hasIndexPropertyName;
-    bool m_needsTransitionTable;
-    bool m_isStructureWithFastAccess;
+    bool m_hasIndexPropertyName : 1;
+    bool m_needsTransitionTable : 1;
+    bool m_isStructureWithFastAccess : 1;
     ObjectStructureItemVector m_properties;
     ObjectStructureTransitionTableVector m_transitionTable;
 

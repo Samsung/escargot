@@ -98,7 +98,7 @@ private:
     ExpressionNodeVector m_elements;
     AtomicString m_additionalPropertyName;
     RefPtr<Node> m_additionalPropertyExpression;
-    bool m_hasSpreadElement;
+    bool m_hasSpreadElement : 1;
 };
 }
 

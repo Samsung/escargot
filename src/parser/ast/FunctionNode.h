@@ -59,7 +59,7 @@ public:
     ASTScopeContext* scopeContext() { return m_scopeContext; }
     inline bool isGenerator() { return m_isGenerator; };
 private:
-    bool m_isGenerator;
+    bool m_isGenerator : 1;
     AtomicString m_id; // id: Identifier;
     PatternNodeVector m_params; // params: [ Pattern ];
     RefPtr<Node> m_body;

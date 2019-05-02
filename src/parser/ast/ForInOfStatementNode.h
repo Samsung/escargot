@@ -163,7 +163,7 @@ private:
     RefPtr<Node> m_left;
     RefPtr<Node> m_right;
     RefPtr<StatementNode> m_body;
-    bool m_forIn;
+    bool m_forIn : 1;
 };
 }
 

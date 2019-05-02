@@ -75,7 +75,7 @@ public:
 
 private:
     Kind m_kind; // kind: "init" | "get" | "set";
-    bool m_computed;
+    bool m_computed : 1;
     RefPtr<Node> m_key; // key: Literal | Identifier;
     RefPtr<Node> m_value; // value: Expression;
 };

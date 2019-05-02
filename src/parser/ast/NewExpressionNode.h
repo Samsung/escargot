@@ -129,7 +129,7 @@ public:
 private:
     RefPtr<Node> m_callee;
     ArgumentVector m_arguments;
-    bool m_hasSpreadElement;
+    bool m_hasSpreadElement : 1;
 };
 }
 

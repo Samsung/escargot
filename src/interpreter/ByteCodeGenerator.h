@@ -228,21 +228,21 @@ struct ByteCodeGenerateContext {
 
     CodeBlock* m_codeBlock;
     ByteCodeBlock* m_byteCodeBlock;
-    bool m_isGlobalScope;
-    bool m_isEvalCode;
-    bool m_isOutermostContext;
-    bool m_isWithScope;
-    bool m_canSkipCopyToRegister;
-    bool m_keepNumberalLiteralsInRegisterFile;
+    bool m_isGlobalScope : 1;
+    bool m_isEvalCode : 1;
+    bool m_isOutermostContext : 1;
+    bool m_isWithScope : 1;
+    bool m_canSkipCopyToRegister : 1;
+    bool m_keepNumberalLiteralsInRegisterFile : 1;
 
     size_t m_catchScopeCount;
 
     AtomicString m_lastCatchVariableName;
 
-    bool m_shouldGenerateByteCodeInstantly;
-    bool m_inCallingExpressionScope;
-    bool m_isHeadOfMemberExpression;
-    bool m_shouldGenerateLOCData;
+    bool m_shouldGenerateByteCodeInstantly : 1;
+    bool m_inCallingExpressionScope : 1;
+    bool m_isHeadOfMemberExpression : 1;
+    bool m_shouldGenerateLOCData : 1;
 
     std::shared_ptr<std::vector<ByteCodeRegisterIndex>> m_registerStack;
     std::vector<size_t> m_breakStatementPositions;

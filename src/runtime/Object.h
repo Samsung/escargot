@@ -154,7 +154,7 @@ public:
     }
 
 private:
-    bool m_isUIntType;
+    bool m_isUIntType : 1;
     union ObjectPropertyNameData {
         ObjectPropertyNameData() { m_uint = 0; }
         PropertyName m_name;

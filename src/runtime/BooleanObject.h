@@ -53,7 +53,7 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    bool m_primitiveValue;
+    bool m_primitiveValue : 1;
 };
 }
 

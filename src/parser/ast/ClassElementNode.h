@@ -75,8 +75,8 @@ private:
     RefPtr<Node> m_key; // key: Literal | Identifier;
     RefPtr<Node> m_value; // value: Expression;
     Kind m_kind;
-    bool m_isComputed;
-    bool m_isStatic;
+    bool m_isComputed : 1;
+    bool m_isStatic : 1;
 };
 }
 
