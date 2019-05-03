@@ -743,20 +743,20 @@ ValueVector Object::getOwnPropertyKeys(ExecutionState& state)
 // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-get-p-receiver
 ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& propertyName)
 {
-    // 2. Let desc be ? O.[[GetOwnProperty]](P).
+    Object* temp = this;
     auto desc = this->getOwnProperty(state, propertyName);
-    // 4. If desc is undefined, then
-    if (!desc.hasValue()) {
-        // 4.a. Let parent be ? O.[[GetPrototypeOf]]().
-        Object* parent = this->getPrototypeObject(state);
-        // 4.c. If parent is null, return undefined.
-        if (!parent) {
-            return ObjectGetResult();
+    while (true) {
+        if (!desc.hasValue()) {
+            Object* parent = temp->getPrototypeObject(state);
+            if (!parent) {
+                return ObjectGetResult();
+            }
+            desc = parent->getOwnProperty(state, propertyName);
+            temp = parent;
+        } else {
+            break;
         }
-        // 4.c. Return parent.[[Get]](P, Receiver).
-        return parent->get(state, propertyName);
     }
-    // FIXME need to implement spec after this line
     return desc;
 }
 
