@@ -597,7 +597,7 @@ static Value arraySpeciesCreate(ExecutionState& state, Object* originalArray, co
 static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, concat);
-    ArrayObject* array = arraySpeciesCreate(state, thisObject, 0).asPointerValue()->asArrayObject();
+    Object* obj = arraySpeciesCreate(state, thisObject, 0).asObject();
     uint64_t n = 0;
     for (size_t i = 0; i < argc + 1; i++) {
         Value argi = (i == 0) ? thisObject : argv[i - 1];
@@ -623,7 +623,7 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
                     // Let exists be the result of calling the [[HasProperty]] internal method of E with P.
                     ObjectGetResult exists = arr->getIndexedProperty(state, Value(k));
                     if (exists.hasValue()) {
-                        array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n + k)), ObjectPropertyDescriptor(exists.value(state, arr), ObjectPropertyDescriptor::AllPresent));
+                        obj->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n + k)), ObjectPropertyDescriptor(exists.value(state, arr), ObjectPropertyDescriptor::AllPresent));
                         k++;
                     } else {
                         double result;
@@ -633,21 +633,21 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
                 }
 
                 n += len;
-                array->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(n), array);
+                obj->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(n), obj);
             } else {
 #ifdef ESCARGOT_ENABLE_ES2015
                 // If n + len >= 2^53 - 1, throw a TypeError exception.
                 CHECK_ARRAY_LENGTH(n, (1ULL << 53) - 1);
 #endif /* ESCARGOT_ENABLE_ES2015 */
-                array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(arr, ObjectPropertyDescriptor::AllPresent));
+                obj->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(arr, ObjectPropertyDescriptor::AllPresent));
                 n++;
             }
         } else {
-            array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n++)), ObjectPropertyDescriptor(argi, ObjectPropertyDescriptor::AllPresent));
+            obj->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n++)), ObjectPropertyDescriptor(argi, ObjectPropertyDescriptor::AllPresent));
         }
     }
 
-    return array;
+    return obj;
 }
 
 static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
