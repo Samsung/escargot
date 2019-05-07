@@ -681,16 +681,16 @@ ObjectGetResult ProxyObject::get(ExecutionState& state, const ObjectPropertyName
 
     // 13. If targetDesc is not undefined, then
     if (!targetDesc.value(state, target).isUndefined()) {
-        // a. TODO If IsDataDescriptor(targetDesc) and targetDesc.[[Configurable]] is false and targetDesc.[[Writable]] is false, then
-        if (!targetDesc.isConfigurable() && !targetDesc.isWritable()) {
+        // a. If IsDataDescriptor(targetDesc) and targetDesc.[[Configurable]] is false and targetDesc.[[Writable]] is false, then
+        if (targetDesc.isDataProperty() && !targetDesc.isConfigurable() && !targetDesc.isWritable()) {
             // i. If SameValue(trapResult, targetDesc.[[Value]]) is false, throw a TypeError exception.
             if (trapResult != targetDesc.value(state, target)) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error.");
                 return ObjectGetResult();
             }
         }
-        // b. TODO If IsAccessorDescriptor(targetDesc) and targetDesc.[[Configurable]] is false and targetDesc.[[Get]] is undefined, then
-        if (!targetDesc.isConfigurable() && (!targetDesc.jsGetterSetter()->hasGetter() || targetDesc.jsGetterSetter()->getter().isUndefined())) {
+        // b. If IsAccessorDescriptor(targetDesc) and targetDesc.[[Configurable]] is false and targetDesc.[[Get]] is undefined, then
+        if (!targetDesc.isDataProperty() && !targetDesc.isConfigurable() && (!targetDesc.jsGetterSetter()->hasGetter() || targetDesc.jsGetterSetter()->getter().isUndefined())) {
             // i. If trapResult is not undefined, throw a TypeError exception.
             if (!trapResult.isUndefined()) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error.");
