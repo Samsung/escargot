@@ -66,11 +66,13 @@ public:
             context->giveUpRegister();
 
             String* str = new UTF16String(std::move((*m_quasis)[i + 1]->value));
-            codeBlock->m_literalData.push_back(str);
-            size_t reg = context->getRegister();
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), reg, Value(str)), context, this);
-            codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), dstRegister, eSrc, dstRegister), context, this);
-            context->giveUpRegister();
+            if (str->length()) {
+                codeBlock->m_literalData.push_back(str);
+                size_t reg = context->getRegister();
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), reg, Value(str)), context, this);
+                codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), dstRegister, reg, dstRegister), context, this);
+                context->giveUpRegister();
+            }
         }
     }
 
