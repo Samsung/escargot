@@ -775,7 +775,7 @@ static IntlMatcherResult lookupMatcher(ExecutionState& state, const Vector<Strin
             size_t extensionIndex = locale->find(String::fromASCII("-u-"));
             RELEASE_ASSERT(extensionIndex != SIZE_MAX);
 
-            size_t extensionLength = locale->length() - extensionIndex;
+            size_t extensionLength = locale->length();
             size_t end = extensionIndex + 3;
             while (end < locale->length()) {
                 end = locale->find(String::fromASCII("-"), end);
