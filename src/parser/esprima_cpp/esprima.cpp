@@ -3273,105 +3273,6 @@ public:
     }
 
     // ECMA-262 12.15 Assignment Operators
-    void checkPatternParam(ParseParameterOptions& options, Node* param)
-    {
-        switch (param->type()) {
-        case Identifier:
-            this->validateParam(options, nullptr, ((IdentifierNode*)param)->name());
-            break;
-        /*
-        // case AssignmentPattern:
-        case AssignmentExpression:
-        case AssignmentExpressionBitwiseAnd:
-        case AssignmentExpressionBitwiseOr:
-        case AssignmentExpressionBitwiseXor:
-        case AssignmentExpressionDivision:
-        case AssignmentExpressionLeftShift:
-        case AssignmentExpressionMinus:
-        case AssignmentExpressionMod:
-        case AssignmentExpressionMultiply:
-        case AssignmentExpressionPlus:
-        case AssignmentExpressionSignedRightShift:
-        case AssignmentExpressionUnsignedRightShift:
-        case AssignmentExpressionSimple:
-            this->checkPatternParam(options, ((AssignmentExpressionSimpleNode*)param)->left());
-            break;
-            */
-        default:
-            this->throwError("Arrow function default/pattern arguments are not implemented");
-            RELEASE_ASSERT_NOT_REACHED();
-            /*
-             case Syntax.ArrayPattern:
-                 for (let i = 0; i < param.elements.length; i++) {
-                     if (param.elements[i] !== null) {
-                         this->checkPatternParam(options, param.elements[i]);
-                     }
-                 }
-                 break;
-             case Syntax.YieldExpression:
-                 break;
-             default:
-                 RELEASE_ASSERT(param->type() == Object)
-                 assert(param.type === Syntax.ObjectPattern, 'Invalid type');
-                 for (let i = 0; i < param.properties.length; i++) {
-                     this->checkPatternParam(options, param.properties[i].value);
-                 }
-                 break;
-                 */
-        }
-    }
-
-    ParseFormalParametersResult reinterpretAsCoverFormalsList(Node* expr)
-    {
-        PatternNodeVector params;
-        params.push_back(expr);
-        ParseParameterOptions options;
-
-        switch (expr->type()) {
-        case Identifier:
-            break;
-        case ArrowParameterPlaceHolder:
-            params = ((ArrowParameterPlaceHolderNode*)expr)->params();
-            break;
-        default:
-            return ParseFormalParametersResult();
-        }
-
-        for (size_t i = 0; i < params.size(); ++i) {
-            RefPtr<Node> param = params[i];
-            /*
-             if (param->type() == AssignmentPattern) {
-                 if (param->right()->type() == YieldExpression) {
-                    if (param.right.argument) {
-                        this.throwUnexpectedToken(this.lookahead);
-                    }
-                    param.right.type = Syntax.Identifier;
-                    param.right.name = 'yield';
-                    delete param.right.argument;
-                    delete param.right.delegate;
-                 }
-             }
-             */
-            this->checkPatternParam(options, param.get());
-            //params[i] = param;
-        }
-
-        if (this->context->strict || !this->context->allowYield) {
-            for (size_t i = 0; i < params.size(); ++i) {
-                RefPtr<Node> param = params[i];
-                if (param->type() == YieldExpression) {
-                    this->throwUnexpectedToken(this->lookahead);
-                }
-            }
-        }
-
-        if (options.message == Messages::StrictParamDupe) {
-            RefPtr<Scanner::ScannerResult> token = this->context->strict ? options.stricted : options.firstRestricted;
-            this->throwUnexpectedToken(token, options.message);
-        }
-
-        return ParseFormalParametersResult(params, options.stricted, options.firstRestricted, options.message);
-    }
 
     template <typename T, bool isParse>
     T assignmentExpression()
@@ -3390,6 +3291,7 @@ public:
             RefPtr<Scanner::ScannerResult> token = startToken;
             Marker lastMarker;
             ASTNodeType type;
+            MetaNode startNode = this->createNode();
 
             if (isParse) {
                 exprNode = this->conditionalExpression<Parse>();
@@ -3425,15 +3327,31 @@ public:
                     exprNode = this->conditionalExpression<Parse>();
                 }
 
-                ParseFormalParametersResult list = this->reinterpretAsCoverFormalsList(exprNode.get()); //TODO
+                ParseFormalParametersResult list;
+                pushScopeContext(AtomicString());
+
+                if (type == Identifier) {
+                    list = ParseFormalParametersResult();
+                    list.params.push_back(exprNode);
+                    list.valid = true;
+                } else {
+                    this->scanner->index = startNode.index;
+                    this->nextToken();
+                    this->expect(LeftParenthesis);
+
+                    list = this->parseFormalParameters();
+                    scopeContexts.back()->m_paramsStart.index = startNode.index;
+                }
+
+                if (isParse) {
+                    exprNode.release();
+                }
 
                 if (list.valid) {
                     if (this->hasLineTerminator) {
                         this->throwUnexpectedToken(this->lookahead);
                     }
                     this->context->firstCoverInitializedNameError = nullptr;
-
-                    pushScopeContext(AtomicString());
 
                     extractNamesFromFunctionParams(list.params);
                     bool previousStrict = this->context->strict;
@@ -5151,6 +5069,12 @@ public:
     {
         ASSERT(this->config.parseSingleFunction);
 
+        RefPtr<StatementContainer> argumentInitializers = nullptr;
+
+        if (this->config.reparseArguments) {
+            this->reparseFunctionArguments(argumentInitializers);
+        }
+
         this->context->inArrowFunction = true;
         if (this->match(LeftBrace)) {
             return parseFunctionSourceElements();
@@ -5200,7 +5124,7 @@ public:
 
         this->context->inDirectCatchScope = prevInDirectCatchScope;
 
-        return this->finalize(nodeStart, new BlockStatementNode(body.get()));
+        return this->finalize(nodeStart, new BlockStatementNode(body.get(), argumentInitializers.get()));
     }
 
     // ECMA-262 14.1 Function Definition

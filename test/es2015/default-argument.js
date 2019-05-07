@@ -79,3 +79,12 @@ CheckSyntaxError('function x(a =, b) {}');
 CheckSyntaxError('function x(a = (b) {}');
 CheckSyntaxError('function x(a, a = 5) {}');
 CheckSyntaxError('function x(a = 5, a) {}');
+
+var arrowFunc = (a = 4, b = 5, c = 6) => {
+  return a + b + c;
+}
+
+assert(arrowFunc() === 15);
+assert(arrowFunc(1) === 12);
+assert(arrowFunc(1, 2) === 9);
+assert(arrowFunc(1, 2, 3) === 6);
