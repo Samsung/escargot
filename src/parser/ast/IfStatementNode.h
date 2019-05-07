@@ -43,21 +43,29 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         context->getRegister(); // ExeuctionResult of m_consequente|m_alternate should not be overwritten by m_test
-        size_t testReg = m_test->getRegister(codeBlock, context);
-        m_test->generateExpressionByteCode(codeBlock, context, testReg);
-        codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testReg), context, this);
-        context->giveUpRegister();
+        size_t jPos = 0;
+        if (m_test->isRelationOperation()) {
+            m_test->generateExpressionByteCode(codeBlock, context, REGISTER_LIMIT);
+            jPos = codeBlock->lastCodePosition<JumpIfRelation>();
+        } else if (m_test->isEqualityOperation()) {
+            m_test->generateExpressionByteCode(codeBlock, context, REGISTER_LIMIT);
+            jPos = codeBlock->lastCodePosition<JumpIfEqual>();
+        } else {
+            size_t testReg = m_test->getRegister(codeBlock, context);
+            m_test->generateExpressionByteCode(codeBlock, context, testReg);
+            codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testReg), context, this);
+            jPos = codeBlock->lastCodePosition<JumpIfFalse>();
+            context->giveUpRegister();
+        }
         context->giveUpRegister();
 
-        size_t jPos = codeBlock->lastCodePosition<JumpIfFalse>();
         m_consequente->generateStatementByteCode(codeBlock, context);
         size_t jPos2 = 0;
         if (m_alternate) {
             codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index)), context, this);
             jPos2 = codeBlock->lastCodePosition<Jump>();
         }
-        JumpIfFalse* j = codeBlock->peekCode<JumpIfFalse>(jPos);
-        j->m_jumpPosition = codeBlock->currentCodeSize();
+        codeBlock->peekCode<JumpByteCode>(jPos)->m_jumpPosition = codeBlock->currentCodeSize();
 
         if (!m_alternate) {
             if (context->m_isEvalCode || context->m_isGlobalScope) {

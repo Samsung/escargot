@@ -79,6 +79,8 @@ class Node;
     F(Move, 1, 0)                                     \
     F(Increment, 1, 1)                                \
     F(Decrement, 1, 1)                                \
+    F(ToNumberIncrement, 2, 2)                        \
+    F(ToNumberDecrement, 2, 2)                        \
     F(ToNumber, 1, 1)                                 \
     F(UnaryMinus, 1, 1)                               \
     F(UnaryNot, 1, 1)                                 \
@@ -90,6 +92,8 @@ class Node;
     F(JumpComplexCase, 0, 0)                          \
     F(JumpIfTrue, 0, 0)                               \
     F(JumpIfFalse, 0, 0)                              \
+    F(JumpIfRelation, 0, 0)                           \
+    F(JumpIfEqual, 0, 0)                              \
     F(CallFunction, -1, 0)                            \
     F(CallFunctionWithReceiver, -1, 0)                \
     F(CallFunctionWithSpreadElement, -1, 0)           \
@@ -195,6 +199,23 @@ public:
 
     void dumpCode(size_t pos, const char* byteCodeStart);
     int dumpJumpPosition(size_t pos, const char* byteCodeStart);
+#endif
+};
+
+class JumpByteCode : public ByteCode {
+public:
+    explicit JumpByteCode(Opcode code, const ByteCodeLOC& loc, size_t jumpPosition)
+        : ByteCode(code, loc)
+        , m_jumpPosition(jumpPosition)
+    {
+    }
+
+    size_t m_jumpPosition;
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
 #endif
 };
 
@@ -829,6 +850,28 @@ public:
 #endif
 };
 
+class ToNumberIncrement : public ByteCode {
+public:
+    ToNumberIncrement(const ByteCodeLOC& loc, const size_t srcIndex, const size_t storeIndex, const size_t dstIndex)
+        : ByteCode(Opcode::ToNumberIncrementOpcode, loc)
+        , m_srcIndex(srcIndex)
+        , m_storeIndex(storeIndex)
+        , m_dstIndex(dstIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_srcIndex;
+    ByteCodeRegisterIndex m_storeIndex;
+    ByteCodeRegisterIndex m_dstIndex;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("to number increment(r%d) -> r%d, r%d", (int)m_srcIndex, (int)m_storeIndex, (int)m_dstIndex);
+    }
+#endif
+};
+
 class Decrement : public ByteCode {
 public:
     Decrement(const ByteCodeLOC& loc, const size_t srcIndex, const size_t dstIndex)
@@ -845,6 +888,28 @@ public:
     void dump(const char* byteCodeStart)
     {
         printf("decrement r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
+    }
+#endif
+};
+
+class ToNumberDecrement : public ByteCode {
+public:
+    ToNumberDecrement(const ByteCodeLOC& loc, const size_t srcIndex, const size_t storeIndex, const size_t dstIndex)
+        : ByteCode(Opcode::ToNumberDecrementOpcode, loc)
+        , m_srcIndex(srcIndex)
+        , m_storeIndex(storeIndex)
+        , m_dstIndex(dstIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_srcIndex;
+    ByteCodeRegisterIndex m_storeIndex;
+    ByteCodeRegisterIndex m_dstIndex;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("to number decrement(r%d) -> r%d, r%d", (int)m_srcIndex, (int)m_storeIndex, (int)m_dstIndex);
     }
 #endif
 };
@@ -1097,24 +1162,21 @@ public:
 
 COMPILE_ASSERT(sizeof(Jump) == sizeof(JumpComplexCase), "");
 
-class JumpIfTrue : public ByteCode {
+class JumpIfTrue : public JumpByteCode {
 public:
     JumpIfTrue(const ByteCodeLOC& loc, const size_t registerIndex)
-        : ByteCode(Opcode::JumpIfTrueOpcode, loc)
+        : JumpByteCode(Opcode::JumpIfTrueOpcode, loc, SIZE_MAX)
         , m_registerIndex(registerIndex)
-        , m_jumpPosition(SIZE_MAX)
     {
     }
 
     JumpIfTrue(const ByteCodeLOC& loc, const size_t registerIndex, size_t pos)
-        : ByteCode(Opcode::JumpIfTrueOpcode, loc)
+        : JumpByteCode(Opcode::JumpIfTrueOpcode, loc, pos)
         , m_registerIndex(registerIndex)
-        , m_jumpPosition(pos)
     {
     }
 
     ByteCodeRegisterIndex m_registerIndex;
-    size_t m_jumpPosition;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
@@ -1124,22 +1186,96 @@ public:
 #endif
 };
 
-class JumpIfFalse : public ByteCode {
+class JumpIfFalse : public JumpByteCode {
 public:
     JumpIfFalse(const ByteCodeLOC& loc, const size_t registerIndex)
-        : ByteCode(Opcode::JumpIfFalseOpcode, loc)
+        : JumpByteCode(Opcode::JumpIfFalseOpcode, loc, SIZE_MAX)
         , m_registerIndex(registerIndex)
-        , m_jumpPosition(SIZE_MAX)
     {
     }
 
     ByteCodeRegisterIndex m_registerIndex;
-    size_t m_jumpPosition;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
         printf("jump if false r%d -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+    }
+#endif
+};
+
+class JumpIfRelation : public JumpByteCode {
+public:
+    JumpIfRelation(const ByteCodeLOC& loc, const size_t registerIndex0, const size_t registerIndex1, bool isEqual, bool isLeftFirst)
+        : JumpByteCode(Opcode::JumpIfRelationOpcode, loc, SIZE_MAX)
+        , m_registerIndex0(registerIndex0)
+        , m_registerIndex1(registerIndex1)
+        , m_isEqual(isEqual)
+        , m_isLeftFirst(isLeftFirst)
+    {
+    }
+
+    ByteCodeRegisterIndex m_registerIndex0;
+    ByteCodeRegisterIndex m_registerIndex1;
+    bool m_isEqual;
+    bool m_isLeftFirst;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        char* op;
+        if (m_isEqual) {
+            if (m_isLeftFirst) {
+                op = (char*)"less than or equal";
+            } else {
+                op = (char*)"greater than or equal";
+            }
+        } else {
+            if (m_isLeftFirst) {
+                op = (char*)"less than";
+            } else {
+                op = (char*)"greater than";
+            }
+        }
+        printf("jump if not %s (r%d, r%d) -> %d", op, (int)m_registerIndex0, (int)m_registerIndex1, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+    }
+#endif
+};
+
+class JumpIfEqual : public JumpByteCode {
+public:
+    JumpIfEqual(const ByteCodeLOC& loc, const size_t registerIndex0, const size_t registerIndex1, bool shouldNegate, bool isStrict)
+        : JumpByteCode(Opcode::JumpIfEqualOpcode, loc, SIZE_MAX)
+        , m_registerIndex0(registerIndex0)
+        , m_registerIndex1(registerIndex1)
+        , m_shouldNegate(shouldNegate)
+        , m_isStrict(isStrict)
+    {
+    }
+
+    ByteCodeRegisterIndex m_registerIndex0;
+    ByteCodeRegisterIndex m_registerIndex1;
+    bool m_shouldNegate;
+    bool m_isStrict;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        char* op;
+        if (m_isStrict) {
+            if (m_shouldNegate) {
+                op = (char*)"not strict equal";
+            } else {
+                op = (char*)"strict equal";
+            }
+        } else {
+            if (m_shouldNegate) {
+                op = (char*)"not equal";
+            } else {
+                op = (char*)"equal";
+            }
+        }
+        printf("jump if %s (r%d, r%d) -> %d", op, (int)m_registerIndex0, (int)m_registerIndex1, dumpJumpPosition(m_jumpPosition, byteCodeStart));
     }
 #endif
 };

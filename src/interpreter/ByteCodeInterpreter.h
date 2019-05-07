@@ -89,6 +89,8 @@ public:
     static void declareFunctionDeclarations(ExecutionState& state, DeclareFunctionDeclarations* code, LexicalEnvironment* lexicalEnvironment, Value* stackStorage);
     static void defineObjectGetter(ExecutionState& state, ObjectDefineGetter* code, Value* registerFile);
     static void defineObjectSetter(ExecutionState& state, ObjectDefineSetter* code, Value* registerFile);
+    static Value incrementOperation(ExecutionState& state, const Value& value);
+    static Value decrementOperation(ExecutionState& state, const Value& value);
 
     static void processException(ExecutionState& state, const Value& value, ExecutionContext* ec, size_t programCounter);
 };

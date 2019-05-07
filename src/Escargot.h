@@ -301,6 +301,7 @@ typedef int32_t UChar32;
 
 typedef uint16_t ByteCodeRegisterIndex;
 #define REGISTER_INDEX_IN_BIT 16
+#define REGISTER_LIMIT (std::numeric_limits<ByteCodeRegisterIndex>::max())
 #define REGULAR_REGISTER_LIMIT (std::numeric_limits<ByteCodeRegisterIndex>::max() / 2)
 #define VARIABLE_LIMIT (std::numeric_limits<ByteCodeRegisterIndex>::max() / 4)
 #define BINDED_NUMERAL_VARIABLE_LIMIT (std::numeric_limits<ByteCodeRegisterIndex>::max() / 4)

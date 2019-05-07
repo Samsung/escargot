@@ -55,7 +55,11 @@ public:
         context->giveUpRegister();
         context->giveUpRegister();
 
-        codeBlock->pushCode(BinaryGreaterThanOrEqual(ByteCodeLOC(m_loc.index), src0, src1, dstRegister), context, this);
+        if (dstRegister == REGISTER_LIMIT) {
+            codeBlock->pushCode(JumpIfRelation(ByteCodeLOC(m_loc.index), src1, src0, true, false), context, this);
+        } else {
+            codeBlock->pushCode(BinaryGreaterThanOrEqual(ByteCodeLOC(m_loc.index), src0, src1, dstRegister), context, this);
+        }
 
         context->m_canSkipCopyToRegister = directBefore;
     }
