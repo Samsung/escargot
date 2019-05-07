@@ -242,19 +242,19 @@ public:
 
     class ScanExpressionResult {
     public:
-        ScanExpressionResult(ASTNodeType first)
-            : first(first)
+        ScanExpressionResult(ASTNodeType nodeType)
+            : nodeType(nodeType)
         {
         }
 
         ScanExpressionResult()
-            : first(ASTNodeTypeError)
+            : nodeType(ASTNodeTypeError)
         {
         }
 
         template <typename T>
         ScanExpressionResult(PassRefPtr<T>)
-            : first(ASTNodeTypeError)
+            : nodeType(ASTNodeTypeError)
         {
         }
 
@@ -264,7 +264,18 @@ public:
             return PassNode<T>(nullptr);
         }
 
-        ASTNodeType first;
+        operator ASTNodeType()
+        {
+            return nodeType;
+        }
+
+        void setNodeType(ASTNodeType newNodeType)
+        {
+            nodeType = newNodeType;
+        }
+
+    private:
+        ASTNodeType nodeType;
     };
 
 
@@ -1532,11 +1543,11 @@ public:
             // const raw = this->getTokenRaw(token);
             if (this->context->inLoop || token->valueNumber == 0)
                 this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
-            key.first = Literal;
+            key.setNodeType(Literal);
             break;
         case Token::StringLiteralToken:
             isProto = (token->valueStringLiteral() == "__proto__");
-            key.first = Literal;
+            key.setNodeType(Literal);
             break;
 
         case Token::IdentifierToken:
@@ -1698,7 +1709,7 @@ public:
                     this->throwUnexpectedToken(this->lookahead);
                 }
             } else {
-                if (key.first == ASTNodeType::ASTNodeTypeError) {
+                if (key == ASTNodeType::ASTNodeTypeError) {
                     this->throwUnexpectedToken(this->lookahead);
                 }
             }
@@ -1707,7 +1718,7 @@ public:
                 if (isParse) {
                     isProto = !this->config.parseSingleFunction && this->isPropertyKey(keyNode.get(), "__proto__");
                 } else {
-                    isProto |= (key.first == ASTNodeType::Identifier && scanIdentifierName == this->escargotContext->staticStrings().__proto__);
+                    isProto |= (key == ASTNodeType::Identifier && scanIdentifierName == this->escargotContext->staticStrings().__proto__);
                 }
 
                 if (!computed && isProto) {
@@ -1757,7 +1768,7 @@ public:
             }
         }
 
-        if (!this->config.parseSingleFunction && (isParse ? keyNode->isIdentifier() : key.first == ASTNodeType::Identifier)) {
+        if (!this->config.parseSingleFunction && (isParse ? keyNode->isIdentifier() : key == ASTNodeType::Identifier)) {
             AtomicString as = isParse ? keyNode->asIdentifier()->name() : scanIdentifierName;
             bool seenInit = kind == PropertyNode::Kind::Init;
             bool seenGet = kind == PropertyNode::Kind::Get;
@@ -2055,7 +2066,7 @@ public:
 
     void scanReinterpretExpressionAsPattern(ScanExpressionResult expr)
     {
-        switch (expr.first) {
+        switch (expr) {
         case ArrayExpression:
             this->throwError("Array pattern is not supported yet");
             RELEASE_ASSERT_NOT_REACHED();
@@ -2136,7 +2147,7 @@ public:
             if (isParse) {
                 exprNode = this->finalize(this->startNode(startToken), new SequenceExpressionNode(std::move(expressions)));
             } else {
-                expr.first = ASTNodeType::SequenceExpression;
+                expr.setNodeType(ASTNodeType::SequenceExpression);
             }
         }
 
@@ -2359,7 +2370,7 @@ public:
                         exprNode = this->finalize(this->startNode(startToken), new MemberExpressionNode(exprNode.get(), property.get(), true));
                     } else {
                         this->scanIdentifierName();
-                        expr.first = ASTNodeType::MemberExpression;
+                        expr.setNodeType(ASTNodeType::MemberExpression);
                     }
                     this->trackUsingNames = trackUsingNamesBefore;
                 } else if (this->lookahead->valuePunctuatorKind == LeftParenthesis) {
@@ -2370,7 +2381,7 @@ public:
                     } else {
                         testCalleeExpressionInScan(expr);
                         this->scanArguments();
-                        expr.first = ASTNodeType::CallExpression;
+                        expr.setNodeType(ASTNodeType::CallExpression);
                     }
                 } else if (this->lookahead->valuePunctuatorKind == LeftSquareBracket) {
                     this->context->isBindingElement = false;
@@ -2381,7 +2392,7 @@ public:
                         exprNode = this->finalize(this->startNode(startToken), new MemberExpressionNode(exprNode.get(), property.get(), false));
                     } else {
                         this->scanIsolateCoverGrammar(&Parser::expression<Scan>);
-                        expr.first = ASTNodeType::MemberExpression;
+                        expr.setNodeType(ASTNodeType::MemberExpression);
                     }
                     this->expect(RightSquareBracket);
                 } else {
@@ -2392,7 +2403,7 @@ public:
                 // Note: exprNode is nullptr for Scan
                 exprNode = this->convertTaggedTempleateExpressionToCallExpression(this->startNode(startToken), this->finalize(this->startNode(startToken), new TaggedTemplateExpressionNode(exprNode.get(), quasi.get())));
                 if (!isParse) {
-                    expr.first = exprNode->type();
+                    expr.setNodeType(exprNode->type());
                 }
             } else {
                 break;
@@ -2408,7 +2419,7 @@ public:
 
     void testCalleeExpressionInScan(ScanExpressionResult callee)
     {
-        if (callee.first == ASTNodeType::Identifier && lastScanIdentifierName == escargotContext->staticStrings().eval) {
+        if (callee == ASTNodeType::Identifier && lastScanIdentifierName == escargotContext->staticStrings().eval) {
             scopeContexts.back()->m_hasEval = true;
             if (this->context->inArrowFunction) {
                 insertUsingName(this->escargotContext->staticStrings().stringThis);
@@ -2476,7 +2487,7 @@ public:
                     exprNode = this->finalize(node, new MemberExpressionNode(exprNode.get(), property.get(), false));
                 } else {
                     this->scanIsolateCoverGrammar(&Parser::expression<Scan>);
-                    expr.first = ASTNodeType::MemberExpression;
+                    expr.setNodeType(ASTNodeType::MemberExpression);
                 }
                 this->expect(RightSquareBracket);
             } else if (this->match(Period)) {
@@ -2490,7 +2501,7 @@ public:
                     exprNode = this->finalize(node, new MemberExpressionNode(exprNode.get(), property.get(), true));
                 } else {
                     this->scanIdentifierName();
-                    expr.first = ASTNodeType::MemberExpression;
+                    expr.setNodeType(ASTNodeType::MemberExpression);
                 }
                 this->trackUsingNames = trackUsingNamesBefore;
             } else if (this->lookahead->type == Token::TemplateToken && this->lookahead->valueTemplate->head) {
@@ -2498,7 +2509,7 @@ public:
                 // Note: exprNode is nullptr for Scan
                 exprNode = this->convertTaggedTempleateExpressionToCallExpression(node, this->finalize(node, new TaggedTemplateExpressionNode(exprNode.get(), quasi.get())).get());
                 if (!isParse) {
-                    expr.first = exprNode->type();
+                    expr.setNodeType(exprNode->type());
                 }
             } else {
                 break;
@@ -2563,10 +2574,10 @@ public:
                 }
             } else {
                 expr = this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
-                if (expr.first == ASTNodeType::Literal || expr.first == ASTNodeType::ThisExpression) {
+                if (expr == ASTNodeType::Literal || expr == ASTNodeType::ThisExpression) {
                     this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
                 }
-                if (this->context->strict && expr.first == ASTNodeType::Identifier && this->scanner->isRestrictedWord(lastScanIdentifierName)) {
+                if (this->context->strict && expr == ASTNodeType::Identifier && this->scanner->isRestrictedWord(lastScanIdentifierName)) {
                     this->throwError(Messages::StrictLHSPrefix);
                 }
             }
@@ -2602,7 +2613,7 @@ public:
                 if (isParse && this->context->strict && exprNode->isIdentifier() && this->scanner->isRestrictedWord(((IdentifierNode*)exprNode.get())->name())) {
                     this->throwError(Messages::StrictLHSPostfix);
                 }
-                if (!isParse && this->context->strict && expr.first == ASTNodeType::Identifier && this->scanner->isRestrictedWord(lastScanIdentifierName)) {
+                if (!isParse && this->context->strict && expr == ASTNodeType::Identifier && this->scanner->isRestrictedWord(lastScanIdentifierName)) {
                     this->throwError(Messages::StrictLHSPostfix);
                 }
                 if (!this->context->isAssignmentTarget && this->context->strict) {
@@ -2623,7 +2634,7 @@ public:
                         exprNode = this->finalize(this->startNode(startToken), new UpdateExpressionDecrementPostfixNode(exprNode.get()));
                     }
                 } else {
-                    if (expr.first == ASTNodeType::Literal || expr.first == ASTNodeType::ThisExpression) {
+                    if (expr == ASTNodeType::Literal || expr == ASTNodeType::ThisExpression) {
                         this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
                     }
 
@@ -2736,10 +2747,10 @@ public:
                 } else {
                     ScanExpressionResult subExpr = this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
 
-                    if (this->context->strict && subExpr.first == ASTNodeType::Identifier) {
+                    if (this->context->strict && subExpr == ASTNodeType::Identifier) {
                         this->throwError(Messages::StrictDelete);
                     }
-                    if (subExpr.first == ASTNodeType::Identifier) {
+                    if (subExpr == ASTNodeType::Identifier) {
                         this->scopeContexts.back()->m_hasEvaluateBindingId = true;
                     }
                 }
@@ -2783,7 +2794,7 @@ public:
                 } else {
                     ScanExpressionResult subExpr = this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
 
-                    if (subExpr.first == ASTNodeType::Identifier) {
+                    if (subExpr == ASTNodeType::Identifier) {
                         if (!this->scopeContexts.back()->hasName(lastScanIdentifierName)) {
                             this->scopeContexts.back()->m_hasEvaluateBindingId = true;
                         }
@@ -3134,67 +3145,67 @@ public:
             // Additive Operators
             switch (oper) {
             case Plus:
-                nd.first = ASTNodeType::BinaryExpressionPlus;
+                nd.setNodeType(ASTNodeType::BinaryExpressionPlus);
                 return nd;
             case Minus:
-                nd.first = ASTNodeType::BinaryExpressionMinus;
+                nd.setNodeType(ASTNodeType::BinaryExpressionMinus);
                 return nd;
             case LeftShift: //Bitse Shift Oerators
-                nd.first = ASTNodeType::BinaryExpressionLeftShift;
+                nd.setNodeType(ASTNodeType::BinaryExpressionLeftShift);
                 return nd;
             case RightShift:
-                nd.first = ASTNodeType::BinaryExpressionSignedRightShift;
+                nd.setNodeType(ASTNodeType::BinaryExpressionSignedRightShift);
                 return nd;
             case UnsignedRightShift:
-                nd.first = ASTNodeType::BinaryExpressionUnsignedRightShift;
+                nd.setNodeType(ASTNodeType::BinaryExpressionUnsignedRightShift);
                 return nd;
             case Multiply: // Multiplicative Operators
-                nd.first = ASTNodeType::BinaryExpressionMultiply;
+                nd.setNodeType(ASTNodeType::BinaryExpressionMultiply);
                 return nd;
             case Divide:
-                nd.first = ASTNodeType::BinaryExpressionDivison;
+                nd.setNodeType(ASTNodeType::BinaryExpressionDivison);
                 return nd;
             case Mod:
-                nd.first = ASTNodeType::BinaryExpressionMod;
+                nd.setNodeType(ASTNodeType::BinaryExpressionMod);
                 return nd;
             case LeftInequality: //Relative Operators
-                nd.first = ASTNodeType::BinaryExpressionLessThan;
+                nd.setNodeType(ASTNodeType::BinaryExpressionLessThan);
                 return nd;
             case RightInequality:
-                nd.first = ASTNodeType::BinaryExpressionGreaterThan;
+                nd.setNodeType(ASTNodeType::BinaryExpressionGreaterThan);
                 return nd;
             case LeftInequalityEqual:
-                nd.first = ASTNodeType::BinaryExpressionLessThanOrEqual;
+                nd.setNodeType(ASTNodeType::BinaryExpressionLessThanOrEqual);
                 return nd;
             case RightInequalityEqual:
-                nd.first = ASTNodeType::BinaryExpressionGreaterThanOrEqual;
+                nd.setNodeType(ASTNodeType::BinaryExpressionGreaterThanOrEqual);
                 return nd;
             case Equal: //Equality Operators
-                nd.first = ASTNodeType::BinaryExpressionEqual;
+                nd.setNodeType(ASTNodeType::BinaryExpressionEqual);
                 return nd;
             case NotEqual:
-                nd.first = ASTNodeType::BinaryExpressionNotEqual;
+                nd.setNodeType(ASTNodeType::BinaryExpressionNotEqual);
                 return nd;
             case StrictEqual:
-                nd.first = ASTNodeType::BinaryExpressionStrictEqual;
+                nd.setNodeType(ASTNodeType::BinaryExpressionStrictEqual);
                 return nd;
             case NotStrictEqual:
-                nd.first = ASTNodeType::BinaryExpressionNotStrictEqual;
+                nd.setNodeType(ASTNodeType::BinaryExpressionNotStrictEqual);
                 return nd;
             case BitwiseAnd: //Binary Bitwise Operator
-                nd.first = ASTNodeType::BinaryExpressionBitwiseAnd;
+                nd.setNodeType(ASTNodeType::BinaryExpressionBitwiseAnd);
                 return nd;
             case BitwiseXor:
-                nd.first = ASTNodeType::BinaryExpressionBitwiseXor;
+                nd.setNodeType(ASTNodeType::BinaryExpressionBitwiseXor);
                 return nd;
             case BitwiseOr:
-                nd.first = ASTNodeType::BinaryExpressionBitwiseOr;
+                nd.setNodeType(ASTNodeType::BinaryExpressionBitwiseOr);
                 return nd;
             case LogicalOr:
-                nd.first = ASTNodeType::BinaryExpressionLogicalOr;
+                nd.setNodeType(ASTNodeType::BinaryExpressionLogicalOr);
                 return nd;
             case LogicalAnd:
-                nd.first = ASTNodeType::BinaryExpressionLogicalAnd;
+                nd.setNodeType(ASTNodeType::BinaryExpressionLogicalAnd);
                 return nd;
             default:
                 RELEASE_ASSERT_NOT_REACHED();
@@ -3203,10 +3214,10 @@ public:
             ASSERT(token->type == Token::KeywordToken);
             switch (token->valueKeywordKind) {
             case InKeyword:
-                nd.first = ASTNodeType::BinaryExpressionIn;
+                nd.setNodeType(ASTNodeType::BinaryExpressionIn);
                 return nd;
             case KeywordKind::InstanceofKeyword:
-                nd.first = ASTNodeType::BinaryExpressionInstanceOf;
+                nd.setNodeType(ASTNodeType::BinaryExpressionInstanceOf);
                 return nd;
             default:
                 RELEASE_ASSERT_NOT_REACHED();
@@ -3386,7 +3397,7 @@ public:
             } else {
                 lastMarker = this->lastMarker;
                 expr = this->conditionalExpression<Scan>();
-                type = expr.first;
+                type = expr;
             }
 
             /*
@@ -3462,7 +3473,7 @@ public:
 
                     exprNode = this->finalize(node, new ArrowFunctionExpressionNode(std::move(list.params), body.get(), popScopeContext(node), isExpression)); //TODO
                     if (!isParse) {
-                        expr.first = ASTNodeType::ArrowFunctionExpression;
+                        expr.setNodeType(ASTNodeType::ArrowFunctionExpression);
                     }
 
                     this->context->strict = previousStrict;
@@ -3505,7 +3516,7 @@ public:
                     } else {
                         this->scanReinterpretExpressionAsPattern(expr);
 
-                        if (expr.first == ASTNodeType::Literal || expr.first == ASTNodeType::ThisExpression) {
+                        if (expr == ASTNodeType::Literal || expr == ASTNodeType::ThisExpression) {
                             this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
                         }
                     }
@@ -3526,84 +3537,84 @@ public:
                             exprResult = new AssignmentExpressionSimpleNode(exprNode.get(), rightNode.get());
                             break;
                         }
-                        expr.first = ASTNodeType::AssignmentExpressionSimple;
+                        expr.setNodeType(ASTNodeType::AssignmentExpressionSimple);
                         break;
                     case PlusEqual:
                         if (isParse) {
                             exprResult = new AssignmentExpressionPlusNode(exprNode.get(), rightNode.get());
                             break;
                         }
-                        expr.first = ASTNodeType::AssignmentExpressionPlus;
+                        expr.setNodeType(ASTNodeType::AssignmentExpressionPlus);
                         break;
                     case MinusEqual:
                         if (isParse) {
                             exprResult = new AssignmentExpressionMinusNode(exprNode.get(), rightNode.get());
                             break;
                         }
-                        expr.first = ASTNodeType::AssignmentExpressionMinus;
+                        expr.setNodeType(ASTNodeType::AssignmentExpressionMinus);
                         break;
                     case MultiplyEqual:
                         if (isParse) {
                             exprResult = new AssignmentExpressionMultiplyNode(exprNode.get(), rightNode.get());
                             break;
                         }
-                        expr.first = ASTNodeType::AssignmentExpressionMultiply;
+                        expr.setNodeType(ASTNodeType::AssignmentExpressionMultiply);
                         break;
                     case DivideEqual:
                         if (isParse) {
                             exprResult = new AssignmentExpressionDivisionNode(exprNode.get(), rightNode.get());
                             break;
                         }
-                        expr.first = ASTNodeType::AssignmentExpressionDivision;
+                        expr.setNodeType(ASTNodeType::AssignmentExpressionDivision);
                         break;
                     case ModEqual:
                         if (isParse) {
                             exprResult = new AssignmentExpressionModNode(exprNode.get(), rightNode.get());
                             break;
                         }
-                        expr.first = ASTNodeType::AssignmentExpressionMod;
+                        expr.setNodeType(ASTNodeType::AssignmentExpressionMod);
                         break;
                     case LeftShiftEqual:
                         if (isParse) {
                             exprResult = new AssignmentExpressionLeftShiftNode(exprNode.get(), rightNode.get());
                             break;
                         }
-                        expr.first = ASTNodeType::AssignmentExpressionLeftShift;
+                        expr.setNodeType(ASTNodeType::AssignmentExpressionLeftShift);
                         break;
                     case RightShiftEqual:
                         if (isParse) {
                             exprResult = new AssignmentExpressionSignedRightShiftNode(exprNode.get(), rightNode.get());
                             break;
                         }
-                        expr.first = ASTNodeType::AssignmentExpressionSignedRightShift;
+                        expr.setNodeType(ASTNodeType::AssignmentExpressionSignedRightShift);
                         break;
                     case UnsignedRightShiftEqual:
                         if (isParse) {
                             exprResult = new AssignmentExpressionUnsignedShiftNode(exprNode.get(), rightNode.get());
                             break;
                         }
-                        expr.first = ASTNodeType::AssignmentExpressionUnsignedRightShift;
+                        expr.setNodeType(ASTNodeType::AssignmentExpressionUnsignedRightShift);
                         break;
                     case BitwiseXorEqual:
                         if (isParse) {
                             exprResult = new AssignmentExpressionBitwiseXorNode(exprNode.get(), rightNode.get());
                             break;
                         }
-                        expr.first = ASTNodeType::AssignmentExpressionBitwiseXor;
+                        expr.setNodeType(ASTNodeType::AssignmentExpressionBitwiseXor);
                         break;
                     case BitwiseAndEqual:
                         if (isParse) {
                             exprResult = new AssignmentExpressionBitwiseAndNode(exprNode.get(), rightNode.get());
                             break;
                         }
-                        expr.first = ASTNodeType::AssignmentExpressionBitwiseAnd;
+                        expr.setNodeType(ASTNodeType::AssignmentExpressionBitwiseAnd);
                         break;
                     case BitwiseOrEqual:
                         if (isParse) {
                             exprResult = new AssignmentExpressionBitwiseOrNode(exprNode.get(), rightNode.get());
                             break;
                         }
-                        expr.first = ASTNodeType::AssignmentExpressionBitwiseOr;
+                        expr.setNodeType(ASTNodeType::AssignmentExpressionBitwiseOr);
                         break;
                     default:
                         RELEASE_ASSERT_NOT_REACHED();
@@ -4039,7 +4050,7 @@ public:
             }
         } else {
             id = this->pattern<Scan>(params, VarKeyword);
-            isIdentifier = (id.first == Identifier);
+            isIdentifier = (id == Identifier);
             if (isIdentifier) {
                 name = lastScanIdentifierName;
             }
@@ -4762,7 +4773,7 @@ public:
             }
         } else {
             ScanExpressionResult result = this->expression<Scan>();
-            if (result.first == Identifier) {
+            if (result == Identifier) {
                 isIdentifier = true;
                 name = lastScanIdentifierName;
             }
