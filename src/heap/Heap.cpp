@@ -61,4 +61,14 @@ void Heap::finalize()
         GC_gcollect_and_unmap();
     }
 }
+
+void Heap::printGCHeapUsage()
+{
+#ifdef ESCARGOT_MEM_STATS
+    GC_print_heap_usage();
+#else
+    printf("There are no memory usage information.\n");
+    printf("Compile Escargot with ESCARGOT_MEM_STATS option.\n");
+#endif
+}
 }

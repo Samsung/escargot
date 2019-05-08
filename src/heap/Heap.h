@@ -27,6 +27,7 @@ class Heap {
 public:
     static void initialize(bool applyMallOpt = true, bool applyGcOpt = true);
     static void finalize();
+    static void printGCHeapUsage();
 };
 }
 
