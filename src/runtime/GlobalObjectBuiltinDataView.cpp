@@ -125,7 +125,10 @@ FOR_EACH_DATAVIEW_TYPES(DECLARE_DATAVIEW_SETTER);
 static Value builtinDataViewBufferGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject())) {
-        return Value(thisValue.asObject()->asArrayBufferView()->buffer());
+        ArrayBufferObject* buffer = thisValue.asObject()->asArrayBufferView()->buffer();
+        if (buffer) {
+            return Value(buffer);
+        }
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get DataView.prototype.buffer called on incompatible receiver");
     RELEASE_ASSERT_NOT_REACHED();
