@@ -34,8 +34,7 @@ Value builtinSymbolConstructor(ExecutionState& state, Value thisValue, size_t ar
     }
     String* descString = String::emptyString;
     // If description is undefined, let descString be undefined.
-    if (argc == 0 || argv[0].isUndefined()) {
-    } else {
+    if (!(argc == 0 || argv[0].isUndefined())) {
         // Else, let descString be ? ToString(description).
         descString = argv[0].toString(state);
     }

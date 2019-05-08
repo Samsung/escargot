@@ -99,8 +99,7 @@ public:
     {
         for (size_t i = 0; i < m_properties.size(); i++) {
             PropertyNode* p = m_properties[i].get();
-            if (p->key()->isIdentifier() && !p->computed()) {
-            } else {
+            if (!(p->key()->isIdentifier() && !p->computed())) {
                 p->key()->iterateChildrenIdentifier(fn);
             }
         }

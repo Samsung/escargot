@@ -358,7 +358,7 @@ public:
                 Allocator().deallocate(m_buffer, oldc);
             m_buffer = newBuffer;
         }
-        m_buffer[(newSize - 1)] = val;
+        m_buffer[newSize - 1] = val;
     }
 
     size_t capacity() const

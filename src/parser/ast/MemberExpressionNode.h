@@ -94,8 +94,7 @@ public:
             context->giveUpRegister();
         }
 
-        if (context->m_inCallingExpressionScope && prevHead) {
-        } else {
+        if (!(context->m_inCallingExpressionScope && prevHead)) {
             context->giveUpRegister();
         }
     }
@@ -143,8 +142,7 @@ public:
     {
         ByteCodeRegisterIndex objectIndex = m_object->getRegister(codeBlock, context);
         m_object->generateExpressionByteCode(codeBlock, context, objectIndex);
-        if (isPreComputedCase()) {
-        } else {
+        if (!isPreComputedCase()) {
             ByteCodeRegisterIndex propertyIndex = m_property->getRegister(codeBlock, context);
             m_property->generateExpressionByteCode(codeBlock, context, propertyIndex);
         }

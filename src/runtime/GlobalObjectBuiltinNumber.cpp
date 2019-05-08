@@ -228,7 +228,7 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
     }
 
     if (std::isnan(number) || std::isinf(number)) {
-        return (Value(number).toString(state));
+        return Value(number).toString(state);
     }
     double radix = 10;
     if (argc > 0 && !argv[0].isUndefined()) {
@@ -238,7 +238,7 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
         }
     }
     if (radix == 10) {
-        return (Value(number).toString(state));
+        return Value(number).toString(state);
     } else {
         bool isInteger = (static_cast<int64_t>(number) == number);
         if (isInteger) {
@@ -251,7 +251,7 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
             } else {
                 itoa(static_cast<int64_t>(number), buffer, radix);
             }
-            return (new ASCIIString(buffer));
+            return new ASCIIString(buffer);
         } else {
             ASSERT(Value(number).isDouble());
             NumberObject::RadixBuffer s;
