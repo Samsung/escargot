@@ -104,30 +104,22 @@ namespace Escargot {
 uint64_t tickCount()
 {
     struct timeval gettick;
-    unsigned int tick;
-    int ret;
     gettimeofday(&gettick, NULL);
-
-    tick = gettick.tv_sec * 1000 + gettick.tv_usec / 1000;
-    return tick;
+    return (uint64_t)gettick.tv_sec * 1000UL + gettick.tv_usec / 1000UL;
 }
 
 uint64_t longTickCount()
 {
     struct timeval gettick;
-    unsigned int tick;
-    int ret;
     gettimeofday(&gettick, NULL);
-
-    tick = gettick.tv_sec * 1000000 + gettick.tv_usec;
-    return tick;
+    return (uint64_t)gettick.tv_sec * 1000000UL + gettick.tv_usec;
 }
 
 uint64_t timestamp()
 {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    return ((tv.tv_sec * 1000) + (tv.tv_usec / 1000));
+    return (uint64_t)tv.tv_sec * 1000UL + tv.tv_usec / 1000UL;
 }
 
 ProfilerTimer::~ProfilerTimer()
@@ -146,4 +138,4 @@ LongTaskFinder::~LongTaskFinder()
     }
 }
 
-} // namespace Starfish
+} // namespace Escargot
