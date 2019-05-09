@@ -1746,7 +1746,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     {
         JSGetterSetter gs(
-            new FunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("get [Symbol.toStringTag]")), builtinTypedArrayToStringTagGetter, 0, nullptr, NativeFunctionInfo::Strict)),
+            new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSymbolToStringTag, builtinTypedArrayToStringTagGetter, 0, nullptr, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         typedArrayPrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().toStringTag), desc);
