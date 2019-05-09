@@ -483,11 +483,6 @@ public:
         this->errorHandler->throwError(index, line, column, new UTF16String(msg.data(), msg.length()), code);
     }
 
-    void tolerateError(const char* messageFormat, String* arg0 = String::emptyString, String* arg1 = String::emptyString, ErrorObject::Code code = ErrorObject::SyntaxError)
-    {
-        throwError(messageFormat, arg0, arg1, code);
-    }
-
     void replaceAll(UTF16StringDataNonGCStd& str, const UTF16StringDataNonGCStd& from, const UTF16StringDataNonGCStd& to)
     {
         if (from.empty())
@@ -1723,7 +1718,7 @@ public:
 
                 if (!computed && isProto) {
                     if (hasProto) {
-                        this->tolerateError(Messages::DuplicateProtoProperty);
+                        this->throwError(Messages::DuplicateProtoProperty);
                     }
                     hasProto = true;
                 }
@@ -3401,7 +3396,7 @@ public:
             } else {
                 if (this->matchAssign()) {
                     if (!this->context->isAssignmentTarget && this->context->strict) {
-                        this->tolerateError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                        this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
                     }
 
                     if (this->context->strict && type == Identifier) {
@@ -3710,7 +3705,7 @@ public:
         // ECMA-262 12.2.1
         if (this->context.strict && id.type === Syntax.Identifier) {
             if (this->scanner.isRestrictedWord((<Node.Identifier>(id)).name)) {
-                this->tolerateError(Messages.StrictVarName);
+                this->throwError(Messages.StrictVarName);
             }
         }
 
@@ -4235,7 +4230,7 @@ public:
                     RefPtr<VariableDeclaratorNode> decl = declarations[0];
                     // if (decl->init() && (decl.id.type === Syntax.ArrayPattern || decl.id.type === Syntax.ObjectPattern || this->context->strict)) {
                     if (decl->init() && (decl->id()->type() == ArrayExpression || decl->id()->type() == ObjectExpression || this->context->strict)) {
-                        this->tolerateError(Messages::ForInOfLoopInitializer, new ASCIIString("for-in"));
+                        this->throwError(Messages::ForInOfLoopInitializer, new ASCIIString("for-in"));
                     }
                     if (isParse) {
                         left = this->finalize(this->createNode(), new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
@@ -4304,7 +4299,7 @@ public:
 
                 if (this->matchKeyword(InKeyword)) {
                     if (init->isLiteral() || init->type() == ASTNodeType::AssignmentExpression || init->type() == ASTNodeType::ThisExpression) {
-                        this->tolerateError(Messages::InvalidLHSInForIn);
+                        this->throwError(Messages::InvalidLHSInForIn);
                     }
 
                     this->nextToken();
@@ -4314,7 +4309,7 @@ public:
                     type = statementTypeForIn;
                 } else if (this->lookahead->type == Token::IdentifierToken && this->lookahead->relatedSource() == "of") {
                     if (!this->context->isAssignmentTarget || init->type() == ASTNodeType::AssignmentExpression) {
-                        this->tolerateError(Messages::InvalidLHSInForLoop);
+                        this->throwError(Messages::InvalidLHSInForLoop);
                     }
 
                     this->nextToken();
@@ -4507,7 +4502,7 @@ public:
     T returnStatement()
     {
         if (!this->context->inFunctionBody) {
-            this->tolerateError(Messages::IllegalReturn);
+            this->throwError(Messages::IllegalReturn);
         }
 
         this->expectKeyword(ReturnKeyword);
@@ -4534,7 +4529,7 @@ public:
     PassRefPtr<Node> parseWithStatement()
     {
         if (this->context->strict) {
-            this->tolerateError(Messages::StrictModeWith);
+            this->throwError(Messages::StrictModeWith);
         }
 
         this->expectKeyword(WithKeyword);
@@ -4788,7 +4783,7 @@ public:
         if (this->context->strict && param->type() == Identifier) {
             IdentifierNode* id = (IdentifierNode*)param.get();
             if (this->scanner->isRestrictedWord(id->name())) {
-                this->tolerateError(Messages::StrictCatchVariable);
+                this->throwError(Messages::StrictCatchVariable);
             }
         }
 
