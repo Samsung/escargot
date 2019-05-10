@@ -448,8 +448,10 @@ public:
     AtomicString getbyteOffset;
     AtomicString getLength;
     AtomicString getBuffer;
+    AtomicString getSize;
     AtomicString getSymbolSpecies;
     AtomicString getSymbolSearch;
+    AtomicString getSymbolToStringTag;
     AtomicString $Ampersand;
     AtomicString $PlusSign;
     AtomicString $GraveAccent;

@@ -246,13 +246,13 @@ void GlobalObject::installMap(ExecutionState& state)
                                                      ObjectPropertyDescriptor(entFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_mapPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator),
-                                                     ObjectPropertyDescriptor(entFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+                                                     ObjectPropertyDescriptor(entFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_mapPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
                                                      ObjectPropertyDescriptor(Value(state.context()->staticStrings().Map.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     JSGetterSetter gs(
-        new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().function, builtinMapSizeGetter, 0, nullptr, NativeFunctionInfo::Strict)),
+        new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSize, builtinMapSizeGetter, 0, nullptr, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
     m_mapPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().size), desc);
