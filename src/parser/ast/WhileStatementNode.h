@@ -52,11 +52,19 @@ public:
         if (m_test->isLiteral() && m_test->asLiteral()->value().isPrimitive() && m_test->asLiteral()->value().toBoolean(stateForTest)) {
             // skip generate code
         } else {
-            ByteCodeRegisterIndex testR = m_test->getRegister(codeBlock, &newContext);
-            m_test->generateExpressionByteCode(codeBlock, &newContext, testR);
-            codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testR), &newContext, this);
-            testPos = codeBlock->lastCodePosition<JumpIfFalse>();
-            newContext.giveUpRegister();
+            if (m_test->isRelationOperation()) {
+                m_test->generateExpressionByteCode(codeBlock, &newContext, REGISTER_LIMIT);
+                testPos = codeBlock->lastCodePosition<JumpIfRelation>();
+            } else if (m_test->isEqualityOperation()) {
+                m_test->generateExpressionByteCode(codeBlock, &newContext, REGISTER_LIMIT);
+                testPos = codeBlock->lastCodePosition<JumpIfEqual>();
+            } else {
+                ByteCodeRegisterIndex testR = m_test->getRegister(codeBlock, &newContext);
+                m_test->generateExpressionByteCode(codeBlock, &newContext, testR);
+                codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testR), &newContext, this);
+                testPos = codeBlock->lastCodePosition<JumpIfFalse>();
+                newContext.giveUpRegister();
+            }
         }
 
         newContext.giveUpRegister();
@@ -68,7 +76,7 @@ public:
         size_t whileEnd = codeBlock->currentCodeSize();
         newContext.consumeBreakPositions(codeBlock, whileEnd, context->m_tryStatementScopeCount);
         if (testPos != SIZE_MAX)
-            codeBlock->peekCode<JumpIfFalse>(testPos)->m_jumpPosition = whileEnd;
+            codeBlock->peekCode<JumpByteCode>(testPos)->m_jumpPosition = whileEnd;
         newContext.m_positionToContinue = context->m_positionToContinue;
         newContext.propagateInformationTo(*context);
     }

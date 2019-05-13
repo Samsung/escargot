@@ -90,24 +90,25 @@ enum ASTNodeType {
     BinaryExpressionBitwiseOr,
     BinaryExpressionBitwiseXor,
     BinaryExpressionDivison,
+    /* Note: These 8 types must be in this order */
     BinaryExpressionEqual,
+    BinaryExpressionNotEqual,
+    BinaryExpressionStrictEqual,
+    BinaryExpressionNotStrictEqual,
     BinaryExpressionGreaterThan,
     BinaryExpressionGreaterThanOrEqual,
+    BinaryExpressionLessThan,
+    BinaryExpressionLessThanOrEqual,
     BinaryExpressionIn,
     BinaryExpressionInstanceOf,
     BinaryExpressionLeftShift,
-    BinaryExpressionLessThan,
-    BinaryExpressionLessThanOrEqual,
     BinaryExpressionLogicalAnd,
     BinaryExpressionLogicalOr,
     BinaryExpressionMinus,
     BinaryExpressionMod,
     BinaryExpressionMultiply,
-    BinaryExpressionNotEqual,
-    BinaryExpressionNotStrictEqual,
     BinaryExpressionPlus,
     BinaryExpressionSignedRightShift,
-    BinaryExpressionStrictEqual,
     BinaryExpressionUnsignedRightShift,
     LogicalExpression,
     UpdateExpressionDecrementPostfix,
@@ -141,6 +142,15 @@ enum ASTNodeType {
     ClassMethod,
     DefaultArgument,
 };
+
+COMPILE_ASSERT(((int)BinaryExpressionEqual + 1) == (int)BinaryExpressionNotEqual, "");
+COMPILE_ASSERT(((int)BinaryExpressionNotEqual + 1) == (int)BinaryExpressionStrictEqual, "");
+COMPILE_ASSERT(((int)BinaryExpressionStrictEqual + 1) == (int)BinaryExpressionNotStrictEqual, "");
+COMPILE_ASSERT(((int)BinaryExpressionNotStrictEqual + 1) == (int)BinaryExpressionGreaterThan, "");
+COMPILE_ASSERT(((int)BinaryExpressionGreaterThan + 1) == (int)BinaryExpressionGreaterThanOrEqual, "");
+COMPILE_ASSERT(((int)BinaryExpressionGreaterThanOrEqual + 1) == (int)BinaryExpressionLessThan, "");
+COMPILE_ASSERT(((int)BinaryExpressionLessThan + 1) == (int)BinaryExpressionLessThanOrEqual, "");
+COMPILE_ASSERT(((int)BinaryExpressionLessThanOrEqual - (int)BinaryExpressionEqual) == 7, "");
 
 struct NodeLOC {
     size_t index;
@@ -199,6 +209,16 @@ public:
     inline void operator delete(void *obj)
     {
         GC_FREE(obj);
+    }
+
+    bool isRelationOperation()
+    {
+        return type() >= ASTNodeType::BinaryExpressionGreaterThan && type() <= ASTNodeType::BinaryExpressionLessThanOrEqual;
+    }
+
+    bool isEqualityOperation()
+    {
+        return type() >= ASTNodeType::BinaryExpressionEqual && type() <= ASTNodeType::BinaryExpressionNotStrictEqual;
     }
 
     bool isIdentifier()

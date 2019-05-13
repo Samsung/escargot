@@ -43,12 +43,11 @@ public:
         m_argument->generateResolveAddressByteCode(codeBlock, context);
         m_argument->generateReferenceResolvedAddressByteCode(codeBlock, context);
         size_t srcIndex = context->getLastRegisterIndex();
-        codeBlock->pushCode(ToNumber(ByteCodeLOC(m_loc.index), srcIndex, dstRegister), context, this);
-        size_t tmpR = m_argument->getRegister(codeBlock, context);
-        codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), dstRegister, tmpR), context, this);
+        size_t storeIndex = m_argument->getRegister(codeBlock, context);
+        codeBlock->pushCode(ToNumberIncrement(ByteCodeLOC(m_loc.index), srcIndex, storeIndex, dstRegister), context, this);
         context->giveUpRegister();
         context->giveUpRegister();
-        m_argument->generateStoreByteCode(codeBlock, context, tmpR, false);
+        m_argument->generateStoreByteCode(codeBlock, context, storeIndex, false);
     }
 
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
