@@ -3284,15 +3284,14 @@ public:
         } else {
             RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
             RefPtr<Scanner::ScannerResult> token = startToken;
-            Marker lastMarker;
             ASTNodeType type;
             MetaNode startNode = this->createNode();
+            Marker startMarker = this->lastMarker;
 
             if (isParse) {
                 exprNode = this->conditionalExpression<Parse>();
                 type = exprNode->type();
             } else {
-                lastMarker = this->lastMarker;
                 expr = this->conditionalExpression<Scan>();
                 type = expr;
             }
@@ -3314,9 +3313,9 @@ public:
 
                 if (!isParse) {
                     // rewind scanner for return to normal mode
-                    this->scanner->index = lastMarker.index;
-                    this->scanner->lineNumber = lastMarker.lineNumber;
-                    this->scanner->lineStart = lastMarker.lineStart;
+                    this->scanner->index = startMarker.index;
+                    this->scanner->lineNumber = startMarker.lineNumber;
+                    this->scanner->lineStart = startMarker.lineStart;
                     this->nextToken();
 
                     exprNode = this->conditionalExpression<Parse>();
@@ -3330,7 +3329,9 @@ public:
                     list.params.push_back(exprNode);
                     list.valid = true;
                 } else {
-                    this->scanner->index = startNode.index;
+                    this->scanner->index = startMarker.index;
+                    this->scanner->lineNumber = startMarker.lineNumber;
+                    this->scanner->lineStart = startMarker.lineStart;
                     this->nextToken();
                     this->expect(LeftParenthesis);
 
