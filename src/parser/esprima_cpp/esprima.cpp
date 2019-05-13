@@ -311,15 +311,18 @@ public:
 
         scopeContexts.back()->m_parameters.resizeWithUninitializedValues(vector.size());
         for (size_t i = 0; i < vector.size(); i++) {
-            IdentifierNode* id;
+            AtomicString id;
             if (vector[i]->isIdentifier()) {
-                id = vector[i]->asIdentifier();
+                id = vector[i]->asIdentifier()->name();
+            } else if (vector[i]->isDefaultArgument()) {
+                id = vector[i]->asDefaultArgument()->left()->asIdentifier()->name();
             } else {
-                ASSERT(vector[i]->isDefaultArgument());
-                id = vector[i]->asDefaultArgument()->left()->asIdentifier();
+                ASSERT(vector[i]->type() == ASTNodeType::ArrowParameterPlaceHolder);
+                scopeContexts.back()->m_parameters.resize(scopeContexts.back()->m_parameters.size() - 1);
+                continue;
             }
-            scopeContexts.back()->m_parameters[i] = id->name();
-            scopeContexts.back()->insertName(id->name(), true);
+            scopeContexts.back()->m_parameters[i] = id;
+            scopeContexts.back()->insertName(id, true);
         }
     }
 
