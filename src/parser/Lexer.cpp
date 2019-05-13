@@ -1731,6 +1731,10 @@ static ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
         break;
     case 'l':
         if (length == 3 && data.equalsSameLength("let", 1)) {
+            const char* env = getenv("ESCARGOT_TREAT_LET_AS_VAR");
+            if (env && strlen(env)) {
+                return VarKeyword;
+            }
             return LetKeyword;
         }
         break;
