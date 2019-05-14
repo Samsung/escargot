@@ -37,6 +37,8 @@ class GetGlobalObject;
 class SetGlobalObject;
 class CallFunctionInWithScope;
 class CallEvalFunction;
+class CreateClass;
+class SuperReference;
 class WithOperation;
 class TryOperation;
 class UnaryDelete;
@@ -81,6 +83,8 @@ public:
     static size_t tryOperation(ExecutionState& state, TryOperation* code, ExecutionContext* ec, LexicalEnvironment* env, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 
     static void evalOperation(ExecutionState& state, CallEvalFunction* code, Value* registerFile, ByteCodeBlock* byteCodeBlock, ExecutionContext* ec);
+    static void classOperation(ExecutionState& state, CreateClass* code, ExecutionContext* ec, Value* registerFile);
+    static void superOperation(ExecutionState& state, SuperReference* code, ExecutionContext* ec, Value* registerFile);
     static Value withOperation(ExecutionState& state, WithOperation* code, Object* obj, ExecutionContext* ec, LexicalEnvironment* env, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage);
     static bool binaryInOperation(ExecutionState& state, const Value& left, const Value& right);
     static Value callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, ExecutionContext* ec, LexicalEnvironment* env, Value* argv);

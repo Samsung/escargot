@@ -532,10 +532,11 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
         m_structure = m_structure->addProperty(state, propertyName, desc.toObjectStructurePropertyDescriptor());
         ASSERT(structureBefore != m_structure);
         if (LIKELY(desc.isDataProperty())) {
-            if (LIKELY(desc.isValuePresent())) {
-                m_values.pushBack(desc.value(), m_structure->propertyCount());
-            } else {
-                m_values.pushBack(Value(), m_structure->propertyCount());
+            const Value& val = desc.isValuePresent() ? desc.value() : Value();
+            m_values.pushBack(val, m_structure->propertyCount());
+
+            if (val.isObject() && val.asObject()->isFunctionObject()) {
+                val.asObject()->asFunctionObject()->setHomeObject(this);
             }
         } else {
             m_values.pushBack(Value(new JSGetterSetter(desc.getterSetter())), m_structure->propertyCount());

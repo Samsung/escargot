@@ -49,18 +49,9 @@ void FunctionObject::initFunctionObject(ExecutionState& state)
     // Call the [[DefineOwnProperty]] internal method of F with arguments "arguments", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
     bool needsThrower = m_codeBlock->isStrict() && !m_codeBlock->hasCallNativeFunctionCode();
 
-    if (isConstructor()) {
-        m_structure = state.context()->defaultStructureForFunctionObject();
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(Object::createFunctionPrototypeObject(state, this)));
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionName().string()));
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = (Value(m_codeBlock->parameterCount()));
-        if (needsThrower) {
-            m_structure = state.context()->defaultStructureForFunctionObjectInStrictMode();
-            auto data = state.context()->globalObject()->throwerGetterSetterData();
-            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3] = Value(data);
-            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 4] = Value(data);
-        }
-    } else if (m_codeBlock->isBindedFunction()) {
+    m_constructorKind = ConstructorKind::Base;
+
+    if (m_codeBlock->isBindedFunction()) {
         m_structure = state.context()->defaultStructureForBindedFunctionObject();
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->parameterCount()));
         // Let thrower be the [[ThrowTypeError]] function Object (13.2.3).
@@ -69,6 +60,19 @@ void FunctionObject::initFunctionObject(ExecutionState& state)
         auto data = state.context()->globalObject()->throwerGetterSetterData();
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(data);
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3] = Value(data);
+    } else if (isConstructor()) {
+        m_structure = isClassConstructor() ? state.context()->defaultStructureForClassFunctionObject() : state.context()->defaultStructureForFunctionObject();
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(Object::createFunctionPrototypeObject(state, this)));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionName().string()));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = (Value(m_codeBlock->parameterCount()));
+        if (needsThrower) {
+            if (!isClassConstructor()) {
+                m_structure = state.context()->defaultStructureForFunctionObjectInStrictMode();
+            }
+            auto data = state.context()->globalObject()->throwerGetterSetterData();
+            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3] = Value(data);
+            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 4] = Value(data);
+        }
     } else if (isArrowFunction()) {
         // TODO ES6
         m_structure = state.context()->defaultStructureForArrowFunctionObject();
@@ -99,6 +103,8 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForG
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2, false)
     , m_codeBlock(codeBlock)
     , m_outerEnvironment(nullptr)
+    , m_homeObject(nullptr)
+    , m_isBuiltin(false)
 {
     ASSERT(!isConstructor());
     initFunctionObject(state);
@@ -108,6 +114,8 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForB
     : Object(state, codeBlock->isConstructor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
     , m_codeBlock(codeBlock)
     , m_outerEnvironment(nullptr)
+    , m_homeObject(nullptr)
+    , m_isBuiltin(codeBlock->isConstructor())
 {
     initFunctionObject(state);
     Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
@@ -119,6 +127,8 @@ FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info)
     : Object(state, info.m_isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
     , m_codeBlock(new CodeBlock(state.context(), info))
     , m_outerEnvironment(nullptr)
+    , m_homeObject(nullptr)
+    , m_isBuiltin(false)
 {
     initFunctionObject(state);
     Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
@@ -128,6 +138,8 @@ FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, F
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3, false)
     , m_codeBlock(new CodeBlock(state.context(), info))
     , m_outerEnvironment(nullptr)
+    , m_homeObject(nullptr)
+    , m_isBuiltin(true)
 {
     ASSERT(isConstructor());
     initFunctionObject(state);
@@ -141,6 +153,8 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Lexi
              false)
     , m_codeBlock(codeBlock)
     , m_outerEnvironment(outerEnv)
+    , m_homeObject(nullptr)
+    , m_isBuiltin(false)
 {
     initFunctionObject(state);
     Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
@@ -152,6 +166,8 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Stri
              false)
     , m_codeBlock(codeBlock)
     , m_outerEnvironment(nullptr)
+    , m_homeObject(nullptr)
+    , m_isBuiltin(false)
 {
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = Value(name);
     initFunctionObject(state);
@@ -319,8 +335,16 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
     Context* ctx = m_codeBlock->context();
     bool isStrict = m_codeBlock->isStrict();
 
-    if (UNLIKELY(!isNewExpression && m_codeBlock->isClassConstructor())) {
+    bool isSuperCall = state.executionContext() ? state.executionContext()->isOnGoingSuperCall() : false;
+
+    if (UNLIKELY(!isNewExpression && functionKind() == FunctionKind::ClassConstructor && !isSuperCall)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Class constructor cannot be invoked without 'new'");
+    }
+
+    if (UNLIKELY(isSuperCall && isBuiltin() && !isNewExpression)) {
+        Value returnValue = newInstance(state, argc, argv);
+        returnValue.asObject()->setPrototype(state, receiverSrc.toObject(state)->getPrototype(state));
+        return returnValue;
     }
 
     if (!m_codeBlock->isInterpretedCodeBlock()) {
@@ -351,10 +375,25 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
             }
         }
 
+        record.bindThisValue(state, receiver);
+        if (receiverSrc.isObject()) {
+            record.setNewTarget(receiverSrc.asObject());
+        }
+
         ExecutionState newState(ctx, &state, &ec, &receiver);
 
         try {
-            return code->m_fn(newState, receiver, argc, argv, isNewExpression);
+            Value returnValue = code->m_fn(newState, receiver, argc, argv, isNewExpression);
+
+            if (UNLIKELY(isSuperCall)) {
+                state.executionContext()->getThisEnvironment()->bindThisValue(state, returnValue);
+                state.executionContext()->setOnGoingSuperCall(false);
+                if (returnValue.isObject() && !isBuiltin()) {
+                    returnValue.asObject()->setPrototype(state, receiver.toObject(state)->getPrototype(state));
+                }
+            }
+
+            return returnValue;
         } catch (const Value& v) {
             ByteCodeInterpreter::processException(newState, v, &ec, SIZE_MAX);
         }
@@ -394,6 +433,10 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
         ec = new ExecutionContext(ctx, state.executionContext(), new LexicalEnvironment(record, outerEnvironment()), isStrict);
     }
 
+    if (receiverSrc.isObject()) {
+        record->setNewTarget(receiverSrc.asObject());
+    }
+
     Value* registerFile = (Value*)alloca((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
     Value* stackStorage = registerFile + registerSize;
 
@@ -417,6 +460,10 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
         } else {
             stackStorage[0] = receiverSrc;
         }
+    }
+
+    if (constructorKind() == ConstructorKind::Base && thisMode() != ThisMode::Lexical) {
+        record->bindThisValue(state, stackStorage[0]);
     }
 
     // binding function name
@@ -536,6 +583,19 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
     const Value returnValue = ByteCodeInterpreter::interpret(newState, blk, 0, registerFile);
     if (UNLIKELY(blk->m_shouldClearStack))
         clearStack<512>();
+
+    if (UNLIKELY(isSuperCall)) {
+        if (returnValue.isNull()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InvalidDerivedConstructorReturnValue);
+        }
+        if (returnValue.isObject()) {
+            state.executionContext()->getThisEnvironment()->bindThisValue(state, returnValue);
+            returnValue.asObject()->setPrototype(state, receiverSrc.toObject(state)->getPrototype(state));
+        } else {
+            state.executionContext()->getThisEnvironment()->bindThisValue(state, stackStorage[0]);
+        }
+        state.executionContext()->setOnGoingSuperCall(false);
+    }
 
     return returnValue;
 }

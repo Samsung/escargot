@@ -129,6 +129,16 @@ public:
 
     virtual bool hasSuperBinding()
     {
+        return false;
+    }
+
+    virtual bool hasThisBinding()
+    {
+        return false;
+    }
+
+    virtual void bindThisValue(ExecutionState& state, Value thisValue)
+    {
         RELEASE_ASSERT_NOT_REACHED();
     }
 
@@ -257,6 +267,11 @@ public:
     }
 
     virtual bool isEvalTarget()
+    {
+        return true;
+    }
+
+    virtual bool hasThisBinding()
     {
         return true;
     }
@@ -405,10 +420,23 @@ class FunctionEnvironmentRecord : public DeclarativeEnvironmentRecord {
     friend class ByteCodeInterpreter;
 
 public:
+    enum ThisBindingStatus {
+        Lexical,
+        Initialized,
+        Uninitialized,
+    };
+
     ALWAYS_INLINE explicit FunctionEnvironmentRecord(FunctionObject* function)
         : DeclarativeEnvironmentRecord()
         , m_functionObject(function)
+        , m_newTarget(nullptr)
+        , m_thisValue(Value())
     {
+        if (function->thisMode() == FunctionObject::ThisMode::Lexical) {
+            m_thisBindingStatus = ThisBindingStatus::Lexical;
+        } else {
+            m_thisBindingStatus = ThisBindingStatus::Uninitialized;
+        }
     }
 
     virtual bool isFunctionEnvironmentRecord()
@@ -431,9 +459,71 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
+    virtual void bindThisValue(ExecutionState& state, Value thisValue)
+    {
+        ASSERT(m_thisBindingStatus != ThisBindingStatus::Lexical);
+
+        if (m_thisBindingStatus == ThisBindingStatus::Initialized) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, errorMessage_Initialized_This_Binding);
+        }
+
+        m_thisValue = thisValue;
+
+        m_thisBindingStatus = ThisBindingStatus::Initialized;
+    }
+
+    Value getThisBinding(ExecutionState& state)
+    {
+        ASSERT(m_thisBindingStatus != ThisBindingStatus::Lexical);
+
+        if (m_thisBindingStatus == ThisBindingStatus::Uninitialized) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, errorMessage_UnInitialized_This_Binding);
+        }
+
+        return m_thisValue;
+    }
+
+    virtual bool hasSuperBinding()
+    {
+        if (m_thisBindingStatus == ThisBindingStatus::Lexical) {
+            return false;
+        }
+
+        return homeObject() != nullptr;
+    }
+
+    virtual bool hasThisBinding()
+    {
+        return m_thisBindingStatus != ThisBindingStatus::Lexical;
+    }
+
+    Value getSuperBase(ExecutionState& state)
+    {
+        if (homeObject() == nullptr) {
+            return Value();
+        }
+
+        return homeObject()->getPrototype(state);
+    }
+
     FunctionObject* functionObject()
     {
         return m_functionObject;
+    }
+
+    Object* homeObject()
+    {
+        return m_functionObject->homeObject();
+    }
+
+    Object* newTarget()
+    {
+        return m_newTarget;
+    }
+
+    void setNewTarget(Object* newTarget)
+    {
+        m_newTarget = newTarget;
     }
 
     virtual size_t argc()
@@ -453,6 +543,9 @@ public:
 
 protected:
     FunctionObject* m_functionObject;
+    Object* m_newTarget;
+    ThisBindingStatus m_thisBindingStatus;
+    SmallValue m_thisValue;
 };
 
 class FunctionEnvironmentRecordSimple : public FunctionEnvironmentRecord {

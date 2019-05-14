@@ -204,7 +204,14 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 nd = nd->nextSilbing();
             }
             if (!(last && last->type() == ASTNodeType::ReturnStatement)) {
-                block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
+                if (codeBlock->isClassConstructor()) {
+                    size_t idx = ctx.getRegister();
+                    block->pushCode(LoadThisBinding(ByteCodeLOC(SIZE_MAX), idx), &ctx, nullptr);
+                    block->pushCode(ReturnFunctionWithValue(ByteCodeLOC(SIZE_MAX), idx), &ctx, nullptr);
+                    ctx.giveUpRegister();
+                } else {
+                    block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
+                }
             }
         }
     } catch (const ByteCodeGenerateError& err) {
@@ -557,6 +564,20 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
+            }
+            case CreateClassOpcode: {
+                CreateClass* cd = (CreateClass*)currentCode;
+                assignStackIndexIfNeeded(cd->m_classRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_classPrototypeRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_superClassRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            }
+            case SuperReferenceOpcode: {
+                SuperReference* cd = (SuperReference*)currentCode;
+                assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            }
+            case LoadThisBindingOpcode: {
+                LoadThisBinding* cd = (LoadThisBinding*)currentCode;
+                assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
             }
             default:
                 break;

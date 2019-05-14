@@ -219,6 +219,22 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
                                                                                            ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
 
     // TODO(ES6)
+
+    // Class Function
+    m_defaultStructureForClassFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.prototype,
+                                                                                        ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
+    m_defaultStructureForClassFunctionObject = m_defaultStructureForClassFunctionObject->addProperty(stateForInit, m_staticStrings.name,
+                                                                                                     ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
+
+    m_defaultStructureForClassFunctionObject = m_defaultStructureForClassFunctionObject->addProperty(stateForInit, m_staticStrings.length,
+                                                                                                     ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
+
+    m_defaultStructureForClassFunctionObject = m_defaultStructureForClassFunctionObject->addProperty(stateForInit, m_staticStrings.caller,
+                                                                                                     ObjectStructurePropertyDescriptor::createAccessorDescriptor(ObjectStructurePropertyDescriptor::WritablePresent));
+
+    m_defaultStructureForClassFunctionObject = m_defaultStructureForClassFunctionObject->addProperty(stateForInit, m_staticStrings.arguments,
+                                                                                                     ObjectStructurePropertyDescriptor::createAccessorDescriptor(ObjectStructurePropertyDescriptor::WritablePresent));
+
     //Arrow Function
 
     m_defaultStructureForArrowFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.name,

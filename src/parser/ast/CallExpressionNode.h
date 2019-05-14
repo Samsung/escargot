@@ -23,6 +23,7 @@
 #include "ExpressionNode.h"
 #include "MemberExpressionNode.h"
 #include "PatternNode.h"
+#include "SuperExpressionNode.h"
 
 namespace Escargot {
 
@@ -168,7 +169,9 @@ public:
         }
 
         bool isCalleeHasReceiver = false;
-        if (m_callee->isMemberExpression()) {
+        bool isSuperCall = m_callee->isSuperNode() && ((SuperExpressionNode*)m_callee.get())->isCall();
+
+        if (m_callee->isMemberExpression() || isSuperCall) {
             isCalleeHasReceiver = true;
             context->m_inCallingExpressionScope = true;
             context->m_isHeadOfMemberExpression = true;
@@ -183,12 +186,25 @@ public:
 
         if (isCalleeHasReceiver) {
             receiverIndex = context->getLastRegisterIndex();
+
+            if (isSuperCall) {
+                // Load the this value as receiver
+                receiverIndex = REGULAR_REGISTER_LIMIT;
+            } else {
+                Node* object = ((MemberExpressionNode*)(m_callee.get()))->object();
+                if (object->isSuperNode()) {
+                    SuperExpressionNode* superRef = (SuperExpressionNode*)object;
+                    if (!superRef->isCall()) {
+                        codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(m_loc.index), receiverIndex), context, this);
+                    }
+                }
+            }
         }
 
         size_t argumentsStartIndex = generateArguments(codeBlock, context);
 
         // drop callee, receiver registers
-        if (isCalleeHasReceiver) {
+        if (isCalleeHasReceiver && !isSuperCall) {
             context->giveUpRegister();
             context->giveUpRegister();
         } else {

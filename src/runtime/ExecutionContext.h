@@ -39,6 +39,8 @@ public:
         , m_context(context)
         , m_parent(parent)
         , m_lexicalEnvironment(lexicalEnvironment)
+        , m_onGoingClassConstruction(false)
+        , m_onGoingSuperCall(false)
     {
     }
 
@@ -62,13 +64,39 @@ public:
         return m_inStrictMode;
     }
 
+    bool isOnGoingClassConstruction()
+    {
+        return m_onGoingClassConstruction;
+    }
+
+    bool isOnGoingSuperCall()
+    {
+        return m_onGoingSuperCall;
+    }
+
+    void setOnGoingClassConstruction(bool startClassConstruction)
+    {
+        m_onGoingClassConstruction = startClassConstruction;
+    }
+
+    void setOnGoingSuperCall(bool onGoingSuperCall)
+    {
+        m_onGoingSuperCall = onGoingSuperCall;
+    }
+
     FunctionObject* resolveCallee();
+    Value getNewTarget();
+    EnvironmentRecord* getThisEnvironment();
+    Value makeSuperPropertyReference(ExecutionState& state);
+    Value getSuperConstructor(ExecutionState& state);
 
 private:
     bool m_inStrictMode : 1;
     Context* m_context;
     ExecutionContext* m_parent;
     LexicalEnvironment* m_lexicalEnvironment;
+    bool m_onGoingClassConstruction : 1;
+    bool m_onGoingSuperCall : 1;
 };
 }
 

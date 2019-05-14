@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "ExecutionContext.h"
 #include "Environment.h"
+#include "EnvironmentRecord.h"
 #include "FunctionObject.h"
 
 namespace Escargot {
@@ -34,5 +35,67 @@ FunctionObject* ExecutionContext::resolveCallee()
         env = env->outerEnvironment();
     }
     return nullptr;
+}
+
+Value ExecutionContext::getNewTarget()
+{
+    EnvironmentRecord* envRec = getThisEnvironment();
+
+    ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
+
+    FunctionEnvironmentRecord* funcEnvRec = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+
+    return funcEnvRec->newTarget() ? funcEnvRec->newTarget() : Value();
+}
+
+EnvironmentRecord* ExecutionContext::getThisEnvironment()
+{
+    LexicalEnvironment* lex = m_lexicalEnvironment;
+    LexicalEnvironment* prevLex = nullptr;
+
+    while (true) {
+        EnvironmentRecord* envRec = lex->record();
+
+        if (envRec->hasThisBinding()) {
+            return envRec;
+        }
+
+        lex = lex->outerEnvironment();
+    }
+}
+
+Value ExecutionContext::makeSuperPropertyReference(ExecutionState& state)
+{
+    EnvironmentRecord* envRec = getThisEnvironment();
+
+    if (!envRec->hasSuperBinding()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, errorMessage_No_Super_Binding);
+    }
+
+    ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
+
+    FunctionEnvironmentRecord* funcEnvRec = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+    Value bv = funcEnvRec->getSuperBase(state).toObject(state);
+
+    return bv;
+}
+
+Value ExecutionContext::getSuperConstructor(ExecutionState& state)
+{
+    EnvironmentRecord* envRec = getThisEnvironment();
+
+    ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
+
+    FunctionEnvironmentRecord* funcEnvRec = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+
+    Value activeFunction = funcEnvRec->functionObject() ? funcEnvRec->functionObject() : Value();
+
+    Value superConstructor = activeFunction.asObject()->getPrototype(state);
+
+    if (!superConstructor.isObject() || !superConstructor.asObject()->isFunctionObject() || !superConstructor.asObject()->asFunctionObject()->isConstructor()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_No_Super_Binding);
+    }
+
+    return superConstructor;
 }
 }
