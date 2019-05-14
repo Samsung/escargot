@@ -30,13 +30,12 @@ namespace Escargot {
 // https://www.ecma-international.org/ecma-262/6.0/#sec-getiterator
 Value getIterator(ExecutionState& state, const Value& obj, const Value& method)
 {
-    Object* object = obj.toObject(state);
     Value func = method;
     if (method.isEmpty()) {
-        func = Object::getMethod(state, Value(object), ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator));
+        func = Object::getMethod(state, obj, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator));
     }
 
-    Value iterator = FunctionObject::call(state, func, object, 0, nullptr);
+    Value iterator = FunctionObject::call(state, func, obj, 0, nullptr);
     if (!iterator.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "result is not an object");
     }
