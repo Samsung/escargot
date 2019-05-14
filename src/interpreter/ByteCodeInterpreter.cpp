@@ -425,8 +425,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 const Value& property = registerFile[code->m_propertyRegisterIndex];
                 if (LIKELY(willBeObject.isObject() && (willBeObject.asPointerValue())->hasTag(g_arrayObjectTag))) {
                     ArrayObject* arr = willBeObject.asObject()->asArrayObject();
+                    uint32_t idx = property.tryToUseAsArrayIndex(state);
                     if (LIKELY(arr->isFastModeArray())) {
-                        uint32_t idx = property.tryToUseAsArrayIndex(state);
                         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
                             uint32_t len = arr->getArrayLength(state);
                             if (UNLIKELY(len <= idx)) {
