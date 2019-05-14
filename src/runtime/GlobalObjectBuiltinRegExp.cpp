@@ -29,23 +29,44 @@ namespace Escargot {
 
 static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    bool patternIsRegExp = argv[0].isObject() && argv[0].asObject()->isRegExpObject();
+    Value pattern = argv[0];
+    Value flags = argv[1];
+    String* source = pattern.isUndefined() ? String::emptyString : pattern.toString(state);
+    String* option = flags.isUndefined() ? String::emptyString : flags.toString(state);
+    // Let patternIsRegExp be IsRegExp(pattern).
+    bool patternIsRegExp = pattern.isObject() && pattern.asObject()->isRegExpObject();
     if (patternIsRegExp) {
-        if (argv[1].isUndefined())
-            return argv[0];
+        // If patternIsRegExp is true and flags is undefined, then
+        if (flags.isUndefined()) {
+            // Let patternConstructor be Get(pattern, "constructor").
+            Value patternConstructor = pattern.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().constructor)).value(state, pattern);
+            // If SameValue(patternConstructor, newTarget), then return pattern.
+            if (patternConstructor == state.executionContext()->resolveCallee())
+                return pattern;
+        }
 #ifndef ESCARGOT_ENABLE_ES2015
         else
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot supply flags when constructing one RegExp from another");
-#endif /* !ESCARGOT_ENABLE_ES2015 */
     }
+#else
+    }
+    // If Type(pattern) is Object and pattern has a [[RegExpMatcher]] internal slot, then
+    if (pattern.isObject() && pattern.asObject()->isRegExpObject()) {
+        RegExpObject* patternRegExp = pattern.asObject()->asRegExpObject();
+        // Let P be the value of pattern’s [[OriginalSource]] internal slot.
+        source = patternRegExp->source();
+        // If flags is undefined, let F be the value of pattern’s [[OriginalFlags]] internal slot.
+        // Else, let F be flags.
+        option = flags.isUndefined() ? patternRegExp->optionString() : flags.toString(state);
+    }
+#endif /* !ESCARGOT_ENABLE_ES2015 */
+
     RegExpObject* regexp;
     if (isNewExpression && thisValue.isObject() && thisValue.asObject()->isRegExpObject()) {
         regexp = thisValue.asPointerValue()->asObject()->asRegExpObject();
     } else {
         regexp = new RegExpObject(state);
     }
-    String* source = argv[0].isUndefined() ? String::emptyString : argv[0].toString(state);
-    String* option = argv[1].isUndefined() ? String::emptyString : argv[1].toString(state);
 
     // TODO http://www.ecma-international.org/ecma-262/6.0/index.html#sec-escaperegexppattern
     regexp->init(state, source, option);
