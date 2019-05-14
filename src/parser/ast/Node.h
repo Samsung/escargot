@@ -72,6 +72,7 @@ enum ASTNodeType {
     UnaryExpressionPlus,
     UnaryExpressionTypeOf,
     UnaryExpressionVoid,
+    /* Note: These 13 types must be in this order */
     AssignmentExpression,
     AssignmentExpressionBitwiseAnd,
     AssignmentExpressionBitwiseOr,
@@ -144,6 +145,20 @@ enum ASTNodeType {
     DefaultArgument,
 };
 
+COMPILE_ASSERT(((int)AssignmentExpression + 1) == (int)AssignmentExpressionBitwiseAnd, "");
+COMPILE_ASSERT(((int)AssignmentExpressionBitwiseAnd + 1) == (int)AssignmentExpressionBitwiseOr, "");
+COMPILE_ASSERT(((int)AssignmentExpressionBitwiseOr + 1) == (int)AssignmentExpressionBitwiseXor, "");
+COMPILE_ASSERT(((int)AssignmentExpressionBitwiseXor + 1) == (int)AssignmentExpressionDivision, "");
+COMPILE_ASSERT(((int)AssignmentExpressionDivision + 1) == (int)AssignmentExpressionLeftShift, "");
+COMPILE_ASSERT(((int)AssignmentExpressionLeftShift + 1) == (int)AssignmentExpressionMinus, "");
+COMPILE_ASSERT(((int)AssignmentExpressionMinus + 1) == (int)AssignmentExpressionMod, "");
+COMPILE_ASSERT(((int)AssignmentExpressionMod + 1) == (int)AssignmentExpressionMultiply, "");
+COMPILE_ASSERT(((int)AssignmentExpressionMultiply + 1) == (int)AssignmentExpressionPlus, "");
+COMPILE_ASSERT(((int)AssignmentExpressionPlus + 1) == (int)AssignmentExpressionSignedRightShift, "");
+COMPILE_ASSERT(((int)AssignmentExpressionSignedRightShift + 1) == (int)AssignmentExpressionUnsignedRightShift, "");
+COMPILE_ASSERT(((int)AssignmentExpressionUnsignedRightShift + 1) == (int)AssignmentExpressionSimple, "");
+COMPILE_ASSERT(((int)AssignmentExpressionSimple - (int)AssignmentExpression) == 12, "");
+
 COMPILE_ASSERT(((int)BinaryExpressionEqual + 1) == (int)BinaryExpressionNotEqual, "");
 COMPILE_ASSERT(((int)BinaryExpressionNotEqual + 1) == (int)BinaryExpressionStrictEqual, "");
 COMPILE_ASSERT(((int)BinaryExpressionStrictEqual + 1) == (int)BinaryExpressionNotStrictEqual, "");
@@ -210,6 +225,11 @@ public:
     inline void operator delete(void *obj)
     {
         GC_FREE(obj);
+    }
+
+    bool isAssignmentOperation()
+    {
+        return type() >= ASTNodeType::AssignmentExpression && type() <= ASTNodeType::AssignmentExpressionSimple;
     }
 
     bool isRelationOperation()

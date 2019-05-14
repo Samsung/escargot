@@ -831,7 +831,7 @@ Value Object::getMethod(ExecutionState& state, const Value& object, const Object
 {
     // 2. Let func be GetV(O, P).
     Object* obj = object.toObject(state);
-    Value func = obj->get(state, propertyName).value(state, obj);
+    Value func = obj->get(state, propertyName).value(state, object);
     // 4. If func is either undefined or null, return undefined.
     if (func.isUndefinedOrNull()) {
         return Value();

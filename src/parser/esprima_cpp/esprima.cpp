@@ -4320,7 +4320,7 @@ public:
                 this->context->allowIn = previousAllowIn;
 
                 if (this->matchKeyword(InKeyword)) {
-                    if (init->isLiteral() || init->type() == ASTNodeType::AssignmentExpression || init->type() == ASTNodeType::ThisExpression) {
+                    if (init->isLiteral() || init->isAssignmentOperation() || init->type() == ASTNodeType::ThisExpression) {
                         this->throwError(Messages::InvalidLHSInForIn);
                     }
 
@@ -4330,7 +4330,7 @@ public:
                     init = nullptr;
                     type = statementTypeForIn;
                 } else if (this->lookahead->type == Token::IdentifierToken && this->lookahead->relatedSource() == "of") {
-                    if (!this->context->isAssignmentTarget || init->type() == ASTNodeType::AssignmentExpression) {
+                    if (!this->context->isAssignmentTarget || init->isAssignmentOperation()) {
                         this->throwError(Messages::InvalidLHSInForLoop);
                     }
 
