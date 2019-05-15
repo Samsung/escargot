@@ -371,6 +371,7 @@ namespace Escargot {
     F(Set)                        \
     F(WeakMap)                    \
     F(WeakSet)                    \
+    F(Generator)                  \
     F(Symbol)                     \
     F(symbol)                     \
     F(hasInstance)                \

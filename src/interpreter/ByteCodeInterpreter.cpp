@@ -32,6 +32,7 @@
 #include "runtime/ArrayObject.h"
 #include "runtime/VMInstance.h"
 #include "runtime/IteratorOperations.h"
+#include "runtime/GeneratorObject.h"
 #include "runtime/SpreadObject.h"
 #include "parser/ScriptParser.h"
 #include "util/Util.h"
@@ -1309,6 +1310,40 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 NEXT_INSTRUCTION();
             }
 
+            DEFINE_OPCODE(GeneratorComplete)
+                :
+            {
+                GeneratorComplete* code = (GeneratorComplete*)programCounter;
+                ec->generatorTarget()->asGeneratorObject()->setState((GeneratorState)(GeneratorState::CompletedReturn + !!code->m_isThrow));
+                ADD_PROGRAM_COUNTER(GeneratorComplete);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(Yield)
+                :
+            {
+                Yield* code = (Yield*)programCounter;
+                GeneratorObject* gen = ec->generatorTarget()->asGeneratorObject();
+
+                gen->setState(GeneratorState::SuspendedYield);
+                ADD_PROGRAM_COUNTER(Yield);
+                gen->setByteCodePosition((char*)programCounter - codeBuffer);
+                gen->setResumeValueIdx(code->m_dstIdx);
+                return code->m_yieldIdx == REGISTER_LIMIT ? Value() : registerFile[code->m_yieldIdx];
+            }
+
+            DEFINE_OPCODE(YieldDelegate)
+                :
+            {
+                Value result = yieldDelegateOperation(state, registerFile, programCounter, codeBuffer);
+
+                if (result.isEmpty() == true) {
+                    NEXT_INSTRUCTION();
+                }
+
+                return result;
+            }
+
             DEFINE_OPCODE(End)
                 :
             {
@@ -2240,7 +2275,10 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
         } else if (!superClass.isObject() || !superClass.asObject()->isFunctionObject() || !superClass.asObject()->asFunctionObject()->isConstructor()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Class_Extends_Value_Is_Not_Object_Nor_Null);
         } else {
-            // TODO: throw TypeError superClass is when generator function
+            if (superClass.isObject() == true && superClass.asObject()->isGeneratorObject() == true) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Class_Prototype_Is_Not_Object_Nor_Null);
+            }
+
             protoParent = superClass.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().prototype)).value(state, Value());
 
             if (!protoParent.isObject() && !protoParent.isNull()) {
@@ -2408,6 +2446,88 @@ void ByteCodeInterpreter::spreadFunctionArguments(ExecutionState& state, const V
     }
 
     state.executionContext()->setOnGoingSuperCall(isOngoingSupercall);
+}
+
+Value ByteCodeInterpreter::yieldDelegateOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer)
+{
+    ASSERT(registerFile != nullptr);
+    ASSERT(codeBuffer != nullptr);
+
+    YieldDelegate* code = (YieldDelegate*)programCounter;
+    const Value iterator = registerFile[code->m_iterIdx].toObject(state);
+    GeneratorState resultState = GeneratorState::SuspendedYield;
+    Value nextResult;
+    bool done = true;
+    Value nextValue;
+    try {
+        nextResult = iteratorNext(state, iterator);
+        if (iterator.asObject()->isGeneratorObject() == true) {
+            resultState = iterator.asObject()->asGeneratorObject()->state();
+        }
+    } catch (const Value& v) {
+        resultState = GeneratorState::CompletedThrow;
+        nextValue = v;
+    }
+
+    switch (resultState) {
+    case GeneratorState::CompletedReturn: {
+        Value ret = iterator.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().stringReturn)).value(state, iterator);
+
+        nextValue = iteratorValue(state, nextResult);
+
+        if (ret.isUndefined() == true) {
+            return nextValue;
+        }
+
+        Value innerResult = FunctionObject::call(state, ret, iterator, 1, &nextValue);
+
+        if (innerResult.isObject() == false) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "IteratorResult is not an object");
+        }
+
+        nextValue = iteratorValue(state, innerResult);
+        done = iteratorComplete(state, innerResult);
+        break;
+    }
+    case GeneratorState::SuspendedYield: {
+        done = iteratorComplete(state, nextResult);
+        nextValue = iteratorValue(state, nextResult);
+        break;
+    }
+    default: {
+        ASSERT(resultState == GeneratorState::CompletedThrow);
+        Value throwMethod = iterator.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().stringThrow)).value(state, iterator);
+
+        if (throwMethod.isUndefined() == false) {
+            Value innerResult;
+            innerResult = FunctionObject::call(state, throwMethod, iterator, 1, &nextValue);
+            if (innerResult.isObject() == false) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "IteratorResult is not an object");
+            }
+            nextValue = iteratorValue(state, innerResult);
+            done = iteratorComplete(state, innerResult);
+        } else {
+            iteratorClose(state, iterator);
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "yield* violation");
+        }
+    }
+    }
+
+    // yield
+    registerFile[code->m_dstIdx] = nextValue;
+    if (done == true) {
+        programCounter = jumpTo(codeBuffer, code->m_endPosition);
+        return Value(Value::EmptyValue);
+    }
+
+    registerFile[code->m_valueIdx] = nextValue;
+    GeneratorObject* gen = state.executionContext()->generatorTarget()->asGeneratorObject();
+
+    gen->setState(GeneratorState::SuspendedYield);
+    ADD_PROGRAM_COUNTER(YieldDelegate);
+
+    gen->setByteCodePosition((char*)programCounter - codeBuffer);
+    return nextValue;
 }
 
 NEVER_INLINE void ByteCodeInterpreter::declareFunctionDeclarations(ExecutionState& state, DeclareFunctionDeclarations* code, LexicalEnvironment* lexicalEnvironment, Value* stackStorage)

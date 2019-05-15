@@ -146,6 +146,8 @@ public:
         , m_weakMapPrototype(nullptr)
         , m_weakSet(nullptr)
         , m_weakSetPrototype(nullptr)
+        , m_generator(nullptr)
+        , m_generatorPrototype(nullptr)
     {
         m_objectPrototype = Object::createBuiltinObjectPrototype(state);
         m_objectPrototype->markThisObjectDontNeedStructureTransitionTable(state);
@@ -192,6 +194,7 @@ public:
         installSet(state);
         installWeakMap(state);
         installWeakSet(state);
+        installGenerator(state);
         installOthers(state);
     }
 
@@ -228,6 +231,7 @@ public:
     void installSet(ExecutionState& state);
     void installWeakMap(ExecutionState& state);
     void installWeakSet(ExecutionState& state);
+    void installGenerator(ExecutionState& state);
     void installOthers(ExecutionState& state);
 
     Value eval(ExecutionState& state, const Value& arg);
@@ -604,6 +608,11 @@ public:
         return m_weakSetPrototype;
     }
 
+    Object* generatorPrototype()
+    {
+        return m_generatorPrototype;
+    }
+
     FunctionObject* eval()
     {
         return m_eval;
@@ -765,6 +774,8 @@ private:
     Object* m_weakMapPrototype;
     FunctionObject* m_weakSet;
     Object* m_weakSetPrototype;
+    FunctionObject* m_generator; // TODO: remove if become unnecessary
+    Object* m_generatorPrototype;
 };
 }
 

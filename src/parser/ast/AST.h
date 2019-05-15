@@ -123,5 +123,6 @@
 #include "VariableDeclaratorNode.h"
 #include "WhileStatementNode.h"
 #include "WithStatementNode.h"
+#include "YieldExpressionNode.h"
 
 #endif

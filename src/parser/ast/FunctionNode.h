@@ -36,6 +36,7 @@ public:
         , m_scopeContext(scopeContext)
     {
         m_scopeContext->m_nodeType = node->type();
+        m_scopeContext->m_isGenerator = isGenerator;
     }
     ~FunctionNode()
     {

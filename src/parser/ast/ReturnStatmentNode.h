@@ -40,7 +40,14 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ReturnStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        if (context->m_tryStatementScopeCount) {
+        ASSERT(codeBlock != nullptr);
+        ASSERT(context != nullptr);
+
+        if (codeBlock->m_codeBlock->isGenerator() == true) {
+            codeBlock->pushCode(GeneratorComplete(ByteCodeLOC(SIZE_MAX)), context, this);
+        }
+
+        if (context->m_tryStatementScopeCount != 0) {
             if (m_argument) {
                 ByteCodeRegisterIndex index = m_argument->getRegister(codeBlock, context);
                 m_argument->generateExpressionByteCode(codeBlock, context, index);

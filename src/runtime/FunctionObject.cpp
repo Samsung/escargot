@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "ArrayObject.h"
 #include "FunctionObject.h"
+#include "GeneratorObject.h"
 #include "ExecutionContext.h"
 #include "Context.h"
 #include "parser/ScriptParser.h"
@@ -437,7 +438,17 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
         record->setNewTarget(receiverSrc.asObject());
     }
 
-    Value* registerFile = (Value*)alloca((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
+    Value* registerFile;
+
+    if (UNLIKELY(m_codeBlock->isGenerator() == true)) {
+        if (isNewExpression == true) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Generator cannot be invoked with 'new'");
+        }
+        registerFile = (Value*)GC_MALLOC((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
+    } else {
+        registerFile = (Value*)alloca((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
+    }
+
     Value* stackStorage = registerFile + registerSize;
 
     {
@@ -571,6 +582,18 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
             }
             parameterStorageInStack[argListLen] = newArray;
         }
+    }
+
+    if (UNLIKELY(m_codeBlock->isGenerator() == true)) {
+        ExecutionState* newState = new ExecutionState(ctx, &state, ec, registerFile);
+
+        if (UNLIKELY(m_codeBlock->usesArgumentsObject() == true)) {
+            generateArgumentsObject(*newState, record, stackStorage);
+        }
+
+        GeneratorObject* gen = new GeneratorObject(state, newState, blk);
+        ec->setGeneratorTarget(gen);
+        return gen;
     }
 
     ExecutionState newState(ctx, &state, ec, registerFile);

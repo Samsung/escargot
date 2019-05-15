@@ -210,6 +210,9 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                     block->pushCode(ReturnFunctionWithValue(ByteCodeLOC(SIZE_MAX), idx), &ctx, nullptr);
                     ctx.giveUpRegister();
                 } else {
+                    if (codeBlock->isGenerator() == true) {
+                        block->pushCode(GeneratorComplete(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
+                    }
                     block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
                 }
             }
@@ -590,6 +593,19 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
             case LoadThisBindingOpcode: {
                 LoadThisBinding* cd = (LoadThisBinding*)currentCode;
                 assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
+            case YieldOpcode: {
+                Yield* cd = (Yield*)currentCode;
+                assignStackIndexIfNeeded(cd->m_yieldIdx, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_dstIdx, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
+            case YieldDelegateOpcode: {
+                YieldDelegate* cd = (YieldDelegate*)currentCode;
+                assignStackIndexIfNeeded(cd->m_iterIdx, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_valueIdx, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_dstIdx, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             default:
