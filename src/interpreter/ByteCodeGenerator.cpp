@@ -520,6 +520,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
             case BinaryPlusOpcode:
             case BinaryMinusOpcode:
             case BinaryMultiplyOpcode:
+            case BinaryExponentiationOpcode:
             case BinaryDivisionOpcode:
             case BinaryModOpcode:
             case BinaryEqualOpcode:

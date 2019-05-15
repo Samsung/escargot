@@ -1055,8 +1055,19 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanPunctuator(char16_t ch)
         if (this->peekChar() == '=') {
             kind = MultiplyEqual;
             ++this->index;
+            break;
         }
+        if (this->peekChar() == '*') {
+            kind = Exponentiation;
+            ++this->index;
+            if (this->peekChar() == '=') {
+                kind = ExponentiationEqual;
+                ++this->index;
+            }
+        }
+
         break;
+
 
     case '/':
         kind = Divide;

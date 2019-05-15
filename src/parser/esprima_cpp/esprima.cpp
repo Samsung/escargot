@@ -100,6 +100,8 @@ const char* IllegalImportDeclaration = "Unexpected token";
 const char* IllegalExportDeclaration = "Unexpected token";
 const char* DuplicateBinding = "Duplicate binding %s";
 const char* ForInOfLoopInitializer = "%s loop variable declaration may not have an initializer";
+const char* errorMessageExponentiation = "Uncaught SyntaxError: Unary operator used immediately before exponentiation expression. Parenthesis must be used to disambiguate operator precedence";
+
 } // namespace Messages
 
 struct ParserError : public gc {
@@ -2834,15 +2836,15 @@ public:
         RefPtr<Scanner::ScannerResult> startToken = this->lookahead;
         RefPtr<Node> expr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
         // TODO
-        /*
-         if (expr->type != Syntax.UnaryExpression && this->match('**')) {
-             this->nextToken();
-             this->context->isAssignmentTarget = false;
-             this->context->isBindingElement = false;
-             const left = expr;
-             const right = this->isolateCoverGrammar(this->parseExponentiationExpression);
-             expr = this->finalize(this->startNode(startToken), new Node.BinaryExpression('**', left, right));
-         }*/
+
+        // if (expr->type != Syntax.UnaryExpression && this->match(Exponentiation)) {
+        // this->nextToken();
+        // this->context->isAssignmentTarget = false;
+        // this->context->isBindingElement = false;
+        // const left = expr;
+        // const right = this->isolateCoverGrammar(this->parseExponentiationExpression);
+        // expr = this->finalize(this->startNode(startToken), new Node.BinaryExpression('**', left, right));
+        // }
 
         return expr;
     }
@@ -2850,9 +2852,9 @@ public:
     ScanExpressionResult scanExponentiationExpression()
     {
         ScanExpressionResult expr = this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
-        // TODO
+        //TODO
         /*
-         if (expr->type != Syntax.UnaryExpression && this->match('**')) {
+       if (expr->type != Syntax.UnaryExpression && this->match('**')) {
              this->nextToken();
              this->context->isAssignmentTarget = false;
              this->context->isBindingElement = false;
@@ -2921,6 +2923,8 @@ public:
                 return 11;
             case Mod:
                 return 11;
+            case Exponentiation:
+                return 15;
             default:
                 return 0;
             }
@@ -3107,6 +3111,11 @@ public:
                 return new BinaryExpressionUnsignedRightShiftNode(left, right);
             case Multiply:
                 return new BinaryExpressionMultiplyNode(left, right);
+            case Exponentiation:
+                if (!left->isUnaryOperator()) {
+                    return new BinaryExpressionExponentiationNode(left, right);
+                }
+                this->throwError(Messages::errorMessageExponentiation, String::emptyString, String::emptyString, ErrorObject::SyntaxError);
             case Divide:
                 return new BinaryExpressionDivisionNode(left, right);
             case Mod:
@@ -3222,6 +3231,9 @@ public:
                 return nd;
             case LogicalAnd:
                 nd.setNodeType(ASTNodeType::BinaryExpressionLogicalAnd);
+                return nd;
+            case Exponentiation:
+                nd.setNodeType(ASTNodeType::BinaryExpressionExponentiation);
                 return nd;
             default:
                 RELEASE_ASSERT_NOT_REACHED();
@@ -3494,6 +3506,14 @@ public:
                             break;
                         }
                         expr.setNodeType(ASTNodeType::AssignmentExpressionMultiply);
+                        break;
+
+                    case ExponentiationEqual:
+                        if (isParse) {
+                            exprResult = new AssingmentExpressionExponentiationNode(exprNode.get(), rightNode.get());
+                            break;
+                        }
+                        expr.setNodeType(ASTNodeType::AssignmentExpressionExponentiation);
                         break;
                     case DivideEqual:
                         if (isParse) {

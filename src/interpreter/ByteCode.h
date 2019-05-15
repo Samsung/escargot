@@ -44,6 +44,7 @@ class Node;
     F(BinaryPlus, 1, 2)                               \
     F(BinaryMinus, 1, 2)                              \
     F(BinaryMultiply, 1, 2)                           \
+    F(BinaryExponentiation, 1, 2)                     \
     F(BinaryDivision, 1, 2)                           \
     F(BinaryMod, 1, 2)                                \
     F(BinaryEqual, 1, 2)                              \
@@ -492,6 +493,7 @@ DEFINE_BINARY_OPERATION(SignedRightShift, "signed right shift");
 DEFINE_BINARY_OPERATION(UnsignedRightShift, "unsigned right shift");
 DEFINE_BINARY_OPERATION(InOperation, "in operation");
 DEFINE_BINARY_OPERATION(InstanceOfOperation, "instance of");
+DEFINE_BINARY_OPERATION(Exponentiation, "exponentiation");
 
 
 class CreateObject : public ByteCode {

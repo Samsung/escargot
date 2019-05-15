@@ -234,6 +234,19 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 NEXT_INSTRUCTION();
             }
 
+
+            DEFINE_OPCODE(BinaryExponentiation)
+                :
+            {
+                BinaryExponentiation* code = (BinaryExponentiation*)programCounter;
+                const Value& left = registerFile[code->m_srcIndex0];
+                const Value& right = registerFile[code->m_srcIndex1];
+                registerFile[code->m_dstIndex] = Value(Value::EncodeAsDouble, pow(left.toNumber(state), right.toNumber(state)));
+                ;
+                ADD_PROGRAM_COUNTER(BinaryExponentiation);
+                NEXT_INSTRUCTION();
+            }
+
             DEFINE_OPCODE(BinaryDivision)
                 :
             {

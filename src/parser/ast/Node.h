@@ -86,6 +86,7 @@ enum ASTNodeType {
     AssignmentExpressionSignedRightShift,
     AssignmentExpressionUnsignedRightShift,
     AssignmentExpressionSimple,
+    AssignmentExpressionExponentiation,
     BinaryExpression,
     BinaryExpressionBitwiseAnd,
     BinaryExpressionBitwiseOr,
@@ -108,6 +109,7 @@ enum ASTNodeType {
     BinaryExpressionMinus,
     BinaryExpressionMod,
     BinaryExpressionMultiply,
+    BinaryExpressionExponentiation,
     BinaryExpressionPlus,
     BinaryExpressionSignedRightShift,
     BinaryExpressionUnsignedRightShift,
@@ -145,6 +147,7 @@ enum ASTNodeType {
     DefaultArgument,
 };
 
+
 COMPILE_ASSERT(((int)AssignmentExpression + 1) == (int)AssignmentExpressionBitwiseAnd, "");
 COMPILE_ASSERT(((int)AssignmentExpressionBitwiseAnd + 1) == (int)AssignmentExpressionBitwiseOr, "");
 COMPILE_ASSERT(((int)AssignmentExpressionBitwiseOr + 1) == (int)AssignmentExpressionBitwiseXor, "");
@@ -157,7 +160,8 @@ COMPILE_ASSERT(((int)AssignmentExpressionMultiply + 1) == (int)AssignmentExpress
 COMPILE_ASSERT(((int)AssignmentExpressionPlus + 1) == (int)AssignmentExpressionSignedRightShift, "");
 COMPILE_ASSERT(((int)AssignmentExpressionSignedRightShift + 1) == (int)AssignmentExpressionUnsignedRightShift, "");
 COMPILE_ASSERT(((int)AssignmentExpressionUnsignedRightShift + 1) == (int)AssignmentExpressionSimple, "");
-COMPILE_ASSERT(((int)AssignmentExpressionSimple - (int)AssignmentExpression) == 12, "");
+COMPILE_ASSERT(((int)AssignmentExpressionSimple + 1) == (int)AssignmentExpressionExponentiation, "");
+COMPILE_ASSERT(((int)AssignmentExpressionExponentiation - (int)AssignmentExpression) == 13, "");
 
 COMPILE_ASSERT(((int)BinaryExpressionEqual + 1) == (int)BinaryExpressionNotEqual, "");
 COMPILE_ASSERT(((int)BinaryExpressionNotEqual + 1) == (int)BinaryExpressionStrictEqual, "");
@@ -245,6 +249,11 @@ public:
     bool isIdentifier()
     {
         return type() == ASTNodeType::Identifier;
+    }
+
+    bool isUnaryOperator()
+    {
+        return type() >= ASTNodeType::UnaryExpressionBitwiseNot && type() <= ASTNodeType::UnaryExpressionVoid;
     }
 
     IdentifierNode *asIdentifier()
