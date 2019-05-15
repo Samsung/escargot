@@ -26,12 +26,67 @@ namespace Escargot {
 
 class PatternNode : public Node {
 public:
-    PatternNode()
+    PatternNode(RefPtr<Node> init = nullptr)
         : Node()
+        , m_init(init)
+        , m_initIdx(SIZE_MAX)
     {
     }
 
+    PatternNode(size_t initIdx)
+        : Node()
+        , m_init(nullptr)
+        , m_initIdx(initIdx)
+    {
+    }
+
+    void setInitializer(RefPtr<Node> init)
+    {
+        m_init = init;
+    }
+
+    virtual PatternNode* asPattern(RefPtr<Node> init)
+    {
+        m_init = init;
+        return this;
+    }
+
+    virtual PatternNode* asPattern(size_t initIdx)
+    {
+        m_initIdx = initIdx;
+        return this;
+    }
+
+    virtual PatternNode* asPattern()
+    {
+        return this;
+    }
+
+    virtual bool isPattern()
+    {
+        return true;
+    }
+
+    virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        context->getRegister();
+    }
+
+    virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        generateExpressionByteCode(codeBlock, context, REGISTER_LIMIT);
+    }
+
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
+    {
+        m_initIdx = srcRegister;
+        generateResultNotRequiredExpressionByteCode(codeBlock, context);
+    }
+
+
 protected:
+    RefPtr<Node> m_init;
+    size_t m_initIdx;
 };
 }
 

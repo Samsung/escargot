@@ -112,12 +112,14 @@ class Node;
     F(CheckIfKeyIsLast, 0, 0)                         \
     F(GetIterator, 1, 0)                              \
     F(IteratorStep, 1, 0)                             \
+    F(IteratorValue, 1, 0)                            \
     F(LoadRegexp, 1, 0)                               \
     F(WithOperation, 0, 0)                            \
     F(ObjectDefineGetter, 0, 0)                       \
     F(ObjectDefineSetter, 0, 0)                       \
     F(CallEvalFunction, 0, 0)                         \
     F(CallFunctionInWithScope, 0, 0)                  \
+    F(BindingRestElement, 1, 0)                       \
     F(FillOpcodeTable, 0, 0)                          \
     F(End, 0, 0)
 
@@ -1735,13 +1737,21 @@ public:
     {
         m_registerIndex = m_objectRegisterIndex = std::numeric_limits<ByteCodeRegisterIndex>::max();
     }
+
+    GetIterator(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t registerIndex)
+        : ByteCode(Opcode::GetIteratorOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_objectRegisterIndex(objectRegisterIndex)
+    {
+    }
+
     ByteCodeRegisterIndex m_registerIndex;
     ByteCodeRegisterIndex m_objectRegisterIndex;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("get iterator r%d r%d", (int)m_registerIndex, (int)m_objectRegisterIndex);
+        printf("get iterator(r%d) -> r%d", (int)m_objectRegisterIndex, (int)m_registerIndex);
     }
 #endif
 };
@@ -1761,7 +1771,26 @@ public:
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("iterate step r%d r%d", (int)m_registerIndex, (int)m_iterRegisterIndex);
+        printf("iterator step(r%d) -> r%d", (int)m_iterRegisterIndex, (int)m_registerIndex);
+    }
+#endif
+};
+
+class IteratorValue : public ByteCode {
+public:
+    IteratorValue(const ByteCodeLOC& loc, size_t iterIndex, size_t dstIndex)
+        : ByteCode(Opcode::IteratorValueOpcode, loc)
+        , m_iterIndex(iterIndex)
+        , m_dstIndex(dstIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_iterIndex;
+    ByteCodeRegisterIndex m_dstIndex;
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("iterator value (r%d) -> r%d", (int)m_iterIndex, (int)m_dstIndex);
     }
 #endif
 };
@@ -1844,6 +1873,25 @@ public:
     void dump(const char* byteCodeStart)
     {
         printf("object define setter r%d[r%d] = r%d", (int)m_objectRegisterIndex, (int)m_objectPropertyNameRegisterIndex, (int)m_objectPropertyValueRegisterIndex);
+    }
+#endif
+};
+
+class BindingRestElement : public ByteCode {
+public:
+    BindingRestElement(const ByteCodeLOC& loc, size_t iterIndex, size_t dstIndex)
+        : ByteCode(Opcode::BindingRestElementOpcode, loc)
+        , m_dstIndex(dstIndex)
+        , m_iterIndex(iterIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_dstIndex;
+    ByteCodeRegisterIndex m_iterIndex;
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("binding rest element(r%d) -> r%d", (int)m_iterIndex, (int)m_dstIndex);
     }
 #endif
 };

@@ -46,6 +46,17 @@ public:
     Node* init() { return m_init.get(); }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
+        if (m_id->isPattern()) {
+            if (context->m_forInOfVarBinding) {
+                return;
+            }
+            PatternNode* pattern = m_id->asPattern(m_init);
+            context->getRegister();
+            pattern->generateResultNotRequiredExpressionByteCode(codeBlock, context);
+            context->giveUpRegister();
+            return;
+        }
+
         ASSERT(m_id->isIdentifier());
         AtomicString name = m_id->asIdentifier()->name();
         if (m_init) {

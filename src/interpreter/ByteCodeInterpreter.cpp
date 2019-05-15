@@ -1278,6 +1278,41 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 NEXT_INSTRUCTION();
             }
 
+            DEFINE_OPCODE(IteratorValue)
+                :
+            {
+                IteratorValue* code = (IteratorValue*)programCounter;
+                Value next = iteratorStep(state, registerFile[code->m_iterIndex]);
+                registerFile[code->m_dstIndex] = next.isFalse() ? Value() : iteratorValue(state, next);
+
+                ADD_PROGRAM_COUNTER(IteratorValue);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(BindingRestElement)
+                :
+            {
+                BindingRestElement* code = (BindingRestElement*)programCounter;
+
+                ArrayObject* array = new ArrayObject(state, false);
+                const Value& iterator = registerFile[code->m_iterIndex];
+
+                size_t i = 0;
+                while (true) {
+                    Value next = iteratorStep(state, iterator);
+                    if (next.isFalse()) {
+                        break;
+                    }
+
+                    array->setIndexedProperty(state, Value(i++), iteratorValue(state, next));
+                }
+
+                registerFile[code->m_dstIndex] = array;
+
+                ADD_PROGRAM_COUNTER(BindingRestElement);
+                NEXT_INSTRUCTION();
+            }
+
             DEFINE_OPCODE(End)
                 :
             {

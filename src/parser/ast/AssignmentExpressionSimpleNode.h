@@ -23,6 +23,7 @@
 #include "ExpressionNode.h"
 #include "IdentifierNode.h"
 #include "PatternNode.h"
+#include "ArrayPatternNode.h"
 #include "MemberExpressionNode.h"
 
 namespace Escargot {
@@ -76,6 +77,12 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         context->m_classInfo.isAssigmentTarget = true;
+        if (m_left->isPattern()) {
+            Node* pattern = m_left.get()->asPattern(m_right);
+            pattern->generateExpressionByteCode(codeBlock, context, dstRegister);
+            return;
+        }
+
         bool isSlowMode = hasSlowAssigmentOperation(m_left.get(), m_right.get());
 
         bool isBase = context->m_registerStack->size() == 0;
@@ -100,6 +107,12 @@ public:
 
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
+        if (m_left->isPattern()) {
+            Node* pattern = m_left.get()->asPattern(m_right);
+            (pattern)->generateResultNotRequiredExpressionByteCode(codeBlock, context);
+            return;
+        }
+
         bool isSlowMode = hasSlowAssigmentOperation(m_left.get(), m_right.get());
         context->m_classInfo.isAssigmentTarget = true;
 

@@ -22,6 +22,7 @@
 
 #include "ExpressionNode.h"
 #include "IdentifierNode.h"
+#include "ObjectPatternNode.h"
 #include "PropertyNode.h"
 
 namespace Escargot {
@@ -32,11 +33,37 @@ public:
     explicit ObjectExpressionNode(PropertiesNodeVector&& properties)
         : ExpressionNode()
         , m_properties(properties)
+        , m_isPattern(false)
     {
     }
 
     virtual ~ObjectExpressionNode()
     {
+    }
+
+    void setAsPattern()
+    {
+        m_isPattern = true;
+    }
+
+    virtual bool isPattern()
+    {
+        return m_isPattern;
+    }
+
+    virtual PatternNode* asPattern(RefPtr<Node> init)
+    {
+        return new ObjectPatternNode(std::move(m_properties), init);
+    }
+
+    virtual PatternNode* asPattern(size_t initIdx)
+    {
+        return new ObjectPatternNode(std::move(m_properties), initIdx);
+    }
+
+    PropertiesNodeVector& properties()
+    {
+        return m_properties;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ObjectExpression; }
@@ -107,6 +134,7 @@ public:
 
 private:
     PropertiesNodeVector m_properties;
+    bool m_isPattern : 1;
 };
 }
 

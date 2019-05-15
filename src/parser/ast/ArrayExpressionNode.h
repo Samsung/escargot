@@ -21,6 +21,7 @@
 #define ArrayExpressionNode_h
 
 #include "ExpressionNode.h"
+#include "ArrayPatternNode.h"
 
 namespace Escargot {
 
@@ -33,11 +34,37 @@ public:
         , m_additionalPropertyName(additionalPropertyName)
         , m_additionalPropertyExpression(additionalPropertyExpression)
         , m_hasSpreadElement(hasSpreadElement)
+        , m_isPattern(false)
     {
     }
 
     virtual ~ArrayExpressionNode()
     {
+    }
+
+    ExpressionNodeVector& elements()
+    {
+        return m_elements;
+    }
+
+    void setAsPattern()
+    {
+        m_isPattern = true;
+    }
+
+    virtual bool isPattern()
+    {
+        return m_isPattern;
+    }
+
+    virtual PatternNode* asPattern(RefPtr<Node> init)
+    {
+        return new ArrayPatternNode(std::move(m_elements), init);
+    }
+
+    virtual PatternNode* asPattern(size_t initIdx)
+    {
+        return new ArrayPatternNode(std::move(m_elements), initIdx);
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ArrayExpression; }
@@ -99,6 +126,7 @@ private:
     AtomicString m_additionalPropertyName;
     RefPtr<Node> m_additionalPropertyExpression;
     bool m_hasSpreadElement : 1;
+    bool m_isPattern : 1;
 };
 }
 

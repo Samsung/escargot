@@ -143,6 +143,9 @@ enum ASTNodeType {
     ClassMethod,
     SuperExpression,
     DefaultArgument,
+    ArrayPattern,
+    ObjectPattern,
+    RegisterReference,
 };
 
 COMPILE_ASSERT(((int)AssignmentExpression + 1) == (int)AssignmentExpressionBitwiseAnd, "");
@@ -198,7 +201,13 @@ struct ExtendedNodeLOC {
 class LiteralNode;
 class DefaultArgumentNode;
 class IdentifierNode;
+class ArrayExpressionNode;
+class AssignmentExpressionSimpleNode;
+class ArrayPatternNode;
+class PatternNode;
+class PropertyNode;
 class MemberExpressionNode;
+class ObjectExpressionNode;
 class StatementNode;
 
 class Node : public RefCounted<Node> {
@@ -216,6 +225,26 @@ public:
     }
 
     virtual ASTNodeType type() = 0;
+
+    virtual bool isPattern()
+    {
+        return false;
+    }
+
+    virtual PatternNode *asPattern(RefPtr<Node> init)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    virtual PatternNode *asPattern(size_t initIdx)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    virtual PatternNode *asPattern()
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
 
     inline void *operator new(size_t size)
     {
@@ -264,6 +293,61 @@ public:
         return (DefaultArgumentNode *)this;
     }
 
+    bool isArrayPattern()
+    {
+        return type() == ASTNodeType::ArrayPattern;
+    }
+
+    ArrayPatternNode *asArrayPattern()
+    {
+        ASSERT(isArrayPattern());
+        return (ArrayPatternNode *)this;
+    }
+
+    bool isArrayExpression()
+    {
+        return type() == ASTNodeType::ArrayExpression;
+    }
+
+    ArrayExpressionNode *asArrayExpression()
+    {
+        ASSERT(isArrayExpression());
+        return (ArrayExpressionNode *)this;
+    }
+
+    bool isObjectExpression()
+    {
+        return type() == ASTNodeType::ObjectExpression;
+    }
+
+    ObjectExpressionNode *asObjectExpression()
+    {
+        ASSERT(isObjectExpression());
+        return (ObjectExpressionNode *)this;
+    }
+
+    bool isProperty()
+    {
+        return type() == ASTNodeType::Property;
+    }
+
+    PropertyNode *asProperty()
+    {
+        ASSERT(isProperty());
+        return (PropertyNode *)this;
+    }
+
+    bool isAssignmentExpressionSimple()
+    {
+        return type() == ASTNodeType::AssignmentExpressionSimple;
+    }
+
+    AssignmentExpressionSimpleNode *asAssignmentExpressionSimple()
+    {
+        ASSERT(isAssignmentExpressionSimple());
+        return (AssignmentExpressionSimpleNode *)this;
+    }
+
     MemberExpressionNode *asMemberExpression()
     {
         ASSERT(isMemberExpression());
@@ -295,6 +379,11 @@ public:
     bool isSuperNode()
     {
         return type() == ASTNodeType::SuperExpression;
+    }
+
+    bool isValidAssignmentTarget()
+    {
+        return isIdentifier() || isMemberExpression();
     }
 
     virtual bool isExpressionNode()
