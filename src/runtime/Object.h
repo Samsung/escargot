@@ -608,25 +608,18 @@ public:
     Value getPrototype(ExecutionState&)
 #endif
     {
-        if (LIKELY((size_t)m_prototype > 2)) {
-            if (UNLIKELY(g_objectRareDataTag == *((size_t*)(m_prototype)))) {
-                Object* e = rareData()->m_prototype;
-                if ((size_t)e > 2) {
-                    return e;
-                } else if (e == nullptr) {
+        if (LIKELY(m_prototype != nullptr)) {
+            if (UNLIKELY(g_objectRareDataTag == *(size_t*)m_prototype)) {
+                Object* prototype = rareData()->m_prototype;
+                if (prototype == nullptr) {
                     return Value(Value::Null);
-                } else {
-                    RELEASE_ASSERT_NOT_REACHED();
-                    return Value();
                 }
+                return prototype;
             }
             return m_prototype;
-        } else if (m_prototype == nullptr) {
-            return Value(Value::Null);
-        } else {
-            RELEASE_ASSERT_NOT_REACHED();
-            return Value();
         }
+
+        return Value(Value::Null);
     }
 
 #if ESCARGOT_ENABLE_PROXY_REFLECT
@@ -635,25 +628,12 @@ public:
     Object* getPrototypeObject(ExecutionState&)
 #endif
     {
-        if (LIKELY((size_t)m_prototype > 2)) {
-            if (UNLIKELY(g_objectRareDataTag == *((size_t*)(m_prototype)))) {
-                Object* e = rareData()->m_prototype;
-                if ((size_t)e > 2) {
-                    return e;
-                } else if (e == nullptr) {
-                    return nullptr;
-                } else {
-                    RELEASE_ASSERT_NOT_REACHED();
-                    return nullptr;
-                }
-            }
-            return m_prototype;
-        } else if (m_prototype == nullptr) {
-            return nullptr;
-        } else {
-            RELEASE_ASSERT_NOT_REACHED();
-            return nullptr;
+        Object* prototype = m_prototype;
+
+        if (UNLIKELY(m_prototype != nullptr && g_objectRareDataTag == *(size_t*)prototype)) {
+            prototype = rareData()->m_prototype;
         }
+        return prototype;
     }
 
 #if ESCARGOT_ENABLE_PROXY_REFLECT
