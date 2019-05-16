@@ -411,6 +411,28 @@ def run_es2015(engine, arch):
     if fails > 0:
         raise Exception('ES2015 tests failed')
 
+@runner('intl', default=True)
+def run_intl(engine, arch):
+    INTL_DIR = join(PROJECT_SOURCE_DIR, 'test', 'intl')
+    INTL_ASSERT_JS = join(INTL_DIR, 'assert.js')
+
+    print('Running Intl test:')
+    files = glob(join(INTL_DIR, '*.js'))
+    files.remove(INTL_ASSERT_JS)
+    fails = 0
+    for file in files:
+        proc = Popen([engine, INTL_ASSERT_JS, file], stdout=PIPE)
+        out, _ = proc.communicate()
+
+        if not proc.returncode:
+            print('%sOK: %s%s' % (COLOR_GREEN, file, COLOR_RESET))
+        else:
+            print('%sFAIL(%d): %s%s' % (COLOR_RED, proc.returncode, file, COLOR_RESET))
+            print(out)
+            fails += 1
+
+    if fails > 0:
+        raise Exception('Intl tests failed')
 
 def main():
     parser = ArgumentParser(description='Escargot Test Suite Runner')
