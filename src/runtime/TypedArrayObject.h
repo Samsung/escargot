@@ -28,18 +28,6 @@
 
 namespace Escargot {
 
-enum TypedArrayType : unsigned {
-    Int8,
-    Int16,
-    Int32,
-    Uint8,
-    Uint16,
-    Uint32,
-    Uint8Clamped,
-    Float32,
-    Float64
-};
-
 class ArrayBufferView : public Object {
 public:
     explicit ArrayBufferView(ExecutionState& state)

@@ -446,7 +446,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
                 // Repeat, while count > 0
                 while (count > 0) {
                     // Let value be GetValueFromBuffer(srcData, srcByteIndex, srcType).
-                    Value value = srcData->getValueFromBuffer<typename TypeAdaptor::Type>(state, srcByteIndex);
+                    Value value = srcData->getTypedValueFromBuffer(state, srcByteIndex, val.asObject()->asArrayBufferView()->typedArrayType());
                     // Perform SetValueInBuffer(data, targetByteIndex, elementType, value).
                     data->setValueInBuffer<TypeAdaptor>(state, targetByteIndex, value);
                     // Set srcByteIndex to srcByteIndex + srcElementSize.
