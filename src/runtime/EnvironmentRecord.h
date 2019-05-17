@@ -137,11 +137,6 @@ public:
         return false;
     }
 
-    virtual void bindThisValue(ExecutionState& state, Value thisValue)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-
     virtual bool isGlobalEnvironmentRecord()
     {
         return false;
@@ -459,7 +454,7 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual void bindThisValue(ExecutionState& state, Value thisValue)
+    void bindThisValue(ExecutionState& state, Value thisValue)
     {
         ASSERT(m_thisBindingStatus != ThisBindingStatus::Lexical);
 
