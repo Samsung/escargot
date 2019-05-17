@@ -33,8 +33,10 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
     if (patternIsRegExp) {
         if (argv[1].isUndefined())
             return argv[0];
-        else // TODO(ES6) else part is only for es5
+#ifndef ESCARGOT_ENABLE_ES2015
+        else
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot supply flags when constructing one RegExp from another");
+#endif /* !ESCARGOT_ENABLE_ES2015 */
     }
     RegExpObject* regexp;
     if (isNewExpression && thisValue.isObject() && thisValue.asObject()->isRegExpObject()) {
@@ -165,6 +167,147 @@ static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t 
     }
 }
 
+// $21.2.5.11 RegExp.prototype[@@split]
+static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_OBJECT(rx, Object, split);
+    String* S = argv[0].toString(state);
+
+    // Let C be SpeciesConstructor(rx, %RegExp%).
+    Value C = rx->speciesConstructor(state, state.context()->globalObject()->regexp());
+
+    // Let flags be ToString(Get(rx, "flags")).
+    String* flags = rx->asRegExpObject()->optionString();
+    bool unicodeMatching = false;
+
+    String* newFlags;
+    // If flags contains "u", let unicodeMatching be true.
+    if (flags->find(String::fromASCII("u")) != SIZE_MAX) {
+        unicodeMatching = true;
+    }
+
+    // If flags contains "y", let newFlags be flags.
+    // Else, let newFlags be the string that is the concatenation of flags and "y".
+    StringBuilder builder;
+    builder.appendString(flags);
+    if (flags->find(String::fromASCII("y")) == SIZE_MAX) {
+        builder.appendString("y");
+    }
+    if (flags->find(String::fromASCII("g")) == SIZE_MAX) {
+        // Must use global, because later we use lastIndex, which will not get adjusted without the global flag.
+        builder.appendString("g");
+    }
+    newFlags = builder.finalize();
+
+    // Let splitter be Construct(C, <<rx, newFlags>>).
+    Value params[2] = { rx->asRegExpObject()->source(), newFlags };
+    RegExpObject* splitter = C.asFunction()->newInstance(state, 2, params)->asRegExpObject();
+
+    // Let A be ArrayCreate(0).
+    ArrayObject* A = new ArrayObject(state);
+
+    // Let lengthA be 0.
+    size_t lengthA = 0;
+    // If limit is undefined, let lim be 2^53–1; else let lim be ToLength(limit).
+    // Note: using toUint32() here since toLength() returns 0 for negative values, which leads to incorrect behavior.
+    size_t lim = argc > 1 && !argv[1].isUndefined() ? argv[1].toUint32(state) : (1ULL << 53) - 1;
+
+    // Let size be the number of elements in S.
+    size_t size = S->length();
+    // Let p be 0.
+    size_t p = 0;
+    // If lim = 0, return A.
+    if (lim == 0) {
+        return A;
+    }
+
+    Value z;
+    // If size = 0, then
+    if (size == 0) {
+        Value execFunction = Object::getMethod(state, splitter, ObjectPropertyName(state.context()->staticStrings().exec));
+        // Let z be RegExpExec(splitter, S).
+        Value arg[1] = { S };
+        z = FunctionObject::call(state, execFunction, splitter, 1, arg);
+        // If z is not null, return A.
+        if (!z.isNull()) {
+            return A;
+        }
+        // Perform CreateDataProperty(A, "0", S).
+        A->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(0)), ObjectPropertyDescriptor(S, (ObjectPropertyDescriptor::AllPresent)));
+        // Return A.
+        return A;
+    }
+
+    // Let q be p.
+    size_t q = p;
+    // Repeat, while q < size.
+    while (q < size) {
+        // Let setStatus be Set(splitter, "lastIndex", q, true).
+        splitter->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lastIndex), Value(q), splitter);
+        // Let z be RegExpExec(splitter, S).
+        Value execFunction = Object::getMethod(state, splitter, ObjectPropertyName(state.context()->staticStrings().exec));
+        Value arg[1] = { S };
+        z = FunctionObject::call(state, execFunction, splitter, 1, arg);
+        // If z is null, let q be AdvanceStringIndex(S, q, unicodeMatching).
+        if (z.isNull()) {
+            q = S->advanceStringIndex(q, unicodeMatching);
+        } else {
+            // Else z is not null,
+            // Let e be ToLength(Get(splitter, "lastIndex")).
+            size_t e = splitter->get(state, ObjectPropertyName(state.context()->staticStrings().lastIndex)).value(state, splitter).toLength(state);
+            // If e = p, let q be AdvanceStringIndex(S, q, unicodeMatching).
+            if (e == p) {
+                q = S->advanceStringIndex(q, unicodeMatching);
+            } else {
+                // Else e != p
+                size_t matchStart = z.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().index)).value(state, z).toNumber(state);
+                if (matchStart >= S->length()) {
+                    break;
+                }
+                // Let T be a String value equal to the substring of S consisting of the elements at indices p (inclusive) through q (exclusive).
+                String* T = S->substring(p, matchStart);
+                // Perform CreateDataProperty(A, ToString(lengthA), T).
+                A->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(lengthA).toString(state)), ObjectPropertyDescriptor(T, (ObjectPropertyDescriptor::AllPresent)));
+                // Let lengthA be lengthA + 1.
+                lengthA++;
+                // If lengthA = lim, return A.
+                if (lengthA == lim) {
+                    return A;
+                }
+                // Let p be e.
+                p = e;
+                // Let numberOfCaptures be ToLength(Get(z, "length")).
+                size_t numberOfCaptures = z.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().length)).value(state, z).toLength(state);
+                // Let numberOfCaptures be max(numberOfCaptures - 1, 0).
+                numberOfCaptures = std::max(numberOfCaptures - 1, (size_t)0);
+                // Let i be 1.
+                // Repeat, while i <= numberOfCaptures.
+                for (size_t i = 1; i <= numberOfCaptures; i++) {
+                    // Let nextCapture be Get(z, ToString(i)).
+                    Value nextCapture = z.asObject()->get(state, ObjectPropertyName(state, Value(i).toString(state))).value(state, z);
+                    // Perform CreateDataProperty(A, ToString(lengthA), nextCapture).
+                    A->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(lengthA).toString(state)), ObjectPropertyDescriptor(nextCapture, ObjectPropertyDescriptor::AllPresent));
+                    // Let lengthA be lengthA + 1.
+                    lengthA++;
+                    // If lengthA = lim, return A.
+                    if (lengthA == lim) {
+                        return A;
+                    }
+                }
+                // Let q be p.
+                q = p;
+            }
+        }
+    }
+
+    // Let T be a String value equal to the substring of S consisting of the elements at indices p (inclusive) through size (exclusive).
+    String* T = S->substring(p, size);
+    // Perform CreateDataProperty(A, ToString(lengthA), T ).
+    A->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(lengthA).toString(state)), ObjectPropertyDescriptor(T, ObjectPropertyDescriptor::AllPresent));
+    // Return A.
+    return A;
+}
+
 GlobalRegExpFunctionObject::GlobalRegExpFunctionObject(ExecutionState& state)
     : FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().RegExp, builtinRegExpConstructor, 2, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
                          return new RegExpObject(state, String::emptyString, String::emptyString);
@@ -213,6 +356,10 @@ void GlobalObject::installRegExp(ExecutionState& state)
     // $21.2.5.9 RegExp.prototype[@@search]
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().search),
                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSymbolSearch, builtinRegExpSearch, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // $21.2.5.11 RegExp.prototype[@@split]
+    m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().split),
+                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().symbolSplit, builtinRegExpSplit, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().RegExp),
                       ObjectPropertyDescriptor(m_regexp, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

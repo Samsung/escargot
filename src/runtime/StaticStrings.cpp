@@ -87,6 +87,7 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     getSymbolSpecies.init(atomicStringMap, "get [Symbol.species]", strlen("get [Symbol.species]"));
     getSymbolSearch.init(atomicStringMap, "get [Symbol.search]", strlen("get [Symbol.search]"));
     getSymbolToStringTag.init(atomicStringMap, "get [Symbol.toStringTag]", strlen("get [Symbol.toStringTag]"));
+    symbolSplit.init(atomicStringMap, "[Symbol.split]", strlen("[Symbol.split]"));
     $Ampersand.init(atomicStringMap, "$&", strlen("$&"));
     $PlusSign.init(atomicStringMap, "$+", strlen("$+"));
     $GraveAccent.init(atomicStringMap, "$`", strlen("$`"));

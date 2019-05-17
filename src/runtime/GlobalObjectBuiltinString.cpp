@@ -516,35 +516,51 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
 
 static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // 1, 2, 3
-    RESOLVE_THIS_BINDING_TO_STRING(S, String, split);
-    ArrayObject* A = new ArrayObject(state);
-    // 4, 5
-    size_t lengthA = 0;
-    size_t lim;
-    if (argv[1].isUndefined()) {
-        lim = Value::InvalidIndexValue - 1;
-    } else {
-        lim = argv[1].toUint32(state);
-    }
-
-    // 6, 7
-    size_t s = S->length(), p = 0;
-
-    // 8
+    RESOLVE_THIS_BINDING_TO_OBJECT(obj, Object, split);
     Value separator = argv[0];
+    Value limit = argv[1];
+    size_t lim;
     PointerValue* P;
+#ifdef ESCARGOT_ENABLE_ES2015
+    // If separator is neither undefined nor null, then
+    if (!separator.isUndefinedOrNull()) {
+        // Let splitter be GetMethod(separator, @@split).
+        Value splitter = Object::getMethod(state, separator, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().split));
+        // If splitter is not undefined, then
+        if (!splitter.isUndefined()) {
+            // Return Call(splitter, separator, <<O, limit>>).
+            Value params[2] = { obj, limit };
+            return FunctionObject::call(state, splitter, separator, 2, params);
+        }
+    }
+    // If limit is undefined, let lim = 2^53 - 1, else let lim = ToLength(limit).
+    // NOTE: not using toLength() here since it would return 0 for negative values, which results in incorrect behaviour.
+    lim = limit.isUndefined() ? (1ULL << 53) - 1 : limit.toUint32(state);
+    // Let R be ToString(separator).
+    P = separator.toString(state);
+#else
+    // If limit is undefined, let lim = 2^32 – 1; else let lim = ToUint32(limit).
+    lim = limit.isUndefined() ? Value::InvalidIndexValue - 1 : limit.toUint32(state);
+    // If separator is a RegExp object (its [[Class]] is "RegExp"), let R = separator; otherwise let R = ToString(separator).
     if (separator.isPointerValue() && separator.asPointerValue()->isRegExpObject()) {
         P = separator.asPointerValue()->asRegExpObject();
     } else {
         P = separator.toString(state);
     }
+#endif /* ESCARGOT_ENABLE_ES2015 */
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, split);
+    ArrayObject* A = new ArrayObject(state);
+    Value searcher;
 
-    // 9
+    // Let lengthA = 0.
+    size_t lengthA = 0;
+    // Let S be the number of elements in S.
+    // Let p = 0.
+    size_t s = S->length(), p = 0;
+
     if (lim == 0)
         return A;
 
-    // 10
     if (separator.isUndefined()) {
         A->defineOwnProperty(state, ObjectPropertyName(state, Value(0)), ObjectPropertyDescriptor(S, ObjectPropertyDescriptor::AllPresent));
         return A;
@@ -561,7 +577,6 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
                 return Value(false);
         return Value(q + r);
     };
-    // 11
     if (s == 0) {
         bool ret = true;
         if (P->isRegExpObject()) {
@@ -579,10 +594,8 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
         return A;
     }
 
-    // 12
     size_t q = p;
 
-    // 13
     if (P->isRegExpObject()) {
         RegExpObject* R = P->asRegExpObject();
         while (q != s) {
@@ -633,7 +646,6 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
         }
     }
 
-    // 14, 15, 16
     String* T = S->substring(p, s);
     A->defineOwnProperty(state, ObjectPropertyName(state, Value(lengthA)), ObjectPropertyDescriptor(T, ObjectPropertyDescriptor::AllPresent));
     return A;
