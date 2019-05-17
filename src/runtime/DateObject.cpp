@@ -155,9 +155,11 @@ static const char* invalidDate = "Invalid Date";
 
 DateObject::DateObject(ExecutionState& state)
     : Object(state)
+    , m_primitiveValue(TIME64NAN)
+    , m_cachedLocal()
+    , m_isCacheDirty(false)
 {
     Object::setPrototype(state, state.context()->globalObject()->datePrototype());
-    setTimeValueAsNaN();
 }
 
 
