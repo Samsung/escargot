@@ -386,7 +386,7 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
             Value returnValue = code->m_fn(newState, receiver, argc, argv, isNewExpression);
 
             if (UNLIKELY(isSuperCall)) {
-                state.executionContext()->getThisEnvironment()->bindThisValue(state, returnValue);
+                state.executionContext()->getThisEnvironment()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->bindThisValue(state, returnValue);
                 state.executionContext()->setOnGoingSuperCall(false);
                 if (returnValue.isObject() && !isBuiltin()) {
                     returnValue.asObject()->setPrototype(state, receiver.toObject(state)->getPrototype(state));
@@ -588,11 +588,13 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
         if (returnValue.isNull()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InvalidDerivedConstructorReturnValue);
         }
+
+        FunctionEnvironmentRecord* thisEnvironmentRecord = state.executionContext()->getThisEnvironment()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
         if (returnValue.isObject()) {
-            state.executionContext()->getThisEnvironment()->bindThisValue(state, returnValue);
+            thisEnvironmentRecord->bindThisValue(state, returnValue);
             returnValue.asObject()->setPrototype(state, receiverSrc.toObject(state)->getPrototype(state));
         } else {
-            state.executionContext()->getThisEnvironment()->bindThisValue(state, stackStorage[0]);
+            thisEnvironmentRecord->bindThisValue(state, stackStorage[0]);
         }
         state.executionContext()->setOnGoingSuperCall(false);
     }
