@@ -580,14 +580,17 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 assignStackIndexIfNeeded(cd->m_classRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 assignStackIndexIfNeeded(cd->m_classPrototypeRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 assignStackIndexIfNeeded(cd->m_superClassRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
             }
             case SuperReferenceOpcode: {
                 SuperReference* cd = (SuperReference*)currentCode;
                 assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
             }
             case LoadThisBindingOpcode: {
                 LoadThisBinding* cd = (LoadThisBinding*)currentCode;
                 assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
             }
             default:
                 break;

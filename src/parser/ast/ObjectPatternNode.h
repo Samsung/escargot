@@ -109,7 +109,7 @@ public:
                 codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex), context, this);
             }
 
-            Node* key;
+            Node* key = nullptr;
             size_t jPos = 0;
             if (value != nullptr) {
                 if (value->isPattern()) {
@@ -147,6 +147,7 @@ public:
                 }
                 case Identifier: {
                     key = value;
+                    break;
                 }
                 default: {
                     break;
