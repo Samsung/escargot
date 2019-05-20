@@ -394,7 +394,7 @@ public:
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        if (m_superClassRegisterIndex == std::numeric_limits<ByteCodeRegisterIndex>::max()) {
+        if (m_superClassRegisterIndex == REGISTER_LIMIT) {
             printf("create class(%d) r%d(%s) { r%d }", (int)m_stage, (int)m_classRegisterIndex, m_name.string()->toUTF8StringData().data(), (int)m_classPrototypeRegisterIndex);
         } else {
             printf("create class(%d) r%d : r%d { r%d }", (int)m_stage, (int)m_classRegisterIndex, (int)m_superClassRegisterIndex, (int)m_classPrototypeRegisterIndex);
@@ -438,7 +438,7 @@ public:
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        if (m_dstIndex == std::numeric_limits<ByteCodeRegisterIndex>::max()) {
+        if (m_dstIndex == REGISTER_LIMIT) {
             printf("Load this binding");
         } else {
             printf("Load this binding -> r%d", (int)m_dstIndex);
@@ -1410,7 +1410,7 @@ public:
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        if (m_receiverIndex != std::numeric_limits<ByteCodeRegisterIndex>::max()) {
+        if (m_receiverIndex != REGISTER_LIMIT) {
             printf("call(spread) r%d <- r%d,r%d(r%d-r%d)", (int)m_resultIndex, (int)m_receiverIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
         } else {
             printf("call(spread) r%d <- r%d(r%d-r%d)", (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
@@ -1681,7 +1681,7 @@ public:
     explicit EnumerateObject(const ByteCodeLOC& loc)
         : ByteCode(Opcode::EnumerateObjectOpcode, loc)
     {
-        m_objectRegisterIndex = m_dataRegisterIndex = std::numeric_limits<ByteCodeRegisterIndex>::max();
+        m_objectRegisterIndex = m_dataRegisterIndex = REGISTER_LIMIT;
     }
     ByteCodeRegisterIndex m_objectRegisterIndex;
     ByteCodeRegisterIndex m_dataRegisterIndex;
@@ -1699,7 +1699,7 @@ public:
     explicit EnumerateObjectKey(const ByteCodeLOC& loc)
         : ByteCode(Opcode::EnumerateObjectKeyOpcode, loc)
     {
-        m_dataRegisterIndex = m_registerIndex = std::numeric_limits<ByteCodeRegisterIndex>::max();
+        m_dataRegisterIndex = m_registerIndex = REGISTER_LIMIT;
     }
     ByteCodeRegisterIndex m_registerIndex;
     ByteCodeRegisterIndex m_dataRegisterIndex;
@@ -1718,7 +1718,7 @@ public:
         : ByteCode(Opcode::CheckIfKeyIsLastOpcode, loc)
     {
         m_forInEndPosition = SIZE_MAX;
-        m_registerIndex = std::numeric_limits<ByteCodeRegisterIndex>::max();
+        m_registerIndex = REGISTER_LIMIT;
     }
     ByteCodeRegisterIndex m_registerIndex;
     size_t m_forInEndPosition;
@@ -1735,7 +1735,7 @@ public:
     explicit GetIterator(const ByteCodeLOC& loc)
         : ByteCode(Opcode::GetIteratorOpcode, loc)
     {
-        m_registerIndex = m_objectRegisterIndex = std::numeric_limits<ByteCodeRegisterIndex>::max();
+        m_registerIndex = m_objectRegisterIndex = REGISTER_LIMIT;
     }
 
     GetIterator(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t registerIndex)
@@ -1762,7 +1762,7 @@ public:
         : ByteCode(Opcode::IteratorStepOpcode, loc)
     {
         m_forOfEndPosition = SIZE_MAX;
-        m_registerIndex = m_iterRegisterIndex = std::numeric_limits<ByteCodeRegisterIndex>::max();
+        m_registerIndex = m_iterRegisterIndex = REGISTER_LIMIT;
     }
     ByteCodeRegisterIndex m_registerIndex;
     ByteCodeRegisterIndex m_iterRegisterIndex;
@@ -1996,7 +1996,7 @@ public:
         m_requiredRegisterFileSizeInValueSize = std::max(m_requiredRegisterFileSizeInValueSize, (ByteCodeRegisterIndex)context->m_baseRegisterCount);
 
         // TODO throw exception
-        RELEASE_ASSERT(m_requiredRegisterFileSizeInValueSize < std::numeric_limits<ByteCodeRegisterIndex>::max());
+        RELEASE_ASSERT(m_requiredRegisterFileSizeInValueSize < REGISTER_LIMIT);
     }
     template <typename CodeType>
     CodeType* peekCode(size_t position)

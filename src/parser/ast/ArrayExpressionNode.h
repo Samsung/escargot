@@ -81,7 +81,7 @@ public:
             for (size_t j = 0; j < ARRAY_DEFINE_OPERATION_MERGE_COUNT && ((i + j) < m_elements.size()); j++) {
                 arrLen = j + i + 1;
 
-                ByteCodeRegisterIndex valueIndex = std::numeric_limits<ByteCodeRegisterIndex>::max();
+                ByteCodeRegisterIndex valueIndex = REGISTER_LIMIT;
                 if (m_elements[i + j]) {
                     valueIndex = m_elements[i + j]->getRegister(codeBlock, context);
                     m_elements[i + j]->generateExpressionByteCode(codeBlock, context, valueIndex);
