@@ -109,7 +109,7 @@ public:
                 codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex), context, this);
             }
 
-            Node* key;
+            Node* key = nullptr;
             size_t jPos = 0;
             if (value != nullptr) {
                 if (value->isPattern()) {
@@ -147,11 +147,18 @@ public:
                 }
                 case Identifier: {
                     key = value;
+                    break;
                 }
                 default: {
                     break;
                 }
                 }
+            }
+
+            if (key == nullptr) {
+                ByteCodeGenerateError err;
+                err.m_index = m_loc.index;
+                throw err;
             }
 
             RefPtr<RegisterReferenceNode> registerRef = adoptRef(new RegisterReferenceNode(valueIndex));
