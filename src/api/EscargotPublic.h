@@ -144,8 +144,8 @@ public:
     NumberObjectRef* asNumberObject();
     bool isBooleanObject();
     BooleanObjectRef* asBooleanObject();
-    bool isRegExpObject();
-    RegExpObjectRef* asRegExpObject();
+    bool isRegExpObject(ExecutionState& state);
+    RegExpObjectRef* asRegExpObject(ExecutionState& state);
     bool isDateObject();
     DateObjectRef* asDateObject();
     bool isGlobalObject();

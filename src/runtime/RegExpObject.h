@@ -110,11 +110,6 @@ public:
         return m_source;
     }
 
-    String* optionString()
-    {
-        return m_optionString;
-    }
-
     Option option()
     {
         return m_option;
@@ -138,10 +133,7 @@ public:
     void setLastIndex(ExecutionState& state, const Value& v);
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
 
-    virtual bool isRegExpObject() const
-    {
-        return true;
-    }
+    virtual bool isRegExpObject(ExecutionState& state);
 
     void createRegexMatchResult(ExecutionState& state, String* str, RegexMatchResult& result);
     ArrayObject* createMatchedArray(ExecutionState& state, String* str, RegexMatchResult& result);
@@ -179,6 +171,19 @@ private:
 
     SmallValue m_lastIndex;
     const String* m_lastExecutedString;
+};
+
+class RegExpObjectPrototype : public RegExpObject {
+public:
+    RegExpObjectPrototype(ExecutionState& state)
+        : RegExpObject(state)
+    {
+    }
+
+    virtual bool isRegExpPrototypeObject() const
+    {
+        return true;
+    }
 };
 
 typedef std::unordered_map<RegExpObject::RegExpCacheKey, RegExpObject::RegExpCacheEntry,

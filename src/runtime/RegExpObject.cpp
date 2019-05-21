@@ -204,11 +204,14 @@ bool RegExpObject::defineOwnProperty(ExecutionState& state, const ObjectProperty
     return returnValue;
 }
 
+bool RegExpObject::isRegExpObject(ExecutionState& state)
+{
+    return this->getPrototypeObject(state)->isRegExpPrototypeObject() || isRegExpPrototypeObject();
+}
+
 void RegExpObject::parseOption(ExecutionState& state, const String* optionString)
 {
     this->m_option = RegExpObject::Option::None;
-    std::string optionStr;
-    this->m_optionString = String::emptyString;
 
     for (size_t i = 0; i < optionString->length(); i++) {
         switch (optionString->charAt(i)) {
@@ -216,39 +219,31 @@ void RegExpObject::parseOption(ExecutionState& state, const String* optionString
             if (this->m_option & Option::Global)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'g' flags");
             this->m_option = (Option)(this->m_option | Option::Global);
-            optionStr.append("g");
             break;
         case 'i':
             if (this->m_option & Option::IgnoreCase)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'i' flags");
             this->m_option = (Option)(this->m_option | Option::IgnoreCase);
-            optionStr.append("i");
             break;
         case 'm':
             if (this->m_option & Option::MultiLine)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'm' flags");
             this->m_option = (Option)(this->m_option | Option::MultiLine);
-            optionStr.append("m");
             break;
         case 'u':
             if (this->m_option & Option::Unicode)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'u' flags");
             this->m_option = (Option)(this->m_option | Option::Unicode);
-            optionStr.append("u");
             break;
         case 'y':
             if (this->m_option & Option::Sticky)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'y' flags");
             this->m_option = (Option)(this->m_option | Option::Sticky);
-            optionStr.append("y");
             break;
         default:
             ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has invalid flag");
         }
     }
-
-    std::sort(optionStr.begin(), optionStr.end());
-    this->m_optionString = String::fromASCII(optionStr.c_str());
 }
 
 void RegExpObject::setOption(const Option& option)

@@ -344,14 +344,14 @@ BooleanObjectRef* PointerValueRef::asBooleanObject()
     return toRef(toImpl(this)->asBooleanObject());
 }
 
-bool PointerValueRef::isRegExpObject()
+bool PointerValueRef::isRegExpObject(ExecutionState& state)
 {
-    return toImpl(this)->isRegExpObject();
+    return toImpl(this)->isRegExpObject(state);
 }
 
-RegExpObjectRef* PointerValueRef::asRegExpObject()
+RegExpObjectRef* PointerValueRef::asRegExpObject(ExecutionState& state)
 {
-    return toRef(toImpl(this)->asRegExpObject());
+    return toRef(toImpl(this)->asRegExpObject(state));
 }
 
 bool PointerValueRef::isDateObject()

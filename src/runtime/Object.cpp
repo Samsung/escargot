@@ -1122,4 +1122,32 @@ Value Object::speciesConstructor(ExecutionState& state, const Value& defaultCons
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "invalid speciesConstructor return");
     return Value();
 }
+
+String* Object::optionString(ExecutionState& state)
+{
+    char flags[6] = { 0 };
+    int flags_idx = 0;
+
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().global)).value(state, this).toBoolean(state) == true) {
+        flags[flags_idx++] = 'g';
+    }
+
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().ignoreCase)).value(state, this).toBoolean(state) == true) {
+        flags[flags_idx++] = 'i';
+    }
+
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().multiline)).value(state, this).toBoolean(state) == true) {
+        flags[flags_idx++] = 'm';
+    }
+
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, this).toBoolean(state) == true) {
+        flags[flags_idx++] = 'u';
+    }
+
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().sticky)).value(state, this).toBoolean(state) == true) {
+        flags[flags_idx++] = 'y';
+    }
+
+    return new ASCIIString(flags);
+}
 }

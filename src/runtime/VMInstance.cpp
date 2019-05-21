@@ -30,10 +30,12 @@ extern size_t g_doubleInSmallValueTag;
 extern size_t g_objectRareDataTag;
 extern size_t g_symbolTag;
 
+#ifndef ESCARGOT_ENABLE_ES2015
 bool VMInstance::undefinedNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
     return false;
 }
+#endif
 
 Value VMInstance::functionPrototypeNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
@@ -103,26 +105,36 @@ bool VMInstance::stringLengthNativeSetter(ExecutionState& state, Object* self, S
 static ObjectPropertyNativeGetterSetterData stringLengthGetterSetterData(
     false, false, false, &VMInstance::stringLengthNativeGetter, &VMInstance::stringLengthNativeSetter);
 
+#ifndef ESCARGOT_ENABLE_ES2015
 Value VMInstance::regexpSourceNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
-    ASSERT(self->isRegExpObject());
-    return Value(self->asRegExpObject()->source());
+    if (self->isRegExpObject(state) == false) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
+    }
+
+    return Value(self->asRegExpObject(state)->source());
 }
+
 static ObjectPropertyNativeGetterSetterData regexpSourceGetterData(
     false, false, false, &VMInstance::regexpSourceNativeGetter, &VMInstance::undefinedNativeSetter);
 
 Value VMInstance::regexpFlagsNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
-    ASSERT(self->isRegExpObject());
-    return Value(self->asRegExpObject()->optionString());
+    if (self->isRegExpObject(state) == false) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
+    }
+    return Value(self->asRegExpObject(state)->optionString(state));
 }
+
 static ObjectPropertyNativeGetterSetterData regexpFlagsGetterData(
     false, false, true, &VMInstance::regexpFlagsNativeGetter, &VMInstance::undefinedNativeSetter);
 
 Value VMInstance::regexpGlobalNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
-    ASSERT(self->isRegExpObject());
-    return Value((bool)(self->asRegExpObject()->option() & RegExpObject::Option::Global));
+    if (self->isRegExpObject(state) == false) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
+    }
+    return Value((bool)(self->asRegExpObject(state)->option() & RegExpObject::Option::Global));
 }
 
 static ObjectPropertyNativeGetterSetterData regexpGlobalGetterData(
@@ -130,8 +142,10 @@ static ObjectPropertyNativeGetterSetterData regexpGlobalGetterData(
 
 Value VMInstance::regexpIgnoreCaseNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
-    ASSERT(self->isRegExpObject());
-    return Value((bool)(self->asRegExpObject()->option() & RegExpObject::Option::IgnoreCase));
+    if (self->isRegExpObject(state) == false) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
+    }
+    return Value((bool)(self->asRegExpObject(state)->option() & RegExpObject::Option::IgnoreCase));
 }
 
 static ObjectPropertyNativeGetterSetterData regexpIgnoreCaseGetterData(
@@ -139,8 +153,10 @@ static ObjectPropertyNativeGetterSetterData regexpIgnoreCaseGetterData(
 
 Value VMInstance::regexpMultilineNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
-    ASSERT(self->isRegExpObject());
-    return Value((bool)(self->asRegExpObject()->option() & RegExpObject::Option::MultiLine));
+    if (self->isRegExpObject(state) == false) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
+    }
+    return Value((bool)(self->asRegExpObject(state)->option() & RegExpObject::Option::MultiLine));
 }
 
 static ObjectPropertyNativeGetterSetterData regexpMultilineGetterData(
@@ -148,8 +164,10 @@ static ObjectPropertyNativeGetterSetterData regexpMultilineGetterData(
 
 Value VMInstance::regexpStickyNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
-    ASSERT(self->isRegExpObject());
-    return Value((bool)(self->asRegExpObject()->option() & RegExpObject::Option::Sticky));
+    if (self->isRegExpObject(state) == false) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
+    }
+    return Value((bool)(self->asRegExpObject(state)->option() & RegExpObject::Option::Sticky));
 }
 
 static ObjectPropertyNativeGetterSetterData regexpStickyGetterData(
@@ -157,23 +175,28 @@ static ObjectPropertyNativeGetterSetterData regexpStickyGetterData(
 
 Value VMInstance::regexpUnicodeNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
-    ASSERT(self->isRegExpObject());
-    return Value((bool)(self->asRegExpObject()->option() & RegExpObject::Option::Unicode));
+    if (self->isRegExpObject(state) == false) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
+    }
+    return Value((bool)(self->asRegExpObject(state)->option() & RegExpObject::Option::Unicode));
 }
 
 static ObjectPropertyNativeGetterSetterData regexpUnicodeGetterData(
     false, false, false, &VMInstance::regexpUnicodeNativeGetter, &VMInstance::undefinedNativeSetter);
+#endif
 
 Value VMInstance::regexpLastIndexNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
-    ASSERT(self->isRegExpObject());
-    return self->asRegExpObject()->lastIndex();
+    if (self->isRegExpObject(state) == false) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
+    }
+    return self->asRegExpObject(state)->lastIndex();
 }
 
 bool VMInstance::regexpLastIndexNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
-    ASSERT(self->isRegExpObject());
-    self->asRegExpObject()->setLastIndex(state, setterInputData);
+    ASSERT(self->isRegExpObject(state) == true);
+    self->asRegExpObject(state)->setLastIndex(state, setterInputData);
     return true;
 }
 
@@ -306,7 +329,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
 
     m_defaultStructureForRegExpObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.lastIndex,
                                                                                  ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpLastIndexGetterSetterData));
-    // TODO(ES6): Below RegExp data properties is changed to accessor properties of RegExp.prototype in ES6.
+#ifndef ESCARGOT_ENABLE_ES2015
     m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.source,
                                                                                        ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpSourceGetterData));
     m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.flags,
@@ -321,6 +344,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
                                                                                        ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpStickyGetterData));
     m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.unicode,
                                                                                        ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpUnicodeGetterData));
+#endif
 
     m_defaultStructureForArgumentsObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length, ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
     m_defaultStructureForArgumentsObject = m_defaultStructureForArgumentsObject->addProperty(stateForInit, m_staticStrings.callee, ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
