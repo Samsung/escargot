@@ -132,7 +132,19 @@ public:
 
 private:
     struct timeinfo {
-        timeinfo() {}
+        timeinfo()
+            : year(0)
+            , month(0)
+            , mday(0)
+            , hour(0)
+            , min(0)
+            , sec(0)
+            , millisec(0)
+            , wday(0)
+            , gmtoff(0)
+            , isdst(0)
+        {
+        }
         int year;
         int month;
         int mday;
