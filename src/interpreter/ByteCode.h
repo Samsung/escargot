@@ -120,7 +120,6 @@ class Node;
     F(CallEvalFunction, 0, 0)                         \
     F(CallFunctionInWithScope, 0, 0)                  \
     F(BindingRestElement, 1, 0)                       \
-    F(FillOpcodeTable, 0, 0)                          \
     F(End, 0, 0)
 
 enum Opcode {
@@ -1907,21 +1906,6 @@ public:
     void dump(const char* byteCodeStart)
     {
         printf("end");
-    }
-#endif
-};
-
-class FillOpcodeTable : public ByteCode {
-public:
-    FillOpcodeTable()
-        : ByteCode(Opcode::FillOpcodeTableOpcode, ByteCodeLOC(0))
-    {
-    }
-
-#ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
     }
 #endif
 };
