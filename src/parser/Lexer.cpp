@@ -473,17 +473,6 @@ void ErrorHandler::throwError(size_t index, size_t line, size_t col, String* des
     throw * error;
 };
 
-Scanner::ScannerResult::~ScannerResult()
-{
-    if (this->scanner->isPoolEnabled) {
-        if (this->scanner->initialResultMemoryPoolSize < SCANNER_RESULT_POOL_INITIAL_SIZE) {
-            this->scanner->initialResultMemoryPool[this->scanner->initialResultMemoryPoolSize++] = this;
-            return;
-        }
-        this->scanner->resultMemoryPool.push_back(this);
-    }
-}
-
 StringView Scanner::ScannerResult::relatedSource()
 {
     return StringView(scanner->source, this->start, this->end);
@@ -491,24 +480,24 @@ StringView Scanner::ScannerResult::relatedSource()
 
 Value Scanner::ScannerResult::valueStringLiteralForAST()
 {
-    StringView sv = valueStringLiteral();
+    StringView* sv = valueStringLiteral();
     if (this->plain) {
-        return new SourceStringView(sv);
+        return new SourceStringView(*sv);
     }
-    RELEASE_ASSERT(sv.string() != nullptr);
-    return sv.string();
+    RELEASE_ASSERT(sv->string() != nullptr);
+    return sv->string();
 }
 
-StringView Scanner::ScannerResult::valueStringLiteral()
+StringView* Scanner::ScannerResult::valueStringLiteral()
 {
     if (this->type == Token::KeywordToken && !this->hasKeywordButUseString) {
         AtomicString as = keywordToString(this->scanner->escargotContext, this->valueKeywordKind);
-        return StringView(as.string(), 0, as.string()->length());
+        return new StringView(as.string(), 0, as.string()->length());
     }
-    if (this->type == Token::StringLiteralToken && !plain && valueStringLiteralData.length() == 0) {
+    if (this->type == Token::StringLiteralToken && !plain && valueStringLiteralData->length() == 0) {
         constructStringLiteral();
     }
-    ASSERT(valueStringLiteralData.getTagInFirstDataArea() == POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA);
+    ASSERT(valueStringLiteralData->getTagInFirstDataArea() == POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA);
     return valueStringLiteralData;
 }
 
@@ -620,7 +609,7 @@ void Scanner::ScannerResult::constructStringLiteral()
     } else {
         newStr = new UTF16String(stringUTF16.data(), stringUTF16.length());
     }
-    this->valueStringLiteralData = StringView(newStr, 0, newStr->length());
+    this->valueStringLiteralData = new StringView(newStr, 0, newStr->length());
 }
 
 Scanner::Scanner(::Escargot::Context* escargotContext, StringView code, ErrorHandler* handler, size_t startLine, size_t startColumn)
@@ -631,30 +620,10 @@ Scanner::Scanner(::Escargot::Context* escargotContext, StringView code, ErrorHan
     , index(0)
     , lineNumber(((length > 0) ? 1 : 0) + startLine)
     , lineStart(startColumn)
-    , isPoolEnabled(true)
 {
+    ASSERT(escargotContext != nullptr);
+    ASSERT(handler != nullptr);
     // trackComment = false;
-    initialResultMemoryPoolSize = SCANNER_RESULT_POOL_INITIAL_SIZE;
-    Scanner::ScannerResult* ptr = (Scanner::ScannerResult*)scannerResultInnerPool;
-    for (size_t i = 0; i < SCANNER_RESULT_POOL_INITIAL_SIZE; i++) {
-        ptr[i].scanner = this;
-        initialResultMemoryPool[i] = &ptr[i];
-    }
-}
-
-Scanner::ScannerResult* Scanner::createScannerResult()
-{
-    if (initialResultMemoryPoolSize) {
-        initialResultMemoryPoolSize--;
-        return initialResultMemoryPool[initialResultMemoryPoolSize];
-    } else if (resultMemoryPool.size() == 0) {
-        auto ret = (Scanner::ScannerResult*)GC_MALLOC(sizeof(Scanner::ScannerResult));
-        return ret;
-    } else {
-        auto ret = resultMemoryPool.back();
-        resultMemoryPool.pop_back();
-        return ret;
-    }
 }
 
 void Scanner::skipSingleLineComment(void)
@@ -740,7 +709,7 @@ char32_t Scanner::scanUnicodeCodePointEscape()
     return code;
 }
 
-StringView Scanner::getIdentifier()
+StringView* Scanner::getIdentifier()
 {
     const size_t start = this->index;
     ++this->index;
@@ -762,10 +731,10 @@ StringView Scanner::getIdentifier()
         }
     }
 
-    return StringView(this->source, start, this->index);
+    return new StringView(this->source, start, this->index);
 }
 
-StringView Scanner::getComplexIdentifier()
+StringView* Scanner::getComplexIdentifier()
 {
     char32_t cp = this->codePointAt(this->index);
     ParserCharPiece piece = ParserCharPiece(cp);
@@ -829,7 +798,7 @@ StringView Scanner::getComplexIdentifier()
     }
 
     String* str = new UTF16String(id.data(), id.length());
-    return StringView(str, 0, str->length());
+    return new StringView(str, 0, str->length());
 }
 
 uint16_t Scanner::octalToDecimal(char16_t ch, bool octal)
@@ -857,9 +826,10 @@ uint16_t Scanner::octalToDecimal(char16_t ch, bool octal)
     return octal ? code : NON_OCTAL_VALUE;
 };
 
-PassRefPtr<Scanner::ScannerResult> Scanner::scanPunctuator(char16_t ch)
+void Scanner::scanPunctuator(Scanner::ScannerResult* token, char16_t ch)
 {
-    PassRefPtr<Scanner::ScannerResult> token = adoptRef(new (createScannerResult()) Scanner::ScannerResult(this, Token::PunctuatorToken, this->lineNumber, this->lineStart, this->index, this->index));
+    ASSERT(token != nullptr);
+    token->setResult(this, Token::PunctuatorToken, this->lineNumber, this->lineStart, this->index, this->index);
 
     PunctuatorKind kind;
     // Check for most common single-character punctuators.
@@ -1083,11 +1053,11 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanPunctuator(char16_t ch)
     }
 
     token->valuePunctuatorKind = kind;
-    return token;
 }
 
-PassRefPtr<Scanner::ScannerResult> Scanner::scanHexLiteral(size_t start)
+void Scanner::scanHexLiteral(Scanner::ScannerResult* token, size_t start)
 {
+    ASSERT(token != nullptr);
     uint64_t number = 0;
     double numberDouble = 0.0;
     bool shouldUseDouble = false;
@@ -1123,15 +1093,16 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanHexLiteral(size_t start)
 
     if (shouldUseDouble) {
         ASSERT(number == 0);
-        return adoptRef(new (createScannerResult()) Scanner::ScannerResult(this, Token::NumericLiteralToken, numberDouble, this->lineNumber, this->lineStart, start, this->index));
+        token->setResult(this, Token::NumericLiteralToken, numberDouble, this->lineNumber, this->lineStart, start, this->index);
     } else {
         ASSERT(numberDouble == 0.0);
-        return adoptRef(new (createScannerResult()) Scanner::ScannerResult(this, Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index));
+        token->setResult(this, Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index);
     }
 }
 
-PassRefPtr<Scanner::ScannerResult> Scanner::scanBinaryLiteral(size_t start)
+void Scanner::scanBinaryLiteral(Scanner::ScannerResult* token, size_t start)
 {
+    ASSERT(token != nullptr);
     uint64_t number = 0;
     bool scanned = false;
 
@@ -1158,11 +1129,12 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanBinaryLiteral(size_t start)
         }
     }
 
-    return adoptRef(new (createScannerResult()) Scanner::ScannerResult(this, Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index));
+    token->setResult(this, Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index);
 }
 
-PassRefPtr<Scanner::ScannerResult> Scanner::scanOctalLiteral(char16_t prefix, size_t start)
+void Scanner::scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, size_t start)
 {
+    ASSERT(token != nullptr);
     uint64_t number = 0;
     bool scanned = false;
     bool octal = isOctalDigit(prefix);
@@ -1187,10 +1159,8 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanOctalLiteral(char16_t prefix, si
         throwUnexpectedToken();
     }
 
-    PassRefPtr<Scanner::ScannerResult> ret = adoptRef(new (createScannerResult()) Scanner::ScannerResult(this, Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index));
-    ret->octal = octal;
-
-    return ret;
+    token->setResult(this, Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index);
+    token->octal = octal;
 }
 
 bool Scanner::isImplicitOctalLiteral()
@@ -1209,8 +1179,9 @@ bool Scanner::isImplicitOctalLiteral()
     return true;
 }
 
-PassRefPtr<Scanner::ScannerResult> Scanner::scanNumericLiteral()
+void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
 {
+    ASSERT(token != nullptr);
     const size_t start = this->index;
     char16_t ch = this->peekChar();
     char16_t startChar = ch;
@@ -1232,19 +1203,19 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanNumericLiteral()
         if (number == "0") {
             if (ch == 'x' || ch == 'X') {
                 ++this->index;
-                return this->scanHexLiteral(start);
+                return this->scanHexLiteral(token, start);
             }
             if (ch == 'b' || ch == 'B') {
                 ++this->index;
-                return this->scanBinaryLiteral(start);
+                return this->scanBinaryLiteral(token, start);
             }
             if (ch == 'o' || ch == 'O') {
                 ++this->index;
-                return this->scanOctalLiteral(ch, start);
+                return this->scanOctalLiteral(token, ch, start);
             }
 
             if (ch && isOctalDigit(ch) && this->isImplicitOctalLiteral()) {
-                return this->scanOctalLiteral(ch, start);
+                return this->scanOctalLiteral(token, ch, start);
             }
         }
 
@@ -1300,15 +1271,15 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanNumericLiteral()
                                                          "Infinity", "NaN");
     double ll = converter.StringToDouble(number.data(), length, &length_dummy);
 
-    auto ret = adoptRef(new (createScannerResult()) Scanner::ScannerResult(this, Token::NumericLiteralToken, ll, this->lineNumber, this->lineStart, start, this->index));
+    token->setResult(this, Token::NumericLiteralToken, ll, this->lineNumber, this->lineStart, start, this->index);
     if (startChar == '0' && length >= 2 && ll >= 1) {
-        ret->startWithZero = true;
+        token->startWithZero = true;
     }
-    return ret;
 }
 
-PassRefPtr<Scanner::ScannerResult> Scanner::scanStringLiteral()
+void Scanner::scanStringLiteral(Scanner::ScannerResult* token)
 {
+    ASSERT(token != nullptr);
     const size_t start = this->index;
     char16_t quote = this->peekChar();
     ASSERT((quote == '\'' || quote == '"'));
@@ -1375,17 +1346,15 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanStringLiteral()
     }
 
     if (isPlainCase) {
-        StringView str(this->source, start + 1, this->index - 1);
-        auto ret = adoptRef(new (createScannerResult()) Scanner::ScannerResult(this, Token::StringLiteralToken, str, this->lineNumber, this->lineStart, start, this->index, true));
-        ret->octal = octal;
-        ret->plain = true;
-        return ret;
+        StringView* str = new StringView(this->source, start + 1, this->index - 1);
+        token->setResult(this, Token::StringLiteralToken, str, this->lineNumber, this->lineStart, start, this->index, true);
+        token->octal = octal;
+        token->plain = true;
     } else {
         // build string if needs
-        auto ret = adoptRef(new (createScannerResult()) Scanner::ScannerResult(this, Token::StringLiteralToken, StringView(), this->lineNumber, this->lineStart, start, this->index, false));
-        ret->octal = octal;
-        ret->plain = false;
-        return ret;
+        token->setResult(this, Token::StringLiteralToken, new StringView(), this->lineNumber, this->lineStart, start, this->index, false);
+        token->octal = octal;
+        token->plain = false;
     }
 }
 
@@ -1403,8 +1372,9 @@ bool Scanner::isFutureReservedWord(const StringView& id)
     return false;
 }
 
-PassRefPtr<Scanner::ScannerResult> Scanner::scanTemplate(bool head)
+void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
 {
+    ASSERT(token != nullptr);
     // TODO apply rope-string
     UTF16StringDataNonGCStd cooked;
     bool terminated = false;
@@ -1512,7 +1482,7 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanTemplate(bool head)
     result->raw = StringView(this->source, start, this->index - rawOffset);
     result->valueCooked = UTF16StringData(cooked.data(), cooked.length());
 
-    return adoptRef(new (createScannerResult()) Scanner::ScannerResult(this, Token::TemplateToken, result, this->lineNumber, this->lineStart, start, this->index));
+    token->setResult(this, Token::TemplateToken, result, this->lineNumber, this->lineStart, start, this->index);
 }
 
 String* Scanner::scanRegExpBody()
@@ -1616,8 +1586,9 @@ String* Scanner::scanRegExpFlags()
     return new UTF16String(flags.data(), flags.length());
 }
 
-PassRefPtr<Scanner::ScannerResult> Scanner::scanRegExp()
+void Scanner::scanRegExp(Scanner::ScannerResult* token)
 {
+    ASSERT(token != nullptr);
     const size_t start = this->index;
 
     String* body = this->scanRegExpBody();
@@ -1627,9 +1598,8 @@ PassRefPtr<Scanner::ScannerResult> Scanner::scanRegExp()
     ScanRegExpResult result;
     result.body = body;
     result.flags = flags;
-    PassRefPtr<Scanner::ScannerResult> res = adoptRef(new (createScannerResult()) Scanner::ScannerResult(this, Token::RegularExpressionToken, this->lineNumber, this->lineStart, start, this->index));
-    res->valueRegexp = result;
-    return res;
+    token->setResult(this, Token::RegularExpressionToken, this->lineNumber, this->lineStart, start, this->index);
+    token->valueRegexp = result;
 }
 
 // ECMA-262 11.6.2.1 Keywords
@@ -1802,25 +1772,26 @@ static ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
     return NotKeyword;
 }
 
-ALWAYS_INLINE PassRefPtr<Scanner::ScannerResult> Scanner::scanIdentifier(char16_t ch0)
+ALWAYS_INLINE void Scanner::scanIdentifier(Scanner::ScannerResult* token, char16_t ch0)
 {
+    ASSERT(token != nullptr);
     Token type;
     const size_t start = this->index;
 
     // Backslash (U+005C) starts an escaped character.
-    StringView id = UNLIKELY(ch0 == 0x5C) ? this->getComplexIdentifier() : this->getIdentifier();
+    StringView* id = UNLIKELY(ch0 == 0x5C) ? this->getComplexIdentifier() : this->getIdentifier();
 
     // There is no keyword or literal with only one character.
     // Thus, it must be an identifier.
     KeywordKind keywordKind;
-    auto data = id.StringView::bufferAccessData();
+    auto data = id->StringView::bufferAccessData();
     if (data.length == 1) {
         type = Token::IdentifierToken;
     } else if ((keywordKind = isKeyword(data))) {
-        PassRefPtr<Scanner::ScannerResult> r = adoptRef(new (createScannerResult()) Scanner::ScannerResult(this, Token::KeywordToken, this->lineNumber, this->lineStart, start, this->index));
-        r->valueKeywordKind = keywordKind;
-        r->hasKeywordButUseString = false;
-        return r;
+        token->setResult(this, Token::KeywordToken, this->lineNumber, this->lineStart, start, this->index);
+        token->valueKeywordKind = keywordKind;
+        token->hasKeywordButUseString = false;
+        return;
     } else if (data.length == 4) {
         if (data.equalsSameLength("null")) {
             type = Token::NullLiteralToken;
@@ -1835,13 +1806,15 @@ ALWAYS_INLINE PassRefPtr<Scanner::ScannerResult> Scanner::scanIdentifier(char16_
         type = Token::IdentifierToken;
     }
 
-    return adoptRef(new (createScannerResult()) Scanner::ScannerResult(this, type, id, this->lineNumber, this->lineStart, start, this->index, id.string() == this->source.string()));
+    token->setResult(this, type, id, this->lineNumber, this->lineStart, start, this->index, id->string() == this->source.string());
 }
 
-PassRefPtr<Scanner::ScannerResult> Scanner::lex()
+void Scanner::lex(Scanner::ScannerResult* token)
 {
+    ASSERT(token != nullptr);
     if (UNLIKELY(this->eof())) {
-        return adoptRef(new (createScannerResult()) Scanner::ScannerResult(this, Token::EOFToken, this->lineNumber, this->lineStart, this->index, this->index));
+        token->setResult(this, Token::EOFToken, this->lineNumber, this->lineStart, this->index, this->index);
+        return;
     }
 
     const char16_t cp = this->peekChar();
@@ -1852,31 +1825,37 @@ PassRefPtr<Scanner::ScannerResult> Scanner::lex()
 
     // String literal starts with single quote (U+0027) or double quote (U+0022).
     if (cp == 0x27 || cp == 0x22) {
-        return this->scanStringLiteral();
+        this->scanStringLiteral(token);
+        return;
     }
 
     // Dot (.) U+002E can also start a floating-point number, hence the need
     // to check the next character.
     if (UNLIKELY(cp == 0x2E) && isDecimalDigit(this->source.bufferedCharAt(this->index + 1))) {
-        return this->scanNumericLiteral();
+        this->scanNumericLiteral(token);
+        return;
     }
 
     if (isDecimalDigit(cp)) {
-        return this->scanNumericLiteral();
+        this->scanNumericLiteral(token);
+        return;
     }
 
     if (UNLIKELY(cp == '`')) {
         ++this->index;
-        return this->scanTemplate(true);
+        this->scanTemplate(token, true);
+        return;
     }
 
     // Possible identifier start in a surrogate pair.
     if (UNLIKELY(cp >= 0xD800 && cp < 0xDFFF) && isIdentifierStart(this->codePointAt(this->index))) {
         goto ScanID;
     }
-    return this->scanPunctuator(cp);
+    this->scanPunctuator(token, cp);
+    return;
 
 ScanID:
-    return this->scanIdentifier(cp);
+    this->scanIdentifier(token, cp);
+    return;
 }
 }
