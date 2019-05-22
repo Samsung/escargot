@@ -780,14 +780,14 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 if (LIKELY(arr->isFastModeArray())) {
                     size_t end = code->m_count + code->m_baseIndex;
                     for (size_t i = 0; i < code->m_count; i++) {
-                        if (LIKELY(code->m_loadRegisterIndexs[i] != std::numeric_limits<ByteCodeRegisterIndex>::max())) {
+                        if (LIKELY(code->m_loadRegisterIndexs[i] != REGISTER_LIMIT)) {
                             arr->m_fastModeData[i + code->m_baseIndex] = registerFile[code->m_loadRegisterIndexs[i]];
                         }
                     }
                 } else {
                     size_t spreadCount = 0;
                     for (size_t i = 0; i < code->m_count; i++) {
-                        if (LIKELY(code->m_loadRegisterIndexs[i] != std::numeric_limits<ByteCodeRegisterIndex>::max())) {
+                        if (LIKELY(code->m_loadRegisterIndexs[i] != REGISTER_LIMIT)) {
                             const Value& element = registerFile[code->m_loadRegisterIndexs[i]];
 
                             if (element.isObject() && element.asObject()->isSpreadObject()) {
@@ -958,7 +958,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 EnvironmentRecord* envRec = ec->getThisEnvironment();
                 ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
 
-                if (code->m_dstIndex != std::numeric_limits<ByteCodeRegisterIndex>::max()) {
+                if (code->m_dstIndex != REGISTER_LIMIT) {
                     registerFile[code->m_dstIndex] = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getThisBinding(state);
                 } else {
                     registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getThisBinding(state);
@@ -1237,7 +1237,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             {
                 ReturnFunctionSlowCase* code = (ReturnFunctionSlowCase*)programCounter;
                 Value ret;
-                if (code->m_registerIndex != std::numeric_limits<ByteCodeRegisterIndex>::max()) {
+                if (code->m_registerIndex != REGISTER_LIMIT) {
                     ret = registerFile[code->m_registerIndex];
                 }
                 if (UNLIKELY(state.rareData() != nullptr) && state.rareData()->m_controlFlowRecord && state.rareData()->m_controlFlowRecord->size()) {
@@ -1258,7 +1258,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             {
                 CallFunctionWithSpreadElement* code = (CallFunctionWithSpreadElement*)programCounter;
                 const Value& callee = registerFile[code->m_calleeIndex];
-                const Value& receiver = code->m_receiverIndex == std::numeric_limits<ByteCodeRegisterIndex>::max() ? Value() : registerFile[code->m_receiverIndex];
+                const Value& receiver = code->m_receiverIndex == REGISTER_LIMIT ? Value() : registerFile[code->m_receiverIndex];
                 ValueVector spreadArgs;
                 spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
                 registerFile[code->m_resultIndex] = FunctionObject::call(state, callee, receiver, spreadArgs.size(), spreadArgs.data());
@@ -2225,7 +2225,7 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
     Value protoParent;
     Value constructorParent;
 
-    bool heritagePresent = code->m_superClassRegisterIndex != std::numeric_limits<ByteCodeRegisterIndex>::max();
+    bool heritagePresent = code->m_superClassRegisterIndex != REGISTER_LIMIT;
 
     // 5.
     if (!heritagePresent) {

@@ -47,7 +47,7 @@ public:
                 codeBlock->pushCode(ReturnFunctionSlowCase(ByteCodeLOC(m_loc.index), index), context, this);
                 context->giveUpRegister();
             } else {
-                codeBlock->pushCode(ReturnFunctionSlowCase(ByteCodeLOC(m_loc.index), std::numeric_limits<ByteCodeRegisterIndex>::max()), context, this);
+                codeBlock->pushCode(ReturnFunctionSlowCase(ByteCodeLOC(m_loc.index), REGISTER_LIMIT), context, this);
             }
         } else {
             if (m_argument) {

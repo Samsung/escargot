@@ -141,23 +141,23 @@ public:
         if (context->m_codeBlock->asInterpretedCodeBlock()->canUseIndexedVariableStorage() || context->m_codeBlock->asInterpretedCodeBlock()->isGlobalScopeCodeBlock()) {
             InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name);
             if (!info.m_isResultSaved) {
-                return std::make_pair(false, std::numeric_limits<ByteCodeRegisterIndex>::max());
+                return std::make_pair(false, REGISTER_LIMIT);
             } else {
                 if (context->m_isWithScope || (context->m_catchScopeCount && m_name == context->m_lastCatchVariableName)) {
-                    return std::make_pair(false, std::numeric_limits<ByteCodeRegisterIndex>::max());
+                    return std::make_pair(false, REGISTER_LIMIT);
                 }
 
                 if (info.m_isStackAllocated && info.m_isMutable) {
                     if (context->m_canSkipCopyToRegister)
                         return std::make_pair(true, REGULAR_REGISTER_LIMIT + info.m_index);
                     else
-                        return std::make_pair(false, std::numeric_limits<ByteCodeRegisterIndex>::max());
+                        return std::make_pair(false, REGISTER_LIMIT);
                 } else {
-                    return std::make_pair(false, std::numeric_limits<ByteCodeRegisterIndex>::max());
+                    return std::make_pair(false, REGISTER_LIMIT);
                 }
             }
         } else {
-            return std::make_pair(false, std::numeric_limits<ByteCodeRegisterIndex>::max());
+            return std::make_pair(false, REGISTER_LIMIT);
         }
     }
 
