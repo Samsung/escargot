@@ -193,6 +193,8 @@ namespace Escargot {
     F(ignoreCase)                 \
     F(global)                     \
     F(multiline)                  \
+    F(sticky)                     \
+    F(unicode)                    \
     F(implements)                 \
     F(interface)                  \
     F(package)                    \
