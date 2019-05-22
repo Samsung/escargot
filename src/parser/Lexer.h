@@ -36,7 +36,8 @@ enum Token {
     PunctuatorToken,
     StringLiteralToken,
     RegularExpressionToken,
-    TemplateToken
+    TemplateToken,
+    InvalidToken
 };
 
 enum PunctuatorKind {
@@ -192,6 +193,11 @@ struct ScanTemplteResult : public gc {
 };
 
 struct ScanRegExpResult {
+    ScanRegExpResult()
+        : body(nullptr)
+        , flags(nullptr)
+    {
+    }
     String* body;
     String* flags;
 };
@@ -211,11 +217,27 @@ extern const char* UnterminatedRegExp;
 extern const char* TemplateOctalLiteral;
 }
 
-#define SCANNER_RESULT_POOL_INITIAL_SIZE 128
 class Scanner : public gc {
 public:
-    class ScannerResult : public RefCounted<ScannerResult> {
+    class ScannerResult {
     public:
+        ScannerResult()
+            : scanner(nullptr)
+            , type(InvalidToken)
+            , startWithZero(false)
+            , octal(false)
+            , plain(false)
+            , hasKeywordButUseString(false)
+            , prec(0)
+            , lineNumber(0)
+            , lineStart(0)
+            , start(0)
+            , end(0)
+            , valueRegexp()
+        {
+        }
+
+        ~ScannerResult() {}
         Scanner* scanner;
         unsigned char type : 4;
         bool startWithZero : 1;
@@ -233,7 +255,7 @@ public:
 
         union {
             PunctuatorKind valuePunctuatorKind;
-            StringView valueStringLiteralData;
+            StringView* valueStringLiteralData;
             double valueNumber;
             ScanTemplteResult* valueTemplate;
             ScanRegExpResult valueRegexp;
@@ -241,86 +263,95 @@ public:
         };
 
         StringView relatedSource();
-        StringView valueStringLiteral();
+        StringView* valueStringLiteral();
         Value valueStringLiteralForAST();
 
-        ~ScannerResult();
+        // ScannerResult always allocated on the stack
+        MAKE_STACK_ALLOCATED();
 
-        inline void operator delete(void* obj)
+        inline operator bool() const
         {
+            return this->type != InvalidToken;
         }
 
-        inline void operator delete(void*, void*) {}
-        inline void operator delete[](void* obj) {}
-        inline void operator delete[](void*, void*) {}
-        ScannerResult()
+        inline void reset()
         {
+            this->type = InvalidToken;
         }
 
-        ScannerResult(Scanner* scanner, Token type, size_t lineNumber, size_t lineStart, size_t start, size_t end)
-            : scanner(scanner)
-            , type(type)
-            , startWithZero(false)
-            , octal(false)
-            , plain(false)
-            , hasKeywordButUseString(false)
-            , lineNumber(lineNumber)
-            , lineStart(lineStart)
-            , start(start)
-            , end(end)
-            , valueNumber(0)
+        void setResult(Scanner* scanner, Token type, size_t lineNumber, size_t lineStart, size_t start, size_t end)
         {
+            ASSERT(scanner != nullptr);
+            this->scanner = scanner;
+            this->type = type;
+            this->startWithZero = false;
+            this->octal = false;
+            this->plain = false;
+            this->hasKeywordButUseString = false;
+            this->lineNumber = lineNumber;
+            this->lineStart = lineStart;
+            this->start = start;
+            this->end = end;
+            this->valueNumber = 0;
         }
 
-        ScannerResult(Scanner* scanner, Token type, const StringView& valueString, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool plain)
-            : scanner(scanner)
-            , type(type)
-            , startWithZero(false)
-            , octal(false)
-            , plain(plain)
-            , hasKeywordButUseString(true)
-            , lineNumber(lineNumber)
-            , lineStart(lineStart)
-            , start(start)
-            , end(end)
-            , valueStringLiteralData(valueString)
+        void setResult(Scanner* scanner, Token type, StringView* valueString, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool plain)
         {
+            ASSERT(scanner != nullptr);
+            ASSERT(valueString != nullptr);
+            this->scanner = scanner;
+            this->type = type;
+            this->startWithZero = false;
+            this->octal = false;
+            this->plain = plain;
+            this->hasKeywordButUseString = true;
+            this->lineNumber = lineNumber;
+            this->lineStart = lineStart;
+            this->start = start;
+            this->end = end;
+            this->valueStringLiteralData = valueString;
         }
 
-        ScannerResult(Scanner* scanner, Token type, double value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
-            : scanner(scanner)
-            , type(type)
-            , startWithZero(false)
-            , octal(false)
-            , plain(false)
-            , hasKeywordButUseString(true)
-            , lineNumber(lineNumber)
-            , lineStart(lineStart)
-            , start(start)
-            , end(end)
-            , valueNumber(value)
+        void setResult(Scanner* scanner, Token type, double value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
         {
+            ASSERT(scanner != nullptr);
+            this->scanner = scanner;
+            this->type = type;
+            this->startWithZero = false;
+            this->octal = false;
+            this->plain = false;
+            this->hasKeywordButUseString = true;
+            this->lineNumber = lineNumber;
+            this->lineStart = lineStart;
+            this->start = start;
+            this->end = end;
+            this->valueNumber = value;
         }
 
-        ScannerResult(Scanner* scanner, Token type, ScanTemplteResult* value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
-            : scanner(scanner)
-            , type(type)
-            , startWithZero(false)
-            , octal(false)
-            , plain(false)
-            , hasKeywordButUseString(true)
-            , lineNumber(lineNumber)
-            , lineStart(lineStart)
-            , start(start)
-            , end(end)
-            , valueTemplate(value)
+        void setResult(Scanner* scanner, Token type, ScanTemplteResult* value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
         {
+            ASSERT(scanner != nullptr);
+            ASSERT(value != nullptr);
+            this->scanner = scanner;
+            this->type = type;
+            this->startWithZero = false;
+            this->octal = false;
+            this->plain = false;
+            this->hasKeywordButUseString = true;
+            this->lineNumber = lineNumber;
+            this->lineStart = lineStart;
+            this->start = start;
+            this->end = end;
+            this->valueTemplate = value;
         }
 
     private:
         void constructStringLiteral();
         void constructStringLiteralHelperAppendUTF16(char16_t ch, UTF16StringDataNonGCStd& stringUTF16, bool& isEveryCharLatin1);
     };
+
+    // ScannerResult should be allocated on the stack by ALLOCA
+    COMPILE_ASSERT(sizeof(ScannerResult) < 512, "");
 
     StringView source;
     ::Escargot::Context* escargotContext;
@@ -331,20 +362,12 @@ public:
     size_t index;
     size_t lineNumber;
     size_t lineStart;
-    bool isPoolEnabled;
-    ScannerResult* initialResultMemoryPool[SCANNER_RESULT_POOL_INITIAL_SIZE];
-    size_t initialResultMemoryPoolSize;
-    std::vector<ScannerResult*, gc_allocator<ScannerResult*>> resultMemoryPool;
-    char scannerResultInnerPool[SCANNER_RESULT_POOL_INITIAL_SIZE * sizeof(ScannerResult)];
 
     ~Scanner()
     {
-        isPoolEnabled = false;
     }
 
     Scanner(::Escargot::Context* escargotContext, StringView code, ErrorHandler* handler, size_t startLine = 0, size_t startColumn = 0);
-
-    ScannerResult* createScannerResult();
 
     bool eof()
     {
@@ -471,12 +494,12 @@ public:
     }
 
     // ECMA-262 11.8.6 Template Literal Lexical Components
-    PassRefPtr<ScannerResult> scanTemplate(bool head = false);
+    void scanTemplate(Scanner::ScannerResult* token, bool head = false);
 
     // ECMA-262 11.8.5 Regular Expression Literals
-    PassRefPtr<ScannerResult> scanRegExp();
+    void scanRegExp(Scanner::ScannerResult* token);
 
-    PassRefPtr<ScannerResult> lex();
+    void lex(Scanner::ScannerResult* token);
 
 private:
     ALWAYS_INLINE char16_t peekChar()
@@ -489,25 +512,25 @@ private:
 
     uint16_t octalToDecimal(char16_t ch, bool octal);
 
-    StringView getIdentifier();
-    StringView getComplexIdentifier();
+    StringView* getIdentifier();
+    StringView* getComplexIdentifier();
 
     // ECMA-262 11.7 Punctuators
-    PassRefPtr<ScannerResult> scanPunctuator(char16_t ch0);
+    void scanPunctuator(Scanner::ScannerResult* token, char16_t ch0);
 
     // ECMA-262 11.8.3 Numeric Literals
-    PassRefPtr<ScannerResult> scanHexLiteral(size_t start);
-    PassRefPtr<ScannerResult> scanBinaryLiteral(size_t start);
-    PassRefPtr<ScannerResult> scanOctalLiteral(char16_t prefix, size_t start);
+    void scanHexLiteral(Scanner::ScannerResult* token, size_t start);
+    void scanBinaryLiteral(Scanner::ScannerResult* token, size_t start);
+    void scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, size_t start);
 
     bool isImplicitOctalLiteral();
-    PassRefPtr<ScannerResult> scanNumericLiteral();
+    void scanNumericLiteral(Scanner::ScannerResult* token);
 
     // ECMA-262 11.8.4 String Literals
-    PassRefPtr<ScannerResult> scanStringLiteral();
+    void scanStringLiteral(Scanner::ScannerResult* token);
 
     // ECMA-262 11.6 Names and Keywords
-    ALWAYS_INLINE PassRefPtr<ScannerResult> scanIdentifier(char16_t ch0);
+    ALWAYS_INLINE void scanIdentifier(Scanner::ScannerResult* token, char16_t ch0);
 
     String* scanRegExpBody();
     String* scanRegExpFlags();
