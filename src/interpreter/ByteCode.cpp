@@ -32,13 +32,10 @@ OpcodeTable g_opcodeTable;
 
 OpcodeTable::OpcodeTable()
 {
-    ExecutionState state((Context*)nullptr);
-    ByteCodeBlock block;
-
-    block.m_code.resize(sizeof(FillOpcodeTable));
 #if defined(COMPILER_GCC)
-    size_t* addr = (size_t*)(block.m_code.data() + offsetof(FillOpcodeTable, m_opcodeInAddress));
-    ByteCodeInterpreter::interpret(state, &block, 0, nullptr, addr);
+    ExecutionState state((Context*)nullptr);
+    // Dummy bytecode execution to initialize the OpcodeTable.
+    ByteCodeInterpreter::interpret(state, nullptr, 0, nullptr);
 #endif
 }
 
