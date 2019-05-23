@@ -1286,7 +1286,7 @@ bool FunctionObjectRef::isConstructor()
 static void markEvalToCodeblock(InterpretedCodeBlock* cb)
 {
     cb->setHasEval();
-    cb->computeVariables();
+    cb->computeVariables(cb->needsLexicalBlock());
 
     for (size_t i = 0; i < cb->childBlocks().size(); i++) {
         markEvalToCodeblock(cb->childBlocks()[i]->asInterpretedCodeBlock());

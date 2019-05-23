@@ -40,7 +40,9 @@ GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, Interpre
         for (size_t i = 0; i < len; i++) {
             // https://www.ecma-international.org/ecma-262/5.1/#sec-10.5
             // Step 2. If code is eval code, then let configurableBindings be true.
-            this->createBinding(state, vec[i].m_name, isEvalMode, vec[i].m_isMutable);
+            if (vec[i].m_isVarDeclaration) {
+                this->createBinding(state, vec[i].m_name, isEvalMode, vec[i].m_isMutable);
+            }
         }
     }
 }
@@ -141,8 +143,9 @@ FunctionEnvironmentRecordNotIndexed::FunctionEnvironmentRecordNotIndexed(Functio
 
 void DeclarativeEnvironmentRecordNotIndexed::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable)
 {
-    ASSERT(!canDelete);
-    ASSERT(hasBinding(state, name).m_index == SIZE_MAX);
+    if (UNLIKELY(hasBinding(state, name).m_index != SIZE_MAX)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, name.string(), false, String::emptyString, errorMessage_DuplicatedIdentifier);
+    }
     IdentifierRecord record;
     record.m_name = name;
     record.m_canDelete = false;
@@ -156,6 +159,9 @@ EnvironmentRecord::GetBindingValueResult DeclarativeEnvironmentRecordNotIndexed:
     size_t len = m_recordVector.size();
     for (size_t i = 0; i < len; i++) {
         if (m_recordVector[i].m_name == name) {
+            if (m_heapStorage[i].isEmpty() == true) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+            }
             return EnvironmentRecord::GetBindingValueResult(m_heapStorage[i]);
         }
     }
@@ -167,6 +173,9 @@ void DeclarativeEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& s
     size_t len = m_recordVector.size();
     for (size_t i = 0; i < len; i++) {
         if (m_recordVector[i].m_name == name) {
+            if (UNLIKELY(m_recordVector[i].m_isMutable == false)) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable);
+            }
             m_heapStorage[i] = V;
             return;
         }
@@ -176,6 +185,9 @@ void DeclarativeEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& s
 
 void DeclarativeEnvironmentRecordNotIndexed::setMutableBindingByIndex(ExecutionState& state, const size_t idx, const AtomicString& name, const Value& v)
 {
+    if (UNLIKELY(m_recordVector[idx].m_isMutable == false)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable);
+    }
     m_heapStorage[idx] = v;
 }
 
@@ -184,6 +196,17 @@ void DeclarativeEnvironmentRecordNotIndexed::initializeBinding(ExecutionState& s
     for (size_t i = 0; i < m_recordVector.size(); i++) {
         if (m_recordVector[i].m_name == name) {
             m_heapStorage[i] = V;
+            return;
+        }
+    }
+    ASSERT_NOT_REACHED();
+}
+
+void DeclarativeEnvironmentRecordNotIndexed::setAsImmutableBinding(ExecutionState& state, const AtomicString& name)
+{
+    for (size_t i = 0; i < m_recordVector.size(); i++) {
+        if (m_recordVector[i].m_name == name) {
+            m_recordVector[i].m_isMutable = false;
             return;
         }
     }

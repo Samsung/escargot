@@ -137,12 +137,12 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromAST(Context* ctx, S
     return generateCodeBlockTreeFromASTWalker(ctx, source, script, program->scopeContext(), nullptr);
 }
 
-void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb)
+void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb, bool propagateLexicalBlock)
 {
     for (size_t i = 0; i < cb->m_childBlocks.size(); i++) {
-        generateCodeBlockTreeFromASTWalkerPostProcess(cb->m_childBlocks[i]);
+        generateCodeBlockTreeFromASTWalkerPostProcess(cb->m_childBlocks[i], propagateLexicalBlock);
     }
-    cb->computeVariables();
+    cb->computeVariables(propagateLexicalBlock);
     if (cb->m_identifierOnStackCount > VARIABLE_LIMIT || cb->m_identifierOnHeapCount > VARIABLE_LIMIT) {
         auto err = new esprima::Error(new ASCIIString("variable limit exceeded"));
         err->errorCode = ErrorObject::SyntaxError;
@@ -189,7 +189,7 @@ void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView sc
         }
         topCodeBlock->m_isEvalCodeInFunction = isEvalCodeInFunction;
 
-        generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
+        generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock, topCodeBlock->needsLexicalBlock());
 
         script->m_topCodeBlock = topCodeBlock;
 

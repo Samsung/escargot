@@ -54,19 +54,17 @@ public:
         }
 
         if (m_class.classBody()->hasConstructor()) {
-            Node* constructor = m_class.classBody()->constructor();
-            RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(classIdent.get(), constructor));
-            assign->m_loc = m_loc;
-            assign->generateExpressionByteCode(codeBlock, context, classIndex);
+            m_class.classBody()->constructor()->generateExpressionByteCode(codeBlock, context, classIndex);
         } else {
             codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), classIndex, context->m_classInfo.m_bodyIndex, context->m_classInfo.m_superIndex, context->m_classInfo.m_name, nullptr, 2), context, this);
-            classIdent->generateResolveAddressByteCode(codeBlock, context);
-            classIdent->generateStoreByteCode(codeBlock, context, classIndex, false);
         }
 
         m_class.classBody()->generateClassInitializer(codeBlock, context, classIndex);
 
         codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), classIndex, context->m_classInfo.m_bodyIndex, context->m_classInfo.m_superIndex, context->m_classInfo.m_name, nullptr, 3), context, this);
+
+        classIdent->generateResolveAddressByteCode(codeBlock, context);
+        classIdent->generateStoreByteCode(codeBlock, context, classIndex, false);
 
         if (context->m_classInfo.m_superIndex != SIZE_MAX) {
             context->giveUpRegister(); // for drop m_superIndex

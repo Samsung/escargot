@@ -122,6 +122,8 @@ class Node;
     F(GeneratorComplete, 0, 0)                        \
     F(Yield, 0, 0)                                    \
     F(YieldDelegate, 1, 0)                            \
+    F(BlockOperation, 0, 0)                           \
+    F(SetConstBinding, 0, 0)                          \
     F(End, 0, 0)
 
 enum Opcode {
@@ -339,17 +341,19 @@ public:
 
 class DeclareFunctionDeclarations : public ByteCode {
 public:
-    explicit DeclareFunctionDeclarations(InterpretedCodeBlock* cb)
+    explicit DeclareFunctionDeclarations(InterpretedCodeBlock* cb, size_t lexicalBlockIndex = 0)
         : ByteCode(Opcode::DeclareFunctionDeclarationsOpcode, ByteCodeLOC(SIZE_MAX))
         , m_codeBlock(cb)
+        , m_lexicalBlockIndex(lexicalBlockIndex)
     {
     }
     InterpretedCodeBlock* m_codeBlock;
+    size_t m_lexicalBlockIndex;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("function declarations");
+        printf("function declarations(%d)", (int)m_lexicalBlockIndex);
     }
 #endif
 };
@@ -1949,6 +1953,47 @@ public:
 #endif
 };
 
+class BlockOperation : public ByteCode {
+public:
+    BlockOperation(const ByteCodeLOC& loc, const size_t localVariableCount)
+        : ByteCode(Opcode::BlockOperationOpcode, loc)
+        , m_blockEndPosition(SIZE_MAX)
+        , m_localVariableCount(localVariableCount)
+    {
+    }
+
+    size_t m_blockEndPosition;
+    size_t m_localVariableCount;
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        if (m_localVariableCount == 0) {
+            printf("per iteration block operation -> %d", (int)m_blockEndPosition);
+        } else {
+            printf("block operation (%d) -> %d", (int)m_localVariableCount, (int)m_blockEndPosition);
+        }
+    }
+#endif
+};
+
+class SetConstBinding : public ByteCode {
+public:
+    SetConstBinding(const ByteCodeLOC& loc, AtomicString name)
+        : ByteCode(Opcode::SetConstBindingOpcode, loc)
+        , m_name(name)
+    {
+    }
+
+    AtomicString m_name;
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("set const binding %s", m_name.string()->toUTF8StringData().data());
+    }
+#endif
+};
+
+
 class End : public ByteCode {
 public:
     explicit End(const ByteCodeLOC& loc)
@@ -2020,6 +2065,16 @@ public:
         }
 #endif
 
+#if defined(COMPILER_GCC)
+        Opcode opcode = (Opcode)(size_t)code.m_opcodeInAddress;
+#else
+        Opcode opcode = code.m_opcode;
+#endif
+
+        if (opcode != BlockOperationOpcode) {
+            context->m_hasNonLexicalStatement = true;
+        }
+
         char* first = (char*)&code;
         size_t start = m_code.size();
         if (context->m_shouldGenerateLOCData)
@@ -2036,6 +2091,90 @@ public:
         // TODO throw exception
         RELEASE_ASSERT(m_requiredRegisterFileSizeInValueSize < REGISTER_LIMIT);
     }
+
+    size_t pushLexicalBlock(ByteCodeGenerateContext* context, LocalNamesVector& locals)
+    {
+        ASSERT(context != nullptr);
+
+        AtomicStringVector functionDeclarationNames;
+        InterpretedCodeBlock* codeBlock = context->m_codeBlock->asInterpretedCodeBlock();
+
+        if (context->m_lexicalBlockIndex != 0) {
+            size_t len = codeBlock->childBlocks().size();
+            for (size_t i = 0; i < len; i++) {
+                CodeBlock* b = codeBlock->childBlocks()[i];
+                if (b->isFunctionDeclaration() == true && b->asInterpretedCodeBlock()->lexicalBlockIndex() == context->m_lexicalBlockIndex) {
+                    functionDeclarationNames.push_back(b->functionName());
+                }
+            }
+        }
+
+        size_t localFunctionDeclarations = functionDeclarationNames.size();
+
+        size_t blockStartPos = SIZE_MAX;
+        size_t localVariables = 0;
+
+        for (size_t i = 0; i < locals.size(); i++) {
+            if (locals[i].second == false) {
+                localVariables++;
+            }
+        }
+
+        size_t totalLocalDeclaration = localVariables + localFunctionDeclarations;
+
+        if (totalLocalDeclaration != 0) {
+            context->m_tryStatementScopeCount++;
+            blockStartPos = this->currentCodeSize();
+            this->pushCode(BlockOperation(ByteCodeLOC(SIZE_MAX), totalLocalDeclaration), context, nullptr);
+        } else {
+            return blockStartPos;
+        }
+
+        size_t start = m_code.size();
+
+        size_t size = totalLocalDeclaration * sizeof(AtomicString);
+        m_code.resizeWithUninitializedValues(m_code.size() + size);
+
+        for (size_t i = 0; i < locals.size(); i++) {
+            if (locals[i].second == false) {
+                char* first = (char*)&locals[i].first;
+                for (size_t j = 0; j < sizeof(AtomicString); j++) {
+                    m_code[start++] = first[j];
+                }
+            }
+        }
+
+        for (size_t i = 0; i < localFunctionDeclarations; i++) {
+            char* first = (char*)&functionDeclarationNames[i];
+            for (size_t j = 0; j < sizeof(AtomicString); j++) {
+                m_code[start++] = first[j];
+            }
+        }
+
+        if (localFunctionDeclarations != 0) {
+            this->pushCode(DeclareFunctionDeclarations(codeBlock, context->m_lexicalBlockIndex), context, nullptr);
+        }
+
+        return blockStartPos;
+    }
+
+    void finalizeLexicalBlock(ByteCodeGenerateContext* context, size_t blockStartPos, size_t jumpStartPos = SIZE_MAX)
+    {
+        ASSERT(context != nullptr);
+
+        if (blockStartPos == SIZE_MAX) {
+            return;
+        }
+
+        if (jumpStartPos != SIZE_MAX) {
+            context->registerJumpPositionsToComplexCase(jumpStartPos);
+        }
+
+        this->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(SIZE_MAX)), context, nullptr);
+        this->peekCode<BlockOperation>(blockStartPos)->m_blockEndPosition = this->currentCodeSize();
+        context->m_tryStatementScopeCount--;
+    }
+
     template <typename CodeType>
     CodeType* peekCode(size_t position)
     {

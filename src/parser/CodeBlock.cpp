@@ -98,6 +98,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
     , m_hasRestElement(false)
+    , m_needsLexicalBlock(false)
     , m_parameterCount(info.m_argumentCount)
     , m_functionName(info.m_name)
 {
@@ -136,6 +137,7 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
     , m_hasRestElement(false)
+    , m_needsLexicalBlock(false)
     , m_parameterCount(argc)
     , m_functionName(name)
     , m_nativeFunctionData(info)
@@ -149,6 +151,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_shouldReparseArguments(false)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
+    , m_lexicalBlockIndex(0)
     , m_parentCodeBlock(nullptr)
 #ifndef NDEBUG
     , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
@@ -186,6 +189,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_needsVirtualIDOperation = false;
     m_needToLoadThisValue = false;
     m_hasRestElement = scopeCtx->m_hasRestElement;
+    m_needsLexicalBlock = scopeCtx->m_needsLexicalBlock;
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;
 
@@ -197,6 +201,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
         info.m_needToAllocateOnStack = false;
         info.m_isMutable = true;
         info.m_isExplicitlyDeclaredOrParameterName = innerIdentifiers[i].isExplicitlyDeclaredOrParameterName();
+        info.m_isVarDeclaration = innerIdentifiers[i].isVarDeclaration();
         info.m_indexForIndexedStorage = SIZE_MAX;
         m_identifierInfos.push_back(info);
     }
@@ -209,6 +214,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_sourceElementStart(sourceElementStart)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
+    , m_lexicalBlockIndex(scopeCtx->m_lexicalBlockIndex)
     , m_parentCodeBlock(parentBlock)
 #ifndef NDEBUG
     , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
@@ -253,6 +259,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_needsVirtualIDOperation = false;
     m_needToLoadThisValue = false;
     m_hasRestElement = scopeCtx->m_hasRestElement;
+    m_needsLexicalBlock = scopeCtx->m_needsLexicalBlock;
     m_shouldReparseArguments = scopeCtx->m_hasNonIdentArgument;
 
     m_parametersInfomation.resizeWithUninitializedValues(parameterNames.size());
@@ -261,7 +268,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
         m_parametersInfomation[i].m_isDuplicated = false;
     }
 
-    m_canUseIndexedVariableStorage = !hasEvalWithYield() && !m_inCatch && !m_inWith && !scopeCtx->m_hasArrowSuper && !m_shouldReparseArguments && !m_isGenerator;
+    m_canUseIndexedVariableStorage = !hasEvalWithYield() && !m_inCatch && !m_inWith && !scopeCtx->m_hasArrowSuper && !m_shouldReparseArguments && !m_isGenerator && !m_needsLexicalBlock;
     m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage;
 
     const ASTScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_names;
@@ -271,6 +278,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
         info.m_needToAllocateOnStack = m_canUseIndexedVariableStorage;
         info.m_isMutable = true;
         info.m_isExplicitlyDeclaredOrParameterName = innerIdentifiers[i].isExplicitlyDeclaredOrParameterName();
+        info.m_isVarDeclaration = innerIdentifiers[i].isVarDeclaration();
         info.m_indexForIndexedStorage = SIZE_MAX;
         m_identifierInfos.push_back(info);
     }
@@ -360,10 +368,15 @@ void InterpretedCodeBlock::notifySelfOrChildHasEvalWithYield()
 // function block id map
 // [this, functionName, arg0, arg1...]
 
-void InterpretedCodeBlock::computeVariables()
+void InterpretedCodeBlock::computeVariables(bool propagateLexicalBlock)
 {
     if (m_usesArgumentsObject) {
         m_canAllocateEnvironmentOnStack = false;
+    }
+
+    if (propagateLexicalBlock) {
+        m_canAllocateEnvironmentOnStack = false;
+        m_canUseIndexedVariableStorage = false;
     }
 
     if (inEvalWithYieldScope() || inNotIndexedCodeBlockScope() || hasCatch()) {

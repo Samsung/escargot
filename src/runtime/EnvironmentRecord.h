@@ -289,6 +289,8 @@ private:
     GlobalObject* m_globalObject;
 };
 
+class DeclarativeEnvironmentRecordNotIndexed;
+
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-declarative-environment-records
 class DeclarativeEnvironmentRecord : public EnvironmentRecord {
 public:
@@ -322,6 +324,11 @@ public:
         return reinterpret_cast<FunctionEnvironmentRecord*>(this);
     }
 
+    DeclarativeEnvironmentRecordNotIndexed* asDeclarativeEnvironmentRecordNotIndexed()
+    {
+        return reinterpret_cast<DeclarativeEnvironmentRecordNotIndexed*>(this);
+    }
+
     virtual void setHeapValueByIndex(const size_t idx, const Value& v)
     {
         RELEASE_ASSERT_NOT_REACHED();
@@ -337,6 +344,14 @@ public:
         : DeclarativeEnvironmentRecord()
         , m_heapStorage()
     {
+    }
+
+    DeclarativeEnvironmentRecordNotIndexed(EnvironmentRecord* env)
+        : DeclarativeEnvironmentRecord()
+    {
+        DeclarativeEnvironmentRecordNotIndexed* declEnv = (DeclarativeEnvironmentRecordNotIndexed*)env->asDeclarativeEnvironmentRecord();
+        m_heapStorage = declEnv->m_heapStorage;
+        m_recordVector = declEnv->m_recordVector;
     }
 
     // this constructor is for strict eval
@@ -377,6 +392,7 @@ public:
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
     virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const AtomicString& name, const Value& v);
+    void setAsImmutableBinding(ExecutionState& state, const AtomicString& name);
 
     virtual bool deleteBinding(ExecutionState& state, const AtomicString& name)
     {

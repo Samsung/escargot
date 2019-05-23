@@ -185,7 +185,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
     size_t len = codeBlock->childBlocks().size();
     for (size_t i = 0; i < len; i++) {
         CodeBlock* b = codeBlock->childBlocks()[i];
-        if (b->isFunctionDeclaration()) {
+        if (b->isFunctionDeclaration() == true && b->asInterpretedCodeBlock()->lexicalBlockIndex() == codeBlock->lexicalBlockIndex()) {
             block->pushCode(DeclareFunctionDeclarations(codeBlock), &ctx, nullptr);
             break;
         }
@@ -608,6 +608,11 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 assignStackIndexIfNeeded(cd->m_dstIdx, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
+            case BlockOperationOpcode: {
+                BlockOperation* cd = (BlockOperation*)currentCode;
+                code += cd->m_localVariableCount * sizeof(AtomicString);
+                break;
+            }
             default:
                 break;
             }
@@ -653,6 +658,29 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
             ByteCode* currentCode = (ByteCode*)(code + idx);
 
             currentCode->dumpCode(idx, (const char*)code);
+
+            if (currentCode->m_orgOpcode == BlockOperationOpcode) {
+                BlockOperation* cd = (BlockOperation*)currentCode;
+                size_t count = cd->m_localVariableCount;
+
+                idx += byteCodeLengths[currentCode->m_orgOpcode];
+
+                if (count != 0) {
+                    printf("\t\tLocal names: ");
+                }
+                char* localNames = code + idx;
+                for (size_t i = 0; i < count; i++) {
+                    AtomicString as = *((AtomicString*)localNames);
+                    printf("%s, ", as.string()->toUTF8StringData().data());
+                    localNames += sizeof(AtomicString);
+                }
+                if (count != 0) {
+                    printf("\n");
+                }
+
+                idx += count * sizeof(AtomicString);
+                continue;
+            }
             idx += byteCodeLengths[currentCode->m_orgOpcode];
         }
 

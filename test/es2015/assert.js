@@ -19,7 +19,7 @@ function assert(expression) {
   }
 }
 
-function assertThrows(code) {
+function assertThrows(code, errorType) {
     try {
         if (typeof code === 'function') {
             code();
@@ -27,6 +27,9 @@ function assertThrows(code) {
             eval(code);
         }
     } catch (e) {
+        if (errorType && !(e instanceof errorType)) {
+            throw new Error("Expected exception has failed");
+        }
         return;
     }
     throw new Error("Did not throw exception");

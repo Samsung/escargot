@@ -22,15 +22,17 @@
 
 #include "DeclarationNode.h"
 #include "VariableDeclaratorNode.h"
+#include "parser/Lexer.h"
 
 namespace Escargot {
 
 class VariableDeclarationNode : public DeclarationNode {
 public:
     friend class ScriptParser;
-    explicit VariableDeclarationNode(VariableDeclaratorVector&& decl)
+    explicit VariableDeclarationNode(VariableDeclaratorVector&& decl, EscargotLexer::KeywordKind kind)
         : DeclarationNode()
         , m_declarations(decl)
+        , m_kind(kind)
     {
     }
 
@@ -42,6 +44,9 @@ public:
     VariableDeclaratorVector& declarations() { return m_declarations; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
+        if (m_kind == EscargotLexer::ConstKeyword) {
+            context->m_isConstDeclaration = true;
+        }
         size_t len = m_declarations.size();
         for (size_t i = 0; i < len; i++) {
             m_declarations[i]->generateStatementByteCode(codeBlock, context);
@@ -52,6 +57,9 @@ public:
     {
         ASSERT(m_declarations.size() == 1);
         m_declarations[0]->id()->generateStoreByteCode(codeBlock, context, src, false);
+        if (m_kind == EscargotLexer::ConstKeyword) {
+            codeBlock->pushCode(SetConstBinding(ByteCodeLOC(m_loc.index), m_declarations[0]->id()->asIdentifier()->name()), context, this);
+        }
     }
 
     virtual void generateResolveAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
@@ -65,15 +73,12 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        size_t len = m_declarations.size();
-        for (size_t i = 0; i < len; i++) {
-            m_declarations[i]->generateStatementByteCode(codeBlock, context);
-        }
+        generateStatementByteCode(codeBlock, context);
     }
 
 private:
     VariableDeclaratorVector m_declarations; // declarations: [ VariableDeclarator ];
-    // kind: "var" | "let" | "const";
+    EscargotLexer::KeywordKind m_kind;
 };
 }
 

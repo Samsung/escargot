@@ -75,6 +75,11 @@ public:
                 context->giveUpRegister();
             }
             context->giveUpRegister();
+
+            if (context->m_isConstDeclaration == true) {
+                codeBlock->pushCode(SetConstBinding(ByteCodeLOC(m_loc.index), name), context, this);
+                context->m_isConstDeclaration = false;
+            }
         }
     }
 
