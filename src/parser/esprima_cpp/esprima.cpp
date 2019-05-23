@@ -790,6 +790,12 @@ public:
 
     typedef Vector<Scanner::ScannerResult, GCUtil::gc_malloc_ignore_off_page_allocator<Scanner::ScannerResult>>& ParamScanList;
 
+    struct IsolateCoverGrammarContext {
+        bool previousIsBindingElement;
+        bool previousIsAssignmentTarget;
+        Scanner::ScannerResult previousFirstCoverInitializedNameError;
+    };
+
     void checkRecursiveLimit()
     {
         volatile int sp;
@@ -803,140 +809,111 @@ public:
         }
     }
 
-    template <typename T>
-    PassRefPtr<Node> isolateCoverGrammar(T parseFunction)
+    void startCoverGrammar(IsolateCoverGrammarContext* grammarContext)
     {
-        const bool previousIsBindingElement = this->context->isBindingElement;
-        const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
-        Scanner::ScannerResult previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+        ASSERT(grammarContext != nullptr);
+
+        grammarContext->previousIsBindingElement = this->context->isBindingElement;
+        grammarContext->previousIsAssignmentTarget = this->context->isAssignmentTarget;
+        grammarContext->previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
 
         this->context->isBindingElement = true;
         this->context->isAssignmentTarget = true;
         this->context->firstCoverInitializedNameError.reset();
 
-        this->checkRecursiveLimit();
-        PassRefPtr<Node> result = (this->*parseFunction)();
-        if (UNLIKELY(this->context->firstCoverInitializedNameError)) {
+        checkRecursiveLimit();
+    }
+
+    void endIsolateCoverGrammar(IsolateCoverGrammarContext* grammarContext)
+    {
+        ASSERT(grammarContext != nullptr);
+
+        if (UNLIKELY(this->context->firstCoverInitializedNameError.type != InvalidToken)) {
             this->throwUnexpectedToken(&this->context->firstCoverInitializedNameError);
         }
 
-        this->context->isBindingElement = previousIsBindingElement;
-        this->context->isAssignmentTarget = previousIsAssignmentTarget;
-        this->context->firstCoverInitializedNameError = previousFirstCoverInitializedNameError;
+        this->context->isBindingElement = grammarContext->previousIsBindingElement;
+        this->context->isAssignmentTarget = grammarContext->previousIsAssignmentTarget;
+        this->context->firstCoverInitializedNameError = grammarContext->previousFirstCoverInitializedNameError;
+    }
+
+    void endInheritCoverGrammar(IsolateCoverGrammarContext* grammarContext)
+    {
+        ASSERT(grammarContext != nullptr);
+
+        this->context->isBindingElement = this->context->isBindingElement && grammarContext->previousIsBindingElement;
+        this->context->isAssignmentTarget = this->context->isAssignmentTarget && grammarContext->previousIsAssignmentTarget;
+        if (UNLIKELY(grammarContext->previousFirstCoverInitializedNameError.type != InvalidToken)) {
+            this->context->firstCoverInitializedNameError = grammarContext->previousFirstCoverInitializedNameError;
+        }
+    }
+
+    template <typename T>
+    ALWAYS_INLINE PassRefPtr<Node> isolateCoverGrammar(T parseFunction)
+    {
+        IsolateCoverGrammarContext grammarContext;
+        startCoverGrammar(&grammarContext);
+
+        PassRefPtr<Node> result = (this->*parseFunction)();
+        endIsolateCoverGrammar(&grammarContext);
 
         return result;
     }
 
     template <typename T>
-    ScanExpressionResult scanIsolateCoverGrammar(T parseFunction)
+    ALWAYS_INLINE ScanExpressionResult scanIsolateCoverGrammar(T parseFunction)
     {
-        const bool previousIsBindingElement = this->context->isBindingElement;
-        const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
-        Scanner::ScannerResult previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+        IsolateCoverGrammarContext grammarContext;
+        startCoverGrammar(&grammarContext);
 
-        this->context->isBindingElement = true;
-        this->context->isAssignmentTarget = true;
-        this->context->firstCoverInitializedNameError.reset();
-
-        this->checkRecursiveLimit();
         ScanExpressionResult ret = (this->*parseFunction)();
-        if (UNLIKELY(this->context->firstCoverInitializedNameError)) {
-            this->throwUnexpectedToken(&this->context->firstCoverInitializedNameError);
-        }
-
-        this->context->isBindingElement = previousIsBindingElement;
-        this->context->isAssignmentTarget = previousIsAssignmentTarget;
-        this->context->firstCoverInitializedNameError = previousFirstCoverInitializedNameError;
+        endIsolateCoverGrammar(&grammarContext);
 
         return ret;
     }
 
     template <typename T>
-    PassRefPtr<Node> isolateCoverGrammarWithFunctor(T parseFunction)
+    ALWAYS_INLINE PassRefPtr<Node> isolateCoverGrammarWithFunctor(T parseFunction)
     {
-        const bool previousIsBindingElement = this->context->isBindingElement;
-        const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
-        Scanner::ScannerResult previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+        IsolateCoverGrammarContext grammarContext;
+        startCoverGrammar(&grammarContext);
 
-        this->context->isBindingElement = true;
-        this->context->isAssignmentTarget = true;
-        this->context->firstCoverInitializedNameError.reset();
-
-        this->checkRecursiveLimit();
         PassRefPtr<Node> result = parseFunction();
-        if (UNLIKELY(this->context->firstCoverInitializedNameError)) {
-            this->throwUnexpectedToken(&this->context->firstCoverInitializedNameError);
-        }
-
-        this->context->isBindingElement = previousIsBindingElement;
-        this->context->isAssignmentTarget = previousIsAssignmentTarget;
-        this->context->firstCoverInitializedNameError = previousFirstCoverInitializedNameError;
+        endIsolateCoverGrammar(&grammarContext);
 
         return result;
     }
 
     template <typename T>
-    void scanIsolateCoverGrammarWithFunctor(T parseFunction)
+    ALWAYS_INLINE void scanIsolateCoverGrammarWithFunctor(T parseFunction)
     {
-        const bool previousIsBindingElement = this->context->isBindingElement;
-        const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
-        Scanner::ScannerResult previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+        IsolateCoverGrammarContext grammarContext;
+        startCoverGrammar(&grammarContext);
 
-        this->context->isBindingElement = true;
-        this->context->isAssignmentTarget = true;
-        this->context->firstCoverInitializedNameError.reset();
-
-        this->checkRecursiveLimit();
         parseFunction();
-        if (UNLIKELY(this->context->firstCoverInitializedNameError)) {
-            this->throwUnexpectedToken(&this->context->firstCoverInitializedNameError);
-        }
-
-        this->context->isBindingElement = previousIsBindingElement;
-        this->context->isAssignmentTarget = previousIsAssignmentTarget;
-        this->context->firstCoverInitializedNameError = previousFirstCoverInitializedNameError;
+        endIsolateCoverGrammar(&grammarContext);
     }
 
     template <typename T>
-    PassRefPtr<Node> inheritCoverGrammar(T parseFunction)
+    ALWAYS_INLINE PassRefPtr<Node> inheritCoverGrammar(T parseFunction)
     {
-        const bool previousIsBindingElement = this->context->isBindingElement;
-        const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
-        Scanner::ScannerResult previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+        IsolateCoverGrammarContext grammarContext;
+        startCoverGrammar(&grammarContext);
 
-        this->context->isBindingElement = true;
-        this->context->isAssignmentTarget = true;
-        this->context->firstCoverInitializedNameError.reset();
-
-        this->checkRecursiveLimit();
         PassRefPtr<Node> result = (this->*parseFunction)();
-
-        this->context->isBindingElement = this->context->isBindingElement && previousIsBindingElement;
-        this->context->isAssignmentTarget = this->context->isAssignmentTarget && previousIsAssignmentTarget;
-        if (previousFirstCoverInitializedNameError)
-            this->context->firstCoverInitializedNameError = previousFirstCoverInitializedNameError;
+        endInheritCoverGrammar(&grammarContext);
 
         return result;
     }
 
     template <typename T>
-    ScanExpressionResult scanInheritCoverGrammar(T parseFunction)
+    ALWAYS_INLINE ScanExpressionResult scanInheritCoverGrammar(T parseFunction)
     {
-        const bool previousIsBindingElement = this->context->isBindingElement;
-        const bool previousIsAssignmentTarget = this->context->isAssignmentTarget;
-        Scanner::ScannerResult previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+        IsolateCoverGrammarContext grammarContext;
+        startCoverGrammar(&grammarContext);
 
-        this->context->isBindingElement = true;
-        this->context->isAssignmentTarget = true;
-        this->context->firstCoverInitializedNameError.reset();
-
-        this->checkRecursiveLimit();
         ScanExpressionResult result = (this->*parseFunction)();
-
-        this->context->isBindingElement = this->context->isBindingElement && previousIsBindingElement;
-        this->context->isAssignmentTarget = this->context->isAssignmentTarget && previousIsAssignmentTarget;
-        if (previousFirstCoverInitializedNameError)
-            this->context->firstCoverInitializedNameError = previousFirstCoverInitializedNameError;
+        endInheritCoverGrammar(&grammarContext);
 
         return result;
     }
