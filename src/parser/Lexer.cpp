@@ -612,17 +612,15 @@ void Scanner::ScannerResult::constructStringLiteral()
     this->valueStringLiteralData = new StringView(newStr, 0, newStr->length());
 }
 
-Scanner::Scanner(::Escargot::Context* escargotContext, StringView code, ErrorHandler* handler, size_t startLine, size_t startColumn)
+Scanner::Scanner(::Escargot::Context* escargotContext, StringView code, size_t startLine, size_t startColumn)
     : source(code)
     , escargotContext(escargotContext)
-    , errorHandler(handler)
     , length(code.length())
     , index(0)
     , lineNumber(((length > 0) ? 1 : 0) + startLine)
     , lineStart(startColumn)
 {
     ASSERT(escargotContext != nullptr);
-    ASSERT(handler != nullptr);
     // trackComment = false;
 }
 
@@ -1476,10 +1474,10 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
         this->throwUnexpectedToken();
     }
 
-    ScanTemplteResult* result = new ScanTemplteResult();
+    ScanTemplateResult* result = new ScanTemplateResult();
     result->head = head;
     result->tail = tail;
-    result->raw = StringView(this->source, start, this->index - rawOffset);
+    result->raw = new StringView(this->source, start, this->index - rawOffset);
     result->valueCooked = UTF16StringData(cooked.data(), cooked.length());
 
     token->setResult(this, Token::TemplateToken, result, this->lineNumber, this->lineStart, start, this->index);

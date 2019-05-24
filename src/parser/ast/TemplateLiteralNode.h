@@ -26,7 +26,7 @@ namespace Escargot {
 
 struct TemplateElement : public gc {
     UTF16StringData value;
-    StringView raw;
+    StringView* raw;
     bool tail;
 };
 

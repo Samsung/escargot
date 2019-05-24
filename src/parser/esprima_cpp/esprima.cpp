@@ -104,42 +104,25 @@ const char* DuplicateBinding = "Duplicate binding %s";
 const char* ForInOfLoopInitializer = "%s loop variable declaration may not have an initializer";
 } // namespace Messages
 
-struct ParserError : public gc {
-    String* description;
-    size_t index;
-    size_t line;
-    size_t col;
+struct Config {
+    // Config always allocated on the stack
+    MAKE_STACK_ALLOCATED();
 
-    ParserError(size_t index, size_t line, size_t col, String* description)
-        : description(description)
-        , index(index)
-        , line(line)
-        , col(col)
-    {
-    }
-
-    ParserError(size_t index, size_t line, size_t col, const char* description)
-        : description(new ASCIIString(description))
-        , index(index)
-        , line(line)
-        , col(col)
-    {
-    }
-};
-
-struct Config : public gc {
     bool range : 1;
     bool loc : 1;
     bool tokens : 1;
     bool comment : 1;
     bool reparseArguments : 1;
     bool parseSingleFunction : 1;
+    uint32_t parseSingleFunctionChildIndex;
     CodeBlock* parseSingleFunctionTarget;
-    SmallValue parseSingleFunctionChildIndex; // use SmallValue for saving index. this reduce memory leak from stack
 };
 
 
-struct Context : public gc {
+struct Context {
+    // Escargot::esprima::Context always allocated on the stack
+    MAKE_STACK_ALLOCATED();
+
     bool allowIn : 1;
     bool allowYield : 1;
     bool isAssignmentTarget : 1;
@@ -159,13 +142,13 @@ struct Context : public gc {
     std::vector<FunctionDeclarationNode*> functionDeclarationsInDirectCatchScope;
 };
 
-struct Marker : public gc {
+struct Marker {
     size_t index;
     size_t lineNumber;
     size_t lineStart;
 };
 
-struct MetaNode : public gc {
+struct MetaNode {
     size_t index;
     size_t line;
     size_t column;
@@ -173,13 +156,13 @@ struct MetaNode : public gc {
 
 
 /*
-struct ArrowParameterPlaceHolderNode : public gc {
+struct ArrowParameterPlaceHolderNode {
     String* type;
     ExpressionNodeVector params;
 };
 */
 
-struct DeclarationOptions : public gc {
+struct DeclarationOptions {
     bool inFor;
 };
 
@@ -188,12 +171,13 @@ struct DeclarationOptions : public gc {
 #define Scan ScanExpressionResult, false
 #define ScanAsVoid void, false
 
-class Parser : public gc {
+class Parser {
 public:
+    // Parser always allocated on the stack
+    MAKE_STACK_ALLOCATED();
+
     ::Escargot::Context* escargotContext;
     Config config;
-    ErrorHandler errorHandlerInstance;
-    ErrorHandler* errorHandler;
     Scanner* scanner;
     Scanner scannerInstance;
 
@@ -346,9 +330,10 @@ public:
     }
 
     Parser(::Escargot::Context* escargotContext, StringView code, size_t stackRemain, ExtendedNodeLOC startLoc = ExtendedNodeLOC(0, 0, 0))
-        : errorHandler(&errorHandlerInstance)
-        , scannerInstance(escargotContext, code, this->errorHandler, startLoc.line, startLoc.column)
+        : scannerInstance(escargotContext, code, startLoc.line, startLoc.column)
     {
+        ASSERT(escargotContext != nullptr);
+
         if (stackRemain >= STACK_LIMIT_FROM_BASE) {
             stackRemain = STACK_LIMIT_FROM_BASE;
         }
@@ -368,7 +353,7 @@ public:
         config.comment = false;
         config.parseSingleFunction = false;
         config.parseSingleFunctionTarget = nullptr;
-        config.parseSingleFunctionChildIndex = SmallValue((uint32_t)0);
+        config.parseSingleFunctionChildIndex = 0;
         /*
         this->config = {
             range: (typeof options.range == 'boolean') && options.range,
@@ -483,7 +468,7 @@ public:
         size_t line = this->lastMarker.lineNumber;
         size_t column = this->lastMarker.index - this->lastMarker.lineStart + 1;
 
-        this->errorHandler->throwError(index, line, column, new UTF16String(msg.data(), msg.length()), code);
+        ErrorHandler::throwError(index, line, column, new UTF16String(msg.data(), msg.length()), code);
     }
 
     void replaceAll(UTF16StringDataNonGCStd& str, const UTF16StringDataNonGCStd& from, const UTF16StringDataNonGCStd& to)
@@ -527,7 +512,7 @@ public:
         }
 
         String* value;
-        if (token) {
+        if (token->type != InvalidToken) {
             if (!msg) {
                 msg = checkTokenIdentifier(token->type);
 
@@ -541,7 +526,7 @@ public:
             } else if (token->type == Token::EOFToken) {
                 msg = Messages::UnexpectedEOS;
             }
-            value = new StringView((token->type == Token::TemplateToken) ? token->valueTemplate->raw : token->relatedSource());
+            value = (token->type == Token::TemplateToken) ? token->valueTemplate->raw : new StringView(token->relatedSource());
         } else {
             value = new ASCIIString("ILLEGAL");
         }
@@ -553,16 +538,16 @@ public:
         replaceAll(msgData, UTF16StringDataNonGCStd(u"%s"), valueData);
 
         // if (token && typeof token.lineNumber == 'number') {
-        if (token) {
+        if (token->type != InvalidToken) {
             const size_t index = token->start;
             const size_t line = token->lineNumber;
             const size_t column = token->start - this->lastMarker.lineStart + 1;
-            this->errorHandler->throwError(index, line, column, new UTF16String(msgData.data(), msgData.length()), ErrorObject::SyntaxError);
+            ErrorHandler::throwError(index, line, column, new UTF16String(msgData.data(), msgData.length()), ErrorObject::SyntaxError);
         } else {
             const size_t index = this->lastMarker.index;
             const size_t line = this->lastMarker.lineNumber;
             const size_t column = index - this->lastMarker.lineStart + 1;
-            this->errorHandler->throwError(index, line, column, new UTF16String(msgData.data(), msgData.length()), ErrorObject::SyntaxError);
+            ErrorHandler::throwError(index, line, column, new UTF16String(msgData.data(), msgData.length()), ErrorObject::SyntaxError);
         }
     }
 
@@ -2733,7 +2718,7 @@ public:
         {
             ExpressionNodeVector elements;
             for (size_t i = 0; i < templateLiteral->quasis()->size(); i++) {
-                String* str = new StringView((*templateLiteral->quasis())[i]->raw);
+                String* str = (*templateLiteral->quasis())[i]->raw;
                 elements.push_back(this->finalize(node, new LiteralNode(Value(str))));
             }
             arrayExpressionForRaw = this->finalize(node, new ArrayExpressionNode(std::move(elements)));
@@ -3562,10 +3547,10 @@ public:
                     this->expect(Arrow);
                     RefPtr<Node> body = this->match(LeftBrace) ? this->parseFunctionSourceElements() : this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
                     bool isExpression = body->type() != BlockStatement;
-                    if (isExpression) {
-                        if (this->config.parseSingleFunction) {
-                            ASSERT(this->config.parseSingleFunctionChildIndex.asUint32());
-                            this->config.parseSingleFunctionChildIndex = SmallValue(this->config.parseSingleFunctionChildIndex.asUint32() + 1);
+                    if (isExpression == true) {
+                        if (this->config.parseSingleFunction == true) {
+                            ASSERT(this->config.parseSingleFunctionChildIndex > 0);
+                            this->config.parseSingleFunctionChildIndex++;
                         }
                         scopeContexts.back()->m_locStart.line = nodeStart.line;
                         scopeContexts.back()->m_locStart.column = nodeStart.column;
@@ -4145,10 +4130,6 @@ public:
 
         finishScanIdentifier(token, true);
     }
-
-    struct DeclarationOptions {
-        bool inFor;
-    };
 
     template <typename T, bool isParse>
     T variableDeclaration(DeclarationOptions& options)
@@ -5334,7 +5315,7 @@ public:
     void reparseFunctionArguments(RefPtr<StatementContainer>& argumentInitializers)
     {
         InterpretedCodeBlock* currentTarget = this->config.parseSingleFunctionTarget->asInterpretedCodeBlock();
-        Scanner ParamsScannerInstance(this->escargotContext, currentTarget->paramsSrc(), this->errorHandler, 0, 0);
+        Scanner ParamsScannerInstance(this->escargotContext, currentTarget->paramsSrc(), 0, 0);
         this->scanner = &ParamsScannerInstance;
         this->setMarkers(ExtendedNodeLOC(0, 0, 0));
 
@@ -5384,9 +5365,9 @@ public:
         RefPtr<StatementContainer> argumentInitializers = nullptr;
 
         if (this->config.parseSingleFunction) {
-            if (this->config.parseSingleFunctionChildIndex.asUint32()) {
-                size_t realIndex = this->config.parseSingleFunctionChildIndex.asUint32() - 1;
-                this->config.parseSingleFunctionChildIndex = SmallValue(this->config.parseSingleFunctionChildIndex.asUint32() + 1);
+            if (this->config.parseSingleFunctionChildIndex > 0) {
+                size_t realIndex = this->config.parseSingleFunctionChildIndex - 1;
+                this->config.parseSingleFunctionChildIndex++;
                 InterpretedCodeBlock* currentTarget = this->config.parseSingleFunctionTarget->asInterpretedCodeBlock();
                 size_t orgIndex = this->lookahead.end;
                 this->expect(LeftBrace);
@@ -5403,7 +5384,7 @@ public:
                 this->expect(RightBrace);
                 return this->finalize(this->createNode(), new BlockStatementNode(StatementContainer::create().get()));
             }
-            this->config.parseSingleFunctionChildIndex = SmallValue(this->config.parseSingleFunctionChildIndex.asUint32() + 1);
+            this->config.parseSingleFunctionChildIndex++;
             if (this->config.reparseArguments) {
                 this->reparseFunctionArguments(argumentInitializers);
             }
