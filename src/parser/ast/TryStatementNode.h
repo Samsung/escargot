@@ -46,8 +46,8 @@ public:
         codeBlock->pushCode(TryOperation(ByteCodeLOC(m_loc.index)), context, this);
         size_t pos = codeBlock->lastCodePosition<TryOperation>();
         m_block->generateStatementByteCode(codeBlock, context);
-        codeBlock->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
-        size_t tryCatchBodyPos = codeBlock->lastCodePosition<TryCatchWithBodyEnd>();
+        codeBlock->pushCode(TryCatchBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
+        size_t tryCatchBodyPos = codeBlock->lastCodePosition<TryCatchBodyEnd>();
         if (m_handler) {
             size_t prev = context->m_catchScopeCount;
             context->m_catchScopeCount++;
@@ -79,7 +79,7 @@ public:
             m_handler->body()->generateStatementByteCode(codeBlock, context);
             codeBlock->peekCode<TryOperation>(pos)->m_hasCatch = true;
             codeBlock->peekCode<TryOperation>(pos)->m_catchVariableName = m_handler->param()->name();
-            codeBlock->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
+            codeBlock->pushCode(TryCatchBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
             context->m_catchScopeCount = prev;
         }
 

@@ -103,7 +103,7 @@ class Node;
     F(ReturnFunctionWithValue, 0, 0)                  \
     F(ReturnFunctionSlowCase, 0, 0)                   \
     F(TryOperation, 0, 0)                             \
-    F(TryCatchWithBodyEnd, 0, 0)                      \
+    F(TryCatchBodyEnd, 0, 0)                          \
     F(FinallyEnd, 0, 0)                               \
     F(ThrowOperation, 0, 0)                           \
     F(ThrowStaticErrorOperation, 0, 0)                \
@@ -114,6 +114,7 @@ class Node;
     F(IteratorStep, 1, 0)                             \
     F(LoadRegexp, 1, 0)                               \
     F(WithOperation, 0, 0)                            \
+    F(WithOperationEnd, 0, 0)                         \
     F(ObjectDefineGetter, 0, 0)                       \
     F(ObjectDefineSetter, 0, 0)                       \
     F(CallEvalFunction, 0, 0)                         \
@@ -1650,17 +1651,17 @@ public:
 #endif
 };
 
-class TryCatchWithBodyEnd : public ByteCode {
+class TryCatchBodyEnd : public ByteCode {
 public:
-    explicit TryCatchWithBodyEnd(const ByteCodeLOC& loc)
-        : ByteCode(Opcode::TryCatchWithBodyEndOpcode, loc)
+    explicit TryCatchBodyEnd(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::TryCatchBodyEndOpcode, loc)
     {
     }
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("try-catch-with end");
+        printf("try-catch end");
     }
 #endif
 };
@@ -1884,6 +1885,21 @@ public:
     void dump(const char* byteCodeStart)
     {
         printf("with r%d", (int)m_registerIndex);
+    }
+#endif
+};
+
+class WithOperationEnd : public ByteCode {
+public:
+    explicit WithOperationEnd(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::WithOperationEndOpcode, loc)
+    {
+    }
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("with end");
     }
 #endif
 };

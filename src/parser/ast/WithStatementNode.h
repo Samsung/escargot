@@ -50,7 +50,7 @@ public:
         m_body->generateStatementByteCode(codeBlock, context);
         context->registerJumpPositionsToComplexCase(start);
 
-        codeBlock->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
+        codeBlock->pushCode(WithOperationEnd(ByteCodeLOC(m_loc.index)), context, this);
         codeBlock->peekCode<WithOperation>(withPos)->m_withEndPostion = codeBlock->currentCodeSize();
         context->m_isWithScope = isWithScopeBefore;
 

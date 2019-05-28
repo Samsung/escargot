@@ -987,7 +987,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 NEXT_INSTRUCTION();
             }
 
-            DEFINE_OPCODE(TryCatchWithBodyEnd)
+            DEFINE_OPCODE(TryCatchBodyEnd)
                 :
             {
                 (*(state.rareData()->m_controlFlowRecord))[state.rareData()->m_controlFlowRecord->size() - 1] = nullptr;
@@ -1038,16 +1038,30 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 WithOperation* code = (WithOperation*)programCounter;
-                size_t newPc = programCounter;
-                Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-                Value v = withOperation(state, code, registerFile[code->m_registerIndex].toObject(state), state.lexicalEnvironment(), newPc, byteCodeBlock, registerFile, stackStorage);
-                if (!v.isEmpty()) {
-                    return v;
+
+                if (!state.ensureRareData()->m_controlFlowRecord) {
+                    state.ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
                 }
-                if (programCounter == newPc) {
-                    return Value();
-                }
-                programCounter = newPc;
+                state.ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
+
+                // Setup new environment.
+                EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(registerFile[code->m_registerIndex].toObject(state));
+                LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, state.lexicalEnvironment());
+                ExecutionState *newState = new ExecutionState(&state, newEnv, state.inStrictMode());
+                newState->ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
+
+                state = *newState;
+
+                ADD_PROGRAM_COUNTER(WithOperation);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(WithOperationEnd)
+                :
+            {
+                state = *state.parent();
+
+                ADD_PROGRAM_COUNTER(WithOperationEnd);
                 NEXT_INSTRUCTION();
             }
 
