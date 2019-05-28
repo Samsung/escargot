@@ -320,34 +320,17 @@ Object* FunctionObject::newInstance(ExecutionState& state, const size_t argc, Va
         return receiver;
 }
 
-Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, Value* argv, bool isNewExpression)
+Value FunctionObject::processFastCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, Value* argv, bool isNewExpression)
 {
-    volatile int sp;
-    size_t currentStackBase = (size_t)&sp;
-#ifdef STACK_GROWS_DOWN
-    if (UNLIKELY((state.stackBase() - currentStackBase) > STACK_LIMIT_FROM_BASE)) {
-#else
-    if (UNLIKELY((currentStackBase - state.stackBase()) > STACK_LIMIT_FROM_BASE)) {
-#endif
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
-    }
-
     Context* ctx = m_codeBlock->context();
     bool isStrict = m_codeBlock->isStrict();
 
-    bool isSuperCall = state.executionContext() ? state.executionContext()->isOnGoingSuperCall() : false;
+#ifndef NDEBUG
+    bool isSuperCall = state.executionContext() != nullptr ? state.executionContext()->isOnGoingSuperCall() : false;
+    ASSERT(isSuperCall == false);
+#endif
 
-    if (UNLIKELY(!isNewExpression && functionKind() == FunctionKind::ClassConstructor && !isSuperCall)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Class constructor cannot be invoked without 'new'");
-    }
-
-    if (UNLIKELY(isSuperCall && isBuiltin() && !isNewExpression)) {
-        Value returnValue = newInstance(state, argc, argv);
-        returnValue.asObject()->setPrototype(state, receiverSrc.toObject(state)->getPrototype(state));
-        return returnValue;
-    }
-
-    if (!m_codeBlock->isInterpretedCodeBlock()) {
+    if (m_codeBlock->isInterpretedCodeBlock() == false) {
         CallNativeFunctionData* code = m_codeBlock->nativeFunctionData();
         FunctionEnvironmentRecordSimple record(this);
         LexicalEnvironment env(&record, outerEnvironment());
@@ -367,7 +350,7 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
 
         Value receiver = receiverSrc;
         // prepare receiver
-        if (UNLIKELY(!isStrict)) {
+        if (UNLIKELY(isStrict == false)) {
             if (receiver.isUndefinedOrNull()) {
                 receiver = ctx->globalObject();
             } else {
@@ -383,12 +366,154 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
         ExecutionState newState(ctx, &state, &ec, &receiver);
 
         try {
+            return code->m_fn(newState, receiver, argc, argv, isNewExpression);
+        } catch (const Value& v) {
+            ByteCodeInterpreter::processException(newState, v, &ec, SIZE_MAX);
+        }
+    }
+
+    // prepare ByteCodeBlock if needed
+    if (UNLIKELY(m_codeBlock->asInterpretedCodeBlock()->byteCodeBlock() == nullptr)) {
+        generateBytecodeBlock(state);
+    }
+
+    ByteCodeBlock* blk = m_codeBlock->asInterpretedCodeBlock()->byteCodeBlock();
+
+    size_t registerSize = blk->m_requiredRegisterFileSizeInValueSize;
+    size_t stackStorageSize = m_codeBlock->asInterpretedCodeBlock()->identifierOnStackCount();
+    size_t literalStorageSize = blk->m_numeralLiteralData.size();
+    size_t parameterCopySize = std::min(argc, (size_t)m_codeBlock->parameterCount());
+
+    // prepare env, ec
+    ASSERT(m_codeBlock->canAllocateEnvironmentOnStack() == true);
+    FunctionEnvironmentRecordSimple record(this);
+    LexicalEnvironment env(&record, outerEnvironment());
+    ExecutionContext ec(ctx, state.executionContext(), &env, isStrict);
+
+    if (receiverSrc.isObject() == true) {
+        record.setNewTarget(receiverSrc.asObject());
+    }
+
+    Value* registerFile = (Value*)alloca((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
+    Value* stackStorage = registerFile + registerSize;
+    Value* literalStorage = stackStorage + stackStorageSize;
+    memcpy(literalStorage, blk->m_numeralLiteralData.data(), literalStorageSize * sizeof(Value));
+
+    // prepare receiver
+    ASSERT(m_codeBlock->isArrowFunctionExpression() == false);
+    ASSERT(thisMode() != ThisMode::Lexical);
+
+    if (isStrict == false) {
+        if (receiverSrc.isUndefinedOrNull()) {
+            stackStorage[0] = ctx->globalObject();
+        } else {
+            stackStorage[0] = receiverSrc.toObject(state);
+        }
+    } else {
+        stackStorage[0] = receiverSrc;
+    }
+
+    if (constructorKind() == ConstructorKind::Base) {
+        record.bindThisValue(state, stackStorage[0]);
+    }
+
+    stackStorage[1] = this;
+    // binding function name
+    // prepare parameters
+    ASSERT(m_codeBlock->m_isFunctionNameSaveOnHeap == false);
+    ASSERT(m_codeBlock->m_isFunctionNameExplicitlyDeclared == false);
+    ASSERT(m_codeBlock->needsComplexParameterCopy() == false);
+    ASSERT(m_codeBlock->hasRestElement() == false);
+    ASSERT(m_codeBlock->usesArgumentsObject() == false);
+
+    Value* parameterStorageInStack = stackStorage + 2;
+    for (size_t i = 0; i < parameterCopySize; i++) {
+        parameterStorageInStack[i] = argv[i];
+    }
+
+    for (size_t i = parameterCopySize + 2; i < stackStorageSize; i++) {
+        stackStorage[i] = Value();
+    }
+
+    ExecutionState newState(ctx, &state, &ec, registerFile);
+
+    // run function
+    const Value returnValue = ByteCodeInterpreter::interpret(newState, blk, 0, registerFile);
+    if (UNLIKELY(blk->m_shouldClearStack == true))
+        clearStack<512>();
+
+    return returnValue;
+}
+
+Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, Value* argv, bool isNewExpression)
+{
+    volatile int sp;
+    size_t currentStackBase = (size_t)&sp;
+#ifdef STACK_GROWS_DOWN
+    if (UNLIKELY((state.stackBase() - currentStackBase) > STACK_LIMIT_FROM_BASE)) {
+#else
+    if (UNLIKELY((currentStackBase - state.stackBase()) > STACK_LIMIT_FROM_BASE)) {
+#endif
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
+    }
+
+    bool isSuperCall = state.executionContext() != nullptr ? state.executionContext()->isOnGoingSuperCall() : false;
+
+    if (LIKELY(m_codeBlock->canProcessFastCall() == true && isSuperCall == false)) {
+        return processFastCall(state, receiverSrc, argc, argv, isNewExpression);
+    }
+
+    Context* ctx = m_codeBlock->context();
+    bool isStrict = m_codeBlock->isStrict();
+
+    if (m_codeBlock->isInterpretedCodeBlock() == false) {
+        if (UNLIKELY(isSuperCall == true && isBuiltin() == true && isNewExpression == false)) {
+            Value returnValue = newInstance(state, argc, argv);
+            returnValue.asObject()->setPrototype(state, receiverSrc.toObject(state)->getPrototype(state));
+            return returnValue;
+        }
+
+        CallNativeFunctionData* code = m_codeBlock->nativeFunctionData();
+        FunctionEnvironmentRecordSimple record(this);
+        LexicalEnvironment env(&record, outerEnvironment());
+        ExecutionContext ec(ctx, state.executionContext(), &env, isStrict);
+
+        size_t len = m_codeBlock->parameterCount();
+        if (argc < len) {
+            Value* newArgv = (Value*)alloca(sizeof(Value) * len);
+            for (size_t i = 0; i < argc; i++) {
+                newArgv[i] = argv[i];
+            }
+            for (size_t i = argc; i < len; i++) {
+                newArgv[i] = Value();
+            }
+            argv = newArgv;
+        }
+
+        Value receiver = receiverSrc;
+        // prepare receiver
+        if (UNLIKELY(isStrict == false)) {
+            if (receiver.isUndefinedOrNull()) {
+                receiver = ctx->globalObject();
+            } else {
+                receiver = receiver.toObject(state);
+            }
+        }
+
+        record.bindThisValue(state, receiver);
+        if (receiverSrc.isObject() == true) {
+            record.setNewTarget(receiverSrc.asObject());
+        }
+
+        ExecutionState newState(ctx, &state, &ec, &receiver);
+
+        try {
             Value returnValue = code->m_fn(newState, receiver, argc, argv, isNewExpression);
 
-            if (UNLIKELY(isSuperCall)) {
+            if (UNLIKELY(isSuperCall == true)) {
                 state.executionContext()->getThisEnvironment()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->bindThisValue(state, returnValue);
                 state.executionContext()->setOnGoingSuperCall(false);
-                if (returnValue.isObject() && !isBuiltin()) {
+                if (returnValue.isObject() == true && isBuiltin() == false) {
                     returnValue.asObject()->setPrototype(state, receiver.toObject(state)->getPrototype(state));
                 }
             }
@@ -397,6 +522,10 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
         } catch (const Value& v) {
             ByteCodeInterpreter::processException(newState, v, &ec, SIZE_MAX);
         }
+    }
+
+    if (UNLIKELY(isNewExpression == false && functionKind() == FunctionKind::ClassConstructor && isSuperCall == false)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Class constructor cannot be invoked without 'new'");
     }
 
     // prepare ByteCodeBlock if needed
@@ -460,10 +589,11 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
         } else {
             stackStorage[0] = receiverSrc;
         }
-    }
 
-    if (constructorKind() == ConstructorKind::Base && thisMode() != ThisMode::Lexical) {
-        record->bindThisValue(state, stackStorage[0]);
+        if (constructorKind() == ConstructorKind::Base) {
+            ASSERT(thisMode() != ThisMode::Lexical);
+            record->bindThisValue(state, stackStorage[0]);
+        }
     }
 
     // binding function name

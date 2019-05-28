@@ -207,6 +207,7 @@ CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Valu
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
     , m_hasRestElement(false)
+    , m_canProcessFastCall(false)
     , m_functionName()
 {
     CodeBlock* targetCodeBlock = targetFunction->codeBlock();
@@ -278,6 +279,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_hasRestElement = scopeCtx->m_hasRestElement;
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;
+    m_canProcessFastCall = false;
 
     const ASTScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_names;
 
@@ -623,5 +625,7 @@ void InterpretedCodeBlock::computeVariables()
         m_identifierOnStackCount = s;
         m_identifierOnHeapCount = h;
     }
+
+    m_canProcessFastCall = m_canAllocateEnvironmentOnStack && m_canUseIndexedVariableStorage && !m_hasRestElement && !m_isClassConstructor && !m_isArrowFunctionExpression && !m_usesArgumentsObject && !m_isFunctionNameSaveOnHeap && !m_isFunctionNameExplicitlyDeclared && !m_needsComplexParameterCopy;
 }
 }

@@ -218,6 +218,7 @@ private:
     }
 
     Value processCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression);
+    Value processFastCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, Value* argv, bool isNewExpression);
     static Value callSlowCase(ExecutionState& state, const Value& callee, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression);
     void generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage);
     void generateBytecodeBlock(ExecutionState& state);

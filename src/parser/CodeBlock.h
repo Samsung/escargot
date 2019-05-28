@@ -229,6 +229,16 @@ public:
         return m_needsComplexParameterCopy;
     }
 
+    bool hasRestElement() const
+    {
+        return m_hasRestElement;
+    }
+
+    bool canProcessFastCall() const
+    {
+        return m_canProcessFastCall;
+    }
+
     void setInWithScope()
     {
         m_isInWithScope = true;
@@ -329,6 +339,7 @@ protected:
     bool m_needsVirtualIDOperation : 1;
     bool m_needToLoadThisValue : 1;
     bool m_hasRestElement : 1;
+    bool m_canProcessFastCall : 1;
     uint16_t m_parameterCount;
 
     AtomicString m_functionName;
