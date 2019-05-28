@@ -185,9 +185,17 @@ ALWAYS_INLINE bool isWhiteSpaceOrLineTerminator(char16_t ch)
     return UNLIKELY(ch == 0x2028 || ch == 0x2029 || isWhiteSpaceSlowCase(ch));
 }
 
-struct ScanTemplteResult : public gc {
+struct ScanTemplateResult {
+    // ScanTemplateResult is allocated on the GC heap
+    // because it holds GC pointers, raw and member pointer of valueCooked.
+    inline void* operator new(size_t size)
+    {
+        return GC_MALLOC(size);
+    }
+    void* operator new[](size_t size) = delete;
+
     UTF16StringData valueCooked;
-    StringView raw;
+    StringView* raw;
     bool head;
     bool tail;
 };
@@ -202,13 +210,13 @@ struct ScanRegExpResult {
     String* flags;
 };
 
-class ErrorHandler : public gc {
+class ErrorHandler {
 public:
     ErrorHandler()
     {
     }
 
-    void throwError(size_t index, size_t line, size_t col, String* description, ErrorObject::Code code);
+    static void throwError(size_t index, size_t line, size_t col, String* description, ErrorObject::Code code);
 };
 
 namespace Messages {
@@ -217,7 +225,7 @@ extern const char* UnterminatedRegExp;
 extern const char* TemplateOctalLiteral;
 }
 
-class Scanner : public gc {
+class Scanner {
 public:
     class ScannerResult {
     public:
@@ -257,7 +265,7 @@ public:
             PunctuatorKind valuePunctuatorKind;
             StringView* valueStringLiteralData;
             double valueNumber;
-            ScanTemplteResult* valueTemplate;
+            ScanTemplateResult* valueTemplate;
             ScanRegExpResult valueRegexp;
             KeywordKind valueKeywordKind;
         };
@@ -328,7 +336,7 @@ public:
             this->valueNumber = value;
         }
 
-        void setResult(Scanner* scanner, Token type, ScanTemplteResult* value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
+        void setResult(Scanner* scanner, Token type, ScanTemplateResult* value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
         {
             ASSERT(scanner != nullptr);
             ASSERT(value != nullptr);
@@ -355,7 +363,6 @@ public:
 
     StringView source;
     ::Escargot::Context* escargotContext;
-    ErrorHandler* errorHandler;
     // trackComment: boolean;
 
     size_t length;
@@ -367,7 +374,10 @@ public:
     {
     }
 
-    Scanner(::Escargot::Context* escargotContext, StringView code, ErrorHandler* handler, size_t startLine = 0, size_t startColumn = 0);
+    Scanner(::Escargot::Context* escargotContext, StringView code, size_t startLine = 0, size_t startColumn = 0);
+
+    // Scanner always allocated on the stack
+    MAKE_STACK_ALLOCATED();
 
     bool eof()
     {
@@ -376,7 +386,7 @@ public:
 
     ALWAYS_INLINE void throwUnexpectedToken(const char* message = Messages::UnexpectedTokenIllegal)
     {
-        this->errorHandler->throwError(this->index, this->lineNumber, this->index - this->lineStart + 1, new ASCIIString(message), ErrorObject::SyntaxError);
+        ErrorHandler::throwError(this->index, this->lineNumber, this->index - this->lineStart + 1, new ASCIIString(message), ErrorObject::SyntaxError);
     }
 
     // ECMA-262 11.4 Comments
