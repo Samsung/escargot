@@ -382,7 +382,8 @@ namespace Escargot {
     F(unscopables)                \
     F(keyFor)                     \
     F(raw)                        \
-    F(load)
+    F(load)                       \
+    F(getCanonicalLocales)
 
 
 class StaticStrings {
