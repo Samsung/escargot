@@ -550,11 +550,13 @@ public:
         return (ArrayObject*)this;
     }
 
-    RegExpObject* asRegExpObject()
+    RegExpObject* asRegExpObject(ExecutionState& state)
     {
-        ASSERT(isRegExpObject());
+        ASSERT(isRegExpObject(state) == true);
         return (RegExpObject*)this;
     }
+
+    String* optionString(ExecutionState& state);
 
 #if ESCARGOT_ENABLE_TYPEDARRAY
     ArrayBufferObject* asArrayBufferObject()

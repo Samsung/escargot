@@ -34,7 +34,7 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
     String* source = pattern.isUndefined() ? String::emptyString : pattern.toString(state);
     String* option = flags.isUndefined() ? String::emptyString : flags.toString(state);
     // Let patternIsRegExp be IsRegExp(pattern).
-    bool patternIsRegExp = pattern.isObject() && pattern.asObject()->isRegExpObject();
+    bool patternIsRegExp = argv[0].isObject() && argv[0].asObject()->isRegExpObject(state);
     if (patternIsRegExp) {
         // If patternIsRegExp is true and flags is undefined, then
         if (flags.isUndefined()) {
@@ -51,19 +51,19 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
 #else
     }
     // If Type(pattern) is Object and pattern has a [[RegExpMatcher]] internal slot, then
-    if (pattern.isObject() && pattern.asObject()->isRegExpObject()) {
-        RegExpObject* patternRegExp = pattern.asObject()->asRegExpObject();
+    if (pattern.isObject() == true && pattern.asObject()->isRegExpObject(state) == true) {
+        RegExpObject* patternRegExp = pattern.asObject()->asRegExpObject(state);
         // Let P be the value of pattern’s [[OriginalSource]] internal slot.
         source = patternRegExp->source();
         // If flags is undefined, let F be the value of pattern’s [[OriginalFlags]] internal slot.
         // Else, let F be flags.
-        option = flags.isUndefined() ? patternRegExp->optionString() : flags.toString(state);
+        option = flags.isUndefined() ? patternRegExp->optionString(state) : flags.toString(state);
     }
 #endif /* !ESCARGOT_ENABLE_ES2015 */
 
     RegExpObject* regexp;
-    if (isNewExpression && thisValue.isObject() && thisValue.asObject()->isRegExpObject()) {
-        regexp = thisValue.asPointerValue()->asObject()->asRegExpObject();
+    if (isNewExpression && thisValue.isObject() == true && thisValue.asObject()->isRegExpObject(state) == true) {
+        regexp = thisValue.asPointerValue()->asObject()->asRegExpObject(state);
     } else {
         regexp = new RegExpObject(state);
     }
@@ -76,10 +76,10 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
 static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, RegExp, exec);
-    if (!thisObject->isRegExpObject()) {
+    if (thisObject->isRegExpObject(state) == false) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().exec.string(), errorMessage_GlobalObject_ThisNotRegExpObject);
     }
-    RegExpObject* regexp = thisObject->asRegExpObject();
+    RegExpObject* regexp = thisObject->asRegExpObject(state);
     unsigned int option = regexp->option();
     String* str = argv[0].toString(state);
     double lastIndex = 0;
@@ -124,10 +124,10 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
 static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, RegExp, test);
-    if (!thisObject->isRegExpObject()) {
+    if (thisObject->isRegExpObject(state) == false) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().test.string(), errorMessage_GlobalObject_ThisNotRegExpObject);
     }
-    RegExpObject* regexp = thisObject->asRegExpObject();
+    RegExpObject* regexp = thisObject->asRegExpObject(state);
     unsigned int option = regexp->option();
     String* str = argv[0].toString(state);
     double lastIndex = 0;
@@ -170,22 +170,22 @@ static Value builtinRegExpToString(ExecutionState& state, Value thisValue, size_
 
 static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    if (!thisValue.isPointerValue() || !thisValue.asPointerValue()->isObject() || !thisValue.asPointerValue()->asObject()->isRegExpObject()) {
+    if (thisValue.isPointerValue() == false || thisValue.asPointerValue()->isObject() == false || thisValue.asPointerValue()->asObject()->isRegExpObject(state) == false) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'This' is not a RegExp object");
     }
 
-    if (argv[0].isObject() && argv[0].asObject()->isRegExpObject()) {
-        if (!argv[1].isUndefined()) {
+    if (argv[0].isObject() == true && argv[0].asObject()->isRegExpObject(state) == true) {
+        if (argv[1].isUndefined() == false) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot supply flags when constructing one RegExp from another");
         } else {
-            RegExpObject* retVal = thisValue.asPointerValue()->asObject()->asRegExpObject();
-            RegExpObject* patternRegExp = argv[0].asPointerValue()->asObject()->asRegExpObject();
+            RegExpObject* retVal = thisValue.asPointerValue()->asObject()->asRegExpObject(state);
+            RegExpObject* patternRegExp = argv[0].asPointerValue()->asObject()->asRegExpObject(state);
             retVal->initWithOption(state, patternRegExp->source(), patternRegExp->option());
             return retVal;
         }
     }
 
-    RegExpObject* retVal = thisValue.asPointerValue()->asObject()->asRegExpObject();
+    RegExpObject* retVal = thisValue.asPointerValue()->asObject()->asRegExpObject(state);
     String* pattern_str = argv[0].isUndefined() ? String::emptyString : argv[0].toString(state);
     String* flags_str = argv[1].isUndefined() ? String::emptyString : argv[1].toString(state);
     retVal->init(state, pattern_str, flags_str);
@@ -219,7 +219,7 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
     Value C = rx->speciesConstructor(state, state.context()->globalObject()->regexp());
 
     // Let flags be ToString(Get(rx, "flags")).
-    String* flags = rx->asRegExpObject()->optionString();
+    String* flags = rx->asRegExpObject(state)->optionString(state);
     bool unicodeMatching = false;
 
     String* newFlags;
@@ -242,8 +242,8 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
     newFlags = builder.finalize();
 
     // Let splitter be Construct(C, <<rx, newFlags>>).
-    Value params[2] = { rx->asRegExpObject()->source(), newFlags };
-    RegExpObject* splitter = C.asFunction()->newInstance(state, 2, params)->asRegExpObject();
+    Value params[2] = { rx->asRegExpObject(state)->source(), newFlags };
+    RegExpObject* splitter = C.asFunction()->newInstance(state, 2, params)->asRegExpObject(state);
 
     // Let A be ArrayCreate(0).
     ArrayObject* A = new ArrayObject(state);
@@ -359,6 +359,67 @@ GlobalRegExpFunctionObject::GlobalRegExpFunctionObject(ExecutionState& state)
     initInternalProperties(state);
 }
 
+#ifdef ESCARGOT_ENABLE_ES2015
+
+static Value builtinRegExpOptionGetterHelper(ExecutionState& state, Value thisValue, unsigned int option)
+{
+    if (thisValue.isObject() == false || thisValue.asObject()->isRegExpObject(state) == false) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
+    }
+
+    // ES2017 compatibility
+    if (thisValue.asObject() == state.context()->globalObject()->regexpPrototype()) {
+        return Value();
+    }
+
+    return Value((bool)(thisValue.asObject()->asRegExpObject(state)->option() & option));
+}
+
+static Value builtinRegExpFlagsGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (thisValue.isObject() == false) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-object");
+    }
+
+    return Value(thisValue.asObject()->optionString(state));
+}
+
+static Value builtinRegExpGlobalGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::Global);
+}
+
+static Value builtinRegExpIgnoreCaseGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::IgnoreCase);
+}
+
+static Value builtinRegExpMultiLineGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::MultiLine);
+}
+
+static Value builtinRegExpSourceGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (thisValue.isObject() == false || thisValue.asObject()->isRegExpObject(state) == false) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
+    }
+
+    return Value(thisValue.asObject()->asRegExpObject(state)->source());
+}
+
+static Value builtinRegExpStickyGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::Sticky);
+}
+
+static Value builtinRegExpUnicodeGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::Unicode);
+}
+
+#endif
+
 void GlobalObject::installRegExp(ExecutionState& state)
 {
     m_regexp = new GlobalRegExpFunctionObject(state);
@@ -373,9 +434,61 @@ void GlobalObject::installRegExp(ExecutionState& state)
     }
 
     m_regexpPrototype = m_objectPrototype;
-    m_regexpPrototype = new RegExpObject(state);
+    m_regexpPrototype = new RegExpObjectPrototype(state);
     m_regexpPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     m_regexpPrototype->setPrototype(state, m_objectPrototype);
+
+#ifdef ESCARGOT_ENABLE_ES2015
+    {
+        Value getter = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getFlags, builtinRegExpFlagsGetter, 0, nullptr, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_regexpPrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().flags), desc);
+    }
+
+    {
+        Value getter = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getGlobal, builtinRegExpGlobalGetter, 0, nullptr, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_regexpPrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().global), desc);
+    }
+
+    {
+        Value getter = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getIgnoreCase, builtinRegExpIgnoreCaseGetter, 0, nullptr, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_regexpPrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().ignoreCase), desc);
+    }
+
+    {
+        Value getter = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getMultiline, builtinRegExpMultiLineGetter, 0, nullptr, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_regexpPrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().multiline), desc);
+    }
+
+    {
+        Value getter = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSource, builtinRegExpSourceGetter, 0, nullptr, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_regexpPrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().source), desc);
+    }
+
+    {
+        Value getter = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSticky, builtinRegExpStickyGetter, 0, nullptr, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_regexpPrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().sticky), desc);
+    }
+
+    {
+        Value getter = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getUnicode, builtinRegExpUnicodeGetter, 0, nullptr, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_regexpPrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().unicode), desc);
+    }
+
+#endif
 
     m_regexpPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_regexp, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
