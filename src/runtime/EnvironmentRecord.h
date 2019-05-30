@@ -424,8 +424,8 @@ public:
     ALWAYS_INLINE explicit FunctionEnvironmentRecord(FunctionObject* function)
         : DeclarativeEnvironmentRecord()
         , m_functionObject(function)
-        , m_newTarget(nullptr)
-        , m_thisValue(Value())
+        , m_newTarget()
+        , m_thisValue()
     {
         if (function->thisMode() == FunctionObject::ThisMode::Lexical) {
             m_thisBindingStatus = ThisBindingStatus::Lexical;
@@ -511,12 +511,12 @@ public:
         return m_functionObject->homeObject();
     }
 
-    Object* newTarget()
+    Value newTarget()
     {
         return m_newTarget;
     }
 
-    void setNewTarget(Object* newTarget)
+    void setNewTarget(const Value& newTarget)
     {
         m_newTarget = newTarget;
     }
@@ -538,7 +538,7 @@ public:
 
 protected:
     FunctionObject* m_functionObject;
-    Object* m_newTarget;
+    SmallValue m_newTarget;
     ThisBindingStatus m_thisBindingStatus;
     SmallValue m_thisValue;
 };

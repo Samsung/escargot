@@ -1275,16 +1275,6 @@ ValueRef* FunctionObjectRef::call(ExecutionStateRef* state, ValueRef* receiver, 
     return toRef(o->call(*toImpl(state), toImpl(receiver), argc, newArgv));
 }
 
-ObjectRef* FunctionObjectRef::newInstance(ExecutionStateRef* state, const size_t argc, ValueRef** argv)
-{
-    FunctionObject* o = toImpl(this);
-    Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
-    for (size_t i = 0; i < argc; i++) {
-        newArgv[i] = toImpl(argv[i]);
-    }
-    return toRef(o->newInstance(*toImpl(state), argc, newArgv));
-}
-
 static void markEvalToCodeblock(InterpretedCodeBlock* cb)
 {
     cb->setHasEval();

@@ -50,7 +50,7 @@ Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc,
         adder = map->Object::get(state, ObjectPropertyName(state.context()->staticStrings().set)).value(state, map);
         // If IsCallable(adder) is false, throw a TypeError exception.
         if (!adder.isFunction()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
         }
         // Let iter be ? GetIterator(iterable).
         iter = getIterator(state, iterable);

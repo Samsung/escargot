@@ -99,7 +99,7 @@ static Value builtinReflectConstruct(ExecutionState& state, Value thisValue, siz
 
     // FIXME Construct (F, [argumentsList], [newTarget])
     // 6. Return Construct(target, args, newTarget).
-    return ByteCodeInterpreter::newOperation(state, target, arglen, args);
+    return FunctionObject::construct(state, target, arglen, args);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.defineproperty
