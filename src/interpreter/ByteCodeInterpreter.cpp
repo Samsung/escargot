@@ -1137,11 +1137,15 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 IteratorStep* code = (IteratorStep*)programCounter;
-                Value iterator = registerFile[code->m_iterRegisterIndex];
-                Value nextResult = iteratorStep(state, iterator);
+                Value nextResult = iteratorStep(state, registerFile[code->m_iterRegisterIndex]);
 
-                if (nextResult.isFalse()) {
-                    programCounter = jumpTo(codeBuffer, code->m_forOfEndPosition);
+                if (nextResult.isFalse() == true) {
+                    if (code->m_forOfEndPosition == SIZE_MAX) {
+                        registerFile[code->m_registerIndex] = Value();
+                        ADD_PROGRAM_COUNTER(IteratorStep);
+                    } else {
+                        programCounter = jumpTo(codeBuffer, code->m_forOfEndPosition);
+                    }
                 } else {
                     registerFile[code->m_registerIndex] = iteratorValue(state, nextResult);
                     ADD_PROGRAM_COUNTER(IteratorStep);
@@ -1278,17 +1282,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
                 registerFile[code->m_resultIndex] = newOperation(state, registerFile[code->m_calleeIndex], spreadArgs.size(), spreadArgs.data());
                 ADD_PROGRAM_COUNTER(NewOperationWithSpreadElement);
-                NEXT_INSTRUCTION();
-            }
-
-            DEFINE_OPCODE(IteratorValue)
-                :
-            {
-                IteratorValue* code = (IteratorValue*)programCounter;
-                Value next = iteratorStep(state, registerFile[code->m_iterIndex]);
-                registerFile[code->m_dstIndex] = next.isFalse() ? Value() : iteratorValue(state, next);
-
-                ADD_PROGRAM_COUNTER(IteratorValue);
                 NEXT_INSTRUCTION();
             }
 

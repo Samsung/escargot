@@ -112,7 +112,6 @@ class Node;
     F(CheckIfKeyIsLast, 0, 0)                         \
     F(GetIterator, 1, 0)                              \
     F(IteratorStep, 1, 0)                             \
-    F(IteratorValue, 1, 0)                            \
     F(LoadRegexp, 1, 0)                               \
     F(WithOperation, 0, 0)                            \
     F(ObjectDefineGetter, 0, 0)                       \
@@ -1763,6 +1762,14 @@ public:
         m_forOfEndPosition = SIZE_MAX;
         m_registerIndex = m_iterRegisterIndex = REGISTER_LIMIT;
     }
+
+    explicit IteratorStep(const ByteCodeLOC& loc, size_t dstIndex, size_t iterIndex)
+        : ByteCode(Opcode::IteratorStepOpcode, loc)
+        , m_registerIndex(dstIndex)
+        , m_iterRegisterIndex(iterIndex)
+        , m_forOfEndPosition(SIZE_MAX)
+    {
+    }
     ByteCodeRegisterIndex m_registerIndex;
     ByteCodeRegisterIndex m_iterRegisterIndex;
     size_t m_forOfEndPosition;
@@ -1771,25 +1778,6 @@ public:
     void dump(const char* byteCodeStart)
     {
         printf("iterator step(r%d) -> r%d", (int)m_iterRegisterIndex, (int)m_registerIndex);
-    }
-#endif
-};
-
-class IteratorValue : public ByteCode {
-public:
-    IteratorValue(const ByteCodeLOC& loc, size_t iterIndex, size_t dstIndex)
-        : ByteCode(Opcode::IteratorValueOpcode, loc)
-        , m_iterIndex(iterIndex)
-        , m_dstIndex(dstIndex)
-    {
-    }
-
-    ByteCodeRegisterIndex m_iterIndex;
-    ByteCodeRegisterIndex m_dstIndex;
-#ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        printf("iterator value (r%d) -> r%d", (int)m_iterIndex, (int)m_dstIndex);
     }
 #endif
 };
