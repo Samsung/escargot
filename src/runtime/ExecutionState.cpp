@@ -31,7 +31,7 @@ void ExecutionState::throwException(const Value& e)
 
 ExecutionState* ExecutionState::parent()
 {
-    if (m_parent & 1) {
+    if (hasRareData() == false) {
         return (ExecutionState*)(m_parent - 1);
     } else {
         return rareData()->m_parent;
@@ -40,7 +40,7 @@ ExecutionState* ExecutionState::parent()
 
 ExecutionStateRareData* ExecutionState::ensureRareData()
 {
-    if (m_parent & 1) {
+    if (hasRareData() == false) {
         ExecutionState* p = parent();
         m_rareData = new ExecutionStateRareData();
         m_rareData->m_parent = p;

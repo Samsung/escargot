@@ -990,7 +990,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             DEFINE_OPCODE(TryCatchWithBodyEnd)
                 :
             {
-                (*(state.rareData()->m_controlFlowRecord))[state.rareData()->m_controlFlowRecord->size() - 1] = nullptr;
+                state.rareData()->m_currentControlFlowRecord = nullptr;
                 return Value();
             }
 
@@ -998,26 +998,27 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 FinallyEnd* code = (FinallyEnd*)programCounter;
-                ControlFlowRecord* record = state.rareData()->m_controlFlowRecord->back();
-                state.rareData()->m_controlFlowRecord->erase(state.rareData()->m_controlFlowRecord->size() - 1);
-                if (record) {
+                ControlFlowRecord* record = state.rareData()->m_currentControlFlowRecord;
+                state.rareData()->m_controlFlowDepth--;
+                if (record != nullptr) {
                     if (record->reason() == ControlFlowRecord::NeedsJump) {
                         size_t pos = record->wordValue();
                         record->m_count--;
                         if (record->count() && (record->outerLimitCount() < record->count())) {
-                            state.rareData()->m_controlFlowRecord->back() = record;
                             return Value();
                         } else {
+                            state.rareData()->m_currentControlFlowRecord = nullptr;
                             programCounter = jumpTo(codeBuffer, pos);
                         }
                     } else if (record->reason() == ControlFlowRecord::NeedsThrow) {
+                        state.rareData()->m_currentControlFlowRecord = nullptr;
                         state.context()->throwException(state, record->value());
                     } else if (record->reason() == ControlFlowRecord::NeedsReturn) {
                         record->m_count--;
                         if (record->count()) {
-                            state.rareData()->m_controlFlowRecord->back() = record;
                             return Value();
                         } else {
+                            state.rareData()->m_currentControlFlowRecord = nullptr;
                             return record->value();
                         }
                     }
@@ -1055,7 +1056,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 JumpComplexCase* code = (JumpComplexCase*)programCounter;
-                state.ensureRareData()->m_controlFlowRecord->back() = code->m_controlFlowRecord->clone();
+                state.ensureRareData()->m_currentControlFlowRecord = code->m_controlFlowRecord->clone();
                 return Value();
             }
 
@@ -1243,8 +1244,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 if (code->m_registerIndex != REGISTER_LIMIT) {
                     ret = registerFile[code->m_registerIndex];
                 }
-                if (UNLIKELY(state.rareData() != nullptr) && state.rareData()->m_controlFlowRecord && state.rareData()->m_controlFlowRecord->size()) {
-                    state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, ret, state.rareData()->m_controlFlowRecord->size());
+                if (UNLIKELY(state.hasRareData()) && state.rareData()->m_controlFlowDepth > 0) {
+                    state.rareData()->m_currentControlFlowRecord = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, ret, state.rareData()->m_controlFlowDepth);
                 }
                 return ret;
             }
@@ -2075,10 +2076,7 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
 {
     char* codeBuffer = byteCodeBlock->m_code.data();
     try {
-        if (!state.ensureRareData()->m_controlFlowRecord) {
-            state.ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
-        }
-        state.ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
+        state.ensureRareData()->m_controlFlowDepth++;
         size_t newPc = programCounter + sizeof(TryOperation);
         clearStack<386>();
         interpret(state, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
@@ -2098,7 +2096,7 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
 
         state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
         if (code->m_hasCatch == false) {
-            state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
+            state.rareData()->m_currentControlFlowRecord = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
             programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
         } else {
             // setup new env
@@ -2109,12 +2107,13 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
             ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
             try {
                 ExecutionState newState(&state, newEc);
-                newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
+                newState.ensureRareData()->m_controlFlowDepth = state.rareData()->m_controlFlowDepth;
                 clearStack<386>();
                 interpret(newState, byteCodeBlock, code->m_catchPosition, registerFile);
+                state.rareData()->m_currentControlFlowRecord = newState.rareData()->m_currentControlFlowRecord;
                 programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
             } catch (const Value& val) {
-                state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
+                state.rareData()->m_currentControlFlowRecord = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
                 programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
             }
         }
@@ -2313,10 +2312,6 @@ NEVER_INLINE void ByteCodeInterpreter::superOperation(ExecutionState& state, Sup
 
 NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, WithOperation* code, Object* obj, ExecutionContext* ec, LexicalEnvironment* env, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage)
 {
-    if (!state.ensureRareData()->m_controlFlowRecord) {
-        state.ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
-    }
-    state.ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
     size_t newPc = programCounter + sizeof(WithOperation);
     char* codeBuffer = byteCodeBlock->m_code.data();
 
@@ -2325,19 +2320,18 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, Wit
     LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
     ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
     ExecutionState newState(&state, newEc);
-    newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
+    newState.ensureRareData()->m_controlFlowDepth = state.ensureRareData()->m_controlFlowDepth + 1;
 
     interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
 
-    ControlFlowRecord* record = state.rareData()->m_controlFlowRecord->back();
-    state.rareData()->m_controlFlowRecord->erase(state.rareData()->m_controlFlowRecord->size() - 1);
+    ControlFlowRecord* record = newState.rareData()->m_currentControlFlowRecord;
 
     if (record) {
         if (record->reason() == ControlFlowRecord::NeedsJump) {
             size_t pos = record->wordValue();
             record->m_count--;
             if (record->count() && (record->outerLimitCount() < record->count())) {
-                state.rareData()->m_controlFlowRecord->back() = record;
+                state.rareData()->m_currentControlFlowRecord = record;
             } else {
                 programCounter = jumpTo(codeBuffer, pos);
             }
@@ -2346,7 +2340,7 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, Wit
             ASSERT(record->reason() == ControlFlowRecord::NeedsReturn);
             record->m_count--;
             if (record->count()) {
-                state.rareData()->m_controlFlowRecord->back() = record;
+                state.rareData()->m_currentControlFlowRecord = record;
             }
             return record->value();
         }

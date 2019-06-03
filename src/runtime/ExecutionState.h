@@ -32,11 +32,13 @@ class ControlFlowRecord;
 typedef Vector<ControlFlowRecord*, GCUtil::gc_malloc_ignore_off_page_allocator<ControlFlowRecord*>> ControlFlowRecordVector;
 
 struct ExecutionStateRareData : public gc {
-    Vector<ControlFlowRecord*, GCUtil::gc_malloc_ignore_off_page_allocator<ControlFlowRecord*>>* m_controlFlowRecord;
+    size_t m_controlFlowDepth;
+    ControlFlowRecord* m_currentControlFlowRecord;
     ExecutionState* m_parent;
     ExecutionStateRareData()
     {
-        m_controlFlowRecord = nullptr;
+        m_controlFlowDepth = 0;
+        m_currentControlFlowRecord = nullptr;
         m_parent = nullptr;
     }
 };
@@ -112,8 +114,14 @@ public:
     ExecutionState* parent();
     ExecutionStateRareData* ensureRareData();
 
+    bool hasRareData()
+    {
+        return (m_parent & 1) == 0;
+    }
+
     ExecutionStateRareData* rareData()
     {
+        ASSERT(hasRareData());
         return m_rareData;
     }
 
