@@ -95,7 +95,7 @@ public:
             RefPtr<Node> element = m_elements[i];
 
             size_t iteratorValueIdx = context->getRegister();
-            codeBlock->pushCode(IteratorValue(ByteCodeLOC(m_loc.index), iteratorIdx, iteratorValueIdx), context, this);
+            codeBlock->pushCode(IteratorStep(ByteCodeLOC(m_loc.index), iteratorValueIdx, iteratorIdx), context, this);
 
             if (element != nullptr) {
                 if (element->isPattern()) {

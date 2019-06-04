@@ -512,9 +512,9 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
-            case IteratorValueOpcode: {
-                IteratorValue* cd = (IteratorValue*)currentCode;
-                assignStackIndexIfNeeded(cd->m_iterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            case IteratorStepOpcode: {
+                IteratorStep* cd = (IteratorStep*)currentCode;
+                assignStackIndexIfNeeded(cd->m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case BindingRestElementOpcode: {
