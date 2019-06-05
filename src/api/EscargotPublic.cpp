@@ -26,7 +26,6 @@
 #include "parser/ScriptParser.h"
 #include "parser/CodeBlock.h"
 #include "runtime/Context.h"
-#include "runtime/ExecutionContext.h"
 #include "runtime/FunctionObject.h"
 #include "runtime/Value.h"
 #include "runtime/VMInstance.h"
@@ -1216,7 +1215,7 @@ public:
 
 static Value publicFunctionBridge(ExecutionState& state, Value thisValue, size_t calledArgc, Value* calledArgv, bool isNewExpression)
 {
-    CodeBlock* dataCb = state.executionContext()->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock();
+    CodeBlock* dataCb = state.lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock();
     CallPublicFunctionData* code = (CallPublicFunctionData*)(dataCb->nativeFunctionData());
     ValueRef** newArgv = ALLOCA(sizeof(ValueRef*) * calledArgc, ValueRef*, state);
     for (size_t i = 0; i < calledArgc; i++) {
@@ -1434,13 +1433,12 @@ void ExecutionStateRef::destroy()
 
 NullablePtr<FunctionObjectRef> ExecutionStateRef::resolveCallee()
 {
-    auto ec = toImpl(this)->executionContext();
+    auto ec = toImpl(this);
     if (ec != nullptr) {
         auto callee = ec->resolveCallee();
         if (callee != nullptr) {
             return toRef(callee);
         }
-        return nullptr;
     }
     return nullptr;
 }
@@ -1452,9 +1450,9 @@ std::vector<std::pair<FunctionObjectRef*, ValueRef*>> ExecutionStateRef::resolve
     std::vector<std::pair<FunctionObjectRef*, ValueRef*>> result;
 
     while (state) {
-        if (state->executionContext() && state->executionContext()->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord()
-            && state->executionContext()->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-            auto r = state->executionContext()->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+        if (state->lexicalEnvironment() && state->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord()
+            && state->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            auto r = state->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
             FunctionObject* callee = r->functionObject();
             Value thisValue = state->registerFile()[0];
             result.push_back(std::make_pair(toRef(callee), toRef(thisValue)));

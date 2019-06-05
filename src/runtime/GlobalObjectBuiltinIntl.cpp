@@ -1264,7 +1264,7 @@ static Value builtinIntlCollatorConstructor(ExecutionState& state, Value thisVal
 
 static Value builtinIntlCollatorCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    FunctionObject* callee = state.executionContext()->resolveCallee();
+    FunctionObject* callee = state.resolveCallee();
     if (!callee->hasInternalSlot() || !callee->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedCollator")))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
@@ -1995,7 +1995,7 @@ static Value builtinIntlDateTimeFormatConstructor(ExecutionState& state, Value t
 
 static Value builtinIntlDateTimeFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    FunctionObject* callee = state.executionContext()->resolveCallee();
+    FunctionObject* callee = state.resolveCallee();
     if (!callee->hasInternalSlot() || !callee->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedDateTimeFormat")))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
@@ -2404,7 +2404,7 @@ static void initializeNumberFormat(ExecutionState& state, Object* numberFormat, 
 
 static Value builtinIntlNumberFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    FunctionObject* callee = state.executionContext()->resolveCallee();
+    FunctionObject* callee = state.resolveCallee();
     if (!callee->hasInternalSlot() || !callee->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedNumberFormat")))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }

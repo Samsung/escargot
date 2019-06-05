@@ -19,8 +19,10 @@
 
 #include "Escargot.h"
 #include "ExecutionState.h"
-#include "ExecutionContext.h"
 #include "Context.h"
+#include "Environment.h"
+#include "EnvironmentRecord.h"
+#include "FunctionObject.h"
 
 namespace Escargot {
 
@@ -46,5 +48,79 @@ ExecutionStateRareData* ExecutionState::ensureRareData()
         m_rareData->m_parent = p;
     }
     return rareData();
+}
+
+FunctionObject* ExecutionState::resolveCallee()
+{
+    LexicalEnvironment* env = m_lexicalEnvironment;
+    while (env != nullptr) {
+        if (env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            return env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
+        }
+        env = env->outerEnvironment();
+    }
+    return nullptr;
+}
+
+Value ExecutionState::getNewTarget()
+{
+    EnvironmentRecord* envRec = getThisEnvironment();
+
+    ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
+
+    FunctionEnvironmentRecord* funcEnvRec = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+
+    return funcEnvRec->newTarget() ? funcEnvRec->newTarget() : Value();
+}
+
+EnvironmentRecord* ExecutionState::getThisEnvironment()
+{
+    LexicalEnvironment* lex = m_lexicalEnvironment;
+    LexicalEnvironment* prevLex = nullptr;
+
+    while (true) {
+        EnvironmentRecord* envRec = lex->record();
+
+        if (envRec->hasThisBinding()) {
+            return envRec;
+        }
+
+        lex = lex->outerEnvironment();
+    }
+}
+
+Value ExecutionState::makeSuperPropertyReference(ExecutionState& state)
+{
+    EnvironmentRecord* envRec = getThisEnvironment();
+
+    if (!envRec->hasSuperBinding()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, errorMessage_No_Super_Binding);
+    }
+
+    ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
+
+    FunctionEnvironmentRecord* funcEnvRec = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+    Value bv = funcEnvRec->getSuperBase(state).toObject(state);
+
+    return bv;
+}
+
+Value ExecutionState::getSuperConstructor(ExecutionState& state)
+{
+    EnvironmentRecord* envRec = getThisEnvironment();
+
+    ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
+
+    FunctionEnvironmentRecord* funcEnvRec = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+
+    Value activeFunction = funcEnvRec->functionObject() ? funcEnvRec->functionObject() : Value();
+
+    Value superConstructor = activeFunction.asObject()->getPrototype(state);
+
+    if (superConstructor.isConstructor() == false) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_No_Super_Binding);
+    }
+
+    return superConstructor;
 }
 }

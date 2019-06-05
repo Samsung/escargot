@@ -531,9 +531,9 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    Value createArgumentsObject(ExecutionState& state, ExecutionContext* ec)
+    Value createArgumentsObject(ExecutionState& state)
     {
-        return new ArgumentsObject(state, this, ec);
+        return new ArgumentsObject(state, this);
     }
 
 protected:
