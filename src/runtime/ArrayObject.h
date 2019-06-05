@@ -115,6 +115,19 @@ private:
     VectorWithNoSize<SmallValue, GCUtil::gc_malloc_ignore_off_page_allocator<SmallValue>> m_fastModeData;
 };
 
+class ArrayObjectPrototype : public ArrayObject {
+public:
+    ArrayObjectPrototype(ExecutionState& state)
+        : ArrayObject(state)
+    {
+    }
+
+    virtual bool isArrayPrototypeObject() const
+    {
+        return true;
+    }
+};
+
 class ArrayIteratorObject : public IteratorObject {
 public:
     enum Type {

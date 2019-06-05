@@ -56,10 +56,12 @@ namespace Escargot {
 #define DEFINE_CAST(ClassName)                       \
     inline ClassName* toImpl(ClassName##Ref* v)      \
     {                                                \
+        ASSERT(v != nullptr);                        \
         return reinterpret_cast<ClassName*>(v);      \
     }                                                \
     inline ClassName##Ref* toRef(ClassName* v)       \
     {                                                \
+        ASSERT(v != nullptr);                        \
         return reinterpret_cast<ClassName##Ref*>(v); \
     }
 
@@ -299,6 +301,11 @@ bool PointerValueRef::isArrayObject()
     return toImpl(this)->isArrayObject();
 }
 
+bool PointerValueRef::isArrayPrototypeObject()
+{
+    return toImpl(this)->isArrayPrototypeObject();
+}
+
 ArrayObjectRef* PointerValueRef::asArrayObject()
 {
     return toRef(toImpl(this)->asArrayObject());
@@ -344,14 +351,16 @@ BooleanObjectRef* PointerValueRef::asBooleanObject()
     return toRef(toImpl(this)->asBooleanObject());
 }
 
-bool PointerValueRef::isRegExpObject(ExecutionState& state)
+bool PointerValueRef::isRegExpObject(ExecutionStateRef* state)
 {
-    return toImpl(this)->isRegExpObject(state);
+    ASSERT(state != nullptr);
+    return toImpl(this)->isRegExpObject(*toImpl(state));
 }
 
-RegExpObjectRef* PointerValueRef::asRegExpObject(ExecutionState& state)
+RegExpObjectRef* PointerValueRef::asRegExpObject(ExecutionStateRef* state)
 {
-    return toRef(toImpl(this)->asRegExpObject(state));
+    ASSERT(state != nullptr);
+    return toRef(toImpl(this)->asRegExpObject(*toImpl(state)));
 }
 
 bool PointerValueRef::isDateObject()
@@ -427,6 +436,10 @@ DEFINE_TYPEDARRAY_IMPL(Uint8Clamped);
 DEFINE_TYPEDARRAY_IMPL(Float32);
 DEFINE_TYPEDARRAY_IMPL(Float64);
 
+bool PointerValueRef::isTypedArrayPrototypeObject()
+{
+    return toImpl(this)->isTypedArrayPrototypeObject();
+}
 #endif
 #if ESCARGOT_ENABLE_PROMISE
 bool PointerValueRef::isPromiseObject()
@@ -1951,8 +1964,57 @@ unsigned ArrayBufferViewRef::bytelength()
     return toImpl(this)->bytelength();
 }
 
+Int8ArrayObjectRef* Int8ArrayObjectRef::create(ExecutionStateRef* state)
+{
+    ASSERT(state != nullptr);
+    return toRef(new Int8ArrayObject(*toImpl(state)));
+}
+
+Uint8ArrayObjectRef* Uint8ArrayObjectRef::create(ExecutionStateRef* state)
+{
+    ASSERT(state != nullptr);
+    return toRef(new Uint8ArrayObject(*toImpl(state)));
+}
+
+Int16ArrayObjectRef* Int16ArrayObjectRef::create(ExecutionStateRef* state)
+{
+    ASSERT(state != nullptr);
+    return toRef(new Int16ArrayObject(*toImpl(state)));
+}
+
+Uint16ArrayObjectRef* Uint16ArrayObjectRef::create(ExecutionStateRef* state)
+{
+    ASSERT(state != nullptr);
+    return toRef(new Uint16ArrayObject(*toImpl(state)));
+}
+
+Uint32ArrayObjectRef* Uint32ArrayObjectRef::create(ExecutionStateRef* state)
+{
+    ASSERT(state != nullptr);
+    return toRef(new Uint32ArrayObject(*toImpl(state)));
+}
+
+Int32ArrayObjectRef* Int32ArrayObjectRef::create(ExecutionStateRef* state)
+{
+    ASSERT(state != nullptr);
+    return toRef(new Int32ArrayObject(*toImpl(state)));
+}
+
+Float32ArrayObjectRef* Float32ArrayObjectRef::create(ExecutionStateRef* state)
+{
+    ASSERT(state != nullptr);
+    return toRef(new Float32ArrayObject(*toImpl(state)));
+}
+
+Float64ArrayObjectRef* Float64ArrayObjectRef::create(ExecutionStateRef* state)
+{
+    ASSERT(state != nullptr);
+    return toRef(new Float64ArrayObject(*toImpl(state)));
+}
+
 Uint8ClampedArrayObjectRef* Uint8ClampedArrayObjectRef::create(ExecutionStateRef* state)
 {
+    ASSERT(state != nullptr);
     return toRef(new Uint8ClampedArrayObject(*toImpl(state)));
 }
 #endif

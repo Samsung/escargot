@@ -94,6 +94,11 @@ public:
         return false;
     }
 
+    virtual bool isArrayPrototypeObject() const
+    {
+        return false;
+    }
+
     virtual bool isSpreadObject() const
     {
         return false;
@@ -175,6 +180,11 @@ public:
     }
 
     virtual bool isArrayBufferObject() const
+    {
+        return false;
+    }
+
+    virtual bool isTypedArrayPrototypeObject() const
     {
         return false;
     }
