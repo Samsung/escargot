@@ -1573,7 +1573,7 @@ FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicStr
     taConstructor->markThisObjectDontNeedStructureTransitionTable(state);
 
     *proto = m_objectPrototype;
-    Object* taPrototype = new Object(state);
+    Object* taPrototype = new TypedArrayObjectPrototype(state);
     taPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     taPrototype->setPrototype(state, typedArrayFunction->getFunctionPrototype(state));
 

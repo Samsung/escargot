@@ -463,6 +463,19 @@ public:
         return TypedArrayType::Float64;
     }
 };
+
+class TypedArrayObjectPrototype : public Object {
+public:
+    TypedArrayObjectPrototype(ExecutionState& state)
+        : Object(state)
+    {
+    }
+
+    virtual bool isTypedArrayPrototypeObject() const
+    {
+        return true;
+    }
+};
 }
 
 #endif

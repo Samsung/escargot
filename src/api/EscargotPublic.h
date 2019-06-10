@@ -136,6 +136,7 @@ public:
     FunctionObjectRef* asFunctionObject();
     bool isArrayObject();
     ArrayObjectRef* asArrayObject();
+    bool isArrayPrototypeObject();
     bool isStringObject();
     StringObjectRef* asStringObject();
     bool isSymbolObject();
@@ -144,8 +145,8 @@ public:
     NumberObjectRef* asNumberObject();
     bool isBooleanObject();
     BooleanObjectRef* asBooleanObject();
-    bool isRegExpObject(ExecutionState& state);
-    RegExpObjectRef* asRegExpObject(ExecutionState& state);
+    bool isRegExpObject(ExecutionStateRef* state);
+    RegExpObjectRef* asRegExpObject(ExecutionStateRef* state);
     bool isDateObject();
     DateObjectRef* asDateObject();
     bool isGlobalObject();
@@ -175,6 +176,7 @@ public:
     Float32ArrayObjectRef* asFloat32ArrayObject();
     bool isFloat64ArrayObject();
     Float64ArrayObjectRef* asFloat64ArrayObject();
+    bool isTypedArrayPrototypeObject();
 #endif
 #if ESCARGOT_ENABLE_PROMISE
     bool isPromiseObject();
