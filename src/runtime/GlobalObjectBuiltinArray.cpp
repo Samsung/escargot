@@ -115,7 +115,7 @@ static Value arraySpeciesCreate(ExecutionState& state, Object* originalArray, co
     }
     // Return Construct(C, <<length>>).
     Value argv[1] = { Value(length) };
-    return ByteCodeInterpreter::newOperation(state, C, 1, argv);
+    return FunctionObject::construct(state, C, 1, argv);
 }
 
 static Value builtinArrayIsArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -164,9 +164,9 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
     if (!usingIterator.isUndefined()) {
         Object* A;
         // If IsConstructor(C) is true, then
-        if (C.isConstructor()) {
+        if (C.isConstructor() == true) {
             // Let A be ? Construct(C).
-            A = C.asFunction()->newInstance(state, 0, nullptr);
+            A = FunctionObject::construct(state, C, 0, nullptr);
         } else {
             // Let A be ArrayCreate(0).
             A = new ArrayObject(state);
@@ -220,10 +220,10 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
     auto len = arrayLike->lengthES6(state);
     // If IsConstructor(C) is true, then
     Object* A;
-    if (C.isConstructor()) {
+    if (C.isConstructor() == true) {
         // Let A be ? Construct(C, « len »).
         Value vlen(len);
-        A = C.asFunction()->newInstance(state, 1, &vlen);
+        A = FunctionObject::construct(state, C, 1, &vlen);
     } else {
         // Else,
         // Let A be ? ArrayCreate(len).
@@ -266,9 +266,9 @@ static Value builtinArrayOf(ExecutionState& state, Value thisValue, size_t argc,
     Value C = thisValue;
 
     Object* A;
-    if (C.isConstructor()) {
+    if (C.isConstructor() == true) {
         Value arg[1] = { Value(len) };
-        A = ByteCodeInterpreter::newOperation(state, C, 1, arg);
+        A = FunctionObject::construct(state, C, 1, arg);
     } else {
         A = new ArrayObject(state, static_cast<double>(len));
     }

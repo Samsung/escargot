@@ -1505,20 +1505,12 @@ NEVER_INLINE Value ByteCodeInterpreter::modOperation(ExecutionState& state, cons
     return ret;
 }
 
-NEVER_INLINE Object* ByteCodeInterpreter::newOperation(ExecutionState& state, const Value& callee, size_t argc, Value* argv)
+NEVER_INLINE Object* ByteCodeInterpreter::newOperation(ExecutionState& state, const Value& callee, size_t argc, NULLABLE Value* argv)
 {
-    if (LIKELY(callee.isFunction())) {
-        return callee.asFunction()->newInstance(state, argc, argv);
+    if (callee.isConstructor() == false) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor);
     }
-
-#if ESCARGOT_ENABLE_PROXY_REFLECT
-    if (callee.isObject() && callee.asObject()->isProxyObject() && callee.asPointerValue()->asProxyObject()->isConstructor()) {
-        return callee.asPointerValue()->asProxyObject()->construct(state, argc, argv);
-    }
-#endif
-
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
-    return nullptr;
+    return FunctionObject::construct(state, callee, argc, argv);
 }
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-instanceofoperator

@@ -82,7 +82,7 @@ static Value builtinArrayBufferByteSlice(ExecutionState& state, Value thisValue,
         if (!constructor.isFunction())
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: constructor of ArrayBuffer is not a function");
         Value arguments[] = { Value(newLen) };
-        Value newValue = ByteCodeInterpreter::newOperation(state, constructor, 1, arguments);
+        Value newValue = FunctionObject::construct(state, constructor, 1, arguments);
 
         if (!newValue.isObject() || !newValue.asObject()->isArrayBufferObject()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
@@ -162,7 +162,7 @@ static Value TypedArrayFrom(ExecutionState& state, const Value& constructor, con
 
         // FIXME Let targetObj be AllocateTypedArray(C, len).
         Value arg[1] = { Value(len) };
-        Value targetObj = ByteCodeInterpreter::newOperation(state, C, 1, arg);
+        Value targetObj = FunctionObject::construct(state, C, 1, arg);
 
         // Let k be 0.
         size_t k = 0;
@@ -194,7 +194,7 @@ static Value TypedArrayFrom(ExecutionState& state, const Value& constructor, con
 
     // FIXME Let targetObj be AllocateTypedArray(C, len).
     Value arg[1] = { Value(len) };
-    Value targetObj = ByteCodeInterpreter::newOperation(state, C, 1, arg);
+    Value targetObj = FunctionObject::construct(state, C, 1, arg);
 
     // Let k be 0.
     size_t k = 0;
@@ -306,7 +306,7 @@ static Value builtinTypedArrayOf(ExecutionState& state, Value thisValue, size_t 
 
     // FIXME AllocateTypedArray(C, len)
     Value arg[1] = { Value(len) };
-    Value newObj = ByteCodeInterpreter::newOperation(state, C, 1, arg);
+    Value newObj = FunctionObject::construct(state, C, 1, arg);
 
     size_t k = 0;
     while (k < len) {
@@ -445,7 +445,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
                 Value bufferConstructor = srcData->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
                 // FIXME Let data be AllocateArrayBuffer(bufferConstructor, byteLength).
                 Value arg[1] = { Value(byteLength) };
-                data = ByteCodeInterpreter::newOperation(state, bufferConstructor, 1, arg)->asArrayBufferObject();
+                data = FunctionObject::construct(state, bufferConstructor, 1, arg)->asArrayBufferObject();
 
                 // Let srcByteIndex be srcByteOffset.
                 unsigned srcByteIndex = srcByteOffset;
@@ -904,10 +904,10 @@ static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, s
     // Let argumentsList be «buffer, beginByteOffset, newLength».
     Value args[3] = { buffer, Value(beginByteOffset), Value(newLength) };
     // Return Construct(constructor, argumentsList).
-    return ByteCodeInterpreter::newOperation(state, constructor, 3, args);
+    return FunctionObject::construct(state, constructor, 3, args);
 }
 
-static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size_t argc, NULLABLE Value* argv, bool isNewExpression)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, every);
@@ -1039,7 +1039,7 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
 
     // FIXME Let A be AllocateTypedArray(C, captured).
     Value arg[1] = { Value(captured) };
-    Value A = ByteCodeInterpreter::newOperation(state, C, 1, arg);
+    Value A = FunctionObject::construct(state, C, 1, arg);
 
     // Let n be 0.
     size_t n = 0;
@@ -1260,7 +1260,7 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
 
     // FIXME Let A be AllocateTypedArray(C, len).
     Value arg[1] = { Value(len) };
-    Value A = ByteCodeInterpreter::newOperation(state, C, 1, arg);
+    Value A = FunctionObject::construct(state, C, 1, arg);
 
     // Let k be 0.
     size_t k = 0;
@@ -1432,7 +1432,7 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
     Value C = O->speciesConstructor(state, defaultConstructor);
     // FIXME Let A be AllocateTypedArray(C, count).
     Value arg[1] = { Value(count) };
-    Value A = ByteCodeInterpreter::newOperation(state, C, 1, arg);
+    Value A = FunctionObject::construct(state, C, 1, arg);
 
     // If SameValue(srcType, targetType) is false, then
     if (O->asArrayBufferView()->typedArrayType() != A.asObject()->asArrayBufferView()->typedArrayType()) {

@@ -772,7 +772,7 @@ bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyN
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-call-thisargument-argumentslist
-Value ProxyObject::call(ExecutionState& state, const Value& callee, const Value& receiver, const size_t argc, Value* argv)
+Value ProxyObject::call(ExecutionState& state, const Value& receiver, const size_t argc, NULLABLE Value* argv)
 {
     auto strings = &state.context()->staticStrings();
     // 2. If handler is null, throw a TypeError exception.
@@ -812,9 +812,8 @@ Value ProxyObject::call(ExecutionState& state, const Value& callee, const Value&
     return FunctionObject::call(state, trap, handler, 3, arguments);
 }
 
-// FIXME newTarget is missing [[Construct]] ( argumentsList, newTarget)
 // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-construct-argumentslist-newtarget
-Object* ProxyObject::construct(ExecutionState& state, const size_t argc, Value* argv)
+Object* ProxyObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, const Value& newTarget)
 {
     auto strings = &state.context()->staticStrings();
     // 2. If handler is null, throw a TypeError exception.
@@ -840,10 +839,9 @@ Object* ProxyObject::construct(ExecutionState& state, const size_t argc, Value* 
     // 7. If trap is undefined, then
     // a. Assert: target has a [[Construct]] internal method.
     // b. Return Construct(target, argumentsList, newTarget).
-    if (trap.isUndefined()) {
-        ASSERT(target.isConstructor());
-        // FIXME Construct (F, [argumentsList], [newTarget])
-        return ByteCodeInterpreter::newOperation(state, target, argc, argv);
+    if (trap.isUndefined() == true) {
+        ASSERT(target.isConstructor() == true);
+        return FunctionObject::construct(state, target, argc, argv, newTarget);
     }
 
     // 8. Let argArray be CreateArrayFromList(argumentsList).
@@ -853,8 +851,8 @@ Object* ProxyObject::construct(ExecutionState& state, const size_t argc, Value* 
     }
 
     // 9. Let newObj be Call(trap, handler, «target, argArray, newTarget »).
-    Value arguments[] = { target, Value(argArray) };
-    Value newObj = FunctionObject::call(state, trap, handler, 2, arguments);
+    Value arguments[] = { target, Value(argArray), newTarget };
+    Value newObj = FunctionObject::call(state, trap, handler, 3, arguments);
 
     // 11. If Type(newObj) is not Object, throw a TypeError exception.
     if (!newObj.isObject()) {

@@ -271,57 +271,52 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
     currentCodeSizeTotal += m_codeBlock->m_byteCodeBlock->memoryAllocatedSize();
 }
 
-Value FunctionObject::callSlowCase(ExecutionState& state, const Value& callee, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression)
+// https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-construct-argumentslist-newtarget
+Object* FunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, const Value& newTarget)
 {
-    if (LIKELY(callee.isObject())) {
-        if (LIKELY(callee.asPointerValue()->isFunctionObject()))
-            return callee.asFunction()->processCall(state, receiver, argc, argv, isNewExpression);
-#if ESCARGOT_ENABLE_PROXY_REFLECT
-        else if (callee.asPointerValue()->isProxyObject() && callee.asPointerValue()->isCallable())
-            return callee.asPointerValue()->asProxyObject()->call(state, callee, receiver, argc, argv);
-#endif
-    }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
-    return Value();
-}
-
-Object* FunctionObject::newInstance(ExecutionState& state, const size_t argc, Value* argv)
-{
+    // FIXME: binded function
+    // FIXME: newTarget
     CodeBlock* cb = codeBlock();
-    FunctionObject* targetFunction = this;
+    FunctionObject* constructor = this;
 
-    if (UNLIKELY(cb->isBindedFunction())) {
+    if (UNLIKELY(cb->isBindedFunction() == true)) {
         // for nested bind function
-        while (cb->isBindedFunction()) {
-            targetFunction = Value(cb->boundFunctionInfo()->m_boundTargetFunction).asFunction();
-            cb = targetFunction->codeBlock();
+        while (cb->isBindedFunction() == true) {
+            constructor = Value(cb->boundFunctionInfo()->m_boundTargetFunction).asFunction();
+            cb = constructor->codeBlock();
         }
     }
 
-    if (UNLIKELY(!cb->isConstructor())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, codeBlock()->functionName().string(), false, String::emptyString, errorMessage_New_NotConstructor);
-    }
+    // Assert: Type(newTarget) is Object.
+    ASSERT(newTarget.isObject() == true);
+    ASSERT(newTarget.isConstructor() == true);
+    // Let kind be F’s [[ConstructorKind]] internal slot.
+    ConstructorKind kind = constructorKind();
+    Object* thisArgument;
 
-    Object* receiver;
-    if (cb->hasCallNativeFunctionCode()) {
-        receiver = cb->nativeFunctionData()->m_ctorFn(state, cb, argc, argv);
+    if (cb->hasCallNativeFunctionCode() == true) {
+        thisArgument = cb->nativeFunctionData()->m_ctorFn(state, cb, argc, argv);
+        // FIXME: If kind is "base", then
     } else {
-        receiver = new Object(state);
+        // FIXME: Let thisArgument be OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").
+        thisArgument = new Object(state);
     }
 
-    if (targetFunction->getFunctionPrototype(state).isObject())
-        receiver->setPrototype(state, targetFunction->getFunctionPrototype(state));
-    else
-        receiver->setPrototype(state, new Object(state));
+    if (constructor->getFunctionPrototype(state).isObject() == true) {
+        thisArgument->setPrototype(state, constructor->getFunctionPrototype(state));
+    } else {
+        thisArgument->setPrototype(state, new Object(state));
+    }
 
-    Value res = processCall(state, receiver, argc, argv, true);
-    if (res.isObject())
-        return res.asObject();
-    else
-        return receiver;
+    Value result = processCall(state, thisArgument, argc, argv, true);
+    if (result.isObject() == true) {
+        return result.asObject();
+    }
+
+    return thisArgument;
 }
 
-Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, Value* argv, bool isNewExpression)
+Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, NULLABLE Value* argv, bool isNewExpression)
 {
     volatile int sp;
     size_t currentStackBase = (size_t)&sp;
@@ -342,8 +337,8 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Class constructor cannot be invoked without 'new'");
     }
 
-    if (UNLIKELY(isSuperCall && isBuiltin() && !isNewExpression)) {
-        Value returnValue = newInstance(state, argc, argv);
+    if (UNLIKELY(isSuperCall == true && isBuiltin() == true && isNewExpression == false)) {
+        Value returnValue = FunctionObject::construct(state, this, argc, argv);
         returnValue.asObject()->setPrototype(state, receiverSrc.toObject(state)->getPrototype(state));
         return returnValue;
     }

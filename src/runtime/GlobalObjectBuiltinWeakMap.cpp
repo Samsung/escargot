@@ -50,8 +50,8 @@ Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, size_t a
         // Let adder be ? Get(map, "set").
         adder = map->Object::get(state, ObjectPropertyName(state.context()->staticStrings().set)).value(state, map);
         // If IsCallable(adder) is false, throw a TypeError exception.
-        if (!adder.isFunction()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Call_NotFunction);
+        if (adder.isFunction() == false) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
         }
         // Let iter be ? GetIterator(iterable).
         iter = getIterator(state, iterable);

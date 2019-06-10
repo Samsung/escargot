@@ -648,8 +648,6 @@ public:
 
     bool isConstructor();
     ValueRef* call(ExecutionStateRef* state, ValueRef* receiver, const size_t argc, ValueRef** argv);
-    // ECMAScript new operation
-    ObjectRef* newInstance(ExecutionStateRef* state, const size_t argc, ValueRef** argv);
 
     void markFunctionNeedsSlowVirtualIdentifierOperation();
 };

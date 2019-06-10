@@ -109,9 +109,9 @@ public:
 
     virtual bool isExtensible(ExecutionState&) override;
 
-    Value call(ExecutionState& state, const Value& callee, const Value& receiver, const size_t argc, Value* argv);
+    virtual Value call(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv) override;
 
-    Object* construct(ExecutionState& state, const size_t argc, Value* argv);
+    virtual Object* construct(ExecutionState& state, const size_t argc, Value* argv, const Value& newTarget) override;
 
     void setTarget(Object* target)
     {

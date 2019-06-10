@@ -587,6 +587,15 @@ public:
 
     bool isConcatSpreadable(ExecutionState& state);
 
+    virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, const Value& newTarget)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-isextensiblie
 #if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual bool isExtensible(ExecutionState&)

@@ -243,7 +243,7 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
 
     // Let splitter be Construct(C, <<rx, newFlags>>).
     Value params[2] = { rx->asRegExpObject(state)->source(), newFlags };
-    RegExpObject* splitter = C.asFunction()->newInstance(state, 2, params)->asRegExpObject(state);
+    RegExpObject* splitter = FunctionObject::construct(state, C, 2, params)->asRegExpObject(state);
 
     // Let A be ArrayCreate(0).
     ArrayObject* A = new ArrayObject(state);

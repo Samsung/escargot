@@ -171,20 +171,41 @@ public:
         return FunctionKind::Normal;
     }
 
-    Value call(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv)
-    {
-        return processCall(state, receiver, argc, argv, false);
-    }
-    // ECMAScript new operation
-    Object* newInstance(ExecutionState& state, const size_t argc, Value* argv);
+    // FIXME : switch to private member function
+    Value processCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression);
 
-    ALWAYS_INLINE static Value call(ExecutionState& state, const Value& callee, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression = false)
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
+    virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override
     {
-        if (LIKELY(callee.isObject() && callee.asPointerValue()->hasTag(g_functionObjectTag))) {
-            return callee.asFunction()->processCall(state, receiver, argc, argv, isNewExpression);
-        } else {
-            return callSlowCase(state, callee, receiver, argc, argv, isNewExpression);
+        return processCall(state, thisValue, argc, argv, false);
+    }
+
+    virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, const Value& newTarget) override;
+
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-call
+    ALWAYS_INLINE static Value call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
+    {
+        // If IsCallable(F) is false, throw a TypeError exception.
+        if (callee.isCallable() == false) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
         }
+        // Return F.[[Call]](V, argumentsList).
+        return callee.asObject()->call(state, thisValue, argc, argv);
+    }
+
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-construct
+    ALWAYS_INLINE static Object* construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Value newTarget = Value(Value::EmptyValue))
+    {
+        // If newTarget was not passed, let newTarget be F.
+        if (newTarget.isEmpty() == true) {
+            newTarget = constructor;
+        }
+        // Assert: IsConstructor (F) is true.
+        ASSERT(constructor.isConstructor() == true);
+        // Assert: IsConstructor (newTarget) is true.
+        ASSERT(newTarget.isConstructor() == true);
+        // Return F.[[Construct]](argumentsList, newTarget).
+        return constructor.asObject()->construct(state, argc, argv, newTarget);
     }
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
@@ -219,8 +240,6 @@ private:
         return true;
     }
 
-    Value processCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression);
-    static Value callSlowCase(ExecutionState& state, const Value& callee, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression);
     void generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage);
     void generateBytecodeBlock(ExecutionState& state);
     CodeBlock* m_codeBlock;

@@ -178,7 +178,8 @@ static Value functionBindImpl(ExecutionState& state, Value thisValue, size_t cal
 
     FunctionObject* targetFunction = Value(code->m_boundTargetFunction).asFunction();
     Value receiver = isNewExpression ? thisValue : Value(code->m_boundThis);
-    return FunctionObject::call(state, targetFunction, receiver, mergedArgc, mergedArgv, isNewExpression);
+    // FIXME
+    return targetFunction->processCall(state, receiver, mergedArgc, mergedArgv, isNewExpression);
 }
 
 CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv)

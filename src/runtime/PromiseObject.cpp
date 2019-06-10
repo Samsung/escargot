@@ -90,7 +90,7 @@ PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& 
     Object* internalSlot = executor->ensureInternalSlot(state);
 
     Value arguments[] = { executor };
-    Value promise = ByteCodeInterpreter::newOperation(state, constructor, 1, arguments);
+    Value promise = FunctionObject::construct(state, constructor, 1, arguments);
     ASSERT(internalSlot == executor->internalSlot());
 
     Value resolveFunction = internalSlot->get(state, strings->resolve).value(state, internalSlot);

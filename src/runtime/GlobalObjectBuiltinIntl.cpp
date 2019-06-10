@@ -485,7 +485,7 @@ static ValueVector canonicalizeLocaleList(ExecutionState& state, Value locales)
         // Let locales be a new array created as if
         // by the expression new Array(locales) where Array is the standard built-in constructor with that name and locales is the value of locales.
         Value callArg[] = { locales };
-        locales = state.context()->globalObject()->array()->newInstance(state, 1, callArg);
+        locales = FunctionObject::construct(state, state.context()->globalObject()->array(), 1, callArg);
     }
     // Let O be ToObject(locales).
     Object* O = locales.toObject(state);
