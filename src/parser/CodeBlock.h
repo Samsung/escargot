@@ -199,6 +199,11 @@ public:
         return m_isClassConstructor;
     }
 
+    bool isGenerator() const
+    {
+        return m_isGenerator;
+    }
+
     bool needToLoadThisValue() const
     {
         return m_needToLoadThisValue;
@@ -323,6 +328,7 @@ protected:
     bool m_isFunctionDeclarationWithSpecialBinding : 1;
     bool m_isArrowFunctionExpression : 1;
     bool m_isClassConstructor : 1;
+    bool m_isGenerator : 1;
     bool m_isInWithScope : 1;
     bool m_isEvalCodeInFunction : 1;
     bool m_isBindedFunction : 1;

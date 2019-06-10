@@ -54,6 +54,7 @@ class MapObject;
 class SetObject;
 class WeakMapObject;
 class WeakSetObject;
+class GeneratorObject;
 
 #define POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA 0x3
 // finding what is type of PointerValue operation is used in SmallValue <-> Value and interpreter
@@ -230,6 +231,11 @@ public:
         return false;
     }
 
+    virtual bool isGeneratorObject() const
+    {
+        return false;
+    }
+
     virtual bool isCallable() const
     {
         return false;
@@ -398,6 +404,12 @@ public:
     {
         ASSERT(isWeakSetObject());
         return (WeakSetObject*)this;
+    }
+
+    GeneratorObject* asGeneratorObject()
+    {
+        ASSERT(isGeneratorObject() == true);
+        return (GeneratorObject*)this;
     }
 
     bool hasTag(const size_t tag) const

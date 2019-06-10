@@ -119,6 +119,9 @@ class Node;
     F(CallEvalFunction, 0, 0)                         \
     F(CallFunctionInWithScope, 0, 0)                  \
     F(BindingRestElement, 1, 0)                       \
+    F(GeneratorComplete, 0, 0)                        \
+    F(Yield, 0, 0)                                    \
+    F(YieldDelegate, 1, 0)                            \
     F(End, 0, 0)
 
 enum Opcode {
@@ -1470,6 +1473,68 @@ public:
 #endif
 };
 
+class GeneratorComplete : public ByteCode {
+public:
+    GeneratorComplete(const ByteCodeLOC& loc, bool isThrow = false)
+        : ByteCode(Opcode::GeneratorCompleteOpcode, loc)
+        , m_isThrow(isThrow)
+    {
+    }
+
+    bool m_isThrow;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("generator complete");
+    }
+#endif
+};
+
+class Yield : public ByteCode {
+public:
+    Yield(const ByteCodeLOC& loc, const size_t yieldIdx, const size_t dstIdx)
+        : ByteCode(Opcode::YieldOpcode, loc)
+        , m_yieldIdx(yieldIdx)
+        , m_dstIdx(dstIdx)
+    {
+    }
+
+    ByteCodeRegisterIndex m_yieldIdx;
+    ByteCodeRegisterIndex m_dstIdx;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("r%d <- yield r%d", m_dstIdx, m_yieldIdx);
+    }
+#endif
+};
+
+class YieldDelegate : public ByteCode {
+public:
+    YieldDelegate(const ByteCodeLOC& loc, const size_t iterIdx, const size_t valueIdx, const size_t dstIdx)
+        : ByteCode(Opcode::YieldDelegateOpcode, loc)
+        , m_iterIdx(iterIdx)
+        , m_valueIdx(valueIdx)
+        , m_dstIdx(dstIdx)
+        , m_endPosition(SIZE_MAX)
+    {
+    }
+
+    ByteCodeRegisterIndex m_iterIdx;
+    ByteCodeRegisterIndex m_valueIdx;
+    ByteCodeRegisterIndex m_dstIdx;
+    size_t m_endPosition;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("r%d r%d <- yield* r%d", m_valueIdx, m_dstIdx, m_iterIdx);
+    }
+#endif
+};
+
 class NewOperation : public ByteCode {
 public:
     NewOperation(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount, const size_t resultIndex)
@@ -1770,6 +1835,7 @@ public:
         , m_forOfEndPosition(SIZE_MAX)
     {
     }
+
     ByteCodeRegisterIndex m_registerIndex;
     ByteCodeRegisterIndex m_iterRegisterIndex;
     size_t m_forOfEndPosition;

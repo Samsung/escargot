@@ -3458,11 +3458,11 @@ public:
         RefPtr<Node> exprNode;
         ScanExpressionResult expr;
 
-        if (!this->context->allowYield && this->matchKeyword(YieldKeyword)) {
-            if (isParse) {
-                exprNode = this->parseYieldExpression();
+        if (this->context->allowYield == false && this->matchKeyword(YieldKeyword) == true) {
+            if (isParse == true) {
+                exprNode = this->yieldExpression<ParseAs(YieldExpressionNode)>();
             } else {
-                expr = this->scanYieldExpression();
+                expr = this->yieldExpression<Scan>();
             }
         } else {
             ALLOC_TOKEN(startToken);
@@ -5681,86 +5681,65 @@ public:
         return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(options.params), method.get(), popScopeContext(node), isGenerator));
     }
 
-    FunctionExpressionNode* parseGeneratorMethod()
+    PassRefPtr<FunctionExpressionNode> parseGeneratorMethod()
     {
-        // TODO
-        ALLOC_TOKEN(token);
-        this->nextToken(token);
-        this->throwUnexpectedToken(token);
-        RELEASE_ASSERT_NOT_REACHED();
-        /*
         MetaNode node = this->createNode();
-        const isGenerator = true;
-        const previousAllowYield = this->context.allowYield;
+        const bool previousAllowYield = this->context->allowYield;
+        this->expect(LeftParenthesis);
 
-        this->context.allowYield = true;
-        const params = this->parseFormalParameters();
-        this->context.allowYield = false;
-        const method = this->parsePropertyMethod(params);
-        this->context.allowYield = previousAllowYield;
+        pushScopeContext(AtomicString());
+        this->context->allowYield = true;
+        ParseFormalParametersResult formalParameters = this->parseFormalParameters();
+        this->context->allowYield = false;
+        // Note: Change it to parsePropertyMethod, if possible
+        RefPtr<Node> method = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
+        this->context->allowYield = previousAllowYield;
 
-        return this->finalize(node, new Node.FunctionExpression(null, params.params, method, isGenerator));
-        */
+        extractNamesFromFunctionParams(formalParameters.params);
+        scopeContexts.back()->m_paramsStart.index = node.index;
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(formalParameters.params), method.get(), popScopeContext(node), true));
     }
 
     // ECMA-262 14.4 Generator Function Definitions
 
-    Node* parseYieldExpression()
+    template <typename T, bool isParse>
+    T yieldExpression()
     {
-        this->throwError("yield keyword is not supported yet");
-        RELEASE_ASSERT_NOT_REACHED();
-        /*
-        const node = this->createNode();
-        this->expectKeyword('yield');
+        MetaNode node = this->createNode();
+        this->expectKeyword(YieldKeyword);
 
-        let argument = null;
-        let delegate = false;
-        if (!this->hasLineTerminator) {
-            const previousAllowYield = this->context.allowYield;
-            this->context.allowYield = false;
-            delegate = this->match('*');
-            if (delegate) {
+        RefPtr<Node> exprNode;
+        bool delegate = false;
+
+        if (this->hasLineTerminator == false) {
+            const bool previousAllowYield = this->context->allowYield;
+            this->context->allowYield = false;
+            delegate = this->match(Multiply);
+
+            if (delegate == true) {
                 this->nextToken();
-                argument = this->assignmentExpression<Parse>();
+                if (isParse == true) {
+                    exprNode = this->assignmentExpression<Parse>();
+                } else {
+                    this->assignmentExpression<Scan>();
+                }
             } else {
-                if (!this->match(';') && !this->match('}') && !this->match(')') && this->lookahead.type !== Token.EOF) {
-                    argument = this->assignmentExpression<Parse>();
+                if (this->match(SemiColon) == false && this->match(RightBrace) == false && this->match(RightParenthesis) == false && this->lookahead.type != Token::EOFToken) {
+                    if (isParse == true) {
+                        exprNode = this->assignmentExpression<Parse>();
+                    } else {
+                        this->assignmentExpression<Scan>();
+                    }
                 }
             }
-            this->context.allowYield = previousAllowYield;
+            this->context->allowYield = previousAllowYield;
         }
 
-        return this->finalize(node, new Node.YieldExpression(argument, delegate));
-        */
-    }
-
-    ScanExpressionResult scanYieldExpression()
-    {
-        this->throwError("yield keyword is not supported yet");
-        RELEASE_ASSERT_NOT_REACHED();
-        /*
-        const node = this->createNode();
-        this->expectKeyword('yield');
-
-        let argument = null;
-        let delegate = false;
-        if (!this->hasLineTerminator) {
-            const previousAllowYield = this->context.allowYield;
-            this->context.allowYield = false;
-            delegate = this->match('*');
-            if (delegate) {
-                this->nextToken();
-                argument = this->assignmentExpression<Parse>();
-            } else {
-                if (!this->match(';') && !this->match('}') && !this->match(')') && this->lookahead.type !== Token.EOF) {
-                    argument = this->assignmentExpression<Parse>();
-                }
-            }
-            this->context.allowYield = previousAllowYield;
+        if (isParse == true) {
+            return this->finalize(node, new YieldExpressionNode(exprNode, delegate));
         }
 
-        return this->finalize(node, new Node.YieldExpression(argument, delegate));
-        */
+        return ScanExpressionResult(ASTNodeType::YieldExpression);
     }
 
     // ECMA-262 14.5 Class Definitions
@@ -5809,7 +5788,7 @@ public:
                 key = this->parseObjectPropertyKey();
                 value = this->parseSetterMethod();
             }
-        } else if (lookaheadPropertyKey && token->type == Token::PunctuatorToken && *token->valueStringLiteral() == "*") {
+        } else if (lookaheadPropertyKey == true && token->type == Token::PunctuatorToken && token->valuePunctuatorKind == Multiply) {
             kind = ClassElementNode::Kind::Method;
             computed = this->match(LeftSquareBracket);
             key = this->parseObjectPropertyKey();
@@ -6181,6 +6160,7 @@ std::tuple<RefPtr<Node>, ASTScopeContext*> parseSingleFunction(::Escargot::Conte
     parser.config.reparseArguments = codeBlock->shouldReparseArguments();
     auto sc = new ASTScopeContext(codeBlock->isStrict());
     parser.pushScopeContext(sc);
+    parser.context->allowYield = codeBlock->isGenerator() == false;
     RefPtr<Node> nd;
     if (codeBlock->isArrowFunctionExpression()) {
         nd = parser.parseArrowFunctionSourceElements();

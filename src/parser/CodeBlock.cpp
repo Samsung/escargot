@@ -107,6 +107,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_isFunctionDeclarationWithSpecialBinding(false)
     , m_isArrowFunctionExpression(false)
     , m_isClassConstructor(false)
+    , m_isGenerator(false)
     , m_isInWithScope(false)
     , m_isEvalCodeInFunction(false)
     , m_isBindedFunction(false)
@@ -145,6 +146,7 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_isFunctionDeclarationWithSpecialBinding(false)
     , m_isArrowFunctionExpression(false)
     , m_isClassConstructor(false)
+    , m_isGenerator(false)
     , m_isInWithScope(false)
     , m_isEvalCodeInFunction(false)
     , m_isBindedFunction(false)
@@ -201,6 +203,7 @@ CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Valu
     , m_isFunctionDeclarationWithSpecialBinding(false)
     , m_isArrowFunctionExpression(false)
     , m_isClassConstructor(false)
+    , m_isGenerator(false)
     , m_isInWithScope(false)
     , m_isEvalCodeInFunction(false)
     , m_isBindedFunction(true)
@@ -258,6 +261,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isArrowFunctionExpression = false;
     m_isStrict = scopeCtx->m_isStrict;
     m_isClassConstructor = scopeCtx->m_isClassConstructor;
+    m_isGenerator = scopeCtx->m_isGenerator;
 
     m_hasEval = scopeCtx->m_hasEval;
     m_hasWith = scopeCtx->m_hasWith;
@@ -334,6 +338,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isArrowFunctionExpression = scopeCtx->m_isArrowFunctionExpression;
     m_isConstructor = !scopeCtx->m_isArrowFunctionExpression;
     m_isClassConstructor = scopeCtx->m_isClassConstructor;
+    m_isGenerator = scopeCtx->m_isGenerator;
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;
     m_needsComplexParameterCopy = false;
@@ -351,7 +356,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
         m_parametersInfomation[i].m_isDuplicated = false;
     }
 
-    m_canUseIndexedVariableStorage = !hasEvalWithYield() && !m_inCatch && !m_inWith && !scopeCtx->m_hasArrowSuper && !m_shouldReparseArguments;
+    m_canUseIndexedVariableStorage = !hasEvalWithYield() && !m_inCatch && !m_inWith && !scopeCtx->m_hasArrowSuper && !m_shouldReparseArguments && !m_isGenerator;
     m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage;
 
     const ASTScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_names;

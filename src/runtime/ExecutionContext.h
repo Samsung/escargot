@@ -35,10 +35,11 @@ class ExecutionContext : public gc {
 
 public:
     ExecutionContext(Context* context, ExecutionContext* parent = nullptr, LexicalEnvironment* lexicalEnvironment = nullptr, bool inStrictMode = false)
-        : m_inStrictMode(inStrictMode)
-        , m_context(context)
+        : m_context(context)
         , m_parent(parent)
         , m_lexicalEnvironment(lexicalEnvironment)
+        , m_generatorTarget(nullptr)
+        , m_inStrictMode(inStrictMode)
         , m_onGoingClassConstruction(false)
         , m_onGoingSuperCall(false)
     {
@@ -59,6 +60,11 @@ public:
         return m_lexicalEnvironment;
     }
 
+    Object* generatorTarget()
+    {
+        return m_generatorTarget;
+    }
+
     bool inStrictMode()
     {
         return m_inStrictMode;
@@ -72,6 +78,12 @@ public:
     bool isOnGoingSuperCall()
     {
         return m_onGoingSuperCall;
+    }
+
+    void setGeneratorTarget(Object* target)
+    {
+        ASSERT(target != nullptr);
+        m_generatorTarget = target;
     }
 
     void setOnGoingClassConstruction(bool startClassConstruction)
@@ -91,10 +103,11 @@ public:
     Value getSuperConstructor(ExecutionState& state);
 
 private:
-    bool m_inStrictMode : 1;
     Context* m_context;
     ExecutionContext* m_parent;
     LexicalEnvironment* m_lexicalEnvironment;
+    Object* m_generatorTarget;
+    bool m_inStrictMode : 1;
     bool m_onGoingClassConstruction : 1;
     bool m_onGoingSuperCall : 1;
 };

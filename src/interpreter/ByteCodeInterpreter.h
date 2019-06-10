@@ -89,6 +89,7 @@ public:
     static bool binaryInOperation(ExecutionState& state, const Value& left, const Value& right);
     static Value callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, ExecutionContext* ec, LexicalEnvironment* env, Value* argv);
     static void spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector);
+    static Value yieldDelegateOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer);
 
     static void declareFunctionDeclarations(ExecutionState& state, DeclareFunctionDeclarations* code, LexicalEnvironment* lexicalEnvironment, Value* stackStorage);
     static void defineObjectGetter(ExecutionState& state, ObjectDefineGetter* code, Value* registerFile);

@@ -95,6 +95,11 @@ public:
         return m_codeBlock->isClassConstructor();
     }
 
+    bool isGenerator()
+    {
+        return m_codeBlock->isGenerator();
+    }
+
     bool isBuiltin()
     {
         return m_isBuiltin;
@@ -157,14 +162,11 @@ public:
 
     FunctionKind functionKind()
     {
-        if (isClassConstructor()) {
+        if (isClassConstructor() == true) {
             return FunctionKind::ClassConstructor;
-        }
-        /* TODO:
-        else if (isGenerator()) {
+        } else if (isGenerator() == true) {
             return FunctionKind::Generator;
         }
-        */
 
         return FunctionKind::Normal;
     }
