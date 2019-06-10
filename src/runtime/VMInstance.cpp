@@ -311,11 +311,24 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
     m_defaultStructureForNotConstructorFunctionObjectInStrictMode = m_defaultStructureForNotConstructorFunctionObjectInStrictMode->addProperty(stateForInit, m_staticStrings.arguments,
                                                                                                                                                ObjectStructurePropertyDescriptor::createAccessorDescriptor(ObjectStructurePropertyDescriptor::WritablePresent));
 
-    m_defaultStructureForBindedFunctionObject = m_defaultStructureForNotConstructorFunctionObject->addProperty(stateForInit, m_staticStrings.caller,
-                                                                                                               ObjectStructurePropertyDescriptor::createAccessorDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
+#ifndef ESCARGOT_ENABLE_ES2015
+    m_defaultStructureForBoundFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length,
+                                                                                        ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
+#else
+    m_defaultStructureForBoundFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length,
+                                                                                        ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
+#endif
 
-    m_defaultStructureForBindedFunctionObject = m_defaultStructureForBindedFunctionObject->addProperty(stateForInit, m_staticStrings.arguments,
-                                                                                                       ObjectStructurePropertyDescriptor::createAccessorDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
+    m_defaultStructureForBoundFunctionObject = m_defaultStructureForBoundFunctionObject->addProperty(stateForInit, m_staticStrings.name,
+                                                                                                     ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
+
+#ifndef ESCARGOT_ENABLE_ES2015
+    m_defaultStructureForBoundFunctionObject = m_defaultStructureForBoundFunctionObject->addProperty(stateForInit, m_staticStrings.caller,
+                                                                                                     ObjectStructurePropertyDescriptor::createAccessorDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
+
+    m_defaultStructureForBoundFunctionObject = m_defaultStructureForBoundFunctionObject->addProperty(stateForInit, m_staticStrings.arguments,
+                                                                                                     ObjectStructurePropertyDescriptor::createAccessorDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
+#endif
 
     m_defaultStructureForFunctionPrototypeObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.constructor,
                                                                                             ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));

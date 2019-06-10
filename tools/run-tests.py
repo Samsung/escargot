@@ -396,7 +396,7 @@ def run_es2015(engine, arch):
     print('Running es2015 test:')
     files = glob(join(ES2015_DIR, '*.js'))
     files.remove(ES2015_ASSERT_JS)
-    fails = 0
+    fail_total = 0
     for file in files:
         proc = Popen([engine, ES2015_ASSERT_JS, file], stdout=PIPE)
         out, _ = proc.communicate()
@@ -406,9 +406,14 @@ def run_es2015(engine, arch):
         else:
             print('%sFAIL(%d): %s%s' % (COLOR_RED, proc.returncode, file, COLOR_RESET))
             print(out)
-            fails += 1
+            fail_total += 1
 
-    if fails > 0:
+    tests_total = len(files)
+    print('TOTAL: %d' % (tests_total))
+    print('%sPASS : %d%s' % (COLOR_GREEN, tests_total - fail_total, COLOR_RESET))
+    print('%sFAIL : %d%s' % (COLOR_RED, fail_total, COLOR_RESET))
+
+    if fail_total > 0:
         raise Exception('ES2015 tests failed')
 
 @runner('intl', default=True)

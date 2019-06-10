@@ -118,14 +118,6 @@ public:
     virtual bool isConstructor() const override
     {
         CodeBlock* cb = m_codeBlock;
-
-        if (UNLIKELY(cb->isBindedFunction())) {
-            // for nested bind function
-            while (cb->isBindedFunction()) {
-                cb = Value(cb->boundFunctionInfo()->m_boundTargetFunction).asFunction()->codeBlock();
-            }
-        }
-
         return cb->isConstructor();
     }
 
@@ -171,9 +163,6 @@ public:
         return FunctionKind::Normal;
     }
 
-    // FIXME : switch to private member function
-    Value processCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression);
-
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override
     {
@@ -214,8 +203,6 @@ public:
         return "Function";
     }
 
-    bool hasInstance(ExecutionState& state, const Value& O);
-
     void setHomeObject(Object* homeObject)
     {
         m_homeObject = homeObject;
@@ -240,6 +227,7 @@ private:
         return true;
     }
 
+    Value processCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression);
     void generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage);
     void generateBytecodeBlock(ExecutionState& state);
     CodeBlock* m_codeBlock;

@@ -25,6 +25,7 @@
 #include "parser/esprima_cpp/esprima.h"
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
+#include "runtime/BoundFunctionObject.h"
 #include "interpreter/ByteCode.h"
 #include "parser/ast/ProgramNode.h"
 
@@ -118,44 +119,54 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     return new FunctionObject(state, cb, globalEnvironment);
 }
 
+// https://www.ecma-international.org/ecma-262/6.0/#sec-function.prototype.tostring
 static Value builtinFunctionToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    if (!thisValue.isFunction())
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
+    if (thisValue.isFunction() == true) {
+        FunctionObject* fn = thisValue.asFunction();
+        StringBuilder builder;
+        builder.appendString("function ");
+        builder.appendString(fn->codeBlock()->functionName().string());
+        builder.appendString("(");
 
-    FunctionObject* fn = thisValue.asFunction();
-    StringBuilder builder;
-    builder.appendString("function ");
-    builder.appendString(fn->codeBlock()->functionName().string());
-    builder.appendString("(");
-
-    if (fn->codeBlock()->isInterpretedCodeBlock()) {
-        for (size_t i = 0; i < fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation().size(); i++) {
-            builder.appendString(fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation()[i].m_name.string());
-            if (i < (fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation().size() - 1)) {
-                builder.appendString(", ");
+        if (fn->codeBlock()->isInterpretedCodeBlock() == true) {
+            for (size_t i = 0; i < fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation().size(); i++) {
+                builder.appendString(fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation()[i].m_name.string());
+                if (i < (fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation().size() - 1)) {
+                    builder.appendString(", ");
+                }
             }
         }
-    }
 
-    builder.appendString(") ");
-    if (fn->codeBlock()->isInterpretedCodeBlock() && fn->codeBlock()->asInterpretedCodeBlock()->script()) {
-        StringView src = fn->codeBlock()->asInterpretedCodeBlock()->src();
-        while (src[src.length() - 1] != '}') {
-            src = StringView(src, 0, src.length() - 1);
+        builder.appendString(") ");
+        if (fn->codeBlock()->isInterpretedCodeBlock() == true && fn->codeBlock()->asInterpretedCodeBlock()->script() != nullptr) {
+            StringView src = fn->codeBlock()->asInterpretedCodeBlock()->src();
+            while (src[src.length() - 1] != '}') {
+                src = StringView(src, 0, src.length() - 1);
+            }
+            builder.appendString(new StringView(src));
+        } else {
+            builder.appendString("{ [native code] }");
         }
-        builder.appendString(new StringView(src));
-    } else {
-        builder.appendString("{ [native code] }");
+
+        return builder.finalize(&state);
     }
 
-    return builder.finalize(&state);
+    if (thisValue.isObject() == true && thisValue.asObject()->isBoundFunctionObject() == true) {
+        StringBuilder builder;
+        builder.appendString("function () { [native code] }");
+        return builder.finalize(&state);
+    }
+
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
+    return Value();
 }
 
 static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    if (!thisValue.isFunction())
+    if (thisValue.isCallable() == false) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
+    }
     FunctionObject* thisVal = thisValue.asFunction();
     Value thisArg = argv[0];
     Value argArray = argv[1];
@@ -179,13 +190,14 @@ static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_SecondArgumentNotObject);
     }
 
-    return thisVal->call(state, thisArg, arrlen, arguments);
+    return FunctionObject::call(state, thisVal, thisArg, arrlen, arguments);
 }
 
 static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    if (!thisValue.isFunction())
+    if (thisValue.isCallable() == false) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
+    }
     FunctionObject* thisVal = thisValue.asFunction();
     Value thisArg = argv[0];
     size_t arrlen = argc > 0 ? argc - 1 : 0;
@@ -194,40 +206,72 @@ static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t 
         arguments[i] = argv[i + 1];
     }
 
-    return thisVal->call(state, thisArg, arrlen, arguments);
+    return FunctionObject::call(state, thisVal, thisArg, arrlen, arguments);
 }
 
+// https://www.ecma-international.org/ecma-262/6.0/#sec-function.prototype.bind
 static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    if (!thisValue.isFunction())
+    // If IsCallable(Target) is false, throw a TypeError exception.
+    if (thisValue.isCallable() == false) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().bind.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
+    }
 
-    FunctionObject* target = thisValue.asFunction();
+    // Let Target be the this value.
+    Object* target = thisValue.asObject();
 
+    // Let args be a new (possibly empty) List consisting of all of the argument values provided after thisArg in order.
     Value boundThis = argv[0];
-    size_t boundArgc = (argc >= 1) ? argc - 1 : argc;
-    Value* boundArgv = (boundArgc == 0) ? nullptr : argv + 1;
-    CodeBlock* cb = new CodeBlock(state, target, boundThis, boundArgc, boundArgv);
+    size_t boundArgc = (argc > 0) ? argc - 1 : 0;
+    Value* boundArgv = (boundArgc > 0) ? argv + 1 : nullptr;
+    //BoundFunctionObject* F = new BoundFunctionObject(state, thisValue, boundThis, boundArgc, boundArgv);
+
+    // Let targetHasLength be HasOwnProperty(Target, "length").
+    bool targetHasLength = target->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().length));
+    double length = 0;
+    // If targetHasLength is true, then
+    if (targetHasLength == true) {
+        // Let targetLen be Get(Target, "length").
+        Value targetLen = target->get(state, ObjectPropertyName(state.context()->staticStrings().length)).value(state, target);
+        // If Type(targetLen) is not Number, let L be 0.
+        // Else Let targetLen be ToInteger(targetLen).
+        // Let L be the larger of 0 and the result of targetLen minus the number of elements of args.
+        if (targetLen.isNumber() == true) {
+            length = std::max(0.0, targetLen.toInteger(state) - boundArgc);
+        }
+    }
+
+    // F->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length),
+    //                                    ObjectPropertyDescriptor(Value(length), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // Let targetName be Get(Target, "name").
+    Value targetName = target->get(state, ObjectPropertyName(state.context()->staticStrings().name)).value(state, target);
+    // If Type(targetName) is not String, let targetName be the empty string.
+    if (targetName.isString() != true) {
+        targetName = String::emptyString;
+    }
 
     StringBuilder builder;
     builder.appendString("bound ");
-    ObjectGetResult r = target->getOwnProperty(state, state.context()->staticStrings().name);
-    Value fn;
-    if (r.hasValue()) {
-        fn = r.value(state, target);
-    }
-    if (fn.isString())
-        builder.appendString(fn.asString());
+    builder.appendString(targetName.asString());
+    //F->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().name),
+    //                                    ObjectPropertyDescriptor(Value(builder.finalize(&state)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    return new FunctionObject(state, cb, builder.finalize(&state), target->getPrototype(state), FunctionObject::ForBind::__ForBind__);
+    // Let F be BoundFunctionCreate(Target, thisArg, args).
+    // Let status be DefinePropertyOrThrow(F, "length", PropertyDescriptor {[[Value]]: L, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true}).
+    // Perform SetFunctionName(F, targetName, "bound").
+    // Return F.
+    return new BoundFunctionObject(state, thisValue, boundThis, boundArgc, boundArgv, Value(length), Value(builder.finalize(&state)));
 }
 
 static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    if (!thisValue.isFunction()) {
+#ifndef ESCARGOT_ENABLE_ES2015
+    if (thisValue.isFunction() == false) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
     }
-    return Value(thisValue.asFunction()->hasInstance(state, argv[0]));
+#endif
+    return Value(Object::hasInstance(state, thisValue, argv[0]));
 }
 
 void GlobalObject::installFunction(ExecutionState& state)

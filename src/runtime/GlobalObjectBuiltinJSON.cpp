@@ -211,7 +211,7 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
 
     // 4
     Value reviver = argv[1];
-    if (reviver.isObject() && reviver.isPointerValue() && reviver.asPointerValue()->isFunctionObject()) {
+    if (reviver.isCallable() == true) {
         Object* root = new Object(state);
         root->defineOwnProperty(state, ObjectPropertyName(state, String::emptyString), ObjectPropertyDescriptor(unfiltered, ObjectPropertyDescriptor::AllPresent));
         std::function<Value(Value, const ObjectPropertyName&)> Walk;
@@ -291,10 +291,10 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
     bool propertyListTouched = false;
 
     // 4
-    FunctionObject* replacerFunc = NULL;
-    if (replacer.isObject()) {
-        if (replacer.isFunction()) {
-            replacerFunc = replacer.asFunction();
+    Value replacerFunc;
+    if (replacer.isObject() == true) {
+        if (replacer.isCallable() == true) {
+            replacerFunc = replacer;
         } else if (replacer.asObject()->isArrayObject()) {
             propertyListTouched = true;
             ArrayObject* arrObject = replacer.asObject()->asArrayObject();
@@ -370,18 +370,19 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
     std::function<String*(Object*)> JO;
     std::function<String*(ObjectPropertyName value)> Quote;
 
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-serializejsonproperty
     Str = [&](ObjectPropertyName key, Object* holder) -> Value {
         Value value = holder->get(state, key).value(state, holder);
         if (value.isObject()) {
             Object* valObj = value.asPointerValue()->asObject();
             Value toJson = valObj->get(state, ObjectPropertyName(state, strings->toJSON)).value(state, valObj);
-            if (toJson.isPointerValue() && toJson.asPointerValue()->isFunctionObject()) {
+            if (toJson.isCallable()) {
                 Value arguments[] = { key.toPlainValue(state) };
                 value = FunctionObject::call(state, toJson, value, 1, arguments);
             }
         }
 
-        if (replacerFunc != NULL) {
+        if (replacerFunc.isUndefined() == false) {
             Value arguments[] = { key.toPlainValue(state), value };
             value = FunctionObject::call(state, replacerFunc, holder, 2, arguments);
         }
@@ -411,7 +412,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
             }
             return strings->null.string();
         }
-        if (value.isObject() && !value.isFunction()) {
+        if (value.isObject() == true && value.isCallable() == false) {
             if (value.asObject()->isArrayObject()) {
                 return JA(value.asObject()->asArrayObject());
             } else {
@@ -422,6 +423,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         return Value();
     };
 
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-quotejsonstring
     Quote = [&](ObjectPropertyName value) -> String* {
         String* str = value.toPropertyName(state).plainString();
 
@@ -460,6 +462,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         return product.finalize(&state);
     };
 
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-serializejsonarray
     JA = [&](ArrayObject* arrayObj) -> String* {
         // 1
         for (size_t i = 0; i < stack.size(); i++) {
@@ -531,6 +534,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         return finalValue.finalize(&state);
     };
 
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-serializejsonobject
     JO = [&](Object* value) -> String* {
         // 1
         for (size_t i = 0; i < stack.size(); i++) {

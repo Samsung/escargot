@@ -26,7 +26,9 @@
 #include "ErrorObject.h"
 #include "FunctionObject.h"
 #include "ArrayObject.h"
+#include "BoundFunctionObject.h"
 #include "util/Util.h"
+#include "interpreter/ByteCodeInterpreter.h"
 
 namespace Escargot {
 
@@ -842,6 +844,46 @@ Value Object::getMethod(ExecutionState& state, const Value& object, const Object
     }
     // 6. Return func.
     return func;
+}
+
+// http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinaryhasinstance
+bool Object::hasInstance(ExecutionState& state, const Value& C, Value O)
+{
+    // If IsCallable(C) is false, return false.
+    if (C.isCallable() == false) {
+        return false;
+    }
+
+    // If C has a [[BoundTargetFunction]] internal slot, then
+    if (UNLIKELY(C.isObject() == true && C.asObject()->isBoundFunctionObject() == true)) {
+        // Let BC be the value of C’s [[BoundTargetFunction]] internal slot.
+        Value BC = C.asObject()->asBoundFunctionObject()->targetFunction();
+        // Return InstanceofOperator(O,BC) (see 12.9.4).
+        return ByteCodeInterpreter::instanceOfOperation(state, O, BC).toBoolean(state);
+    }
+    // If Type(O) is not Object, return false.
+    if (O.isObject() == false) {
+        return false;
+    }
+    // Let P be Get(C, "prototype").
+    ASSERT(C.isFunction() == true);
+    Value P = C.asFunction()->getFunctionPrototype(state);
+    // If Type(P) is not Object, throw a TypeError exception.
+    if (P.isObject() == false) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_InvalidPrototypeProperty);
+    }
+    // Repeat
+    O = O.asObject()->getPrototype(state);
+    while (O.isNull() == false) {
+        // If O is null, return false.
+        // If SameValue(P, O) is true, return true.
+        if (P == O) {
+            return true;
+        }
+        // Let O be O.[[GetPrototypeOf]]().
+        O = O.asObject()->getPrototype(state);
+    }
+    return false;
 }
 
 void Object::setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver)

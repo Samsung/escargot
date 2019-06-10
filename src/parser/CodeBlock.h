@@ -75,17 +75,6 @@ public:
     NativeFunctionConstructor m_ctorFn;
 };
 
-class CallBoundFunctionData : public CallNativeFunctionData {
-public:
-    void* operator new(size_t size);
-    void* operator new[](size_t size) = delete;
-
-    SmallValue m_boundTargetFunction;
-    SmallValue m_boundThis;
-    SmallValue* m_boundArguments;
-    size_t m_boundArgumentsCount;
-};
-
 class InterpretedCodeBlock;
 
 class CodeBlock : public gc {
@@ -102,9 +91,6 @@ public:
 
     // init native CodeBlock
     CodeBlock(Context* ctx, const NativeFunctionInfo& info);
-
-    // init bound CodeBlock
-    CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv);
 
     // init for public api
     CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict, bool isCtor, CallNativeFunctionData* info);
@@ -271,11 +257,6 @@ public:
         return m_needsVirtualIDOperation;
     }
 
-    bool isBindedFunction()
-    {
-        return m_isBindedFunction;
-    }
-
     uint16_t parameterCount()
     {
         return m_parameterCount;
@@ -295,12 +276,6 @@ public:
     CallNativeFunctionData* nativeFunctionData()
     {
         return m_nativeFunctionData;
-    }
-
-    CallBoundFunctionData* boundFunctionInfo()
-    {
-        ASSERT(isBindedFunction());
-        return (CallBoundFunctionData*)m_nativeFunctionData;
     }
 
 protected:
@@ -331,7 +306,6 @@ protected:
     bool m_isGenerator : 1;
     bool m_isInWithScope : 1;
     bool m_isEvalCodeInFunction : 1;
-    bool m_isBindedFunction : 1;
     bool m_needsVirtualIDOperation : 1;
     bool m_needToLoadThisValue : 1;
     bool m_hasRestElement : 1;

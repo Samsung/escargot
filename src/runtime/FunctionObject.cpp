@@ -52,16 +52,7 @@ void FunctionObject::initFunctionObject(ExecutionState& state)
 
     m_constructorKind = ConstructorKind::Base;
 
-    if (m_codeBlock->isBindedFunction()) {
-        m_structure = state.context()->defaultStructureForBindedFunctionObject();
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->parameterCount()));
-        // Let thrower be the [[ThrowTypeError]] function Object (13.2.3).
-        // Call the [[DefineOwnProperty]] internal method of F with arguments "caller", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
-        // Call the [[DefineOwnProperty]] internal method of F with arguments "arguments", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
-        auto data = state.context()->globalObject()->throwerGetterSetterData();
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(data);
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3] = Value(data);
-    } else if (isConstructor()) {
+    if (isConstructor() == true) {
         m_structure = isClassConstructor() ? state.context()->defaultStructureForClassFunctionObject() : state.context()->defaultStructureForFunctionObject();
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(Object::createFunctionPrototypeObject(state, this)));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionName().string()));
@@ -175,42 +166,6 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Stri
     Object::setPrototype(state, proto);
 }
 
-// http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinaryhasinstance
-bool FunctionObject::hasInstance(ExecutionState& state, const Value& left)
-{
-    // If IsCallable(C) is false, return false.
-    // If C has a [[BoundTargetFunction]] internal slot, then
-    if (UNLIKELY(m_codeBlock->isBindedFunction())) {
-        // Let BC be the value of C’s [[BoundTargetFunction]] internal slot.
-        CallBoundFunctionData* code = (CallBoundFunctionData*)(m_codeBlock->nativeFunctionData());
-        Value bc = code->m_boundTargetFunction;
-        // Return InstanceofOperator(O,BC) (see 12.9.4).
-        return ByteCodeInterpreter::instanceOfOperation(state, left, bc).toBoolean(state);
-    }
-    // If Type(O) is not Object, return false.
-    if (!left.isObject()) {
-        return false;
-    }
-    // Let P be Get(C, "prototype").
-    Value P = this->getFunctionPrototype(state);
-    // If Type(P) is not Object, throw a TypeError exception.
-    if (!P.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_InvalidPrototypeProperty);
-    }
-    // Repeat
-    Value O = left.asObject()->getPrototype(state);
-    while (!O.isNull()) {
-        // If O is null, return false.
-        // If SameValue(P, O) is true, return true.
-        if (P == O) {
-            return true;
-        }
-        // Let O be O.[[GetPrototypeOf]]().
-        O = O.asObject()->getPrototype(state);
-    }
-    return false;
-}
-
 NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
 {
     Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& v = state.context()->compiledCodeBlocks();
@@ -274,18 +229,9 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
 // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-construct-argumentslist-newtarget
 Object* FunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, const Value& newTarget)
 {
-    // FIXME: binded function
     // FIXME: newTarget
     CodeBlock* cb = codeBlock();
     FunctionObject* constructor = this;
-
-    if (UNLIKELY(cb->isBindedFunction() == true)) {
-        // for nested bind function
-        while (cb->isBindedFunction() == true) {
-            constructor = Value(cb->boundFunctionInfo()->m_boundTargetFunction).asFunction();
-            cb = constructor->codeBlock();
-        }
-    }
 
     // Assert: Type(newTarget) is Object.
     ASSERT(newTarget.isObject() == true);
