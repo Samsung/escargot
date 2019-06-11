@@ -99,6 +99,11 @@ public:
         return !!m_value;
     }
 
+    operator bool() const
+    {
+        return hasValue();
+    }
+
     bool operator==(const NullablePtr<T>& other) const
     {
         return m_value == other.m_value;
@@ -299,7 +304,7 @@ public:
     static ExecutionStateRef* create(ContextRef* ctx);
     void destroy();
 
-    FunctionObjectRef* resolveCallee(); // resolve nearest callee if exists
+    NullablePtr<FunctionObjectRef> resolveCallee(); // resolve nearest callee if exists
     std::vector<std::pair<FunctionObjectRef*, ValueRef*>> resolveCallstack(); // resolve callee, this value
     GlobalObjectRef* resolveCallerLexicalGlobalObject(); // resolve caller's lexical global object
 
@@ -529,7 +534,7 @@ public:
     bool hasOwnProperty(ExecutionStateRef* state, ValueRef* propertyName);
 
     ValueRef* getPrototype(ExecutionStateRef* state);
-    ObjectRef* getPrototypeObject(ExecutionStateRef* state); // if __proto__ is not object(undefined or null), this function returns nullptr instead of orginal value.
+    NullablePtr<ObjectRef> getPrototypeObject(ExecutionStateRef* state); // if __proto__ is not object(undefined or null), this function returns nullptr instead of orginal value.
     bool setPrototype(ExecutionStateRef* state, ValueRef* value);
 
     ValueVectorRef* getOwnPropertyKeys(ExecutionStateRef* state);
