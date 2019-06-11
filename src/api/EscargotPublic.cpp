@@ -128,6 +128,8 @@ inline const T* NullablePtr<T>::getValue() const
 }
 
 template struct NullablePtr<ValueRef>;
+template struct NullablePtr<ObjectRef>;
+template struct NullablePtr<FunctionObjectRef>;
 
 inline ValueRef* toRef(const Value& v)
 {
@@ -841,9 +843,15 @@ ValueRef* ObjectRef::getPrototype(ExecutionStateRef* state)
     return toRef(toImpl(this)->getPrototype(*toImpl(state)));
 }
 
-ObjectRef* ObjectRef::getPrototypeObject(ExecutionStateRef* state)
+NullablePtr<ObjectRef> ObjectRef::getPrototypeObject(ExecutionStateRef* state)
 {
-    return toRef(toImpl(this)->getPrototypeObject(*toImpl(state)));
+    ASSERT(state != nullptr);
+
+    auto obj = toImpl(this)->getPrototypeObject(*toImpl(state));
+    if (obj != nullptr) {
+        return toRef(obj);
+    }
+    return nullptr;
 }
 
 bool ObjectRef::setPrototype(ExecutionStateRef* state, ValueRef* value)
@@ -1424,11 +1432,15 @@ void ExecutionStateRef::destroy()
     delete imp;
 }
 
-FunctionObjectRef* ExecutionStateRef::resolveCallee()
+NullablePtr<FunctionObjectRef> ExecutionStateRef::resolveCallee()
 {
     auto ec = toImpl(this)->executionContext();
-    if (ec) {
-        return toRef(ec->resolveCallee());
+    if (ec != nullptr) {
+        auto callee = ec->resolveCallee();
+        if (callee != nullptr) {
+            return toRef(callee);
+        }
+        return nullptr;
     }
     return nullptr;
 }
