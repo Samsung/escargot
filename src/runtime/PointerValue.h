@@ -36,6 +36,7 @@ class RegExpObject;
 class DateObject;
 class ErrorObject;
 class GlobalObject;
+class BoundFunctionObject;
 #if ESCARGOT_ENABLE_PROMISE
 class PromiseObject;
 #endif
@@ -146,6 +147,11 @@ public:
     }
 
     virtual bool isGlobalObject() const
+    {
+        return false;
+    }
+
+    virtual bool isBoundFunctionObject() const
     {
         return false;
     }
@@ -328,6 +334,12 @@ public:
     {
         ASSERT(isGlobalObject());
         return (GlobalObject*)this;
+    }
+
+    BoundFunctionObject* asBoundFunctionObject()
+    {
+        ASSERT(isBoundFunctionObject() == true);
+        return (BoundFunctionObject*)this;
     }
 
 #if ESCARGOT_ENABLE_PROMISE

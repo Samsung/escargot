@@ -92,7 +92,7 @@ Value ExecutionContext::getSuperConstructor(ExecutionState& state)
 
     Value superConstructor = activeFunction.asObject()->getPrototype(state);
 
-    if (!superConstructor.isObject() || !superConstructor.asObject()->isFunctionObject() || !superConstructor.asObject()->asFunctionObject()->isConstructor()) {
+    if (superConstructor.isConstructor() == false) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_No_Super_Binding);
     }
 

@@ -860,7 +860,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 } else {
                     ASSERT(val.isPointerValue());
                     PointerValue* p = val.asPointerValue();
-                    if (p->isFunctionObject()) {
+                    if (p->isCallable()) {
                         val = state.context()->staticStrings().function.string();
                     } else if (p->isSymbol()) {
                         val = state.context()->staticStrings().symbol.string();
@@ -1535,7 +1535,7 @@ NEVER_INLINE Value ByteCodeInterpreter::instanceOfOperation(ExecutionState& stat
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
     }
     // Return OrdinaryHasInstance(C, O).
-    return Value(right.asFunction()->hasInstance(state, left));
+    return Value(Object::hasInstance(state, right, left));
 }
 
 NEVER_INLINE void ByteCodeInterpreter::templateOperation(ExecutionState& state, LexicalEnvironment* env, TemplateOperation* code, Value* registerFile)
@@ -2264,7 +2264,7 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
         if (superClass.isNull()) {
             protoParent = Value(Value::Null);
             constructorParent = state.context()->globalObject()->functionPrototype();
-        } else if (!superClass.isObject() || !superClass.asObject()->isFunctionObject() || !superClass.asObject()->asFunctionObject()->isConstructor()) {
+        } else if (superClass.isConstructor() == false) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Class_Extends_Value_Is_Not_Object_Nor_Null);
         } else {
             if (superClass.isObject() == true && superClass.asObject()->isGeneratorObject() == true) {

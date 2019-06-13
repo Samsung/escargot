@@ -801,6 +801,7 @@ public:
     }
 
     static Value getMethod(ExecutionState& state, const Value& object, const ObjectPropertyName& propertyName);
+    static bool hasInstance(ExecutionState& state, const Value& C, const Value O);
 
     static void throwCannotDefineError(ExecutionState& state, const PropertyName& P);
     static void throwCannotWriteError(ExecutionState& state, const PropertyName& P);

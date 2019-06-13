@@ -125,9 +125,9 @@ public:
         return m_defaultStructureForBuiltinFunctionObject;
     }
 
-    ObjectStructure* defaultStructureForBindedFunctionObject()
+    ObjectStructure* defaultStructureForBoundFunctionObject()
     {
-        return m_defaultStructureForBindedFunctionObject;
+        return m_defaultStructureForBoundFunctionObject;
     }
 
     ObjectStructure* defaultStructureForFunctionPrototypeObject()
@@ -233,7 +233,7 @@ private:
     ObjectStructure* m_defaultStructureForNotConstructorFunctionObjectInStrictMode;
     ObjectStructure* m_defaultStructureForBuiltinFunctionObject;
     ObjectStructure* m_defaultStructureForFunctionPrototypeObject;
-    ObjectStructure* m_defaultStructureForBindedFunctionObject;
+    ObjectStructure* m_defaultStructureForBoundFunctionObject;
     ObjectStructure* m_defaultStructureForArrayObject;
     ObjectStructure* m_defaultStructureForStringObject;
     ObjectStructure* m_defaultStructureForSymbolObject;

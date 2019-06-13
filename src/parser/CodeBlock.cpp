@@ -26,21 +26,6 @@
 
 namespace Escargot {
 
-void* CallBoundFunctionData::operator new(size_t size)
-{
-    static bool typeInited = false;
-    static GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(CallBoundFunctionData)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CallBoundFunctionData, m_boundTargetFunction));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CallBoundFunctionData, m_boundThis));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CallBoundFunctionData, m_boundArguments));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(CallBoundFunctionData));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-}
-
 void* CodeBlock::operator new(size_t size)
 {
 #ifdef GC_DEBUG
@@ -110,7 +95,6 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_isGenerator(false)
     , m_isInWithScope(false)
     , m_isEvalCodeInFunction(false)
-    , m_isBindedFunction(false)
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
     , m_hasRestElement(false)
@@ -149,7 +133,6 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_isGenerator(false)
     , m_isInWithScope(false)
     , m_isEvalCodeInFunction(false)
-    , m_isBindedFunction(false)
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
     , m_hasRestElement(false)
@@ -157,83 +140,6 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_functionName(name)
     , m_nativeFunctionData(info)
 {
-}
-
-static Value functionBindImpl(ExecutionState& state, Value thisValue, size_t calledArgc, Value* calledArgv, bool isNewExpression)
-{
-    CodeBlock* dataCb = state.executionContext()->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock();
-    CallBoundFunctionData* code = (CallBoundFunctionData*)(dataCb->nativeFunctionData());
-
-    // Collect arguments info when current function is called.
-    int mergedArgc = code->m_boundArgumentsCount + calledArgc;
-    Value* mergedArgv = ALLOCA(mergedArgc * sizeof(Value), Value, state);
-    if (code->m_boundArgumentsCount) {
-        for (size_t i = 0; i < code->m_boundArgumentsCount; i++) {
-            mergedArgv[i] = code->m_boundArguments[i];
-        }
-    }
-    if (calledArgc) {
-        memcpy(mergedArgv + code->m_boundArgumentsCount, calledArgv, sizeof(Value) * calledArgc);
-    }
-
-    FunctionObject* targetFunction = Value(code->m_boundTargetFunction).asFunction();
-    Value receiver = isNewExpression ? thisValue : Value(code->m_boundThis);
-    // FIXME
-    return targetFunction->processCall(state, receiver, mergedArgc, mergedArgv, isNewExpression);
-}
-
-CodeBlock::CodeBlock(ExecutionState& state, FunctionObject* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv)
-    : m_context(state.context())
-    , m_isConstructor(false)
-    , m_isStrict(false)
-    , m_hasCallNativeFunctionCode(true)
-    , m_isFunctionNameSaveOnHeap(false)
-    , m_isFunctionNameExplicitlyDeclared(false)
-    , m_canUseIndexedVariableStorage(true)
-    , m_canAllocateEnvironmentOnStack(true)
-    , m_needsComplexParameterCopy(false)
-    , m_hasEval(false)
-    , m_hasWith(false)
-    , m_hasCatch(false)
-    , m_hasYield(false)
-    , m_inCatch(false)
-    , m_inWith(false)
-    , m_usesArgumentsObject(false)
-    , m_isFunctionExpression(false)
-    , m_isFunctionDeclaration(false)
-    , m_isFunctionDeclarationWithSpecialBinding(false)
-    , m_isArrowFunctionExpression(false)
-    , m_isClassConstructor(false)
-    , m_isGenerator(false)
-    , m_isInWithScope(false)
-    , m_isEvalCodeInFunction(false)
-    , m_isBindedFunction(true)
-    , m_needsVirtualIDOperation(false)
-    , m_needToLoadThisValue(false)
-    , m_hasRestElement(false)
-    , m_functionName()
-{
-    CodeBlock* targetCodeBlock = targetFunction->codeBlock();
-
-    size_t targetFunctionLength = targetCodeBlock->parameterCount();
-    m_parameterCount = targetFunctionLength > boundArgc ? targetFunctionLength - boundArgc : 0;
-
-    auto data = new CallBoundFunctionData();
-    m_nativeFunctionData = data;
-
-    data->m_fn = functionBindImpl;
-    data->m_ctorFn = nullptr;
-    data->m_boundTargetFunction = targetFunction;
-    data->m_boundThis = boundThis;
-    data->m_boundArgumentsCount = boundArgc;
-    if (boundArgc) {
-        data->m_boundArguments = (SmallValue*)GC_MALLOC(boundArgc * sizeof(SmallValue));
-        for (size_t i = 0; i < boundArgc; i++) {
-            data->m_boundArguments[i] = boundArgv[i];
-        }
-    } else {
-        data->m_boundArguments = nullptr;
-    }
 }
 
 InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart)
@@ -277,7 +183,6 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_needsComplexParameterCopy = false;
     m_isInWithScope = false;
     m_isEvalCodeInFunction = false;
-    m_isBindedFunction = false;
     m_needsVirtualIDOperation = false;
     m_needToLoadThisValue = false;
     m_hasRestElement = scopeCtx->m_hasRestElement;
@@ -345,7 +250,6 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_needsComplexParameterCopy = false;
     m_isInWithScope = false;
     m_isEvalCodeInFunction = false;
-    m_isBindedFunction = false;
     m_needsVirtualIDOperation = false;
     m_needToLoadThisValue = false;
     m_hasRestElement = scopeCtx->m_hasRestElement;
