@@ -196,8 +196,8 @@ public:
     enum PrimitiveTypeHint { PreferString,
                              PreferNumber,
                              PreferDefault };
-    Value toPrimitive(ExecutionState& ec, PrimitiveTypeHint = PreferNumber) const; // $7.1.1 ToPrimitive
-    Value ordinaryToPrimitive(ExecutionState& ec, PrimitiveTypeHint) const;
+    Value toPrimitive(ExecutionState& ec, PrimitiveTypeHint = PreferDefault) const; // $7.1.1 ToPrimitive
+    Value ordinaryToPrimitive(ExecutionState& state, PrimitiveTypeHint preferredType) const;
     inline bool toBoolean(ExecutionState& ec) const; // $7.1.2 ToBoolean
     double toNumber(ExecutionState& ec) const; // $7.1.3 ToNumber
     double toInteger(ExecutionState& ec) const; // $7.1.4 ToInteger

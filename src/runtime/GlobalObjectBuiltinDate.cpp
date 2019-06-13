@@ -71,14 +71,29 @@ static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size
         if (argc == 0) {
             thisObject->setTimeValue(DateObject::currentTime());
         } else if (argc == 1) {
-            Value v = argv[0].toPrimitive(state);
-            if (v.isString()) {
-                thisObject->setTimeValue(state, v);
+            // https://www.ecma-international.org/ecma-262/6.0/#sec-date-value
+            Value v = argv[0];
+            // If Type(value) is Object and value has a [[DateValue]] internal slot, then
+            if (v.isObject() && v.asObject()->isDateObject()) {
+                // Let tv be thisTimeValue(value).
+                thisObject->setTimeValue(v.asObject()->asDateObject()->primitiveValue());
+                // Else
             } else {
-                double V = v.toNumber(state);
-                thisObject->setTimeValue(DateObject::timeClip(state, V));
+                // Let v be ToPrimitive(value).
+                v = v.toPrimitive(state);
+                // If Type(v) is String, then
+                if (v.isString()) {
+                    thisObject->setTimeValue(state, v);
+                } else {
+                    // Let tv be ToNumber(v).
+                    double V = v.toNumber(state);
+                    thisObject->setTimeValue(DateObject::timeClip(state, V));
+                }
             }
         } else {
+            // https://www.ecma-international.org/ecma-262/6.0/#sec-date-year-month-date-hours-minutes-seconds-ms
+            // Assert: numberOfArgs ≥ 2.
+            ASSERT(argc > 1);
             double args[7] = { 0, 0, 1, 0, 0, 0, 0 }; // default value of year, month, date, hour, minute, second, millisecond
             argc = (argc > 7) ? 7 : argc; // trim arguments so that they don't corrupt stack
             for (size_t i = 0; i < argc; i++) {
@@ -253,23 +268,12 @@ static Value builtinDateToJSON(ExecutionState& state, Value thisValue, size_t ar
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toJSON);
 
-    Value tv = thisValue.toPrimitive(state, Value::PreferNumber);
+    Value tv = Value(thisObject).toPrimitive(state, Value::PreferNumber);
     if (tv.isNumber() && (std::isnan(tv.asNumber()) || std::isinf(tv.asNumber()))) {
         return Value(Value::Null);
     }
 
-    ObjectGetResult isoFuncGetResult = thisObject->get(state, ObjectPropertyName(state.context()->staticStrings().toISOString));
-
-    if (!(isoFuncGetResult.hasValue())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toJSON.string(), errorMessage_GlobalObject_ToISOStringNotCallable);
-    }
-
-    Value isoFunc = isoFuncGetResult.value(state, thisObject);
-
-    if (!(isoFunc.isFunction())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toJSON.string(), errorMessage_GlobalObject_ToISOStringNotCallable);
-    }
-
+    Value isoFunc = thisObject->get(state, ObjectPropertyName(state.context()->staticStrings().toISOString)).value(state, thisObject);
     return FunctionObject::call(state, isoFunc, thisObject, 0, nullptr);
 }
 
