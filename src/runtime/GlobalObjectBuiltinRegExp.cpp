@@ -243,7 +243,7 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
 
     // Let splitter be Construct(C, <<rx, newFlags>>).
     Value params[2] = { rx->asRegExpObject(state)->source(), newFlags };
-    RegExpObject* splitter = FunctionObject::construct(state, C, 2, params)->asRegExpObject(state);
+    RegExpObject* splitter = Object::construct(state, C, 2, params)->asRegExpObject(state);
 
     // Let A be ArrayCreate(0).
     ArrayObject* A = new ArrayObject(state);
@@ -269,7 +269,7 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
         Value execFunction = Object::getMethod(state, splitter, ObjectPropertyName(state.context()->staticStrings().exec));
         // Let z be RegExpExec(splitter, S).
         Value arg[1] = { S };
-        z = FunctionObject::call(state, execFunction, splitter, 1, arg);
+        z = Object::call(state, execFunction, splitter, 1, arg);
         // If z is not null, return A.
         if (!z.isNull()) {
             return A;
@@ -289,7 +289,7 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
         // Let z be RegExpExec(splitter, S).
         Value execFunction = Object::getMethod(state, splitter, ObjectPropertyName(state.context()->staticStrings().exec));
         Value arg[1] = { S };
-        z = FunctionObject::call(state, execFunction, splitter, 1, arg);
+        z = Object::call(state, execFunction, splitter, 1, arg);
         // If z is null, let q be AdvanceStringIndex(S, q, unicodeMatching).
         if (z.isNull()) {
             q = S->advanceStringIndex(q, unicodeMatching);

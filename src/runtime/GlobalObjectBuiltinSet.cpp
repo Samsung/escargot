@@ -51,7 +51,7 @@ Value builtinSetConstructor(ExecutionState& state, Value thisValue, size_t argc,
         // Let adder be ? Get(set, "add").
         adder = set->Object::get(state, ObjectPropertyName(state.context()->staticStrings().add)).value(state, set);
         // If IsCallable(adder) is false, throw a TypeError exception.
-        if (!adder.isFunction()) {
+        if (!adder.isCallable()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
         }
         // Let iter be ? GetIterator(iterable).
@@ -76,7 +76,7 @@ Value builtinSetConstructor(ExecutionState& state, Value thisValue, size_t argc,
         // Let status be Call(adder, set, « nextValue.[[Value]] »).
         // TODO If status is an abrupt completion, return ? IteratorClose(iter, status).
         Value argv[1] = { nextValue };
-        adder.asFunction()->call(state, set, 1, argv);
+        Object::call(state, adder, set, 1, argv);
     }
     return set;
 }
@@ -122,7 +122,7 @@ static Value builtinSetForEach(ExecutionState& state, Value thisValue, size_t ar
 
     Value callbackfn = argv[0];
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
-    if (!callbackfn.isFunction()) {
+    if (!callbackfn.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Set.string(), true, state.context()->staticStrings().forEach.string(), errorMessage_GlobalObject_CallbackNotCallable);
     }
     // If thisArg was supplied, let T be thisArg; else let T be undefined.
@@ -140,7 +140,7 @@ static Value builtinSetForEach(ExecutionState& state, Value thisValue, size_t ar
             // If e.[[Key]] is not empty, then
             // Perform ? Call(callbackfn, T, « e, e, S »).
             Value argv[3] = { Value(e), Value(e), Value(S) };
-            callbackfn.asFunction()->call(state, T, 3, argv);
+            Object::call(state, callbackfn, T, 3, argv);
         }
     }
 

@@ -52,7 +52,7 @@ Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t a
         // Let adder be ? Get(set, "add").
         adder = set->Object::get(state, ObjectPropertyName(state.context()->staticStrings().add)).value(state, set);
         // If IsCallable(adder) is false, throw a TypeError exception.
-        if (adder.isFunction() == false) {
+        if (!adder.isCallable()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
         }
         // Let iter be ? GetIterator(iterable).
@@ -77,7 +77,7 @@ Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t a
         // Let status be Call(adder, set, « nextValue.[[Value]] »).
         // TODO If status is an abrupt completion, return ? IteratorClose(iter, status).
         Value argv[1] = { nextValue };
-        adder.asFunction()->call(state, set, 1, argv);
+        Object::call(state, adder, set, 1, argv);
     }
     return set;
 }

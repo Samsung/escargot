@@ -50,7 +50,7 @@ Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, size_t a
         // Let adder be ? Get(map, "set").
         adder = map->Object::get(state, ObjectPropertyName(state.context()->staticStrings().set)).value(state, map);
         // If IsCallable(adder) is false, throw a TypeError exception.
-        if (adder.isFunction() == false) {
+        if (!adder.isCallable()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
         }
         // Let iter be ? GetIterator(iterable).
@@ -89,7 +89,7 @@ Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, size_t a
         // Let status be Call(adder, map, « k.[[Value]], v.[[Value]] »).
         Value argv[2] = { k, v };
         // TODO If status is an abrupt completion, return ? IteratorClose(iter, status).
-        adder.asFunction()->call(state, map, 2, argv);
+        Object::call(state, adder, map, 2, argv);
     }
     return map;
 }

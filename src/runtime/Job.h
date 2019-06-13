@@ -85,7 +85,7 @@ private:
 
 class PromiseResolveThenableJob : public Job {
 public:
-    PromiseResolveThenableJob(Context* relatedContext, PromiseObject* promise, Object* thenable, FunctionObject* then)
+    PromiseResolveThenableJob(Context* relatedContext, PromiseObject* promise, Object* thenable, Object* then)
         : Job(JobType::PromiseResolveThenableJob, relatedContext)
         , m_promise(promise)
         , m_thenable(thenable)
@@ -98,7 +98,7 @@ public:
 private:
     PromiseObject* m_promise;
     Object* m_thenable;
-    FunctionObject* m_then;
+    Object* m_then;
 };
 
 

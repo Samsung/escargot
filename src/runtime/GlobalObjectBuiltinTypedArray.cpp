@@ -58,6 +58,7 @@ static Value builtinArrayBufferByteLengthGetter(ExecutionState& state, Value thi
     RELEASE_ASSERT_NOT_REACHED();
 }
 
+// https://www.ecma-international.org/ecma-262/6.0/#sec-arraybuffer.prototype.slice
 static Value builtinArrayBufferByteSlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     Object* thisObject = thisValue.toObject(state);
@@ -73,30 +74,21 @@ static Value builtinArrayBufferByteSlice(ExecutionState& state, Value thisValue,
     double relativeEnd = end.isUndefined() ? len : end.toInteger(state);
     unsigned final_ = (relativeEnd < 0) ? std::max(len + relativeEnd, 0.0) : std::min(relativeEnd, len);
     unsigned newLen = std::max((int)final_ - (int)first, 0);
-    ArrayBufferObject* newObject;
-    Value constructor = thisObject->get(state, state.context()->staticStrings().constructor).value(state, thisObject);
-    if (constructor.isUndefined()) {
-        newObject = new ArrayBufferObject(state);
-        newObject->allocateBuffer(newLen);
-    } else {
-        if (!constructor.isFunction())
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: constructor of ArrayBuffer is not a function");
-        Value arguments[] = { Value(newLen) };
-        Value newValue = FunctionObject::construct(state, constructor, 1, arguments);
-
-        if (!newValue.isObject() || !newValue.asObject()->isArrayBufferObject()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
-        }
-        newObject = newValue.asObject()->asArrayBufferObject();
+    Value constructor = thisObject->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
+    Value arguments[] = { Value(newLen) };
+    Value newValue = Object::construct(state, constructor, 1, arguments);
+    if (!newValue.isObject() || !newValue.asObject()->isArrayBufferObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
     }
 
+    ArrayBufferObject* newObject = newValue.asObject()->asArrayBufferObject();
     if (newObject->isDetachedBuffer()) // 18
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
     if (newObject == obj) // 19
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
     if (newObject->bytelength() < newLen) // 20
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
-    if (newObject->isDetachedBuffer()) // 22
+    if (obj->isDetachedBuffer()) // 22
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
 
     newObject->fillData(obj->data() + first, newLen);
@@ -162,7 +154,7 @@ static Value TypedArrayFrom(ExecutionState& state, const Value& constructor, con
 
         // FIXME Let targetObj be AllocateTypedArray(C, len).
         Value arg[1] = { Value(len) };
-        Value targetObj = FunctionObject::construct(state, C, 1, arg);
+        Value targetObj = Object::construct(state, C, 1, arg);
 
         // Let k be 0.
         size_t k = 0;
@@ -176,7 +168,7 @@ static Value TypedArrayFrom(ExecutionState& state, const Value& constructor, con
             if (mapping) {
                 // Let mappedValue be Call(mapfn, T, «kValue, k»).
                 Value args[2] = { kValue, Value(k) };
-                mappedValue = FunctionObject::call(state, mapfn, T, 2, args);
+                mappedValue = Object::call(state, mapfn, T, 2, args);
             }
             // Let setStatus be Set(targetObj, Pk, mappedValue, true).
             targetObj.asObject()->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
@@ -194,7 +186,7 @@ static Value TypedArrayFrom(ExecutionState& state, const Value& constructor, con
 
     // FIXME Let targetObj be AllocateTypedArray(C, len).
     Value arg[1] = { Value(len) };
-    Value targetObj = FunctionObject::construct(state, C, 1, arg);
+    Value targetObj = Object::construct(state, C, 1, arg);
 
     // Let k be 0.
     size_t k = 0;
@@ -208,7 +200,7 @@ static Value TypedArrayFrom(ExecutionState& state, const Value& constructor, con
         if (mapping) {
             // Let mappedValue be Call(mapfn, T, «kValue, k»).
             Value args[2] = { kValue, Value(k) };
-            mappedValue = FunctionObject::call(state, mapfn, T, 2, args);
+            mappedValue = Object::call(state, mapfn, T, 2, args);
         }
         // Let setStatus be Set(targetObj, Pk, mappedValue, true).
         targetObj.asObject()->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
@@ -306,7 +298,7 @@ static Value builtinTypedArrayOf(ExecutionState& state, Value thisValue, size_t 
 
     // FIXME AllocateTypedArray(C, len)
     Value arg[1] = { Value(len) };
-    Value newObj = FunctionObject::construct(state, C, 1, arg);
+    Value newObj = Object::construct(state, C, 1, arg);
 
     size_t k = 0;
     while (k < len) {
@@ -445,7 +437,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
                 Value bufferConstructor = srcData->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
                 // FIXME Let data be AllocateArrayBuffer(bufferConstructor, byteLength).
                 Value arg[1] = { Value(byteLength) };
-                data = FunctionObject::construct(state, bufferConstructor, 1, arg)->asArrayBufferObject();
+                data = Object::construct(state, bufferConstructor, 1, arg)->asArrayBufferObject();
 
                 // Let srcByteIndex be srcByteOffset.
                 unsigned srcByteIndex = srcByteOffset;
@@ -793,7 +785,7 @@ static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
-    if (!callbackfn.isFunction()) {
+    if (!callbackfn.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true,
                                        state.context()->staticStrings().some.string(), errorMessage_GlobalObject_CallbackNotCallable);
     }
@@ -815,7 +807,7 @@ static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_
         Value kValue = kResult.value(state, O);
         // Let testResult be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
         Value args[] = { kValue, Value(k), O };
-        Value testResult = FunctionObject::call(state, callbackfn, T, 3, args);
+        Value testResult = Object::call(state, callbackfn, T, 3, args);
 
         // If ToBoolean(testResult) is true, return true.
         if (testResult.toBoolean(state)) {
@@ -840,7 +832,7 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
     double len = O->asArrayBufferView()->arraylength();
 
     Value cmpfn = argv[0];
-    if (!cmpfn.isUndefined() && !cmpfn.isFunction()) {
+    if (!cmpfn.isUndefined() && !cmpfn.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().sort.string(), errorMessage_GlobalObject_FirstArgumentNotCallable);
     }
     bool defaultSort = (argc == 0) || cmpfn.isUndefined();
@@ -850,7 +842,7 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
         ASSERT(x.isNumber() && y.isNumber());
         if (!defaultSort) {
             Value args[] = { x, y };
-            Value v = FunctionObject::call(state, cmpfn, Value(), 2, args);
+            Value v = Object::call(state, cmpfn, Value(), 2, args);
             if (buffer->isDetachedBuffer()) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().sort.string(), errorMessage_GlobalObject_DetachedBuffer);
             }
@@ -904,7 +896,7 @@ static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, s
     // Let argumentsList be «buffer, beginByteOffset, newLength».
     Value args[3] = { buffer, Value(beginByteOffset), Value(newLength) };
     // Return Construct(constructor, argumentsList).
-    return FunctionObject::construct(state, constructor, 3, args);
+    return Object::construct(state, constructor, 3, args);
 }
 
 static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size_t argc, NULLABLE Value* argv, bool isNewExpression)
@@ -921,7 +913,7 @@ static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
-    if (!callbackfn.isFunction()) {
+    if (!callbackfn.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true,
                                        state.context()->staticStrings().every.string(), errorMessage_GlobalObject_CallbackNotCallable);
     }
@@ -941,7 +933,7 @@ static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size
         Value kValue = value.value(state, O);
         // Let testResult be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
         Value args[] = { kValue, Value(k), O };
-        Value testResult = FunctionObject::call(state, callbackfn, T, 3, args);
+        Value testResult = Object::call(state, callbackfn, T, 3, args);
 
         if (!testResult.toBoolean(state)) {
             return Value(false);
@@ -1004,7 +996,7 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
-    if (!callbackfn.isFunction()) {
+    if (!callbackfn.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().filter.string(), errorMessage_GlobalObject_CallbackNotCallable);
     }
 
@@ -1029,7 +1021,7 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
     while (k < len) {
         Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
         Value args[] = { kValue, Value(k), O };
-        bool selected = FunctionObject::call(state, callbackfn, T, 3, args).toBoolean(state);
+        bool selected = Object::call(state, callbackfn, T, 3, args).toBoolean(state);
         if (selected) {
             kept.push_back(kValue);
             captured++;
@@ -1039,7 +1031,7 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
 
     // FIXME Let A be AllocateTypedArray(C, captured).
     Value arg[1] = { Value(captured) };
-    Value A = FunctionObject::construct(state, C, 1, arg);
+    Value A = Object::construct(state, C, 1, arg);
 
     // Let n be 0.
     size_t n = 0;
@@ -1068,7 +1060,7 @@ static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     Value predicate = argv[0];
-    if (!predicate.isFunction()) {
+    if (!predicate.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().find.string(), errorMessage_GlobalObject_CallbackNotCallable);
     }
 
@@ -1087,7 +1079,7 @@ static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_
         kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
         // Let testResult be ToBoolean(Call(predicate, T, «kValue, k, O»)).
         Value args[] = { kValue, Value(k), O };
-        bool testResult = FunctionObject::call(state, predicate, T, 3, args).toBoolean(state);
+        bool testResult = Object::call(state, predicate, T, 3, args).toBoolean(state);
         // If testResult is true, return kValue.
         if (testResult) {
             return kValue;
@@ -1113,7 +1105,7 @@ static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, 
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     Value predicate = argv[0];
-    if (!predicate.isFunction()) {
+    if (!predicate.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().findIndex.string(), errorMessage_GlobalObject_CallbackNotCallable);
     }
 
@@ -1132,7 +1124,7 @@ static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, 
         Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
         // Let testResult be ToBoolean(? Call(predicate, T, « kValue, k, O »)).
         Value args[] = { kValue, Value(k), O };
-        bool testResult = FunctionObject::call(state, predicate, T, 3, args).toBoolean(state);
+        bool testResult = Object::call(state, predicate, T, 3, args).toBoolean(state);
         // If testResult is true, return k.
         if (testResult) {
             return Value(k);
@@ -1157,7 +1149,7 @@ static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, si
     double len = O->asArrayBufferView()->arraylength();
 
     Value callbackfn = argv[0];
-    if (!callbackfn.isFunction()) {
+    if (!callbackfn.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true,
                                        state.context()->staticStrings().forEach.string(), errorMessage_GlobalObject_CallbackNotCallable);
     }
@@ -1175,7 +1167,7 @@ static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, si
         RELEASE_ASSERT(res.hasValue());
         Value kValue = res.value(state, O);
         Value args[] = { kValue, Value(k), O };
-        FunctionObject::call(state, callbackfn, T, 3, args);
+        Object::call(state, callbackfn, T, 3, args);
         k++;
     }
     // Return undefined.
@@ -1243,7 +1235,7 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
-    if (!callbackfn.isFunction()) {
+    if (!callbackfn.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().map.string(), errorMessage_GlobalObject_CallbackNotCallable);
     }
 
@@ -1260,7 +1252,7 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
 
     // FIXME Let A be AllocateTypedArray(C, len).
     Value arg[1] = { Value(len) };
-    Value A = FunctionObject::construct(state, C, 1, arg);
+    Value A = Object::construct(state, C, 1, arg);
 
     // Let k be 0.
     size_t k = 0;
@@ -1268,7 +1260,7 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
     while (k < len) {
         Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
         Value args[] = { kValue, Value(k), O };
-        Value mappedValue = FunctionObject::call(state, callbackfn, T, 3, args);
+        Value mappedValue = Object::call(state, callbackfn, T, 3, args);
         A.asObject()->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
         k++;
     }
@@ -1289,7 +1281,7 @@ static Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, siz
     double len = O->asArrayBufferView()->arraylength();
 
     Value callbackfn = argv[0];
-    if (!callbackfn.isFunction()) {
+    if (!callbackfn.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().reduce.string(), errorMessage_GlobalObject_CallbackNotCallable);
     }
 
@@ -1312,7 +1304,7 @@ static Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, siz
         RELEASE_ASSERT(res.hasValue());
         Value kValue = res.value(state, O);
         Value args[] = { accumulator, kValue, Value(k), O };
-        accumulator = FunctionObject::call(state, callbackfn, Value(), 4, args);
+        accumulator = Object::call(state, callbackfn, Value(), 4, args);
         k++;
     }
     return accumulator;
@@ -1332,7 +1324,7 @@ static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
-    if (!callbackfn.isFunction()) {
+    if (!callbackfn.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true,
                                        state.context()->staticStrings().reduceRight.string(), errorMessage_GlobalObject_CallbackNotCallable);
     }
@@ -1364,7 +1356,7 @@ static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue
         RELEASE_ASSERT(res.hasValue());
         Value kValue = res.value(state, O);
         Value args[] = { accumulator, kValue, Value(k), O };
-        accumulator = FunctionObject::call(state, callbackfn, Value(), 4, args);
+        accumulator = Object::call(state, callbackfn, Value(), 4, args);
         k--;
     }
     // Return accumulator.
@@ -1432,7 +1424,7 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
     Value C = O->speciesConstructor(state, defaultConstructor);
     // FIXME Let A be AllocateTypedArray(C, count).
     Value arg[1] = { Value(count) };
-    Value A = FunctionObject::construct(state, C, 1, arg);
+    Value A = Object::construct(state, C, 1, arg);
 
     // If SameValue(srcType, targetType) is false, then
     if (O->asArrayBufferView()->typedArrayType() != A.asObject()->asArrayBufferView()->typedArrayType()) {
@@ -1505,11 +1497,11 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
     // Let func be the result of calling the [[Get]] internal method of elementObj with argument "toLocaleString".
     Value func = elementObj->get(state, state.context()->staticStrings().toLocaleString).value(state, elementObj);
     // If IsCallable(func) is false, throw a TypeError exception.
-    if (!func.isFunction()) {
+    if (!func.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLocaleStringNotCallable);
     }
     // Let R be the result of calling the [[Call]] internal method of func providing elementObj as the this value and an empty arguments list.
-    R = FunctionObject::call(state, func, elementObj, 0, nullptr);
+    R = Object::call(state, func, elementObj, 0, nullptr);
 
     // Let k be 1.
     int64_t k = 1;
@@ -1532,11 +1524,11 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
         // Let func be the result of calling the [[Get]] internal method of elementObj with argument "toLocaleString".
         Value func = elementObj->get(state, state.context()->staticStrings().toLocaleString).value(state, elementObj);
         // If IsCallable(func) is false, throw a TypeError exception.
-        if (!func.isFunction()) {
+        if (!func.isCallable()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLocaleStringNotCallable);
         }
         // Let R be the result of calling the [[Call]] internal method of func providing elementObj as the this value and an empty arguments list.
-        R = FunctionObject::call(state, func, elementObj, 0, nullptr);
+        R = Object::call(state, func, elementObj, 0, nullptr);
 
         // Let R be a String value produced by concatenating S and R.
         StringBuilder builder2;
@@ -1556,10 +1548,10 @@ static Value builtinTypedArrayToString(ExecutionState& state, Value thisValue, s
     validateTypedArray(state, O, state.context()->staticStrings().toString.string());
 
     Value toString = O->get(state, state.context()->staticStrings().join).value(state, O);
-    if (!toString.isFunction()) {
+    if (!toString.isCallable()) {
         toString = state.context()->globalObject()->objectPrototypeToString();
     }
-    return FunctionObject::call(state, toString, O, 0, nullptr);
+    return Object::call(state, toString, O, 0, nullptr);
 }
 
 template <typename TA, int elementSize, typename TypeAdaptor>

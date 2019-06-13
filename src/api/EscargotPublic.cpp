@@ -1292,7 +1292,7 @@ ValueRef* FunctionObjectRef::call(ExecutionStateRef* state, ValueRef* receiver, 
     for (size_t i = 0; i < argc; i++) {
         newArgv[i] = toImpl(argv[i]);
     }
-    return toRef(o->call(*toImpl(state), toImpl(receiver), argc, newArgv));
+    return toRef(Object::call(*toImpl(state), o, toImpl(receiver), argc, newArgv));
 }
 
 static void markEvalToCodeblock(InterpretedCodeBlock* cb)
@@ -1620,6 +1620,11 @@ bool ValueRef::isFalse() const
 bool ValueRef::isFunction() const
 {
     return Value(SmallValue::fromPayload(this)).isFunction();
+}
+
+bool ValueRef::isCallable() const
+{
+    return Value(SmallValue::fromPayload(this)).isCallable();
 }
 
 bool ValueRef::toBoolean(ExecutionStateRef* es)

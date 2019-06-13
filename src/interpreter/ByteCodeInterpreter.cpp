@@ -558,7 +558,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             {
                 CallFunction* code = (CallFunction*)programCounter;
                 const Value& callee = registerFile[code->m_calleeIndex];
-                registerFile[code->m_resultIndex] = FunctionObject::call(state, callee, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+                registerFile[code->m_resultIndex] = Object::call(state, callee, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
                 ADD_PROGRAM_COUNTER(CallFunction);
                 NEXT_INSTRUCTION();
             }
@@ -569,7 +569,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 CallFunctionWithReceiver* code = (CallFunctionWithReceiver*)programCounter;
                 const Value& callee = registerFile[code->m_calleeIndex];
                 const Value& receiver = registerFile[code->m_receiverIndex];
-                registerFile[code->m_resultIndex] = FunctionObject::call(state, callee, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+                registerFile[code->m_resultIndex] = Object::call(state, callee, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
                 ADD_PROGRAM_COUNTER(CallFunctionWithReceiver);
                 NEXT_INSTRUCTION();
             }
@@ -1268,7 +1268,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 const Value& receiver = code->m_receiverIndex == REGISTER_LIMIT ? Value() : registerFile[code->m_receiverIndex];
                 ValueVector spreadArgs;
                 spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
-                registerFile[code->m_resultIndex] = FunctionObject::call(state, callee, receiver, spreadArgs.size(), spreadArgs.data());
+                registerFile[code->m_resultIndex] = Object::call(state, callee, receiver, spreadArgs.size(), spreadArgs.data());
                 ADD_PROGRAM_COUNTER(CallFunctionWithSpreadElement);
                 NEXT_INSTRUCTION();
             }
@@ -1500,7 +1500,7 @@ NEVER_INLINE Object* ByteCodeInterpreter::newOperation(ExecutionState& state, co
     if (callee.isConstructor() == false) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor);
     }
-    return FunctionObject::construct(state, callee, argc, argv);
+    return Object::construct(state, callee, argc, argv);
 }
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-instanceofoperator
@@ -1517,7 +1517,7 @@ NEVER_INLINE Value ByteCodeInterpreter::instanceOfOperation(ExecutionState& stat
     if (!instOfHandler.isUndefined()) {
         // Return ToBoolean(Call(instOfHandler, C, «O»)).
         Value arg[1] = { left };
-        return Value(FunctionObject::call(state, instOfHandler, right, 1, arg).toBoolean(state));
+        return Value(Object::call(state, instOfHandler, right, 1, arg).toBoolean(state));
     }
 #endif
     // If IsCallable(C) is false, throw a TypeError exception.
@@ -2193,7 +2193,7 @@ NEVER_INLINE void ByteCodeInterpreter::evalOperation(ExecutionState& state, Call
                 thisValue = env->record()->asObjectEnvironmentRecord()->bindingObject();
             }
         }
-        registerFile[code->m_resultIndex] = FunctionObject::call(state, eval, thisValue, argc, argv);
+        registerFile[code->m_resultIndex] = Object::call(state, eval, thisValue, argc, argv);
     }
 }
 
@@ -2396,9 +2396,9 @@ NEVER_INLINE Value ByteCodeInterpreter::callFunctionInWithScope(ExecutionState& 
     if (code->m_hasSpreadElement) {
         ValueVector spreadArgs;
         spreadFunctionArguments(state, argv, code->m_argumentCount, spreadArgs);
-        return FunctionObject::call(state, callee, receiverObj, spreadArgs.size(), spreadArgs.data());
+        return Object::call(state, callee, receiverObj, spreadArgs.size(), spreadArgs.data());
     }
-    return FunctionObject::call(state, callee, receiverObj, code->m_argumentCount, argv);
+    return Object::call(state, callee, receiverObj, code->m_argumentCount, argv);
 }
 
 void ByteCodeInterpreter::spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector)
@@ -2458,7 +2458,7 @@ Value ByteCodeInterpreter::yieldDelegateOperation(ExecutionState& state, Value* 
             return nextValue;
         }
 
-        Value innerResult = FunctionObject::call(state, ret, iterator, 1, &nextValue);
+        Value innerResult = Object::call(state, ret, iterator, 1, &nextValue);
 
         if (innerResult.isObject() == false) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "IteratorResult is not an object");
@@ -2479,7 +2479,7 @@ Value ByteCodeInterpreter::yieldDelegateOperation(ExecutionState& state, Value* 
 
         if (throwMethod.isUndefined() == false) {
             Value innerResult;
-            innerResult = FunctionObject::call(state, throwMethod, iterator, 1, &nextValue);
+            innerResult = Object::call(state, throwMethod, iterator, 1, &nextValue);
             if (innerResult.isObject() == false) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "IteratorResult is not an object");
             }
@@ -2559,6 +2559,7 @@ NEVER_INLINE void ByteCodeInterpreter::declareFunctionDeclarations(ExecutionStat
 
 NEVER_INLINE void ByteCodeInterpreter::defineObjectGetter(ExecutionState& state, ObjectDefineGetter* code, Value* registerFile)
 {
+    // FIXME: FunctionObject
     FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunction();
     String* pName = registerFile[code->m_objectPropertyNameRegisterIndex].toString(state);
     StringBuilder builder;
@@ -2574,6 +2575,7 @@ NEVER_INLINE void ByteCodeInterpreter::defineObjectGetter(ExecutionState& state,
 
 NEVER_INLINE void ByteCodeInterpreter::defineObjectSetter(ExecutionState& state, ObjectDefineSetter* code, Value* registerFile)
 {
+    // FIXME: FunctionObject
     FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunction();
     String* pName = registerFile[code->m_objectPropertyNameRegisterIndex].toString(state);
     StringBuilder builder;

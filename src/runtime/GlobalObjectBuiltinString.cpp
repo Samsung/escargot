@@ -311,7 +311,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
     Value searchValue = argv[0];
     Value replaceValue = argv[1];
     String* replaceString = nullptr;
-    bool replaceValueIsFunction = replaceValue.isFunction();
+    bool replaceValueIsFunction = replaceValue.isCallable();
     RegexMatchResult result;
 
     if (searchValue.isPointerValue() == true && searchValue.asPointerValue()->isRegExpObject(state) == true) {
@@ -375,7 +375,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             arguments[subLen] = Value((int)result.m_matchResults[i][0].m_start);
             arguments[subLen + 1] = string;
             // 21.1.3.14 (11) it should be called with this as undefined
-            String* res = FunctionObject::call(state, callee, Value(), subLen + 2, arguments).toString(state);
+            String* res = Object::call(state, callee, Value(), subLen + 2, arguments).toString(state);
             builer.appendSubString(res, 0, res->length());
 
             if (i < matchCount - 1) {
@@ -485,13 +485,13 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
 
         if (!searcher.isUndefined()) {
             Value parameter[1] = { obj };
-            return FunctionObject::call(state, searcher, regexp, 1, parameter);
+            return Object::call(state, searcher, regexp, 1, parameter);
         }
     }
     rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString : regexp.toString(state), String::emptyString);
     Value func = rx->getMethod(state, rx, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().search));
     Value parameter[1] = { Value(string) };
-    return func.asObject()->asFunctionObject()->call(state, rx, 1, parameter);
+    return Object::call(state, func, rx, 1, parameter);
 #else
     if (regexp.isPointerValue() == true && regexp.asPointerValue()->isRegExpObject(state) == true) {
         // If Type(regexp) is Object and the value of the [[Class]] internal property of regexp is "RegExp", then let rx be regexp;
@@ -530,7 +530,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
         if (!splitter.isUndefined()) {
             // Return Call(splitter, separator, <<O, limit>>).
             Value params[2] = { obj, limit };
-            return FunctionObject::call(state, splitter, separator, 2, params);
+            return Object::call(state, splitter, separator, 2, params);
         }
     }
     // If limit is undefined, let lim = 2^53 - 1, else let lim = ToLength(limit).

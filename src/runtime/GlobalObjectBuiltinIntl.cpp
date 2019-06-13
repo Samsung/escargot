@@ -485,7 +485,7 @@ static ValueVector canonicalizeLocaleList(ExecutionState& state, Value locales)
         // Let locales be a new array created as if
         // by the expression new Array(locales) where Array is the standard built-in constructor with that name and locales is the value of locales.
         Value callArg[] = { locales };
-        locales = FunctionObject::construct(state, state.context()->globalObject()->array(), 1, callArg);
+        locales = Object::construct(state, state.context()->globalObject()->array(), 1, callArg);
     }
     // Let O be ToObject(locales).
     Object* O = locales.toObject(state);
@@ -1372,7 +1372,7 @@ static Value toDateTimeOptions(ExecutionState& state, Value options, Value requi
     // Let create be the standard built-in function object defined in ES5, 15.2.3.5.
     // Let options be the result of calling the [[Call]] internal method of create with undefined as the this value
     // and an argument list containing the single item options.
-    options = state.context()->globalObject()->objectCreate()->call(state, Value(), 1, &options);
+    options = Object::call(state, state.context()->globalObject()->objectCreate(), Value(), 1, &options);
 
     // Let needDefaults be true.
     bool needDefaults = true;

@@ -113,11 +113,11 @@ void* ObjectRareData::operator new(size_t size)
 Value ObjectGetResult::valueSlowCase(ExecutionState& state, const Value& receiver) const
 {
 #ifdef ESCARGOT_32
-    if (m_jsGetterSetter->getter().isFunction()) {
+    if (m_jsGetterSetter->getter().isCallable()) {
 #else
-    if (m_jsGetterSetter->hasGetter() && m_jsGetterSetter->getter().isFunction()) {
+    if (m_jsGetterSetter->hasGetter() && m_jsGetterSetter->getter().isCallable()) {
 #endif
-        return m_jsGetterSetter->getter().asFunction()->call(state, receiver, 0, nullptr);
+        return Object::call(state, m_jsGetterSetter->getter(), receiver, 0, nullptr);
     }
     return Value();
 }
@@ -191,7 +191,7 @@ ObjectPropertyDescriptor::ObjectPropertyDescriptor(ExecutionState& state, Object
     desc = obj->get(state, ObjectPropertyName(strings->get));
     if (desc.hasValue()) {
         Value getter = desc.value(state, obj);
-        if (!getter.isFunction() && !getter.isUndefined()) {
+        if (!getter.isCallable() && !getter.isUndefined()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Getter must be a function or undefined");
         } else {
             m_isDataProperty = false;
@@ -202,7 +202,7 @@ ObjectPropertyDescriptor::ObjectPropertyDescriptor(ExecutionState& state, Object
     desc = obj->get(state, ObjectPropertyName(strings->set));
     if (desc.hasValue()) {
         Value setter = desc.value(state, obj);
-        if (!setter.isFunction() && !setter.isUndefined()) {
+        if (!setter.isCallable() && !setter.isUndefined()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Setter must be a function or undefined");
         } else {
             if (m_isDataProperty) {
@@ -823,7 +823,7 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
     }
     // 9. Let setterResult be Call(setter, Receiver, «V»).
     Value argv[] = { v };
-    FunctionObject::call(state, setter, receiver, 1, argv);
+    Object::call(state, setter, receiver, 1, argv);
     return true;
 }
 
@@ -843,6 +843,32 @@ Value Object::getMethod(ExecutionState& state, const Value& object, const Object
     }
     // 6. Return func.
     return func;
+}
+
+// https://www.ecma-international.org/ecma-262/6.0/#sec-call
+Value Object::call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
+{
+    // If IsCallable(F) is false, throw a TypeError exception.
+    if (callee.isCallable() == false) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
+    }
+    // Return F.[[Call]](V, argumentsList).
+    return callee.asObject()->call(state, thisValue, argc, argv);
+}
+
+// https://www.ecma-international.org/ecma-262/6.0/#sec-construct
+Object* Object::construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Value newTarget)
+{
+    // If newTarget was not passed, let newTarget be F.
+    if (newTarget.isEmpty() == true) {
+        newTarget = constructor;
+    }
+    // Assert: IsConstructor (F) is true.
+    ASSERT(constructor.isConstructor() == true);
+    // Assert: IsConstructor (newTarget) is true.
+    ASSERT(newTarget.isConstructor() == true);
+    // Return F.[[Construct]](argumentsList, newTarget).
+    return constructor.asObject()->construct(state, argc, argv, newTarget);
 }
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinaryhasinstance
@@ -1071,11 +1097,11 @@ Value Object::getOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t i
     Value v = m_values[idx];
     auto gs = v.asPointerValue()->asJSGetterSetter();
 #ifdef ESCARGOT_32
-    if (gs->getter().isFunction()) {
+    if (gs->getter().isCallable()) {
 #else
-    if (gs->hasGetter() && gs->getter().isFunction()) {
+    if (gs->hasGetter() && gs->getter().isCallable()) {
 #endif
-        return gs->getter().asFunction()->call(state, receiver, 0, nullptr);
+        return Object::call(state, gs->getter(), receiver, 0, nullptr);
     }
     return Value();
 }
@@ -1085,12 +1111,12 @@ bool Object::setOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t id
     Value v = m_values[idx];
     auto gs = v.asPointerValue()->asJSGetterSetter();
 #ifdef ESCARGOT_32
-    if (gs->setter().isFunction()) {
+    if (gs->setter().isCallable()) {
 #else
-    if (gs->hasSetter() && gs->setter().isFunction()) {
+    if (gs->hasSetter() && gs->setter().isCallable()) {
 #endif
         Value arg = newValue;
-        gs->setter().asFunction()->call(state, receiver, 1, &arg);
+        Object::call(state, gs->setter(), receiver, 1, &arg);
         return true;
     }
     return false;

@@ -49,7 +49,7 @@ Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc,
         // Let adder be ? Get(map, "set").
         adder = map->Object::get(state, ObjectPropertyName(state.context()->staticStrings().set)).value(state, map);
         // If IsCallable(adder) is false, throw a TypeError exception.
-        if (!adder.isFunction()) {
+        if (!adder.isCallable()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
         }
         // Let iter be ? GetIterator(iterable).
@@ -88,7 +88,7 @@ Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc,
         // Let status be Call(adder, map, « k.[[Value]], v.[[Value]] »).
         Value argv[2] = { k, v };
         // TODO If status is an abrupt completion, return ? IteratorClose(iter, status).
-        adder.asFunction()->call(state, map, 2, argv);
+        Object::call(state, adder, map, 2, argv);
     }
     return map;
 }
@@ -140,7 +140,7 @@ static Value builtinMapForEach(ExecutionState& state, Value thisValue, size_t ar
 
     Value callbackfn = argv[0];
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
-    if (!callbackfn.isFunction()) {
+    if (!callbackfn.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Map.string(), true, state.context()->staticStrings().forEach.string(), errorMessage_GlobalObject_CallbackNotCallable);
     }
     // If thisArg was supplied, let T be thisArg; else let T be undefined.
@@ -156,7 +156,7 @@ static Value builtinMapForEach(ExecutionState& state, Value thisValue, size_t ar
         if (!entries[i].first.isEmpty()) {
             // Perform ? Call(callbackfn, T, « e.[[Value]], e.[[Key]], M »).
             Value argv[3] = { Value(entries[i].second), Value(entries[i].first), Value(M) };
-            callbackfn.asFunction()->call(state, T, 3, argv);
+            Object::call(state, callbackfn, T, 3, argv);
         }
     }
 

@@ -73,7 +73,7 @@ Value BoundFunctionObject::call(ExecutionState& state, const Value& thisValue, c
     }
 
     // Return Call(target, boundThis, args).
-    return FunctionObject::call(state, m_boundTargetFunction, m_boundThis, mergedArgc, mergedArgv);
+    return Object::call(state, m_boundTargetFunction, m_boundThis, mergedArgc, mergedArgv);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-bound-function-exotic-objects-construct-argumentslist-newtarget
@@ -95,6 +95,6 @@ Object* BoundFunctionObject::construct(ExecutionState& state, const size_t calle
     Value newConstructTarget = (Value(this) == Value(newTarget)) ? Value(m_boundTargetFunction) : newTarget;
 
     // Return Construct(target, args, newTarget).
-    return FunctionObject::construct(state, m_boundTargetFunction, mergedArgc, mergedArgv, newConstructTarget);
+    return Object::construct(state, m_boundTargetFunction, mergedArgc, mergedArgv, newConstructTarget);
 }
 }

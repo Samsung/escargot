@@ -37,7 +37,7 @@ public:
         {
         }
 
-        Capability(Value promise, FunctionObject* resolveFunction, FunctionObject* rejectFunction)
+        Capability(Value promise, Object* resolveFunction, Object* rejectFunction)
             : m_promise(promise)
             , m_resolveFunction(resolveFunction)
             , m_rejectFunction(rejectFunction)
@@ -52,8 +52,8 @@ public:
         }
 
         Value m_promise;
-        FunctionObject* m_resolveFunction;
-        FunctionObject* m_rejectFunction;
+        Object* m_resolveFunction;
+        Object* m_rejectFunction;
     };
 
     PromiseReaction()
@@ -62,7 +62,7 @@ public:
     {
     }
 
-    PromiseReaction(FunctionObject* handler, const Capability& capability)
+    PromiseReaction(Object* handler, const Capability& capability)
         : m_capability(capability)
         , m_handler(handler)
     {
@@ -70,7 +70,7 @@ public:
 
 
     Capability m_capability;
-    FunctionObject* m_handler;
+    Object* m_handler;
 };
 
 class PromiseObject : public Object {
@@ -100,7 +100,7 @@ public:
     typedef Vector<PromiseReaction, gc_allocator_ignore_off_page<PromiseReaction> > Reactions;
     void triggerPromiseReactions(ExecutionState& state, Reactions& reactions);
 
-    void appendReaction(FunctionObject* onFulfilled, FunctionObject* onRejected, PromiseReaction::Capability& capability)
+    void appendReaction(Object* onFulfilled, Object* onRejected, PromiseReaction::Capability& capability)
     {
         m_fulfillReactions.push_back(PromiseReaction(onFulfilled, capability));
         m_rejectReactions.push_back(PromiseReaction(onRejected, capability));
@@ -109,7 +109,7 @@ public:
     PromiseReaction::Capability createResolvingFunctions(ExecutionState& state);
     static PromiseReaction::Capability newPromiseCapability(ExecutionState& state, Object* constructor);
 
-    static Object* resolvingFunctionAlreadyResolved(ExecutionState& state, FunctionObject* callee);
+    static Object* resolvingFunctionAlreadyResolved(ExecutionState& state, Object* callee);
 
     PromiseState state() { return m_state; }
     Value promiseResult()

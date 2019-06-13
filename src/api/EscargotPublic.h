@@ -352,6 +352,7 @@ public:
     bool isString() const;
     bool isObject() const;
     bool isFunction() const;
+    bool isCallable() const;
     bool isUndefinedOrNull() const
     {
         return isUndefined() || isNull();

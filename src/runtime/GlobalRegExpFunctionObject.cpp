@@ -83,8 +83,8 @@ void GlobalRegExpFunctionObject::initInternalProperties(ExecutionState& state)
         JSGetterSetter gs(
             new FunctionObject(state, NativeFunctionInfo(strings.get, GlobalRegExpFunctionObjectBuiltinFunctions::builtinGlobalRegExpFunctionObjectInputGetter, 0, nullptr, NativeFunctionInfo::Strict)),
             new FunctionObject(state, NativeFunctionInfo(strings.set, GlobalRegExpFunctionObjectBuiltinFunctions::builtinGlobalRegExpFunctionObjectInputSetter, 1, nullptr, NativeFunctionInfo::Strict)));
-        gs.getter().asFunction()->setInternalSlot(state.context()->globalObject());
-        gs.setter().asFunction()->setInternalSlot(state.context()->globalObject());
+        gs.getter().asObject()->setInternalSlot(state.context()->globalObject());
+        gs.setter().asObject()->setInternalSlot(state.context()->globalObject());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::EnumerablePresent);
         defineOwnProperty(state, ObjectPropertyName(strings.input), desc);
         ObjectPropertyDescriptor desc2(gs, ObjectPropertyDescriptor::NotPresent);
@@ -95,7 +95,7 @@ void GlobalRegExpFunctionObject::initInternalProperties(ExecutionState& state)
         JSGetterSetter gs(
             new FunctionObject(state, NativeFunctionInfo(strings.get, GlobalRegExpFunctionObjectBuiltinFunctions::builtinGlobalRegExpFunctionObjectLastMatchGetter, 0, nullptr, NativeFunctionInfo::Strict)),
             Value());
-        gs.getter().asFunction()->setInternalSlot(state.context()->globalObject());
+        gs.getter().asObject()->setInternalSlot(state.context()->globalObject());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::EnumerablePresent);
         defineOwnProperty(state, ObjectPropertyName(strings.lastMatch), desc);
         ObjectPropertyDescriptor desc2(gs, ObjectPropertyDescriptor::NotPresent);
@@ -106,7 +106,7 @@ void GlobalRegExpFunctionObject::initInternalProperties(ExecutionState& state)
         JSGetterSetter gs(
             new FunctionObject(state, NativeFunctionInfo(strings.get, GlobalRegExpFunctionObjectBuiltinFunctions::builtinGlobalRegExpFunctionObjectLastParenGetter, 0, nullptr, NativeFunctionInfo::Strict)),
             Value());
-        gs.getter().asFunction()->setInternalSlot(state.context()->globalObject());
+        gs.getter().asObject()->setInternalSlot(state.context()->globalObject());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::EnumerablePresent);
         defineOwnProperty(state, ObjectPropertyName(strings.lastParen), desc);
         ObjectPropertyDescriptor desc2(gs, ObjectPropertyDescriptor::NotPresent);
@@ -117,7 +117,7 @@ void GlobalRegExpFunctionObject::initInternalProperties(ExecutionState& state)
         JSGetterSetter gs(
             new FunctionObject(state, NativeFunctionInfo(strings.get, GlobalRegExpFunctionObjectBuiltinFunctions::builtinGlobalRegExpFunctionObjectLeftContextGetter, 0, nullptr, NativeFunctionInfo::Strict)),
             Value());
-        gs.getter().asFunction()->setInternalSlot(state.context()->globalObject());
+        gs.getter().asObject()->setInternalSlot(state.context()->globalObject());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::EnumerablePresent);
         defineOwnProperty(state, ObjectPropertyName(strings.leftContext), desc);
         ObjectPropertyDescriptor desc2(gs, ObjectPropertyDescriptor::NotPresent);
@@ -128,7 +128,7 @@ void GlobalRegExpFunctionObject::initInternalProperties(ExecutionState& state)
         JSGetterSetter gs(
             new FunctionObject(state, NativeFunctionInfo(strings.get, GlobalRegExpFunctionObjectBuiltinFunctions::builtinGlobalRegExpFunctionObjectRightContextGetter, 0, nullptr, NativeFunctionInfo::Strict)),
             Value());
-        gs.getter().asFunction()->setInternalSlot(state.context()->globalObject());
+        gs.getter().asObject()->setInternalSlot(state.context()->globalObject());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::EnumerablePresent);
         defineOwnProperty(state, ObjectPropertyName(strings.rightContext), desc);
         ObjectPropertyDescriptor desc2(gs, ObjectPropertyDescriptor::NotPresent);
@@ -140,7 +140,7 @@ void GlobalRegExpFunctionObject::initInternalProperties(ExecutionState& state)
         JSGetterSetter gs(                                                                                                                                                                                           \
             new FunctionObject(state, NativeFunctionInfo(strings.get, GlobalRegExpFunctionObjectBuiltinFunctions::builtinGlobalRegExpFunctionObjectDollar##number##Getter, 0, nullptr, NativeFunctionInfo::Strict)), \
             Value());                                                                                                                                                                                                \
-        gs.getter().asFunction()->setInternalSlot(state.context()->globalObject());                                                                                                                                  \
+        gs.getter().asObject()->setInternalSlot(state.context()->globalObject());                                                                                                                                    \
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::EnumerablePresent);                                                                                                                              \
         defineOwnProperty(state, ObjectPropertyName(strings.$##number), desc);                                                                                                                                       \
     }
