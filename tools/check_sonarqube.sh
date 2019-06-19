@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if [[ "${TRAVIS_REPO_SLUG}" == "pando-project/escargot"
+if [[ "${TRAVIS_REPO_SLUG}" == "lws-project/escargot"
           && ${TRAVIS_BRANCH} == "master"
           && ${TRAVIS_EVENT_TYPE} == "push" ]]
 then
