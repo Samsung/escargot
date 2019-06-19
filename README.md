@@ -1,7 +1,7 @@
 # Escargot
 
-[![Travis CI Build Status](https://travis-ci.org/pando-project/escargot.svg?branch=master)](https://travis-ci.org/pando-project/escargot)
-[![SonarCloud Status](https://sonarcloud.io/api/project_badges/measure?project=pando-project_escargot&metric=alert_status)](https://sonarcloud.io/dashboard?id=pando-project_escargot)
+[![Travis CI Build Status](https://travis-ci.org/lws-project/escargot.svg?branch=master)](https://travis-ci.org/lws-project/escargot)
+[![SonarCloud Status](https://sonarcloud.io/api/project_badges/measure?project=lws-project_escargot&metric=alert_status)](https://sonarcloud.io/dashboard?id=lws-project_escargot)
 
 ## Prerequisites
 
@@ -35,7 +35,7 @@ export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig"
 ## Build Escargot
 
 ```sh
-git clone https://github.com/pando-project/escargot.git
+git clone https://github.com/lws-project/escargot.git
 cd escargot
 git submodule update --init third_party
 cmake -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -GNinja

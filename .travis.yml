@@ -109,7 +109,7 @@ matrix:
         apt:
           packages: [ autoconf, automake, libtool, ninja-build, libicu-dev ]
         sonarcloud:
-          organization: "pando-project"
+          organization: "lws-project"
       cache:
         directories:
           - '$HOME/.sonar/cache'
