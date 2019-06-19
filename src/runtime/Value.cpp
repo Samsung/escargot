@@ -168,77 +168,86 @@ Object* Value::toObjectSlowCase(ExecutionState& state) const // $7.1.13 ToObject
     return object;
 }
 
+// https://www.ecma-international.org/ecma-262/6.0/#sec-toprimitive
 Value Value::ordinaryToPrimitive(ExecutionState& state, PrimitiveTypeHint preferredType) const
 {
-    ASSERT(!isPrimitive());
-    Object* obj = asObject();
-    if (preferredType == PrimitiveTypeHint::PreferString) {
-        Value toString = obj->get(state, ObjectPropertyName(state.context()->staticStrings().toString)).value(state, obj);
-        if (toString.isFunction()) {
-            Value ret = toString.asFunction()->call(state, obj, 0, NULL);
-            if (ret.isPrimitive()) {
-                return ret;
-            }
-        }
+    // Assert: Type(O) is Object
+    // Assert: Type(hint) is String and its value is either "string" or "number".
+    ASSERT(isObject());
+    ASSERT(preferredType == PreferString || preferredType == PreferNumber);
+    const StaticStrings& strings = state.context()->staticStrings();
+    Object* input = asObject();
 
-        Value valueOf = obj->get(state, ObjectPropertyName(state.context()->staticStrings().valueOf)).value(state, obj);
-        if (valueOf.isFunction()) {
-            Value ret = valueOf.asFunction()->call(state, obj, 0, NULL);
-            if (ret.isPrimitive()) {
-                return ret;
-            }
-        }
+    AtomicString methodName1;
+    AtomicString methodName2;
+    // If hint is "string", then
+    if (preferredType == PreferString) {
+        // Let methodNames be «"toString", "valueOf"».
+        methodName1 = strings.toString;
+        methodName2 = strings.valueOf;
+        // Else
     } else { // preferNumber
-        Value valueOf = obj->get(state, ObjectPropertyName(state.context()->staticStrings().valueOf)).value(state, obj);
-        if (valueOf.isFunction()) {
-            Value ret = valueOf.asFunction()->call(state, obj, 0, NULL);
-            if (ret.isPrimitive()) {
-                return ret;
-            }
-        }
+        // Let methodNames be «"valueOf", "toString"».
+        methodName1 = strings.valueOf;
+        methodName2 = strings.toString;
+    }
 
-        Value toString = obj->get(state, ObjectPropertyName(state.context()->staticStrings().toString)).value(state, obj);
-        if (toString.isFunction()) {
-            Value ret = toString.asFunction()->call(state, obj, 0, NULL);
-            if (ret.isPrimitive()) {
-                return ret;
-            }
+    // For each name in methodNames in List order, do
+    // Let method be Get(O, name).
+    // If IsCallable(method) is true, then
+    // Let result be Call(method, O).
+    // If Type(result) is not Object, return result.
+    Value method1 = input->get(state, ObjectPropertyName(methodName1)).value(state, input);
+    if (method1.isCallable()) {
+        Value result = FunctionObject::call(state, method1, input, 0, nullptr);
+        if (!result.isObject()) {
+            return result;
+        }
+    }
+    Value method2 = input->get(state, ObjectPropertyName(methodName2)).value(state, input);
+    if (method2.isCallable()) {
+        Value result = FunctionObject::call(state, method2, input, 0, nullptr);
+        if (!result.isObject()) {
+            return result;
         }
     }
 
+    // Throw a TypeError exception.
     ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_ObjectToPrimitiveValue);
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint preferredType) const // $7.1.1 ToPrimitive
+// https://www.ecma-international.org/ecma-262/6.0/#sec-toprimitive
+Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint preferredType) const
 {
-    // http://www.ecma-international.org/ecma-262/7.0/index.html#sec-toprimitive
-    // If PreferredType was not passed, let hint be "default".
-    // Else if PreferredType is hint String, let hint be "string".
-    // Else PreferredType is hint Number, let hint be "number".
-    ASSERT(!isPrimitive());
-    Object* obj = asObject();
+    ASSERT(isObject());
+    const StaticStrings& strings = state.context()->staticStrings();
+    Object* input = asObject();
 
-    // Let exoticToPrim be ? GetMethod(input, @@toPrimitive).
-    Value exoticToPrim = obj->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().toPrimitive)).value(state, obj);
+    // Let exoticToPrim be GetMethod(input, @@toPrimitive).
+    Value exoticToPrim = Object::getMethod(state, input, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().toPrimitive));
     // If exoticToPrim is not undefined, then
     if (!exoticToPrim.isUndefined()) {
-        // Let result be ? Call(exoticToPrim, input, « hint »).
         Value hint;
         if (preferredType == PreferNumber) {
-            hint = state.context()->staticStrings().number.string();
+            hint = strings.number.string();
         } else if (preferredType == PreferString) {
-            hint = state.context()->staticStrings().string.string();
+            hint = strings.string.string();
         } else {
-            hint = state.context()->staticStrings().stringDefault.string();
+            hint = strings.stringDefault.string();
         }
-        Value result = FunctionObject::call(state, exoticToPrim, obj, 1, &hint);
+        // Let result be Call(exoticToPrim, input, «hint»).
+        Value result = FunctionObject::call(state, exoticToPrim, input, 1, &hint);
         // If Type(result) is not Object, return result.
         if (!result.isObject()) {
             return result;
         }
         // Throw a TypeError exception.
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_ObjectToPrimitiveValue);
+    }
+    // If hint is "default", let hint be "number".
+    if (preferredType == PreferDefault) {
+        preferredType = PreferNumber;
     }
 
     return ordinaryToPrimitive(state, preferredType);
@@ -290,16 +299,10 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
             return abstractEqualsTo(state, Value(val.toNumber(state)));
         } else if ((selfIsString || selfIsNumber || isSymbol()) && (valIsPointerValue && val.asPointerValue()->isObject())) {
             // If Type(x) is either String, Number, or Symbol and Type(y) is Object, then
-            if (val.asPointerValue()->isDateObject())
-                return abstractEqualsTo(state, val.toPrimitive(state, Value::PreferString));
-            else
-                return abstractEqualsTo(state, val.toPrimitive(state));
+            return abstractEqualsTo(state, val.toPrimitive(state));
         } else if ((selfIsPointerValue && asPointerValue()->isObject() && !selfIsString) && (valIsString || valIsNumber || val.isSymbol())) {
             // If Type(x) is Object and Type(y) is either String, Number, or Symbol, then
-            if (asPointerValue()->isDateObject())
-                return toPrimitive(state, Value::PreferString).abstractEqualsTo(state, val);
-            else
-                return toPrimitive(state).abstractEqualsTo(state, val);
+            return toPrimitive(state).abstractEqualsTo(state, val);
         }
 
         if (selfIsPointerValue && valIsPointerValue) {
@@ -438,7 +441,8 @@ bool Value::equalsToByTheSameValueZeroAlgorithm(ExecutionState& ec, const Value&
     return false;
 }
 
-double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
+// https://www.ecma-international.org/ecma-262/6.0/#sec-tonumber
+double Value::toNumberSlowCase(ExecutionState& state) const
 {
     ASSERT(isPointerValue());
     PointerValue* o = asPointerValue();
@@ -580,7 +584,9 @@ double Value::toNumberSlowCase(ExecutionState& state) const // $7.1.3 ToNumber
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot convert a Symbol value to a number");
         ASSERT_NOT_REACHED();
     } else {
-        return toPrimitive(state).toNumber(state);
+        // Let primValue be ToPrimitive(argument, hint Number).
+        // Return ToNumber(primValue).
+        return toPrimitive(state, PreferNumber).toNumber(state);
     }
     return 0;
 }

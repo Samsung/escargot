@@ -659,9 +659,9 @@ inline bool Value::isPrimitive() const
 #endif
 }
 
+// https://www.ecma-international.org/ecma-262/6.0/#sec-tonumber
 inline double Value::toNumber(ExecutionState& state) const
 {
-// http://www.ecma-international.org/ecma-262/6.0/#sec-tonumber
 #ifdef ESCARGOT_64
     auto n = u.asInt64 & TagTypeNumber;
     if (LIKELY(n)) {
@@ -697,7 +697,7 @@ ALWAYS_INLINE Object* Value::toObject(ExecutionState& ec) const // $7.1.13 ToObj
     }
 }
 
-inline Value Value::toPrimitive(ExecutionState& ec, PrimitiveTypeHint preferredType) const // $7.1.1 ToPrimitive
+inline Value Value::toPrimitive(ExecutionState& ec, PrimitiveTypeHint preferredType) const
 {
     if (UNLIKELY(!isPrimitive())) {
         return toPrimitiveSlowCase(ec, preferredType);

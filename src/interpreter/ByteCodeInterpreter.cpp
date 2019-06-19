@@ -1447,17 +1447,8 @@ NEVER_INLINE Value ByteCodeInterpreter::plusSlowCase(ExecutionState& state, cons
     // All native ECMAScript objects except Date objects handle the absence of a hint as if the hint Number were given;
     // Date objects handle the absence of a hint as if the hint String were given.
     // Host objects may handle the absence of a hint in some other manner.
-    if (UNLIKELY(left.isPointerValue() && left.asPointerValue()->isDateObject())) {
-        lval = left.toPrimitive(state, Value::PreferString);
-    } else {
-        lval = left.toPrimitive(state);
-    }
-
-    if (UNLIKELY(right.isPointerValue() && right.asPointerValue()->isDateObject())) {
-        rval = right.toPrimitive(state, Value::PreferString);
-    } else {
-        rval = right.toPrimitive(state);
-    }
+    lval = left.toPrimitive(state);
+    rval = right.toPrimitive(state);
     if (lval.isString() || rval.isString()) {
         ret = RopeString::createRopeString(lval.toString(state), rval.toString(state), &state);
     } else {
@@ -1608,14 +1599,13 @@ NEVER_INLINE bool ByteCodeInterpreter::abstractRelationalComparisonSlowCase(Exec
     Value lval(Value::ForceUninitialized);
     Value rval(Value::ForceUninitialized);
     if (leftFirst) {
-        lval = left.toPrimitive(state);
-        rval = right.toPrimitive(state);
+        lval = left.toPrimitive(state, Value::PreferNumber);
+        rval = right.toPrimitive(state, Value::PreferNumber);
     } else {
-        rval = right.toPrimitive(state);
-        lval = left.toPrimitive(state);
+        rval = right.toPrimitive(state, Value::PreferNumber);
+        lval = left.toPrimitive(state, Value::PreferNumber);
     }
 
-    // http://www.ecma-international.org/ecma-262/5.1/#sec-11.8.5
     if (lval.isInt32() && rval.isInt32()) {
         return lval.asInt32() < rval.asInt32();
     } else if (lval.isString() && rval.isString()) {
@@ -1632,11 +1622,11 @@ NEVER_INLINE bool ByteCodeInterpreter::abstractRelationalComparisonOrEqualSlowCa
     Value lval(Value::ForceUninitialized);
     Value rval(Value::ForceUninitialized);
     if (leftFirst) {
-        lval = left.toPrimitive(state);
-        rval = right.toPrimitive(state);
+        lval = left.toPrimitive(state, Value::PreferNumber);
+        rval = right.toPrimitive(state, Value::PreferNumber);
     } else {
-        rval = right.toPrimitive(state);
-        lval = left.toPrimitive(state);
+        rval = right.toPrimitive(state, Value::PreferNumber);
+        lval = left.toPrimitive(state, Value::PreferNumber);
     }
 
     if (lval.isInt32() && rval.isInt32()) {
