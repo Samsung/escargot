@@ -31,15 +31,6 @@ void ExecutionState::throwException(const Value& e)
     context()->throwException(*this, e);
 }
 
-ExecutionState* ExecutionState::parent()
-{
-    if (m_parent & 1) {
-        return (ExecutionState*)(m_parent - 1);
-    } else {
-        return rareData()->m_parent;
-    }
-}
-
 ExecutionStateRareData* ExecutionState::ensureRareData()
 {
     if (m_parent & 1) {
