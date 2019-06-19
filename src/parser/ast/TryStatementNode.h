@@ -22,7 +22,6 @@
 
 #include "CatchClauseNode.h"
 #include "StatementNode.h"
-#include "runtime/ExecutionContext.h"
 
 namespace Escargot {
 

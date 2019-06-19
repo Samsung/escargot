@@ -19,7 +19,6 @@
 
 #include "Escargot.h"
 #include "runtime/VMInstance.h"
-#include "runtime/ExecutionContext.h"
 #include "util/Vector.h"
 #include "runtime/Value.h"
 #include "parser/ScriptParser.h"

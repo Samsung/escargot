@@ -45,25 +45,20 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     ByteCodeGenerator g;
     m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, isOnGlobal);
 
-    LexicalEnvironment* env;
-    ExecutionContext* prevEc;
-    {
-        InterpretedCodeBlock* globalCodeBlock = m_topCodeBlock;
-        LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, globalCodeBlock, state.context()->globalObject(), isEvalMode, !needNewEnv), nullptr);
-        if (UNLIKELY(needNewEnv)) {
-            // NOTE: ES5 10.4.2.1 eval in strict mode
-            prevEc = new ExecutionContext(state.context(), state.executionContext(), globalEnvironment, m_topCodeBlock->isStrict());
-            EnvironmentRecord* record = new DeclarativeEnvironmentRecordNotIndexed(state, m_topCodeBlock->identifierInfos());
-            env = new LexicalEnvironment(record, globalEnvironment);
-        } else {
-            env = globalEnvironment;
-            prevEc = nullptr;
-        }
+    LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, m_topCodeBlock, state.context()->globalObject(), isEvalMode, !needNewEnv), nullptr);
+    ExecutionState newState(state.context());
+
+    if (UNLIKELY(needNewEnv)) {
+        // NOTE: ES5 10.4.2.1 eval in strict mode
+        newState.setParent(new ExecutionState(&state, globalEnvironment, m_topCodeBlock->isStrict()));
+
+        EnvironmentRecord* record = new DeclarativeEnvironmentRecordNotIndexed(state, m_topCodeBlock->identifierInfos());
+        newState.setLexicalEnvironment(new LexicalEnvironment(record, globalEnvironment), m_topCodeBlock->isStrict());
+    } else {
+        newState.setLexicalEnvironment(globalEnvironment, m_topCodeBlock->isStrict());
     }
 
-    ExecutionContext ec(state.context(), prevEc, env, m_topCodeBlock->isStrict());
     Value thisValue(state.context()->globalObject());
-    ExecutionState newState(&state, &ec);
 
     size_t literalStorageSize = m_topCodeBlock->byteCodeBlock()->m_numeralLiteralData.size();
     Value* registerFile = (Value*)alloca((m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize + 1 + literalStorageSize) * sizeof(Value));
@@ -86,7 +81,7 @@ Script::ScriptSandboxExecuteResult Script::sandboxExecute(ExecutionState& state)
 {
     ScriptSandboxExecuteResult result;
     SandBox sb(state.context());
-    ExecutionState stateForInit(state.context(), &state, nullptr);
+    ExecutionState stateForInit(&state, nullptr, false);
 
     auto sandBoxResult = sb.run([&]() -> Value {
         return execute(stateForInit, false, false, true);
@@ -119,7 +114,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
     bool isOnGlobal = true;
     FunctionEnvironmentRecord* fnRecord = nullptr;
     {
-        LexicalEnvironment* env = state.executionContext()->lexicalEnvironment();
+        LexicalEnvironment* env = state.lexicalEnvironment();
         while (env) {
             if (env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
                 isOnGlobal = false;
@@ -140,13 +135,13 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
         inStrict = true;
         record = new DeclarativeEnvironmentRecordNotIndexed();
     } else {
-        record = state.executionContext()->lexicalEnvironment()->record();
+        record = state.lexicalEnvironment()->record();
     }
 
     const CodeBlock::IdentifierInfoVector& vec = m_topCodeBlock->identifierInfos();
     size_t len = vec.size();
     EnvironmentRecord* recordToAddVariable = record;
-    LexicalEnvironment* e = state.executionContext()->lexicalEnvironment();
+    LexicalEnvironment* e = state.lexicalEnvironment();
     while (!recordToAddVariable->isEvalTarget()) {
         e = e->outerEnvironment();
         recordToAddVariable = e->record();
@@ -154,10 +149,9 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
     for (size_t i = 0; i < len; i++) {
         recordToAddVariable->createBinding(state, vec[i].m_name, inStrict ? false : true, true);
     }
-    LexicalEnvironment* newEnvironment = new LexicalEnvironment(record, state.executionContext()->lexicalEnvironment());
+    LexicalEnvironment* newEnvironment = new LexicalEnvironment(record, state.lexicalEnvironment());
 
-    ExecutionContext ec(state.context(), state.executionContext(), newEnvironment, m_topCodeBlock->isStrict());
-    ExecutionState newState(&state, &ec);
+    ExecutionState newState(&state, newEnvironment, m_topCodeBlock->isStrict());
 
     size_t stackStorageSize = m_topCodeBlock->identifierOnStackCount();
     size_t literalStorageSize = m_topCodeBlock->byteCodeBlock()->m_numeralLiteralData.size();

@@ -68,7 +68,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
     ASSERT(registerFile != nullptr);
 
     {
-        ExecutionContext* ec = state.executionContext();
         char* codeBuffer = byteCodeBlock->m_code.data();
         programCounter = (size_t)(codeBuffer + programCounter);
 
@@ -579,7 +578,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 LoadByHeapIndex* code = (LoadByHeapIndex*)programCounter;
-                LexicalEnvironment* upperEnv = ec->lexicalEnvironment();
+                LexicalEnvironment* upperEnv = state.lexicalEnvironment();
                 for (size_t i = 0; i < code->m_upperIndex; i++) {
                     upperEnv = upperEnv->outerEnvironment();
                 }
@@ -594,7 +593,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 StoreByHeapIndex* code = (StoreByHeapIndex*)programCounter;
-                LexicalEnvironment* upperEnv = ec->lexicalEnvironment();
+                LexicalEnvironment* upperEnv = state.lexicalEnvironment();
                 for (size_t i = 0; i < code->m_upperIndex; i++) {
                     upperEnv = upperEnv->outerEnvironment();
                 }
@@ -843,7 +842,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 UnaryTypeof* code = (UnaryTypeof*)programCounter;
                 Value val;
                 if (code->m_id.string()->length()) {
-                    val = loadByName(state, ec->lexicalEnvironment(), code->m_id, false);
+                    val = loadByName(state, state.lexicalEnvironment(), code->m_id, false);
                 } else {
                     val = registerFile[code->m_srcIndex];
                 }
@@ -914,7 +913,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 LoadByName* code = (LoadByName*)programCounter;
-                registerFile[code->m_registerIndex] = loadByName(state, ec->lexicalEnvironment(), code->m_name);
+                registerFile[code->m_registerIndex] = loadByName(state, state.lexicalEnvironment(), code->m_name);
                 ADD_PROGRAM_COUNTER(LoadByName);
                 NEXT_INSTRUCTION();
             }
@@ -923,7 +922,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 StoreByName* code = (StoreByName*)programCounter;
-                storeByName(state, ec->lexicalEnvironment(), code->m_name, registerFile[code->m_registerIndex]);
+                storeByName(state, state.lexicalEnvironment(), code->m_name, registerFile[code->m_registerIndex]);
                 ADD_PROGRAM_COUNTER(StoreByName);
                 NEXT_INSTRUCTION();
             }
@@ -932,7 +931,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 CreateFunction* code = (CreateFunction*)programCounter;
-                registerFile[code->m_registerIndex] = new FunctionObject(state, code->m_codeBlock, ec->lexicalEnvironment());
+                registerFile[code->m_registerIndex] = new FunctionObject(state, code->m_codeBlock, state.lexicalEnvironment());
                 ADD_PROGRAM_COUNTER(CreateFunction);
                 NEXT_INSTRUCTION();
             }
@@ -941,7 +940,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 CreateClass* code = (CreateClass*)programCounter;
-                classOperation(state, code, ec, registerFile);
+                classOperation(state, code, registerFile);
                 ADD_PROGRAM_COUNTER(CreateClass);
                 NEXT_INSTRUCTION();
             }
@@ -950,7 +949,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 SuperReference* code = (SuperReference*)programCounter;
-                superOperation(state, code, ec, registerFile);
+                superOperation(state, code, registerFile);
                 ADD_PROGRAM_COUNTER(SuperReference);
                 NEXT_INSTRUCTION();
             }
@@ -959,7 +958,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 LoadThisBinding* code = (LoadThisBinding*)programCounter;
-                EnvironmentRecord* envRec = ec->getThisEnvironment();
+                EnvironmentRecord* envRec = state.getThisEnvironment();
                 ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
 
                 if (code->m_dstIndex != REGISTER_LIMIT) {
@@ -975,7 +974,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 CallEvalFunction* code = (CallEvalFunction*)programCounter;
-                evalOperation(state, code, registerFile, byteCodeBlock, ec);
+                evalOperation(state, code, registerFile, byteCodeBlock);
                 ADD_PROGRAM_COUNTER(CallEvalFunction);
                 NEXT_INSTRUCTION();
             }
@@ -984,7 +983,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 TryOperation* code = (TryOperation*)programCounter;
-                programCounter = tryOperation(state, code, ec, ec->lexicalEnvironment(), programCounter, byteCodeBlock, registerFile);
+                programCounter = tryOperation(state, code, state.lexicalEnvironment(), programCounter, byteCodeBlock, registerFile);
                 NEXT_INSTRUCTION();
             }
 
@@ -1041,7 +1040,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 WithOperation* code = (WithOperation*)programCounter;
                 size_t newPc = programCounter;
                 Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-                Value v = withOperation(state, code, registerFile[code->m_registerIndex].toObject(state), ec, ec->lexicalEnvironment(), newPc, byteCodeBlock, registerFile, stackStorage);
+                Value v = withOperation(state, code, registerFile[code->m_registerIndex].toObject(state), state.lexicalEnvironment(), newPc, byteCodeBlock, registerFile, stackStorage);
                 if (!v.isEmpty()) {
                     return v;
                 }
@@ -1168,7 +1167,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 UnaryDelete* code = (UnaryDelete*)programCounter;
-                deleteOperation(state, ec->lexicalEnvironment(), code, registerFile);
+                deleteOperation(state, state.lexicalEnvironment(), code, registerFile);
                 ADD_PROGRAM_COUNTER(UnaryDelete);
                 NEXT_INSTRUCTION();
             }
@@ -1177,7 +1176,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 TemplateOperation* code = (TemplateOperation*)programCounter;
-                templateOperation(state, ec->lexicalEnvironment(), code, registerFile);
+                templateOperation(state, state.lexicalEnvironment(), code, registerFile);
                 ADD_PROGRAM_COUNTER(TemplateOperation);
                 NEXT_INSTRUCTION();
             }
@@ -1225,7 +1224,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 CallFunctionInWithScope* code = (CallFunctionInWithScope*)programCounter;
-                registerFile[code->m_resultIndex] = callFunctionInWithScope(state, code, ec, ec->lexicalEnvironment(), &registerFile[code->m_argumentsStartIndex]);
+                registerFile[code->m_resultIndex] = callFunctionInWithScope(state, code, state.lexicalEnvironment(), &registerFile[code->m_argumentsStartIndex]);
                 ADD_PROGRAM_COUNTER(CallFunctionInWithScope);
                 NEXT_INSTRUCTION();
             }
@@ -1235,7 +1234,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             {
                 DeclareFunctionDeclarations* code = (DeclareFunctionDeclarations*)programCounter;
                 Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-                declareFunctionDeclarations(state, code, ec->lexicalEnvironment(), stackStorage);
+                declareFunctionDeclarations(state, code, state.lexicalEnvironment(), stackStorage);
                 ADD_PROGRAM_COUNTER(DeclareFunctionDeclarations);
                 NEXT_INSTRUCTION();
             }
@@ -1314,7 +1313,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 GeneratorComplete* code = (GeneratorComplete*)programCounter;
-                ec->generatorTarget()->asGeneratorObject()->setState((GeneratorState)(GeneratorState::CompletedReturn + !!code->m_isThrow));
+                state.generatorTarget()->asGeneratorObject()->setState((GeneratorState)(GeneratorState::CompletedReturn + !!code->m_isThrow));
                 ADD_PROGRAM_COUNTER(GeneratorComplete);
                 NEXT_INSTRUCTION();
             }
@@ -1323,7 +1322,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 Yield* code = (Yield*)programCounter;
-                GeneratorObject* gen = ec->generatorTarget()->asGeneratorObject();
+                GeneratorObject* gen = state.generatorTarget()->asGeneratorObject();
 
                 gen->setState(GeneratorState::SuspendedYield);
                 ADD_PROGRAM_COUNTER(Yield);
@@ -1353,19 +1352,19 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             DEFINE_DEFAULT
 
         } catch (const Value& v) {
-            if (ec->isOnGoingClassConstruction()) {
-                ec->setOnGoingClassConstruction(false);
-                ec->m_lexicalEnvironment = ec->lexicalEnvironment()->outerEnvironment();
+            if (state.isOnGoingClassConstruction()) {
+                state.setOnGoingClassConstruction(false);
+                state.m_lexicalEnvironment = state.lexicalEnvironment()->outerEnvironment();
             }
 
-            if (ec->isOnGoingSuperCall()) {
-                ec->setOnGoingSuperCall(false);
+            if (state.isOnGoingSuperCall()) {
+                state.setOnGoingSuperCall(false);
             }
 
             if (byteCodeBlock->m_codeBlock->isInterpretedCodeBlock() && byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->byteCodeBlock() == nullptr) {
                 byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->m_byteCodeBlock = byteCodeBlock;
             }
-            processException(state, v, ec, programCounter);
+            processException(state, v, programCounter);
         }
     }
 
@@ -2091,7 +2090,7 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalObjectSlowCase(ExecutionState& s
     }
 }
 
-NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, TryOperation* code, ExecutionContext* ec, LexicalEnvironment* env, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, TryOperation* code, LexicalEnvironment* env, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     char* codeBuffer = byteCodeBlock->m_code.data();
     try {
@@ -2126,9 +2125,8 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
             newRecord->createBinding(state, code->m_catchVariableName);
             newRecord->setMutableBinding(state, code->m_catchVariableName, val);
             LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
-            ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
             try {
-                ExecutionState newState(&state, newEc);
+                ExecutionState newState(&state, newEnv, state.inStrictMode());
                 newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
                 clearStack<386>();
                 interpret(newState, byteCodeBlock, code->m_catchPosition, registerFile);
@@ -2165,7 +2163,7 @@ public:
     InterpretedCodeBlock* blk;
 };
 
-NEVER_INLINE void ByteCodeInterpreter::evalOperation(ExecutionState& state, CallEvalFunction* code, Value* registerFile, ByteCodeBlock* byteCodeBlock, ExecutionContext* ec)
+NEVER_INLINE void ByteCodeInterpreter::evalOperation(ExecutionState& state, CallEvalFunction* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
 {
     size_t argc;
     Value* argv;
@@ -2193,7 +2191,7 @@ NEVER_INLINE void ByteCodeInterpreter::evalOperation(ExecutionState& state, Call
     } else {
         Value thisValue;
         if (code->m_inWithScope) {
-            LexicalEnvironment* env = ec->lexicalEnvironment();
+            LexicalEnvironment* env = state.lexicalEnvironment();
             while (env) {
                 EnvironmentRecord::GetBindingValueResult result = env->record()->getBindingValue(state, state.context()->staticStrings().eval);
                 if (result.m_hasBindingValue) {
@@ -2209,41 +2207,41 @@ NEVER_INLINE void ByteCodeInterpreter::evalOperation(ExecutionState& state, Call
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, CreateClass* code, ExecutionContext* ec, Value* registerFile)
+NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, CreateClass* code, Value* registerFile)
 {
     // 14.5.14
     if (code->m_stage == 1) {
         DeclarativeEnvironmentRecordNotIndexed* classScopeEnvRec = new DeclarativeEnvironmentRecordNotIndexed();
-        LexicalEnvironment* classScope = new LexicalEnvironment(classScopeEnvRec, ec->lexicalEnvironment());
+        LexicalEnvironment* classScope = new LexicalEnvironment(classScopeEnvRec, state.lexicalEnvironment());
 
         if (code->m_name.string()->length()) {
             classScopeEnvRec->createBinding(state, code->m_name, false, true);
         }
 
-        ec->m_lexicalEnvironment = classScope;
+        state.m_lexicalEnvironment = classScope;
 
         return;
     }
 
     if (code->m_stage == 3) {
-        ec->setOnGoingClassConstruction(false);
-        LexicalEnvironment* classScope = ec->lexicalEnvironment();
+        state.setOnGoingClassConstruction(false);
+        LexicalEnvironment* classScope = state.lexicalEnvironment();
         LexicalEnvironment* lex = classScope->outerEnvironment();
 
         if (code->m_name.string()->length()) {
             classScope->record()->initializeBinding(state, code->m_name, registerFile[code->m_classRegisterIndex]);
         }
 
-        ec->m_lexicalEnvironment = lex;
+        state.m_lexicalEnvironment = lex;
 
         return;
     }
 
 
-    LexicalEnvironment* classScope = ec->lexicalEnvironment();
+    LexicalEnvironment* classScope = state.lexicalEnvironment();
     LexicalEnvironment* lex = classScope->outerEnvironment();
 
-    ec->m_lexicalEnvironment = lex;
+    state.m_lexicalEnvironment = lex;
 
     Value protoParent;
     Value constructorParent;
@@ -2284,12 +2282,12 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
     Object* proto = new Object(state);
     proto->setPrototype(state, protoParent);
 
-    ec->m_lexicalEnvironment = classScope;
+    state.m_lexicalEnvironment = classScope;
 
     Object* constructor;
 
     if (code->m_codeBlock) {
-        constructor = new FunctionObject(state, code->m_codeBlock, ec->lexicalEnvironment());
+        constructor = new FunctionObject(state, code->m_codeBlock, state.lexicalEnvironment());
     } else {
         if (!heritagePresent) {
             Value argv[] = { String::emptyString, String::emptyString };
@@ -2315,26 +2313,26 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
     registerFile[code->m_classRegisterIndex] = constructor;
     registerFile[code->m_classPrototypeRegisterIndex] = proto;
 
-    ec->setOnGoingClassConstruction(true);
+    state.setOnGoingClassConstruction(true);
 }
 
-NEVER_INLINE void ByteCodeInterpreter::superOperation(ExecutionState& state, SuperReference* code, ExecutionContext* ec, Value* registerFile)
+NEVER_INLINE void ByteCodeInterpreter::superOperation(ExecutionState& state, SuperReference* code, Value* registerFile)
 {
     if (code->m_isCall) {
-        Value newTarget = ec->getNewTarget();
+        Value newTarget = state.getNewTarget();
 
         if (newTarget.isUndefined()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_New_Target_Is_Undefined);
         }
 
-        registerFile[code->m_dstIndex] = ec->getSuperConstructor(state);
-        ec->setOnGoingSuperCall(true);
+        registerFile[code->m_dstIndex] = state.getSuperConstructor(state);
+        state.setOnGoingSuperCall(true);
     } else {
-        registerFile[code->m_dstIndex] = ec->makeSuperPropertyReference(state);
+        registerFile[code->m_dstIndex] = state.makeSuperPropertyReference(state);
     }
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, WithOperation* code, Object* obj, ExecutionContext* ec, LexicalEnvironment* env, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage)
+NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, WithOperation* code, Object* obj, LexicalEnvironment* env, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage)
 {
     if (!state.ensureRareData()->m_controlFlowRecord) {
         state.ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
@@ -2346,8 +2344,7 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, Wit
     // setup new env
     EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(obj);
     LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
-    ExecutionContext* newEc = new ExecutionContext(state.context(), state.executionContext(), newEnv, state.inStrictMode());
-    ExecutionState newState(&state, newEc);
+    ExecutionState newState(&state, newEnv, state.inStrictMode());
     newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
 
     interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
@@ -2391,7 +2388,7 @@ NEVER_INLINE bool ByteCodeInterpreter::binaryInOperation(ExecutionState& state, 
     return right.toObject(state)->hasProperty(state, ObjectPropertyName(state, left));
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, ExecutionContext* ec, LexicalEnvironment* env, Value* argv)
+NEVER_INLINE Value ByteCodeInterpreter::callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, LexicalEnvironment* env, Value* argv)
 {
     const AtomicString& calleeName = code->m_calleeName;
     // NOTE: record for with scope
@@ -2416,8 +2413,8 @@ NEVER_INLINE Value ByteCodeInterpreter::callFunctionInWithScope(ExecutionState& 
 
 void ByteCodeInterpreter::spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector)
 {
-    bool isOngoingSupercall = state.executionContext()->isOnGoingSuperCall();
-    state.executionContext()->setOnGoingSuperCall(false);
+    bool isOngoingSupercall = state.isOnGoingSuperCall();
+    state.setOnGoingSuperCall(false);
     for (size_t i = 0; i < argc; i++) {
         Value arg = argv[i];
         if (arg.isObject() && arg.asObject()->isSpreadObject()) {
@@ -2437,7 +2434,7 @@ void ByteCodeInterpreter::spreadFunctionArguments(ExecutionState& state, const V
         }
     }
 
-    state.executionContext()->setOnGoingSuperCall(isOngoingSupercall);
+    state.setOnGoingSuperCall(isOngoingSupercall);
 }
 
 Value ByteCodeInterpreter::yieldDelegateOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer)
@@ -2513,7 +2510,7 @@ Value ByteCodeInterpreter::yieldDelegateOperation(ExecutionState& state, Value* 
     }
 
     registerFile[code->m_valueIdx] = nextValue;
-    GeneratorObject* gen = state.executionContext()->generatorTarget()->asGeneratorObject();
+    GeneratorObject* gen = state.generatorTarget()->asGeneratorObject();
 
     gen->setState(GeneratorState::SuspendedYield);
     ADD_PROGRAM_COUNTER(YieldDelegate);
@@ -2634,13 +2631,13 @@ ALWAYS_INLINE Value ByteCodeInterpreter::decrementOperation(ExecutionState& stat
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, const Value& value, ExecutionContext* ecInput, size_t programCounter)
+NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, const Value& value, size_t programCounter)
 {
     ASSERT(state.context()->m_sandBoxStack.size());
     SandBox* sb = state.context()->m_sandBoxStack.back();
 
-    LexicalEnvironment* env = ecInput->lexicalEnvironment();
-    ExecutionContext* ec = ecInput;
+    LexicalEnvironment* env = state.lexicalEnvironment();
+    ExecutionState* es = &state;
 
     while (true) {
         if (env->record()->isGlobalEnvironmentRecord()) {
@@ -2649,13 +2646,13 @@ NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, c
             break;
         }
         env = env->outerEnvironment();
-        ec = ecInput->parent();
+        es = state.parent();
     }
 
     bool alreadyExists = false;
 
     for (size_t i = 0; i < sb->m_stackTraceData.size(); i++) {
-        if (sb->m_stackTraceData[i].first == ec) {
+        if (sb->m_stackTraceData[i].first == es) {
             alreadyExists = true;
             break;
         }
@@ -2674,7 +2671,7 @@ NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, c
             data.loc = loc;
             data.fileName = cb->asInterpretedCodeBlock()->script()->fileName();
             data.source = cb->asInterpretedCodeBlock()->script()->src();
-            sb->m_stackTraceData.pushBack(std::make_pair(ec, data));
+            sb->m_stackTraceData.pushBack(std::make_pair(es, data));
         } else {
             FunctionObject* fn = env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
             CodeBlock* cb = fn->codeBlock();
@@ -2700,7 +2697,7 @@ NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, c
                 data.fileName = builder.finalize();
             }
             data.source = String::emptyString;
-            sb->m_stackTraceData.pushBack(std::make_pair(ec, data));
+            sb->m_stackTraceData.pushBack(std::make_pair(es, data));
         }
     }
     sb->throwException(state, value);

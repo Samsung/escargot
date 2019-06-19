@@ -21,7 +21,6 @@
 #include "ArrayObject.h"
 #include "FunctionObject.h"
 #include "GeneratorObject.h"
-#include "ExecutionContext.h"
 #include "Context.h"
 #include "parser/ScriptParser.h"
 #include "interpreter/ByteCode.h"
@@ -176,10 +175,10 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
         currentCodeSizeTotal = 0;
         std::vector<CodeBlock*, gc_allocator<CodeBlock*>> codeBlocksInCurrentStack;
 
-        ExecutionContext* ec = state.executionContext();
-        while (ec) {
-            auto env = ec->lexicalEnvironment();
-            if (env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+        ExecutionState* es = &state;
+        while (es != nullptr) {
+            auto env = es->lexicalEnvironment();
+            if (env != nullptr && env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
                 if (env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->isInterpretedCodeBlock()) {
                     InterpretedCodeBlock* cblk = env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->asInterpretedCodeBlock();
                     if (cblk->script() && cblk->byteCodeBlock() && std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), cblk) == codeBlocksInCurrentStack.end()) {
@@ -187,7 +186,7 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
                     }
                 }
             }
-            ec = ec->parent();
+            es = es->parent();
         }
 
         for (size_t i = 0; i < v.size(); i++) {
@@ -276,8 +275,7 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
 
     Context* ctx = m_codeBlock->context();
     bool isStrict = m_codeBlock->isStrict();
-
-    bool isSuperCall = state.executionContext() ? state.executionContext()->isOnGoingSuperCall() : false;
+    bool isSuperCall = state.isOnGoingSuperCall();
 
     if (UNLIKELY(!isNewExpression && functionKind() == FunctionKind::ClassConstructor && !isSuperCall)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Class constructor cannot be invoked without 'new'");
@@ -293,7 +291,6 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
         CallNativeFunctionData* code = m_codeBlock->nativeFunctionData();
         FunctionEnvironmentRecordSimple record(this);
         LexicalEnvironment env(&record, outerEnvironment());
-        ExecutionContext ec(ctx, state.executionContext(), &env, isStrict);
 
         size_t len = m_codeBlock->parameterCount();
         if (argc < len) {
@@ -322,14 +319,14 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
             record.setNewTarget(receiverSrc.asObject());
         }
 
-        ExecutionState newState(ctx, &state, &ec, &receiver);
+        ExecutionState newState(ctx, &state, &env, isStrict, &receiver);
 
         try {
             Value returnValue = code->m_fn(newState, receiver, argc, argv, isNewExpression);
 
             if (UNLIKELY(isSuperCall)) {
-                state.executionContext()->getThisEnvironment()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->bindThisValue(state, returnValue);
-                state.executionContext()->setOnGoingSuperCall(false);
+                state.getThisEnvironment()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->bindThisValue(state, returnValue);
+                state.setOnGoingSuperCall(false);
                 if (returnValue.isObject() && !isBuiltin()) {
                     returnValue.asObject()->setPrototype(state, receiver.toObject(state)->getPrototype(state));
                 }
@@ -337,7 +334,7 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
 
             return returnValue;
         } catch (const Value& v) {
-            ByteCodeInterpreter::processException(newState, v, &ec, SIZE_MAX);
+            ByteCodeInterpreter::processException(newState, v, SIZE_MAX);
         }
     }
 
@@ -356,12 +353,12 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
 
     // prepare env, ec
     FunctionEnvironmentRecord* record;
-    ExecutionContext* ec;
+    LexicalEnvironment* lexEnv;
 
     if (LIKELY(m_codeBlock->canAllocateEnvironmentOnStack())) {
         // no capture, very simple case
         record = new (alloca(sizeof(FunctionEnvironmentRecordSimple))) FunctionEnvironmentRecordSimple(this);
-        ec = new (alloca(sizeof(ExecutionContext))) ExecutionContext(ctx, state.executionContext(), new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, outerEnvironment()), isStrict);
+        lexEnv = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, outerEnvironment());
     } else {
         if (LIKELY(m_codeBlock->canUseIndexedVariableStorage())) {
             record = new FunctionEnvironmentRecordOnHeap(this, argc, argv);
@@ -372,7 +369,7 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
                 record = new FunctionEnvironmentRecordNotIndexedWithVirtualID(this, argc, argv);
             }
         }
-        ec = new ExecutionContext(ctx, state.executionContext(), new LexicalEnvironment(record, outerEnvironment()), isStrict);
+        lexEnv = new LexicalEnvironment(record, outerEnvironment());
     }
 
     if (receiverSrc.isObject()) {
@@ -526,18 +523,18 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
     }
 
     if (UNLIKELY(m_codeBlock->isGenerator() == true)) {
-        ExecutionState* newState = new ExecutionState(ctx, &state, ec, registerFile);
+        ExecutionState* newState = new ExecutionState(ctx, &state, lexEnv, isStrict, registerFile);
 
         if (UNLIKELY(m_codeBlock->usesArgumentsObject() == true)) {
             generateArgumentsObject(*newState, record, stackStorage);
         }
 
         GeneratorObject* gen = new GeneratorObject(state, newState, blk);
-        ec->setGeneratorTarget(gen);
+        newState->setGeneratorTarget(gen);
         return gen;
     }
 
-    ExecutionState newState(ctx, &state, ec, registerFile);
+    ExecutionState newState(ctx, &state, lexEnv, isStrict, registerFile);
 
     if (UNLIKELY(m_codeBlock->usesArgumentsObject())) {
         generateArgumentsObject(newState, record, stackStorage);
@@ -553,14 +550,14 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InvalidDerivedConstructorReturnValue);
         }
 
-        FunctionEnvironmentRecord* thisEnvironmentRecord = state.executionContext()->getThisEnvironment()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+        FunctionEnvironmentRecord* thisEnvironmentRecord = state.getThisEnvironment()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
         if (returnValue.isObject()) {
             thisEnvironmentRecord->bindThisValue(state, returnValue);
             returnValue.asObject()->setPrototype(state, receiverSrc.toObject(state)->getPrototype(state));
         } else {
             thisEnvironmentRecord->bindThisValue(state, stackStorage[0]);
         }
-        state.executionContext()->setOnGoingSuperCall(false);
+        state.setOnGoingSuperCall(false);
     }
 
     return returnValue;
@@ -575,16 +572,16 @@ void FunctionObject::generateArgumentsObject(ExecutionState& state, FunctionEnvi
             fnRecord->createBinding(state, arguments, false, true);
             result = fnRecord->hasBinding(state, arguments);
         }
-        fnRecord->initializeBinding(state, arguments, fnRecord->createArgumentsObject(state, state.executionContext()));
+        fnRecord->initializeBinding(state, arguments, fnRecord->createArgumentsObject(state));
     } else {
         const CodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == arguments) {
                 if (v[i].m_needToAllocateOnStack) {
-                    stackStorage[v[i].m_indexForIndexedStorage] = fnRecord->createArgumentsObject(state, state.executionContext());
+                    stackStorage[v[i].m_indexForIndexedStorage] = fnRecord->createArgumentsObject(state);
                 } else {
                     ASSERT(fnRecord->isFunctionEnvironmentRecordOnHeap());
-                    ((FunctionEnvironmentRecordOnHeap*)fnRecord)->m_heapStorage[v[i].m_indexForIndexedStorage] = fnRecord->createArgumentsObject(state, state.executionContext());
+                    ((FunctionEnvironmentRecordOnHeap*)fnRecord)->m_heapStorage[v[i].m_indexForIndexedStorage] = fnRecord->createArgumentsObject(state);
                 }
                 break;
             }

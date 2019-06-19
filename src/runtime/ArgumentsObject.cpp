@@ -66,7 +66,7 @@ void* ArgumentsObject::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* record, ExecutionContext* ec)
+ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* record)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3, true)
 {
     g_argumentsObjectTag = *((size_t*)this);
@@ -140,13 +140,13 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = Value(record->functionObject());
 
         Value caller;
-        ExecutionContext* pec = ec->parent();
-        while (pec) {
-            if (pec->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && pec->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-                caller = pec->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
+        ExecutionState* current = state.parent();
+        while (current != nullptr) {
+            if (current->lexicalEnvironment() != nullptr && current->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && current->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+                caller = current->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
                 break;
             }
-            pec = pec->parent();
+            current = current->parent();
         }
         // obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().caller), ObjectPropertyDescriptor(caller, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(caller);

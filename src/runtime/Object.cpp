@@ -20,7 +20,6 @@
 #include "Escargot.h"
 #include "Object.h"
 #include "ObjectStructure.h"
-#include "ExecutionContext.h"
 #include "Context.h"
 #include "VMInstance.h"
 #include "ErrorObject.h"

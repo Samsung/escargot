@@ -25,7 +25,6 @@
 
 namespace Escargot {
 
-class ExecutionContext;
 class FunctionEnvironmentRecord;
 class InterpretedCodeBlock;
 
@@ -33,7 +32,7 @@ extern size_t g_argumentsObjectTag;
 
 class ArgumentsObject : public Object {
 public:
-    ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* record, ExecutionContext* ec);
+    ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* record);
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;

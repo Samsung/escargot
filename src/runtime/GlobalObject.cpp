@@ -172,7 +172,7 @@ public:
 
 static Value builtinEval(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    EvalFunctionObject* fn = (EvalFunctionObject*)state.executionContext()->resolveCallee();
+    EvalFunctionObject* fn = (EvalFunctionObject*)state.resolveCallee();
     return fn->m_globalObject->eval(state, argv[0]);
 }
 
@@ -209,7 +209,6 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
         }
         ScriptParser parser(state.context());
         const char* s = "eval input";
-        ExecutionContext* pec = state.executionContext();
         bool strictFromOutside = false;
 
         volatile int sp;
@@ -246,20 +245,20 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
         }
         ScriptParser parser(state.context());
         const char* s = "eval input";
-        ExecutionContext* pec = state.executionContext();
+        ExecutionState* current = &state;
         bool isDirectCall = true;
         bool isEvalCodeInFunction = false;
         bool strictFromOutside = state.inStrictMode();
-        while (pec) {
-            if (pec->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord()) {
-                strictFromOutside = pec->inStrictMode();
-                DeclarativeEnvironmentRecord* record = pec->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord();
+        while (current != nullptr) {
+            if (current->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord()) {
+                strictFromOutside = current->inStrictMode();
+                DeclarativeEnvironmentRecord* record = current->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord();
                 if (record->isEvalTarget()) {
                     isEvalCodeInFunction = true;
                     break;
                 }
 
-                LexicalEnvironment* env = pec->lexicalEnvironment();
+                LexicalEnvironment* env = current->lexicalEnvironment();
 
                 while (!env->record()->isEvalTarget()) {
                     env = env->outerEnvironment();
@@ -267,11 +266,11 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
 
                 isEvalCodeInFunction = !env->record()->isGlobalEnvironmentRecord();
                 break;
-            } else if (pec->lexicalEnvironment()->record()->isGlobalEnvironmentRecord()) {
-                strictFromOutside = pec->inStrictMode();
+            } else if (current->lexicalEnvironment()->record()->isGlobalEnvironmentRecord()) {
+                strictFromOutside = current->inStrictMode();
                 break;
             }
-            pec = pec->parent();
+            current = current->parent();
         }
         volatile int sp;
         size_t currentStackBase = (size_t)&sp;
