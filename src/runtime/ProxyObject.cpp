@@ -148,7 +148,7 @@ bool ProxyObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
     // 11. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
     Value arguments[] = { target, P.toPlainValue(state), Value(ObjectPropertyDescriptor::fromObjectPropertyDescriptor(state, desc)) };
-    booleanTrapResult = FunctionObject::call(state, trap, handler, 3, arguments).toBoolean(state);
+    booleanTrapResult = Object::call(state, trap, handler, 3, arguments).toBoolean(state);
 
     // 12. If booleanTrapResult is false, return false.
     if (!booleanTrapResult) {
@@ -223,7 +223,7 @@ bool ProxyObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
     // 10. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
     Value arguments[] = { target, P.toPlainValue(state) };
-    booleanTrapResult = FunctionObject::call(state, trap, handler, 2, arguments).toBoolean(state);
+    booleanTrapResult = Object::call(state, trap, handler, 2, arguments).toBoolean(state);
 
     // 11. If booleanTrapResult is false, return false.
     if (!booleanTrapResult) {
@@ -280,7 +280,7 @@ ObjectGetResult ProxyObject::getOwnProperty(ExecutionState& state, const ObjectP
     // 10. ReturnIfAbrupt(trapResultObj).
     Value trapResultObj;
     Value arguments[] = { target, P.toPlainValue(state) };
-    trapResultObj = FunctionObject::call(state, trap, handler, 2, arguments);
+    trapResultObj = Object::call(state, trap, handler, 2, arguments);
 
     // 11. If Type(trapResultObj) is neither Object nor Undefined, throw a TypeError exception.
     if (!trapResultObj.isObject() && !trapResultObj.isUndefined()) {
@@ -374,7 +374,7 @@ bool ProxyObject::preventExtensions(ExecutionState& state)
     // 9. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
     Value arguments[] = { target };
-    booleanTrapResult = FunctionObject::call(state, trap, handler, 1, arguments).toBoolean(state);
+    booleanTrapResult = Object::call(state, trap, handler, 1, arguments).toBoolean(state);
 
     // 10. If booleanTrapResult is true, then
     if (booleanTrapResult) {
@@ -425,7 +425,7 @@ bool ProxyObject::hasProperty(ExecutionState& state, const ObjectPropertyName& p
     // 10. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
     Value arguments[] = { target, propertyName.toPlainValue(state) };
-    booleanTrapResult = FunctionObject::call(state, trap, handler, 2, arguments).toBoolean(state);
+    booleanTrapResult = Object::call(state, trap, handler, 2, arguments).toBoolean(state);
 
     // 11. If booleanTrapResult is false, then
     if (!booleanTrapResult) {
@@ -485,7 +485,7 @@ bool ProxyObject::isExtensible(ExecutionState& state)
     // 9. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
     Value arguments[] = { target };
-    booleanTrapResult = FunctionObject::call(state, trap, handler, 1, arguments).toBoolean(state);
+    booleanTrapResult = Object::call(state, trap, handler, 1, arguments).toBoolean(state);
 
     // 10. Let targetResult be target.[[IsExtensible]]().
     bool targetResult = target.asObject()->isExtensible(state);
@@ -536,7 +536,7 @@ bool ProxyObject::setPrototype(ExecutionState& state, const Value& value)
     // 10. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
     Value arguments[] = { target, value };
-    booleanTrapResult = FunctionObject::call(state, trap, handler, 2, arguments).toBoolean(state);
+    booleanTrapResult = Object::call(state, trap, handler, 2, arguments).toBoolean(state);
     if (!booleanTrapResult) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy setPrototypeOf could not set the prototype.");
         return false;
@@ -611,7 +611,7 @@ Value ProxyObject::getPrototype(ExecutionState& state)
     // 9. ReturnIfAbrupt(handlerProto).
     Value handlerProto;
     Value arguments[] = { target };
-    handlerProto = FunctionObject::call(state, trap, handler, 1, arguments);
+    handlerProto = Object::call(state, trap, handler, 1, arguments);
 
     // 10. If Type(handlerProto) is neither Object nor Null, throw a TypeError exception.
     if (!handlerProto.isObject() && !handlerProto.isNull()) {
@@ -674,7 +674,7 @@ ObjectGetResult ProxyObject::get(ExecutionState& state, const ObjectPropertyName
     // 10. ReturnIfAbrupt(trapResult).
     Value trapResult;
     Value arguments[] = { target, propertyName.toPlainValue(state), Value(this) };
-    trapResult = FunctionObject::call(state, trap, handler, 3, arguments);
+    trapResult = Object::call(state, trap, handler, 3, arguments);
 
     // 11. Let targetDesc be target.[[GetOwnProperty]](P).
     ObjectGetResult targetDesc = target.asObject()->getOwnProperty(state, propertyName);
@@ -737,7 +737,7 @@ bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyN
     // 10. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
     Value arguments[] = { target, propertyName.toPlainValue(state), v, receiver };
-    booleanTrapResult = FunctionObject::call(state, trap, handler, 4, arguments).toBoolean(state);
+    booleanTrapResult = Object::call(state, trap, handler, 4, arguments).toBoolean(state);
 
     // 11. If booleanTrapResult is false, return false.
     if (!booleanTrapResult) {
@@ -798,7 +798,7 @@ Value ProxyObject::call(ExecutionState& state, const Value& receiver, const size
     // 7. If trap is undefined, then
     // a. Return Call(target, thisArgument, argumentsList).
     if (trap.isUndefined()) {
-        return FunctionObject::call(state, target, receiver, argc, argv);
+        return Object::call(state, target, receiver, argc, argv);
     }
 
     // 8. Let argArray be CreateArrayFromList(argumentsList).
@@ -809,7 +809,7 @@ Value ProxyObject::call(ExecutionState& state, const Value& receiver, const size
 
     // 9. Return Call(trap, handler, «target, thisArgument, argArray»).
     Value arguments[] = { target, receiver, Value(argArray) };
-    return FunctionObject::call(state, trap, handler, 3, arguments);
+    return Object::call(state, trap, handler, 3, arguments);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-construct-argumentslist-newtarget
@@ -841,7 +841,7 @@ Object* ProxyObject::construct(ExecutionState& state, const size_t argc, NULLABL
     // b. Return Construct(target, argumentsList, newTarget).
     if (trap.isUndefined() == true) {
         ASSERT(target.isConstructor() == true);
-        return FunctionObject::construct(state, target, argc, argv, newTarget);
+        return Object::construct(state, target, argc, argv, newTarget);
     }
 
     // 8. Let argArray be CreateArrayFromList(argumentsList).
@@ -852,7 +852,7 @@ Object* ProxyObject::construct(ExecutionState& state, const size_t argc, NULLABL
 
     // 9. Let newObj be Call(trap, handler, «target, argArray, newTarget »).
     Value arguments[] = { target, Value(argArray), newTarget };
-    Value newObj = FunctionObject::call(state, trap, handler, 3, arguments);
+    Value newObj = Object::call(state, trap, handler, 3, arguments);
 
     // 11. If Type(newObj) is not Object, throw a TypeError exception.
     if (!newObj.isObject()) {

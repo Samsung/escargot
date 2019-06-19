@@ -46,10 +46,6 @@ public:
         return Value(m_boundTargetFunction).isConstructor();
     }
 
-    virtual Value call(ExecutionState& state, const Value& thisValue, const size_t calledArgc, Value* calledArgv) override;
-
-    virtual Object* construct(ExecutionState& state, const size_t calledArgc, Value* calledArgv, const Value& newTarget) override;
-
     Value targetFunction()
     {
         return m_boundTargetFunction;
@@ -62,6 +58,9 @@ public:
     }
 
 private:
+    virtual Value call(ExecutionState& state, const Value& thisValue, const size_t calledArgc, Value* calledArgv) override;
+    virtual Object* construct(ExecutionState& state, const size_t calledArgc, Value* calledArgv, const Value& newTarget) override;
+
     SmallValue m_boundTargetFunction;
     SmallValue m_boundThis;
     SmallValueVector m_boundArguments;

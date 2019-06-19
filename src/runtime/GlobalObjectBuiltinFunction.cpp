@@ -122,6 +122,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-function.prototype.tostring
 static Value builtinFunctionToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+    // FIXME: If Type(func) is Object and is either a built-in function object or has an [[ECMAScriptCode]] internal slot, then
     if (thisValue.isFunction() == true) {
         FunctionObject* fn = thisValue.asFunction();
         StringBuilder builder;
@@ -167,7 +168,6 @@ static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t
     if (thisValue.isCallable() == false) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
     }
-    FunctionObject* thisVal = thisValue.asFunction();
     Value thisArg = argv[0];
     Value argArray = argv[1];
     size_t arrlen = 0;
@@ -190,7 +190,7 @@ static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_SecondArgumentNotObject);
     }
 
-    return FunctionObject::call(state, thisVal, thisArg, arrlen, arguments);
+    return Object::call(state, thisValue, thisArg, arrlen, arguments);
 }
 
 static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -198,7 +198,6 @@ static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t 
     if (thisValue.isCallable() == false) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
     }
-    FunctionObject* thisVal = thisValue.asFunction();
     Value thisArg = argv[0];
     size_t arrlen = argc > 0 ? argc - 1 : 0;
     Value* arguments = ALLOCA(sizeof(Value) * arrlen, Value, state);
@@ -206,7 +205,7 @@ static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t 
         arguments[i] = argv[i + 1];
     }
 
-    return FunctionObject::call(state, thisVal, thisArg, arrlen, arguments);
+    return Object::call(state, thisValue, thisArg, arrlen, arguments);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-function.prototype.bind

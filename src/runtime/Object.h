@@ -587,15 +587,6 @@ public:
 
     bool isConcatSpreadable(ExecutionState& state);
 
-    virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-    virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, const Value& newTarget)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-isextensiblie
 #if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual bool isExtensible(ExecutionState&)
@@ -801,6 +792,8 @@ public:
     }
 
     static Value getMethod(ExecutionState& state, const Value& object, const ObjectPropertyName& propertyName);
+    static Value call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv);
+    static Object* construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Value newTarget = Value(Value::EmptyValue));
     static bool hasInstance(ExecutionState& state, const Value& C, const Value O);
 
     static void throwCannotDefineError(ExecutionState& state, const PropertyName& P);
@@ -922,6 +915,16 @@ protected:
 
     void markAsPrototypeObject(ExecutionState& state);
     void deleteOwnProperty(ExecutionState& state, size_t idx);
+
+private:
+    virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, const Value& newTarget)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
 };
 }
 

@@ -59,7 +59,7 @@ static Value builtinReflectApply(ExecutionState& state, Value thisValue, size_t 
 
     // TODO 4. Perform PrepareForTailCall().
     // 5. Return Call(target, thisArgument, args).
-    return FunctionObject::call(state, target, thisArgument, arglen, args);
+    return Object::call(state, target, thisArgument, arglen, args);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.construct
@@ -99,7 +99,7 @@ static Value builtinReflectConstruct(ExecutionState& state, Value thisValue, siz
 
     // FIXME Construct (F, [argumentsList], [newTarget])
     // 6. Return Construct(target, args, newTarget).
-    return FunctionObject::construct(state, target, arglen, args);
+    return Object::construct(state, target, arglen, args);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.defineproperty

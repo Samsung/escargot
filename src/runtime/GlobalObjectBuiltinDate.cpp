@@ -274,7 +274,7 @@ static Value builtinDateToJSON(ExecutionState& state, Value thisValue, size_t ar
     }
 
     Value isoFunc = thisObject->get(state, ObjectPropertyName(state.context()->staticStrings().toISOString)).value(state, thisObject);
-    return FunctionObject::call(state, isoFunc, thisObject, 0, nullptr);
+    return Object::call(state, isoFunc, thisObject, 0, nullptr);
 }
 
 #define DECLARE_STATIC_DATE_GETTER(Name, unused1, unused2, unused3)                                                                                                                                                                \

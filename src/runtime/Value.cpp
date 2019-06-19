@@ -199,14 +199,14 @@ Value Value::ordinaryToPrimitive(ExecutionState& state, PrimitiveTypeHint prefer
     // If Type(result) is not Object, return result.
     Value method1 = input->get(state, ObjectPropertyName(methodName1)).value(state, input);
     if (method1.isCallable()) {
-        Value result = FunctionObject::call(state, method1, input, 0, nullptr);
+        Value result = Object::call(state, method1, input, 0, nullptr);
         if (!result.isObject()) {
             return result;
         }
     }
     Value method2 = input->get(state, ObjectPropertyName(methodName2)).value(state, input);
     if (method2.isCallable()) {
-        Value result = FunctionObject::call(state, method2, input, 0, nullptr);
+        Value result = Object::call(state, method2, input, 0, nullptr);
         if (!result.isObject()) {
             return result;
         }
@@ -237,7 +237,7 @@ Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint prefer
             hint = strings.stringDefault.string();
         }
         // Let result be Call(exoticToPrim, input, «hint»).
-        Value result = FunctionObject::call(state, exoticToPrim, input, 1, &hint);
+        Value result = Object::call(state, exoticToPrim, input, 1, &hint);
         // If Type(result) is not Object, return result.
         if (!result.isObject()) {
             return result;

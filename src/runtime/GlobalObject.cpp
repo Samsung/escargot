@@ -885,11 +885,11 @@ static Value builtinDefineGetter(ExecutionState& state, Value thisValue, size_t 
     // Let O be ? ToObject(this value).
     Object* O = thisValue.toObject(state);
     // If IsCallable(getter) is false, throw a TypeError exception.
-    if (!argv[1].isFunction()) {
+    if (!argv[1].isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, String::emptyString, true, state.context()->staticStrings().__defineGetter__.string(), errorMessage_GlobalObject_CallbackNotCallable);
     }
     // Let desc be PropertyDescriptor{[[Get]]: getter, [[Enumerable]]: true, [[Configurable]]: true}.
-    ObjectPropertyDescriptor desc(JSGetterSetter(argv[1].asFunction(), Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
+    ObjectPropertyDescriptor desc(JSGetterSetter(argv[1].asObject(), Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
 
     // Let key be ? ToPropertyKey(P).
     ObjectPropertyName key(state, argv[0]);
@@ -910,11 +910,11 @@ static Value builtinDefineSetter(ExecutionState& state, Value thisValue, size_t 
     // Let O be ? ToObject(this value).
     Object* O = thisValue.toObject(state);
     // If IsCallable(getter) is false, throw a TypeError exception.
-    if (!argv[1].isFunction()) {
+    if (!argv[1].isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, String::emptyString, true, state.context()->staticStrings().__defineSetter__.string(), errorMessage_GlobalObject_CallbackNotCallable);
     }
     // Let desc be PropertyDescriptor{[[Get]]: getter, [[Enumerable]]: true, [[Configurable]]: true}.
-    ObjectPropertyDescriptor desc(JSGetterSetter(Value(Value::EmptyValue), argv[1].asFunction()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
+    ObjectPropertyDescriptor desc(JSGetterSetter(Value(Value::EmptyValue), argv[1].asObject()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
 
     // Let key be ? ToPropertyKey(P).
     ObjectPropertyName key(state, argv[0]);

@@ -54,8 +54,8 @@ PromiseReaction::Capability PromiseObject::createResolvingFunctions(ExecutionSta
 {
     const StaticStrings* strings = &state.context()->staticStrings();
 
-    FunctionObject* resolveFunction = new FunctionObject(state, NativeFunctionInfo(strings->Empty, promiseResolveFunction, 1, nullptr, NativeFunctionInfo::Strict));
-    FunctionObject* rejectFunction = new FunctionObject(state, NativeFunctionInfo(strings->Empty, promiseRejectFunction, 1, nullptr, NativeFunctionInfo::Strict));
+    Object* resolveFunction = new FunctionObject(state, NativeFunctionInfo(strings->Empty, promiseResolveFunction, 1, nullptr, NativeFunctionInfo::Strict));
+    Object* rejectFunction = new FunctionObject(state, NativeFunctionInfo(strings->Empty, promiseRejectFunction, 1, nullptr, NativeFunctionInfo::Strict));
 
     resolveFunction->deleteOwnProperty(state, strings->name);
     rejectFunction->deleteOwnProperty(state, strings->name);
@@ -83,26 +83,27 @@ PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& 
 {
     const StaticStrings* strings = &state.context()->staticStrings();
 
-    if (!constructor->isFunctionObject())
+    if (!constructor->isConstructor())
         state.throwException(new TypeErrorObject(state, new ASCIIString("Constructor is not a function object")));
 
-    FunctionObject* executor = new FunctionObject(state, NativeFunctionInfo(strings->Empty, getCapabilitiesExecutorFunction, 2, nullptr, NativeFunctionInfo::Strict));
+    // FIXME: Let executor be a new built-in function object as defined in GetCapabilitiesExecutor Functions (25.4.1.5.1).
+    Object* executor = new FunctionObject(state, NativeFunctionInfo(strings->Empty, getCapabilitiesExecutorFunction, 2, nullptr, NativeFunctionInfo::Strict));
     Object* internalSlot = executor->ensureInternalSlot(state);
 
     Value arguments[] = { executor };
-    Value promise = FunctionObject::construct(state, constructor, 1, arguments);
+    Value promise = Object::construct(state, constructor, 1, arguments);
     ASSERT(internalSlot == executor->internalSlot());
 
     Value resolveFunction = internalSlot->get(state, strings->resolve).value(state, internalSlot);
     Value rejectFunction = internalSlot->get(state, strings->reject).value(state, internalSlot);
 
-    if (!resolveFunction.isFunction() || !rejectFunction.isFunction())
+    if (!resolveFunction.isCallable() || !rejectFunction.isCallable())
         state.throwException(new TypeErrorObject(state, new ASCIIString("Promise resolve or reject function is not callable")));
 
-    return PromiseReaction::Capability(promise, resolveFunction.asFunction(), rejectFunction.asFunction());
+    return PromiseReaction::Capability(promise, resolveFunction.asObject(), rejectFunction.asObject());
 }
 
-Object* PromiseObject::resolvingFunctionAlreadyResolved(ExecutionState& state, FunctionObject* callee)
+Object* PromiseObject::resolvingFunctionAlreadyResolved(ExecutionState& state, Object* callee)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
     Object* internalSlot = callee->internalSlot();

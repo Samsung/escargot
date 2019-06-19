@@ -35,7 +35,7 @@ Value getIterator(ExecutionState& state, const Value& obj, const Value& method)
         func = Object::getMethod(state, obj, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator));
     }
 
-    Value iterator = FunctionObject::call(state, func, obj, 0, nullptr);
+    Value iterator = Object::call(state, func, obj, 0, nullptr);
     if (!iterator.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "result is not an object");
     }
@@ -51,10 +51,10 @@ Value iteratorNext(ExecutionState& state, const Value& iterator, const Value& va
     Value result;
 
     if (value.isEmpty()) {
-        result = FunctionObject::call(state, func, iterator, 0, nullptr);
+        result = Object::call(state, func, iterator, 0, nullptr);
     } else {
         Value argumentList[] = { value };
-        result = FunctionObject::call(state, func, iterator, 1, argumentList);
+        result = Object::call(state, func, iterator, 1, argumentList);
     }
 
     if (!result.isObject()) {
@@ -100,7 +100,7 @@ void iteratorClose(ExecutionState& state, const Value& iterator)
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "return function is undefined");
     }
 
-    Value innerResult = FunctionObject::call(state, returnFunction, iterator, 0, nullptr);
+    Value innerResult = Object::call(state, returnFunction, iterator, 0, nullptr);
     if (!innerResult.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "result is not an object");
     }

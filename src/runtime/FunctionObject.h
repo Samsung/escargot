@@ -163,40 +163,6 @@ public:
         return FunctionKind::Normal;
     }
 
-    // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
-    virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override
-    {
-        return processCall(state, thisValue, argc, argv, false);
-    }
-
-    virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, const Value& newTarget) override;
-
-    // https://www.ecma-international.org/ecma-262/6.0/#sec-call
-    ALWAYS_INLINE static Value call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
-    {
-        // If IsCallable(F) is false, throw a TypeError exception.
-        if (callee.isCallable() == false) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
-        }
-        // Return F.[[Call]](V, argumentsList).
-        return callee.asObject()->call(state, thisValue, argc, argv);
-    }
-
-    // https://www.ecma-international.org/ecma-262/6.0/#sec-construct
-    ALWAYS_INLINE static Object* construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Value newTarget = Value(Value::EmptyValue))
-    {
-        // If newTarget was not passed, let newTarget be F.
-        if (newTarget.isEmpty() == true) {
-            newTarget = constructor;
-        }
-        // Assert: IsConstructor (F) is true.
-        ASSERT(constructor.isConstructor() == true);
-        // Assert: IsConstructor (newTarget) is true.
-        ASSERT(newTarget.isConstructor() == true);
-        // Return F.[[Construct]](argumentsList, newTarget).
-        return constructor.asObject()->construct(state, argc, argv, newTarget);
-    }
-
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
     virtual const char* internalClassProperty() override
     {
@@ -209,6 +175,16 @@ public:
     }
 
 private:
+    friend class Object;
+    friend class ObjectGetResult;
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
+    virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override
+    {
+        return processCall(state, thisValue, argc, argv, false);
+    }
+
+    virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, const Value& newTarget) override;
+
     LexicalEnvironment* outerEnvironment()
     {
         return m_outerEnvironment;

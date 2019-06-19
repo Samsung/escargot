@@ -109,10 +109,6 @@ public:
 
     virtual bool isExtensible(ExecutionState&) override;
 
-    virtual Value call(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv) override;
-
-    virtual Object* construct(ExecutionState& state, const size_t argc, Value* argv, const Value& newTarget) override;
-
     void setTarget(Object* target)
     {
         m_target = target;
@@ -137,6 +133,9 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
+    virtual Value call(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv) override;
+    virtual Object* construct(ExecutionState& state, const size_t argc, Value* argv, const Value& newTarget) override;
+
     bool m_isCallable : 1;
     bool m_isConstructible : 1;
 

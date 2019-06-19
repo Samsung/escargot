@@ -282,7 +282,7 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
     }
 
     if (UNLIKELY(isSuperCall == true && isBuiltin() == true && isNewExpression == false)) {
-        Value returnValue = FunctionObject::construct(state, this, argc, argv);
+        Value returnValue = Object::construct(state, this, argc, argv);
         returnValue.asObject()->setPrototype(state, receiverSrc.toObject(state)->getPrototype(state));
         return returnValue;
     }
