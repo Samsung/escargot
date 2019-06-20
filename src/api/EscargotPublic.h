@@ -542,6 +542,8 @@ public:
 
     void enumerateObjectOwnProperies(ExecutionStateRef* state, const std::function<bool(ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>& cb);
 
+    ValueRef* call(ExecutionStateRef* state, ValueRef* receiver, const size_t argc, ValueRef** argv);
+
     bool isExtensible(ExecutionStateRef* state);
     bool preventExtensions(ExecutionStateRef* state);
 
@@ -653,8 +655,6 @@ public:
     bool setFunctionPrototype(ExecutionStateRef* state, ValueRef* v);
 
     bool isConstructor();
-    ValueRef* call(ExecutionStateRef* state, ValueRef* receiver, const size_t argc, ValueRef** argv);
-
     void markFunctionNeedsSlowVirtualIdentifierOperation();
 };
 

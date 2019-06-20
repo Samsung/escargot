@@ -905,6 +905,16 @@ void ObjectRef::enumerateObjectOwnProperies(ExecutionStateRef* state, const std:
                               (void*)&cb);
 }
 
+ValueRef* ObjectRef::call(ExecutionStateRef* state, ValueRef* receiver, const size_t argc, ValueRef** argv)
+{
+    Object* o = toImpl(this);
+    Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
+    for (size_t i = 0; i < argc; i++) {
+        newArgv[i] = toImpl(argv[i]);
+    }
+    return toRef(Object::call(*toImpl(state), o, toImpl(receiver), argc, newArgv));
+}
+
 FunctionObjectRef* GlobalObjectRef::object()
 {
     return toRef(toImpl(this)->object());
@@ -1283,16 +1293,6 @@ bool FunctionObjectRef::isConstructor()
 {
     FunctionObject* o = toImpl(this);
     return o->isConstructor();
-}
-
-ValueRef* FunctionObjectRef::call(ExecutionStateRef* state, ValueRef* receiver, const size_t argc, ValueRef** argv)
-{
-    FunctionObject* o = toImpl(this);
-    Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
-    for (size_t i = 0; i < argc; i++) {
-        newArgv[i] = toImpl(argv[i]);
-    }
-    return toRef(Object::call(*toImpl(state), o, toImpl(receiver), argc, newArgv));
 }
 
 static void markEvalToCodeblock(InterpretedCodeBlock* cb)
