@@ -915,6 +915,16 @@ ValueRef* ObjectRef::call(ExecutionStateRef* state, ValueRef* receiver, const si
     return toRef(Object::call(*toImpl(state), o, toImpl(receiver), argc, newArgv));
 }
 
+ObjectRef* ObjectRef::construct(ExecutionStateRef* state, const size_t argc, ValueRef** argv)
+{
+    Object* o = toImpl(this);
+    Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
+    for (size_t i = 0; i < argc; i++) {
+        newArgv[i] = toImpl(argv[i]);
+    }
+    return toRef(Object::construct(*toImpl(state), o, argc, newArgv));
+}
+
 FunctionObjectRef* GlobalObjectRef::object()
 {
     return toRef(toImpl(this)->object());
