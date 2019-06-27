@@ -47,7 +47,7 @@ public:
     }
 
 private:
-    RefPtr<ExpressionNode> m_expr;
+    ExpressionNode* m_expr;
     StringView m_value;
 };
 }

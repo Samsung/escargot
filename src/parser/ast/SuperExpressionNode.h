@@ -26,8 +26,6 @@ namespace Escargot {
 
 class SuperExpressionNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
-
     SuperExpressionNode(bool isCall)
         : ExpressionNode()
         , m_isCall(isCall)

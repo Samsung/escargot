@@ -27,7 +27,6 @@ namespace Escargot {
 
 class SwitchCaseNode : public StatementNode {
 public:
-    friend class ScriptParser;
     friend class SwitchStatementNode;
     SwitchCaseNode(Node* test, StatementContainer* consequent)
         : StatementNode()
@@ -52,8 +51,8 @@ public:
     }
 
 private:
-    RefPtr<ExpressionNode> m_test;
-    RefPtr<StatementContainer> m_consequent;
+    ExpressionNode* m_test;
+    StatementContainer* m_consequent;
 };
 }
 

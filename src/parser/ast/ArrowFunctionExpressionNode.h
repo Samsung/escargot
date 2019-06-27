@@ -24,8 +24,10 @@
 
 namespace Escargot {
 
-class ArrowParameterPlaceHolderNode : public Node {
+class ArrowParameterPlaceHolderNode : public Node, public DestructibleNode {
 public:
+    using DestructibleNode::operator new;
+
     ArrowParameterPlaceHolderNode()
         : Node()
     {
@@ -47,9 +49,10 @@ private:
     ExpressionNodeVector m_params;
 };
 
-class ArrowFunctionExpressionNode : public ExpressionNode {
+class ArrowFunctionExpressionNode : public ExpressionNode, public DestructibleNode {
 public:
-    friend class ScriptParser;
+    using DestructibleNode::operator new;
+
     ArrowFunctionExpressionNode(PatternNodeVector&& params, Node* body, ASTScopeContext* scopeContext, bool expression)
         : m_function(AtomicString(), std::move(params), body, scopeContext, false, this)
         , m_expression(expression)

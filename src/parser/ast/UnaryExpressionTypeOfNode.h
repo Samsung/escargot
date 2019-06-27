@@ -26,7 +26,6 @@ namespace Escargot {
 
 class UnaryExpressionTypeOfNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
     explicit UnaryExpressionTypeOfNode(Node* argument)
         : ExpressionNode()
         , m_argument(argument)
@@ -75,7 +74,7 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionTypeOf; }
 private:
-    RefPtr<Node> m_argument;
+    Node* m_argument;
 };
 }
 

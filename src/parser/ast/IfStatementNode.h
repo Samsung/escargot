@@ -26,7 +26,6 @@ namespace Escargot {
 
 class IfStatementNode : public StatementNode {
 public:
-    friend class ScriptParser;
     IfStatementNode(Node* test, Node* consequente, Node* alternate)
         : StatementNode()
         , m_test((ExpressionNode*)test)
@@ -80,9 +79,9 @@ public:
     }
 
 private:
-    RefPtr<ExpressionNode> m_test;
-    RefPtr<StatementNode> m_consequente;
-    RefPtr<StatementNode> m_alternate;
+    ExpressionNode* m_test;
+    StatementNode* m_consequente;
+    StatementNode* m_alternate;
 };
 }
 

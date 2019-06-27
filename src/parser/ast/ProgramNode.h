@@ -28,7 +28,6 @@ namespace Escargot {
 
 class ProgramNode : public StatementNode {
 public:
-    friend class ScriptParser;
     ProgramNode(StatementContainer* body, ASTScopeContext* scopeContext)
         : StatementNode()
         , m_container(body)
@@ -50,7 +49,7 @@ public:
     }
 
 private:
-    RefPtr<StatementContainer> m_container;
+    StatementContainer* m_container;
     ASTScopeContext* m_scopeContext;
 };
 }

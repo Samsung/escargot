@@ -50,7 +50,7 @@ public:
     }
 
 private:
-    RefPtr<Node> m_arg;
+    Node* m_arg;
 };
 }
 

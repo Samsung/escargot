@@ -27,9 +27,10 @@
 
 namespace Escargot {
 
-class CallExpressionNode : public ExpressionNode {
+class CallExpressionNode : public ExpressionNode, public DestructibleNode {
 public:
-    friend class ScriptParser;
+    using DestructibleNode::operator new;
+
     CallExpressionNode(Node* callee, ArgumentVector&& arguments)
         : ExpressionNode()
         , m_callee(callee)
@@ -42,7 +43,7 @@ public:
     {
     }
 
-    Node* callee() { return m_callee.get(); }
+    Node* callee() { return m_callee; }
     virtual ASTNodeType type() { return ASTNodeType::CallExpression; }
     ByteCodeRegisterIndex generateArguments(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, bool clearInCallingExpressionScope = true)
     {
@@ -150,7 +151,7 @@ public:
             return;
         }
 
-        bool isSlow = !canUseDirectRegister(context, m_callee.get(), m_arguments);
+        bool isSlow = !canUseDirectRegister(context, m_callee, m_arguments);
         bool directBefore = context->m_canSkipCopyToRegister;
         if (isSlow) {
             context->m_canSkipCopyToRegister = false;
@@ -169,7 +170,7 @@ public:
         }
 
         bool isCalleeHasReceiver = false;
-        bool isSuperCall = m_callee->isSuperNode() && ((SuperExpressionNode*)m_callee.get())->isCall();
+        bool isSuperCall = m_callee->isSuperNode() && ((SuperExpressionNode*)m_callee)->isCall();
 
         if (m_callee->isMemberExpression() || isSuperCall) {
             isCalleeHasReceiver = true;
@@ -191,7 +192,7 @@ public:
                 // Load the this value as receiver
                 receiverIndex = REGULAR_REGISTER_LIMIT;
             } else {
-                Node* object = ((MemberExpressionNode*)(m_callee.get()))->object();
+                Node* object = ((MemberExpressionNode*)(m_callee))->object();
                 if (object->isSuperNode()) {
                     SuperExpressionNode* superRef = (SuperExpressionNode*)object;
                     if (!superRef->isCall()) {
@@ -233,7 +234,7 @@ public:
     }
 
 private:
-    RefPtr<Node> m_callee; // callee: Expression;
+    Node* m_callee; // callee: Expression;
     ArgumentVector m_arguments; // arguments: [ Expression ];
     bool m_hasSpreadElement : 1;
 };

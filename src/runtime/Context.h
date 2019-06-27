@@ -210,6 +210,11 @@ public:
         return m_securityPolicyCheckCallback;
     }
 
+    ASTBuffer& astBuffer()
+    {
+        return m_astBuffer;
+    }
+
 private:
     VMInstance* m_instance;
 
@@ -220,6 +225,7 @@ private:
     GlobalObject* m_globalObject;
     ScriptParser* m_scriptParser;
     Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& m_compiledCodeBlocks;
+    ASTBuffer& m_astBuffer;
     WTF::BumpPointerAllocator* m_bumpPointerAllocator;
     RegExpCacheMap* m_regexpCache;
     ObjectStructure* m_defaultStructureForObject;

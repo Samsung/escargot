@@ -28,8 +28,7 @@ namespace Escargot {
 
 class ClassDeclarationNode : public StatementNode {
 public:
-    friend class ScriptParser;
-    ClassDeclarationNode(RefPtr<IdentifierNode> id, RefPtr<Node> superClass, RefPtr<ClassBodyNode> classBody)
+    ClassDeclarationNode(IdentifierNode* id, Node* superClass, ClassBodyNode* classBody)
         : StatementNode()
         , m_class(id, superClass, classBody)
     {
@@ -40,12 +39,12 @@ public:
     {
         context->getRegister(); // To ensure that the result of the classDeclaration is undefined
         size_t classIndex = context->getRegister();
-        RefPtr<IdentifierNode> classIdent = m_class.id();
+        IdentifierNode* classIdent = m_class.id();
 
         const ClassContextInformation classInfoBefore = context->m_classInfo;
         context->m_classInfo.m_bodyIndex = context->getRegister();
         context->m_classInfo.m_superIndex = m_class.superClass() ? context->getRegister() : SIZE_MAX;
-        context->m_classInfo.m_name = classIdent ? classIdent.get()->name() : AtomicString();
+        context->m_classInfo.m_name = classIdent ? classIdent->name() : AtomicString();
 
         codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), classIndex, context->m_classInfo.m_bodyIndex, context->m_classInfo.m_superIndex, context->m_classInfo.m_name, nullptr, 1), context, this);
 
@@ -55,9 +54,9 @@ public:
 
         if (m_class.classBody()->hasConstructor()) {
             Node* constructor = m_class.classBody()->constructor();
-            RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(classIdent.get(), constructor));
-            assign->m_loc = m_loc;
-            assign->generateExpressionByteCode(codeBlock, context, classIndex);
+            AssignmentExpressionSimpleNode assign(classIdent, constructor);
+            assign.m_loc = m_loc;
+            assign.generateExpressionByteCode(codeBlock, context, classIndex);
         } else {
             codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), classIndex, context->m_classInfo.m_bodyIndex, context->m_classInfo.m_superIndex, context->m_classInfo.m_name, nullptr, 2), context, this);
             classIdent->generateResolveAddressByteCode(codeBlock, context);

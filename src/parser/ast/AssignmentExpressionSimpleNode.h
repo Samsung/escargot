@@ -31,8 +31,6 @@ namespace Escargot {
 // An assignment operator expression.
 class AssignmentExpressionSimpleNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
-
     AssignmentExpressionSimpleNode(Node* left, Node* right)
         : ExpressionNode()
         , m_left(left)
@@ -44,14 +42,9 @@ public:
     {
     }
 
-    void giveupChildren()
-    {
-        m_left = m_right = nullptr;
-    }
-
     Node* left()
     {
-        return m_left.get();
+        return m_left;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionSimple; }
@@ -78,12 +71,12 @@ public:
     {
         context->m_classInfo.isAssigmentTarget = true;
         if (m_left->isPattern()) {
-            Node* pattern = m_left.get()->asPattern(m_right);
+            Node* pattern = m_left->asPattern(m_right, codeBlock->m_codeBlock->context()->astBuffer());
             pattern->generateExpressionByteCode(codeBlock, context, dstRegister);
             return;
         }
 
-        bool isSlowMode = hasSlowAssigmentOperation(m_left.get(), m_right.get());
+        bool isSlowMode = hasSlowAssigmentOperation(m_left, m_right);
 
         bool isBase = context->m_registerStack->size() == 0;
         size_t rightRegister = dstRegister;
@@ -108,12 +101,12 @@ public:
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         if (m_left->isPattern()) {
-            Node* pattern = m_left.get()->asPattern(m_right);
+            Node* pattern = m_left->asPattern(m_right, codeBlock->m_codeBlock->context()->astBuffer());
             (pattern)->generateResultNotRequiredExpressionByteCode(codeBlock, context);
             return;
         }
 
-        bool isSlowMode = hasSlowAssigmentOperation(m_left.get(), m_right.get());
+        bool isSlowMode = hasSlowAssigmentOperation(m_left, m_right);
         context->m_classInfo.isAssigmentTarget = true;
 
         if (isSlowMode) {
@@ -165,8 +158,8 @@ public:
     }
 
 private:
-    RefPtr<Node> m_left; // left: Pattern;
-    RefPtr<Node> m_right; // right: Expression;
+    Node* m_left; // left: Pattern;
+    Node* m_right; // right: Expression;
 };
 }
 

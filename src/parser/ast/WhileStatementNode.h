@@ -27,7 +27,6 @@ namespace Escargot {
 
 class WhileStatementNode : public StatementNode {
 public:
-    friend class ScriptParser;
     WhileStatementNode(Node *test, Node *body)
         : StatementNode()
         , m_test((ExpressionNode *)test)
@@ -82,8 +81,8 @@ public:
     }
 
 private:
-    RefPtr<ExpressionNode> m_test;
-    RefPtr<StatementNode> m_body;
+    ExpressionNode *m_test;
+    StatementNode *m_body;
 };
 }
 

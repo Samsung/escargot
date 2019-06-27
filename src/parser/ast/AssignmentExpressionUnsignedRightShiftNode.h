@@ -30,7 +30,6 @@ namespace Escargot {
 // An assignment operator expression.
 class AssignmentExpressionUnsignedShiftNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
     AssignmentExpressionUnsignedShiftNode(Node* left, Node* right)
         : ExpressionNode()
         , m_left(left)
@@ -45,7 +44,7 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionUnsignedRightShift; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        bool slowMode = AssignmentExpressionSimpleNode::hasSlowAssigmentOperation(m_left.get(), m_right.get());
+        bool slowMode = AssignmentExpressionSimpleNode::hasSlowAssigmentOperation(m_left, m_right);
         bool flagBefore;
         if (slowMode) {
             flagBefore = context->m_canSkipCopyToRegister;
@@ -79,8 +78,8 @@ public:
     }
 
 private:
-    RefPtr<Node> m_left; // left: Pattern;
-    RefPtr<Node> m_right; // right: Expression;
+    Node* m_left; // left: Pattern;
+    Node* m_right; // right: Expression;
 };
 }
 

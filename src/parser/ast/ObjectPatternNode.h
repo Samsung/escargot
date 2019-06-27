@@ -30,10 +30,11 @@
 
 namespace Escargot {
 
-class ObjectPatternNode : public PatternNode {
+class ObjectPatternNode : public PatternNode, public DestructibleNode {
 public:
-    friend class ScriptParser;
-    ObjectPatternNode(PropertiesNodeVector&& properties, RefPtr<Node> init = nullptr)
+    using DestructibleNode::operator new;
+
+    ObjectPatternNode(PropertiesNodeVector&& properties, Node* init = nullptr)
         : PatternNode(init)
         , m_properties(properties)
     {
@@ -58,7 +59,7 @@ public:
 
         size_t objIndex = m_initIdx;
         for (unsigned i = 0; i < m_properties.size(); i++) {
-            PropertyNode* p = m_properties[i].get();
+            PropertyNode* p = m_properties[i];
             AtomicString propertyAtomicName;
             bool hasKey = false;
             size_t propertyIndex = SIZE_MAX;
@@ -113,7 +114,7 @@ public:
             size_t jPos = 0;
             if (value != nullptr) {
                 if (value->isPattern()) {
-                    Node* pattern = value->asPattern(valueIndex);
+                    Node* pattern = value->asPattern(valueIndex, codeBlock->m_codeBlock->context()->astBuffer());
                     pattern->generateResultNotRequiredExpressionByteCode(codeBlock, context);
                     context->giveUpRegister();
                     continue;
@@ -161,11 +162,10 @@ public:
                 throw err;
             }
 
-            RefPtr<RegisterReferenceNode> registerRef = adoptRef(new RegisterReferenceNode(valueIndex));
-            RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(key, registerRef.get()));
-            assign->m_loc = m_loc;
-            assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-            assign->giveupChildren();
+            RegisterReferenceNode registerRef(valueIndex);
+            AssignmentExpressionSimpleNode assign(key, &registerRef);
+            assign.m_loc = m_loc;
+            assign.generateResultNotRequiredExpressionByteCode(codeBlock, context);
 
             Jump* j = codeBlock->peekCode<Jump>(jPos);
             j->m_jumpPosition = codeBlock->currentCodeSize();

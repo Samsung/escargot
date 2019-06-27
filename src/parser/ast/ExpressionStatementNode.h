@@ -27,7 +27,6 @@ namespace Escargot {
 // An expression statement, i.e., a statement consisting of a single expression.
 class ExpressionStatementNode : public StatementNode {
 public:
-    friend class ScriptParser;
     explicit ExpressionStatementNode(Node* expression)
         : StatementNode()
         , m_expression(expression)
@@ -39,7 +38,7 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ExpressionStatement; }
-    Node* expression() { return m_expression.get(); }
+    Node* expression() { return m_expression; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         if (!context->m_isEvalCode && !context->m_isGlobalScope) {
@@ -55,7 +54,7 @@ public:
     }
 
 private:
-    RefPtr<Node> m_expression; // expression: Expression;
+    Node* m_expression; // expression: Expression;
 };
 }
 

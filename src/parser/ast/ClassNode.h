@@ -27,7 +27,7 @@ namespace Escargot {
 
 class ClassNode {
 public:
-    ClassNode(RefPtr<IdentifierNode>& id, RefPtr<Node> superClass, RefPtr<ClassBodyNode> classBody)
+    ClassNode(IdentifierNode* id, Node* superClass, ClassBodyNode* classBody)
         : m_id(id)
         , m_superClass(superClass)
         , m_classBody(classBody)
@@ -35,13 +35,13 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::Class; }
-    inline const RefPtr<IdentifierNode>& id() { return m_id; }
-    inline const RefPtr<Node> superClass() { return m_superClass; }
-    inline const RefPtr<ClassBodyNode> classBody() { return m_classBody; }
+    inline IdentifierNode* id() { return m_id; }
+    inline Node* superClass() { return m_superClass; }
+    inline ClassBodyNode* classBody() { return m_classBody; }
 private:
-    RefPtr<IdentifierNode> m_id; // Id
-    RefPtr<Node> m_superClass;
-    RefPtr<ClassBodyNode> m_classBody;
+    IdentifierNode* m_id; // Id
+    Node* m_superClass;
+    ClassBodyNode* m_classBody;
 };
 }
 

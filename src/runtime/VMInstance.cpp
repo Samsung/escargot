@@ -23,6 +23,7 @@
 #include "ArrayObject.h"
 #include "StringObject.h"
 #include "JobQueue.h"
+#include "parser/ast/ASTBuffer.h"
 
 namespace Escargot {
 
@@ -125,6 +126,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
     : m_randEngine((unsigned int)time(NULL))
     , m_didSomePrototypeObjectDefineIndexedProperty(false)
     , m_compiledByteCodeSize(0)
+    , m_astBuffer(new ASTBuffer())
     , m_cachedUTC(nullptr)
 {
     if (!String::emptyString) {
@@ -259,6 +261,15 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
     m_jobQueue = JobQueue::create();
     m_jobQueueListener = nullptr;
     m_publicJobQueueListenerPointer = nullptr;
+}
+
+VMInstance::~VMInstance()
+{
+    clearCaches();
+    delete m_astBuffer;
+#ifdef ENABLE_ICU
+    delete m_timezone;
+#endif
 }
 
 void VMInstance::clearCaches()

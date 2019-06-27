@@ -55,7 +55,7 @@ public:
     }
 
     inline const PatternNodeVector& params() { return m_params; }
-    inline Node* body() { return m_body.get(); }
+    inline Node* body() { return m_body; }
     inline const AtomicString& id() { return m_id; }
     ASTScopeContext* scopeContext() { return m_scopeContext; }
     inline bool isGenerator() { return m_isGenerator; };
@@ -63,7 +63,7 @@ private:
     bool m_isGenerator : 1;
     AtomicString m_id; // id: Identifier;
     PatternNodeVector m_params; // params: [ Pattern ];
-    RefPtr<Node> m_body;
+    Node* m_body;
     ASTScopeContext* m_scopeContext;
 };
 }

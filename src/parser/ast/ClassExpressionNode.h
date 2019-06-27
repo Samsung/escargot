@@ -29,8 +29,7 @@ namespace Escargot {
 
 class ClassExpressionNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
-    ClassExpressionNode(RefPtr<IdentifierNode> id, RefPtr<Node> superClass, RefPtr<ClassBodyNode> classBody)
+    ClassExpressionNode(IdentifierNode* id, Node* superClass, ClassBodyNode* classBody)
         : ExpressionNode()
         , m_class(id, superClass, classBody)
     {
@@ -39,12 +38,12 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ClassExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex)
     {
-        RefPtr<IdentifierNode> classIdent = m_class.id();
+        IdentifierNode* classIdent = m_class.id();
 
         const ClassContextInformation classInfoBefore = context->m_classInfo;
         context->m_classInfo.m_bodyIndex = context->getRegister();
         context->m_classInfo.m_superIndex = m_class.superClass() ? context->getRegister() : SIZE_MAX;
-        context->m_classInfo.m_name = classIdent ? classIdent.get()->name() : AtomicString();
+        context->m_classInfo.m_name = classIdent ? classIdent->name() : AtomicString();
 
         codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_bodyIndex, context->m_classInfo.m_superIndex, context->m_classInfo.m_name, nullptr, 1), context, this);
 

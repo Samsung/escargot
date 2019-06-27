@@ -26,7 +26,7 @@ namespace Escargot {
 
 class YieldExpressionNode : public ExpressionNode {
 public:
-    YieldExpressionNode(RefPtr<Node> argument, bool isDelegate)
+    YieldExpressionNode(Node* argument, bool isDelegate)
         : ExpressionNode()
         , m_argument(argument)
         , m_isDelegate(isDelegate)
@@ -65,7 +65,7 @@ public:
     }
 
 private:
-    RefPtr<Node> m_argument;
+    Node* m_argument;
     bool m_isDelegate : 1;
 };
 }

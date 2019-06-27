@@ -30,6 +30,7 @@ class StatementNode : public Node {
 public:
     StatementNode()
         : Node()
+        , m_nextSilbing(nullptr)
     {
     }
 
@@ -40,51 +41,54 @@ public:
 
     StatementNode* nextSilbing()
     {
-        return m_nextSilbing.get();
+        return m_nextSilbing;
     }
 
 private:
-    RefPtr<StatementNode> m_nextSilbing;
+    StatementNode* m_nextSilbing;
 };
 
-class StatementContainer : public RefCounted<StatementContainer> {
+class StatementContainer {
 public:
-    static RefPtr<StatementContainer> create()
+    static StatementContainer* create(ASTBuffer& astBuffer)
     {
-        return adoptRef(new StatementContainer());
+        return new (astBuffer) StatementContainer();
+    }
+
+    StatementContainer()
+        : m_firstChild(nullptr)
+    {
     }
 
     ~StatementContainer()
     {
-        RefPtr<StatementNode> c = m_firstChild.release();
+        /*
+        StatementNode* c = m_firstChild.release();
         if (!c) {
             return;
         }
 
         do {
-            RefPtr<StatementNode> next = c->m_nextSilbing.release();
+            StatementNode* next = c->m_nextSilbing.release();
             c.release();
             c = next;
         } while (c);
+        */
     }
+
+    // StatementContainer is allocated on the ASTBuffer
+    void* operator new(size_t) = delete;
+    void* operator new[](size_t) = delete;
+    void operator delete(void*) = delete;
+    void operator delete[](void*) = delete;
 
     void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        StatementNode* nd = m_firstChild.get();
+        StatementNode* nd = m_firstChild;
         while (nd) {
             nd->generateStatementByteCode(codeBlock, context);
             nd = nd->nextSilbing();
         }
-    }
-
-    StatementNode* appendChild(RefPtr<StatementNode> c)
-    {
-        return appendChild(c.get());
-    }
-
-    StatementNode* appendChild(RefPtr<StatementNode> c, RefPtr<StatementNode> referNode)
-    {
-        return appendChild(c.get(), referNode.get());
     }
 
     StatementNode* appendChild(StatementNode* c, StatementNode* referNode)
@@ -103,9 +107,9 @@ public:
         if (m_firstChild == nullptr) {
             m_firstChild = c;
         } else {
-            StatementNode* tail = m_firstChild.get();
+            StatementNode* tail = m_firstChild;
             while (tail->m_nextSilbing != nullptr) {
-                tail = tail->m_nextSilbing.get();
+                tail = tail->m_nextSilbing;
             }
             tail->m_nextSilbing = c;
         }
@@ -114,11 +118,16 @@ public:
 
     StatementNode* firstChild()
     {
-        return m_firstChild.get();
+        return m_firstChild;
     }
 
 private:
-    RefPtr<StatementNode> m_firstChild;
+    StatementNode* m_firstChild;
+
+    inline void* operator new(size_t size, ASTBuffer& astBuffer)
+    {
+        return astBuffer.allocate(size);
+    }
 };
 }
 

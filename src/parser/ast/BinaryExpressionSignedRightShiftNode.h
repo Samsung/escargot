@@ -39,7 +39,7 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionSignedRightShift; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        bool isSlow = !canUseDirectRegister(context, m_left.get(), m_right.get());
+        bool isSlow = !canUseDirectRegister(context, m_left, m_right);
         bool directBefore = context->m_canSkipCopyToRegister;
         if (isSlow) {
             context->m_canSkipCopyToRegister = false;
@@ -64,8 +64,8 @@ public:
     }
 
 private:
-    RefPtr<ExpressionNode> m_left;
-    RefPtr<ExpressionNode> m_right;
+    ExpressionNode* m_left;
+    ExpressionNode* m_right;
 };
 }
 

@@ -27,7 +27,6 @@ namespace Escargot {
 
 class PropertyNode : public Node {
 public:
-    friend class ScriptParser;
     enum Kind {
         Init,
         Get,
@@ -50,12 +49,12 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::Property; }
     Node* key()
     {
-        return m_key.get();
+        return m_key;
     }
 
     Node* value()
     {
-        return m_value.get();
+        return m_value;
     }
 
     Kind kind()
@@ -76,8 +75,8 @@ public:
 private:
     Kind m_kind; // kind: "init" | "get" | "set";
     bool m_computed : 1;
-    RefPtr<Node> m_key; // key: Literal | Identifier;
-    RefPtr<Node> m_value; // value: Expression;
+    Node* m_key; // key: Literal | Identifier;
+    Node* m_value; // value: Expression;
 };
 }
 

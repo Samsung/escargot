@@ -25,9 +25,9 @@
 
 namespace Escargot {
 
-class ArrayExpressionNode : public ExpressionNode {
+class ArrayExpressionNode : public ExpressionNode, public DestructibleNode {
 public:
-    friend class ScriptParser;
+    using DestructibleNode::operator new;
     ArrayExpressionNode(ExpressionNodeVector&& elements, AtomicString additionalPropertyName = AtomicString(), Node* additionalPropertyExpression = nullptr, bool hasSpreadElement = false)
         : ExpressionNode()
         , m_elements(elements)
@@ -57,14 +57,14 @@ public:
         return m_isPattern;
     }
 
-    virtual PatternNode* asPattern(RefPtr<Node> init)
+    virtual PatternNode* asPattern(Node* init, ASTBuffer& astBuffer)
     {
-        return new ArrayPatternNode(std::move(m_elements), init);
+        return new (astBuffer) ArrayPatternNode(std::move(m_elements), init);
     }
 
-    virtual PatternNode* asPattern(size_t initIdx)
+    virtual PatternNode* asPattern(size_t initIdx, ASTBuffer& astBuffer)
     {
-        return new ArrayPatternNode(std::move(m_elements), initIdx);
+        return new (astBuffer) ArrayPatternNode(std::move(m_elements), initIdx);
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ArrayExpression; }
@@ -124,7 +124,7 @@ public:
 private:
     ExpressionNodeVector m_elements;
     AtomicString m_additionalPropertyName;
-    RefPtr<Node> m_additionalPropertyExpression;
+    Node* m_additionalPropertyExpression;
     bool m_hasSpreadElement : 1;
     bool m_isPattern : 1;
 };

@@ -34,6 +34,13 @@ public:
     {
     }
 
+    // RegExpLiteralNode has references of GC object in itself
+    // So, it is allocated in the GC heap too.
+    inline void* operator new(size_t size, ASTBuffer& astBuffer)
+    {
+        return astBuffer.allocateGCNode(size);
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::RegExpLiteral; }
     String* body() { return m_body; }
     String* flag() { return m_flag; }

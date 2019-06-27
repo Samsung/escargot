@@ -29,8 +29,6 @@ namespace Escargot {
 
 class DefaultArgumentNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
-
     DefaultArgumentNode(Node* left, Node* right)
         : ExpressionNode()
         , m_left(left)
@@ -42,14 +40,9 @@ public:
     {
     }
 
-    void giveupChildren()
-    {
-        m_left = m_right = nullptr;
-    }
-
     Node* left()
     {
-        return m_left.get();
+        return m_left;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::DefaultArgument; }
@@ -73,9 +66,9 @@ public:
 
         context->giveUpRegister(); // for drop cmpIndex
 
-        RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(m_left.get(), m_right.get()));
-        assign->m_loc = m_loc;
-        assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
+        AssignmentExpressionSimpleNode assign(m_left, m_right);
+        assign.m_loc = m_loc;
+        assign.generateResultNotRequiredExpressionByteCode(codeBlock, context);
 
         codeBlock->peekCode<JumpIfFalse>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
     }
@@ -83,15 +76,15 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         // Note: This could only happen by destructuring a pattern
-        RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(m_left.get(), m_right.get()));
-        assign->m_loc = m_loc;
-        assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
+        AssignmentExpressionSimpleNode assign(m_left, m_right);
+        assign.m_loc = m_loc;
+        assign.generateResultNotRequiredExpressionByteCode(codeBlock, context);
     }
 
 
 private:
-    RefPtr<Node> m_left; // left: Identifier;
-    RefPtr<Node> m_right; // right: Expression;
+    Node* m_left; // left: Identifier;
+    Node* m_right; // right: Expression;
 };
 }
 

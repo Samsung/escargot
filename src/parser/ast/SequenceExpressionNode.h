@@ -25,9 +25,10 @@
 namespace Escargot {
 
 // An sequence expression, i.e., a statement consisting of vector of expressions.
-class SequenceExpressionNode : public ExpressionNode {
+class SequenceExpressionNode : public ExpressionNode, public DestructibleNode {
 public:
-    friend class ScriptParser;
+    using DestructibleNode::operator new;
+
     explicit SequenceExpressionNode(ExpressionNodeVector&& expressions)
         : ExpressionNode()
         , m_expressions(expressions)

@@ -26,8 +26,6 @@ namespace Escargot {
 
 class UpdateExpressionDecrementPostfixNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
-
     UpdateExpressionDecrementPostfixNode(Node* argument)
         : ExpressionNode()
         , m_argument((ExpressionNode*)argument)
@@ -74,7 +72,7 @@ public:
     }
 
 private:
-    RefPtr<ExpressionNode> m_argument;
+    ExpressionNode* m_argument;
 };
 }
 

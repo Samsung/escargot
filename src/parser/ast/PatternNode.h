@@ -26,7 +26,7 @@ namespace Escargot {
 
 class PatternNode : public Node {
 public:
-    PatternNode(RefPtr<Node> init = nullptr)
+    PatternNode(Node* init = nullptr)
         : Node()
         , m_init(init)
         , m_initIdx(SIZE_MAX)
@@ -40,18 +40,18 @@ public:
     {
     }
 
-    void setInitializer(RefPtr<Node> init)
+    void setInitializer(Node* init)
     {
         m_init = init;
     }
 
-    virtual PatternNode* asPattern(RefPtr<Node> init)
+    virtual PatternNode* asPattern(Node* init, ASTBuffer& astBuffer)
     {
         m_init = init;
         return this;
     }
 
-    virtual PatternNode* asPattern(size_t initIdx)
+    virtual PatternNode* asPattern(size_t initIdx, ASTBuffer& astBuffer)
     {
         m_initIdx = initIdx;
         return this;
@@ -85,7 +85,7 @@ public:
 
 
 protected:
-    RefPtr<Node> m_init;
+    Node* m_init;
     size_t m_initIdx;
 };
 }

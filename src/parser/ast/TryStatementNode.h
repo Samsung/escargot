@@ -25,9 +25,9 @@
 
 namespace Escargot {
 
-class TryStatementNode : public StatementNode {
+class TryStatementNode : public StatementNode, public DestructibleNode {
 public:
-    friend class ScriptParser;
+    using DestructibleNode::operator new;
     TryStatementNode(Node *block, Node *handler, CatchClauseNodeVector &&guardedHandlers, Node *finalizer)
         : StatementNode()
         , m_block((BlockStatementNode *)block)
@@ -71,8 +71,8 @@ public:
                 }
                 codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), r, blk), context, this);
 
-                RefPtr<IdentifierNode> node = adoptRef(new IdentifierNode(blk->functionName()));
-                node->generateStoreByteCode(codeBlock, context, r, false);
+                IdentifierNode node(blk->functionName());
+                node.generateStoreByteCode(codeBlock, context, r, false);
                 context->giveUpRegister();
             }
 
@@ -100,10 +100,10 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::TryStatement; }
 private:
-    RefPtr<BlockStatementNode> m_block;
-    RefPtr<CatchClauseNode> m_handler;
+    BlockStatementNode *m_block;
+    CatchClauseNode *m_handler;
     CatchClauseNodeVector m_guardedHandlers;
-    RefPtr<BlockStatementNode> m_finalizer;
+    BlockStatementNode *m_finalizer;
 };
 }
 

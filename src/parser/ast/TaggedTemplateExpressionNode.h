@@ -36,12 +36,12 @@ public:
 
     Node* expr()
     {
-        return m_expr.get();
+        return m_expr;
     }
 
     Node* quasi()
     {
-        return m_quasi.get();
+        return m_quasi;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::TaggedTemplateExpression; }
@@ -56,8 +56,8 @@ public:
     }
 
 private:
-    RefPtr<Node> m_expr;
-    RefPtr<Node> m_quasi;
+    Node* m_expr;
+    Node* m_quasi;
 };
 }
 

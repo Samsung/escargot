@@ -166,7 +166,7 @@ void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView sc
     ASSERT(script != nullptr);
 
     InterpretedCodeBlock* topCodeBlock = nullptr;
-    RefPtr<ProgramNode> programNode;
+    ProgramNode* programNode;
 
     GC_disable();
 
@@ -185,7 +185,7 @@ void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView sc
             topCodeBlock->m_isEvalCodeInFunction = true;
             topCodeBlock->m_isInWithScope = parentCodeBlock->m_isInWithScope;
         } else {
-            topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, programNode.get());
+            topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, programNode);
         }
         topCodeBlock->m_isEvalCodeInFunction = isEvalCodeInFunction;
 
@@ -200,6 +200,8 @@ void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView sc
         }
 #endif
     } catch (esprima::Error& orgError) {
+        // Reset ASTBuffer
+        m_context->astBuffer().reset();
         GC_enable();
         ErrorObject::throwBuiltinError(state, orgError.errorCode, orgError.message->toUTF8StringData().data());
         RELEASE_ASSERT_NOT_REACHED();
@@ -210,25 +212,33 @@ void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView sc
 
     // Generate ByteCode
     if (LIKELY(needByteCodeGeneration)) {
-        topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, isOnGlobal);
+        topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), topCodeBlock, programNode, programNode->scopeContext(), isEvalMode, isOnGlobal);
     }
+
+    // Reset ASTBuffer : ASTBuffer should be maintained until the bytecode generation process finishes
+    m_context->astBuffer().reset();
 }
 
 void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain)
 {
-    RefPtr<Node> body;
+    Node* body;
     ASTScopeContext* scopeContext = nullptr;
 
     // Parsing
     try {
         body = esprima::parseSingleFunction(m_context, codeBlock, scopeContext, stackSizeRemain);
     } catch (esprima::Error& orgError) {
+        // Reset ASTBuffer
+        m_context->astBuffer().reset();
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, orgError.message->toUTF8StringData().data());
         RELEASE_ASSERT_NOT_REACHED();
     }
 
     // Generate ByteCode
-    codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), codeBlock, body.get(), scopeContext, false, false, false);
+    codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), codeBlock, body, scopeContext, false, false, false);
+
+    // Reset ASTBuffer : ASTBuffer should be maintained until the bytecode generation process finishes
+    m_context->astBuffer().reset();
 }
 
 #ifndef NDEBUG

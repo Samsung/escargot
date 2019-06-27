@@ -27,7 +27,6 @@ namespace Escargot {
 
 class ForInOfStatementNode : public StatementNode {
 public:
-    friend class ScriptParser;
     ForInOfStatementNode(Node *left, Node *right, Node *body, bool forIn)
         : StatementNode()
         , m_left(left)
@@ -163,9 +162,9 @@ public:
     }
 
 private:
-    RefPtr<Node> m_left;
-    RefPtr<Node> m_right;
-    RefPtr<StatementNode> m_body;
+    Node *m_left;
+    Node *m_right;
+    StatementNode *m_body;
     bool m_forIn : 1;
 };
 }

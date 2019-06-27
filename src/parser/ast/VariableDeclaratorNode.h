@@ -29,7 +29,6 @@ namespace Escargot {
 
 class VariableDeclaratorNode : public Node {
 public:
-    friend class ScriptParser;
     VariableDeclaratorNode(Node* id, Node* init = nullptr)
         : Node()
         , m_id(id)
@@ -42,15 +41,15 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::VariableDeclarator; }
-    Node* id() { return m_id.get(); }
-    Node* init() { return m_init.get(); }
+    Node* id() { return m_id; }
+    Node* init() { return m_init; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         if (m_id->isPattern()) {
             if (context->m_forInOfVarBinding) {
                 return;
             }
-            PatternNode* pattern = m_id->asPattern(m_init);
+            PatternNode* pattern = m_id->asPattern(m_init, codeBlock->m_codeBlock->context()->astBuffer());
             context->getRegister();
             pattern->generateResultNotRequiredExpressionByteCode(codeBlock, context);
             context->giveUpRegister();
@@ -63,11 +62,9 @@ public:
             context->getRegister();
             if (!name.string()->equals("arguments")) {
                 // check canUseIndexedVariableStorage for give right value to generateStoreByteCode(isInit..) with eval
-                RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(m_id.get(), m_init.get()));
-                assign->m_loc = m_loc;
-                assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-                // for avoding double-free
-                assign->giveupChildren();
+                AssignmentExpressionSimpleNode assign(m_id, m_init);
+                assign.m_loc = m_loc;
+                assign.generateResultNotRequiredExpressionByteCode(codeBlock, context);
             } else {
                 auto r = m_init->getRegister(codeBlock, context);
                 m_init->generateExpressionByteCode(codeBlock, context, r);
@@ -79,8 +76,8 @@ public:
     }
 
 private:
-    RefPtr<Node> m_id; // id: Pattern;
-    RefPtr<Node> m_init; // init: Expression | null;
+    Node* m_id; // id: Pattern;
+    Node* m_init; // init: Expression | null;
 };
 }
 

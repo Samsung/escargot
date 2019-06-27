@@ -27,7 +27,6 @@ namespace Escargot {
 
 class RegisterReferenceNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
     RegisterReferenceNode(size_t registerIdx)
         : ExpressionNode()
         , m_registerIdx(registerIdx)

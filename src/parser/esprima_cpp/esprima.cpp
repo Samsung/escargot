@@ -180,10 +180,11 @@ public:
     Config config;
     Scanner* scanner;
     Scanner scannerInstance;
+    ASTBuffer& astBuffer;
 
     /*
-    std::unordered_map<IdentifierNode*, RefPtr<Scanner::ScannerResult>,
-                       std::hash<IdentifierNode*>, std::equal_to<IdentifierNode*>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<IdentifierNode*, RefPtr<Scanner::ScannerResult>>>>
+    std::unordered_map<IdentifierNode*, PassNode<Scanner::ScannerResult>,
+                       std::hash<IdentifierNode*>, std::equal_to<IdentifierNode*>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<IdentifierNode*, PassNode<Scanner::ScannerResult>>>>
         nodeExtraInfo;
     */
 
@@ -210,19 +211,50 @@ public:
 
     class ScanExpressionResult;
 
-    /* Structure for conversion. Do not use it for storing a value! */
+    /* Structure for conversion.*/
     template <typename T>
-    class PassNode : public PassRefPtr<T> {
+    class PassNode {
     public:
-        PassNode(PassRefPtr<T> node)
-            : PassRefPtr<T>(node)
+        PassNode()
+            : m_ptr(nullptr)
         {
         }
 
+        PassNode(T* node)
+            : m_ptr(node)
+        {
+        }
+
+        template <typename U>
+        PassNode(const PassNode<U>& o)
+            : m_ptr(o.get())
+        {
+        }
+
+        T& operator*() const { return *m_ptr; }
+        T* operator->() const
+        {
+            ASSERT(m_ptr != nullptr);
+            return m_ptr;
+        }
+        bool operator!() const { return !m_ptr; }
+        typedef T*(PassNode::*UnspecifiedBoolType);
+        operator UnspecifiedBoolType() const { return m_ptr ? &PassNode::m_ptr : nullptr; }
+        template <typename U>
+        PassNode& operator=(const PassNode<U>& o)
+        {
+            m_ptr = o.get();
+            return *this;
+        }
+
+        T* get() const { return m_ptr; }
         operator ScanExpressionResult()
         {
             return ScanExpressionResult();
         }
+
+    private:
+        T* m_ptr;
     };
 
     class ScanExpressionResult {
@@ -238,7 +270,7 @@ public:
         }
 
         template <typename T>
-        ScanExpressionResult(PassRefPtr<T>)
+        ScanExpressionResult(T*)
             : nodeType(ASTNodeTypeError)
         {
         }
@@ -331,8 +363,10 @@ public:
 
     Parser(::Escargot::Context* escargotContext, StringView code, size_t stackRemain, ExtendedNodeLOC startLoc = ExtendedNodeLOC(0, 0, 0))
         : scannerInstance(escargotContext, code, startLoc.line, startLoc.column)
+        , astBuffer(escargotContext->astBuffer())
     {
         ASSERT(escargotContext != nullptr);
+        ASSERT(astBuffer.isInitialized());
 
         if (stackRemain >= STACK_LIMIT_FROM_BASE) {
             stackRemain = STACK_LIMIT_FROM_BASE;
@@ -631,7 +665,7 @@ public:
     }
 
     template <typename T>
-    PassRefPtr<T> finalize(MetaNode meta, T* node)
+    T* finalize(MetaNode meta, T* node)
     {
         /*
         if (this->config.range) {
@@ -671,7 +705,7 @@ public:
         }
 
         node->m_loc = NodeLOC(meta.index);
-        return adoptRef(node);
+        return node;
     }
 
     // Expect the next token to match the specified punctuator.
@@ -834,12 +868,12 @@ public:
     }
 
     template <typename T>
-    ALWAYS_INLINE PassRefPtr<Node> isolateCoverGrammar(T parseFunction)
+    ALWAYS_INLINE PassNode<Node> isolateCoverGrammar(T parseFunction)
     {
         IsolateCoverGrammarContext grammarContext;
         startCoverGrammar(&grammarContext);
 
-        PassRefPtr<Node> result = (this->*parseFunction)();
+        PassNode<Node> result = (this->*parseFunction)();
         endIsolateCoverGrammar(&grammarContext);
 
         return result;
@@ -858,12 +892,12 @@ public:
     }
 
     template <typename T>
-    ALWAYS_INLINE PassRefPtr<Node> isolateCoverGrammarWithFunctor(T parseFunction)
+    ALWAYS_INLINE PassNode<Node> isolateCoverGrammarWithFunctor(T parseFunction)
     {
         IsolateCoverGrammarContext grammarContext;
         startCoverGrammar(&grammarContext);
 
-        PassRefPtr<Node> result = parseFunction();
+        PassNode<Node> result = parseFunction();
         endIsolateCoverGrammar(&grammarContext);
 
         return result;
@@ -880,12 +914,12 @@ public:
     }
 
     template <typename T>
-    ALWAYS_INLINE PassRefPtr<Node> inheritCoverGrammar(T parseFunction)
+    ALWAYS_INLINE PassNode<Node> inheritCoverGrammar(T parseFunction)
     {
         IsolateCoverGrammarContext grammarContext;
         startCoverGrammar(&grammarContext);
 
-        PassRefPtr<Node> result = (this->*parseFunction)();
+        PassNode<Node> result = (this->*parseFunction)();
         endInheritCoverGrammar(&grammarContext);
 
         return result;
@@ -925,12 +959,12 @@ public:
         const auto& a = sv->bufferAccessData();
         char16_t firstCh = a.charAt(0);
         if (a.length == 1 && firstCh < ESCARGOT_ASCII_TABLE_MAX) {
-            ret = new IdentifierNode(this->escargotContext->staticStrings().asciiTable[firstCh]);
+            ret = new (astBuffer) IdentifierNode(this->escargotContext->staticStrings().asciiTable[firstCh]);
         } else {
             if (!token->plain) {
-                ret = new IdentifierNode(AtomicString(this->escargotContext, sv->string()));
+                ret = new (astBuffer) IdentifierNode(AtomicString(this->escargotContext, sv->string()));
             } else {
-                ret = new IdentifierNode(AtomicString(this->escargotContext, SourceStringView(*sv)));
+                ret = new (astBuffer) IdentifierNode(AtomicString(this->escargotContext, SourceStringView(*sv)));
             }
         }
 
@@ -963,13 +997,13 @@ public:
         return ScanExpressionResult(ASTNodeType::Identifier);
     }
 
-#define DEFINE_AS_NODE(TypeName)                                 \
-    RefPtr<TypeName##Node> as##TypeName##Node(RefPtr<Node> n)    \
-    {                                                            \
-        if (!n)                                                  \
-            return RefPtr<TypeName##Node>(nullptr);              \
-        ASSERT(n->is##TypeName##Node());                         \
-        return RefPtr<TypeName##Node>((TypeName##Node*)n.get()); \
+#define DEFINE_AS_NODE(TypeName)                                   \
+    PassNode<TypeName##Node> as##TypeName##Node(PassNode<Node> n)  \
+    {                                                              \
+        if (!n)                                                    \
+            return PassNode<TypeName##Node>(nullptr);              \
+        ASSERT(n->is##TypeName##Node());                           \
+        return PassNode<TypeName##Node>((TypeName##Node*)n.get()); \
     }
 
     DEFINE_AS_NODE(Expression);
@@ -1013,15 +1047,15 @@ public:
                     if (this->context->inLoop || token->valueNumber == 0)
                         this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
                     if (isParse) {
-                        return T(this->finalize(node, new LiteralNode(Value(token->valueNumber))));
+                        return T(this->finalize(node, new (astBuffer) LiteralNode(Value(token->valueNumber))));
                     }
                     return ScanExpressionResult(ASTNodeType::Literal);
                 } else {
                     if (isParse) {
                         if (shouldCreateAST()) {
-                            return T(this->finalize(node, new LiteralNode(token->valueStringLiteralForAST())));
+                            return T(this->finalize(node, new (astBuffer) LiteralNode(token->valueStringLiteralForAST())));
                         }
-                        return T(this->finalize(node, new LiteralNode(Value(String::emptyString))));
+                        return T(this->finalize(node, new (astBuffer) LiteralNode(Value(String::emptyString))));
                     }
                     return ScanExpressionResult(ASTNodeType::Literal);
                 }
@@ -1039,7 +1073,7 @@ public:
                 bool value = token->relatedSource() == "true";
                 this->scopeContexts.back()->insertNumeralLiteral(Value(value));
                 if (isParse) {
-                    return T(this->finalize(node, new LiteralNode(Value(value))));
+                    return T(this->finalize(node, new (astBuffer) LiteralNode(Value(value))));
                 }
                 return ScanExpressionResult(ASTNodeType::Literal);
             }
@@ -1055,7 +1089,7 @@ public:
             // raw = this->getTokenRaw(token);
             this->scopeContexts.back()->insertNumeralLiteral(Value(Value::Null));
             if (isParse) {
-                return T(this->finalize(node, new LiteralNode(Value(Value::Null))));
+                return T(this->finalize(node, new (astBuffer) LiteralNode(Value(Value::Null))));
             }
             return ScanExpressionResult(ASTNodeType::Literal);
         }
@@ -1096,9 +1130,9 @@ public:
                 this->nextRegexToken(token);
                 // raw = this->getTokenRaw(token);
                 if (isParse) {
-                    return T(this->finalize(node, new RegExpLiteralNode(token->valueRegexp.body, token->valueRegexp.flags)));
+                    return T(this->finalize(node, new (astBuffer) RegExpLiteralNode(token->valueRegexp.body, token->valueRegexp.flags)));
                 }
-                this->finalize(node, new RegExpLiteralNode(token->valueRegexp.body, token->valueRegexp.flags));
+                this->finalize(node, new (astBuffer) RegExpLiteralNode(token->valueRegexp.body, token->valueRegexp.flags));
                 return ScanExpressionResult(ASTNodeType::Literal);
             }
             default: {
@@ -1135,7 +1169,7 @@ public:
                     }
                     this->nextToken();
                     if (isParse) {
-                        return T(this->finalize(node, new ThisExpressionNode()));
+                        return T(this->finalize(node, new (astBuffer) ThisExpressionNode()));
                     }
                     return ScanExpressionResult(ASTNodeType::ThisExpression);
                 } else if (this->matchKeyword(SuperKeyword)) {
@@ -1145,7 +1179,7 @@ public:
                     }
 
                     if (isParse) {
-                        return T(this->finalize(node, new SuperExpressionNode(this->lookahead.valuePunctuatorKind == LeftParenthesis)));
+                        return T(this->finalize(node, new (astBuffer) SuperExpressionNode(this->lookahead.valuePunctuatorKind == LeftParenthesis)));
                     }
                     return ScanExpressionResult(ASTNodeType::SuperExpression);
                 } else if (this->matchKeyword(ClassKeyword)) {
@@ -1170,7 +1204,7 @@ public:
 
         ASSERT_NOT_REACHED();
         if (isParse) {
-            return T(PassRefPtr<Node>());
+            return T(PassNode<Node>());
         }
         return ScanExpressionResult();
     }
@@ -1233,7 +1267,7 @@ public:
         return AtomicString(this->escargotContext, Value(index).toString(stateForTest));
     }
 
-    PassRefPtr<IdentifierNode> parseRestElement(ParamScanList params, PunctuatorKind endKind = RightParenthesis)
+    PassNode<IdentifierNode> parseRestElement(ParamScanList params, PunctuatorKind endKind = RightParenthesis)
     {
         this->nextToken();
         if (this->match(LeftBrace)) {
@@ -1243,7 +1277,7 @@ public:
 
         MetaNode node = this->createNode();
 
-        RefPtr<IdentifierNode> param = this->parseVariableIdentifier();
+        PassNode<IdentifierNode> param = this->parseVariableIdentifier();
         if (this->match(Equal)) {
             this->throwError(Messages::DefaultRestParameter);
         }
@@ -1251,7 +1285,7 @@ public:
             this->throwError(Messages::ParameterAfterRestParameter);
         }
 
-        return this->finalize(node, new IdentifierNode(param.get()->name()));
+        return this->finalize(node, new (astBuffer) IdentifierNode(param.get()->name()));
     }
 
     template <typename T, bool isParse>
@@ -1270,11 +1304,11 @@ public:
                 elements.push_back(nullptr);
             } else {
                 if (this->match(PeriodPeriodPeriod)) {
-                    elements.push_back(this->parseRestElement(params, RightSquareBracket));
+                    elements.push_back(this->parseRestElement(params, RightSquareBracket).get());
                     hasRestElement = true;
                     break;
                 } else {
-                    elements.push_back(this->parsePatternWithDefault(params, kind));
+                    elements.push_back(this->parsePatternWithDefault(params, kind).get());
                 }
                 if (!this->match(RightSquareBracket)) {
                     this->expect(Comma);
@@ -1284,7 +1318,7 @@ public:
         this->expect(RightSquareBracket);
 
         if (isParse) {
-            return T(this->finalize(node, new ArrayPatternNode(std::move(elements), nullptr, hasRestElement)));
+            return T(this->finalize(node, new (astBuffer) ArrayPatternNode(std::move(elements), nullptr, hasRestElement)));
         }
         return ScanExpressionResult(ASTNodeType::ArrayPattern);
     }
@@ -1296,8 +1330,8 @@ public:
         *token = this->lookahead;
         MetaNode node = this->createNode();
 
-        RefPtr<Node> keyNode; //'': Node.PropertyKey;
-        RefPtr<Node> valueNode; //: Node.PropertyValue;
+        PassNode<Node> keyNode; //'': Node.PropertyKey;
+        PassNode<Node> valueNode; //: Node.PropertyValue;
         ScanExpressionResult key;
         String* keyString = String::emptyString;
 
@@ -1324,8 +1358,8 @@ public:
                 this->nextToken();
 
                 if (isParse) {
-                    RefPtr<Node> expr = this->assignmentExpression<Parse>();
-                    valueNode = this->finalize(this->startNode(keyToken), new AssignmentExpressionSimpleNode(keyNode.get(), expr.get()));
+                    PassNode<Node> expr = this->assignmentExpression<Parse>();
+                    valueNode = this->finalize(this->startNode(keyToken), new (astBuffer) AssignmentExpressionSimpleNode(keyNode.get(), expr.get()));
                 } else {
                     this->assignmentExpression<Scan>();
                 }
@@ -1360,7 +1394,7 @@ public:
 
         if (isParse) {
             // TODO add shorthand
-            return T(this->finalize(node, new PropertyNode(keyNode.get(), valueNode.get(), PropertyNode::Kind::Init, computed)));
+            return T(this->finalize(node, new (astBuffer) PropertyNode(keyNode.get(), valueNode.get(), PropertyNode::Kind::Init, computed)));
         }
         return ScanExpressionResult(ASTNodeType::ObjectPattern);
     }
@@ -1375,7 +1409,7 @@ public:
 
         while (!this->match(RightBrace)) {
             if (isParse) {
-                properties.push_back(this->propertyPattern<ParseAs(PropertyNode)>(params, kind));
+                properties.push_back(this->propertyPattern<ParseAs(PropertyNode)>(params, kind).get());
             } else {
                 this->propertyPattern<Scan>(params, kind);
             }
@@ -1388,7 +1422,7 @@ public:
         this->expect(RightBrace);
 
         if (isParse) {
-            return T(this->finalize(node, new ObjectPatternNode(std::move(properties), nullptr)));
+            return T(this->finalize(node, new (astBuffer) ObjectPatternNode(std::move(properties), nullptr)));
         }
         return ScanExpressionResult(ASTNodeType::ObjectPattern);
     }
@@ -1423,26 +1457,26 @@ public:
         }
     }
 
-    PassRefPtr<Node> parsePatternWithDefault(ParamScanList params, KeywordKind kind = KeywordKindEnd)
+    PassNode<Node> parsePatternWithDefault(ParamScanList params, KeywordKind kind = KeywordKindEnd)
     {
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
 
-        PassRefPtr<Node> pattern = this->pattern<Parse>(params, kind);
+        PassNode<Node> pattern = this->pattern<Parse>(params, kind);
         if (this->match(PunctuatorKind::Substitution)) {
             scopeContexts.back()->m_hasNonIdentArgument = true;
             this->nextToken();
             const bool previousAllowYield = this->context->allowYield;
             this->context->allowYield = true;
-            PassRefPtr<Node> right = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+            PassNode<Node> right = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
             this->context->allowYield = previousAllowYield;
 
             if (pattern->isPattern()) {
-                pattern->asPattern()->setInitializer(right);
+                pattern->asPattern()->setInitializer(right.get());
                 return pattern;
             }
 
-            return this->finalize(this->startNode(startToken), new DefaultArgumentNode(pattern.get(), right.get()));
+            return this->finalize(this->startNode(startToken), new (astBuffer) DefaultArgumentNode(pattern.get(), right.get()));
         }
 
         return pattern;
@@ -1450,17 +1484,17 @@ public:
 
     bool parseFormalParameter(ParseParameterOptions& options)
     {
-        RefPtr<Node> param;
+        PassNode<Node> param;
         bool trackUsingNamesBefore = trackUsingNames;
         trackUsingNames = false;
         Vector<Scanner::ScannerResult, GCUtil::gc_malloc_ignore_off_page_allocator<Scanner::ScannerResult>> params;
         ALLOC_TOKEN(token);
         *token = this->lookahead;
         if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::PeriodPeriodPeriod) {
-            RefPtr<IdentifierNode> param = this->parseRestElement(params);
+            PassNode<IdentifierNode> param = this->parseRestElement(params);
             scopeContexts.back()->m_hasRestElement = true;
             this->validateParam(options, &params.back(), param.get()->name());
-            options.params.push_back(param);
+            options.params.push_back(param.get());
             trackUsingNames = true;
             return false;
         }
@@ -1470,7 +1504,7 @@ public:
             AtomicString as(this->escargotContext, params[i].relatedSource());
             this->validateParam(options, &params[i], as);
         }
-        options.params.push_back(param);
+        options.params.push_back(param.get());
         trackUsingNames = trackUsingNamesBefore;
         return !this->match(PunctuatorKind::RightParenthesis);
     }
@@ -1533,9 +1567,9 @@ public:
         this->expect(PunctuatorKind::PeriodPeriodPeriod);
         MetaNode node = this->createNode();
 
-        RefPtr<Node> arg = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>);
+        PassNode<Node> arg = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>);
         if (isParse) {
-            return T(this->finalize(node, new SpreadElementNode(arg.get())));
+            return T(this->finalize(node, new (astBuffer) SpreadElementNode(arg.get())));
         }
         return ScanExpressionResult(ASTNodeType::SpreadElement);
     }
@@ -1558,7 +1592,7 @@ public:
                 }
             } else if (this->match(PeriodPeriodPeriod)) {
                 if (isParse) {
-                    elements.push_back(this->spreadElement<Parse>());
+                    elements.push_back(this->spreadElement<Parse>().get());
                 } else {
                     this->spreadElement<Scan>();
                 }
@@ -1572,7 +1606,7 @@ public:
                 }
             } else {
                 if (isParse) {
-                    elements.push_back(this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>));
+                    elements.push_back(this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>).get());
                 } else {
                     this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan>);
                 }
@@ -1585,14 +1619,14 @@ public:
 
         if (isParse) {
             MetaNode node = this->createNode();
-            return T(this->finalize(node, new ArrayExpressionNode(std::move(elements), AtomicString(), nullptr, hasSpreadElement)));
+            return T(this->finalize(node, new (astBuffer) ArrayExpressionNode(std::move(elements), AtomicString(), nullptr, hasSpreadElement)));
         }
         return ScanExpressionResult(ASTNodeType::ArrayExpression);
     }
 
     // ECMA-262 12.2.6 Object Initializer
 
-    PassRefPtr<Node> parsePropertyMethod(ParseFormalParametersResult& params)
+    PassNode<Node> parsePropertyMethod(ParseFormalParametersResult& params)
     {
         bool previousInArrowFunction = this->context->inArrowFunction;
 
@@ -1603,7 +1637,7 @@ public:
         pushScopeContext(AtomicString());
         extractNamesFromFunctionParams(params.params);
         const bool previousStrict = this->context->strict;
-        PassRefPtr<Node> body = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
+        PassNode<Node> body = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
         if (this->context->strict && params.firstRestricted) {
             this->throwUnexpectedToken(&params.firstRestricted, params.message);
         }
@@ -1616,7 +1650,7 @@ public:
         return body;
     }
 
-    PassRefPtr<FunctionExpressionNode> parsePropertyMethodFunction()
+    PassNode<FunctionExpressionNode> parsePropertyMethodFunction()
     {
         const bool isGenerator = false;
         const bool previousAllowYield = this->context->allowYield;
@@ -1624,21 +1658,21 @@ public:
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
         ParseFormalParametersResult params = this->parseFormalParameters();
-        RefPtr<Node> method = this->parsePropertyMethod(params);
+        PassNode<Node> method = this->parsePropertyMethod(params);
         this->context->allowYield = previousAllowYield;
 
         scopeContexts.back()->m_paramsStart.index = node.index;
 
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method.get(), popScopeContext(node), isGenerator));
+        return this->finalize(node, new (astBuffer) FunctionExpressionNode(AtomicString(), std::move(params.params), method.get(), popScopeContext(node), isGenerator));
     }
 
-    PassRefPtr<Node> parseObjectPropertyKey()
+    PassNode<Node> parseObjectPropertyKey()
     {
         ALLOC_TOKEN(token);
         this->nextToken(token);
         MetaNode node = this->createNode();
 
-        RefPtr<Node> key;
+        PassNode<Node> key;
         switch (token->type) {
         case Token::NumericLiteralToken:
         case Token::StringLiteralToken:
@@ -1658,7 +1692,7 @@ public:
                 } else {
                     v = Value(token->valueStringLiteralForAST());
                 }
-                key = this->finalize(node, new LiteralNode(v));
+                key = this->finalize(node, new (astBuffer) LiteralNode(v));
             }
             break;
 
@@ -1778,8 +1812,8 @@ public:
         MetaNode node = this->createNode();
 
         PropertyNode::Kind kind;
-        RefPtr<Node> keyNode; //'': Node.PropertyKey;
-        RefPtr<Node> valueNode; //: Node.PropertyValue;
+        PassNode<Node> keyNode; //'': Node.PropertyKey;
+        PassNode<Node> valueNode; //: Node.PropertyValue;
         ScanExpressionResult key;
         AtomicString scanIdentifierName;
 
@@ -1906,7 +1940,7 @@ public:
                 }
                 method = true;
             } else if (token->type == Token::IdentifierToken) {
-                RefPtr<Node> id;
+                PassNode<Node> id;
                 if (isParse) {
                     id = this->finalize(node, finishIdentifier(token, true));
                 }
@@ -1915,8 +1949,8 @@ public:
                     this->nextToken();
                     shorthand = true;
                     if (isParse) {
-                        RefPtr<Node> init = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
-                        valueNode = this->finalize(node, new AssignmentExpressionSimpleNode(id.get(), init.get()));
+                        PassNode<Node> init = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                        valueNode = this->finalize(node, new (astBuffer) AssignmentExpressionSimpleNode(id.get(), init.get()));
                     } else {
                         this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
                     }
@@ -1971,8 +2005,8 @@ public:
         }
 
         if (isParse) {
-            // return this->finalize(node, new PropertyNode(kind, key, computed, value, method, shorthand));
-            return T(this->finalize(node, new PropertyNode(keyNode.get(), valueNode.get(), kind, computed)));
+            // return this->finalize(node, new (astBuffer) PropertyNode(kind, key, computed, value, method, shorthand));
+            return T(this->finalize(node, new (astBuffer) PropertyNode(keyNode.get(), valueNode.get(), kind, computed)));
         }
         return ScanExpressionResult();
     }
@@ -1987,7 +2021,7 @@ public:
         std::vector<std::pair<AtomicString, size_t>> usedNames;
         while (!this->match(RightBrace)) {
             if (isParse) {
-                properties.push_back(this->objectProperty<ParseAs(PropertyNode)>(hasProto, usedNames));
+                properties.push_back(this->objectProperty<ParseAs(PropertyNode)>(hasProto, usedNames).get());
             } else {
                 this->objectProperty<Scan>(hasProto, usedNames);
             }
@@ -1998,7 +2032,7 @@ public:
         this->expect(RightBrace);
 
         if (isParse) {
-            return T(this->finalize(node, new ObjectExpressionNode(std::move(properties))));
+            return T(this->finalize(node, new (astBuffer) ObjectExpressionNode(std::move(properties))));
         }
         return ScanExpressionResult(ASTNodeType::ObjectExpression);
     }
@@ -2037,7 +2071,7 @@ public:
         return tm;
     }
 
-    PassRefPtr<Node> parseTemplateLiteral()
+    PassNode<Node> parseTemplateLiteral()
     {
         MetaNode node = this->createNode();
 
@@ -2045,12 +2079,12 @@ public:
         TemplateElementVector* quasis = new (GC) TemplateElementVector;
         quasis->push_back(this->parseTemplateHead());
         while (!quasis->back()->tail) {
-            expressions.push_back(this->expression<Parse>());
+            expressions.push_back(this->expression<Parse>().get());
             TemplateElement* quasi = this->parseTemplateElement();
             quasis->push_back(quasi);
         }
 
-        return this->finalize(node, new TemplateLiteralNode(quasis, std::move(expressions)));
+        return this->finalize(node, new (astBuffer) TemplateLiteralNode(quasis, std::move(expressions)));
     }
     /*
      // ECMA-262 12.2.10 The Grouping Operator
@@ -2212,7 +2246,7 @@ public:
 
             for (size_t i = 0; i < elements.size(); i++) {
                 if (elements[i] != nullptr) {
-                    this->reinterpretExpressionAsPattern(elements[i].get(), ArrayPattern);
+                    this->reinterpretExpressionAsPattern(elements[i], ArrayPattern);
                 }
             }
 
@@ -2226,7 +2260,7 @@ public:
 
             for (size_t i = 0; i < properties.size(); i++) {
                 if (properties[i] != nullptr) {
-                    this->reinterpretExpressionAsPattern(properties[i].get(), ObjectPattern);
+                    this->reinterpretExpressionAsPattern(properties[i], ObjectPattern);
                 }
             }
             break;
@@ -2271,7 +2305,7 @@ public:
 
             //TODO
             if (isParse) {
-                return T(this->finalize(this->startNode(&this->lookahead), new ArrowParameterPlaceHolderNode()));
+                return T(this->finalize(this->startNode(&this->lookahead), new (astBuffer) ArrowParameterPlaceHolderNode()));
             }
             return ScanExpressionResult(ASTNodeType::ArrowParameterPlaceHolder);
         }
@@ -2280,7 +2314,7 @@ public:
         *startToken = this->lookahead;
 
         this->context->isBindingElement = true;
-        RefPtr<Node> exprNode;
+        PassNode<Node> exprNode;
         ScanExpressionResult expr;
 
         if (isParse) {
@@ -2294,7 +2328,7 @@ public:
 
             this->context->isAssignmentTarget = false;
             if (isParse) {
-                expressions.push_back(exprNode);
+                expressions.push_back(exprNode.get());
             }
 
             while (this->startMarker.index < this->scanner->length) {
@@ -2304,14 +2338,14 @@ public:
                 this->nextToken();
 
                 if (isParse) {
-                    expressions.push_back(this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>));
+                    expressions.push_back(this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>).get());
                 } else {
                     this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan>);
                 }
             }
 
             if (isParse) {
-                exprNode = this->finalize(this->startNode(startToken), new SequenceExpressionNode(std::move(expressions)));
+                exprNode = this->finalize(this->startNode(startToken), new (astBuffer) SequenceExpressionNode(std::move(expressions)));
             } else {
                 expr.setNodeType(ASTNodeType::SequenceExpression);
             }
@@ -2327,7 +2361,7 @@ public:
                 RELEASE_ASSERT_NOT_REACHED();
                 /*
                 arrow = true;
-                expr = this->finalize(this->startNode(startToken), new ArrowParameterPlaceHolderNode());
+                expr = this->finalize(this->startNode(startToken), new (astBuffer) ArrowParameterPlaceHolderNode());
                 expr = {
                     type: ArrowParameterPlaceHolder,
                     params: [expr],
@@ -2343,7 +2377,7 @@ public:
                 if (exprNode->type() == SequenceExpression) {
                     const ExpressionNodeVector& expressions = ((SequenceExpressionNode*)exprNode.get())->expressions();
                     for (size_t i = 0; i < expressions.size(); i++) {
-                        this->reinterpretExpressionAsPattern(expressions[i].get());
+                        this->reinterpretExpressionAsPattern(expressions[i]);
                     }
                 } else {
                     this->reinterpretExpressionAsPattern(exprNode.get());
@@ -2354,16 +2388,16 @@ public:
                 if (exprNode->type() == SequenceExpression) {
                     params = ((SequenceExpressionNode*)exprNode.get())->expressions();
                 } else {
-                    params.push_back(exprNode);
+                    params.push_back(exprNode.get());
                 }
 
-                exprNode = this->finalize(this->startNode(&this->lookahead), new ArrowParameterPlaceHolderNode(std::move(params)));
+                exprNode = this->finalize(this->startNode(&this->lookahead), new (astBuffer) ArrowParameterPlaceHolderNode(std::move(params)));
             }
             this->context->isBindingElement = false;
         }
 
         if (isParse) {
-            return T(exprNode.release());
+            return T(exprNode.get());
         }
         return expr;
     }
@@ -2376,13 +2410,13 @@ public:
         ArgumentVector args;
         if (!this->match(RightParenthesis)) {
             while (true) {
-                RefPtr<Node> expr;
+                PassNode<Node> expr;
                 if (this->match(PeriodPeriodPeriod)) {
                     expr = this->spreadElement<Parse>();
                 } else {
                     expr = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
                 }
-                args.push_back(expr);
+                args.push_back(expr.get());
                 if (this->match(RightParenthesis)) {
                     break;
                 }
@@ -2428,7 +2462,7 @@ public:
         return token->type == Token::IdentifierToken || token->type == Token::KeywordToken || token->type == Token::BooleanLiteralToken || token->type == Token::NullLiteralToken;
     }
 
-    PassRefPtr<IdentifierNode> parseIdentifierName()
+    PassNode<IdentifierNode> parseIdentifierName()
     {
         MetaNode node = this->createNode();
         ALLOC_TOKEN(token);
@@ -2459,7 +2493,7 @@ public:
             this->nextToken();
             if (this->lookahead.type == Token::IdentifierToken && this->context->inFunctionBody && this->lookahead.relatedSource() == "target") {
                 // TODO
-                RefPtr<IdentifierNode> property = this->parseIdentifierName();
+                PassNode<IdentifierNode> property = this->parseIdentifierName();
                 this->throwError("Meta property is not supported yet");
                 RELEASE_ASSERT_NOT_REACHED();
                 // expr = new Node.MetaProperty(id, property);
@@ -2469,12 +2503,12 @@ public:
         }
 
         if (isParse) {
-            RefPtr<Node> callee = this->isolateCoverGrammar(&Parser::leftHandSideExpression<Parse>);
+            PassNode<Node> callee = this->isolateCoverGrammar(&Parser::leftHandSideExpression<Parse>);
             ArgumentVector args;
             if (this->match(LeftParenthesis)) {
                 args = this->parseArguments();
             }
-            Node* expr = new NewExpressionNode(callee.get(), std::move(args));
+            Node* expr = new (astBuffer) NewExpressionNode(callee.get(), std::move(args));
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
 
@@ -2500,7 +2534,7 @@ public:
         bool previousAllowIn = this->context->allowIn;
         this->context->allowIn = true;
 
-        RefPtr<Node> exprNode;
+        PassNode<Node> exprNode;
         ScanExpressionResult expr;
 
         if (this->context->inFunctionBody && this->matchKeyword(SuperKeyword)) {
@@ -2515,7 +2549,7 @@ public:
 
             if (isParse) {
                 insertUsingName(this->escargotContext->staticStrings().stringThis);
-                exprNode = this->finalize(this->createNode(), new SuperExpressionNode(this->lookahead.valuePunctuatorKind == LeftParenthesis));
+                exprNode = this->finalize(this->createNode(), new (astBuffer) SuperExpressionNode(this->lookahead.valuePunctuatorKind == LeftParenthesis));
             } else {
                 expr = ScanExpressionResult(ASTNodeType::SuperExpression);
             }
@@ -2543,8 +2577,8 @@ public:
                     bool trackUsingNamesBefore = this->trackUsingNames;
                     this->trackUsingNames = false;
                     if (isParse) {
-                        PassRefPtr<IdentifierNode> property = this->parseIdentifierName();
-                        exprNode = this->finalize(this->startNode(startToken), new MemberExpressionNode(exprNode.get(), property.get(), true));
+                        PassNode<IdentifierNode> property = this->parseIdentifierName();
+                        exprNode = this->finalize(this->startNode(startToken), new (astBuffer) MemberExpressionNode(exprNode.get(), property.get(), true));
                     } else {
                         this->scanIdentifierName();
                         expr.setNodeType(ASTNodeType::MemberExpression);
@@ -2554,7 +2588,7 @@ public:
                     this->context->isBindingElement = false;
                     this->context->isAssignmentTarget = false;
                     if (isParse) {
-                        exprNode = this->finalize(this->startNode(startToken), new CallExpressionNode(exprNode.get(), this->parseArguments()));
+                        exprNode = this->finalize(this->startNode(startToken), new (astBuffer) CallExpressionNode(exprNode.get(), this->parseArguments()));
                     } else {
                         testCalleeExpressionInScan(expr);
                         this->scanArguments();
@@ -2565,8 +2599,8 @@ public:
                     this->context->isAssignmentTarget = true;
                     this->nextToken();
                     if (isParse) {
-                        RefPtr<Node> property = this->isolateCoverGrammar(&Parser::expression<Parse>);
-                        exprNode = this->finalize(this->startNode(startToken), new MemberExpressionNode(exprNode.get(), property.get(), false));
+                        PassNode<Node> property = this->isolateCoverGrammar(&Parser::expression<Parse>);
+                        exprNode = this->finalize(this->startNode(startToken), new (astBuffer) MemberExpressionNode(exprNode.get(), property.get(), false));
                     } else {
                         this->scanIsolateCoverGrammar(&Parser::expression<Scan>);
                         expr.setNodeType(ASTNodeType::MemberExpression);
@@ -2576,9 +2610,9 @@ public:
                     break;
                 }
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
-                RefPtr<Node> quasi = this->parseTemplateLiteral();
+                PassNode<Node> quasi = this->parseTemplateLiteral();
                 // Note: exprNode is nullptr for Scan
-                exprNode = this->convertTaggedTempleateExpressionToCallExpression(this->startNode(startToken), this->finalize(this->startNode(startToken), new TaggedTemplateExpressionNode(exprNode.get(), quasi.get())));
+                exprNode = this->convertTaggedTempleateExpressionToCallExpression(this->startNode(startToken), this->finalize(this->startNode(startToken), new (astBuffer) TaggedTemplateExpressionNode(exprNode.get(), quasi.get())));
                 if (!isParse) {
                     expr.setNodeType(exprNode->type());
                 }
@@ -2589,7 +2623,7 @@ public:
         this->context->allowIn = previousAllowIn;
 
         if (isParse) {
-            return exprNode.release();
+            return exprNode.get();
         }
         return expr;
     }
@@ -2619,7 +2653,7 @@ public:
         }
 
         if (isParse) {
-            return T(this->finalize(node, new SuperExpressionNode(false)));
+            return T(this->finalize(node, new (astBuffer) SuperExpressionNode(false)));
         }
         return ScanExpressionResult(ASTNodeType::SuperExpression);
     }
@@ -2630,7 +2664,7 @@ public:
         // assert(this->context->allowIn, 'callee of new expression always allow in keyword.');
         ASSERT(this->context->allowIn);
 
-        RefPtr<Node> exprNode;
+        PassNode<Node> exprNode;
         ScanExpressionResult expr;
 
         if (this->matchKeyword(SuperKeyword) && this->context->inFunctionBody) {
@@ -2661,8 +2695,8 @@ public:
                 this->context->isAssignmentTarget = true;
                 this->expect(LeftSquareBracket);
                 if (isParse) {
-                    RefPtr<Node> property = this->isolateCoverGrammar(&Parser::expression<Parse>);
-                    exprNode = this->finalize(node, new MemberExpressionNode(exprNode.get(), property.get(), false));
+                    PassNode<Node> property = this->isolateCoverGrammar(&Parser::expression<Parse>);
+                    exprNode = this->finalize(node, new (astBuffer) MemberExpressionNode(exprNode.get(), property.get(), false));
                 } else {
                     this->scanIsolateCoverGrammar(&Parser::expression<Scan>);
                     expr.setNodeType(ASTNodeType::MemberExpression);
@@ -2675,17 +2709,17 @@ public:
                 bool trackUsingNamesBefore = this->trackUsingNames;
                 this->trackUsingNames = false;
                 if (isParse) {
-                    RefPtr<IdentifierNode> property = this->parseIdentifierName();
-                    exprNode = this->finalize(node, new MemberExpressionNode(exprNode.get(), property.get(), true));
+                    PassNode<IdentifierNode> property = this->parseIdentifierName();
+                    exprNode = this->finalize(node, new (astBuffer) MemberExpressionNode(exprNode.get(), property.get(), true));
                 } else {
                     this->scanIdentifierName();
                     expr.setNodeType(ASTNodeType::MemberExpression);
                 }
                 this->trackUsingNames = trackUsingNamesBefore;
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
-                RefPtr<Node> quasi = this->parseTemplateLiteral();
+                PassNode<Node> quasi = this->parseTemplateLiteral();
                 // Note: exprNode is nullptr for Scan
-                exprNode = this->convertTaggedTempleateExpressionToCallExpression(node, this->finalize(node, new TaggedTemplateExpressionNode(exprNode.get(), quasi.get())).get());
+                exprNode = this->convertTaggedTempleateExpressionToCallExpression(node, this->finalize(node, new (astBuffer) TaggedTemplateExpressionNode(exprNode.get(), quasi.get())));
                 if (!isParse) {
                     expr.setNodeType(exprNode->type());
                 }
@@ -2695,12 +2729,12 @@ public:
         }
 
         if (isParse) {
-            return exprNode.release();
+            return exprNode.get();
         }
         return expr;
     }
 
-    PassRefPtr<Node> convertTaggedTempleateExpressionToCallExpression(MetaNode node, RefPtr<TaggedTemplateExpressionNode> taggedTemplateExpression)
+    PassNode<Node> convertTaggedTempleateExpressionToCallExpression(MetaNode node, PassNode<TaggedTemplateExpressionNode> taggedTemplateExpression)
     {
         TemplateLiteralNode* templateLiteral = (TemplateLiteralNode*)taggedTemplateExpression->quasi();
         ArgumentVector args;
@@ -2708,25 +2742,25 @@ public:
         for (size_t i = 0; i < templateLiteral->quasis()->size(); i++) {
             UTF16StringData& sd = (*templateLiteral->quasis())[i]->value;
             String* str = new UTF16String(std::move(sd));
-            elements.push_back(this->finalize(node, new LiteralNode(Value(str))));
+            elements.push_back(this->finalize(node, new (astBuffer) LiteralNode(Value(str))));
         }
 
-        RefPtr<ArrayExpressionNode> arrayExpressionForRaw;
+        PassNode<ArrayExpressionNode> arrayExpressionForRaw;
         {
             ExpressionNodeVector elements;
             for (size_t i = 0; i < templateLiteral->quasis()->size(); i++) {
                 String* str = (*templateLiteral->quasis())[i]->raw;
-                elements.push_back(this->finalize(node, new LiteralNode(Value(str))));
+                elements.push_back(this->finalize(node, new (astBuffer) LiteralNode(Value(str))));
             }
-            arrayExpressionForRaw = this->finalize(node, new ArrayExpressionNode(std::move(elements)));
+            arrayExpressionForRaw = this->finalize(node, new (astBuffer) ArrayExpressionNode(std::move(elements)));
         }
 
-        RefPtr<ArrayExpressionNode> quasiVector = this->finalize(node, new ArrayExpressionNode(std::move(elements), this->escargotContext->staticStrings().raw, arrayExpressionForRaw.get()));
+        PassNode<ArrayExpressionNode> quasiVector = this->finalize(node, new (astBuffer) ArrayExpressionNode(std::move(elements), this->escargotContext->staticStrings().raw, arrayExpressionForRaw.get()));
         args.push_back(quasiVector.get());
         for (size_t i = 0; i < templateLiteral->expressions().size(); i++) {
             args.push_back(templateLiteral->expressions()[i]);
         }
-        return this->finalize(node, new CallExpressionNode(taggedTemplateExpression->expr(), std::move(args)));
+        return this->finalize(node, new (astBuffer) CallExpressionNode(taggedTemplateExpression->expr(), std::move(args)));
     }
 
     // ECMA-262 12.4 Update Expressions
@@ -2734,7 +2768,7 @@ public:
     template <typename T, bool isParse>
     T updateExpression()
     {
-        RefPtr<Node> exprNode;
+        PassNode<Node> exprNode;
         ScanExpressionResult expr;
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
@@ -2769,9 +2803,9 @@ public:
             if (isParse) {
                 MetaNode node = this->startNode(startToken);
                 if (isPlus) {
-                    exprNode = this->finalize(node, new UpdateExpressionIncrementPrefixNode(exprNode.get()));
+                    exprNode = this->finalize(node, new (astBuffer) UpdateExpressionIncrementPrefixNode(exprNode.get()));
                 } else {
-                    exprNode = this->finalize(node, new UpdateExpressionDecrementPrefixNode(exprNode.get()));
+                    exprNode = this->finalize(node, new (astBuffer) UpdateExpressionDecrementPrefixNode(exprNode.get()));
                 }
             } else {
                 if (isPlus) {
@@ -2809,9 +2843,9 @@ public:
                     }
 
                     if (isPlus) {
-                        exprNode = this->finalize(this->startNode(startToken), new UpdateExpressionIncrementPostfixNode(exprNode.get()));
+                        exprNode = this->finalize(this->startNode(startToken), new (astBuffer) UpdateExpressionIncrementPostfixNode(exprNode.get()));
                     } else {
-                        exprNode = this->finalize(this->startNode(startToken), new UpdateExpressionDecrementPostfixNode(exprNode.get()));
+                        exprNode = this->finalize(this->startNode(startToken), new (astBuffer) UpdateExpressionDecrementPostfixNode(exprNode.get()));
                     }
                 } else {
                     if (expr == ASTNodeType::Literal || expr == ASTNodeType::ThisExpression) {
@@ -2828,7 +2862,7 @@ public:
         }
 
         if (isParse) {
-            return exprNode.release();
+            return exprNode.get();
         }
         return expr;
     }
@@ -2840,66 +2874,66 @@ public:
     {
         if (this->lookahead.type == Token::PunctuatorToken) {
             auto punctuatorsKind = this->lookahead.valuePunctuatorKind;
-            RefPtr<Node> exprNode;
+            PassNode<Node> exprNode;
 
             if (punctuatorsKind == Plus) {
                 this->nextToken();
                 if (isParse) {
                     MetaNode node = this->startNode(&this->lookahead);
-                    RefPtr<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
-                    exprNode = this->finalize(node, new UnaryExpressionPlusNode(subExpr.get()));
+                    PassNode<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
+                    exprNode = this->finalize(node, new (astBuffer) UnaryExpressionPlusNode(subExpr.get()));
                 } else {
                     this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
                 }
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
                 if (isParse) {
-                    return exprNode.release();
+                    return exprNode.get();
                 }
                 return ScanExpressionResult(ASTNodeType::UnaryExpressionPlus);
             } else if (punctuatorsKind == Minus) {
                 this->nextToken();
                 if (isParse) {
                     MetaNode node = this->startNode(&this->lookahead);
-                    RefPtr<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
-                    exprNode = this->finalize(node, new UnaryExpressionMinusNode(subExpr.get()));
+                    PassNode<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
+                    exprNode = this->finalize(node, new (astBuffer) UnaryExpressionMinusNode(subExpr.get()));
                 } else {
                     this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
                 }
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
                 if (isParse) {
-                    return exprNode.release();
+                    return exprNode.get();
                 }
                 return ScanExpressionResult(ASTNodeType::UnaryExpressionMinus);
             } else if (punctuatorsKind == Wave) {
                 this->nextToken();
                 if (isParse) {
                     MetaNode node = this->startNode(&this->lookahead);
-                    RefPtr<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
-                    exprNode = this->finalize(node, new UnaryExpressionBitwiseNotNode(subExpr.get()));
+                    PassNode<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
+                    exprNode = this->finalize(node, new (astBuffer) UnaryExpressionBitwiseNotNode(subExpr.get()));
                 } else {
                     this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
                 }
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
                 if (isParse) {
-                    return exprNode.release();
+                    return exprNode.get();
                 }
                 return ScanExpressionResult(ASTNodeType::UnaryExpressionBitwiseNot);
             } else if (punctuatorsKind == ExclamationMark) {
                 this->nextToken();
                 if (isParse) {
                     MetaNode node = this->startNode(&this->lookahead);
-                    RefPtr<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
-                    exprNode = this->finalize(node, new UnaryExpressionLogicalNotNode(subExpr.get()));
+                    PassNode<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
+                    exprNode = this->finalize(node, new (astBuffer) UnaryExpressionLogicalNotNode(subExpr.get()));
                 } else {
                     this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
                 }
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
                 if (isParse) {
-                    return exprNode.release();
+                    return exprNode.get();
                 }
                 return ScanExpressionResult(ASTNodeType::UnaryExpressionBitwiseNot);
             }
@@ -2908,13 +2942,13 @@ public:
         bool isKeyword = this->lookahead.type == Token::KeywordToken;
 
         if (isKeyword) {
-            RefPtr<Node> exprNode;
+            PassNode<Node> exprNode;
 
             if (this->lookahead.valueKeywordKind == DeleteKeyword) {
                 this->nextToken();
                 if (isParse) {
                     MetaNode node = this->startNode(&this->lookahead);
-                    RefPtr<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
+                    PassNode<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
 
                     if (this->context->strict && subExpr->isIdentifier()) {
                         this->throwError(Messages::StrictDelete);
@@ -2923,7 +2957,7 @@ public:
                         this->scopeContexts.back()->m_hasEvaluateBindingId = true;
                     }
 
-                    exprNode = this->finalize(node, new UnaryExpressionDeleteNode(subExpr.get()));
+                    exprNode = this->finalize(node, new (astBuffer) UnaryExpressionDeleteNode(subExpr.get()));
                 } else {
                     ScanExpressionResult subExpr = this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
 
@@ -2938,15 +2972,15 @@ public:
                 this->context->isBindingElement = false;
 
                 if (isParse) {
-                    return exprNode.release();
+                    return exprNode.get();
                 }
                 return ScanExpressionResult(ASTNodeType::UnaryExpressionDelete);
             } else if (this->lookahead.valueKeywordKind == VoidKeyword) {
                 this->nextToken();
                 if (isParse) {
                     MetaNode node = this->startNode(&this->lookahead);
-                    RefPtr<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
-                    exprNode = this->finalize(node, new UnaryExpressionVoidNode(subExpr.get()));
+                    PassNode<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
+                    exprNode = this->finalize(node, new (astBuffer) UnaryExpressionVoidNode(subExpr.get()));
                 } else {
                     this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
                 }
@@ -2954,7 +2988,7 @@ public:
                 this->context->isBindingElement = false;
 
                 if (isParse) {
-                    return exprNode.release();
+                    return exprNode.get();
                 }
                 return ScanExpressionResult(ASTNodeType::UnaryExpressionVoid);
             } else if (this->lookahead.valueKeywordKind == TypeofKeyword) {
@@ -2962,7 +2996,7 @@ public:
 
                 if (isParse) {
                     MetaNode node = this->startNode(&this->lookahead);
-                    RefPtr<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
+                    PassNode<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
 
                     if (subExpr->isIdentifier()) {
                         AtomicString s = subExpr->asIdentifier()->name();
@@ -2970,7 +3004,7 @@ public:
                             this->scopeContexts.back()->m_hasEvaluateBindingId = true;
                         }
                     }
-                    exprNode = this->finalize(node, new UnaryExpressionTypeOfNode(subExpr.get()));
+                    exprNode = this->finalize(node, new (astBuffer) UnaryExpressionTypeOfNode(subExpr.get()));
                 } else {
                     ScanExpressionResult subExpr = this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
 
@@ -2984,7 +3018,7 @@ public:
                 this->context->isBindingElement = false;
 
                 if (isParse) {
-                    return exprNode.release();
+                    return exprNode.get();
                 }
                 return ScanExpressionResult(ASTNodeType::UnaryExpressionTypeOf);
             }
@@ -2993,11 +3027,11 @@ public:
         return this->updateExpression<T, isParse>();
     }
 
-    PassRefPtr<Node> parseExponentiationExpression()
+    PassNode<Node> parseExponentiationExpression()
     {
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
-        RefPtr<Node> expr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
+        PassNode<Node> expr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
         // TODO
         /*
          if (expr->type != Syntax.UnaryExpression && this->match('**')) {
@@ -3102,16 +3136,16 @@ public:
         return 0;
     }
 
-    PassRefPtr<Node> parseBinaryExpression()
+    PassNode<Node> parseBinaryExpression()
     {
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
 
-        RefPtr<Node> expr = this->inheritCoverGrammar(&Parser::parseExponentiationExpression);
+        PassNode<Node> expr = this->inheritCoverGrammar(&Parser::parseExponentiationExpression);
 
         ALLOC_TOKEN(token);
         *token = this->lookahead;
-        //std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> tokenKeeper;
+        //std::vector<PassNode<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<PassNode<Scanner::ScannerResult>>> tokenKeeper;
         int prec = this->binaryPrecedence(token);
         if (prec > 0) {
             this->nextToken();
@@ -3123,15 +3157,15 @@ public:
             Vector<Scanner::ScannerResult, GCUtil::gc_malloc_ignore_off_page_allocator<Scanner::ScannerResult>> markers;
             markers.push_back(*startToken);
             markers.push_back(this->lookahead);
-            RefPtr<Node> left = expr;
-            RefPtr<Node> right = this->isolateCoverGrammar(&Parser::parseExponentiationExpression);
+            PassNode<Node> left = expr;
+            PassNode<Node> right = this->isolateCoverGrammar(&Parser::parseExponentiationExpression);
 
             //std::vector<void*, GCUtil::gc_malloc_ignore_off_page_allocator<void*>> stack;
             NodeVector stack;
             Vector<Scanner::ScannerResult, GCUtil::gc_malloc_ignore_off_page_allocator<Scanner::ScannerResult>> tokenStack;
 
-            stack.push_back(left);
-            stack.push_back(right);
+            stack.push_back(left.get());
+            stack.push_back(right.get());
             tokenStack.push_back(*token);
 
             while (true) {
@@ -3160,7 +3194,7 @@ public:
                 tokenStack.push_back(*token);
                 markers.push_back(this->lookahead);
                 auto e = this->isolateCoverGrammar(&Parser::parseExponentiationExpression);
-                stack.push_back(e);
+                stack.push_back(e.get());
             }
 
             // Final reduce to clean-up the stack.
@@ -3169,7 +3203,7 @@ public:
             markers.pop_back();
             while (i > 0) {
                 MetaNode node = this->startNode(&markers.back());
-                expr = this->finalize(node, finishBinaryExpression(stack[i - 1].get(), expr.get(), &tokenStack.back()));
+                expr = this->finalize(node, finishBinaryExpression(stack[i - 1], expr.get(), &tokenStack.back()));
                 markers.pop_back();
                 tokenStack.pop_back();
                 i--;
@@ -3177,7 +3211,7 @@ public:
             RELEASE_ASSERT(i == 0);
         }
 
-        return expr.release();
+        return expr.get();
     }
 
     ScanExpressionResult scanBinaryExpressions()
@@ -3186,7 +3220,7 @@ public:
 
         ALLOC_TOKEN(token);
         *token = this->lookahead;
-        //std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> tokenKeeper;
+        //std::vector<PassNode<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<PassNode<Scanner::ScannerResult>>> tokenKeeper;
         int prec = this->binaryPrecedence(token);
         if (prec > 0) {
             this->nextToken();
@@ -3254,47 +3288,47 @@ public:
             // Additive Operators
             switch (oper) {
             case Plus:
-                return new BinaryExpressionPlusNode(left, right);
+                return new (astBuffer) BinaryExpressionPlusNode(left, right);
             case Minus:
-                return new BinaryExpressionMinusNode(left, right);
+                return new (astBuffer) BinaryExpressionMinusNode(left, right);
             case LeftShift:
-                return new BinaryExpressionLeftShiftNode(left, right);
+                return new (astBuffer) BinaryExpressionLeftShiftNode(left, right);
             case RightShift:
-                return new BinaryExpressionSignedRightShiftNode(left, right);
+                return new (astBuffer) BinaryExpressionSignedRightShiftNode(left, right);
             case UnsignedRightShift:
-                return new BinaryExpressionUnsignedRightShiftNode(left, right);
+                return new (astBuffer) BinaryExpressionUnsignedRightShiftNode(left, right);
             case Multiply:
-                return new BinaryExpressionMultiplyNode(left, right);
+                return new (astBuffer) BinaryExpressionMultiplyNode(left, right);
             case Divide:
-                return new BinaryExpressionDivisionNode(left, right);
+                return new (astBuffer) BinaryExpressionDivisionNode(left, right);
             case Mod:
-                return new BinaryExpressionModNode(left, right);
+                return new (astBuffer) BinaryExpressionModNode(left, right);
             case LeftInequality:
-                return new BinaryExpressionLessThanNode(left, right);
+                return new (astBuffer) BinaryExpressionLessThanNode(left, right);
             case RightInequality:
-                return new BinaryExpressionGreaterThanNode(left, right);
+                return new (astBuffer) BinaryExpressionGreaterThanNode(left, right);
             case LeftInequalityEqual:
-                return new BinaryExpressionLessThanOrEqualNode(left, right);
+                return new (astBuffer) BinaryExpressionLessThanOrEqualNode(left, right);
             case RightInequalityEqual:
-                return new BinaryExpressionGreaterThanOrEqualNode(left, right);
+                return new (astBuffer) BinaryExpressionGreaterThanOrEqualNode(left, right);
             case Equal:
-                return new BinaryExpressionEqualNode(left, right);
+                return new (astBuffer) BinaryExpressionEqualNode(left, right);
             case NotEqual:
-                return new BinaryExpressionNotEqualNode(left, right);
+                return new (astBuffer) BinaryExpressionNotEqualNode(left, right);
             case StrictEqual:
-                return new BinaryExpressionStrictEqualNode(left, right);
+                return new (astBuffer) BinaryExpressionStrictEqualNode(left, right);
             case NotStrictEqual:
-                return new BinaryExpressionNotStrictEqualNode(left, right);
+                return new (astBuffer) BinaryExpressionNotStrictEqualNode(left, right);
             case BitwiseAnd:
-                return new BinaryExpressionBitwiseAndNode(left, right);
+                return new (astBuffer) BinaryExpressionBitwiseAndNode(left, right);
             case BitwiseXor:
-                return new BinaryExpressionBitwiseXorNode(left, right);
+                return new (astBuffer) BinaryExpressionBitwiseXorNode(left, right);
             case BitwiseOr:
-                return new BinaryExpressionBitwiseOrNode(left, right);
+                return new (astBuffer) BinaryExpressionBitwiseOrNode(left, right);
             case LogicalOr:
-                return new BinaryExpressionLogicalOrNode(left, right);
+                return new (astBuffer) BinaryExpressionLogicalOrNode(left, right);
             case LogicalAnd:
-                return new BinaryExpressionLogicalAndNode(left, right);
+                return new (astBuffer) BinaryExpressionLogicalAndNode(left, right);
             default:
                 RELEASE_ASSERT_NOT_REACHED();
             }
@@ -3302,9 +3336,9 @@ public:
             ASSERT(token->type == Token::KeywordToken);
             switch (token->valueKeywordKind) {
             case InKeyword:
-                return new BinaryExpressionInNode(left, right);
+                return new (astBuffer) BinaryExpressionInNode(left, right);
             case KeywordKind::InstanceofKeyword:
-                return new BinaryExpressionInstanceOfNode(left, right);
+                return new (astBuffer) BinaryExpressionInstanceOfNode(left, right);
             default:
                 RELEASE_ASSERT_NOT_REACHED();
             }
@@ -3406,7 +3440,7 @@ public:
     {
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
-        RefPtr<Node> exprNode;
+        PassNode<Node> exprNode;
         ScanExpressionResult expr;
 
         if (isParse) {
@@ -3416,7 +3450,7 @@ public:
         }
 
         if (this->match(GuessMark)) {
-            RefPtr<Node> consequent;
+            PassNode<Node> consequent;
 
             this->nextToken();
 
@@ -3431,8 +3465,8 @@ public:
 
             this->expect(Colon);
             if (isParse) {
-                RefPtr<Node> alternate = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
-                exprNode = this->finalize(this->startNode(startToken), new ConditionalExpressionNode(exprNode.get(), consequent.get(), alternate.get()));
+                PassNode<Node> alternate = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                exprNode = this->finalize(this->startNode(startToken), new (astBuffer) ConditionalExpressionNode(exprNode.get(), consequent.get(), alternate.get()));
             } else {
                 this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
             }
@@ -3442,7 +3476,7 @@ public:
         }
 
         if (isParse) {
-            return exprNode.release();
+            return exprNode.get();
         }
         return expr;
     }
@@ -3452,7 +3486,7 @@ public:
     template <typename T, bool isParse>
     T assignmentExpression()
     {
-        RefPtr<Node> exprNode;
+        PassNode<Node> exprNode;
         ScanExpressionResult expr;
 
         if (!this->context->allowYield && this->matchKeyword(YieldKeyword)) {
@@ -3508,7 +3542,7 @@ public:
 
                 if (type == Identifier) {
                     list = ParseFormalParametersResult();
-                    list.params.push_back(exprNode);
+                    list.params.push_back(exprNode.get());
                     list.valid = true;
                 } else {
                     this->scanner->index = startMarker.index;
@@ -3522,7 +3556,7 @@ public:
                 }
 
                 if (isParse) {
-                    exprNode.release();
+                    exprNode.get();
                 }
 
                 if (list.valid) {
@@ -3542,7 +3576,7 @@ public:
                     MetaNode nodeStart = this->createNode();
 
                     this->expect(Arrow);
-                    RefPtr<Node> body = this->match(LeftBrace) ? this->parseFunctionSourceElements() : this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                    PassNode<Node> body = this->match(LeftBrace) ? this->parseFunctionSourceElements() : this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
                     bool isExpression = body->type() != BlockStatement;
                     if (isExpression) {
                         if (this->config.parseSingleFunction) {
@@ -3567,7 +3601,7 @@ public:
                         this->throwUnexpectedToken(&list.stricted, list.message);
                     }
 
-                    exprNode = this->finalize(node, new ArrowFunctionExpressionNode(std::move(list.params), body.get(), popScopeContext(node), isExpression)); //TODO
+                    exprNode = this->finalize(node, new (astBuffer) ArrowFunctionExpressionNode(std::move(list.params), body.get(), popScopeContext(node), isExpression)); //TODO
                     if (!isParse) {
                         expr.setNodeType(ASTNodeType::ArrowFunctionExpression);
                     }
@@ -3618,7 +3652,7 @@ public:
                     }
 
                     this->nextToken(token);
-                    RefPtr<Node> rightNode;
+                    PassNode<Node> rightNode;
                     Node* exprResult;
 
                     if (isParse) {
@@ -3630,84 +3664,84 @@ public:
                     switch (token->valuePunctuatorKind) {
                     case Substitution:
                         if (isParse) {
-                            exprResult = new AssignmentExpressionSimpleNode(exprNode.get(), rightNode.get());
+                            exprResult = new (astBuffer) AssignmentExpressionSimpleNode(exprNode.get(), rightNode.get());
                             break;
                         }
                         expr.setNodeType(ASTNodeType::AssignmentExpressionSimple);
                         break;
                     case PlusEqual:
                         if (isParse) {
-                            exprResult = new AssignmentExpressionPlusNode(exprNode.get(), rightNode.get());
+                            exprResult = new (astBuffer) AssignmentExpressionPlusNode(exprNode.get(), rightNode.get());
                             break;
                         }
                         expr.setNodeType(ASTNodeType::AssignmentExpressionPlus);
                         break;
                     case MinusEqual:
                         if (isParse) {
-                            exprResult = new AssignmentExpressionMinusNode(exprNode.get(), rightNode.get());
+                            exprResult = new (astBuffer) AssignmentExpressionMinusNode(exprNode.get(), rightNode.get());
                             break;
                         }
                         expr.setNodeType(ASTNodeType::AssignmentExpressionMinus);
                         break;
                     case MultiplyEqual:
                         if (isParse) {
-                            exprResult = new AssignmentExpressionMultiplyNode(exprNode.get(), rightNode.get());
+                            exprResult = new (astBuffer) AssignmentExpressionMultiplyNode(exprNode.get(), rightNode.get());
                             break;
                         }
                         expr.setNodeType(ASTNodeType::AssignmentExpressionMultiply);
                         break;
                     case DivideEqual:
                         if (isParse) {
-                            exprResult = new AssignmentExpressionDivisionNode(exprNode.get(), rightNode.get());
+                            exprResult = new (astBuffer) AssignmentExpressionDivisionNode(exprNode.get(), rightNode.get());
                             break;
                         }
                         expr.setNodeType(ASTNodeType::AssignmentExpressionDivision);
                         break;
                     case ModEqual:
                         if (isParse) {
-                            exprResult = new AssignmentExpressionModNode(exprNode.get(), rightNode.get());
+                            exprResult = new (astBuffer) AssignmentExpressionModNode(exprNode.get(), rightNode.get());
                             break;
                         }
                         expr.setNodeType(ASTNodeType::AssignmentExpressionMod);
                         break;
                     case LeftShiftEqual:
                         if (isParse) {
-                            exprResult = new AssignmentExpressionLeftShiftNode(exprNode.get(), rightNode.get());
+                            exprResult = new (astBuffer) AssignmentExpressionLeftShiftNode(exprNode.get(), rightNode.get());
                             break;
                         }
                         expr.setNodeType(ASTNodeType::AssignmentExpressionLeftShift);
                         break;
                     case RightShiftEqual:
                         if (isParse) {
-                            exprResult = new AssignmentExpressionSignedRightShiftNode(exprNode.get(), rightNode.get());
+                            exprResult = new (astBuffer) AssignmentExpressionSignedRightShiftNode(exprNode.get(), rightNode.get());
                             break;
                         }
                         expr.setNodeType(ASTNodeType::AssignmentExpressionSignedRightShift);
                         break;
                     case UnsignedRightShiftEqual:
                         if (isParse) {
-                            exprResult = new AssignmentExpressionUnsignedShiftNode(exprNode.get(), rightNode.get());
+                            exprResult = new (astBuffer) AssignmentExpressionUnsignedShiftNode(exprNode.get(), rightNode.get());
                             break;
                         }
                         expr.setNodeType(ASTNodeType::AssignmentExpressionUnsignedRightShift);
                         break;
                     case BitwiseXorEqual:
                         if (isParse) {
-                            exprResult = new AssignmentExpressionBitwiseXorNode(exprNode.get(), rightNode.get());
+                            exprResult = new (astBuffer) AssignmentExpressionBitwiseXorNode(exprNode.get(), rightNode.get());
                             break;
                         }
                         expr.setNodeType(ASTNodeType::AssignmentExpressionBitwiseXor);
                         break;
                     case BitwiseAndEqual:
                         if (isParse) {
-                            exprResult = new AssignmentExpressionBitwiseAndNode(exprNode.get(), rightNode.get());
+                            exprResult = new (astBuffer) AssignmentExpressionBitwiseAndNode(exprNode.get(), rightNode.get());
                             break;
                         }
                         expr.setNodeType(ASTNodeType::AssignmentExpressionBitwiseAnd);
                         break;
                     case BitwiseOrEqual:
                         if (isParse) {
-                            exprResult = new AssignmentExpressionBitwiseOrNode(exprNode.get(), rightNode.get());
+                            exprResult = new (astBuffer) AssignmentExpressionBitwiseOrNode(exprNode.get(), rightNode.get());
                             break;
                         }
                         expr.setNodeType(ASTNodeType::AssignmentExpressionBitwiseOr);
@@ -3725,7 +3759,7 @@ public:
         }
 
         if (isParse) {
-            return exprNode.release();
+            return exprNode.get();
         }
         return expr;
     }
@@ -3737,7 +3771,7 @@ public:
     {
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
-        RefPtr<Node> exprNode;
+        PassNode<Node> exprNode;
         ScanExpressionResult expr;
 
         if (isParse) {
@@ -3749,7 +3783,7 @@ public:
         if (this->match(Comma)) {
             ExpressionNodeVector expressions;
             if (isParse) {
-                expressions.push_back(exprNode);
+                expressions.push_back(exprNode.get());
             }
             while (this->startMarker.index < this->scanner->length) {
                 if (!this->match(Comma)) {
@@ -3757,21 +3791,21 @@ public:
                 }
                 this->nextToken();
                 if (isParse) {
-                    expressions.push_back(this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>));
+                    expressions.push_back(this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>).get());
                 } else {
                     this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
                 }
             }
 
             if (isParse) {
-                exprNode = this->finalize(this->startNode(startToken), new SequenceExpressionNode(std::move(expressions)));
+                exprNode = this->finalize(this->startNode(startToken), new (astBuffer) SequenceExpressionNode(std::move(expressions)));
             } else {
                 expr = ScanExpressionResult(ASTNodeType::SequenceExpression);
             }
         }
 
         if (isParse) {
-            return exprNode.release();
+            return exprNode.get();
         }
         return expr;
     }
@@ -3781,7 +3815,7 @@ public:
     template <typename T, bool isParse>
     T statementListItem()
     {
-        RefPtr<StatementNode> statement;
+        PassNode<StatementNode> statement;
         this->context->isAssignmentTarget = true;
         this->context->isBindingElement = true;
         if (this->lookahead.type == KeywordToken) {
@@ -3843,7 +3877,7 @@ public:
          }*/
 
         if (isParse) {
-            return T(statement.release());
+            return T(statement.get());
         }
         return T(nullptr);
     }
@@ -3852,11 +3886,11 @@ public:
     T block()
     {
         this->expect(LeftBrace);
-        RefPtr<StatementContainer> block;
+        PassNode<StatementContainer> block;
         StatementNode* referNode = nullptr;
 
         if (isParse) {
-            block = StatementContainer::create();
+            block = StatementContainer::create(astBuffer);
         }
 
         while (true) {
@@ -3873,7 +3907,7 @@ public:
 
         if (isParse) {
             MetaNode node = this->createNode();
-            return T(this->finalize(node, new BlockStatementNode(block.get())));
+            return T(this->finalize(node, new (astBuffer) BlockStatementNode(block.get())));
         }
         return T(nullptr);
     }
@@ -4074,7 +4108,7 @@ public:
     */
 
     // ECMA-262 13.3.2 Variable Statement
-    PassRefPtr<IdentifierNode> parseVariableIdentifier(KeywordKind kind = KeywordKindEnd)
+    PassNode<IdentifierNode> parseVariableIdentifier(KeywordKind kind = KeywordKindEnd)
     {
         MetaNode node = this->createNode();
 
@@ -4132,7 +4166,7 @@ public:
     T variableDeclaration(DeclarationOptions& options)
     {
         Vector<Scanner::ScannerResult, GCUtil::gc_malloc_ignore_off_page_allocator<Scanner::ScannerResult>> params;
-        RefPtr<Node> idNode;
+        PassNode<Node> idNode;
         ScanExpressionResult id;
         bool isIdentifier;
         AtomicString name;
@@ -4160,7 +4194,7 @@ public:
             this->scopeContexts.back()->insertName(name, true);
         }
 
-        RefPtr<Node> initNode;
+        PassNode<Node> initNode;
         if (this->match(Substitution)) {
             this->nextToken();
             if (isParse) {
@@ -4174,7 +4208,7 @@ public:
 
         if (isParse) {
             MetaNode node = this->createNode();
-            return T(this->finalize(node, new VariableDeclaratorNode(idNode.get(), initNode.get())));
+            return T(this->finalize(node, new (astBuffer) VariableDeclaratorNode(idNode.get(), initNode.get())));
         }
         return T(nullptr);
     }
@@ -4185,10 +4219,10 @@ public:
         opt.inFor = options.inFor;
 
         VariableDeclaratorVector list;
-        list.push_back(this->variableDeclaration<ParseAs(VariableDeclaratorNode)>(opt));
+        list.push_back(this->variableDeclaration<ParseAs(VariableDeclaratorNode)>(opt).get());
         while (this->match(Comma)) {
             this->nextToken();
-            list.push_back(this->variableDeclaration<ParseAs(VariableDeclaratorNode)>(opt));
+            list.push_back(this->variableDeclaration<ParseAs(VariableDeclaratorNode)>(opt).get());
         }
 
         return list;
@@ -4207,7 +4241,7 @@ public:
         }
     }
 
-    PassRefPtr<VariableDeclarationNode> parseVariableStatement()
+    PassNode<VariableDeclarationNode> parseVariableStatement()
     {
         this->expectKeyword(VarKeyword);
         MetaNode node = this->createNode();
@@ -4216,7 +4250,7 @@ public:
         VariableDeclaratorVector declarations = this->parseVariableDeclarationList(opt);
         this->consumeSemicolon();
 
-        return this->finalize(node, new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
+        return this->finalize(node, new (astBuffer) VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
     }
 
     void scanVariableStatement()
@@ -4237,19 +4271,19 @@ public:
 
         if (isParse) {
             MetaNode node = this->createNode();
-            return T(this->finalize(node, new EmptyStatementNode()));
+            return T(this->finalize(node, new (astBuffer) EmptyStatementNode()));
         }
         return T(nullptr);
     }
 
     // ECMA-262 13.5 Expression Statement
 
-    PassRefPtr<ExpressionStatementNode> parseExpressionStatement()
+    PassNode<ExpressionStatementNode> parseExpressionStatement()
     {
         MetaNode node = this->createNode();
-        RefPtr<Node> expr = this->expression<Parse>();
+        PassNode<Node> expr = this->expression<Parse>();
         this->consumeSemicolon();
-        return this->finalize(node, new ExpressionStatementNode(expr.get()));
+        return this->finalize(node, new (astBuffer) ExpressionStatementNode(expr.get()));
     }
 
     void scanExpressionStatement()
@@ -4263,9 +4297,9 @@ public:
     template <typename T, bool isParse>
     T ifStatement()
     {
-        RefPtr<Node> test;
-        RefPtr<Node> consequent;
-        RefPtr<Node> alternate;
+        PassNode<Node> test;
+        PassNode<Node> consequent;
+        PassNode<Node> alternate;
         bool allowFunctionDeclaration = !this->context->strict;
 
         this->expectKeyword(IfKeyword);
@@ -4295,7 +4329,7 @@ public:
         }
 
         if (isParse) {
-            return T(this->finalize(this->createNode(), new IfStatementNode(test.get(), consequent.get(), alternate.get())));
+            return T(this->finalize(this->createNode(), new (astBuffer) IfStatementNode(test.get(), consequent.get(), alternate.get())));
         }
         return T(nullptr);
     }
@@ -4309,7 +4343,7 @@ public:
 
         bool previousInIteration = this->context->inIteration;
         this->context->inIteration = true;
-        RefPtr<Node> body;
+        PassNode<Node> body;
         if (isParse) {
             body = this->parseStatement(false);
         } else {
@@ -4319,7 +4353,7 @@ public:
 
         this->expectKeyword(WhileKeyword);
         this->expect(LeftParenthesis);
-        RefPtr<Node> test;
+        PassNode<Node> test;
         if (isParse) {
             test = this->expression<Parse>();
         } else {
@@ -4332,7 +4366,7 @@ public:
         }
 
         if (isParse) {
-            return T(this->finalize(this->createNode(), new DoWhileStatementNode(test.get(), body.get())));
+            return T(this->finalize(this->createNode(), new (astBuffer) DoWhileStatementNode(test.get(), body.get())));
         }
         return T(nullptr);
     }
@@ -4347,7 +4381,7 @@ public:
 
         this->expectKeyword(WhileKeyword);
         this->expect(LeftParenthesis);
-        RefPtr<Node> test;
+        PassNode<Node> test;
         if (isParse) {
             test = this->expression<Parse>();
         } else {
@@ -4357,7 +4391,7 @@ public:
 
         bool previousInIteration = this->context->inIteration;
         this->context->inIteration = true;
-        RefPtr<Node> body;
+        PassNode<Node> body;
         if (isParse) {
             body = this->parseStatement(false);
         } else {
@@ -4367,7 +4401,7 @@ public:
         this->context->inLoop = prevInLoop;
 
         if (isParse) {
-            return T(this->finalize(this->createNode(), new WhileStatementNode(test.get(), body.get())));
+            return T(this->finalize(this->createNode(), new (astBuffer) WhileStatementNode(test.get(), body.get())));
         }
         return T(nullptr);
     }
@@ -4384,11 +4418,11 @@ public:
     template <typename T, bool isParse>
     T forStatement()
     {
-        RefPtr<Node> init;
-        RefPtr<Node> test;
-        RefPtr<Node> update;
-        RefPtr<Node> left;
-        RefPtr<Node> right;
+        PassNode<Node> init;
+        PassNode<Node> test;
+        PassNode<Node> update;
+        PassNode<Node> left;
+        PassNode<Node> right;
         ForStatementType type = statementTypeFor;
         bool prevInLoop = this->context->inLoop;
 
@@ -4409,13 +4443,13 @@ public:
                 this->context->allowIn = previousAllowIn;
 
                 if (declarations.size() == 1 && this->matchKeyword(InKeyword)) {
-                    RefPtr<VariableDeclaratorNode> decl = declarations[0];
+                    PassNode<VariableDeclaratorNode> decl = declarations[0];
                     // if (decl->init() && (decl.id.type === Syntax.ArrayPattern || decl.id.type === Syntax.ObjectPattern || this->context->strict)) {
                     if (decl->init() && (decl->id()->type() == ArrayExpression || decl->id()->type() == ObjectExpression || this->context->strict)) {
                         this->throwError(Messages::ForInOfLoopInitializer, new ASCIIString("for-in"));
                     }
                     if (isParse) {
-                        left = this->finalize(this->createNode(), new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
+                        left = this->finalize(this->createNode(), new (astBuffer) VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
                     }
 
                     this->nextToken();
@@ -4423,14 +4457,14 @@ public:
                 } else if (declarations.size() == 1 && declarations[0]->init() == nullptr
                            && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource() == "of") {
                     if (isParse) {
-                        left = this->finalize(this->createNode(), new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
+                        left = this->finalize(this->createNode(), new (astBuffer) VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
                     }
 
                     this->nextToken();
                     type = statementTypeForOf;
                 } else {
                     if (isParse) {
-                        init = this->finalize(this->createNode(), new VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
+                        init = this->finalize(this->createNode(), new (astBuffer) VariableDeclarationNode(std::move(declarations) /*, 'var'*/));
                     }
                     this->expect(SemiColon);
                 }
@@ -4505,12 +4539,12 @@ public:
                 } else {
                     if (this->match(Comma)) {
                         ExpressionNodeVector initSeq;
-                        initSeq.push_back(init);
+                        initSeq.push_back(init.get());
                         while (this->match(Comma)) {
                             this->nextToken();
-                            initSeq.push_back(this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>));
+                            initSeq.push_back(this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>).get());
                         }
-                        init = this->finalize(this->startNode(initStartToken), new SequenceExpressionNode(std::move(initSeq)));
+                        init = this->finalize(this->startNode(initStartToken), new (astBuffer) SequenceExpressionNode(std::move(initSeq)));
                     }
                     this->expect(SemiColon);
                 }
@@ -4527,7 +4561,7 @@ public:
                 update = this->expression<Parse>();
             }
         } else if (type == statementTypeForIn) {
-            ASSERT(!isParse || left != nullptr);
+            ASSERT(!isParse || left.get() != nullptr);
 
             if (isParse) {
                 right = this->expression<Parse>();
@@ -4536,7 +4570,7 @@ public:
             }
         } else {
             ASSERT(type == statementTypeForOf);
-            ASSERT(!isParse || left != nullptr);
+            ASSERT(!isParse || left.get() != nullptr);
 
             if (isParse) {
                 right = this->assignmentExpression<Parse>();
@@ -4550,7 +4584,7 @@ public:
 
         bool previousInIteration = this->context->inIteration;
         this->context->inIteration = true;
-        RefPtr<Node> body;
+        PassNode<Node> body;
         if (isParse) {
             auto functor = std::bind(&Parser::parseStatement, std::ref(*this), false);
             body = this->isolateCoverGrammarWithFunctor(functor);
@@ -4568,15 +4602,15 @@ public:
         MetaNode node = this->createNode();
 
         if (type == statementTypeFor) {
-            return T(this->finalize(node, new ForStatementNode(init.get(), test.get(), update.get(), body.get())));
+            return T(this->finalize(node, new (astBuffer) ForStatementNode(init.get(), test.get(), update.get(), body.get())));
         }
 
         if (type == statementTypeForIn) {
-            return T(this->finalize(node, new ForInOfStatementNode(left.get(), right.get(), body.get(), true)));
+            return T(this->finalize(node, new (astBuffer) ForInOfStatementNode(left.get(), right.get(), body.get(), true)));
         }
 
         ASSERT(type == statementTypeForOf);
-        return T(this->finalize(node, new ForInOfStatementNode(left.get(), right.get(), body.get(), false)));
+        return T(this->finalize(node, new (astBuffer) ForInOfStatementNode(left.get(), right.get(), body.get(), false)));
     }
 
     void removeLabel(AtomicString label)
@@ -4609,7 +4643,7 @@ public:
         AtomicString label;
         if (this->lookahead.type == IdentifierToken && !this->hasLineTerminator) {
             if (isParse) {
-                RefPtr<IdentifierNode> labelNode = this->parseVariableIdentifier();
+                PassNode<IdentifierNode> labelNode = this->parseVariableIdentifier();
                 label = labelNode->name();
             } else {
                 this->scanVariableIdentifier();
@@ -4637,9 +4671,9 @@ public:
 
         MetaNode node = this->createNode();
         if (label.string()->length() != 0) {
-            return T(this->finalize(node, new ContinueLabelStatementNode(label.string())));
+            return T(this->finalize(node, new (astBuffer) ContinueLabelStatementNode(label.string())));
         } else {
-            return T(this->finalize(node, new ContinueStatementNode()));
+            return T(this->finalize(node, new (astBuffer) ContinueStatementNode()));
         }
     }
 
@@ -4653,7 +4687,7 @@ public:
         AtomicString label;
         if (this->lookahead.type == IdentifierToken && !this->hasLineTerminator) {
             if (isParse) {
-                RefPtr<IdentifierNode> labelNode = this->parseVariableIdentifier();
+                PassNode<IdentifierNode> labelNode = this->parseVariableIdentifier();
                 label = labelNode->name();
             } else {
                 this->scanVariableIdentifier();
@@ -4675,9 +4709,9 @@ public:
 
         MetaNode node = this->createNode();
         if (label.string()->length() != 0) {
-            return T(this->finalize(node, new BreakLabelStatementNode(label.string())));
+            return T(this->finalize(node, new (astBuffer) BreakLabelStatementNode(label.string())));
         } else {
-            return T(this->finalize(node, new BreakStatementNode()));
+            return T(this->finalize(node, new (astBuffer) BreakStatementNode()));
         }
     }
 
@@ -4693,7 +4727,7 @@ public:
         this->expectKeyword(ReturnKeyword);
 
         bool hasArgument = !this->match(SemiColon) && !this->match(RightBrace) && !this->hasLineTerminator && this->lookahead.type != EOFToken;
-        RefPtr<Node> argument;
+        PassNode<Node> argument;
         if (hasArgument) {
             if (isParse) {
                 argument = this->expression<Parse>();
@@ -4704,14 +4738,14 @@ public:
         this->consumeSemicolon();
 
         if (isParse) {
-            return T(this->finalize(this->createNode(), new ReturnStatmentNode(argument.get())));
+            return T(this->finalize(this->createNode(), new (astBuffer) ReturnStatmentNode(argument.get())));
         }
         return T(nullptr);
     }
 
     // ECMA-262 13.11 The with statement
 
-    PassRefPtr<Node> parseWithStatement()
+    PassNode<Node> parseWithStatement()
     {
         if (this->context->strict) {
             this->throwError(Messages::StrictModeWith);
@@ -4720,7 +4754,7 @@ public:
         this->expectKeyword(WithKeyword);
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
-        RefPtr<Node> object = this->expression<Parse>();
+        PassNode<Node> object = this->expression<Parse>();
         this->expect(RightParenthesis);
 
         bool prevInWith = this->context->inWith;
@@ -4730,23 +4764,23 @@ public:
             this->context->labelSet[i].second++;
         }
 
-        RefPtr<StatementNode> body = this->parseStatement(false);
+        PassNode<StatementNode> body = this->parseStatement(false);
         this->context->inWith = prevInWith;
 
         for (size_t i = 0; i < this->context->labelSet.size(); i++) {
             this->context->labelSet[i].second--;
         }
 
-        return this->finalize(node, new WithStatementNode(object, body.get()));
+        return this->finalize(node, new (astBuffer) WithStatementNode(object.get(), body.get()));
     }
 
     // ECMA-262 13.12 The switch statement
 
-    PassRefPtr<SwitchCaseNode> parseSwitchCase()
+    PassNode<SwitchCaseNode> parseSwitchCase()
     {
         MetaNode node = this->createNode();
 
-        RefPtr<Node> test;
+        PassNode<Node> test;
         if (this->matchKeyword(DefaultKeyword)) {
             node = this->createNode();
             this->nextToken();
@@ -4758,15 +4792,15 @@ public:
         }
         this->expect(Colon);
 
-        RefPtr<StatementContainer> consequent = StatementContainer::create();
+        PassNode<StatementContainer> consequent = StatementContainer::create(astBuffer);
         while (true) {
             if (this->match(RightBrace) || this->matchKeyword(DefaultKeyword) || this->matchKeyword(CaseKeyword)) {
                 break;
             }
-            consequent->appendChild(this->statementListItem<ParseAs(StatementNode)>());
+            consequent->appendChild(this->statementListItem<ParseAs(StatementNode)>().get());
         }
 
-        return this->finalize(node, new SwitchCaseNode(test.get(), consequent.get()));
+        return this->finalize(node, new (astBuffer) SwitchCaseNode(test.get(), consequent.get()));
     }
 
     bool scanSwitchCase()
@@ -4797,7 +4831,7 @@ public:
         this->expectKeyword(SwitchKeyword);
 
         this->expect(LeftParenthesis);
-        RefPtr<Node> discriminant;
+        PassNode<Node> discriminant;
         if (isParse) {
             discriminant = this->expression<Parse>();
         } else {
@@ -4808,11 +4842,11 @@ public:
         bool previousInSwitch = this->context->inSwitch;
         this->context->inSwitch = true;
 
-        RefPtr<StatementContainer> casesA, casesB;
-        RefPtr<Node> deflt;
+        PassNode<StatementContainer> casesA, casesB;
+        PassNode<Node> deflt;
         if (isParse) {
-            casesA = StatementContainer::create();
-            casesB = StatementContainer::create();
+            casesA = StatementContainer::create(astBuffer);
+            casesB = StatementContainer::create(astBuffer);
         }
 
         bool defaultFound = false;
@@ -4823,7 +4857,7 @@ public:
             }
 
             if (isParse) {
-                RefPtr<SwitchCaseNode> clause = this->parseSwitchCase();
+                PassNode<SwitchCaseNode> clause = this->parseSwitchCase();
                 if (clause->isDefaultNode()) {
                     if (defaultFound) {
                         this->throwError(Messages::MultipleDefaultsInSwitch);
@@ -4832,9 +4866,9 @@ public:
                     defaultFound = true;
                 } else {
                     if (defaultFound) {
-                        casesA->appendChild(clause);
+                        casesA->appendChild(clause.get());
                     } else {
-                        casesB->appendChild(clause);
+                        casesB->appendChild(clause.get());
                     }
                 }
             } else if (this->scanSwitchCase()) {
@@ -4849,7 +4883,7 @@ public:
         this->context->inSwitch = previousInSwitch;
 
         if (isParse) {
-            return T(this->finalize(this->createNode(), new SwitchStatementNode(discriminant.get(), casesA.get(), deflt.get(), casesB.get(), false)));
+            return T(this->finalize(this->createNode(), new (astBuffer) SwitchStatementNode(discriminant.get(), casesA.get(), deflt.get(), casesB.get(), false)));
         }
         return T(nullptr);
     }
@@ -4859,7 +4893,7 @@ public:
     template <typename T, bool isParse>
     T labelledStatement()
     {
-        RefPtr<Node> expr;
+        PassNode<Node> expr;
         AtomicString name;
         bool isIdentifier = false;
 
@@ -4887,8 +4921,8 @@ public:
 
             this->context->labelSet.push_back(std::make_pair(name, 0));
             if (isParse) {
-                RefPtr<StatementNode> labeledBody = this->parseStatement(!this->context->strict);
-                statement = new LabeledStatementNode(labeledBody.get(), name.string());
+                PassNode<StatementNode> labeledBody = this->parseStatement(!this->context->strict);
+                statement = new (astBuffer) LabeledStatementNode(labeledBody.get(), name.string());
             } else {
                 this->scanStatement(!this->context->strict);
             }
@@ -4896,7 +4930,7 @@ public:
         } else {
             this->consumeSemicolon();
             if (isParse) {
-                statement = new ExpressionStatementNode(expr.get());
+                statement = new (astBuffer) ExpressionStatementNode(expr.get());
             }
         }
 
@@ -4917,7 +4951,7 @@ public:
             this->throwError(Messages::NewlineAfterThrow);
         }
 
-        RefPtr<Node> argument;
+        PassNode<Node> argument;
         if (isParse) {
             argument = this->expression<Parse>();
         } else {
@@ -4926,7 +4960,7 @@ public:
         this->consumeSemicolon();
 
         if (isParse) {
-            return T(this->finalize(this->createNode(), new ThrowStatementNode(argument.get())));
+            return T(this->finalize(this->createNode(), new (astBuffer) ThrowStatementNode(argument.get())));
         }
         return T(nullptr);
     }
@@ -4951,7 +4985,7 @@ public:
         this->context->inDirectCatchScope = true;
 
         Vector<Scanner::ScannerResult, GCUtil::gc_malloc_ignore_off_page_allocator<Scanner::ScannerResult>> params;
-        RefPtr<Node> param = this->pattern<Parse>(params);
+        PassNode<Node> param = this->pattern<Parse>(params);
 
         std::vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> paramMap;
         for (size_t i = 0; i < params.size(); i++) {
@@ -4973,7 +5007,7 @@ public:
         }
 
         this->expect(RightParenthesis);
-        RefPtr<Node> body;
+        PassNode<Node> body;
         if (isParse) {
             body = this->block<Parse>();
         } else {
@@ -4989,7 +5023,7 @@ public:
         this->context->functionDeclarationsInDirectCatchScope = std::move(vecBefore);
 
         if (isParse) {
-            return T(this->finalize(this->createNode(), new CatchClauseNode(param.get(), nullptr, body.get(), vec)));
+            return T(this->finalize(this->createNode(), new (astBuffer) CatchClauseNode(param.get(), nullptr, body.get(), vec)));
         }
 
         scopeContexts.back()->m_hasCatch = true;
@@ -5006,16 +5040,16 @@ public:
         return T(nullptr);
     }
 
-    PassRefPtr<TryStatementNode> parseTryStatement()
+    PassNode<TryStatementNode> parseTryStatement()
     {
         this->expectKeyword(TryKeyword);
 
-        RefPtr<BlockStatementNode> block = this->block<ParseAs(BlockStatementNode)>();
-        RefPtr<CatchClauseNode> handler;
+        PassNode<BlockStatementNode> block = this->block<ParseAs(BlockStatementNode)>();
+        PassNode<CatchClauseNode> handler;
         if (this->matchKeyword(CatchKeyword)) {
             handler = this->catchClause<ParseAs(CatchClauseNode)>();
         }
-        RefPtr<BlockStatementNode> finalizer;
+        PassNode<BlockStatementNode> finalizer;
         if (this->matchKeyword(FinallyKeyword)) {
             finalizer = this->finallyClause<ParseAs(BlockStatementNode)>();
         }
@@ -5024,7 +5058,7 @@ public:
             this->throwError(Messages::NoCatchOrFinally);
         }
 
-        return this->finalize(this->createNode(), new TryStatementNode(block.get(), handler.get(), CatchClauseNodeVector(), finalizer.get()));
+        return this->finalize(this->createNode(), new (astBuffer) TryStatementNode(block.get(), handler.get(), CatchClauseNodeVector(), finalizer.get()));
     }
 
     void scanTryStatement()
@@ -5048,7 +5082,7 @@ public:
 
     // ECMA-262 13.16 The debugger statement
 
-    PassRefPtr<StatementNode> parseDebuggerStatement()
+    PassNode<StatementNode> parseDebuggerStatement()
     {
         this->throwError("debugger keyword is not supported yet");
         RELEASE_ASSERT_NOT_REACHED();
@@ -5061,10 +5095,10 @@ public:
     }
 
     // ECMA-262 13 Statements
-    PassRefPtr<StatementNode> parseStatement(bool allowFunctionDeclaration = true)
+    PassNode<StatementNode> parseStatement(bool allowFunctionDeclaration = true)
     {
         checkRecursiveLimit();
-        RefPtr<StatementNode> statement;
+        PassNode<StatementNode> statement;
         switch (this->lookahead.type) {
         case Token::BooleanLiteralToken:
         case Token::NullLiteralToken:
@@ -5245,11 +5279,11 @@ public:
         }
     }
 
-    PassRefPtr<Node> parseArrowFunctionSourceElements()
+    Node* parseArrowFunctionSourceElements()
     {
         ASSERT(this->config.parseSingleFunction);
 
-        RefPtr<StatementContainer> argumentInitializers = nullptr;
+        PassNode<StatementContainer> argumentInitializers = nullptr;
 
         if (this->config.reparseArguments) {
             this->reparseFunctionArguments(argumentInitializers);
@@ -5280,10 +5314,10 @@ public:
         this->expect(Arrow);
         MetaNode nodeStart = this->createNode();
 
-        RefPtr<Node> expr = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+        PassNode<Node> expr = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
 
-        RefPtr<StatementContainer> body = StatementContainer::create();
-        body->appendChild(this->finalize(nodeStart, new ReturnStatmentNode(expr.get())), nullptr);
+        PassNode<StatementContainer> body = StatementContainer::create(astBuffer);
+        body->appendChild(this->finalize(nodeStart, new (astBuffer) ReturnStatmentNode(expr.get())), nullptr);
 
         /*
         if (this->context->strict && list.firstRestricted) {
@@ -5304,41 +5338,41 @@ public:
 
         this->context->inDirectCatchScope = prevInDirectCatchScope;
 
-        return this->finalize(nodeStart, new BlockStatementNode(body.get(), argumentInitializers.get()));
+        return this->finalize(nodeStart, new (astBuffer) BlockStatementNode(body.get(), argumentInitializers.get()));
     }
 
     // ECMA-262 14.1 Function Definition
 
-    void reparseFunctionArguments(RefPtr<StatementContainer>& argumentInitializers)
+    void reparseFunctionArguments(PassNode<StatementContainer>& argumentInitializers)
     {
         InterpretedCodeBlock* currentTarget = this->config.parseSingleFunctionTarget->asInterpretedCodeBlock();
         Scanner ParamsScannerInstance(this->escargotContext, currentTarget->paramsSrc(), 0, 0);
         this->scanner = &ParamsScannerInstance;
         this->setMarkers(ExtendedNodeLOC(0, 0, 0));
 
-        argumentInitializers = StatementContainer::create();
+        argumentInitializers = StatementContainer::create(astBuffer);
         this->expect(LeftParenthesis);
         ParseParameterOptions options;
         size_t i = 0;
         while (!this->match(RightParenthesis)) {
             bool end = !this->parseFormalParameter(options);
 
-            RefPtr<Node> param = options.params.back();
+            PassNode<Node> param = options.params.back();
 
             if (!param->isIdentifier()) {
                 MetaNode node = this->createNode();
 
-                RefPtr<Node> p;
+                PassNode<Node> p;
 
                 if (param->isPattern()) {
-                    RefPtr<IdentifierNode> id = adoptRef(new IdentifierNode(this->createPatternName(i)));
-                    RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(param.get(), id.get()));
+                    PassNode<IdentifierNode> id = new (astBuffer) IdentifierNode(this->createPatternName(i));
+                    PassNode<AssignmentExpressionSimpleNode> assign = new (astBuffer) AssignmentExpressionSimpleNode(param.get(), id.get());
                     p = assign;
                 } else {
                     p = param.get();
                 }
 
-                RefPtr<Node> statement = this->finalize(node, new ExpressionStatementNode(p.get()));
+                PassNode<Node> statement = this->finalize(node, new (astBuffer) ExpressionStatementNode(p.get()));
                 argumentInitializers->appendChild(statement->asStatementNode());
             }
 
@@ -5357,9 +5391,9 @@ public:
         this->setMarkers(currentTarget->sourceElementStart());
     }
 
-    PassRefPtr<Node> parseFunctionSourceElements()
+    Node* parseFunctionSourceElements()
     {
-        RefPtr<StatementContainer> argumentInitializers = nullptr;
+        PassNode<StatementContainer> argumentInitializers = nullptr;
 
         if (this->config.parseSingleFunction) {
             if (this->config.parseSingleFunctionChildIndex > 0) {
@@ -5379,7 +5413,7 @@ public:
                 this->lookahead.type = Token::PunctuatorToken;
                 this->lookahead.valuePunctuatorKind = PunctuatorKind::RightBrace;
                 this->expect(RightBrace);
-                return this->finalize(this->createNode(), new BlockStatementNode(StatementContainer::create().get()));
+                return this->finalize(this->createNode(), new (astBuffer) BlockStatementNode(StatementContainer::create(astBuffer)));
             }
             this->config.parseSingleFunctionChildIndex++;
             if (this->config.reparseArguments) {
@@ -5392,7 +5426,7 @@ public:
         MetaNode nodeStart = this->createNode();
 
         this->expect(LeftBrace);
-        RefPtr<StatementContainer> body = this->parseDirectivePrologues();
+        PassNode<StatementContainer> body = this->parseDirectivePrologues();
 
         auto previousLabelSet = this->context->labelSet;
         bool previousInIteration = this->context->inIteration;
@@ -5442,14 +5476,14 @@ public:
         this->context->inDirectCatchScope = prevInDirectCatchScope;
 
         if (this->config.parseSingleFunction) {
-            return this->finalize(nodeStart, new BlockStatementNode(body.get(), argumentInitializers.get()));
+            return this->finalize(nodeStart, new (astBuffer) BlockStatementNode(body.get(), argumentInitializers.get()));
         } else {
-            return this->finalize(nodeStart, new BlockStatementNode(StatementContainer::create().get()));
+            return this->finalize(nodeStart, new (astBuffer) BlockStatementNode(StatementContainer::create(astBuffer)));
         }
     }
 
     template <class FunctionType, bool isFunctionDeclaration>
-    PassRefPtr<FunctionType> parseFunction(MetaNode node)
+    PassNode<FunctionType> parseFunction(MetaNode node)
     {
         this->expectKeyword(FunctionKeyword);
 
@@ -5459,7 +5493,7 @@ public:
         }
 
         const char* message = nullptr;
-        RefPtr<IdentifierNode> id;
+        PassNode<IdentifierNode> id;
         Scanner::ScannerResult firstRestricted;
 
         bool previousAllowYield = this->context->allowYield;
@@ -5515,7 +5549,7 @@ public:
 
         extractNamesFromFunctionParams(params);
         bool previousStrict = this->context->strict;
-        RefPtr<Node> body = this->parseFunctionSourceElements();
+        PassNode<Node> body = this->parseFunctionSourceElements();
         if (this->context->strict && firstRestricted) {
             this->throwUnexpectedToken(&firstRestricted, message);
         }
@@ -5530,14 +5564,14 @@ public:
             scopeContexts.back()->m_needsSpecialInitialize = true;
         }
 
-        return this->finalize(node, new FunctionType(fnName, std::move(params), body.get(), popScopeContext(node), isGenerator));
+        return this->finalize(node, new (astBuffer) FunctionType(fnName, std::move(params), body.get(), popScopeContext(node), isGenerator));
     }
 
-    PassRefPtr<FunctionDeclarationNode> parseFunctionDeclaration()
+    PassNode<FunctionDeclarationNode> parseFunctionDeclaration()
     {
         MetaNode node = this->createNode();
 
-        RefPtr<FunctionDeclarationNode> fd = parseFunction<FunctionDeclarationNode, true>(node);
+        PassNode<FunctionDeclarationNode> fd = parseFunction<FunctionDeclarationNode, true>(node);
 
         if (this->context->inDirectCatchScope) {
             this->context->functionDeclarationsInDirectCatchScope.push_back(fd.get());
@@ -5546,7 +5580,7 @@ public:
         return fd;
     }
 
-    PassRefPtr<FunctionExpressionNode> parseFunctionExpression()
+    PassNode<FunctionExpressionNode> parseFunctionExpression()
     {
         MetaNode node = this->createNode();
         return parseFunction<FunctionExpressionNode, false>(node);
@@ -5554,7 +5588,7 @@ public:
 
     // ECMA-262 14.1.1 Directive Prologues
 
-    PassRefPtr<Node> parseDirective()
+    PassNode<Node> parseDirective()
     {
         ALLOC_TOKEN(token);
         *token = this->lookahead;
@@ -5562,7 +5596,7 @@ public:
         bool isLiteral = false;
 
         MetaNode node = this->createNode();
-        RefPtr<Node> expr = this->expression<Parse>();
+        PassNode<Node> expr = this->expression<Parse>();
         if (expr->type() == Literal) {
             isLiteral = true;
             directiveValue = token->valueStringLiteral();
@@ -5570,18 +5604,18 @@ public:
         this->consumeSemicolon();
 
         if (isLiteral) {
-            return this->finalize(node, new DirectiveNode(asExpressionNode(expr).get(), *directiveValue));
+            return this->finalize(node, new (astBuffer) DirectiveNode(asExpressionNode(expr).get(), *directiveValue));
         } else {
-            return this->finalize(node, new ExpressionStatementNode(expr.get()));
+            return this->finalize(node, new (astBuffer) ExpressionStatementNode(expr.get()));
         }
     }
 
-    PassRefPtr<StatementContainer> parseDirectivePrologues()
+    PassNode<StatementContainer> parseDirectivePrologues()
     {
         Scanner::ScannerResult firstRestricted;
 
         this->context->inParsingDirective = true;
-        RefPtr<StatementContainer> body = StatementContainer::create();
+        PassNode<StatementContainer> body = StatementContainer::create(astBuffer);
         ALLOC_TOKEN(token);
         while (true) {
             *token = this->lookahead;
@@ -5589,7 +5623,7 @@ public:
                 break;
             }
 
-            RefPtr<Node> statement = this->parseDirective();
+            PassNode<Node> statement = this->parseDirective();
             body->appendChild(statement->asStatementNode());
 
             if (statement->type() != Directive) {
@@ -5616,7 +5650,7 @@ public:
 
     // ECMA-262 14.3 Method Definitions
 
-    PassRefPtr<FunctionExpressionNode> parseGetterMethod()
+    PassNode<FunctionExpressionNode> parseGetterMethod()
     {
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
@@ -5626,15 +5660,15 @@ public:
         ParseFormalParametersResult params(PatternNodeVector(), nullptr);
         bool previousAllowYield = this->context->allowYield;
         this->context->allowYield = false;
-        RefPtr<Node> method = this->parsePropertyMethod(params);
+        PassNode<Node> method = this->parsePropertyMethod(params);
         this->context->allowYield = previousAllowYield;
 
         extractNamesFromFunctionParams(params.params);
         scopeContexts.back()->m_paramsStart.index = node.index;
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method.get(), popScopeContext(node), isGenerator));
+        return this->finalize(node, new (astBuffer) FunctionExpressionNode(AtomicString(), std::move(params.params), method.get(), popScopeContext(node), isGenerator));
     }
 
-    PassRefPtr<FunctionExpressionNode> parseSetterMethod()
+    PassNode<FunctionExpressionNode> parseSetterMethod()
     {
         MetaNode node = this->createNode();
 
@@ -5664,7 +5698,7 @@ public:
         scopeContexts.back()->m_paramsStart.index = node.index;
 
         const bool previousStrict = this->context->strict;
-        PassRefPtr<Node> method = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
+        PassNode<Node> method = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
         if (this->context->strict && options.firstRestricted) {
             this->throwUnexpectedToken(&options.firstRestricted, options.message);
         }
@@ -5675,10 +5709,10 @@ public:
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowYield = previousAllowYield;
 
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(options.params), method.get(), popScopeContext(node), isGenerator));
+        return this->finalize(node, new (astBuffer) FunctionExpressionNode(AtomicString(), std::move(options.params), method.get(), popScopeContext(node), isGenerator));
     }
 
-    PassRefPtr<FunctionExpressionNode> parseGeneratorMethod()
+    PassNode<FunctionExpressionNode> parseGeneratorMethod()
     {
         MetaNode node = this->createNode();
         const bool previousAllowYield = this->context->allowYield;
@@ -5689,12 +5723,12 @@ public:
         ParseFormalParametersResult formalParameters = this->parseFormalParameters();
         this->context->allowYield = false;
         // Note: Change it to parsePropertyMethod, if possible
-        RefPtr<Node> method = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
+        PassNode<Node> method = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
         this->context->allowYield = previousAllowYield;
 
         extractNamesFromFunctionParams(formalParameters.params);
         scopeContexts.back()->m_paramsStart.index = node.index;
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(formalParameters.params), method.get(), popScopeContext(node), true));
+        return this->finalize(node, new (astBuffer) FunctionExpressionNode(AtomicString(), std::move(formalParameters.params), method.get(), popScopeContext(node), true));
     }
 
     // ECMA-262 14.4 Generator Function Definitions
@@ -5705,7 +5739,7 @@ public:
         MetaNode node = this->createNode();
         this->expectKeyword(YieldKeyword);
 
-        RefPtr<Node> exprNode;
+        PassNode<Node> exprNode;
         bool delegate = false;
 
         if (!this->hasLineTerminator) {
@@ -5733,7 +5767,7 @@ public:
         }
 
         if (isParse) {
-            return this->finalize(node, new YieldExpressionNode(exprNode, delegate));
+            return this->finalize(node, new (astBuffer) YieldExpressionNode(exprNode.get(), delegate));
         }
 
         return ScanExpressionResult(ASTNodeType::YieldExpression);
@@ -5741,15 +5775,15 @@ public:
 
     // ECMA-262 14.5 Class Definitions
 
-    PassRefPtr<ClassElementNode> parseClassElement(RefPtr<FunctionExpressionNode>* constructor)
+    PassNode<ClassElementNode> parseClassElement(PassNode<FunctionExpressionNode>* constructor)
     {
         ALLOC_TOKEN(token);
         *token = this->lookahead;
         MetaNode node = this->createNode();
 
         ClassElementNode::Kind kind = ClassElementNode::Kind::None;
-        RefPtr<Node> key;
-        RefPtr<FunctionExpressionNode> value;
+        PassNode<Node> key;
+        PassNode<FunctionExpressionNode> value;
         bool computed = false;
         bool isStatic = false;
 
@@ -5818,66 +5852,66 @@ public:
             }
         }
 
-        return this->finalize(node, new ClassElementNode(key.get(), value.get(), kind, computed, isStatic));
+        return this->finalize(node, new (astBuffer) ClassElementNode(key.get(), value.get(), kind, computed, isStatic));
     }
 
-    PassRefPtr<ClassBodyNode> parseClassBody()
+    PassNode<ClassBodyNode> parseClassBody()
     {
         MetaNode node = this->createNode();
 
         ClassElementNodeVector body;
-        RefPtr<FunctionExpressionNode> constructor = nullptr;
+        PassNode<FunctionExpressionNode> constructor = nullptr;
 
         this->expect(LeftBrace);
         while (!this->match(RightBrace)) {
             if (this->match(SemiColon)) {
                 this->nextToken();
             } else {
-                PassRefPtr<ClassElementNode> classElement = this->parseClassElement(&constructor);
+                PassNode<ClassElementNode> classElement = this->parseClassElement(&constructor);
                 if (classElement != nullptr) {
-                    body.push_back(classElement);
+                    body.push_back(classElement.get());
                 }
             }
         }
         this->expect(RightBrace);
 
-        return this->finalize(node, new ClassBodyNode(std::move(body), constructor));
+        return this->finalize(node, new (astBuffer) ClassBodyNode(std::move(body), constructor.get()));
     }
 
     template <class ClassType>
-    PassRefPtr<ClassType> parseClass(bool identifierIsOptional)
+    PassNode<ClassType> parseClass(bool identifierIsOptional)
     {
         bool previousStrict = this->context->strict;
         this->context->strict = true;
         this->expectKeyword(ClassKeyword);
         MetaNode node = this->createNode();
 
-        RefPtr<IdentifierNode> id = (identifierIsOptional && this->lookahead.type != Token::IdentifierToken) ? nullptr : this->parseVariableIdentifier();
+        PassNode<IdentifierNode> id = (identifierIsOptional && this->lookahead.type != Token::IdentifierToken) ? nullptr : this->parseVariableIdentifier();
 
         if (id) {
             scopeContexts.back()->insertName(id->name(), true);
             insertUsingName(id->name());
         }
 
-        RefPtr<Node> superClass = nullptr;
+        PassNode<Node> superClass = nullptr;
         if (this->matchKeyword(ExtendsKeyword)) {
             this->nextToken();
             superClass = this->isolateCoverGrammar(&Parser::leftHandSideExpressionAllowCall<Parse>);
         }
 
-        RefPtr<ClassBodyNode> classBody = this->parseClassBody();
+        PassNode<ClassBodyNode> classBody = this->parseClassBody();
         this->context->strict = previousStrict;
 
 
-        return this->finalize(node, new ClassType(id, superClass, classBody.get()));
+        return this->finalize(node, new (astBuffer) ClassType(id.get(), superClass.get(), classBody.get()));
     }
 
-    PassRefPtr<ClassDeclarationNode> parseClassDeclaration()
+    PassNode<ClassDeclarationNode> parseClassDeclaration()
     {
         return parseClass<ClassDeclarationNode>(false);
     }
 
-    PassRefPtr<ClassExpressionNode> parseClassExpression()
+    PassNode<ClassExpressionNode> parseClassExpression()
     {
         return parseClass<ClassExpressionNode>(true);
     }
@@ -5885,11 +5919,11 @@ public:
     // ECMA-262 15.1 Scripts
     // ECMA-262 15.2 Modules
 
-    PassRefPtr<ProgramNode> parseProgram()
+    ProgramNode* parseProgram()
     {
         MetaNode node = this->createNode();
         pushScopeContext(new ASTScopeContext(this->context->strict));
-        RefPtr<StatementContainer> body = this->parseDirectivePrologues();
+        PassNode<StatementContainer> body = this->parseDirectivePrologues();
         StatementNode* referNode = nullptr;
         while (this->startMarker.index < this->scanner->length) {
             referNode = body->appendChild(this->statementListItem<ParseAs(StatementNode)>().get(), referNode);
@@ -5904,7 +5938,7 @@ public:
         scopeContexts.back()->m_locEnd.column = endNode.column;
 #endif
         scopeContexts.back()->m_locEnd.index = endNode.index;
-        return this->finalize(node, new ProgramNode(body.get(), scopeContexts.back() /*, this->sourceType*/));
+        return this->finalize(node, new (astBuffer) ProgramNode(body.get(), scopeContexts.back() /*, this->sourceType*/));
     }
 
     // ECMA-262 15.2.2 Imports
@@ -6140,15 +6174,15 @@ public:
     */
 };
 
-RefPtr<ProgramNode> parseProgram(::Escargot::Context* ctx, StringView source, bool strictFromOutside, size_t stackRemain)
+ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, bool strictFromOutside, size_t stackRemain)
 {
     Parser parser(ctx, source, stackRemain);
     parser.context->strict = strictFromOutside;
-    RefPtr<ProgramNode> nd = parser.parseProgram();
+    ProgramNode* nd = parser.parseProgram();
     return nd;
 }
 
-RefPtr<Node> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, ASTScopeContext*& scopeContext, size_t stackRemain)
+Node* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, ASTScopeContext*& scopeContext, size_t stackRemain)
 {
     Parser parser(ctx, codeBlock->src(), stackRemain, codeBlock->sourceElementStart());
     parser.trackUsingNames = false;

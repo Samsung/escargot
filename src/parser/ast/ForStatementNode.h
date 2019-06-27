@@ -27,7 +27,6 @@ namespace Escargot {
 
 class ForStatementNode : public StatementNode {
 public:
-    friend class ScriptParser;
     ForStatementNode(Node *init, Node *test, Node *update, Node *body)
         : StatementNode()
         , m_init((ExpressionNode *)init)
@@ -99,10 +98,10 @@ public:
     }
 
 private:
-    RefPtr<ExpressionNode> m_init;
-    RefPtr<ExpressionNode> m_test;
-    RefPtr<ExpressionNode> m_update;
-    RefPtr<StatementNode> m_body;
+    ExpressionNode *m_init;
+    ExpressionNode *m_test;
+    ExpressionNode *m_update;
+    StatementNode *m_body;
 };
 }
 

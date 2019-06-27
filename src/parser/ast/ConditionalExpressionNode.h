@@ -26,7 +26,6 @@ namespace Escargot {
 
 class ConditionalExpressionNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
     ConditionalExpressionNode(Node* test, Node* consequente, Node* alternate)
         : ExpressionNode()
         , m_test((ExpressionNode*)test)
@@ -71,9 +70,9 @@ public:
     }
 
 private:
-    RefPtr<ExpressionNode> m_test;
-    RefPtr<ExpressionNode> m_consequente;
-    RefPtr<ExpressionNode> m_alternate;
+    ExpressionNode* m_test;
+    ExpressionNode* m_consequente;
+    ExpressionNode* m_alternate;
 };
 }
 

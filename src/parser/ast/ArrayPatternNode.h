@@ -29,10 +29,10 @@
 
 namespace Escargot {
 
-class ArrayPatternNode : public PatternNode {
+class ArrayPatternNode : public PatternNode, public DestructibleNode {
 public:
-    friend class ScriptParser;
-    ArrayPatternNode(ExpressionNodeVector&& elements, RefPtr<Node> init = nullptr, bool hasRestElement = false)
+    using DestructibleNode::operator new;
+    ArrayPatternNode(ExpressionNodeVector&& elements, Node* init = nullptr, bool hasRestElement = false)
         : PatternNode(init)
         , m_elements(elements)
         , m_default(nullptr)
@@ -48,7 +48,7 @@ public:
     {
     }
 
-    virtual PatternNode* asPattern(RefPtr<Node> init)
+    virtual PatternNode* asPattern(Node* init, ASTBuffer& astBuffer)
     {
         m_default = m_init;
         m_init = init;
@@ -92,14 +92,14 @@ public:
         size_t bindingCount = m_hasRestElement ? m_elements.size() - 1 : m_elements.size();
 
         for (size_t i = 0; i < bindingCount; i++) {
-            RefPtr<Node> element = m_elements[i];
+            Node* element = m_elements[i];
 
             size_t iteratorValueIdx = context->getRegister();
             codeBlock->pushCode(IteratorStep(ByteCodeLOC(m_loc.index), iteratorValueIdx, iteratorIdx), context, this);
 
             if (element != nullptr) {
                 if (element->isPattern()) {
-                    Node* pattern = element.get()->asPattern(iteratorValueIdx);
+                    Node* pattern = element->asPattern(iteratorValueIdx, codeBlock->m_codeBlock->context()->astBuffer());
                     pattern->generateResultNotRequiredExpressionByteCode(codeBlock, context);
                     context->giveUpRegister();
                 } else if (element->isAssignmentExpressionSimple()) {
@@ -122,33 +122,30 @@ public:
                     size_t jPos = codeBlock->lastCodePosition<Jump>();
                     codeBlock->peekCode<JumpIfFalse>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
 
-                    RefPtr<RegisterReferenceNode> registerRef = adoptRef(new RegisterReferenceNode(iteratorValueIdx));
-                    RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(assignNode->left(), registerRef.get()));
-                    assign->m_loc = m_loc;
-                    assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-                    assign->giveupChildren();
+                    RegisterReferenceNode registerRef(iteratorValueIdx);
+                    AssignmentExpressionSimpleNode assign(assignNode->left(), &registerRef);
+                    assign.m_loc = m_loc;
+                    assign.generateResultNotRequiredExpressionByteCode(codeBlock, context);
 
                     Jump* j = codeBlock->peekCode<Jump>(jPos);
                     j->m_jumpPosition = codeBlock->currentCodeSize();
                 } else {
-                    RefPtr<RegisterReferenceNode> registerRef = adoptRef(new RegisterReferenceNode(iteratorValueIdx));
-                    RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(element.get(), registerRef.get()));
-                    assign->m_loc = m_loc;
-                    assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-                    assign->giveupChildren();
+                    RegisterReferenceNode registerRef(iteratorValueIdx);
+                    AssignmentExpressionSimpleNode assign(element, &registerRef);
+                    assign.m_loc = m_loc;
+                    assign.generateResultNotRequiredExpressionByteCode(codeBlock, context);
                 }
             }
         }
 
         if (m_hasRestElement) {
-            RefPtr<Node> element = m_elements[m_elements.size() - 1];
+            Node* element = m_elements[m_elements.size() - 1];
             size_t restIndex = context->getRegister();
             codeBlock->pushCode(BindingRestElement(ByteCodeLOC(m_loc.index), iteratorIdx, restIndex), context, this);
-            RefPtr<RegisterReferenceNode> registerRef = adoptRef(new RegisterReferenceNode(restIndex));
-            RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(element.get(), registerRef.get()));
-            assign->m_loc = m_loc;
-            assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-            assign->giveupChildren();
+            RegisterReferenceNode registerRef(restIndex);
+            AssignmentExpressionSimpleNode assign(element, &registerRef);
+            assign.m_loc = m_loc;
+            assign.generateResultNotRequiredExpressionByteCode(codeBlock, context);
         }
 
         context->giveUpRegister(); // for iteratorIdx
@@ -159,7 +156,7 @@ public:
 
 private:
     ExpressionNodeVector m_elements;
-    RefPtr<Node> m_default;
+    Node* m_default;
     bool m_hasRestElement : 1;
 };
 }

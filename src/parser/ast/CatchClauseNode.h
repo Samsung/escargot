@@ -30,9 +30,9 @@ namespace Escargot {
 class FunctionDeclarationNode;
 
 // interface CatchClause <: Node {
-class CatchClauseNode : public Node {
+class CatchClauseNode : public Node, public DestructibleNode {
 public:
-    friend class ScriptParser;
+    using DestructibleNode::operator new;
     CatchClauseNode(Node *param, Node *guard, Node *body, std::vector<FunctionDeclarationNode *> &fd)
         : Node()
         , m_param((IdentifierNode *)param)
@@ -48,12 +48,12 @@ public:
 
     IdentifierNode *param()
     {
-        return m_param.get();
+        return m_param;
     }
 
     BlockStatementNode *body()
     {
-        return m_body.get();
+        return m_body;
     }
 
     std::vector<FunctionDeclarationNode *> &innerFDs()
@@ -63,13 +63,13 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::CatchClause; }
 private:
-    RefPtr<IdentifierNode> m_param;
-    RefPtr<ExpressionNode> m_guard;
-    RefPtr<BlockStatementNode> m_body;
+    IdentifierNode *m_param;
+    ExpressionNode *m_guard;
+    BlockStatementNode *m_body;
     std::vector<FunctionDeclarationNode *> m_innerFDs;
 };
 
-typedef std::vector<RefPtr<Node>> CatchClauseNodeVector;
+typedef std::vector<Node *> CatchClauseNodeVector;
 }
 
 #endif

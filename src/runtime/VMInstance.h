@@ -35,6 +35,7 @@ class SandBox;
 class CodeBlock;
 class JobQueue;
 class Job;
+class ASTBuffer;
 
 // TODO match, replace
 #define DEFINE_GLOBAL_SYMBOLS(F) \
@@ -69,13 +70,7 @@ class VMInstance : public gc {
 
 public:
     VMInstance(const char* locale = nullptr, const char* timezone = nullptr);
-    ~VMInstance()
-    {
-        clearCaches();
-#ifdef ENABLE_ICU
-        delete m_timezone;
-#endif
-    }
+    ~VMInstance();
 
     void clearCaches();
 
@@ -247,6 +242,9 @@ private:
     Vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> m_parsedSourceCodes;
     Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>> m_compiledCodeBlocks;
     size_t m_compiledByteCodeSize;
+
+    // memory pool for ast nodes
+    ASTBuffer* m_astBuffer;
 
     ToStringRecursionPreventer m_toStringRecursionPreventer;
 

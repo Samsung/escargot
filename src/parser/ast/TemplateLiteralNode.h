@@ -41,6 +41,13 @@ public:
     {
     }
 
+    // TemplateLiteralNode has a reference of GC object in itself
+    // So, it is allocated in the GC heap too.
+    inline void* operator new(size_t size, ASTBuffer& astBuffer)
+    {
+        return astBuffer.allocateGCNode(size);
+    }
+
     TemplateElementVector* quasis()
     {
         return m_quasis;

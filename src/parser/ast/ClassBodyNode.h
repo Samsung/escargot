@@ -26,12 +26,13 @@
 
 namespace Escargot {
 
-typedef std::vector<RefPtr<ClassElementNode>> ClassElementNodeVector;
+typedef std::vector<ClassElementNode*> ClassElementNodeVector;
 
-class ClassBodyNode : public Node {
+class ClassBodyNode : public Node, public DestructibleNode {
 public:
-    friend class ScriptParser;
-    ClassBodyNode(ClassElementNodeVector&& elementList, RefPtr<FunctionExpressionNode> constructor)
+    using DestructibleNode::operator new;
+
+    ClassBodyNode(ClassElementNodeVector&& elementList, FunctionExpressionNode* constructor)
         : Node()
         , m_elementList(elementList)
         , m_constructor(constructor)
@@ -48,7 +49,7 @@ public:
 
     Node* constructor()
     {
-        return m_constructor.get();
+        return m_constructor;
     }
 
     void generateClassInitializer(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex classIndex)
@@ -56,7 +57,7 @@ public:
         size_t objIndex = context->m_classInfo.m_bodyIndex;
 
         for (unsigned i = 0; i < m_elementList.size(); i++) {
-            ClassElementNode* p = m_elementList[i].get();
+            ClassElementNode* p = m_elementList[i];
 
             size_t destIndex = p->isStatic() ? classIndex : objIndex;
 
@@ -104,7 +105,7 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ClassBody; }
 private:
     ClassElementNodeVector m_elementList;
-    RefPtr<FunctionExpressionNode> m_constructor;
+    FunctionExpressionNode* m_constructor;
 };
 }
 

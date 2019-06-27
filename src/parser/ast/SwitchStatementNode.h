@@ -28,7 +28,6 @@ namespace Escargot {
 
 class SwitchStatementNode : public StatementNode {
 public:
-    friend class ScriptParser;
     SwitchStatementNode(Node* discriminant, StatementContainer* casesA, Node* deflt, StatementContainer* casesB, bool lexical)
         : StatementNode()
         , m_discriminant((ExpressionNode*)discriminant)
@@ -121,10 +120,10 @@ public:
 
     virtual ASTNodeType type() { return ASTNodeType::SwitchStatement; }
 private:
-    RefPtr<ExpressionNode> m_discriminant;
-    RefPtr<StatementContainer> m_casesA;
-    RefPtr<StatementNode> m_default;
-    RefPtr<StatementContainer> m_casesB;
+    ExpressionNode* m_discriminant;
+    StatementContainer* m_casesA;
+    StatementNode* m_default;
+    StatementContainer* m_casesB;
     bool m_lexical : 1;
 };
 }

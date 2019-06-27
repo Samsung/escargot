@@ -26,7 +26,6 @@ namespace Escargot {
 
 class ContinueLabelStatementNode : public StatementNode {
 public:
-    friend class ScriptParser;
     explicit ContinueLabelStatementNode(String* label)
         : StatementNode()
         , m_label(label)

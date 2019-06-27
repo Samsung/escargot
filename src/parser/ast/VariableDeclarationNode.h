@@ -25,9 +25,10 @@
 
 namespace Escargot {
 
-class VariableDeclarationNode : public DeclarationNode {
+class VariableDeclarationNode : public DeclarationNode, public DestructibleNode {
 public:
-    friend class ScriptParser;
+    using DestructibleNode::operator new;
+
     explicit VariableDeclarationNode(VariableDeclaratorVector&& decl)
         : DeclarationNode()
         , m_declarations(decl)

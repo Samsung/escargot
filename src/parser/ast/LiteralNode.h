@@ -34,6 +34,13 @@ public:
     {
     }
 
+    // LiteralNode has a reference of GC object in itself
+    // So, it is allocated in the GC heap too.
+    inline void* operator new(size_t size, ASTBuffer& astBuffer)
+    {
+        return astBuffer.allocateGCNode(size);
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::Literal; }
     const Value& value() { return m_value; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)

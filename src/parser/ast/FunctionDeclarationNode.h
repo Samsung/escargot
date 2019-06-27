@@ -24,9 +24,9 @@
 
 namespace Escargot {
 
-class FunctionDeclarationNode : public StatementNode {
+class FunctionDeclarationNode : public StatementNode, public DestructibleNode {
 public:
-    friend class ScriptParser;
+    using DestructibleNode::operator new;
     FunctionDeclarationNode(const AtomicString& id, PatternNodeVector&& params, Node* body, ASTScopeContext* scopeContext, bool isGenerator)
         : m_function(id, std::move(params), body, scopeContext, isGenerator, this)
     {

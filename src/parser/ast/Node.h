@@ -22,6 +22,7 @@
 
 #include "runtime/AtomicString.h"
 #include "runtime/Value.h"
+#include "parser/ast/ASTBuffer.h"
 
 namespace Escargot {
 
@@ -210,9 +211,36 @@ class MemberExpressionNode;
 class ObjectExpressionNode;
 class StatementNode;
 
-class Node : public RefCounted<Node> {
-    friend class ScriptParser;
+class FreeableNode {
+public:
+    virtual ~FreeableNode() {}
+    // allocation on the ASTBuffer
+    inline void *operator new(size_t size, ASTBuffer &astBuffer)
+    {
+        return astBuffer.allocate(size);
+    }
 
+    void *operator new(size_t) = delete;
+    void *operator new[](size_t) = delete;
+    void operator delete(void *)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    void operator delete[](void *) = delete;
+};
+
+class DestructibleNode {
+public:
+    virtual ~DestructibleNode() {}
+    // Node allocation on the ASTBuffer which needs destructor call
+    inline void *operator new(size_t size, ASTBuffer &astBuffer)
+    {
+        return astBuffer.allocateDestructibleNode(size);
+    }
+};
+
+// Every Node is allocated on the ASTBuffer
+class Node : public FreeableNode {
 protected:
     Node()
         : m_loc(SIZE_MAX)
@@ -220,10 +248,7 @@ protected:
     }
 
 public:
-    virtual ~Node()
-    {
-    }
-
+    virtual ~Node() {}
     virtual ASTNodeType type() = 0;
 
     virtual bool isPattern()
@@ -231,12 +256,12 @@ public:
         return false;
     }
 
-    virtual PatternNode *asPattern(RefPtr<Node> init)
+    virtual PatternNode *asPattern(Node *init, ASTBuffer &astBuffer)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual PatternNode *asPattern(size_t initIdx)
+    virtual PatternNode *asPattern(size_t initIdx, ASTBuffer &astBuffer)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -244,16 +269,6 @@ public:
     virtual PatternNode *asPattern()
     {
         RELEASE_ASSERT_NOT_REACHED();
-    }
-
-    inline void *operator new(size_t size)
-    {
-        return GC_MALLOC_UNCOLLECTABLE(size);
-    }
-
-    inline void operator delete(void *obj)
-    {
-        GC_FREE(obj);
     }
 
     bool isAssignmentOperation()
@@ -586,14 +601,14 @@ struct ASTScopeContext : public gc {
     }
 };
 
-typedef std::vector<RefPtr<Node>> NodeVector;
-typedef std::vector<RefPtr<Node>> ArgumentVector;
-typedef std::vector<RefPtr<Node>> ExpressionNodeVector;
-typedef std::vector<RefPtr<Node>> PatternNodeVector;
+typedef std::vector<Node *> NodeVector;
+typedef std::vector<Node *> ArgumentVector;
+typedef std::vector<Node *> ExpressionNodeVector;
+typedef std::vector<Node *> PatternNodeVector;
 class PropertyNode;
-typedef std::vector<RefPtr<PropertyNode>> PropertiesNodeVector;
+typedef std::vector<PropertyNode *> PropertiesNodeVector;
 class VariableDeclaratorNode;
-typedef std::vector<RefPtr<VariableDeclaratorNode>> VariableDeclaratorVector;
+typedef std::vector<VariableDeclaratorNode *> VariableDeclaratorVector;
 }
 
 #endif
