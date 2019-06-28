@@ -123,14 +123,14 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
 static Value builtinFunctionToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // FIXME: If Type(func) is Object and is either a built-in function object or has an [[ECMAScriptCode]] internal slot, then
-    if (thisValue.isFunction() == true) {
+    if (thisValue.isFunction()) {
         FunctionObject* fn = thisValue.asFunction();
         StringBuilder builder;
         builder.appendString("function ");
         builder.appendString(fn->codeBlock()->functionName().string());
         builder.appendString("(");
 
-        if (fn->codeBlock()->isInterpretedCodeBlock() == true) {
+        if (fn->codeBlock()->isInterpretedCodeBlock()) {
             for (size_t i = 0; i < fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation().size(); i++) {
                 builder.appendString(fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation()[i].m_name.string());
                 if (i < (fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation().size() - 1)) {
@@ -140,7 +140,7 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
         }
 
         builder.appendString(") ");
-        if (fn->codeBlock()->isInterpretedCodeBlock() == true && fn->codeBlock()->asInterpretedCodeBlock()->script() != nullptr) {
+        if (fn->codeBlock()->isInterpretedCodeBlock() && fn->codeBlock()->asInterpretedCodeBlock()->script() != nullptr) {
             StringView src = fn->codeBlock()->asInterpretedCodeBlock()->src();
             while (src[src.length() - 1] != '}') {
                 src = StringView(src, 0, src.length() - 1);
@@ -153,7 +153,7 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
         return builder.finalize(&state);
     }
 
-    if (thisValue.isObject() == true && thisValue.asObject()->isBoundFunctionObject() == true) {
+    if (thisValue.isObject() && thisValue.asObject()->isBoundFunctionObject()) {
         StringBuilder builder;
         builder.appendString("function () { [native code] }");
         return builder.finalize(&state);
@@ -165,7 +165,7 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
 
 static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    if (thisValue.isCallable() == false) {
+    if (!thisValue.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
     }
     Value thisArg = argv[0];
@@ -195,7 +195,7 @@ static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t
 
 static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    if (thisValue.isCallable() == false) {
+    if (!thisValue.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
     }
     Value thisArg = argv[0];
@@ -212,7 +212,7 @@ static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t 
 static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // If IsCallable(Target) is false, throw a TypeError exception.
-    if (thisValue.isCallable() == false) {
+    if (!thisValue.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().bind.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
     }
 
@@ -229,13 +229,13 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     bool targetHasLength = target->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().length));
     double length = 0;
     // If targetHasLength is true, then
-    if (targetHasLength == true) {
+    if (targetHasLength) {
         // Let targetLen be Get(Target, "length").
         Value targetLen = target->get(state, ObjectPropertyName(state.context()->staticStrings().length)).value(state, target);
         // If Type(targetLen) is not Number, let L be 0.
         // Else Let targetLen be ToInteger(targetLen).
         // Let L be the larger of 0 and the result of targetLen minus the number of elements of args.
-        if (targetLen.isNumber() == true) {
+        if (targetLen.isNumber()) {
             length = std::max(0.0, targetLen.toInteger(state) - boundArgc);
         }
     }
@@ -246,7 +246,7 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     // Let targetName be Get(Target, "name").
     Value targetName = target->get(state, ObjectPropertyName(state.context()->staticStrings().name)).value(state, target);
     // If Type(targetName) is not String, let targetName be the empty string.
-    if (targetName.isString() != true) {
+    if (!targetName.isString()) {
         targetName = String::emptyString;
     }
 
@@ -266,7 +266,7 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
 static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
 #ifndef ESCARGOT_ENABLE_ES2015
-    if (thisValue.isFunction() == false) {
+    if (!thisValue.isFunction()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
     }
 #endif

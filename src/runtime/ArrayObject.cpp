@@ -391,19 +391,19 @@ ObjectGetResult ArrayObject::getIndexedProperty(ExecutionState& state, const Val
 bool ArrayObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)
 {
     // checking isUint32 to prevent invoke toString on property more than once while calling setIndexedProperty
-    if (LIKELY(isFastModeArray() == true && property.isUInt32() == true)) {
+    if (LIKELY(isFastModeArray() && property.isUInt32())) {
         uint32_t idx = property.tryToUseAsArrayIndex(state);
         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
             uint32_t len = getArrayLength(state);
             if (UNLIKELY(len <= idx)) {
-                if (UNLIKELY(isExtensible(state) == false)) {
+                if (UNLIKELY(!isExtensible(state))) {
                     return false;
                 }
-                if (UNLIKELY(setArrayLength(state, idx + 1) == false) || UNLIKELY(isFastModeArray() == false)) {
+                if (UNLIKELY(!setArrayLength(state, idx + 1)) || UNLIKELY(!isFastModeArray())) {
                     return set(state, ObjectPropertyName(state, property), value, this);
                 }
                 // fast, non-fast mode can be changed while changing length
-                if (LIKELY(isFastModeArray() == true)) {
+                if (LIKELY(isFastModeArray())) {
                     m_fastModeData[idx] = value;
                     return true;
                 }

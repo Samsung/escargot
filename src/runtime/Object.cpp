@@ -849,7 +849,7 @@ Value Object::getMethod(ExecutionState& state, const Value& object, const Object
 Value Object::call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
 {
     // If IsCallable(F) is false, throw a TypeError exception.
-    if (callee.isCallable() == false) {
+    if (!callee.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
     }
     // Return F.[[Call]](V, argumentsList).
@@ -860,13 +860,13 @@ Value Object::call(ExecutionState& state, const Value& callee, const Value& this
 Object* Object::construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Value newTarget)
 {
     // If newTarget was not passed, let newTarget be F.
-    if (newTarget.isEmpty() == true) {
+    if (newTarget.isEmpty()) {
         newTarget = constructor;
     }
     // Assert: IsConstructor (F) is true.
-    ASSERT(constructor.isConstructor() == true);
+    ASSERT(constructor.isConstructor());
     // Assert: IsConstructor (newTarget) is true.
-    ASSERT(newTarget.isConstructor() == true);
+    ASSERT(newTarget.isConstructor());
     // Return F.[[Construct]](argumentsList, newTarget).
     return constructor.asObject()->construct(state, argc, argv, newTarget);
 }
@@ -875,31 +875,31 @@ Object* Object::construct(ExecutionState& state, const Value& constructor, const
 bool Object::hasInstance(ExecutionState& state, const Value& C, Value O)
 {
     // If IsCallable(C) is false, return false.
-    if (C.isCallable() == false) {
+    if (!C.isCallable()) {
         return false;
     }
 
     // If C has a [[BoundTargetFunction]] internal slot, then
-    if (UNLIKELY(C.isObject() == true && C.asObject()->isBoundFunctionObject() == true)) {
+    if (UNLIKELY(C.isObject() && C.asObject()->isBoundFunctionObject())) {
         // Let BC be the value of C’s [[BoundTargetFunction]] internal slot.
         Value BC = C.asObject()->asBoundFunctionObject()->targetFunction();
         // Return InstanceofOperator(O,BC) (see 12.9.4).
         return ByteCodeInterpreter::instanceOfOperation(state, O, BC).toBoolean(state);
     }
     // If Type(O) is not Object, return false.
-    if (O.isObject() == false) {
+    if (!O.isObject()) {
         return false;
     }
     // Let P be Get(C, "prototype").
-    ASSERT(C.isFunction() == true);
+    ASSERT(C.isFunction());
     Value P = C.asFunction()->getFunctionPrototype(state);
     // If Type(P) is not Object, throw a TypeError exception.
-    if (P.isObject() == false) {
+    if (!P.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_InvalidPrototypeProperty);
     }
     // Repeat
     O = O.asObject()->getPrototype(state);
-    while (O.isNull() == false) {
+    while (!O.isNull()) {
         // If O is null, return false.
         // If SameValue(P, O) is true, return true.
         if (P == O) {
@@ -1195,23 +1195,23 @@ String* Object::optionString(ExecutionState& state)
     char flags[6] = { 0 };
     int flags_idx = 0;
 
-    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().global)).value(state, this).toBoolean(state) == true) {
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().global)).value(state, this).toBoolean(state)) {
         flags[flags_idx++] = 'g';
     }
 
-    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().ignoreCase)).value(state, this).toBoolean(state) == true) {
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().ignoreCase)).value(state, this).toBoolean(state)) {
         flags[flags_idx++] = 'i';
     }
 
-    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().multiline)).value(state, this).toBoolean(state) == true) {
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().multiline)).value(state, this).toBoolean(state)) {
         flags[flags_idx++] = 'm';
     }
 
-    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, this).toBoolean(state) == true) {
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, this).toBoolean(state)) {
         flags[flags_idx++] = 'u';
     }
 
-    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().sticky)).value(state, this).toBoolean(state) == true) {
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().sticky)).value(state, this).toBoolean(state)) {
         flags[flags_idx++] = 'y';
     }
 

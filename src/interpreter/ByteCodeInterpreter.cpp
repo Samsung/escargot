@@ -1139,7 +1139,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 IteratorStep* code = (IteratorStep*)programCounter;
                 Value nextResult = iteratorStep(state, registerFile[code->m_iterRegisterIndex]);
 
-                if (nextResult.isFalse() == true) {
+                if (nextResult.isFalse()) {
                     if (code->m_forOfEndPosition == SIZE_MAX) {
                         registerFile[code->m_registerIndex] = Value();
                         ADD_PROGRAM_COUNTER(IteratorStep);
@@ -1336,7 +1336,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             {
                 Value result = yieldDelegateOperation(state, registerFile, programCounter, codeBuffer);
 
-                if (result.isEmpty() == true) {
+                if (result.isEmpty()) {
                     NEXT_INSTRUCTION();
                 }
 
@@ -1497,7 +1497,7 @@ NEVER_INLINE Value ByteCodeInterpreter::modOperation(ExecutionState& state, cons
 
 NEVER_INLINE Object* ByteCodeInterpreter::newOperation(ExecutionState& state, const Value& callee, size_t argc, NULLABLE Value* argv)
 {
-    if (callee.isConstructor() == false) {
+    if (!callee.isConstructor()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor);
     }
     return Object::construct(state, callee, argc, argv);
@@ -2106,7 +2106,7 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
 #endif
 
         state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
-        if (code->m_hasCatch == false) {
+        if (!code->m_hasCatch) {
             state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
             programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
         } else {
@@ -2252,10 +2252,10 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
         if (superClass.isNull()) {
             protoParent = Value(Value::Null);
             constructorParent = state.context()->globalObject()->functionPrototype();
-        } else if (superClass.isConstructor() == false) {
+        } else if (!superClass.isConstructor()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Class_Extends_Value_Is_Not_Object_Nor_Null);
         } else {
-            if (superClass.isObject() == true && superClass.asObject()->isGeneratorObject() == true) {
+            if (superClass.isObject() && superClass.asObject()->isGeneratorObject()) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Class_Prototype_Is_Not_Object_Nor_Null);
             }
 
@@ -2440,7 +2440,7 @@ Value ByteCodeInterpreter::yieldDelegateOperation(ExecutionState& state, Value* 
     Value nextValue;
     try {
         nextResult = iteratorNext(state, iterator);
-        if (iterator.asObject()->isGeneratorObject() == true) {
+        if (iterator.asObject()->isGeneratorObject()) {
             resultState = iterator.asObject()->asGeneratorObject()->state();
         }
     } catch (const Value& v) {
@@ -2454,13 +2454,13 @@ Value ByteCodeInterpreter::yieldDelegateOperation(ExecutionState& state, Value* 
 
         nextValue = iteratorValue(state, nextResult);
 
-        if (ret.isUndefined() == true) {
+        if (ret.isUndefined()) {
             return nextValue;
         }
 
         Value innerResult = Object::call(state, ret, iterator, 1, &nextValue);
 
-        if (innerResult.isObject() == false) {
+        if (!innerResult.isObject()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "IteratorResult is not an object");
         }
 
@@ -2477,10 +2477,10 @@ Value ByteCodeInterpreter::yieldDelegateOperation(ExecutionState& state, Value* 
         ASSERT(resultState == GeneratorState::CompletedThrow);
         Value throwMethod = iterator.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().stringThrow)).value(state, iterator);
 
-        if (throwMethod.isUndefined() == false) {
+        if (!throwMethod.isUndefined()) {
             Value innerResult;
             innerResult = Object::call(state, throwMethod, iterator, 1, &nextValue);
-            if (innerResult.isObject() == false) {
+            if (!innerResult.isObject()) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "IteratorResult is not an object");
             }
             nextValue = iteratorValue(state, innerResult);
@@ -2494,7 +2494,7 @@ Value ByteCodeInterpreter::yieldDelegateOperation(ExecutionState& state, Value* 
 
     // yield
     registerFile[code->m_dstIdx] = nextValue;
-    if (done == true) {
+    if (done) {
         programCounter = jumpTo(codeBuffer, code->m_endPosition);
         return Value(Value::EmptyValue);
     }

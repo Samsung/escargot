@@ -141,7 +141,7 @@ FunctionEnvironmentRecordNotIndexed::FunctionEnvironmentRecordNotIndexed(Functio
 
 void DeclarativeEnvironmentRecordNotIndexed::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable)
 {
-    ASSERT(canDelete == false);
+    ASSERT(!canDelete);
     ASSERT(hasBinding(state, name).m_index == SIZE_MAX);
     IdentifierRecord record;
     record.m_name = name;

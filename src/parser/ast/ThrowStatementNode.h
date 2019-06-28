@@ -43,7 +43,7 @@ public:
         ASSERT(codeBlock != nullptr);
         ASSERT(context != nullptr);
 
-        if (codeBlock->m_codeBlock->isGenerator() == true) {
+        if (codeBlock->m_codeBlock->isGenerator()) {
             codeBlock->pushCode(GeneratorComplete(ByteCodeLOC(SIZE_MAX), true), context, this);
         }
 

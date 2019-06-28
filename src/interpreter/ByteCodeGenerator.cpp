@@ -210,7 +210,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                     block->pushCode(ReturnFunctionWithValue(ByteCodeLOC(SIZE_MAX), idx), &ctx, nullptr);
                     ctx.giveUpRegister();
                 } else {
-                    if (codeBlock->isGenerator() == true) {
+                    if (codeBlock->isGenerator()) {
                         block->pushCode(GeneratorComplete(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
                     }
                     block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);

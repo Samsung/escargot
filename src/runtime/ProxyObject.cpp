@@ -839,8 +839,8 @@ Object* ProxyObject::construct(ExecutionState& state, const size_t argc, NULLABL
     // 7. If trap is undefined, then
     // a. Assert: target has a [[Construct]] internal method.
     // b. Return Construct(target, argumentsList, newTarget).
-    if (trap.isUndefined() == true) {
-        ASSERT(target.isConstructor() == true);
+    if (trap.isUndefined()) {
+        ASSERT(target.isConstructor());
         return Object::construct(state, target, argc, argv, newTarget);
     }
 

@@ -211,7 +211,7 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
 
     // 4
     Value reviver = argv[1];
-    if (reviver.isCallable() == true) {
+    if (reviver.isCallable()) {
         Object* root = new Object(state);
         root->defineOwnProperty(state, ObjectPropertyName(state, String::emptyString), ObjectPropertyDescriptor(unfiltered, ObjectPropertyDescriptor::AllPresent));
         std::function<Value(Value, const ObjectPropertyName&)> Walk;
@@ -292,8 +292,8 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
 
     // 4
     Value replacerFunc;
-    if (replacer.isObject() == true) {
-        if (replacer.isCallable() == true) {
+    if (replacer.isObject()) {
+        if (replacer.isCallable()) {
             replacerFunc = replacer;
         } else if (replacer.asObject()->isArrayObject()) {
             propertyListTouched = true;
@@ -382,7 +382,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
             }
         }
 
-        if (replacerFunc.isUndefined() == false) {
+        if (!replacerFunc.isUndefined()) {
             Value arguments[] = { key.toPlainValue(state), value };
             value = Object::call(state, replacerFunc, holder, 2, arguments);
         }
@@ -412,7 +412,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
             }
             return strings->null.string();
         }
-        if (value.isObject() == true && value.isCallable() == false) {
+        if (value.isObject() && !value.isCallable()) {
             if (value.asObject()->isArrayObject()) {
                 return JA(value.asObject()->asArrayObject());
             } else {

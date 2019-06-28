@@ -99,7 +99,7 @@ public:
 
     void setLexicalEnvironment(LexicalEnvironment* lexicalEnvironment, bool inStrictMode)
     {
-        ASSERT(m_lexicalEnvironment == nullptr && m_inStrictMode == false);
+        ASSERT(m_lexicalEnvironment == nullptr && !m_inStrictMode);
         ASSERT(lexicalEnvironment != nullptr);
 
         m_lexicalEnvironment = lexicalEnvironment;
@@ -127,13 +127,13 @@ public:
 
     ExecutionStateRareData* rareData()
     {
-        ASSERT(hasRareData() == true);
+        ASSERT(hasRareData());
         return m_rareData;
     }
 
     ExecutionState* parent()
     {
-        if (hasRareData() == false) {
+        if (!hasRareData()) {
             return (ExecutionState*)(m_parent - 1);
         }
         return rareData()->m_parent;

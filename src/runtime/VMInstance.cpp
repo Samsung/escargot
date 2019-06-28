@@ -108,7 +108,7 @@ static ObjectPropertyNativeGetterSetterData stringLengthGetterSetterData(
 #ifndef ESCARGOT_ENABLE_ES2015
 Value VMInstance::regexpSourceNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
-    if (self->isRegExpObject(state) == false) {
+    if (!self->isRegExpObject(state)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
     }
 
@@ -120,7 +120,7 @@ static ObjectPropertyNativeGetterSetterData regexpSourceGetterData(
 
 Value VMInstance::regexpFlagsNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
-    if (self->isRegExpObject(state) == false) {
+    if (!self->isRegExpObject(state)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
     }
     return Value(self->asRegExpObject(state)->optionString(state));
@@ -131,7 +131,7 @@ static ObjectPropertyNativeGetterSetterData regexpFlagsGetterData(
 
 Value VMInstance::regexpGlobalNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
-    if (self->isRegExpObject(state) == false) {
+    if (!self->isRegExpObject(state)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
     }
     return Value((bool)(self->asRegExpObject(state)->option() & RegExpObject::Option::Global));
@@ -142,7 +142,7 @@ static ObjectPropertyNativeGetterSetterData regexpGlobalGetterData(
 
 Value VMInstance::regexpIgnoreCaseNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
-    if (self->isRegExpObject(state) == false) {
+    if (!self->isRegExpObject(state)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
     }
     return Value((bool)(self->asRegExpObject(state)->option() & RegExpObject::Option::IgnoreCase));
@@ -153,7 +153,7 @@ static ObjectPropertyNativeGetterSetterData regexpIgnoreCaseGetterData(
 
 Value VMInstance::regexpMultilineNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
-    if (self->isRegExpObject(state) == false) {
+    if (!self->isRegExpObject(state)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
     }
     return Value((bool)(self->asRegExpObject(state)->option() & RegExpObject::Option::MultiLine));
@@ -164,7 +164,7 @@ static ObjectPropertyNativeGetterSetterData regexpMultilineGetterData(
 
 Value VMInstance::regexpStickyNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
-    if (self->isRegExpObject(state) == false) {
+    if (!self->isRegExpObject(state)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
     }
     return Value((bool)(self->asRegExpObject(state)->option() & RegExpObject::Option::Sticky));
@@ -175,7 +175,7 @@ static ObjectPropertyNativeGetterSetterData regexpStickyGetterData(
 
 Value VMInstance::regexpUnicodeNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
-    if (self->isRegExpObject(state) == false) {
+    if (!self->isRegExpObject(state)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
     }
     return Value((bool)(self->asRegExpObject(state)->option() & RegExpObject::Option::Unicode));
@@ -187,7 +187,7 @@ static ObjectPropertyNativeGetterSetterData regexpUnicodeGetterData(
 
 Value VMInstance::regexpLastIndexNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
-    if (self->isRegExpObject(state) == false) {
+    if (!self->isRegExpObject(state)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
     }
     return self->asRegExpObject(state)->lastIndex();
@@ -195,7 +195,7 @@ Value VMInstance::regexpLastIndexNativeGetter(ExecutionState& state, Object* sel
 
 bool VMInstance::regexpLastIndexNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
-    ASSERT(self->isRegExpObject(state) == true);
+    ASSERT(self->isRegExpObject(state));
     self->asRegExpObject(state)->setLastIndex(state, setterInputData);
     return true;
 }

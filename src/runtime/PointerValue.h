@@ -314,7 +314,7 @@ public:
 
     RegExpObject* asRegExpObject(ExecutionState& state)
     {
-        ASSERT(isRegExpObject(state) == true);
+        ASSERT(isRegExpObject(state));
         return (RegExpObject*)this;
     }
 
@@ -338,7 +338,7 @@ public:
 
     BoundFunctionObject* asBoundFunctionObject()
     {
-        ASSERT(isBoundFunctionObject() == true);
+        ASSERT(isBoundFunctionObject());
         return (BoundFunctionObject*)this;
     }
 
@@ -420,7 +420,7 @@ public:
 
     GeneratorObject* asGeneratorObject()
     {
-        ASSERT(isGeneratorObject() == true);
+        ASSERT(isGeneratorObject());
         return (GeneratorObject*)this;
     }
 
