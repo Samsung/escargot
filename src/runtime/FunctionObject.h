@@ -205,7 +205,7 @@ private:
 
     Value processCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression);
     void generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage);
-    void generateBytecodeBlock(ExecutionState& state);
+    void generateByteCodeBlock(ExecutionState& state);
     CodeBlock* m_codeBlock;
     LexicalEnvironment* m_outerEnvironment;
     Object* m_homeObject;

@@ -2050,13 +2050,9 @@ void PromiseObjectRef::reject(ExecutionStateRef* state, ValueRef* reason)
 }
 #endif
 
-ScriptParserRef::ScriptParserResult ScriptParserRef::parse(StringRef* script, StringRef* fileName)
+ScriptRef* ScriptParserRef::initializeScript(ExecutionStateRef* state, StringRef* script, StringRef* fileName)
 {
-    auto result = toImpl(this)->parse(toImpl(script), toImpl(fileName));
-    if (result.m_error) {
-        return ScriptParserRef::ScriptParserResult(nullptr, toRef(result.m_error->message));
-    }
-    return ScriptParserRef::ScriptParserResult(toRef(result.m_script), StringRef::emptyString());
+    return toRef(toImpl(this)->initializeScript(*toImpl(state), toImpl(script), toImpl(fileName)));
 }
 
 ValueRef* ScriptRef::execute(ExecutionStateRef* state)

@@ -314,7 +314,6 @@ protected:
     AtomicString m_functionName;
 
     union {
-        Node* m_cachedASTNode;
         ByteCodeBlock* m_byteCodeBlock;
         CallNativeFunctionData* m_nativeFunctionData;
     };
@@ -557,16 +556,6 @@ public:
     ByteCodeBlock* byteCodeBlock()
     {
         return m_byteCodeBlock;
-    }
-
-    Node* cachedASTNode()
-    {
-        return m_cachedASTNode;
-    }
-
-    void clearCachedASTNode()
-    {
-        m_cachedASTNode = nullptr;
     }
 
     void* operator new(size_t size);

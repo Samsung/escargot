@@ -34,27 +34,39 @@ void installTestFunctions(Escargot::ExecutionState& state);
 
 NEVER_INLINE bool eval(Escargot::Context* context, Escargot::String* str, Escargot::String* fileName, bool shouldPrintScriptResult)
 {
-    auto parserResult = context->scriptParser().parse(str, fileName);
-    if (UNLIKELY(!!parserResult.m_error)) {
-        static char msg[10240];
-        auto err = parserResult.m_error->message->toUTF8StringData();
-        puts(err.data());
-        return false;
+    Escargot::ExecutionState state(context);
+    Escargot::ExecutionState stateForInit(&state, nullptr, false);
+    Escargot::SandBox sb(context);
+    Escargot::Script::ScriptSandboxExecuteResult result;
+
+    Escargot::SandBox::SandBoxResult sandBoxResult = sb.run([&]() -> Escargot::Value {
+        Escargot::Script* script = context->scriptParser().initializeScript(state, str, fileName);
+        return script->execute(stateForInit, false, false);
+    });
+
+    result.result = sandBoxResult.result;
+    result.msgStr = sandBoxResult.msgStr;
+    result.error.errorValue = sandBoxResult.error;
+    if (!sandBoxResult.error.isEmpty()) {
+        for (size_t i = 0; i < sandBoxResult.stackTraceData.size(); i++) {
+            Escargot::Script::ScriptSandboxExecuteResult::Error::StackTrace t;
+            t.fileName = sandBoxResult.stackTraceData[i].fileName;
+            t.line = sandBoxResult.stackTraceData[i].loc.line;
+            t.column = sandBoxResult.stackTraceData[i].loc.column;
+            result.error.stackTrace.pushBack(t);
+        }
     }
 
-    Escargot::ExecutionState state(context);
-    Escargot::Script::ScriptSandboxExecuteResult executeResult = parserResult.m_script->sandboxExecute(state);
-
-    if (UNLIKELY(!executeResult.error.errorValue.isEmpty())) {
-        printf("Uncaught %s:\n", executeResult.msgStr->toUTF8StringData().data());
-        for (size_t i = 0; i < executeResult.error.stackTrace.size(); i++) {
-            printf("%s (%d:%d)\n", executeResult.error.stackTrace[i].fileName->toUTF8StringData().data(), (int)executeResult.error.stackTrace[i].line, (int)executeResult.error.stackTrace[i].column);
+    if (UNLIKELY(!result.error.errorValue.isEmpty())) {
+        printf("Uncaught %s:\n", result.msgStr->toUTF8StringData().data());
+        for (size_t i = 0; i < result.error.stackTrace.size(); i++) {
+            printf("%s (%d:%d)\n", result.error.stackTrace[i].fileName->toUTF8StringData().data(), (int)result.error.stackTrace[i].line, (int)result.error.stackTrace[i].column);
         }
         return false;
     }
 
     if (shouldPrintScriptResult) {
-        puts(executeResult.msgStr->toUTF8StringData().data());
+        puts(result.msgStr->toUTF8StringData().data());
     }
 #ifdef ESCARGOT_ENABLE_PROMISE
     Escargot::DefaultJobQueue* jobQueue = Escargot::DefaultJobQueue::get(context->jobQueue());

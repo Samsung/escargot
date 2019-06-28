@@ -902,18 +902,7 @@ public:
 
 class EXPORT ScriptParserRef {
 public:
-    struct ScriptParserResult {
-        ScriptParserResult(ScriptRef* script, StringRef* error)
-            : m_script(script)
-            , m_error(error)
-        {
-        }
-
-        ScriptRef* m_script;
-        StringRef* m_error;
-    };
-
-    ScriptParserResult parse(StringRef* script, StringRef* fileName);
+    ScriptRef* initializeScript(ExecutionStateRef* state, StringRef* script, StringRef* fileName);
 };
 
 class EXPORT ScriptRef {

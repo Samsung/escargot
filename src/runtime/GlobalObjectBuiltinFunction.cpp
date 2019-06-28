@@ -103,19 +103,12 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     src.appendString("\n}");
 
     ScriptParser parser(state.context());
-    auto parserResult = parser.parse(src.finalize(&state), new ASCIIString("Function Constructor input"));
+    String* scriptSource = src.finalize(&state);
 
-    if (parserResult.m_error) {
-        ErrorObject* err = ErrorObject::createError(state, parserResult.m_error->errorCode, parserResult.m_error->message);
-        state.throwException(err);
-    }
-
-    parserResult.m_script->topCodeBlock()->cachedASTNode()->deref();
-    parserResult.m_script->topCodeBlock()->clearCachedASTNode();
-
-    InterpretedCodeBlock* cb = parserResult.m_script->topCodeBlock()->childBlocks()[0];
+    Script* script = parser.initializeScript(state, StringView(scriptSource, 0, scriptSource->length()), new ASCIIString("Function Constructor input"), nullptr, false, false, false, false, SIZE_MAX, false);
+    InterpretedCodeBlock* cb = script->topCodeBlock()->childBlocks()[0];
     cb->updateSourceElementStart(3, 1);
-    LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, parserResult.m_script->topCodeBlock(), state.context()->globalObject()), nullptr);
+    LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, script->topCodeBlock(), state.context()->globalObject()), nullptr);
     return new FunctionObject(state, cb, globalEnvironment);
 }
 
