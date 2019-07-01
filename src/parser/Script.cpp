@@ -42,8 +42,7 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     m_topCodeBlock->m_cachedASTNode = nullptr;
     ASSERT(programNode && programNode->type() == ASTNodeType::Program);
 
-    ByteCodeGenerator g;
-    m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, isOnGlobal);
+    m_topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), m_topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, isOnGlobal);
 
     LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, m_topCodeBlock, state.context()->globalObject(), isEvalMode, !needNewEnv), nullptr);
     ExecutionState newState(state.context());
@@ -125,8 +124,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
         }
     }
 
-    ByteCodeGenerator g;
-    m_topCodeBlock->m_byteCodeBlock = g.generateByteCode(state.context(), m_topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, isOnGlobal);
+    m_topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), m_topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, isOnGlobal);
 
     EnvironmentRecord* record;
     bool inStrict = false;
