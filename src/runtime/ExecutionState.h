@@ -33,9 +33,12 @@ typedef Vector<ControlFlowRecord*, GCUtil::gc_malloc_ignore_off_page_allocator<C
 struct ExecutionStateRareData : public gc {
     Vector<ControlFlowRecord*, GCUtil::gc_malloc_ignore_off_page_allocator<ControlFlowRecord*>>* m_controlFlowRecord;
     ExecutionState* m_parent;
+    Object* m_generatorTarget;
+
     ExecutionStateRareData()
     {
         m_controlFlowRecord = nullptr;
+        m_generatorTarget = nullptr;
         m_parent = nullptr;
     }
 };
@@ -50,7 +53,6 @@ public:
     ExecutionState(Context* context)
         : m_context(context)
         , m_lexicalEnvironment(nullptr)
-        , m_generatorTarget(nullptr)
         , m_registerFile(nullptr)
         , m_parent(1)
         , m_inStrictMode(false)
@@ -64,7 +66,6 @@ public:
     ExecutionState(ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, bool inStrictMode, Value* registerFile = nullptr)
         : m_context(parent->context())
         , m_lexicalEnvironment(lexicalEnvironment)
-        , m_generatorTarget(nullptr)
         , m_stackBase(parent->stackBase())
         , m_registerFile(registerFile)
         , m_parent((size_t)parent + 1)
@@ -77,7 +78,6 @@ public:
     ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, bool inStrictMode, Value* registerFile = nullptr)
         : m_context(context)
         , m_lexicalEnvironment(lexicalEnvironment)
-        , m_generatorTarget(nullptr)
         , m_stackBase(parent->stackBase())
         , m_registerFile(registerFile)
         , m_parent((size_t)parent + 1)
@@ -92,6 +92,20 @@ public:
         return m_context;
     }
 
+    LexicalEnvironment* lexicalEnvironment()
+    {
+        return m_lexicalEnvironment;
+    }
+
+    void setLexicalEnvironment(LexicalEnvironment* lexicalEnvironment, bool inStrictMode)
+    {
+        ASSERT(m_lexicalEnvironment == nullptr && m_inStrictMode == false);
+        ASSERT(lexicalEnvironment != nullptr);
+
+        m_lexicalEnvironment = lexicalEnvironment;
+        m_inStrictMode = inStrictMode;
+    }
+
     size_t stackBase()
     {
         return m_stackBase;
@@ -104,28 +118,42 @@ public:
 
     void throwException(const Value& e);
 
-    ExecutionState* parent();
     ExecutionStateRareData* ensureRareData();
+
+    bool hasRareData()
+    {
+        return (m_parent & 1) == 0;
+    }
 
     ExecutionStateRareData* rareData()
     {
+        ASSERT(hasRareData() == true);
         return m_rareData;
     }
 
-    LexicalEnvironment* lexicalEnvironment()
+    ExecutionState* parent()
     {
-        return m_lexicalEnvironment;
+        if (hasRareData() == false) {
+            return (ExecutionState*)(m_parent - 1);
+        }
+        return rareData()->m_parent;
     }
 
     Object* generatorTarget()
     {
-        return m_generatorTarget;
+        return rareData()->m_generatorTarget;
     }
 
     void setGeneratorTarget(Object* target)
     {
         ASSERT(target != nullptr);
-        m_generatorTarget = target;
+        ensureRareData()->m_generatorTarget = target;
+    }
+
+    void setParent(ExecutionState* parent)
+    {
+        ASSERT(m_parent == 1);
+        m_parent = (size_t)parent + 1;
     }
 
     bool inStrictMode()
@@ -141,19 +169,6 @@ public:
     bool isOnGoingSuperCall()
     {
         return m_onGoingSuperCall;
-    }
-
-    void setParent(ExecutionState* parent)
-    {
-        ASSERT(m_parent == 1);
-        m_parent = (size_t)parent + 1;
-    }
-
-    void setLexicalEnvironment(LexicalEnvironment* lexicalEnvironment, bool inStrictMode)
-    {
-        ASSERT(m_lexicalEnvironment == nullptr && m_inStrictMode == false);
-        m_lexicalEnvironment = lexicalEnvironment;
-        m_inStrictMode = inStrictMode;
     }
 
     void setOnGoingClassConstruction(bool startClassConstruction)
@@ -175,7 +190,6 @@ public:
 private:
     Context* m_context;
     LexicalEnvironment* m_lexicalEnvironment;
-    Object* m_generatorTarget;
     size_t m_stackBase;
     Value* m_registerFile;
     union {
