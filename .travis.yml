@@ -15,6 +15,7 @@ matrix:
       os: osx
       addons:
         homebrew:
+          update: true
           packages: [ autoconf, automake, cmake, libtool, ninja, pkg-config, icu4c ]
       install:
         - npm install
@@ -120,4 +121,4 @@ matrix:
     - name: "darwin.x64.release"
     - name: "SonarQube"
 
-# fast_finish: true
+  fast_finish: true
