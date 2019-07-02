@@ -54,7 +54,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
         if (scopeCtx->m_hasEvaluateBindingId) {
             InterpretedCodeBlock* c = codeBlock;
             while (c) {
-                c->m_canAllocateEnvironmentOnStack = false;
+                c->m_scopeInfo.canAllocateEnvironmentOnStack = false;
                 c = c->parentCodeBlock();
             }
         }
@@ -116,8 +116,8 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
 
         if (hasCapturedIdentifier) {
             InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
-            while (c && c->m_canAllocateEnvironmentOnStack) {
-                c->m_canAllocateEnvironmentOnStack = false;
+            while (c && c->m_scopeInfo.canAllocateEnvironmentOnStack) {
+                c->m_scopeInfo.canAllocateEnvironmentOnStack = false;
                 c = c->parentCodeBlock();
             }
         }
@@ -182,12 +182,12 @@ void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView sc
             programNode->scopeContext()->m_hasYield = parentCodeBlock->hasYield();
             programNode->scopeContext()->m_isClassConstructor = parentCodeBlock->isClassConstructor();
             topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, scriptSource, script, programNode->scopeContext(), parentCodeBlock);
-            topCodeBlock->m_isEvalCodeInFunction = true;
-            topCodeBlock->m_isInWithScope = parentCodeBlock->m_isInWithScope;
+            topCodeBlock->m_scopeInfo.isEvalCodeInFunction = true;
+            topCodeBlock->m_scopeInfo.isInWithScope = parentCodeBlock->m_scopeInfo.isInWithScope;
         } else {
             topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, programNode.get());
         }
-        topCodeBlock->m_isEvalCodeInFunction = isEvalCodeInFunction;
+        topCodeBlock->m_scopeInfo.isEvalCodeInFunction = isEvalCodeInFunction;
 
         generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
 
@@ -243,14 +243,14 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
 
         PRINT_TAB()
         printf("CodeBlock %s %s (%d:%d -> %d:%d)(%s, %s) (E:%d, W:%d, C:%d, Y:%d, A:%d)\n", cb->m_functionName.string()->toUTF8StringData().data(),
-               cb->m_isStrict ? "Strict" : "",
+               cb->m_scopeInfo.isStrict ? "Strict" : "",
                (int)cb->m_locStart.line,
                (int)cb->m_locStart.column,
                (int)cb->m_locEnd.line,
                (int)cb->m_locEnd.column,
-               cb->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap",
-               cb->m_canUseIndexedVariableStorage ? "Indexed" : "Named",
-               (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasCatch, (int)cb->m_hasYield, (int)cb->m_usesArgumentsObject);
+               cb->m_scopeInfo.canAllocateEnvironmentOnStack ? "Stack" : "Heap",
+               cb->m_scopeInfo.canUseIndexedVariableStorage ? "Indexed" : "Named",
+               (int)cb->m_scopeInfo.hasEval, (int)cb->m_scopeInfo.hasWith, (int)cb->m_scopeInfo.hasCatch, (int)cb->m_scopeInfo.hasYield, (int)cb->m_scopeInfo.usesArgumentsObject);
 
         PRINT_TAB()
         printf("Names: ");
