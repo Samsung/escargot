@@ -552,7 +552,7 @@ public:
 
     RegExpObject* asRegExpObject(ExecutionState& state)
     {
-        ASSERT(isRegExpObject(state) == true);
+        ASSERT(isRegExpObject(state));
         return (RegExpObject*)this;
     }
 

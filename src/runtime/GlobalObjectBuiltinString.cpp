@@ -186,7 +186,7 @@ static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t a
     RESOLVE_THIS_BINDING_TO_STRING(str, String, match);
     Value argument = argv[0];
     RegExpObject* regexp;
-    if (argument.isPointerValue() == true && argument.asPointerValue()->isRegExpObject(state) == true) {
+    if (argument.isPointerValue() && argument.asPointerValue()->isRegExpObject(state)) {
         regexp = argument.asPointerValue()->asRegExpObject(state);
     } else {
         regexp = new RegExpObject(state, argument.isUndefined() ? String::emptyString : argument.toString(state), String::emptyString);
@@ -314,7 +314,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
     bool replaceValueIsFunction = replaceValue.isCallable();
     RegexMatchResult result;
 
-    if (searchValue.isPointerValue() == true && searchValue.asPointerValue()->isRegExpObject(state) == true) {
+    if (searchValue.isPointerValue() && searchValue.asPointerValue()->isRegExpObject(state)) {
         RegExpObject* regexp = searchValue.asPointerValue()->asRegExpObject(state);
         bool isGlobal = regexp->option() & RegExpObject::Option::Global;
 
@@ -493,7 +493,7 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
     Value parameter[1] = { Value(string) };
     return Object::call(state, func, rx, 1, parameter);
 #else
-    if (regexp.isPointerValue() == true && regexp.asPointerValue()->isRegExpObject(state) == true) {
+    if (regexp.isPointerValue() && regexp.asPointerValue()->isRegExpObject(state)) {
         // If Type(regexp) is Object and the value of the [[Class]] internal property of regexp is "RegExp", then let rx be regexp;
         rx = regexp.asPointerValue()->asRegExpObject(state);
     } else {
@@ -542,7 +542,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
     // If limit is undefined, let lim = 2^32 – 1; else let lim = ToUint32(limit).
     lim = limit.isUndefined() ? Value::InvalidIndexValue - 1 : limit.toUint32(state);
     // If separator is a RegExp object (its [[Class]] is "RegExp"), let R = separator; otherwise let R = ToString(separator).
-    if (separator.isPointerValue() == true && separator.asPointerValue()->isRegExpObject(state) == true) {
+    if (separator.isPointerValue() && separator.asPointerValue()->isRegExpObject(state)) {
         P = separator.asPointerValue()->asRegExpObject(state);
     } else {
         P = separator.toString(state);
@@ -579,7 +579,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
     };
     if (s == 0) {
         bool ret = true;
-        if (P->isRegExpObject(state) == true) {
+        if (P->isRegExpObject(state)) {
             RegexMatchResult result;
             ret = P->asRegExpObject(state)->matchNonGlobally(state, S, result, false, 0);
         } else {
@@ -597,7 +597,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
     size_t q = p;
 
     // 13
-    if (P->isRegExpObject(state) == true) {
+    if (P->isRegExpObject(state)) {
         RegExpObject* R = P->asRegExpObject(state);
         while (q != s) {
             RegexMatchResult result;
@@ -885,7 +885,7 @@ static Value builtinStringStartsWith(ExecutionState& state, Value thisValue, siz
     Value searchString = argv[0];
     // Let isRegExp be ? IsRegExp(searchString).
     // If isRegExp is true, throw a TypeError exception.
-    if (searchString.isObject() == true && searchString.asObject()->isRegExpObject(state) == true) {
+    if (searchString.isObject() && searchString.asObject()->isRegExpObject(state)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't use RegExp with startsWith");
     }
     // Let searchStr be ? ToString(searchString).
@@ -928,7 +928,7 @@ static Value builtinStringEndsWith(ExecutionState& state, Value thisValue, size_
     Value searchString = argv[0];
     // Let isRegExp be ? IsRegExp(searchString).
     // If isRegExp is true, throw a TypeError exception.
-    if (searchString.isObject() == true && searchString.asObject()->isRegExpObject(state) == true) {
+    if (searchString.isObject() && searchString.asObject()->isRegExpObject(state)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't use RegExp with endsWith");
     }
     // Let len be the number of elements in S.
@@ -1032,7 +1032,7 @@ static Value builtinStringIncludes(ExecutionState& state, Value thisValue, size_
     // Let isRegExp be ? IsRegExp(searchString).
     // If isRegExp is true, throw a TypeError exception.
     Value searchString = argv[0];
-    if (searchString.isObject() == true && searchString.asObject()->isRegExpObject(state) == true) {
+    if (searchString.isObject() && searchString.asObject()->isRegExpObject(state)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't use RegExp with includes");
     }
 

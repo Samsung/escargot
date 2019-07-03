@@ -35,7 +35,7 @@ BoundFunctionObject::BoundFunctionObject(ExecutionState& state, Value& targetFun
     , m_boundTargetFunction(targetFunction)
     , m_boundThis(boundThis)
 {
-    ASSERT(targetFunction.isObject() == true);
+    ASSERT(targetFunction.isObject());
     m_structure = state.context()->defaultStructureForBoundFunctionObject();
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = length;
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = name;
@@ -79,7 +79,7 @@ Value BoundFunctionObject::call(ExecutionState& state, const Value& thisValue, c
 // https://www.ecma-international.org/ecma-262/6.0/#sec-bound-function-exotic-objects-construct-argumentslist-newtarget
 Object* BoundFunctionObject::construct(ExecutionState& state, const size_t calledArgc, Value* calledArgv, const Value& newTarget)
 {
-    ASSERT(isConstructor() == true);
+    ASSERT(isConstructor());
     // Let args be a new list containing the same values as the list boundArgs in the same order followed by the same values as the list argumentsList in the same order.
     size_t boundArgc = m_boundArguments.size();
     size_t mergedArgc = boundArgc + calledArgc;

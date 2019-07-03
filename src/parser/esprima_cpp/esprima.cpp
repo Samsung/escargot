@@ -813,7 +813,7 @@ public:
     {
         ASSERT(grammarContext != nullptr);
 
-        if (UNLIKELY(this->context->firstCoverInitializedNameError.type != InvalidToken)) {
+        if (UNLIKELY(this->context->firstCoverInitializedNameError)) {
             this->throwUnexpectedToken(&this->context->firstCoverInitializedNameError);
         }
 
@@ -828,7 +828,7 @@ public:
 
         this->context->isBindingElement = this->context->isBindingElement && grammarContext->previousIsBindingElement;
         this->context->isAssignmentTarget = this->context->isAssignmentTarget && grammarContext->previousIsAssignmentTarget;
-        if (UNLIKELY(grammarContext->previousFirstCoverInitializedNameError.type != InvalidToken)) {
+        if (UNLIKELY(grammarContext->previousFirstCoverInitializedNameError)) {
             this->context->firstCoverInitializedNameError = grammarContext->previousFirstCoverInitializedNameError;
         }
     }
@@ -3458,8 +3458,8 @@ public:
         RefPtr<Node> exprNode;
         ScanExpressionResult expr;
 
-        if (this->context->allowYield == false && this->matchKeyword(YieldKeyword) == true) {
-            if (isParse == true) {
+        if (!this->context->allowYield && this->matchKeyword(YieldKeyword)) {
+            if (isParse) {
                 exprNode = this->yieldExpression<ParseAs(YieldExpressionNode)>();
             } else {
                 expr = this->yieldExpression<Scan>();
@@ -3547,8 +3547,8 @@ public:
                     this->expect(Arrow);
                     RefPtr<Node> body = this->match(LeftBrace) ? this->parseFunctionSourceElements() : this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
                     bool isExpression = body->type() != BlockStatement;
-                    if (isExpression == true) {
-                        if (this->config.parseSingleFunction == true) {
+                    if (isExpression) {
+                        if (this->config.parseSingleFunction) {
                             ASSERT(this->config.parseSingleFunctionChildIndex > 0);
                             this->config.parseSingleFunctionChildIndex++;
                         }
@@ -5711,21 +5711,21 @@ public:
         RefPtr<Node> exprNode;
         bool delegate = false;
 
-        if (this->hasLineTerminator == false) {
+        if (!this->hasLineTerminator) {
             const bool previousAllowYield = this->context->allowYield;
             this->context->allowYield = false;
             delegate = this->match(Multiply);
 
-            if (delegate == true) {
+            if (delegate) {
                 this->nextToken();
-                if (isParse == true) {
+                if (isParse) {
                     exprNode = this->assignmentExpression<Parse>();
                 } else {
                     this->assignmentExpression<Scan>();
                 }
             } else {
-                if (this->match(SemiColon) == false && this->match(RightBrace) == false && this->match(RightParenthesis) == false && this->lookahead.type != Token::EOFToken) {
-                    if (isParse == true) {
+                if (!this->match(SemiColon) && !this->match(RightBrace) && !this->match(RightParenthesis) && this->lookahead.type != Token::EOFToken) {
+                    if (isParse) {
                         exprNode = this->assignmentExpression<Parse>();
                     } else {
                         this->assignmentExpression<Scan>();
@@ -5735,7 +5735,7 @@ public:
             this->context->allowYield = previousAllowYield;
         }
 
-        if (isParse == true) {
+        if (isParse) {
             return this->finalize(node, new YieldExpressionNode(exprNode, delegate));
         }
 
@@ -5788,7 +5788,7 @@ public:
                 key = this->parseObjectPropertyKey();
                 value = this->parseSetterMethod();
             }
-        } else if (lookaheadPropertyKey == true && token->type == Token::PunctuatorToken && token->valuePunctuatorKind == Multiply) {
+        } else if (lookaheadPropertyKey && token->type == Token::PunctuatorToken && token->valuePunctuatorKind == Multiply) {
             kind = ClassElementNode::Kind::Method;
             computed = this->match(LeftSquareBracket);
             key = this->parseObjectPropertyKey();
@@ -6160,7 +6160,7 @@ std::tuple<RefPtr<Node>, ASTScopeContext*> parseSingleFunction(::Escargot::Conte
     parser.config.reparseArguments = codeBlock->shouldReparseArguments();
     auto sc = new ASTScopeContext(codeBlock->isStrict());
     parser.pushScopeContext(sc);
-    parser.context->allowYield = codeBlock->isGenerator() == false;
+    parser.context->allowYield = !codeBlock->isGenerator();
     RefPtr<Node> nd;
     if (codeBlock->isArrowFunctionExpression()) {
         nd = parser.parseArrowFunctionSourceElements();

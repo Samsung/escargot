@@ -123,7 +123,7 @@ void MapObject::set(ExecutionState& state, const Value& key, const Value& value)
     }
 
     // If key is -0, let key be +0.
-    if (key.isNumber() && key.asNumber() == 0 && std::signbit(key.asNumber()) == true) {
+    if (key.isNumber() && key.asNumber() == 0 && std::signbit(key.asNumber())) {
         m_storage.pushBack(std::make_pair(Value(0), value));
     } else {
         m_storage.pushBack(std::make_pair(key, value));

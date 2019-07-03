@@ -154,9 +154,9 @@ public:
 
     FunctionKind functionKind()
     {
-        if (isClassConstructor() == true) {
+        if (isClassConstructor()) {
             return FunctionKind::ClassConstructor;
-        } else if (isGenerator() == true) {
+        } else if (isGenerator()) {
             return FunctionKind::Generator;
         }
 

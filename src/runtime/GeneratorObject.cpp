@@ -51,7 +51,7 @@ void* GeneratorObject::operator new(size_t size)
 {
     static bool typeInited = false;
     static GC_descr descr;
-    if (typeInited == false) {
+    if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(GeneratorObject)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GeneratorObject, m_executionState));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GeneratorObject, m_blk));
@@ -64,11 +64,11 @@ void* GeneratorObject::operator new(size_t size)
 // https://www.ecma-international.org/ecma-262/6.0/#sec-generatorvalidate
 GeneratorObject* generatorValidate(ExecutionState& state, const Value& generator)
 {
-    if (generator.isObject() == false) {
+    if (!generator.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ThisNotObject);
     }
 
-    if (generator.asObject()->isGeneratorObject() == false) {
+    if (!generator.asObject()->isGeneratorObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Generator.string(), true, state.context()->staticStrings().next.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver);
     }
 

@@ -42,7 +42,7 @@ public:
             size_t argIdx = m_argument->getRegister(codeBlock, context);
             m_argument->generateExpressionByteCode(codeBlock, context, argIdx);
 
-            if (m_isDelegate == true) {
+            if (m_isDelegate) {
                 size_t iteratorIdx = context->getRegister();
                 codeBlock->pushCode(GetIterator(ByteCodeLOC(m_loc.index), argIdx, iteratorIdx), context, this);
                 size_t loopStart = codeBlock->currentCodeSize();

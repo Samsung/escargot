@@ -92,13 +92,13 @@ static Value arraySpeciesCreate(ExecutionState& state, Object* originalArray, co
     Value C;
     // Let isArray be IsArray(originalArray).
     // If isArray is true, then
-    if (originalArray->isArrayObject() == true) {
+    if (originalArray->isArrayObject()) {
         // Let C be Get(originalArray, "constructor").
         C = originalArrayConstructor;
 
         // TODO 9.4.2.3. 6.c. (after Realm is implemented)
         // If Type(C) is Object, then
-        if (C.isObject() == true) {
+        if (C.isObject()) {
             // Let C be Get(C, @@species).
             C = C.asObject()->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, C);
         }
@@ -106,11 +106,11 @@ static Value arraySpeciesCreate(ExecutionState& state, Object* originalArray, co
 
     // If C is null, let C be undefined.
     // If C is undefined, return ArrayCreate(length).
-    if (C.isUndefinedOrNull() == true) {
+    if (C.isUndefinedOrNull()) {
         return new ArrayObject(state, static_cast<double>(length));
     }
     // If IsConstructor(C) is false, throw a TypeError exception.
-    if (C.isConstructor() == false) {
+    if (!C.isConstructor()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), false, String::emptyString, errorMessage_GlobalObject_ThisNotConstructor);
     }
     // Return Construct(C, <<length>>).
@@ -164,7 +164,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
     if (!usingIterator.isUndefined()) {
         Object* A;
         // If IsConstructor(C) is true, then
-        if (C.isConstructor() == true) {
+        if (C.isConstructor()) {
             // Let A be ? Construct(C).
             A = Object::construct(state, C, 0, nullptr);
         } else {
@@ -220,7 +220,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
     auto len = arrayLike->lengthES6(state);
     // If IsConstructor(C) is true, then
     Object* A;
-    if (C.isConstructor() == true) {
+    if (C.isConstructor()) {
         // Let A be ? Construct(C, « len »).
         Value vlen(len);
         A = Object::construct(state, C, 1, &vlen);
@@ -266,7 +266,7 @@ static Value builtinArrayOf(ExecutionState& state, Value thisValue, size_t argc,
     Value C = thisValue;
 
     Object* A;
-    if (C.isConstructor() == true) {
+    if (C.isConstructor()) {
         Value arg[1] = { Value(len) };
         A = Object::construct(state, C, 1, arg);
     } else {
@@ -481,8 +481,8 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
     CHECK_ARRAY_LENGTH(len + insertCount - actualDeleteCount, (1LL << 53));
     // Let A be ArraySpeciesCreate(O, actualDeleteCount).
     Value val = arraySpeciesCreate(state, O, actualDeleteCount);
-    ASSERT(val.isObject() == true);
-    ASSERT(val.asObject()->isArrayObject() == true);
+    ASSERT(val.isObject());
+    ASSERT(val.asObject()->isArrayObject());
     ArrayObject* A = val.asObject()->asArrayObject();
 #else
     // Let actualDeleteCount be min(max(ToInteger(deleteCount),0), len – actualStart).
@@ -701,8 +701,8 @@ static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t ar
     // Let count be max(final - k, 0).
     // Let A be ArraySpeciesCreate(O, count).
     Value val = arraySpeciesCreate(state, thisObject, std::max(finalEnd - k, (int64_t)0));
-    ASSERT(val.isObject() == true);
-    ASSERT(val.asObject()->isArrayObject() == true);
+    ASSERT(val.isObject());
+    ASSERT(val.asObject()->isArrayObject());
     ArrayObject* array = val.asObject()->asArrayObject();
 #else
     ArrayObject* array = new ArrayObject(state);
@@ -1001,8 +1001,8 @@ static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t a
 #ifdef ESCARGOT_ENABLE_ES2015
     // Let A be ArraySpeciesCreate(O, 0).
     Value val = arraySpeciesCreate(state, O, 0);
-    ASSERT(val.isObject() == true);
-    ASSERT(val.asObject()->isArrayObject() == true);
+    ASSERT(val.isObject());
+    ASSERT(val.asObject()->isArrayObject());
     ArrayObject* A = val.asObject()->asArrayObject();
 #else
     // Let A be a new array created as if by the expression new Array() where Array is the standard built-in constructor with that name.
@@ -1072,8 +1072,8 @@ static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc
 #ifdef ESCARGOT_ENABLE_ES2015
     // Let A be ArraySpeciesCreate(O, len).
     Value val = arraySpeciesCreate(state, O, len);
-    ASSERT(val.isObject() == true);
-    ASSERT(val.asObject()->isArrayObject() == true);
+    ASSERT(val.isObject());
+    ASSERT(val.asObject()->isArrayObject());
     ArrayObject* A = val.asObject()->asArrayObject();
 #else
     // Let A be a new array created as if by the expression new Array(len) where Array is the standard built-in constructor with that name and len is the value of len.
@@ -1321,14 +1321,14 @@ static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t a
         accumulator = initialValue;
     } else { // 8
         bool kPresent = false; // 8.a
-        while (kPresent == false && k < len) { // 8.b
+        while (!kPresent && k < len) { // 8.b
             Value Pk = Value(k); // 8.b.i
             kPresent = O->hasProperty(state, ObjectPropertyName(state, Pk)); // 8.b.ii
             if (kPresent)
                 accumulator = O->get(state, ObjectPropertyName(state, Pk)).value(state, O); // 8.b.iii.1
             k++; // 8.b.iv
         }
-        if (kPresent == false)
+        if (!kPresent)
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().reduce.string(), errorMessage_GlobalObject_ReduceError);
     }
     while (k < len) { // 9
@@ -1384,7 +1384,7 @@ static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, siz
         bool kPresent = false;
 
         // Repeat, while kPresent is false and k ≥ 0
-        while ((kPresent == false) && k >= 0) {
+        while (!kPresent && k >= 0) {
             // Let Pk be ToString(k).
             ObjectPropertyName Pk(state, Value(k));
             // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument Pk.
@@ -1403,7 +1403,7 @@ static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, siz
             k = result;
         }
         // If kPresent is false, throw a TypeError exception.
-        if (kPresent == false) {
+        if (!kPresent) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().reduceRight.string(), errorMessage_GlobalObject_ReduceError);
         }
     }

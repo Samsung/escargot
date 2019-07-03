@@ -51,7 +51,7 @@ void FunctionObject::initFunctionObject(ExecutionState& state)
 
     m_constructorKind = ConstructorKind::Base;
 
-    if (isConstructor() == true) {
+    if (isConstructor()) {
         m_structure = isClassConstructor() ? state.context()->defaultStructureForClassFunctionObject() : state.context()->defaultStructureForFunctionObject();
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(Object::createFunctionPrototypeObject(state, this)));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionName().string()));
@@ -232,13 +232,13 @@ Object* FunctionObject::construct(ExecutionState& state, const size_t argc, NULL
     FunctionObject* constructor = this;
 
     // Assert: Type(newTarget) is Object.
-    ASSERT(newTarget.isObject() == true);
-    ASSERT(newTarget.isConstructor() == true);
+    ASSERT(newTarget.isObject());
+    ASSERT(newTarget.isConstructor());
     // Let kind be F’s [[ConstructorKind]] internal slot.
     ConstructorKind kind = constructorKind();
     Object* thisArgument;
 
-    if (cb->hasCallNativeFunctionCode() == true) {
+    if (cb->hasCallNativeFunctionCode()) {
         thisArgument = cb->nativeFunctionData()->m_ctorFn(state, cb, argc, argv);
         // FIXME: If kind is "base", then
     } else {
@@ -246,14 +246,14 @@ Object* FunctionObject::construct(ExecutionState& state, const size_t argc, NULL
         thisArgument = new Object(state);
     }
 
-    if (constructor->getFunctionPrototype(state).isObject() == true) {
+    if (constructor->getFunctionPrototype(state).isObject()) {
         thisArgument->setPrototype(state, constructor->getFunctionPrototype(state));
     } else {
         thisArgument->setPrototype(state, new Object(state));
     }
 
     Value result = processCall(state, thisArgument, argc, argv, true);
-    if (result.isObject() == true) {
+    if (result.isObject()) {
         return result.asObject();
     }
 
@@ -280,7 +280,7 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Class constructor cannot be invoked without 'new'");
     }
 
-    if (UNLIKELY(isSuperCall == true && isBuiltin() == true && isNewExpression == false)) {
+    if (UNLIKELY(isSuperCall && isBuiltin() && !isNewExpression)) {
         Value returnValue = Object::construct(state, this, argc, argv);
         returnValue.asObject()->setPrototype(state, receiverSrc.toObject(state)->getPrototype(state));
         return returnValue;
@@ -377,8 +377,8 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
 
     Value* registerFile;
 
-    if (UNLIKELY(m_codeBlock->isGenerator() == true)) {
-        if (isNewExpression == true) {
+    if (UNLIKELY(m_codeBlock->isGenerator())) {
+        if (isNewExpression) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Generator cannot be invoked with 'new'");
         }
         registerFile = (Value*)GC_MALLOC((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
@@ -521,10 +521,10 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
         }
     }
 
-    if (UNLIKELY(m_codeBlock->isGenerator() == true)) {
+    if (UNLIKELY(m_codeBlock->isGenerator())) {
         ExecutionState* newState = new ExecutionState(ctx, &state, lexEnv, isStrict, registerFile);
 
-        if (UNLIKELY(m_codeBlock->usesArgumentsObject() == true)) {
+        if (UNLIKELY(m_codeBlock->usesArgumentsObject())) {
             generateArgumentsObject(*newState, record, stackStorage);
         }
 
