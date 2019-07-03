@@ -158,7 +158,6 @@ public:
     GlobalObjectRef* asGlobalObject();
     bool isErrorObject();
     ErrorObjectRef* asErrorObject();
-#if ESCARGOT_ENABLE_TYPEDARRAY
     bool isArrayBufferObject();
     ArrayBufferObjectRef* asArrayBufferObject();
     bool isArrayBufferView();
@@ -182,11 +181,8 @@ public:
     bool isFloat64ArrayObject();
     Float64ArrayObjectRef* asFloat64ArrayObject();
     bool isTypedArrayPrototypeObject();
-#endif
-#if ESCARGOT_ENABLE_PROMISE
     bool isPromiseObject();
     PromiseObjectRef* asPromiseObject();
-#endif
 };
 
 class EXPORT StringRef : public PointerValueRef {
@@ -257,14 +253,12 @@ public:
     SymbolRef* iteratorSymbol();
     SymbolRef* unscopablesSymbol();
 
-#ifdef ESCARGOT_ENABLE_PROMISE
     // if there is an error, executing will be stopped and returns ErrorValue
     // if thres is no job or no error, returns EmptyValue
     ValueRef* drainJobQueue();
 
     typedef void (*NewPromiseJobListener)(ExecutionStateRef* state, JobRef* job);
     void setNewPromiseJobListener(NewPromiseJobListener l);
-#endif
 };
 
 class EXPORT ContextRef {
@@ -592,12 +586,9 @@ public:
     FunctionObjectRef* jsonStringify();
     FunctionObjectRef* jsonParse();
 
-#if ESCARGOT_ENABLE_PROMISE
     FunctionObjectRef* promise();
     ObjectRef* promisePrototype();
-#endif
 
-#if ESCARGOT_ENABLE_TYPEDARRAY
     FunctionObjectRef* arrayBuffer();
     ObjectRef* arrayBufferPrototype();
     FunctionObjectRef* dataView();
@@ -620,7 +611,6 @@ public:
     ObjectRef* float32ArrayPrototype();
     ObjectRef* float64Array();
     ObjectRef* float64ArrayPrototype();
-#endif
 };
 
 class EXPORT FunctionObjectRef : public ObjectRef {
@@ -775,7 +765,6 @@ public:
     RegExpObjectOption option();
 };
 
-#ifdef ESCARGOT_ENABLE_TYPEDARRAY
 class EXPORT ArrayBufferObjectRef : public ObjectRef {
 public:
     typedef void* (*ArrayBufferObjectBufferMallocFunction)(size_t siz);
@@ -848,16 +837,12 @@ public:
     static Float64ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-#endif
-
-#ifdef ESCARGOT_ENABLE_PROMISE
 class EXPORT PromiseObjectRef : public ObjectRef {
 public:
     static PromiseObjectRef* create(ExecutionStateRef* state);
     void fulfill(ExecutionStateRef* state, ValueRef* value);
     void reject(ExecutionStateRef* state, ValueRef* reason);
 };
-#endif
 
 class EXPORT SandBoxRef {
 public:

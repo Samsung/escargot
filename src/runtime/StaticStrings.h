@@ -452,7 +452,6 @@ public:
     AtomicString getbyteOffset;
     AtomicString getLength;
     AtomicString getBuffer;
-#ifdef ESCARGOT_ENABLE_ES2015
     AtomicString getFlags;
     AtomicString getGlobal;
     AtomicString getIgnoreCase;
@@ -460,7 +459,6 @@ public:
     AtomicString getSource;
     AtomicString getSticky;
     AtomicString getUnicode;
-#endif
     AtomicString getSize;
     AtomicString getSymbolSpecies;
     AtomicString getSymbolSearch;

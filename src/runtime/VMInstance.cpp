@@ -30,12 +30,10 @@ extern size_t g_doubleInSmallValueTag;
 extern size_t g_objectRareDataTag;
 extern size_t g_symbolTag;
 
-#ifndef ESCARGOT_ENABLE_ES2015
 bool VMInstance::undefinedNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
     return false;
 }
-#endif
 
 Value VMInstance::functionPrototypeNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
@@ -104,86 +102,6 @@ bool VMInstance::stringLengthNativeSetter(ExecutionState& state, Object* self, S
 
 static ObjectPropertyNativeGetterSetterData stringLengthGetterSetterData(
     false, false, false, &VMInstance::stringLengthNativeGetter, &VMInstance::stringLengthNativeSetter);
-
-#ifndef ESCARGOT_ENABLE_ES2015
-Value VMInstance::regexpSourceNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
-{
-    if (!self->isRegExpObject(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
-    }
-
-    return Value(self->asRegExpObject(state)->source());
-}
-
-static ObjectPropertyNativeGetterSetterData regexpSourceGetterData(
-    false, false, false, &VMInstance::regexpSourceNativeGetter, &VMInstance::undefinedNativeSetter);
-
-Value VMInstance::regexpFlagsNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
-{
-    if (!self->isRegExpObject(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
-    }
-    return Value(self->asRegExpObject(state)->optionString(state));
-}
-
-static ObjectPropertyNativeGetterSetterData regexpFlagsGetterData(
-    false, false, true, &VMInstance::regexpFlagsNativeGetter, &VMInstance::undefinedNativeSetter);
-
-Value VMInstance::regexpGlobalNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
-{
-    if (!self->isRegExpObject(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
-    }
-    return Value((bool)(self->asRegExpObject(state)->option() & RegExpObject::Option::Global));
-}
-
-static ObjectPropertyNativeGetterSetterData regexpGlobalGetterData(
-    false, false, false, &VMInstance::regexpGlobalNativeGetter, &VMInstance::undefinedNativeSetter);
-
-Value VMInstance::regexpIgnoreCaseNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
-{
-    if (!self->isRegExpObject(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
-    }
-    return Value((bool)(self->asRegExpObject(state)->option() & RegExpObject::Option::IgnoreCase));
-}
-
-static ObjectPropertyNativeGetterSetterData regexpIgnoreCaseGetterData(
-    false, false, false, &VMInstance::regexpIgnoreCaseNativeGetter, &VMInstance::undefinedNativeSetter);
-
-Value VMInstance::regexpMultilineNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
-{
-    if (!self->isRegExpObject(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
-    }
-    return Value((bool)(self->asRegExpObject(state)->option() & RegExpObject::Option::MultiLine));
-}
-
-static ObjectPropertyNativeGetterSetterData regexpMultilineGetterData(
-    false, false, false, &VMInstance::regexpMultilineNativeGetter, &VMInstance::undefinedNativeSetter);
-
-Value VMInstance::regexpStickyNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
-{
-    if (!self->isRegExpObject(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
-    }
-    return Value((bool)(self->asRegExpObject(state)->option() & RegExpObject::Option::Sticky));
-}
-
-static ObjectPropertyNativeGetterSetterData regexpStickyGetterData(
-    false, false, false, &VMInstance::regexpStickyNativeGetter, &VMInstance::undefinedNativeSetter);
-
-Value VMInstance::regexpUnicodeNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
-{
-    if (!self->isRegExpObject(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
-    }
-    return Value((bool)(self->asRegExpObject(state)->option() & RegExpObject::Option::Unicode));
-}
-
-static ObjectPropertyNativeGetterSetterData regexpUnicodeGetterData(
-    false, false, false, &VMInstance::regexpUnicodeNativeGetter, &VMInstance::undefinedNativeSetter);
-#endif
 
 Value VMInstance::regexpLastIndexNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
@@ -311,24 +229,11 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
     m_defaultStructureForNotConstructorFunctionObjectInStrictMode = m_defaultStructureForNotConstructorFunctionObjectInStrictMode->addProperty(stateForInit, m_staticStrings.arguments,
                                                                                                                                                ObjectStructurePropertyDescriptor::createAccessorDescriptor(ObjectStructurePropertyDescriptor::WritablePresent));
 
-#ifndef ESCARGOT_ENABLE_ES2015
-    m_defaultStructureForBoundFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length,
-                                                                                        ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
-#else
     m_defaultStructureForBoundFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length,
                                                                                         ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
-#endif
 
     m_defaultStructureForBoundFunctionObject = m_defaultStructureForBoundFunctionObject->addProperty(stateForInit, m_staticStrings.name,
                                                                                                      ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
-
-#ifndef ESCARGOT_ENABLE_ES2015
-    m_defaultStructureForBoundFunctionObject = m_defaultStructureForBoundFunctionObject->addProperty(stateForInit, m_staticStrings.caller,
-                                                                                                     ObjectStructurePropertyDescriptor::createAccessorDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
-
-    m_defaultStructureForBoundFunctionObject = m_defaultStructureForBoundFunctionObject->addProperty(stateForInit, m_staticStrings.arguments,
-                                                                                                     ObjectStructurePropertyDescriptor::createAccessorDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
-#endif
 
     m_defaultStructureForFunctionPrototypeObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.constructor,
                                                                                             ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
@@ -342,22 +247,6 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
 
     m_defaultStructureForRegExpObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.lastIndex,
                                                                                  ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpLastIndexGetterSetterData));
-#ifndef ESCARGOT_ENABLE_ES2015
-    m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.source,
-                                                                                       ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpSourceGetterData));
-    m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.flags,
-                                                                                       ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpFlagsGetterData));
-    m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.global,
-                                                                                       ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpGlobalGetterData));
-    m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.ignoreCase,
-                                                                                       ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpIgnoreCaseGetterData));
-    m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.multiline,
-                                                                                       ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpMultilineGetterData));
-    m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.sticky,
-                                                                                       ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpStickyGetterData));
-    m_defaultStructureForRegExpObject = m_defaultStructureForRegExpObject->addProperty(stateForInit, m_staticStrings.unicode,
-                                                                                       ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpUnicodeGetterData));
-#endif
 
     m_defaultStructureForArgumentsObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length, ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
     m_defaultStructureForArgumentsObject = m_defaultStructureForArgumentsObject->addProperty(stateForInit, m_staticStrings.callee, ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
@@ -367,11 +256,9 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
     m_defaultStructureForArgumentsObjectInStrictMode = m_defaultStructureForArgumentsObjectInStrictMode->addProperty(stateForInit, m_staticStrings.callee, ObjectStructurePropertyDescriptor::createAccessorDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::NotPresent)));
     m_defaultStructureForArgumentsObjectInStrictMode = m_defaultStructureForArgumentsObjectInStrictMode->addProperty(stateForInit, m_staticStrings.caller, ObjectStructurePropertyDescriptor::createAccessorDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::NotPresent)));
 
-#if ESCARGOT_ENABLE_PROMISE
     m_jobQueue = JobQueue::create();
     m_jobQueueListener = nullptr;
     m_publicJobQueueListenerPointer = nullptr;
-#endif
 }
 
 void VMInstance::clearCaches()

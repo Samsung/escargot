@@ -21,8 +21,6 @@
 #ifndef __EscargotProxyObject__
 #define __EscargotProxyObject__
 
-#if ESCARGOT_ENABLE_PROXY_REFLECT
-
 #include "runtime/Object.h"
 #include "runtime/FunctionObject.h"
 
@@ -144,5 +142,4 @@ private:
 };
 }
 
-#endif // ESCARGOT_ENABLE_PROXY_REFLECT
 #endif // __EscargotProxyObject__

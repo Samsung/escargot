@@ -17,7 +17,6 @@
  *  USA
  */
 
-#if ESCARGOT_ENABLE_TYPEDARRAY
 #include "Escargot.h"
 #include "TypedArrayObject.h"
 #include "Context.h"
@@ -47,5 +46,3 @@ DEFINE_FN(Uint32, uint32, 4);
 DEFINE_FN(Float32, float32, 4);
 DEFINE_FN(Float64, float64, 8);
 }
-
-#endif

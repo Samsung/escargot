@@ -17,8 +17,6 @@
  *  USA
  */
 
-#ifdef ESCARGOT_ENABLE_PROMISE
-
 #include "Escargot.h"
 #include "Job.h"
 #include "Context.h"
@@ -86,5 +84,3 @@ SandBox::SandBoxResult PromiseResolveThenableJob::run()
     });
 }
 }
-
-#endif

@@ -177,12 +177,10 @@ public:
 
     void throwException(ExecutionState& state, const Value& exception);
 
-#if ESCARGOT_ENABLE_PROMISE
     JobQueue* jobQueue()
     {
         return m_jobQueue;
     }
-#endif
 
     Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& compiledCodeBlocks()
     {
@@ -247,9 +245,7 @@ private:
     // public helper variable
     void* m_virtualIdentifierCallbackPublic;
     void* m_securityPolicyCheckCallbackPublic;
-#if ESCARGOT_ENABLE_PROMISE
     JobQueue* m_jobQueue;
-#endif
 };
 }
 

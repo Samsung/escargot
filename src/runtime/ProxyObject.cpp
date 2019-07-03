@@ -17,8 +17,6 @@
  *  USA
  */
 
-#if ESCARGOT_ENABLE_PROXY_REFLECT
-
 #include "Escargot.h"
 #include "ProxyObject.h"
 #include "Context.h"
@@ -864,4 +862,3 @@ Object* ProxyObject::construct(ExecutionState& state, const size_t argc, NULLABL
     return newObj.asObject();
 }
 }
-#endif // ESCARGOT_ENABLE_PROXY_REFLECT

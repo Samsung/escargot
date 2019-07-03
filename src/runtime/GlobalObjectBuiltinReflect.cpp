@@ -17,8 +17,6 @@
  *  USA
  */
 
-#if ESCARGOT_ENABLE_PROXY_REFLECT
-
 #include "Escargot.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/Context.h"
@@ -337,5 +335,3 @@ void GlobalObject::installReflect(ExecutionState& state)
                       ObjectPropertyDescriptor(m_reflect, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 }
-
-#endif // ESCARGOT_ENABLE_PROXY_REFLECT

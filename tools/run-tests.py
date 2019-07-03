@@ -151,8 +151,8 @@ def run_test262(engine, arch):
     TEST262_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'test')
     TEST262_DIR = join(PROJECT_SOURCE_DIR, 'test', 'test262')
 
-    copy(join(TEST262_OVERRIDE_DIR, 'excludelist.orig.xml'), join(TEST262_DIR, 'test', 'config', 'excludelist.xml'))
-    copy(join(TEST262_OVERRIDE_DIR, 'test262.py'), join(TEST262_DIR, 'tools', 'packaging', 'test262.py'))
+    copy(join(TEST262_OVERRIDE_DIR, 'excludelist.orig.xml'), join(TEST262_DIR, 'excludelist.xml'))
+    # copy(join(TEST262_OVERRIDE_DIR, 'test262.py'), join(TEST262_DIR, 'tools', 'packaging', 'test262.py')) # for parallel running (we should re-implement this for es6 suite)
 
     out = open('test262_out', 'w')
 

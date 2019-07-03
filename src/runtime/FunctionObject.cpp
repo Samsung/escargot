@@ -32,10 +32,7 @@
 #include "runtime/VMInstance.h"
 #include "parser/ast/AST.h"
 #include "util/Util.h"
-
-#if ESCARGOT_ENABLE_PROXY_REFLECT
 #include "runtime/ProxyObject.h"
-#endif
 
 namespace Escargot {
 

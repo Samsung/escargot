@@ -59,9 +59,8 @@ Context::Context(VMInstance* instance)
     m_defaultStructureForRegExpObject = m_instance->m_defaultStructureForRegExpObject;
     m_defaultStructureForArgumentsObject = m_instance->m_defaultStructureForArgumentsObject;
     m_defaultStructureForArgumentsObjectInStrictMode = m_instance->m_defaultStructureForArgumentsObjectInStrictMode;
-#if ESCARGOT_ENABLE_PROMISE
     m_jobQueue = instance->m_jobQueue;
-#endif
+
     m_virtualIdentifierCallback = nullptr;
     m_securityPolicyCheckCallback = nullptr;
     m_virtualIdentifierCallbackPublic = nullptr;

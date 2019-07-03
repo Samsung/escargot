@@ -22,9 +22,7 @@
 #include "util/Vector.h"
 #include "runtime/Value.h"
 #include "parser/ScriptParser.h"
-#ifdef ESCARGOT_ENABLE_PROMISE
 #include "runtime/JobQueue.h"
-#endif
 
 #ifdef ESCARGOT_ENABLE_VENDORTEST
 namespace Escargot {
@@ -56,7 +54,7 @@ NEVER_INLINE bool eval(Escargot::Context* context, Escargot::String* str, Escarg
     if (shouldPrintScriptResult) {
         puts(executeResult.msgStr->toUTF8StringData().data());
     }
-#ifdef ESCARGOT_ENABLE_PROMISE
+
     Escargot::DefaultJobQueue* jobQueue = Escargot::DefaultJobQueue::get(context->jobQueue());
     while (jobQueue->hasNextJob()) {
         auto jobResult = jobQueue->nextJob()->run();
@@ -68,7 +66,6 @@ NEVER_INLINE bool eval(Escargot::Context* context, Escargot::String* str, Escarg
             }
         }
     }
-#endif
 
     return true;
 }

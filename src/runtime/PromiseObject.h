@@ -20,8 +20,6 @@
 #ifndef __EscargotPromiseObject__
 #define __EscargotPromiseObject__
 
-#if ESCARGOT_ENABLE_PROMISE
-
 #include "runtime/Object.h"
 
 namespace Escargot {
@@ -135,7 +133,5 @@ Value promiseResolveFunction(ExecutionState& state, Value thisValue, size_t argc
 Value promiseRejectFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
 Value promiseAllResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
 }
-
-#endif // ESCARGOT_ENABLE_PROMISE
 
 #endif // __EscargotPromiseObject__

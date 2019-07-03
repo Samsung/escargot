@@ -102,15 +102,10 @@ public:
         , m_intlDateTimeFormat(nullptr)
         , m_intlNumberFormat(nullptr)
 #endif
-#if ESCARGOT_ENABLE_PROMISE
         , m_promise(nullptr)
         , m_promisePrototype(nullptr)
-#endif
-#if ESCARGOT_ENABLE_PROXY_REFLECT
         , m_proxy(nullptr)
         , m_reflect(nullptr)
-#endif
-#if ESCARGOT_ENABLE_TYPEDARRAY
         , m_arrayBuffer(nullptr)
         , m_arrayBufferPrototype(nullptr)
         , m_dataView(nullptr)
@@ -135,7 +130,6 @@ public:
         , m_float32ArrayPrototype(nullptr)
         , m_float64Array(nullptr)
         , m_float64ArrayPrototype(nullptr)
-#endif
         , m_map(nullptr)
         , m_mapPrototype(nullptr)
         , m_mapIteratorPrototype(nullptr)
@@ -179,17 +173,11 @@ public:
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
         installIntl(state);
 #endif
-#if ESCARGOT_ENABLE_PROMISE
         installPromise(state);
-#endif
-#if ESCARGOT_ENABLE_PROXY_REFLECT
         installProxy(state);
         installReflect(state);
-#endif
-#if ESCARGOT_ENABLE_TYPEDARRAY
         installDataView(state);
         installTypedArray(state);
-#endif
         installMap(state);
         installSet(state);
         installWeakMap(state);
@@ -213,19 +201,13 @@ public:
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
     void installIntl(ExecutionState& state);
 #endif
-#if ESCARGOT_ENABLE_PROMISE
     void installPromise(ExecutionState& state);
-#endif
-#if ESCARGOT_ENABLE_PROXY_REFLECT
     void installProxy(ExecutionState& state);
     void installReflect(ExecutionState& state);
-#endif
-#if ESCARGOT_ENABLE_TYPEDARRAY
     void installDataView(ExecutionState& state);
     void installTypedArray(ExecutionState& state);
     template <typename TA, int elementSize, typename TypeAdaptor>
     FunctionObject* installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction);
-#endif
     void installIterator(ExecutionState& state);
     void installMap(ExecutionState& state);
     void installSet(ExecutionState& state);
@@ -443,7 +425,6 @@ public:
 
     const Vector<String*, gc_allocator<String*>>& intlNumberFormatAvailableLocales();
 #endif
-#if ESCARGOT_ENABLE_PROMISE
     FunctionObject* promise()
     {
         return m_promise;
@@ -452,14 +433,10 @@ public:
     {
         return m_promisePrototype;
     }
-#endif
-#if ESCARGOT_ENABLE_PROXY_REFLECT
     FunctionObject* proxy()
     {
         return m_proxy;
     }
-#endif
-#if ESCARGOT_ENABLE_TYPEDARRAY
     FunctionObject* arrayBuffer()
     {
         return m_arrayBuffer;
@@ -556,7 +533,6 @@ public:
     {
         return m_float64ArrayPrototype;
     }
-#endif
 
     FunctionObject* map()
     {
@@ -729,15 +705,10 @@ private:
     Vector<String*, gc_allocator<String*>> m_intlNumberFormatAvailableLocales;
 #endif
 
-#if ESCARGOT_ENABLE_PROMISE
     FunctionObject* m_promise;
     Object* m_promisePrototype;
-#endif
-#if ESCARGOT_ENABLE_PROXY_REFLECT
     FunctionObject* m_proxy;
     Object* m_reflect;
-#endif
-#if ESCARGOT_ENABLE_TYPEDARRAY
     FunctionObject* m_arrayBuffer;
     Object* m_arrayBufferPrototype;
     FunctionObject* m_dataView;
@@ -762,7 +733,6 @@ private:
     Object* m_float32ArrayPrototype;
     FunctionObject* m_float64Array;
     Object* m_float64ArrayPrototype;
-#endif
 
     FunctionObject* m_map;
     Object* m_mapPrototype;

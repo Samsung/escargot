@@ -1906,9 +1906,6 @@ public:
                 }
                 method = true;
             } else if (token->type == Token::IdentifierToken) {
-#if ESCARGOT_ENABLE_ES2015 == 0
-                this->throwUnexpectedToken(token);
-#endif
                 RefPtr<Node> id;
                 if (isParse) {
                     id = this->finalize(node, finishIdentifier(token, true));

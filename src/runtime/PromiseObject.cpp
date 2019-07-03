@@ -17,7 +17,6 @@
  *  USA
  */
 
-#if ESCARGOT_ENABLE_PROMISE
 #include "Escargot.h"
 #include "PromiseObject.h"
 #include "Context.h"
@@ -136,5 +135,3 @@ void PromiseObject::triggerPromiseReactions(ExecutionState& state, PromiseObject
         state.context()->jobQueue()->enqueueJob(state, new PromiseReactionJob(state.context(), reactions[i], m_promiseResult));
 }
 }
-
-#endif // ESCARGOT_ENABLE_PROMISE

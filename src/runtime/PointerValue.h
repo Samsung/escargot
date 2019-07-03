@@ -37,16 +37,10 @@ class DateObject;
 class ErrorObject;
 class GlobalObject;
 class BoundFunctionObject;
-#if ESCARGOT_ENABLE_PROMISE
 class PromiseObject;
-#endif
-#if ESCARGOT_ENABLE_PROXY_REFLECT
 class ProxyObject;
-#endif
-#if ESCARGOT_ENABLE_TYPEDARRAY
 class ArrayBufferObject;
 class ArrayBufferView;
-#endif
 class DoubleInSmallValue;
 class JSGetterSetter;
 class GlobalRegExpFunctionObject;
@@ -156,21 +150,16 @@ public:
         return false;
     }
 
-#if ESCARGOT_ENABLE_PROMISE
     virtual bool isPromiseObject() const
     {
         return false;
     }
-#endif
 
-#if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual bool isProxyObject() const
     {
         return false;
     }
-#endif
 
-#if ESCARGOT_ENABLE_TYPEDARRAY
     virtual bool isArrayBufferView() const
     {
         return false;
@@ -195,7 +184,6 @@ public:
     {
         return false;
     }
-#endif
 
     virtual bool isDoubleInSmallValue() const
     {
@@ -342,21 +330,18 @@ public:
         return (BoundFunctionObject*)this;
     }
 
-#if ESCARGOT_ENABLE_PROMISE
     PromiseObject* asPromiseObject()
     {
         ASSERT(isPromiseObject());
         return (PromiseObject*)this;
     }
-#endif
-#if ESCARGOT_ENABLE_PROXY_REFLECT
+
     ProxyObject* asProxyObject()
     {
         ASSERT(isProxyObject());
         return (ProxyObject*)this;
     }
-#endif
-#if ESCARGOT_ENABLE_TYPEDARRAY
+
     ArrayBufferObject* asArrayBufferObject()
     {
         ASSERT(isArrayBufferObject());
@@ -368,7 +353,6 @@ public:
         ASSERT(isArrayBufferView());
         return (ArrayBufferView*)this;
     }
-#endif
 
     DoubleInSmallValue* asDoubleInSmallValue()
     {

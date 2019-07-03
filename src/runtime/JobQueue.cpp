@@ -17,8 +17,6 @@
  *  USA
  */
 
-#ifdef ESCARGOT_ENABLE_PROMISE
-
 #include "Escargot.h"
 #include "JobQueue.h"
 #include "runtime/Job.h"
@@ -43,5 +41,3 @@ size_t DefaultJobQueue::enqueueJob(ExecutionState& state, Job* job)
     return 0;
 }
 }
-
-#endif
