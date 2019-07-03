@@ -45,9 +45,9 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv)
         newState.setParent(new ExecutionState(&state, globalEnvironment, m_topCodeBlock->isStrict()));
 
         EnvironmentRecord* record = new DeclarativeEnvironmentRecordNotIndexed(state, m_topCodeBlock->identifierInfos());
-        newState.setLexicalEnvironment(new LexicalEnvironment(record, globalEnvironment), m_topCodeBlock->isStrict());
+        newState.initLexicalEnvironment(new LexicalEnvironment(record, globalEnvironment), m_topCodeBlock->isStrict());
     } else {
-        newState.setLexicalEnvironment(globalEnvironment, m_topCodeBlock->isStrict());
+        newState.initLexicalEnvironment(globalEnvironment, m_topCodeBlock->isStrict());
     }
 
     Value thisValue(state.context()->globalObject());

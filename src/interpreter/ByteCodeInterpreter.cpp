@@ -67,6 +67,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
     {
         char* codeBuffer = byteCodeBlock->m_code.data();
         programCounter = (size_t)(codeBuffer + programCounter);
+        LexicalEnvironment* oldEnv = state.lexicalEnvironment();
 
         try {
 #if defined(COMPILER_GCC)
@@ -1036,8 +1037,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             {
                 WithOperation* code = (WithOperation*)programCounter;
                 size_t newPc = programCounter;
-                Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-                Value v = withOperation(state, code, registerFile[code->m_registerIndex].toObject(state), state.lexicalEnvironment(), newPc, byteCodeBlock, registerFile, stackStorage);
+                Value v = withOperation(state, code, registerFile[code->m_registerIndex].toObject(state), newPc, byteCodeBlock, registerFile);
                 if (!v.isEmpty()) {
                     return v;
                 }
@@ -1375,14 +1375,9 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             DEFINE_DEFAULT
 
         } catch (const Value& v) {
-            if (state.isOnGoingClassConstruction()) {
-                state.setOnGoingClassConstruction(false);
-                state.m_lexicalEnvironment = state.lexicalEnvironment()->outerEnvironment();
-            }
-
-            if (state.isOnGoingSuperCall()) {
-                state.setOnGoingSuperCall(false);
-            }
+            state.setLexicalEnvironment(oldEnv);
+            state.setOnGoingClassConstruction(false);
+            state.setOnGoingSuperCall(false);
 
             if (byteCodeBlock->m_codeBlock->isInterpretedCodeBlock() && byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->byteCodeBlock() == nullptr) {
                 byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->m_byteCodeBlock = byteCodeBlock;
@@ -2105,6 +2100,7 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalObjectSlowCase(ExecutionState& s
 NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, TryOperation* code, LexicalEnvironment* env, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     char* codeBuffer = byteCodeBlock->m_code.data();
+
     try {
         if (!state.ensureRareData()->m_controlFlowRecord) {
             state.ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
@@ -2129,6 +2125,7 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
 
         state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
         if (!code->m_hasCatch) {
+            state.setLexicalEnvironment(env);
             state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
             programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
         } else {
@@ -2136,17 +2133,17 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
             EnvironmentRecord* newRecord = new DeclarativeEnvironmentRecordNotIndexedForCatch();
             newRecord->createBinding(state, code->m_catchVariableName);
             newRecord->setMutableBinding(state, code->m_catchVariableName, val);
-            LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
+            state.setLexicalEnvironment(new LexicalEnvironment(newRecord, env));
+
             try {
-                ExecutionState newState(&state, newEnv, state.inStrictMode());
-                newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
                 clearStack<386>();
-                interpret(newState, byteCodeBlock, code->m_catchPosition, registerFile);
+                interpret(state, byteCodeBlock, code->m_catchPosition, registerFile);
                 programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
             } catch (const Value& val) {
                 state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
                 programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
             }
+            state.setLexicalEnvironment(env);
         }
     }
     return programCounter;
@@ -2344,7 +2341,7 @@ NEVER_INLINE void ByteCodeInterpreter::superOperation(ExecutionState& state, Sup
     }
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, WithOperation* code, Object* obj, LexicalEnvironment* env, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage)
+NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, WithOperation* code, Object* obj, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     if (!state.ensureRareData()->m_controlFlowRecord) {
         state.ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
@@ -2355,11 +2352,11 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, Wit
 
     // setup new env
     EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(obj);
-    LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
-    ExecutionState newState(&state, newEnv, state.inStrictMode());
-    newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
+    LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, state.lexicalEnvironment());
 
-    interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
+    state.setLexicalEnvironment(newEnv);
+    interpret(state, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
+    state.setLexicalEnvironment(newEnv->outerEnvironment());
 
     ControlFlowRecord* record = state.rareData()->m_controlFlowRecord->back();
     state.rareData()->m_controlFlowRecord->erase(state.rareData()->m_controlFlowRecord->size() - 1);
@@ -2712,7 +2709,6 @@ NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, c
             break;
         }
         env = env->outerEnvironment();
-        es = state.parent();
     }
 
     bool alreadyExists = false;

@@ -86,7 +86,7 @@ public:
     static void evalOperation(ExecutionState& state, CallEvalFunction* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static void classOperation(ExecutionState& state, CreateClass* code, Value* registerFile);
     static void superOperation(ExecutionState& state, SuperReference* code, Value* registerFile);
-    static Value withOperation(ExecutionState& state, WithOperation* code, Object* obj, LexicalEnvironment* env, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage);
+    static Value withOperation(ExecutionState& state, WithOperation* code, Object* obj, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static Value blockOperation(ExecutionState& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage);
     static bool binaryInOperation(ExecutionState& state, const Value& left, const Value& right);
     static Value callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, LexicalEnvironment* env, Value* argv);

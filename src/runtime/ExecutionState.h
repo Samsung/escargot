@@ -97,13 +97,18 @@ public:
         return m_lexicalEnvironment;
     }
 
-    void setLexicalEnvironment(LexicalEnvironment* lexicalEnvironment, bool inStrictMode)
+    void initLexicalEnvironment(LexicalEnvironment* lexicalEnvironment, bool inStrictMode)
     {
         ASSERT(m_lexicalEnvironment == nullptr && !m_inStrictMode);
         ASSERT(lexicalEnvironment != nullptr);
 
         m_lexicalEnvironment = lexicalEnvironment;
         m_inStrictMode = inStrictMode;
+    }
+
+    void setLexicalEnvironment(LexicalEnvironment* lexicalEnvironment)
+    {
+        m_lexicalEnvironment = lexicalEnvironment;
     }
 
     size_t stackBase()
