@@ -205,6 +205,45 @@ struct FloatTypedArrayAdaptor {
     }
 };
 
+struct Uint8ClampedAdaptor {
+    typedef uint8_t Type;
+
+    static Type toNative(ExecutionState& state, const Value& val)
+    {
+        if (val.isInt32()) {
+            return toNativeFromInt32(state, val.asInt32());
+        } else if (val.isDouble()) {
+            return toNativeFromDouble(state, val.asDouble());
+        }
+        return static_cast<Type>(val.toNumber(state));
+    }
+
+    static Type toNativeFromInt32(ExecutionState& state, int32_t value)
+    {
+        if (value < 0) {
+            return 0;
+        }
+        if (value > 255) {
+            return 255;
+        }
+        return static_cast<Type>(value);
+    }
+
+    static Type toNativeFromDouble(ExecutionState& state, double value)
+    {
+        if (std::isnan(value)) {
+            return 0;
+        }
+        if (value < 0) {
+            return 0;
+        }
+        if (value > 255) {
+            return 255;
+        }
+        return static_cast<uint8_t>(lrint(value));
+    }
+};
+
 struct Int8Adaptor : TypedArrayAdaptor<IntegralTypedArrayAdapter<int8_t>> {
 };
 struct Int16Adaptor : TypedArrayAdaptor<IntegralTypedArrayAdapter<int16_t>> {
@@ -216,8 +255,6 @@ struct Uint8Adaptor : TypedArrayAdaptor<IntegralTypedArrayAdapter<uint8_t>> {
 struct Uint16Adaptor : TypedArrayAdaptor<IntegralTypedArrayAdapter<uint16_t>> {
 };
 struct Uint32Adaptor : TypedArrayAdaptor<IntegralTypedArrayAdapter<uint32_t>> {
-};
-struct Uint8ClampedAdaptor : TypedArrayAdaptor<IntegralTypedArrayAdapter<uint8_t>> {
 };
 struct Float32Adaptor : TypedArrayAdaptor<FloatTypedArrayAdaptor<float>> {
 };
