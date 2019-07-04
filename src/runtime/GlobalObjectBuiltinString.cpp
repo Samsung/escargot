@@ -477,7 +477,6 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
     Value regexp = argv[0];
     RegExpObject* rx;
 
-#ifdef ESCARGOT_ENABLE_ES2015
     //http://www.ecma-international.org/ecma-262/6.0/#sec-string.prototype.search
     RESOLVE_THIS_BINDING_TO_OBJECT(obj, Object, search);
     if (!(regexp.isUndefinedOrNull())) {
@@ -492,26 +491,6 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
     Value func = rx->getMethod(state, rx, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().search));
     Value parameter[1] = { Value(string) };
     return Object::call(state, func, rx, 1, parameter);
-#else
-    if (regexp.isPointerValue() && regexp.asPointerValue()->isRegExpObject(state)) {
-        // If Type(regexp) is Object and the value of the [[Class]] internal property of regexp is "RegExp", then let rx be regexp;
-        rx = regexp.asPointerValue()->asRegExpObject(state);
-    } else {
-        // Else, let rx be a new RegExp object created as if by the expression new RegExp(regexp) where RegExp is the standard built-in constructor with that name.
-        rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString : regexp.toString(state), String::emptyString);
-    }
-    // Search the value string from its beginning for an occurrence of the regular expression pattern rx.
-    // Let result be a Number indicating the offset within string where the pattern matched, or –1 if there was no match.
-    // The lastIndex and global properties of regexp are ignored when performing the search. The lastIndex property of regexp is left unchanged.
-    RegexMatchResult result;
-    rx->match(state, string, result);
-    if (result.m_matchResults.size() != 0) {
-        // Return result.
-        return Value(result.m_matchResults[0][0].m_start);
-    } else {
-        return Value(-1);
-    }
-#endif
 }
 
 static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -521,7 +500,6 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
     Value limit = argv[1];
     size_t lim;
     PointerValue* P;
-#ifdef ESCARGOT_ENABLE_ES2015
     // If separator is neither undefined nor null, then
     if (!separator.isUndefinedOrNull()) {
         // Let splitter be GetMethod(separator, @@split).
@@ -538,16 +516,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
     lim = limit.isUndefined() ? (1ULL << 53) - 1 : limit.toUint32(state);
     // Let R be ToString(separator).
     P = separator.toString(state);
-#else
-    // If limit is undefined, let lim = 2^32 – 1; else let lim = ToUint32(limit).
-    lim = limit.isUndefined() ? Value::InvalidIndexValue - 1 : limit.toUint32(state);
-    // If separator is a RegExp object (its [[Class]] is "RegExp"), let R = separator; otherwise let R = ToString(separator).
-    if (separator.isPointerValue() && separator.asPointerValue()->isRegExpObject(state)) {
-        P = separator.asPointerValue()->asRegExpObject(state);
-    } else {
-        P = separator.toString(state);
-    }
-#endif /* ESCARGOT_ENABLE_ES2015 */
+
     RESOLVE_THIS_BINDING_TO_STRING(S, String, split);
     ArrayObject* A = new ArrayObject(state);
     Value searcher;

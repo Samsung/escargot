@@ -17,8 +17,6 @@
  *  USA
  */
 
-#if ESCARGOT_ENABLE_PROMISE
-
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
@@ -531,5 +529,3 @@ void GlobalObject::installPromise(ExecutionState& state)
                       ObjectPropertyDescriptor(m_promise, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 }
-
-#endif // ESCARGOT_ENABLE_PROMISE

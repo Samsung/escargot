@@ -40,15 +40,11 @@
 #include "runtime/NumberObject.h"
 #include "runtime/BooleanObject.h"
 #include "runtime/RegExpObject.h"
-#ifdef ESCARGOT_ENABLE_PROMISE
 #include "runtime/Job.h"
 #include "runtime/JobQueue.h"
 #include "runtime/PromiseObject.h"
-#endif
-#ifdef ESCARGOT_ENABLE_TYPEDARRAY
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/TypedArrayObject.h"
-#endif
 
 namespace Escargot {
 
@@ -89,14 +85,10 @@ DEFINE_CAST(EvalErrorObject);
 DEFINE_CAST(GlobalObject);
 DEFINE_CAST(FunctionObject);
 DEFINE_CAST(DateObject);
-#ifdef ESCARGOT_ENABLE_PROMISE
 DEFINE_CAST(PromiseObject);
 DEFINE_CAST(Job);
-#endif
 DEFINE_CAST(Script);
 DEFINE_CAST(ScriptParser);
-
-#if ESCARGOT_ENABLE_TYPEDARRAY
 DEFINE_CAST(ArrayBufferObject);
 DEFINE_CAST(ArrayBufferView);
 DEFINE_CAST(Int8ArrayObject);
@@ -108,7 +100,6 @@ DEFINE_CAST(Uint32ArrayObject);
 DEFINE_CAST(Uint8ClampedArrayObject);
 DEFINE_CAST(Float32ArrayObject);
 DEFINE_CAST(Float64ArrayObject);
-#endif
 
 #undef DEFINE_CAST
 
@@ -394,7 +385,6 @@ ErrorObjectRef* PointerValueRef::asErrorObject()
     return toRef(toImpl(this)->asErrorObject());
 }
 
-#if ESCARGOT_ENABLE_TYPEDARRAY
 bool PointerValueRef::isArrayBufferObject()
 {
     return toImpl(this)->isArrayBufferObject();
@@ -441,17 +431,16 @@ bool PointerValueRef::isTypedArrayPrototypeObject()
 {
     return toImpl(this)->isTypedArrayPrototypeObject();
 }
-#endif
-#if ESCARGOT_ENABLE_PROMISE
+
 bool PointerValueRef::isPromiseObject()
 {
     return toImpl(this)->isPromiseObject();
 }
+
 PromiseObjectRef* PointerValueRef::asPromiseObject()
 {
     return toRef(toImpl(this)->asPromiseObject());
 }
-#endif
 
 VMInstanceRef* VMInstanceRef::create(const char* locale, const char* timezone)
 {
@@ -509,7 +498,6 @@ SymbolRef* VMInstanceRef::unscopablesSymbol()
     return toRef(toImpl(this)->globalSymbols().unscopables);
 }
 
-#ifdef ESCARGOT_ENABLE_PROMISE
 ValueRef* VMInstanceRef::drainJobQueue()
 {
     VMInstance* imp = toImpl(this);
@@ -525,8 +513,6 @@ void VMInstanceRef::setNewPromiseJobListener(NewPromiseJobListener l)
     });
 }
 
-#endif
-
 ContextRef* ContextRef::create(VMInstanceRef* vminstanceref)
 {
     VMInstance* vminstance = toImpl(vminstanceref);
@@ -536,7 +522,6 @@ ContextRef* ContextRef::create(VMInstanceRef* vminstanceref)
 void ContextRef::clearRelatedQueuedPromiseJobs()
 {
     Context* imp = toImpl(this);
-#ifdef ESCARGOT_ENABLE_PROMISE
     DefaultJobQueue* jobQueue = DefaultJobQueue::get(imp->vmInstance()->jobQueue());
     std::list<Job*, gc_allocator<Job*>>& impl = jobQueue->impl();
     auto iter = impl.begin();
@@ -547,7 +532,6 @@ void ContextRef::clearRelatedQueuedPromiseJobs()
             iter++;
         }
     }
-#endif
 }
 
 void ContextRef::destroy()
@@ -1101,7 +1085,6 @@ FunctionObjectRef* GlobalObjectRef::jsonParse()
 }
 
 
-#if ESCARGOT_ENABLE_PROMISE
 FunctionObjectRef* GlobalObjectRef::promise()
 {
     return toRef(toImpl(this)->promise());
@@ -1112,9 +1095,6 @@ ObjectRef* GlobalObjectRef::promisePrototype()
     return toRef(toImpl(this)->promisePrototype());
 }
 
-#endif
-
-#if ESCARGOT_ENABLE_TYPEDARRAY
 FunctionObjectRef* GlobalObjectRef::arrayBuffer()
 {
     return toRef(toImpl(this)->arrayBuffer());
@@ -1224,8 +1204,6 @@ ObjectRef* GlobalObjectRef::float64ArrayPrototype()
 {
     return toRef(toImpl(this)->float64ArrayPrototype());
 }
-
-#endif
 
 class CallPublicFunctionData : public CallNativeFunctionData {
 public:
@@ -1902,8 +1880,6 @@ RegExpObjectRef::RegExpObjectOption RegExpObjectRef::option()
     return (RegExpObjectRef::RegExpObjectOption)toImpl(this)->option();
 }
 
-#ifdef ESCARGOT_ENABLE_TYPEDARRAY
-
 void ArrayBufferObjectRef::setMallocFunction(ArrayBufferObjectBufferMallocFunction fn)
 {
     g_arrayBufferObjectBufferMallocFunction = fn;
@@ -2032,13 +2008,12 @@ Uint8ClampedArrayObjectRef* Uint8ClampedArrayObjectRef::create(ExecutionStateRef
     ASSERT(state != nullptr);
     return toRef(new Uint8ClampedArrayObject(*toImpl(state)));
 }
-#endif
 
-#ifdef ESCARGOT_ENABLE_PROMISE
 PromiseObjectRef* PromiseObjectRef::create(ExecutionStateRef* state)
 {
     return toRef(new PromiseObject(*toImpl(state)));
 }
+
 void PromiseObjectRef::fulfill(ExecutionStateRef* state, ValueRef* value)
 {
     toImpl(this)->fulfillPromise(*toImpl(state), toImpl(value));
@@ -2048,7 +2023,6 @@ void PromiseObjectRef::reject(ExecutionStateRef* state, ValueRef* reason)
 {
     toImpl(this)->rejectPromise(*toImpl(state), toImpl(reason));
 }
-#endif
 
 ScriptRef* ScriptParserRef::initializeScript(ExecutionStateRef* state, StringRef* script, StringRef* fileName)
 {

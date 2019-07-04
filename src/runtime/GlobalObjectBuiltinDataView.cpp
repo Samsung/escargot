@@ -17,8 +17,6 @@
  *  USA
  */
 
-#if ESCARGOT_ENABLE_TYPEDARRAY
-
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
@@ -210,4 +208,3 @@ void GlobalObject::installDataView(ExecutionState& state)
                       ObjectPropertyDescriptor(m_dataView, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 }
-#endif

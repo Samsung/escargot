@@ -177,7 +177,6 @@ public:
         return m_toStringRecursionPreventer;
     }
 
-#if ESCARGOT_ENABLE_PROMISE
     JobQueue* jobQueue()
     {
         return m_jobQueue;
@@ -189,7 +188,6 @@ public:
 
     typedef void (*NewPromiseJobListener)(ExecutionState& state, Job* job);
     void setNewPromiseJobListener(NewPromiseJobListener l);
-#endif
 
     void addRoot(void* ptr);
     bool removeRoot(void* ptr);
@@ -264,12 +262,10 @@ private:
 #endif
     DateObject* m_cachedUTC;
 
-// promise data
-#if ESCARGOT_ENABLE_PROMISE
+    // promise data
     JobQueue* m_jobQueue;
     NewPromiseJobListener m_jobQueueListener;
     void* m_publicJobQueueListenerPointer;
-#endif
 };
 } // namespace Escargot
 

@@ -17,7 +17,6 @@
  *  USA
  */
 
-#if ESCARGOT_ENABLE_TYPEDARRAY
 #include "Escargot.h"
 #include "ArrayBufferObject.h"
 #include "Context.h"
@@ -105,5 +104,3 @@ void* ArrayBufferObject::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 }
-
-#endif

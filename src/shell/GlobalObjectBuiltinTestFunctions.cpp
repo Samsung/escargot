@@ -26,7 +26,6 @@
 
 namespace Escargot {
 
-#ifdef ESCARGOT_ENABLE_PROMISE
 static Value builtinDrainJobQueue(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     DefaultJobQueue* jobQueue = DefaultJobQueue::get(state.context()->jobQueue());
@@ -45,7 +44,6 @@ static Value builtinAddPromiseReactions(ExecutionState& state, Value thisValue, 
     promise->appendReaction(argv[1].toObject(state)->asFunctionObject(), argv[2].toObject(state)->asFunctionObject(), capability);
     return Value();
 }
-#endif // ESCARGOT_ENABLE_PROMISE
 
 static Value builtinCreateNewGlobalObject(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
@@ -57,7 +55,6 @@ void installTestFunctions(ExecutionState& state)
 {
     GlobalObject* globalObject = state.context()->globalObject();
 
-#ifdef ESCARGOT_ENABLE_PROMISE
     AtomicString drainJobQueue(state, "drainJobQueue");
     globalObject->defineOwnProperty(state, ObjectPropertyName(drainJobQueue),
                                     ObjectPropertyDescriptor(new FunctionObject(state,
@@ -68,8 +65,6 @@ void installTestFunctions(ExecutionState& state)
                                     ObjectPropertyDescriptor(new FunctionObject(state,
                                                                                 NativeFunctionInfo(addPromiseReactions, builtinAddPromiseReactions, 3, nullptr, NativeFunctionInfo::Strict)),
                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
-#endif // ESCARGOT_ENABLE_PROMISE
-
     AtomicString createNewGlobalObject(state, "createNewGlobalObject");
     globalObject->defineOwnProperty(state, ObjectPropertyName(createNewGlobalObject),
                                     ObjectPropertyDescriptor(new FunctionObject(state,

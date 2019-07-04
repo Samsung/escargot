@@ -20,8 +20,6 @@
 #ifndef __EscargotArrayBufferObject__
 #define __EscargotArrayBufferObject__
 
-#if ESCARGOT_ENABLE_TYPEDARRAY
-
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
 
@@ -126,7 +124,5 @@ private:
     unsigned m_bytelength;
 };
 }
-
-#endif
 
 #endif

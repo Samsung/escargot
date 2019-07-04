@@ -20,8 +20,6 @@
 #ifndef __EscargotJobQueue__
 #define __EscargotJobQueue__
 
-#ifdef ESCARGOT_ENABLE_PROMISE
-
 #include "Job.h"
 
 namespace Escargot {
@@ -74,5 +72,4 @@ private:
     std::list<Job*, gc_allocator<Job*>> m_jobs;
 };
 }
-#endif // ESCARGOT_ENABLE_PROMISE
 #endif // __EscargotJobQueue__

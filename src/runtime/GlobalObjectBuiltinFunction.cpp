@@ -258,11 +258,6 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
 
 static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-#ifndef ESCARGOT_ENABLE_ES2015
-    if (!thisValue.isFunction()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
-    }
-#endif
     return Value(Object::hasInstance(state, thisValue, argv[0]));
 }
 

@@ -438,11 +438,6 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, splice);
 
-#ifndef ESCARGOT_ENABLE_ES2015
-    // Let A be a new array created as if by the expression new Array()where Array is the standard built-in constructor with that name.
-    ArrayObject* A = new ArrayObject(state);
-#endif /* !ESCARGOT_ENABLE_ES2015 */
-
     // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
     // Let len be ToUint32(lenVal).
     int64_t len = O->length(state);
@@ -455,7 +450,7 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
 
     int64_t insertCount;
     int64_t actualDeleteCount;
-#ifdef ESCARGOT_ENABLE_ES2015
+
     // If the number of actual arguments is 0, then
     if (argc == 0) {
         // Let insertCount be 0.
@@ -484,18 +479,6 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
     ASSERT(val.isObject());
     ASSERT(val.asObject()->isArrayObject());
     ArrayObject* A = val.asObject()->asArrayObject();
-#else
-    // Let actualDeleteCount be min(max(ToInteger(deleteCount),0), len – actualStart).
-    // below code does not follow ECMA-262, but SpiderMonkey, v8 and JSC to this..
-    // int64_t actualDeleteCount = std::min(std::max(argv[1].toInteger(state), 0.0), (double)len - actualStart); // org code
-    double deleteCount = argv[1].toInteger(state);
-    if (argc != 1) {
-        actualDeleteCount = std::min(std::max(deleteCount, 0.0), (double)len - actualStart);
-    } else {
-        actualDeleteCount = len - actualStart;
-    }
-#endif /* ESCARGOT_ENABLE_ES2015 */
-    ASSERT(A != nullptr);
 
     // Let k be 0.
     int64_t k = 0;
@@ -649,10 +632,8 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
                 // Let len be the result of calling the [[Get]] internal method of E with argument "length".
                 uint64_t len = arr->length(state);
 
-#ifdef ESCARGOT_ENABLE_ES2015
                 // If n + len > 2^53 - 1, throw a TypeError exception.
                 CHECK_ARRAY_LENGTH(n + len, (1ULL << 53));
-#endif /* ESCARGOT_ENABLE_ES2015 */
 
                 // Repeat, while k < len
                 while (k < len) {
@@ -671,10 +652,9 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
                 n += len;
                 obj->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(n), obj);
             } else {
-#ifdef ESCARGOT_ENABLE_ES2015
                 // If n + len >= 2^53 - 1, throw a TypeError exception.
                 CHECK_ARRAY_LENGTH(n, (1ULL << 53) - 1);
-#endif /* ESCARGOT_ENABLE_ES2015 */
+
                 obj->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(arr, ObjectPropertyDescriptor::AllPresent));
                 n++;
             }
@@ -697,16 +677,12 @@ static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t ar
     uint32_t finalEnd = (relativeEnd < 0) ? std::max((double)len + relativeEnd, 0.0) : std::min(relativeEnd, (double)len);
 
     int64_t n = 0;
-#ifdef ESCARGOT_ENABLE_ES2015
     // Let count be max(final - k, 0).
     // Let A be ArraySpeciesCreate(O, count).
     Value val = arraySpeciesCreate(state, thisObject, std::max(finalEnd - k, (int64_t)0));
     ASSERT(val.isObject());
     ASSERT(val.asObject()->isArrayObject());
     ArrayObject* array = val.asObject()->asArrayObject();
-#else
-    ArrayObject* array = new ArrayObject(state);
-#endif /* ESCARGOT_ENABLE_ES2015 */
     while (k < finalEnd) {
         ObjectGetResult exists = thisObject->get(state, ObjectPropertyName(state, Value(k)));
         if (exists.hasValue()) {
@@ -998,16 +974,11 @@ static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t a
     if (argc > 1)
         T = argv[1];
 
-#ifdef ESCARGOT_ENABLE_ES2015
     // Let A be ArraySpeciesCreate(O, 0).
     Value val = arraySpeciesCreate(state, O, 0);
     ASSERT(val.isObject());
     ASSERT(val.asObject()->isArrayObject());
     ArrayObject* A = val.asObject()->asArrayObject();
-#else
-    // Let A be a new array created as if by the expression new Array() where Array is the standard built-in constructor with that name.
-    ArrayObject* A = new ArrayObject(state);
-#endif /* ESCARGOT_ENABLE_ES2015 */
 
     // Let k be 0.
     uint64_t k = 0;
@@ -1069,17 +1040,11 @@ static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc
     if (argc > 1)
         T = argv[1];
 
-#ifdef ESCARGOT_ENABLE_ES2015
     // Let A be ArraySpeciesCreate(O, len).
     Value val = arraySpeciesCreate(state, O, len);
     ASSERT(val.isObject());
     ASSERT(val.asObject()->isArrayObject());
     ArrayObject* A = val.asObject()->asArrayObject();
-#else
-    // Let A be a new array created as if by the expression new Array(len) where Array is the standard built-in constructor with that name and len is the value of len.
-    ArrayObject* A = new ArrayObject(state);
-#endif /* ESCARGOT_ENABLE_ES2015 */
-    ASSERT(A != nullptr);
 
     // Let k be 0.
     uint64_t k = 0;
@@ -1474,10 +1439,10 @@ static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t arg
     // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
     // Let n be ToUint32(lenVal).
     int64_t n = O->length(state);
-#ifdef ESCARGOT_ENABLE_ES2015
+
     // If len + argCount > 2^53 - 1, throw a TypeError exception.
     CHECK_ARRAY_LENGTH((size_t)n + argc, (1ULL << 53));
-#endif /* ESCARGOT_ENABLE_ES2015 */
+
     // Let items be an internal List whose elements are, in left to right order, the arguments that were passed to this function invocation.
     // Repeat, while items is not empty
     // Remove the first element from items and let E be the value of the element.
@@ -1574,10 +1539,9 @@ static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t 
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-array.prototype.unshift
     // http://www.ecma-international.org/ecma-262/5.1/#sec-15.4.4.13
     if (argCount) {
-#ifdef ESCARGOT_ENABLE_ES2015
         // If len + argCount > 2^53 - 1, throw a TypeError exception.
         CHECK_ARRAY_LENGTH(size_t(len + argCount), (1ULL << 53));
-#endif /* ESCARGOT_ENABLE_ES2015 */
+
         // Repeat, while k > 0,
         while (k > 0) {
             // Let from be ToString(k–1).

@@ -32,13 +32,11 @@ class Object;
 class FunctionObject;
 class RegExpObject;
 class ErrorObject;
-#if ESCARGOT_ENABLE_TYPEDARRAY
 class ArrayBufferObject;
 class ArrayBufferView;
 class DataViewObject;
 template <typename TypeArg, int elementSize>
 class TypedArrayObject;
-#endif
 
 extern size_t g_objectRareDataTag;
 
@@ -51,9 +49,7 @@ struct ObjectRareData : public PointerValue {
     bool m_hasNonWritableLastIndexRegexpObject : 1;
     void* m_extraData;
     Object* m_prototype;
-#ifdef ESCARGOT_ENABLE_PROMISE
     Object* m_internalSlot;
-#endif
     explicit ObjectRareData(Object* obj);
 
     void* operator new(size_t size);
@@ -558,7 +554,6 @@ public:
 
     String* optionString(ExecutionState& state);
 
-#if ESCARGOT_ENABLE_TYPEDARRAY
     ArrayBufferObject* asArrayBufferObject()
     {
         ASSERT(isArrayBufferObject());
@@ -583,16 +578,11 @@ public:
         ASSERT(isTypedArrayObject());
         return (TypedArrayType*)this;
     }
-#endif
 
     bool isConcatSpreadable(ExecutionState& state);
 
-// http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-isextensiblie
-#if ESCARGOT_ENABLE_PROXY_REFLECT
+    // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-isextensiblie
     virtual bool isExtensible(ExecutionState&)
-#else
-    bool isExtensible(ExecutionState&)
-#endif
     {
         return rareData() == nullptr ? true : rareData()->m_isExtensible;
     }
@@ -604,11 +594,7 @@ public:
         return true;
     }
 
-#if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual Value getPrototype(ExecutionState&)
-#else
-    Value getPrototype(ExecutionState&)
-#endif
     {
         if (LIKELY(m_prototype != nullptr)) {
             if (UNLIKELY(g_objectRareDataTag == *(size_t*)m_prototype)) {
@@ -624,11 +610,7 @@ public:
         return Value(Value::Null);
     }
 
-#if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual Object* getPrototypeObject(ExecutionState&)
-#else
-    Object* getPrototypeObject(ExecutionState&)
-#endif
     {
         Object* prototype = m_prototype;
 
@@ -638,11 +620,7 @@ public:
         return prototype;
     }
 
-#if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual bool setPrototype(ExecutionState& state, const Value& proto);
-#else
-    bool setPrototype(ExecutionState& state, const Value& proto);
-#endif
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
@@ -657,28 +635,15 @@ public:
         return getOwnProperty(state, propertyName).hasValue();
     }
 
-#if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual bool hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
-#else
-    bool hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
-#endif
     {
         return get(state, propertyName).hasValue();
     }
 
     ValueVector getOwnPropertyKeys(ExecutionState& state);
 
-#if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P);
-#else
-    ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P);
-#endif
-
-#if ESCARGOT_ENABLE_PROXY_REFLECT
     virtual bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
-#else
-    bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
-#endif
 
     void setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
     void setThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);

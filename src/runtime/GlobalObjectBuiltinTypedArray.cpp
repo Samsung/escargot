@@ -17,8 +17,6 @@
  *  USA
  */
 
-#if ESCARGOT_ENABLE_TYPEDARRAY
-
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
@@ -1794,5 +1792,3 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     m_float64ArrayPrototype = m_float64Array->getFunctionPrototype(state).asObject();
 }
 }
-
-#endif // ESCARGOT_ENABLE_TYPEDARRAY

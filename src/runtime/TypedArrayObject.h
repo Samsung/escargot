@@ -20,8 +20,6 @@
 #ifndef __EscargotTypedArrayObject__
 #define __EscargotTypedArrayObject__
 
-#if ESCARGOT_ENABLE_TYPEDARRAY
-
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/ArrayBufferObject.h"
@@ -514,7 +512,5 @@ public:
     }
 };
 }
-
-#endif
 
 #endif

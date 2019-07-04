@@ -37,10 +37,7 @@
 #include "parser/ScriptParser.h"
 #include "util/Util.h"
 #include "../third_party/checked_arithmetic/CheckedArithmetic.h"
-
-#if ESCARGOT_ENABLE_PROXY_REFLECT
 #include "runtime/ProxyObject.h"
-#endif
 
 namespace Escargot {
 
@@ -1506,7 +1503,6 @@ NEVER_INLINE Object* ByteCodeInterpreter::newOperation(ExecutionState& state, co
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-instanceofoperator
 NEVER_INLINE Value ByteCodeInterpreter::instanceOfOperation(ExecutionState& state, const Value& left, const Value& right)
 {
-#if ESCARGOT_ENABLE_ES2015
     // If Type(C) is not Object, throw a TypeError exception.
     if (!right.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
@@ -1519,7 +1515,7 @@ NEVER_INLINE Value ByteCodeInterpreter::instanceOfOperation(ExecutionState& stat
         Value arg[1] = { left };
         return Value(Object::call(state, instOfHandler, right, 1, arg).toBoolean(state));
     }
-#endif
+
     // If IsCallable(C) is false, throw a TypeError exception.
     if (!right.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);

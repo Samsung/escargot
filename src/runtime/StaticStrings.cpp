@@ -84,7 +84,6 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     getLength.init(atomicStringMap, "get length", strlen("get length"));
     getBuffer.init(atomicStringMap, "get buffer", strlen("get buffer"));
     getSize.init(atomicStringMap, "get size", strlen("get size"));
-#ifdef ESCARGOT_ENABLE_ES2015
     getFlags.init(atomicStringMap, "get flags", strlen("get flags"));
     getGlobal.init(atomicStringMap, "get global", strlen("get global"));
     getIgnoreCase.init(atomicStringMap, "get ignoreCase", strlen("get ignoreCase"));
@@ -92,7 +91,6 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     getSource.init(atomicStringMap, "get source", strlen("get source"));
     getSticky.init(atomicStringMap, "get sticky", strlen("get sticky"));
     getUnicode.init(atomicStringMap, "get unicode", strlen("get unicode"));
-#endif
     getSymbolSpecies.init(atomicStringMap, "get [Symbol.species]", strlen("get [Symbol.species]"));
     getSymbolSearch.init(atomicStringMap, "get [Symbol.search]", strlen("get [Symbol.search]"));
     getSymbolToStringTag.init(atomicStringMap, "get [Symbol.toStringTag]", strlen("get [Symbol.toStringTag]"));

@@ -44,11 +44,6 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
             if (patternConstructor == state.resolveCallee())
                 return pattern;
         }
-#ifndef ESCARGOT_ENABLE_ES2015
-        else
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot supply flags when constructing one RegExp from another");
-    }
-#else
     }
     // If Type(pattern) is Object and pattern has a [[RegExpMatcher]] internal slot, then
     if (pattern.isObject() && pattern.asObject()->isRegExpObject(state)) {
@@ -59,7 +54,6 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
         // Else, let F be flags.
         option = flags.isUndefined() ? patternRegExp->optionString(state) : flags.toString(state);
     }
-#endif /* !ESCARGOT_ENABLE_ES2015 */
 
     RegExpObject* regexp;
     if (isNewExpression && thisValue.isObject() && thisValue.asObject()->isRegExpObject(state)) {
@@ -359,8 +353,6 @@ GlobalRegExpFunctionObject::GlobalRegExpFunctionObject(ExecutionState& state)
     initInternalProperties(state);
 }
 
-#ifdef ESCARGOT_ENABLE_ES2015
-
 static Value builtinRegExpOptionGetterHelper(ExecutionState& state, Value thisValue, unsigned int option)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isRegExpObject(state)) {
@@ -418,8 +410,6 @@ static Value builtinRegExpUnicodeGetter(ExecutionState& state, Value thisValue, 
     return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::Unicode);
 }
 
-#endif
-
 void GlobalObject::installRegExp(ExecutionState& state)
 {
     m_regexp = new GlobalRegExpFunctionObject(state);
@@ -438,7 +428,6 @@ void GlobalObject::installRegExp(ExecutionState& state)
     m_regexpPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     m_regexpPrototype->setPrototype(state, m_objectPrototype);
 
-#ifdef ESCARGOT_ENABLE_ES2015
     {
         Value getter = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getFlags, builtinRegExpFlagsGetter, 0, nullptr, NativeFunctionInfo::Strict));
         JSGetterSetter gs(getter, Value());
@@ -487,8 +476,6 @@ void GlobalObject::installRegExp(ExecutionState& state)
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         m_regexpPrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().unicode), desc);
     }
-
-#endif
 
     m_regexpPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_regexp, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

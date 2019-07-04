@@ -20,8 +20,6 @@
 #ifndef __EscargotDataViewObject__
 #define __EscargotDataViewObject__
 
-#if ESCARGOT_ENABLE_TYPEDARRAY
-
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/ArrayBufferObject.h"
@@ -156,7 +154,5 @@ public:
 private:
 };
 }
-
-#endif
 
 #endif

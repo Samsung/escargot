@@ -20,8 +20,6 @@
 #ifndef __EscargotJob__
 #define __EscargotJob__
 
-#ifdef ESCARGOT_ENABLE_PROMISE
-
 #include "SandBox.h"
 #include "runtime/PromiseObject.h"
 
@@ -105,5 +103,4 @@ private:
 class ScriptJob : public Job {
 };
 }
-#endif // ESCARGOT_ENABLE_PROMISE
 #endif // __EscargotJob__

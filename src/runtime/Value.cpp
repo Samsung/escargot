@@ -39,7 +39,6 @@
 
 namespace Escargot {
 
-#if defined(ESCARGOT_ENABLE_PROMISE) || defined(ESCARGOT_ENABLE_TYPEDARRAY)
 bool Value::isIterable() const
 {
     if (isString())
@@ -52,14 +51,11 @@ bool Value::isIterable() const
 
     if (object->isArrayObject())
         return true;
-#ifdef ESCARGOT_ENABLE_TYPEDARRAY
     if (object->isTypedArrayObject())
         return true;
-#endif
 
     return false;
 }
-#endif
 
 bool Value::isCallable() const
 {

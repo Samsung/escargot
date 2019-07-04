@@ -27,11 +27,7 @@
 namespace Escargot {
 
 BoundFunctionObject::BoundFunctionObject(ExecutionState& state, Value& targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv, const Value& length, const Value& name)
-#ifndef ESCARGOT_ENABLE_ES2015
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 4, false)
-#else
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2, false)
-#endif
     , m_boundTargetFunction(targetFunction)
     , m_boundThis(boundThis)
 {
@@ -40,13 +36,6 @@ BoundFunctionObject::BoundFunctionObject(ExecutionState& state, Value& targetFun
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = length;
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = name;
 
-#ifndef ESCARGOT_ENABLE_ES2015
-    // Call the [[DefineOwnProperty]] internal method of F with arguments "caller", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
-    // Call the [[DefineOwnProperty]] internal method of F with arguments "arguments", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
-    auto data = state.context()->globalObject()->throwerGetterSetterData();
-    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(data);
-    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3] = Value(data);
-#endif
     Value proto = targetFunction.asObject()->getPrototype(state);
     Object::setPrototype(state, proto);
 
