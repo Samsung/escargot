@@ -33,16 +33,9 @@
 
 namespace Escargot {
 
-Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, bool isOnGlobal)
+Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv)
 {
-    RefPtr<Node> programNode = m_topCodeBlock->cachedASTNode();
-    if (m_topCodeBlock->m_cachedASTNode) {
-        m_topCodeBlock->m_cachedASTNode->deref();
-    }
-    m_topCodeBlock->m_cachedASTNode = nullptr;
-    ASSERT(programNode && programNode->type() == ASTNodeType::Program);
-
-    m_topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), m_topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, isOnGlobal);
+    ASSERT(m_topCodeBlock != nullptr);
 
     LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, m_topCodeBlock, state.context()->globalObject(), isEvalMode, !needNewEnv), nullptr);
     ExecutionState newState(state.context());
@@ -76,39 +69,10 @@ Value Script::execute(ExecutionState& state, bool isEvalMode, bool needNewEnv, b
     return resultValue;
 }
 
-Script::ScriptSandboxExecuteResult Script::sandboxExecute(ExecutionState& state)
-{
-    ScriptSandboxExecuteResult result;
-    SandBox sb(state.context());
-    ExecutionState stateForInit(&state, nullptr, false);
-
-    auto sandBoxResult = sb.run([&]() -> Value {
-        return execute(stateForInit, false, false, true);
-    });
-    result.result = sandBoxResult.result;
-    result.msgStr = sandBoxResult.msgStr;
-    result.error.errorValue = sandBoxResult.error;
-    if (!sandBoxResult.error.isEmpty()) {
-        for (size_t i = 0; i < sandBoxResult.stackTraceData.size(); i++) {
-            ScriptSandboxExecuteResult::Error::StackTrace t;
-            t.fileName = sandBoxResult.stackTraceData[i].fileName;
-            t.line = sandBoxResult.stackTraceData[i].loc.line;
-            t.column = sandBoxResult.stackTraceData[i].loc.column;
-            result.error.stackTrace.pushBack(t);
-        }
-    }
-    return result;
-}
-
 // NOTE: eval by direct call
-Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isEvalMode, bool needNewRecord)
+Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool needNewRecord)
 {
-    RefPtr<Node> programNode = m_topCodeBlock->cachedASTNode();
-    ASSERT(programNode && programNode->type() == ASTNodeType::Program);
-    if (m_topCodeBlock->m_cachedASTNode) {
-        m_topCodeBlock->m_cachedASTNode->deref();
-    }
-    m_topCodeBlock->m_cachedASTNode = nullptr;
+    ASSERT(m_topCodeBlock != nullptr);
 
     bool isOnGlobal = true;
     FunctionEnvironmentRecord* fnRecord = nullptr;
@@ -123,8 +87,6 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
             env = env->outerEnvironment();
         }
     }
-
-    m_topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), m_topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, isOnGlobal);
 
     EnvironmentRecord* record;
     bool inStrict = false;

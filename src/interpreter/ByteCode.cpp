@@ -95,8 +95,9 @@ void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
         RefPtr<ProgramNode> nd = esprima::parseProgram(c, m_codeBlock->asInterpretedCodeBlock()->src(), m_codeBlock->asInterpretedCodeBlock()->isStrict(), SIZE_MAX);
         block = ByteCodeGenerator::generateByteCode(c, m_codeBlock->asInterpretedCodeBlock(), nd.get(), nd->scopeContext(), m_isEvalMode, m_isOnGlobal, true);
     } else {
-        auto ret = c->scriptParser().parseFunction(m_codeBlock->asInterpretedCodeBlock(), SIZE_MAX);
-        block = ByteCodeGenerator::generateByteCode(c, m_codeBlock->asInterpretedCodeBlock(), std::get<0>(ret).get(), std::get<1>(ret), m_isEvalMode, m_isOnGlobal, true);
+        ASTScopeContext* scopeContext = nullptr;
+        auto body = esprima::parseSingleFunction(c, m_codeBlock->asInterpretedCodeBlock(), scopeContext, SIZE_MAX);
+        block = ByteCodeGenerator::generateByteCode(c, m_codeBlock->asInterpretedCodeBlock(), body.get(), scopeContext, m_isEvalMode, m_isOnGlobal, true);
     }
     m_locData = block->m_locData;
     block->m_locData = nullptr;

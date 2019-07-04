@@ -6151,23 +6151,22 @@ RefPtr<ProgramNode> parseProgram(::Escargot::Context* ctx, StringView source, bo
     return nd;
 }
 
-std::tuple<RefPtr<Node>, ASTScopeContext*> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, size_t stackRemain)
+RefPtr<Node> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, ASTScopeContext*& scopeContext, size_t stackRemain)
 {
     Parser parser(ctx, codeBlock->src(), stackRemain, codeBlock->sourceElementStart());
     parser.trackUsingNames = false;
     parser.config.parseSingleFunction = true;
     parser.config.parseSingleFunctionTarget = codeBlock;
     parser.config.reparseArguments = codeBlock->shouldReparseArguments();
-    auto sc = new ASTScopeContext(codeBlock->isStrict());
-    parser.pushScopeContext(sc);
+
+    scopeContext = new ASTScopeContext(codeBlock->isStrict());
+    parser.pushScopeContext(scopeContext);
     parser.context->allowYield = !codeBlock->isGenerator();
-    RefPtr<Node> nd;
+
     if (codeBlock->isArrowFunctionExpression()) {
-        nd = parser.parseArrowFunctionSourceElements();
-    } else {
-        nd = parser.parseFunctionSourceElements();
+        return parser.parseArrowFunctionSourceElements();
     }
-    return std::make_tuple(nd, sc);
+    return parser.parseFunctionSourceElements();
 }
 
 } // namespace esprima

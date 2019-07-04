@@ -153,113 +153,128 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCode
     }
 }
 
-ScriptParser::ScriptParserResult ScriptParser::parse(StringView scriptSource, String* fileName, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, size_t stackSizeRemain)
+Script* ScriptParser::initializeScript(ExecutionState& state, StringView scriptSource, String* fileName, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool isOnGlobal, size_t stackSizeRemain, bool needByteCodeGeneration)
 {
-    Script* script = nullptr;
-    ScriptParseError* error = nullptr;
+    Script* script = new Script(fileName, new StringView(scriptSource));
+    generateProgramCodeBlock(state, scriptSource, script, parentCodeBlock, strictFromOutside, isEvalCodeInFunction, isEvalMode, isOnGlobal, stackSizeRemain, needByteCodeGeneration);
+
+    return script;
+}
+
+void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView scriptSource, Script* script, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool isOnGlobal, size_t stackSizeRemain, bool needByteCodeGeneration)
+{
+    ASSERT(script != nullptr);
+
+    InterpretedCodeBlock* topCodeBlock = nullptr;
+    RefPtr<ProgramNode> programNode;
 
     GC_disable();
 
+    // Parsing
     try {
         m_context->vmInstance()->m_parsedSourceCodes.push_back(scriptSource.string());
-        RefPtr<ProgramNode> program = esprima::parseProgram(m_context, scriptSource, strictFromOutside, stackSizeRemain);
+        programNode = esprima::parseProgram(m_context, scriptSource, strictFromOutside, stackSizeRemain);
 
-        script = new Script(fileName, new StringView(scriptSource));
-        InterpretedCodeBlock* topCodeBlock;
         if (parentCodeBlock) {
-            program->scopeContext()->m_hasEval = parentCodeBlock->hasEval();
-            program->scopeContext()->m_hasWith = parentCodeBlock->hasWith();
-            program->scopeContext()->m_hasCatch = parentCodeBlock->hasCatch();
-            program->scopeContext()->m_hasYield = parentCodeBlock->hasYield();
-            program->scopeContext()->m_isClassConstructor = parentCodeBlock->isClassConstructor();
-            topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, scriptSource, script, program->scopeContext(), parentCodeBlock);
+            programNode->scopeContext()->m_hasEval = parentCodeBlock->hasEval();
+            programNode->scopeContext()->m_hasWith = parentCodeBlock->hasWith();
+            programNode->scopeContext()->m_hasCatch = parentCodeBlock->hasCatch();
+            programNode->scopeContext()->m_hasYield = parentCodeBlock->hasYield();
+            programNode->scopeContext()->m_isClassConstructor = parentCodeBlock->isClassConstructor();
+            topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, scriptSource, script, programNode->scopeContext(), parentCodeBlock);
             topCodeBlock->m_isEvalCodeInFunction = true;
             topCodeBlock->m_isInWithScope = parentCodeBlock->m_isInWithScope;
         } else {
-            topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, program.get());
+            topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, programNode.get());
         }
-
         topCodeBlock->m_isEvalCodeInFunction = isEvalCodeInFunction;
 
         generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
 
-        program->ref();
-        topCodeBlock->m_cachedASTNode = program.get();
         script->m_topCodeBlock = topCodeBlock;
 
 // dump Code Block
 #ifndef NDEBUG
         if (getenv("DUMP_CODEBLOCK_TREE") && strlen(getenv("DUMP_CODEBLOCK_TREE"))) {
-            std::function<void(InterpretedCodeBlock*, size_t depth)> fn = [&fn](InterpretedCodeBlock* cb, size_t depth) {
+            dumpCodeBlockTree(topCodeBlock);
+        }
+#endif
+    } catch (esprima::Error& orgError) {
+        GC_enable();
+        ErrorObject::throwBuiltinError(state, orgError.errorCode, orgError.message->toUTF8StringData().data());
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    GC_enable();
+    ASSERT(script->m_topCodeBlock == topCodeBlock);
+
+    // Generate ByteCode
+    if (LIKELY(needByteCodeGeneration)) {
+        topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, isOnGlobal);
+    }
+}
+
+void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain)
+{
+    RefPtr<Node> body;
+    ASTScopeContext* scopeContext = nullptr;
+
+    // Parsing
+    try {
+        body = esprima::parseSingleFunction(m_context, codeBlock, scopeContext, stackSizeRemain);
+    } catch (esprima::Error& orgError) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, orgError.message->toUTF8StringData().data());
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    // Generate ByteCode
+    codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), codeBlock, body.get(), scopeContext, false, false, false);
+}
+
+#ifndef NDEBUG
+void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
+{
+    std::function<void(InterpretedCodeBlock*, size_t depth)> fn = [&fn](InterpretedCodeBlock* cb, size_t depth) {
 
 #define PRINT_TAB()                      \
     for (size_t i = 0; i < depth; i++) { \
         printf("  ");                    \
     }
 
-                PRINT_TAB()
-                printf("CodeBlock %s %s (%d:%d -> %d:%d)(%s, %s) (E:%d, W:%d, C:%d, Y:%d, A:%d)\n", cb->m_functionName.string()->toUTF8StringData().data(),
-                       cb->m_isStrict ? "Strict" : "",
-                       (int)cb->m_locStart.line,
-                       (int)cb->m_locStart.column,
-                       (int)cb->m_locEnd.line,
-                       (int)cb->m_locEnd.column,
-                       cb->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap",
-                       cb->m_canUseIndexedVariableStorage ? "Indexed" : "Named",
-                       (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasCatch, (int)cb->m_hasYield, (int)cb->m_usesArgumentsObject);
+        PRINT_TAB()
+        printf("CodeBlock %s %s (%d:%d -> %d:%d)(%s, %s) (E:%d, W:%d, C:%d, Y:%d, A:%d)\n", cb->m_functionName.string()->toUTF8StringData().data(),
+               cb->m_isStrict ? "Strict" : "",
+               (int)cb->m_locStart.line,
+               (int)cb->m_locStart.column,
+               (int)cb->m_locEnd.line,
+               (int)cb->m_locEnd.column,
+               cb->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap",
+               cb->m_canUseIndexedVariableStorage ? "Indexed" : "Named",
+               (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasCatch, (int)cb->m_hasYield, (int)cb->m_usesArgumentsObject);
 
-                PRINT_TAB()
-                printf("Names: ");
-                for (size_t i = 0; i < cb->m_identifierInfos.size(); i++) {
-                    printf("%s(%s, %s, %d), ", cb->m_identifierInfos[i].m_name.string()->toUTF8StringData().data(),
-                           cb->m_identifierInfos[i].m_needToAllocateOnStack ? "Stack" : "Heap",
-                           cb->m_identifierInfos[i].m_isMutable ? "Mutable" : "Inmmutable",
-                           (int)cb->m_identifierInfos[i].m_indexForIndexedStorage);
-                }
-                puts("");
-
-                PRINT_TAB()
-                printf("Using Names: ");
-                for (size_t i = 0; i < cb->m_scopeContext->m_usingNames.size(); i++) {
-                    printf("%s, ", cb->m_scopeContext->m_usingNames[i].string()->toUTF8StringData().data());
-                }
-                puts("");
-
-                for (size_t i = 0; i < cb->m_childBlocks.size(); i++) {
-                    fn(cb->m_childBlocks[i], depth + 1);
-                }
-
-            };
-            fn(topCodeBlock, 0);
+        PRINT_TAB()
+        printf("Names: ");
+        for (size_t i = 0; i < cb->m_identifierInfos.size(); i++) {
+            printf("%s(%s, %s, %d), ", cb->m_identifierInfos[i].m_name.string()->toUTF8StringData().data(),
+                   cb->m_identifierInfos[i].m_needToAllocateOnStack ? "Stack" : "Heap",
+                   cb->m_identifierInfos[i].m_isMutable ? "Mutable" : "Inmmutable",
+                   (int)cb->m_identifierInfos[i].m_indexForIndexedStorage);
         }
+        puts("");
+
+        PRINT_TAB()
+        printf("Using Names: ");
+        for (size_t i = 0; i < cb->m_scopeContext->m_usingNames.size(); i++) {
+            printf("%s, ", cb->m_scopeContext->m_usingNames[i].string()->toUTF8StringData().data());
+        }
+        puts("");
+
+        for (size_t i = 0; i < cb->m_childBlocks.size(); i++) {
+            fn(cb->m_childBlocks[i], depth + 1);
+        }
+
+    };
+    fn(topCodeBlock, 0);
+}
 #endif
-
-    } catch (esprima::Error& orgError) {
-        script = nullptr;
-        error = new ScriptParseError();
-        error->column = orgError.column;
-        error->description = orgError.description;
-        error->index = orgError.index;
-        error->lineNumber = orgError.lineNumber;
-        error->message = orgError.message;
-        error->name = orgError.name;
-        error->errorCode = orgError.errorCode;
-    }
-
-    GC_enable();
-
-    ScriptParser::ScriptParserResult result(script, error);
-    return result;
-}
-
-std::tuple<RefPtr<Node>, ASTScopeContext*> ScriptParser::parseFunction(InterpretedCodeBlock* codeBlock, size_t stackSizeRemain, ExecutionState* state)
-{
-    try {
-        std::tuple<RefPtr<Node>, ASTScopeContext*> body = esprima::parseSingleFunction(m_context, codeBlock, stackSizeRemain);
-        return body;
-    } catch (esprima::Error& orgError) {
-        ErrorObject::throwBuiltinError(*state, ErrorObject::SyntaxError, orgError.message->toUTF8StringData().data());
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-}
 }

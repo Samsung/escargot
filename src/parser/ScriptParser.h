@@ -38,37 +38,22 @@ class ScriptParser : public gc {
 public:
     explicit ScriptParser(Context* c);
 
-    struct ScriptParseError : public gc {
-        String* name;
-        String* message;
-        size_t index;
-        size_t lineNumber;
-        size_t column;
-        String* description;
-        ErrorObject::Code errorCode;
-    };
-    struct ScriptParserResult : public gc {
-        ScriptParserResult(Script* script, ScriptParseError* error)
-            : m_script(script)
-            , m_error(error)
-        {
-        }
-
-        Script* m_script;
-        ScriptParseError* m_error;
-    };
-
-    ScriptParserResult parse(String* script, String* fileName = String::emptyString, bool strictFromOutside = false, bool isEvalCodeInFunction = false, size_t stackSizeRemain = SIZE_MAX)
+    Script* initializeScript(ExecutionState& state, StringView scriptSource, String* fileName, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool isOnGlobal, size_t stackSizeRemain, bool needByteCodeGeneration = true);
+    Script* initializeScript(ExecutionState& state, String* scriptSource, String* fileName, bool strictFromOutside = false, bool isEvalCodeInFunction = false, bool isEvalMode = false, bool isOnGlobal = true, size_t stackSizeRemain = SIZE_MAX)
     {
-        return parse(StringView(script, 0, script->length()), fileName, nullptr, strictFromOutside, isEvalCodeInFunction, stackSizeRemain);
+        return initializeScript(state, StringView(scriptSource, 0, scriptSource->length()), fileName, nullptr, strictFromOutside, isEvalCodeInFunction, isEvalMode, isOnGlobal, stackSizeRemain);
     }
-    ScriptParserResult parse(StringView script, String* fileName = String::emptyString, InterpretedCodeBlock* parentCodeBlock = nullptr, bool strictFromOutside = false, bool isEvalCodeInFunction = false, size_t stackSizeRemain = SIZE_MAX);
-    std::tuple<RefPtr<Node>, ASTScopeContext*> parseFunction(InterpretedCodeBlock* codeBlock, size_t stackSizeRemain, ExecutionState* state = nullptr);
+
+    void generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain);
 
 private:
     InterpretedCodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program);
     InterpretedCodeBlock* generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock);
     void generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb);
+    void generateProgramCodeBlock(ExecutionState& state, StringView scriptSource, Script* script, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool isOnGlobal, size_t stackSizeRemain, bool needByteCodeGeneration);
+#ifndef NDEBUG
+    void dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock);
+#endif
 
     Context* m_context;
 };

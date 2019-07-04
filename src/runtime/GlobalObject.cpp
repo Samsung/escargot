@@ -106,18 +106,8 @@ static Value builtinLoad(ExecutionState& state, Value thisValue, size_t argc, Va
 
     String* src = builtinHelperFileRead(state, fileName, state.context()->staticStrings().load);
     Context* context = state.context();
-    auto result = context->scriptParser().parse(src, argv[0].toString(state));
-    if (!result.m_error) {
-        return result.m_script->execute(state, false, false, true);
-    } else {
-        auto err = result.m_error->message->toUTF8StringData();
-        String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
-        char msg[1024];
-        snprintf(msg, sizeof(msg), "%%s: %s", err.data());
-        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, globalObjectString, false, state.context()->staticStrings().load.string(), msg);
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-    RELEASE_ASSERT_NOT_REACHED();
+    Script* script = context->scriptParser().initializeScript(state, src, argv[0].toString(state));
+    return script->execute(state, false, false);
 }
 
 static Value builtinRead(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -136,19 +126,9 @@ static Value builtinRun(ExecutionState& state, Value thisValue, size_t argc, Val
     const char* fileName = f.data();
     String* src = builtinHelperFileRead(state, fileName, state.context()->staticStrings().run);
     Context* context = state.context();
-    auto result = context->scriptParser().parse(src, argv[0].toString(state));
-    if (!result.m_error) {
-        result.m_script->execute(state, false, false, true);
-        return Value(DateObject::currentTime() - startTime);
-    } else {
-        auto err = result.m_error->message->toUTF8StringData();
-        String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
-        char msg[1024];
-        snprintf(msg, sizeof(msg), "%%s: %s", err.data());
-        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, globalObjectString, false, state.context()->staticStrings().load.string(), msg);
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-    RELEASE_ASSERT_NOT_REACHED();
+    Script* script = context->scriptParser().initializeScript(state, src, argv[0].toString(state));
+    script->execute(state, false, false);
+    return Value(DateObject::currentTime() - startTime);
 }
 
 #endif
@@ -218,15 +198,10 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
 #else
         size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
 #endif
-        ScriptParser::ScriptParserResult parserResult = parser.parse(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), nullptr, strictFromOutside, false, stackRemainApprox);
-        if (parserResult.m_error) {
-            ErrorObject* err = ErrorObject::createError(state, parserResult.m_error->errorCode, parserResult.m_error->message);
-            state.throwException(err);
-        }
-        bool needNewEnv = parserResult.m_script->topCodeBlock()->isStrict();
+        Script* script = parser.initializeScript(state, StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), nullptr, strictFromOutside, false, true, true, stackRemainApprox);
         // In case of indirect call, use global execution context
         ExecutionState stateForNewGlobal(m_context);
-        return parserResult.m_script->execute(stateForNewGlobal, true, needNewEnv, true);
+        return script->execute(stateForNewGlobal, true, script->topCodeBlock()->isStrict());
     }
     return arg;
 }
@@ -279,13 +254,22 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
 #else
         size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
 #endif
-        ScriptParser::ScriptParserResult parserResult = parser.parse(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), parentCodeBlock, strictFromOutside, isEvalCodeInFunction, stackRemainApprox);
-        if (parserResult.m_error) {
-            ErrorObject* err = ErrorObject::createError(state, parserResult.m_error->errorCode, parserResult.m_error->message);
-            state.throwException(err);
+
+        // FIXME : optimize loop iteration
+        bool isOnGlobal = true;
+        {
+            LexicalEnvironment* env = state.lexicalEnvironment();
+            while (env) {
+                if (env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+                    isOnGlobal = false;
+                    break;
+                }
+                env = env->outerEnvironment();
+            }
         }
-        bool needNewEnv = parserResult.m_script->topCodeBlock()->isStrict();
-        return parserResult.m_script->executeLocal(state, thisValue, parentCodeBlock, true, needNewEnv);
+
+        Script* script = parser.initializeScript(state, StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), parentCodeBlock, strictFromOutside, isEvalCodeInFunction, true, isOnGlobal, stackRemainApprox);
+        return script->executeLocal(state, thisValue, parentCodeBlock, script->topCodeBlock()->isStrict());
     }
     return arg;
 }

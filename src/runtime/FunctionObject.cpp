@@ -165,7 +165,7 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Stri
     Object::setPrototype(state, proto);
 }
 
-NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
+NEVER_INLINE void FunctionObject::generateByteCodeBlock(ExecutionState& state)
 {
     Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& v = state.context()->compiledCodeBlocks();
 
@@ -214,10 +214,7 @@ NEVER_INLINE void FunctionObject::generateBytecodeBlock(ExecutionState& state)
 #endif
 
 
-    auto ret = state.context()->scriptParser().parseFunction(m_codeBlock->asInterpretedCodeBlock(), stackRemainApprox, &state);
-    RefPtr<Node> ast = std::get<0>(ret);
-
-    m_codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), m_codeBlock->asInterpretedCodeBlock(), ast.get(), std::get<1>(ret), false, false, false);
+    state.context()->scriptParser().generateFunctionByteCode(state, m_codeBlock->asInterpretedCodeBlock(), stackRemainApprox);
 
     v.pushBack(m_codeBlock);
 
@@ -339,7 +336,7 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
 
     // prepare ByteCodeBlock if needed
     if (UNLIKELY(m_codeBlock->asInterpretedCodeBlock()->byteCodeBlock() == nullptr)) {
-        generateBytecodeBlock(state);
+        generateByteCodeBlock(state);
     }
 
     ByteCodeBlock* blk = m_codeBlock->asInterpretedCodeBlock()->byteCodeBlock();
