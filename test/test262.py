@@ -25,6 +25,7 @@ import json
 import stat
 import xml.etree.ElementTree as xmlj
 import unicodedata
+from collections import Counter
 
 
 from parseTestRecord import parseTestRecord, stripHeader
@@ -53,7 +54,7 @@ EXCLUDE_LIST = [x.getAttribute("id") for x in EXCLUDE_LIST]
 def BuildOptions():
   result = optparse.OptionParser()
   result.add_option("--command", default=None, help="The command-line to run")
-  result.add_option("--tests", default=path.abspath('.'), 
+  result.add_option("--tests", default=path.abspath('.'),
                     help="Path to the tests")
   result.add_option("--cat", default=False, action="store_true",
                     help="Print packaged test code that would be run")
@@ -61,18 +62,19 @@ def BuildOptions():
                     help="Print summary after running tests")
   result.add_option("--full-summary", default=False, action="store_true",
                     help="Print summary and test output after running tests")
-  result.add_option("--strict_only", default=False, action="store_true", 
+  result.add_option("--strict_only", default=False, action="store_true",
                     help="Test only strict mode")
-  result.add_option("--non_strict_only", default=False, action="store_true", 
+  result.add_option("--non_strict_only", default=False, action="store_true",
                     help="Test only non-strict mode")
-  # TODO: Once enough tests are made strict compat, change the default
-  # to "both"
-  result.add_option("--unmarked_default", default="non_strict", 
+  result.add_option("--unmarked_default", default="both",
                     help="default mode for tests of unspecified strictness")
   result.add_option("--logname", help="Filename to save stdout to")
   result.add_option("--junitname", help="Filename to save test results in JUnit XML format")
   result.add_option("--loglevel", default="warning",
-                    help="sets log level to debug, info, warning, error, or critical") 
+                    help="sets log level to debug, info, warning, error, or critical")
+  result.add_option("--print-handle", default="print", help="Command to print from console")
+  result.add_option("--list-includes", default=False, action="store_true",
+                    help="List includes required by tests")
   return result
 
 
@@ -144,41 +146,52 @@ class TestResult(object):
     if self.HasUnexpectedOutcome():
       if self.case.IsNegative():
         print "=== %s was expected to fail in %s, but didn't ===" % (name, mode)
+        print "--- expected error: %s ---\n" % self.case.GetNegative()
       else:
         if long_format:
           print "=== %s failed in %s ===" % (name, mode)
         else:
           print "%s in %s: " % (name, mode)
-        out = self.stdout.strip()
-        if len(out) > 0:
-          print "--- output ---"
-          print out
-        err = self.stderr.strip()
-        if len(err) > 0:
-          print "--- errors ---"
-          print err
-        if long_format:
-          print "==="
+      self.WriteOutput(sys.stdout)
+      if long_format:
+        print "==="
     elif self.case.IsNegative():
       print "%s failed in %s as expected" % (name, mode)
     else:
       print "%s passed in %s" % (name, mode)
-    
+
+  def WriteOutput(self, target):
+    out = self.stdout.strip()
+    if len(out) > 0:
+       target.write("--- output --- \n %s" % out)
+    err = self.stderr.strip()
+    if len(err) > 0:
+       target.write("--- errors ---  \n %s" % err)
+
+  # This is a way to make the output from the "whitespace" tests into valid XML
+  def SafeFormat(self, msg):
+    try:
+      msg = msg.encode(encoding='ascii', errors='strict')
+      msg = msg.replace('\u000Bx', '?')
+      msg = msg.replace('\u000Cx', '?')
+    except:
+      return 'Output contained invalid characters'
+
   def XmlAssemble(self, result):
     test_name = self.case.GetName()
     test_mode = self.case.GetMode()
     testCaseElement = xmlj.Element("testcase")
     testpath = self.TestPathManipulation(test_name)
-    testCaseElement.attrib["classname"] = "%s.%s" % (testpath[0] , testpath[1]) 
+    testCaseElement.attrib["classname"] = "%s.%s" % (testpath[0] , testpath[1])
     testCaseElement.attrib["name"] = "%s %s" % (testpath[2].replace('.','_') , test_mode)
     if self.HasUnexpectedOutcome():
       failureElement = xmlj.Element("failure")
       out = self.stdout.strip().decode('utf-8')
       err = self.stderr.strip().decode('utf-8')
       if len(out) > 0:
-        failureElement.text = out
+        failureElement.text = self.SafeFormat(out)
       if len(err) > 0:
-        failureElement.text = err
+        failureElement.text = self.SafeFormat(err)
       testCaseElement.append(failureElement)
     return testCaseElement
 
@@ -192,15 +205,25 @@ class TestResult(object):
     else:
        testpackage = testclass
     return(testpackage,testclass,testcase)
-  
+
   def HasFailed(self):
     return self.exit_code != 0
 
+  def AsyncHasFailed(self):
+    return 'Test262:AsyncTestComplete' not in self.stdout
+
   def HasUnexpectedOutcome(self):
-    if self.case.IsNegative():
-       return not self.HasFailed()
+    if self.case.IsAsyncTest():
+       return self.AsyncHasFailed() or self.HasFailed()
+    elif self.case.IsNegative():
+       return not (self.HasFailed() and self.case.NegativeMatch(self.GetErrorOutput()))
     else:
        return self.HasFailed()
+
+  def GetErrorOutput(self):
+    if len(self.stderr) != 0:
+      return self.stderr
+    return self.stdout
 
 
 class TestCase(object):
@@ -217,9 +240,17 @@ class TestCase(object):
     self.test = testRecord["test"]
     del testRecord["test"]
     del testRecord["header"]
-    del testRecord["commentary"]
+    testRecord.pop("commentary", None)    # do not throw if missing
     self.testRecord = testRecord;
-    
+
+    self.validate()
+
+  def NegativeMatch(self, stderr):
+    neg = re.compile(self.GetNegative())
+    return re.search(neg, stderr)
+
+  def GetNegative(self):
+    return self.testRecord['negative']
 
   def GetName(self):
     return path.join(*self.name)
@@ -240,21 +271,45 @@ class TestCase(object):
     return 'onlyStrict' in self.testRecord
 
   def IsNoStrict(self):
-    return 'noStrict' in self.testRecord
+    return 'noStrict' in self.testRecord or self.IsRaw()
+
+  def IsRaw(self):
+    return 'raw' in self.testRecord
+
+  def IsAsyncTest(self):
+    return '$DONE' in self.test
+
+  def GetIncludeList(self):
+    if self.testRecord.get('includes'):
+      return self.testRecord['includes']
+    return []
+
+  def GetAdditionalIncludes(self):
+    return '\n'.join([self.suite.GetInclude(include) for include in self.GetIncludeList()])
 
   def GetSource(self):
-    # "var testDescrip = " + str(self.testRecord) + ';\n\n' + \
-    source = self.suite.GetInclude("cth.js") + \
-        self.suite.GetInclude("sta.js") + \
-        self.suite.GetInclude("ed.js") + \
-        self.suite.GetInclude("testBuiltInObject.js") + \
-        self.suite.GetInclude("testIntl.js") + \
+    if self.IsRaw():
+        return self.test
+
+    source = self.suite.GetInclude("sta.js") + \
+        self.suite.GetInclude("cth.js") + \
+        self.suite.GetInclude("assert.js")
+
+    if self.IsAsyncTest():
+      source = source + \
+               self.suite.GetInclude("timer.js") + \
+               self.suite.GetInclude("doneprintHandle.js").replace('print', self.suite.print_handle)
+
+    source = source + \
+        self.GetAdditionalIncludes() + \
         self.test + '\n'
 
     if self.strict_mode:
       source = '"use strict";\nvar strict_mode = true;\n' + source
     else:
-      source =  "var strict_mode = false; \n" + source
+      # add comment line so line numbers match in both strict and non-strict version
+      source =  '//"no strict";\nvar strict_mode = false;\n' + source
+
     return source
 
   def InstantiateTemplate(self, template, params):
@@ -301,12 +356,26 @@ class TestCase(object):
       result = self.RunTestIn(command_template, tmp)
     finally:
       tmp.Dispose()
-      pass
     return result
 
   def Print(self):
     print self.GetSource()
 
+  def validate(self):
+    flags = self.testRecord.get("flags")
+
+    if not flags:
+        return
+
+    if 'raw' in flags:
+        if 'noStrict' in flags:
+            raise TypeError("The `raw` flag implies the `noStrict` flag")
+        elif 'onlyStrict' in flags:
+            raise TypeError(
+                "The `raw` flag is incompatible with the `onlyStrict` flag")
+        elif len(self.GetIncludeList()) > 0:
+            raise TypeError(
+                "The `raw` flag is incompatible with the `includes` tag")
 
 class ProgressIndicator(object):
 
@@ -331,21 +400,27 @@ def MakePlural(n):
   else:
     return (n, "s")
 
+def PercentFormat(partial, total):
+  return "%i test%s (%.1f%%)" % (MakePlural(partial) +
+                                 ((100.0 * partial)/total,))
+
 def CaseRunner(case):
-  print(case.GetName())
-  result = case.Run(case.command_template)
-  return [case.index, result]
+    print(case.GetName())
+    result = case.Run(case.command_template)
+    return [case.index, result]
 
 class TestSuite(object):
 
-  def __init__(self, root, strict_only, non_strict_only, unmarked_default):
+  def __init__(self, root, strict_only, non_strict_only, unmarked_default, print_handle):
     # TODO: derive from packagerConfig.py
-    self.test_root = path.join(root, 'test', 'suite')
-    self.lib_root = path.join(root, 'test', 'harness')
+    self.test_root = path.join(root, 'test')
+    self.lib_root = path.join(root, 'harness')
     self.strict_only = strict_only
     self.non_strict_only = non_strict_only
     self.unmarked_default = unmarked_default
+    self.print_handle = print_handle
     self.include_cache = { }
+
 
   def Validate(self):
     if not path.exists(self.test_root):
@@ -416,49 +491,37 @@ class TestSuite(object):
     logging.info("Done listing tests")
     return cases
 
+
   def PrintSummary(self, progress, logfile):
+
+    def write(s):
+      if logfile:
+        self.logf.write(s + "\n")
+      print s
+
     print
-    if logfile:
-       self.logf.write("=== Summary === \n")
-    print "=== Summary ==="
+    write("=== Summary ===");
     count = progress.count
     succeeded = progress.succeeded
     failed = progress.failed
-    if logfile:
-      self.logf.write(" - Ran %i test%s \n" % MakePlural(count))
-    print " - Ran %i test%s" % MakePlural(count)
+    write(" - Ran %i test%s" % MakePlural(count))
     if progress.failed == 0:
-      if logfile:
-        self.logf.write(" - All tests succeeded \n")
-      print " - All tests succeeded"
-   
+      write(" - All tests succeeded")
     else:
-      percent = ((100.0 * succeeded) / count,)
-      if logfile:
-        self.logf.write(" - Passed %i test%s (%.1f%%)\n" % (MakePlural(succeeded) + percent))
-      print " - Passed %i test%s (%.1f%%)" % (MakePlural(succeeded) + percent)
-      percent = ((100.0 * failed) / count,)
-      if logfile:
-        self.logf.write(" - Failed %i test%s (%.1f%%) \n" % (MakePlural(failed) + percent))
-      print " - Failed %i test%s (%.1f%%)" % (MakePlural(failed) + percent)
+      write(" - Passed " + PercentFormat(succeeded, count))
+      write(" - Failed " + PercentFormat(failed, count))
       positive = [c for c in progress.failed_tests if not c.case.IsNegative()]
       negative = [c for c in progress.failed_tests if c.case.IsNegative()]
       if len(positive) > 0:
         print
-        if logfile:
-          self.logf.write("Failed Tests \n") 
-        print "Failed tests"
+        write("Failed Tests")
         for result in positive:
-          if logfile:
-            self.logf.write("  %s in %s \n" % (result.case.GetName(), result.case.GetMode()))
-          print "  %s in %s" % (result.case.GetName(), result.case.GetMode())
+          write("  %s in %s" % (result.case.GetName(), result.case.GetMode()))
       if len(negative) > 0:
         print
-        print "Expected to fail but passed ---"
+        write("Expected to fail but passed ---")
         for result in negative:
-          if logfile:
-            self.logfile.append(" %s in %s \n" % (result.case.GetName(), result.case.GetMode()))
-          print " %s in %s" % (result.case.GetName(), result.case.GetMode())
+          write("  %s in %s" % (result.case.GetName(), result.case.GetMode()))
 
   def PrintFailureOutput(self, progress, logfile):
     for result in progress.failed_tests:
@@ -478,7 +541,9 @@ class TestSuite(object):
       self.logf = open(logname, "w")
     if junitfile:
       self.outfile = open(junitfile, "w")
+      TestSuitesElement = xmlj.Element("testsuites")
       TestSuiteElement = xmlj.Element("testsuite")
+      TestSuitesElement.append(TestSuiteElement)
       TestSuiteElement.attrib["name "] = "test262"
       for x in range(len(EXCLUDE_LIST)):
         if self.ShouldRun (unicode(EXCLUDE_LIST[x].encode('utf-8','ignore')), tests):
@@ -515,7 +580,7 @@ class TestSuite(object):
         TestCaseElement = result.XmlAssemble(result)
         TestSuiteElement.append(TestCaseElement)
         if case == cases[len(cases)-1]:
-             xmlj.ElementTree(TestSuiteElement).write(junitfile, "UTF-8")
+             xmlj.ElementTree(TestSuitesElement).write(junitfile, "UTF-8")
       if logname:
         self.WriteLog(result)
       progress.HasRun(result)
@@ -531,22 +596,20 @@ class TestSuite(object):
         print
         print "Use --full-summary to see output from failed tests"
     print
+    return progress.failed
 
   def WriteLog(self, result):
     name = result.case.GetName()
     mode = result.case.GetMode()
     if result.HasUnexpectedOutcome():
-       if result.case.IsNegative():
+      if result.case.IsNegative():
           self.logf.write("=== %s was expected to fail in %s, but didn't === \n" % (name, mode))
-       else:
+          self.logf.write("--- expected error: %s ---\n" % result.case.GetNegative())
+          result.WriteOutput(self.logf)
+      else:
           self.logf.write("=== %s failed in %s === \n" % (name, mode))
-          out = result.stdout.strip()
-          if len(out) > 0:
-             self.logf.write("--- output --- \n %s" % out)
-          err = result.stderr.strip()
-          if len(err) > 0:
-             self.logf.write("--- errors ---  \n %s" % err)
-             self.logf.write("=== \n")
+          result.WriteOutput(self.logf)
+      self.logf.write("===\n")
     elif result.case.IsNegative():
        self.logf.write("%s failed in %s as expected \n" % (name, mode))
     else:
@@ -557,14 +620,26 @@ class TestSuite(object):
     if len(cases) > 0:
       cases[0].Print()
 
+  def ListIncludes(self, tests):
+    cases = self.EnumerateTests(tests)
+    includes_dict = Counter()
+    for case in cases:
+      includes = case.GetIncludeList()
+      includes_dict.update(includes)
+
+    print includes_dict
+
+
 def Main():
+  code = 0
   parser = BuildOptions()
   (options, args) = parser.parse_args()
   ValidateOptions(options)
-  test_suite = TestSuite(options.tests, 
-                         options.strict_only, 
+  test_suite = TestSuite(options.tests,
+                         options.strict_only,
                          options.non_strict_only,
-                         options.unmarked_default)
+                         options.unmarked_default,
+			 options.print_handle)
   test_suite.Validate()
   if options.loglevel == 'debug':
     logging.basicConfig(level=logging.DEBUG)
@@ -578,17 +653,20 @@ def Main():
     logging.basicConfig(level=logging.CRITICAL)
   if options.cat:
     test_suite.Print(args)
+  elif options.list_includes:
+    test_suite.ListIncludes(args)
   else:
-    test_suite.Run(options.command, args,
-                   options.summary or options.full_summary,
-                   options.full_summary,
-                   options.logname,
-                   options.junitname)
-       
+    code = test_suite.Run(options.command, args,
+                          options.summary or options.full_summary,
+                          options.full_summary,
+                          options.logname,
+                          options.junitname)
+  return code
+
 if __name__ == '__main__':
   try:
-    Main()
-    sys.exit(0)
+    code = Main()
+    sys.exit(code)
   except Test262Error, e:
     print "Error: %s" % e.message
     sys.exit(1)
