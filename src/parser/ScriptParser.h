@@ -49,7 +49,7 @@ public:
 private:
     InterpretedCodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program);
     InterpretedCodeBlock* generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock);
-    void generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb);
+    void generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb, bool propagateLexicalBlock);
     void generateProgramCodeBlock(ExecutionState& state, StringView scriptSource, Script* script, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool isOnGlobal, size_t stackSizeRemain, bool needByteCodeGeneration);
 #ifndef NDEBUG
     void dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock);

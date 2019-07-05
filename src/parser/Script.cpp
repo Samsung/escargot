@@ -107,7 +107,9 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
         recordToAddVariable = e->record();
     }
     for (size_t i = 0; i < len; i++) {
-        recordToAddVariable->createBinding(state, vec[i].m_name, inStrict ? false : true, true);
+        if (vec[i].m_isVarDeclaration) {
+            recordToAddVariable->createBinding(state, vec[i].m_name, inStrict ? false : true, true);
+        }
     }
     LexicalEnvironment* newEnvironment = new LexicalEnvironment(record, state.lexicalEnvironment());
 

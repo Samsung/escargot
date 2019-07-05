@@ -29,13 +29,13 @@ namespace Escargot {
 class SwitchStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    SwitchStatementNode(Node* discriminant, StatementContainer* casesA, Node* deflt, StatementContainer* casesB, bool lexical)
+    SwitchStatementNode(Node* discriminant, StatementContainer* casesA, Node* deflt, StatementContainer* casesB, LocalNamesVector&& localNames)
         : StatementNode()
         , m_discriminant((ExpressionNode*)discriminant)
         , m_casesA(casesA)
         , m_default((StatementNode*)deflt)
         , m_casesB(casesB)
-        , m_lexical(lexical)
+        , m_localNames(localNames)
     {
     }
 
@@ -47,6 +47,8 @@ public:
     {
         ByteCodeGenerateContext newContext(*context);
         newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by caseNode->m_test
+
+        size_t lexicalBlockStart = codeBlock->pushLexicalBlock(&newContext, m_localNames);
 
         bool canSkipCopyToRegister = newContext.m_canSkipCopyToRegister;
         newContext.m_canSkipCopyToRegister = false;
@@ -117,6 +119,8 @@ public:
         if (!m_default) {
             codeBlock->peekCode<Jump>(jmpToDefault)->m_jumpPosition = codeBlock->currentCodeSize();
         }
+
+        codeBlock->finalizeLexicalBlock(&newContext, lexicalBlockStart);
     }
 
     virtual ASTNodeType type() { return ASTNodeType::SwitchStatement; }
@@ -125,7 +129,7 @@ private:
     RefPtr<StatementContainer> m_casesA;
     RefPtr<StatementNode> m_default;
     RefPtr<StatementContainer> m_casesB;
-    bool m_lexical : 1;
+    LocalNamesVector m_localNames;
 };
 }
 

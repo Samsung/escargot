@@ -130,12 +130,20 @@ public:
 
                     Jump* j = codeBlock->peekCode<Jump>(jPos);
                     j->m_jumpPosition = codeBlock->currentCodeSize();
+
+                    if (assignNode->left()->isIdentifier() && context->m_isConstDeclaration == true) {
+                        codeBlock->pushCode(SetConstBinding(ByteCodeLOC(m_loc.index), assignNode->left()->asIdentifier()->name()), context, this);
+                    }
                 } else {
                     RefPtr<RegisterReferenceNode> registerRef = adoptRef(new RegisterReferenceNode(iteratorValueIdx));
                     RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(element.get(), registerRef.get()));
                     assign->m_loc = m_loc;
                     assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
                     assign->giveupChildren();
+
+                    if (element->isIdentifier() && context->m_isConstDeclaration == true) {
+                        codeBlock->pushCode(SetConstBinding(ByteCodeLOC(m_loc.index), element->asIdentifier()->name()), context, this);
+                    }
                 }
             }
         }

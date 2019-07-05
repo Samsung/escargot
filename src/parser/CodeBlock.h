@@ -99,6 +99,7 @@ public:
         bool m_needToAllocateOnStack : 1;
         bool m_isMutable : 1;
         bool m_isExplicitlyDeclaredOrParameterName : 1;
+        bool m_isVarDeclaration : 1;
         size_t m_indexForIndexedStorage;
         AtomicString m_name;
     };
@@ -220,6 +221,11 @@ public:
         return m_needsComplexParameterCopy;
     }
 
+    bool needsLexicalBlock() const
+    {
+        return m_needsLexicalBlock;
+    }
+
     void setInWithScope()
     {
         m_isInWithScope = true;
@@ -309,6 +315,7 @@ protected:
     bool m_needsVirtualIDOperation : 1;
     bool m_needToLoadThisValue : 1;
     bool m_hasRestElement : 1;
+    bool m_needsLexicalBlock : 1;
     uint16_t m_parameterCount;
 
     AtomicString m_functionName;
@@ -329,7 +336,7 @@ class InterpretedCodeBlock : public CodeBlock {
     friend int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr);
 
 public:
-    void computeVariables();
+    void computeVariables(bool propagateLexicalBlock);
     void appendChildBlock(InterpretedCodeBlock* cb)
     {
         m_childBlocks.push_back(cb);
@@ -373,6 +380,11 @@ public:
     size_t identifierOnHeapCount() const
     {
         return m_identifierOnHeapCount;
+    }
+
+    size_t lexicalBlockIndex() const
+    {
+        return m_lexicalBlockIndex;
     }
 
     Script* script()
@@ -576,6 +588,7 @@ protected:
     FunctionParametersInfoVector m_parametersInfomation;
     uint16_t m_identifierOnStackCount;
     uint16_t m_identifierOnHeapCount;
+    size_t m_lexicalBlockIndex;
     IdentifierInfoVector m_identifierInfos;
 
     InterpretedCodeBlock* m_parentCodeBlock;

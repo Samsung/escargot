@@ -446,7 +446,7 @@ public:
 
     AtomicString name() const
     {
-        return AtomicString((String *)((size_t)m_value & ~1));
+        return AtomicString((String *)((size_t)m_value & ~(1 | 2)));
     }
 
     void setName(AtomicString name)
@@ -459,12 +459,25 @@ public:
         return m_value & 1;
     }
 
+    bool isVarDeclaration() const
+    {
+        return m_value & 2;
+    }
+
     void setIsExplicitlyDeclaredOrParameterName(bool v)
     {
         if (v)
             m_value = m_value | 1;
         else
             m_value = m_value & ~1;
+    }
+
+    void setIsVarDeclaration(bool v)
+    {
+        if (v)
+            m_value = m_value | 2;
+        else
+            m_value = m_value & ~2;
     }
 
 private:
@@ -490,6 +503,7 @@ struct ASTScopeContext : public gc {
     bool m_needsSpecialInitialize : 1; // flag for fd in catch
     bool m_hasRestElement : 1;
     bool m_hasNonIdentArgument : 1;
+    bool m_needsLexicalBlock : 1;
     ASTNodeType m_nodeType : 12;
     ASTScopeContextNameInfoVector m_names;
     AtomicStringVector m_usingNames;
@@ -499,6 +513,7 @@ struct ASTScopeContext : public gc {
     Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>> m_numeralLiteralData;
     ExtendedNodeLOC m_locStart;
     NodeLOC m_paramsStart;
+    size_t m_lexicalBlockIndex;
 #ifndef NDEBUG
     ExtendedNodeLOC m_locEnd;
 #else
@@ -519,21 +534,26 @@ struct ASTScopeContext : public gc {
         return false;
     }
 
-    void insertName(AtomicString name, bool isExplicitlyDeclaredOrParameterName)
+    bool insertName(AtomicString name, bool isExplicitlyDeclaredOrParameterName, bool isVarDeclaration = true)
     {
         for (size_t i = 0; i < m_names.size(); i++) {
             if (m_names[i].name() == name) {
                 if (isExplicitlyDeclaredOrParameterName) {
                     m_names[i].setIsExplicitlyDeclaredOrParameterName(isExplicitlyDeclaredOrParameterName);
                 }
-                return;
+
+                if (m_names[i].isVarDeclaration() == false && isVarDeclaration == true) {
+                    return false;
+                }
             }
         }
 
         ASTScopeContextNameInfo info;
         info.setName(name);
         info.setIsExplicitlyDeclaredOrParameterName(isExplicitlyDeclaredOrParameterName);
+        info.setIsVarDeclaration(isVarDeclaration);
         m_names.push_back(info);
+        return true;
     }
 
     void insertUsingName(AtomicString name)
@@ -575,8 +595,10 @@ struct ASTScopeContext : public gc {
         , m_needsSpecialInitialize(false)
         , m_hasRestElement(false)
         , m_hasNonIdentArgument(false)
+        , m_needsLexicalBlock(false)
         , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
         , m_paramsStart(SIZE_MAX)
+        , m_lexicalBlockIndex(0)
 #ifndef NDEBUG
         , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 #else
@@ -594,6 +616,8 @@ class PropertyNode;
 typedef std::vector<RefPtr<PropertyNode>> PropertiesNodeVector;
 class VariableDeclaratorNode;
 typedef std::vector<RefPtr<VariableDeclaratorNode>> VariableDeclaratorVector;
+typedef std::pair<AtomicString, bool> LocalName;
+typedef Vector<LocalName, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<LocalName>> LocalNamesVector;
 }
 
 #endif

@@ -81,12 +81,15 @@ struct ByteCodeGenerateContext {
         , m_catchScopeCount(0)
         , m_shouldGenerateLOCData(false)
         , m_forInOfVarBinding(false)
+        , m_hasNonLexicalStatement(false)
+        , m_isConstDeclaration(false)
         , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
         , m_currentLabels(new std::vector<std::pair<String*, size_t>>())
         , m_offsetToBasePointer(0)
         , m_positionToContinue(0)
         , m_tryStatementScopeCount(0)
         , m_feCounter(0)
+        , m_lexicalBlockIndex(0)
         , m_numeralLiteralData(numeralLiteralData)
     {
         m_inCallingExpressionScope = false;
@@ -110,12 +113,15 @@ struct ByteCodeGenerateContext {
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
         , m_shouldGenerateLOCData(contextBefore.m_shouldGenerateLOCData)
         , m_forInOfVarBinding(contextBefore.m_forInOfVarBinding)
+        , m_hasNonLexicalStatement(contextBefore.m_hasNonLexicalStatement)
+        , m_isConstDeclaration(contextBefore.m_isConstDeclaration)
         , m_registerStack(contextBefore.m_registerStack)
         , m_currentLabels(contextBefore.m_currentLabels)
         , m_offsetToBasePointer(contextBefore.m_offsetToBasePointer)
         , m_positionToContinue(contextBefore.m_positionToContinue)
         , m_tryStatementScopeCount(contextBefore.m_tryStatementScopeCount)
         , m_feCounter(contextBefore.m_feCounter)
+        , m_lexicalBlockIndex(contextBefore.m_lexicalBlockIndex)
         , m_classInfo(contextBefore.m_classInfo)
         , m_numeralLiteralData(contextBefore.m_numeralLiteralData)
     {
@@ -138,6 +144,7 @@ struct ByteCodeGenerateContext {
         ctx.m_offsetToBasePointer = m_offsetToBasePointer;
         ctx.m_positionToContinue = m_positionToContinue;
         ctx.m_feCounter = m_feCounter;
+        ctx.m_lexicalBlockIndex = m_lexicalBlockIndex;
         ctx.m_classInfo = m_classInfo;
 
         m_breakStatementPositions.clear();
@@ -264,6 +271,8 @@ struct ByteCodeGenerateContext {
     bool m_isHeadOfMemberExpression : 1;
     bool m_shouldGenerateLOCData : 1;
     bool m_forInOfVarBinding : 1;
+    bool m_hasNonLexicalStatement : 1;
+    bool m_isConstDeclaration : 1;
 
     std::shared_ptr<std::vector<ByteCodeRegisterIndex>> m_registerStack;
     std::vector<size_t> m_breakStatementPositions;
@@ -279,6 +288,7 @@ struct ByteCodeGenerateContext {
     // code position, tryStatement count
     int m_tryStatementScopeCount;
     size_t m_feCounter;
+    size_t m_lexicalBlockIndex;
     ClassContextInformation m_classInfo;
     std::map<size_t, size_t> m_complexCaseStatementPositions;
     Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>>* m_numeralLiteralData;

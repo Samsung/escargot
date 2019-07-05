@@ -46,7 +46,7 @@ public:
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
     {
         if (context->m_codeBlock->asInterpretedCodeBlock()->isGlobalScopeCodeBlock()) {
-            if (context->m_isWithScope || context->m_catchScopeCount || context->m_isEvalCode) {
+            if (context->m_isWithScope || context->m_catchScopeCount || context->m_isEvalCode || context->m_codeBlock->asInterpretedCodeBlock()->needsLexicalBlock() == true) {
                 codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
             } else {
                 codeBlock->pushCode(SetGlobalObject(ByteCodeLOC(m_loc.index), srcRegister, PropertyName(m_name)), context, this);
@@ -89,7 +89,7 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         if (context->m_codeBlock->asInterpretedCodeBlock()->isGlobalScopeCodeBlock()) {
-            if (context->m_isWithScope || context->m_catchScopeCount || context->m_isEvalCode) {
+            if (context->m_isWithScope || context->m_catchScopeCount || context->m_isEvalCode || context->m_codeBlock->asInterpretedCodeBlock()->needsLexicalBlock() == true) {
                 codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
             } else {
                 codeBlock->pushCode(GetGlobalObject(ByteCodeLOC(m_loc.index), dstRegister, PropertyName(m_name)), context, this);

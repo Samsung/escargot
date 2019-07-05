@@ -28,12 +28,13 @@ namespace Escargot {
 class ForStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    ForStatementNode(Node *init, Node *test, Node *update, Node *body)
+    ForStatementNode(Node *init, Node *test, Node *update, Node *body, LocalNamesVector &&localNames)
         : StatementNode()
         , m_init((ExpressionNode *)init)
         , m_test((ExpressionNode *)test)
         , m_update((ExpressionNode *)update)
         , m_body((StatementNode *)body)
+        , m_localNames(localNames)
     {
     }
 
@@ -48,11 +49,14 @@ public:
 
         newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by m_test
 
+        size_t lexicalBlockStart = codeBlock->pushLexicalBlock(&newContext, m_localNames);
+        size_t perIteratironBlockStart = SIZE_MAX;
+
         if (m_init && m_init->type() != ASTNodeType::RegExpLiteral) {
             m_init->generateStatementByteCode(codeBlock, &newContext);
         }
 
-        size_t forStart = codeBlock->currentCodeSize();
+        size_t forStart = perIteratironBlockStart == SIZE_MAX ? codeBlock->currentCodeSize() : perIteratironBlockStart;
 
         size_t testIndex = 0;
         size_t testPos = 0;
@@ -74,7 +78,20 @@ public:
 
         newContext.giveUpRegister();
 
+        if (lexicalBlockStart != SIZE_MAX) {
+            context->m_tryStatementScopeCount++;
+            perIteratironBlockStart = codeBlock->currentCodeSize();
+            codeBlock->pushCode(BlockOperation(ByteCodeLOC(SIZE_MAX), 0), &newContext, this);
+        }
+
         m_body->generateStatementByteCode(codeBlock, &newContext);
+
+        if (perIteratironBlockStart != SIZE_MAX) {
+            context->m_tryStatementScopeCount--;
+            newContext.registerJumpPositionsToComplexCase(perIteratironBlockStart);
+            codeBlock->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(m_loc.index)), &newContext, this);
+            codeBlock->peekCode<BlockOperation>(perIteratironBlockStart)->m_blockEndPosition = codeBlock->currentCodeSize();
+        }
 
         size_t updatePosition = codeBlock->currentCodeSize();
         if (m_update) {
@@ -85,6 +102,7 @@ public:
                 newContext.giveUpRegister();
             }
         }
+
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), forStart), &newContext, this);
 
         size_t forEnd = codeBlock->currentCodeSize();
@@ -96,6 +114,8 @@ public:
         newContext.consumeContinuePositions(codeBlock, updatePosition, context->m_tryStatementScopeCount);
         newContext.m_positionToContinue = updatePosition;
         newContext.propagateInformationTo(*context);
+
+        codeBlock->finalizeLexicalBlock(&newContext, lexicalBlockStart);
     }
 
 private:
@@ -103,6 +123,7 @@ private:
     RefPtr<ExpressionNode> m_test;
     RefPtr<ExpressionNode> m_update;
     RefPtr<StatementNode> m_body;
+    LocalNamesVector m_localNames;
 };
 }
 

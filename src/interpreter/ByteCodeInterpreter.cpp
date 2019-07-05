@@ -1340,6 +1340,32 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 return result;
             }
 
+            DEFINE_OPCODE(BlockOperation)
+                :
+            {
+                BlockOperation* code = (BlockOperation*)programCounter;
+                size_t newPc = programCounter;
+                Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
+                Value v = blockOperation(state, code, newPc, byteCodeBlock, registerFile, stackStorage);
+                if (!v.isEmpty()) {
+                    return v;
+                }
+                if (programCounter == newPc) {
+                    return Value();
+                }
+                programCounter = newPc;
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(SetConstBinding)
+                :
+            {
+                SetConstBinding* code = (SetConstBinding*)programCounter;
+                state.lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asDeclarativeEnvironmentRecordNotIndexed()->setAsImmutableBinding(state, code->m_name);
+                ADD_PROGRAM_COUNTER(SetConstBinding);
+                NEXT_INSTRUCTION();
+            }
+
             DEFINE_OPCODE(End)
                 :
             {
@@ -2362,6 +2388,58 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, Wit
     return Value(Value::EmptyValue);
 }
 
+NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage)
+{
+    if (!state.ensureRareData()->m_controlFlowRecord) {
+        state.ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
+    }
+    state.ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
+    size_t newPc = programCounter + sizeof(BlockOperation);
+    char* codeBuffer = byteCodeBlock->m_code.data();
+    size_t localCount = code->m_localVariableCount;
+
+    // setup new env
+    EnvironmentRecord* newRecord = localCount == 0 ? new DeclarativeEnvironmentRecordNotIndexed(state.lexicalEnvironment()->record()) : new DeclarativeEnvironmentRecordNotIndexed();
+    LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, state.lexicalEnvironment());
+    ExecutionState newState(&state, newEnv, state.inStrictMode());
+    newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
+
+    for (size_t i = 0; i < localCount; i++) {
+        AtomicString name = *((AtomicString*)newPc);
+        newRecord->createBinding(state, name);
+        newRecord->initializeBinding(state, name, Value(Value::EmptyValue));
+        newPc += sizeof(AtomicString);
+    }
+
+    interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
+
+    ControlFlowRecord* record = state.rareData()->m_controlFlowRecord->back();
+    state.rareData()->m_controlFlowRecord->erase(state.rareData()->m_controlFlowRecord->size() - 1);
+
+    if (record != nullptr) {
+        if (record->reason() == ControlFlowRecord::NeedsJump) {
+            size_t pos = record->wordValue();
+            record->m_count--;
+            if (record->count() && (record->outerLimitCount() < record->count())) {
+                state.rareData()->m_controlFlowRecord->back() = record;
+            } else {
+                programCounter = jumpTo(codeBuffer, pos);
+            }
+            return Value(Value::EmptyValue);
+        } else {
+            ASSERT(record->reason() == ControlFlowRecord::NeedsReturn);
+            record->m_count--;
+            if (record->count()) {
+                state.rareData()->m_controlFlowRecord->back() = record;
+            }
+            return record->value();
+        }
+    } else {
+        programCounter = jumpTo(codeBuffer, code->m_blockEndPosition);
+    }
+    return Value(Value::EmptyValue);
+}
+
 NEVER_INLINE bool ByteCodeInterpreter::binaryInOperation(ExecutionState& state, const Value& left, const Value& right)
 {
     if (!right.isObject()) {
@@ -2527,7 +2605,7 @@ NEVER_INLINE void ByteCodeInterpreter::declareFunctionDeclarations(ExecutionStat
         }
     } else {
         for (size_t i = 0; i < l; i++) {
-            if (v[i]->isFunctionDeclaration()) {
+            if (v[i]->isFunctionDeclaration() && code->m_lexicalBlockIndex == v[i]->asInterpretedCodeBlock()->lexicalBlockIndex()) {
                 AtomicString name = v[i]->functionName();
                 FunctionObject* fn = new FunctionObject(state, v[i], lexicalEnvironment);
                 LexicalEnvironment* env = lexicalEnvironment;

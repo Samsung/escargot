@@ -28,10 +28,20 @@ namespace Escargot {
 class BlockStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    explicit BlockStatementNode(StatementContainer* body, StatementContainer* argumentInitializers = nullptr)
+    explicit BlockStatementNode(StatementContainer* body, LocalNamesVector&& localNames, size_t lexicalBlockIndex = 0, StatementContainer* argumentInitializers = nullptr)
         : StatementNode()
         , m_container(body)
         , m_argumentInitializers(argumentInitializers)
+        , m_localNames(localNames)
+        , m_lexicalBlockIndex(lexicalBlockIndex)
+    {
+    }
+
+    explicit BlockStatementNode(StatementContainer* body, StatementContainer* argumentInitializers = nullptr, size_t lexicalBlockIndex = 0)
+        : StatementNode()
+        , m_container(body)
+        , m_argumentInitializers(argumentInitializers)
+        , m_lexicalBlockIndex(lexicalBlockIndex)
     {
     }
 
@@ -44,7 +54,19 @@ public:
         if (m_argumentInitializers != nullptr) {
             m_argumentInitializers->generateStatementByteCode(codeBlock, context);
         }
+
+        size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
+        context->m_lexicalBlockIndex = m_lexicalBlockIndex;
+        size_t blockPos = codeBlock->pushLexicalBlock(context, m_localNames);
+        bool hasNonLexicalStatementBefore = context->m_hasNonLexicalStatement;
+        context->m_hasNonLexicalStatement = false;
+
+        size_t start = codeBlock->currentCodeSize();
         m_container->generateStatementByteCode(codeBlock, context);
+
+        codeBlock->finalizeLexicalBlock(context, blockPos, start);
+        context->m_hasNonLexicalStatement = hasNonLexicalStatementBefore;
+        context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
     }
 
     StatementNode* firstChild()
@@ -55,6 +77,8 @@ public:
 private:
     RefPtr<StatementContainer> m_container;
     RefPtr<StatementContainer> m_argumentInitializers;
+    LocalNamesVector m_localNames;
+    size_t m_lexicalBlockIndex;
 };
 }
 

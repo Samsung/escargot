@@ -28,11 +28,12 @@ namespace Escargot {
 class ForInOfStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    ForInOfStatementNode(Node *left, Node *right, Node *body, bool forIn)
+    ForInOfStatementNode(Node *left, Node *right, Node *body, LocalNamesVector &&localNames, bool forIn)
         : StatementNode()
         , m_left(left)
         , m_right(right)
         , m_body((StatementNode *)body)
+        , m_localNames(localNames)
         , m_forIn(forIn)
     {
     }
@@ -56,6 +57,8 @@ public:
         context->m_canSkipCopyToRegister = false;
 
         ByteCodeGenerateContext newContext(*context);
+
+        size_t lexicalBlockStart = codeBlock->pushLexicalBlock(&newContext, m_localNames);
 
         newContext.getRegister(); // ExecutionResult of m_right should not overwrite any reserved value
         if (m_left->type() == ASTNodeType::VariableDeclaration) {
@@ -82,6 +85,7 @@ public:
         size_t exit2Pos = codeBlock->lastCodePosition<JumpIfTrue>();
 
         size_t exit3Pos, continuePosition;
+        size_t perIteratironBlockStart = SIZE_MAX;
         if (m_forIn) {
             // for-in statement
             size_t ePosition = codeBlock->currentCodeSize();
@@ -99,6 +103,13 @@ public:
             size_t enumerateObjectKeyPos = codeBlock->lastCodePosition<EnumerateObjectKey>();
 
             codeBlock->peekCode<EnumerateObjectKey>(enumerateObjectKeyPos)->m_registerIndex = newContext.getRegister();
+
+            if (lexicalBlockStart != SIZE_MAX) {
+                context->m_tryStatementScopeCount++;
+                perIteratironBlockStart = codeBlock->currentCodeSize();
+                codeBlock->pushCode(BlockOperation(ByteCodeLOC(SIZE_MAX), 0), &newContext, this);
+            }
+
             m_left->generateStoreByteCode(codeBlock, &newContext, newContext.getLastRegisterIndex(), true);
             newContext.giveUpRegister();
 
@@ -106,7 +117,9 @@ public:
 
             ASSERT(newContext.m_registerStack->size() == baseCountBefore);
             newContext.giveUpRegister();
+
             m_body->generateStatementByteCode(codeBlock, &newContext);
+
             size_t forInIndex = codeBlock->m_requiredRegisterFileSizeInValueSize;
             codeBlock->m_requiredRegisterFileSizeInValueSize++;
 
@@ -128,6 +141,12 @@ public:
             size_t iterStepPos = exit3Pos = codeBlock->lastCodePosition<IteratorStep>();
             codeBlock->peekCode<IteratorStep>(iterStepPos)->m_registerIndex = newContext.getRegister();
 
+            if (lexicalBlockStart != SIZE_MAX) {
+                context->m_tryStatementScopeCount++;
+                perIteratironBlockStart = codeBlock->currentCodeSize();
+                codeBlock->pushCode(BlockOperation(ByteCodeLOC(SIZE_MAX), 0), &newContext, this);
+            }
+
             m_left->generateStoreByteCode(codeBlock, &newContext, newContext.getLastRegisterIndex(), true);
             newContext.giveUpRegister();
 
@@ -135,13 +154,21 @@ public:
 
             ASSERT(newContext.m_registerStack->size() == baseCountBefore);
             newContext.giveUpRegister();
+
             m_body->generateStatementByteCode(codeBlock, &newContext);
+
             size_t iteratorIndex = codeBlock->m_requiredRegisterFileSizeInValueSize;
             codeBlock->m_requiredRegisterFileSizeInValueSize++;
 
             codeBlock->peekCode<GetIterator>(iPosition)->m_registerIndex = iteratorIndex;
             codeBlock->peekCode<IteratorStep>(iterStepPos)->m_iterRegisterIndex = iteratorIndex;
         }
+
+        if (lexicalBlockStart != SIZE_MAX) {
+            newContext.registerJumpPositionsToComplexCase(perIteratironBlockStart);
+            codeBlock->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(m_loc.index)), &newContext, this);
+        }
+        size_t blockExitPos = codeBlock->currentCodeSize();
 
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), continuePosition), &newContext, this);
         size_t exitPos = codeBlock->currentCodeSize();
@@ -159,13 +186,21 @@ public:
             codeBlock->peekCode<IteratorStep>(exit3Pos)->m_forOfEndPosition = exitPos;
         }
 
+        if (perIteratironBlockStart != SIZE_MAX) {
+            context->m_tryStatementScopeCount--;
+            codeBlock->peekCode<BlockOperation>(perIteratironBlockStart)->m_blockEndPosition = blockExitPos;
+        }
+
         newContext.propagateInformationTo(*context);
+
+        codeBlock->finalizeLexicalBlock(&newContext, lexicalBlockStart);
     }
 
 private:
     RefPtr<Node> m_left;
     RefPtr<Node> m_right;
     RefPtr<StatementNode> m_body;
+    LocalNamesVector m_localNames;
     bool m_forIn : 1;
 };
 }

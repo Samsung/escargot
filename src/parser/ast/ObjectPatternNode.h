@@ -167,6 +167,10 @@ public:
             assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
             assign->giveupChildren();
 
+            if (context->m_isConstDeclaration == true) {
+                codeBlock->pushCode(SetConstBinding(ByteCodeLOC(m_loc.index), key->asIdentifier()->name()), context, this);
+            }
+
             Jump* j = codeBlock->peekCode<Jump>(jPos);
             j->m_jumpPosition = codeBlock->currentCodeSize();
 
