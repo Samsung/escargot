@@ -165,18 +165,28 @@ struct TypedArrayAdaptor {
     typedef typename Adapter::Type Type;
     static Type toNative(ExecutionState& state, const Value& val)
     {
-        if (val.isInt32()) {
-            return Adapter::toNativeFromInt32(state, val.asInt32());
-        } else if (val.isDouble()) {
-            return Adapter::toNativeFromDouble(state, val.asDouble());
-        }
-        return static_cast<Type>(val.toNumber(state));
+        return Adapter::toNative(state, val);
     }
 };
 
 template <typename TypeArg>
 struct IntegralTypedArrayAdapter {
     typedef TypeArg Type;
+
+    static Type toNative(ExecutionState& state, const Value& val)
+    {
+        if (val.isInt32()) {
+            return toNativeFromInt32(state, val.asInt32());
+        } else if (val.isDouble()) {
+            return toNativeFromDouble(state, val.asDouble());
+        }
+        auto number = val.toNumber(state);
+        if (std::isnan(number)) {
+            return 0;
+        }
+        return static_cast<Type>(number);
+    }
+
     static TypeArg toNativeFromInt32(ExecutionState& state, int32_t value)
     {
         return static_cast<TypeArg>(value);
@@ -193,6 +203,17 @@ struct IntegralTypedArrayAdapter {
 template <typename TypeArg>
 struct FloatTypedArrayAdaptor {
     typedef TypeArg Type;
+
+    static Type toNative(ExecutionState& state, const Value& val)
+    {
+        if (val.isInt32()) {
+            return toNativeFromInt32(state, val.asInt32());
+        } else if (val.isDouble()) {
+            return toNativeFromDouble(state, val.asDouble());
+        }
+        return static_cast<Type>(val.toNumber(state));
+    }
+
     static TypeArg toNativeFromInt32(ExecutionState& state, int32_t value)
     {
         return static_cast<TypeArg>(value);
