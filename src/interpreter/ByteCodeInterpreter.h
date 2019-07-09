@@ -30,6 +30,7 @@ namespace Escargot {
 class Context;
 class ByteCodeBlock;
 class LexicalEnvironment;
+class FunctionEnvironmentRecord;
 struct GetObjectInlineCache;
 struct SetObjectInlineCache;
 struct EnumerateObjectData;
@@ -98,6 +99,7 @@ public:
     static void defineObjectSetter(ExecutionState& state, ObjectDefineSetter* code, Value* registerFile);
     static Value incrementOperation(ExecutionState& state, const Value& value);
     static Value decrementOperation(ExecutionState& state, const Value& value);
+    static FunctionEnvironmentRecord* findEnvironmentByIndex(LexicalEnvironment* upperEnv, size_t upperIndex);
 
     static void processException(ExecutionState& state, const Value& value, size_t programCounter);
 };

@@ -575,11 +575,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 LoadByHeapIndex* code = (LoadByHeapIndex*)programCounter;
-                LexicalEnvironment* upperEnv = state.lexicalEnvironment();
-                for (size_t i = 0; i < code->m_upperIndex; i++) {
-                    upperEnv = upperEnv->outerEnvironment();
-                }
-                FunctionEnvironmentRecord* record = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+
+                FunctionEnvironmentRecord* record = findEnvironmentByIndex(state.lexicalEnvironment(), code->m_upperIndex);
                 ASSERT(record->isFunctionEnvironmentRecordOnHeap() || record->isFunctionEnvironmentRecordNotIndexed());
                 registerFile[code->m_registerIndex] = ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[code->m_index];
                 ADD_PROGRAM_COUNTER(LoadByHeapIndex);
@@ -590,11 +587,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 StoreByHeapIndex* code = (StoreByHeapIndex*)programCounter;
-                LexicalEnvironment* upperEnv = state.lexicalEnvironment();
-                for (size_t i = 0; i < code->m_upperIndex; i++) {
-                    upperEnv = upperEnv->outerEnvironment();
-                }
-                FunctionEnvironmentRecord* record = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+
+                FunctionEnvironmentRecord* record = findEnvironmentByIndex(state.lexicalEnvironment(), code->m_upperIndex);
                 ASSERT(record->isFunctionEnvironmentRecordOnHeap() || record->isFunctionEnvironmentRecordNotIndexed());
                 ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[code->m_index] = registerFile[code->m_registerIndex];
                 ADD_PROGRAM_COUNTER(StoreByHeapIndex);
@@ -2694,6 +2688,25 @@ ALWAYS_INLINE Value ByteCodeInterpreter::decrementOperation(ExecutionState& stat
         }
     } else {
         return Value(value.toNumber(state) - 1);
+    }
+}
+
+ALWAYS_INLINE FunctionEnvironmentRecord* ByteCodeInterpreter::findEnvironmentByIndex(LexicalEnvironment* upperEnv, size_t upperIndex)
+{
+    size_t funcEnvIndex = 0;
+
+    while (true) {
+        if (upperEnv->record()->isDeclarativeEnvironmentRecord() && upperEnv->record()->asDeclarativeEnvironmentRecord()->isDeclarativeEnvironmentRecordNotIndexed()) {
+            upperEnv = upperEnv->outerEnvironment();
+            continue;
+        }
+
+        if (funcEnvIndex == upperIndex) {
+            return upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+        }
+
+        funcEnvIndex++;
+        upperEnv = upperEnv->outerEnvironment();
     }
 }
 

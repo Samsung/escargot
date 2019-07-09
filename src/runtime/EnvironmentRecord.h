@@ -421,6 +421,11 @@ public:
         return false;
     }
 
+    virtual bool isDeclarativeEnvironmentRecordNotIndexed()
+    {
+        return false;
+    }
+
 protected:
 };
 

@@ -2285,6 +2285,30 @@ public:
             return ScanExpressionResult(ASTNodeType::ArrowParameterPlaceHolder);
         }
 
+        if (this->match(PeriodPeriodPeriod)) {
+            this->nextToken();
+
+            RefPtr<Node> restParam = this->parseVariableIdentifier();
+            if (this->match(Equal)) {
+                this->throwError(Messages::DefaultRestParameter);
+            }
+
+            this->expect(RightParenthesis);
+
+            if (!this->match(Arrow)) {
+                this->expect(Arrow);
+            }
+
+            ExpressionNodeVector params;
+            params.push_back(restParam);
+
+            if (isParse) {
+                return T(this->finalize(this->startNode(&this->lookahead), new ArrowParameterPlaceHolderNode(std::move(params))));
+            }
+            return ScanExpressionResult(ASTNodeType::ArrowParameterPlaceHolder);
+        }
+
+
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
 
@@ -3510,6 +3534,7 @@ public:
                     this->nextToken();
 
                     exprNode = this->conditionalExpression<Parse>();
+                    type = exprNode->type();
                 }
 
                 ParseFormalParametersResult list;
@@ -3555,7 +3580,7 @@ public:
                     bool isExpression = body->type() != BlockStatement;
                     if (isExpression) {
                         if (this->config.parseSingleFunction) {
-                            ASSERT(this->config.parseSingleFunctionChildIndex > 0);
+                            //ASSERT(this->config.parseSingleFunctionChildIndex > 0);
                             this->config.parseSingleFunctionChildIndex++;
                         }
                         scopeContexts.back()->m_locStart.line = nodeStart.line;

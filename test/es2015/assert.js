@@ -34,3 +34,7 @@ function assertThrows(code, errorType) {
     }
     throw new Error("Did not throw exception");
 }
+
+function assertEquals(actual, expected) {
+    assert(JSON.stringify(actual) == JSON.stringify(expected))
+}
