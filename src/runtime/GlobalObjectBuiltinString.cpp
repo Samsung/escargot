@@ -290,13 +290,16 @@ static Value builtinStringRepeat(ExecutionState& state, Value thisValue, size_t 
     Value argument = argv[0];
     int32_t repeatCount;
     double count = argument.toInteger(state);
-    if (count < 0 || count == std::numeric_limits<double>::infinity()) {
+    double newStringLength = str->length() * count;
+    if (count < 0 || count == std::numeric_limits<double>::infinity() || newStringLength > STRING_MAXIMUM_LENGTH) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "invalid count number of String repeat method");
     }
-    repeatCount = static_cast<int32_t>(count);
-    if (count == 0) {
+
+    if (newStringLength == 0) {
         return String::emptyString;
     }
+
+    repeatCount = static_cast<int32_t>(count);
 
     StringBuilder builder;
     for (int i = 0; i < repeatCount; i++) {
