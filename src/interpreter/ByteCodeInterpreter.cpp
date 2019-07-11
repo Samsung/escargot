@@ -113,7 +113,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 Move* code = (Move*)programCounter;
-                ASSERT(code->m_registerIndex1 < (byteCodeBlock->m_requiredRegisterFileSizeInValueSize + byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->identifierOnStackCount() + 1));
+                ASSERT(code->m_registerIndex1 < (byteCodeBlock->m_requiredRegisterFileSizeInValueSize + byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->totalStackAllocatedVariableSize() + 1));
+                ASSERT(!registerFile[code->m_registerIndex0].isEmpty());
                 registerFile[code->m_registerIndex1] = registerFile[code->m_registerIndex0];
                 ADD_PROGRAM_COUNTER(Move);
                 NEXT_INSTRUCTION();
@@ -579,9 +580,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 for (size_t i = 0; i < code->m_upperIndex; i++) {
                     upperEnv = upperEnv->outerEnvironment();
                 }
-                FunctionEnvironmentRecord* record = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-                ASSERT(record->isFunctionEnvironmentRecordOnHeap() || record->isFunctionEnvironmentRecordNotIndexed());
-                registerFile[code->m_registerIndex] = ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[code->m_index];
+                registerFile[code->m_registerIndex] = upperEnv->record()->asDeclarativeEnvironmentRecord()->getHeapValueByIndex(state, code->m_index);
                 ADD_PROGRAM_COUNTER(LoadByHeapIndex);
                 NEXT_INSTRUCTION();
             }
@@ -594,10 +593,17 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 for (size_t i = 0; i < code->m_upperIndex; i++) {
                     upperEnv = upperEnv->outerEnvironment();
                 }
-                FunctionEnvironmentRecord* record = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-                ASSERT(record->isFunctionEnvironmentRecordOnHeap() || record->isFunctionEnvironmentRecordNotIndexed());
-                ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[code->m_index] = registerFile[code->m_registerIndex];
+                upperEnv->record()->setMutableBindingByIndex(state, code->m_index, registerFile[code->m_registerIndex]);
                 ADD_PROGRAM_COUNTER(StoreByHeapIndex);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(InitializeByHeapIndex)
+                :
+            {
+                InitializeByHeapIndex* code = (InitializeByHeapIndex*)programCounter;
+                state.lexicalEnvironment()->record()->initializeBindingByIndex(state, code->m_index, registerFile[code->m_registerIndex]);
+                ADD_PROGRAM_COUNTER(InitializeByHeapIndex);
                 NEXT_INSTRUCTION();
             }
 
@@ -924,6 +930,15 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 NEXT_INSTRUCTION();
             }
 
+            DEFINE_OPCODE(InitializeByName)
+                :
+            {
+                InitializeByName* code = (InitializeByName*)programCounter;
+                initializeByName(state, state.lexicalEnvironment(), code->m_name, code->m_isLexicallyDeclaredName, registerFile[code->m_registerIndex]);
+                ADD_PROGRAM_COUNTER(InitializeByName);
+                NEXT_INSTRUCTION();
+            }
+
             DEFINE_OPCODE(CreateFunction)
                 :
             {
@@ -1226,16 +1241,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 NEXT_INSTRUCTION();
             }
 
-            DEFINE_OPCODE(DeclareFunctionDeclarations)
-                :
-            {
-                DeclareFunctionDeclarations* code = (DeclareFunctionDeclarations*)programCounter;
-                Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-                declareFunctionDeclarations(state, code, state.lexicalEnvironment(), stackStorage);
-                ADD_PROGRAM_COUNTER(DeclareFunctionDeclarations);
-                NEXT_INSTRUCTION();
-            }
-
             DEFINE_OPCODE(ReturnFunctionSlowCase)
                 :
             {
@@ -1254,7 +1259,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 ThrowStaticErrorOperation* code = (ThrowStaticErrorOperation*)programCounter;
-                ErrorObject::throwBuiltinError(state, (ErrorObject::Code)code->m_errorKind, code->m_errorMessage);
+                ErrorObject::throwBuiltinError(state, (ErrorObject::Code)code->m_errorKind, code->m_errorMessage, code->m_templateDataString);
             }
 
             DEFINE_OPCODE(CallFunctionWithSpreadElement)
@@ -1357,15 +1362,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 NEXT_INSTRUCTION();
             }
 
-            DEFINE_OPCODE(SetConstBinding)
-                :
-            {
-                SetConstBinding* code = (SetConstBinding*)programCounter;
-                state.lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asDeclarativeEnvironmentRecordNotIndexed()->setAsImmutableBinding(state, code->m_name);
-                ADD_PROGRAM_COUNTER(SetConstBinding);
-                NEXT_INSTRUCTION();
-            }
-
             DEFINE_OPCODE(End)
                 :
             {
@@ -1447,7 +1443,7 @@ NEVER_INLINE void ByteCodeInterpreter::storeByName(ExecutionState& state, Lexica
     while (env) {
         auto result = env->record()->hasBinding(state, name);
         if (result.m_index != SIZE_MAX) {
-            env->record()->setMutableBindingByIndex(state, result.m_index, name, value);
+            env->record()->setMutableBindingByBindingSlot(state, result, name, value);
             return;
         }
         env = env->outerEnvironment();
@@ -1457,6 +1453,25 @@ NEVER_INLINE void ByteCodeInterpreter::storeByName(ExecutionState& state, Lexica
     }
     GlobalObject* o = state.context()->globalObject();
     o->setThrowsExceptionWhenStrictMode(state, name, value, o);
+}
+
+NEVER_INLINE void ByteCodeInterpreter::initializeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool isLexicallyDeclaredName, const Value& value)
+{
+    if (isLexicallyDeclaredName) {
+        state.lexicalEnvironment()->record()->initializeBinding(state, name, value);
+    } else {
+        while (env) {
+            if (env->record()->isEvalTarget()) {
+                auto result = env->record()->hasBinding(state, name);
+                if (result.m_index != SIZE_MAX) {
+                    env->record()->initializeBinding(state, name, value);
+                    return;
+                }
+            }
+            env = env->outerEnvironment();
+        }
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
+    }
 }
 
 NEVER_INLINE Value ByteCodeInterpreter::plusSlowCase(ExecutionState& state, const Value& left, const Value& right)
@@ -2396,20 +2411,34 @@ NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState& state, Bl
     state.ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
     size_t newPc = programCounter + sizeof(BlockOperation);
     char* codeBuffer = byteCodeBlock->m_code.data();
-    size_t localCount = code->m_localVariableCount;
+
+    ASSERT(code->m_blockInfo->m_shouldAllocateEnvironment);
 
     // setup new env
-    EnvironmentRecord* newRecord = localCount == 0 ? new DeclarativeEnvironmentRecordNotIndexed(state.lexicalEnvironment()->record()) : new DeclarativeEnvironmentRecordNotIndexed();
+    EnvironmentRecord* newRecord;
+    bool shouldUseIndexedStorage = true;
+
+    if (byteCodeBlock->m_codeBlock->isGlobalScopeCodeBlock()) {
+        shouldUseIndexedStorage = !byteCodeBlock->m_codeBlock->inEvalWithYieldScope();
+    } else {
+        shouldUseIndexedStorage = byteCodeBlock->m_codeBlock->canUseIndexedVariableStorage();
+    }
+
+    if (LIKELY(shouldUseIndexedStorage)) {
+        newRecord = new DeclarativeEnvironmentRecordIndexed(code->m_blockInfo);
+    } else {
+        newRecord = new DeclarativeEnvironmentRecordNotIndexed();
+
+        auto& iv = code->m_blockInfo->m_identifiers;
+        auto siz = iv.size();
+        for (size_t i = 0; i < siz; i++) {
+            newRecord->createBinding(state, iv[i].m_name, false, iv[i].m_isMutable, false);
+        }
+    }
+
     LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, state.lexicalEnvironment());
     ExecutionState newState(&state, newEnv, state.inStrictMode());
     newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
-
-    for (size_t i = 0; i < localCount; i++) {
-        AtomicString name = *((AtomicString*)newPc);
-        newRecord->createBinding(state, name);
-        newRecord->initializeBinding(state, name, Value(Value::EmptyValue));
-        newPc += sizeof(AtomicString);
-    }
 
     interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
 
@@ -2581,54 +2610,6 @@ Value ByteCodeInterpreter::yieldDelegateOperation(ExecutionState& state, Value* 
 
     gen->setByteCodePosition((char*)programCounter - codeBuffer);
     return nextValue;
-}
-
-NEVER_INLINE void ByteCodeInterpreter::declareFunctionDeclarations(ExecutionState& state, DeclareFunctionDeclarations* code, LexicalEnvironment* lexicalEnvironment, Value* stackStorage)
-{
-    InterpretedCodeBlock* cb = code->m_codeBlock;
-    const CodeBlockVector& v = cb->childBlocks();
-    size_t l = v.size();
-    if (LIKELY(cb->canUseIndexedVariableStorage())) {
-        for (size_t i = 0; i < l; i++) {
-            if (v[i]->isFunctionDeclaration()) {
-                AtomicString name = v[i]->functionName();
-                FunctionObject* fn = new FunctionObject(state, v[i], lexicalEnvironment);
-                const CodeBlock::IdentifierInfo& info = cb->identifierInfos()[cb->findName(name)];
-                if (info.m_needToAllocateOnStack) {
-                    stackStorage[info.m_indexForIndexedStorage] = fn;
-                } else {
-                    FunctionEnvironmentRecord* record = lexicalEnvironment->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-                    ASSERT(record->isFunctionEnvironmentRecordOnHeap() || record->isFunctionEnvironmentRecordNotIndexed());
-                    ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[info.m_indexForIndexedStorage] = fn;
-                }
-            }
-        }
-    } else {
-        for (size_t i = 0; i < l; i++) {
-            if (v[i]->isFunctionDeclaration() && code->m_lexicalBlockIndex == v[i]->asInterpretedCodeBlock()->lexicalBlockIndex()) {
-                AtomicString name = v[i]->functionName();
-                FunctionObject* fn = new FunctionObject(state, v[i], lexicalEnvironment);
-                LexicalEnvironment* env = lexicalEnvironment;
-
-                while (!env->record()->isEvalTarget()) {
-                    env = env->outerEnvironment();
-                }
-
-                while (env) {
-                    auto record = env->record();
-                    if (record->isEvalTarget()) {
-                        auto result = env->record()->hasBinding(state, name);
-                        if (result.m_index != SIZE_MAX) {
-                            env->record()->initializeBinding(state, name, fn);
-                            break;
-                        }
-                    }
-                    env = env->outerEnvironment();
-                }
-                ASSERT(env);
-            }
-        }
-    }
 }
 
 NEVER_INLINE void ByteCodeInterpreter::defineObjectGetter(ExecutionState& state, ObjectDefineGetter* code, Value* registerFile)

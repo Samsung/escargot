@@ -98,7 +98,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
         record = state.lexicalEnvironment()->record();
     }
 
-    const CodeBlock::IdentifierInfoVector& vec = m_topCodeBlock->identifierInfos();
+    const InterpretedCodeBlock::IdentifierInfoVector& vec = m_topCodeBlock->identifierInfos();
     size_t len = vec.size();
     EnvironmentRecord* recordToAddVariable = record;
     LexicalEnvironment* e = state.lexicalEnvironment();
@@ -115,12 +115,13 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
 
     ExecutionState newState(&state, newEnvironment, m_topCodeBlock->isStrict());
 
-    size_t stackStorageSize = m_topCodeBlock->identifierOnStackCount();
+    size_t stackStorageSize = m_topCodeBlock->totalStackAllocatedVariableSize();
+    size_t identifierOnStackCount = m_topCodeBlock->identifierOnStackCount();
     size_t literalStorageSize = m_topCodeBlock->byteCodeBlock()->m_numeralLiteralData.size();
     Value* registerFile = ALLOCA((m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize + stackStorageSize + literalStorageSize) * sizeof(Value), Value, state);
     registerFile[0] = Value();
     Value* stackStorage = registerFile + m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize;
-    for (size_t i = 0; i < stackStorageSize; i++) {
+    for (size_t i = 0; i < identifierOnStackCount; i++) {
         stackStorage[i] = Value();
     }
     Value* literalStorage = stackStorage + stackStorageSize;

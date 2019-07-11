@@ -1051,6 +1051,7 @@ void Scanner::scanPunctuator(Scanner::ScannerResult* token, char16_t ch)
     }
 
     token->valuePunctuatorKind = kind;
+    token->end = this->index;
 }
 
 void Scanner::scanHexLiteral(Scanner::ScannerResult* token, size_t start)

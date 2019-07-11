@@ -52,8 +52,8 @@ public:
     {
         if (m_argument->isIdentifier()) {
             auto r = m_argument->asIdentifier()->isAllocatedOnStack(context);
-            if (r.first) {
-                codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), r.second, r.second), context, this);
+            if (std::get<0>(r)) {
+                codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), std::get<1>(r), std::get<1>(r)), context, this);
                 return;
             }
         }

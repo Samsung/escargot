@@ -42,6 +42,7 @@ struct IdentifierRecord {
     AtomicString m_name;
     bool m_canDelete : 1;
     bool m_isMutable : 1;
+    bool m_isVarDeclaration : 1;
 };
 
 typedef Vector<IdentifierRecord, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<IdentifierRecord>> IdentifierRecordVector;
@@ -71,7 +72,7 @@ public:
         return BindingSlot(this, SIZE_MAX);
     }
 
-    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true)
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool canAccessWithoutinitializing = true)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -86,7 +87,17 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const AtomicString& name, const Value& v)
+    virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const Value& v)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    virtual void initializeBindingByIndex(ExecutionState& state, const size_t idx, const Value& v)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -191,13 +202,14 @@ public:
         return m_bindingObject;
     }
 
-    virtual bool isObjectEnvironmentRecord()
+    virtual bool isObjectEnvironmentRecord() override
     {
         return true;
     }
 
-    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true)
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool canAccessWithoutinitializing = true) override
     {
+        ASSERT(canAccessWithoutinitializing);
         auto desc = m_bindingObject->getOwnProperty(state, name);
         if (!desc.hasValue()) {
             ObjectPropertyDescriptor::PresentAttribute attribute = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent);
@@ -207,12 +219,12 @@ public:
         }
     }
 
-    virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+    virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V) override
     {
         m_bindingObject->defineOwnPropertyThrowsExceptionWhenStrictMode(state, name, ObjectPropertyDescriptor(V, ObjectPropertyDescriptor::AllPresent));
     }
 
-    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name)
+    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override
     {
         auto result = m_bindingObject->get(state, ObjectPropertyName(name));
         if (result.hasValue()) {
@@ -222,7 +234,7 @@ public:
         }
     }
 
-    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName)
+    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName) override
     {
         auto result = m_bindingObject->get(state, ObjectPropertyName(atomicName));
         if (result.hasValue()) {
@@ -232,17 +244,17 @@ public:
         }
     }
 
-    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const AtomicString& name, const Value& v)
+    virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override
     {
         m_bindingObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(name), v, m_bindingObject);
     }
 
-    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override
     {
         m_bindingObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(name), V, m_bindingObject);
     }
 
-    virtual bool deleteBinding(ExecutionState& state, const AtomicString& name)
+    virtual bool deleteBinding(ExecutionState& state, const AtomicString& name) override
     {
         return m_bindingObject->deleteOwnProperty(state, name);
     }
@@ -256,28 +268,28 @@ class GlobalEnvironmentRecord : public EnvironmentRecord {
 public:
     GlobalEnvironmentRecord(ExecutionState& state, InterpretedCodeBlock* codeBlock, GlobalObject* global, bool isEvalMode = false, bool createBinding = true);
     ~GlobalEnvironmentRecord() {}
-    virtual bool isGlobalEnvironmentRecord()
+    virtual bool isGlobalEnvironmentRecord() override
     {
         return true;
     }
 
-    virtual bool isEvalTarget()
+    virtual bool isEvalTarget() override
     {
         return true;
     }
 
-    virtual bool hasThisBinding()
+    virtual bool hasThisBinding() override
     {
         return true;
     }
 
-    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true);
-    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
-    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
-    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const AtomicString& name, const Value& v);
-    virtual bool deleteBinding(ExecutionState& state, const AtomicString& name);
-    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName);
-    virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V);
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool canAccessWithoutinitializing = true) override;
+    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
+    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
+    virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override;
+    virtual bool deleteBinding(ExecutionState& state, const AtomicString& name) override;
+    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName) override;
+    virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
 
     CodeBlock* globalCodeBlock()
     {
@@ -290,6 +302,7 @@ private:
 };
 
 class DeclarativeEnvironmentRecordNotIndexed;
+class DeclarativeEnvironmentRecordIndexed;
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-declarative-environment-records
 class DeclarativeEnvironmentRecord : public EnvironmentRecord {
@@ -303,7 +316,7 @@ public:
     {
     }
 
-    virtual bool isDeclarativeEnvironmentRecord()
+    virtual bool isDeclarativeEnvironmentRecord() override
     {
         return true;
     }
@@ -318,6 +331,11 @@ public:
         return false;
     }
 
+    virtual bool isDeclarativeEnvironmentRecordIndexed()
+    {
+        return false;
+    }
+
     FunctionEnvironmentRecord* asFunctionEnvironmentRecord()
     {
         ASSERT(isFunctionEnvironmentRecord());
@@ -326,13 +344,146 @@ public:
 
     DeclarativeEnvironmentRecordNotIndexed* asDeclarativeEnvironmentRecordNotIndexed()
     {
+        ASSERT(isDeclarativeEnvironmentRecordNotIndexed());
         return reinterpret_cast<DeclarativeEnvironmentRecordNotIndexed*>(this);
     }
 
-    virtual void setHeapValueByIndex(const size_t idx, const Value& v)
+    DeclarativeEnvironmentRecordIndexed* asDeclarativeEnvironmentRecordIndexed()
+    {
+        ASSERT(isDeclarativeEnvironmentRecordIndexed());
+        return reinterpret_cast<DeclarativeEnvironmentRecordIndexed*>(this);
+    }
+
+    virtual void setHeapValueByIndex(ExecutionState& state, const size_t idx, const Value& v)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
+
+    virtual Value getHeapValueByIndex(ExecutionState& state, const size_t idx)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+};
+
+class DeclarativeEnvironmentRecordIndexed : public DeclarativeEnvironmentRecord {
+public:
+    DeclarativeEnvironmentRecordIndexed(InterpretedCodeBlock::BlockInfo* blockInfo)
+        : DeclarativeEnvironmentRecord()
+        , m_blockInfo(blockInfo)
+        , m_heapStorage()
+    {
+        const auto& v = m_blockInfo->m_identifiers;
+
+        size_t cnt = 0;
+        size_t siz = v.size();
+        for (size_t i = 0; i < siz; i++) {
+            if (!v[i].m_needToAllocateOnStack) {
+                cnt++;
+            }
+        }
+        m_heapStorage.resize(cnt, SmallValue(Value(Value::EmptyValue)));
+    }
+
+    ~DeclarativeEnvironmentRecordIndexed()
+    {
+    }
+
+    virtual bool isDeclarativeEnvironmentRecordIndexed() override
+    {
+        return true;
+    }
+
+    virtual void setHeapValueByIndex(ExecutionState& state, const size_t idx, const Value& v) override
+    {
+        if (UNLIKELY(m_heapStorage[idx].isEmpty())) {
+            throwReferenceError(state, idx);
+        }
+        m_heapStorage[idx] = v;
+    }
+
+    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override
+    {
+        const auto& v = m_blockInfo->m_identifiers;
+
+        for (size_t i = 0; i < v.size(); i++) {
+            if (v[i].m_name == name) {
+                return GetBindingValueResult(DeclarativeEnvironmentRecordIndexed::getHeapValueByIndex(state, v[i].m_indexForIndexedStorage));
+            }
+        }
+        return GetBindingValueResult();
+    }
+
+    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& name) override
+    {
+        const auto& v = m_blockInfo->m_identifiers;
+        for (size_t i = 0; i < v.size(); i++) {
+            if (v[i].m_name == name) {
+                return BindingSlot(this, v[i].m_indexForIndexedStorage);
+            }
+        }
+        return BindingSlot(this, SIZE_MAX);
+    }
+
+    virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override
+    {
+        if (UNLIKELY(m_heapStorage[slot.m_index].isEmpty())) {
+            throwReferenceError(state, slot.m_index);
+        }
+        m_heapStorage[slot.m_index] = v;
+    }
+
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const Value& v) override
+    {
+        if (UNLIKELY(m_heapStorage[idx].isEmpty())) {
+            throwReferenceError(state, idx);
+        }
+        m_heapStorage[idx] = v;
+    }
+
+    virtual void initializeBindingByIndex(ExecutionState& state, const size_t idx, const Value& v)
+    {
+        m_heapStorage[idx] = v;
+    }
+
+    virtual Value getHeapValueByIndex(ExecutionState& state, const size_t idx) override
+    {
+        auto v = m_heapStorage[idx];
+        if (UNLIKELY(v.isEmpty())) {
+            throwReferenceError(state, idx);
+        }
+        return v;
+    }
+
+    void throwReferenceError(ExecutionState& state, const size_t idx)
+    {
+        const auto& v = m_blockInfo->m_identifiers;
+        size_t cnt = 0;
+        for (size_t i = 0; i < v.size(); i++) {
+            if (!v[i].m_needToAllocateOnStack) {
+                if (cnt == idx) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, v[i].m_name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+                }
+                cnt++;
+            }
+        }
+    }
+
+    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override
+    {
+        const auto& v = m_blockInfo->m_identifiers;
+
+        for (size_t i = 0; i < v.size(); i++) {
+            if (v[i].m_name == name) {
+                DeclarativeEnvironmentRecordIndexed::setMutableBindingByIndex(state, v[i].m_indexForIndexedStorage, V);
+                return;
+            }
+        }
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+private:
+    InterpretedCodeBlock::BlockInfo* m_blockInfo;
+    SmallValueVector m_heapStorage;
 };
 
 // NOTE
@@ -355,12 +506,12 @@ public:
     }
 
     // this constructor is for strict eval
-    DeclarativeEnvironmentRecordNotIndexed(ExecutionState& state, const CodeBlock::IdentifierInfoVector& vec)
+    DeclarativeEnvironmentRecordNotIndexed(ExecutionState& state, const InterpretedCodeBlock::IdentifierInfoVector& vec)
         : DeclarativeEnvironmentRecord()
         , m_heapStorage()
     {
         for (size_t i = 0; i < vec.size(); i++) {
-            createBinding(state, vec[i].m_name, false, vec[i].m_isMutable);
+            createBinding(state, vec[i].m_name, false, vec[i].m_isMutable, true);
         }
     }
 
@@ -368,17 +519,17 @@ public:
     {
     }
 
-    virtual bool isDeclarativeEnvironmentRecordNotIndexed()
+    virtual bool isDeclarativeEnvironmentRecordNotIndexed() override
     {
         return true;
     }
 
-    virtual bool isEvalTarget()
+    virtual bool isEvalTarget() override
     {
         return true;
     }
 
-    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName)
+    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName) override
     {
         for (size_t i = 0; i < m_recordVector.size(); i++) {
             if (m_recordVector[i].m_name == atomicName) {
@@ -388,19 +539,18 @@ public:
         return BindingSlot(this, SIZE_MAX);
     }
 
-    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true);
-    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
-    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
-    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const AtomicString& name, const Value& v);
-    void setAsImmutableBinding(ExecutionState& state, const AtomicString& name);
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool canAccessWithoutinitializing = true) override;
+    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
+    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
+    virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override;
 
-    virtual bool deleteBinding(ExecutionState& state, const AtomicString& name)
+    virtual bool deleteBinding(ExecutionState& state, const AtomicString& name) override
     {
         // Currently 'canDelete' is always false in DeclarativeEnvironmentRecordNotIndexed::createBinding
         return false;
     }
 
-    virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V);
+    virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
 
 private:
     SmallValueVector m_heapStorage;
@@ -416,7 +566,7 @@ public:
     {
     }
 
-    virtual bool isEvalTarget()
+    virtual bool isEvalTarget() override
     {
         return false;
     }
@@ -450,7 +600,7 @@ public:
         }
     }
 
-    virtual bool isFunctionEnvironmentRecord()
+    virtual bool isFunctionEnvironmentRecord() override
     {
         return true;
     }
@@ -463,11 +613,6 @@ public:
     virtual bool isFunctionEnvironmentRecordNotIndexed()
     {
         return false;
-    }
-
-    virtual Value getHeapValueByIndex(const size_t idx)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
     }
 
     void bindThisValue(ExecutionState& state, Value thisValue)
@@ -494,7 +639,7 @@ public:
         return m_thisValue;
     }
 
-    virtual bool hasSuperBinding()
+    virtual bool hasSuperBinding() override
     {
         if (m_thisBindingStatus == ThisBindingStatus::Lexical) {
             return false;
@@ -503,7 +648,7 @@ public:
         return homeObject() != nullptr;
     }
 
-    virtual bool hasThisBinding()
+    virtual bool hasThisBinding() override
     {
         return m_thisBindingStatus != ThisBindingStatus::Lexical;
     }
@@ -577,22 +722,22 @@ class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecord {
 public:
     FunctionEnvironmentRecordOnHeap(FunctionObject* function, size_t argc, Value* argv);
 
-    virtual bool isFunctionEnvironmentRecordOnHeap()
+    virtual bool isFunctionEnvironmentRecordOnHeap() override
     {
         return true;
     }
 
-    virtual void setHeapValueByIndex(const size_t idx, const Value& v)
+    virtual void setHeapValueByIndex(ExecutionState& state, const size_t idx, const Value& v) override
     {
         m_heapStorage[idx] = v;
     }
 
-    virtual Value getHeapValueByIndex(const size_t idx)
+    virtual Value getHeapValueByIndex(ExecutionState& state, const size_t idx) override
     {
         return m_heapStorage[idx];
     }
 
-    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name)
+    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override
     {
         const auto& v = m_functionObject->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
 
@@ -604,7 +749,7 @@ public:
         return GetBindingValueResult();
     }
 
-    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& name)
+    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& name) override
     {
         const auto& v = m_functionObject->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
 
@@ -616,12 +761,22 @@ public:
         return BindingSlot(this, SIZE_MAX);
     }
 
-    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const AtomicString& name, const Value& v)
+    virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override
+    {
+        m_heapStorage[slot.m_index] = v;
+    }
+
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const Value& v) override
     {
         m_heapStorage[idx] = v;
     }
 
-    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+    virtual void initializeBindingByIndex(ExecutionState& state, const size_t idx, const Value& v)
+    {
+        m_heapStorage[idx] = v;
+    }
+
+    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override
     {
         const auto& v = m_functionObject->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
 
@@ -634,12 +789,12 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual size_t argc()
+    virtual size_t argc() override
     {
         return m_argc;
     }
 
-    virtual Value* argv()
+    virtual Value* argv() override
     {
         return m_argv;
     }
@@ -656,27 +811,27 @@ class FunctionEnvironmentRecordNotIndexed : public FunctionEnvironmentRecord {
 public:
     FunctionEnvironmentRecordNotIndexed(FunctionObject* function, size_t argc, Value* argv);
 
-    virtual bool isFunctionEnvironmentRecordNotIndexed()
+    virtual bool isFunctionEnvironmentRecordNotIndexed() override
     {
         return true;
     }
 
-    virtual void setHeapValueByIndex(const size_t idx, const Value& v)
+    virtual void setHeapValueByIndex(ExecutionState& state, const size_t idx, const Value& v) override
     {
         m_heapStorage[idx] = v;
     }
 
-    virtual Value getHeapValueByIndex(const size_t idx)
+    virtual Value getHeapValueByIndex(ExecutionState& state, const size_t idx) override
     {
         return m_heapStorage[idx];
     }
 
-    virtual bool isEvalTarget()
+    virtual bool isEvalTarget() override
     {
         return true;
     }
 
-    virtual bool deleteBinding(ExecutionState& state, const AtomicString& atomicName)
+    virtual bool deleteBinding(ExecutionState& state, const AtomicString& atomicName) override
     {
         size_t len = m_recordVector.size();
         for (size_t i = 0; i < len; i++) {
@@ -692,7 +847,7 @@ public:
         return false;
     }
 
-    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName)
+    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName) override
     {
         size_t len = m_recordVector.size();
         for (size_t i = 0; i < len; i++) {
@@ -704,22 +859,22 @@ public:
     }
 
 
-    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true);
-    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
-    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V);
-    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const AtomicString& name, const Value& v);
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool canAccessWithoutinitializing = true) override;
+    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
+    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
+    virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override;
 
-    virtual size_t argc()
+    virtual size_t argc() override
     {
         return m_argc;
     }
 
-    virtual Value* argv()
+    virtual Value* argv() override
     {
         return m_argv;
     }
 
-    virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V);
+    virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
 
 private:
     size_t m_argc;
@@ -735,7 +890,7 @@ public:
     {
     }
 
-    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name);
+    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
 };
 }
 #endif

@@ -58,6 +58,9 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ArrayPattern; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
+        bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
+        context->m_isLexicallyDeclaredBindingInitialization = false;
+
         bool generateRightSide = m_initIdx == SIZE_MAX;
         bool noResult = dstRegister == REGISTER_LIMIT;
 
@@ -100,7 +103,9 @@ public:
             if (element != nullptr) {
                 if (element->isPattern()) {
                     Node* pattern = element.get()->asPattern(iteratorValueIdx);
+                    context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
                     pattern->generateResultNotRequiredExpressionByteCode(codeBlock, context);
+                    ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
                     context->giveUpRegister();
                 } else if (element->isAssignmentExpressionSimple()) {
                     AssignmentExpressionSimpleNode* assignNode = element->asAssignmentExpressionSimple();
@@ -125,25 +130,21 @@ public:
                     RefPtr<RegisterReferenceNode> registerRef = adoptRef(new RegisterReferenceNode(iteratorValueIdx));
                     RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(assignNode->left(), registerRef.get()));
                     assign->m_loc = m_loc;
+                    context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
                     assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
+                    ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
                     assign->giveupChildren();
 
                     Jump* j = codeBlock->peekCode<Jump>(jPos);
                     j->m_jumpPosition = codeBlock->currentCodeSize();
-
-                    if (assignNode->left()->isIdentifier() && context->m_isConstDeclaration == true) {
-                        codeBlock->pushCode(SetConstBinding(ByteCodeLOC(m_loc.index), assignNode->left()->asIdentifier()->name()), context, this);
-                    }
                 } else {
                     RefPtr<RegisterReferenceNode> registerRef = adoptRef(new RegisterReferenceNode(iteratorValueIdx));
                     RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(element.get(), registerRef.get()));
                     assign->m_loc = m_loc;
+                    context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
                     assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
+                    ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
                     assign->giveupChildren();
-
-                    if (element->isIdentifier() && context->m_isConstDeclaration == true) {
-                        codeBlock->pushCode(SetConstBinding(ByteCodeLOC(m_loc.index), element->asIdentifier()->name()), context, this);
-                    }
                 }
             }
         }

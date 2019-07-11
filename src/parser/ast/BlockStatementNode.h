@@ -28,11 +28,10 @@ namespace Escargot {
 class BlockStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    explicit BlockStatementNode(StatementContainer* body, LocalNamesVector&& localNames, size_t lexicalBlockIndex = 0, StatementContainer* argumentInitializers = nullptr)
+    explicit BlockStatementNode(StatementContainer* body, size_t lexicalBlockIndex = 0, StatementContainer* argumentInitializers = nullptr)
         : StatementNode()
         , m_container(body)
         , m_argumentInitializers(argumentInitializers)
-        , m_localNames(localNames)
         , m_lexicalBlockIndex(lexicalBlockIndex)
     {
     }
@@ -56,17 +55,20 @@ public:
         }
 
         size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
-        context->m_lexicalBlockIndex = m_lexicalBlockIndex;
-        size_t blockPos = codeBlock->pushLexicalBlock(context, m_localNames);
-        bool hasNonLexicalStatementBefore = context->m_hasNonLexicalStatement;
-        context->m_hasNonLexicalStatement = false;
+        ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;
+        if (m_lexicalBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
+            context->m_lexicalBlockIndex = m_lexicalBlockIndex;
+            InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_lexicalBlockIndex);
+            blockContext = codeBlock->pushLexicalBlock(context, bi, this);
+        }
 
         size_t start = codeBlock->currentCodeSize();
         m_container->generateStatementByteCode(codeBlock, context);
 
-        codeBlock->finalizeLexicalBlock(context, blockPos, start);
-        context->m_hasNonLexicalStatement = hasNonLexicalStatementBefore;
-        context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
+        if (m_lexicalBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
+            codeBlock->finalizeLexicalBlock(context, blockContext);
+            context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
+        }
     }
 
     StatementNode* firstChild()
@@ -77,8 +79,7 @@ public:
 private:
     RefPtr<StatementContainer> m_container;
     RefPtr<StatementContainer> m_argumentInitializers;
-    LocalNamesVector m_localNames;
-    size_t m_lexicalBlockIndex;
+    LexcialBlockIndex m_lexicalBlockIndex;
 };
 }
 

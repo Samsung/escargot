@@ -135,6 +135,7 @@ struct Context {
     bool inArrowFunction : 1;
     bool inDirectCatchScope : 1;
     bool inParsingDirective : 1;
+    bool inArgumentParsing : 1;
     bool inWith : 1;
     bool inLoop : 1;
     bool strict : 1;
@@ -204,14 +205,13 @@ public:
     Marker startMarker;
     Marker lastMarker;
 
-    Vector<ASTScopeContext*, gc_allocator_ignore_off_page<ASTScopeContext*>> scopeContexts;
+    Vector<ASTFunctionScopeContext*, gc_allocator_ignore_off_page<ASTFunctionScopeContext*>> scopeContexts;
     bool trackUsingNames;
     AtomicString lastUsingName;
     size_t stackLimit;
     AtomicString lastScanIdentifierName;
-    LocalNamesVector* localNames;
-    size_t lexicalBlockCount;
-    size_t lexicalBlockIndex;
+    LexcialBlockIndex lexicalBlockIndex;
+    LexcialBlockIndex lexicalBlockCount;
 
     class ScanExpressionResult;
 
@@ -268,9 +268,9 @@ public:
         ASTNodeType nodeType;
     };
 
-    ASTScopeContext fakeContext;
+    ASTFunctionScopeContext fakeContext;
 
-    ASTScopeContext* popScopeContext(const MetaNode& node)
+    ASTFunctionScopeContext* popScopeContext(const MetaNode& node)
     {
         auto ret = scopeContexts.back();
         scopeContexts.pop_back();
@@ -278,7 +278,7 @@ public:
         return ret;
     }
 
-    void pushScopeContext(ASTScopeContext* ctx)
+    void pushScopeContext(ASTFunctionScopeContext* ctx)
     {
         scopeContexts.push_back(ctx);
         lastUsingName = AtomicString();
@@ -289,7 +289,7 @@ public:
         if (lastUsingName == name) {
             return;
         }
-        scopeContexts.back()->insertUsingName(name);
+        scopeContexts.back()->insertUsingName(name, this->lexicalBlockIndex);
         lastUsingName = name;
     }
 
@@ -312,19 +312,19 @@ public:
                 continue;
             }
             scopeContexts.back()->m_parameters[i] = id;
-            scopeContexts.back()->insertName(id, true);
+            scopeContexts.back()->insertVarName(id, 0, true);
         }
     }
 
     void pushScopeContext(AtomicString functionName)
     {
         if (this->config.parseSingleFunction) {
-            fakeContext = ASTScopeContext();
+            fakeContext = ASTFunctionScopeContext();
             pushScopeContext(&fakeContext);
             return;
         }
         auto parentContext = scopeContexts.back();
-        pushScopeContext(new ASTScopeContext(this->context->strict));
+        pushScopeContext(new ASTFunctionScopeContext(this->context->strict));
         scopeContexts.back()->m_functionName = functionName;
         scopeContexts.back()->m_inCatch = this->context->inCatch;
         scopeContexts.back()->m_inWith = this->context->inWith;
@@ -350,9 +350,8 @@ public:
         this->stackLimit = currentStackBase + stackRemain;
 #endif
         this->escargotContext = escargotContext;
-        this->localNames = nullptr;
-        this->lexicalBlockCount = 0;
         this->lexicalBlockIndex = 0;
+        this->lexicalBlockCount = 0;
         trackUsingNames = true;
         config.range = false;
         config.loc = false;
@@ -397,6 +396,7 @@ public:
         this->context->inArrowFunction = false;
         this->context->inDirectCatchScope = false;
         this->context->inParsingDirective = false;
+        this->context->inArgumentParsing = false;
         this->context->inWith = false;
         this->context->inLoop = false;
         this->context->strict = this->sourceType == Module;
@@ -1223,7 +1223,7 @@ public:
 
         options.paramSet.push_back(name);
 
-        if (scopeContexts.back()->m_hasRestElement || scopeContexts.back()->m_hasNonIdentArgument) {
+        if (scopeContexts.back()->m_hasRestElement || scopeContexts.back()->m_hasPatternNode || scopeContexts.back()->m_hasNonIdentArgument) {
             for (size_t i = 0; i < options.paramSet.size() - 1; i++) {
                 // Check if any identifier names are duplicated.
                 // Note: using this inner for loop because std::find didn't work for some reason.
@@ -1322,7 +1322,7 @@ public:
                 keyNode = this->parseVariableIdentifier(kind);
             } else {
                 key.setNodeType(ASTNodeType::Identifier);
-                this->scanVariableIdentifier();
+                this->scanVariableIdentifier(kind);
             }
 
             if (this->match(Substitution)) {
@@ -1346,10 +1346,11 @@ public:
                 valueNode = keyNode;
             } else {
                 this->expect(Colon);
+                // don't passing kind here to stop name tracking
                 if (isParse) {
-                    valueNode = this->parsePatternWithDefault(params, kind);
+                    valueNode = this->parsePatternWithDefault(params /*, kind*/);
                 } else {
-                    this->parsePatternWithDefault(params, kind);
+                    this->parsePatternWithDefault(params /*, kind*/);
                 }
             }
         } else {
@@ -1360,10 +1361,11 @@ public:
                 this->scanObjectPropertyKey();
             }
             this->expect(Colon);
+            // don't passing kind here to stop name tracking
             if (isParse) {
-                valueNode = this->parsePatternWithDefault(params, kind);
+                valueNode = this->parsePatternWithDefault(params /*, kind*/);
             } else {
-                this->parsePatternWithDefault(params, kind);
+                this->parsePatternWithDefault(params /*, kind*/);
             }
         }
 
@@ -1406,18 +1408,22 @@ public:
     T pattern(ParamScanList params, KeywordKind kind = KeywordKindEnd)
     {
         if (this->match(LeftSquareBracket)) {
-            scopeContexts.back()->m_hasNonIdentArgument = true;
+            scopeContexts.back()->m_hasPatternNode = true;
+            scopeContexts.back()->m_hasNonIdentArgument |= this->context->inArgumentParsing;
             if (isParse) {
                 return T(this->arrayPattern<ParseAs(ArrayPatternNode)>(params, kind));
+            } else {
+                return this->arrayPattern<Scan>(params, kind);
             }
-            return ScanExpressionResult(ASTNodeType::ArrayPattern);
 
         } else if (this->match(LeftBrace)) {
-            scopeContexts.back()->m_hasNonIdentArgument = true;
+            scopeContexts.back()->m_hasPatternNode = true;
+            scopeContexts.back()->m_hasNonIdentArgument |= this->context->inArgumentParsing;
             if (isParse) {
                 return T(this->objectPattern<ParseAs(ObjectPatternNode)>(params, kind));
+            } else {
+                return this->objectPattern<Scan>(params, kind);
             }
-            return ScanExpressionResult(ASTNodeType::ObjectPattern);
         } else {
             if (this->matchKeyword(LetKeyword) && (kind == ConstKeyword || kind == LetKeyword)) {
                 this->throwUnexpectedToken(&this->lookahead, Messages::UnexpectedToken);
@@ -1439,7 +1445,8 @@ public:
 
         PassRefPtr<Node> pattern = this->pattern<Parse>(params, kind);
         if (this->match(PunctuatorKind::Substitution)) {
-            scopeContexts.back()->m_hasNonIdentArgument = true;
+            scopeContexts.back()->m_hasPatternNode = true;
+            scopeContexts.back()->m_hasNonIdentArgument |= this->context->inArgumentParsing;
             this->nextToken();
             const bool previousAllowYield = this->context->allowYield;
             this->context->allowYield = true;
@@ -1520,6 +1527,9 @@ public:
             options.firstRestricted = *firstRestricted;
         }
 
+        bool inArgumentParsingBefore = this->context->inArgumentParsing;
+        this->context->inArgumentParsing = true;
+
         if (!this->match(RightParenthesis)) {
             options.paramSet.clear();
             while (this->startMarker.index < this->scanner->length) {
@@ -1530,6 +1540,8 @@ public:
             }
         }
         this->expect(RightParenthesis);
+
+        this->context->inArgumentParsing = inArgumentParsingBefore;
 
         return ParseFormalParametersResult(options.params, options.stricted, options.firstRestricted, options.message);
     }
@@ -2247,7 +2259,7 @@ public:
                 }
 
                 if (parent == ObjectPattern) {
-                    scopeContexts.back()->insertUsingName(expr->asProperty()->key()->asIdentifier()->name());
+                    scopeContexts.back()->insertUsingName(expr->asProperty()->key()->asIdentifier()->name(), this->lexicalBlockIndex);
                 }
             }
             break;
@@ -2518,6 +2530,7 @@ public:
                 this->throwUnexpectedToken(&this->lookahead);
             }
 
+            scopeContexts.back()->m_hasSuper = true;
             if (this->context->inArrowFunction) {
                 scopeContexts.back()->m_hasArrowSuper = true;
             }
@@ -2623,6 +2636,7 @@ public:
             this->throwUnexpectedToken(&this->lookahead);
         }
 
+        scopeContexts.back()->m_hasSuper = true;
         if (this->context->inArrowFunction) {
             scopeContexts.back()->m_hasArrowSuper = true;
         }
@@ -2975,7 +2989,7 @@ public:
 
                     if (subExpr->isIdentifier()) {
                         AtomicString s = subExpr->asIdentifier()->name();
-                        if (!this->scopeContexts.back()->hasName(s)) {
+                        if (!this->scopeContexts.back()->hasName(s, this->lexicalBlockIndex)) {
                             this->scopeContexts.back()->m_hasEvaluateBindingId = true;
                         }
                     }
@@ -2984,7 +2998,7 @@ public:
                     ScanExpressionResult subExpr = this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
 
                     if (subExpr == ASTNodeType::Identifier) {
-                        if (!this->scopeContexts.back()->hasName(lastScanIdentifierName)) {
+                        if (!this->scopeContexts.back()->hasName(lastScanIdentifierName, this->lexicalBlockIndex)) {
                             this->scopeContexts.back()->m_hasEvaluateBindingId = true;
                         }
                     }
@@ -3551,7 +3565,21 @@ public:
                     MetaNode nodeStart = this->createNode();
 
                     this->expect(Arrow);
-                    RefPtr<Node> body = this->match(LeftBrace) ? this->parseFunctionSourceElements() : this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                    RefPtr<Node> body;
+                    if (this->match(LeftBrace)) {
+                        body = this->parseFunctionSourceElements();
+                    } else {
+                        LexcialBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
+                        LexcialBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
+                        this->lexicalBlockIndex = 0;
+                        this->lexicalBlockCount = 0;
+
+                        body = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+
+                        this->lexicalBlockIndex = lexicalBlockIndexBefore;
+                        this->lexicalBlockCount = lexicalBlockCountBefore;
+                    }
+                    this->scopeContexts.back()->m_lexicalBlockIndexFunctionLocatedIn = this->lexicalBlockIndex;
                     bool isExpression = body->type() != BlockStatement;
                     if (isExpression) {
                         if (this->config.parseSingleFunction) {
@@ -3857,6 +3885,103 @@ public:
         return T(nullptr);
     }
 
+    struct ParserBlockContext {
+        size_t lexicalBlockCountBefore;
+        size_t lexicalBlockIndexBefore;
+        size_t childLexicalBlockIndex;
+
+        ParserBlockContext()
+            : lexicalBlockCountBefore(SIZE_MAX)
+            , lexicalBlockIndexBefore(SIZE_MAX)
+            , childLexicalBlockIndex(SIZE_MAX)
+        {
+        }
+    };
+
+    ParserBlockContext openBlock()
+    {
+        if (UNLIKELY(this->lexicalBlockCount == LEXCIAL_BLOCK_INDEX_MAX - 1)) {
+            this->throwError("too many lexical blocks in script", String::emptyString, String::emptyString, ErrorObject::RangeError);
+        }
+
+        ParserBlockContext ctx;
+        this->lexicalBlockCount++;
+        ctx.lexicalBlockCountBefore = this->lexicalBlockCount;
+        ctx.lexicalBlockIndexBefore = this->lexicalBlockIndex;
+        ctx.childLexicalBlockIndex = this->lexicalBlockCount;
+
+        this->scopeContexts.back()->insertBlockScope(ctx.childLexicalBlockIndex, this->lexicalBlockIndex,
+                                                     ExtendedNodeLOC(this->lastMarker.lineNumber, this->lastMarker.index - this->lastMarker.lineStart + 1, this->lastMarker.index));
+        this->lexicalBlockIndex = ctx.childLexicalBlockIndex;
+
+        return ctx;
+    }
+
+    void closeBlock(ParserBlockContext& ctx)
+    {
+        if (this->config.parseSingleFunction) {
+            bool finded = false;
+            for (size_t i = 0; i < this->config.parseSingleFunctionTarget->asInterpretedCodeBlock()->blockInfos().size(); i++) {
+                if (this->config.parseSingleFunctionTarget->asInterpretedCodeBlock()->blockInfos()[i]->m_blockIndex == ctx.childLexicalBlockIndex) {
+                    finded = true;
+                    break;
+                }
+            }
+            if (!finded) {
+                ctx.childLexicalBlockIndex = LEXCIAL_BLOCK_INDEX_MAX;
+            }
+        } else {
+            // if there is no new variable in this block, merge this block into parent block
+            auto currentFunctionScope = this->scopeContexts.back();
+            auto blockContext = currentFunctionScope->findBlockFromBackward(this->lexicalBlockIndex);
+            if (this->lexicalBlockIndex != 0 && blockContext->m_names.size() == 0) {
+                const auto currentBlockIndex = this->lexicalBlockIndex;
+                LexcialBlockIndex parentBlockIndex = blockContext->m_parentBlockIndex;
+
+                bool isThereFunctionExists = false;
+                for (size_t i = 0; i < currentFunctionScope->m_childScopes.size(); i++) {
+                    if (currentFunctionScope->m_childScopes[i]->m_nodeType == ASTNodeType::FunctionDeclaration
+                        && currentFunctionScope->m_childScopes[i]->m_lexicalBlockIndexFunctionLocatedIn == currentBlockIndex) {
+                        isThereFunctionExists = true;
+                    }
+                }
+
+                if (!isThereFunctionExists) { // block collapse start
+                    for (size_t i = 0; i < currentFunctionScope->m_childBlockScopes.size(); i++) {
+                        if (currentFunctionScope->m_childBlockScopes[i]->m_parentBlockIndex == currentBlockIndex) {
+                            currentFunctionScope->m_childBlockScopes[i]->m_parentBlockIndex = parentBlockIndex;
+                        }
+                    }
+
+                    for (size_t i = 0; i < currentFunctionScope->m_childScopes.size(); i++) {
+                        if (currentFunctionScope->m_childScopes[i]->m_lexicalBlockIndexFunctionLocatedIn == currentBlockIndex) {
+                            currentFunctionScope->m_childScopes[i]->m_lexicalBlockIndexFunctionLocatedIn = parentBlockIndex;
+                        }
+                    }
+
+                    auto parentBlockContext = currentFunctionScope->findBlockFromBackward(parentBlockIndex);
+                    for (size_t i = 0; i < blockContext->m_usingNames.size(); i++) {
+                        AtomicString name = blockContext->m_usingNames[i];
+                        if (VectorUtil::findInVector(parentBlockContext->m_usingNames, name) == VectorUtil::invalidIndex) {
+                            parentBlockContext->m_usingNames.push_back(name);
+                        }
+                    }
+
+                    // remove current block context from function context
+                    for (size_t i = 0; i < currentFunctionScope->m_childBlockScopes.size(); i++) {
+                        if (currentFunctionScope->m_childBlockScopes[i]->m_blockIndex == currentBlockIndex) {
+                            currentFunctionScope->m_childBlockScopes.erase(i);
+                            break;
+                        }
+                    }
+                    ctx.childLexicalBlockIndex = LEXCIAL_BLOCK_INDEX_MAX;
+                }
+            }
+        }
+
+        this->lexicalBlockIndex = ctx.lexicalBlockIndexBefore;
+    }
+
     template <typename T, bool isParse>
     T block()
     {
@@ -3864,12 +3989,9 @@ public:
         RefPtr<StatementContainer> block;
         StatementNode* referNode = nullptr;
 
-        size_t lexicalBlockIndexBefore = this->lexicalBlockIndex;
-        this->lexicalBlockIndex = ++this->lexicalBlockCount;
+        ParserBlockContext blockContext = openBlock();
+
         bool allowLexicalDeclarationBefore = this->context->allowLexicalDeclaration;
-        LocalNamesVector* localNamesBefore = this->localNames;
-        LocalNamesVector localNames;
-        this->localNames = &localNames;
         this->context->allowLexicalDeclaration = true;
 
         if (isParse) {
@@ -3888,13 +4010,13 @@ public:
         }
         this->expect(RightBrace);
 
-        this->localNames = localNamesBefore;
         this->context->allowLexicalDeclaration = allowLexicalDeclarationBefore;
-        this->lexicalBlockIndex = lexicalBlockIndexBefore;
+
+        closeBlock(blockContext);
 
         if (isParse) {
             MetaNode node = this->createNode();
-            return T(this->finalize(node, new BlockStatementNode(block.get(), std::move(localNames), this->lexicalBlockIndex)));
+            return T(this->finalize(node, new BlockStatementNode(block.get(), blockContext.childLexicalBlockIndex)));
         }
 
         return T(nullptr);
@@ -4123,7 +4245,9 @@ public:
 
         IdentifierNode* id = finishIdentifier(token, true);
 
-        this->checkForLocalNamesDuplicates(id->name(), kind != LetKeyword && kind != ConstKeyword);
+        if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword) {
+            addDeclaredNameIntoContext(id->name(), this->lexicalBlockIndex, kind);
+        }
 
         return this->finalize(node, id);
     }
@@ -4152,25 +4276,27 @@ public:
         }
 
         finishScanIdentifier(token, true);
+
+        if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword) {
+            addDeclaredNameIntoContext(lastScanIdentifierName, this->lexicalBlockIndex, kind);
+        }
     }
 
-    void checkForLocalNamesDuplicates(AtomicString name, bool isVar)
+    void addDeclaredNameIntoContext(AtomicString name, LexcialBlockIndex blockIndex, KeywordKind kind)
     {
-        if (isVar == false && this->context->allowLexicalDeclaration == false) {
-            this->throwError("Lexical declaration cannot appear in a single-statement context");
-        }
-        for (size_t i = 0; i < this->localNames->size(); i++) {
-            if ((*this->localNames)[i].first == name) {
-                if (isVar == false || (*this->localNames)[i].second == false) {
-                    this->throwError("Duplicated local identifier");
-                }
+        ASSERT(kind == VarKeyword || kind == LetKeyword || kind == ConstKeyword);
+
+        if (!this->config.parseSingleFunction) {
+            if (!this->scopeContexts.back()->canDeclareName(name, blockIndex, kind == VarKeyword)) {
+                this->throwError("Identifier '%s' has already been declared", name.string());
+            }
+            if (kind == VarKeyword) {
+                this->scopeContexts.back()->insertVarName(name, blockIndex, true, kind == VarKeyword);
+            } else {
+                this->scopeContexts.back()->insertNameAtBlock(name, blockIndex, kind == ConstKeyword);
+                this->scopeContexts.back()->m_needsToComputeLexicalBlockStuffs = true;
             }
         }
-
-        if (isVar == false) {
-            scopeContexts.back()->m_needsLexicalBlock = true;
-        }
-        this->localNames->push_back(std::make_pair(name, isVar));
     }
 
     template <typename T, bool isParse>
@@ -4181,12 +4307,6 @@ public:
         ScanExpressionResult id;
         bool isIdentifier;
         AtomicString name;
-        bool isLocalForDeclaration = (options.inFor && options.kind != VarKeyword);
-
-        bool trackUsingNamesBefore = this->trackUsingNames;
-        if (isLocalForDeclaration) {
-            this->trackUsingNames = false;
-        }
 
         if (isParse) {
             idNode = this->pattern<Parse>(params, options.kind);
@@ -4195,7 +4315,7 @@ public:
                 name = ((IdentifierNode*)idNode.get())->name();
             }
         } else {
-            id = this->pattern<Scan>(params, VarKeyword);
+            id = this->pattern<Scan>(params, options.kind);
             isIdentifier = (id == Identifier);
             if (isIdentifier) {
                 name = lastScanIdentifierName;
@@ -4207,13 +4327,9 @@ public:
             this->throwError(Messages::StrictVarName);
         }
 
-        if (isIdentifier && !this->config.parseSingleFunction && !isLocalForDeclaration) {
-            if (!this->scopeContexts.back()->insertName(name, true, options.kind == VarKeyword)) {
-                this->throwError("Duplicated local identifier");
-            }
+        if (options.kind != VarKeyword && !this->context->allowLexicalDeclaration) {
+            this->throwError("Lexical declaration cannot appear in a single-statement context");
         }
-
-        this->trackUsingNames = trackUsingNamesBefore;
 
         RefPtr<Node> initNode = nullptr;
         if (this->match(Substitution)) {
@@ -4227,13 +4343,13 @@ public:
             this->expect(Substitution);
         }
 
-        if (initNode == nullptr && options.kind == ConstKeyword && !options.inFor) {
-            this->throwError("Missing initializer in const declaration");
+        if (isParse && initNode == nullptr && options.kind == ConstKeyword && !options.inFor) {
+            this->throwError("Missing initializer in const identifier '%s' declaration", name.string());
         }
 
         if (isParse) {
             MetaNode node = this->createNode();
-            return T(this->finalize(node, new VariableDeclaratorNode(idNode.get(), initNode.get())));
+            return T(this->finalize(node, new VariableDeclaratorNode(options.kind, idNode.get(), initNode.get())));
         }
         return T(nullptr);
     }
@@ -4467,12 +4583,12 @@ public:
         RefPtr<Node> right;
         ForStatementType type = statementTypeFor;
         bool prevInLoop = this->context->inLoop;
-        LocalNamesVector* localNamesBefore = this->localNames;
-        LocalNamesVector localNames;
         bool isLexicalDeclaration = false;
 
         this->expectKeyword(ForKeyword);
         this->expect(LeftParenthesis);
+
+        ParserBlockContext headBlockContext = openBlock();
 
         if (this->match(SemiColon)) {
             this->nextToken();
@@ -4515,7 +4631,6 @@ public:
                     this->expect(SemiColon);
                 }
             } else if (this->matchKeyword(ConstKeyword) || this->matchKeyword(LetKeyword)) {
-                this->localNames = &localNames;
                 isLexicalDeclaration = true;
                 const bool previousAllowLexicalDeclaration = this->context->allowLexicalDeclaration;
                 this->context->allowLexicalDeclaration = true;
@@ -4634,6 +4749,14 @@ public:
 
         this->expect(RightParenthesis);
 
+        ParserBlockContext iterationBlockContext = openBlock();
+        ASTBlockScopeContext* headBlockContextInstance = this->scopeContexts.back()->findBlockFromBackward(headBlockContext.childLexicalBlockIndex);
+        if (headBlockContextInstance->m_names.size()) {
+            // if there are names on headContext (let, const)
+            // we should copy names into to iterationBlock
+            this->scopeContexts.back()->findBlockFromBackward(iterationBlockContext.childLexicalBlockIndex)->m_names = headBlockContextInstance->m_names;
+        }
+
         bool previousInIteration = this->context->inIteration;
         bool allowLexicalDeclarationBefore = this->context->allowLexicalDeclaration;
         this->context->allowLexicalDeclaration = false;
@@ -4650,29 +4773,27 @@ public:
         this->context->inLoop = prevInLoop;
         this->context->allowLexicalDeclaration = allowLexicalDeclarationBefore;
 
-        if (isLexicalDeclaration) {
-            this->localNames = localNamesBefore;
-        }
+        closeBlock(iterationBlockContext);
+        closeBlock(headBlockContext);
 
         if (!isParse) {
             return T(nullptr);
         }
 
         MetaNode node = this->createNode();
-        LocalNamesVector emptyLocalNames;
 
         if (type == statementTypeFor) {
-            ForStatementNode* forNode = new ForStatementNode(init.get(), test.get(), update.get(), body.get(), std::move(isLexicalDeclaration == false ? emptyLocalNames : localNames));
+            ForStatementNode* forNode = new ForStatementNode(init.get(), test.get(), update.get(), body.get(), isLexicalDeclaration, headBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
             return T(this->finalize(node, forNode));
         }
 
         if (type == statementTypeForIn) {
-            ForInOfStatementNode* forInNode = new ForInOfStatementNode(left.get(), right.get(), body.get(), std::move(isLexicalDeclaration == false ? emptyLocalNames : localNames), true);
+            ForInOfStatementNode* forInNode = new ForInOfStatementNode(left.get(), right.get(), body.get(), true, isLexicalDeclaration, headBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
             return T(this->finalize(node, forInNode));
         }
 
         ASSERT(type == statementTypeForOf);
-        ForInOfStatementNode* forOfNode = new ForInOfStatementNode(left.get(), right.get(), body.get(), std::move(isLexicalDeclaration == false ? emptyLocalNames : localNames), false);
+        ForInOfStatementNode* forOfNode = new ForInOfStatementNode(left.get(), right.get(), body.get(), false, isLexicalDeclaration, headBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
         return T(this->finalize(node, forOfNode));
     }
 
@@ -4915,10 +5036,6 @@ public:
         bool defaultFound = false;
         this->expect(LeftBrace);
 
-        LocalNamesVector* localNamesBefore = this->localNames;
-        LocalNamesVector localNames;
-        this->localNames = &localNames;
-
         while (true) {
             if (this->match(RightBrace)) {
                 break;
@@ -4949,9 +5066,8 @@ public:
         this->expect(RightBrace);
 
         this->context->inSwitch = previousInSwitch;
-        this->localNames = localNamesBefore;
         if (isParse) {
-            return T(this->finalize(this->createNode(), new SwitchStatementNode(discriminant.get(), casesA.get(), deflt.get(), casesB.get(), std::move(localNames))));
+            return T(this->finalize(this->createNode(), new SwitchStatementNode(discriminant.get(), casesA.get(), deflt.get(), casesB.get())));
         }
 
         return T(nullptr);
@@ -5357,9 +5473,6 @@ public:
         ASSERT(this->config.parseSingleFunction);
 
         RefPtr<StatementContainer> argumentInitializers = nullptr;
-        LocalNamesVector* localNamesBefore = this->localNames;
-        LocalNamesVector localNames;
-        this->localNames = &localNames;
 
         if (this->config.reparseArguments) {
             this->reparseFunctionArguments(argumentInitializers);
@@ -5413,7 +5526,6 @@ public:
         this->context->inFunctionBody = previousInFunctionBody;
 
         this->context->inDirectCatchScope = prevInDirectCatchScope;
-        this->localNames = localNamesBefore;
 
         return this->finalize(nodeStart, new BlockStatementNode(body.get(), argumentInitializers.get()));
     }
@@ -5471,15 +5583,12 @@ public:
     PassRefPtr<Node> parseFunctionSourceElements()
     {
         RefPtr<StatementContainer> argumentInitializers = nullptr;
-        LocalNamesVector* localNamesBefore = this->localNames;
-        LocalNamesVector localNames;
-
         if (this->config.parseSingleFunction) {
             if (this->config.parseSingleFunctionChildIndex > 0) {
                 size_t realIndex = this->config.parseSingleFunctionChildIndex - 1;
                 this->config.parseSingleFunctionChildIndex++;
                 InterpretedCodeBlock* currentTarget = this->config.parseSingleFunctionTarget->asInterpretedCodeBlock();
-                size_t orgIndex = this->lookahead.end;
+                size_t orgIndex = this->lookahead.start;
                 this->expect(LeftBrace);
 
                 StringView src = currentTarget->childBlocks()[realIndex]->src();
@@ -5492,9 +5601,8 @@ public:
                 this->lookahead.type = Token::PunctuatorToken;
                 this->lookahead.valuePunctuatorKind = PunctuatorKind::RightBrace;
                 this->expect(RightBrace);
-                return this->finalize(this->createNode(), new BlockStatementNode(StatementContainer::create().get()));
+                return this->finalize(this->createNode(), new BlockStatementNode(StatementContainer::create().get(), this->lexicalBlockIndex));
             }
-            this->localNames = &localNames;
             this->config.parseSingleFunctionChildIndex++;
             if (this->config.reparseArguments) {
                 this->reparseFunctionArguments(argumentInitializers);
@@ -5502,6 +5610,11 @@ public:
         }
         bool prevInDirectCatchScope = this->context->inDirectCatchScope;
         this->context->inDirectCatchScope = false;
+
+        LexcialBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
+        LexcialBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
+        this->lexicalBlockIndex = 0;
+        this->lexicalBlockCount = 0;
 
         MetaNode nodeStart = this->createNode();
 
@@ -5538,11 +5651,15 @@ public:
 
         this->expect(RightBrace);
 
+        this->lexicalBlockIndex = lexicalBlockIndexBefore;
+        this->lexicalBlockCount = lexicalBlockCountBefore;
+
         this->context->labelSet = previousLabelSet;
         this->context->inIteration = previousInIteration;
         this->context->inSwitch = previousInSwitch;
         this->context->inFunctionBody = previousInFunctionBody;
 
+        scopeContexts.back()->m_lexicalBlockIndexFunctionLocatedIn = lexicalBlockIndexBefore;
         scopeContexts.back()->m_locStart.line = nodeStart.line;
         scopeContexts.back()->m_locStart.column = nodeStart.column;
         scopeContexts.back()->m_locStart.index = nodeStart.index;
@@ -5556,10 +5673,9 @@ public:
         this->context->inDirectCatchScope = prevInDirectCatchScope;
 
         if (this->config.parseSingleFunction) {
-            this->localNames = localNamesBefore;
-            return this->finalize(nodeStart, new BlockStatementNode(body.get(), std::move(localNames), 0, argumentInitializers.get()));
+            return this->finalize(nodeStart, new BlockStatementNode(body.get(), 0, argumentInitializers.get()));
         } else {
-            return this->finalize(nodeStart, new BlockStatementNode(StatementContainer::create().get()));
+            return this->finalize(nodeStart, new BlockStatementNode(StatementContainer::create().get(), this->lexicalBlockIndex));
         }
     }
 
@@ -5605,17 +5721,14 @@ public:
         this->expect(LeftParenthesis);
         AtomicString fnName = id ? id->name() : AtomicString();
 
-        if (!isFunctionDeclaration) {
-            pushScopeContext(fnName);
-        }
-
-        if (id) {
-            scopeContexts.back()->insertName(fnName, isFunctionDeclaration);
-            insertUsingName(fnName);
-        }
-
         if (isFunctionDeclaration) {
+            scopeContexts.back()->insertVarName(fnName, this->lexicalBlockIndex, true);
+            insertUsingName(fnName);
             pushScopeContext(fnName);
+        } else {
+            pushScopeContext(fnName);
+            scopeContexts.back()->insertVarName(fnName, 0, false);
+            scopeContexts.back()->insertUsingName(fnName, 0);
         }
 
         scopeContexts.back()->m_paramsStart.index = paramsStart.index;
@@ -5641,9 +5754,8 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
 
-        if (isFunctionDeclaration == true) {
-            scopeContexts.back()->m_lexicalBlockIndex = this->lexicalBlockIndex;
-            if (this->context->inDirectCatchScope == true) {
+        if (isFunctionDeclaration) {
+            if (this->context->inDirectCatchScope) {
                 scopeContexts.back()->m_needsSpecialInitialize = true;
             }
         }
@@ -5653,11 +5765,6 @@ public:
 
     PassRefPtr<FunctionDeclarationNode> parseFunctionDeclaration()
     {
-        size_t lexicalBlockCountBefore = this->lexicalBlockCount;
-        size_t lexicalBlockIndexBefore = this->lexicalBlockIndex;
-        this->lexicalBlockCount = 0;
-        this->lexicalBlockIndex = 0;
-
         MetaNode node = this->createNode();
 
         RefPtr<FunctionDeclarationNode> fd = parseFunction<FunctionDeclarationNode, true>(node);
@@ -5665,9 +5772,6 @@ public:
         if (this->context->inDirectCatchScope) {
             this->context->functionDeclarationsInDirectCatchScope.push_back(fd.get());
         }
-
-        this->lexicalBlockCount = lexicalBlockCountBefore;
-        this->lexicalBlockIndex = lexicalBlockIndexBefore;
 
         return fd;
     }
@@ -5973,11 +6077,11 @@ public:
     template <class ClassType>
     PassRefPtr<ClassType> parseClass(bool identifierIsOptional)
     {
-        size_t lexicalBlockCountBefore = this->lexicalBlockCount;
         size_t lexicalBlockIndexBefore = this->lexicalBlockIndex;
+        size_t lexicalBlockCountBefore = this->lexicalBlockCount;
         bool previousStrict = this->context->strict;
-        this->lexicalBlockCount = 0;
         this->lexicalBlockIndex = 0;
+        this->lexicalBlockCount = 0;
         this->context->strict = true;
         this->expectKeyword(ClassKeyword);
         MetaNode node = this->createNode();
@@ -5985,7 +6089,7 @@ public:
         RefPtr<IdentifierNode> id = (identifierIsOptional && this->lookahead.type != Token::IdentifierToken) ? nullptr : this->parseVariableIdentifier();
 
         if (id) {
-            scopeContexts.back()->insertName(id->name(), true);
+            scopeContexts.back()->insertVarName(id->name(), this->lexicalBlockIndex, true);
             insertUsingName(id->name());
         }
 
@@ -5997,9 +6101,8 @@ public:
 
         RefPtr<ClassBodyNode> classBody = this->parseClassBody();
         this->context->strict = previousStrict;
-        this->lexicalBlockCount = lexicalBlockCountBefore;
         this->lexicalBlockIndex = lexicalBlockIndexBefore;
-
+        this->lexicalBlockCount = lexicalBlockCountBefore;
 
         return this->finalize(node, new ClassType(id, superClass, classBody.get()));
     }
@@ -6020,10 +6123,8 @@ public:
     PassRefPtr<ProgramNode> parseProgram()
     {
         MetaNode node = this->createNode();
-        pushScopeContext(new ASTScopeContext(this->context->strict));
+        pushScopeContext(new ASTFunctionScopeContext(this->context->strict));
         this->context->allowLexicalDeclaration = true;
-        LocalNamesVector localNames;
-        this->localNames = &localNames;
         RefPtr<StatementContainer> body = this->parseDirectivePrologues();
         StatementNode* referNode = nullptr;
         while (this->startMarker.index < this->scanner->length) {
@@ -6039,7 +6140,7 @@ public:
         scopeContexts.back()->m_locEnd.column = endNode.column;
 #endif
         scopeContexts.back()->m_locEnd.index = endNode.index;
-        return this->finalize(node, new ProgramNode(body.get(), scopeContexts.back(), std::move(localNames) /*, this->sourceType*/));
+        return this->finalize(node, new ProgramNode(body.get(), scopeContexts.back() /*, this->sourceType*/));
     }
 
     // ECMA-262 15.2.2 Imports
@@ -6283,7 +6384,7 @@ RefPtr<ProgramNode> parseProgram(::Escargot::Context* ctx, StringView source, bo
     return nd;
 }
 
-RefPtr<Node> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, ASTScopeContext*& scopeContext, size_t stackRemain)
+RefPtr<Node> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, ASTFunctionScopeContext*& scopeContext, size_t stackRemain)
 {
     Parser parser(ctx, codeBlock->src(), stackRemain, codeBlock->sourceElementStart());
     parser.trackUsingNames = false;
@@ -6292,7 +6393,7 @@ RefPtr<Node> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock*
     parser.config.parseSingleFunctionTarget = codeBlock;
     parser.config.reparseArguments = codeBlock->shouldReparseArguments();
 
-    scopeContext = new ASTScopeContext(codeBlock->isStrict());
+    scopeContext = new ASTFunctionScopeContext(codeBlock->isStrict());
     parser.pushScopeContext(scopeContext);
     parser.context->allowYield = !codeBlock->isGenerator();
 

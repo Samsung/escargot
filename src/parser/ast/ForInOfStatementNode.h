@@ -28,13 +28,15 @@ namespace Escargot {
 class ForInOfStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    ForInOfStatementNode(Node *left, Node *right, Node *body, LocalNamesVector &&localNames, bool forIn)
+    ForInOfStatementNode(Node *left, Node *right, Node *body, bool forIn, bool hasLexicalDeclarationOnInit, LexcialBlockIndex headLexcialBlockIndex, LexcialBlockIndex iterationLexcialBlockIndex)
         : StatementNode()
         , m_left(left)
         , m_right(right)
         , m_body((StatementNode *)body)
-        , m_localNames(localNames)
         , m_forIn(forIn)
+        , m_hasLexicalDeclarationOnInit(hasLexicalDeclarationOnInit)
+        , m_headLexcialBlockIndex(headLexcialBlockIndex)
+        , m_iterationLexcialBlockIndex(iterationLexcialBlockIndex)
     {
     }
 
@@ -51,17 +53,69 @@ public:
         }
     }
 
+    void generateBodyByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, ByteCodeGenerateContext &newContext)
+    {
+        // per iteration block
+        size_t iterationLexicalBlockIndexBefore = newContext.m_lexicalBlockIndex;
+        ByteCodeBlock::ByteCodeLexicalBlockContext iterationBlockContext;
+        if (m_iterationLexcialBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
+            InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexcialBlockIndex);
+            std::vector<size_t> nameRegisters;
+            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+                nameRegisters.push_back(newContext.getRegister());
+            }
+
+            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+                IdentifierNode *id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(bi->m_identifiers[i].m_name);
+                id->m_loc = m_loc;
+                id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
+            }
+
+            newContext.m_lexicalBlockIndex = m_iterationLexcialBlockIndex;
+            iterationBlockContext = codeBlock->pushLexicalBlock(&newContext, bi, this);
+
+            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+                newContext.m_lexicallyDeclaredNames->push_back(bi->m_identifiers[i].m_name);
+            }
+
+            size_t reverse = bi->m_identifiers.size() - 1;
+            for (size_t i = 0; i < bi->m_identifiers.size(); i++, reverse--) {
+                IdentifierNode *id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(bi->m_identifiers[reverse].m_name);
+                id->m_loc = m_loc;
+                newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
+                id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], false);
+                ASSERT(!newContext.m_isLexicallyDeclaredBindingInitialization);
+                newContext.giveUpRegister();
+            }
+        }
+
+        m_body->generateStatementByteCode(codeBlock, &newContext);
+
+        if (m_iterationLexcialBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
+            codeBlock->finalizeLexicalBlock(&newContext, iterationBlockContext);
+            newContext.m_lexicalBlockIndex = iterationLexicalBlockIndexBefore;
+        }
+    }
+
     virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
     {
         bool canSkipCopyToRegisterBefore = context->m_canSkipCopyToRegister;
         context->m_canSkipCopyToRegister = false;
 
+        size_t headLexicalBlockIndexBefore = context->m_lexicalBlockIndex;
+        ByteCodeBlock::ByteCodeLexicalBlockContext headBlockContext;
+        if (m_headLexcialBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
+            context->m_lexicalBlockIndex = m_headLexcialBlockIndex;
+            InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_headLexcialBlockIndex);
+            headBlockContext = codeBlock->pushLexicalBlock(context, bi, this);
+        }
+
         ByteCodeGenerateContext newContext(*context);
 
-        size_t lexicalBlockStart = codeBlock->pushLexicalBlock(&newContext, m_localNames);
-
+        bool hasDeclaredBindingOnLeft = false;
         newContext.getRegister(); // ExecutionResult of m_right should not overwrite any reserved value
         if (m_left->type() == ASTNodeType::VariableDeclaration) {
+            hasDeclaredBindingOnLeft = true;
             newContext.m_forInOfVarBinding = true;
             m_left->generateResultNotRequiredExpressionByteCode(codeBlock, &newContext);
             newContext.m_forInOfVarBinding = false;
@@ -85,7 +139,6 @@ public:
         size_t exit2Pos = codeBlock->lastCodePosition<JumpIfTrue>();
 
         size_t exit3Pos, continuePosition;
-        size_t perIteratironBlockStart = SIZE_MAX;
         if (m_forIn) {
             // for-in statement
             size_t ePosition = codeBlock->currentCodeSize();
@@ -104,13 +157,9 @@ public:
 
             codeBlock->peekCode<EnumerateObjectKey>(enumerateObjectKeyPos)->m_registerIndex = newContext.getRegister();
 
-            if (lexicalBlockStart != SIZE_MAX) {
-                context->m_tryStatementScopeCount++;
-                perIteratironBlockStart = codeBlock->currentCodeSize();
-                codeBlock->pushCode(BlockOperation(ByteCodeLOC(SIZE_MAX), 0), &newContext, this);
-            }
-
+            newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
             m_left->generateStoreByteCode(codeBlock, &newContext, newContext.getLastRegisterIndex(), true);
+            ASSERT(!newContext.m_isLexicallyDeclaredBindingInitialization);
             newContext.giveUpRegister();
 
             context->m_canSkipCopyToRegister = canSkipCopyToRegisterBefore;
@@ -118,7 +167,7 @@ public:
             ASSERT(newContext.m_registerStack->size() == baseCountBefore);
             newContext.giveUpRegister();
 
-            m_body->generateStatementByteCode(codeBlock, &newContext);
+            generateBodyByteCode(codeBlock, context, newContext);
 
             size_t forInIndex = codeBlock->m_requiredRegisterFileSizeInValueSize;
             codeBlock->m_requiredRegisterFileSizeInValueSize++;
@@ -141,13 +190,9 @@ public:
             size_t iterStepPos = exit3Pos = codeBlock->lastCodePosition<IteratorStep>();
             codeBlock->peekCode<IteratorStep>(iterStepPos)->m_registerIndex = newContext.getRegister();
 
-            if (lexicalBlockStart != SIZE_MAX) {
-                context->m_tryStatementScopeCount++;
-                perIteratironBlockStart = codeBlock->currentCodeSize();
-                codeBlock->pushCode(BlockOperation(ByteCodeLOC(SIZE_MAX), 0), &newContext, this);
-            }
-
+            newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
             m_left->generateStoreByteCode(codeBlock, &newContext, newContext.getLastRegisterIndex(), true);
+            ASSERT(!newContext.m_isLexicallyDeclaredBindingInitialization);
             newContext.giveUpRegister();
 
             context->m_canSkipCopyToRegister = canSkipCopyToRegisterBefore;
@@ -155,7 +200,7 @@ public:
             ASSERT(newContext.m_registerStack->size() == baseCountBefore);
             newContext.giveUpRegister();
 
-            m_body->generateStatementByteCode(codeBlock, &newContext);
+            generateBodyByteCode(codeBlock, context, newContext);
 
             size_t iteratorIndex = codeBlock->m_requiredRegisterFileSizeInValueSize;
             codeBlock->m_requiredRegisterFileSizeInValueSize++;
@@ -164,10 +209,6 @@ public:
             codeBlock->peekCode<IteratorStep>(iterStepPos)->m_iterRegisterIndex = iteratorIndex;
         }
 
-        if (lexicalBlockStart != SIZE_MAX) {
-            newContext.registerJumpPositionsToComplexCase(perIteratironBlockStart);
-            codeBlock->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(m_loc.index)), &newContext, this);
-        }
         size_t blockExitPos = codeBlock->currentCodeSize();
 
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), continuePosition), &newContext, this);
@@ -186,22 +227,22 @@ public:
             codeBlock->peekCode<IteratorStep>(exit3Pos)->m_forOfEndPosition = exitPos;
         }
 
-        if (perIteratironBlockStart != SIZE_MAX) {
-            context->m_tryStatementScopeCount--;
-            codeBlock->peekCode<BlockOperation>(perIteratironBlockStart)->m_blockEndPosition = blockExitPos;
-        }
-
         newContext.propagateInformationTo(*context);
 
-        codeBlock->finalizeLexicalBlock(&newContext, lexicalBlockStart);
+        if (m_headLexcialBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
+            codeBlock->finalizeLexicalBlock(context, headBlockContext);
+            context->m_lexicalBlockIndex = headLexicalBlockIndexBefore;
+        }
     }
 
 private:
     RefPtr<Node> m_left;
     RefPtr<Node> m_right;
     RefPtr<StatementNode> m_body;
-    LocalNamesVector m_localNames;
-    bool m_forIn : 1;
+    bool m_forIn;
+    bool m_hasLexicalDeclarationOnInit;
+    LexcialBlockIndex m_headLexcialBlockIndex;
+    LexcialBlockIndex m_iterationLexcialBlockIndex;
 };
 }
 

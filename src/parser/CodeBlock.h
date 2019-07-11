@@ -95,17 +95,6 @@ public:
     // init for public api
     CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict, bool isCtor, CallNativeFunctionData* info);
 
-    struct IdentifierInfo {
-        bool m_needToAllocateOnStack : 1;
-        bool m_isMutable : 1;
-        bool m_isExplicitlyDeclaredOrParameterName : 1;
-        bool m_isVarDeclaration : 1;
-        size_t m_indexForIndexedStorage;
-        AtomicString m_name;
-    };
-
-    typedef Vector<IdentifierInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<IdentifierInfo>> IdentifierInfoVector;
-
     Context* context()
     {
         return m_context;
@@ -221,11 +210,6 @@ public:
         return m_needsComplexParameterCopy;
     }
 
-    bool needsLexicalBlock() const
-    {
-        return m_needsLexicalBlock;
-    }
-
     void setInWithScope()
     {
         m_isInWithScope = true;
@@ -315,7 +299,7 @@ protected:
     bool m_needsVirtualIDOperation : 1;
     bool m_needToLoadThisValue : 1;
     bool m_hasRestElement : 1;
-    bool m_needsLexicalBlock : 1;
+    bool m_shouldReparseArguments : 1;
     uint16_t m_parameterCount;
 
     AtomicString m_functionName;
@@ -336,7 +320,7 @@ class InterpretedCodeBlock : public CodeBlock {
     friend int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr);
 
 public:
-    void computeVariables(bool propagateLexicalBlock);
+    void computeVariables();
     void appendChildBlock(InterpretedCodeBlock* cb)
     {
         m_childBlocks.push_back(cb);
@@ -344,7 +328,7 @@ public:
     bool needToStoreThisValue();
     void captureThis();
     void captureArguments();
-    bool tryCaptureIdentifiersFromChildCodeBlock(AtomicString name);
+    bool tryCaptureIdentifiersFromChildCodeBlock(LexcialBlockIndex blockIndex, AtomicString name);
     void notifySelfOrChildHasEvalWithYield();
 
     struct FunctionParametersInfo {
@@ -363,28 +347,120 @@ public:
         bool m_isResultSaved : 1;
         bool m_isStackAllocated : 1;
         bool m_isMutable : 1;
+
+        enum DeclarationType {
+            VarDeclared,
+            LexicallyDeclared,
+        };
+
+        DeclarationType m_type : 1;
+
         size_t m_upperIndex;
         size_t m_index;
+
+        IndexedIdentifierInfo()
+            : m_isResultSaved(false)
+        {
+        }
     };
+
+
+    struct BlockIdentifierInfo {
+        bool m_needToAllocateOnStack : 1;
+        bool m_isMutable : 1;
+        size_t m_indexForIndexedStorage; // TODO reduce variable size into uint16_t.
+        AtomicString m_name;
+    };
+
+    typedef TightVector<BlockIdentifierInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<BlockIdentifierInfo>> BlockIdentifierInfoVector;
+
+    struct BlockInfo : public gc {
+        bool m_canAllocateEnvironmentOnStack : 1;
+        bool m_shouldAllocateEnvironment : 1;
+        LexcialBlockIndex m_parentBlockIndex;
+        LexcialBlockIndex m_blockIndex;
+        BlockIdentifierInfoVector m_identifiers;
+
+#ifndef NDEBUG
+        ExtendedNodeLOC m_loc;
+#endif
+        BlockInfo(
+#ifndef NDEBUG
+            ExtendedNodeLOC loc
+#endif
+            )
+            : m_canAllocateEnvironmentOnStack(false)
+            , m_shouldAllocateEnvironment(false)
+            , m_parentBlockIndex(LEXCIAL_BLOCK_INDEX_MAX)
+            , m_blockIndex(LEXCIAL_BLOCK_INDEX_MAX)
+#ifndef NDEBUG
+            , m_loc(loc)
+#endif
+        {
+        }
+
+
+        void* operator new(size_t size);
+        void* operator new[](size_t size) = delete;
+    };
+
+    typedef TightVector<BlockInfo*, GCUtil::gc_malloc_ignore_off_page_allocator<BlockInfo*>> BlockInfoVector;
+
+    struct IdentifierInfo {
+        bool m_needToAllocateOnStack : 1;
+        bool m_isMutable : 1;
+        bool m_isExplicitlyDeclaredOrParameterName : 1;
+        bool m_isVarDeclaration : 1;
+        size_t m_indexForIndexedStorage; // TODO reduce variable size into uint16_t.
+        AtomicString m_name;
+    };
+
+    typedef TightVector<IdentifierInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<IdentifierInfo>> IdentifierInfoVector;
 
     const IdentifierInfoVector& identifierInfos() const
     {
         return m_identifierInfos;
     }
 
-    size_t identifierOnStackCount() const
+    const BlockInfoVector& blockInfos() const
+    {
+        return m_blockInfos;
+    }
+
+    BlockInfo* blockInfo(LexcialBlockIndex blockIndex)
+    {
+        for (size_t i = 0; i < m_blockInfos.size(); i++) {
+            if (m_blockInfos[i]->m_blockIndex == blockIndex) {
+                return m_blockInfos[i];
+            }
+        }
+        ASSERT_NOT_REACHED();
+        return nullptr;
+    }
+
+    size_t identifierOnStackCount() const // var
     {
         return m_identifierOnStackCount;
     }
 
-    size_t identifierOnHeapCount() const
+    size_t identifierOnHeapCount() const // var
     {
         return m_identifierOnHeapCount;
     }
 
-    size_t lexicalBlockIndex() const
+    size_t lexicalBlockStackAllocatedIdentifierMaximumDepth() const // let
     {
-        return m_lexicalBlockIndex;
+        return m_lexicalBlockStackAllocatedIdentifierMaximumDepth;
+    }
+
+    size_t totalStackAllocatedVariableSize() const
+    {
+        return identifierOnStackCount() + lexicalBlockStackAllocatedIdentifierMaximumDepth();
+    }
+
+    LexcialBlockIndex lexicalBlockIndexFunctionLocatedIn() const
+    {
+        return m_lexicalBlockIndexFunctionLocatedIn;
     }
 
     Script* script()
@@ -438,61 +514,62 @@ public:
         return m_shouldReparseArguments;
     }
 
-    IndexedIdentifierInfo upperIndexedIdentifierInfo(const AtomicString& name)
-    {
-        size_t upperIndex = 1;
-        IndexedIdentifierInfo info;
-
-        ASSERT(this->parentCodeBlock());
-        InterpretedCodeBlock* blk = this->parentCodeBlock();
-
-        while (!blk->isGlobalScopeCodeBlock() && blk->canUseIndexedVariableStorage()) {
-            size_t index = blk->findName(name);
-            if (index != SIZE_MAX) {
-                info.m_isResultSaved = true;
-                info.m_isStackAllocated = blk->m_identifierInfos[index].m_needToAllocateOnStack;
-                info.m_upperIndex = upperIndex;
-                info.m_isMutable = blk->m_identifierInfos[index].m_isMutable;
-                if (blk->canUseIndexedVariableStorage()) {
-                    info.m_index = blk->m_identifierInfos[index].m_indexForIndexedStorage;
-                } else {
-                    info.m_index = index;
-                }
-                return info;
-            }
-            upperIndex++;
-            blk = blk->parentCodeBlock();
-        }
-
-        info.m_isResultSaved = false;
-        return info;
-    }
-
-    IndexedIdentifierInfo indexedIdentifierInfo(const AtomicString& name)
+    IndexedIdentifierInfo indexedIdentifierInfo(const AtomicString& name, LexcialBlockIndex blockIndex)
     {
         size_t upperIndex = 0;
         IndexedIdentifierInfo info;
 
-        CodeBlock* blk = this;
-        while (!blk->asInterpretedCodeBlock()->isGlobalScopeCodeBlock() && blk->canUseIndexedVariableStorage()) {
-            size_t index = blk->asInterpretedCodeBlock()->findName(name);
-            if (index != SIZE_MAX) {
-                info.m_isResultSaved = true;
-                info.m_isStackAllocated = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_needToAllocateOnStack;
-                info.m_upperIndex = upperIndex;
-                info.m_isMutable = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_isMutable;
-                if (blk->canUseIndexedVariableStorage()) {
-                    info.m_index = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_indexForIndexedStorage;
-                } else {
-                    info.m_index = index;
+        InterpretedCodeBlock* blk = this;
+        while (blk && (blk->asInterpretedCodeBlock()->isGlobalScopeCodeBlock() || blk->canUseIndexedVariableStorage())) {
+            // search block first.
+            while (blockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
+                InterpretedCodeBlock::BlockInfo* bi = nullptr;
+                for (size_t i = 0; i < blk->m_blockInfos.size(); i++) {
+                    if (blk->m_blockInfos[i]->m_blockIndex == blockIndex) {
+                        bi = blk->m_blockInfos[i];
+                        break;
+                    }
                 }
-                return info;
+
+                for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+                    if (bi->m_identifiers[i].m_name == name) {
+                        info.m_isResultSaved = true;
+                        info.m_isStackAllocated = bi->m_identifiers[i].m_needToAllocateOnStack;
+                        info.m_index = bi->m_identifiers[i].m_indexForIndexedStorage;
+                        if (info.m_isStackAllocated) {
+                            info.m_index += identifierOnStackCount();
+                        }
+                        info.m_upperIndex = upperIndex;
+                        info.m_isMutable = bi->m_identifiers[i].m_isMutable;
+                        info.m_type = IndexedIdentifierInfo::DeclarationType::LexicallyDeclared;
+                        return info;
+                    }
+                }
+
+                if (bi->m_shouldAllocateEnvironment) {
+                    upperIndex++;
+                }
+
+                blockIndex = bi->m_parentBlockIndex;
             }
+            if (!blk->asInterpretedCodeBlock()->isGlobalScopeCodeBlock()) {
+                size_t index = blk->asInterpretedCodeBlock()->findVarName(name);
+                if (index != SIZE_MAX) {
+                    info.m_isResultSaved = true;
+                    info.m_isStackAllocated = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_needToAllocateOnStack;
+                    info.m_upperIndex = upperIndex;
+                    info.m_isMutable = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_isMutable;
+                    info.m_index = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_indexForIndexedStorage;
+                    info.m_type = IndexedIdentifierInfo::DeclarationType::VarDeclared;
+                    return info;
+                }
+            }
+
             upperIndex++;
+            blockIndex = blk->lexicalBlockIndexFunctionLocatedIn();
             blk = blk->asInterpretedCodeBlock()->parentCodeBlock();
         }
 
-        info.m_isResultSaved = false;
         return info;
     }
 
@@ -512,7 +589,7 @@ public:
         return m_childBlocks;
     }
 
-    bool hasName(const AtomicString& name)
+    bool hasVarName(const AtomicString& name)
     {
         for (size_t i = 0; i < m_identifierInfos.size(); i++) {
             if (m_identifierInfos[i].m_name == name) {
@@ -522,7 +599,21 @@ public:
         return false;
     }
 
-    size_t findName(const AtomicString& name)
+    bool hasName(LexcialBlockIndex blockIndex, const AtomicString& name)
+    {
+        if (std::get<0>(findNameWithinBlock(blockIndex, name))) {
+            return true;
+        }
+
+        for (size_t i = 0; i < m_identifierInfos.size(); i++) {
+            if (m_identifierInfos[i].m_name == name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    size_t findVarName(const AtomicString& name)
     {
         for (size_t i = 0; i < m_identifierInfos.size(); i++) {
             if (m_identifierInfos[i].m_name == name) {
@@ -559,7 +650,7 @@ public:
     }
 
 #ifndef NDEBUG
-    ASTScopeContext* scopeContext()
+    ASTFunctionScopeContext* scopeContext()
     {
         return m_scopeContext;
     }
@@ -570,26 +661,75 @@ public:
         return m_byteCodeBlock;
     }
 
+    void markHeapAllocatedEnvironmentFromHere(LexcialBlockIndex blockIndex = 0);
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 protected:
     // init global codeBlock
-    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart);
+    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart);
     // init function codeBlock
-    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, InterpretedCodeBlock* parentBlock);
+    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, InterpretedCodeBlock* parentBlock);
+
+    void computeBlockVariables(LexcialBlockIndex currentBlockIndex, size_t currentStackAllocatedVariableIndex, size_t& maxStackAllocatedVariableDepth);
+    void initBlockScopeInformation(ASTFunctionScopeContext* scopeCtx);
+
+    std::tuple<bool, size_t, size_t> findNameWithinBlock(LexcialBlockIndex blockIndex, AtomicString name)
+    {
+        BlockInfo* b = nullptr;
+        size_t blockVectorIndex = SIZE_MAX;
+        for (size_t i = 0; i < m_blockInfos.size(); i++) {
+            if (m_blockInfos[i]->m_blockIndex == blockIndex) {
+                b = m_blockInfos[i];
+                blockVectorIndex = i;
+                break;
+            }
+        }
+
+        ASSERT(b != nullptr);
+        while (true) {
+            for (size_t i = 0; i < b->m_identifiers.size(); i++) {
+                if (b->m_identifiers[i].m_name == name) {
+                    return std::make_tuple(true, blockVectorIndex, i);
+                }
+            }
+
+            if (b->m_parentBlockIndex == LEXCIAL_BLOCK_INDEX_MAX) {
+                break;
+            }
+
+#ifndef NDEBUG
+            bool finded = false;
+#endif
+            for (size_t i = 0; i < m_blockInfos.size(); i++) {
+                if (m_blockInfos[i]->m_blockIndex == b->m_parentBlockIndex) {
+                    b = m_blockInfos[i];
+                    blockVectorIndex = i;
+#ifndef NDEBUG
+                    finded = true;
+#endif
+                    break;
+                }
+            }
+            ASSERT(finded);
+        }
+
+        return std::make_tuple(false, SIZE_MAX, SIZE_MAX);
+    }
 
     Script* m_script;
     StringView m_paramsSrc; // function parameters elements src
     StringView m_src; // function source elements src
     ExtendedNodeLOC m_sourceElementStart;
-    bool m_shouldReparseArguments : 1;
 
     FunctionParametersInfoVector m_parametersInfomation;
-    uint16_t m_identifierOnStackCount;
-    uint16_t m_identifierOnHeapCount;
-    size_t m_lexicalBlockIndex;
+    uint16_t m_identifierOnStackCount; // this member variable only count `var`
+    uint16_t m_identifierOnHeapCount; // this member variable only count `var`
+    uint16_t m_lexicalBlockStackAllocatedIdentifierMaximumDepth; // this member variable only count `let`
+    LexcialBlockIndex m_lexicalBlockIndexFunctionLocatedIn;
     IdentifierInfoVector m_identifierInfos;
+    BlockInfoVector m_blockInfos;
 
     InterpretedCodeBlock* m_parentCodeBlock;
     CodeBlockVector m_childBlocks;
@@ -597,7 +737,7 @@ protected:
 #ifndef NDEBUG
     ExtendedNodeLOC m_locStart;
     ExtendedNodeLOC m_locEnd;
-    ASTScopeContext* m_scopeContext;
+    ASTFunctionScopeContext* m_scopeContext;
 #endif
 };
 }

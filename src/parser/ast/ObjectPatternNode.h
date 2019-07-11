@@ -51,6 +51,9 @@ public:
         bool generateRightSide = m_initIdx == SIZE_MAX;
         bool noResult = dstRegister == REGISTER_LIMIT;
 
+        bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
+        context->m_isLexicallyDeclaredBindingInitialization = false;
+
         if (generateRightSide) {
             m_initIdx = noResult ? context->getRegister() : dstRegister;
             m_init->generateExpressionByteCode(codeBlock, context, m_initIdx);
@@ -164,12 +167,10 @@ public:
             RefPtr<RegisterReferenceNode> registerRef = adoptRef(new RegisterReferenceNode(valueIndex));
             RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(key, registerRef.get()));
             assign->m_loc = m_loc;
+            context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
             assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
+            ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
             assign->giveupChildren();
-
-            if (context->m_isConstDeclaration == true) {
-                codeBlock->pushCode(SetConstBinding(ByteCodeLOC(m_loc.index), key->asIdentifier()->name()), context, this);
-            }
 
             Jump* j = codeBlock->peekCode<Jump>(jPos);
             j->m_jumpPosition = codeBlock->currentCodeSize();

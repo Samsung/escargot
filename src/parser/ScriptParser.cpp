@@ -34,7 +34,7 @@ ScriptParser::ScriptParser(Context* c)
 {
 }
 
-InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock)
+InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTFunctionScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock)
 {
     InterpretedCodeBlock* codeBlock;
     if (parentCodeBlock == nullptr) {
@@ -70,55 +70,55 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
         bool hasCapturedIdentifier = false;
         AtomicString arguments = ctx->staticStrings().arguments;
         AtomicString stringThis = ctx->staticStrings().stringThis;
-        for (size_t i = 0; i < scopeCtx->m_usingNames.size(); i++) {
-            AtomicString uname = scopeCtx->m_usingNames[i];
-            if (uname == arguments) {
-                if (UNLIKELY(codeBlock->hasParameter(arguments))) {
-                    continue;
-                } else {
-                    if (LIKELY(!codeBlock->isArrowFunctionExpression())) {
-                        codeBlock->captureArguments();
+
+        for (size_t i = 0; i < scopeCtx->m_childBlockScopes.size(); i++) {
+            for (size_t j = 0; j < scopeCtx->m_childBlockScopes[i]->m_usingNames.size(); j++) {
+                AtomicString uname = scopeCtx->m_childBlockScopes[i]->m_usingNames[j];
+
+                if (uname == arguments) {
+                    if (UNLIKELY(codeBlock->hasParameter(arguments))) {
                         continue;
                     } else {
-                        InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
-                        while (c && !c->isGlobalScopeCodeBlock()) {
-                            if (c->hasParameter(arguments)) {
-                                break;
-                            } else if (!c->isArrowFunctionExpression()) {
-                                c->captureArguments();
-                                break;
+                        if (LIKELY(!codeBlock->isArrowFunctionExpression())) {
+                            codeBlock->captureArguments();
+                            codeBlock->markHeapAllocatedEnvironmentFromHere();
+                            continue;
+                        } else {
+                            InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
+                            while (c && !c->isGlobalScopeCodeBlock()) {
+                                if (c->hasParameter(arguments)) {
+                                    break;
+                                } else if (!c->isArrowFunctionExpression()) {
+                                    c->captureArguments();
+                                    c->markHeapAllocatedEnvironmentFromHere();
+                                    break;
+                                }
+                                c = c->parentCodeBlock();
                             }
-                            c = c->parentCodeBlock();
                         }
                     }
-                }
-            } else if (uname == stringThis) {
-                ASSERT(codeBlock->isArrowFunctionExpression());
-                if (!codeBlock->parentCodeBlock()->isGlobalScopeCodeBlock()) {
-                    codeBlock->parentCodeBlock()->captureThis();
-                    codeBlock->setNeedToLoadThisValue();
-                    hasCapturedIdentifier = true;
-                }
-                continue;
-            }
-
-            if (!codeBlock->hasName(uname)) {
-                InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
-                while (c) {
-                    if (c->tryCaptureIdentifiersFromChildCodeBlock(uname)) {
-                        hasCapturedIdentifier = true;
-                        break;
+                } else if (uname == stringThis) {
+                    ASSERT(codeBlock->isArrowFunctionExpression());
+                    if (!codeBlock->parentCodeBlock()->isGlobalScopeCodeBlock()) {
+                        codeBlock->parentCodeBlock()->captureThis();
+                        codeBlock->setNeedToLoadThisValue();
+                        codeBlock->markHeapAllocatedEnvironmentFromHere();
                     }
-                    c = c->parentCodeBlock();
+                    continue;
                 }
-            }
-        }
 
-        if (hasCapturedIdentifier) {
-            InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
-            while (c && c->m_canAllocateEnvironmentOnStack) {
-                c->m_canAllocateEnvironmentOnStack = false;
-                c = c->parentCodeBlock();
+                if (!codeBlock->hasEvalWithYield() && !codeBlock->hasName(scopeCtx->m_childBlockScopes[i]->m_blockIndex, uname)) {
+                    auto parentBlockIndex = codeBlock->lexicalBlockIndexFunctionLocatedIn();
+                    InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
+                    while (c && parentBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
+                        if (c->tryCaptureIdentifiersFromChildCodeBlock(parentBlockIndex, uname)) {
+                            codeBlock->markHeapAllocatedEnvironmentFromHere(scopeCtx->m_childBlockScopes[i]->m_blockIndex);
+                            break;
+                        }
+                        parentBlockIndex = c->lexicalBlockIndexFunctionLocatedIn();
+                        c = c->parentCodeBlock();
+                    }
+                }
             }
         }
     }
@@ -137,13 +137,13 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromAST(Context* ctx, S
     return generateCodeBlockTreeFromASTWalker(ctx, source, script, program->scopeContext(), nullptr);
 }
 
-void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb, bool propagateLexicalBlock)
+void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb)
 {
     for (size_t i = 0; i < cb->m_childBlocks.size(); i++) {
-        generateCodeBlockTreeFromASTWalkerPostProcess(cb->m_childBlocks[i], propagateLexicalBlock);
+        generateCodeBlockTreeFromASTWalkerPostProcess(cb->m_childBlocks[i]);
     }
-    cb->computeVariables(propagateLexicalBlock);
-    if (cb->m_identifierOnStackCount > VARIABLE_LIMIT || cb->m_identifierOnHeapCount > VARIABLE_LIMIT) {
+    cb->computeVariables();
+    if (cb->m_identifierOnStackCount > VARIABLE_LIMIT || cb->m_identifierOnHeapCount > VARIABLE_LIMIT || cb->m_lexicalBlockStackAllocatedIdentifierMaximumDepth > VARIABLE_LIMIT) {
         auto err = new esprima::Error(new ASCIIString("variable limit exceeded"));
         err->errorCode = ErrorObject::SyntaxError;
         err->lineNumber = cb->m_sourceElementStart.line;
@@ -189,7 +189,7 @@ void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView sc
         }
         topCodeBlock->m_isEvalCodeInFunction = isEvalCodeInFunction;
 
-        generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock, topCodeBlock->needsLexicalBlock());
+        generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
 
         script->m_topCodeBlock = topCodeBlock;
 
@@ -217,7 +217,7 @@ void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView sc
 void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain)
 {
     RefPtr<Node> body;
-    ASTScopeContext* scopeContext = nullptr;
+    ASTFunctionScopeContext* scopeContext = nullptr;
 
     // Parsing
     try {
@@ -241,19 +241,26 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
         printf("  ");                    \
     }
 
+#define PRINT_TAB_BLOCK()                \
+    for (size_t i = 0; i < depth; i++) { \
+        printf("  ");                    \
+    }                                    \
+    printf(" ");
+
         PRINT_TAB()
-        printf("CodeBlock %s %s (%d:%d -> %d:%d)(%s, %s) (E:%d, W:%d, C:%d, Y:%d, A:%d)\n", cb->m_functionName.string()->toUTF8StringData().data(),
+        printf("CodeBlock %s %s (%d:%d -> %d:%d, block %d)(%s, %s) (E:%d, W:%d, C:%d, Y:%d, A:%d)\n", cb->m_functionName.string()->toUTF8StringData().data(),
                cb->m_isStrict ? "Strict" : "",
                (int)cb->m_locStart.line,
                (int)cb->m_locStart.column,
                (int)cb->m_locEnd.line,
                (int)cb->m_locEnd.column,
+               (int)cb->lexicalBlockIndexFunctionLocatedIn(),
                cb->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap",
                cb->m_canUseIndexedVariableStorage ? "Indexed" : "Named",
                (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasCatch, (int)cb->m_hasYield, (int)cb->m_usesArgumentsObject);
 
         PRINT_TAB()
-        printf("Names: ");
+        printf("Names(var): ");
         for (size_t i = 0; i < cb->m_identifierInfos.size(); i++) {
             printf("%s(%s, %s, %d), ", cb->m_identifierInfos[i].m_name.string()->toUTF8StringData().data(),
                    cb->m_identifierInfos[i].m_needToAllocateOnStack ? "Stack" : "Heap",
@@ -262,11 +269,33 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
         }
         puts("");
 
-        PRINT_TAB()
-        printf("Using Names: ");
-        for (size_t i = 0; i < cb->m_scopeContext->m_usingNames.size(); i++) {
-            printf("%s, ", cb->m_scopeContext->m_usingNames[i].string()->toUTF8StringData().data());
+        PRINT_TAB_BLOCK()
+        printf("Block information: ");
+        ASSERT(cb->m_scopeContext->m_childBlockScopes.size() == cb->m_blockInfos.size());
+        for (size_t i = 0; i < cb->m_blockInfos.size(); i++) {
+            puts("");
+            PRINT_TAB_BLOCK()
+            printf("Block %p %d:%d [%d parent(%d)]: %s, %s", cb->m_blockInfos[i], (int)cb->m_scopeContext->m_childBlockScopes[i]->m_loc.line, (int)cb->m_scopeContext->m_childBlockScopes[i]->m_loc.column, (int)cb->m_blockInfos[i]->m_blockIndex, (int)cb->m_blockInfos[i]->m_parentBlockIndex, cb->m_blockInfos[i]->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap", cb->m_blockInfos[i]->m_shouldAllocateEnvironment ? "Allocated" : "Skipped");
+
+            puts("");
+            PRINT_TAB_BLOCK()
+            printf("Names : ");
+
+            for (size_t j = 0; j < cb->m_blockInfos[i]->m_identifiers.size(); j++) {
+                printf("%s(%s, %s, %d), ", cb->m_blockInfos[i]->m_identifiers[j].m_name.string()->toUTF8StringData().data(),
+                       cb->m_blockInfos[i]->m_identifiers[j].m_needToAllocateOnStack ? "Stack" : "Heap",
+                       cb->m_blockInfos[i]->m_identifiers[j].m_isMutable ? "Mutable" : "Inmmutable",
+                       (int)cb->m_blockInfos[i]->m_identifiers[j].m_indexForIndexedStorage);
+            }
+
+            puts("");
+            PRINT_TAB_BLOCK()
+            printf("Using names : ");
+            for (size_t j = 0; j < cb->m_scopeContext->m_childBlockScopes[i]->m_usingNames.size(); j++) {
+                printf("%s, ", cb->m_scopeContext->m_childBlockScopes[i]->m_usingNames[j].string()->toUTF8StringData().data());
+            }
         }
+
         puts("");
 
         for (size_t i = 0; i < cb->m_childBlocks.size(); i++) {

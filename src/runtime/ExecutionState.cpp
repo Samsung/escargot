@@ -71,7 +71,6 @@ EnvironmentRecord* ExecutionState::getThisEnvironment()
 
     while (true) {
         EnvironmentRecord* envRec = lex->record();
-
         if (envRec->hasThisBinding()) {
             return envRec;
         }

@@ -28,7 +28,7 @@ namespace Escargot {
 // interface Literal <: Node, Expression {
 class LiteralNode : public ExpressionNode {
 public:
-    explicit LiteralNode(Value value)
+    explicit LiteralNode(const Value& value)
         : ExpressionNode()
         , m_value(value)
     {

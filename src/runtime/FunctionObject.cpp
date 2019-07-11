@@ -339,7 +339,8 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
     ByteCodeBlock* blk = m_codeBlock->asInterpretedCodeBlock()->byteCodeBlock();
 
     size_t registerSize = blk->m_requiredRegisterFileSizeInValueSize;
-    size_t stackStorageSize = m_codeBlock->asInterpretedCodeBlock()->identifierOnStackCount();
+    size_t identifierOnStackCount = m_codeBlock->asInterpretedCodeBlock()->identifierOnStackCount();
+    size_t stackStorageSize = m_codeBlock->asInterpretedCodeBlock()->totalStackAllocatedVariableSize();
     size_t literalStorageSize = blk->m_numeralLiteralData.size();
     Value* literalStorageSrc = blk->m_numeralLiteralData.data();
     size_t parameterCopySize = std::min(argc, (size_t)m_codeBlock->parameterCount());
@@ -434,9 +435,15 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
 
     // prepare parameters
     if (UNLIKELY(m_codeBlock->needsComplexParameterCopy())) {
-        for (size_t i = 2; i < stackStorageSize; i++) {
+        for (size_t i = 2; i < identifierOnStackCount; i++) {
             stackStorage[i] = Value();
         }
+
+#ifndef NDEBUG
+        for (size_t i = identifierOnStackCount; i < stackStorageSize; i++) {
+            stackStorage[i] = Value(Value::EmptyValue);
+        }
+#endif
         if (!m_codeBlock->canUseIndexedVariableStorage()) {
             const InterpretedCodeBlock::FunctionParametersInfoVector& info = m_codeBlock->asInterpretedCodeBlock()->parametersInfomation();
             for (size_t i = 0; i < parameterCopySize; i++) {
@@ -499,9 +506,15 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
             parameterStorageInStack[i] = argv[i];
         }
 
-        for (size_t i = parameterCopySize + 2; i < stackStorageSize; i++) {
+        for (size_t i = parameterCopySize + 2; i < identifierOnStackCount; i++) {
             stackStorage[i] = Value();
         }
+
+#ifndef NDEBUG
+        for (size_t i = identifierOnStackCount; i < stackStorageSize; i++) {
+            stackStorage[i] = Value(Value::EmptyValue);
+        }
+#endif
 
         // Handle rest param
         if (m_codeBlock->m_hasRestElement) {
@@ -567,7 +580,7 @@ void FunctionObject::generateArgumentsObject(ExecutionState& state, FunctionEnvi
         }
         fnRecord->initializeBinding(state, arguments, fnRecord->createArgumentsObject(state));
     } else {
-        const CodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
+        const InterpretedCodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == arguments) {
                 if (v[i].m_needToAllocateOnStack) {

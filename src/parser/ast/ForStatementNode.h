@@ -28,13 +28,15 @@ namespace Escargot {
 class ForStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    ForStatementNode(Node *init, Node *test, Node *update, Node *body, LocalNamesVector &&localNames)
+    ForStatementNode(Node *init, Node *test, Node *update, Node *body, bool hasLexicalDeclarationOnInit, LexcialBlockIndex headLexcialBlockIndex, LexcialBlockIndex iterationLexcialBlockIndex)
         : StatementNode()
         , m_init((ExpressionNode *)init)
         , m_test((ExpressionNode *)test)
         , m_update((ExpressionNode *)update)
         , m_body((StatementNode *)body)
-        , m_localNames(localNames)
+        , m_hasLexicalDeclarationOnInit(hasLexicalDeclarationOnInit)
+        , m_headLexcialBlockIndex(headLexcialBlockIndex)
+        , m_iterationLexcialBlockIndex(iterationLexcialBlockIndex)
     {
     }
 
@@ -45,18 +47,23 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ForStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
     {
+        size_t headLexicalBlockIndexBefore = context->m_lexicalBlockIndex;
+        ByteCodeBlock::ByteCodeLexicalBlockContext headBlockContext;
+        if (m_headLexcialBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
+            context->m_lexicalBlockIndex = m_headLexcialBlockIndex;
+            InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_headLexcialBlockIndex);
+            headBlockContext = codeBlock->pushLexicalBlock(context, bi, this);
+        }
+
         ByteCodeGenerateContext newContext(*context);
 
         newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by m_test
-
-        size_t lexicalBlockStart = codeBlock->pushLexicalBlock(&newContext, m_localNames);
-        size_t perIteratironBlockStart = SIZE_MAX;
 
         if (m_init && m_init->type() != ASTNodeType::RegExpLiteral) {
             m_init->generateStatementByteCode(codeBlock, &newContext);
         }
 
-        size_t forStart = perIteratironBlockStart == SIZE_MAX ? codeBlock->currentCodeSize() : perIteratironBlockStart;
+        size_t forStart = codeBlock->currentCodeSize();
 
         size_t testIndex = 0;
         size_t testPos = 0;
@@ -78,19 +85,45 @@ public:
 
         newContext.giveUpRegister();
 
-        if (lexicalBlockStart != SIZE_MAX) {
-            context->m_tryStatementScopeCount++;
-            perIteratironBlockStart = codeBlock->currentCodeSize();
-            codeBlock->pushCode(BlockOperation(ByteCodeLOC(SIZE_MAX), 0), &newContext, this);
+        // per iteration block
+        size_t iterationLexicalBlockIndexBefore = newContext.m_lexicalBlockIndex;
+        ByteCodeBlock::ByteCodeLexicalBlockContext iterationBlockContext;
+        if (m_iterationLexcialBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
+            InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexcialBlockIndex);
+            std::vector<size_t> nameRegisters;
+            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+                nameRegisters.push_back(newContext.getRegister());
+            }
+
+            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+                IdentifierNode *id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(bi->m_identifiers[i].m_name);
+                id->m_loc = m_loc;
+                id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
+            }
+
+            newContext.m_lexicalBlockIndex = m_iterationLexcialBlockIndex;
+            iterationBlockContext = codeBlock->pushLexicalBlock(&newContext, bi, this);
+
+            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+                newContext.m_lexicallyDeclaredNames->push_back(bi->m_identifiers[i].m_name);
+            }
+
+            size_t reverse = bi->m_identifiers.size() - 1;
+            for (size_t i = 0; i < bi->m_identifiers.size(); i++, reverse--) {
+                IdentifierNode *id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(bi->m_identifiers[reverse].m_name);
+                id->m_loc = m_loc;
+                newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
+                id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], false);
+                ASSERT(!newContext.m_isLexicallyDeclaredBindingInitialization);
+                newContext.giveUpRegister();
+            }
         }
 
         m_body->generateStatementByteCode(codeBlock, &newContext);
 
-        if (perIteratironBlockStart != SIZE_MAX) {
-            context->m_tryStatementScopeCount--;
-            newContext.registerJumpPositionsToComplexCase(perIteratironBlockStart);
-            codeBlock->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(m_loc.index)), &newContext, this);
-            codeBlock->peekCode<BlockOperation>(perIteratironBlockStart)->m_blockEndPosition = codeBlock->currentCodeSize();
+        if (m_iterationLexcialBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
+            codeBlock->finalizeLexicalBlock(&newContext, iterationBlockContext);
+            newContext.m_lexicalBlockIndex = iterationLexicalBlockIndexBefore;
         }
 
         size_t updatePosition = codeBlock->currentCodeSize();
@@ -115,7 +148,10 @@ public:
         newContext.m_positionToContinue = updatePosition;
         newContext.propagateInformationTo(*context);
 
-        codeBlock->finalizeLexicalBlock(&newContext, lexicalBlockStart);
+        if (m_headLexcialBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
+            codeBlock->finalizeLexicalBlock(context, headBlockContext);
+            context->m_lexicalBlockIndex = headLexicalBlockIndexBefore;
+        }
     }
 
 private:
@@ -123,7 +159,9 @@ private:
     RefPtr<ExpressionNode> m_test;
     RefPtr<ExpressionNode> m_update;
     RefPtr<StatementNode> m_body;
-    LocalNamesVector m_localNames;
+    bool m_hasLexicalDeclarationOnInit;
+    LexcialBlockIndex m_headLexcialBlockIndex;
+    LexcialBlockIndex m_iterationLexcialBlockIndex;
 };
 }
 

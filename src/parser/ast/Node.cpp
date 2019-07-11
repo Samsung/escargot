@@ -54,18 +54,32 @@ void Node::generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, By
     return;
 }
 
-void* ASTScopeContext::operator new(size_t size)
+void* ASTBlockScopeContext::operator new(size_t size)
 {
     static bool typeInited = false;
     static GC_descr descr;
     if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(ASTScopeContext)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTScopeContext, m_names));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTScopeContext, m_usingNames));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTScopeContext, m_parameters));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTScopeContext, m_childScopes));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTScopeContext, m_numeralLiteralData));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ASTScopeContext));
+        GC_word obj_bitmap[GC_BITMAP_SIZE(ASTBlockScopeContext)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTBlockScopeContext, m_names));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTBlockScopeContext, m_usingNames));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ASTBlockScopeContext));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+void* ASTFunctionScopeContext::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(ASTFunctionScopeContext)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTFunctionScopeContext, m_varNames));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTFunctionScopeContext, m_parameters));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTFunctionScopeContext, m_childScopes));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTFunctionScopeContext, m_childBlockScopes));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTFunctionScopeContext, m_numeralLiteralData));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ASTFunctionScopeContext));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
