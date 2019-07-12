@@ -136,7 +136,7 @@ def run_octane(engine, arch):
 
 @runner('internal', default=True)
 def run_internal_test(engine, arch):
-    INTERNAL_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver')
+    INTERNAL_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'internal')
     INTERNAL_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'internal')
 
     copy(join(INTERNAL_OVERRIDE_DIR, 'internal-test-cases.txt'), join(INTERNAL_DIR, 'internal-test-cases.txt'))
@@ -148,7 +148,7 @@ def run_internal_test(engine, arch):
 
 @runner('test262', default=True)
 def run_test262(engine, arch):
-    TEST262_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'test')
+    TEST262_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'test262')
     TEST262_DIR = join(PROJECT_SOURCE_DIR, 'test', 'test262')
 
     copy(join(TEST262_OVERRIDE_DIR, 'excludelist.orig.xml'), join(TEST262_DIR, 'excludelist.xml'))
@@ -177,7 +177,7 @@ def run_test262(engine, arch):
 
 @runner('test262-master')
 def run_test262_master(engine, arch):
-    TEST262_HARNESS_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'test')
+    TEST262_HARNESS_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'test262')
     TEST262_HARNESS_DIR = join(PROJECT_SOURCE_DIR, 'test', 'test262-harness-py')
 
     copy(join(TEST262_HARNESS_OVERRIDE_DIR, 'test262-harness-py-excludelist.xml'), join(TEST262_HARNESS_DIR, 'excludelist.xml'))
@@ -191,7 +191,7 @@ def run_test262_master(engine, arch):
 
 @runner('spidermonkey', default=True)
 def run_spidermonkey(engine, arch):
-    SPIDERMONKEY_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver')
+    SPIDERMONKEY_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'spidermonkey')
     SPIDERMONKEY_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'SpiderMonkey')
 
     for nodejs in ['nodejs', 'node']:
@@ -283,7 +283,7 @@ def run_regression_tests(engine, arch):
 
 
 def _run_jetstream(engine, target_test):
-    JETSTREAM_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver', 'jetstream')
+    JETSTREAM_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'jetstream')
     JETSTREAM_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'JetStream-1.1')
 
     copy(join(JETSTREAM_OVERRIDE_DIR, 'jetstream.CDjsSetup.js'), join(JETSTREAM_DIR, 'CDjsSetup.js'))
@@ -326,7 +326,7 @@ def run_jetstream_only_octane(engine, arch):
 
 @runner('chakracore', default=True)
 def run_chakracore(engine, arch):
-    CHAKRACORE_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver', 'chakracore')
+    CHAKRACORE_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'chakracore')
     CHAKRACORE_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'ChakraCore')
 
     copy(join(CHAKRACORE_OVERRIDE_DIR, 'chakracore.run.sh'), join(CHAKRACORE_DIR, 'run.sh'))
@@ -351,7 +351,7 @@ def run_chakracore(engine, arch):
 
 @runner('v8', default=True)
 def run_v8(engine, arch):
-    V8_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver', 'v8')
+    V8_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'v8')
     V8_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'v8')
 
     copy(join(V8_OVERRIDE_DIR, 'v8.mjsunit.status'), join(V8_DIR, 'test', 'mjsunit', 'mjsunit.status'))

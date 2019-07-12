@@ -1,0 +1,216 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+  <test>
+    <default>
+      <escargot-skip>Old non-standard feature(Regex.$0, Regex.leftContext...)</escargot-skip>
+      <files>captures.js</files>
+      <baseline>captures.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>fastRegexCaptures.js</files>
+      <baseline>fastRegexCaptures.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <escargot-skip>Test case is wrong</escargot-skip>
+      <files>regex1.js</files>
+      <baseline>regex1.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>regexSplitOptimization.js</files>
+      <compile-flags>-skipsplitonnoresult- -off:fieldcopyprop</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>match_global.js</files>
+      <baseline>match_global.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <escargot-skip>Old non-standard feature(Regex.$0, Regex.leftContext...)</escargot-skip>
+      <files>configurableTest.js</files>
+      <baseline>configurableTest.baseline</baseline>
+      <compile-flags>-ES6RegExPrototypeProperties-</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <escargot-skip>Old non-standard feature(Regex.$0, Regex.leftContext...)</escargot-skip>
+      <files>rx1.js</files>
+      <baseline>rx1.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>regex_replacefn.js</files>
+      <baseline>regex_replacefn.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>regex_replacefn_this.js</files>
+      <baseline>regex_replacefn_this.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>class-case.js</files>
+      <baseline>class-case.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>prioritizedalternatives.js</files>
+      <baseline>prioritizedalternatives.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>multiline.js</files>
+      <baseline>multiline.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>regex_assertion.js</files>
+      <baseline>regex_assertion.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>regex_deviations.js</files>
+      <compile-flags>-args summary -endargs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>undefined_option.js</files>
+      <baseline>undefined_option.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <escargot-skip>Chakracore only</escargot-skip>
+      <files>toString.js</files>
+      <baseline>toString.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>trigram.js</files>
+      <baseline>trigram.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <escargot-skip>Non standard</escargot-skip>
+      <files>nul_character.js</files>
+      <baseline>nul_character.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <escargot-skip>Old non-standard feature(Regex.$0, Regex.leftContext...)</escargot-skip>
+      <files>replace.js</files>
+      <baseline>replace.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>BolEol.js</files>
+      <baseline>BolEol.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <escargot-skip>Old non-standard feature(Regex.$0, Regex.leftContext...)</escargot-skip>
+      <files>crossContext.js</files>
+      <baseline>crossContext.baseline</baseline>
+      <tags>exclude_native</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <escargot-skip>Old non-standard feature(Regex.$0, Regex.leftContext...)</escargot-skip>
+      <files>crossContext.js</files>
+      <baseline>crossContext.baseline</baseline>
+      <tags>exclude_native</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <escargot-skip>Old non-standard feature(Regex.$0, Regex.leftContext...)</escargot-skip>
+      <files>properties.js</files>
+      <baseline>properties.baseline</baseline>
+      <compile-flags>-ES6RegExPrototypeProperties-</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>NotBOILiteral2.js</files>
+      <baseline>NotBOILiteral2.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <escargot-skip>Chakracore only</escargot-skip>
+      <files>BoiHardFail.js</files>
+      <baseline>BoiHardFail.baseline</baseline>
+      <compile-flags>-regexDebug</compile-flags>
+      <tags>exclude_fre,exclude_apollo,exclude_serialized</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>leadtrail.js</files>
+      <baseline>leadtrail.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>Bug517864.js</files>
+      <compile-flags>-force:deferparse</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>stackregex_box.js</files>
+      <baseline>stackregex_box.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <escargot-skip>Error message differ</escargot-skip>
+      <files>blue_102584_1.js</files>
+      <baseline>blue_102584_1.baseline</baseline>
+      <compile-flags>-MaxinterpretCount:1 -off:simplejit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>blue_102584_2.js</files>
+      <baseline>blue_102584_2.baseline</baseline>
+      <compile-flags>-MaxinterpretCount:1 -off:simplejit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>Bug737451.js</files>
+      <baseline>Bug737451.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <escargot-skip>Error message differ</escargot-skip>
+      <files>Bug1153694.js</files>
+      <baseline>Bug1153694.baseline</baseline>
+    </default>
+  </test>
+</regress-exe>
