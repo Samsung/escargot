@@ -1089,14 +1089,12 @@ class TemplateOperation : public ByteCode {
 public:
     TemplateOperation(const ByteCodeLOC& loc, const size_t src0Index, const size_t src1Index, const size_t dstIndex)
         : ByteCode(Opcode::TemplateOperationOpcode, loc)
-        , m_quasi(NULL)
         , m_src0Index(src0Index)
         , m_src1Index(src1Index)
         , m_dstIndex(dstIndex)
     {
     }
 
-    String* m_quasi;
     ByteCodeRegisterIndex m_src0Index;
     ByteCodeRegisterIndex m_src1Index;
     ByteCodeRegisterIndex m_dstIndex;
