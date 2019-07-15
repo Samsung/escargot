@@ -105,7 +105,7 @@ public:
         if (m_additionalPropertyExpression) {
             size_t reg = m_additionalPropertyExpression->getRegister(codeBlock, context);
             m_additionalPropertyExpression->generateExpressionByteCode(codeBlock, context, reg);
-            codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), dstRegister, m_additionalPropertyName, reg), context, this);
+            codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), dstRegister, m_additionalPropertyName, reg, ObjectPropertyDescriptor::AllPresent), context, this);
             context->giveUpRegister();
         }
     }
