@@ -83,7 +83,7 @@ static Value builtinProxyRevocable(ExecutionState& state, Value thisValue, size_
 
     // 3. Let revoker be a new built-in function object as defined in 26.2.2.1.1.
     // 4. Set the [[RevocableProxy]] internal slot of revoker to p.
-    RevokeFunctionObject* revoker = new RevokeFunctionObject(state, NativeFunctionInfo(strings->revoke, builtinProxyRevoke, 0, nullptr, NativeFunctionInfo::Strict), proxy.asObject()->asProxyObject());
+    RevokeFunctionObject* revoker = new RevokeFunctionObject(state, NativeFunctionInfo(strings->revoke, builtinProxyRevoke, 0, NativeFunctionInfo::Strict), proxy.asObject()->asProxyObject());
 
     // 5. Let result be ObjectCreate(%ObjectPrototype%).
     Object* result = new Object(state);
@@ -103,14 +103,11 @@ static Value builtinProxyRevocable(ExecutionState& state, Value thisValue, size_
 void GlobalObject::installProxy(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    m_proxy = new FunctionObject(state, NativeFunctionInfo(strings->Proxy, builtinProxyConstructor, 2, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
-                                     return new Object(state);
-                                 }),
-                                 FunctionObject::__ForBuiltin__);
+    m_proxy = new FunctionObject(state, NativeFunctionInfo(strings->Proxy, builtinProxyConstructor, 2), FunctionObject::__ForBuiltin__);
     m_proxy->markThisObjectDontNeedStructureTransitionTable(state);
     m_proxy->setPrototype(state, m_functionPrototype);
 
-    m_proxy->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->revocable), ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->revocable, builtinProxyRevocable, 2, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_proxy->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->revocable), ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->revocable, builtinProxyRevocable, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(strings->Proxy),
                       ObjectPropertyDescriptor(m_proxy, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

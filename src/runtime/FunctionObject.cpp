@@ -148,20 +148,6 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Lexi
     Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
 }
 
-FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, String* name, const Value& proto, ForBind)
-    : Object(state,
-             (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2 + 2 /* for bind */),
-             false)
-    , m_codeBlock(codeBlock)
-    , m_outerEnvironment(nullptr)
-    , m_homeObject(nullptr)
-    , m_isBuiltin(false)
-{
-    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = Value(name);
-    initFunctionObject(state);
-    Object::setPrototype(state, proto);
-}
-
 NEVER_INLINE void FunctionObject::generateByteCodeBlock(ExecutionState& state)
 {
     Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& v = state.context()->compiledCodeBlocks();
@@ -230,31 +216,33 @@ Object* FunctionObject::construct(ExecutionState& state, const size_t argc, NULL
     ASSERT(newTarget.isConstructor());
     // Let kind be F’s [[ConstructorKind]] internal slot.
     ConstructorKind kind = constructorKind();
-    Object* thisArgument;
+    Value result;
 
     if (cb->hasCallNativeFunctionCode()) {
-        thisArgument = cb->nativeFunctionData()->m_ctorFn(state, cb, argc, argv);
-        // FIXME: If kind is "base", then
-    } else {
-        // FIXME: Let thisArgument be OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").
-        thisArgument = new Object(state);
-    }
+        // Builtin function
+        result = processBuiltinFunctionCall(state, Value(Value::EmptyValue), argc, argv, true, newTarget);
 
-    if (constructor->getFunctionPrototype(state).isObject()) {
-        thisArgument->setPrototype(state, constructor->getFunctionPrototype(state));
-    } else {
-        thisArgument->setPrototype(state, new Object(state));
-    }
-
-    Value result = processCall(state, thisArgument, argc, argv, true);
-    if (result.isObject()) {
+        ASSERT(result.isObject());
         return result.asObject();
-    }
+    } else {
+        // FIXME: If kind is "base", then
+        // FIXME: Let thisArgument be OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").
+        Object* thisArgument = new Object(state);
+        if (constructor->getFunctionPrototype(state).isObject()) {
+            thisArgument->setPrototype(state, constructor->getFunctionPrototype(state));
+        } else {
+            thisArgument->setPrototype(state, new Object(state));
+        }
 
-    return thisArgument;
+        result = processCall(state, thisArgument, argc, argv, true);
+        if (result.isObject()) {
+            return result.asObject();
+        }
+        return thisArgument;
+    }
 }
 
-Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, NULLABLE Value* argv, bool isNewExpression)
+Value FunctionObject::processBuiltinFunctionCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, Value* argv, bool isNewExpression, const Value& newTarget)
 {
     volatile int sp;
     size_t currentStackBase = (size_t)&sp;
@@ -280,55 +268,81 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
         return returnValue;
     }
 
-    if (!m_codeBlock->isInterpretedCodeBlock()) {
-        CallNativeFunctionData* code = m_codeBlock->nativeFunctionData();
-        FunctionEnvironmentRecordSimple record(this);
-        LexicalEnvironment env(&record, outerEnvironment());
+    CallNativeFunctionData* code = m_codeBlock->nativeFunctionData();
+    FunctionEnvironmentRecordSimple record(this);
+    LexicalEnvironment env(&record, outerEnvironment());
 
-        size_t len = m_codeBlock->parameterCount();
-        if (argc < len) {
-            Value* newArgv = (Value*)alloca(sizeof(Value) * len);
-            for (size_t i = 0; i < argc; i++) {
-                newArgv[i] = argv[i];
-            }
-            for (size_t i = argc; i < len; i++) {
-                newArgv[i] = Value();
-            }
-            argv = newArgv;
+    size_t len = m_codeBlock->parameterCount();
+    if (argc < len) {
+        Value* newArgv = (Value*)alloca(sizeof(Value) * len);
+        for (size_t i = 0; i < argc; i++) {
+            newArgv[i] = argv[i];
         }
+        for (size_t i = argc; i < len; i++) {
+            newArgv[i] = Value();
+        }
+        argv = newArgv;
+    }
 
-        Value receiver = receiverSrc;
-        // prepare receiver
-        if (UNLIKELY(!isStrict)) {
-            if (receiver.isUndefinedOrNull()) {
-                receiver = ctx->globalObject();
-            } else {
-                receiver = receiver.toObject(state);
+    Value receiver = receiverSrc;
+    // prepare receiver
+    if (UNLIKELY(!isStrict)) {
+        if (receiver.isUndefinedOrNull()) {
+            receiver = ctx->globalObject();
+        } else {
+            receiver = receiver.toObject(state);
+        }
+    }
+
+    // FIXME bind this value and newTarget
+    record.bindThisValue(state, receiver);
+    if (isNewExpression) {
+        record.setNewTarget(newTarget);
+    }
+
+    ExecutionState newState(ctx, &state, &env, isStrict, &receiver);
+    try {
+        Value returnValue = code->m_fn(newState, receiver, argc, argv, isNewExpression);
+        if (UNLIKELY(isSuperCall)) {
+            state.getThisEnvironment()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->bindThisValue(state, returnValue);
+            state.setOnGoingSuperCall(false);
+            if (returnValue.isObject() && !isBuiltin()) {
+                returnValue.asObject()->setPrototype(state, receiver.toObject(state)->getPrototype(state));
             }
         }
+        return returnValue;
+    } catch (const Value& v) {
+        ByteCodeInterpreter::processException(newState, v, SIZE_MAX);
+        return Value();
+    }
+}
 
-        record.bindThisValue(state, receiver);
-        if (receiverSrc.isObject()) {
-            record.setNewTarget(receiverSrc.asObject());
-        }
+Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, NULLABLE Value* argv, bool isNewExpression)
+{
+    volatile int sp;
+    size_t currentStackBase = (size_t)&sp;
+#ifdef STACK_GROWS_DOWN
+    if (UNLIKELY((state.stackBase() - currentStackBase) > STACK_LIMIT_FROM_BASE)) {
+#else
+    if (UNLIKELY((currentStackBase - state.stackBase()) > STACK_LIMIT_FROM_BASE)) {
+#endif
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
+    }
 
-        ExecutionState newState(ctx, &state, &env, isStrict, &receiver);
+    ASSERT(m_codeBlock->isInterpretedCodeBlock());
 
-        try {
-            Value returnValue = code->m_fn(newState, receiver, argc, argv, isNewExpression);
+    Context* ctx = m_codeBlock->context();
+    bool isStrict = m_codeBlock->isStrict();
+    bool isSuperCall = state.isOnGoingSuperCall();
 
-            if (UNLIKELY(isSuperCall)) {
-                state.getThisEnvironment()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->bindThisValue(state, returnValue);
-                state.setOnGoingSuperCall(false);
-                if (returnValue.isObject() && !isBuiltin()) {
-                    returnValue.asObject()->setPrototype(state, receiver.toObject(state)->getPrototype(state));
-                }
-            }
+    if (UNLIKELY(!isNewExpression && functionKind() == FunctionKind::ClassConstructor && !isSuperCall)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Class constructor cannot be invoked without 'new'");
+    }
 
-            return returnValue;
-        } catch (const Value& v) {
-            ByteCodeInterpreter::processException(newState, v, SIZE_MAX);
-        }
+    if (UNLIKELY(isSuperCall && isBuiltin() && !isNewExpression)) {
+        Value returnValue = Object::construct(state, this, argc, argv);
+        returnValue.asObject()->setPrototype(state, receiverSrc.toObject(state)->getPrototype(state));
+        return returnValue;
     }
 
     // prepare ByteCodeBlock if needed

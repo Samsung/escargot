@@ -105,7 +105,6 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     auto data = new (PointerFreeGC) CallNativeFunctionData();
     m_nativeFunctionData = (CallNativeFunctionData*)data;
 
-    data->m_ctorFn = info.m_nativeFunctionConstructor;
     data->m_fn = info.m_nativeFunction;
 }
 

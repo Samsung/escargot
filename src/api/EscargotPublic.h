@@ -623,15 +623,13 @@ public:
         bool m_isConstructor;
         AtomicStringRef* m_name;
         NativeFunctionPointer m_nativeFunction;
-        NativeFunctionConstructor m_nativeFunctionConstructor;
         size_t m_argumentCount;
 
-        NativeFunctionInfo(AtomicStringRef* name, NativeFunctionPointer fn, size_t argc, NativeFunctionConstructor ctor = nullptr, bool isStrict = true, bool isConstructor = true)
+        NativeFunctionInfo(AtomicStringRef* name, NativeFunctionPointer fn, size_t argc, bool isStrict = true, bool isConstructor = true)
             : m_isStrict(isStrict)
             , m_isConstructor(isConstructor)
             , m_name(name)
             , m_nativeFunction(fn)
-            , m_nativeFunctionConstructor(ctor)
             , m_argumentCount(argc)
         {
         }

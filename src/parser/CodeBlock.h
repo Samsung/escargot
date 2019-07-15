@@ -38,7 +38,6 @@ typedef TightVector<InterpretedCodeBlock*, GCUtil::gc_malloc_ignore_off_page_all
 
 // length of argv is same with NativeFunctionInfo.m_argumentCount
 typedef Value (*NativeFunctionPointer)(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
-typedef Object* (*NativeFunctionConstructor)(ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv);
 
 struct NativeFunctionInfo {
     enum Flags {
@@ -50,29 +49,21 @@ struct NativeFunctionInfo {
     bool m_isConstructor : 1;
     AtomicString m_name;
     NativeFunctionPointer m_nativeFunction;
-    NativeFunctionConstructor m_nativeFunctionConstructor;
     size_t m_argumentCount;
 
-    NativeFunctionInfo(AtomicString name, NativeFunctionPointer fn, size_t argc, NativeFunctionConstructor ctor = nullptr, int flags = Flags::Strict | Flags::Constructor)
+    NativeFunctionInfo(AtomicString name, NativeFunctionPointer fn, size_t argc, int flags = Flags::Strict | Flags::Constructor)
         : m_isStrict(flags & Strict)
         , m_isConstructor(flags & Constructor)
         , m_name(name)
         , m_nativeFunction(fn)
-        , m_nativeFunctionConstructor(ctor)
         , m_argumentCount(argc)
     {
-        if (!m_isConstructor) {
-            ASSERT(ctor == nullptr);
-        } else {
-            ASSERT(ctor);
-        }
     }
 };
 
 class CallNativeFunctionData : public gc {
 public:
     NativeFunctionPointer m_fn;
-    NativeFunctionConstructor m_ctorFn;
 };
 
 class InterpretedCodeBlock;

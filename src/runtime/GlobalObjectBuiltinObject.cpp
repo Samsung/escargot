@@ -713,15 +713,12 @@ void GlobalObject::installObject(ExecutionState& state)
     const StaticStrings& strings = state.context()->staticStrings();
 
     FunctionObject* emptyFunction = m_functionPrototype;
-    m_object = new FunctionObject(state, NativeFunctionInfo(strings.Object, builtinObjectConstructor, 1, [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
-                                      return new Object(state);
-                                  }),
-                                  FunctionObject::__ForBuiltin__);
+    m_object = new FunctionObject(state, NativeFunctionInfo(strings.Object, builtinObjectConstructor, 1), FunctionObject::__ForBuiltin__);
     m_object->markThisObjectDontNeedStructureTransitionTable(state);
     m_object->setPrototype(state, emptyFunction);
     m_object->setFunctionPrototype(state, m_objectPrototype);
     // $19.1.2.2 Object.create (O [,Properties])
-    m_objectCreate = new FunctionObject(state, NativeFunctionInfo(strings.create, builtinObjectCreate, 2, nullptr, NativeFunctionInfo::Strict));
+    m_objectCreate = new FunctionObject(state, NativeFunctionInfo(strings.create, builtinObjectCreate, 2, NativeFunctionInfo::Strict));
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.create),
                                 ObjectPropertyDescriptor(m_objectCreate,
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -729,128 +726,128 @@ void GlobalObject::installObject(ExecutionState& state)
 
     // 19.1.2.3 Object.defineProperties ( O, Properties )
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.defineProperties),
-                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.defineProperties, builtinObjectDefineProperties, 2, nullptr, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.defineProperties, builtinObjectDefineProperties, 2, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // 19.1.2.4 Object.defineProperty ( O, P, Attributes )
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.defineProperty),
-                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.defineProperty, builtinObjectDefineProperty, 3, nullptr, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.defineProperty, builtinObjectDefineProperty, 3, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // 19.1.2.5 Object.freeze ( O )
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.freeze),
-                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.freeze, builtinObjectFreeze, 1, nullptr, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.freeze, builtinObjectFreeze, 1, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // 19.1.2.6 Object.getOwnPropertyDescriptor ( O, P )
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.getOwnPropertyDescriptor),
-                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.getOwnPropertyDescriptor, builtinObjectGetOwnPropertyDescriptor, 2, nullptr, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.getOwnPropertyDescriptor, builtinObjectGetOwnPropertyDescriptor, 2, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // 19.1.2.7 Object.getOwnPropertyNames ( O )
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.getOwnPropertyNames),
-                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.getOwnPropertyNames, builtinObjectGetOwnPropertyNames, 1, nullptr, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.getOwnPropertyNames, builtinObjectGetOwnPropertyNames, 1, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.getOwnPropertySymbols),
-                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.getOwnPropertySymbols, builtinObjectGetOwnPropertySymbols, 1, nullptr, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.getOwnPropertySymbols, builtinObjectGetOwnPropertySymbols, 1, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // 19.1.2.9 Object.getPrototypeOf ( O )
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.getPrototypeOf),
-                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.getPrototypeOf, builtinObjectGetPrototypeOf, 1, nullptr, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.getPrototypeOf, builtinObjectGetPrototypeOf, 1, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // 19.1.2.11 Object.isExtensible ( O )
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.isExtensible),
-                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.isExtensible, builtinObjectIsExtensible, 1, nullptr, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.isExtensible, builtinObjectIsExtensible, 1, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // 19.1.2.12 Object.isFrozen ( O )
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.isFrozen),
-                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.isFrozen, builtinObjectIsFrozen, 1, nullptr, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.isFrozen, builtinObjectIsFrozen, 1, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // 19.1.2.13 Object.isSealed ( O )
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.isSealed),
-                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.isSealed, builtinObjectIsSealed, 1, nullptr, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.isSealed, builtinObjectIsSealed, 1, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // 19.1.2.14 Object.keys ( O )
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.keys),
-                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.keys, builtinObjectKeys, 1, nullptr, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.keys, builtinObjectKeys, 1, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // 19.1.2.15 Object.preventExtensions ( O )
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.preventExtensions),
-                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.preventExtensions, builtinObjectPreventExtensions, 1, nullptr, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.preventExtensions, builtinObjectPreventExtensions, 1, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // 19.1.2.17 Object.seal ( O )
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.seal),
-                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.seal, builtinObjectSeal, 1, nullptr, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.seal, builtinObjectSeal, 1, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // 19.1.2.20 Object.setPrototypeOf ( O, proto )
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.setPrototypeOf),
-                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.setPrototypeOf, builtinObjectSetPrototypeOf, 2, nullptr, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.setPrototypeOf, builtinObjectSetPrototypeOf, 2, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
     // ES6+ Object.assign
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.assign),
-                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.assign, builtinObjectAssign, 2, nullptr, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.assign, builtinObjectAssign, 2, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.constructor),
                                          ObjectPropertyDescriptor(m_object, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.toString),
-                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.toString, builtinObjectToString, 0, nullptr, NativeFunctionInfo::Strict)),
+                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.toString, builtinObjectToString, 0, NativeFunctionInfo::Strict)),
                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.valueOf),
-                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.valueOf, builtinObjectValueOf, 0, nullptr, NativeFunctionInfo::Strict)),
+                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.valueOf, builtinObjectValueOf, 0, NativeFunctionInfo::Strict)),
                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // ES2017 Object.values
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.values),
-                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.values, builtinObjectValues, 1, nullptr, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.values, builtinObjectValues, 1, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // ES2017 Object.entries
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.entries),
-                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.entries, builtinObjectEntries, 1, nullptr, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.entries, builtinObjectEntries, 1, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $19.1.3.2 Object.prototype.hasOwnProperty(V)
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.hasOwnProperty),
-                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.hasOwnProperty, builtinObjectHasOwnProperty, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.hasOwnProperty, builtinObjectHasOwnProperty, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $19.1.3.4 Object.prototype.isPrototypeOf(V)
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.isPrototypeOf),
-                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.isPrototypeOf, builtinObjectIsPrototypeOf, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.isPrototypeOf, builtinObjectIsPrototypeOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $19.1.3.4 Object.prototype.propertyIsEnumerable(V)
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.propertyIsEnumerable),
-                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.propertyIsEnumerable, builtinObjectPropertyIsEnumerable, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.propertyIsEnumerable, builtinObjectPropertyIsEnumerable, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $19.1.3.5 Object.prototype.toLocaleString()
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.toLocaleString),
-                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.toLocaleString, builtinObjectToLocaleString, 0, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.toLocaleString, builtinObjectToLocaleString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $19.1.3.4 Object.prototype.propertyIsEnumerable(V)
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().propertyIsEnumerable),
-                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().propertyIsEnumerable, builtinObjectPropertyIsEnumerable, 1, nullptr, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().propertyIsEnumerable, builtinObjectPropertyIsEnumerable, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
     JSGetterSetter gs(
-        new FunctionObject(state, NativeFunctionInfo(strings.get__proto__, builtinObject__proto__Getter, 0, nullptr, NativeFunctionInfo::Strict)),
-        new FunctionObject(state, NativeFunctionInfo(strings.set__proto__, builtinObject__proto__Setter, 1, nullptr, NativeFunctionInfo::Strict)));
+        new FunctionObject(state, NativeFunctionInfo(strings.get__proto__, builtinObject__proto__Getter, 0, NativeFunctionInfo::Strict)),
+        new FunctionObject(state, NativeFunctionInfo(strings.set__proto__, builtinObject__proto__Setter, 1, NativeFunctionInfo::Strict)));
     ObjectPropertyDescriptor __proto__desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.__proto__), __proto__desc);
     defineOwnProperty(state, ObjectPropertyName(strings.Object),
                       ObjectPropertyDescriptor(m_object, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_objectPrototypeToString = new FunctionObject(state, NativeFunctionInfo(strings.toString, builtinObjectToString, 0, nullptr, NativeFunctionInfo::Strict));
+    m_objectPrototypeToString = new FunctionObject(state, NativeFunctionInfo(strings.toString, builtinObjectToString, 0, NativeFunctionInfo::Strict));
 }
 }

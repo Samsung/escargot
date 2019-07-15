@@ -1208,7 +1208,6 @@ ObjectRef* GlobalObjectRef::float64ArrayPrototype()
 class CallPublicFunctionData : public CallNativeFunctionData {
 public:
     FunctionObjectRef::NativeFunctionPointer m_publicFn;
-    FunctionObjectRef::NativeFunctionConstructor m_publicCtor;
 };
 
 static Value publicFunctionBridge(ExecutionState& state, Value thisValue, size_t calledArgc, Value* calledArgv, bool isNewExpression)
@@ -1227,24 +1226,6 @@ static FunctionObjectRef* createFunction(ExecutionStateRef* state, FunctionObjec
     CallPublicFunctionData* data = new CallPublicFunctionData();
     data->m_fn = publicFunctionBridge;
     data->m_publicFn = info.m_nativeFunction;
-    if (info.m_isConstructor && info.m_nativeFunctionConstructor) {
-        data->m_publicCtor = info.m_nativeFunctionConstructor;
-        data->m_ctorFn = [](ExecutionState& state, CodeBlock* codeBlock, size_t argc, Value* argv) -> Object* {
-            ValueRef** newArgv = ALLOCA(sizeof(ValueRef*) * argc, ValueRef*, state);
-            for (size_t i = 0; i < argc; i++) {
-                newArgv[i] = toRef(argv[i]);
-            }
-            return toImpl(((CallPublicFunctionData*)codeBlock->nativeFunctionData())->m_publicCtor(toRef(&state), argc, newArgv));
-        };
-    } else if (info.m_isConstructor) {
-        data->m_publicCtor = nullptr;
-        data->m_ctorFn = [](ExecutionState& state, CodeBlock* cb, size_t argc, Value* argv) -> Object* {
-            return new Object(state);
-        };
-    } else {
-        data->m_publicCtor = nullptr;
-        data->m_ctorFn = nullptr;
-    }
 
     CodeBlock* cb = new CodeBlock(toImpl(state)->context(), toImpl(info.m_name), info.m_argumentCount, info.m_isStrict, info.m_isConstructor, data);
     FunctionObject* f;

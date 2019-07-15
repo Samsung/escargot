@@ -53,8 +53,8 @@ PromiseReaction::Capability PromiseObject::createResolvingFunctions(ExecutionSta
 {
     const StaticStrings* strings = &state.context()->staticStrings();
 
-    Object* resolveFunction = new FunctionObject(state, NativeFunctionInfo(strings->Empty, promiseResolveFunction, 1, nullptr, NativeFunctionInfo::Strict));
-    Object* rejectFunction = new FunctionObject(state, NativeFunctionInfo(strings->Empty, promiseRejectFunction, 1, nullptr, NativeFunctionInfo::Strict));
+    Object* resolveFunction = new FunctionObject(state, NativeFunctionInfo(strings->Empty, promiseResolveFunction, 1, NativeFunctionInfo::Strict));
+    Object* rejectFunction = new FunctionObject(state, NativeFunctionInfo(strings->Empty, promiseRejectFunction, 1, NativeFunctionInfo::Strict));
 
     resolveFunction->deleteOwnProperty(state, strings->name);
     rejectFunction->deleteOwnProperty(state, strings->name);
@@ -86,7 +86,7 @@ PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& 
         state.throwException(new TypeErrorObject(state, new ASCIIString("Constructor is not a function object")));
 
     // FIXME: Let executor be a new built-in function object as defined in GetCapabilitiesExecutor Functions (25.4.1.5.1).
-    Object* executor = new FunctionObject(state, NativeFunctionInfo(strings->Empty, getCapabilitiesExecutorFunction, 2, nullptr, NativeFunctionInfo::Strict));
+    Object* executor = new FunctionObject(state, NativeFunctionInfo(strings->Empty, getCapabilitiesExecutorFunction, 2, NativeFunctionInfo::Strict));
     Object* internalSlot = executor->ensureInternalSlot(state);
 
     Value arguments[] = { executor };
