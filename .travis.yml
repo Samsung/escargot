@@ -77,7 +77,7 @@ matrix:
         - ninja -Cout/linux/x86/release
         - cp ./out/linux/x86/release/escargot ./escargot
         - travis_wait 30 tools/run-tests.py --arch=x86 jetstream-only-simple chakracore
-        - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js internal octane jsc-stress v8 spidermonkey regression-tests es2015 intl test262
+        - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js internal octane jsc-stress v8 spidermonkey regression-tests es2015 intl
         - tools/run-tests.py --arch=x86 test262
 
     - name: "linux.x86.debug"
