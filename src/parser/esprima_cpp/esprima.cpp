@@ -2285,6 +2285,11 @@ public:
             return ScanExpressionResult(ASTNodeType::ArrowParameterPlaceHolder);
         }
 
+        /* handle single rest parameter */
+        if (this->match(PeriodPeriodPeriod)) {
+            this->nextToken();
+        }
+
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
 
@@ -2523,7 +2528,6 @@ public:
             }
 
             if (isParse) {
-                insertUsingName(this->escargotContext->staticStrings().stringThis);
                 exprNode = this->finalize(this->createNode(), new SuperExpressionNode(this->lookahead.valuePunctuatorKind == LeftParenthesis));
             } else {
                 expr = ScanExpressionResult(ASTNodeType::SuperExpression);
@@ -3555,7 +3559,6 @@ public:
                     bool isExpression = body->type() != BlockStatement;
                     if (isExpression) {
                         if (this->config.parseSingleFunction) {
-                            ASSERT(this->config.parseSingleFunctionChildIndex > 0);
                             this->config.parseSingleFunctionChildIndex++;
                         }
                         scopeContexts.back()->m_locStart.line = nodeStart.line;

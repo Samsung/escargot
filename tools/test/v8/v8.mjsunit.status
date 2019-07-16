@@ -665,7 +665,6 @@
   'es6/regress/regress-2506': [SKIP],
   'es6/regress/regress-2681': [SKIP],
   'es6/regress/regress-347906': [SKIP],
-  'es6/regress/regress-3501': [SKIP],
   'es6/regress/regress-3683': [SKIP],
   'es6/regress/regress-3741': [SKIP],
   'es6/regress/regress-3938': [SKIP],
