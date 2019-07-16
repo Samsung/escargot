@@ -751,7 +751,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 if (property.isString() && property.asString()->equals("__proto__")) {
                     willBeObject.asObject()->setPrototype(state, registerFile[code->m_loadRegisterIndex]);
                 } else {
-                    willBeObject.asObject()->defineOwnProperty(state, objPropName, ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptor::AllPresent));
+                    willBeObject.asObject()->defineOwnProperty(state, objPropName, ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], code->m_presentAttribute));
                 }
                 ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyOperation);
                 NEXT_INSTRUCTION();
@@ -766,7 +766,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 if (code->m_propertyName == state.context()->staticStrings().__proto__) {
                     willBeObject.asObject()->setPrototype(state, registerFile[code->m_loadRegisterIndex]);
                 } else {
-                    willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], ObjectPropertyDescriptor::AllPresent));
+                    willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], code->m_presentAttribute));
                 }
                 ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyWithNameOperation);
                 NEXT_INSTRUCTION();

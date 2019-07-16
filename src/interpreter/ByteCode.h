@@ -607,19 +607,21 @@ public:
 
 class ObjectDefineOwnPropertyOperation : public ByteCode {
 public:
-    ObjectDefineOwnPropertyOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t propertyRegisterIndex, const size_t loadRegisterIndex)
+    ObjectDefineOwnPropertyOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t propertyRegisterIndex, const size_t loadRegisterIndex, ObjectPropertyDescriptor::PresentAttribute presentAttribute)
         : ByteCode(Opcode::ObjectDefineOwnPropertyOperationOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_propertyRegisterIndex(propertyRegisterIndex)
         , m_loadRegisterIndex(loadRegisterIndex)
+        , m_presentAttribute(presentAttribute)
     {
     }
 
     ByteCodeRegisterIndex m_objectRegisterIndex;
     ByteCodeRegisterIndex m_propertyRegisterIndex;
     ByteCodeRegisterIndex m_loadRegisterIndex;
-
+    ObjectPropertyDescriptor::PresentAttribute m_presentAttribute;
 #ifndef NDEBUG
+
     void dump(const char* byteCodeStart)
     {
         printf("object define own property r%d[r%d] <- r%d", (int)m_objectRegisterIndex, (int)m_propertyRegisterIndex, (int)m_loadRegisterIndex);
@@ -629,19 +631,21 @@ public:
 
 class ObjectDefineOwnPropertyWithNameOperation : public ByteCode {
 public:
-    ObjectDefineOwnPropertyWithNameOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, AtomicString propertyName, const size_t loadRegisterIndex)
+    ObjectDefineOwnPropertyWithNameOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, AtomicString propertyName, const size_t loadRegisterIndex, ObjectPropertyDescriptor::PresentAttribute presentAttribute)
         : ByteCode(Opcode::ObjectDefineOwnPropertyWithNameOperationOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_loadRegisterIndex(loadRegisterIndex)
         , m_propertyName(propertyName)
+        , m_presentAttribute(presentAttribute)
     {
     }
 
     ByteCodeRegisterIndex m_objectRegisterIndex;
     ByteCodeRegisterIndex m_loadRegisterIndex;
     AtomicString m_propertyName;
-
+    ObjectPropertyDescriptor::PresentAttribute m_presentAttribute;
 #ifndef NDEBUG
+
     void dump(const char* byteCodeStart)
     {
         printf("object define own property with name r%d.%s <- r%d", (int)m_objectRegisterIndex, m_propertyName.string()->toUTF8StringData().data(), (int)m_loadRegisterIndex);
