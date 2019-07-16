@@ -236,6 +236,7 @@ def run_jsc_stress(engine, arch):
 
     run([join(JSC_DIR, 'driver.py'),
          '-s', 'stress',
+         '-e', engine,
          '-a', arch],
         cwd=PROJECT_SOURCE_DIR,
         env={'PYTHONPATH': '.'})
@@ -363,12 +364,17 @@ def run_v8(engine, arch):
 
     arch = {'x86': 'x32', 'x86_64': 'x64'}[arch]
 
+    if (engine is "escargot"):
+        shell_str = "../../../escargot"
+    else:
+        shell_str = engine
+
     stdout = run([join(V8_DIR, 'tools', 'run-tests.py'),
                   '--timeout=120',
                   '--quickcheck',
                   '--no-presubmit', '--no-variants',
                   '--arch-and-mode=%s.release' % arch,
-                  '--shell-dir', '../../../',
+                  '--shell', shell_str,
                   '--escargot',
                   '--report',
                   '-p', 'verbose',
