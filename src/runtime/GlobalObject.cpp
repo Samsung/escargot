@@ -1170,4 +1170,4 @@ const Vector<String*, gc_allocator<String*>>& GlobalObject::intlNumberFormatAvai
     return m_intlNumberFormatAvailableLocales;
 }
 #endif
-}
+} // namespace Escargot

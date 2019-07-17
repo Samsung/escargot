@@ -261,6 +261,18 @@ static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue
     return Value(Object::hasInstance(state, thisValue, argv[0]));
 }
 
+static Value builtinCallerandArgumentsGetterSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (thisValue.isFunction()) {
+        FunctionObject* function = thisValue.asFunction();
+        bool needsThrower = function->codeBlock()->isStrict() && !function->codeBlock()->hasCallNativeFunctionCode();
+        if (needsThrower || function == state.context()->globalObject()->functionPrototype() || function == state.context()->globalObject()->function() || (function->isConstructor() && function->isClassConstructor())) {
+            state.throwException(new TypeErrorObject(state, String::fromUTF8("", 0)));
+        }
+    }
+    return Value();
+}
+
 void GlobalObject::installFunction(ExecutionState& state)
 {
     FunctionObject* emptyFunction = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionEmptyFunction, 0, 0)),
@@ -294,6 +306,14 @@ void GlobalObject::installFunction(ExecutionState& state)
 
     m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().hasInstance)),
                                                           ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.hasInstance]")), builtinFunctionHasInstanceOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+
+    // 8.2.2 - 12
+    // AddRestrictedFunctionProperties(funcProto, realmRec).
+    auto fn = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().caller, builtinCallerandArgumentsGetterSetter, 0, NativeFunctionInfo::Strict));
+    JSGetterSetter gs(fn, fn);
+    ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+    m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().caller), desc);
+    m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().arguments), desc);
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Function),
                       ObjectPropertyDescriptor(m_function, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

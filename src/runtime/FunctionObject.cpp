@@ -53,37 +53,15 @@ void FunctionObject::initFunctionObject(ExecutionState& state)
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(Object::createFunctionPrototypeObject(state, this)));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionName().string()));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = (Value(m_codeBlock->parameterCount()));
-        if (needsThrower) {
-            if (!isClassConstructor()) {
-                m_structure = state.context()->defaultStructureForFunctionObjectInStrictMode();
-            }
-            auto data = state.context()->globalObject()->throwerGetterSetterData();
-            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3] = Value(data);
-            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 4] = Value(data);
-        }
     } else if (isArrowFunction()) {
         // TODO ES6
         m_structure = state.context()->defaultStructureForArrowFunctionObject();
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->parameterCount()));
-        // arrow function should not have "caller" and "arguments" property
-        // Call the [[DefineOwnProperty]] internal method of F with arguments "caller", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
-        // Call the [[DefineOwnProperty]] internal method of F with arguments "arguments", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
-        /*
-        auto data = state.context()->globalObject()->throwerGetterSetterData();
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(data);
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3] = Value(data);
-        */
     } else {
         m_structure = state.context()->defaultStructureForNotConstructorFunctionObject();
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->parameterCount()));
-        if (needsThrower) {
-            m_structure = state.context()->defaultStructureForNotConstructorFunctionObjectInStrictMode();
-            auto data = state.context()->globalObject()->throwerGetterSetterData();
-            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(data);
-            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3] = Value(data);
-        }
     }
 }
 
