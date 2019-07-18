@@ -58,17 +58,17 @@ void installTestFunctions(ExecutionState& state)
     AtomicString drainJobQueue(state, "drainJobQueue");
     globalObject->defineOwnProperty(state, ObjectPropertyName(drainJobQueue),
                                     ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                NativeFunctionInfo(drainJobQueue, builtinDrainJobQueue, 0, nullptr, NativeFunctionInfo::Strict)),
+                                                                                NativeFunctionInfo(drainJobQueue, builtinDrainJobQueue, 0, NativeFunctionInfo::Strict)),
                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
     AtomicString addPromiseReactions(state, "addPromiseReactions");
     globalObject->defineOwnProperty(state, ObjectPropertyName(addPromiseReactions),
                                     ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                NativeFunctionInfo(addPromiseReactions, builtinAddPromiseReactions, 3, nullptr, NativeFunctionInfo::Strict)),
+                                                                                NativeFunctionInfo(addPromiseReactions, builtinAddPromiseReactions, 3, NativeFunctionInfo::Strict)),
                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
     AtomicString createNewGlobalObject(state, "createNewGlobalObject");
     globalObject->defineOwnProperty(state, ObjectPropertyName(createNewGlobalObject),
                                     ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                NativeFunctionInfo(createNewGlobalObject, builtinCreateNewGlobalObject, 0, nullptr, NativeFunctionInfo::Strict)),
+                                                                                NativeFunctionInfo(createNewGlobalObject, builtinCreateNewGlobalObject, 0, NativeFunctionInfo::Strict)),
                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 }
 }

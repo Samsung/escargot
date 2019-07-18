@@ -59,8 +59,6 @@ public:
 
     FunctionObject(ExecutionState& state, NativeFunctionInfo info);
     FunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment);
-    enum ForBind { __ForBind__ };
-    FunctionObject(ExecutionState& state, CodeBlock* codeBlock, String* functionName, const Value& proto, ForBind);
     enum ForBuiltin { __ForBuiltin__ };
     FunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltin);
     FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltin);
@@ -180,7 +178,11 @@ private:
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override
     {
-        return processCall(state, thisValue, argc, argv, false);
+        if (codeBlock()->hasCallNativeFunctionCode()) {
+            return processBuiltinFunctionCall(state, thisValue, argc, argv, false, Value());
+        } else {
+            return processCall(state, thisValue, argc, argv, false);
+        }
     }
 
     virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, const Value& newTarget) override;
@@ -204,6 +206,7 @@ private:
     }
 
     Value processCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression);
+    Value processBuiltinFunctionCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression, const Value& newTarget);
     void generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage);
     void generateByteCodeBlock(ExecutionState& state);
     CodeBlock* m_codeBlock;

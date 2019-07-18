@@ -201,7 +201,7 @@ void SandBox::fillStackDataIntoErrorObject(const Value& e)
 
         ExecutionState state(m_context);
         JSGetterSetter gs(
-            new FunctionObject(state, NativeFunctionInfo(m_context->staticStrings().stack, builtinErrorObjectStackInfo, 0, nullptr, NativeFunctionInfo::Strict)),
+            new FunctionObject(state, NativeFunctionInfo(m_context->staticStrings().stack, builtinErrorObjectStackInfo, 0, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         obj->defineOwnProperty(state, ObjectPropertyName(m_context->staticStrings().stack), desc);
