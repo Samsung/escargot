@@ -35,9 +35,6 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::BreakStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        if (context->m_hasNonLexicalStatement == false) {
-            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), 0, 0), context, this);
-        }
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this);
         context->pushBreakPositions(codeBlock->lastCodePosition<Jump>());
     }

@@ -28,7 +28,7 @@ namespace Escargot {
 
 class FunctionNode {
 public:
-    FunctionNode(const AtomicString& id, PatternNodeVector&& params, Node* body, ASTScopeContext* scopeContext, bool isGenerator, Node* node)
+    FunctionNode(const AtomicString& id, PatternNodeVector&& params, Node* body, ASTFunctionScopeContext* scopeContext, bool isGenerator, Node* node)
         : m_isGenerator(isGenerator)
         , m_id(id)
         , m_params(std::move(params))
@@ -57,14 +57,14 @@ public:
     inline const PatternNodeVector& params() { return m_params; }
     inline Node* body() { return m_body.get(); }
     inline const AtomicString& id() { return m_id; }
-    ASTScopeContext* scopeContext() { return m_scopeContext; }
+    ASTFunctionScopeContext* scopeContext() { return m_scopeContext; }
     inline bool isGenerator() { return m_isGenerator; };
 private:
     bool m_isGenerator : 1;
     AtomicString m_id; // id: Identifier;
     PatternNodeVector m_params; // params: [ Pattern ];
     RefPtr<Node> m_body;
-    ASTScopeContext* m_scopeContext;
+    ASTFunctionScopeContext* m_scopeContext;
 };
 }
 

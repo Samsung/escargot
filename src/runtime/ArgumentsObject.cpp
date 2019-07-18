@@ -29,23 +29,23 @@ size_t g_argumentsObjectTag;
 
 static Value ArgumentsObjectNativeGetter(ExecutionState& state, Object* self, FunctionEnvironmentRecord* targetRecord, InterpretedCodeBlock* codeBlock, AtomicString name)
 {
-    InterpretedCodeBlock::IdentifierInfo info = codeBlock->identifierInfos()[codeBlock->findName(name)];
+    InterpretedCodeBlock::IdentifierInfo info = codeBlock->identifierInfos()[codeBlock->findVarName(name)];
     ASSERT(!info.m_needToAllocateOnStack);
     if (info.m_indexForIndexedStorage == SIZE_MAX) {
         return targetRecord->getBindingValue(state, name).m_value;
     }
-    return targetRecord->getHeapValueByIndex(info.m_indexForIndexedStorage);
+    return targetRecord->getHeapValueByIndex(state, info.m_indexForIndexedStorage);
 }
 
 static void ArgumentsObjectNativeSetter(ExecutionState& state, Object* self, const Value& setterInputData, FunctionEnvironmentRecord* targetRecord, InterpretedCodeBlock* codeBlock, AtomicString name)
 {
-    InterpretedCodeBlock::IdentifierInfo info = codeBlock->identifierInfos()[codeBlock->findName(name)];
+    InterpretedCodeBlock::IdentifierInfo info = codeBlock->identifierInfos()[codeBlock->findVarName(name)];
     ASSERT(!info.m_needToAllocateOnStack);
     if (info.m_indexForIndexedStorage == SIZE_MAX) {
         targetRecord->setMutableBinding(state, name, setterInputData);
         return;
     }
-    targetRecord->setHeapValueByIndex(info.m_indexForIndexedStorage, setterInputData);
+    targetRecord->setHeapValueByIndex(state, info.m_indexForIndexedStorage, setterInputData);
 }
 
 void* ArgumentsObject::operator new(size_t size)

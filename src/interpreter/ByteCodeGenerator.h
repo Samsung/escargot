@@ -76,14 +76,15 @@ struct ByteCodeGenerateContext {
         , m_isEvalCode(parserContextInformation.m_isEvalCode)
         , m_isOutermostContext(true)
         , m_isWithScope(parserContextInformation.m_isWithScope)
+        , m_isFunctionDeclarationBindingInitialization(false)
+        , m_isLexicallyDeclaredBindingInitialization(false)
         , m_canSkipCopyToRegister(true)
         , m_keepNumberalLiteralsInRegisterFile(numeralLiteralData)
         , m_catchScopeCount(0)
         , m_shouldGenerateLOCData(false)
         , m_forInOfVarBinding(false)
-        , m_hasNonLexicalStatement(false)
-        , m_isConstDeclaration(false)
         , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
+        , m_lexicallyDeclaredNames(new std::vector<AtomicString>())
         , m_currentLabels(new std::vector<std::pair<String*, size_t>>())
         , m_offsetToBasePointer(0)
         , m_positionToContinue(0)
@@ -106,6 +107,8 @@ struct ByteCodeGenerateContext {
         , m_isEvalCode(contextBefore.m_isEvalCode)
         , m_isOutermostContext(false)
         , m_isWithScope(contextBefore.m_isWithScope)
+        , m_isFunctionDeclarationBindingInitialization(contextBefore.m_isFunctionDeclarationBindingInitialization)
+        , m_isLexicallyDeclaredBindingInitialization(contextBefore.m_isLexicallyDeclaredBindingInitialization)
         , m_canSkipCopyToRegister(contextBefore.m_canSkipCopyToRegister)
         , m_keepNumberalLiteralsInRegisterFile(contextBefore.m_keepNumberalLiteralsInRegisterFile)
         , m_catchScopeCount(contextBefore.m_catchScopeCount)
@@ -113,9 +116,8 @@ struct ByteCodeGenerateContext {
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
         , m_shouldGenerateLOCData(contextBefore.m_shouldGenerateLOCData)
         , m_forInOfVarBinding(contextBefore.m_forInOfVarBinding)
-        , m_hasNonLexicalStatement(contextBefore.m_hasNonLexicalStatement)
-        , m_isConstDeclaration(contextBefore.m_isConstDeclaration)
         , m_registerStack(contextBefore.m_registerStack)
+        , m_lexicallyDeclaredNames(contextBefore.m_lexicallyDeclaredNames)
         , m_currentLabels(contextBefore.m_currentLabels)
         , m_offsetToBasePointer(contextBefore.m_offsetToBasePointer)
         , m_positionToContinue(contextBefore.m_positionToContinue)
@@ -259,6 +261,8 @@ struct ByteCodeGenerateContext {
     bool m_isEvalCode : 1;
     bool m_isOutermostContext : 1;
     bool m_isWithScope : 1;
+    bool m_isFunctionDeclarationBindingInitialization : 1;
+    bool m_isLexicallyDeclaredBindingInitialization : 1;
     bool m_canSkipCopyToRegister : 1;
     bool m_keepNumberalLiteralsInRegisterFile : 1;
 
@@ -271,10 +275,9 @@ struct ByteCodeGenerateContext {
     bool m_isHeadOfMemberExpression : 1;
     bool m_shouldGenerateLOCData : 1;
     bool m_forInOfVarBinding : 1;
-    bool m_hasNonLexicalStatement : 1;
-    bool m_isConstDeclaration : 1;
 
     std::shared_ptr<std::vector<ByteCodeRegisterIndex>> m_registerStack;
+    std::shared_ptr<std::vector<AtomicString>> m_lexicallyDeclaredNames;
     std::vector<size_t> m_breakStatementPositions;
     std::vector<size_t> m_continueStatementPositions;
     std::shared_ptr<std::vector<std::pair<String*, size_t>>> m_currentLabels;
@@ -299,7 +302,7 @@ public:
     static void generateStoreThisValueByteCode(ByteCodeBlock* block, ByteCodeGenerateContext* context);
     static void generateLoadThisValueByteCode(ByteCodeBlock* block, ByteCodeGenerateContext* context);
 
-    static ByteCodeBlock* generateByteCode(Context* c, InterpretedCodeBlock* codeBlock, Node* ast, ASTScopeContext* scopeCtx, bool isEvalMode = false, bool isOnGlobal = false, bool shouldGenerateLOCData = false);
+    static ByteCodeBlock* generateByteCode(Context* c, InterpretedCodeBlock* codeBlock, Node* ast, ASTFunctionScopeContext* scopeCtx, bool isEvalMode = false, bool isOnGlobal = false, bool shouldGenerateLOCData = false);
 };
 }
 

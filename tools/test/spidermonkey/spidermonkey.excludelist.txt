@@ -1028,3 +1028,6 @@ ecma_5/RegExp/exec-lastIndex-ToInteger.js
 
 # stack overflow (>3MB)
 js1_5/Expressions/regress-394673.js
+
+# we have diffrent lexcial block count restriction
+js1_8_5/regress/regress-610026.js

@@ -41,12 +41,13 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::VariableDeclaration; }
+    EscargotLexer::KeywordKind kind()
+    {
+        return m_kind;
+    }
     VariableDeclaratorVector& declarations() { return m_declarations; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        if (m_kind == EscargotLexer::ConstKeyword) {
-            context->m_isConstDeclaration = true;
-        }
         size_t len = m_declarations.size();
         for (size_t i = 0; i < len; i++) {
             m_declarations[i]->generateStatementByteCode(codeBlock, context);
@@ -57,9 +58,6 @@ public:
     {
         ASSERT(m_declarations.size() == 1);
         m_declarations[0]->id()->generateStoreByteCode(codeBlock, context, src, false);
-        if (m_kind == EscargotLexer::ConstKeyword) {
-            codeBlock->pushCode(SetConstBinding(ByteCodeLOC(m_loc.index), m_declarations[0]->id()->asIdentifier()->name()), context, this);
-        }
     }
 
     virtual void generateResolveAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)

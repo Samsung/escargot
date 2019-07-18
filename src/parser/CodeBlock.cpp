@@ -56,6 +56,7 @@ void* InterpretedCodeBlock::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_context));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_script));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_identifierInfos));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_blockInfos));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parametersInfomation));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parentCodeBlock));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_childBlocks));
@@ -70,6 +71,18 @@ void* InterpretedCodeBlock::operator new(size_t size)
 #endif
 }
 
+void* InterpretedCodeBlock::BlockInfo::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(InterpretedCodeBlock::BlockInfo)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock::BlockInfo, m_identifiers));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
 CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     : m_context(ctx)
     , m_isConstructor(info.m_isConstructor)
@@ -82,6 +95,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_needsComplexParameterCopy(false)
     , m_hasEval(false)
     , m_hasWith(false)
+    , m_hasSuper(false)
     , m_hasCatch(false)
     , m_hasYield(false)
     , m_inCatch(false)
@@ -98,7 +112,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
     , m_hasRestElement(false)
-    , m_needsLexicalBlock(false)
+    , m_shouldReparseArguments(false)
     , m_parameterCount(info.m_argumentCount)
     , m_functionName(info.m_name)
 {
@@ -121,6 +135,7 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_needsComplexParameterCopy(false)
     , m_hasEval(false)
     , m_hasWith(false)
+    , m_hasSuper(false)
     , m_hasCatch(false)
     , m_hasYield(false)
     , m_inCatch(false)
@@ -137,21 +152,50 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
     , m_hasRestElement(false)
-    , m_needsLexicalBlock(false)
+    , m_shouldReparseArguments(false)
     , m_parameterCount(argc)
     , m_functionName(name)
     , m_nativeFunctionData(info)
 {
 }
 
-InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart)
+void InterpretedCodeBlock::initBlockScopeInformation(ASTFunctionScopeContext* scopeCtx)
+{
+    const ASTBlockScopeContextVector& blockScopes = scopeCtx->m_childBlockScopes;
+    m_blockInfos.resizeWithUninitializedValues(blockScopes.size());
+    for (size_t i = 0; i < blockScopes.size(); i++) {
+        BlockInfo* info = new BlockInfo(
+#ifndef NDEBUG
+            blockScopes[i]->m_loc
+#endif
+            );
+        info->m_canAllocateEnvironmentOnStack = m_canAllocateEnvironmentOnStack;
+        info->m_shouldAllocateEnvironment = true;
+        info->m_blockIndex = blockScopes[i]->m_blockIndex;
+        info->m_parentBlockIndex = blockScopes[i]->m_parentBlockIndex;
+
+        info->m_identifiers.resizeWithUninitializedValues(blockScopes[i]->m_names.size());
+        for (size_t j = 0; j < blockScopes[i]->m_names.size(); j++) {
+            BlockIdentifierInfo idInfo;
+            idInfo.m_name = blockScopes[i]->m_names[j].name();
+            idInfo.m_needToAllocateOnStack = m_canUseIndexedVariableStorage;
+            idInfo.m_isMutable = !blockScopes[i]->m_names[j].isConstBinding();
+            idInfo.m_indexForIndexedStorage = SIZE_MAX;
+            info->m_identifiers[j] = idInfo;
+        }
+
+        m_blockInfos[i] = info;
+    }
+}
+
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart)
     : m_script(script)
     , m_src(src)
     , m_sourceElementStart(sourceElementStart)
-    , m_shouldReparseArguments(false)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
-    , m_lexicalBlockIndex(0)
+    , m_lexicalBlockStackAllocatedIdentifierMaximumDepth(0)
+    , m_lexicalBlockIndexFunctionLocatedIn(0)
     , m_parentCodeBlock(nullptr)
 #ifndef NDEBUG
     , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
@@ -177,6 +221,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_hasWith = scopeCtx->m_hasWith;
     m_hasCatch = scopeCtx->m_hasCatch;
     m_hasYield = scopeCtx->m_hasYield;
+    m_hasSuper = scopeCtx->m_hasSuper;
     m_inCatch = false;
     m_inWith = false;
 
@@ -189,11 +234,11 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_needsVirtualIDOperation = false;
     m_needToLoadThisValue = false;
     m_hasRestElement = scopeCtx->m_hasRestElement;
-    m_needsLexicalBlock = scopeCtx->m_needsLexicalBlock;
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;
 
-    const ASTScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_names;
+    const ASTFunctionScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_varNames;
+    m_identifierInfos.resize(innerIdentifiers.size());
 
     for (size_t i = 0; i < innerIdentifiers.size(); i++) {
         IdentifierInfo info;
@@ -203,18 +248,21 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
         info.m_isExplicitlyDeclaredOrParameterName = innerIdentifiers[i].isExplicitlyDeclaredOrParameterName();
         info.m_isVarDeclaration = innerIdentifiers[i].isVarDeclaration();
         info.m_indexForIndexedStorage = SIZE_MAX;
-        m_identifierInfos.push_back(info);
+        m_identifierInfos[i] = info;
     }
+
+    initBlockScopeInformation(scopeCtx);
 }
 
-InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, InterpretedCodeBlock* parentBlock)
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, InterpretedCodeBlock* parentBlock)
     : m_script(script)
     , m_paramsSrc(scopeCtx->m_hasNonIdentArgument ? StringView(src, scopeCtx->m_paramsStart.index, scopeCtx->m_locStart.index) : StringView())
     , m_src(StringView(src, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index))
     , m_sourceElementStart(sourceElementStart)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
-    , m_lexicalBlockIndex(scopeCtx->m_lexicalBlockIndex)
+    , m_lexicalBlockStackAllocatedIdentifierMaximumDepth(0)
+    , m_lexicalBlockIndexFunctionLocatedIn(scopeCtx->m_lexicalBlockIndexFunctionLocatedIn)
     , m_parentCodeBlock(parentBlock)
 #ifndef NDEBUG
     , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
@@ -241,6 +289,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_hasWith = scopeCtx->m_hasWith;
     m_hasCatch = scopeCtx->m_hasCatch;
     m_hasYield = scopeCtx->m_hasYield;
+    m_hasSuper = scopeCtx->m_hasSuper;
     m_inCatch = scopeCtx->m_inCatch;
     m_inWith = scopeCtx->m_inWith;
     m_usesArgumentsObject = false;
@@ -259,7 +308,6 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_needsVirtualIDOperation = false;
     m_needToLoadThisValue = false;
     m_hasRestElement = scopeCtx->m_hasRestElement;
-    m_needsLexicalBlock = scopeCtx->m_needsLexicalBlock;
     m_shouldReparseArguments = scopeCtx->m_hasNonIdentArgument;
 
     m_parametersInfomation.resizeWithUninitializedValues(parameterNames.size());
@@ -268,32 +316,35 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
         m_parametersInfomation[i].m_isDuplicated = false;
     }
 
-    m_canUseIndexedVariableStorage = !hasEvalWithYield() && !m_inCatch && !m_inWith && !scopeCtx->m_hasArrowSuper && !m_shouldReparseArguments && !m_isGenerator && !m_needsLexicalBlock;
+    m_canUseIndexedVariableStorage = !hasEvalWithYield() && !m_inCatch && !m_inWith && !scopeCtx->m_hasArrowSuper && !m_shouldReparseArguments && !m_isGenerator;
     m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage;
 
-    const ASTScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_names;
+    const ASTFunctionScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_varNames;
+    m_identifierInfos.resize(innerIdentifiers.size());
     for (size_t i = 0; i < innerIdentifiers.size(); i++) {
         IdentifierInfo info;
         info.m_name = innerIdentifiers[i].name();
         info.m_needToAllocateOnStack = m_canUseIndexedVariableStorage;
         info.m_isMutable = true;
         info.m_isExplicitlyDeclaredOrParameterName = innerIdentifiers[i].isExplicitlyDeclaredOrParameterName();
-        info.m_isVarDeclaration = innerIdentifiers[i].isVarDeclaration();
         info.m_indexForIndexedStorage = SIZE_MAX;
-        m_identifierInfos.push_back(info);
+        info.m_isVarDeclaration = innerIdentifiers[i].isVarDeclaration();
+        m_identifierInfos[i] = info;
     }
+
+    initBlockScopeInformation(scopeCtx);
 }
 
 bool InterpretedCodeBlock::needToStoreThisValue()
 {
-    return hasName(m_context->staticStrings().stringThis);
+    return hasVarName(m_context->staticStrings().stringThis);
 }
 
 void InterpretedCodeBlock::captureThis()
 {
     ASSERT(!isGlobalScopeCodeBlock());
 
-    if (hasName(m_context->staticStrings().stringThis)) {
+    if (hasVarName(m_context->staticStrings().stringThis)) {
         return;
     }
 
@@ -319,7 +370,7 @@ void InterpretedCodeBlock::captureArguments()
     }
 
     m_usesArgumentsObject = true;
-    if (!hasName(arguments)) {
+    if (!hasVarName(arguments)) {
         IdentifierInfo info;
         info.m_indexForIndexedStorage = SIZE_MAX;
         info.m_name = arguments;
@@ -340,11 +391,19 @@ void InterpretedCodeBlock::captureArguments()
     }
 }
 
-bool InterpretedCodeBlock::tryCaptureIdentifiersFromChildCodeBlock(AtomicString name)
+bool InterpretedCodeBlock::tryCaptureIdentifiersFromChildCodeBlock(LexcialBlockIndex blockIndex, AtomicString name)
 {
+    auto r = findNameWithinBlock(blockIndex, name);
+
+    if (std::get<0>(r)) {
+        auto& id = m_blockInfos[std::get<1>(r)]->m_identifiers[std::get<2>(r)];
+        ASSERT(id.m_name == name);
+        id.m_needToAllocateOnStack = false;
+        return true;
+    }
+
     for (size_t i = 0; i < m_identifierInfos.size(); i++) {
         if (m_identifierInfos[i].m_name == name) {
-            m_canAllocateEnvironmentOnStack = false;
             m_identifierInfos[i].m_needToAllocateOnStack = false;
             return true;
         }
@@ -363,32 +422,96 @@ void InterpretedCodeBlock::notifySelfOrChildHasEvalWithYield()
     }
 }
 
+void InterpretedCodeBlock::markHeapAllocatedEnvironmentFromHere(LexcialBlockIndex blockIndex)
+{
+    InterpretedCodeBlock* c = this;
+
+    while (c) {
+        InterpretedCodeBlock::BlockInfo* bi = nullptr;
+        for (size_t i = 0; i < c->m_blockInfos.size(); i++) {
+            if (c->m_blockInfos[i]->m_blockIndex == blockIndex) {
+                bi = c->m_blockInfos[i];
+                break;
+            }
+        }
+
+        while (bi && bi->m_canAllocateEnvironmentOnStack) {
+            bi->m_canAllocateEnvironmentOnStack = false;
+
+            if (bi->m_parentBlockIndex == LEXCIAL_BLOCK_INDEX_MAX) {
+                break;
+            }
+
+            for (size_t i = 0; i < c->m_blockInfos.size(); i++) {
+                if (c->m_blockInfos[i]->m_blockIndex == bi->m_parentBlockIndex) {
+                    bi = c->m_blockInfos[i];
+                    break;
+                }
+            }
+        }
+
+        c->m_canAllocateEnvironmentOnStack = false;
+        blockIndex = c->lexicalBlockIndexFunctionLocatedIn();
+        c = c->parentCodeBlock();
+    }
+}
+
+void InterpretedCodeBlock::computeBlockVariables(LexcialBlockIndex currentBlockIndex, size_t currentStackAllocatedVariableIndex, size_t& maxStackAllocatedVariableDepth)
+{
+    InterpretedCodeBlock::BlockInfo* bi = nullptr;
+    for (size_t i = 0; i < m_blockInfos.size(); i++) {
+        if (m_blockInfos[i]->m_blockIndex == currentBlockIndex) {
+            bi = m_blockInfos[i];
+            break;
+        }
+    }
+
+    ASSERT(bi != nullptr);
+
+    size_t heapIndex = 0;
+    size_t stackSize = 0;
+    for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+        if (bi->m_identifiers[i].m_needToAllocateOnStack) {
+            bi->m_identifiers[i].m_indexForIndexedStorage = currentStackAllocatedVariableIndex;
+            stackSize++;
+            currentStackAllocatedVariableIndex++;
+            maxStackAllocatedVariableDepth = std::max(maxStackAllocatedVariableDepth, currentStackAllocatedVariableIndex);
+        } else {
+            bi->m_identifiers[i].m_indexForIndexedStorage = heapIndex++;
+            ASSERT(!bi->m_canAllocateEnvironmentOnStack);
+        }
+    }
+
+    for (size_t i = 0; i < m_blockInfos.size(); i++) {
+        if (m_blockInfos[i]->m_parentBlockIndex == currentBlockIndex) {
+            computeBlockVariables(m_blockInfos[i]->m_blockIndex, currentStackAllocatedVariableIndex, maxStackAllocatedVariableDepth);
+        }
+    }
+
+    // if there is no heap indexed variable, we can skip allocate env
+    bool isThereHeapVariable = false;
+    for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+        if (!bi->m_identifiers[i].m_needToAllocateOnStack) {
+            isThereHeapVariable = true;
+        }
+    }
+
+    bi->m_shouldAllocateEnvironment = isThereHeapVariable;
+}
+
 // global block id map
 // [this, ..]
 // function block id map
 // [this, functionName, arg0, arg1...]
 
-void InterpretedCodeBlock::computeVariables(bool propagateLexicalBlock)
+void InterpretedCodeBlock::computeVariables()
 {
-    if (m_usesArgumentsObject) {
-        m_canAllocateEnvironmentOnStack = false;
-    }
-
-    if (propagateLexicalBlock) {
-        m_canAllocateEnvironmentOnStack = false;
-        m_canUseIndexedVariableStorage = false;
-    }
-
-    if (inEvalWithYieldScope() || inNotIndexedCodeBlockScope() || hasCatch()) {
+    if (m_usesArgumentsObject || inEvalWithYieldScope() || inNotIndexedCodeBlockScope() || hasCatch() || m_hasSuper) {
         m_canAllocateEnvironmentOnStack = false;
     }
 
     if (!m_canAllocateEnvironmentOnStack) {
-        CodeBlock* cb = parentCodeBlock();
-        while (cb && cb->isInterpretedCodeBlock()) {
-            cb->m_canAllocateEnvironmentOnStack = false;
-            cb = cb->asInterpretedCodeBlock()->parentCodeBlock();
-        }
+        markHeapAllocatedEnvironmentFromHere();
     }
 
     if (m_functionName.string()->length()) {
@@ -444,6 +567,11 @@ void InterpretedCodeBlock::computeVariables(bool propagateLexicalBlock)
             }
         }
 
+        size_t currentStackAllocatedVariableIndex = 0;
+        size_t maxStackAllocatedVariableDepth = 0;
+        computeBlockVariables(0, currentStackAllocatedVariableIndex, maxStackAllocatedVariableDepth);
+        m_lexicalBlockStackAllocatedIdentifierMaximumDepth = maxStackAllocatedVariableDepth;
+
         m_identifierOnStackCount = s;
         m_identifierOnHeapCount = h;
 
@@ -453,7 +581,7 @@ void InterpretedCodeBlock::computeVariables(bool propagateLexicalBlock)
 
         for (size_t i = 0; i < siz; i++) {
             AtomicString name = m_parametersInfomation[i].m_name;
-            size_t idIndex = findName(name);
+            size_t idIndex = findVarName(name);
             bool isHeap = !m_identifierInfos[idIndex].m_needToAllocateOnStack;
             size_t indexInIdInfo = m_identifierInfos[idIndex].m_indexForIndexedStorage;
             if (!isHeap) {
@@ -506,6 +634,8 @@ void InterpretedCodeBlock::computeVariables(bool propagateLexicalBlock)
                 m_parametersInfomation[i].m_index = computedNameIndex[computedIndex].second;
             }
         }
+
+
     } else {
         m_needsComplexParameterCopy = true;
 
@@ -545,6 +675,11 @@ void InterpretedCodeBlock::computeVariables(bool propagateLexicalBlock)
 
         m_identifierOnStackCount = s;
         m_identifierOnHeapCount = h;
+
+        size_t currentStackAllocatedVariableIndex = 0;
+        size_t maxStackAllocatedVariableDepth = 0;
+        computeBlockVariables(0, currentStackAllocatedVariableIndex, maxStackAllocatedVariableDepth);
+        m_lexicalBlockStackAllocatedIdentifierMaximumDepth = maxStackAllocatedVariableDepth;
     }
 }
 }

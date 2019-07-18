@@ -50,7 +50,7 @@ private:
 class ArrowFunctionExpressionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    ArrowFunctionExpressionNode(PatternNodeVector&& params, Node* body, ASTScopeContext* scopeContext, bool expression)
+    ArrowFunctionExpressionNode(PatternNodeVector&& params, Node* body, ASTFunctionScopeContext* scopeContext, bool expression)
         : m_function(AtomicString(), std::move(params), body, scopeContext, false, this)
         , m_expression(expression)
     {

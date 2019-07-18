@@ -95,7 +95,7 @@ void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
         RefPtr<ProgramNode> nd = esprima::parseProgram(c, m_codeBlock->asInterpretedCodeBlock()->src(), m_codeBlock->asInterpretedCodeBlock()->isStrict(), SIZE_MAX);
         block = ByteCodeGenerator::generateByteCode(c, m_codeBlock->asInterpretedCodeBlock(), nd.get(), nd->scopeContext(), m_isEvalMode, m_isOnGlobal, true);
     } else {
-        ASTScopeContext* scopeContext = nullptr;
+        ASTFunctionScopeContext* scopeContext = nullptr;
         auto body = esprima::parseSingleFunction(c, m_codeBlock->asInterpretedCodeBlock(), scopeContext, SIZE_MAX);
         block = ByteCodeGenerator::generateByteCode(c, m_codeBlock->asInterpretedCodeBlock(), body.get(), scopeContext, m_isEvalMode, m_isOnGlobal, true);
     }
@@ -151,6 +151,63 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(StringView src, ExtendedNodeLOC so
         }
     }
     return ExtendedNodeLOC(line, column, index);
+}
+
+ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node)
+{
+    ByteCodeBlock::ByteCodeLexicalBlockContext ctx;
+    InterpretedCodeBlock* codeBlock = context->m_codeBlock->asInterpretedCodeBlock();
+
+    ctx.lexicallyDeclaredNamesCount = context->m_lexicallyDeclaredNames->size();
+
+    if (bi->m_shouldAllocateEnvironment) {
+        context->m_tryStatementScopeCount++;
+        ctx.lexicalBlockSetupStartPosition = currentCodeSize();
+        this->pushCode(BlockOperation(ByteCodeLOC(node->m_loc.index), bi), context, nullptr);
+    }
+
+    size_t len = codeBlock->childBlocks().size();
+    for (size_t i = 0; i < len; i++) {
+        CodeBlock* b = codeBlock->childBlocks()[i];
+        if (b->isFunctionDeclaration() && b->asInterpretedCodeBlock()->lexicalBlockIndexFunctionLocatedIn() == context->m_lexicalBlockIndex) {
+            IdentifierNode* id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(b->functionName());
+            id->m_loc = node->m_loc;
+
+            // add useless register for don't ruin script result
+            // because script or eval result is final value of first register
+            // eg) function foo() {} -> result should be `undefined` not `function foo`
+            context->getRegister();
+
+            auto dstIndex = id->getRegister(this, context);
+            pushCode(CreateFunction(ByteCodeLOC(node->m_loc.index), dstIndex, b), context, node);
+            context->m_isFunctionDeclarationBindingInitialization = true;
+            id->generateStoreByteCode(this, context, dstIndex, false);
+            context->giveUpRegister();
+
+            context->giveUpRegister(); // give up useless register
+        }
+    }
+
+    ctx.lexicalBlockStartPosition = currentCodeSize();
+
+    return ctx;
+}
+
+void ByteCodeBlock::finalizeLexicalBlock(ByteCodeGenerateContext* context, const ByteCodeBlock::ByteCodeLexicalBlockContext& ctx)
+{
+    context->m_lexicallyDeclaredNames->resize(ctx.lexicallyDeclaredNamesCount);
+
+    if (ctx.lexicalBlockSetupStartPosition == SIZE_MAX) {
+        return;
+    }
+
+    if (ctx.lexicalBlockStartPosition != SIZE_MAX) {
+        context->registerJumpPositionsToComplexCase(ctx.lexicalBlockStartPosition);
+    }
+
+    this->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(SIZE_MAX)), context, nullptr);
+    this->peekCode<BlockOperation>(ctx.lexicalBlockSetupStartPosition)->m_blockEndPosition = this->currentCodeSize();
+    context->m_tryStatementScopeCount--;
 }
 
 void* SetObjectInlineCache::operator new(size_t size)

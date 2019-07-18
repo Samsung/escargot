@@ -67,8 +67,6 @@ private:
     double m_value;
 };
 
-// TODO add license comment these code.
-
 namespace SmallValueImpl {
 
 const int kApiAlignSize = 4;

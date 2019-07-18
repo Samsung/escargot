@@ -24,14 +24,16 @@
 #include "IdentifierNode.h"
 #include "Node.h"
 #include "PatternNode.h"
+#include "parser/Lexer.h"
 
 namespace Escargot {
 
 class VariableDeclaratorNode : public Node {
 public:
     friend class ScriptParser;
-    VariableDeclaratorNode(Node* id, Node* init = nullptr)
+    VariableDeclaratorNode(EscargotLexer::KeywordKind kind, Node* id, Node* init = nullptr)
         : Node()
+        , m_kind(kind)
         , m_id(id)
         , m_init(init)
     {
@@ -52,22 +54,34 @@ public:
             }
             PatternNode* pattern = m_id->asPattern(m_init);
             context->getRegister();
+            context->m_isLexicallyDeclaredBindingInitialization = m_kind != EscargotLexer::KeywordKind::VarKeyword;
             pattern->generateResultNotRequiredExpressionByteCode(codeBlock, context);
+            ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
             context->giveUpRegister();
             return;
         }
 
         ASSERT(m_id->isIdentifier());
         AtomicString name = m_id->asIdentifier()->name();
+
+        bool addFakeUndefinedLiteralNode = false;
+        if (m_kind != EscargotLexer::KeywordKind::VarKeyword && !m_init && !context->m_forInOfVarBinding) {
+            addFakeUndefinedLiteralNode = true;
+            m_init = adoptRef(new (alloca(sizeof(LiteralNode))) LiteralNode(Value()));
+            m_init.get()->ref(); // add ref count for preventing to call operator delete
+        }
+
         if (m_init) {
             context->getRegister();
             if (!name.string()->equals("arguments")) {
                 // check canUseIndexedVariableStorage for give right value to generateStoreByteCode(isInit..) with eval
-                RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(m_id.get(), m_init.get()));
+                RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(m_id.get(), m_init.get()));
                 assign->m_loc = m_loc;
+                context->m_isLexicallyDeclaredBindingInitialization = m_kind != EscargotLexer::KeywordKind::VarKeyword;
                 assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-                // for avoding double-free
+                ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
                 assign->giveupChildren();
+                assign.release().leakRef(); // leak reference for prevent calling operator delete by ~RefPtr
             } else {
                 auto r = m_init->getRegister(codeBlock, context);
                 m_init->generateExpressionByteCode(codeBlock, context, r);
@@ -75,15 +89,15 @@ public:
                 context->giveUpRegister();
             }
             context->giveUpRegister();
+        }
 
-            if (context->m_isConstDeclaration == true) {
-                codeBlock->pushCode(SetConstBinding(ByteCodeLOC(m_loc.index), name), context, this);
-                context->m_isConstDeclaration = false;
-            }
+        if (addFakeUndefinedLiteralNode) {
+            m_init.release().leakRef(); // leak reference for prevent calling operator delete by ~RefPtr
         }
     }
 
 private:
+    EscargotLexer::KeywordKind m_kind;
     RefPtr<Node> m_id; // id: Pattern;
     RefPtr<Node> m_init; // init: Expression | null;
 };
