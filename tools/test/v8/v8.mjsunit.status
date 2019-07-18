@@ -851,7 +851,6 @@
   'es6/string-html' : [SKIP],
   'es6/string-includes' : [SKIP],
   'es6/string-match' : [SKIP],
-  'es6/string-repeat' : [SKIP],
   'es6/string-replace' : [SKIP],
   'es6/string-search' : [SKIP],
   'es6/string-startswith' : [SKIP],
