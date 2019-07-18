@@ -270,7 +270,7 @@ static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t 
         descriptors->push_back(std::make_pair(P, desc));
         return true;
     },
-                   &descriptors);
+                   &descriptors, false);
     for (const auto& it : descriptors) {
         const ObjectPropertyName& P = it.first;
         const ObjectStructurePropertyDescriptor& desc = it.second;
@@ -418,7 +418,7 @@ static Value builtinObjectIsFrozen(ExecutionState& state, Value thisValue, size_
         }
         return true;
     },
-                   &hasNonFrozenProperty);
+                   &hasNonFrozenProperty, false);
     if (hasNonFrozenProperty)
         return Value(false);
 
@@ -449,7 +449,7 @@ static Value builtinObjectIsSealed(ExecutionState& state, Value thisValue, size_
         }
         return true;
     },
-                   &hasNonSealedProperty);
+                   &hasNonSealedProperty, false);
     if (hasNonSealedProperty)
         return Value(false);
 
@@ -509,7 +509,7 @@ static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t ar
         descriptors->push_back(std::make_pair(P, desc));
         return true;
     },
-                   &descriptors);
+                   &descriptors, false);
     for (const auto& it : descriptors) {
         const ObjectPropertyName& P = it.first;
         const ObjectStructurePropertyDescriptor& desc = it.second;

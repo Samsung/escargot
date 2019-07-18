@@ -1003,7 +1003,6 @@
   'regress/regress-crbug-618788': [SKIP],
 
   # Symbol
-  'regress/regress-539875': [SKIP],
   'regress/regress-5780': [SKIP],
   'regress/regress-670808': [SKIP],
   'regress/regress-crbug-549162': [SKIP],
