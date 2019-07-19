@@ -782,7 +782,7 @@ public:
 
     typedef Node* (Parser::*ParseFunction)();
 
-    typedef Vector<Scanner::ScannerResult, GCUtil::gc_malloc_ignore_off_page_allocator<Scanner::ScannerResult>>& ParamScanList;
+    typedef Vector<Scanner::ScannerResult, GCUtil::gc_malloc_ignore_off_page_allocator<Scanner::ScannerResult>> ScannerResultVector;
 
     struct IsolateCoverGrammarContext {
         bool previousIsBindingElement;
@@ -1242,15 +1242,15 @@ public:
         return AtomicString(this->escargotContext, Value(index).toString(stateForTest));
     }
 
-    PassRefPtr<IdentifierNode> parseRestElement(ParamScanList params, PunctuatorKind endKind = RightParenthesis)
+    PassRefPtr<IdentifierNode> parseRestElement(ScannerResultVector& params, PunctuatorKind endKind = RightParenthesis)
     {
+        MetaNode node = this->createNode();
+
         this->nextToken();
         if (this->match(LeftBrace)) {
             this->throwError(Messages::ObjectPatternAsRestParameter);
         }
         params.push_back(this->lookahead);
-
-        MetaNode node = this->createNode();
 
         RefPtr<IdentifierNode> param = this->parseVariableIdentifier();
         if (this->match(Equal)) {
@@ -1263,8 +1263,25 @@ public:
         return this->finalize(node, new IdentifierNode(param.get()->name()));
     }
 
+    void scanRestElement(ScannerResultVector& params, PunctuatorKind endKind = RightParenthesis)
+    {
+        this->nextToken();
+        if (this->match(LeftBrace)) {
+            this->throwError(Messages::ObjectPatternAsRestParameter);
+        }
+        params.push_back(this->lookahead);
+
+        this->scanVariableIdentifier();
+        if (this->match(Equal)) {
+            this->throwError(Messages::DefaultRestParameter);
+        }
+        if (!this->match(endKind)) {
+            this->throwError(Messages::ParameterAfterRestParameter);
+        }
+    }
+
     template <typename T, bool isParse>
-    T arrayPattern(ParamScanList params, KeywordKind kind = KeywordKindEnd)
+    T arrayPattern(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd)
     {
         MetaNode node = this->createNode();
 
@@ -1299,7 +1316,7 @@ public:
     }
 
     template <typename T, bool isParse>
-    T propertyPattern(ParamScanList params, KeywordKind kind = KeywordKindEnd)
+    T propertyPattern(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd)
     {
         ALLOC_TOKEN(token);
         *token = this->lookahead;
@@ -1377,7 +1394,7 @@ public:
     }
 
     template <typename T, bool isParse>
-    T objectPattern(ParamScanList params, KeywordKind kind = KeywordKindEnd)
+    T objectPattern(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd)
     {
         MetaNode node = this->createNode();
         PropertiesNodeVector properties;
@@ -1405,7 +1422,7 @@ public:
     }
 
     template <typename T, bool isParse>
-    T pattern(ParamScanList params, KeywordKind kind = KeywordKindEnd)
+    T pattern(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd)
     {
         if (this->match(LeftSquareBracket)) {
             scopeContexts.back()->m_hasPatternNode = true;
@@ -1438,7 +1455,7 @@ public:
         }
     }
 
-    PassRefPtr<Node> parsePatternWithDefault(ParamScanList params, KeywordKind kind = KeywordKindEnd)
+    PassRefPtr<Node> parsePatternWithDefault(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd)
     {
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
@@ -1469,13 +1486,13 @@ public:
         RefPtr<Node> param;
         bool trackUsingNamesBefore = trackUsingNames;
         trackUsingNames = false;
-        Vector<Scanner::ScannerResult, GCUtil::gc_malloc_ignore_off_page_allocator<Scanner::ScannerResult>> params;
+        ScannerResultVector params;
         ALLOC_TOKEN(token);
         *token = this->lookahead;
         if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::PeriodPeriodPeriod) {
-            RefPtr<IdentifierNode> param = this->parseRestElement(params);
+            param = this->parseRestElement(params);
             scopeContexts.back()->m_hasRestElement = true;
-            this->validateParam(options, &params.back(), param.get()->name());
+            this->validateParam(options, &params.back(), param->asIdentifier()->name());
             options.params.push_back(param);
             trackUsingNames = true;
             return false;
@@ -1655,9 +1672,9 @@ public:
 
     PassRefPtr<Node> parseObjectPropertyKey()
     {
+        MetaNode node = this->createNode();
         ALLOC_TOKEN(token);
         this->nextToken(token);
-        MetaNode node = this->createNode();
 
         RefPtr<Node> key;
         switch (token->type) {
@@ -1718,6 +1735,7 @@ public:
 
         switch (token->type) {
         case Token::NumericLiteralToken:
+        case Token::StringLiteralToken:
             if (this->context->strict && token->octal) {
                 this->throwUnexpectedToken(token, Messages::StrictOctalLiteral);
             }
@@ -1725,13 +1743,15 @@ public:
                 this->throwUnexpectedToken(&this->lookahead, Messages::StrictLeadingZeroLiteral);
             }
             // const raw = this->getTokenRaw(token);
-            if (this->context->inLoop || token->valueNumber == 0)
-                this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
-            key.setNodeType(Literal);
-            break;
-        case Token::StringLiteralToken:
-            isProto = (*token->valueStringLiteral() == "__proto__");
-            key.setNodeType(Literal);
+            {
+                if (token->type == Token::NumericLiteralToken) {
+                    if (this->context->inLoop || token->valueNumber == 0)
+                        this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
+                } else {
+                    isProto = (*token->valueStringLiteral() == "__proto__");
+                }
+                key.setNodeType(Literal);
+            }
             break;
 
         case Token::IdentifierToken:
@@ -2283,6 +2303,9 @@ public:
     template <typename T, bool isParse>
     T groupExpression()
     {
+        RefPtr<Node> exprNode;
+        ScanExpressionResult expr;
+
         this->expect(LeftParenthesis);
         if (this->match(RightParenthesis)) {
             this->nextToken();
@@ -2290,97 +2313,135 @@ public:
                 this->expect(Arrow);
             }
 
-            //TODO
             if (isParse) {
-                return T(this->finalize(this->startNode(&this->lookahead), new ArrowParameterPlaceHolderNode()));
-            }
-            return ScanExpressionResult(ASTNodeType::ArrowParameterPlaceHolder);
-        }
-
-        ALLOC_TOKEN(startToken);
-        *startToken = this->lookahead;
-
-        this->context->isBindingElement = true;
-        RefPtr<Node> exprNode;
-        ScanExpressionResult expr;
-
-        if (isParse) {
-            exprNode = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>);
-        } else {
-            expr = this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan>);
-        }
-
-        if (this->match(Comma)) {
-            ExpressionNodeVector expressions;
-
-            this->context->isAssignmentTarget = false;
-            if (isParse) {
-                expressions.push_back(exprNode);
-            }
-
-            while (this->startMarker.index < this->scanner->length) {
-                if (!this->match(Comma)) {
-                    break;
-                }
-                this->nextToken();
-
-                if (isParse) {
-                    expressions.push_back(this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>));
-                } else {
-                    this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan>);
-                }
-            }
-
-            if (isParse) {
-                exprNode = this->finalize(this->startNode(startToken), new SequenceExpressionNode(std::move(expressions)));
+                exprNode = adoptRef(new ArrowParameterPlaceHolderNode());
             } else {
-                expr.setNodeType(ASTNodeType::SequenceExpression);
+                expr.setNodeType(ASTNodeType::ArrowParameterPlaceHolder);
             }
-        }
-
-        this->expect(RightParenthesis);
-        //TODO Scanning has not been implemented yet
-        if (this->match(Arrow) && isParse) {
-            bool arrow = false;
-
-            if (exprNode->type() == Identifier && exprNode->asIdentifier()->name() == "yield") {
-                this->throwError("Yield property is not supported yet");
-                RELEASE_ASSERT_NOT_REACHED();
-                /*
-                arrow = true;
-                expr = this->finalize(this->startNode(startToken), new ArrowParameterPlaceHolderNode());
-                expr = {
-                    type: ArrowParameterPlaceHolder,
-                    params: [expr],
-                };
-                */
-            }
-
-            if (!arrow) {
-                if (!this->context->isBindingElement) {
-                    this->throwUnexpectedToken(&this->lookahead);
+        } else {
+            ALLOC_TOKEN(startToken);
+            *startToken = this->lookahead;
+            ScannerResultVector params;
+            if (this->match(PeriodPeriodPeriod)) {
+                if (isParse) {
+                    exprNode = this->parseRestElement(params);
+                } else {
+                    this->scanRestElement(params);
+                    expr.setNodeType(ASTNodeType::Identifier);
+                }
+                this->expect(RightParenthesis);
+                if (!this->match(Arrow)) {
+                    this->expect(Arrow);
+                }
+                if (isParse) {
+                    exprNode = adoptRef(new ArrowParameterPlaceHolderNode(exprNode.get()));
+                } else {
+                    expr.setNodeType(ASTNodeType::ArrowParameterPlaceHolder);
+                }
+            } else {
+                bool arrow = false;
+                this->context->isBindingElement = true;
+                if (isParse) {
+                    exprNode = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>);
+                } else {
+                    expr = this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan>);
                 }
 
-                if (exprNode->type() == SequenceExpression) {
-                    const ExpressionNodeVector& expressions = ((SequenceExpressionNode*)exprNode.get())->expressions();
-                    for (size_t i = 0; i < expressions.size(); i++) {
-                        this->reinterpretExpressionAsPattern(expressions[i].get());
+                if (this->match(Comma)) {
+                    ExpressionNodeVector expressions;
+
+                    this->context->isAssignmentTarget = false;
+                    if (isParse) {
+                        expressions.push_back(exprNode);
                     }
-                } else {
-                    this->reinterpretExpressionAsPattern(exprNode.get());
+                    while (this->startMarker.index < this->scanner->length) {
+                        if (!this->match(Comma)) {
+                            break;
+                        }
+                        this->nextToken();
+
+                        if (this->match(PeriodPeriodPeriod)) {
+                            if (!this->context->isBindingElement) {
+                                this->throwUnexpectedToken(&this->lookahead);
+                            }
+                            if (isParse) {
+                                expressions.push_back(this->parseRestElement(params));
+                            } else {
+                                this->scanRestElement(params);
+                            }
+                            this->expect(RightParenthesis);
+                            if (!this->match(Arrow)) {
+                                this->expect(Arrow);
+                            }
+                            this->context->isBindingElement = false;
+                            for (size_t i = 0; i < expressions.size(); i++) {
+                                this->reinterpretExpressionAsPattern(expressions[i].get());
+                            }
+                            arrow = true;
+                            if (isParse) {
+                                exprNode = adoptRef(new ArrowParameterPlaceHolderNode(std::move(expressions)));
+                            } else {
+                                expr.setNodeType(ASTNodeType::ArrowParameterPlaceHolder);
+                            }
+                        } else {
+                            if (isParse) {
+                                expressions.push_back(this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>));
+                            } else {
+                                this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan>);
+                            }
+                        }
+                        if (arrow) {
+                            break;
+                        }
+                    }
+                    if (!arrow) {
+                        if (isParse) {
+                            exprNode = this->finalize(this->startNode(startToken), new SequenceExpressionNode(std::move(expressions)));
+                        } else {
+                            expr.setNodeType(ASTNodeType::SequenceExpression);
+                        }
+                    }
                 }
 
-                //TODO
-                ExpressionNodeVector params;
-                if (exprNode->type() == SequenceExpression) {
-                    params = ((SequenceExpressionNode*)exprNode.get())->expressions();
-                } else {
-                    params.push_back(exprNode);
-                }
+                if (!arrow) {
+                    this->expect(RightParenthesis);
+                    // TODO Scanning has not been implemented yet
+                    if (this->match(Arrow)) {
+                        if (isParse) { // remove this line after scanning implemented
+                            if (exprNode->type() == Identifier && exprNode->asIdentifier()->name() == "yield") {
+                                arrow = true;
+                                exprNode = adoptRef(new ArrowParameterPlaceHolderNode(exprNode.get()));
+                            }
+                            if (!arrow) {
+                                if (!this->context->isBindingElement) {
+                                    this->throwUnexpectedToken(&this->lookahead);
+                                }
 
-                exprNode = this->finalize(this->startNode(&this->lookahead), new ArrowParameterPlaceHolderNode(std::move(params)));
+                                if (exprNode->type() == SequenceExpression) {
+                                    const ExpressionNodeVector& expressions = ((SequenceExpressionNode*)exprNode.get())->expressions();
+                                    for (size_t i = 0; i < expressions.size(); i++) {
+                                        this->reinterpretExpressionAsPattern(expressions[i].get());
+                                    }
+                                } else {
+                                    this->reinterpretExpressionAsPattern(exprNode.get());
+                                }
+
+                                ExpressionNodeVector params;
+                                if (exprNode->type() == SequenceExpression) {
+                                    params = ((SequenceExpressionNode*)exprNode.get())->expressions();
+                                } else {
+                                    params.push_back(exprNode);
+                                }
+
+                                exprNode = adoptRef(new ArrowParameterPlaceHolderNode(std::move(params)));
+                            }
+                        } else {
+                            expr.setNodeType(ASTNodeType::ArrowParameterPlaceHolder);
+                        }
+                    }
+                    this->context->isBindingElement = false;
+                }
             }
-            this->context->isBindingElement = false;
         }
 
         if (isParse) {
@@ -4302,7 +4363,7 @@ public:
     template <typename T, bool isParse>
     T variableDeclaration(DeclarationOptions& options)
     {
-        Vector<Scanner::ScannerResult, GCUtil::gc_malloc_ignore_off_page_allocator<Scanner::ScannerResult>> params;
+        ScannerResultVector params;
         RefPtr<Node> idNode;
         ScanExpressionResult id;
         bool isIdentifier;
