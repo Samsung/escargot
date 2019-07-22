@@ -407,7 +407,7 @@ AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
     case ExtendsKeyword:
         return ctx->staticStrings().stringExtends;
     case FunctionKeyword:
-        return ctx->staticStrings().stringFunction;
+        return ctx->staticStrings().function;
     case ContinueKeyword:
         return ctx->staticStrings().stringContinue;
     case DebuggerKeyword:
@@ -415,11 +415,11 @@ AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
     case InstanceofKeyword:
         return ctx->staticStrings().stringInstanceof;
     case ImplementsKeyword:
-        return ctx->staticStrings().stringImplements;
+        return ctx->staticStrings().implements;
     case InterfaceKeyword:
-        return ctx->staticStrings().stringInterface;
+        return ctx->staticStrings().interface;
     case PackageKeyword:
-        return ctx->staticStrings().stringPackage;
+        return ctx->staticStrings().package;
     case PrivateKeyword:
         return ctx->staticStrings().stringPrivate;
     case ProtectedKeyword:
@@ -429,9 +429,9 @@ AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
     case StaticKeyword:
         return ctx->staticStrings().stringStatic;
     case YieldKeyword:
-        return ctx->staticStrings().stringYield;
+        return ctx->staticStrings().yield;
     case LetKeyword:
-        return ctx->staticStrings().stringLet;
+        return ctx->staticStrings().let;
     default:
         ASSERT_NOT_REACHED();
         return ctx->staticStrings().stringError;
