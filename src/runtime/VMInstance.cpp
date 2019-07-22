@@ -188,12 +188,6 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
     m_defaultStructureForClassFunctionObject = m_defaultStructureForClassFunctionObject->addProperty(stateForInit, m_staticStrings.length,
                                                                                                      ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
 
-    m_defaultStructureForClassFunctionObject = m_defaultStructureForClassFunctionObject->addProperty(stateForInit, m_staticStrings.caller,
-                                                                                                     ObjectStructurePropertyDescriptor::createAccessorDescriptor(ObjectStructurePropertyDescriptor::WritablePresent));
-
-    m_defaultStructureForClassFunctionObject = m_defaultStructureForClassFunctionObject->addProperty(stateForInit, m_staticStrings.arguments,
-                                                                                                     ObjectStructurePropertyDescriptor::createAccessorDescriptor(ObjectStructurePropertyDescriptor::WritablePresent));
-
     //Arrow Function
 
     m_defaultStructureForArrowFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.name,
@@ -201,12 +195,6 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
 
     m_defaultStructureForArrowFunctionObject = m_defaultStructureForArrowFunctionObject->addProperty(stateForInit, m_staticStrings.length,
                                                                                                      ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
-
-    m_defaultStructureForFunctionObjectInStrictMode = m_defaultStructureForFunctionObject->addProperty(stateForInit, m_staticStrings.caller,
-                                                                                                       ObjectStructurePropertyDescriptor::createAccessorDescriptor(ObjectStructurePropertyDescriptor::WritablePresent));
-
-    m_defaultStructureForFunctionObjectInStrictMode = m_defaultStructureForFunctionObjectInStrictMode->addProperty(stateForInit, m_staticStrings.arguments,
-                                                                                                                   ObjectStructurePropertyDescriptor::createAccessorDescriptor(ObjectStructurePropertyDescriptor::WritablePresent));
 
     m_defaultStructureForBuiltinFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.prototype,
                                                                                           ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&builtinFunctionPrototypeNativeGetterSetterData));
@@ -222,12 +210,6 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
 
     m_defaultStructureForNotConstructorFunctionObject = m_defaultStructureForNotConstructorFunctionObject->addProperty(stateForInit, m_staticStrings.length,
                                                                                                                        ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
-
-    m_defaultStructureForNotConstructorFunctionObjectInStrictMode = m_defaultStructureForNotConstructorFunctionObject->addProperty(stateForInit, m_staticStrings.caller,
-                                                                                                                                   ObjectStructurePropertyDescriptor::createAccessorDescriptor(ObjectStructurePropertyDescriptor::WritablePresent));
-
-    m_defaultStructureForNotConstructorFunctionObjectInStrictMode = m_defaultStructureForNotConstructorFunctionObjectInStrictMode->addProperty(stateForInit, m_staticStrings.arguments,
-                                                                                                                                               ObjectStructurePropertyDescriptor::createAccessorDescriptor(ObjectStructurePropertyDescriptor::WritablePresent));
 
     m_defaultStructureForBoundFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length,
                                                                                         ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));

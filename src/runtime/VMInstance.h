@@ -232,8 +232,6 @@ private:
     ObjectStructure* m_defaultStructureForClassFunctionObject;
     ObjectStructure* m_defaultStructureForArrowFunctionObject;
     ObjectStructure* m_defaultStructureForNotConstructorFunctionObject;
-    ObjectStructure* m_defaultStructureForFunctionObjectInStrictMode;
-    ObjectStructure* m_defaultStructureForNotConstructorFunctionObjectInStrictMode;
     ObjectStructure* m_defaultStructureForBuiltinFunctionObject;
     ObjectStructure* m_defaultStructureForFunctionPrototypeObject;
     ObjectStructure* m_defaultStructureForBoundFunctionObject;

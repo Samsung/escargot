@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<excludeList><!--
-  <test id="B.2.1"><reason>TODO</reason></test>-->
+<excludeList>
+  <!--<test id="B.2.1"><reason>TODO</reason></test>-->
   <test id="B.2.1.propertyCheck"><reason>TODO</reason></test>
   <test id="B.2.2"><reason>TODO</reason></test>
   <test id="B.2.2.propertyCheck"><reason>TODO</reason></test>
@@ -9205,8 +9205,8 @@
   <test id="S15.1_A1_T1"><reason>TODO</reason></test>
   <test id="S15.1_A1_T2"><reason>TODO</reason></test>
   <test id="S15.1_A2_T1"><reason>TODO</reason></test>
-  <test id="FunctionPrototype_restricted-property-arguments"><reason>TODO</reason></test>
-  <test id="FunctionPrototype_restricted-property-caller"><reason>TODO</reason></test>
+  <!-- <test id="FunctionPrototype_restricted-property-arguments"><reason>TODO</reason></test> -->
+  <!-- <test id="FunctionPrototype_restricted-property-caller"><reason>TODO</reason></test> -->
   <test id="S15.1.2.5_A1_T1"><reason>TODO</reason></test>
   <test id="S15.1.2.5_A1_T2"><reason>TODO</reason></test>
   <test id="S15.1.2.5_A2.1"><reason>TODO</reason></test>
@@ -9770,9 +9770,9 @@
   <test id="attempt-to-redeclare-function-declaration-with-var"><reason>TODO</reason></test>
   <test id="attempt-to-redeclare-var-binding-with-let"><reason>TODO</reason></test>
   <test id="attempt-to-redeclare-var-with-function-declaration"><reason>TODO</reason></test>
-  <test id="ClassDeclaration_restricted-properties"><reason>TODO</reason></test>
-  <test id="ClassExpression_restricted-properties"><reason>TODO</reason></test>
-  <test id="ClassMethod_restricted-properties"><reason>TODO</reason></test>
+  <!-- <test id="ClassDeclaration_restricted-properties"><reason>TODO</reason></test> -->
+  <!-- <test id="ClassExpression_restricted-properties"><reason>TODO</reason></test> -->
+  <!-- <test id="ClassMethod_restricted-properties"><reason>TODO</reason></test> -->
   <test id="generator-no-yield"><reason>TODO</reason></test>
   <test id="generator-return"><reason>TODO</reason></test>
   <test id="yield-as-binding-identifier"><reason>TODO</reason></test>

@@ -110,16 +110,6 @@ public:
         return m_defaultStructureForNotConstructorFunctionObject;
     }
 
-    ObjectStructure* defaultStructureForFunctionObjectInStrictMode()
-    {
-        return m_defaultStructureForFunctionObjectInStrictMode;
-    }
-
-    ObjectStructure* defaultStructureForNotConstructorFunctionObjectInStrictMode()
-    {
-        return m_defaultStructureForNotConstructorFunctionObjectInStrictMode;
-    }
-
     ObjectStructure* defaultStructureForBuiltinFunctionObject()
     {
         return m_defaultStructureForBuiltinFunctionObject;
@@ -227,8 +217,6 @@ private:
     ObjectStructure* m_defaultStructureForClassFunctionObject;
     ObjectStructure* m_defaultStructureForArrowFunctionObject;
     ObjectStructure* m_defaultStructureForNotConstructorFunctionObject;
-    ObjectStructure* m_defaultStructureForFunctionObjectInStrictMode;
-    ObjectStructure* m_defaultStructureForNotConstructorFunctionObjectInStrictMode;
     ObjectStructure* m_defaultStructureForBuiltinFunctionObject;
     ObjectStructure* m_defaultStructureForFunctionPrototypeObject;
     ObjectStructure* m_defaultStructureForBoundFunctionObject;
