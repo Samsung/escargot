@@ -54,7 +54,6 @@ matrix:
         - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js internal octane jsc-stress v8 spidermonkey regression-tests es2015 intl
         - tools/run-tests.py --arch=x86_64 test262
 
-
     - name: "linux.x64.debug"
       addons:
         apt:
@@ -64,7 +63,16 @@ matrix:
         - ninja -Cout/linux/x64/debug
         - cp ./out/linux/x64/debug/escargot ./escargot
         - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js internal regression-tests es2015 intl
-        - travis_wait 30 tools/run-tests.py --arch=x86_64 test262
+
+    - name: "linux.x64.debug test262 only"
+      addons:
+        apt:
+          packages: [ autoconf, automake, libtool, ninja-build, libicu-dev ]
+      script:
+        - cmake -H. -Bout/linux/x64/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin -GNinja
+        - ninja -Cout/linux/x64/debug
+        - cp ./out/linux/x64/debug/escargot ./escargot
+        - travis_wait 50 tools/run-tests.py --arch=x86_64 test262
 
     - name: "linux.x86.release"
       addons:
@@ -77,7 +85,7 @@ matrix:
         - ninja -Cout/linux/x86/release
         - cp ./out/linux/x86/release/escargot ./escargot
         - travis_wait 30 tools/run-tests.py --arch=x86 jetstream-only-simple chakracore
-        - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js internal octane jsc-stress v8 spidermonkey regression-tests es2015 intl test262
+        - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js internal octane jsc-stress v8 spidermonkey regression-tests es2015 intl
         - tools/run-tests.py --arch=x86 test262
 
     - name: "linux.x86.debug"
@@ -89,7 +97,16 @@ matrix:
         - ninja -Cout/linux/x86/debug
         - cp ./out/linux/x86/debug/escargot ./escargot
         - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js internal regression-tests es2015 intl
-        - travis_wait 40 tools/run-tests.py --arch=x86 test262
+
+    - name: "linux.x86.debug test262 only"
+      addons:
+        apt:
+          packages: [ autoconf, automake, libtool, ninja-build, gcc-multilib g++-multilib, "libicu-dev:i386" ]
+      script:
+        - cmake -H. -Bout/linux/x86/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin -GNinja
+        - ninja -Cout/linux/x86/debug
+        - cp ./out/linux/x86/debug/escargot ./escargot
+        - travis_wait 50 tools/run-tests.py --arch=x86 test262
 
     - name: "SonarQube"
       addons:
