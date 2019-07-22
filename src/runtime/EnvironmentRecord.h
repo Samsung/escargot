@@ -27,6 +27,7 @@
 #include "runtime/ArgumentsObject.h"
 #include "runtime/String.h"
 #include "runtime/Value.h"
+#include "runtime/Context.h"
 
 namespace Escargot {
 
@@ -37,15 +38,6 @@ class FunctionEnvironmentRecord;
 class GlobalObject;
 class CodeBlock;
 class ArgumentsObject;
-
-struct IdentifierRecord {
-    AtomicString m_name;
-    bool m_canDelete : 1;
-    bool m_isMutable : 1;
-    bool m_isVarDeclaration : 1;
-};
-
-typedef Vector<IdentifierRecord, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<IdentifierRecord>> IdentifierRecordVector;
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-environment-records
 class EnvironmentRecord : public gc {
@@ -59,9 +51,11 @@ public:
         MAKE_STACK_ALLOCATED();
         EnvironmentRecord* m_record;
         size_t m_index;
-        BindingSlot(EnvironmentRecord* record, size_t idx)
+        bool m_isLexicallyDeclared;
+        BindingSlot(EnvironmentRecord* record, size_t idx, bool isLexicallyDeclared)
             : m_record(record)
             , m_index(idx)
+            , m_isLexicallyDeclared(isLexicallyDeclared)
         {
         }
     };
@@ -69,10 +63,10 @@ public:
     virtual ~EnvironmentRecord() {}
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName)
     {
-        return BindingSlot(this, SIZE_MAX);
+        return BindingSlot(this, SIZE_MAX, false);
     }
 
-    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool canAccessWithoutinitializing = true)
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -163,7 +157,7 @@ public:
         return false;
     }
 
-    virtual bool isEvalTarget()
+    virtual bool isVarDeclarationTarget()
     {
         return false;
     }
@@ -207,9 +201,9 @@ public:
         return true;
     }
 
-    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool canAccessWithoutinitializing = true) override
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true) override
     {
-        ASSERT(canAccessWithoutinitializing);
+        ASSERT(isVarDeclaration);
         auto desc = m_bindingObject->getOwnProperty(state, name);
         if (!desc.hasValue()) {
             ObjectPropertyDescriptor::PresentAttribute attribute = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent);
@@ -238,9 +232,9 @@ public:
     {
         auto result = m_bindingObject->get(state, ObjectPropertyName(atomicName));
         if (result.hasValue()) {
-            return BindingSlot(this, SIZE_MAX - 1);
+            return BindingSlot(this, SIZE_MAX - 1, false);
         } else {
-            return BindingSlot(this, SIZE_MAX);
+            return BindingSlot(this, SIZE_MAX, false);
         }
     }
 
@@ -266,14 +260,14 @@ private:
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-global-environment-records
 class GlobalEnvironmentRecord : public EnvironmentRecord {
 public:
-    GlobalEnvironmentRecord(ExecutionState& state, InterpretedCodeBlock* codeBlock, GlobalObject* global, bool isEvalMode = false, bool createBinding = true);
+    GlobalEnvironmentRecord(ExecutionState& state, InterpretedCodeBlock* codeBlock, GlobalObject* global, IdentifierRecordVector* globalDeclarativeRecord, SmallValueVector* globalDeclarativeStorage);
     ~GlobalEnvironmentRecord() {}
     virtual bool isGlobalEnvironmentRecord() override
     {
         return true;
     }
 
-    virtual bool isEvalTarget() override
+    virtual bool isVarDeclarationTarget() override
     {
         return true;
     }
@@ -283,7 +277,7 @@ public:
         return true;
     }
 
-    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool canAccessWithoutinitializing = true) override;
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true) override;
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
     virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override;
@@ -299,6 +293,8 @@ public:
 private:
     InterpretedCodeBlock* m_globalCodeBlock;
     GlobalObject* m_globalObject;
+    IdentifierRecordVector* m_globalDeclarativeRecord;
+    SmallValueVector* m_globalDeclarativeStorage;
 };
 
 class DeclarativeEnvironmentRecordNotIndexed;
@@ -367,7 +363,7 @@ public:
 
 class DeclarativeEnvironmentRecordIndexed : public DeclarativeEnvironmentRecord {
 public:
-    DeclarativeEnvironmentRecordIndexed(InterpretedCodeBlock::BlockInfo* blockInfo)
+    DeclarativeEnvironmentRecordIndexed(ExecutionState& state, InterpretedCodeBlock::BlockInfo* blockInfo)
         : DeclarativeEnvironmentRecord()
         , m_blockInfo(blockInfo)
         , m_heapStorage()
@@ -391,6 +387,11 @@ public:
     virtual bool isDeclarativeEnvironmentRecordIndexed() override
     {
         return true;
+    }
+
+    virtual bool deleteBinding(ExecutionState& state, const AtomicString& name) override
+    {
+        return false;
     }
 
     virtual void setHeapValueByIndex(ExecutionState& state, const size_t idx, const Value& v) override
@@ -418,10 +419,10 @@ public:
         const auto& v = m_blockInfo->m_identifiers;
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
-                return BindingSlot(this, v[i].m_indexForIndexedStorage);
+                return BindingSlot(this, v[i].m_indexForIndexedStorage, true);
             }
         }
-        return BindingSlot(this, SIZE_MAX);
+        return BindingSlot(this, SIZE_MAX, false);
     }
 
     virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override
@@ -478,7 +479,20 @@ public:
                 return;
             }
         }
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_NOT_REACHED();
+    }
+
+    virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+    {
+        const auto& v = m_blockInfo->m_identifiers;
+
+        for (size_t i = 0; i < v.size(); i++) {
+            if (v[i].m_name == name) {
+                m_heapStorage[v[i].m_indexForIndexedStorage] = V;
+                return;
+            }
+        }
+        ASSERT_NOT_REACHED();
     }
 
 private:
@@ -488,31 +502,12 @@ private:
 
 // NOTE
 // DeclarativeEnvironmentRecordNotIndexed record does not create binding self likes FunctionEnvironmentRecord
-// this record is for strict eval now
 class DeclarativeEnvironmentRecordNotIndexed : public DeclarativeEnvironmentRecord {
 public:
-    DeclarativeEnvironmentRecordNotIndexed()
+    DeclarativeEnvironmentRecordNotIndexed(ExecutionState& state, bool isVarDeclarationTarget = false)
         : DeclarativeEnvironmentRecord()
-        , m_heapStorage()
+        , m_isVarDeclarationTarget(isVarDeclarationTarget)
     {
-    }
-
-    DeclarativeEnvironmentRecordNotIndexed(EnvironmentRecord* env)
-        : DeclarativeEnvironmentRecord()
-    {
-        DeclarativeEnvironmentRecordNotIndexed* declEnv = (DeclarativeEnvironmentRecordNotIndexed*)env->asDeclarativeEnvironmentRecord();
-        m_heapStorage = declEnv->m_heapStorage;
-        m_recordVector = declEnv->m_recordVector;
-    }
-
-    // this constructor is for strict eval
-    DeclarativeEnvironmentRecordNotIndexed(ExecutionState& state, const InterpretedCodeBlock::IdentifierInfoVector& vec)
-        : DeclarativeEnvironmentRecord()
-        , m_heapStorage()
-    {
-        for (size_t i = 0; i < vec.size(); i++) {
-            createBinding(state, vec[i].m_name, false, vec[i].m_isMutable, true);
-        }
     }
 
     ~DeclarativeEnvironmentRecordNotIndexed()
@@ -524,22 +519,22 @@ public:
         return true;
     }
 
-    virtual bool isEvalTarget() override
+    virtual bool isVarDeclarationTarget() override
     {
-        return true;
+        return m_isVarDeclarationTarget;
     }
 
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName) override
     {
         for (size_t i = 0; i < m_recordVector.size(); i++) {
             if (m_recordVector[i].m_name == atomicName) {
-                return BindingSlot(this, i);
+                return BindingSlot(this, i, !m_recordVector[i].m_isVarDeclaration);
             }
         }
-        return BindingSlot(this, SIZE_MAX);
+        return BindingSlot(this, SIZE_MAX, false);
     }
 
-    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool canAccessWithoutinitializing = true) override;
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true) override;
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
     virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override;
@@ -553,25 +548,9 @@ public:
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
 
 private:
+    bool m_isVarDeclarationTarget : 1;
     SmallValueVector m_heapStorage;
     IdentifierRecordVector m_recordVector;
-};
-
-// NOTE
-// this record is for catch statement
-class DeclarativeEnvironmentRecordNotIndexedForCatch : public DeclarativeEnvironmentRecordNotIndexed {
-public:
-    DeclarativeEnvironmentRecordNotIndexedForCatch()
-        : DeclarativeEnvironmentRecordNotIndexed()
-    {
-    }
-
-    virtual bool isEvalTarget() override
-    {
-        return false;
-    }
-
-protected:
 };
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-function-environment-records
@@ -755,17 +734,18 @@ public:
 
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
-                return BindingSlot(this, v[i].m_indexForIndexedStorage);
+                return BindingSlot(this, v[i].m_indexForIndexedStorage, false);
             }
         }
-        return BindingSlot(this, SIZE_MAX);
+        return BindingSlot(this, SIZE_MAX, false);
     }
 
-    virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override
+    virtual bool deleteBinding(ExecutionState& state, const AtomicString& name) override
     {
-        m_heapStorage[slot.m_index] = v;
+        return false;
     }
 
+    virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override;
     virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const Value& v) override
     {
         m_heapStorage[idx] = v;
@@ -826,7 +806,7 @@ public:
         return m_heapStorage[idx];
     }
 
-    virtual bool isEvalTarget() override
+    virtual bool isVarDeclarationTarget() override
     {
         return true;
     }
@@ -852,14 +832,14 @@ public:
         size_t len = m_recordVector.size();
         for (size_t i = 0; i < len; i++) {
             if (m_recordVector[i].m_name == atomicName) {
-                return BindingSlot(this, i);
+                return BindingSlot(this, i, false);
             }
         }
-        return BindingSlot(this, SIZE_MAX);
+        return BindingSlot(this, SIZE_MAX, false);
     }
 
 
-    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool canAccessWithoutinitializing = true) override;
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true) override;
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
     virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override;

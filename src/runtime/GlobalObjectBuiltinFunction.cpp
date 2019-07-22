@@ -73,7 +73,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
         srcToTest.appendString("\r\n){ }");
         String* cur = srcToTest.finalize(&state);
         state.context()->vmInstance()->parsedSourceCodes().push_back(cur);
-        esprima::parseProgram(state.context(), StringView(cur, 0, cur->length()), false, SIZE_MAX);
+        esprima::parseProgram(state.context(), StringView(cur, 0, cur->length()), false, false, SIZE_MAX);
     } catch (esprima::Error& orgError) {
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is a script parse error in parameter name");
     }
@@ -108,7 +108,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     Script* script = parser.initializeScript(state, StringView(scriptSource, 0, scriptSource->length()), new ASCIIString("Function Constructor input"), nullptr, false, false, false, false, SIZE_MAX, false);
     InterpretedCodeBlock* cb = script->topCodeBlock()->childBlocks()[0];
     cb->updateSourceElementStart(3, 1);
-    LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, script->topCodeBlock(), state.context()->globalObject()), nullptr);
+    LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, script->topCodeBlock(), state.context()->globalObject(), &state.context()->globalDeclarativeRecord(), &state.context()->globalDeclarativeStorage()), nullptr);
     return new FunctionObject(state, cb, globalEnvironment);
 }
 

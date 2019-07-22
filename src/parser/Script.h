@@ -52,7 +52,7 @@ public:
             Vector<StackTrace, GCUtil::gc_malloc_ignore_off_page_allocator<StackTrace>> stackTrace;
         } error;
     };
-    Value execute(ExecutionState& state, bool isEvalMode = false, bool needNewEnv = false);
+    Value execute(ExecutionState& state, bool isExecuteOnEvalFunction = false, bool inStrictMode = false);
     String* fileName()
     {
         return m_fileName;
@@ -69,7 +69,7 @@ public:
     }
 
 private:
-    Value executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool needNewEnv = false);
+    Value executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isStrictModeOutside = false, bool isEvalCodeOnFunction = false);
     String* m_fileName;
     String* m_src;
     InterpretedCodeBlock* m_topCodeBlock;

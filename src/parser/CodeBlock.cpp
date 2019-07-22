@@ -92,24 +92,23 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_isFunctionNameSaveOnHeap(false)
     , m_isFunctionNameExplicitlyDeclared(false)
     , m_canUseIndexedVariableStorage(true)
+    , m_canAllocateVariablesOnStack(true)
     , m_canAllocateEnvironmentOnStack(true)
+    , m_hasDescendantUsesNonIndexedVariableStorage(false)
     , m_needsComplexParameterCopy(false)
     , m_hasEval(false)
     , m_hasWith(false)
     , m_hasSuper(false)
-    , m_hasCatch(false)
     , m_hasYield(false)
-    , m_inCatch(false)
     , m_inWith(false)
+    , m_isEvalCode(false)
+    , m_isEvalCodeInFunction(false)
     , m_usesArgumentsObject(false)
     , m_isFunctionExpression(false)
     , m_isFunctionDeclaration(false)
-    , m_isFunctionDeclarationWithSpecialBinding(false)
     , m_isArrowFunctionExpression(false)
     , m_isClassConstructor(false)
     , m_isGenerator(false)
-    , m_isInWithScope(false)
-    , m_isEvalCodeInFunction(false)
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
     , m_hasRestElement(false)
@@ -131,24 +130,23 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_isFunctionNameSaveOnHeap(false)
     , m_isFunctionNameExplicitlyDeclared(false)
     , m_canUseIndexedVariableStorage(true)
+    , m_canAllocateVariablesOnStack(true)
     , m_canAllocateEnvironmentOnStack(true)
+    , m_hasDescendantUsesNonIndexedVariableStorage(false)
     , m_needsComplexParameterCopy(false)
     , m_hasEval(false)
     , m_hasWith(false)
     , m_hasSuper(false)
-    , m_hasCatch(false)
     , m_hasYield(false)
-    , m_inCatch(false)
     , m_inWith(false)
+    , m_isEvalCode(false)
+    , m_isEvalCodeInFunction(false)
     , m_usesArgumentsObject(false)
     , m_isFunctionExpression(false)
     , m_isFunctionDeclaration(false)
-    , m_isFunctionDeclarationWithSpecialBinding(false)
     , m_isArrowFunctionExpression(false)
     , m_isClassConstructor(false)
     , m_isGenerator(false)
-    , m_isInWithScope(false)
-    , m_isEvalCodeInFunction(false)
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
     , m_hasRestElement(false)
@@ -188,7 +186,7 @@ void InterpretedCodeBlock::initBlockScopeInformation(ASTFunctionScopeContext* sc
     }
 }
 
-InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart)
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, bool isEvalCode, bool isEvalCodeInFunction)
     : m_script(script)
     , m_src(src)
     , m_sourceElementStart(sourceElementStart)
@@ -210,32 +208,34 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isConstructor = false;
     m_hasCallNativeFunctionCode = false;
     m_isFunctionDeclaration = false;
-    m_isFunctionDeclarationWithSpecialBinding = false;
     m_isFunctionExpression = false;
     m_isArrowFunctionExpression = false;
     m_isStrict = scopeCtx->m_isStrict;
     m_isClassConstructor = scopeCtx->m_isClassConstructor;
     m_isGenerator = scopeCtx->m_isGenerator;
+    m_hasRestElement = scopeCtx->m_hasRestElement;
 
     m_hasEval = scopeCtx->m_hasEval;
     m_hasWith = scopeCtx->m_hasWith;
-    m_hasCatch = scopeCtx->m_hasCatch;
     m_hasYield = scopeCtx->m_hasYield;
     m_hasSuper = scopeCtx->m_hasSuper;
-    m_inCatch = false;
-    m_inWith = false;
+    m_inWith = scopeCtx->m_inWith;
+
+    m_isEvalCode = isEvalCode;
+    m_isEvalCodeInFunction = isEvalCodeInFunction;
 
     m_usesArgumentsObject = false;
-    m_canUseIndexedVariableStorage = false;
-    m_canAllocateEnvironmentOnStack = false;
+    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith && !m_hasYield && !scopeCtx->m_hasArrowSuper && !m_shouldReparseArguments && !m_isGenerator;
+    m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage;
+    m_canAllocateVariablesOnStack = m_canAllocateEnvironmentOnStack;
+    m_hasDescendantUsesNonIndexedVariableStorage = false;
+
     m_needsComplexParameterCopy = false;
-    m_isInWithScope = false;
-    m_isEvalCodeInFunction = false;
     m_needsVirtualIDOperation = false;
     m_needToLoadThisValue = false;
-    m_hasRestElement = scopeCtx->m_hasRestElement;
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;
+    m_shouldReparseArguments = false;
 
     const ASTFunctionScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_varNames;
     m_identifierInfos.resize(innerIdentifiers.size());
@@ -254,7 +254,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     initBlockScopeInformation(scopeCtx);
 }
 
-InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, InterpretedCodeBlock* parentBlock)
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
     : m_script(script)
     , m_paramsSrc(scopeCtx->m_hasNonIdentArgument ? StringView(src, scopeCtx->m_paramsStart.index, scopeCtx->m_locStart.index) : StringView())
     , m_src(StringView(src, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index))
@@ -273,9 +273,6 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     bool isFE = scopeCtx->m_nodeType == FunctionExpression || scopeCtx->m_nodeType == ArrowFunctionExpression;
     bool isFD = scopeCtx->m_nodeType == FunctionDeclaration;
 
-    if (scopeCtx->m_needsSpecialInitialize)
-        isFD = false;
-
     const AtomicStringTightVector& parameterNames = scopeCtx->m_parameters;
 
     m_context = ctx;
@@ -287,14 +284,17 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isStrict = scopeCtx->m_isStrict;
     m_hasEval = scopeCtx->m_hasEval;
     m_hasWith = scopeCtx->m_hasWith;
-    m_hasCatch = scopeCtx->m_hasCatch;
     m_hasYield = scopeCtx->m_hasYield;
     m_hasSuper = scopeCtx->m_hasSuper;
-    m_inCatch = scopeCtx->m_inCatch;
     m_inWith = scopeCtx->m_inWith;
+    m_hasRestElement = scopeCtx->m_hasRestElement;
+    m_shouldReparseArguments = scopeCtx->m_hasNonIdentArgument;
+
+    m_isEvalCode = isEvalCode;
+    m_isEvalCodeInFunction = isEvalCodeInFunction;
+
     m_usesArgumentsObject = false;
     m_isFunctionDeclaration = isFD;
-    m_isFunctionDeclarationWithSpecialBinding = scopeCtx->m_needsSpecialInitialize;
     m_isFunctionExpression = isFE;
     m_isArrowFunctionExpression = scopeCtx->m_isArrowFunctionExpression;
     m_isConstructor = !scopeCtx->m_isArrowFunctionExpression;
@@ -303,12 +303,8 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;
     m_needsComplexParameterCopy = false;
-    m_isInWithScope = false;
-    m_isEvalCodeInFunction = false;
     m_needsVirtualIDOperation = false;
     m_needToLoadThisValue = false;
-    m_hasRestElement = scopeCtx->m_hasRestElement;
-    m_shouldReparseArguments = scopeCtx->m_hasNonIdentArgument;
 
     m_parametersInfomation.resizeWithUninitializedValues(parameterNames.size());
     for (size_t i = 0; i < parameterNames.size(); i++) {
@@ -316,8 +312,10 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
         m_parametersInfomation[i].m_isDuplicated = false;
     }
 
-    m_canUseIndexedVariableStorage = !hasEvalWithYield() && !m_inCatch && !m_inWith && !scopeCtx->m_hasArrowSuper && !m_shouldReparseArguments && !m_isGenerator;
+    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith && !m_hasYield && !scopeCtx->m_hasArrowSuper && !m_shouldReparseArguments && !m_isGenerator;
     m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage;
+    m_canAllocateVariablesOnStack = true;
+    m_hasDescendantUsesNonIndexedVariableStorage = false;
 
     const ASTFunctionScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_varNames;
     m_identifierInfos.resize(innerIdentifiers.size());
@@ -391,7 +389,7 @@ void InterpretedCodeBlock::captureArguments()
     }
 }
 
-bool InterpretedCodeBlock::tryCaptureIdentifiersFromChildCodeBlock(LexcialBlockIndex blockIndex, AtomicString name)
+bool InterpretedCodeBlock::tryCaptureIdentifiersFromChildCodeBlock(LexicalBlockIndex blockIndex, AtomicString name)
 {
     auto r = findNameWithinBlock(blockIndex, name);
 
@@ -411,18 +409,7 @@ bool InterpretedCodeBlock::tryCaptureIdentifiersFromChildCodeBlock(LexcialBlockI
     return false;
 }
 
-void InterpretedCodeBlock::notifySelfOrChildHasEvalWithYield()
-{
-    m_canAllocateEnvironmentOnStack = false;
-    m_canUseIndexedVariableStorage = false;
-
-    for (size_t i = 0; i < m_identifierInfos.size(); i++) {
-        m_identifierInfos[i].m_indexForIndexedStorage = SIZE_MAX;
-        m_identifierInfos[i].m_needToAllocateOnStack = false;
-    }
-}
-
-void InterpretedCodeBlock::markHeapAllocatedEnvironmentFromHere(LexcialBlockIndex blockIndex)
+void InterpretedCodeBlock::markHeapAllocatedEnvironmentFromHere(LexicalBlockIndex blockIndex)
 {
     InterpretedCodeBlock* c = this;
 
@@ -438,7 +425,7 @@ void InterpretedCodeBlock::markHeapAllocatedEnvironmentFromHere(LexcialBlockInde
         while (bi && bi->m_canAllocateEnvironmentOnStack) {
             bi->m_canAllocateEnvironmentOnStack = false;
 
-            if (bi->m_parentBlockIndex == LEXCIAL_BLOCK_INDEX_MAX) {
+            if (bi->m_parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX) {
                 break;
             }
 
@@ -456,7 +443,7 @@ void InterpretedCodeBlock::markHeapAllocatedEnvironmentFromHere(LexcialBlockInde
     }
 }
 
-void InterpretedCodeBlock::computeBlockVariables(LexcialBlockIndex currentBlockIndex, size_t currentStackAllocatedVariableIndex, size_t& maxStackAllocatedVariableDepth)
+void InterpretedCodeBlock::computeBlockVariables(LexicalBlockIndex currentBlockIndex, size_t currentStackAllocatedVariableIndex, size_t& maxStackAllocatedVariableDepth)
 {
     InterpretedCodeBlock::BlockInfo* bi = nullptr;
     for (size_t i = 0; i < m_blockInfos.size(); i++) {
@@ -471,6 +458,10 @@ void InterpretedCodeBlock::computeBlockVariables(LexcialBlockIndex currentBlockI
     size_t heapIndex = 0;
     size_t stackSize = 0;
     for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+        if (!m_canAllocateVariablesOnStack) {
+            bi->m_identifiers[i].m_needToAllocateOnStack = false;
+        }
+
         if (bi->m_identifiers[i].m_needToAllocateOnStack) {
             bi->m_identifiers[i].m_indexForIndexedStorage = currentStackAllocatedVariableIndex;
             stackSize++;
@@ -478,13 +469,7 @@ void InterpretedCodeBlock::computeBlockVariables(LexcialBlockIndex currentBlockI
             maxStackAllocatedVariableDepth = std::max(maxStackAllocatedVariableDepth, currentStackAllocatedVariableIndex);
         } else {
             bi->m_identifiers[i].m_indexForIndexedStorage = heapIndex++;
-            ASSERT(!bi->m_canAllocateEnvironmentOnStack);
-        }
-    }
-
-    for (size_t i = 0; i < m_blockInfos.size(); i++) {
-        if (m_blockInfos[i]->m_parentBlockIndex == currentBlockIndex) {
-            computeBlockVariables(m_blockInfos[i]->m_blockIndex, currentStackAllocatedVariableIndex, maxStackAllocatedVariableDepth);
+            bi->m_canAllocateEnvironmentOnStack = false;
         }
     }
 
@@ -497,6 +482,13 @@ void InterpretedCodeBlock::computeBlockVariables(LexcialBlockIndex currentBlockI
     }
 
     bi->m_shouldAllocateEnvironment = isThereHeapVariable;
+
+
+    for (size_t i = 0; i < m_blockInfos.size(); i++) {
+        if (m_blockInfos[i]->m_parentBlockIndex == currentBlockIndex) {
+            computeBlockVariables(m_blockInfos[i]->m_blockIndex, currentStackAllocatedVariableIndex, maxStackAllocatedVariableDepth);
+        }
+    }
 }
 
 // global block id map
@@ -506,7 +498,17 @@ void InterpretedCodeBlock::computeBlockVariables(LexcialBlockIndex currentBlockI
 
 void InterpretedCodeBlock::computeVariables()
 {
-    if (m_usesArgumentsObject || inEvalWithYieldScope() || inNotIndexedCodeBlockScope() || hasCatch() || m_hasSuper) {
+    // we should check m_inWidth
+    // because CallFunctionInWithScope needs LoadByName
+    m_canAllocateVariablesOnStack = !m_isEvalCode && !hasDescendantUsesNonIndexedVariableStorage() && m_canUseIndexedVariableStorage && !m_inWith;
+
+    if (m_canAllocateEnvironmentOnStack) {
+        // we should check m_inWidth
+        // because CallFunctionInWithScope needs LoadByName
+        m_canAllocateEnvironmentOnStack = !m_isEvalCode && !hasDescendantUsesNonIndexedVariableStorage() && m_canUseIndexedVariableStorage && !m_inWith;
+    }
+
+    if (m_usesArgumentsObject || m_hasSuper) {
         m_canAllocateEnvironmentOnStack = false;
     }
 
@@ -535,11 +537,14 @@ void InterpretedCodeBlock::computeVariables()
         }
     }
 
-    if (canUseIndexedVariableStorage()) {
+    if (canUseIndexedVariableStorage() && !isGlobalScopeCodeBlock()) {
         size_t s = isGlobalScopeCodeBlock() ? 1 : 2;
         size_t h = 0;
 
         for (size_t i = 0; i < m_identifierInfos.size(); i++) {
+            if (!m_canAllocateVariablesOnStack) {
+                m_identifierInfos[i].m_needToAllocateOnStack = false;
+            }
             if (m_identifierInfos[i].m_name == m_functionName) {
                 m_needsComplexParameterCopy = true;
                 if (m_identifierInfos[i].m_isExplicitlyDeclaredOrParameterName) {
@@ -676,10 +681,43 @@ void InterpretedCodeBlock::computeVariables()
         m_identifierOnStackCount = s;
         m_identifierOnHeapCount = h;
 
-        size_t currentStackAllocatedVariableIndex = 0;
-        size_t maxStackAllocatedVariableDepth = 0;
-        computeBlockVariables(0, currentStackAllocatedVariableIndex, maxStackAllocatedVariableDepth);
-        m_lexicalBlockStackAllocatedIdentifierMaximumDepth = maxStackAllocatedVariableDepth;
+        m_lexicalBlockStackAllocatedIdentifierMaximumDepth = 0;
+
+        if (!canUseIndexedVariableStorage()) {
+            for (size_t i = 0; i < m_blockInfos.size(); i++) {
+                m_blockInfos[i]->m_canAllocateEnvironmentOnStack = false;
+                m_blockInfos[i]->m_shouldAllocateEnvironment = m_blockInfos[i]->m_identifiers.size();
+                for (size_t j = 0; j < m_blockInfos[i]->m_identifiers.size(); j++) {
+                    m_blockInfos[i]->m_identifiers[j].m_indexForIndexedStorage = SIZE_MAX;
+                    m_blockInfos[i]->m_identifiers[j].m_needToAllocateOnStack = false;
+                }
+            }
+        } else {
+            ASSERT(isGlobalScopeCodeBlock());
+
+            size_t currentStackAllocatedVariableIndex = 0;
+            size_t maxStackAllocatedVariableDepth = 0;
+            computeBlockVariables(0, currentStackAllocatedVariableIndex, maxStackAllocatedVariableDepth);
+            m_lexicalBlockStackAllocatedIdentifierMaximumDepth = maxStackAllocatedVariableDepth;
+        }
+
+        if (isGlobalScopeCodeBlock()) {
+            InterpretedCodeBlock::BlockInfo* bi = nullptr;
+            for (size_t i = 0; i < m_blockInfos.size(); i++) {
+                if (m_blockInfos[i]->m_blockIndex == 0) {
+                    bi = m_blockInfos[i];
+                    break;
+                }
+            }
+
+            // global {let, const} declaration should be processed on GlobalEnvironmentRecord
+            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+                bi->m_identifiers[i].m_indexForIndexedStorage = SIZE_MAX;
+                bi->m_identifiers[i].m_needToAllocateOnStack = false;
+            }
+
+            bi->m_shouldAllocateEnvironment = false;
+        }
     }
 }
 }

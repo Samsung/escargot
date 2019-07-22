@@ -56,7 +56,7 @@ public:
 
         size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
         ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;
-        if (m_lexicalBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
+        if (m_lexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
             context->m_lexicalBlockIndex = m_lexicalBlockIndex;
             InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_lexicalBlockIndex);
             blockContext = codeBlock->pushLexicalBlock(context, bi, this);
@@ -65,7 +65,7 @@ public:
         size_t start = codeBlock->currentCodeSize();
         m_container->generateStatementByteCode(codeBlock, context);
 
-        if (m_lexicalBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
+        if (m_lexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
             codeBlock->finalizeLexicalBlock(context, blockContext);
             context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
         }
@@ -79,7 +79,7 @@ public:
 private:
     RefPtr<StatementContainer> m_container;
     RefPtr<StatementContainer> m_argumentInitializers;
-    LexcialBlockIndex m_lexicalBlockIndex;
+    LexicalBlockIndex m_lexicalBlockIndex;
 };
 }
 

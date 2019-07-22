@@ -26,6 +26,7 @@ const char* errorMessage_NotImplemented = "Not implemented";
 const char* errorMessage_IsNotDefined = "%s is not defined";
 const char* errorMessage_IsNotInitialized = "Cannot access '%s' before initialization";
 const char* errorMessage_DuplicatedIdentifier = "Identifier '%s' has already been declared";
+const char* errorMessage_TooManyGlobalLexicalVariables = "There are too many global lexical variables in script";
 const char* errorMessage_AssignmentToConstantVariable = "Assignment to constant variable '%s'";
 const char* errorMessage_DefineProperty_Default = "Cannot define property '%s'";
 const char* errorMessage_DefineProperty_LengthNotWritable = "Cannot modify property '%s': 'length' is not writable";

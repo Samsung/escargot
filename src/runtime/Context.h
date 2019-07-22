@@ -42,6 +42,15 @@ class JobQueue;
 class ByteCodeBlock;
 class ToStringRecursionPreventer;
 
+struct IdentifierRecord {
+    AtomicString m_name;
+    bool m_canDelete : 1;
+    bool m_isMutable : 1;
+    bool m_isVarDeclaration : 1;
+};
+
+typedef Vector<IdentifierRecord, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<IdentifierRecord>> IdentifierRecordVector;
+
 typedef Value (*VirtualIdentifierCallback)(ExecutionState& state, Value name);
 typedef Value (*SecurityPolicyCheckCallback)(ExecutionState& state, bool isEval);
 
@@ -190,6 +199,16 @@ public:
         return m_securityPolicyCheckCallback;
     }
 
+    IdentifierRecordVector& globalDeclarativeRecord()
+    {
+        return m_globalDeclarativeRecord;
+    }
+
+    SmallValueVector& globalDeclarativeStorage()
+    {
+        return m_globalDeclarativeStorage;
+    }
+
 private:
     VMInstance* m_instance;
 
@@ -199,6 +218,8 @@ private:
     StaticStrings& m_staticStrings;
     GlobalObject* m_globalObject;
     ScriptParser* m_scriptParser;
+    IdentifierRecordVector m_globalDeclarativeRecord;
+    SmallValueVector m_globalDeclarativeStorage;
     Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& m_compiledCodeBlocks;
     WTF::BumpPointerAllocator* m_bumpPointerAllocator;
     RegExpCacheMap* m_regexpCache;

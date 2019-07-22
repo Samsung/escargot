@@ -34,15 +34,19 @@ ScriptParser::ScriptParser(Context* c)
 {
 }
 
-InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTFunctionScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock)
+InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTFunctionScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock, bool isEvalCode, bool isEvalCodeInFunction)
 {
     InterpretedCodeBlock* codeBlock;
     if (parentCodeBlock == nullptr) {
         // globalBlock
-        codeBlock = new InterpretedCodeBlock(ctx, script, source, scopeCtx, ExtendedNodeLOC(1, 1, 0));
+        codeBlock = new InterpretedCodeBlock(ctx, script, source, scopeCtx, ExtendedNodeLOC(1, 1, 0), isEvalCode, isEvalCodeInFunction);
     } else {
-        codeBlock = new InterpretedCodeBlock(ctx, script, source, scopeCtx, scopeCtx->m_locStart, parentCodeBlock);
+        codeBlock = new InterpretedCodeBlock(ctx, script, source, scopeCtx, scopeCtx->m_locStart, parentCodeBlock, isEvalCode, isEvalCodeInFunction);
     }
+
+    // child scopes are don't need this
+    isEvalCode = false;
+    isEvalCodeInFunction = false;
 
 #ifndef NDEBUG
     codeBlock->m_locStart = scopeCtx->m_locStart;
@@ -59,15 +63,14 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
             }
         }
 
-        if (codeBlock->hasEvalWithYield() || codeBlock->isFunctionDeclarationWithSpecialBinding()) {
+        if (!codeBlock->canUseIndexedVariableStorage()) {
             InterpretedCodeBlock* c = codeBlock;
             while (c) {
-                c->notifySelfOrChildHasEvalWithYield();
+                c->m_hasDescendantUsesNonIndexedVariableStorage = true;
                 c = c->parentCodeBlock();
             }
         }
 
-        bool hasCapturedIdentifier = false;
         AtomicString arguments = ctx->staticStrings().arguments;
         AtomicString stringThis = ctx->staticStrings().stringThis;
 
@@ -107,16 +110,26 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                     continue;
                 }
 
-                if (!codeBlock->hasEvalWithYield() && !codeBlock->hasName(scopeCtx->m_childBlockScopes[i]->m_blockIndex, uname)) {
-                    auto parentBlockIndex = codeBlock->lexicalBlockIndexFunctionLocatedIn();
-                    InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
-                    while (c && parentBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
-                        if (c->tryCaptureIdentifiersFromChildCodeBlock(parentBlockIndex, uname)) {
-                            codeBlock->markHeapAllocatedEnvironmentFromHere(scopeCtx->m_childBlockScopes[i]->m_blockIndex);
-                            break;
+                bool usingNameIsResolvedOnCompileTime = false;
+                if (codeBlock->canUseIndexedVariableStorage()) {
+                    if (codeBlock->hasName(scopeCtx->m_childBlockScopes[i]->m_blockIndex, uname)) {
+                        usingNameIsResolvedOnCompileTime = true;
+                    } else {
+                        auto parentBlockIndex = codeBlock->lexicalBlockIndexFunctionLocatedIn();
+                        InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
+                        while (c && parentBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
+                            if (c->tryCaptureIdentifiersFromChildCodeBlock(parentBlockIndex, uname)) {
+                                codeBlock->markHeapAllocatedEnvironmentFromHere(scopeCtx->m_childBlockScopes[i]->m_blockIndex);
+                                usingNameIsResolvedOnCompileTime = true;
+                                break;
+                            }
+                            parentBlockIndex = c->lexicalBlockIndexFunctionLocatedIn();
+                            c = c->parentCodeBlock();
                         }
-                        parentBlockIndex = c->lexicalBlockIndexFunctionLocatedIn();
-                        c = c->parentCodeBlock();
+                    }
+                    if (!usingNameIsResolvedOnCompileTime && codeBlock->hasAncestorUsesNonIndexedVariableStorage()) {
+                        // {Load, Store}ByName needs this
+                        codeBlock->markHeapAllocatedEnvironmentFromHere(scopeCtx->m_childBlockScopes[i]->m_blockIndex);
                     }
                 }
             }
@@ -125,16 +138,16 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
 
     codeBlock->m_childBlocks.resizeWithUninitializedValues(scopeCtx->m_childScopes.size());
     for (size_t i = 0; i < scopeCtx->m_childScopes.size(); i++) {
-        codeBlock->m_childBlocks[i] = generateCodeBlockTreeFromASTWalker(ctx, source, script, scopeCtx->m_childScopes[i], codeBlock);
+        codeBlock->m_childBlocks[i] = generateCodeBlockTreeFromASTWalker(ctx, source, script, scopeCtx->m_childScopes[i], codeBlock, isEvalCode, isEvalCodeInFunction);
     }
 
     return codeBlock;
 }
 
 // generate code blocks from AST
-InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program)
+InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program, bool isEvalCode, bool isEvalCodeInFunction)
 {
-    return generateCodeBlockTreeFromASTWalker(ctx, source, script, program->scopeContext(), nullptr);
+    return generateCodeBlockTreeFromASTWalker(ctx, source, script, program->scopeContext(), nullptr, isEvalCode, isEvalCodeInFunction);
 }
 
 void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb)
@@ -153,15 +166,15 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCode
     }
 }
 
-Script* ScriptParser::initializeScript(ExecutionState& state, StringView scriptSource, String* fileName, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool isOnGlobal, size_t stackSizeRemain, bool needByteCodeGeneration)
+Script* ScriptParser::initializeScript(ExecutionState& state, StringView scriptSource, String* fileName, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration)
 {
     Script* script = new Script(fileName, new StringView(scriptSource));
-    generateProgramCodeBlock(state, scriptSource, script, parentCodeBlock, strictFromOutside, isEvalCodeInFunction, isEvalMode, isOnGlobal, stackSizeRemain, needByteCodeGeneration);
+    generateProgramCodeBlock(state, scriptSource, script, parentCodeBlock, strictFromOutside, isEvalCodeInFunction, isEvalMode, inWithOperation, stackSizeRemain, needByteCodeGeneration);
 
     return script;
 }
 
-void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView scriptSource, Script* script, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool isOnGlobal, size_t stackSizeRemain, bool needByteCodeGeneration)
+void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView scriptSource, Script* script, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration)
 {
     ASSERT(script != nullptr);
 
@@ -170,25 +183,22 @@ void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView sc
 
     GC_disable();
 
+    bool inWith = (parentCodeBlock ? parentCodeBlock->inWith() : false) || inWithOperation;
+
     // Parsing
     try {
         m_context->vmInstance()->m_parsedSourceCodes.push_back(scriptSource.string());
-        programNode = esprima::parseProgram(m_context, scriptSource, strictFromOutside, stackSizeRemain);
+        programNode = esprima::parseProgram(m_context, scriptSource, strictFromOutside, inWith, stackSizeRemain);
 
         if (parentCodeBlock) {
             programNode->scopeContext()->m_hasEval = parentCodeBlock->hasEval();
             programNode->scopeContext()->m_hasWith = parentCodeBlock->hasWith();
-            programNode->scopeContext()->m_hasCatch = parentCodeBlock->hasCatch();
             programNode->scopeContext()->m_hasYield = parentCodeBlock->hasYield();
             programNode->scopeContext()->m_isClassConstructor = parentCodeBlock->isClassConstructor();
-            topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, scriptSource, script, programNode->scopeContext(), parentCodeBlock);
-            topCodeBlock->m_isEvalCodeInFunction = true;
-            topCodeBlock->m_isInWithScope = parentCodeBlock->m_isInWithScope;
+            topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, scriptSource, script, programNode->scopeContext(), parentCodeBlock, isEvalMode, isEvalCodeInFunction);
         } else {
-            topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, programNode.get());
+            topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, programNode.get(), isEvalMode, isEvalCodeInFunction);
         }
-        topCodeBlock->m_isEvalCodeInFunction = isEvalCodeInFunction;
-
         generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
 
         script->m_topCodeBlock = topCodeBlock;
@@ -210,7 +220,7 @@ void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView sc
 
     // Generate ByteCode
     if (LIKELY(needByteCodeGeneration)) {
-        topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, isOnGlobal);
+        topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, !isEvalCodeInFunction, inWith);
     }
 }
 
@@ -228,7 +238,7 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
     }
 
     // Generate ByteCode
-    codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), codeBlock, body.get(), scopeContext, false, false, false);
+    codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), codeBlock, body.get(), scopeContext, false, false, false, false);
 }
 
 #ifndef NDEBUG
@@ -248,7 +258,7 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
     printf(" ");
 
         PRINT_TAB()
-        printf("CodeBlock %s %s (%d:%d -> %d:%d, block %d)(%s, %s) (E:%d, W:%d, C:%d, Y:%d, A:%d)\n", cb->m_functionName.string()->toUTF8StringData().data(),
+        printf("CodeBlock %s %s (%d:%d -> %d:%d, block %d)(%s, %s) (E:%d, W:%d, Y:%d, A:%d)\n", cb->m_functionName.string()->toUTF8StringData().data(),
                cb->m_isStrict ? "Strict" : "",
                (int)cb->m_locStart.line,
                (int)cb->m_locStart.column,
@@ -257,7 +267,7 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
                (int)cb->lexicalBlockIndexFunctionLocatedIn(),
                cb->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap",
                cb->m_canUseIndexedVariableStorage ? "Indexed" : "Named",
-               (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasCatch, (int)cb->m_hasYield, (int)cb->m_usesArgumentsObject);
+               (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasYield, (int)cb->m_usesArgumentsObject);
 
         PRINT_TAB()
         printf("Names(var): ");

@@ -314,8 +314,8 @@ typedef uint16_t ByteCodeRegisterIndex;
 #define KEEP_NUMERAL_LITERDATA_IN_REGISTERFILE_LIMIT 16
 #endif
 
-typedef uint16_t LexcialBlockIndex;
-#define LEXCIAL_BLOCK_INDEX_MAX (std::numeric_limits<ByteCodeRegisterIndex>::max())
+typedef uint16_t LexicalBlockIndex;
+#define LEXICAL_BLOCK_INDEX_MAX (std::numeric_limits<LexicalBlockIndex>::max())
 
 #if !defined(STACK_GROWS_DOWN) && !defined(STACK_GROWS_UP)
 #define STACK_GROWS_DOWN

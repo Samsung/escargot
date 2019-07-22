@@ -77,8 +77,9 @@ class Node;
     F(SetObjectOperation, 0, 2)                       \
     F(GetObjectPreComputedCase, 1, 1)                 \
     F(SetObjectPreComputedCase, 0, 1)                 \
-    F(GetGlobalObject, 1, 1)                          \
-    F(SetGlobalObject, 0, 1)                          \
+    F(GetGlobalVariable, 1, 1)                        \
+    F(SetGlobalVariable, 0, 1)                        \
+    F(InitializeGlobalVariable, 0, 1)                 \
     F(Move, 1, 0)                                     \
     F(Increment, 1, 1)                                \
     F(Decrement, 1, 1)                                \
@@ -401,14 +402,13 @@ public:
 
 class CreateClass : public ByteCode {
 public:
-    CreateClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex, const size_t superClassRegisterIndex, AtomicString name, CodeBlock* cb, uint8_t stage)
+    CreateClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex, const size_t superClassRegisterIndex, AtomicString name, CodeBlock* cb)
         : ByteCode(Opcode::CreateClassOpcode, loc)
         , m_classRegisterIndex(classRegisterIndex)
         , m_classPrototypeRegisterIndex(classPrototypeRegisterIndex)
         , m_superClassRegisterIndex(superClassRegisterIndex)
         , m_name(name)
         , m_codeBlock(cb)
-        , m_stage(stage)
     {
     }
 
@@ -417,14 +417,13 @@ public:
     ByteCodeRegisterIndex m_superClassRegisterIndex;
     AtomicString m_name;
     CodeBlock* m_codeBlock;
-    uint8_t m_stage;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
         if (m_superClassRegisterIndex == REGISTER_LIMIT) {
-            printf("create class(%d) r%d(%s) { r%d }", (int)m_stage, (int)m_classRegisterIndex, m_name.string()->toUTF8StringData().data(), (int)m_classPrototypeRegisterIndex);
+            printf("create class r%d(%s) { r%d }", (int)m_classRegisterIndex, m_name.string()->toUTF8StringData().data(), (int)m_classPrototypeRegisterIndex);
         } else {
-            printf("create class(%d) r%d : r%d { r%d }", (int)m_stage, (int)m_classRegisterIndex, (int)m_superClassRegisterIndex, (int)m_classPrototypeRegisterIndex);
+            printf("create class r%d : r%d { r%d }", (int)m_classRegisterIndex, (int)m_superClassRegisterIndex, (int)m_classPrototypeRegisterIndex);
         }
     }
 #endif
@@ -832,11 +831,13 @@ public:
 #endif
 };
 
-class GetGlobalObject : public ByteCode {
+// TODO store these variables in Context and share it for performance
+class GetGlobalVariable : public ByteCode {
 public:
-    GetGlobalObject(const ByteCodeLOC& loc, const size_t registerIndex, PropertyName propertyName)
-        : ByteCode(Opcode::GetGlobalObjectOpcode, loc)
+    GetGlobalVariable(const ByteCodeLOC& loc, const size_t registerIndex, PropertyName propertyName)
+        : ByteCode(Opcode::GetGlobalVariableOpcode, loc)
         , m_registerIndex(registerIndex)
+        , m_lexicalIndexCache(std::numeric_limits<uint16_t>::max())
         , m_propertyName(propertyName)
     {
         ASSERT(propertyName.hasAtomicString());
@@ -845,22 +846,25 @@ public:
     }
 
     ByteCodeRegisterIndex m_registerIndex;
+    uint16_t m_lexicalIndexCache;
     PropertyName m_propertyName;
     void* m_cachedAddress;
     ObjectStructure* m_cachedStructure;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("get global object r%d <- global.%s", (int)m_registerIndex, m_propertyName.plainString()->toUTF8StringData().data());
+        printf("get global variable r%d <- global.%s", (int)m_registerIndex, m_propertyName.plainString()->toUTF8StringData().data());
     }
 #endif
 };
 
-class SetGlobalObject : public ByteCode {
+// TODO store these variables in Context and share it for performance
+class SetGlobalVariable : public ByteCode {
 public:
-    SetGlobalObject(const ByteCodeLOC& loc, const size_t registerIndex, PropertyName propertyName)
-        : ByteCode(Opcode::SetGlobalObjectOpcode, loc)
+    SetGlobalVariable(const ByteCodeLOC& loc, const size_t registerIndex, PropertyName propertyName)
+        : ByteCode(Opcode::SetGlobalVariableOpcode, loc)
         , m_registerIndex(registerIndex)
+        , m_lexicalIndexCache(std::numeric_limits<uint16_t>::max())
         , m_propertyName(propertyName)
     {
         ASSERT(propertyName.hasAtomicString());
@@ -869,6 +873,7 @@ public:
     }
 
     ByteCodeRegisterIndex m_registerIndex;
+    uint16_t m_lexicalIndexCache;
     PropertyName m_propertyName;
     void* m_cachedAddress;
     ObjectStructure* m_cachedStructure;
@@ -876,7 +881,27 @@ public:
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("set global object global.%s <- r%d", m_propertyName.plainString()->toUTF8StringData().data(), (int)m_registerIndex);
+        printf("set global variable global.%s <- r%d", m_propertyName.plainString()->toUTF8StringData().data(), (int)m_registerIndex);
+    }
+#endif
+};
+
+class InitializeGlobalVariable : public ByteCode {
+public:
+    InitializeGlobalVariable(const ByteCodeLOC& loc, const size_t registerIndex, AtomicString variableName)
+        : ByteCode(Opcode::InitializeGlobalVariableOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_variableName(variableName)
+    {
+    }
+
+    ByteCodeRegisterIndex m_registerIndex;
+    AtomicString m_variableName;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("initialize global variable %s <- r%d", m_variableName.string()->toUTF8StringData().data(), (int)m_registerIndex);
     }
 #endif
 };
@@ -1245,6 +1270,16 @@ public:
     void dump(const char* byteCodeStart)
     {
         printf("jump complex");
+
+        printf(" out count %d ", (int)m_controlFlowRecord->count());
+
+        if (m_controlFlowRecord->reason() == ControlFlowRecord::NeedsReturn) {
+            printf("(return)");
+        } else if (m_controlFlowRecord->reason() == ControlFlowRecord::NeedsJump) {
+            printf("(jump -> %d)", (int)m_controlFlowRecord->wordValue());
+        } else if (m_controlFlowRecord->reason() == ControlFlowRecord::NeedsThrow) {
+            printf("(throw)");
+        }
     }
 #endif
 };
@@ -1664,16 +1699,17 @@ public:
     {
         m_hasCatch = false;
         m_tryCatchEndPosition = m_catchPosition = SIZE_MAX;
+        m_catchedValueRegisterIndex = REGISTER_LIMIT;
     }
 
     bool m_hasCatch : 1;
+    ByteCodeRegisterIndex m_catchedValueRegisterIndex;
     size_t m_catchPosition;
     size_t m_tryCatchEndPosition;
-    AtomicString m_catchVariableName;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("try (hasCatch:%d)", (int)m_hasCatch);
+        printf("try (hasCatch:%d, save catched value to:r%d)", (int)m_hasCatch, (int)m_catchedValueRegisterIndex);
     }
 #endif
 };
@@ -2096,11 +2132,13 @@ public:
         size_t lexicalBlockSetupStartPosition;
         size_t lexicalBlockStartPosition;
         size_t lexicallyDeclaredNamesCount;
+        size_t lexicallyDeclaredNamesCountBefore;
 
         ByteCodeLexicalBlockContext()
             : lexicalBlockSetupStartPosition(SIZE_MAX)
             , lexicalBlockStartPosition(SIZE_MAX)
             , lexicallyDeclaredNamesCount(SIZE_MAX)
+            , lexicallyDeclaredNamesCountBefore(SIZE_MAX)
         {
         }
     };

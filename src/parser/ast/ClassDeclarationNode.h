@@ -29,9 +29,9 @@ namespace Escargot {
 class ClassDeclarationNode : public StatementNode {
 public:
     friend class ScriptParser;
-    ClassDeclarationNode(RefPtr<IdentifierNode> id, RefPtr<Node> superClass, RefPtr<ClassBodyNode> classBody)
+    ClassDeclarationNode(RefPtr<IdentifierNode> id, RefPtr<Node> superClass, RefPtr<ClassBodyNode> classBody, LexicalBlockIndex classBodyLexicalBlockIndex)
         : StatementNode()
-        , m_class(id, superClass, classBody)
+        , m_class(id, superClass, classBody, classBodyLexicalBlockIndex)
     {
     }
 
@@ -47,7 +47,13 @@ public:
         context->m_classInfo.m_superIndex = m_class.superClass() ? context->getRegister() : SIZE_MAX;
         context->m_classInfo.m_name = classIdent ? classIdent.get()->name() : AtomicString();
 
-        codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), classIndex, context->m_classInfo.m_bodyIndex, context->m_classInfo.m_superIndex, context->m_classInfo.m_name, nullptr, 1), context, this);
+        size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
+        ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;
+        if (m_class.classBodyLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
+            context->m_lexicalBlockIndex = m_class.classBodyLexicalBlockIndex();
+            InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_class.classBodyLexicalBlockIndex());
+            blockContext = codeBlock->pushLexicalBlock(context, bi, this);
+        }
 
         if (m_class.superClass() != nullptr) {
             m_class.superClass()->generateExpressionByteCode(codeBlock, context, context->m_classInfo.m_superIndex);
@@ -56,15 +62,24 @@ public:
         if (m_class.classBody()->hasConstructor()) {
             m_class.classBody()->constructor()->generateExpressionByteCode(codeBlock, context, classIndex);
         } else {
-            codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), classIndex, context->m_classInfo.m_bodyIndex, context->m_classInfo.m_superIndex, context->m_classInfo.m_name, nullptr, 2), context, this);
+            codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), classIndex, context->m_classInfo.m_bodyIndex, context->m_classInfo.m_superIndex, context->m_classInfo.m_name, nullptr), context, this);
         }
 
         m_class.classBody()->generateClassInitializer(codeBlock, context, classIndex);
 
-        codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), classIndex, context->m_classInfo.m_bodyIndex, context->m_classInfo.m_superIndex, context->m_classInfo.m_name, nullptr, 3), context, this);
+        if (m_class.classBodyLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
+            // Initialize class name
+            context->m_isLexicallyDeclaredBindingInitialization = true;
+            classIdent->generateStoreByteCode(codeBlock, context, classIndex, false);
+            ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
 
-        classIdent->generateResolveAddressByteCode(codeBlock, context);
+            codeBlock->finalizeLexicalBlock(context, blockContext);
+            context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
+        }
+
+        context->m_isLexicallyDeclaredBindingInitialization = true;
         classIdent->generateStoreByteCode(codeBlock, context, classIndex, false);
+        ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
 
         if (context->m_classInfo.m_superIndex != SIZE_MAX) {
             context->giveUpRegister(); // for drop m_superIndex

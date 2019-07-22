@@ -48,39 +48,43 @@ public:
         m_block->generateStatementByteCode(codeBlock, context);
         codeBlock->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
         size_t tryCatchBodyPos = codeBlock->lastCodePosition<TryCatchWithBodyEnd>();
+
         if (m_handler) {
-            size_t prev = context->m_catchScopeCount;
-            context->m_catchScopeCount++;
-            context->m_lastCatchVariableName = m_handler->param()->name();
+            codeBlock->peekCode<TryOperation>(pos)->m_hasCatch = true;
             codeBlock->peekCode<TryOperation>(pos)->m_catchPosition = codeBlock->currentCodeSize();
-            auto &innerFDs = m_handler->innerFDs();
-            for (size_t i = 0; i < innerFDs.size(); i++) {
-                size_t r = context->getRegister();
 
-                CodeBlock *blk = nullptr;
-                size_t cnt = 0;
-                for (size_t j = 0; j < context->m_codeBlock->asInterpretedCodeBlock()->childBlocks().size(); j++) {
-                    CodeBlock *c = context->m_codeBlock->asInterpretedCodeBlock()->childBlocks()[j];
-                    if (c->isFunctionDeclarationWithSpecialBinding()) {
-                        if (cnt == i) {
-                            blk = c;
-                            break;
-                        }
-                        cnt++;
-                    }
-                }
-                codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), r, blk), context, this);
-
-                RefPtr<IdentifierNode> node = adoptRef(new IdentifierNode(blk->functionName()));
-                node->generateStoreByteCode(codeBlock, context, r, false);
-                context->giveUpRegister();
+            // catch paramter block
+            size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
+            ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;
+            if (m_handler->paramLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
+                context->m_lexicalBlockIndex = m_handler->paramLexicalBlockIndex();
+                InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_handler->paramLexicalBlockIndex());
+                blockContext = codeBlock->pushLexicalBlock(context, bi, this);
             }
 
+            // use dummy register for avoiding ruin script result
+            context->getRegister();
+
+            auto catchedValueRegister = context->getRegister();
+            codeBlock->peekCode<TryOperation>(pos)->m_catchedValueRegisterIndex = catchedValueRegister;
+            RefPtr<RegisterReferenceNode> registerRef = adoptRef(new RegisterReferenceNode(catchedValueRegister));
+            RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(m_handler->param(), registerRef.get()));
+            assign->m_loc = m_handler->m_loc;
+            context->m_isLexicallyDeclaredBindingInitialization = true;
+            assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
+            ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
+            assign->giveupChildren();
+
+            context->giveUpRegister();
+
             m_handler->body()->generateStatementByteCode(codeBlock, context);
-            codeBlock->peekCode<TryOperation>(pos)->m_hasCatch = true;
-            codeBlock->peekCode<TryOperation>(pos)->m_catchVariableName = m_handler->param()->name();
+
+            if (m_handler->paramLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
+                codeBlock->finalizeLexicalBlock(context, blockContext);
+                context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
+            }
+
             codeBlock->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
-            context->m_catchScopeCount = prev;
         }
 
         context->registerJumpPositionsToComplexCase(pos);

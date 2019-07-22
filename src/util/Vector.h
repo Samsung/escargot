@@ -226,6 +226,18 @@ public:
         return m_buffer[idx];
     }
 
+    T& at(const size_t& idx)
+    {
+        ASSERT(idx < m_size);
+        return m_buffer[idx];
+    }
+
+    const T& at(const size_t& idx) const
+    {
+        ASSERT(idx < m_size);
+        return m_buffer[idx];
+    }
+
     T* data()
     {
         return m_buffer;

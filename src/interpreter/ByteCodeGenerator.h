@@ -80,15 +80,18 @@ struct ByteCodeGenerateContext {
         , m_isLexicallyDeclaredBindingInitialization(false)
         , m_canSkipCopyToRegister(true)
         , m_keepNumberalLiteralsInRegisterFile(numeralLiteralData)
-        , m_catchScopeCount(0)
         , m_shouldGenerateLOCData(false)
         , m_forInOfVarBinding(false)
         , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
-        , m_lexicallyDeclaredNames(new std::vector<AtomicString>())
+        , m_lexicallyDeclaredNames(new std::vector<std::pair<size_t, AtomicString>>())
         , m_currentLabels(new std::vector<std::pair<String*, size_t>>())
         , m_offsetToBasePointer(0)
         , m_positionToContinue(0)
         , m_tryStatementScopeCount(0)
+        , m_complexJumpBreakIgnoreCount(0)
+        , m_complexJumpContinueIgnoreCount(0)
+        , m_complexJumpLabeledBreakIgnoreCount(0)
+        , m_complexJumpLabeledContinueIgnoreCount(0)
         , m_feCounter(0)
         , m_lexicalBlockIndex(0)
         , m_numeralLiteralData(numeralLiteralData)
@@ -111,7 +114,6 @@ struct ByteCodeGenerateContext {
         , m_isLexicallyDeclaredBindingInitialization(contextBefore.m_isLexicallyDeclaredBindingInitialization)
         , m_canSkipCopyToRegister(contextBefore.m_canSkipCopyToRegister)
         , m_keepNumberalLiteralsInRegisterFile(contextBefore.m_keepNumberalLiteralsInRegisterFile)
-        , m_catchScopeCount(contextBefore.m_catchScopeCount)
         , m_shouldGenerateByteCodeInstantly(contextBefore.m_shouldGenerateByteCodeInstantly)
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
         , m_shouldGenerateLOCData(contextBefore.m_shouldGenerateLOCData)
@@ -122,6 +124,10 @@ struct ByteCodeGenerateContext {
         , m_offsetToBasePointer(contextBefore.m_offsetToBasePointer)
         , m_positionToContinue(contextBefore.m_positionToContinue)
         , m_tryStatementScopeCount(contextBefore.m_tryStatementScopeCount)
+        , m_complexJumpBreakIgnoreCount(contextBefore.m_complexJumpBreakIgnoreCount)
+        , m_complexJumpContinueIgnoreCount(contextBefore.m_complexJumpContinueIgnoreCount)
+        , m_complexJumpLabeledBreakIgnoreCount(contextBefore.m_complexJumpLabeledBreakIgnoreCount)
+        , m_complexJumpLabeledContinueIgnoreCount(contextBefore.m_complexJumpLabeledContinueIgnoreCount)
         , m_feCounter(contextBefore.m_feCounter)
         , m_lexicalBlockIndex(contextBefore.m_lexicalBlockIndex)
         , m_classInfo(contextBefore.m_classInfo)
@@ -181,25 +187,33 @@ struct ByteCodeGenerateContext {
         ASSERT(m_tryStatementScopeCount);
         for (unsigned i = 0; i < m_breakStatementPositions.size(); i++) {
             if (m_breakStatementPositions[i] > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_breakStatementPositions[i]) == m_complexCaseStatementPositions.end()) {
-                m_complexCaseStatementPositions.insert(std::make_pair(m_breakStatementPositions[i], m_tryStatementScopeCount));
+                if (m_tryStatementScopeCount - m_complexJumpBreakIgnoreCount > 0) {
+                    m_complexCaseStatementPositions.insert(std::make_pair(m_breakStatementPositions[i], m_tryStatementScopeCount - m_complexJumpBreakIgnoreCount));
+                }
             }
         }
 
         for (unsigned i = 0; i < m_continueStatementPositions.size(); i++) {
             if (m_continueStatementPositions[i] > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_continueStatementPositions[i]) == m_complexCaseStatementPositions.end()) {
-                m_complexCaseStatementPositions.insert(std::make_pair(m_continueStatementPositions[i], m_tryStatementScopeCount));
+                if (m_tryStatementScopeCount - m_complexJumpContinueIgnoreCount > 0) {
+                    m_complexCaseStatementPositions.insert(std::make_pair(m_continueStatementPositions[i], m_tryStatementScopeCount - m_complexJumpContinueIgnoreCount));
+                }
             }
         }
 
         for (unsigned i = 0; i < m_labeledBreakStatmentPositions.size(); i++) {
             if (m_labeledBreakStatmentPositions[i].second > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labeledBreakStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
-                m_complexCaseStatementPositions.insert(std::make_pair(m_labeledBreakStatmentPositions[i].second, m_tryStatementScopeCount));
+                if (m_tryStatementScopeCount - m_complexJumpLabeledBreakIgnoreCount > 0) {
+                    m_complexCaseStatementPositions.insert(std::make_pair(m_labeledBreakStatmentPositions[i].second, m_tryStatementScopeCount - m_complexJumpLabeledBreakIgnoreCount));
+                }
             }
         }
 
         for (unsigned i = 0; i < m_labeledContinueStatmentPositions.size(); i++) {
             if (m_labeledContinueStatmentPositions[i].second > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labeledContinueStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
-                m_complexCaseStatementPositions.insert(std::make_pair(m_labeledContinueStatmentPositions[i].second, m_tryStatementScopeCount));
+                if (m_tryStatementScopeCount - m_complexJumpLabeledContinueIgnoreCount > 0) {
+                    m_complexCaseStatementPositions.insert(std::make_pair(m_labeledContinueStatmentPositions[i].second, m_tryStatementScopeCount - m_complexJumpLabeledContinueIgnoreCount));
+                }
             }
         }
     }
@@ -252,6 +266,23 @@ struct ByteCodeGenerateContext {
         return m_isGlobalScope;
     }
 
+    void addLexicallyDeclaredNames(AtomicString name)
+    {
+        bool finded = false;
+        auto iter = m_lexicallyDeclaredNames->begin();
+        while (iter != m_lexicallyDeclaredNames->end()) {
+            if (iter->first == m_lexicalBlockIndex && iter->second == name) {
+                finded = true;
+                break;
+            }
+            iter++;
+        }
+
+        if (!finded) {
+            m_lexicallyDeclaredNames->push_back(std::make_pair(m_lexicalBlockIndex, name));
+        }
+    }
+
     // NOTE this is counter! not index!!!!!!
     size_t m_baseRegisterCount;
 
@@ -265,11 +296,6 @@ struct ByteCodeGenerateContext {
     bool m_isLexicallyDeclaredBindingInitialization : 1;
     bool m_canSkipCopyToRegister : 1;
     bool m_keepNumberalLiteralsInRegisterFile : 1;
-
-    size_t m_catchScopeCount;
-
-    AtomicString m_lastCatchVariableName;
-
     bool m_shouldGenerateByteCodeInstantly : 1;
     bool m_inCallingExpressionScope : 1;
     bool m_isHeadOfMemberExpression : 1;
@@ -277,7 +303,7 @@ struct ByteCodeGenerateContext {
     bool m_forInOfVarBinding : 1;
 
     std::shared_ptr<std::vector<ByteCodeRegisterIndex>> m_registerStack;
-    std::shared_ptr<std::vector<AtomicString>> m_lexicallyDeclaredNames;
+    std::shared_ptr<std::vector<std::pair<size_t, AtomicString>>> m_lexicallyDeclaredNames;
     std::vector<size_t> m_breakStatementPositions;
     std::vector<size_t> m_continueStatementPositions;
     std::shared_ptr<std::vector<std::pair<String*, size_t>>> m_currentLabels;
@@ -290,6 +316,10 @@ struct ByteCodeGenerateContext {
     size_t m_positionToContinue;
     // code position, tryStatement count
     int m_tryStatementScopeCount;
+    int m_complexJumpBreakIgnoreCount;
+    int m_complexJumpContinueIgnoreCount;
+    int m_complexJumpLabeledBreakIgnoreCount;
+    int m_complexJumpLabeledContinueIgnoreCount;
     size_t m_feCounter;
     size_t m_lexicalBlockIndex;
     ClassContextInformation m_classInfo;
@@ -302,7 +332,7 @@ public:
     static void generateStoreThisValueByteCode(ByteCodeBlock* block, ByteCodeGenerateContext* context);
     static void generateLoadThisValueByteCode(ByteCodeBlock* block, ByteCodeGenerateContext* context);
 
-    static ByteCodeBlock* generateByteCode(Context* c, InterpretedCodeBlock* codeBlock, Node* ast, ASTFunctionScopeContext* scopeCtx, bool isEvalMode = false, bool isOnGlobal = false, bool shouldGenerateLOCData = false);
+    static ByteCodeBlock* generateByteCode(Context* c, InterpretedCodeBlock* codeBlock, Node* ast, ASTFunctionScopeContext* scopeCtx, bool isEvalMode = false, bool isOnGlobal = false, bool inWithFromRuntime = false, bool shouldGenerateLOCData = false);
 };
 }
 

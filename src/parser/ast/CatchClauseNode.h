@@ -33,12 +33,12 @@ class FunctionDeclarationNode;
 class CatchClauseNode : public Node {
 public:
     friend class ScriptParser;
-    CatchClauseNode(Node *param, Node *guard, Node *body, std::vector<FunctionDeclarationNode *> &fd)
+    CatchClauseNode(Node *param, Node *guard, Node *body, LexicalBlockIndex paramLexicalBlockIndex)
         : Node()
-        , m_param((IdentifierNode *)param)
+        , m_param(param)
         , m_guard((ExpressionNode *)guard)
         , m_body((BlockStatementNode *)body)
-        , m_innerFDs(std::move(fd))
+        , m_paramLexicalBlockIndex(paramLexicalBlockIndex)
     {
     }
 
@@ -46,7 +46,7 @@ public:
     {
     }
 
-    IdentifierNode *param()
+    Node *param()
     {
         return m_param.get();
     }
@@ -56,17 +56,17 @@ public:
         return m_body.get();
     }
 
-    std::vector<FunctionDeclarationNode *> &innerFDs()
+    LexicalBlockIndex paramLexicalBlockIndex()
     {
-        return m_innerFDs;
+        return m_paramLexicalBlockIndex;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::CatchClause; }
 private:
-    RefPtr<IdentifierNode> m_param;
+    RefPtr<Node> m_param;
     RefPtr<ExpressionNode> m_guard;
     RefPtr<BlockStatementNode> m_body;
-    std::vector<FunctionDeclarationNode *> m_innerFDs;
+    LexicalBlockIndex m_paramLexicalBlockIndex;
 };
 
 typedef std::vector<RefPtr<Node>> CatchClauseNodeVector;

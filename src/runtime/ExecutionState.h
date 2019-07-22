@@ -56,7 +56,6 @@ public:
         , m_registerFile(nullptr)
         , m_parent(1)
         , m_inStrictMode(false)
-        , m_onGoingClassConstruction(false)
         , m_onGoingSuperCall(false)
     {
         volatile int sp;
@@ -70,7 +69,6 @@ public:
         , m_registerFile(registerFile)
         , m_parent((size_t)parent + 1)
         , m_inStrictMode(inStrictMode)
-        , m_onGoingClassConstruction(false)
         , m_onGoingSuperCall(false)
     {
     }
@@ -82,7 +80,6 @@ public:
         , m_registerFile(registerFile)
         , m_parent((size_t)parent + 1)
         , m_inStrictMode(inStrictMode)
-        , m_onGoingClassConstruction(false)
         , m_onGoingSuperCall(false)
     {
     }
@@ -161,19 +158,9 @@ public:
         return m_inStrictMode;
     }
 
-    bool isOnGoingClassConstruction()
-    {
-        return m_onGoingClassConstruction;
-    }
-
     bool isOnGoingSuperCall()
     {
         return m_onGoingSuperCall;
-    }
-
-    void setOnGoingClassConstruction(bool startClassConstruction)
-    {
-        m_onGoingClassConstruction = startClassConstruction;
     }
 
     void setOnGoingSuperCall(bool onGoingSuperCall)
@@ -198,7 +185,6 @@ private:
     };
 
     bool m_inStrictMode : 1;
-    bool m_onGoingClassConstruction : 1;
     bool m_onGoingSuperCall : 1;
 };
 }

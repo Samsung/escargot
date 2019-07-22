@@ -117,34 +117,38 @@ assert(gen.next().value === 'b');
 assert(gen.next().done === true);
 
 // Generator as an object methodSection
-class Foo {
-  *generator () {
-    yield 1;
-    yield 2;
-    yield 3;
+{
+  class Foo {
+    *generator () {
+      yield 1;
+      yield 2;
+      yield 3;
+    }
   }
+
+  var f = new Foo ();
+  var gen = f.generator();
+
+  assert(gen.next().value === 1);
+  assert(gen.next().value === 2);
+  assert(gen.next().value === 3);
+  assert(gen.next().done === true);
 }
 
-var f = new Foo ();
-var gen = f.generator();
-
-assert(gen.next().value === 1);
-assert(gen.next().value === 2);
-assert(gen.next().value === 3);
-assert(gen.next().done === true);
-
-// Generator as a computed property
-class Foo {
-  *[Symbol.iterator] () {
-    yield 1;
-    yield 2;
+{
+  // Generator as a computed property
+  class Foo {
+    *[Symbol.iterator] () {
+      yield 1;
+      yield 2;
+    }
   }
-}
 
-var array = Array.from(new Foo);
-assert(array.length === 2);
-assert(array[0] === 1);
-assert(array[1] === 2);
+  var array = Array.from(new Foo);
+  assert(array.length === 2);
+  assert(array[0] === 1);
+  assert(array[1] === 2);
+}
 
 var SomeObj = {
   *[Symbol.iterator] () {

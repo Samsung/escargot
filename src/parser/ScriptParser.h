@@ -38,19 +38,19 @@ class ScriptParser : public gc {
 public:
     explicit ScriptParser(Context* c);
 
-    Script* initializeScript(ExecutionState& state, StringView scriptSource, String* fileName, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool isOnGlobal, size_t stackSizeRemain, bool needByteCodeGeneration = true);
-    Script* initializeScript(ExecutionState& state, String* scriptSource, String* fileName, bool strictFromOutside = false, bool isEvalCodeInFunction = false, bool isEvalMode = false, bool isOnGlobal = true, size_t stackSizeRemain = SIZE_MAX)
+    Script* initializeScript(ExecutionState& state, StringView scriptSource, String* fileName, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration);
+    Script* initializeScript(ExecutionState& state, String* scriptSource, String* fileName, bool strictFromOutside = false, bool isRunningEvalOnFunction = false, bool isEvalMode = false, size_t stackSizeRemain = SIZE_MAX)
     {
-        return initializeScript(state, StringView(scriptSource, 0, scriptSource->length()), fileName, nullptr, strictFromOutside, isEvalCodeInFunction, isEvalMode, isOnGlobal, stackSizeRemain);
+        return initializeScript(state, StringView(scriptSource, 0, scriptSource->length()), fileName, nullptr, strictFromOutside, isRunningEvalOnFunction, isEvalMode, false, stackSizeRemain, true);
     }
 
     void generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain);
 
 private:
-    InterpretedCodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program);
-    InterpretedCodeBlock* generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTFunctionScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock);
+    InterpretedCodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program, bool isEvalCode, bool isEvalCodeInFunction);
+    InterpretedCodeBlock* generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTFunctionScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock, bool isEvalCode, bool isEvalCodeInFunction);
     void generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb);
-    void generateProgramCodeBlock(ExecutionState& state, StringView scriptSource, Script* script, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool isOnGlobal, size_t stackSizeRemain, bool needByteCodeGeneration);
+    void generateProgramCodeBlock(ExecutionState& state, StringView scriptSource, Script* script, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration);
 #ifndef NDEBUG
     void dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock);
 #endif
