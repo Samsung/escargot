@@ -1001,15 +1001,6 @@
   'regress/regress-447561': [SKIP],
   'regress/regress-crbug-618788': [SKIP],
 
-  # Symbol
-  'regress/regress-5780': [SKIP],
-  'regress/regress-670808': [SKIP],
-  'regress/regress-crbug-549162': [SKIP],
-  'regress/regress-crbug-580584': [SKIP],
-  'regress/regress-crbug-612142': [SKIP],
-  'regress/regress-crbug-668414': [SKIP],
-  'es6/array-tostring': [SKIP],
-  'object-toprimitive': [SKIP],
   # Proxy
   'array-isarray': [SKIP],
   'object-literal': [SKIP],
