@@ -209,7 +209,6 @@ public:
     bool trackUsingNames;
     AtomicString lastUsingName;
     size_t stackLimit;
-    AtomicString lastScanIdentifierName;
     LexcialBlockIndex lexicalBlockIndex;
     LexcialBlockIndex lexicalBlockCount;
 
@@ -232,19 +231,28 @@ public:
 
     class ScanExpressionResult {
     public:
-        ScanExpressionResult(ASTNodeType nodeType)
-            : nodeType(nodeType)
+        ScanExpressionResult()
+            : nodeType(ASTNodeTypeError)
+            , str(AtomicString())
         {
         }
 
-        ScanExpressionResult()
-            : nodeType(ASTNodeTypeError)
+        ScanExpressionResult(ASTNodeType nodeType)
+            : nodeType(nodeType)
+            , str(AtomicString())
+        {
+        }
+
+        ScanExpressionResult(ASTNodeType nodeType, AtomicString& string)
+            : nodeType(nodeType)
+            , str(string)
         {
         }
 
         template <typename T>
         ScanExpressionResult(PassRefPtr<T>)
             : nodeType(ASTNodeTypeError)
+            , str(AtomicString())
         {
         }
 
@@ -259,13 +267,20 @@ public:
             return nodeType;
         }
 
+        AtomicString& string()
+        {
+            return str;
+        }
+
         void setNodeType(ASTNodeType newNodeType)
         {
             nodeType = newNodeType;
+            str = AtomicString();
         }
 
     private:
         ASTNodeType nodeType;
+        AtomicString str;
     };
 
     ASTFunctionScopeContext fakeContext;
@@ -952,24 +967,25 @@ public:
     ScanExpressionResult finishScanIdentifier(Scanner::ScannerResult* token, bool isScopeVariableName)
     {
         ASSERT(token != nullptr);
+        AtomicString name;
         StringView* sv = token->valueStringLiteral();
         const auto& a = sv->bufferAccessData();
         char16_t firstCh = a.charAt(0);
         if (a.length == 1 && firstCh < ESCARGOT_ASCII_TABLE_MAX) {
-            lastScanIdentifierName = this->escargotContext->staticStrings().asciiTable[firstCh];
+            name = this->escargotContext->staticStrings().asciiTable[firstCh];
         } else {
             if (!token->plain) {
-                lastScanIdentifierName = AtomicString(this->escargotContext, sv->string());
+                name = AtomicString(this->escargotContext, sv->string());
             } else {
-                lastScanIdentifierName = AtomicString(this->escargotContext, SourceStringView(*sv));
+                name = AtomicString(this->escargotContext, SourceStringView(*sv));
             }
         }
 
         if (trackUsingNames) {
-            insertUsingName(lastScanIdentifierName);
+            insertUsingName(name);
         }
 
-        return ScanExpressionResult(ASTNodeType::Identifier);
+        return ScanExpressionResult(ASTNodeType::Identifier, name);
     }
 
 #define DEFINE_AS_NODE(TypeName)                                 \
@@ -1263,7 +1279,7 @@ public:
         return this->finalize(node, new IdentifierNode(param.get()->name()));
     }
 
-    void scanRestElement(ScannerResultVector& params, PunctuatorKind endKind = RightParenthesis)
+    ScanExpressionResult scanRestElement(ScannerResultVector& params, PunctuatorKind endKind = RightParenthesis)
     {
         this->nextToken();
         if (this->match(LeftBrace)) {
@@ -1271,13 +1287,15 @@ public:
         }
         params.push_back(this->lookahead);
 
-        this->scanVariableIdentifier();
+        ScanExpressionResult param = this->scanVariableIdentifier();
         if (this->match(Equal)) {
             this->throwError(Messages::DefaultRestParameter);
         }
         if (!this->match(endKind)) {
             this->throwError(Messages::ParameterAfterRestParameter);
         }
+
+        return ScanExpressionResult(ASTNodeType::Identifier, param.string());
     }
 
     template <typename T, bool isParse>
@@ -1338,8 +1356,7 @@ public:
             if (isParse) {
                 keyNode = this->parseVariableIdentifier(kind);
             } else {
-                key.setNodeType(ASTNodeType::Identifier);
-                this->scanVariableIdentifier(kind);
+                key = this->scanVariableIdentifier(kind);
             }
 
             if (this->match(Substitution)) {
@@ -1450,8 +1467,7 @@ public:
                 return T(this->parseVariableIdentifier(kind));
             }
 
-            this->scanVariableIdentifier(kind);
-            return ScanExpressionResult(ASTNodeType::Identifier);
+            return this->scanVariableIdentifier(kind);
         }
     }
 
@@ -1730,7 +1746,7 @@ public:
     {
         ALLOC_TOKEN(token);
         this->nextToken(token);
-        ScanExpressionResult key(ASTNodeType::ASTNodeTypeError);
+        ScanExpressionResult key;
         bool isProto = false;
 
         switch (token->type) {
@@ -1750,7 +1766,7 @@ public:
                 } else {
                     isProto = (*token->valueStringLiteral() == "__proto__");
                 }
-                key.setNodeType(Literal);
+                key = ScanExpressionResult(ASTNodeType::Literal);
             }
             break;
 
@@ -1822,7 +1838,6 @@ public:
         RefPtr<Node> keyNode; //'': Node.PropertyKey;
         RefPtr<Node> valueNode; //: Node.PropertyValue;
         ScanExpressionResult key;
-        AtomicString scanIdentifierName;
 
         bool computed = false;
         bool method = false;
@@ -1835,7 +1850,6 @@ public:
                 keyNode = this->finalize(this->createNode(), finishIdentifier(token, true));
             } else {
                 key = finishScanIdentifier(token, true);
-                scanIdentifierName = lastScanIdentifierName;
             }
         } else if (this->match(PunctuatorKind::Multiply)) {
             this->nextToken();
@@ -1847,7 +1861,6 @@ public:
                 auto keyValue = this->scanObjectPropertyKey();
                 key = keyValue.first;
                 isProto = keyValue.second;
-                scanIdentifierName = lastScanIdentifierName;
             }
         }
 
@@ -1878,7 +1891,6 @@ public:
                 auto keyValue = this->scanObjectPropertyKey();
                 key = keyValue.first;
                 isProto = keyValue.second;
-                scanIdentifierName = lastScanIdentifierName;
                 this->context->allowYield = false;
                 this->parseGetterMethod();
             }
@@ -1892,7 +1904,6 @@ public:
                 auto keyValue = this->scanObjectPropertyKey();
                 key = keyValue.first;
                 isProto = keyValue.second;
-                scanIdentifierName = lastScanIdentifierName;
                 this->parseSetterMethod();
             }
         } else if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::Multiply && lookaheadPropertyKey) {
@@ -1904,7 +1915,7 @@ public:
             } else {
                 auto keyValue = this->scanObjectPropertyKey();
                 key = keyValue.first;
-                scanIdentifierName = lastScanIdentifierName;
+                isProto = keyValue.second;
                 this->parseGeneratorMethod();
             }
             method = true;
@@ -1923,7 +1934,7 @@ public:
                 if (isParse) {
                     isProto = !this->config.parseSingleFunction && this->isPropertyKey(keyNode.get(), "__proto__");
                 } else {
-                    isProto |= (key == ASTNodeType::Identifier && scanIdentifierName == this->escargotContext->staticStrings().__proto__);
+                    isProto |= (key == ASTNodeType::Identifier && key.string() == this->escargotContext->staticStrings().__proto__);
                 }
 
                 if (!computed && isProto) {
@@ -1975,7 +1986,7 @@ public:
         }
 
         if (!this->config.parseSingleFunction && (isParse ? keyNode->isIdentifier() : key == ASTNodeType::Identifier)) {
-            AtomicString as = isParse ? keyNode->asIdentifier()->name() : scanIdentifierName;
+            AtomicString as = isParse ? keyNode->asIdentifier()->name() : key.string();
             bool seenInit = kind == PropertyNode::Kind::Init;
             bool seenGet = kind == PropertyNode::Kind::Get;
             bool seenSet = kind == PropertyNode::Kind::Set;
@@ -2015,7 +2026,7 @@ public:
             // return this->finalize(node, new PropertyNode(kind, key, computed, value, method, shorthand));
             return T(this->finalize(node, new PropertyNode(keyNode.get(), valueNode.get(), kind, computed)));
         }
-        return ScanExpressionResult();
+        return ScanExpressionResult(ASTNodeType::Property);
     }
 
     template <typename T, bool isParse>
@@ -2326,8 +2337,7 @@ public:
                 if (isParse) {
                     exprNode = this->parseRestElement(params);
                 } else {
-                    this->scanRestElement(params);
-                    expr.setNodeType(ASTNodeType::Identifier);
+                    expr = this->scanRestElement(params);
                 }
                 this->expect(RightParenthesis);
                 if (!this->match(Arrow)) {
@@ -2405,18 +2415,24 @@ public:
 
                 if (!arrow) {
                     this->expect(RightParenthesis);
-                    // TODO Scanning has not been implemented yet
                     if (this->match(Arrow)) {
-                        if (isParse) { // remove this line after scanning implemented
+                        if (isParse) {
                             if (exprNode->type() == Identifier && exprNode->asIdentifier()->name() == "yield") {
                                 arrow = true;
                                 exprNode = adoptRef(new ArrowParameterPlaceHolderNode(exprNode.get()));
                             }
-                            if (!arrow) {
-                                if (!this->context->isBindingElement) {
-                                    this->throwUnexpectedToken(&this->lookahead);
-                                }
+                        } else {
+                            if (expr == ASTNodeType::Identifier && expr.string() == "yield") {
+                                arrow = true;
+                                expr.setNodeType(ASTNodeType::ArrowParameterPlaceHolder);
+                            }
+                        }
+                        if (!arrow) {
+                            if (!this->context->isBindingElement) {
+                                this->throwUnexpectedToken(&this->lookahead);
+                            }
 
+                            if (isParse) {
                                 if (exprNode->type() == SequenceExpression) {
                                     const ExpressionNodeVector& expressions = ((SequenceExpressionNode*)exprNode.get())->expressions();
                                     for (size_t i = 0; i < expressions.size(); i++) {
@@ -2425,7 +2441,13 @@ public:
                                 } else {
                                     this->reinterpretExpressionAsPattern(exprNode.get());
                                 }
+                            } else {
+                                if (expr != ASTNodeType::SequenceExpression) {
+                                    this->scanReinterpretExpressionAsPattern(expr);
+                                }
+                            }
 
+                            if (isParse) {
                                 ExpressionNodeVector params;
                                 if (exprNode->type() == SequenceExpression) {
                                     params = ((SequenceExpressionNode*)exprNode.get())->expressions();
@@ -2434,9 +2456,9 @@ public:
                                 }
 
                                 exprNode = adoptRef(new ArrowParameterPlaceHolderNode(std::move(params)));
+                            } else {
+                                expr.setNodeType(ASTNodeType::ArrowParameterPlaceHolder);
                             }
-                        } else {
-                            expr.setNodeType(ASTNodeType::ArrowParameterPlaceHolder);
                         }
                     }
                     this->context->isBindingElement = false;
@@ -2679,7 +2701,7 @@ public:
 
     void testCalleeExpressionInScan(ScanExpressionResult callee)
     {
-        if (callee == ASTNodeType::Identifier && lastScanIdentifierName == escargotContext->staticStrings().eval) {
+        if (callee == ASTNodeType::Identifier && callee.string() == escargotContext->staticStrings().eval) {
             scopeContexts.back()->m_hasEval = true;
             if (this->context->inArrowFunction) {
                 insertUsingName(this->escargotContext->staticStrings().stringThis);
@@ -2841,7 +2863,7 @@ public:
                 if (expr == ASTNodeType::Literal || expr == ASTNodeType::ThisExpression) {
                     this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
                 }
-                if (this->context->strict && expr == ASTNodeType::Identifier && this->scanner->isRestrictedWord(lastScanIdentifierName)) {
+                if (this->context->strict && expr == ASTNodeType::Identifier && this->scanner->isRestrictedWord(expr.string())) {
                     this->throwError(Messages::StrictLHSPrefix);
                 }
             }
@@ -2877,7 +2899,7 @@ public:
                 if (isParse && this->context->strict && exprNode->isIdentifier() && this->scanner->isRestrictedWord(((IdentifierNode*)exprNode.get())->name())) {
                     this->throwError(Messages::StrictLHSPostfix);
                 }
-                if (!isParse && this->context->strict && expr == ASTNodeType::Identifier && this->scanner->isRestrictedWord(lastScanIdentifierName)) {
+                if (!isParse && this->context->strict && expr == ASTNodeType::Identifier && this->scanner->isRestrictedWord(expr.string())) {
                     this->throwError(Messages::StrictLHSPostfix);
                 }
                 if (!this->context->isAssignmentTarget && this->context->strict) {
@@ -2985,7 +3007,7 @@ public:
                 if (isParse) {
                     return exprNode.release();
                 }
-                return ScanExpressionResult(ASTNodeType::UnaryExpressionBitwiseNot);
+                return ScanExpressionResult(ASTNodeType::UnaryExpressionLogicalNot);
             }
         }
 
@@ -3059,7 +3081,7 @@ public:
                     ScanExpressionResult subExpr = this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
 
                     if (subExpr == ASTNodeType::Identifier) {
-                        if (!this->scopeContexts.back()->hasName(lastScanIdentifierName, this->lexicalBlockIndex)) {
+                        if (!this->scopeContexts.back()->hasName(subExpr.string(), this->lexicalBlockIndex)) {
                             this->scopeContexts.back()->m_hasEvaluateBindingId = true;
                         }
                     }
@@ -3687,7 +3709,7 @@ public:
                             IdentifierNode* id = exprNode->asIdentifier();
                             name = id->name();
                         } else {
-                            name = lastScanIdentifierName;
+                            name = expr.string();
                         }
 
                         if (this->scanner->isRestrictedWord(name)) {
@@ -4313,7 +4335,7 @@ public:
         return this->finalize(node, id);
     }
 
-    void scanVariableIdentifier(KeywordKind kind = KeywordKindEnd)
+    ScanExpressionResult scanVariableIdentifier(KeywordKind kind = KeywordKindEnd)
     {
         ALLOC_TOKEN(token);
         this->nextToken(token);
@@ -4336,11 +4358,13 @@ public:
             this->throwUnexpectedToken(token);
         }
 
-        finishScanIdentifier(token, true);
+        ScanExpressionResult id = finishScanIdentifier(token, true);
 
         if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword) {
-            addDeclaredNameIntoContext(lastScanIdentifierName, this->lexicalBlockIndex, kind);
+            addDeclaredNameIntoContext(id.string(), this->lexicalBlockIndex, kind);
         }
+
+        return id;
     }
 
     void addDeclaredNameIntoContext(AtomicString name, LexcialBlockIndex blockIndex, KeywordKind kind)
@@ -4379,7 +4403,7 @@ public:
             id = this->pattern<Scan>(params, options.kind);
             isIdentifier = (id == Identifier);
             if (isIdentifier) {
-                name = lastScanIdentifierName;
+                name = id.string();
             }
         }
 
@@ -4885,23 +4909,23 @@ public:
     {
         this->expectKeyword(ContinueKeyword);
 
-        AtomicString label;
+        AtomicString labelString;
         if (this->lookahead.type == IdentifierToken && !this->hasLineTerminator) {
             if (isParse) {
                 RefPtr<IdentifierNode> labelNode = this->parseVariableIdentifier();
-                label = labelNode->name();
+                labelString = labelNode->name();
             } else {
-                this->scanVariableIdentifier();
-                label = lastScanIdentifierName;
+                ScanExpressionResult label = this->scanVariableIdentifier();
+                labelString = label.string();
             }
 
-            if (!hasLabel(label)) {
-                this->throwError(Messages::UnknownLabel, label.string());
+            if (!hasLabel(labelString)) {
+                this->throwError(Messages::UnknownLabel, labelString.string());
             }
 
             for (size_t i = 0; i < this->context->labelSet.size(); i++) {
-                if (this->context->labelSet[i].first == label && this->context->labelSet[i].second == 1) {
-                    this->throwError(Messages::UnknownLabel, label.string());
+                if (this->context->labelSet[i].first == labelString && this->context->labelSet[i].second == 1) {
+                    this->throwError(Messages::UnknownLabel, labelString.string());
                 }
             }
         } else if (!this->context->inIteration) {
@@ -4915,8 +4939,8 @@ public:
         }
 
         MetaNode node = this->createNode();
-        if (label.string()->length() != 0) {
-            return T(this->finalize(node, new ContinueLabelStatementNode(label.string())));
+        if (labelString.string()->length() != 0) {
+            return T(this->finalize(node, new ContinueLabelStatementNode(labelString.string())));
         } else {
             return T(this->finalize(node, new ContinueStatementNode()));
         }
@@ -4929,18 +4953,18 @@ public:
     {
         this->expectKeyword(BreakKeyword);
 
-        AtomicString label;
+        AtomicString labelString;
         if (this->lookahead.type == IdentifierToken && !this->hasLineTerminator) {
             if (isParse) {
                 RefPtr<IdentifierNode> labelNode = this->parseVariableIdentifier();
-                label = labelNode->name();
+                labelString = labelNode->name();
             } else {
-                this->scanVariableIdentifier();
-                label = lastScanIdentifierName;
+                ScanExpressionResult label = this->scanVariableIdentifier();
+                labelString = label.string();
             }
 
-            if (!hasLabel(label)) {
-                this->throwError(Messages::UnknownLabel, label.string());
+            if (!hasLabel(labelString)) {
+                this->throwError(Messages::UnknownLabel, labelString.string());
             }
         } else if (!this->context->inIteration && !this->context->inSwitch) {
             this->throwError(Messages::IllegalBreak);
@@ -4953,8 +4977,8 @@ public:
         }
 
         MetaNode node = this->createNode();
-        if (label.string()->length() != 0) {
-            return T(this->finalize(node, new BreakLabelStatementNode(label.string())));
+        if (labelString.string()->length() != 0) {
+            return T(this->finalize(node, new BreakLabelStatementNode(labelString.string())));
         } else {
             return T(this->finalize(node, new BreakStatementNode()));
         }
@@ -5153,7 +5177,7 @@ public:
             ScanExpressionResult result = this->expression<Scan>();
             if (result == Identifier) {
                 isIdentifier = true;
-                name = lastScanIdentifierName;
+                name = result.string();
             }
         }
 
