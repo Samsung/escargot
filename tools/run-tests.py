@@ -148,17 +148,23 @@ def run_internal_test(engine, arch):
 
 @runner('test262', default=True)
 def run_test262(engine, arch):
+    run_test262_strict(engine, arch)
+    run_test262_nonstrict(engine, arch)
+
+@runner('test262-strict', default=True)
+def run_test262_strict(engine, arch):
     TEST262_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'test262')
     TEST262_DIR = join(PROJECT_SOURCE_DIR, 'test', 'test262')
 
     copy(join(TEST262_OVERRIDE_DIR, 'excludelist.orig.xml'), join(TEST262_DIR, 'excludelist.xml'))
     copy(join(TEST262_OVERRIDE_DIR, 'test262.py'), join(TEST262_DIR, 'tools', 'packaging', 'test262.py')) # for parallel running (we should re-implement this for es6 suite)
 
-    out = open('test262_out', 'w')
+    out = open('test262-strict_out', 'w')
 
     run(['python', join('tools', 'packaging', 'test262.py'),
          '--command', engine,
-         '--full-summary'],
+         '--full-summary',
+         '--strict_only'],
         cwd=TEST262_DIR,
         env={'TZ': 'US/Pacific'},
         stdout=out,
@@ -166,14 +172,46 @@ def run_test262(engine, arch):
 
     out.close()
 
-    with open('test262_out', 'r') as out:
+    with open('test262-strict_out', 'r') as out:
         full = out.read()
         summary = full.split('=== Summary ===')[1]
         if summary.find('- All tests succeeded') < 0:
             print(summary)
-            raise Exception('test262 failed')
+            raise Exception('test262-strict failed')
 
-        print('test262: All tests passed')
+        print('test262-strict: All tests passed')
+
+
+@runner('test262-nonstrict', default=True)
+def run_test262_nonstrict(engine, arch):
+    TEST262_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'test262')
+    TEST262_DIR = join(PROJECT_SOURCE_DIR, 'test', 'test262')
+
+    copy(join(TEST262_OVERRIDE_DIR, 'excludelist.orig.xml'), join(TEST262_DIR, 'excludelist.xml'))
+    copy(join(TEST262_OVERRIDE_DIR, 'test262.py'), join(TEST262_DIR, 'tools', 'packaging', 'test262.py')) # for parallel running (we should re-implement this for es6 suite)
+
+    out = open('test262-nonstrict_out', 'w')
+
+    run(['python', join('tools', 'packaging', 'test262.py'),
+         '--command', engine,
+         '--full-summary',
+         '--non_strict_only'],
+        cwd=TEST262_DIR,
+        env={'TZ': 'US/Pacific'},
+        stdout=out,
+        report=True)
+
+    out.close()
+
+    with open('test262-nonstrict_out', 'r') as out:
+        full = out.read()
+        summary = full.split('=== Summary ===')[1]
+        if summary.find('- All tests succeeded') < 0:
+            print(summary)
+            raise Exception('test262-nonstrict failed')
+
+        print('test262-nonstrict: All tests passed')
+
 
 @runner('test262-master')
 def run_test262_master(engine, arch):
