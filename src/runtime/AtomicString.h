@@ -96,6 +96,7 @@ public:
 
 private:
     void init(AtomicStringMap* ec, String* name);
+    void initStaticString(AtomicStringMap* ec, String* name);
     void init(AtomicStringMap* ec, const LChar* str, size_t len)
     {
         init(ec, new Latin1String(str, len));

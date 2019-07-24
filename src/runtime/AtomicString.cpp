@@ -114,6 +114,14 @@ AtomicString::AtomicString(Context* c, String* name)
     init(c->m_atomicStringMap, name);
 }
 
+void AtomicString::initStaticString(AtomicStringMap* ec, String* name)
+{
+    ASSERT(ec->find(name) == ec->end());
+    ec->insert(name);
+    m_string = name;
+    name->m_tag = (size_t)POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA | (size_t)m_string;
+}
+
 void AtomicString::init(AtomicStringMap* ec, String* name)
 {
     size_t v = name->getTagInFirstDataArea();
