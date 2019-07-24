@@ -712,8 +712,6 @@
   'es6/array-tostring' : [SKIP],
   'es6/arrow-functions' : [SKIP],
   'es6/arrow-functions-lexical-arguments' : [SKIP],
-  'es6/arrow-rest-params' : [SKIP],
-  'es6/arrow-rest-params-lazy-parsing' : [SKIP],
   'es6/block-conflicts' : [SKIP],
   'es6/block-conflicts-sloppy' : [SKIP],
   'es6/block-const-assign' : [SKIP],
