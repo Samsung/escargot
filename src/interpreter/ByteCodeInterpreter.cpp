@@ -1362,6 +1362,16 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 NEXT_INSTRUCTION();
             }
 
+            DEFINE_OPCODE(BlockReplaceOperation)
+                :
+            {
+                BlockReplaceOperation* code = (BlockReplaceOperation*)programCounter;
+                blockReplaceOperation(state, code, byteCodeBlock);
+
+                ADD_PROGRAM_COUNTER(BlockReplaceOperation);
+                NEXT_INSTRUCTION();
+            }
+
             DEFINE_OPCODE(End)
                 :
             {
@@ -2467,6 +2477,34 @@ NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState& state, Bl
         programCounter = jumpTo(codeBuffer, code->m_blockEndPosition);
     }
     return Value(Value::EmptyValue);
+}
+
+ALWAYS_INLINE void ByteCodeInterpreter::blockReplaceOperation(ExecutionState& state, BlockReplaceOperation* code, ByteCodeBlock* byteCodeBlock)
+{
+    // setup new env
+    EnvironmentRecord* newRecord;
+    bool shouldUseIndexedStorage = true;
+
+    if (byteCodeBlock->m_codeBlock->isGlobalScopeCodeBlock()) {
+        shouldUseIndexedStorage = !byteCodeBlock->m_codeBlock->inEvalWithYieldScope();
+    } else {
+        shouldUseIndexedStorage = byteCodeBlock->m_codeBlock->canUseIndexedVariableStorage();
+    }
+
+    if (LIKELY(shouldUseIndexedStorage)) {
+        newRecord = new DeclarativeEnvironmentRecordIndexed(code->m_blockInfo);
+    } else {
+        newRecord = new DeclarativeEnvironmentRecordNotIndexed();
+
+        auto& iv = code->m_blockInfo->m_identifiers;
+        auto siz = iv.size();
+        for (size_t i = 0; i < siz; i++) {
+            newRecord->createBinding(state, iv[i].m_name, false, iv[i].m_isMutable, false);
+        }
+    }
+
+    LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, state.lexicalEnvironment()->outerEnvironment());
+    state._setLexicalEnvironment(newEnv);
 }
 
 NEVER_INLINE bool ByteCodeInterpreter::binaryInOperation(ExecutionState& state, const Value& left, const Value& right)

@@ -608,10 +608,6 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 assignStackIndexIfNeeded(cd->m_dstIdx, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
-            case BlockOperationOpcode: {
-                BlockOperation* cd = (BlockOperation*)currentCode;
-                break;
-            }
             default:
                 break;
             }

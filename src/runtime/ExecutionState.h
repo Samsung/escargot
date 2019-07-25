@@ -106,6 +106,11 @@ public:
         m_inStrictMode = inStrictMode;
     }
 
+    void _setLexicalEnvironment(LexicalEnvironment* lexicalEnvironment)
+    {
+        m_lexicalEnvironment = lexicalEnvironment;
+    }
+
     size_t stackBase()
     {
         return m_stackBase;

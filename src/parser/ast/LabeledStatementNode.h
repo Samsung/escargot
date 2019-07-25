@@ -43,6 +43,8 @@ public:
     {
         if (m_statementNode->type() == ASTNodeType::SwitchStatement) {
             context->m_currentLabels->push_back(std::make_pair(m_label, 1));
+        } else if (m_statementNode->type() == ASTNodeType::ForStatement) {
+            context->m_currentLabels->push_back(std::make_pair(m_label, (size_t)m_statementNode.get()));
         } else {
             context->m_currentLabels->push_back(std::make_pair(m_label, 0));
         }

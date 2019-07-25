@@ -4810,12 +4810,15 @@ public:
 
         this->expect(RightParenthesis);
 
-        ParserBlockContext iterationBlockContext = openBlock();
-        ASTBlockScopeContext* headBlockContextInstance = this->scopeContexts.back()->findBlockFromBackward(headBlockContext.childLexicalBlockIndex);
-        if (headBlockContextInstance->m_names.size()) {
-            // if there are names on headContext (let, const)
-            // we should copy names into to iterationBlock
-            this->scopeContexts.back()->findBlockFromBackward(iterationBlockContext.childLexicalBlockIndex)->m_names = headBlockContextInstance->m_names;
+        ParserBlockContext iterationBlockContext;
+        if (type != statementTypeFor) {
+            iterationBlockContext = openBlock();
+            ASTBlockScopeContext* headBlockContextInstance = this->scopeContexts.back()->findBlockFromBackward(headBlockContext.childLexicalBlockIndex);
+            if (headBlockContextInstance->m_names.size()) {
+                // if there are names on headContext (let, const)
+                // we should copy names into to iterationBlock
+                this->scopeContexts.back()->findBlockFromBackward(iterationBlockContext.childLexicalBlockIndex)->m_names = headBlockContextInstance->m_names;
+            }
         }
 
         bool previousInIteration = this->context->inIteration;
@@ -4834,7 +4837,9 @@ public:
         this->context->inLoop = prevInLoop;
         this->context->allowLexicalDeclaration = allowLexicalDeclarationBefore;
 
-        closeBlock(iterationBlockContext);
+        if (type != statementTypeFor) {
+            closeBlock(iterationBlockContext);
+        }
         closeBlock(headBlockContext);
 
         if (!isParse) {

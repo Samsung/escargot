@@ -40,7 +40,7 @@ public:
         context->pushLabeledContinuePositions(codeBlock->lastCodePosition<Jump>(), m_label);
 
         for (size_t i = 0; i < context->m_currentLabels->size(); i++) {
-            if (m_label->equals(context->m_currentLabels->at(i).first) && context->m_currentLabels->at(i).second) {
+            if (m_label->equals(context->m_currentLabels->at(i).first) && context->m_currentLabels->at(i).second == 1) {
                 ByteCodeGenerateError err;
                 err.m_index = m_loc.index;
                 auto ret = codeBlock->computeNodeLOC(codeBlock->m_codeBlock->src(), codeBlock->m_codeBlock->sourceElementStart(), m_loc.index);

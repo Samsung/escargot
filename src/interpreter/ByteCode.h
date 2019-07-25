@@ -124,6 +124,7 @@ class Node;
     F(Yield, 0, 0)                                    \
     F(YieldDelegate, 1, 0)                            \
     F(BlockOperation, 0, 0)                           \
+    F(BlockReplaceOperation, 0, 0)                    \
     F(End, 0, 0)
 
 enum Opcode {
@@ -1998,6 +1999,23 @@ public:
 #endif
 };
 
+class BlockReplaceOperation : public ByteCode {
+public:
+    BlockReplaceOperation(const ByteCodeLOC& loc, InterpretedCodeBlock::BlockInfo* bi)
+        : ByteCode(Opcode::BlockReplaceOperationOpcode, loc)
+        , m_blockInfo(bi)
+    {
+    }
+
+    InterpretedCodeBlock::BlockInfo* m_blockInfo;
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("block replace operation (%p)", m_blockInfo);
+    }
+#endif
+};
+
 class End : public ByteCode {
 public:
     explicit End(const ByteCodeLOC& loc)
@@ -2105,6 +2123,7 @@ public:
         }
     };
     ByteCodeLexicalBlockContext pushLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node);
+    void replacePerIterationLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node);
     void finalizeLexicalBlock(ByteCodeGenerateContext* context, const ByteCodeBlock::ByteCodeLexicalBlockContext& ctx);
 
     template <typename CodeType>
@@ -2156,6 +2175,9 @@ public:
     std::vector<size_t> m_getObjectCodePositions;
 
     void* operator new(size_t size);
+
+private:
+    void initLexicalBlockFunctions(ByteCodeGenerateContext* context, Node* node);
 };
 } // namespace Escargot
 

@@ -153,24 +153,16 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(StringView src, ExtendedNodeLOC so
     return ExtendedNodeLOC(line, column, index);
 }
 
-ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node)
+void ByteCodeBlock::initLexicalBlockFunctions(ByteCodeGenerateContext* context, Node* node)
 {
-    ByteCodeBlock::ByteCodeLexicalBlockContext ctx;
     InterpretedCodeBlock* codeBlock = context->m_codeBlock->asInterpretedCodeBlock();
-
-    ctx.lexicallyDeclaredNamesCount = context->m_lexicallyDeclaredNames->size();
-
-    if (bi->m_shouldAllocateEnvironment) {
-        context->m_tryStatementScopeCount++;
-        ctx.lexicalBlockSetupStartPosition = currentCodeSize();
-        this->pushCode(BlockOperation(ByteCodeLOC(node->m_loc.index), bi), context, nullptr);
-    }
 
     size_t len = codeBlock->childBlocks().size();
     for (size_t i = 0; i < len; i++) {
         CodeBlock* b = codeBlock->childBlocks()[i];
         if (b->isFunctionDeclaration() && b->asInterpretedCodeBlock()->lexicalBlockIndexFunctionLocatedIn() == context->m_lexicalBlockIndex) {
-            IdentifierNode* id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(b->functionName());
+            uint8_t tmpIdentifierNode[sizeof(IdentifierNode)];
+            IdentifierNode* id = new (&tmpIdentifierNode) IdentifierNode(b->functionName());
             id->m_loc = node->m_loc;
 
             // add useless register for don't ruin script result
@@ -187,10 +179,31 @@ ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteC
             context->giveUpRegister(); // give up useless register
         }
     }
+}
 
+ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node)
+{
+    ByteCodeBlock::ByteCodeLexicalBlockContext ctx;
+    InterpretedCodeBlock* codeBlock = context->m_codeBlock->asInterpretedCodeBlock();
+
+    ctx.lexicallyDeclaredNamesCount = context->m_lexicallyDeclaredNames->size();
+
+    if (bi->m_shouldAllocateEnvironment) {
+        context->m_tryStatementScopeCount++;
+        ctx.lexicalBlockSetupStartPosition = currentCodeSize();
+        this->pushCode(BlockOperation(ByteCodeLOC(node->m_loc.index), bi), context, nullptr);
+    }
+
+    initLexicalBlockFunctions(context, node);
     ctx.lexicalBlockStartPosition = currentCodeSize();
 
     return ctx;
+}
+
+void ByteCodeBlock::replacePerIterationLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node)
+{
+    this->pushCode(BlockReplaceOperation(ByteCodeLOC(node->m_loc.index), bi), context, nullptr);
+    initLexicalBlockFunctions(context, node);
 }
 
 void ByteCodeBlock::finalizeLexicalBlock(ByteCodeGenerateContext* context, const ByteCodeBlock::ByteCodeLexicalBlockContext& ctx)

@@ -41,6 +41,7 @@ class CreateClass;
 class SuperReference;
 class WithOperation;
 class BlockOperation;
+class BlockReplaceOperation;
 class TryOperation;
 class UnaryDelete;
 class TemplateOperation;
@@ -89,6 +90,7 @@ public:
     static void superOperation(ExecutionState& state, SuperReference* code, Value* registerFile);
     static Value withOperation(ExecutionState& state, WithOperation* code, Object* obj, LexicalEnvironment* env, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage);
     static Value blockOperation(ExecutionState& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage);
+    static void blockReplaceOperation(ExecutionState& state, BlockReplaceOperation* code, ByteCodeBlock* byteCodeBlock);
     static bool binaryInOperation(ExecutionState& state, const Value& left, const Value& right);
     static Value callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, LexicalEnvironment* env, Value* argv);
     static void spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector);

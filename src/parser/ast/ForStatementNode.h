@@ -85,24 +85,28 @@ public:
 
         newContext.giveUpRegister();
 
-        // per iteration block
-        size_t iterationLexicalBlockIndexBefore = newContext.m_lexicalBlockIndex;
-        ByteCodeBlock::ByteCodeLexicalBlockContext iterationBlockContext;
+        m_body->generateStatementByteCode(codeBlock, &newContext);
+
+        size_t updatePosition = codeBlock->currentCodeSize();
+
+        // Creating a new block after each iteration.
         if (m_iterationLexcialBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
             InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexcialBlockIndex);
+            uint8_t tmpIdentifierNode[sizeof(IdentifierNode)];
+
             std::vector<size_t> nameRegisters;
             for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
                 nameRegisters.push_back(newContext.getRegister());
             }
 
             for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
-                IdentifierNode *id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(bi->m_identifiers[i].m_name);
+                IdentifierNode *id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[i].m_name);
                 id->m_loc = m_loc;
                 id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
             }
 
             newContext.m_lexicalBlockIndex = m_iterationLexcialBlockIndex;
-            iterationBlockContext = codeBlock->pushLexicalBlock(&newContext, bi, this);
+            codeBlock->replacePerIterationLexicalBlock(&newContext, bi, this);
 
             for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
                 newContext.m_lexicallyDeclaredNames->push_back(bi->m_identifiers[i].m_name);
@@ -110,7 +114,7 @@ public:
 
             size_t reverse = bi->m_identifiers.size() - 1;
             for (size_t i = 0; i < bi->m_identifiers.size(); i++, reverse--) {
-                IdentifierNode *id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(bi->m_identifiers[reverse].m_name);
+                IdentifierNode *id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[reverse].m_name);
                 id->m_loc = m_loc;
                 newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
                 id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], false);
@@ -119,14 +123,6 @@ public:
             }
         }
 
-        m_body->generateStatementByteCode(codeBlock, &newContext);
-
-        if (m_iterationLexcialBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
-            codeBlock->finalizeLexicalBlock(&newContext, iterationBlockContext);
-            newContext.m_lexicalBlockIndex = iterationLexicalBlockIndexBefore;
-        }
-
-        size_t updatePosition = codeBlock->currentCodeSize();
         if (m_update) {
             if (!context->m_isEvalCode && !context->m_isGlobalScope) {
                 m_update->generateResultNotRequiredExpressionByteCode(codeBlock, &newContext);
@@ -145,6 +141,10 @@ public:
 
         newContext.consumeBreakPositions(codeBlock, forEnd, context->m_tryStatementScopeCount);
         newContext.consumeContinuePositions(codeBlock, updatePosition, context->m_tryStatementScopeCount);
+        if (context->m_currentLabels->size() > 0 && context->m_currentLabels->back().second == (size_t)this) {
+            newContext.consumeLabeledContinuePositions(codeBlock, updatePosition, context->m_currentLabels->back().first, context->m_tryStatementScopeCount);
+        }
+
         newContext.m_positionToContinue = updatePosition;
         newContext.propagateInformationTo(*context);
 
