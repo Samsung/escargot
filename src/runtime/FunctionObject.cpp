@@ -38,26 +38,13 @@ namespace Escargot {
 
 size_t g_functionObjectTag;
 
-void FunctionObject::initFunctionObject(ExecutionState& state)
+void FunctionObject::initStructureAndValues(ExecutionState& state)
 {
-    // If Strict is true, then
-    // Let thrower be the [[ThrowTypeError]] function Object (13.2.3).
-    // Call the [[DefineOwnProperty]] internal method of F with arguments "caller", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
-    // Call the [[DefineOwnProperty]] internal method of F with arguments "arguments", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
-    bool needsThrower = m_codeBlock->isStrict() && !m_codeBlock->hasCallNativeFunctionCode();
-
-    m_constructorKind = ConstructorKind::Base;
-
     if (isConstructor()) {
-        m_structure = isClassConstructor() ? state.context()->defaultStructureForClassFunctionObject() : state.context()->defaultStructureForFunctionObject();
+        m_structure = state.context()->defaultStructureForFunctionObject();
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(Object::createFunctionPrototypeObject(state, this)));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionName().string()));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = (Value(m_codeBlock->parameterCount()));
-    } else if (isArrowFunction()) {
-        // TODO ES6
-        m_structure = state.context()->defaultStructureForArrowFunctionObject();
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->parameterCount()));
     } else {
         m_structure = state.context()->defaultStructureForNotConstructorFunctionObject();
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
@@ -70,10 +57,11 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForG
     , m_codeBlock(codeBlock)
     , m_outerEnvironment(nullptr)
     , m_homeObject(nullptr)
+    , m_constructorKind(ConstructorKind::Base)
     , m_isBuiltin(false)
 {
     ASSERT(!isConstructor());
-    initFunctionObject(state);
+    initStructureAndValues(state);
 }
 
 FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltin)
@@ -81,9 +69,10 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForB
     , m_codeBlock(codeBlock)
     , m_outerEnvironment(nullptr)
     , m_homeObject(nullptr)
+    , m_constructorKind(ConstructorKind::Base)
     , m_isBuiltin(codeBlock->isConstructor())
 {
-    initFunctionObject(state);
+    initStructureAndValues(state);
     Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
     if (isConstructor())
         m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
@@ -94,9 +83,10 @@ FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info)
     , m_codeBlock(new CodeBlock(state.context(), info))
     , m_outerEnvironment(nullptr)
     , m_homeObject(nullptr)
+    , m_constructorKind(ConstructorKind::Base)
     , m_isBuiltin(false)
 {
-    initFunctionObject(state);
+    initStructureAndValues(state);
     Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
 }
 
@@ -105,10 +95,11 @@ FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, F
     , m_codeBlock(new CodeBlock(state.context(), info))
     , m_outerEnvironment(nullptr)
     , m_homeObject(nullptr)
+    , m_constructorKind(ConstructorKind::Base)
     , m_isBuiltin(true)
 {
     ASSERT(isConstructor());
-    initFunctionObject(state);
+    initStructureAndValues(state);
     Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
     m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
 }
@@ -120,9 +111,26 @@ FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, Lexi
     , m_codeBlock(codeBlock)
     , m_outerEnvironment(outerEnv)
     , m_homeObject(nullptr)
+    , m_constructorKind(ConstructorKind::Base)
     , m_isBuiltin(false)
 {
-    initFunctionObject(state);
+    initStructureAndValues(state);
+    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
+}
+
+FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinProxyConstructor)
+    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2, false)
+    , m_codeBlock(new CodeBlock(state.context(), info))
+    , m_outerEnvironment(nullptr)
+    , m_homeObject(nullptr)
+    , m_constructorKind(ConstructorKind::Base)
+    , m_isBuiltin(true)
+{
+    ASSERT(isConstructor());
+    // The Proxy constructor does not have a prototype property
+    m_structure = state.context()->defaultStructureForNotConstructorFunctionObject();
+    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
+    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->parameterCount()));
     Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
 }
 

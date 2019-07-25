@@ -179,23 +179,6 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
 
     // TODO(ES6)
 
-    // Class Function
-    m_defaultStructureForClassFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.prototype,
-                                                                                        ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
-    m_defaultStructureForClassFunctionObject = m_defaultStructureForClassFunctionObject->addProperty(stateForInit, m_staticStrings.name,
-                                                                                                     ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
-
-    m_defaultStructureForClassFunctionObject = m_defaultStructureForClassFunctionObject->addProperty(stateForInit, m_staticStrings.length,
-                                                                                                     ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
-
-    //Arrow Function
-
-    m_defaultStructureForArrowFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.name,
-                                                                                        ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
-
-    m_defaultStructureForArrowFunctionObject = m_defaultStructureForArrowFunctionObject->addProperty(stateForInit, m_staticStrings.length,
-                                                                                                     ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::NotPresent));
-
     m_defaultStructureForBuiltinFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.prototype,
                                                                                           ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&builtinFunctionPrototypeNativeGetterSetterData));
 

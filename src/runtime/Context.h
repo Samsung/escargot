@@ -95,16 +95,6 @@ public:
         return m_defaultStructureForFunctionObject;
     }
 
-    ObjectStructure* defaultStructureForClassFunctionObject()
-    {
-        return m_defaultStructureForClassFunctionObject;
-    }
-
-    ObjectStructure* defaultStructureForArrowFunctionObject()
-    {
-        return m_defaultStructureForArrowFunctionObject;
-    }
-
     ObjectStructure* defaultStructureForNotConstructorFunctionObject()
     {
         return m_defaultStructureForNotConstructorFunctionObject;
@@ -214,8 +204,6 @@ private:
     RegExpCacheMap* m_regexpCache;
     ObjectStructure* m_defaultStructureForObject;
     ObjectStructure* m_defaultStructureForFunctionObject;
-    ObjectStructure* m_defaultStructureForClassFunctionObject;
-    ObjectStructure* m_defaultStructureForArrowFunctionObject;
     ObjectStructure* m_defaultStructureForNotConstructorFunctionObject;
     ObjectStructure* m_defaultStructureForBuiltinFunctionObject;
     ObjectStructure* m_defaultStructureForFunctionPrototypeObject;

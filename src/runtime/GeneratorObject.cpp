@@ -53,8 +53,12 @@ void* GeneratorObject::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(GeneratorObject)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GeneratorObject, m_structure));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GeneratorObject, m_prototype));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GeneratorObject, m_values));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GeneratorObject, m_executionState));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GeneratorObject, m_blk));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GeneratorObject, m_resumeValue));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(GeneratorObject));
         typeInited = true;
     }

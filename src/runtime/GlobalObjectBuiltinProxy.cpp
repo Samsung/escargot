@@ -103,9 +103,8 @@ static Value builtinProxyRevocable(ExecutionState& state, Value thisValue, size_
 void GlobalObject::installProxy(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    m_proxy = new FunctionObject(state, NativeFunctionInfo(strings->Proxy, builtinProxyConstructor, 2), FunctionObject::__ForBuiltin__);
+    m_proxy = new FunctionObject(state, NativeFunctionInfo(strings->Proxy, builtinProxyConstructor, 2), FunctionObject::__ForBuiltinProxyConstructor__);
     m_proxy->markThisObjectDontNeedStructureTransitionTable(state);
-    m_proxy->setPrototype(state, m_functionPrototype);
 
     m_proxy->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->revocable), ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->revocable, builtinProxyRevocable, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
