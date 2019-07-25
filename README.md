@@ -9,7 +9,7 @@
 
 General build prerequisites:
 ```sh
-sudo apt-get install autoconf automake libtool libicu-dev ninja-build
+sudo apt-get install autoconf automake cmake libtool libicu-dev ninja-build
 ```
 
 Prerequisites for x86-64-to-x86 compilation:
