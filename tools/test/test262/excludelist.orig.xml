@@ -14,7 +14,6 @@
   <test id="B.2.3.8"><reason>TODO</reason></test>
   <test id="B.2.3.9"><reason>TODO</reason></test>
   <test id="S15.4.3_A2.2"><reason>TODO</reason></test>
-  <test id="Array.prototype.concat_array-like-negative-length"><reason>TODO</reason></test>
   <test id="S15.4.4.4_A4.2"><reason>TODO</reason></test>
   <test id="15.4.4.16-3-12"><reason>TODO</reason></test>
   <test id="15.4.4.16-3-14"><reason>TODO</reason></test>
@@ -341,7 +340,6 @@
   <test id="length"><reason>TODO</reason></test>
   <test id="length"><reason>TODO</reason></test>
   <test id="length"><reason>TODO</reason></test>
-  <test id="proxy-no-prototype"><reason>TODO</reason></test>
   <test id="targetdesc-not-compatible-descriptor-not-configurable-target"><reason>TODO</reason></test>
   <test id="targetdesc-not-compatible-descriptor"><reason>TODO</reason></test>
   <test id="call-parameters"><reason>TODO</reason></test>

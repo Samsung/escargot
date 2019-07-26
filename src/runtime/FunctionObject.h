@@ -32,12 +32,10 @@ class ArrayObject;
 class FunctionEnvironmentRecord;
 
 class FunctionObject : public Object {
+    friend class Object;
+    friend class ObjectGetResult;
     friend class GlobalObject;
     friend class Script;
-    void initFunctionObject(ExecutionState& state);
-
-    enum ForGlobalBuiltin { __ForGlobalBuiltin__ };
-    FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForGlobalBuiltin);
 
 public:
     enum ThisMode {
@@ -47,8 +45,8 @@ public:
     };
 
     enum ConstructorKind {
-        Derived,
         Base,
+        Derived,
     };
 
     enum FunctionKind {
@@ -62,7 +60,8 @@ public:
     enum ForBuiltin { __ForBuiltin__ };
     FunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltin);
     FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltin);
-
+    enum ForBuiltinProxyConstructor { __ForBuiltinProxyConstructor__ };
+    FunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinProxyConstructor);
     // getter of internal [[Prototype]]
     Value getFunctionPrototype(ExecutionState& state)
     {
@@ -173,8 +172,11 @@ public:
     }
 
 private:
-    friend class Object;
-    friend class ObjectGetResult;
+    enum ForGlobalBuiltin { __ForGlobalBuiltin__ };
+    FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForGlobalBuiltin);
+
+    void initStructureAndValues(ExecutionState& state);
+
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override
     {
@@ -209,6 +211,7 @@ private:
     Value processBuiltinFunctionCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression, const Value& newTarget);
     void generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage);
     void generateByteCodeBlock(ExecutionState& state);
+
     CodeBlock* m_codeBlock;
     LexicalEnvironment* m_outerEnvironment;
     Object* m_homeObject;
