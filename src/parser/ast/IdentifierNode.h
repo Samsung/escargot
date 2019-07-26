@@ -43,25 +43,21 @@ public:
         return m_name;
     }
 
-    bool shouldUseNamedOperationOnGlobal(ByteCodeGenerateContext* context)
-    {
-        return context->m_codeBlock->asInterpretedCodeBlock()->inNotIndexedCodeBlockScope() || context->m_codeBlock->asInterpretedCodeBlock()->inCatchWith() || context->m_codeBlock->asInterpretedCodeBlock()->inEvalWithScope() || context->m_catchScopeCount || context->m_isEvalCode || context->m_codeBlock->asInterpretedCodeBlock()->hasWith();
-    }
-
-    void addLexcialVariableErrorsIfNeeds(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, InterpretedCodeBlock::IndexedIdentifierInfo info, bool isLexicallyDeclaredBindingInitialization, bool isVariableChainging = false)
+    void addLexicalVariableErrorsIfNeeds(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, InterpretedCodeBlock::IndexedIdentifierInfo info, bool isLexicallyDeclaredBindingInitialization, bool isVariableChainging = false)
     {
         // <temporal dead zone error>
         // only stack allocated lexical variables needs check (heap variables are checked on runtime)
         if (!isLexicallyDeclaredBindingInitialization && info.m_isResultSaved && info.m_isStackAllocated && info.m_type == InterpretedCodeBlock::IndexedIdentifierInfo::LexicallyDeclared) {
             bool finded = false;
-            auto iter = context->m_lexicallyDeclaredNames->rbegin();
-            while (iter != context->m_lexicallyDeclaredNames->rend()) {
-                if (*iter == m_name) {
+            auto iter = context->m_lexicallyDeclaredNames->begin();
+            while (iter != context->m_lexicallyDeclaredNames->end()) {
+                if (iter->first == info.m_blockIndex && iter->second == m_name) {
                     finded = true;
                     break;
                 }
                 iter++;
             }
+
             if (!finded) {
                 codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::ReferenceError, errorMessage_IsNotInitialized, m_name), context, this);
             }
@@ -81,50 +77,30 @@ public:
         context->m_isLexicallyDeclaredBindingInitialization = false;
         context->m_isFunctionDeclarationBindingInitialization = false;
 
-        if (context->m_codeBlock->asInterpretedCodeBlock()->isGlobalScopeCodeBlock()) {
-            if (shouldUseNamedOperationOnGlobal(context)) {
-                if (isLexicallyDeclaredBindingInitialization || isFunctionDeclarationBindingInitialization) {
-                    codeBlock->pushCode(InitializeByName(ByteCodeLOC(m_loc.index), srcRegister, m_name, isLexicallyDeclaredBindingInitialization), context, this);
-                } else {
-                    codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
-                }
-            } else {
-                InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
-                addLexcialVariableErrorsIfNeeds(codeBlock, context, info, isLexicallyDeclaredBindingInitialization, true);
+        if (isLexicallyDeclaredBindingInitialization) {
+            context->addLexicallyDeclaredNames(m_name);
+        }
 
-                if (!info.m_isResultSaved) {
-                    codeBlock->pushCode(SetGlobalObject(ByteCodeLOC(m_loc.index), srcRegister, PropertyName(m_name)), context, this);
-                } else {
-                    ASSERT(!info.m_isStackAllocated);
-                    size_t cIdx = context->m_catchScopeCount;
-                    if (isLexicallyDeclaredBindingInitialization) {
-                        ASSERT(info.m_upperIndex + cIdx == 0);
-                        codeBlock->pushCode(InitializeByHeapIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_index), context, this);
-                    } else {
-                        codeBlock->pushCode(StoreByHeapIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_upperIndex + cIdx, info.m_index), context, this);
-                    }
-                }
-            }
-        } else if (context->m_codeBlock->asInterpretedCodeBlock()->canUseIndexedVariableStorage()) {
+        if (context->m_codeBlock->canUseIndexedVariableStorage()) {
             InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
-            addLexcialVariableErrorsIfNeeds(codeBlock, context, info, isLexicallyDeclaredBindingInitialization, true);
+            addLexicalVariableErrorsIfNeeds(codeBlock, context, info, isLexicallyDeclaredBindingInitialization, true);
 
             if (!info.m_isResultSaved) {
-                if (!context->m_codeBlock->asInterpretedCodeBlock()->inNotIndexedCodeBlockScope() && !context->m_codeBlock->asInterpretedCodeBlock()->inCatchWith() && !context->m_codeBlock->asInterpretedCodeBlock()->inEvalWithScope() && !context->m_catchScopeCount && !context->m_isEvalCode && !context->m_codeBlock->asInterpretedCodeBlock()->hasWith()) {
-                    codeBlock->pushCode(SetGlobalObject(ByteCodeLOC(m_loc.index), srcRegister, PropertyName(m_name)), context, this);
-                } else {
+                if (codeBlock->m_codeBlock->asInterpretedCodeBlock()->hasAncestorUsesNonIndexedVariableStorage()) {
+                    ASSERT(!context->m_codeBlock->asInterpretedCodeBlock()->canAllocateEnvironmentOnStack());
                     if (isLexicallyDeclaredBindingInitialization || isFunctionDeclarationBindingInitialization) {
                         codeBlock->pushCode(InitializeByName(ByteCodeLOC(m_loc.index), srcRegister, m_name, isLexicallyDeclaredBindingInitialization), context, this);
                     } else {
                         codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
                     }
+                } else {
+                    if (isLexicallyDeclaredBindingInitialization) {
+                        codeBlock->pushCode(InitializeGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
+                    } else {
+                        codeBlock->pushCode(SetGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
+                    }
                 }
             } else {
-                if (context->m_isWithScope || (context->m_catchScopeCount && m_name == context->m_lastCatchVariableName)) {
-                    codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
-                    return;
-                }
-
                 if (info.m_type != InterpretedCodeBlock::IndexedIdentifierInfo::LexicallyDeclared) {
                     if (!info.m_isMutable) {
                         if (codeBlock->m_codeBlock->isStrict())
@@ -138,12 +114,19 @@ public:
                         codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), srcRegister, REGULAR_REGISTER_LIMIT + info.m_index), context, this);
                     }
                 } else {
-                    size_t cIdx = context->m_catchScopeCount;
-                    if (isLexicallyDeclaredBindingInitialization) {
-                        ASSERT(info.m_upperIndex + cIdx == 0);
-                        codeBlock->pushCode(InitializeByHeapIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_index), context, this);
+                    if (info.m_isGlobalLexicalVariable) {
+                        if (isLexicallyDeclaredBindingInitialization) {
+                            codeBlock->pushCode(InitializeGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
+                        } else {
+                            codeBlock->pushCode(SetGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
+                        }
                     } else {
-                        codeBlock->pushCode(StoreByHeapIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_upperIndex + cIdx, info.m_index), context, this);
+                        if (isLexicallyDeclaredBindingInitialization) {
+                            ASSERT(info.m_upperIndex == 0);
+                            codeBlock->pushCode(InitializeByHeapIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_index), context, this);
+                        } else {
+                            codeBlock->pushCode(StoreByHeapIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_upperIndex, info.m_index), context, this);
+                        }
                     }
                 }
             }
@@ -159,37 +142,18 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        if (context->m_codeBlock->asInterpretedCodeBlock()->isGlobalScopeCodeBlock()) {
-            if (shouldUseNamedOperationOnGlobal(context)) {
-                codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
-            } else {
-                InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
-                addLexcialVariableErrorsIfNeeds(codeBlock, context, info, false);
-
-                if (!info.m_isResultSaved) {
-                    codeBlock->pushCode(GetGlobalObject(ByteCodeLOC(m_loc.index), dstRegister, PropertyName(m_name)), context, this);
-                } else {
-                    ASSERT(!info.m_isStackAllocated);
-                    size_t cIdx = context->m_catchScopeCount;
-                    codeBlock->pushCode(LoadByHeapIndex(ByteCodeLOC(m_loc.index), dstRegister, info.m_upperIndex + cIdx, info.m_index), context, this);
-                }
-            }
-        } else if (context->m_codeBlock->asInterpretedCodeBlock()->canUseIndexedVariableStorage()) {
+        if (context->m_codeBlock->canUseIndexedVariableStorage()) {
             InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
-            addLexcialVariableErrorsIfNeeds(codeBlock, context, info, false);
+            addLexicalVariableErrorsIfNeeds(codeBlock, context, info, false);
 
             if (!info.m_isResultSaved) {
-                if (!context->m_codeBlock->asInterpretedCodeBlock()->inNotIndexedCodeBlockScope() && !context->m_codeBlock->asInterpretedCodeBlock()->inCatchWith() && !context->m_codeBlock->asInterpretedCodeBlock()->inEvalWithScope() && !context->m_catchScopeCount && !context->m_isEvalCode && !context->m_codeBlock->asInterpretedCodeBlock()->hasWith()) {
-                    codeBlock->pushCode(GetGlobalObject(ByteCodeLOC(m_loc.index), dstRegister, PropertyName(m_name)), context, this);
-                } else {
+                if (codeBlock->m_codeBlock->asInterpretedCodeBlock()->hasAncestorUsesNonIndexedVariableStorage()) {
+                    ASSERT(!context->m_codeBlock->asInterpretedCodeBlock()->canAllocateEnvironmentOnStack());
                     codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
+                } else {
+                    codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), dstRegister, PropertyName(m_name)), context, this);
                 }
             } else {
-                if (context->m_isWithScope || (context->m_catchScopeCount && m_name == context->m_lastCatchVariableName)) {
-                    codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
-                    return;
-                }
-
                 if (info.m_isStackAllocated) {
                     if (context->m_canSkipCopyToRegister) {
                         if (dstRegister != (REGULAR_REGISTER_LIMIT + info.m_index)) {
@@ -198,8 +162,11 @@ public:
                     } else
                         codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + info.m_index, dstRegister), context, this);
                 } else {
-                    size_t cIdx = context->m_catchScopeCount;
-                    codeBlock->pushCode(LoadByHeapIndex(ByteCodeLOC(m_loc.index), dstRegister, info.m_upperIndex + cIdx, info.m_index), context, this);
+                    if (info.m_isGlobalLexicalVariable) {
+                        codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), dstRegister, PropertyName(m_name)), context, this);
+                    } else {
+                        codeBlock->pushCode(LoadByHeapIndex(ByteCodeLOC(m_loc.index), dstRegister, info.m_upperIndex, info.m_index), context, this);
+                    }
                 }
             }
         } else {
@@ -207,7 +174,6 @@ public:
             codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
         }
     }
-
 
     virtual void generateResolveAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
@@ -220,15 +186,11 @@ public:
 
     std::tuple<bool, ByteCodeRegisterIndex, InterpretedCodeBlock::IndexedIdentifierInfo> isAllocatedOnStack(ByteCodeGenerateContext* context)
     {
-        if (context->m_codeBlock->asInterpretedCodeBlock()->canUseIndexedVariableStorage() || context->m_codeBlock->asInterpretedCodeBlock()->isGlobalScopeCodeBlock()) {
+        if (context->m_codeBlock->asInterpretedCodeBlock()->canUseIndexedVariableStorage()) {
             InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
             if (!info.m_isResultSaved) {
                 return std::make_tuple(false, REGISTER_LIMIT, info);
             } else {
-                if (context->m_isWithScope || (context->m_catchScopeCount && m_name == context->m_lastCatchVariableName)) {
-                    return std::make_tuple(false, REGISTER_LIMIT, info);
-                }
-
                 if (info.m_isStackAllocated && info.m_isMutable) {
                     if (context->m_canSkipCopyToRegister)
                         return std::make_tuple(true, REGULAR_REGISTER_LIMIT + info.m_index, info);

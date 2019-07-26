@@ -39,7 +39,7 @@ NEVER_INLINE bool eval(Escargot::Context* context, Escargot::String* str, Escarg
 
     Escargot::SandBox::SandBoxResult sandBoxResult = sb.run([&]() -> Escargot::Value {
         Escargot::Script* script = context->scriptParser().initializeScript(state, str, fileName);
-        return script->execute(stateForInit, false, false);
+        return script->execute(stateForInit);
     });
 
     result.result = sandBoxResult.result;

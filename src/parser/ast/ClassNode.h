@@ -27,8 +27,9 @@ namespace Escargot {
 
 class ClassNode {
 public:
-    ClassNode(RefPtr<IdentifierNode>& id, RefPtr<Node> superClass, RefPtr<ClassBodyNode> classBody)
-        : m_id(id)
+    ClassNode(RefPtr<IdentifierNode>& id, RefPtr<Node> superClass, RefPtr<ClassBodyNode> classBody, LexicalBlockIndex classBodyLexicalBlockIndex)
+        : m_classBodyLexicalBlockIndex(classBodyLexicalBlockIndex)
+        , m_id(id)
         , m_superClass(superClass)
         , m_classBody(classBody)
     {
@@ -38,7 +39,9 @@ public:
     inline const RefPtr<IdentifierNode>& id() { return m_id; }
     inline const RefPtr<Node> superClass() { return m_superClass; }
     inline const RefPtr<ClassBodyNode> classBody() { return m_classBody; }
+    inline LexicalBlockIndex classBodyLexicalBlockIndex() { return m_classBodyLexicalBlockIndex; }
 private:
+    LexicalBlockIndex m_classBodyLexicalBlockIndex;
     RefPtr<IdentifierNode> m_id; // Id
     RefPtr<Node> m_superClass;
     RefPtr<ClassBodyNode> m_classBody;

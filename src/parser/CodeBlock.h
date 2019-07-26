@@ -96,9 +96,9 @@ public:
         return m_isConstructor;
     }
 
-    bool inCatchWith()
+    bool inWith()
     {
-        return m_inCatch || m_inWith;
+        return m_inWith;
     }
 
     bool hasEval() const
@@ -109,11 +109,6 @@ public:
     bool hasWith() const
     {
         return m_hasWith;
-    }
-
-    bool hasCatch() const
-    {
-        return m_hasCatch;
     }
 
     bool hasYield() const
@@ -131,9 +126,25 @@ public:
         return m_isStrict;
     }
 
+    /*
+    - variable access rule -
+    type                                         | canUseIndexedVariableStorage  | canAllocateVariablesOnStack | canAllocateEnvironmentOnStack                      | when access variable
+    normal codes                                 | true                          | true                        | true when there is no captured variable by closure | use variable information on CodeBlock. if there is no variable information self or ancestor, use {Load, Store}GlobalVariable bytecode
+    codes has eval, with...                      | false                         | false                       | false                                              | every variable should use {Load, Store}ByName bytecode
+    ancestors of !canUseIndexedVariableStorage   | true                          | false                       | false                                              | same as normal code
+    descendants of !canUseIndexedVariableStorage | true                          | true                        | true when there is no captured variable by closure | use variable information on CodeBlock. if there is no variable information self or ancestor, use {Load, Store}ByName bytecode
+                           -                     |  -                            |  -                          | && every usingnames resolved on compile time       |     -
+    isEvalCode                                   | false                         | false                       | false                                              | every variable should use {Load, Store}ByName bytecode
+    */
+
     bool canUseIndexedVariableStorage() const
     {
         return m_canUseIndexedVariableStorage;
+    }
+
+    bool canAllocateVariablesOnStack() const
+    {
+        return m_canAllocateVariablesOnStack;
     }
 
     bool canAllocateEnvironmentOnStack() const
@@ -144,11 +155,6 @@ public:
     bool isFunctionDeclaration() const
     {
         return m_isFunctionDeclaration;
-    }
-
-    bool isFunctionDeclarationWithSpecialBinding() const
-    {
-        return m_isFunctionDeclarationWithSpecialBinding;
     }
 
     bool isFunctionExpression() const
@@ -199,21 +205,6 @@ public:
     bool needsComplexParameterCopy() const
     {
         return m_needsComplexParameterCopy;
-    }
-
-    void setInWithScope()
-    {
-        m_isInWithScope = true;
-    }
-
-    void clearInWithScope()
-    {
-        m_isInWithScope = false;
-    }
-
-    bool isInWithScope() const
-    {
-        return m_isInWithScope;
     }
 
     void setHasEval()
@@ -269,24 +260,23 @@ protected:
     bool m_isFunctionNameSaveOnHeap : 1;
     bool m_isFunctionNameExplicitlyDeclared : 1;
     bool m_canUseIndexedVariableStorage : 1;
+    bool m_canAllocateVariablesOnStack : 1;
     bool m_canAllocateEnvironmentOnStack : 1;
+    bool m_hasDescendantUsesNonIndexedVariableStorage : 1;
     bool m_needsComplexParameterCopy : 1;
     bool m_hasEval : 1;
     bool m_hasWith : 1;
     bool m_hasSuper : 1;
-    bool m_hasCatch : 1;
     bool m_hasYield : 1;
-    bool m_inCatch : 1;
     bool m_inWith : 1;
+    bool m_isEvalCode : 1;
+    bool m_isEvalCodeInFunction : 1;
     bool m_usesArgumentsObject : 1;
     bool m_isFunctionExpression : 1;
     bool m_isFunctionDeclaration : 1;
-    bool m_isFunctionDeclarationWithSpecialBinding : 1;
     bool m_isArrowFunctionExpression : 1;
     bool m_isClassConstructor : 1;
     bool m_isGenerator : 1;
-    bool m_isInWithScope : 1;
-    bool m_isEvalCodeInFunction : 1;
     bool m_needsVirtualIDOperation : 1;
     bool m_needToLoadThisValue : 1;
     bool m_hasRestElement : 1;
@@ -319,8 +309,7 @@ public:
     bool needToStoreThisValue();
     void captureThis();
     void captureArguments();
-    bool tryCaptureIdentifiersFromChildCodeBlock(LexcialBlockIndex blockIndex, AtomicString name);
-    void notifySelfOrChildHasEvalWithYield();
+    bool tryCaptureIdentifiersFromChildCodeBlock(LexicalBlockIndex blockIndex, AtomicString name);
 
     struct FunctionParametersInfo {
         bool m_isHeapAllocated : 1;
@@ -338,7 +327,7 @@ public:
         bool m_isResultSaved : 1;
         bool m_isStackAllocated : 1;
         bool m_isMutable : 1;
-
+        bool m_isGlobalLexicalVariable : 1;
         enum DeclarationType {
             VarDeclared,
             LexicallyDeclared,
@@ -346,11 +335,20 @@ public:
 
         DeclarationType m_type : 1;
 
+        LexicalBlockIndex m_blockIndex;
+
         size_t m_upperIndex;
         size_t m_index;
 
         IndexedIdentifierInfo()
             : m_isResultSaved(false)
+            , m_isStackAllocated(false)
+            , m_isMutable(false)
+            , m_isGlobalLexicalVariable(false)
+            , m_type(VarDeclared)
+            , m_blockIndex(LEXICAL_BLOCK_INDEX_MAX)
+            , m_upperIndex(SIZE_MAX)
+            , m_index(SIZE_MAX)
         {
         }
     };
@@ -368,8 +366,8 @@ public:
     struct BlockInfo : public gc {
         bool m_canAllocateEnvironmentOnStack : 1;
         bool m_shouldAllocateEnvironment : 1;
-        LexcialBlockIndex m_parentBlockIndex;
-        LexcialBlockIndex m_blockIndex;
+        LexicalBlockIndex m_parentBlockIndex;
+        LexicalBlockIndex m_blockIndex;
         BlockIdentifierInfoVector m_identifiers;
 
 #ifndef NDEBUG
@@ -382,8 +380,8 @@ public:
             )
             : m_canAllocateEnvironmentOnStack(false)
             , m_shouldAllocateEnvironment(false)
-            , m_parentBlockIndex(LEXCIAL_BLOCK_INDEX_MAX)
-            , m_blockIndex(LEXCIAL_BLOCK_INDEX_MAX)
+            , m_parentBlockIndex(LEXICAL_BLOCK_INDEX_MAX)
+            , m_blockIndex(LEXICAL_BLOCK_INDEX_MAX)
 #ifndef NDEBUG
             , m_loc(loc)
 #endif
@@ -418,7 +416,7 @@ public:
         return m_blockInfos;
     }
 
-    BlockInfo* blockInfo(LexcialBlockIndex blockIndex)
+    BlockInfo* blockInfo(LexicalBlockIndex blockIndex)
     {
         for (size_t i = 0; i < m_blockInfos.size(); i++) {
             if (m_blockInfos[i]->m_blockIndex == blockIndex) {
@@ -449,7 +447,7 @@ public:
         return identifierOnStackCount() + lexicalBlockStackAllocatedIdentifierMaximumDepth();
     }
 
-    LexcialBlockIndex lexicalBlockIndexFunctionLocatedIn() const
+    LexicalBlockIndex lexicalBlockIndexFunctionLocatedIn() const
     {
         return m_lexicalBlockIndexFunctionLocatedIn;
     }
@@ -459,45 +457,9 @@ public:
         return m_script;
     }
 
-    bool inNotIndexedCodeBlockScope()
-    {
-        CodeBlock* cb = this;
-        while (!cb->asInterpretedCodeBlock()->isGlobalScopeCodeBlock()) {
-            if (!cb->canUseIndexedVariableStorage()) {
-                return true;
-            }
-            cb = cb->asInterpretedCodeBlock()->parentCodeBlock();
-        }
-        return false;
-    }
-
     bool isGlobalScopeCodeBlock() const
     {
         return m_parentCodeBlock == nullptr;
-    }
-
-    bool inEvalWithYieldScope()
-    {
-        CodeBlock* cb = this;
-        while (cb) {
-            if (cb->hasEvalWithYield()) {
-                return true;
-            }
-            cb = cb->asInterpretedCodeBlock()->parentCodeBlock();
-        }
-        return false;
-    }
-
-    bool inEvalWithScope()
-    {
-        CodeBlock* cb = this;
-        while (cb) {
-            if (cb->hasEval() || cb->hasWith()) {
-                return true;
-            }
-            cb = cb->asInterpretedCodeBlock()->parentCodeBlock();
-        }
-        return false;
     }
 
     bool shouldReparseArguments()
@@ -505,15 +467,34 @@ public:
         return m_shouldReparseArguments;
     }
 
-    IndexedIdentifierInfo indexedIdentifierInfo(const AtomicString& name, LexcialBlockIndex blockIndex)
+    bool hasDescendantUsesNonIndexedVariableStorage()
+    {
+        return m_hasDescendantUsesNonIndexedVariableStorage;
+    }
+
+    bool hasAncestorUsesNonIndexedVariableStorage()
+    {
+        auto ptr = m_parentCodeBlock;
+
+        while (ptr) {
+            if (!ptr->canUseIndexedVariableStorage()) {
+                return true;
+            }
+            ptr = ptr->parentCodeBlock();
+        }
+
+        return false;
+    }
+
+    IndexedIdentifierInfo indexedIdentifierInfo(const AtomicString& name, LexicalBlockIndex blockIndex)
     {
         size_t upperIndex = 0;
         IndexedIdentifierInfo info;
 
         InterpretedCodeBlock* blk = this;
-        while (blk && (blk->asInterpretedCodeBlock()->isGlobalScopeCodeBlock() || blk->canUseIndexedVariableStorage())) {
+        while (blk && blk->canUseIndexedVariableStorage()) {
             // search block first.
-            while (blockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
+            while (blockIndex != LEXICAL_BLOCK_INDEX_MAX) {
                 InterpretedCodeBlock::BlockInfo* bi = nullptr;
                 for (size_t i = 0; i < blk->m_blockInfos.size(); i++) {
                     if (blk->m_blockInfos[i]->m_blockIndex == blockIndex) {
@@ -533,6 +514,14 @@ public:
                         info.m_upperIndex = upperIndex;
                         info.m_isMutable = bi->m_identifiers[i].m_isMutable;
                         info.m_type = IndexedIdentifierInfo::DeclarationType::LexicallyDeclared;
+                        info.m_blockIndex = bi->m_blockIndex;
+
+                        if (blk->isGlobalScopeCodeBlock() && bi->m_parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX) {
+                            info.m_isGlobalLexicalVariable = true;
+                        } else {
+                            info.m_isGlobalLexicalVariable = false;
+                            ASSERT(info.m_index != SIZE_MAX);
+                        }
                         return info;
                     }
                 }
@@ -543,17 +532,22 @@ public:
 
                 blockIndex = bi->m_parentBlockIndex;
             }
-            if (!blk->asInterpretedCodeBlock()->isGlobalScopeCodeBlock()) {
-                size_t index = blk->asInterpretedCodeBlock()->findVarName(name);
-                if (index != SIZE_MAX) {
-                    info.m_isResultSaved = true;
-                    info.m_isStackAllocated = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_needToAllocateOnStack;
-                    info.m_upperIndex = upperIndex;
-                    info.m_isMutable = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_isMutable;
-                    info.m_index = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_indexForIndexedStorage;
-                    info.m_type = IndexedIdentifierInfo::DeclarationType::VarDeclared;
-                    return info;
-                }
+
+            if (blk->isGlobalScopeCodeBlock()) {
+                break;
+            }
+
+            size_t index = blk->asInterpretedCodeBlock()->findVarName(name);
+            if (index != SIZE_MAX) {
+                ASSERT(blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_indexForIndexedStorage != SIZE_MAX);
+                info.m_isResultSaved = true;
+                info.m_isGlobalLexicalVariable = false;
+                info.m_isStackAllocated = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_needToAllocateOnStack;
+                info.m_upperIndex = upperIndex;
+                info.m_isMutable = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_isMutable;
+                info.m_index = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_indexForIndexedStorage;
+                info.m_type = IndexedIdentifierInfo::DeclarationType::VarDeclared;
+                return info;
             }
 
             upperIndex++;
@@ -590,7 +584,7 @@ public:
         return false;
     }
 
-    bool hasName(LexcialBlockIndex blockIndex, const AtomicString& name)
+    bool hasName(LexicalBlockIndex blockIndex, const AtomicString& name)
     {
         if (std::get<0>(findNameWithinBlock(blockIndex, name))) {
             return true;
@@ -652,21 +646,21 @@ public:
         return m_byteCodeBlock;
     }
 
-    void markHeapAllocatedEnvironmentFromHere(LexcialBlockIndex blockIndex = 0);
+    void markHeapAllocatedEnvironmentFromHere(LexicalBlockIndex blockIndex = 0);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 protected:
     // init global codeBlock
-    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart);
+    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, bool isEvalCode, bool isEvalCodeInFunction);
     // init function codeBlock
-    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, InterpretedCodeBlock* parentBlock);
+    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
 
-    void computeBlockVariables(LexcialBlockIndex currentBlockIndex, size_t currentStackAllocatedVariableIndex, size_t& maxStackAllocatedVariableDepth);
+    void computeBlockVariables(LexicalBlockIndex currentBlockIndex, size_t currentStackAllocatedVariableIndex, size_t& maxStackAllocatedVariableDepth);
     void initBlockScopeInformation(ASTFunctionScopeContext* scopeCtx);
 
-    std::tuple<bool, size_t, size_t> findNameWithinBlock(LexcialBlockIndex blockIndex, AtomicString name)
+    std::tuple<bool, size_t, size_t> findNameWithinBlock(LexicalBlockIndex blockIndex, AtomicString name)
     {
         BlockInfo* b = nullptr;
         size_t blockVectorIndex = SIZE_MAX;
@@ -686,7 +680,7 @@ protected:
                 }
             }
 
-            if (b->m_parentBlockIndex == LEXCIAL_BLOCK_INDEX_MAX) {
+            if (b->m_parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX) {
                 break;
             }
 
@@ -718,7 +712,7 @@ protected:
     uint16_t m_identifierOnStackCount; // this member variable only count `var`
     uint16_t m_identifierOnHeapCount; // this member variable only count `var`
     uint16_t m_lexicalBlockStackAllocatedIdentifierMaximumDepth; // this member variable only count `let`
-    LexcialBlockIndex m_lexicalBlockIndexFunctionLocatedIn;
+    LexicalBlockIndex m_lexicalBlockIndexFunctionLocatedIn;
     IdentifierInfoVector m_identifierInfos;
     BlockInfoVector m_blockInfos;
 

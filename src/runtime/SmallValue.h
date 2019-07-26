@@ -144,6 +144,18 @@ extern size_t g_doubleInSmallValueTag;
 
 class SmallValue {
 public:
+    enum ForceUninitializedTag { ForceUninitialized };
+    enum EmptyValueInitTag { EmptyValue };
+
+    SmallValue(ForceUninitializedTag)
+    {
+    }
+
+    SmallValue(EmptyValueInitTag)
+    {
+        m_data.payload = (intptr_t)(ValueEmpty);
+    }
+
     SmallValue()
     {
         m_data.payload = (intptr_t)(ValueUndefined);

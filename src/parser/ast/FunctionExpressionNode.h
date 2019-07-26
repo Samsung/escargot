@@ -56,11 +56,8 @@ public:
             }
         }
         ASSERT(blk);
-        if (context->m_isWithScope && !context->m_isEvalCode)
-            blk->setInWithScope();
-
         if (UNLIKELY(blk->isClassConstructor())) {
-            codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_bodyIndex, context->m_classInfo.m_superIndex, context->m_classInfo.m_name, blk, 2), context, this);
+            codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_bodyIndex, context->m_classInfo.m_superIndex, context->m_classInfo.m_name, blk), context, this);
         } else {
             codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, blk), context, this);
         }

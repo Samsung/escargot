@@ -92,12 +92,12 @@ void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
     // TODO
     // give correct stack limit to parser
     if (m_codeBlock->asInterpretedCodeBlock()->isGlobalScopeCodeBlock()) {
-        RefPtr<ProgramNode> nd = esprima::parseProgram(c, m_codeBlock->asInterpretedCodeBlock()->src(), m_codeBlock->asInterpretedCodeBlock()->isStrict(), SIZE_MAX);
-        block = ByteCodeGenerator::generateByteCode(c, m_codeBlock->asInterpretedCodeBlock(), nd.get(), nd->scopeContext(), m_isEvalMode, m_isOnGlobal, true);
+        RefPtr<ProgramNode> nd = esprima::parseProgram(c, m_codeBlock->asInterpretedCodeBlock()->src(), m_codeBlock->asInterpretedCodeBlock()->isStrict(), m_codeBlock->inWith(), SIZE_MAX);
+        block = ByteCodeGenerator::generateByteCode(c, m_codeBlock->asInterpretedCodeBlock(), nd.get(), nd->scopeContext(), m_isEvalMode, m_isOnGlobal, false, true);
     } else {
         ASTFunctionScopeContext* scopeContext = nullptr;
         auto body = esprima::parseSingleFunction(c, m_codeBlock->asInterpretedCodeBlock(), scopeContext, SIZE_MAX);
-        block = ByteCodeGenerator::generateByteCode(c, m_codeBlock->asInterpretedCodeBlock(), body.get(), scopeContext, m_isEvalMode, m_isOnGlobal, true);
+        block = ByteCodeGenerator::generateByteCode(c, m_codeBlock->asInterpretedCodeBlock(), body.get(), scopeContext, m_isEvalMode, m_isOnGlobal, false, true);
     }
     m_locData = block->m_locData;
     block->m_locData = nullptr;

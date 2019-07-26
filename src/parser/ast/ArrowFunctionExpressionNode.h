@@ -84,8 +84,6 @@ public:
             }
         }
         ASSERT(blk);
-        if (context->m_isWithScope && !context->m_isEvalCode)
-            blk->setInWithScope();
         codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, blk), context, this);
         context->m_feCounter++;
     }

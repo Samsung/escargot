@@ -33,8 +33,9 @@ class LexicalEnvironment;
 struct GetObjectInlineCache;
 struct SetObjectInlineCache;
 struct EnumerateObjectData;
-class GetGlobalObject;
-class SetGlobalObject;
+class GetGlobalVariable;
+class SetGlobalVariable;
+class InitializeGlobalVariable;
 class CallFunctionInWithScope;
 class CallEvalFunction;
 class CreateClass;
@@ -79,8 +80,9 @@ public:
 
     static Object* fastToObject(ExecutionState& state, const Value& obj);
 
-    static Value getGlobalObjectSlowCase(ExecutionState& state, Object* go, GetGlobalObject* code, ByteCodeBlock* block);
-    static void setGlobalObjectSlowCase(ExecutionState& state, Object* go, SetGlobalObject* code, const Value& value, ByteCodeBlock* block);
+    static Value getGlobalVariableSlowCase(ExecutionState& state, Object* go, GetGlobalVariable* code, ByteCodeBlock* block);
+    static void setGlobalVariableSlowCase(ExecutionState& state, Object* go, SetGlobalVariable* code, const Value& value, ByteCodeBlock* block);
+    static void initializeGlobalVariable(ExecutionState& state, InitializeGlobalVariable* code, const Value& value);
 
     static size_t tryOperation(ExecutionState& state, TryOperation* code, LexicalEnvironment* env, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 

@@ -120,35 +120,67 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 NEXT_INSTRUCTION();
             }
 
-            DEFINE_OPCODE(GetGlobalObject)
+            DEFINE_OPCODE(GetGlobalVariable)
                 :
             {
-                GetGlobalObject* code = (GetGlobalObject*)programCounter;
+                GetGlobalVariable* code = (GetGlobalVariable*)programCounter;
+                ASSERT(byteCodeBlock->m_codeBlock->context() == state.context());
+                Context* ctx = state.context();
                 GlobalObject* globalObject = state.context()->globalObject();
-                if (LIKELY(globalObject->structure() == code->m_cachedStructure)) {
-                    ASSERT(globalObject->m_values.data() <= code->m_cachedAddress);
-                    ASSERT(code->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
-                    registerFile[code->m_registerIndex] = *((SmallValue*)code->m_cachedAddress);
-                } else {
-                    registerFile[code->m_registerIndex] = getGlobalObjectSlowCase(state, globalObject, code, byteCodeBlock);
+                auto idx = code->m_lexicalIndexCache;
+                bool isCacheWork = false;
+                if (idx != std::numeric_limits<uint16_t>::max()) {
+                    if (code->m_cachedStructure == nullptr) {
+                        SmallValue val = ctx->globalDeclarativeStorage()[idx];
+                        isCacheWork = true;
+                        if (UNLIKELY(val.isEmpty())) {
+                            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, ctx->globalDeclarativeRecord()[idx].m_name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+                        }
+                        registerFile[code->m_registerIndex] = val;
+                    } else if (LIKELY(ctx->globalDeclarativeStorage().size() == code->m_lexicalIndexCache && globalObject->structure() == code->m_cachedStructure)) {
+                        ASSERT(globalObject->m_values.data() <= code->m_cachedAddress);
+                        ASSERT(code->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
+                        registerFile[code->m_registerIndex] = *((SmallValue*)code->m_cachedAddress);
+                        isCacheWork = true;
+                    }
                 }
-                ADD_PROGRAM_COUNTER(GetGlobalObject);
+                if (!isCacheWork) {
+                    registerFile[code->m_registerIndex] = getGlobalVariableSlowCase(state, globalObject, code, byteCodeBlock);
+                }
+                ADD_PROGRAM_COUNTER(GetGlobalVariable);
                 NEXT_INSTRUCTION();
             }
 
-            DEFINE_OPCODE(SetGlobalObject)
+            DEFINE_OPCODE(SetGlobalVariable)
                 :
             {
-                SetGlobalObject* code = (SetGlobalObject*)programCounter;
+                SetGlobalVariable* code = (SetGlobalVariable*)programCounter;
+                ASSERT(byteCodeBlock->m_codeBlock->context() == state.context());
+                Context* ctx = state.context();
                 GlobalObject* globalObject = state.context()->globalObject();
-                if (LIKELY(globalObject->structure() == code->m_cachedStructure)) {
-                    ASSERT(globalObject->m_values.data() <= code->m_cachedAddress);
-                    ASSERT(code->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
-                    *((SmallValue*)code->m_cachedAddress) = registerFile[code->m_registerIndex];
-                } else {
-                    setGlobalObjectSlowCase(state, globalObject, code, registerFile[code->m_registerIndex], byteCodeBlock);
+                auto idx = code->m_lexicalIndexCache;
+
+                bool isCacheWork = false;
+                if (idx != std::numeric_limits<uint16_t>::max()) {
+                    if (code->m_cachedStructure == nullptr) {
+                        isCacheWork = true;
+                        if (UNLIKELY(ctx->globalDeclarativeStorage()[idx].isEmpty())) {
+                            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, ctx->globalDeclarativeRecord()[idx].m_name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+                        }
+                        ctx->globalDeclarativeStorage()[idx] = registerFile[code->m_registerIndex];
+                    } else if (LIKELY(ctx->globalDeclarativeStorage().size() == code->m_lexicalIndexCache && globalObject->structure() == code->m_cachedStructure)) {
+                        ASSERT(globalObject->m_values.data() <= code->m_cachedAddress);
+                        ASSERT(code->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
+                        *((SmallValue*)code->m_cachedAddress) = registerFile[code->m_registerIndex];
+                        isCacheWork = true;
+                    }
                 }
-                ADD_PROGRAM_COUNTER(SetGlobalObject);
+
+                if (!isCacheWork) {
+                    setGlobalVariableSlowCase(state, globalObject, code, registerFile[code->m_registerIndex], byteCodeBlock);
+                }
+
+                ADD_PROGRAM_COUNTER(SetGlobalVariable);
                 NEXT_INSTRUCTION();
             }
 
@@ -598,15 +630,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 NEXT_INSTRUCTION();
             }
 
-            DEFINE_OPCODE(InitializeByHeapIndex)
-                :
-            {
-                InitializeByHeapIndex* code = (InitializeByHeapIndex*)programCounter;
-                state.lexicalEnvironment()->record()->initializeBindingByIndex(state, code->m_index, registerFile[code->m_registerIndex]);
-                ADD_PROGRAM_COUNTER(InitializeByHeapIndex);
-                NEXT_INSTRUCTION();
-            }
-
             DEFINE_OPCODE(BinaryMod)
                 :
             {
@@ -723,6 +746,25 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 const Value& val = registerFile[code->m_srcIndex];
                 registerFile[code->m_dstIndex] = Value(val.toNumber(state));
                 ADD_PROGRAM_COUNTER(ToNumber);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(InitializeGlobalVariable)
+                :
+            {
+                InitializeGlobalVariable* code = (InitializeGlobalVariable*)programCounter;
+                ASSERT(byteCodeBlock->m_codeBlock->context() == state.context());
+                initializeGlobalVariable(state, code, registerFile[code->m_registerIndex]);
+                ADD_PROGRAM_COUNTER(InitializeGlobalVariable);
+                NEXT_INSTRUCTION();
+            }
+
+            DEFINE_OPCODE(InitializeByHeapIndex)
+                :
+            {
+                InitializeByHeapIndex* code = (InitializeByHeapIndex*)programCounter;
+                state.lexicalEnvironment()->record()->initializeBindingByIndex(state, code->m_index, registerFile[code->m_registerIndex]);
+                ADD_PROGRAM_COUNTER(InitializeByHeapIndex);
                 NEXT_INSTRUCTION();
             }
 
@@ -1371,11 +1413,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             DEFINE_DEFAULT
 
         } catch (const Value& v) {
-            if (state.isOnGoingClassConstruction()) {
-                state.setOnGoingClassConstruction(false);
-                state.m_lexicalEnvironment = state.lexicalEnvironment()->outerEnvironment();
-            }
-
             if (state.isOnGoingSuperCall()) {
                 state.setOnGoingSuperCall(false);
             }
@@ -1461,7 +1498,7 @@ NEVER_INLINE void ByteCodeInterpreter::initializeByName(ExecutionState& state, L
         state.lexicalEnvironment()->record()->initializeBinding(state, name, value);
     } else {
         while (env) {
-            if (env->record()->isEvalTarget()) {
+            if (env->record()->isVarDeclarationTarget()) {
                 auto result = env->record()->hasBinding(state, name);
                 if (result.m_index != SIZE_MAX) {
                     env->record()->initializeBinding(state, name, value);
@@ -2042,8 +2079,26 @@ ALWAYS_INLINE Object* ByteCodeInterpreter::fastToObject(ExecutionState& state, c
     return obj.toObject(state);
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::getGlobalObjectSlowCase(ExecutionState& state, Object* go, GetGlobalObject* code, ByteCodeBlock* block)
+NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState& state, Object* go, GetGlobalVariable* code, ByteCodeBlock* block)
 {
+    Context* ctx = state.context();
+    auto& records = ctx->globalDeclarativeRecord();
+    AtomicString name = code->m_propertyName.asAtomicString();
+    auto siz = records.size();
+
+    for (size_t i = 0; i < siz; i++) {
+        if (records[i].m_name == name) {
+            code->m_lexicalIndexCache = i;
+            code->m_cachedAddress = nullptr;
+            code->m_cachedStructure = nullptr;
+            auto v = state.context()->globalDeclarativeStorage()[i];
+            if (UNLIKELY(v.isEmpty())) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+            }
+            return v;
+        }
+    }
+
     size_t idx = go->structure()->findProperty(state, code->m_propertyName);
     if (UNLIKELY(idx == SIZE_MAX)) {
         ObjectGetResult res = go->get(state, ObjectPropertyName(state, code->m_propertyName));
@@ -2051,25 +2106,30 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalObjectSlowCase(ExecutionState& 
             return res.value(state, go);
         } else {
             if (UNLIKELY((bool)state.context()->virtualIdentifierCallback())) {
-                Value virtialIdResult = state.context()->virtualIdentifierCallback()(state, code->m_propertyName.plainString());
+                Value virtialIdResult = state.context()->virtualIdentifierCallback()(state, name.string());
                 if (!virtialIdResult.isEmpty())
                     return virtialIdResult;
             }
-            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, code->m_propertyName.plainString(), false, String::emptyString, errorMessage_IsNotDefined);
+            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
         }
     } else {
         const ObjectStructureItem& item = go->structure()->readProperty(state, idx);
         if (!item.m_descriptor.isPlainDataProperty()) {
             code->m_cachedStructure = nullptr;
+            code->m_cachedAddress = nullptr;
+            code->m_lexicalIndexCache = std::numeric_limits<uint16_t>::max();
             return go->getOwnPropertyUtilForObject(state, idx, go);
         }
 
         if ((size_t)code->m_cachedAddress) {
             code->m_cachedAddress = &go->m_values.data()[idx];
             code->m_cachedStructure = go->structure();
+            code->m_lexicalIndexCache = siz;
             block->m_objectStructuresInUse->insert(go->structure());
         } else {
             code->m_cachedAddress = (void*)((size_t)1);
+            code->m_cachedStructure = nullptr;
+            code->m_lexicalIndexCache = std::numeric_limits<uint16_t>::max();
         }
     }
 
@@ -2093,8 +2153,27 @@ public:
     Context* ctx;
 };
 
-NEVER_INLINE void ByteCodeInterpreter::setGlobalObjectSlowCase(ExecutionState& state, Object* go, SetGlobalObject* code, const Value& value, ByteCodeBlock* block)
+NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState& state, Object* go, SetGlobalVariable* code, const Value& value, ByteCodeBlock* block)
 {
+    Context* ctx = state.context();
+    auto& records = ctx->globalDeclarativeRecord();
+    AtomicString name = code->m_propertyName.asAtomicString();
+    auto siz = records.size();
+    for (size_t i = 0; i < siz; i++) {
+        if (records[i].m_name == name) {
+            code->m_lexicalIndexCache = i;
+            code->m_cachedAddress = nullptr;
+            code->m_cachedStructure = nullptr;
+            auto& place = ctx->globalDeclarativeStorage()[i];
+            if (UNLIKELY(place.isEmpty())) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+            }
+            place = value;
+            return;
+        }
+    }
+
+
     size_t idx = go->structure()->findProperty(state, code->m_propertyName);
     if (UNLIKELY(idx == SIZE_MAX)) {
         if (UNLIKELY(state.inStrictMode())) {
@@ -2106,6 +2185,8 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalObjectSlowCase(ExecutionState& s
         const ObjectStructureItem& item = go->structure()->readProperty(state, idx);
         if (!item.m_descriptor.isPlainDataProperty()) {
             code->m_cachedStructure = nullptr;
+            code->m_cachedAddress = nullptr;
+            code->m_lexicalIndexCache = std::numeric_limits<uint16_t>::max();
             go->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, go);
             return;
         }
@@ -2113,13 +2194,29 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalObjectSlowCase(ExecutionState& s
         if ((size_t)code->m_cachedAddress) {
             code->m_cachedAddress = &go->m_values.data()[idx];
             code->m_cachedStructure = go->structure();
+            code->m_lexicalIndexCache = siz;
             block->m_objectStructuresInUse->insert(go->structure());
         } else {
             code->m_cachedAddress = (void*)((size_t)1);
+            code->m_cachedStructure = nullptr;
+            code->m_lexicalIndexCache = std::numeric_limits<uint16_t>::max();
         }
 
         go->setOwnPropertyThrowsExceptionWhenStrictMode(state, idx, value, go);
     }
+}
+
+NEVER_INLINE void ByteCodeInterpreter::initializeGlobalVariable(ExecutionState& state, InitializeGlobalVariable* code, const Value& value)
+{
+    Context* ctx = state.context();
+    auto& records = ctx->globalDeclarativeRecord();
+    for (size_t i = 0; i < records.size(); i++) {
+        if (records[i].m_name == code->m_variableName) {
+            state.context()->globalDeclarativeStorage()[i] = value;
+            return;
+        }
+    }
+    ASSERT_NOT_REACHED();
 }
 
 NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, TryOperation* code, LexicalEnvironment* env, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
@@ -2152,16 +2249,9 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
             state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
             programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
         } else {
-            // setup new env
-            EnvironmentRecord* newRecord = new DeclarativeEnvironmentRecordNotIndexedForCatch();
-            newRecord->createBinding(state, code->m_catchVariableName);
-            newRecord->setMutableBinding(state, code->m_catchVariableName, val);
-            LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
+            registerFile[code->m_catchedValueRegisterIndex] = val;
             try {
-                ExecutionState newState(&state, newEnv, state.inStrictMode());
-                newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
-                clearStack<386>();
-                interpret(newState, byteCodeBlock, code->m_catchPosition, registerFile);
+                interpret(state, byteCodeBlock, code->m_catchPosition, registerFile);
                 programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
             } catch (const Value& val) {
                 state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
@@ -2171,29 +2261,6 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, Try
     }
     return programCounter;
 }
-
-class EvalCodeBlockWithFlagSetter {
-public:
-    EvalCodeBlockWithFlagSetter(InterpretedCodeBlock* b, bool inWith)
-        : blk(b)
-    {
-        inWithBefore = blk->isInWithScope();
-        if (inWith)
-            blk->setInWithScope();
-    }
-
-    ~EvalCodeBlockWithFlagSetter()
-    {
-        if (inWithBefore) {
-            blk->setInWithScope();
-        } else {
-            blk->clearInWithScope();
-        }
-    }
-
-    bool inWithBefore;
-    InterpretedCodeBlock* blk;
-};
 
 NEVER_INLINE void ByteCodeInterpreter::evalOperation(ExecutionState& state, CallEvalFunction* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
 {
@@ -2218,8 +2285,7 @@ NEVER_INLINE void ByteCodeInterpreter::evalOperation(ExecutionState& state, Call
             arg = argv[0];
         }
         Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-        EvalCodeBlockWithFlagSetter s(byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(), code->m_inWithScope);
-        registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, stackStorage[0], byteCodeBlock->m_codeBlock->asInterpretedCodeBlock());
+        registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, stackStorage[0], byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(), code->m_inWithScope);
     } else {
         Value thisValue;
         if (code->m_inWithScope) {
@@ -2241,40 +2307,6 @@ NEVER_INLINE void ByteCodeInterpreter::evalOperation(ExecutionState& state, Call
 
 NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, CreateClass* code, Value* registerFile)
 {
-    // 14.5.14
-    if (code->m_stage == 1) {
-        DeclarativeEnvironmentRecordNotIndexed* classScopeEnvRec = new DeclarativeEnvironmentRecordNotIndexed();
-        LexicalEnvironment* classScope = new LexicalEnvironment(classScopeEnvRec, state.lexicalEnvironment());
-
-        if (code->m_name.string()->length()) {
-            classScopeEnvRec->createBinding(state, code->m_name, false, true);
-        }
-
-        state.m_lexicalEnvironment = classScope;
-
-        return;
-    }
-
-    if (code->m_stage == 3) {
-        state.setOnGoingClassConstruction(false);
-        LexicalEnvironment* classScope = state.lexicalEnvironment();
-        LexicalEnvironment* lex = classScope->outerEnvironment();
-
-        if (code->m_name.string()->length()) {
-            classScope->record()->initializeBinding(state, code->m_name, registerFile[code->m_classRegisterIndex]);
-        }
-
-        state.m_lexicalEnvironment = lex;
-
-        return;
-    }
-
-
-    LexicalEnvironment* classScope = state.lexicalEnvironment();
-    LexicalEnvironment* lex = classScope->outerEnvironment();
-
-    state.m_lexicalEnvironment = lex;
-
     Value protoParent;
     Value constructorParent;
 
@@ -2314,8 +2346,6 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
     Object* proto = new Object(state);
     proto->setPrototype(state, protoParent);
 
-    state.m_lexicalEnvironment = classScope;
-
     Object* constructor;
 
     if (code->m_codeBlock) {
@@ -2344,8 +2374,6 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
 
     registerFile[code->m_classRegisterIndex] = constructor;
     registerFile[code->m_classPrototypeRegisterIndex] = proto;
-
-    state.setOnGoingClassConstruction(true);
 }
 
 NEVER_INLINE void ByteCodeInterpreter::superOperation(ExecutionState& state, SuperReference* code, Value* registerFile)
@@ -2421,18 +2449,12 @@ NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState& state, Bl
 
     // setup new env
     EnvironmentRecord* newRecord;
-    bool shouldUseIndexedStorage = true;
-
-    if (byteCodeBlock->m_codeBlock->isGlobalScopeCodeBlock()) {
-        shouldUseIndexedStorage = !byteCodeBlock->m_codeBlock->inEvalWithYieldScope();
-    } else {
-        shouldUseIndexedStorage = byteCodeBlock->m_codeBlock->canUseIndexedVariableStorage();
-    }
+    bool shouldUseIndexedStorage = byteCodeBlock->m_codeBlock->canUseIndexedVariableStorage();
 
     if (LIKELY(shouldUseIndexedStorage)) {
-        newRecord = new DeclarativeEnvironmentRecordIndexed(code->m_blockInfo);
+        newRecord = new DeclarativeEnvironmentRecordIndexed(state, code->m_blockInfo);
     } else {
-        newRecord = new DeclarativeEnvironmentRecordNotIndexed();
+        newRecord = new DeclarativeEnvironmentRecordNotIndexed(state);
 
         auto& iv = code->m_blockInfo->m_identifiers;
         auto siz = iv.size();

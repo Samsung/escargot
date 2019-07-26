@@ -131,17 +131,16 @@ struct Context {
     bool inFunctionBody : 1;
     bool inIteration : 1;
     bool inSwitch : 1;
-    bool inCatch : 1;
     bool inArrowFunction : 1;
-    bool inDirectCatchScope : 1;
     bool inParsingDirective : 1;
     bool inArgumentParsing : 1;
     bool inWith : 1;
+    bool inCatchClause : 1;
     bool inLoop : 1;
     bool strict : 1;
     Scanner::ScannerResult firstCoverInitializedNameError;
+    std::vector<AtomicString> catchClauseSimplyDeclaredVariableNames;
     std::vector<std::pair<AtomicString, size_t>> labelSet; // <LabelString, with statement count>
-    std::vector<FunctionDeclarationNode*> functionDeclarationsInDirectCatchScope;
 };
 
 struct Marker {
@@ -209,8 +208,9 @@ public:
     bool trackUsingNames;
     AtomicString lastUsingName;
     size_t stackLimit;
-    LexcialBlockIndex lexicalBlockIndex;
-    LexcialBlockIndex lexicalBlockCount;
+
+    LexicalBlockIndex lexicalBlockIndex;
+    LexicalBlockIndex lexicalBlockCount;
 
     class ScanExpressionResult;
 
@@ -341,7 +341,6 @@ public:
         auto parentContext = scopeContexts.back();
         pushScopeContext(new ASTFunctionScopeContext(this->context->strict));
         scopeContexts.back()->m_functionName = functionName;
-        scopeContexts.back()->m_inCatch = this->context->inCatch;
         scopeContexts.back()->m_inWith = this->context->inWith;
 
         if (parentContext) {
@@ -407,12 +406,11 @@ public:
         this->context->inFunctionBody = false;
         this->context->inIteration = false;
         this->context->inSwitch = false;
-        this->context->inCatch = false;
         this->context->inArrowFunction = false;
-        this->context->inDirectCatchScope = false;
         this->context->inParsingDirective = false;
         this->context->inArgumentParsing = false;
         this->context->inWith = false;
+        this->context->inCatchClause = false;
         this->context->inLoop = false;
         this->context->strict = this->sourceType == Module;
         this->setMarkers(startLoc);
@@ -690,8 +688,6 @@ public:
             scopeContexts.back()->m_hasWith = true;
         } else if (type == YieldExpression) {
             scopeContexts.back()->m_hasYield = true;
-        } else if (type == CatchClause) {
-            scopeContexts.back()->m_hasCatch = true;
         }
 
         node->m_loc = NodeLOC(meta.index);
@@ -1299,7 +1295,7 @@ public:
     }
 
     template <typename T, bool isParse>
-    T arrayPattern(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd)
+    T arrayPattern(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         MetaNode node = this->createNode();
 
@@ -1318,7 +1314,7 @@ public:
                     hasRestElement = true;
                     break;
                 } else {
-                    elements.push_back(this->parsePatternWithDefault(params, kind));
+                    elements.push_back(this->parsePatternWithDefault(params, kind, isExplicitVariableDeclaration));
                 }
                 if (!this->match(RightSquareBracket)) {
                     this->expect(Comma);
@@ -1439,7 +1435,7 @@ public:
     }
 
     template <typename T, bool isParse>
-    T pattern(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd)
+    T pattern(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         if (this->match(LeftSquareBracket)) {
             scopeContexts.back()->m_hasPatternNode = true;
@@ -1464,19 +1460,19 @@ public:
             }
             params.push_back(this->lookahead);
             if (isParse) {
-                return T(this->parseVariableIdentifier(kind));
+                return T(this->parseVariableIdentifier(kind, isExplicitVariableDeclaration));
             }
 
-            return this->scanVariableIdentifier(kind);
+            return this->scanVariableIdentifier(kind, isExplicitVariableDeclaration);
         }
     }
 
-    PassRefPtr<Node> parsePatternWithDefault(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd)
+    PassRefPtr<Node> parsePatternWithDefault(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
 
-        PassRefPtr<Node> pattern = this->pattern<Parse>(params, kind);
+        PassRefPtr<Node> pattern = this->pattern<Parse>(params, kind, isExplicitVariableDeclaration);
         if (this->match(PunctuatorKind::Substitution)) {
             scopeContexts.back()->m_hasPatternNode = true;
             scopeContexts.back()->m_hasNonIdentArgument |= this->context->inArgumentParsing;
@@ -3652,8 +3648,8 @@ public:
                     if (this->match(LeftBrace)) {
                         body = this->parseFunctionSourceElements();
                     } else {
-                        LexcialBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
-                        LexcialBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
+                        LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
+                        LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
                         this->lexicalBlockIndex = 0;
                         this->lexicalBlockCount = 0;
 
@@ -3983,7 +3979,7 @@ public:
 
     ParserBlockContext openBlock()
     {
-        if (UNLIKELY(this->lexicalBlockCount == LEXCIAL_BLOCK_INDEX_MAX - 1)) {
+        if (UNLIKELY(this->lexicalBlockCount == LEXICAL_BLOCK_INDEX_MAX - 1)) {
             this->throwError("too many lexical blocks in script", String::emptyString, String::emptyString, ErrorObject::RangeError);
         }
 
@@ -4011,7 +4007,7 @@ public:
                 }
             }
             if (!finded) {
-                ctx.childLexicalBlockIndex = LEXCIAL_BLOCK_INDEX_MAX;
+                ctx.childLexicalBlockIndex = LEXICAL_BLOCK_INDEX_MAX;
             }
         } else {
             // if there is no new variable in this block, merge this block into parent block
@@ -4019,7 +4015,7 @@ public:
             auto blockContext = currentFunctionScope->findBlockFromBackward(this->lexicalBlockIndex);
             if (this->lexicalBlockIndex != 0 && blockContext->m_names.size() == 0) {
                 const auto currentBlockIndex = this->lexicalBlockIndex;
-                LexcialBlockIndex parentBlockIndex = blockContext->m_parentBlockIndex;
+                LexicalBlockIndex parentBlockIndex = blockContext->m_parentBlockIndex;
 
                 bool isThereFunctionExists = false;
                 for (size_t i = 0; i < currentFunctionScope->m_childScopes.size(); i++) {
@@ -4057,7 +4053,7 @@ public:
                             break;
                         }
                     }
-                    ctx.childLexicalBlockIndex = LEXCIAL_BLOCK_INDEX_MAX;
+                    ctx.childLexicalBlockIndex = LEXICAL_BLOCK_INDEX_MAX;
                 }
             }
         }
@@ -4301,7 +4297,7 @@ public:
     */
 
     // ECMA-262 13.3.2 Variable Statement
-    PassRefPtr<IdentifierNode> parseVariableIdentifier(KeywordKind kind = KeywordKindEnd)
+    PassRefPtr<IdentifierNode> parseVariableIdentifier(KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         MetaNode node = this->createNode();
 
@@ -4329,13 +4325,13 @@ public:
         IdentifierNode* id = finishIdentifier(token, true);
 
         if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword) {
-            addDeclaredNameIntoContext(id->name(), this->lexicalBlockIndex, kind);
+            addDeclaredNameIntoContext(id->name(), this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
         }
 
         return this->finalize(node, id);
     }
 
-    ScanExpressionResult scanVariableIdentifier(KeywordKind kind = KeywordKindEnd)
+    ScanExpressionResult scanVariableIdentifier(KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         ALLOC_TOKEN(token);
         this->nextToken(token);
@@ -4361,22 +4357,36 @@ public:
         ScanExpressionResult id = finishScanIdentifier(token, true);
 
         if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword) {
-            addDeclaredNameIntoContext(id.string(), this->lexicalBlockIndex, kind);
+            addDeclaredNameIntoContext(id.string(), this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
         }
 
         return id;
     }
 
-    void addDeclaredNameIntoContext(AtomicString name, LexcialBlockIndex blockIndex, KeywordKind kind)
+    void addDeclaredNameIntoContext(AtomicString name, LexicalBlockIndex blockIndex, KeywordKind kind, bool isExplicitVariableDeclaration = false)
     {
         ASSERT(kind == VarKeyword || kind == LetKeyword || kind == ConstKeyword);
 
         if (!this->config.parseSingleFunction) {
+            /*
+               we need this bunch of code for tolerate this error(we consider variable 'e' as lexically declared)
+               try { } catch(e) { var e; }
+            */
+            if (this->context->inCatchClause && isExplicitVariableDeclaration && kind == KeywordKind::VarKeyword) {
+                for (size_t i = 0; i < this->context->catchClauseSimplyDeclaredVariableNames.size(); i++) {
+                    if (this->context->catchClauseSimplyDeclaredVariableNames[i] == name) {
+                        this->scopeContexts.back()->insertVarName(name, blockIndex, true, kind == VarKeyword);
+                        return;
+                    }
+                }
+            }
+            /* code end */
+
             if (!this->scopeContexts.back()->canDeclareName(name, blockIndex, kind == VarKeyword)) {
                 this->throwError("Identifier '%s' has already been declared", name.string());
             }
             if (kind == VarKeyword) {
-                this->scopeContexts.back()->insertVarName(name, blockIndex, true, kind == VarKeyword);
+                this->scopeContexts.back()->insertVarName(name, blockIndex, true, true);
             } else {
                 this->scopeContexts.back()->insertNameAtBlock(name, blockIndex, kind == ConstKeyword);
                 this->scopeContexts.back()->m_needsToComputeLexicalBlockStuffs = true;
@@ -4394,13 +4404,13 @@ public:
         AtomicString name;
 
         if (isParse) {
-            idNode = this->pattern<Parse>(params, options.kind);
+            idNode = this->pattern<Parse>(params, options.kind, true);
             isIdentifier = (idNode->type() == Identifier);
             if (isIdentifier) {
                 name = ((IdentifierNode*)idNode.get())->name();
             }
         } else {
-            id = this->pattern<Scan>(params, options.kind);
+            id = this->pattern<Scan>(params, options.kind, true);
             isIdentifier = (id == Identifier);
             if (isIdentifier) {
                 name = id.string();
@@ -5247,27 +5257,10 @@ public:
             this->throwUnexpectedToken(&this->lookahead);
         }
 
-        bool prevInCatch = this->context->inCatch;
-        this->context->inCatch = true;
-
-        std::vector<FunctionDeclarationNode*> vecBefore = std::move(this->context->functionDeclarationsInDirectCatchScope);
-        bool prevInDirectCatchScope = this->context->inDirectCatchScope;
-        this->context->inDirectCatchScope = true;
+        ParserBlockContext catchBlockContext = openBlock();
 
         Vector<Scanner::ScannerResult, GCUtil::gc_malloc_ignore_off_page_allocator<Scanner::ScannerResult>> params;
-        RefPtr<Node> param = this->pattern<Parse>(params);
-
-        std::vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> paramMap;
-        for (size_t i = 0; i < params.size(); i++) {
-            for (size_t j = 0; j < paramMap.size(); j++) {
-                StringView* sv = params[i].valueStringLiteral();
-                if (paramMap[j]->equals(sv)) {
-                    this->throwError(Messages::DuplicateBinding, new StringView(params[i].relatedSource()));
-                }
-            }
-
-            paramMap.push_back(new StringView(params[i].relatedSource()));
-        }
+        RefPtr<Node> param = this->pattern<Parse>(params, KeywordKind::LetKeyword);
 
         if (this->context->strict && param->type() == Identifier) {
             IdentifierNode* id = (IdentifierNode*)param.get();
@@ -5277,6 +5270,16 @@ public:
         }
 
         this->expect(RightParenthesis);
+
+        bool oldInCatchClause = this->context->inCatchClause;
+        this->context->inCatchClause = true;
+
+        bool gotSimplyDeclaredVariableName = param->isIdentifier();
+
+        if (gotSimplyDeclaredVariableName) {
+            this->context->catchClauseSimplyDeclaredVariableNames.push_back(param->asIdentifier()->name());
+        }
+
         RefPtr<Node> body;
         if (isParse) {
             body = this->block<Parse>();
@@ -5284,19 +5287,18 @@ public:
             this->block<ScanAsVoid>();
         }
 
-        this->context->inCatch = prevInCatch;
-
-        this->context->inDirectCatchScope = prevInDirectCatchScope;
-
-        std::vector<FunctionDeclarationNode*> vec = std::move(this->context->functionDeclarationsInDirectCatchScope);
-
-        this->context->functionDeclarationsInDirectCatchScope = std::move(vecBefore);
-
-        if (isParse) {
-            return T(this->finalize(this->createNode(), new CatchClauseNode(param.get(), nullptr, body.get(), vec)));
+        if (gotSimplyDeclaredVariableName) {
+            this->context->catchClauseSimplyDeclaredVariableNames.pop_back();
         }
 
-        scopeContexts.back()->m_hasCatch = true;
+        this->context->inCatchClause = oldInCatchClause;
+
+        closeBlock(catchBlockContext);
+
+        if (isParse) {
+            return T(this->finalize(this->createNode(), new CatchClauseNode(param.get(), nullptr, body.get(), catchBlockContext.childLexicalBlockIndex)));
+        }
+
         return T(nullptr);
     }
 
@@ -5568,9 +5570,6 @@ public:
             return parseFunctionSourceElements();
         }
 
-        bool prevInDirectCatchScope = this->context->inDirectCatchScope;
-        this->context->inDirectCatchScope = false;
-
         auto previousLabelSet = this->context->labelSet;
         bool previousInIteration = this->context->inIteration;
         bool previousInSwitch = this->context->inSwitch;
@@ -5609,8 +5608,6 @@ public:
         this->context->inIteration = previousInIteration;
         this->context->inSwitch = previousInSwitch;
         this->context->inFunctionBody = previousInFunctionBody;
-
-        this->context->inDirectCatchScope = prevInDirectCatchScope;
 
         return this->finalize(nodeStart, new BlockStatementNode(body.get(), argumentInitializers.get()));
     }
@@ -5693,13 +5690,15 @@ public:
                 this->reparseFunctionArguments(argumentInitializers);
             }
         }
-        bool prevInDirectCatchScope = this->context->inDirectCatchScope;
-        this->context->inDirectCatchScope = false;
-
-        LexcialBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
-        LexcialBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
+        LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
+        LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
         this->lexicalBlockIndex = 0;
         this->lexicalBlockCount = 0;
+
+        bool oldInCatchClause = this->context->inCatchClause;
+        this->context->inCatchClause = false;
+
+        auto oldCatchClauseSimplyDeclaredVariableNames = std::move(this->context->catchClauseSimplyDeclaredVariableNames);
 
         MetaNode nodeStart = this->createNode();
 
@@ -5736,6 +5735,9 @@ public:
 
         this->expect(RightBrace);
 
+        this->context->inCatchClause = oldInCatchClause;
+        this->context->catchClauseSimplyDeclaredVariableNames = std::move(oldCatchClauseSimplyDeclaredVariableNames);
+
         this->lexicalBlockIndex = lexicalBlockIndexBefore;
         this->lexicalBlockCount = lexicalBlockCountBefore;
 
@@ -5754,8 +5756,6 @@ public:
         scopeContexts.back()->m_locEnd.line = this->lastMarker.lineNumber;
         scopeContexts.back()->m_locEnd.column = this->lastMarker.index - this->lastMarker.lineStart;
 #endif
-
-        this->context->inDirectCatchScope = prevInDirectCatchScope;
 
         if (this->config.parseSingleFunction) {
             return this->finalize(nodeStart, new BlockStatementNode(body.get(), 0, argumentInitializers.get()));
@@ -5787,6 +5787,7 @@ public:
             ALLOC_TOKEN(token);
             *token = this->lookahead;
             id = (!isFunctionDeclaration && !this->context->strict && !isGenerator && this->matchKeyword(YieldKeyword)) ? this->parseIdentifierName() : this->parseVariableIdentifier();
+
             if (this->context->strict) {
                 if (this->scanner->isRestrictedWord(token->relatedSource())) {
                     this->throwUnexpectedToken(token, Messages::StrictFunctionName);
@@ -5807,7 +5808,7 @@ public:
         AtomicString fnName = id ? id->name() : AtomicString();
 
         if (isFunctionDeclaration) {
-            scopeContexts.back()->insertVarName(fnName, this->lexicalBlockIndex, true);
+            addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword);
             insertUsingName(fnName);
             pushScopeContext(fnName);
         } else {
@@ -5839,26 +5840,13 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
 
-        if (isFunctionDeclaration) {
-            if (this->context->inDirectCatchScope) {
-                scopeContexts.back()->m_needsSpecialInitialize = true;
-            }
-        }
-
         return this->finalize(node, new FunctionType(fnName, std::move(params), body.get(), popScopeContext(node), isGenerator));
     }
 
     PassRefPtr<FunctionDeclarationNode> parseFunctionDeclaration()
     {
         MetaNode node = this->createNode();
-
-        RefPtr<FunctionDeclarationNode> fd = parseFunction<FunctionDeclarationNode, true>(node);
-
-        if (this->context->inDirectCatchScope) {
-            this->context->functionDeclarationsInDirectCatchScope.push_back(fd.get());
-        }
-
-        return fd;
+        return parseFunction<FunctionDeclarationNode, true>(node);
     }
 
     PassRefPtr<FunctionExpressionNode> parseFunctionExpression()
@@ -6162,20 +6150,15 @@ public:
     template <class ClassType>
     PassRefPtr<ClassType> parseClass(bool identifierIsOptional)
     {
-        size_t lexicalBlockIndexBefore = this->lexicalBlockIndex;
-        size_t lexicalBlockCountBefore = this->lexicalBlockCount;
         bool previousStrict = this->context->strict;
-        this->lexicalBlockIndex = 0;
-        this->lexicalBlockCount = 0;
         this->context->strict = true;
         this->expectKeyword(ClassKeyword);
         MetaNode node = this->createNode();
 
         RefPtr<IdentifierNode> id = (identifierIsOptional && this->lookahead.type != Token::IdentifierToken) ? nullptr : this->parseVariableIdentifier();
 
-        if (id) {
-            scopeContexts.back()->insertVarName(id->name(), this->lexicalBlockIndex, true);
-            insertUsingName(id->name());
+        if (!identifierIsOptional && id) {
+            addDeclaredNameIntoContext(id->name(), this->lexicalBlockIndex, KeywordKind::LetKeyword);
         }
 
         RefPtr<Node> superClass = nullptr;
@@ -6184,12 +6167,15 @@ public:
             superClass = this->isolateCoverGrammar(&Parser::leftHandSideExpressionAllowCall<Parse>);
         }
 
+        ParserBlockContext classBlockContext = openBlock();
+        if (id) {
+            addDeclaredNameIntoContext(id->name(), this->lexicalBlockIndex, KeywordKind::ConstKeyword);
+        }
         RefPtr<ClassBodyNode> classBody = this->parseClassBody();
         this->context->strict = previousStrict;
-        this->lexicalBlockIndex = lexicalBlockIndexBefore;
-        this->lexicalBlockCount = lexicalBlockCountBefore;
+        closeBlock(classBlockContext);
 
-        return this->finalize(node, new ClassType(id, superClass, classBody.get()));
+        return this->finalize(node, new ClassType(id, superClass, classBody.get(), classBlockContext.childLexicalBlockIndex));
     }
 
     PassRefPtr<ClassDeclarationNode> parseClassDeclaration()
@@ -6461,10 +6447,11 @@ public:
     */
 };
 
-RefPtr<ProgramNode> parseProgram(::Escargot::Context* ctx, StringView source, bool strictFromOutside, size_t stackRemain)
+RefPtr<ProgramNode> parseProgram(::Escargot::Context* ctx, StringView source, bool strictFromOutside, bool inWith, size_t stackRemain)
 {
     Parser parser(ctx, source, stackRemain);
     parser.context->strict = strictFromOutside;
+    parser.context->inWith = inWith;
     RefPtr<ProgramNode> nd = parser.parseProgram();
     return nd;
 }

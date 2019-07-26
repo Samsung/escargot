@@ -198,7 +198,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
 #else
         size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
 #endif
-        Script* script = parser.initializeScript(state, StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), nullptr, strictFromOutside, false, true, true, stackRemainApprox);
+        Script* script = parser.initializeScript(state, StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), nullptr, strictFromOutside, false, true, false, stackRemainApprox, true);
         // In case of indirect call, use global execution context
         ExecutionState stateForNewGlobal(m_context);
         return script->execute(stateForNewGlobal, true, script->topCodeBlock()->isStrict());
@@ -206,7 +206,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
     return arg;
 }
 
-Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thisValue, InterpretedCodeBlock* parentCodeBlock)
+Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool inWithOperation)
 {
     if (arg.isString()) {
         if (UNLIKELY((bool)state.context()->securityPolicyCheckCallback())) {
@@ -221,25 +221,11 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
         ScriptParser parser(state.context());
         const char* s = "eval input";
         ExecutionState* current = &state;
-        bool isDirectCall = true;
-        bool isEvalCodeInFunction = false;
+        bool isRunningEvalOnFunction = state.resolveCallee();
         bool strictFromOutside = state.inStrictMode();
         while (current != nullptr) {
             if (current->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord()) {
                 strictFromOutside = current->inStrictMode();
-                DeclarativeEnvironmentRecord* record = current->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord();
-                if (record->isEvalTarget()) {
-                    isEvalCodeInFunction = true;
-                    break;
-                }
-
-                LexicalEnvironment* env = current->lexicalEnvironment();
-
-                while (!env->record()->isEvalTarget()) {
-                    env = env->outerEnvironment();
-                }
-
-                isEvalCodeInFunction = !env->record()->isGlobalEnvironmentRecord();
                 break;
             } else if (current->lexicalEnvironment()->record()->isGlobalEnvironmentRecord()) {
                 strictFromOutside = current->inStrictMode();
@@ -247,6 +233,7 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
             }
             current = current->parent();
         }
+
         volatile int sp;
         size_t currentStackBase = (size_t)&sp;
 #ifdef STACK_GROWS_DOWN
@@ -255,21 +242,8 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
         size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
 #endif
 
-        // FIXME : optimize loop iteration
-        bool isOnGlobal = true;
-        {
-            LexicalEnvironment* env = state.lexicalEnvironment();
-            while (env) {
-                if (env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-                    isOnGlobal = false;
-                    break;
-                }
-                env = env->outerEnvironment();
-            }
-        }
-
-        Script* script = parser.initializeScript(state, StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), parentCodeBlock, strictFromOutside, isEvalCodeInFunction, true, isOnGlobal, stackRemainApprox);
-        return script->executeLocal(state, thisValue, parentCodeBlock, script->topCodeBlock()->isStrict());
+        Script* script = parser.initializeScript(state, StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, sizeof(s) - 1), parentCodeBlock, strictFromOutside, isRunningEvalOnFunction, true, inWithOperation, stackRemainApprox, true);
+        return script->executeLocal(state, thisValue, parentCodeBlock, script->topCodeBlock()->isStrict(), isRunningEvalOnFunction);
     }
     return arg;
 }

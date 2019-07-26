@@ -88,6 +88,12 @@ public:
         return ((String*)m_data);
     }
 
+    AtomicString asAtomicString() const
+    {
+        ASSERT(hasAtomicString());
+        return AtomicString(((String*)(m_data - PROPERTY_NAME_ATOMIC_STRING_VIAS)));
+    }
+
     bool isIndexString() const
     {
         return isPlainString() && ::Escargot::isIndexString(plainString());

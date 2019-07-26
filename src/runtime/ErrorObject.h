@@ -31,6 +31,7 @@ extern const char* errorMessage_NotImplemented; // FIXME to be removed
 extern const char* errorMessage_IsNotDefined;
 extern const char* errorMessage_IsNotInitialized;
 extern const char* errorMessage_DuplicatedIdentifier;
+extern const char* errorMessage_TooManyGlobalLexicalVariables;
 extern const char* errorMessage_AssignmentToConstantVariable;
 extern const char* errorMessage_DefineProperty_Default;
 extern const char* errorMessage_DefineProperty_LengthNotWritable;

@@ -27,41 +27,61 @@
 
 namespace Escargot {
 
-GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, InterpretedCodeBlock* codeBlock, GlobalObject* global, bool isEvalMode, bool createBinding)
+GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, InterpretedCodeBlock* codeBlock, GlobalObject* global, IdentifierRecordVector* globalDeclarativeRecord, SmallValueVector* globalDeclarativeStorage)
     : EnvironmentRecord()
     , m_globalCodeBlock(codeBlock)
     , m_globalObject(global)
+    , m_globalDeclarativeRecord(globalDeclarativeRecord)
+    , m_globalDeclarativeStorage(globalDeclarativeStorage)
 {
     ASSERT(codeBlock == nullptr || codeBlock->parentCodeBlock() == nullptr);
-
-    if (createBinding) {
-        const InterpretedCodeBlock::IdentifierInfoVector& vec = codeBlock->identifierInfos();
-        size_t len = vec.size();
-        for (size_t i = 0; i < len; i++) {
-            // https://www.ecma-international.org/ecma-262/5.1/#sec-10.5
-            // Step 2. If code is eval code, then let configurableBindings be true.
-            if (vec[i].m_isVarDeclaration) {
-                this->createBinding(state, vec[i].m_name, isEvalMode, vec[i].m_isMutable, true);
-            }
-        }
-    }
 }
 
-void GlobalEnvironmentRecord::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool canAccessWithoutinitializing)
+void GlobalEnvironmentRecord::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration)
 {
-    ASSERT(isMutable);
-    ASSERT(canAccessWithoutinitializing);
-    auto desc = m_globalObject->getOwnProperty(state, name);
-    ObjectPropertyDescriptor::PresentAttribute attribute = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent);
-    if (canDelete)
-        attribute = (ObjectPropertyDescriptor::PresentAttribute)(attribute | ObjectPropertyDescriptor::ConfigurablePresent);
-    if (!desc.hasValue()) {
-        m_globalObject->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(Value(), attribute));
+    for (size_t i = 0; i < m_globalDeclarativeRecord->size(); i++) {
+        if (m_globalDeclarativeRecord->at(i).m_name == name) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, name.string(), false, String::emptyString, errorMessage_DuplicatedIdentifier);
+        }
+    }
+
+    if (isVarDeclaration) {
+        ASSERT(isMutable);
+        auto desc = m_globalObject->getOwnProperty(state, name);
+        ObjectPropertyDescriptor::PresentAttribute attribute = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent);
+        if (canDelete)
+            attribute = (ObjectPropertyDescriptor::PresentAttribute)(attribute | ObjectPropertyDescriptor::ConfigurablePresent);
+        if (!desc.hasValue()) {
+            m_globalObject->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(Value(), attribute));
+        }
+    } else {
+        IdentifierRecord r;
+        ASSERT(!canDelete);
+        r.m_canDelete = false;
+        r.m_isMutable = isMutable;
+        r.m_isVarDeclaration = false;
+        r.m_name = name;
+
+        if (UNLIKELY(m_globalDeclarativeRecord->size() == std::numeric_limits<uint16_t>::max() - 1)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_TooManyGlobalLexicalVariables);
+        }
+
+        m_globalDeclarativeRecord->push_back(r);
+        m_globalDeclarativeStorage->push_back(SmallValue(SmallValue::EmptyValue));
     }
 }
 
 EnvironmentRecord::GetBindingValueResult GlobalEnvironmentRecord::getBindingValue(ExecutionState& state, const AtomicString& name)
 {
+    for (size_t i = 0; i < m_globalDeclarativeRecord->size(); i++) {
+        if (m_globalDeclarativeRecord->at(i).m_name == name) {
+            if (UNLIKELY(m_globalDeclarativeStorage->at(i).isEmpty())) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+            }
+            return EnvironmentRecord::GetBindingValueResult(true, m_globalDeclarativeStorage->at(i));
+        }
+    }
+
     auto result = m_globalObject->get(state, name);
     if (result.hasValue())
         return EnvironmentRecord::GetBindingValueResult(true, result.value(state, m_globalObject));
@@ -71,16 +91,42 @@ EnvironmentRecord::GetBindingValueResult GlobalEnvironmentRecord::getBindingValu
 
 void GlobalEnvironmentRecord::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
 {
+    for (size_t i = 0; i < m_globalDeclarativeRecord->size(); i++) {
+        if (m_globalDeclarativeRecord->at(i).m_name == name) {
+            if (UNLIKELY(m_globalDeclarativeStorage->at(i).isEmpty())) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+            }
+            m_globalDeclarativeStorage->at(i) = V;
+            return;
+        }
+    }
+
     m_globalObject->setThrowsExceptionWhenStrictMode(state, name, V, m_globalObject);
 }
 
 void GlobalEnvironmentRecord::setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& V)
 {
+    ASSERT(slot.m_index != SIZE_MAX);
+    if (slot.m_index != SIZE_MAX - 1) {
+        if (UNLIKELY(m_globalDeclarativeStorage->at(slot.m_index).isEmpty())) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+        }
+        m_globalDeclarativeStorage->at(slot.m_index) = V;
+        return;
+    }
+
     m_globalObject->setThrowsExceptionWhenStrictMode(state, name, V, m_globalObject);
 }
 
 void GlobalEnvironmentRecord::initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
 {
+    for (size_t i = 0; i < m_globalDeclarativeRecord->size(); i++) {
+        if (m_globalDeclarativeRecord->at(i).m_name == name) {
+            m_globalDeclarativeStorage->at(i) = V;
+            return;
+        }
+    }
+
     size_t t = m_globalObject->structure()->findProperty(name);
     if (t == SIZE_MAX) {
         m_globalObject->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(V, ObjectPropertyDescriptor::AllPresent));
@@ -100,16 +146,28 @@ void GlobalEnvironmentRecord::initializeBinding(ExecutionState& state, const Ato
 
 bool GlobalEnvironmentRecord::deleteBinding(ExecutionState& state, const AtomicString& name)
 {
+    for (size_t i = 0; i < m_globalDeclarativeRecord->size(); i++) {
+        if (m_globalDeclarativeRecord->at(i).m_name == name) {
+            return false;
+        }
+    }
+
     return m_globalObject->deleteOwnProperty(state, name);
 }
 
 EnvironmentRecord::BindingSlot GlobalEnvironmentRecord::hasBinding(ExecutionState& state, const AtomicString& atomicName)
 {
+    for (size_t i = 0; i < m_globalDeclarativeRecord->size(); i++) {
+        if (m_globalDeclarativeRecord->at(i).m_name == atomicName) {
+            return BindingSlot(this, i, true);
+        }
+    }
+
     auto result = m_globalObject->get(state, ObjectPropertyName(atomicName));
     if (result.hasValue()) {
-        return BindingSlot(this, SIZE_MAX - 1);
+        return BindingSlot(this, SIZE_MAX - 1, false);
     } else {
-        return BindingSlot(this, SIZE_MAX);
+        return BindingSlot(this, SIZE_MAX, false);
     }
 }
 
@@ -119,6 +177,18 @@ FunctionEnvironmentRecordOnHeap::FunctionEnvironmentRecordOnHeap(FunctionObject*
     , m_argv(argv)
     , m_heapStorage(function->codeBlock()->asInterpretedCodeBlock()->identifierOnHeapCount())
 {
+}
+
+void FunctionEnvironmentRecordOnHeap::setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v)
+{
+    const auto& recordInfo = m_functionObject->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
+    if (UNLIKELY(!recordInfo[slot.m_index].m_isMutable)) {
+        if (state.inStrictMode()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable, name);
+        }
+        return;
+    }
+    m_heapStorage[slot.m_index] = v;
 }
 
 FunctionEnvironmentRecordNotIndexed::FunctionEnvironmentRecordNotIndexed(FunctionObject* function, size_t argc, Value* argv)
@@ -143,11 +213,15 @@ FunctionEnvironmentRecordNotIndexed::FunctionEnvironmentRecordNotIndexed(Functio
     }
 }
 
-void DeclarativeEnvironmentRecordNotIndexed::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool canAccessWithoutinitializing)
+void DeclarativeEnvironmentRecordNotIndexed::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration)
 {
+    if (isVarDeclaration) {
+        ASSERT(m_isVarDeclarationTarget);
+    }
+
     auto hasBindingResult = hasBinding(state, name);
     if (UNLIKELY(hasBindingResult.m_index != SIZE_MAX)) {
-        if (!m_recordVector[hasBindingResult.m_index].m_isVarDeclaration || !canAccessWithoutinitializing) {
+        if (!m_recordVector[hasBindingResult.m_index].m_isVarDeclaration || !isVarDeclaration) {
             ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, name.string(), false, String::emptyString, errorMessage_DuplicatedIdentifier);
         }
         return;
@@ -156,9 +230,9 @@ void DeclarativeEnvironmentRecordNotIndexed::createBinding(ExecutionState& state
     record.m_name = name;
     record.m_canDelete = false;
     record.m_isMutable = isMutable;
-    record.m_isVarDeclaration = canAccessWithoutinitializing;
+    record.m_isVarDeclaration = isVarDeclaration;
     m_recordVector.pushBack(record);
-    if (canAccessWithoutinitializing) {
+    if (isVarDeclaration) {
         m_heapStorage.pushBack(Value());
     } else {
         m_heapStorage.pushBack(Value(Value::EmptyValue));
@@ -219,9 +293,9 @@ void DeclarativeEnvironmentRecordNotIndexed::initializeBinding(ExecutionState& s
     ASSERT_NOT_REACHED();
 }
 
-void FunctionEnvironmentRecordNotIndexed::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool canAccessWithoutinitializing)
+void FunctionEnvironmentRecordNotIndexed::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration)
 {
-    ASSERT(canAccessWithoutinitializing);
+    ASSERT(isVarDeclaration);
 
     size_t idx = hasBinding(state, name).m_index;
     if (idx == SIZE_MAX) {

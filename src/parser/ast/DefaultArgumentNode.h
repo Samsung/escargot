@@ -56,7 +56,7 @@ public:
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         size_t undefinedIndex = context->getRegister();
-        codeBlock->pushCode(GetGlobalObject(ByteCodeLOC(m_loc.index), undefinedIndex, PropertyName(codeBlock->m_codeBlock->context()->staticStrings().undefined)), context, this);
+        codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), undefinedIndex, PropertyName(codeBlock->m_codeBlock->context()->staticStrings().undefined)), context, this);
 
         size_t src0 = m_left->getRegister(codeBlock, context);
         m_left->generateExpressionByteCode(codeBlock, context, src0);

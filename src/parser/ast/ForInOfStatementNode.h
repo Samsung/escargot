@@ -28,15 +28,15 @@ namespace Escargot {
 class ForInOfStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    ForInOfStatementNode(Node *left, Node *right, Node *body, bool forIn, bool hasLexicalDeclarationOnInit, LexcialBlockIndex headLexcialBlockIndex, LexcialBlockIndex iterationLexcialBlockIndex)
+    ForInOfStatementNode(Node *left, Node *right, Node *body, bool forIn, bool hasLexicalDeclarationOnInit, LexicalBlockIndex headLexicalBlockIndex, LexicalBlockIndex iterationLexicalBlockIndex)
         : StatementNode()
         , m_left(left)
         , m_right(right)
         , m_body((StatementNode *)body)
         , m_forIn(forIn)
         , m_hasLexicalDeclarationOnInit(hasLexicalDeclarationOnInit)
-        , m_headLexcialBlockIndex(headLexcialBlockIndex)
-        , m_iterationLexcialBlockIndex(iterationLexcialBlockIndex)
+        , m_headLexicalBlockIndex(headLexicalBlockIndex)
+        , m_iterationLexicalBlockIndex(iterationLexicalBlockIndex)
     {
     }
 
@@ -58,8 +58,8 @@ public:
         // per iteration block
         size_t iterationLexicalBlockIndexBefore = newContext.m_lexicalBlockIndex;
         ByteCodeBlock::ByteCodeLexicalBlockContext iterationBlockContext;
-        if (m_iterationLexcialBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
-            InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexcialBlockIndex);
+        if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
+            InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
             std::vector<size_t> nameRegisters;
             for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
                 nameRegisters.push_back(newContext.getRegister());
@@ -71,11 +71,11 @@ public:
                 id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
             }
 
-            newContext.m_lexicalBlockIndex = m_iterationLexcialBlockIndex;
+            newContext.m_lexicalBlockIndex = m_iterationLexicalBlockIndex;
             iterationBlockContext = codeBlock->pushLexicalBlock(&newContext, bi, this);
 
             for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
-                newContext.m_lexicallyDeclaredNames->push_back(bi->m_identifiers[i].m_name);
+                newContext.addLexicallyDeclaredNames(bi->m_identifiers[i].m_name);
             }
 
             size_t reverse = bi->m_identifiers.size() - 1;
@@ -91,9 +91,31 @@ public:
 
         m_body->generateStatementByteCode(codeBlock, &newContext);
 
-        if (m_iterationLexcialBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
+        if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
+            InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
+            std::vector<size_t> nameRegisters;
+            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+                nameRegisters.push_back(newContext.getRegister());
+            }
+
+            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+                IdentifierNode *id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(bi->m_identifiers[i].m_name);
+                id->m_loc = m_loc;
+                id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
+            }
+
             codeBlock->finalizeLexicalBlock(&newContext, iterationBlockContext);
             newContext.m_lexicalBlockIndex = iterationLexicalBlockIndexBefore;
+
+            size_t reverse = bi->m_identifiers.size() - 1;
+            for (size_t i = 0; i < bi->m_identifiers.size(); i++, reverse--) {
+                IdentifierNode *id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(bi->m_identifiers[reverse].m_name);
+                id->m_loc = m_loc;
+                newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
+                id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], false);
+                ASSERT(!newContext.m_isLexicallyDeclaredBindingInitialization);
+                newContext.giveUpRegister();
+            }
         }
     }
 
@@ -104,18 +126,16 @@ public:
 
         size_t headLexicalBlockIndexBefore = context->m_lexicalBlockIndex;
         ByteCodeBlock::ByteCodeLexicalBlockContext headBlockContext;
-        if (m_headLexcialBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
-            context->m_lexicalBlockIndex = m_headLexcialBlockIndex;
-            InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_headLexcialBlockIndex);
+        if (m_headLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
+            context->m_lexicalBlockIndex = m_headLexicalBlockIndex;
+            InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_headLexicalBlockIndex);
             headBlockContext = codeBlock->pushLexicalBlock(context, bi, this);
         }
 
         ByteCodeGenerateContext newContext(*context);
 
-        bool hasDeclaredBindingOnLeft = false;
         newContext.getRegister(); // ExecutionResult of m_right should not overwrite any reserved value
         if (m_left->type() == ASTNodeType::VariableDeclaration) {
-            hasDeclaredBindingOnLeft = true;
             newContext.m_forInOfVarBinding = true;
             m_left->generateResultNotRequiredExpressionByteCode(codeBlock, &newContext);
             newContext.m_forInOfVarBinding = false;
@@ -229,7 +249,7 @@ public:
 
         newContext.propagateInformationTo(*context);
 
-        if (m_headLexcialBlockIndex != LEXCIAL_BLOCK_INDEX_MAX) {
+        if (m_headLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
             codeBlock->finalizeLexicalBlock(context, headBlockContext);
             context->m_lexicalBlockIndex = headLexicalBlockIndexBefore;
         }
@@ -241,8 +261,8 @@ private:
     RefPtr<StatementNode> m_body;
     bool m_forIn;
     bool m_hasLexicalDeclarationOnInit;
-    LexcialBlockIndex m_headLexcialBlockIndex;
-    LexcialBlockIndex m_iterationLexcialBlockIndex;
+    LexicalBlockIndex m_headLexicalBlockIndex;
+    LexicalBlockIndex m_iterationLexicalBlockIndex;
 };
 }
 

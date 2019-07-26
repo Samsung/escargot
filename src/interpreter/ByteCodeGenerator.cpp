@@ -105,16 +105,12 @@ ALWAYS_INLINE void assignStackIndexIfNeeded(ByteCodeRegisterIndex& registerIndex
 void ByteCodeGenerator::generateStoreThisValueByteCode(ByteCodeBlock* block, ByteCodeGenerateContext* context)
 {
     InterpretedCodeBlock* codeBlock = block->m_codeBlock;
-    InterpretedCodeBlock::IndexedIdentifierInfo info = codeBlock->indexedIdentifierInfo(codeBlock->context()->staticStrings().stringThis, LEXCIAL_BLOCK_INDEX_MAX);
+    InterpretedCodeBlock::IndexedIdentifierInfo info = codeBlock->indexedIdentifierInfo(codeBlock->context()->staticStrings().stringThis, LEXICAL_BLOCK_INDEX_MAX);
     ASSERT(!codeBlock->isGlobalScopeCodeBlock());
 
-    if (codeBlock->canUseIndexedVariableStorage()) {
-        if (context->m_isWithScope) {
-            block->pushCode(StoreByName(ByteCodeLOC(SIZE_MAX), REGULAR_REGISTER_LIMIT, codeBlock->context()->staticStrings().stringThis), context, nullptr);
-        } else {
-            ASSERT(info.m_isResultSaved && !context->m_catchScopeCount);
-            block->pushCode(StoreByHeapIndex(ByteCodeLOC(SIZE_MAX), REGULAR_REGISTER_LIMIT, info.m_upperIndex, info.m_index), context, nullptr);
-        }
+    if (codeBlock->canUseIndexedVariableStorage() && info.m_isResultSaved) {
+        ASSERT(!info.m_isGlobalLexicalVariable);
+        block->pushCode(StoreByHeapIndex(ByteCodeLOC(SIZE_MAX), REGULAR_REGISTER_LIMIT, info.m_upperIndex, info.m_index), context, nullptr);
     } else {
         block->pushCode(StoreByName(ByteCodeLOC(SIZE_MAX), REGULAR_REGISTER_LIMIT, codeBlock->context()->staticStrings().stringThis), context, nullptr);
     }
@@ -126,13 +122,9 @@ void ByteCodeGenerator::generateLoadThisValueByteCode(ByteCodeBlock* block, Byte
     InterpretedCodeBlock::IndexedIdentifierInfo info = codeBlock->parentCodeBlock()->indexedIdentifierInfo(codeBlock->context()->staticStrings().stringThis, codeBlock->lexicalBlockIndexFunctionLocatedIn());
     ASSERT(codeBlock->isArrowFunctionExpression());
 
-    if (codeBlock->canUseIndexedVariableStorage()) {
-        if (context->m_isWithScope || !info.m_isResultSaved) {
-            block->pushCode(LoadByName(ByteCodeLOC(SIZE_MAX), REGULAR_REGISTER_LIMIT, codeBlock->context()->staticStrings().stringThis), context, nullptr);
-        } else {
-            ASSERT(info.m_isResultSaved && !context->m_catchScopeCount);
-            block->pushCode(LoadByHeapIndex(ByteCodeLOC(SIZE_MAX), REGULAR_REGISTER_LIMIT, info.m_upperIndex + 1, info.m_index), context, nullptr);
-        }
+    if (codeBlock->canUseIndexedVariableStorage() && info.m_isResultSaved) {
+        ASSERT(!info.m_isGlobalLexicalVariable);
+        block->pushCode(LoadByHeapIndex(ByteCodeLOC(SIZE_MAX), REGULAR_REGISTER_LIMIT, info.m_upperIndex + 1, info.m_index), context, nullptr);
     } else {
         block->pushCode(LoadByName(ByteCodeLOC(SIZE_MAX), REGULAR_REGISTER_LIMIT, codeBlock->context()->staticStrings().stringThis), context, nullptr);
     }
@@ -146,7 +138,7 @@ static const uint8_t byteCodeLengths[] = {
 #undef ITER_BYTE_CODE
 };
 
-ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBlock* codeBlock, Node* ast, ASTFunctionScopeContext* scopeCtx, bool isEvalMode, bool isOnGlobal, bool shouldGenerateLOCData)
+ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBlock* codeBlock, Node* ast, ASTFunctionScopeContext* scopeCtx, bool isEvalMode, bool isOnGlobal, bool inWithFromRuntime, bool shouldGenerateLOCData)
 {
     ByteCodeBlock* block = new ByteCodeBlock(codeBlock);
     block->m_isEvalMode = isEvalMode;
@@ -158,7 +150,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
     } else {
         isGlobalScope = isOnGlobal;
     }
-    ParserContextInformation info(isEvalMode, isGlobalScope, codeBlock->isStrict(), codeBlock->isInWithScope());
+    ParserContextInformation info(isEvalMode, isGlobalScope, codeBlock->isStrict(), inWithFromRuntime || codeBlock->inWith());
 
     Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>>* nData = &scopeCtx->m_numeralLiteralData;
 
@@ -386,13 +378,18 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 assignStackIndexIfNeeded(cd->m_objectPropertyValueRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
-            case GetGlobalObjectOpcode: {
-                GetGlobalObject* cd = (GetGlobalObject*)currentCode;
+            case GetGlobalVariableOpcode: {
+                GetGlobalVariable* cd = (GetGlobalVariable*)currentCode;
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
-            case SetGlobalObjectOpcode: {
-                SetGlobalObject* cd = (SetGlobalObject*)currentCode;
+            case SetGlobalVariableOpcode: {
+                SetGlobalVariable* cd = (SetGlobalVariable*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
+            case InitializeGlobalVariableOpcode: {
+                InitializeGlobalVariable* cd = (InitializeGlobalVariable*)currentCode;
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
@@ -612,6 +609,11 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 BlockOperation* cd = (BlockOperation*)currentCode;
                 break;
             }
+            case TryOperationOpcode: {
+                TryOperation* cd = (TryOperation*)currentCode;
+                assignStackIndexIfNeeded(cd->m_catchedValueRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
             default:
                 break;
             }
@@ -624,7 +626,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
 #ifndef NDEBUG
     if (!shouldGenerateLOCData && getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) {
         printf("dumpBytecode %s (%d:%d)>>>>>>>>>>>>>>>>>>>>>>\n", codeBlock->m_functionName.string()->toUTF8StringData().data(), (int)codeBlock->sourceElementStart().line, (int)codeBlock->sourceElementStart().column);
-        printf("register info.. (stack variable total(%d), this + function + var (%d), max lexcial depth (%d)) [", (int)codeBlock->totalStackAllocatedVariableSize(), (int)codeBlock->identifierOnStackCount(), (int)codeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth());
+        printf("register info.. (stack variable total(%d), this + function + var (%d), max lexical depth (%d)) [", (int)codeBlock->totalStackAllocatedVariableSize(), (int)codeBlock->identifierOnStackCount(), (int)codeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth());
         for (size_t i = 0; i < block->m_requiredRegisterFileSizeInValueSize; i++) {
             printf("r%d,", (int)i);
         }
@@ -649,7 +651,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
 
         size_t lexIndex = 0;
         for (size_t i = 0; i < block->m_codeBlock->asInterpretedCodeBlock()->lexicalBlockStackAllocatedIdentifierMaximumDepth(); i++) {
-            printf("`r%d,%d lexcial`,", (int)b++, (int)lexIndex++);
+            printf("`r%d,%d lexical`,", (int)b++, (int)lexIndex++);
         }
 
         ExecutionState tempState(c);
