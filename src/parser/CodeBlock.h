@@ -197,6 +197,11 @@ public:
         return m_usesArgumentsObject;
     }
 
+    bool usesRestParameter() const
+    {
+        return m_hasRestElement;
+    }
+
     AtomicString functionName() const
     {
         return m_functionName;

@@ -237,8 +237,8 @@ private:
     ObjectStructure* m_defaultStructureForStringObject;
     ObjectStructure* m_defaultStructureForSymbolObject;
     ObjectStructure* m_defaultStructureForRegExpObject;
-    ObjectStructure* m_defaultStructureForArgumentsObject;
-    ObjectStructure* m_defaultStructureForArgumentsObjectInStrictMode;
+    ObjectStructure* m_defaultStructureForMappedArgumentsObject;
+    ObjectStructure* m_defaultStructureForUnmappedArgumentsObject;
 
     Vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> m_parsedSourceCodes;
     Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>> m_compiledCodeBlocks;

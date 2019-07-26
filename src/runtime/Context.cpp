@@ -67,8 +67,8 @@ Context::Context(VMInstance* instance)
     m_defaultStructureForStringObject = m_instance->m_defaultStructureForStringObject;
     m_defaultStructureForSymbolObject = m_instance->m_defaultStructureForSymbolObject;
     m_defaultStructureForRegExpObject = m_instance->m_defaultStructureForRegExpObject;
-    m_defaultStructureForArgumentsObject = m_instance->m_defaultStructureForArgumentsObject;
-    m_defaultStructureForArgumentsObjectInStrictMode = m_instance->m_defaultStructureForArgumentsObjectInStrictMode;
+    m_defaultStructureForMappedArgumentsObject = m_instance->m_defaultStructureForMappedArgumentsObject;
+    m_defaultStructureForUnmappedArgumentsObject = m_instance->m_defaultStructureForUnmappedArgumentsObject;
     m_jobQueue = instance->m_jobQueue;
 
     m_virtualIdentifierCallback = nullptr;

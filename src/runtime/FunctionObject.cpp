@@ -452,17 +452,6 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
             for (size_t i = parameterCopySize; i < info.size(); i++) {
                 record->initializeBinding(state, info[i].m_name, Value());
             }
-
-            // Handle rest param
-            if (m_codeBlock->m_hasRestElement) {
-                size_t argListLen = (size_t)m_codeBlock->parameterCount();
-                size_t arrayLen = argc - parameterCopySize;
-                ArrayObject* newArray = new ArrayObject(state, (double)arrayLen);
-                for (size_t i = 0; i < arrayLen; i++) {
-                    newArray->setIndexedProperty(state, Value(i), argv[argListLen + i]);
-                }
-                record->initializeBinding(state, const_cast<InterpretedCodeBlock::FunctionParametersInfoVector&>(info).back().m_name, Value(newArray));
-            }
         } else {
             Value* parameterStorageInStack = stackStorage + 2;
             const InterpretedCodeBlock::FunctionParametersInfoVector& info = m_codeBlock->asInterpretedCodeBlock()->parametersInfomation();
@@ -482,23 +471,6 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
                     parameterStorageInStack[info[i].m_index] = val;
                 }
             }
-
-            // Handle rest param
-            if (m_codeBlock->m_hasRestElement) {
-                size_t argListLen = (size_t)m_codeBlock->parameterCount();
-                size_t arrayLen = argc - parameterCopySize;
-                ArrayObject* newArray = new ArrayObject(state, (double)arrayLen);
-                for (size_t i = 0; i < arrayLen; i++) {
-                    newArray->setIndexedProperty(state, Value(i), argv[argListLen + i]);
-                }
-                InterpretedCodeBlock::FunctionParametersInfo lastInfo = const_cast<InterpretedCodeBlock::FunctionParametersInfoVector&>(info).back();
-                if (lastInfo.m_isHeapAllocated) {
-                    ASSERT(record->isFunctionEnvironmentRecordOnHeap());
-                    ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[lastInfo.m_index] = newArray;
-                } else {
-                    parameterStorageInStack[lastInfo.m_index] = newArray;
-                }
-            }
         }
     } else {
         Value* parameterStorageInStack = stackStorage + 2;
@@ -515,24 +487,15 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
             stackStorage[i] = Value(Value::EmptyValue);
         }
 #endif
-
-        // Handle rest param
-        if (m_codeBlock->m_hasRestElement) {
-            size_t argListLen = (size_t)m_codeBlock->parameterCount();
-            size_t arrayLen = argc - parameterCopySize;
-            ArrayObject* newArray = new ArrayObject(state, (double)arrayLen);
-            for (size_t i = 0; i < arrayLen; i++) {
-                newArray->setIndexedProperty(state, Value(i), argv[argListLen + i]);
-            }
-            parameterStorageInStack[argListLen] = newArray;
-        }
     }
 
     if (UNLIKELY(m_codeBlock->isGenerator())) {
         ExecutionState* newState = new ExecutionState(ctx, &state, lexEnv, isStrict, registerFile);
 
+        // FIXME
         if (UNLIKELY(m_codeBlock->usesArgumentsObject())) {
-            generateArgumentsObject(*newState, record, stackStorage);
+            bool isMapped = !m_codeBlock->usesRestParameter() && !isStrict;
+            generateArgumentsObject(*newState, record, stackStorage, isMapped);
         }
 
         GeneratorObject* gen = new GeneratorObject(state, newState, blk);
@@ -543,7 +506,13 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
     ExecutionState newState(ctx, &state, lexEnv, isStrict, registerFile);
 
     if (UNLIKELY(m_codeBlock->usesArgumentsObject())) {
-        generateArgumentsObject(newState, record, stackStorage);
+        // FIXME check if formal parameters does not contain a rest parameter, any binding patterns, or any initializers.
+        bool isMapped = !m_codeBlock->usesRestParameter() && !isStrict;
+        generateArgumentsObject(newState, record, stackStorage, isMapped);
+    }
+
+    if (UNLIKELY(m_codeBlock->usesRestParameter())) {
+        generateRestParameter(newState, record, stackStorage + 2, argc, argv);
     }
 
     // run function
@@ -569,7 +538,7 @@ Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSr
     return returnValue;
 }
 
-void FunctionObject::generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage)
+void FunctionObject::generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage, bool isMapped)
 {
     AtomicString arguments = state.context()->staticStrings().arguments;
     if (fnRecord->isFunctionEnvironmentRecordNotIndexed()) {
@@ -578,20 +547,46 @@ void FunctionObject::generateArgumentsObject(ExecutionState& state, FunctionEnvi
             fnRecord->createBinding(state, arguments, false, true);
             result = fnRecord->hasBinding(state, arguments);
         }
-        fnRecord->initializeBinding(state, arguments, fnRecord->createArgumentsObject(state));
+        fnRecord->initializeBinding(state, arguments, fnRecord->createArgumentsObject(state, isMapped));
     } else {
         const InterpretedCodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == arguments) {
                 if (v[i].m_needToAllocateOnStack) {
-                    stackStorage[v[i].m_indexForIndexedStorage] = fnRecord->createArgumentsObject(state);
+                    stackStorage[v[i].m_indexForIndexedStorage] = fnRecord->createArgumentsObject(state, isMapped);
                 } else {
                     ASSERT(fnRecord->isFunctionEnvironmentRecordOnHeap());
-                    ((FunctionEnvironmentRecordOnHeap*)fnRecord)->m_heapStorage[v[i].m_indexForIndexedStorage] = fnRecord->createArgumentsObject(state);
+                    ((FunctionEnvironmentRecordOnHeap*)fnRecord)->m_heapStorage[v[i].m_indexForIndexedStorage] = fnRecord->createArgumentsObject(state, isMapped);
                 }
                 break;
             }
         }
+    }
+}
+
+void FunctionObject::generateRestParameter(ExecutionState& state, FunctionEnvironmentRecord* record, Value* parameterStorageInStack, const size_t argc, Value* argv)
+{
+    ArrayObject* newArray;
+    size_t parameterLen = (size_t)m_codeBlock->parameterCount();
+
+    if (argc > parameterLen) {
+        size_t arrLen = argc - parameterLen;
+        newArray = new ArrayObject(state, (double)arrLen);
+        for (size_t i = 0; i < arrLen; i++) {
+            newArray->setIndexedProperty(state, Value(i), argv[parameterLen + i]);
+        }
+    } else {
+        newArray = new ArrayObject(state);
+    }
+
+    InterpretedCodeBlock::FunctionParametersInfo lastInfo = const_cast<InterpretedCodeBlock::FunctionParametersInfoVector&>(m_codeBlock->asInterpretedCodeBlock()->parametersInfomation()).back();
+    if (!m_codeBlock->canUseIndexedVariableStorage()) {
+        record->initializeBinding(state, lastInfo.m_name, Value(newArray));
+    } else if (lastInfo.m_isHeapAllocated) {
+        ASSERT(record->isFunctionEnvironmentRecordOnHeap());
+        ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[lastInfo.m_index] = newArray;
+    } else {
+        parameterStorageInStack[lastInfo.m_index] = newArray;
     }
 }
 }

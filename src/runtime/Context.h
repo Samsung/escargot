@@ -153,14 +153,14 @@ public:
         return m_defaultStructureForRegExpObject;
     }
 
-    ObjectStructure* defaultStructureForArgumentsObject()
+    ObjectStructure* defaultStructureForMappedArgumentsObject()
     {
-        return m_defaultStructureForArgumentsObject;
+        return m_defaultStructureForMappedArgumentsObject;
     }
 
-    ObjectStructure* defaultStructureForArgumentsObjectInStrictMode()
+    ObjectStructure* defaultStructureForUnmappedArgumentsObject()
     {
-        return m_defaultStructureForArgumentsObjectInStrictMode;
+        return m_defaultStructureForUnmappedArgumentsObject;
     }
 
     GlobalObject* globalObject()
@@ -247,8 +247,8 @@ private:
     ObjectStructure* m_defaultStructureForStringObject;
     ObjectStructure* m_defaultStructureForSymbolObject;
     ObjectStructure* m_defaultStructureForRegExpObject;
-    ObjectStructure* m_defaultStructureForArgumentsObject;
-    ObjectStructure* m_defaultStructureForArgumentsObjectInStrictMode;
+    ObjectStructure* m_defaultStructureForMappedArgumentsObject;
+    ObjectStructure* m_defaultStructureForUnmappedArgumentsObject;
     Vector<SandBox*, GCUtil::gc_malloc_allocator<SandBox*>>& m_sandBoxStack;
     ToStringRecursionPreventer* m_toStringRecursionPreventer;
     VirtualIdentifierCallback m_virtualIdentifierCallback;

@@ -32,13 +32,14 @@ extern size_t g_argumentsObjectTag;
 
 class ArgumentsObject : public Object {
 public:
-    ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* record);
-    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true);
-    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property);
-    virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value);
+    ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* record, bool isMapped);
+    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
+    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;
+    virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
+    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) override;
+    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property) override;
+    virtual bool set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, const Value& receiver) override;
+    virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value) override;
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
     virtual const char* internalClassProperty()
     {
@@ -51,7 +52,15 @@ public:
 private:
     FunctionEnvironmentRecord* m_targetRecord;
     InterpretedCodeBlock* m_codeBlock;
-    TightVector<std::pair<SmallValue, AtomicString>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<SmallValue, AtomicString>>> m_argumentPropertyInfo;
+    TightVector<std::pair<SmallValue, AtomicString>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<SmallValue, AtomicString>>> m_parameterMap;
+    TightVector<bool, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<bool>> m_modifiedArguments;
+
+    Value getIndexedPropertyValueQuickly(ExecutionState& state, uint64_t index);
+    void setIndexedPropertyValueQuickly(ExecutionState& state, uint64_t index, const Value& value);
+
+    bool isModifiedArgument(uint64_t index);
+    void setModifiedArgument(uint64_t index);
+    bool isMatchedArgument(uint64_t index);
 };
 }
 

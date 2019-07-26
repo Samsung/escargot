@@ -671,9 +671,9 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    Value createArgumentsObject(ExecutionState& state)
+    Value createArgumentsObject(ExecutionState& state, bool isMapped)
     {
-        return new ArgumentsObject(state, this);
+        return new ArgumentsObject(state, this, isMapped);
     }
 
 protected:

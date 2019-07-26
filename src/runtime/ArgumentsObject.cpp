@@ -59,202 +59,188 @@ void* ArgumentsObject::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_values));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_targetRecord));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_codeBlock));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_argumentPropertyInfo));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_parameterMap));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_modifiedArguments));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ArgumentsObject));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* record)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3, true)
+
+ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* record, bool isMapped)
+    : Object(state, isMapped ? ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3 : ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 4, true)
+    , m_targetRecord(record)
+    , m_codeBlock(record->functionObject()->codeBlock()->asInterpretedCodeBlock())
 {
     g_argumentsObjectTag = *((size_t*)this);
 
-    InterpretedCodeBlock* blk = record->functionObject()->codeBlock()->asInterpretedCodeBlock();
-    bool isStrict = blk->isStrict();
+    // FIXME Assert: formal parameters does not contain a rest parameter, any binding patterns, or any initializers. It may contain duplicate identifiers.
+    // Let len be the number of elements in argumentsList.
+    int len = record->argc();
+    m_parameterMap.resizeWithUninitializedValues(len);
 
-    if (isStrict) {
-        m_structure = state.context()->defaultStructureForArgumentsObjectInStrictMode();
-    } else {
-        m_structure = state.context()->defaultStructureForArgumentsObject();
-    }
+    if (isMapped) {
+        m_structure = state.context()->defaultStructureForMappedArgumentsObject();
 
-    // http://www.ecma-international.org/ecma-262/5.1/#sec-10.6
-    // Let len be the number of elements in args.
-    size_t len = record->argc();
-    // Let obj be the result of creating a new ECMAScript object.
-    // Set all the internal methods of obj as specified in 8.12.
-    // Set the [[Class]] internal property of obj to "Arguments".
-    // Let Object be the standard built-in Object constructor (15.2.2).
-    // Set the [[Prototype]] internal property of obj to the standard built-in Object prototype object (15.2.4).
-    // Object* obj = this;
+        // https://www.ecma-international.org/ecma-262/6.0/#sec-createmappedargumentsobject
+        // Let numberOfParameters be the number of elements in parameterNames
+        int numberOfParameters = m_codeBlock->parametersInfomation().size();
+        // Let index be 0.
+        int index = 0;
+        // Repeat while index < len ,
+        while (index < len) {
+            // Let val be argumentsList[index].
+            Value val = record->argv()[index];
+            // Perform CreateDataProperty(obj, ToString(index), val).
+            m_parameterMap[index].first = val;
+            m_parameterMap[index].second = AtomicString();
+            // Let index be index + 1
+            index++;
+        }
 
-    // Call the [[DefineOwnProperty]] internal method on obj passing "length", the Property Descriptor {[[Value]]: len, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}, and false as arguments.
-    // obj->defineOwnProperty(state, state.context()->staticStrings().length, ObjectPropertyDescriptor(Value(len), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(len);
+        // Perform DefinePropertyOrThrow(obj, "length", PropertyDescriptor{[[Value]]: len, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}).
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(len);
 
-    // Let map be the result of creating a new object as if by the expression new Object() where Object is the standard built-in constructor with that name
-    // Let mappedNames be an empty List.
-    std::vector<AtomicString> mappedNames;
-    // Let indx = len - 1.
-    int64_t indx = ((int64_t)len - 1);
-    // Repeat while indx >= 0,
-
-    m_argumentPropertyInfo.resizeWithUninitializedValues(len);
-    m_targetRecord = record;
-    m_codeBlock = blk;
-
-    while (indx >= 0) {
-        // Let val be the element of args at 0-origined list position indx.
-        Value val = record->argv()[indx];
-        // Call the [[DefineOwnProperty]] internal method on obj passing ToString(indx), the property descriptor {[[Value]]: val, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false as arguments.
-        m_argumentPropertyInfo[indx].first = val;
-        m_argumentPropertyInfo[indx].second = AtomicString();
-
-        // If indx is less than the number of elements in names, then
-        if ((size_t)indx < blk->parametersInfomation().size()) {
-            // Let name be the element of names at 0-origined list position indx.
-            AtomicString name = blk->parametersInfomation()[indx].m_name;
-            // If strict is false and name is not an element of mappedNames, then
-            if (!isStrict && std::find(mappedNames.begin(), mappedNames.end(), name) == mappedNames.end()) {
+        // Let map be ObjectCreate(null). m_parameterMap already allocated
+        // Let mappedNames be an empty List.
+        std::vector<AtomicString> mappedNames;
+        // Let index be numberOfParameters − 1.
+        index = numberOfParameters - 1;
+        // Repeat while index ≥ 0 ,
+        while (index >= 0) {
+            // Let name be parameterNames[index].
+            AtomicString name = m_codeBlock->parametersInfomation()[index].m_name;
+            // If name is not an element of mappedNames, then
+            if (std::find(mappedNames.begin(), mappedNames.end(), name) == mappedNames.end()) {
                 // Add name as an element of the list mappedNames.
                 mappedNames.push_back(name);
-                // Let g be the result of calling the MakeArgGetter abstract operation with arguments name and env.
-                // Let p be the result of calling the MakeArgSetter abstract operation with arguments name and env.
-                // Set the [[ParameterMap]] internal property of obj to map.
-                // Set the [[Get]], [[GetOwnProperty]], [[DefineOwnProperty]], and [[Delete]] internal methods of obj to the definitions provided below.
-                // Call the [[DefineOwnProperty]] internal method of map passing ToString(indx), the Property Descriptor {[[Set]]: p, [[Get]]: g, [[Configurable]]: true}, and false as arguments.
-                m_argumentPropertyInfo[indx].first = Value();
-                m_argumentPropertyInfo[indx].second = name;
+                // If index < len, then
+                if (index < len) {
+                    m_parameterMap[index].first = Value();
+                    m_parameterMap[index].second = name;
+                }
             }
+            // Let index be index − 1
+            index--;
         }
-        // Let indx = indx - 1
-        indx--;
-    }
 
-    // If strict is false, then
-    if (!isStrict) {
-        // Call the [[DefineOwnProperty]] internal method on obj passing "callee", the property descriptor {[[Value]]: func, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}, and false as arguments.
-        // obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().callee), ObjectPropertyDescriptor(record->functionObject(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = Value(record->functionObject());
-
-        Value caller;
-        ExecutionState* current = state.parent();
-        while (current != nullptr) {
-            if (current->lexicalEnvironment() != nullptr && current->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && current->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-                caller = current->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
-                break;
-            }
-            current = current->parent();
-        }
-        // obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().caller), ObjectPropertyDescriptor(caller, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(caller);
+        // Perform DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor {[[Value]]:%ArrayProto_values%, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}).
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = state.context()->globalObject()->arrayPrototypeValues();
+        // Perform DefinePropertyOrThrow(obj, "callee", PropertyDescriptor {[[Value]]: func, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}).
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = record->functionObject();
     } else {
-        // Else, strict is true so
-        // Let thrower be the [[ThrowTypeError]] function Object (13.2.3).
+        m_structure = state.context()->defaultStructureForUnmappedArgumentsObject();
+
+        // https://www.ecma-international.org/ecma-262/6.0/#sec-createunmappedargumentsobject
+        // Perform DefinePropertyOrThrow(obj, "length", PropertyDescriptor{[[Value]]: len, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}).
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(len);
+        // Let index be 0.
+        int index = 0;
+        // Repeat while index < len,
+        while (index < len) {
+            // Let val be argumentsList[index].
+            Value val = record->argv()[index];
+            // Perform CreateDataProperty(obj, ToString(index), val).
+            m_parameterMap[index].first = val;
+            m_parameterMap[index].second = AtomicString();
+            // Let index be index + 1
+            index++;
+        }
+
+        // Perform DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor {[[Value]]:%ArrayProto_values%, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}).
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = state.context()->globalObject()->arrayPrototypeValues();
+        // Perform DefinePropertyOrThrow(obj, "caller", PropertyDescriptor {[[Get]]: %ThrowTypeError%, [[Set]]: %ThrowTypeError%, [[Enumerable]]: false, [[Configurable]]: false}).
         auto thrower = state.context()->globalObject()->throwerGetterSetterData();
-        // Call the [[DefineOwnProperty]] internal method of obj with arguments "callee", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
-        // obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().callee), ObjectPropertyDescriptor(JSGetterSetter(thrower, thrower), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = Value(thrower);
-        // Call the [[DefineOwnProperty]] internal method of obj with arguments "caller", PropertyDescriptor {[[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false}, and false.
-        // obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().caller), ObjectPropertyDescriptor(JSGetterSetter(thrower, thrower), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(thrower);
+        // Perform DefinePropertyOrThrow(obj, "callee", PropertyDescriptor {[[Get]]: %ThrowTypeError%, [[Set]]: %ThrowTypeError%, [[Enumerable]]: false, [[Configurable]]: false}).
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3] = Value(thrower);
     }
 }
 
-ObjectGetResult ArgumentsObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+ObjectGetResult ArgumentsObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
-    uint64_t idx = P.tryToUseAsIndex();
-    if (LIKELY(idx != Value::InvalidIndexValue) && idx < m_argumentPropertyInfo.size()) {
-        Value val = m_argumentPropertyInfo[idx].first;
-        if (!val.isEmpty()) {
-            if (m_argumentPropertyInfo[idx].second.string()->length()) {
-                return ObjectGetResult(ArgumentsObjectNativeGetter(state, this, m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second), true, true, true);
-            } else {
-                return ObjectGetResult(val, true, true, true);
-            }
+    uint64_t index = P.tryToUseAsIndex();
+    if (LIKELY(!isModifiedArgument(index) && isMatchedArgument(index))) {
+        return ObjectGetResult(getIndexedPropertyValueQuickly(state, index), true, true, true);
+    }
+
+    ObjectGetResult result = Object::getOwnProperty(state, P);
+
+    if (isMatchedArgument(index)) {
+        ASSERT(result.hasValue());
+        return ObjectGetResult(getIndexedPropertyValueQuickly(state, index), result.isWritable(), result.isEnumerable(), result.isConfigurable());
+    }
+    return result;
+}
+
+bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
+{
+    uint64_t index = P.tryToUseAsIndex();
+    ObjectPropertyDescriptor newDesc(desc);
+
+    if (!desc.isAccessorDescriptor() && isMatchedArgument(index)) {
+        if (desc.isValuePresent()) {
+            setIndexedPropertyValueQuickly(state, index, desc.value());
         }
-    }
-    return Object::getOwnProperty(state, P);
-}
 
-bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
-{
-    uint64_t idx = P.tryToUseAsIndex();
-    if (LIKELY(idx != Value::InvalidIndexValue) && idx < m_argumentPropertyInfo.size()) {
-        Value val = m_argumentPropertyInfo[idx].first;
-        if (!val.isEmpty()) {
-            if (desc.isDataWritableEnumerableConfigurable() || desc.isValuePresentAlone()) {
-                if (m_argumentPropertyInfo[idx].second.string()->length()) {
-                    ArgumentsObjectNativeSetter(state, this, desc.value(), m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second);
-                    return true;
-                } else {
-                    m_argumentPropertyInfo[idx].first = desc.value();
-                    return true;
-                }
-            } else {
-                if (m_argumentPropertyInfo[idx].second.string()->length() && desc.isDataDescriptor() && desc.isValuePresent()) {
-                    ArgumentsObjectNativeSetter(state, this, desc.value(), m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second);
-                }
-                ObjectPropertyDescriptor descCpy(desc);
-                if (!desc.isAccessorDescriptor() && !desc.isValuePresent()) {
-                    if (m_argumentPropertyInfo[idx].second.string()->length())
-                        descCpy.setValue(ArgumentsObjectNativeGetter(state, this, m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second));
-                    else
-                        descCpy.setValue(m_argumentPropertyInfo[idx].first);
-                }
-
-                m_argumentPropertyInfo[idx].first = Value(Value::EmptyValue);
-
-                ObjectPropertyDescriptor newDesc(descCpy);
-                newDesc.setWritable(true);
-                newDesc.setConfigurable(true);
-                newDesc.setEnumerable(true);
-
-                if (desc.isWritablePresent()) {
-                    newDesc.setWritable(desc.isWritable());
-                }
-                if (desc.isEnumerablePresent()) {
-                    newDesc.setEnumerable(desc.isEnumerable());
-                }
-                if (desc.isConfigurablePresent()) {
-                    newDesc.setConfigurable(desc.isConfigurable());
-                }
-
-                bool extensibleBefore = isExtensible(state);
-                if (!extensibleBefore) {
-                    rareData()->m_isExtensible = true;
-                }
-                bool ret = Object::defineOwnProperty(state, P, newDesc);
-                if (!extensibleBefore) {
-                    preventExtensions(state);
-                }
-                return ret;
-            }
-        }
-    }
-    return Object::defineOwnProperty(state, P, desc);
-}
-
-bool ArgumentsObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
-{
-    uint64_t idx = P.tryToUseAsIndex();
-    if (LIKELY(idx != Value::InvalidIndexValue) && idx < m_argumentPropertyInfo.size()) {
-        Value val = m_argumentPropertyInfo[idx].first;
-        if (!val.isEmpty()) {
-            m_argumentPropertyInfo[idx].first = Value(Value::EmptyValue);
+        if (desc.isWritable() && desc.isConfigurable() && desc.isEnumerable() && !isModifiedArgument(index)) {
             return true;
         }
+
+        if (!isModifiedArgument(index)) {
+            setModifiedArgument(index);
+
+            bool extensibleBefore = isExtensible(state);
+            if (!extensibleBefore) {
+                rareData()->m_isExtensible = true;
+            }
+            ObjectPropertyDescriptor initDesc(getIndexedPropertyValueQuickly(state, index), ObjectPropertyDescriptor::AllPresent);
+            Object::defineOwnProperty(state, P, initDesc);
+            if (!extensibleBefore) {
+                rareData()->m_isExtensible = false;
+            }
+        }
     }
-    return Object::deleteOwnProperty(state, P);
+
+    if (isMatchedArgument(index)) {
+        if ((desc.isWritablePresent() && !desc.isWritable()) || desc.isAccessorDescriptor()) {
+            if (!desc.isAccessorDescriptor()) {
+                newDesc.setValue(getIndexedPropertyValueQuickly(state, index));
+            }
+            m_parameterMap[index].first = Value(Value::EmptyValue);
+            setModifiedArgument(index);
+        }
+    }
+
+    return Object::defineOwnProperty(state, P, newDesc);
 }
 
+bool ArgumentsObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
+{
+    uint64_t index = P.tryToUseAsIndex();
+    bool hasPropertyInObject = isModifiedArgument(index) || !isMatchedArgument(index);
+    bool deleted = true;
+
+    if (hasPropertyInObject) {
+        deleted = Object::deleteOwnProperty(state, P);
+    }
+
+    if (deleted) {
+        if (isMatchedArgument(index)) {
+            m_parameterMap[index].first = Value(Value::EmptyValue);
+        }
+        setModifiedArgument(index);
+    }
+
+    return deleted;
+}
+
+// TODO
 void ArgumentsObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey)
 {
-    for (size_t i = 0; i < m_argumentPropertyInfo.size(); i++) {
-        Value v = m_argumentPropertyInfo[i].first;
-        if (!v.isEmpty() && !callback(state, this, ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent), data)) {
+    for (size_t i = 0; i < m_parameterMap.size(); i++) {
+        if (isMatchedArgument(i) && !callback(state, this, ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent), data)) {
             return;
         }
     }
@@ -263,35 +249,98 @@ void ArgumentsObject::enumeration(ExecutionState& state, bool (*callback)(Execut
 
 ObjectGetResult ArgumentsObject::getIndexedProperty(ExecutionState& state, const Value& property)
 {
-    Value::ValueIndex idx = property.tryToUseAsIndex(state);
-    if (LIKELY(idx != Value::InvalidIndexValue) && idx < m_argumentPropertyInfo.size()) {
-        Value val = m_argumentPropertyInfo[idx].first;
-        if (!val.isEmpty()) {
-            if (m_argumentPropertyInfo[idx].second.string()->length()) {
-                return ObjectGetResult(ArgumentsObjectNativeGetter(state, this, m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second), true, true, true);
-            } else {
-                return ObjectGetResult(val, true, true, true);
-            }
-        }
+    Value::ValueIndex index = property.tryToUseAsIndex(state);
+    if (LIKELY(!isModifiedArgument(index) && isMatchedArgument(index))) {
+        return ObjectGetResult(getIndexedPropertyValueQuickly(state, index), true, true, true);
     }
-    return get(state, ObjectPropertyName(state, property));
+
+    ObjectGetResult result = Object::get(state, ObjectPropertyName(state, property));
+
+    if (isMatchedArgument(index)) {
+        ASSERT(result.hasValue());
+        return ObjectGetResult(getIndexedPropertyValueQuickly(state, index), result.isWritable(), result.isEnumerable(), result.isConfigurable());
+    }
+    return result;
+}
+
+bool ArgumentsObject::set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, const Value& receiver)
+{
+    if (UNLIKELY(!receiver.isObject() || receiver.asObject() != this)) {
+        return Object::set(state, propertyName, v, receiver);
+    }
+
+    Value::ValueIndex index = propertyName.tryToUseAsIndex();
+    if (LIKELY(isMatchedArgument(index))) {
+        setIndexedPropertyValueQuickly(state, index, v);
+        return true;
+    }
+
+    return Object::set(state, propertyName, v, receiver);
 }
 
 bool ArgumentsObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)
 {
-    Value::ValueIndex idx = property.tryToUseAsIndex(state);
-    if (LIKELY(idx != Value::InvalidIndexValue) && idx < m_argumentPropertyInfo.size()) {
-        Value val = m_argumentPropertyInfo[idx].first;
-        if (!val.isEmpty()) {
-            if (m_argumentPropertyInfo[idx].second.string()->length()) {
-                ArgumentsObjectNativeSetter(state, this, value, m_targetRecord, m_codeBlock, m_argumentPropertyInfo[idx].second);
-                return true;
-            } else {
-                m_argumentPropertyInfo[idx].first = value;
-                return true;
-            }
+    Value::ValueIndex index = property.tryToUseAsIndex(state);
+    if (LIKELY(isMatchedArgument(index))) {
+        setIndexedPropertyValueQuickly(state, index, value);
+        return true;
+    }
+
+    return Object::set(state, ObjectPropertyName(state, property), value, this);
+}
+
+Value ArgumentsObject::getIndexedPropertyValueQuickly(ExecutionState& state, uint64_t index)
+{
+    ASSERT((index != Value::InvalidIndexValue) && (index < m_parameterMap.size()));
+    ASSERT(!m_parameterMap[index].first.isEmpty());
+
+    if (m_parameterMap[index].second.string()->length()) {
+        return ArgumentsObjectNativeGetter(state, this, m_targetRecord, m_codeBlock, m_parameterMap[index].second);
+    } else {
+        return m_parameterMap[index].first;
+    }
+}
+
+void ArgumentsObject::setIndexedPropertyValueQuickly(ExecutionState& state, uint64_t index, const Value& value)
+{
+    ASSERT((index != Value::InvalidIndexValue) && (index < m_parameterMap.size()));
+    ASSERT(!m_parameterMap[index].first.isEmpty());
+
+    if (m_parameterMap[index].second.string()->length()) {
+        ArgumentsObjectNativeSetter(state, this, value, m_targetRecord, m_codeBlock, m_parameterMap[index].second);
+    } else {
+        return m_parameterMap[index].first = value;
+    }
+}
+
+bool ArgumentsObject::isModifiedArgument(uint64_t index)
+{
+    if (m_modifiedArguments.size() == 0) {
+        return false;
+    }
+    if (LIKELY(index != Value::InvalidIndexValue) && index < m_modifiedArguments.size()) {
+        return m_modifiedArguments[index];
+    }
+    return false;
+}
+
+void ArgumentsObject::setModifiedArgument(uint64_t index)
+{
+    if (LIKELY(index != Value::InvalidIndexValue)) {
+        if (m_modifiedArguments.size() == 0) {
+            m_modifiedArguments.resize(m_targetRecord->argc(), false);
+        }
+        if (index < m_modifiedArguments.size()) {
+            m_modifiedArguments[index] = true;
         }
     }
-    return set(state, ObjectPropertyName(state, property), value, this);
+}
+
+bool ArgumentsObject::isMatchedArgument(uint64_t index)
+{
+    if (LIKELY(index != Value::InvalidIndexValue) && index < m_parameterMap.size()) {
+        return !m_parameterMap[index].first.isEmpty();
+    }
+    return false;
 }
 }
