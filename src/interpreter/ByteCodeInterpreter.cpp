@@ -1850,6 +1850,11 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
         newItem.m_objectStructure = obj->structure();
 
         obj->setOwnPropertyThrowsExceptionWhenStrictMode(state, idx, value, willBeObject);
+        // Don't update the inline cache if the property is removed by a setter function.
+        if (UNLIKELY(obj->structure()->findProperty(state, name) == SIZE_MAX)) {
+            return;
+        }
+
         auto desc = obj->structure()->readProperty(state, idx).m_descriptor;
         if (desc.isPlainDataProperty() && desc.isWritable()) {
             inlineCache.m_cachedIndex = idx;
