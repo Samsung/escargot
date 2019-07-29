@@ -570,6 +570,14 @@ static Value builtinObjectAssign(ExecutionState& state, Value thisValue, size_t 
     return to;
 }
 
+static Value builtinObjectIs(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // 19.1.2.10 Object.is ( value1, value2 )
+
+    // Return SameValue(value1, value2).
+    return Value(argv[0].equalsToByTheSameValueAlgorithm(state, argv[1]));
+}
+
 static ArrayObject* createArrayFromList(ExecutionState& state, ValueVector& elements)
 {
     // Let array be ! ArrayCreate(0).
@@ -798,6 +806,11 @@ void GlobalObject::installObject(ExecutionState& state)
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.assign),
                                 ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.assign, builtinObjectAssign, 2, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // ES6+ Object.is
+    m_object->defineOwnProperty(state, ObjectPropertyName(strings.is),
+                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings.is, builtinObjectIs, 2, NativeFunctionInfo::Strict)),
+                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.constructor),
                                          ObjectPropertyDescriptor(m_object, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

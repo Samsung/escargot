@@ -356,6 +356,7 @@ namespace Escargot {
     F($8)                         \
     F($9)                         \
     F(assign)                     \
+    F(is)                         \
     F(Map)                        \
     F(clear)                      \
     F(has)                        \
