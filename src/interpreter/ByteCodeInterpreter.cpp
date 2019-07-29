@@ -1888,12 +1888,17 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
 
         obj->setOwnPropertyThrowsExceptionWhenStrictMode(state, idx, value, willBeObject);
         // Don't update the inline cache if the property is removed by a setter function.
-        if (UNLIKELY(obj->structure()->findProperty(state, name) == SIZE_MAX)) {
+        /* example code
+        var o = { set foo (a) { var a = delete o.foo } };
+        o.foo = 0;
+        */
+        if (UNLIKELY(idx >= obj->structure()->propertyCount())) {
             return;
         }
 
-        auto desc = obj->structure()->readProperty(state, idx).m_descriptor;
-        if (desc.isPlainDataProperty() && desc.isWritable()) {
+        const auto& propertyData = obj->structure()->readProperty(state, idx);
+        const auto& desc = propertyData.m_descriptor;
+        if (propertyData.m_propertyName == name && desc.isPlainDataProperty() && desc.isWritable()) {
             inlineCache.m_cachedIndex = idx;
             inlineCache.m_cachedhiddenClassChain.push_back(newItem);
         }
