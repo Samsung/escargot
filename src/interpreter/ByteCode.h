@@ -30,6 +30,7 @@
 namespace Escargot {
 class ObjectStructure;
 class Node;
+struct GlobalVariableAccessCacheItem;
 
 // <OpcodeName, PushCount, PopCount>
 #define FOR_EACH_BYTECODE_OP(F)                       \
@@ -831,58 +832,37 @@ public:
 #endif
 };
 
-// TODO store these variables in Context and share it for performance
 class GetGlobalVariable : public ByteCode {
 public:
-    GetGlobalVariable(const ByteCodeLOC& loc, const size_t registerIndex, PropertyName propertyName)
+    GetGlobalVariable(const ByteCodeLOC& loc, const size_t registerIndex, GlobalVariableAccessCacheItem* slot)
         : ByteCode(Opcode::GetGlobalVariableOpcode, loc)
         , m_registerIndex(registerIndex)
-        , m_lexicalIndexCache(std::numeric_limits<uint16_t>::max())
-        , m_propertyName(propertyName)
+        , m_slot(slot)
     {
-        ASSERT(propertyName.hasAtomicString());
-        m_cachedAddress = nullptr;
-        m_cachedStructure = nullptr;
     }
 
     ByteCodeRegisterIndex m_registerIndex;
-    uint16_t m_lexicalIndexCache;
-    PropertyName m_propertyName;
-    void* m_cachedAddress;
-    ObjectStructure* m_cachedStructure;
+    GlobalVariableAccessCacheItem* m_slot;
+
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        printf("get global variable r%d <- global.%s", (int)m_registerIndex, m_propertyName.plainString()->toUTF8StringData().data());
-    }
+    void dump(const char* byteCodeStart);
 #endif
 };
 
-// TODO store these variables in Context and share it for performance
 class SetGlobalVariable : public ByteCode {
 public:
-    SetGlobalVariable(const ByteCodeLOC& loc, const size_t registerIndex, PropertyName propertyName)
+    SetGlobalVariable(const ByteCodeLOC& loc, const size_t registerIndex, GlobalVariableAccessCacheItem* slot)
         : ByteCode(Opcode::SetGlobalVariableOpcode, loc)
         , m_registerIndex(registerIndex)
-        , m_lexicalIndexCache(std::numeric_limits<uint16_t>::max())
-        , m_propertyName(propertyName)
+        , m_slot(slot)
     {
-        ASSERT(propertyName.hasAtomicString());
-        m_cachedAddress = nullptr;
-        m_cachedStructure = nullptr;
     }
 
     ByteCodeRegisterIndex m_registerIndex;
-    uint16_t m_lexicalIndexCache;
-    PropertyName m_propertyName;
-    void* m_cachedAddress;
-    ObjectStructure* m_cachedStructure;
+    GlobalVariableAccessCacheItem* m_slot;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        printf("set global variable global.%s <- r%d", m_propertyName.plainString()->toUTF8StringData().data(), (int)m_registerIndex);
-    }
+    void dump(const char* byteCodeStart);
 #endif
 };
 

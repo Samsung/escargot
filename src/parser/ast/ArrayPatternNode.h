@@ -73,7 +73,7 @@ public:
 
         if (m_default != nullptr) {
             size_t undefinedIndex = context->getRegister();
-            codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), undefinedIndex, PropertyName(codeBlock->m_codeBlock->context()->staticStrings().undefined)), context, this);
+            codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), undefinedIndex, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(codeBlock->m_codeBlock->context()->staticStrings().undefined)), context, this);
 
             size_t cmpIndex = context->getRegister();
             codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), m_initIdx, undefinedIndex, cmpIndex), context, this);
@@ -110,7 +110,7 @@ public:
                 } else if (element->isAssignmentExpressionSimple()) {
                     AssignmentExpressionSimpleNode* assignNode = element->asAssignmentExpressionSimple();
                     size_t undefinedIndex = context->getRegister();
-                    codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), undefinedIndex, PropertyName(codeBlock->m_codeBlock->context()->staticStrings().undefined)), context, this);
+                    codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), undefinedIndex, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(codeBlock->m_codeBlock->context()->staticStrings().undefined)), context, this);
 
                     size_t cmpIndex = context->getRegister();
                     codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), iteratorValueIdx, undefinedIndex, cmpIndex), context, this);

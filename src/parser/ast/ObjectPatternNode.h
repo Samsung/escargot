@@ -83,7 +83,7 @@ public:
 
             if (value != nullptr && !value->isPattern()) {
                 size_t undefinedIndex = context->getRegister();
-                codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), undefinedIndex, PropertyName(codeBlock->m_codeBlock->context()->staticStrings().undefined)), context, this);
+                codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), undefinedIndex, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(codeBlock->m_codeBlock->context()->staticStrings().undefined)), context, this);
 
                 size_t cmpIndex = context->getRegister();
                 codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), objIndex, undefinedIndex, cmpIndex), context, this);
@@ -123,7 +123,7 @@ public:
                 }
 
                 size_t undefinedIndex = context->getRegister();
-                codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), undefinedIndex, PropertyName(codeBlock->m_codeBlock->context()->staticStrings().undefined)), context, this);
+                codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), undefinedIndex, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(codeBlock->m_codeBlock->context()->staticStrings().undefined)), context, this);
 
                 size_t cmpIndex = context->getRegister();
                 codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), valueIndex, undefinedIndex, cmpIndex), context, this);

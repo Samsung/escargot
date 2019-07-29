@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "Context.h"
+#include "runtime/AtomicString.h"
 #include "VMInstance.h"
 #include "GlobalObject.h"
 #include "StringObject.h"
@@ -31,6 +32,19 @@
 #include "ArrayObject.h"
 
 namespace Escargot {
+
+void* GlobalVariableAccessCacheItem::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(GlobalVariableAccessCacheItem)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GlobalVariableAccessCacheItem, m_cachedStructure));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(GlobalVariableAccessCacheItem));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
 
 Context::Context(VMInstance* instance)
     : m_instance(instance)
@@ -78,5 +92,21 @@ void Context::throwException(ExecutionState& state, const Value& exception)
         ESCARGOT_LOG_ERROR("there is no sandbox but exception occurred");
         RELEASE_ASSERT_NOT_REACHED();
     }
+}
+
+GlobalVariableAccessCacheItem* Context::ensureGlobalVariableAccessCacheSlot(AtomicString as)
+{
+    auto iter = m_globalVariableAccessCache.find(as);
+    if (iter == m_globalVariableAccessCache.end()) {
+        GlobalVariableAccessCacheItem* slot = new GlobalVariableAccessCacheItem();
+        slot->m_lexicalIndexCache = std::numeric_limits<size_t>::max();
+        slot->m_propertyName = as;
+        slot->m_cachedAddress = nullptr;
+        slot->m_cachedStructure = nullptr;
+        m_globalVariableAccessCache.insert(std::make_pair(as, slot));
+        return slot;
+    }
+
+    return iter->second;
 }
 }

@@ -65,6 +65,16 @@ int ByteCode::dumpJumpPosition(size_t pos, const char* byteCodeStart)
 {
     return (int)(pos - (size_t)byteCodeStart);
 }
+
+void GetGlobalVariable::dump(const char* byteCodeStart)
+{
+    printf("get global variable r%d <- global.%s", (int)m_registerIndex, m_slot->m_propertyName.string()->toUTF8StringData().data());
+}
+
+void SetGlobalVariable::dump(const char* byteCodeStart)
+{
+    printf("set global variable global.%s <- r%d", m_slot->m_propertyName.string()->toUTF8StringData().data(), (int)m_registerIndex);
+}
 #endif
 
 void* ByteCodeBlock::operator new(size_t size)

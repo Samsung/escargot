@@ -57,14 +57,6 @@ bool Value::isIterable() const
     return false;
 }
 
-bool Value::isCallable() const
-{
-    if (!isObject() || !asObject()->isCallable()) {
-        return false;
-    }
-    return true;
-}
-
 bool Value::isConstructor() const
 {
     if (!isObject() || !asObject()->isConstructor()) {

@@ -13,8 +13,6 @@
  * limitations under the License.
  */
 
-var assert = print;
-
 assert(RegExp.prototype.hasOwnProperty(Symbol.split));
 assert(RegExp.prototype[Symbol.split] instanceof Function);
 assert(RegExp.prototype[Symbol.split].name == "[Symbol.split]");
