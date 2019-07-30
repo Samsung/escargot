@@ -137,6 +137,22 @@ namespace std {
 template <>
 struct is_fundamental<Escargot::AtomicString> : public true_type {
 };
+
+template <>
+struct hash<Escargot::AtomicString> {
+    size_t operator()(Escargot::AtomicString const& x) const
+    {
+        return std::hash<size_t*>{}((size_t*)x.string());
+    }
+};
+
+template <>
+struct equal_to<Escargot::AtomicString> {
+    bool operator()(Escargot::AtomicString const& a, Escargot::AtomicString const& b) const
+    {
+        return a == b;
+    }
+};
 }
 
 #endif

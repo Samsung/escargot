@@ -62,10 +62,6 @@ void GlobalEnvironmentRecord::createBinding(ExecutionState& state, const AtomicS
         r.m_isVarDeclaration = false;
         r.m_name = name;
 
-        if (UNLIKELY(m_globalDeclarativeRecord->size() == std::numeric_limits<uint16_t>::max() - 1)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_TooManyGlobalLexicalVariables);
-        }
-
         m_globalDeclarativeRecord->push_back(r);
         m_globalDeclarativeStorage->push_back(SmallValue(SmallValue::EmptyValue));
     }

@@ -21,7 +21,6 @@
 #define __EscargotContext__
 
 #include "runtime/AtomicString.h"
-#include "runtime/Context.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/RegExpObject.h"
 #include "runtime/StaticStrings.h"
@@ -53,6 +52,16 @@ typedef Vector<IdentifierRecord, GCUtil::gc_malloc_atomic_ignore_off_page_alloca
 
 typedef Value (*VirtualIdentifierCallback)(ExecutionState& state, Value name);
 typedef Value (*SecurityPolicyCheckCallback)(ExecutionState& state, bool isEval);
+
+struct GlobalVariableAccessCacheItem : public gc {
+    size_t m_lexicalIndexCache;
+    AtomicString m_propertyName;
+    void* m_cachedAddress;
+    ObjectStructure* m_cachedStructure;
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+};
 
 class Context : public gc {
     friend class AtomicString;
@@ -209,6 +218,8 @@ public:
         return m_globalDeclarativeStorage;
     }
 
+    GlobalVariableAccessCacheItem* ensureGlobalVariableAccessCacheSlot(AtomicString as);
+
 private:
     VMInstance* m_instance;
 
@@ -220,6 +231,9 @@ private:
     ScriptParser* m_scriptParser;
     IdentifierRecordVector m_globalDeclarativeRecord;
     SmallValueVector m_globalDeclarativeStorage;
+    std::unordered_map<AtomicString, GlobalVariableAccessCacheItem*, std::hash<AtomicString>, std::equal_to<AtomicString>,
+                       gc_allocator_ignore_off_page<std::pair<AtomicString, GlobalVariableAccessCacheItem*>>>
+        m_globalVariableAccessCache;
     Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& m_compiledCodeBlocks;
     WTF::BumpPointerAllocator* m_bumpPointerAllocator;
     RegExpCacheMap* m_regexpCache;

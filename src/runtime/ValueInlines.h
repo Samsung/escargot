@@ -659,6 +659,14 @@ inline bool Value::isPrimitive() const
 #endif
 }
 
+inline bool Value::isCallable() const
+{
+    if (UNLIKELY(!isPointerValue() || !asPointerValue()->isCallable())) {
+        return false;
+    }
+    return true;
+}
+
 // https://www.ecma-international.org/ecma-262/6.0/#sec-tonumber
 inline double Value::toNumber(ExecutionState& state) const
 {

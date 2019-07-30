@@ -87,6 +87,7 @@ public:
         , m_datePrototype(nullptr)
         , m_regexp(nullptr)
         , m_regexpPrototype(nullptr)
+        , m_regexpSplitMethod(nullptr)
         , m_math(nullptr)
         , m_eval(nullptr)
         , m_throwTypeError(nullptr)
@@ -382,6 +383,11 @@ public:
     Object* regexpPrototype()
     {
         return m_regexpPrototype;
+    }
+
+    FunctionObject* regexpSplitMethod()
+    {
+        return m_regexpSplitMethod;
     }
 
     Object* json()
@@ -681,6 +687,7 @@ private:
 
     GlobalRegExpFunctionObject* m_regexp;
     Object* m_regexpPrototype;
+    FunctionObject* m_regexpSplitMethod;
 
     Object* m_math;
 

@@ -127,25 +127,27 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 ASSERT(byteCodeBlock->m_codeBlock->context() == state.context());
                 Context* ctx = state.context();
                 GlobalObject* globalObject = state.context()->globalObject();
-                auto idx = code->m_lexicalIndexCache;
+                auto slot = code->m_slot;
+                auto idx = slot->m_lexicalIndexCache;
                 bool isCacheWork = false;
-                if (idx != std::numeric_limits<uint16_t>::max()) {
-                    if (code->m_cachedStructure == nullptr) {
-                        SmallValue val = ctx->globalDeclarativeStorage()[idx];
+
+                if (LIKELY(idx != std::numeric_limits<size_t>::max())) {
+                    if (LIKELY(ctx->globalDeclarativeStorage().size() == slot->m_lexicalIndexCache && globalObject->structure() == slot->m_cachedStructure)) {
+                        ASSERT(globalObject->m_values.data() <= slot->m_cachedAddress);
+                        ASSERT(slot->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
+                        registerFile[code->m_registerIndex] = *((SmallValue*)slot->m_cachedAddress);
+                        isCacheWork = true;
+                    } else if (slot->m_cachedStructure == nullptr) {
+                        const SmallValue& val = ctx->globalDeclarativeStorage()[idx];
                         isCacheWork = true;
                         if (UNLIKELY(val.isEmpty())) {
                             ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, ctx->globalDeclarativeRecord()[idx].m_name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
                         }
                         registerFile[code->m_registerIndex] = val;
-                    } else if (LIKELY(ctx->globalDeclarativeStorage().size() == code->m_lexicalIndexCache && globalObject->structure() == code->m_cachedStructure)) {
-                        ASSERT(globalObject->m_values.data() <= code->m_cachedAddress);
-                        ASSERT(code->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
-                        registerFile[code->m_registerIndex] = *((SmallValue*)code->m_cachedAddress);
-                        isCacheWork = true;
                     }
                 }
-                if (!isCacheWork) {
-                    registerFile[code->m_registerIndex] = getGlobalVariableSlowCase(state, globalObject, code, byteCodeBlock);
+                if (UNLIKELY(!isCacheWork)) {
+                    registerFile[code->m_registerIndex] = getGlobalVariableSlowCase(state, globalObject, slot, byteCodeBlock);
                 }
                 ADD_PROGRAM_COUNTER(GetGlobalVariable);
                 NEXT_INSTRUCTION();
@@ -158,26 +160,27 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 ASSERT(byteCodeBlock->m_codeBlock->context() == state.context());
                 Context* ctx = state.context();
                 GlobalObject* globalObject = state.context()->globalObject();
-                auto idx = code->m_lexicalIndexCache;
+                auto slot = code->m_slot;
+                auto idx = slot->m_lexicalIndexCache;
 
                 bool isCacheWork = false;
-                if (idx != std::numeric_limits<uint16_t>::max()) {
-                    if (code->m_cachedStructure == nullptr) {
+                if (LIKELY(idx != std::numeric_limits<size_t>::max())) {
+                    if (LIKELY(ctx->globalDeclarativeStorage().size() == slot->m_lexicalIndexCache && globalObject->structure() == slot->m_cachedStructure)) {
+                        ASSERT(globalObject->m_values.data() <= slot->m_cachedAddress);
+                        ASSERT(slot->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
+                        *((SmallValue*)slot->m_cachedAddress) = registerFile[code->m_registerIndex];
+                        isCacheWork = true;
+                    } else if (slot->m_cachedStructure == nullptr) {
                         isCacheWork = true;
                         if (UNLIKELY(ctx->globalDeclarativeStorage()[idx].isEmpty())) {
                             ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, ctx->globalDeclarativeRecord()[idx].m_name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
                         }
                         ctx->globalDeclarativeStorage()[idx] = registerFile[code->m_registerIndex];
-                    } else if (LIKELY(ctx->globalDeclarativeStorage().size() == code->m_lexicalIndexCache && globalObject->structure() == code->m_cachedStructure)) {
-                        ASSERT(globalObject->m_values.data() <= code->m_cachedAddress);
-                        ASSERT(code->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
-                        *((SmallValue*)code->m_cachedAddress) = registerFile[code->m_registerIndex];
-                        isCacheWork = true;
                     }
                 }
 
-                if (!isCacheWork) {
-                    setGlobalVariableSlowCase(state, globalObject, code, registerFile[code->m_registerIndex], byteCodeBlock);
+                if (UNLIKELY(!isCacheWork)) {
+                    setGlobalVariableSlowCase(state, globalObject, slot, registerFile[code->m_registerIndex], byteCodeBlock);
                 }
 
                 ADD_PROGRAM_COUNTER(SetGlobalVariable);
@@ -2084,18 +2087,18 @@ ALWAYS_INLINE Object* ByteCodeInterpreter::fastToObject(ExecutionState& state, c
     return obj.toObject(state);
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState& state, Object* go, GetGlobalVariable* code, ByteCodeBlock* block)
+NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, ByteCodeBlock* block)
 {
     Context* ctx = state.context();
     auto& records = ctx->globalDeclarativeRecord();
-    AtomicString name = code->m_propertyName.asAtomicString();
+    AtomicString name = slot->m_propertyName;
     auto siz = records.size();
 
     for (size_t i = 0; i < siz; i++) {
         if (records[i].m_name == name) {
-            code->m_lexicalIndexCache = i;
-            code->m_cachedAddress = nullptr;
-            code->m_cachedStructure = nullptr;
+            slot->m_lexicalIndexCache = i;
+            slot->m_cachedAddress = nullptr;
+            slot->m_cachedStructure = nullptr;
             auto v = state.context()->globalDeclarativeStorage()[i];
             if (UNLIKELY(v.isEmpty())) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
@@ -2104,9 +2107,9 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState
         }
     }
 
-    size_t idx = go->structure()->findProperty(state, code->m_propertyName);
+    size_t idx = go->structure()->findProperty(state, slot->m_propertyName);
     if (UNLIKELY(idx == SIZE_MAX)) {
-        ObjectGetResult res = go->get(state, ObjectPropertyName(state, code->m_propertyName));
+        ObjectGetResult res = go->get(state, ObjectPropertyName(state, slot->m_propertyName));
         if (res.hasValue()) {
             return res.value(state, go);
         } else {
@@ -2119,23 +2122,16 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState
         }
     } else {
         const ObjectStructureItem& item = go->structure()->readProperty(state, idx);
-        if (!item.m_descriptor.isPlainDataProperty()) {
-            code->m_cachedStructure = nullptr;
-            code->m_cachedAddress = nullptr;
-            code->m_lexicalIndexCache = std::numeric_limits<uint16_t>::max();
+        if (!item.m_descriptor.isPlainDataProperty() || !item.m_descriptor.isWritable()) {
+            slot->m_cachedStructure = nullptr;
+            slot->m_cachedAddress = nullptr;
+            slot->m_lexicalIndexCache = std::numeric_limits<size_t>::max();
             return go->getOwnPropertyUtilForObject(state, idx, go);
         }
 
-        if ((size_t)code->m_cachedAddress) {
-            code->m_cachedAddress = &go->m_values.data()[idx];
-            code->m_cachedStructure = go->structure();
-            code->m_lexicalIndexCache = siz;
-            block->m_objectStructuresInUse->insert(go->structure());
-        } else {
-            code->m_cachedAddress = (void*)((size_t)1);
-            code->m_cachedStructure = nullptr;
-            code->m_lexicalIndexCache = std::numeric_limits<uint16_t>::max();
-        }
+        slot->m_cachedAddress = &go->m_values.data()[idx];
+        slot->m_cachedStructure = go->structure();
+        slot->m_lexicalIndexCache = siz;
     }
 
     return go->getOwnPropertyUtilForObject(state, idx, go);
@@ -2158,17 +2154,17 @@ public:
     Context* ctx;
 };
 
-NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState& state, Object* go, SetGlobalVariable* code, const Value& value, ByteCodeBlock* block)
+NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, const Value& value, ByteCodeBlock* block)
 {
     Context* ctx = state.context();
     auto& records = ctx->globalDeclarativeRecord();
-    AtomicString name = code->m_propertyName.asAtomicString();
+    AtomicString name = slot->m_propertyName;
     auto siz = records.size();
     for (size_t i = 0; i < siz; i++) {
         if (records[i].m_name == name) {
-            code->m_lexicalIndexCache = i;
-            code->m_cachedAddress = nullptr;
-            code->m_cachedStructure = nullptr;
+            slot->m_lexicalIndexCache = i;
+            slot->m_cachedAddress = nullptr;
+            slot->m_cachedStructure = nullptr;
             auto& place = ctx->globalDeclarativeStorage()[i];
             if (UNLIKELY(place.isEmpty())) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
@@ -2179,33 +2175,26 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState&
     }
 
 
-    size_t idx = go->structure()->findProperty(state, code->m_propertyName);
+    size_t idx = go->structure()->findProperty(state, slot->m_propertyName);
     if (UNLIKELY(idx == SIZE_MAX)) {
         if (UNLIKELY(state.inStrictMode())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, code->m_propertyName.plainString(), false, String::emptyString, errorMessage_IsNotDefined);
+            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, slot->m_propertyName.string(), false, String::emptyString, errorMessage_IsNotDefined);
         }
         VirtualIdDisabler d(state.context());
-        go->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, go);
+        go->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, slot->m_propertyName), value, go);
     } else {
         const ObjectStructureItem& item = go->structure()->readProperty(state, idx);
-        if (!item.m_descriptor.isPlainDataProperty()) {
-            code->m_cachedStructure = nullptr;
-            code->m_cachedAddress = nullptr;
-            code->m_lexicalIndexCache = std::numeric_limits<uint16_t>::max();
-            go->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, go);
+        if (!item.m_descriptor.isPlainDataProperty() || !item.m_descriptor.isWritable()) {
+            slot->m_cachedStructure = nullptr;
+            slot->m_cachedAddress = nullptr;
+            slot->m_lexicalIndexCache = std::numeric_limits<size_t>::max();
+            go->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, slot->m_propertyName), value, go);
             return;
         }
 
-        if ((size_t)code->m_cachedAddress) {
-            code->m_cachedAddress = &go->m_values.data()[idx];
-            code->m_cachedStructure = go->structure();
-            code->m_lexicalIndexCache = siz;
-            block->m_objectStructuresInUse->insert(go->structure());
-        } else {
-            code->m_cachedAddress = (void*)((size_t)1);
-            code->m_cachedStructure = nullptr;
-            code->m_lexicalIndexCache = std::numeric_limits<uint16_t>::max();
-        }
+        slot->m_cachedAddress = &go->m_values.data()[idx];
+        slot->m_cachedStructure = go->structure();
+        slot->m_lexicalIndexCache = siz;
 
         go->setOwnPropertyThrowsExceptionWhenStrictMode(state, idx, value, go);
     }

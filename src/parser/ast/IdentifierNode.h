@@ -97,7 +97,7 @@ public:
                     if (isLexicallyDeclaredBindingInitialization) {
                         codeBlock->pushCode(InitializeGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
                     } else {
-                        codeBlock->pushCode(SetGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
+                        codeBlock->pushCode(SetGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this);
                     }
                 }
             } else {
@@ -118,7 +118,7 @@ public:
                         if (isLexicallyDeclaredBindingInitialization) {
                             codeBlock->pushCode(InitializeGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
                         } else {
-                            codeBlock->pushCode(SetGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
+                            codeBlock->pushCode(SetGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this);
                         }
                     } else {
                         if (isLexicallyDeclaredBindingInitialization) {
@@ -151,7 +151,7 @@ public:
                     ASSERT(!context->m_codeBlock->asInterpretedCodeBlock()->canAllocateEnvironmentOnStack());
                     codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
                 } else {
-                    codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), dstRegister, PropertyName(m_name)), context, this);
+                    codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), dstRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this);
                 }
             } else {
                 if (info.m_isStackAllocated) {
@@ -163,7 +163,7 @@ public:
                         codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + info.m_index, dstRegister), context, this);
                 } else {
                     if (info.m_isGlobalLexicalVariable) {
-                        codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), dstRegister, PropertyName(m_name)), context, this);
+                        codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), dstRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this);
                     } else {
                         codeBlock->pushCode(LoadByHeapIndex(ByteCodeLOC(m_loc.index), dstRegister, info.m_upperIndex, info.m_index), context, this);
                     }

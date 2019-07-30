@@ -499,25 +499,38 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(obj, Object, split);
     Value separator = argv[0];
+    bool isSeparatorRegExp = separator.isPointerValue() && separator.asPointerValue()->isRegExpObject(state);
     Value limit = argv[1];
     size_t lim;
-    PointerValue* P;
     // If separator is neither undefined nor null, then
     if (!separator.isUndefinedOrNull()) {
         // Let splitter be GetMethod(separator, @@split).
         Value splitter = Object::getMethod(state, separator, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().split));
-        // If splitter is not undefined, then
-        if (!splitter.isUndefined()) {
-            // Return Call(splitter, separator, <<O, limit>>).
-            Value params[2] = { obj, limit };
-            return Object::call(state, splitter, separator, 2, params);
+
+        // --- Optmize path
+        // if splitter is builtin RegExp.prototype.split and separator is RegExpObject
+        // we can use old method(ES5) below
+        if (isSeparatorRegExp && splitter.isPointerValue() && splitter.asPointerValue() == state.context()->globalObject()->regexpSplitMethod()) {
+            // use old method(ES5)
+        } else {
+            // If splitter is not undefined, then
+            if (!splitter.isUndefined()) {
+                // Return Call(splitter, separator, <<O, limit>>).
+                Value params[2] = { obj, limit };
+                return Object::call(state, splitter, separator, 2, params);
+            }
         }
     }
     // If limit is undefined, let lim = 2^53 - 1, else let lim = ToLength(limit).
     // NOTE: not using toLength() here since it would return 0 for negative values, which results in incorrect behaviour.
     lim = limit.isUndefined() ? (1ULL << 53) - 1 : limit.toUint32(state);
     // Let R be ToString(separator).
-    P = separator.toString(state);
+    PointerValue* P;
+    if (isSeparatorRegExp) {
+        P = separator.asPointerValue()->asRegExpObject(state);
+    } else {
+        P = separator.toString(state);
+    }
 
     RESOLVE_THIS_BINDING_TO_STRING(S, String, split);
     ArrayObject* A = new ArrayObject(state);
