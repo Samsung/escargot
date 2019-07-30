@@ -26,9 +26,9 @@ namespace Escargot {
 
 static Value builtinBooleanConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    ASSERT(thisValue.isEmpty());
     bool primitiveVal = (argv[0].isUndefined()) ? false : argv[0].toBoolean(state);
     if (isNewExpression) {
+        ASSERT(thisValue.isEmpty());
         BooleanObject* boolObj = new BooleanObject(state);
         boolObj->setPrimitiveValue(state, primitiveVal);
         return boolObj;
