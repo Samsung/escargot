@@ -122,7 +122,7 @@ public:
     {
     }
 
-    virtual bool isArrayPrototypeObject() const
+    virtual bool isArrayPrototypeObject() const override
     {
         return true;
     }

@@ -215,12 +215,22 @@ public:
         return false;
     }
 
+    virtual bool isSetPrototypeObject() const
+    {
+        return false;
+    }
+
     virtual bool isWeakMapObject() const
     {
         return false;
     }
 
     virtual bool isWeakSetObject() const
+    {
+        return false;
+    }
+
+    virtual bool isWeakSetPrototypeObject() const
     {
         return false;
     }
