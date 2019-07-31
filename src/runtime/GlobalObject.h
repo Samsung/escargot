@@ -81,6 +81,7 @@ public:
         , m_array(nullptr)
         , m_arrayPrototype(nullptr)
         , m_arrayIteratorPrototype(nullptr)
+        , m_arrayPrototypeValues(nullptr)
         , m_boolean(nullptr)
         , m_booleanPrototype(nullptr)
         , m_date(nullptr)
@@ -350,6 +351,11 @@ public:
     Object* arrayIteratorPrototype()
     {
         return m_arrayIteratorPrototype;
+    }
+
+    FunctionObject* arrayPrototypeValues()
+    {
+        return m_arrayPrototypeValues;
     }
 
     FunctionObject* boolean()
@@ -678,6 +684,10 @@ private:
     FunctionObject* m_array;
     Object* m_arrayPrototype;
     Object* m_arrayIteratorPrototype;
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-well-known-intrinsic-objects
+    // Well-Known Intrinsic Objects : %ArrayProto_values%
+    // The initial value of the values data property of %ArrayPrototype%
+    FunctionObject* m_arrayPrototypeValues;
 
     FunctionObject* m_boolean;
     Object* m_booleanPrototype;

@@ -209,7 +209,8 @@ private:
 
     Value processCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression);
     Value processBuiltinFunctionCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression, const Value& newTarget);
-    void generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage);
+    void generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage, bool isMapped);
+    void generateRestParameter(ExecutionState& state, FunctionEnvironmentRecord* record, Value* parameterStorageInStack, const size_t argc, Value* argv);
     void generateByteCodeBlock(ExecutionState& state);
 
     CodeBlock* m_codeBlock;

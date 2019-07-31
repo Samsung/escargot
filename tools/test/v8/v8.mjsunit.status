@@ -690,7 +690,6 @@
   'es6/regress/regress-inlined-new-target': [SKIP],
   'es6/regress/regress-lookup-transition': [SKIP],
   'es6/regress/regress-new-target-context': [SKIP],
-  'es6/arguments-iterator' : [SKIP],
   'es6/array-concat' : [SKIP],
   'es6/array-concat-revoked-proxy-1' : [SKIP],
   'es6/array-concat-revoked-proxy-2' : [SKIP],
