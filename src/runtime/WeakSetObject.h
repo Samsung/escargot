@@ -59,6 +59,19 @@ public:
 private:
     WeakSetObjectData m_storage;
 };
+
+class WeakSetProtoTypeObject : public WeakSetObject {
+public:
+    explicit WeakSetProtoTypeObject(ExecutionState& state)
+        : WeakSetObject(state)
+    {
+    }
+
+    virtual bool isWeakSetPrototypeObject() const override
+    {
+        return true;
+    }
+};
 }
 
 #endif

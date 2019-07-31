@@ -82,7 +82,7 @@ Value builtinSetConstructor(ExecutionState& state, Value thisValue, size_t argc,
 }
 
 #define RESOLVE_THIS_BINDING_TO_SET(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                \
-    if (!thisValue.isObject() || !thisValue.asObject()->isSetObject()) {                                                                                                                                                                       \
+    if (!thisValue.isObject() || !thisValue.asObject()->isSetObject() || thisValue.asObject()->isSetPrototypeObject()) {                                                                                                                       \
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver); \
     }                                                                                                                                                                                                                                          \
     SetObject* NAME = thisValue.asObject()->asSetObject();
@@ -188,7 +188,7 @@ void GlobalObject::installSet(ExecutionState& state)
     }
 
     m_setPrototype = m_objectPrototype;
-    m_setPrototype = new SetObject(state);
+    m_setPrototype = new SetPrototypeObject(state);
     m_setPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     m_setPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_set, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
@@ -239,4 +239,4 @@ void GlobalObject::installSet(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Set),
                       ObjectPropertyDescriptor(m_set, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

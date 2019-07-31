@@ -67,6 +67,19 @@ private:
     SetObjectData m_storage;
 };
 
+class SetPrototypeObject : public SetObject {
+public:
+    explicit SetPrototypeObject(ExecutionState& state)
+        : SetObject(state)
+    {
+    }
+
+    virtual bool isSetPrototypeObject() const override
+    {
+        return true;
+    }
+};
+
 class SetIteratorObject : public IteratorObject {
 public:
     enum Type {

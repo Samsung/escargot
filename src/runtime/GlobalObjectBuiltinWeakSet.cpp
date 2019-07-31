@@ -83,7 +83,7 @@ Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t a
 }
 
 #define RESOLVE_THIS_BINDING_TO_SET(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                \
-    if (!thisValue.isObject() || !thisValue.asObject()->isWeakSetObject()) {                                                                                                                                                                   \
+    if (!thisValue.isObject() || !thisValue.asObject()->isWeakSetObject() || thisValue.asObject()->isWeakSetPrototypeObject()) {                                                                                                               \
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver); \
     }                                                                                                                                                                                                                                          \
     WeakSetObject* NAME = thisValue.asObject()->asWeakSetObject();
@@ -125,7 +125,7 @@ void GlobalObject::installWeakSet(ExecutionState& state)
     m_weakSet->markThisObjectDontNeedStructureTransitionTable(state);
     m_weakSet->setPrototype(state, m_functionPrototype);
     m_weakSetPrototype = m_objectPrototype;
-    m_weakSetPrototype = new WeakSetObject(state);
+    m_weakSetPrototype = new WeakSetProtoTypeObject(state);
     m_weakSetPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     m_weakSetPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_weakSet, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
