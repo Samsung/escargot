@@ -396,7 +396,11 @@ public:
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("create function %s -> r%d", m_codeBlock->functionName().string()->toUTF8StringData().data(), (int)m_registerIndex);
+        printf("create ");
+        if (m_codeBlock->isArrowFunctionExpression()) {
+            printf("arrow");
+        }
+        printf("function %s -> r%d", m_codeBlock->functionName().string()->toUTF8StringData().data(), (int)m_registerIndex);
     }
 #endif
 };

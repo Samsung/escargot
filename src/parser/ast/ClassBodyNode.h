@@ -36,9 +36,6 @@ public:
         , m_elementList(elementList)
         , m_constructor(constructor)
     {
-        if (constructor != nullptr) {
-            constructor->function().scopeContext()->m_isClassConstructor = true;
-        }
     }
 
     bool hasConstructor()

@@ -579,6 +579,7 @@ struct ASTFunctionScopeContext : public gc {
     bool m_inWith : 1;
     bool m_isArrowFunctionExpression : 1;
     bool m_isClassConstructor : 1;
+    bool m_isDerivedClassConstructor : 1;
     bool m_isGenerator : 1;
     bool m_hasSuper : 1;
     bool m_hasArrowSuper : 1;
@@ -813,6 +814,7 @@ struct ASTFunctionScopeContext : public gc {
         , m_inWith(false)
         , m_isArrowFunctionExpression(false)
         , m_isClassConstructor(false)
+        , m_isDerivedClassConstructor(false)
         , m_isGenerator(false)
         , m_hasSuper(false)
         , m_hasArrowSuper(false)

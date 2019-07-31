@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "runtime/Context.h"
 #include "runtime/GlobalObject.h"
+#include "runtime/NativeFunctionObject.h"
 #include "runtime/JobQueue.h"
 
 #ifdef ESCARGOT_ENABLE_VENDORTEST
@@ -57,18 +58,18 @@ void installTestFunctions(ExecutionState& state)
 
     AtomicString drainJobQueue(state, "drainJobQueue");
     globalObject->defineOwnProperty(state, ObjectPropertyName(drainJobQueue),
-                                    ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                NativeFunctionInfo(drainJobQueue, builtinDrainJobQueue, 0, NativeFunctionInfo::Strict)),
+                                    ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                      NativeFunctionInfo(drainJobQueue, builtinDrainJobQueue, 0, NativeFunctionInfo::Strict)),
                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
     AtomicString addPromiseReactions(state, "addPromiseReactions");
     globalObject->defineOwnProperty(state, ObjectPropertyName(addPromiseReactions),
-                                    ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                NativeFunctionInfo(addPromiseReactions, builtinAddPromiseReactions, 3, NativeFunctionInfo::Strict)),
+                                    ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                      NativeFunctionInfo(addPromiseReactions, builtinAddPromiseReactions, 3, NativeFunctionInfo::Strict)),
                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
     AtomicString createNewGlobalObject(state, "createNewGlobalObject");
     globalObject->defineOwnProperty(state, ObjectPropertyName(createNewGlobalObject),
-                                    ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                NativeFunctionInfo(createNewGlobalObject, builtinCreateNewGlobalObject, 0, NativeFunctionInfo::Strict)),
+                                    ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                      NativeFunctionInfo(createNewGlobalObject, builtinCreateNewGlobalObject, 0, NativeFunctionInfo::Strict)),
                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 }
 }

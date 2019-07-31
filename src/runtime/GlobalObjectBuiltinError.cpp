@@ -21,6 +21,8 @@
 #include "GlobalObject.h"
 #include "Context.h"
 #include "ErrorObject.h"
+#include "BuiltinFunctionObject.h"
+#include "NativeFunctionObject.h"
 #include "ToStringRecursionPreventer.h"
 
 namespace Escargot {
@@ -108,7 +110,7 @@ static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t
 
 void GlobalObject::installError(ExecutionState& state)
 {
-    m_error = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Error, builtinErrorConstructor, 1), FunctionObject::__ForBuiltin__);
+    m_error = new BuiltinFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Error, builtinErrorConstructor, 1));
     m_error->markThisObjectDontNeedStructureTransitionTable(state);
 
     m_error->setPrototype(state, m_functionPrototype);
@@ -121,17 +123,17 @@ void GlobalObject::installError(ExecutionState& state)
 
     m_errorPrototype->defineOwnPropertyThrowsException(state, state.context()->staticStrings().message, ObjectPropertyDescriptor(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_errorPrototype->defineOwnPropertyThrowsException(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(state.context()->staticStrings().Error.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    auto errorToStringFn = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinErrorToString, 0, NativeFunctionInfo::Strict));
+    auto errorToStringFn = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinErrorToString, 0, NativeFunctionInfo::Strict));
     m_errorPrototype->defineOwnPropertyThrowsException(state, state.context()->staticStrings().toString, ObjectPropertyDescriptor(errorToStringFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-13.2.3
     // 13.2.3 The [[ThrowTypeError]] Function Object
-    m_throwTypeError = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().ThrowTypeError, builtinErrorThrowTypeError, 0, NativeFunctionInfo::Strict));
+    m_throwTypeError = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().ThrowTypeError, builtinErrorThrowTypeError, 0, NativeFunctionInfo::Strict));
     m_throwerGetterSetterData = new JSGetterSetter(m_throwTypeError, m_throwTypeError);
 
 #define DEFINE_ERROR(errorname, bname)                                                                                                                                                                                                                                                                                                  \
-    m_##errorname##Error = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bname##Error, builtin##bname##ErrorConstructor, 1), FunctionObject::__ForBuiltin__);                                                                                                                                           \
+    m_##errorname##Error = new BuiltinFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bname##Error, builtin##bname##ErrorConstructor, 1));                                                                                                                                                                    \
     m_##errorname##Error->setPrototype(state, m_functionPrototype);                                                                                                                                                                                                                                                                     \
     m_##errorname##ErrorPrototype = m_errorPrototype;                                                                                                                                                                                                                                                                                   \
     m_##errorname##ErrorPrototype = new bname##ErrorObject(state, String::emptyString);                                                                                                                                                                                                                                                 \

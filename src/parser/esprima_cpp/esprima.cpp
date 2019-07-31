@@ -205,6 +205,7 @@ public:
     Marker lastMarker;
 
     Vector<ASTFunctionScopeContext*, gc_allocator_ignore_off_page<ASTFunctionScopeContext*>> scopeContexts;
+    ASTFunctionScopeContext* lastPoppedScopeContext;
     bool trackUsingNames;
     AtomicString lastUsingName;
     size_t stackLimit;
@@ -290,6 +291,7 @@ public:
         auto ret = scopeContexts.back();
         scopeContexts.pop_back();
         lastUsingName = AtomicString();
+        lastPoppedScopeContext = ret;
         return ret;
     }
 
@@ -366,6 +368,7 @@ public:
         this->escargotContext = escargotContext;
         this->lexicalBlockIndex = 0;
         this->lexicalBlockCount = 0;
+        lastPoppedScopeContext = nullptr;
         trackUsingNames = true;
         config.range = false;
         config.loc = false;
@@ -680,9 +683,6 @@ public:
             CallExpressionNode* c = (CallExpressionNode*)node;
             if (c->callee() && c->callee()->isIdentifier() && ((IdentifierNode*)c->callee())->name() == this->escargotContext->staticStrings().eval) {
                 scopeContexts.back()->m_hasEval = true;
-                if (this->context->inArrowFunction) {
-                    insertUsingName(this->escargotContext->staticStrings().stringThis);
-                }
             }
         } else if (type == WithStatement) {
             scopeContexts.back()->m_hasWith = true;
@@ -1151,9 +1151,6 @@ public:
                     this->parseFunctionExpression();
                     return ScanExpressionResult(ASTNodeType::FunctionExpression);
                 } else if (this->matchKeyword(ThisKeyword)) {
-                    if (this->context->inArrowFunction) {
-                        insertUsingName(this->escargotContext->staticStrings().stringThis);
-                    }
                     this->nextToken();
                     if (isParse) {
                         return T(this->finalize(node, new ThisExpressionNode()));
@@ -2699,9 +2696,6 @@ public:
     {
         if (callee == ASTNodeType::Identifier && callee.string() == escargotContext->staticStrings().eval) {
             scopeContexts.back()->m_hasEval = true;
-            if (this->context->inArrowFunction) {
-                insertUsingName(this->escargotContext->staticStrings().stringThis);
-            }
         }
     }
 
@@ -6044,7 +6038,7 @@ public:
 
     // ECMA-262 14.5 Class Definitions
 
-    PassRefPtr<ClassElementNode> parseClassElement(RefPtr<FunctionExpressionNode>* constructor)
+    PassRefPtr<ClassElementNode> parseClassElement(RefPtr<FunctionExpressionNode>* constructor, bool hasSuperClass)
     {
         ALLOC_TOKEN(token);
         *token = this->lookahead;
@@ -6115,6 +6109,8 @@ public:
                 if (*constructor != nullptr) {
                     this->throwUnexpectedToken(token, Messages::DuplicateConstructor);
                 } else {
+                    lastPoppedScopeContext->m_isClassConstructor = true;
+                    lastPoppedScopeContext->m_isDerivedClassConstructor = hasSuperClass;
                     *constructor = value;
                     return nullptr;
                 }
@@ -6124,7 +6120,7 @@ public:
         return this->finalize(node, new ClassElementNode(key.get(), value.get(), kind, computed, isStatic));
     }
 
-    PassRefPtr<ClassBodyNode> parseClassBody()
+    PassRefPtr<ClassBodyNode> parseClassBody(bool hasSuperClass)
     {
         MetaNode node = this->createNode();
 
@@ -6136,7 +6132,7 @@ public:
             if (this->match(SemiColon)) {
                 this->nextToken();
             } else {
-                PassRefPtr<ClassElementNode> classElement = this->parseClassElement(&constructor);
+                PassRefPtr<ClassElementNode> classElement = this->parseClassElement(&constructor, hasSuperClass);
                 if (classElement != nullptr) {
                     body.push_back(classElement);
                 }
@@ -6171,7 +6167,7 @@ public:
         if (id) {
             addDeclaredNameIntoContext(id->name(), this->lexicalBlockIndex, KeywordKind::ConstKeyword);
         }
-        RefPtr<ClassBodyNode> classBody = this->parseClassBody();
+        RefPtr<ClassBodyNode> classBody = this->parseClassBody(superClass);
         this->context->strict = previousStrict;
         closeBlock(classBlockContext);
 

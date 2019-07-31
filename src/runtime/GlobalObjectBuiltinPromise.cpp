@@ -25,6 +25,8 @@
 #include "ArrayObject.h"
 #include "JobQueue.h"
 #include "SandBox.h"
+#include "BuiltinFunctionObject.h"
+#include "NativeFunctionObject.h"
 
 namespace Escargot {
 
@@ -128,7 +130,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
                 Value nextPromise = res.result;
 
                 // 6.k
-                FunctionObject* resolveElement = new FunctionObject(state, NativeFunctionInfo(strings->Empty, promiseAllResolveElementFunction, 1, NativeFunctionInfo::Strict));
+                FunctionObject* resolveElement = new NativeFunctionObject(state, NativeFunctionInfo(strings->Empty, promiseAllResolveElementFunction, 1, NativeFunctionInfo::Strict));
                 resolveElement->deleteOwnProperty(state, strings->name);
                 Object* internalSlot = new Object(state);
                 resolveElement->setInternalSlot(internalSlot);
@@ -469,13 +471,13 @@ static Value builtinPromiseToString(ExecutionState& state, Value thisValue, size
 void GlobalObject::installPromise(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    m_promise = new FunctionObject(state, NativeFunctionInfo(strings->Promise, builtinPromiseConstructor, 1), FunctionObject::__ForBuiltin__);
+    m_promise = new BuiltinFunctionObject(state, NativeFunctionInfo(strings->Promise, builtinPromiseConstructor, 1));
     m_promise->markThisObjectDontNeedStructureTransitionTable(state);
     m_promise->setPrototype(state, m_functionPrototype);
 
     {
         JSGetterSetter gs(
-            new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSymbolSpecies, builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
+            new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSymbolSpecies, builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         m_promise->defineOwnProperty(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species), desc);
     }
@@ -490,32 +492,32 @@ void GlobalObject::installPromise(ExecutionState& state)
 
     // $25.4.4.1 Promise.all(iterable);
     m_promise->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->all),
-                                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->all, builtinPromiseAll, 1, NativeFunctionInfo::Strict)),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->all, builtinPromiseAll, 1, NativeFunctionInfo::Strict)),
                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $25.4.4.3 Promise.race(iterable)
     m_promise->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->race),
-                                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->race, builtinPromiseRace, 1, NativeFunctionInfo::Strict)),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->race, builtinPromiseRace, 1, NativeFunctionInfo::Strict)),
                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $25.4.4.4 Promise.reject(r)
     m_promise->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->reject),
-                                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->reject, builtinPromiseReject, 1, NativeFunctionInfo::Strict)),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->reject, builtinPromiseReject, 1, NativeFunctionInfo::Strict)),
                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $25.4.4.5 Promise.resolve(r)
     m_promise->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->resolve),
-                                                ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->resolve, builtinPromiseResolve, 1, NativeFunctionInfo::Strict)),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolve, builtinPromiseResolve, 1, NativeFunctionInfo::Strict)),
                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $25.4.5.1 Promise.prototype.catch(onRejected)
     m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->stringCatch),
-                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->stringCatch, builtinPromiseCatch, 1, NativeFunctionInfo::Strict)),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->stringCatch, builtinPromiseCatch, 1, NativeFunctionInfo::Strict)),
                                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $25.4.5.3 Promise.prototype.then(onFulfilled, onRejected)
     m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->then),
-                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->then, builtinPromiseThen, 2, NativeFunctionInfo::Strict)),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->then, builtinPromiseThen, 2, NativeFunctionInfo::Strict)),
                                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $25.4.5.4 Promise.prototype.toString
     m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toString),
-                                                         ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toString, builtinPromiseToString, 1, NativeFunctionInfo::Strict)),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinPromiseToString, 1, NativeFunctionInfo::Strict)),
                                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_promise->setFunctionPrototype(state, m_promisePrototype);
