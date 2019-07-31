@@ -345,6 +345,7 @@ public:
     bool isFalse() const;
     bool isString() const;
     bool isObject() const;
+    bool isPointerValue() const;
     bool isFunction() const;
     bool isCallable() const;
     bool isUndefinedOrNull() const
@@ -375,6 +376,10 @@ public:
     StringRef* asString();
     ObjectRef* asObject();
     FunctionObjectRef* asFunction();
+    PointerValueRef* asPointerValue();
+
+    bool abstractEqualsTo(ExecutionStateRef* state, const ValueRef* other) const;
+    bool equalsTo(ExecutionStateRef* state, const ValueRef* other) const; // BinaryStrictEqual
 };
 
 class EXPORT ValueVectorRef {

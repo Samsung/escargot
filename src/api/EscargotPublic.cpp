@@ -127,7 +127,7 @@ inline ValueRef* toRef(const Value& v)
     return reinterpret_cast<ValueRef*>(SmallValue(v).payload());
 }
 
-inline Value toImpl(ValueRef* v)
+inline Value toImpl(const ValueRef* v)
 {
     ASSERT(v);
     return Value(SmallValue::fromPayload(v));
@@ -1524,7 +1524,7 @@ ValueRef* ValueRef::createUndefined()
 
 bool ValueRef::isBoolean() const
 {
-    return Value(SmallValue::fromPayload(this)).isBoolean();
+    return toImpl(this).isBoolean();
 }
 
 bool ValueRef::isStoreInHeap() const
@@ -1538,110 +1538,115 @@ bool ValueRef::isStoreInHeap() const
 
 bool ValueRef::isNumber() const
 {
-    return Value(SmallValue::fromPayload(this)).isNumber();
+    return toImpl(this).isNumber();
 }
 
 bool ValueRef::isNull() const
 {
-    return Value(SmallValue::fromPayload(this)).isNull();
+    return toImpl(this).isNull();
 }
 
 bool ValueRef::isUndefined() const
 {
-    return Value(SmallValue::fromPayload(this)).isUndefined();
+    return toImpl(this).isUndefined();
 }
 
 bool ValueRef::isString() const
 {
-    return Value(SmallValue::fromPayload(this)).isString();
+    return toImpl(this).isString();
 }
 
 bool ValueRef::isObject() const
 {
-    return Value(SmallValue::fromPayload(this)).isObject();
+    return toImpl(this).isObject();
+}
+
+bool ValueRef::isPointerValue() const
+{
+    return toImpl(this).isPointerValue();
 }
 
 bool ValueRef::isInt32() const
 {
-    return Value(SmallValue::fromPayload(this)).isInt32();
+    return toImpl(this).isInt32();
 }
 
 bool ValueRef::isUInt32() const
 {
-    return Value(SmallValue::fromPayload(this)).isUInt32();
+    return toImpl(this).isUInt32();
 }
 
 bool ValueRef::isDouble() const
 {
-    return Value(SmallValue::fromPayload(this)).isDouble();
+    return toImpl(this).isDouble();
 }
 
 bool ValueRef::isTrue() const
 {
-    return Value(SmallValue::fromPayload(this)).isTrue();
+    return toImpl(this).isTrue();
 }
 
 bool ValueRef::isFalse() const
 {
-    return Value(SmallValue::fromPayload(this)).isFalse();
+    return toImpl(this).isFalse();
 }
 
 bool ValueRef::isFunction() const
 {
-    return Value(SmallValue::fromPayload(this)).isFunction();
+    return toImpl(this).isFunction();
 }
 
 bool ValueRef::isCallable() const
 {
-    return Value(SmallValue::fromPayload(this)).isCallable();
+    return toImpl(this).isCallable();
 }
 
 bool ValueRef::toBoolean(ExecutionStateRef* es)
 {
     ExecutionState* esi = toImpl(es);
-    return Value(SmallValue::fromPayload(this)).toBoolean(*esi);
+    return toImpl(this).toBoolean(*esi);
 }
 
 double ValueRef::toNumber(ExecutionStateRef* es)
 {
     ExecutionState* esi = toImpl(es);
-    return Value(SmallValue::fromPayload(this)).toNumber(*esi);
+    return toImpl(this).toNumber(*esi);
 }
 
 double ValueRef::toLength(ExecutionStateRef* es)
 {
     ExecutionState* esi = toImpl(es);
-    return Value(SmallValue::fromPayload(this)).toLength(*esi);
+    return toImpl(this).toLength(*esi);
 }
 
 int32_t ValueRef::toInt32(ExecutionStateRef* es)
 {
     ExecutionState* esi = toImpl(es);
-    return Value(SmallValue::fromPayload(this)).toInt32(*esi);
+    return toImpl(this).toInt32(*esi);
 }
 
 uint32_t ValueRef::toUint32(ExecutionStateRef* es)
 {
     ExecutionState* esi = toImpl(es);
-    return Value(SmallValue::fromPayload(this)).toUint32(*esi);
+    return toImpl(this).toUint32(*esi);
 }
 
 StringRef* ValueRef::toString(ExecutionStateRef* es)
 {
     ExecutionState* esi = toImpl(es);
-    return toRef(Value(SmallValue::fromPayload(this)).toString(*esi));
+    return toRef(toImpl(this).toString(*esi));
 }
 
 ObjectRef* ValueRef::toObject(ExecutionStateRef* es)
 {
     ExecutionState* esi = toImpl(es);
-    return toRef(Value(SmallValue::fromPayload(this)).toObject(*esi));
+    return toRef(toImpl(this).toObject(*esi));
 }
 
 ValueRef::ValueIndex ValueRef::toIndex(ExecutionStateRef* state)
 {
     ExecutionState* esi = toImpl(state);
-    return Value(SmallValue::fromPayload(this)).toIndex(*esi);
+    return toImpl(this).toIndex(*esi);
 }
 
 uint32_t ValueRef::toArrayIndex(ExecutionStateRef* state)
@@ -1657,37 +1662,52 @@ uint32_t ValueRef::toArrayIndex(ExecutionStateRef* state)
 
 bool ValueRef::asBoolean()
 {
-    return Value(SmallValue::fromPayload(this)).asBoolean();
+    return toImpl(this).asBoolean();
 }
 
 double ValueRef::asNumber()
 {
-    return Value(SmallValue::fromPayload(this)).asNumber();
+    return toImpl(this).asNumber();
 }
 
 int32_t ValueRef::asInt32()
 {
-    return Value(SmallValue::fromPayload(this)).asInt32();
+    return toImpl(this).asInt32();
 }
 
 uint32_t ValueRef::asUint32()
 {
-    return Value(SmallValue::fromPayload(this)).asUInt32();
+    return toImpl(this).asUInt32();
 }
 
 StringRef* ValueRef::asString()
 {
-    return toRef(Value(SmallValue::fromPayload(this)).asString());
+    return toRef(toImpl(this).asString());
 }
 
 ObjectRef* ValueRef::asObject()
 {
-    return toRef(Value(SmallValue::fromPayload(this)).asObject());
+    return toRef(toImpl(this).asObject());
 }
 
 FunctionObjectRef* ValueRef::asFunction()
 {
-    return toRef(Value(SmallValue::fromPayload(this)).asFunction());
+    return toRef(toImpl(this).asFunction());
+}
+
+PointerValueRef* ValueRef::asPointerValue()
+{
+    return toRef(toImpl(this).asPointerValue());
+}
+
+bool ValueRef::abstractEqualsTo(ExecutionStateRef* state, const ValueRef* other) const
+{
+    return toImpl(this).abstractEqualsTo(*toImpl(state), toImpl(other));
+}
+
+bool ValueRef::equalsTo(ExecutionStateRef* state, const ValueRef* other) const
+{
+    return toImpl(this).equalsTo(*toImpl(state), toImpl(other));
 }
 
 IteratorObjectRef* IteratorObjectRef::create(ExecutionStateRef* state)
