@@ -34,6 +34,7 @@
 #include "runtime/IteratorOperations.h"
 #include "runtime/GeneratorObject.h"
 #include "runtime/SpreadObject.h"
+#include "runtime/ScriptArrowFunctionObject.h"
 #include "parser/ScriptParser.h"
 #include "util/Util.h"
 #include "../third_party/checked_arithmetic/CheckedArithmetic.h"
@@ -879,7 +880,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 NewOperation* code = (NewOperation*)programCounter;
-                registerFile[code->m_resultIndex] = newOperation(state, registerFile[code->m_calleeIndex], code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+                registerFile[code->m_resultIndex] = Object::construct(state, registerFile[code->m_calleeIndex], code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
                 ADD_PROGRAM_COUNTER(NewOperation);
                 NEXT_INSTRUCTION();
             }
@@ -988,7 +989,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 CreateFunction* code = (CreateFunction*)programCounter;
-                registerFile[code->m_registerIndex] = new FunctionObject(state, code->m_codeBlock, state.lexicalEnvironment());
+                registerFile[code->m_registerIndex] = createFunctionOperation(state, code, byteCodeBlock, registerFile);
                 ADD_PROGRAM_COUNTER(CreateFunction);
                 NEXT_INSTRUCTION();
             }
@@ -1327,7 +1328,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 const Value& callee = registerFile[code->m_calleeIndex];
                 ValueVector spreadArgs;
                 spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
-                registerFile[code->m_resultIndex] = newOperation(state, registerFile[code->m_calleeIndex], spreadArgs.size(), spreadArgs.data());
+                registerFile[code->m_resultIndex] = Object::construct(state, registerFile[code->m_calleeIndex], spreadArgs.size(), spreadArgs.data());
                 ADD_PROGRAM_COUNTER(NewOperationWithSpreadElement);
                 NEXT_INSTRUCTION();
             }
@@ -1571,14 +1572,6 @@ NEVER_INLINE Value ByteCodeInterpreter::modOperation(ExecutionState& state, cons
     }
 
     return ret;
-}
-
-NEVER_INLINE Object* ByteCodeInterpreter::newOperation(ExecutionState& state, const Value& callee, size_t argc, NULLABLE Value* argv)
-{
-    if (!callee.isConstructor()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor);
-    }
-    return Object::construct(state, callee, argc, argv);
 }
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-instanceofoperator
@@ -2213,6 +2206,15 @@ NEVER_INLINE void ByteCodeInterpreter::initializeGlobalVariable(ExecutionState& 
     ASSERT_NOT_REACHED();
 }
 
+NEVER_INLINE FunctionObject* ByteCodeInterpreter::createFunctionOperation(ExecutionState& state, CreateFunction* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+{
+    CodeBlock* cb = code->m_codeBlock;
+    if (cb->isArrowFunctionExpression()) {
+        return new ScriptArrowFunctionObject(state, code->m_codeBlock, state.lexicalEnvironment(), registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize]);
+    }
+    return new ScriptFunctionObject(state, code->m_codeBlock, state.lexicalEnvironment());
+}
+
 NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, TryOperation* code, LexicalEnvironment* env, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     char* codeBuffer = byteCodeBlock->m_code.data();
@@ -2343,26 +2345,23 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
     Object* constructor;
 
     if (code->m_codeBlock) {
-        constructor = new FunctionObject(state, code->m_codeBlock, state.lexicalEnvironment());
+        constructor = new ScriptFunctionObject(state, code->m_codeBlock, state.lexicalEnvironment());
     } else {
         if (!heritagePresent) {
             Value argv[] = { String::emptyString, String::emptyString };
-            constructor = newOperation(state, state.context()->globalObject()->function(), 2, argv);
+            constructor = Object::construct(state, state.context()->globalObject()->function(), 2, argv);
+            constructor->asFunctionObject()->codeBlock()->setAsClassConstructor();
         } else {
             Value argv[] = { new ASCIIString("...args"), new ASCIIString("super(...args)") };
-            constructor = newOperation(state, state.context()->globalObject()->function(), 2, argv);
+            constructor = Object::construct(state, state.context()->globalObject()->function(), 2, argv);
+            constructor->asFunctionObject()->codeBlock()->setAsClassConstructor();
+            constructor->asFunctionObject()->codeBlock()->setAsDerivedClassConstructor();
         }
-
-        constructor->asFunctionObject()->codeBlock()->setAsClassConstructor();
     }
 
     constructor->setPrototype(state, constructorParent);
     constructor->asFunctionObject()->setFunctionPrototype(state, proto);
     constructor->asFunctionObject()->setHomeObject(proto);
-
-    if (heritagePresent) {
-        constructor->asFunctionObject()->setConstructorKind(FunctionObject::ConstructorKind::Derived);
-    }
 
     proto->defineOwnProperty(state, state.context()->staticStrings().constructor, ObjectPropertyDescriptor(constructor, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::ValuePresent)));
 

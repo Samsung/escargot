@@ -108,6 +108,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_isFunctionDeclaration(false)
     , m_isArrowFunctionExpression(false)
     , m_isClassConstructor(false)
+    , m_isDerivedClassConstructor(false)
     , m_isGenerator(false)
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
@@ -146,6 +147,7 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_isFunctionDeclaration(false)
     , m_isArrowFunctionExpression(false)
     , m_isClassConstructor(false)
+    , m_isDerivedClassConstructor(false)
     , m_isGenerator(false)
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
@@ -212,6 +214,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isArrowFunctionExpression = false;
     m_isStrict = scopeCtx->m_isStrict;
     m_isClassConstructor = scopeCtx->m_isClassConstructor;
+    m_isDerivedClassConstructor = scopeCtx->m_isDerivedClassConstructor;
     m_isGenerator = scopeCtx->m_isGenerator;
     m_hasRestElement = scopeCtx->m_hasRestElement;
 
@@ -279,7 +282,6 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_byteCodeBlock = nullptr;
     m_functionName = scopeCtx->m_functionName;
     m_parameterCount = scopeCtx->m_hasRestElement ? parameterNames.size() - 1 : parameterNames.size();
-    m_isConstructor = true;
     m_hasCallNativeFunctionCode = false;
     m_isStrict = scopeCtx->m_isStrict;
     m_hasEval = scopeCtx->m_hasEval;
@@ -299,6 +301,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isArrowFunctionExpression = scopeCtx->m_isArrowFunctionExpression;
     m_isConstructor = !scopeCtx->m_isArrowFunctionExpression;
     m_isClassConstructor = scopeCtx->m_isClassConstructor;
+    m_isDerivedClassConstructor = scopeCtx->m_isDerivedClassConstructor;
     m_isGenerator = scopeCtx->m_isGenerator;
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;

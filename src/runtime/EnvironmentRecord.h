@@ -696,7 +696,7 @@ public:
 class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
     friend class ByteCodeInterpreter;
-    friend class FunctionObject;
+    friend class ScriptFunctionObject;
 
 public:
     FunctionEnvironmentRecordOnHeap(FunctionObject* function, size_t argc, Value* argv);
@@ -777,6 +777,11 @@ public:
     virtual Value* argv() override
     {
         return m_argv;
+    }
+
+    inline SmallValueTightVector& heapStorage()
+    {
+        return m_heapStorage;
     }
 
 private:

@@ -37,6 +37,7 @@ struct GlobalVariableAccessCacheItem;
 class InitializeGlobalVariable;
 class CallFunctionInWithScope;
 class CallEvalFunction;
+class CreateFunction;
 class CreateClass;
 class SuperReference;
 class WithOperation;
@@ -58,7 +59,6 @@ public:
     static void initializeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool isLexicallyDeclaredName, const Value& value);
     static Value plusSlowCase(ExecutionState& state, const Value& a, const Value& b);
     static Value modOperation(ExecutionState& state, const Value& left, const Value& right);
-    static Object* newOperation(ExecutionState& state, const Value& callee, size_t argc, Value* argv);
     static Value instanceOfOperation(ExecutionState& state, const Value& left, const Value& right);
     static void deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile);
     static void templateOperation(ExecutionState& state, LexicalEnvironment* env, TemplateOperation* code, Value* registerFile);
@@ -85,6 +85,7 @@ public:
 
     static size_t tryOperation(ExecutionState& state, TryOperation* code, LexicalEnvironment* env, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 
+    static FunctionObject* createFunctionOperation(ExecutionState& state, CreateFunction* createFunction, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static void evalOperation(ExecutionState& state, CallEvalFunction* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static void classOperation(ExecutionState& state, CreateClass* code, Value* registerFile);
     static void superOperation(ExecutionState& state, SuperReference* code, Value* registerFile);

@@ -30,6 +30,7 @@
 #include "StringObject.h"
 #include "NumberObject.h"
 #include "DateObject.h"
+#include "NativeFunctionObject.h"
 #include "parser/Lexer.h"
 #include "parser/ScriptParser.h"
 #include "heap/LeakCheckerBridge.h"
@@ -139,10 +140,10 @@ static Value builtinGc(ExecutionState& state, Value thisValue, size_t argc, Valu
     return Value();
 }
 
-class EvalFunctionObject : public FunctionObject {
+class EvalFunctionObject : public NativeFunctionObject {
 public:
     EvalFunctionObject(ExecutionState& state, NativeFunctionInfo info)
-        : FunctionObject(state, info)
+        : NativeFunctionObject(state, info)
     {
         m_globalObject = state.context()->globalObject();
     }
@@ -959,16 +960,16 @@ void GlobalObject::installOthers(ExecutionState& state)
                       ObjectPropertyDescriptor(m_eval, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $18.2.2 isFinite(number)
     defineOwnProperty(state, ObjectPropertyName(strings->isFinite),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->isFinite, builtinIsFinite, 1, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(strings->isFinite, builtinIsFinite, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $18.2.3 isNaN(number)
     defineOwnProperty(state, ObjectPropertyName(strings->isNaN),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->isNaN, builtinIsNaN, 1, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(strings->isNaN, builtinIsNaN, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    FunctionObject* parseInt = new FunctionObject(state, NativeFunctionInfo(strings->parseInt, builtinParseInt, 2, NativeFunctionInfo::Strict));
+    FunctionObject* parseInt = new NativeFunctionObject(state, NativeFunctionInfo(strings->parseInt, builtinParseInt, 2, NativeFunctionInfo::Strict));
     defineOwnProperty(state, ObjectPropertyName(strings->parseInt),
                       ObjectPropertyDescriptor(parseInt,
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -977,7 +978,7 @@ void GlobalObject::installOthers(ExecutionState& state)
                                 ObjectPropertyDescriptor(parseInt,
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    FunctionObject* parseFloat = new FunctionObject(state, NativeFunctionInfo(strings->parseFloat, builtinParseFloat, 1, NativeFunctionInfo::Strict));
+    FunctionObject* parseFloat = new NativeFunctionObject(state, NativeFunctionInfo(strings->parseFloat, builtinParseFloat, 1, NativeFunctionInfo::Strict));
     defineOwnProperty(state, ObjectPropertyName(strings->parseFloat),
                       ObjectPropertyDescriptor(parseFloat,
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -987,75 +988,75 @@ void GlobalObject::installOthers(ExecutionState& state)
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(strings->encodeURI),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->encodeURI, builtinEncodeURI, 1, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(strings->encodeURI, builtinEncodeURI, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(strings->decodeURI),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->decodeURI, builtinDecodeURI, 1, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(strings->decodeURI, builtinDecodeURI, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(strings->encodeURIComponent),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->encodeURIComponent, builtinEncodeURIComponent, 1, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(strings->encodeURIComponent, builtinEncodeURIComponent, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(strings->decodeURIComponent),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->decodeURIComponent, builtinDecodeURIComponent, 1, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(strings->decodeURIComponent, builtinDecodeURIComponent, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(strings->escape),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->escape, builtinEscape, 1, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(strings->escape, builtinEscape, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(strings->unescape),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->unescape, builtinUnescape, 1, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(strings->unescape, builtinUnescape, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__defineGetter__),
-                                         ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                     NativeFunctionInfo(strings->__defineGetter__, builtinDefineGetter, 2, 0)),
+                                         ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                           NativeFunctionInfo(strings->__defineGetter__, builtinDefineGetter, 2, 0)),
                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__defineSetter__),
-                                         ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                     NativeFunctionInfo(strings->__defineSetter__, builtinDefineSetter, 2, 0)),
+                                         ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                           NativeFunctionInfo(strings->__defineSetter__, builtinDefineSetter, 2, 0)),
                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__lookupGetter__),
-                                         ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                     NativeFunctionInfo(strings->__lookupGetter__, builtinLookupGetter, 1, 0)),
+                                         ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                           NativeFunctionInfo(strings->__lookupGetter__, builtinLookupGetter, 1, 0)),
                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__lookupSetter__),
-                                         ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                                     NativeFunctionInfo(strings->__lookupSetter__, builtinLookupSetter, 1, 0)),
+                                         ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                           NativeFunctionInfo(strings->__lookupSetter__, builtinLookupSetter, 1, 0)),
                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 #ifdef ESCARGOT_SHELL
     defineOwnProperty(state, ObjectPropertyName(strings->print),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->print, builtinPrint, 1, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(strings->print, builtinPrint, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
     defineOwnProperty(state, ObjectPropertyName(strings->load),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->load, builtinLoad, 1, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(strings->load, builtinLoad, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
     defineOwnProperty(state, ObjectPropertyName(strings->read),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->read, builtinRead, 1, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(strings->read, builtinRead, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
     defineOwnProperty(state, ObjectPropertyName(strings->run),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->run, builtinRun, 1, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(strings->run, builtinRun, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 /*
     defineOwnProperty(state, ObjectPropertyName(strings->dbgBreak),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
                                                                   NativeFunctionInfo(strings->dbgBreak, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression) -> Value {
                                                                       puts("dbgBreak");
                                                                       return Value();
@@ -1066,25 +1067,25 @@ void GlobalObject::installOthers(ExecutionState& state)
 #endif
 
     defineOwnProperty(state, ObjectPropertyName(strings->gc),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(strings->gc, builtinGc, 0, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(strings->gc, builtinGc, 0, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
 #ifdef PROFILE_BDWGC
     AtomicString dumpBackTrace(state, "dumpBackTrace");
     defineOwnProperty(state, ObjectPropertyName(dumpBackTrace),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(dumpBackTrace, builtinDumpBackTrace, 1, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(dumpBackTrace, builtinDumpBackTrace, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
     AtomicString registerLeakCheck(state, "registerLeakCheck");
     defineOwnProperty(state, ObjectPropertyName(registerLeakCheck),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(registerLeakCheck, builtinRegisterLeakCheck, 2, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(registerLeakCheck, builtinRegisterLeakCheck, 2, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
     AtomicString setPhaseName(state, "setPhaseName");
     defineOwnProperty(state, ObjectPropertyName(setPhaseName),
-                      ObjectPropertyDescriptor(new FunctionObject(state,
-                                                                  NativeFunctionInfo(setPhaseName, builtinSetGCPhaseName, 1, NativeFunctionInfo::Strict)),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(setPhaseName, builtinSetGCPhaseName, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 #endif
 

@@ -49,6 +49,8 @@
 #include "StringObject.h"
 #include "ArrayObject.h"
 #include "VMInstance.h"
+#include "NativeFunctionObject.h"
+#include "BuiltinFunctionObject.h"
 
 namespace Escargot {
 
@@ -1307,7 +1309,7 @@ static Value builtinIntlCollatorCompareGetter(ExecutionState& state, Value thisV
         fn = g.value(state, internalSlot).asFunction();
     } else {
         const StaticStrings* strings = &state.context()->staticStrings();
-        fn = new FunctionObject(state, NativeFunctionInfo(strings->compare, builtinIntlCollatorCompare, 2, NativeFunctionInfo::Strict));
+        fn = new NativeFunctionObject(state, NativeFunctionInfo(strings->compare, builtinIntlCollatorCompare, 2, NativeFunctionInfo::Strict));
         internalSlot->set(state, ObjectPropertyName(state, compareFunctionString), Value(fn), internalSlot);
         fn->setInternalSlot(internalSlot);
     }
@@ -2040,7 +2042,7 @@ static Value builtinIntlDateTimeFormatFormatGetter(ExecutionState& state, Value 
         fn = g.value(state, internalSlot).asFunction();
     } else {
         const StaticStrings* strings = &state.context()->staticStrings();
-        fn = new FunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlDateTimeFormatFormat, 1, NativeFunctionInfo::Strict));
+        fn = new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlDateTimeFormatFormat, 1, NativeFunctionInfo::Strict));
         internalSlot->set(state, ObjectPropertyName(state, formatFunctionString), Value(fn), internalSlot);
         fn->setInternalSlot(internalSlot);
     }
@@ -2447,7 +2449,7 @@ static Value builtinIntlNumberFormatFormatGetter(ExecutionState& state, Value th
         fn = g.value(state, internalSlot).asFunction();
     } else {
         const StaticStrings* strings = &state.context()->staticStrings();
-        fn = new FunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlNumberFormatFormat, 1, NativeFunctionInfo::Strict));
+        fn = new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlNumberFormatFormat, 1, NativeFunctionInfo::Strict));
         internalSlot->set(state, ObjectPropertyName(state, formatFunctionString), Value(fn), internalSlot);
         fn->setInternalSlot(internalSlot);
     }
@@ -2562,44 +2564,44 @@ void GlobalObject::installIntl(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(strings->Intl),
                       ObjectPropertyDescriptor(m_intl, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_intlCollator = new FunctionObject(state, NativeFunctionInfo(strings->Collator, builtinIntlCollatorConstructor, 0), FunctionObject::__ForBuiltin__);
+    m_intlCollator = new BuiltinFunctionObject(state, NativeFunctionInfo(strings->Collator, builtinIntlCollatorConstructor, 0));
 
-    FunctionObject* compareFunction = new FunctionObject(state, NativeFunctionInfo(strings->compare, builtinIntlCollatorCompareGetter, 0, NativeFunctionInfo::Strict));
+    FunctionObject* compareFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->compare, builtinIntlCollatorCompareGetter, 0, NativeFunctionInfo::Strict));
     m_intlCollator->getFunctionPrototype(state).asObject()->defineOwnProperty(state, state.context()->staticStrings().compare,
                                                                               ObjectPropertyDescriptor(JSGetterSetter(compareFunction, Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_intlCollator->getFunctionPrototype(state).asObject()->defineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
-                                                                              ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlCollatorResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+                                                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlCollatorResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intlCollator->getFunctionPrototype(state).asObject()->defineOwnProperty(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().toStringTag),
                                                                               ObjectPropertyDescriptor(strings->Object.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_intlCollator->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
-                                      ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlCollatorSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlCollatorSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
-    m_intlDateTimeFormat = new FunctionObject(state, NativeFunctionInfo(strings->DateTimeFormat, builtinIntlDateTimeFormatConstructor, 0), FunctionObject::__ForBuiltin__);
+    m_intlDateTimeFormat = new BuiltinFunctionObject(state, NativeFunctionInfo(strings->DateTimeFormat, builtinIntlDateTimeFormatConstructor, 0));
 
-    FunctionObject* formatFunction = new FunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlDateTimeFormatFormatGetter, 0, NativeFunctionInfo::Strict));
+    FunctionObject* formatFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlDateTimeFormatFormatGetter, 0, NativeFunctionInfo::Strict));
     m_intlDateTimeFormat->getFunctionPrototype(state).asObject()->defineOwnProperty(state, state.context()->staticStrings().format,
                                                                                     ObjectPropertyDescriptor(JSGetterSetter(formatFunction, Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_intlDateTimeFormat->getFunctionPrototype(state).asObject()->defineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
-                                                                                    ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlDateTimeFormatResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+                                                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlDateTimeFormatResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intlDateTimeFormat->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
-                                            ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlDateTimeFormatSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlDateTimeFormatSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
-    m_intlNumberFormat = new FunctionObject(state, NativeFunctionInfo(strings->NumberFormat, builtinIntlNumberFormatConstructor, 0), FunctionObject::__ForBuiltin__);
+    m_intlNumberFormat = new BuiltinFunctionObject(state, NativeFunctionInfo(strings->NumberFormat, builtinIntlNumberFormatConstructor, 0));
 
-    formatFunction = new FunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlNumberFormatFormatGetter, 0, NativeFunctionInfo::Strict));
+    formatFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlNumberFormatFormatGetter, 0, NativeFunctionInfo::Strict));
     m_intlNumberFormat->getFunctionPrototype(state).asObject()->defineOwnProperty(state, state.context()->staticStrings().format,
                                                                                   ObjectPropertyDescriptor(JSGetterSetter(formatFunction, Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_intlNumberFormat->getFunctionPrototype(state).asObject()->defineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
-                                                                                  ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlNumberFormatResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+                                                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlNumberFormatResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intlNumberFormat->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
-                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlNumberFormatSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlNumberFormatSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
 
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->Collator),
@@ -2611,7 +2613,7 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->NumberFormat),
                               ObjectPropertyDescriptor(m_intlNumberFormat, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    FunctionObject* getCanonicalLocales = new FunctionObject(state, NativeFunctionInfo(strings->getCanonicalLocales, builtinIntlGetCanonicalLocales, 0, NativeFunctionInfo::Strict));
+    FunctionObject* getCanonicalLocales = new NativeFunctionObject(state, NativeFunctionInfo(strings->getCanonicalLocales, builtinIntlGetCanonicalLocales, 0, NativeFunctionInfo::Strict));
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->getCanonicalLocales),
                               ObjectPropertyDescriptor(getCanonicalLocales, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }

@@ -21,6 +21,8 @@
 #include "GlobalObject.h"
 #include "Context.h"
 #include "NumberObject.h"
+#include "BuiltinFunctionObject.h"
+#include "NativeFunctionObject.h"
 
 // dtoa
 #include "ieee.h"
@@ -358,7 +360,7 @@ static Value builtinNumberIsSafeInteger(ExecutionState& state, Value thisValue, 
 void GlobalObject::installNumber(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    m_number = new FunctionObject(state, NativeFunctionInfo(strings->Number, builtinNumberConstructor, 1), FunctionObject::__ForBuiltin__);
+    m_number = new BuiltinFunctionObject(state, NativeFunctionInfo(strings->Number, builtinNumberConstructor, 1));
     m_number->markThisObjectDontNeedStructureTransitionTable(state);
     m_number->setPrototype(state, m_functionPrototype);
     m_numberPrototype = m_objectPrototype;
@@ -369,23 +371,23 @@ void GlobalObject::installNumber(ExecutionState& state)
     m_numberPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_number, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_numberPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toString),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toString, builtinNumberToString, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinNumberToString, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_numberPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toLocaleString),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toLocaleString, builtinNumberToLocaleString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toLocaleString, builtinNumberToLocaleString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_numberPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toFixed),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toFixed, builtinNumberToFixed, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toFixed, builtinNumberToFixed, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_numberPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toExponential),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toExponential, builtinNumberToExponential, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toExponential, builtinNumberToExponential, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_numberPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toPrecision),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->toPrecision, builtinNumberToPrecision, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toPrecision, builtinNumberToPrecision, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $20.1.3.26 Number.prototype.valueOf
     m_numberPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->valueOf),
-                                                        ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->valueOf, builtinNumberValueOf, 0, NativeFunctionInfo::Strict)),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->valueOf, builtinNumberValueOf, 0, NativeFunctionInfo::Strict)),
                                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
@@ -399,16 +401,16 @@ void GlobalObject::installNumber(ExecutionState& state)
     m_number->defineOwnPropertyThrowsException(state, strings->EPSILON, ObjectPropertyDescriptor(Value(std::numeric_limits<double>::epsilon()), allFalsePresent));
     // $20.1.2.2 Number.isFinite
     m_number->defineOwnPropertyThrowsException(state, strings->isFinite,
-                                               ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->isFinite, builtinNumberIsFinite, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->isFinite, builtinNumberIsFinite, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $20.1.2.3 Number.isInteger
     m_number->defineOwnPropertyThrowsException(state, strings->isInteger,
-                                               ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->isInteger, builtinNumberIsInteger, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->isInteger, builtinNumberIsInteger, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $20.1.2.3 Number.isNaN
     m_number->defineOwnPropertyThrowsException(state, strings->isNaN,
-                                               ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->isNaN, builtinNumberIsNaN, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->isNaN, builtinNumberIsNaN, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $20.1.2.5 Number.isSafeInteger
     m_number->defineOwnPropertyThrowsException(state, strings->isSafeInteger,
-                                               ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->isSafeInteger, builtinNumberIsSafeInteger, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->isSafeInteger, builtinNumberIsSafeInteger, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $20.1.2.6 Number.MAX_SAFE_INTEGER
     m_number->defineOwnPropertyThrowsException(state, strings->MAX_SAFE_INTEGER, ObjectPropertyDescriptor(Value(9007199254740991.0), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
     // $20.1.2.7 Number.MAX_VALUE

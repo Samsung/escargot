@@ -22,6 +22,7 @@
 #include "runtime/Context.h"
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
+#include "runtime/NativeFunctionObject.h"
 #include "parser/Script.h"
 #include "interpreter/ByteCode.h"
 #include "interpreter/ByteCodeInterpreter.h"
@@ -201,7 +202,7 @@ void SandBox::fillStackDataIntoErrorObject(const Value& e)
 
         ExecutionState state(m_context);
         JSGetterSetter gs(
-            new FunctionObject(state, NativeFunctionInfo(m_context->staticStrings().stack, builtinErrorObjectStackInfo, 0, NativeFunctionInfo::Strict)),
+            new NativeFunctionObject(state, NativeFunctionInfo(m_context->staticStrings().stack, builtinErrorObjectStackInfo, 0, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         obj->defineOwnProperty(state, ObjectPropertyName(m_context->staticStrings().stack), desc);

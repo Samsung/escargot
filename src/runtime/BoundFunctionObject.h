@@ -20,6 +20,8 @@
 #ifndef __EscargotBoundFunctionObject__
 #define __EscargotBoundFunctionObject__
 
+#include "runtime/Object.h"
+
 namespace Escargot {
 
 class BoundFunctionObject : public Object {

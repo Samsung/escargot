@@ -195,6 +195,7 @@ void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView sc
             programNode->scopeContext()->m_hasWith = parentCodeBlock->hasWith();
             programNode->scopeContext()->m_hasYield = parentCodeBlock->hasYield();
             programNode->scopeContext()->m_isClassConstructor = parentCodeBlock->isClassConstructor();
+            programNode->scopeContext()->m_isDerivedClassConstructor = parentCodeBlock->isDerivedClassConstructor();
             topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, scriptSource, script, programNode->scopeContext(), parentCodeBlock, isEvalMode, isEvalCodeInFunction);
         } else {
             topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, programNode.get(), isEvalMode, isEvalCodeInFunction);

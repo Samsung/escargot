@@ -34,9 +34,9 @@
 #include "util/Util.h"
 #include "runtime/ProxyObject.h"
 
-namespace Escargot {
+#include "FunctionObjectInlines.h"
 
-size_t g_functionObjectTag;
+namespace Escargot {
 
 void FunctionObject::initStructureAndValues(ExecutionState& state)
 {
@@ -52,89 +52,38 @@ void FunctionObject::initStructureAndValues(ExecutionState& state)
     }
 }
 
-FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForGlobalBuiltin)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2, false)
-    , m_codeBlock(codeBlock)
-    , m_outerEnvironment(nullptr)
-    , m_homeObject(nullptr)
-    , m_constructorKind(ConstructorKind::Base)
-    , m_isBuiltin(false)
+// function for derived classes. derived class MUST initlize member variable of FunctionObject.
+FunctionObject::FunctionObject(ExecutionState& state, size_t defaultSpace)
+    : Object(state, defaultSpace, false)
+#ifndef NDEBUG
+    , m_codeBlock((CodeBlock*)SIZE_MAX)
+    , m_homeObject((Object*)SIZE_MAX)
+#endif
 {
-    ASSERT(!isConstructor());
-    initStructureAndValues(state);
 }
 
-FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltin)
-    : Object(state, codeBlock->isConstructor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
-    , m_codeBlock(codeBlock)
-    , m_outerEnvironment(nullptr)
-    , m_homeObject(nullptr)
-    , m_constructorKind(ConstructorKind::Base)
-    , m_isBuiltin(codeBlock->isConstructor())
+// function for derived classes. derived class MUST initlize member variable of FunctionObject.
+ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, size_t defaultSpace)
+    : FunctionObject(state, defaultSpace)
+#ifndef NDEBUG
+    , m_outerEnvironment((LexicalEnvironment*)SIZE_MAX)
+#endif
 {
-    initStructureAndValues(state);
-    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
-    if (isConstructor())
-        m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
 }
 
-FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info)
-    : Object(state, info.m_isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2), false)
-    , m_codeBlock(new CodeBlock(state.context(), info))
-    , m_outerEnvironment(nullptr)
-    , m_homeObject(nullptr)
-    , m_constructorKind(ConstructorKind::Base)
-    , m_isBuiltin(false)
+ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnv)
+    : FunctionObject(state,
+                     (codeBlock->isConstructor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)) + ((codeBlock->isStrict() && !codeBlock->hasCallNativeFunctionCode()) ? 2 : 0))
 {
+    m_codeBlock = codeBlock;
+    m_outerEnvironment = outerEnv;
+    m_homeObject = nullptr;
+
     initStructureAndValues(state);
     Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
 }
 
-FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltin)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3, false)
-    , m_codeBlock(new CodeBlock(state.context(), info))
-    , m_outerEnvironment(nullptr)
-    , m_homeObject(nullptr)
-    , m_constructorKind(ConstructorKind::Base)
-    , m_isBuiltin(true)
-{
-    ASSERT(isConstructor());
-    initStructureAndValues(state);
-    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
-    m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
-}
-
-FunctionObject::FunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnv)
-    : Object(state,
-             (codeBlock->isConstructor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)) + ((codeBlock->isStrict() && !codeBlock->hasCallNativeFunctionCode()) ? 2 : 0),
-             false)
-    , m_codeBlock(codeBlock)
-    , m_outerEnvironment(outerEnv)
-    , m_homeObject(nullptr)
-    , m_constructorKind(ConstructorKind::Base)
-    , m_isBuiltin(false)
-{
-    initStructureAndValues(state);
-    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
-}
-
-FunctionObject::FunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinProxyConstructor)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2, false)
-    , m_codeBlock(new CodeBlock(state.context(), info))
-    , m_outerEnvironment(nullptr)
-    , m_homeObject(nullptr)
-    , m_constructorKind(ConstructorKind::Base)
-    , m_isBuiltin(true)
-{
-    ASSERT(isConstructor());
-    // The Proxy constructor does not have a prototype property
-    m_structure = state.context()->defaultStructureForNotConstructorFunctionObject();
-    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
-    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->parameterCount()));
-    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
-}
-
-NEVER_INLINE void FunctionObject::generateByteCodeBlock(ExecutionState& state)
+NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& state)
 {
     Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& v = state.context()->compiledCodeBlocks();
 
@@ -190,9 +139,15 @@ NEVER_INLINE void FunctionObject::generateByteCodeBlock(ExecutionState& state)
     currentCodeSizeTotal += m_codeBlock->m_byteCodeBlock->memoryAllocatedSize();
 }
 
-// https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-construct-argumentslist-newtarget
-Object* FunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, const Value& newTarget)
+Value ScriptFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
 {
+    ASSERT(!codeBlock()->hasCallNativeFunctionCode());
+    return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, false, FunctionObjectThisValueBinder>(state, this, thisValue, argc, argv);
+}
+
+Object* ScriptFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, const Value& newTarget)
+{
+    ASSERT(!codeBlock()->hasCallNativeFunctionCode());
     // FIXME: newTarget
     CodeBlock* cb = codeBlock();
     FunctionObject* constructor = this;
@@ -201,344 +156,25 @@ Object* FunctionObject::construct(ExecutionState& state, const size_t argc, NULL
     ASSERT(newTarget.isObject());
     ASSERT(newTarget.isConstructor());
     // Let kind be F’s [[ConstructorKind]] internal slot.
-    ConstructorKind kind = constructorKind();
-    Value result;
+    // ConstructorKind kind = constructorKind();
 
-    if (cb->hasCallNativeFunctionCode()) {
-        // Builtin function
-        result = processBuiltinFunctionCall(state, Value(Value::EmptyValue), argc, argv, true, newTarget);
+    // FIXME: If kind is "base", then
+    // FIXME: Let thisArgument be OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").
+    Object* thisArgument = new Object(state);
+    if (constructor->getFunctionPrototype(state).isObject()) {
+        thisArgument->setPrototype(state, constructor->getFunctionPrototype(state));
+    } else {
+        thisArgument->setPrototype(state, new Object(state));
+    }
 
-        ASSERT(result.isObject());
+    Value result = FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, true, FunctionObjectThisValueBinder>(state, this, thisArgument, argc, argv);
+    if (result.isObject()) {
         return result.asObject();
-    } else {
-        // FIXME: If kind is "base", then
-        // FIXME: Let thisArgument be OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").
-        Object* thisArgument = new Object(state);
-        if (constructor->getFunctionPrototype(state).isObject()) {
-            thisArgument->setPrototype(state, constructor->getFunctionPrototype(state));
-        } else {
-            thisArgument->setPrototype(state, new Object(state));
-        }
-
-        result = processCall(state, thisArgument, argc, argv, true);
-        if (result.isObject()) {
-            return result.asObject();
-        }
-        return thisArgument;
     }
+    return thisArgument;
 }
 
-Value FunctionObject::processBuiltinFunctionCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, Value* argv, bool isNewExpression, const Value& newTarget)
-{
-    volatile int sp;
-    size_t currentStackBase = (size_t)&sp;
-#ifdef STACK_GROWS_DOWN
-    if (UNLIKELY((state.stackBase() - currentStackBase) > STACK_LIMIT_FROM_BASE)) {
-#else
-    if (UNLIKELY((currentStackBase - state.stackBase()) > STACK_LIMIT_FROM_BASE)) {
-#endif
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
-    }
-
-    Context* ctx = m_codeBlock->context();
-    bool isStrict = m_codeBlock->isStrict();
-    bool isSuperCall = state.isOnGoingSuperCall();
-
-    if (UNLIKELY(!isNewExpression && functionKind() == FunctionKind::ClassConstructor && !isSuperCall)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Class constructor cannot be invoked without 'new'");
-    }
-
-    if (UNLIKELY(isSuperCall && isBuiltin() && !isNewExpression)) {
-        Value returnValue = Object::construct(state, this, argc, argv);
-        returnValue.asObject()->setPrototype(state, receiverSrc.toObject(state)->getPrototype(state));
-        return returnValue;
-    }
-
-    CallNativeFunctionData* code = m_codeBlock->nativeFunctionData();
-    FunctionEnvironmentRecordSimple record(this);
-    LexicalEnvironment env(&record, outerEnvironment());
-
-    size_t len = m_codeBlock->parameterCount();
-    if (argc < len) {
-        Value* newArgv = (Value*)alloca(sizeof(Value) * len);
-        for (size_t i = 0; i < argc; i++) {
-            newArgv[i] = argv[i];
-        }
-        for (size_t i = argc; i < len; i++) {
-            newArgv[i] = Value();
-        }
-        argv = newArgv;
-    }
-
-    Value receiver = receiverSrc;
-    // prepare receiver
-    if (UNLIKELY(!isStrict)) {
-        if (receiver.isUndefinedOrNull()) {
-            receiver = ctx->globalObject();
-        } else {
-            receiver = receiver.toObject(state);
-        }
-    }
-
-    // FIXME bind this value and newTarget
-    record.bindThisValue(state, receiver);
-    if (isNewExpression) {
-        record.setNewTarget(newTarget);
-    }
-
-    ExecutionState newState(ctx, &state, &env, isStrict, &receiver);
-    try {
-        Value returnValue = code->m_fn(newState, receiver, argc, argv, isNewExpression);
-        if (UNLIKELY(isSuperCall)) {
-            state.getThisEnvironment()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->bindThisValue(state, returnValue);
-            state.setOnGoingSuperCall(false);
-            if (returnValue.isObject() && !isBuiltin()) {
-                returnValue.asObject()->setPrototype(state, receiver.toObject(state)->getPrototype(state));
-            }
-        }
-        return returnValue;
-    } catch (const Value& v) {
-        ByteCodeInterpreter::processException(newState, v, SIZE_MAX);
-        return Value();
-    }
-}
-
-Value FunctionObject::processCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, NULLABLE Value* argv, bool isNewExpression)
-{
-    volatile int sp;
-    size_t currentStackBase = (size_t)&sp;
-#ifdef STACK_GROWS_DOWN
-    if (UNLIKELY((state.stackBase() - currentStackBase) > STACK_LIMIT_FROM_BASE)) {
-#else
-    if (UNLIKELY((currentStackBase - state.stackBase()) > STACK_LIMIT_FROM_BASE)) {
-#endif
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
-    }
-
-    ASSERT(m_codeBlock->isInterpretedCodeBlock());
-
-    Context* ctx = m_codeBlock->context();
-    bool isStrict = m_codeBlock->isStrict();
-    bool isSuperCall = state.isOnGoingSuperCall();
-
-    if (UNLIKELY(!isNewExpression && functionKind() == FunctionKind::ClassConstructor && !isSuperCall)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Class constructor cannot be invoked without 'new'");
-    }
-
-    if (UNLIKELY(isSuperCall && isBuiltin() && !isNewExpression)) {
-        Value returnValue = Object::construct(state, this, argc, argv);
-        returnValue.asObject()->setPrototype(state, receiverSrc.toObject(state)->getPrototype(state));
-        return returnValue;
-    }
-
-    // prepare ByteCodeBlock if needed
-    if (UNLIKELY(m_codeBlock->asInterpretedCodeBlock()->byteCodeBlock() == nullptr)) {
-        generateByteCodeBlock(state);
-    }
-
-    ByteCodeBlock* blk = m_codeBlock->asInterpretedCodeBlock()->byteCodeBlock();
-
-    size_t registerSize = blk->m_requiredRegisterFileSizeInValueSize;
-    size_t identifierOnStackCount = m_codeBlock->asInterpretedCodeBlock()->identifierOnStackCount();
-    size_t stackStorageSize = m_codeBlock->asInterpretedCodeBlock()->totalStackAllocatedVariableSize();
-    size_t literalStorageSize = blk->m_numeralLiteralData.size();
-    Value* literalStorageSrc = blk->m_numeralLiteralData.data();
-    size_t parameterCopySize = std::min(argc, (size_t)m_codeBlock->parameterCount());
-
-    // prepare env, ec
-    FunctionEnvironmentRecord* record;
-    LexicalEnvironment* lexEnv;
-
-    if (LIKELY(m_codeBlock->canAllocateEnvironmentOnStack())) {
-        // no capture, very simple case
-        record = new (alloca(sizeof(FunctionEnvironmentRecordSimple))) FunctionEnvironmentRecordSimple(this);
-        lexEnv = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, outerEnvironment());
-    } else {
-        if (LIKELY(m_codeBlock->canUseIndexedVariableStorage())) {
-            record = new FunctionEnvironmentRecordOnHeap(this, argc, argv);
-        } else {
-            if (LIKELY(!m_codeBlock->needsVirtualIDOperation())) {
-                record = new FunctionEnvironmentRecordNotIndexed(this, argc, argv);
-            } else {
-                record = new FunctionEnvironmentRecordNotIndexedWithVirtualID(this, argc, argv);
-            }
-        }
-        lexEnv = new LexicalEnvironment(record, outerEnvironment());
-    }
-
-    if (receiverSrc.isObject()) {
-        record->setNewTarget(receiverSrc.asObject());
-    }
-
-    Value* registerFile;
-
-    if (UNLIKELY(m_codeBlock->isGenerator())) {
-        if (isNewExpression) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Generator cannot be invoked with 'new'");
-        }
-        registerFile = (Value*)GC_MALLOC((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
-    } else {
-        registerFile = (Value*)alloca((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
-    }
-
-    Value* stackStorage = registerFile + registerSize;
-
-    {
-        Value* literalStorage = stackStorage + stackStorageSize;
-        for (size_t i = 0; i < literalStorageSize; i++) {
-            literalStorage[i] = literalStorageSrc[i];
-        }
-    }
-
-    // prepare receiver
-    if (UNLIKELY(m_codeBlock->isArrowFunctionExpression())) {
-        stackStorage[0] = ctx->globalObject();
-    } else {
-        if (!isStrict) {
-            if (receiverSrc.isUndefinedOrNull()) {
-                stackStorage[0] = ctx->globalObject();
-            } else {
-                stackStorage[0] = receiverSrc.toObject(state);
-            }
-        } else {
-            stackStorage[0] = receiverSrc;
-        }
-    }
-
-    if (constructorKind() == ConstructorKind::Base && thisMode() != ThisMode::Lexical) {
-        record->bindThisValue(state, stackStorage[0]);
-    }
-
-    // binding function name
-    stackStorage[1] = this;
-    if (UNLIKELY(m_codeBlock->m_isFunctionNameSaveOnHeap)) {
-        if (m_codeBlock->canUseIndexedVariableStorage()) {
-            ASSERT(record->isFunctionEnvironmentRecordOnHeap());
-            ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[0] = this;
-        } else {
-            record->initializeBinding(state, m_codeBlock->functionName(), this);
-        }
-    }
-
-    if (UNLIKELY(m_codeBlock->m_isFunctionNameExplicitlyDeclared)) {
-        if (m_codeBlock->canUseIndexedVariableStorage()) {
-            if (UNLIKELY(m_codeBlock->m_isFunctionNameSaveOnHeap)) {
-                ASSERT(record->isFunctionEnvironmentRecordOnHeap());
-                ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[0] = Value();
-            } else {
-                stackStorage[1] = Value();
-            }
-        } else {
-            record->initializeBinding(state, m_codeBlock->functionName(), Value());
-        }
-    }
-
-    // prepare parameters
-    if (UNLIKELY(m_codeBlock->needsComplexParameterCopy())) {
-        for (size_t i = 2; i < identifierOnStackCount; i++) {
-            stackStorage[i] = Value();
-        }
-
-#ifndef NDEBUG
-        for (size_t i = identifierOnStackCount; i < stackStorageSize; i++) {
-            stackStorage[i] = Value(Value::EmptyValue);
-        }
-#endif
-        if (!m_codeBlock->canUseIndexedVariableStorage()) {
-            const InterpretedCodeBlock::FunctionParametersInfoVector& info = m_codeBlock->asInterpretedCodeBlock()->parametersInfomation();
-            for (size_t i = 0; i < parameterCopySize; i++) {
-                record->initializeBinding(state, info[i].m_name, argv[i]);
-            }
-            for (size_t i = parameterCopySize; i < info.size(); i++) {
-                record->initializeBinding(state, info[i].m_name, Value());
-            }
-        } else {
-            Value* parameterStorageInStack = stackStorage + 2;
-            const InterpretedCodeBlock::FunctionParametersInfoVector& info = m_codeBlock->asInterpretedCodeBlock()->parametersInfomation();
-            for (size_t i = 0; i < info.size(); i++) {
-                Value val(Value::ForceUninitialized);
-                // NOTE: consider the special case with duplicated parameter names (**test262: S10.2.1_A3)
-                if (i < argc)
-                    val = argv[i];
-                else if (info[i].m_index >= (int32_t)argc)
-                    continue;
-                else
-                    val = Value();
-                if (info[i].m_isHeapAllocated) {
-                    ASSERT(record->isFunctionEnvironmentRecordOnHeap());
-                    ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[info[i].m_index] = val;
-                } else {
-                    parameterStorageInStack[info[i].m_index] = val;
-                }
-            }
-        }
-    } else {
-        Value* parameterStorageInStack = stackStorage + 2;
-        for (size_t i = 0; i < parameterCopySize; i++) {
-            parameterStorageInStack[i] = argv[i];
-        }
-
-        for (size_t i = parameterCopySize + 2; i < identifierOnStackCount; i++) {
-            stackStorage[i] = Value();
-        }
-
-#ifndef NDEBUG
-        for (size_t i = identifierOnStackCount; i < stackStorageSize; i++) {
-            stackStorage[i] = Value(Value::EmptyValue);
-        }
-#endif
-    }
-
-    if (UNLIKELY(m_codeBlock->isGenerator())) {
-        ExecutionState* newState = new ExecutionState(ctx, &state, lexEnv, isStrict, registerFile);
-
-        // FIXME
-        if (UNLIKELY(m_codeBlock->usesArgumentsObject())) {
-            bool isMapped = !m_codeBlock->usesRestParameter() && !isStrict;
-            generateArgumentsObject(*newState, record, stackStorage, isMapped);
-        }
-
-        GeneratorObject* gen = new GeneratorObject(state, newState, blk);
-        newState->setGeneratorTarget(gen);
-        return gen;
-    }
-
-    ExecutionState newState(ctx, &state, lexEnv, isStrict, registerFile);
-
-    if (UNLIKELY(m_codeBlock->usesArgumentsObject())) {
-        // FIXME check if formal parameters does not contain a rest parameter, any binding patterns, or any initializers.
-        bool isMapped = !m_codeBlock->usesRestParameter() && !isStrict;
-        generateArgumentsObject(newState, record, stackStorage, isMapped);
-    }
-
-    if (UNLIKELY(m_codeBlock->usesRestParameter())) {
-        generateRestParameter(newState, record, stackStorage + 2, argc, argv);
-    }
-
-    // run function
-    const Value returnValue = ByteCodeInterpreter::interpret(newState, blk, 0, registerFile);
-    if (UNLIKELY(blk->m_shouldClearStack))
-        clearStack<512>();
-
-    if (UNLIKELY(isSuperCall)) {
-        if (returnValue.isNull()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InvalidDerivedConstructorReturnValue);
-        }
-
-        FunctionEnvironmentRecord* thisEnvironmentRecord = state.getThisEnvironment()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-        if (returnValue.isObject()) {
-            thisEnvironmentRecord->bindThisValue(state, returnValue);
-            returnValue.asObject()->setPrototype(state, receiverSrc.toObject(state)->getPrototype(state));
-        } else {
-            thisEnvironmentRecord->bindThisValue(state, stackStorage[0]);
-        }
-        state.setOnGoingSuperCall(false);
-    }
-
-    return returnValue;
-}
-
-void FunctionObject::generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage, bool isMapped)
+void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage, bool isMapped)
 {
     AtomicString arguments = state.context()->staticStrings().arguments;
     if (fnRecord->isFunctionEnvironmentRecordNotIndexed()) {
@@ -564,7 +200,7 @@ void FunctionObject::generateArgumentsObject(ExecutionState& state, FunctionEnvi
     }
 }
 
-void FunctionObject::generateRestParameter(ExecutionState& state, FunctionEnvironmentRecord* record, Value* parameterStorageInStack, const size_t argc, Value* argv)
+void ScriptFunctionObject::generateRestParameter(ExecutionState& state, FunctionEnvironmentRecord* record, Value* parameterStorageInStack, const size_t argc, Value* argv)
 {
     ArrayObject* newArray;
     size_t parameterLen = (size_t)m_codeBlock->parameterCount();

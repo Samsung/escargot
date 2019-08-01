@@ -73,6 +73,7 @@ class CodeBlock : public gc {
     friend class ScriptParser;
     friend class ByteCodeGenerator;
     friend class FunctionObject;
+    friend class ScriptFunctionObject;
     friend class InterpretedCodeBlock;
     friend int getValidValueInCodeBlock(void* ptr, GC_mark_custom_result* arr);
 
@@ -172,6 +173,11 @@ public:
         return m_isClassConstructor;
     }
 
+    bool isDerivedClassConstructor() const
+    {
+        return m_isDerivedClassConstructor;
+    }
+
     bool isGenerator() const
     {
         return m_isGenerator;
@@ -212,6 +218,16 @@ public:
         return m_needsComplexParameterCopy;
     }
 
+    bool isFunctionNameSaveOnHeap() const
+    {
+        return m_isFunctionNameSaveOnHeap;
+    }
+
+    bool isFunctionNameExplicitlyDeclared() const
+    {
+        return m_isFunctionNameExplicitlyDeclared;
+    }
+
     void setHasEval()
     {
         m_hasEval = true;
@@ -221,6 +237,11 @@ public:
     void setAsClassConstructor()
     {
         m_isClassConstructor = true;
+    }
+
+    void setAsDerivedClassConstructor()
+    {
+        m_isDerivedClassConstructor = true;
     }
 
     void setNeedsVirtualIDOperation()
@@ -281,6 +302,7 @@ protected:
     bool m_isFunctionDeclaration : 1;
     bool m_isArrowFunctionExpression : 1;
     bool m_isClassConstructor : 1;
+    bool m_isDerivedClassConstructor : 1;
     bool m_isGenerator : 1;
     bool m_needsVirtualIDOperation : 1;
     bool m_needToLoadThisValue : 1;

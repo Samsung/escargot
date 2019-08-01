@@ -21,6 +21,8 @@
 #include "GlobalObject.h"
 #include "Context.h"
 #include "VMInstance.h"
+#include "BuiltinFunctionObject.h"
+#include "NativeFunctionObject.h"
 #include "parser/ScriptParser.h"
 #include "parser/esprima_cpp/esprima.h"
 #include "runtime/Environment.h"
@@ -109,7 +111,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     InterpretedCodeBlock* cb = script->topCodeBlock()->childBlocks()[0];
     cb->updateSourceElementStart(3, 1);
     LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, script->topCodeBlock(), state.context()->globalObject(), &state.context()->globalDeclarativeRecord(), &state.context()->globalDeclarativeStorage()), nullptr);
-    return new FunctionObject(state, cb, globalEnvironment);
+    return new ScriptFunctionObject(state, cb, globalEnvironment);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-function.prototype.tostring
@@ -275,16 +277,14 @@ static Value builtinCallerandArgumentsGetterSetter(ExecutionState& state, Value 
 
 void GlobalObject::installFunction(ExecutionState& state)
 {
-    FunctionObject* emptyFunction = new FunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionEmptyFunction, 0, 0)),
-                                                       FunctionObject::__ForGlobalBuiltin__);
-
-    g_functionObjectTag = *((size_t*)emptyFunction);
+    FunctionObject* emptyFunction = new NativeFunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionEmptyFunction, 0, 0)),
+                                                             NativeFunctionObject::__ForGlobalBuiltin__);
 
     m_functionPrototype = emptyFunction;
     m_functionPrototype->setPrototype(state, m_objectPrototype);
     m_functionPrototype->markThisObjectDontNeedStructureTransitionTable(state);
 
-    m_function = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionConstructor, 1), FunctionObject::__ForBuiltin__);
+    m_function = new BuiltinFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionConstructor, 1));
     m_function->markThisObjectDontNeedStructureTransitionTable(state);
 
     m_function->setPrototype(state, emptyFunction);
@@ -293,23 +293,23 @@ void GlobalObject::installFunction(ExecutionState& state)
                                                           ObjectPropertyDescriptor(m_function, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toString),
-                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinFunctionToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinFunctionToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().apply),
-                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().apply, builtinFunctionApply, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().apply, builtinFunctionApply, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().call),
-                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().call, builtinFunctionCall, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().call, builtinFunctionCall, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().bind),
-                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bind, builtinFunctionBind, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bind, builtinFunctionBind, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().hasInstance)),
-                                                          ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.hasInstance]")), builtinFunctionHasInstanceOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.hasInstance]")), builtinFunctionHasInstanceOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
 
     // 8.2.2 - 12
     // AddRestrictedFunctionProperties(funcProto, realmRec).
-    auto fn = new FunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().caller, builtinCallerandArgumentsGetterSetter, 0, NativeFunctionInfo::Strict));
+    auto fn = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().caller, builtinCallerandArgumentsGetterSetter, 0, NativeFunctionInfo::Strict));
     JSGetterSetter gs(fn, fn);
     ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
     m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().caller), desc);

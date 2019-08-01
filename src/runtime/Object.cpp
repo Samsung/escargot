@@ -855,6 +855,9 @@ Value Object::call(ExecutionState& state, const Value& callee, const Value& this
 // https://www.ecma-international.org/ecma-262/6.0/#sec-construct
 Object* Object::construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Value newTarget)
 {
+    if (!constructor.isConstructor()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor);
+    }
     // If newTarget was not passed, let newTarget be F.
     if (newTarget.isEmpty()) {
         newTarget = constructor;

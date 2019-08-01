@@ -22,6 +22,8 @@
 #include "runtime/GlobalObject.h"
 #include "runtime/Context.h"
 #include "runtime/ArrayObject.h"
+#include "runtime/BuiltinFunctionObject.h"
+#include "runtime/NativeFunctionObject.h"
 
 namespace Escargot {
 
@@ -103,10 +105,10 @@ static Value builtinProxyRevocable(ExecutionState& state, Value thisValue, size_
 void GlobalObject::installProxy(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    m_proxy = new FunctionObject(state, NativeFunctionInfo(strings->Proxy, builtinProxyConstructor, 2), FunctionObject::__ForBuiltinProxyConstructor__);
+    m_proxy = new BuiltinFunctionObject(state, NativeFunctionInfo(strings->Proxy, builtinProxyConstructor, 2), BuiltinFunctionObject::__ForBuiltinProxyConstructor__);
     m_proxy->markThisObjectDontNeedStructureTransitionTable(state);
 
-    m_proxy->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->revocable), ObjectPropertyDescriptor(new FunctionObject(state, NativeFunctionInfo(strings->revocable, builtinProxyRevocable, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_proxy->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->revocable), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->revocable, builtinProxyRevocable, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(strings->Proxy),
                       ObjectPropertyDescriptor(m_proxy, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

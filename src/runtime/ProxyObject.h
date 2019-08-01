@@ -23,15 +23,16 @@
 
 #include "runtime/Object.h"
 #include "runtime/FunctionObject.h"
+#include "runtime/NativeFunctionObject.h"
 
 namespace Escargot {
 
 class Proxy;
 
-class RevokeFunctionObject : public FunctionObject {
+class RevokeFunctionObject : public NativeFunctionObject {
 public:
     RevokeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ProxyObject* proxy)
-        : FunctionObject(state, info)
+        : NativeFunctionObject(state, info)
         , m_proxy(proxy)
     {
     }
