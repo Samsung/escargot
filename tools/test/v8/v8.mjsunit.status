@@ -38,12 +38,6 @@
   # Fails.
   'regress/regress-1119': [FAIL],
 
-  # Issue 1719: Slow to collect arrays over several contexts.
-  'regress/regress-524': [SKIP],
-  # When that bug is fixed, revert the expectation to:
-  # Skip long running test in debug and allow it to timeout in release mode.
-  # regress/regress-524: [PASS, TIMEOUT, ['mode == debug', SKIP]],
-
   # This test non-deterministically runs out of memory on Windows ia32.
   'regress/regress-crbug-160010': [SKIP],
 
@@ -68,7 +62,6 @@
 
   ##############################################################################
   # Too slow in debug mode for GC stress mode.
-  'regress/regress-crbug-217858': [PASS, ['mode == debug', SKIP]],
 
   # Too slow in debug mode and under turbofan.
   'regress/regress-4595': [PASS, NO_VARIANTS, ['mode == debug', SKIP]],
@@ -130,9 +123,6 @@
   'compiler/alloc-number-debug': [PASS, ['mode == release', SKIP]],
   'regress/regress-634-debug': [PASS, ['mode == release', SKIP]],
 
-  # BUG(336820). TODO(bmeurer): Investigate.
-  'regress/regress-336820': [PASS, FAIL],
-
   # BUG(v8:2989). PASS/FAIL on linux32 because crankshaft is turned off for
   # nosse2. Also for arm novfp3.
   'regress/regress-2989': [FAIL, NO_VARIANTS, ['system == linux and arch == x87 or arch == arm and simulator == True', PASS]],
@@ -151,7 +141,6 @@
   'readonly': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
   'regress/regress-crbug-474297': [PASS, ['gc_stress == False', SKIP]],
-  'es6/tail-call-megatest*': [PASS, SLOW, FAST_VARIANTS, ['tsan', SKIP]],
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'es6/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
@@ -203,25 +192,18 @@
   'osr-elements-kind': [SKIP],
   'regress/regress-crbug-137689': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
-  'regress/regress-165637': [SKIP],
-  'regress/regress-2249': [SKIP],
   'regress/regress-4121': [SKIP],
   'compare-known-objects-slow': [SKIP],
   # Tests taking too long
   'packed-elements': [SKIP],
   'regress/regress-1122': [SKIP],
-  'regress/regress-331444': [SKIP],
   'regress/regress-353551': [SKIP],
-  'regress/regress-crbug-119926': [SKIP],
-  'regress/short-circuit': [SKIP],
   'stack-traces-overflow': [SKIP],
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
 
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
-  'regress/regress-91008': [PASS, NO_VARIANTS],
-  'regress/regress-transcendental': [PASS, ['arch == arm64', NO_VARIANTS]],
   'compiler/osr-regress-max-locals': [PASS, NO_VARIANTS],
   'math-floor-of-div': [PASS, NO_VARIANTS],
   'unicodelctest': [PASS, NO_VARIANTS],
@@ -232,9 +214,6 @@
 
   # Too slow for gc stress.
   'asm/embenchen/box2d': [SKIP],
-
-  # BUG(v8:4237)
-  'regress/regress-3976': [SKIP],
 
   # Slow tests.
   'array-constructor': [PASS, SLOW],
@@ -286,17 +265,10 @@
   'compiler/regress-rep-change': [SKIP],
   'regress/regress-1117': [SKIP],
   'regress/regress-1849': [SKIP],
-  'regress/regress-3247124': [SKIP],
-  'regress/regress-91008': [SKIP],
-  'regress/regress-91010': [SKIP],
   'regress/regress-91013': [SKIP],
-  'regress/regress-99167': [SKIP],
 
   # BUG(v8:3457).
   'deserialize-reference': [PASS, FAIL],
-
-  # BUG(v8:4016)
-  'regress/regress-crbug-467047': [SKIP],
 
   # Slow tests.
   'array-concat': [PASS, SLOW],
@@ -315,14 +287,6 @@
   'math-floor-of-div': [PASS, SLOW],
   'packed-elements': [PASS, SLOW],
   'regress/regress-1122': [PASS, SLOW],
-  'regress/regress-2185-2': [PASS, SLOW],
-  'regress/regress-2185': [PASS, SLOW],
-  'regress/regress-2790': [PASS, SLOW],
-  'regress/regress-331444': [PASS, SLOW],
-  'regress/regress-490': [PASS, SLOW],
-  'regress/regress-crbug-217858': [PASS, SLOW],
-  'regress/regress-create-exception': [PASS, SLOW],
-  'regress/regress-json-stringify-gc': [PASS, SLOW],
   'string-indexof-2': [PASS, SLOW],
   'unicodelctest-no-optimization': [PASS, SLOW],
   'unicodelctest': [PASS, SLOW],
@@ -349,7 +313,6 @@
   # Skip tests not suitable for ASAN.
   'big-array-literal': [SKIP],
   'big-object-literal': [SKIP],
-  'regress/regress-crbug-178790': [SKIP],
 
   # Exception thrown during bootstrapping on ASAN builds, see issue 4236.
   'regress/regress-1132': [SKIP],
@@ -391,9 +354,6 @@
   # the buildbot.
   'big-object-literal': [SKIP],
   'compiler/alloc-number': [SKIP],
-  'regress/regress-490': [SKIP],
-  'regress/regress-create-exception': [SKIP],
-  'regress/regress-3247124': [SKIP],
 
   # Requires bigger stack size in the Genesis and if stack size is increased,
   # the test requires too much time to run.  However, the problem test covers
@@ -408,9 +368,6 @@
   'compiler/osr-with-args': [PASS, SLOW],
   'packed-elements': [PASS, SLOW],
   'regress/regress-2185-2': [PASS, SLOW],
-  'regress/regress-2790': [PASS, SLOW],
-  'regress/regress-91008': [PASS, SLOW],
-  'regress/regress-json-stringify-gc': [PASS, SLOW],
   'string-indexof-2': [PASS, TIMEOUT],
 }],  # 'arch == arm or arch == android_arm'
 
@@ -431,9 +388,6 @@
   # Long running tests. Skipping because having them timeout takes too long on
   # the buildbot.
   'compiler/alloc-number': [SKIP],
-  'regress/regress-490': [SKIP],
-  'regress/regress-create-exception': [SKIP],
-  'regress/regress-3247124': [SKIP],
 
   # Requires bigger stack size in the Genesis and if stack size is increased,
   # the test requires too much time to run.  However, the problem test covers
@@ -478,10 +432,7 @@
   'compiler/regress-funarguments': [PASS, SLOW],
   'compiler/regress-3249650': [PASS, SLOW],
   'compiler/simple-deopt': [PASS, SLOW],
-  'regress/regress-490': [PASS, SLOW],
-  'regress/regress-create-exception': [PASS, SLOW],
   'regress/regress-3218915': [PASS, SLOW],
-  'regress/regress-3247124': [PASS, SLOW],
 
   # Requires bigger stack size in the Genesis and if stack size is increased,
   # the test requires too much time to run.  However, the problem test covers
@@ -529,14 +480,8 @@
   # Bounds check triggers forced deopt for array constructors.
   'array-constructor-feedback': [SKIP],
 
-  # Deopting uses just enough memory to make this one OOM.
-  'regress/regress-3976': [SKIP],
-
   # Deopt every n garbage collections collides with deopt every n times.
   'regress/regress-2653': [SKIP],
-
-  # Too slow.
-  'es6/tail-call-megatest*': [SKIP],
 
   # Forced optimisation path tests.
   'shared-function-tier-up-default': [SKIP],
@@ -659,22 +604,16 @@
   ## 1. ES6 spec
   #'es6/*': [SKIP],
   'es6/regress/regress-2156': [SKIP],
-  'es6/regress/regress-2219': [SKIP],
   'es6/regress/regress-2225': [SKIP],
   'es6/regress/regress-2322': [SKIP],
-  'es6/regress/regress-2506': [SKIP],
   'es6/regress/regress-2681': [SKIP],
   'es6/regress/regress-347906': [SKIP],
-  'es6/regress/regress-3501': [SKIP],
-  'es6/regress/regress-3683': [SKIP],
   'es6/regress/regress-3741': [SKIP],
   'es6/regress/regress-3938': [SKIP],
   'es6/regress/regress-4097': [SKIP],
   'es6/regress/regress-411237': [SKIP],
   'es6/regress/regress-4160': [SKIP],
   'es6/regress/regress-4395': [SKIP],
-  'es6/regress/regress-4466': [SKIP],
-  'es6/regress/regress-455141': [SKIP],
   'es6/regress/regress-4585': [SKIP],
   'es6/regress/regress-508074': [SKIP],
   'es6/regress/regress-5337': [SKIP],
@@ -686,7 +625,6 @@
   'es6/regress/regress-cr372788': [SKIP],
   'es6/regress/regress-cr493566': [SKIP],
   'es6/regress/regress-crbug-448730': [SKIP],
-  'es6/regress/regress-crbug-465671-null': [SKIP],
   'es6/regress/regress-inlined-new-target': [SKIP],
   'es6/regress/regress-lookup-transition': [SKIP],
   'es6/regress/regress-new-target-context': [SKIP],
@@ -756,11 +694,9 @@
   'es6/default-parameters-destructuring' : [SKIP],
   'es6/default-parameters' : [SKIP],
   'es6/destructuring-assignment' : [SKIP],
-  'es6/destructuring-assignment-lazy' : [SKIP],
   'es6/destructuring' : [SKIP],
   'es6/destructuring-parameters-literalcount' : [SKIP],
   'es6/destructuring-parameters-literalcount-nolazy' : [SKIP],
-  'es6/empty-for' : [SKIP],
   'es6/for-each-in-catch' : [SKIP],
   'es6/function-length-configurable' : [SKIP],
   'es6/function-name-configurable' : [SKIP],
@@ -780,9 +716,7 @@
   'es6/iterator-close' : [SKIP],
   'es6/iterator-prototype' : [SKIP],
   'es6/math-clz32' : [SKIP],
-  'es6/math-expm1' : [SKIP],
   'es6/math-fround' : [SKIP],
-  'es6/math-hyperbolic' : [SKIP],
   'es6/math-log2-log10' : [SKIP],
   'es6/math-trunc' : [SKIP],
   'es6/microtask-delivery' : [SKIP],
@@ -835,7 +769,6 @@
   'es6/regexp-tolength' : [SKIP],
   'es6/regexp-tostring' : [SKIP],
   'es6/rest-params' : [SKIP],
-  'es6/rest-params-lazy-parsing' : [SKIP],
   'es6/sloppy-restrictive-block-function' : [SKIP],
   'es6/species' : [SKIP],
   'es6/spread-array' : [SKIP],
@@ -854,7 +787,6 @@
   'es6/super' : [SKIP],
   'es6/symbols' : [SKIP],
   'es6/tail-call' : [SKIP],
-  'es6/tail-call-megatest' : [SKIP],
   'es6/tail-call-megatest-shard0' : [SKIP],
   'es6/tail-call-megatest-shard1' : [SKIP],
   'es6/tail-call-megatest-shard2' : [SKIP],
@@ -899,9 +831,7 @@
   'regress/regress-5434': [SKIP],
   'regress/regress-544991': [SKIP],
   'regress/regress-5476': [SKIP],
-  'regress/regress-5783': [SKIP],
   'regress/regress-595319': [SKIP],
-  'regress/regress-crbug-451770': [SKIP],
   'regress/regress-crbug-592340': [SKIP],
 
   # object pattern
@@ -921,16 +851,12 @@
   'regress/regress-641': [SKIP],
   'regress/regress-799761': [SKIP],
   'regress/regress-88591': [SKIP],
-  'regress/regress-410030': [SKIP],
   'regress/regress-1182832': [SKIP],
   'regress/regress-1213575': [SKIP],
   'regress/regress-1528': [SKIP],
   'regress/regress-1170': [SKIP],
-  'regress/regress-2438': [SKIP],
   'object-literal': [SKIP],
   'regress/regress-648719': [SKIP],
-  'regress/regress-crbug-648740': [SKIP],
-  'regress/regress-crbug-658528': [SKIP],
   'smi-ops': [SKIP],
 
   # let
@@ -946,7 +872,6 @@
   'substr': [SKIP],
   'regress/redeclaration-error-types': [SKIP],
   'regress/regress-3926': [SKIP],
-  'regress/regress-5736': [SKIP],
 
   # RegExp
   'regress/regress-crbug-592343': [SKIP],
@@ -975,7 +900,6 @@
   'regress/regress-615776': [SKIP],
   'regress/regress-object-assign-deprecated': [SKIP],
   'regress/regress-object-assign-deprecated-2': [SKIP],
-  'regress/regress-674232': [SKIP],
   'regress/regress-r3391': [SKIP],
   'regress/regress-crbug-621611': [SKIP],
   'regress/regress-crbug-627934': [SKIP],
@@ -1017,7 +941,6 @@
   'regress/regress-649078': [SKIP],
   'regress/regress-crbug-578039-Proxy_construct_prototype_change': [SKIP],
   'regress/regress-crbug-603463': [SKIP],
-  'regress/regress-crbug-664802': [SKIP],
   'regress/regress-v8-4972': [SKIP],
   'regress/regress-crbug-599067': [SKIP],
   # Realm
