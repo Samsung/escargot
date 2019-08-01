@@ -140,7 +140,7 @@ struct Context {
     bool strict : 1;
     Scanner::ScannerResult firstCoverInitializedNameError;
     std::vector<AtomicString> catchClauseSimplyDeclaredVariableNames;
-    std::vector<std::pair<AtomicString, size_t>> labelSet; // <LabelString, with statement count>
+    std::vector<std::pair<AtomicString, bool>> labelSet; // <LabelString, continue accepted>
 };
 
 struct Marker {
@@ -4934,7 +4934,7 @@ public:
             }
 
             for (size_t i = 0; i < this->context->labelSet.size(); i++) {
-                if (this->context->labelSet[i].first == labelString && this->context->labelSet[i].second == 1) {
+                if (this->context->labelSet[i].first == labelString && !this->context->labelSet[i].second) {
                     this->throwError(Messages::UnknownLabel, labelString.string());
                 }
             }
@@ -5039,16 +5039,8 @@ public:
         bool prevInWith = this->context->inWith;
         this->context->inWith = true;
 
-        for (size_t i = 0; i < this->context->labelSet.size(); i++) {
-            this->context->labelSet[i].second++;
-        }
-
         RefPtr<StatementNode> body = this->parseStatement(false);
         this->context->inWith = prevInWith;
-
-        for (size_t i = 0; i < this->context->labelSet.size(); i++) {
-            this->context->labelSet[i].second--;
-        }
 
         return this->finalize(node, new WithStatementNode(object, body.get()));
     }
@@ -5171,7 +5163,7 @@ public:
     // ECMA-262 13.13 Labelled Statements
 
     template <typename T, bool isParse>
-    T labelledStatement()
+    T labelledStatement(size_t multiLabelCount = 1)
     {
         RefPtr<Node> expr;
         AtomicString name;
@@ -5199,12 +5191,32 @@ public:
                 this->throwError(Messages::Redeclaration, new ASCIIString("Label"), name.string());
             }
 
-            this->context->labelSet.push_back(std::make_pair(name, 0));
-            if (isParse) {
-                RefPtr<StatementNode> labeledBody = this->parseStatement(!this->context->strict);
-                statement = new LabeledStatementNode(labeledBody.get(), name.string());
+            this->context->labelSet.push_back(std::make_pair(name, false));
+
+            if (this->lookahead.type == IdentifierToken) {
+                if (isParse) {
+                    RefPtr<StatementNode> labeledBody = this->labelledStatement<ParseAs(StatementNode)>(multiLabelCount + 1);
+                    statement = new LabeledStatementNode(labeledBody.get(), name.string());
+                } else {
+                    this->labelledStatement<ScanAsVoid>(multiLabelCount + 1);
+                }
             } else {
-                this->scanStatement(!this->context->strict);
+                if (this->matchKeyword(DoKeyword) || this->matchKeyword(ForKeyword) || this->matchKeyword(WhileKeyword)) {
+                    // Turn labels to accept continue references.
+                    size_t end = this->context->labelSet.size() - 1;
+
+                    for (size_t i = 0; i < multiLabelCount; i++) {
+                        ASSERT(end >= i);
+                        this->context->labelSet[end - i].second = true;
+                    }
+                }
+
+                if (isParse) {
+                    RefPtr<StatementNode> labeledBody = this->parseStatement(!this->context->strict);
+                    statement = new LabeledStatementNode(labeledBody.get(), name.string());
+                } else {
+                    this->scanStatement(!this->context->strict);
+                }
             }
             removeLabel(name);
         } else {
