@@ -50,7 +50,7 @@ public:
 
     void generateClassInitializer(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex classIndex)
     {
-        size_t objIndex = context->m_classInfo.m_bodyIndex;
+        size_t objIndex = context->m_classInfo.m_prototypeIndex;
 
         for (unsigned i = 0; i < m_elementList.size(); i++) {
             ClassElementNode* p = m_elementList[i].get();

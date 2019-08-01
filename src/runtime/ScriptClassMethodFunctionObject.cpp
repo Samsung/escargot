@@ -17,28 +17,10 @@
  *  USA
  */
 
-#ifndef __EscargotBuiltinFunctionObject__
-#define __EscargotBuiltinFunctionObject__
+#include "Escargot.h"
+#include "ScriptClassMethodFunctionObject.h"
 
-#include "runtime/NativeFunctionObject.h"
+#include "FunctionObjectInlines.h"
 
 namespace Escargot {
-
-class BuiltinFunctionObject : public NativeFunctionObject {
-public:
-    BuiltinFunctionObject(ExecutionState& state, NativeFunctionInfo info);
-    BuiltinFunctionObject(ExecutionState& state, CodeBlock* codeBlock);
-
-    enum ForBuiltinProxyConstructor { __ForBuiltinProxyConstructor__ };
-    BuiltinFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinProxyConstructor);
-
-    virtual bool isBuiltin() override
-    {
-        return true;
-    }
-
-private:
-};
 }
-
-#endif

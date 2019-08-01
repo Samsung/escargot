@@ -811,7 +811,7 @@ Value ProxyObject::call(ExecutionState& state, const Value& receiver, const size
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-construct-argumentslist-newtarget
-Object* ProxyObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, const Value& newTarget)
+Object* ProxyObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
 {
     auto strings = &state.context()->staticStrings();
     // 2. If handler is null, throw a TypeError exception.
@@ -849,7 +849,7 @@ Object* ProxyObject::construct(ExecutionState& state, const size_t argc, NULLABL
     }
 
     // 9. Let newObj be Call(trap, handler, «target, argArray, newTarget »).
-    Value arguments[] = { target, Value(argArray), newTarget };
+    Value arguments[] = { target, Value(argArray), Value(newTarget) };
     Value newObj = Object::call(state, trap, handler, 3, arguments);
 
     // 11. If Type(newObj) is not Object, throw a TypeError exception.

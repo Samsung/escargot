@@ -66,9 +66,12 @@ Value BoundFunctionObject::call(ExecutionState& state, const Value& thisValue, c
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-bound-function-exotic-objects-construct-argumentslist-newtarget
-Object* BoundFunctionObject::construct(ExecutionState& state, const size_t calledArgc, Value* calledArgv, const Value& newTarget)
+Object* BoundFunctionObject::construct(ExecutionState& state, const size_t calledArgc, Value* calledArgv, Object* newTarget)
 {
     ASSERT(isConstructor());
+
+    // Let target be the value of F’s [[BoundTargetFunction]] internal slot.
+    // Let boundArgs be the value of F’s [[BoundArguments]] internal slot.
     // Let args be a new list containing the same values as the list boundArgs in the same order followed by the same values as the list argumentsList in the same order.
     size_t boundArgc = m_boundArguments.size();
     size_t mergedArgc = boundArgc + calledArgc;
@@ -81,9 +84,11 @@ Object* BoundFunctionObject::construct(ExecutionState& state, const size_t calle
     }
 
     // If SameValue(F, newTarget) is true, let newTarget be target.
-    Value newConstructTarget = (Value(this) == Value(newTarget)) ? Value(m_boundTargetFunction) : newTarget;
+    if (this == newTarget) {
+        newTarget = Value(m_boundTargetFunction).asObject();
+    }
 
     // Return Construct(target, args, newTarget).
-    return Object::construct(state, m_boundTargetFunction, mergedArgc, mergedArgv, newConstructTarget);
+    return Object::construct(state, m_boundTargetFunction, mergedArgc, mergedArgv, newTarget);
 }
 }

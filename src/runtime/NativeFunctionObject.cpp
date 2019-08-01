@@ -31,14 +31,12 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, size_t default
 }
 
 NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* codeBlock)
-    : FunctionObject(state, codeBlock->isConstructor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
+    : FunctionObject(state, codeBlock->isNativeFunctionConstructor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
 {
     m_codeBlock = codeBlock;
-    m_homeObject = nullptr;
-
-    initStructureAndValues(state);
+    initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false);
     Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
-    if (isConstructor())
+    if (NativeFunctionObject::isConstructor())
         m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
 
     ASSERT(FunctionObject::codeBlock()->hasCallNativeFunctionCode());
@@ -48,9 +46,7 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunction
     : FunctionObject(state, info.m_isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
 {
     m_codeBlock = new CodeBlock(state.context(), info);
-    m_homeObject = nullptr;
-
-    initStructureAndValues(state);
+    initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false);
     Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
 }
 
@@ -58,13 +54,58 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* cod
     : FunctionObject(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
 {
     m_codeBlock = codeBlock;
-    m_homeObject = nullptr;
-
-    ASSERT(!isConstructor());
-    initStructureAndValues(state);
+    ASSERT(!NativeFunctionObject::isConstructor());
+    initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false);
 }
 
-Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, Value* argv, bool isNewExpression, const Value& newTarget)
+NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltinConstructor)
+    : FunctionObject(state, codeBlock->isNativeFunctionConstructor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
+{
+    m_codeBlock = codeBlock;
+
+    initStructureAndValues(state, codeBlock->isNativeFunctionConstructor(), false);
+    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
+    if (NativeFunctionObject::isConstructor())
+        m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
+
+    ASSERT(FunctionObject::codeBlock()->hasCallNativeFunctionCode());
+}
+
+NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinConstructor)
+    : FunctionObject(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3)
+{
+    m_codeBlock = new CodeBlock(state.context(), info);
+
+    initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false);
+    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
+    m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
+
+    ASSERT(NativeFunctionObject::isConstructor());
+    ASSERT(codeBlock()->hasCallNativeFunctionCode());
+}
+
+NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinProxyConstructor)
+    : FunctionObject(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
+{
+    m_codeBlock = new CodeBlock(state.context(), info);
+
+    // The Proxy constructor does not have a prototype property
+    m_structure = state.context()->defaultStructureForNotConstructorFunctionObject();
+    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
+    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->parameterCount()));
+    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
+
+    ASSERT(NativeFunctionObject::isConstructor());
+    ASSERT(codeBlock()->hasCallNativeFunctionCode());
+}
+
+bool NativeFunctionObject::isConstructor() const
+{
+    return m_codeBlock->isNativeFunctionConstructor();
+}
+
+template <bool isConstruct>
+Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, Value* argv, Object* newTarget)
 {
     volatile int sp;
     size_t currentStackBase = (size_t)&sp;
@@ -78,15 +119,10 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
 
     Context* ctx = m_codeBlock->context();
     bool isStrict = m_codeBlock->isStrict();
-    bool isSuperCall = state.isOnGoingSuperCall();
-
-    if (UNLIKELY(isSuperCall && isBuiltin() && !isNewExpression)) {
-        Value returnValue = Object::construct(state, this, argc, argv);
-        returnValue.asObject()->setPrototype(state, receiverSrc.toObject(state)->getPrototype(state));
-        return returnValue;
-    }
 
     CallNativeFunctionData* code = m_codeBlock->nativeFunctionData();
+
+    // TODO don't make LexicalEnvironment if possiable
     FunctionEnvironmentRecordSimple record(this);
     LexicalEnvironment env(&record, nullptr);
 
@@ -103,32 +139,45 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
     }
 
     Value receiver = receiverSrc;
-    // prepare receiver
-    if (UNLIKELY(!isStrict)) {
-        if (receiver.isUndefinedOrNull()) {
-            receiver = ctx->globalObject();
-        } else {
-            receiver = receiver.toObject(state);
-        }
-    }
-
-    // FIXME bind this value and newTarget
-    record.bindThisValue(state, receiver);
-    if (isNewExpression) {
-        record.setNewTarget(newTarget);
-    }
-
     ExecutionState newState(ctx, &state, &env, isStrict, &receiver);
-    try {
-        Value returnValue = code->m_fn(newState, receiver, argc, argv, isNewExpression);
-        if (UNLIKELY(isSuperCall)) {
-            state.getThisEnvironment()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->bindThisValue(state, returnValue);
-            state.setOnGoingSuperCall(false);
-            if (returnValue.isObject() && !isBuiltin()) {
-                returnValue.asObject()->setPrototype(state, receiver.toObject(state)->getPrototype(state));
+
+    if (!isConstruct) {
+        // prepare receiver
+        if (UNLIKELY(!isStrict)) {
+            if (receiver.isUndefinedOrNull()) {
+                receiver = ctx->globalObject();
+            } else {
+                receiver = receiver.toObject(newState);
             }
         }
-        return returnValue;
+    }
+
+    try {
+        Value result = code->m_fn(newState, receiver, argc, argv, isConstruct);
+        if (isConstruct) {
+            if (UNLIKELY(!result.isObject())) {
+                ErrorObject::throwBuiltinError(newState, ErrorObject::TypeError, "Native Constructor must returns constructed new object");
+            }
+            // if newTarget is differ with this function object, ex) class A extends Array{}; new A();
+            if (newTarget != this) {
+                // set prototype for native object
+                Object* thisArgument = result.asObject();
+                // Let thisArgument be OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").
+                // OrdinaryCreateFromConstructor -> Let proto be GetPrototypeFromConstructor(constructor, intrinsicDefaultProto).
+                // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let proto be Get(constructor, "prototype").
+                Value proto = newTarget->get(newState, ObjectPropertyName(newState.context()->staticStrings().prototype)).value(newState, newTarget);
+                // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> If Type(proto) is not Object, then
+                // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let realm be GetFunctionRealm(constructor).
+                // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> ReturnIfAbrupt(realm).
+                // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let proto be realm’s intrinsic object named intrinsicDefaultProto.
+                if (!proto.isObject()) {
+                    proto = ctx->globalObject()->objectPrototype();
+                }
+                thisArgument->setPrototype(state, proto);
+            }
+            return result;
+        }
+        return result;
     } catch (const Value& v) {
         ByteCodeInterpreter::processException(newState, v, SIZE_MAX);
         return Value();
@@ -138,21 +187,17 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
 Value NativeFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
 {
     ASSERT(codeBlock()->hasCallNativeFunctionCode());
-    return processNativeFunctionCall(state, thisValue, argc, argv, false, Value());
+    return processNativeFunctionCall<false>(state, thisValue, argc, argv, nullptr);
 }
 
-Object* NativeFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, const Value& newTarget)
+Object* NativeFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
 {
-    ASSERT(codeBlock()->hasCallNativeFunctionCode());
-    // FIXME: newTarget
-    CodeBlock* cb = codeBlock();
-    FunctionObject* constructor = this;
-
     // Assert: Type(newTarget) is Object.
-    ASSERT(newTarget.isObject());
-    ASSERT(newTarget.isConstructor());
+    ASSERT(newTarget->isObject());
+    ASSERT(newTarget->isConstructor());
+    ASSERT(codeBlock()->hasCallNativeFunctionCode());
 
-    Value result = processNativeFunctionCall(state, Value(Value::EmptyValue), argc, argv, true, newTarget);
+    Value result = processNativeFunctionCall<true>(state, Value(), argc, argv, newTarget);
     return result.asObject();
 }
 }

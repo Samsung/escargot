@@ -30,12 +30,7 @@ class ArrayObject;
 class FunctionEnvironmentRecord;
 class ScriptFunctionObject;
 class NativeFunctionObject;
-
-class FunctionObjectProcessCallGenerator {
-public:
-    template <typename FunctionObjectType, bool isConstructCall, typename ThisValueBinder>
-    static inline Value processCall(ExecutionState& state, FunctionObjectType* self, const Value& receiver, const size_t argc, Value* argv);
-};
+class FunctionObjectProcessCallGenerator;
 
 class FunctionObject : public Object {
     friend class Object;
@@ -53,12 +48,6 @@ public:
     enum ConstructorKind {
         Base,
         Derived,
-    };
-
-    enum FunctionKind {
-        Normal,
-        ClassConstructor,
-        Generator
     };
 
     // getter of internal [[Prototype]]
@@ -96,11 +85,6 @@ public:
         return m_codeBlock->isGenerator();
     }
 
-    virtual bool isBuiltin()
-    {
-        return false;
-    }
-
     virtual bool isFunctionObject() const override
     {
         return true;
@@ -133,20 +117,9 @@ public:
         return true;
     }
 
-    virtual bool isConstructor() const override
-    {
-        CodeBlock* cb = m_codeBlock;
-        return cb->isConstructor();
-    }
-
     CodeBlock* codeBlock() const
     {
         return m_codeBlock;
-    }
-
-    Object* homeObject()
-    {
-        return m_homeObject;
     }
 
     ThisMode thisMode()
@@ -165,32 +138,30 @@ public:
         return codeBlock()->isDerivedClassConstructor() == ConstructorKind::Derived ? ConstructorKind::Derived : ConstructorKind::Base;
     }
 
-    FunctionKind functionKind()
-    {
-        if (isClassConstructor()) {
-            return FunctionKind::ClassConstructor;
-        } else if (isGenerator()) {
-            return FunctionKind::Generator;
-        }
-
-        return FunctionKind::Normal;
-    }
-
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
     virtual const char* internalClassProperty() override
     {
         return "Function";
     }
 
-    void setHomeObject(Object* homeObject)
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects
+    // internal [[homeObject]] slot
+    virtual Object* homeObject()
     {
-        m_homeObject = homeObject;
+        return nullptr;
     }
+
+    struct FunctionSource {
+        Script* script;
+        CodeBlock* codeBlock;
+        LexicalEnvironment* outerEnvironment;
+    };
+    static FunctionSource createFunctionSourceFromScriptSource(ExecutionState& state, AtomicString functionName, size_t argumentValueArrayCount, Value* argumentValueArray, Value bodyString, bool useStrict);
 
 protected:
     FunctionObject(ExecutionState& state, size_t defaultSpace); // function for derived classes. derived class MUST initlize member variable of FunctionObject.
 
-    void initStructureAndValues(ExecutionState& state);
+    void initStructureAndValues(ExecutionState& state, bool isConstructor, bool isGenerator);
 
     Value getFunctionPrototypeKnownAsConstructor(ExecutionState& state)
     {
@@ -205,39 +176,6 @@ protected:
         return true;
     }
     CodeBlock* m_codeBlock;
-    Object* m_homeObject;
-};
-
-class ScriptFunctionObject : public FunctionObject {
-    friend class Script;
-
-public:
-    ScriptFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment);
-
-protected:
-    ScriptFunctionObject(ExecutionState& state, size_t defaultSpace); // function for derived classes. derived class MUST initlize member variable of FunctionObject.
-
-    friend class FunctionObjectProcessCallGenerator;
-    // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
-    virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override;
-    // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-construct-argumentslist-newtarget
-    virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, const Value& newTarget) override;
-
-    LexicalEnvironment* outerEnvironment()
-    {
-        return m_outerEnvironment;
-    }
-
-    virtual bool isScriptFunctionObject() const override
-    {
-        return true;
-    }
-
-    void generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage, bool isMapped);
-    void generateRestParameter(ExecutionState& state, FunctionEnvironmentRecord* record, Value* parameterStorageInStack, const size_t argc, Value* argv);
-    void generateByteCodeBlock(ExecutionState& state);
-
-    LexicalEnvironment* m_outerEnvironment;
 };
 }
 

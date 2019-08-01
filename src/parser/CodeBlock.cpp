@@ -86,10 +86,9 @@ void* InterpretedCodeBlock::BlockInfo::operator new(size_t size)
 
 CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     : m_context(ctx)
-    , m_isConstructor(info.m_isConstructor)
     , m_isStrict(info.m_isStrict)
     , m_hasCallNativeFunctionCode(true)
-    , m_isFunctionNameSaveOnHeap(false)
+    , m_isNativeFunctionConstructor(info.m_isConstructor)
     , m_isFunctionNameExplicitlyDeclared(false)
     , m_canUseIndexedVariableStorage(true)
     , m_canAllocateVariablesOnStack(true)
@@ -109,6 +108,8 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_isArrowFunctionExpression(false)
     , m_isClassConstructor(false)
     , m_isDerivedClassConstructor(false)
+    , m_isClassMethod(false)
+    , m_isClassStaticMethod(false)
     , m_isGenerator(false)
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
@@ -125,10 +126,9 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
 
 CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict, bool isCtor, CallNativeFunctionData* info)
     : m_context(ctx)
-    , m_isConstructor(isCtor)
     , m_isStrict(isStrict)
     , m_hasCallNativeFunctionCode(true)
-    , m_isFunctionNameSaveOnHeap(false)
+    , m_isNativeFunctionConstructor(isCtor)
     , m_isFunctionNameExplicitlyDeclared(false)
     , m_canUseIndexedVariableStorage(true)
     , m_canAllocateVariablesOnStack(true)
@@ -148,6 +148,8 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_isArrowFunctionExpression(false)
     , m_isClassConstructor(false)
     , m_isDerivedClassConstructor(false)
+    , m_isClassMethod(false)
+    , m_isClassStaticMethod(false)
     , m_isGenerator(false)
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
@@ -207,7 +209,6 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_byteCodeBlock = nullptr;
 
     m_parameterCount = 0;
-    m_isConstructor = false;
     m_hasCallNativeFunctionCode = false;
     m_isFunctionDeclaration = false;
     m_isFunctionExpression = false;
@@ -215,6 +216,8 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isStrict = scopeCtx->m_isStrict;
     m_isClassConstructor = scopeCtx->m_isClassConstructor;
     m_isDerivedClassConstructor = scopeCtx->m_isDerivedClassConstructor;
+    m_isClassMethod = scopeCtx->m_isClassMethod;
+    m_isClassStaticMethod = scopeCtx->m_isClassStaticMethod;
     m_isGenerator = scopeCtx->m_isGenerator;
     m_hasRestElement = scopeCtx->m_hasRestElement;
 
@@ -228,7 +231,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isEvalCodeInFunction = isEvalCodeInFunction;
 
     m_usesArgumentsObject = false;
-    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith && !m_hasYield && !scopeCtx->m_hasArrowSuper && !m_shouldReparseArguments && !m_isGenerator;
+    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith && !m_hasYield && !m_shouldReparseArguments && !m_isGenerator;
     m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage;
     m_canAllocateVariablesOnStack = m_canAllocateEnvironmentOnStack;
     m_hasDescendantUsesNonIndexedVariableStorage = false;
@@ -299,9 +302,10 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isFunctionDeclaration = isFD;
     m_isFunctionExpression = isFE;
     m_isArrowFunctionExpression = scopeCtx->m_isArrowFunctionExpression;
-    m_isConstructor = !scopeCtx->m_isArrowFunctionExpression;
     m_isClassConstructor = scopeCtx->m_isClassConstructor;
     m_isDerivedClassConstructor = scopeCtx->m_isDerivedClassConstructor;
+    m_isClassMethod = scopeCtx->m_isClassMethod;
+    m_isClassStaticMethod = scopeCtx->m_isClassStaticMethod;
     m_isGenerator = scopeCtx->m_isGenerator;
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;
@@ -315,7 +319,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
         m_parametersInfomation[i].m_isDuplicated = false;
     }
 
-    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith && !m_hasYield && !scopeCtx->m_hasArrowSuper && !m_shouldReparseArguments && !m_isGenerator;
+    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith && !m_hasYield && !m_shouldReparseArguments && !m_isGenerator;
     m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage;
     m_canAllocateVariablesOnStack = true;
     m_hasDescendantUsesNonIndexedVariableStorage = false;
@@ -501,12 +505,12 @@ void InterpretedCodeBlock::computeBlockVariables(LexicalBlockIndex currentBlockI
 
 void InterpretedCodeBlock::computeVariables()
 {
-    // we should check m_inWidth
+    // we should check m_inWith
     // because CallFunctionInWithScope needs LoadByName
     m_canAllocateVariablesOnStack = !m_isEvalCode && !hasDescendantUsesNonIndexedVariableStorage() && m_canUseIndexedVariableStorage && !m_inWith;
 
     if (m_canAllocateEnvironmentOnStack) {
-        // we should check m_inWidth
+        // we should check m_inWith
         // because CallFunctionInWithScope needs LoadByName
         m_canAllocateEnvironmentOnStack = !m_isEvalCode && !hasDescendantUsesNonIndexedVariableStorage() && m_canUseIndexedVariableStorage && !m_inWith;
     }
@@ -722,5 +726,28 @@ void InterpretedCodeBlock::computeVariables()
             bi->m_shouldAllocateEnvironment = false;
         }
     }
+}
+
+bool InterpretedCodeBlock::needsToLoadThisBindingFromEnvironment()
+{
+    if (isClassConstructor()) {
+        return true;
+    }
+    if (isArrowFunctionExpression()) {
+        InterpretedCodeBlock* cb = m_parentCodeBlock;
+        while (cb) {
+            if (cb->isArrowFunctionExpression()) {
+                // pass through
+            } else if (cb->isClassConstructor()) {
+                return true;
+            } else {
+                break;
+            }
+
+            cb = cb->m_parentCodeBlock;
+        }
+        return false;
+    }
+    return false;
 }
 }

@@ -40,6 +40,7 @@ class CallEvalFunction;
 class CreateFunction;
 class CreateClass;
 class SuperReference;
+class CallSuper;
 class WithOperation;
 class BlockOperation;
 class TryOperation;
@@ -89,6 +90,7 @@ public:
     static void evalOperation(ExecutionState& state, CallEvalFunction* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static void classOperation(ExecutionState& state, CreateClass* code, Value* registerFile);
     static void superOperation(ExecutionState& state, SuperReference* code, Value* registerFile);
+    static void callSuperOperation(ExecutionState& state, CallSuper* code, Value* registerFile);
     static Value withOperation(ExecutionState& state, WithOperation* code, Object* obj, LexicalEnvironment* env, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage);
     static Value blockOperation(ExecutionState& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage);
     static bool binaryInOperation(ExecutionState& state, const Value& left, const Value& right);

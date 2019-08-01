@@ -17,36 +17,37 @@
  *  USA
  */
 
-#ifndef __EscargotScriptArrowFunctionObject__
-#define __EscargotScriptArrowFunctionObject__
+#ifndef __EscargotScriptClassConstructorFunctionObject__
+#define __EscargotScriptClassConstructorFunctionObject__
 
 #include "runtime/ScriptFunctionObject.h"
 
 namespace Escargot {
 
-class ScriptArrowFunctionObject : public ScriptFunctionObject {
+class ScriptClassConstructorFunctionObject : public ScriptFunctionObject {
 public:
-    ScriptArrowFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, SmallValue thisValue)
-        : ScriptFunctionObject(state, codeBlock, outerEnvironment, false, codeBlock->isGenerator())
-        , m_thisValue(thisValue)
+    ScriptClassConstructorFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject)
+        : ScriptFunctionObject(state, codeBlock, outerEnvironment, true, codeBlock->isGenerator())
+        , m_homeObject(homeObject)
     {
     }
 
     friend class FunctionObjectProcessCallGenerator;
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override;
+    virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget) override;
 
     bool isConstructor() const
     {
-        return false;
+        return true;
     }
 
-    SmallValue thisValue() const
+    virtual Object* homeObject() override
     {
-        return m_thisValue;
+        return m_homeObject;
     }
 
 private:
-    SmallValue m_thisValue;
+    Object* m_homeObject;
 };
 }
 

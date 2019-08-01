@@ -61,7 +61,7 @@ public:
 
 private:
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t calledArgc, Value* calledArgv) override;
-    virtual Object* construct(ExecutionState& state, const size_t calledArgc, Value* calledArgv, const Value& newTarget) override;
+    virtual Object* construct(ExecutionState& state, const size_t calledArgc, Value* calledArgv, Object* newTarget) override;
 
     SmallValue m_boundTargetFunction;
     SmallValue m_boundThis;

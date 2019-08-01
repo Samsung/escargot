@@ -28,6 +28,7 @@
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/SandBox.h"
+#include "runtime/ScriptFunctionObject.h"
 #include "util/Util.h"
 #include "parser/ast/AST.h"
 

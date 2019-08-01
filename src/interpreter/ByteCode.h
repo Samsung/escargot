@@ -70,6 +70,7 @@ struct GlobalVariableAccessCacheItem;
     F(CreateFunction, 1, 0)                           \
     F(CreateClass, 0, 0)                              \
     F(SuperReference, 1, 0)                           \
+    F(CallSuper, -1, 0)                               \
     F(LoadThisBinding, 0, 0)                          \
     F(ObjectDefineOwnPropertyOperation, 0, 0)         \
     F(ObjectDefineOwnPropertyWithNameOperation, 0, 0) \
@@ -384,14 +385,16 @@ public:
 
 class CreateFunction : public ByteCode {
 public:
-    CreateFunction(const ByteCodeLOC& loc, const size_t registerIndex, CodeBlock* cb)
+    CreateFunction(const ByteCodeLOC& loc, const size_t registerIndex, const size_t homeObjectRegisterIndex, CodeBlock* cb)
         : ByteCode(Opcode::CreateFunctionOpcode, loc)
         , m_registerIndex(registerIndex)
+        , m_homeObjectRegisterIndex(homeObjectRegisterIndex)
         , m_codeBlock(cb)
     {
     }
 
     ByteCodeRegisterIndex m_registerIndex;
+    ByteCodeRegisterIndex m_homeObjectRegisterIndex;
     CodeBlock* m_codeBlock;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
@@ -409,7 +412,7 @@ class CreateClass : public ByteCode {
 public:
     CreateClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex, const size_t superClassRegisterIndex, AtomicString name, CodeBlock* cb)
         : ByteCode(Opcode::CreateClassOpcode, loc)
-        , m_classRegisterIndex(classRegisterIndex)
+        , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_classPrototypeRegisterIndex(classPrototypeRegisterIndex)
         , m_superClassRegisterIndex(superClassRegisterIndex)
         , m_name(name)
@@ -417,7 +420,7 @@ public:
     {
     }
 
-    ByteCodeRegisterIndex m_classRegisterIndex;
+    ByteCodeRegisterIndex m_classConstructorRegisterIndex;
     ByteCodeRegisterIndex m_classPrototypeRegisterIndex;
     ByteCodeRegisterIndex m_superClassRegisterIndex;
     AtomicString m_name;
@@ -426,9 +429,9 @@ public:
     void dump(const char* byteCodeStart)
     {
         if (m_superClassRegisterIndex == REGISTER_LIMIT) {
-            printf("create class r%d(%s) { r%d }", (int)m_classRegisterIndex, m_name.string()->toUTF8StringData().data(), (int)m_classPrototypeRegisterIndex);
+            printf("create class r%d(%s) { r%d }", (int)m_classConstructorRegisterIndex, m_name.string()->toUTF8StringData().data(), (int)m_classPrototypeRegisterIndex);
         } else {
-            printf("create class r%d : r%d { r%d }", (int)m_classRegisterIndex, (int)m_superClassRegisterIndex, (int)m_classPrototypeRegisterIndex);
+            printf("create class r%d : r%d { r%d }", (int)m_classConstructorRegisterIndex, (int)m_superClassRegisterIndex, (int)m_classPrototypeRegisterIndex);
         }
     }
 #endif
@@ -449,10 +452,36 @@ public:
     void dump(const char* byteCodeStart)
     {
         if (m_isCall) {
-            printf("Super constructor -> r%d", (int)m_dstIndex);
+            printf("super constructor -> r%d", (int)m_dstIndex);
         } else {
-            printf("Super property -> r%d", (int)m_dstIndex);
+            printf("super property -> r%d", (int)m_dstIndex);
         }
+    }
+#endif
+};
+
+class CallSuper : public ByteCode {
+public:
+    CallSuper(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount, const size_t resultIndex, bool hasSpreadElement)
+        : ByteCode(Opcode::CallSuperOpcode, loc)
+        , m_calleeIndex(calleeIndex)
+        , m_argumentsStartIndex(argumentsStartIndex)
+        , m_argumentCount(argumentCount)
+        , m_resultIndex(resultIndex)
+        , m_hasSpreadElement(hasSpreadElement)
+    {
+    }
+
+    ByteCodeRegisterIndex m_calleeIndex;
+    ByteCodeRegisterIndex m_argumentsStartIndex;
+    uint16_t m_argumentCount;
+    ByteCodeRegisterIndex m_resultIndex;
+    bool m_hasSpreadElement : 1;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("call super r%d <- super(r%d-r%d)", (int)m_resultIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
     }
 #endif
 };
@@ -461,7 +490,7 @@ class LoadThisBinding : public ByteCode {
 public:
     LoadThisBinding(const ByteCodeLOC& loc, const size_t dstIndex)
         : ByteCode(Opcode::LoadThisBindingOpcode, loc)
-        , m_dstIndex(dstIndex == REGULAR_REGISTER_LIMIT ? SIZE_MAX : dstIndex)
+        , m_dstIndex(dstIndex)
     {
     }
 
@@ -469,11 +498,7 @@ public:
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        if (m_dstIndex == REGISTER_LIMIT) {
-            printf("Load this binding");
-        } else {
-            printf("Load this binding -> r%d", (int)m_dstIndex);
-        }
+        printf("load this binding -> r%d", (int)m_dstIndex);
     }
 #endif
 };

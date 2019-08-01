@@ -92,11 +92,6 @@ public:
         return m_context;
     }
 
-    bool isConstructor() const
-    {
-        return m_isConstructor;
-    }
-
     bool inWith()
     {
         return m_inWith;
@@ -178,6 +173,16 @@ public:
         return m_isDerivedClassConstructor;
     }
 
+    bool isClassMethod() const
+    {
+        return m_isClassMethod;
+    }
+
+    bool isClassStaticMethod() const
+    {
+        return m_isClassStaticMethod;
+    }
+
     bool isGenerator() const
     {
         return m_isGenerator;
@@ -220,7 +225,14 @@ public:
 
     bool isFunctionNameSaveOnHeap() const
     {
+        ASSERT(!m_hasCallNativeFunctionCode);
         return m_isFunctionNameSaveOnHeap;
+    }
+
+    bool isNativeFunctionConstructor() const
+    {
+        ASSERT(m_hasCallNativeFunctionCode);
+        return m_isNativeFunctionConstructor;
     }
 
     bool isFunctionNameExplicitlyDeclared() const
@@ -280,10 +292,12 @@ protected:
     CodeBlock() {}
     Context* m_context;
 
-    bool m_isConstructor : 1;
     bool m_isStrict : 1;
     bool m_hasCallNativeFunctionCode : 1;
-    bool m_isFunctionNameSaveOnHeap : 1;
+    union {
+        bool m_isNativeFunctionConstructor : 1;
+        bool m_isFunctionNameSaveOnHeap : 1;
+    };
     bool m_isFunctionNameExplicitlyDeclared : 1;
     bool m_canUseIndexedVariableStorage : 1;
     bool m_canAllocateVariablesOnStack : 1;
@@ -303,6 +317,8 @@ protected:
     bool m_isArrowFunctionExpression : 1;
     bool m_isClassConstructor : 1;
     bool m_isDerivedClassConstructor : 1;
+    bool m_isClassMethod : 1;
+    bool m_isClassStaticMethod : 1;
     bool m_isGenerator : 1;
     bool m_needsVirtualIDOperation : 1;
     bool m_needToLoadThisValue : 1;
@@ -483,6 +499,8 @@ public:
     {
         return m_script;
     }
+
+    bool needsToLoadThisBindingFromEnvironment();
 
     bool isGlobalScopeCodeBlock() const
     {

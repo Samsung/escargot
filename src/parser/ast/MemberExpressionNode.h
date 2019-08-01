@@ -22,6 +22,7 @@
 
 #include "ExpressionNode.h"
 #include "IdentifierNode.h"
+#include "ThisExpressionNode.h"
 #include "runtime/Context.h"
 
 namespace Escargot {
@@ -140,8 +141,15 @@ public:
 
     virtual void generateResolveAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        ByteCodeRegisterIndex objectIndex = m_object->getRegister(codeBlock, context);
-        m_object->generateExpressionByteCode(codeBlock, context, objectIndex);
+        if (m_object->isSuperNode()) {
+            ThisExpressionNode* nd = new (alloca(sizeof(ThisExpressionNode))) ThisExpressionNode();
+            nd->m_loc = m_loc;
+            ByteCodeRegisterIndex objectIndex = nd->getRegister(codeBlock, context);
+            nd->generateExpressionByteCode(codeBlock, context, objectIndex);
+        } else {
+            ByteCodeRegisterIndex objectIndex = m_object->getRegister(codeBlock, context);
+            m_object->generateExpressionByteCode(codeBlock, context, objectIndex);
+        }
         if (!isPreComputedCase()) {
             ByteCodeRegisterIndex propertyIndex = m_property->getRegister(codeBlock, context);
             m_property->generateExpressionByteCode(codeBlock, context, propertyIndex);

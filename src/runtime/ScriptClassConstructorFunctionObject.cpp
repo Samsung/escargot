@@ -1,0 +1,129 @@
+/*
+ * Copyright (c) 2019-present Samsung Electronics Co., Ltd
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2 of the License, or (at your option) any later version.
+ *
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public
+ *  License along with this library; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+ *  USA
+ */
+
+#include "Escargot.h"
+#include "ScriptClassConstructorFunctionObject.h"
+
+#include "FunctionObjectInlines.h"
+#include "runtime/EnvironmentRecord.h"
+
+namespace Escargot {
+
+Value ScriptClassConstructorFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
+{
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Class constructor cannot be invoked without 'new'");
+    return Value();
+}
+
+class ScriptClassConstructorFunctionObjectThisValueBinder {
+public:
+    Value operator()(ExecutionState& calleeState, ScriptClassConstructorFunctionObject* self, const Value& thisArgument, bool isStrict)
+    {
+        // Let envRec be localEnv’s EnvironmentRecord.
+        // Assert: The next step never returns an abrupt completion because envRec.[[thisBindingStatus]] is not "uninitialized".
+        // Return envRec.BindThisValue(thisValue).
+        if (self->constructorKind() == FunctionObject::ConstructorKind::Base) {
+            calleeState.lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->bindThisValue(calleeState, thisArgument);
+        }
+
+        return thisArgument;
+    }
+};
+
+class ScriptClassConstructorFunctionObjectNewTargetBinderWithConstruct {
+public:
+    void operator()(ExecutionState& calleeState, FunctionObject* self, Object* newTarget, FunctionEnvironmentRecord* record)
+    {
+        record->setNewTarget(newTarget);
+    }
+};
+
+class ScriptClassConstructorFunctionObjectReturnValueBinderWithConstruct {
+public:
+    Value operator()(ExecutionState& calleeState, ScriptClassConstructorFunctionObject* self, const Value& interpreterReturnValue, const Value& thisArgument, FunctionEnvironmentRecord* record)
+    {
+        // Let result be OrdinaryCallEvaluateBody(F, argumentsList).
+        const Value& result = interpreterReturnValue;
+        // If result.[[type]] is return, then
+        // If Type(result.[[value]]) is Object, return NormalCompletion(result.[[value]]).
+        if (result.isObject()) {
+            return result;
+        }
+        // If kind is "base", return NormalCompletion(thisArgument).
+        if (self->constructorKind() == FunctionObject::ConstructorKind::Base) {
+            return thisArgument;
+        }
+        // If result.[[value]] is not undefined, throw a TypeError exception.
+        if (!result.isUndefined()) {
+            ErrorObject::throwBuiltinError(calleeState, ErrorObject::TypeError, errorMessage_InvalidDerivedConstructorReturnValue);
+        }
+        // Else, ReturnIfAbrupt(result).
+        // Return envRec.GetThisBinding().
+        return record->getThisBinding(calleeState);
+    }
+};
+
+
+Object* ScriptClassConstructorFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
+{
+    // Assert: Type(newTarget) is Object.
+    CodeBlock* cb = codeBlock();
+    FunctionObject* constructor = this;
+
+    Object* thisArgument = nullptr;
+    // Let kind be F’s [[ConstructorKind]] internal slot.
+    ConstructorKind kind = constructorKind();
+
+    // If kind is "base", then
+    if (kind == ConstructorKind::Base) {
+        // Let thisArgument be OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").
+        // OrdinaryCreateFromConstructor -> Let proto be GetPrototypeFromConstructor(constructor, intrinsicDefaultProto).
+        // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let proto be Get(constructor, "prototype").
+        Value proto = newTarget->get(state, ObjectPropertyName(state.context()->staticStrings().prototype)).value(state, newTarget);
+
+        // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> If Type(proto) is not Object, then
+        // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let realm be GetFunctionRealm(constructor).
+        // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> ReturnIfAbrupt(realm).
+        // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let proto be realm’s intrinsic object named intrinsicDefaultProto.
+        if (!proto.isObject()) {
+            proto = codeBlock()->context()->globalObject()->objectPrototype();
+        }
+
+        thisArgument = new Object(state);
+        // Set the [[Prototype]] internal slot of obj to proto.
+        thisArgument->setPrototype(state, proto);
+        // ReturnIfAbrupt(thisArgument).
+    }
+
+    // Let calleeContext be PrepareForOrdinaryCall(F, newTarget).
+    // Assert: calleeContext is now the running execution context.
+    // If kind is "base", perform OrdinaryCallBindThis(F, calleeContext, thisArgument).
+    // -> perform OrdinaryCallBindThis at ScriptClassConstructorFunctionObjectThisValueBinder
+
+    // Let result be OrdinaryCallEvaluateBody(F, argumentsList).
+    // If kind is "base", return NormalCompletion(thisArgument).
+    // If result.[[value]] is not undefined, throw a TypeError exception.
+    // Else, ReturnIfAbrupt(result).
+    // Return envRec.GetThisBinding().
+    // -> perform at ScriptClassConstructorFunctionObjectReturnValueBinderWithConstruct
+    return FunctionObjectProcessCallGenerator::processCall<ScriptClassConstructorFunctionObject, true, ScriptClassConstructorFunctionObjectThisValueBinder,
+                                                           ScriptClassConstructorFunctionObjectNewTargetBinderWithConstruct, ScriptClassConstructorFunctionObjectReturnValueBinderWithConstruct>(state, this, thisArgument, argc, argv, newTarget)
+        .asObject();
+}
+}

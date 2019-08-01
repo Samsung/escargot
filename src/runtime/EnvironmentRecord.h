@@ -651,12 +651,12 @@ public:
         return m_functionObject->homeObject();
     }
 
-    Value newTarget()
+    Object* newTarget()
     {
         return m_newTarget;
     }
 
-    void setNewTarget(const Value& newTarget)
+    void setNewTarget(Object* newTarget)
     {
         m_newTarget = newTarget;
     }
@@ -678,7 +678,9 @@ public:
 
 protected:
     FunctionObject* m_functionObject;
-    SmallValue m_newTarget;
+
+    // TODO store these values into rare data
+    Object* m_newTarget;
     ThisBindingStatus m_thisBindingStatus;
     SmallValue m_thisValue;
 };

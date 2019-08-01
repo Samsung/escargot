@@ -133,7 +133,7 @@ public:
 
 private:
     virtual Value call(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv) override;
-    virtual Object* construct(ExecutionState& state, const size_t argc, Value* argv, const Value& newTarget) override;
+    virtual Object* construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget) override;
 
     bool m_isCallable : 1;
     bool m_isConstructible : 1;

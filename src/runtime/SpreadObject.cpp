@@ -35,6 +35,9 @@ void* SpreadObject::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(SpreadObject)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SpreadObject, m_structure));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SpreadObject, m_prototype));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SpreadObject, m_values));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SpreadObject, m_spreadValue));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(SpreadObject));
         typeInited = true;

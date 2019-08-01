@@ -22,7 +22,6 @@
 #include "Context.h"
 #include "VMInstance.h"
 #include "SetObject.h"
-#include "BuiltinFunctionObject.h"
 #include "IteratorOperations.h"
 #include "NativeFunctionObject.h"
 #include "ToStringRecursionPreventer.h"
@@ -178,7 +177,7 @@ static Value builtinSetIteratorNext(ExecutionState& state, Value thisValue, size
 
 void GlobalObject::installSet(ExecutionState& state)
 {
-    m_set = new BuiltinFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Set, builtinSetConstructor, 0));
+    m_set = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Set, builtinSetConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_set->markThisObjectDontNeedStructureTransitionTable(state);
     m_set->setPrototype(state, m_functionPrototype);
 

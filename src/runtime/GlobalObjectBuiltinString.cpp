@@ -25,7 +25,6 @@
 #include "ErrorObject.h"
 #include "RegExpObject.h"
 #include "ArrayObject.h"
-#include "BuiltinFunctionObject.h"
 #include "NativeFunctionObject.h"
 #include "parser/Lexer.h"
 
@@ -1068,7 +1067,7 @@ static Value builtinStringIterator(ExecutionState& state, Value thisValue, size_
 void GlobalObject::installString(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    m_string = new BuiltinFunctionObject(state, NativeFunctionInfo(strings->String, builtinStringConstructor, 1));
+    m_string = new NativeFunctionObject(state, NativeFunctionInfo(strings->String, builtinStringConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_string->markThisObjectDontNeedStructureTransitionTable(state);
     m_string->setPrototype(state, m_functionPrototype);
     m_stringPrototype = m_objectPrototype;
