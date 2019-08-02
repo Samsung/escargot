@@ -179,15 +179,9 @@
   <test id="invoked-as-function-multiple-arguments"><reason>TODO</reason></test>
   <test id="invoked-as-function-no-arguments"><reason>TODO</reason></test>
   <test id="invoked-as-function-single-argument"><reason>TODO</reason></test>
-  <test id="prototype"><reason>TODO</reason></test>
-  <test id="toStringTag"><reason>TODO</reason></test>
   <test id="Symbol.toStringTag"><reason>TODO</reason></test>
-  <test id="constructor"><reason>TODO</reason></test>
   <test id="context-constructor-invocation"><reason>TODO</reason></test>
-  <test id="from-state-executing"><reason>TODO</reason></test>
-  <test id="property-descriptor"><reason>TODO</reason></test>
   <test id="return-yield-expr"><reason>TODO</reason></test>
-  <test id="property-descriptor"><reason>TODO</reason></test>
   <test id="try-catch-before-try"><reason>TODO</reason></test>
   <test id="try-catch-following-catch"><reason>TODO</reason></test>
   <test id="try-catch-within-catch"><reason>TODO</reason></test>
@@ -504,7 +498,6 @@
   <test id="acquire-properties-from-array"><reason>TODO</reason></test>
   <test id="acquire-properties-from-object"><reason>TODO</reason></test>
   <test id="mixed-values-in-iteration"><reason>TODO</reason></test>
-  <test id="generator-return"><reason>TODO</reason></test>
   <test id="yield-as-expression-without-rhs"><reason>TODO</reason></test>
   <test id="yield-as-generator-method-binding-identifier"><reason>TODO</reason></test>
   <test id="yield-as-statement"><reason>TODO</reason></test>
@@ -706,9 +699,7 @@
   <test id="generator-length"><reason>TODO</reason></test>
   <test id="generator-name-prop-string"><reason>TODO</reason></test>
   <test id="generator-name-prop-symbol"><reason>TODO</reason></test>
-  <test id="generator-params"><reason>TODO</reason></test>
   <test id="generator-prop-name-yield-expr"><reason>TODO</reason></test>
-  <test id="generator-prototype-prop"><reason>TODO</reason></test>
   <test id="name-invoke-ctor"><reason>TODO</reason></test>
   <test id="name-length"><reason>TODO</reason></test>
   <test id="name-name-prop-string"><reason>TODO</reason></test>
