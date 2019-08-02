@@ -43,14 +43,34 @@ static Value builtinGeneratorThrow(ExecutionState& state, Value thisValue, size_
 
 void GlobalObject::installGenerator(ExecutionState& state)
 {
-    m_generator = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Generator, nullptr, 0, NativeFunctionInfo::Strict));
-    m_generator->markThisObjectDontNeedStructureTransitionTable(state);
-    m_generator->setPrototype(state, m_functionPrototype);
+    // %GeneratorFunction% : The constructor of generator objects
+    m_generatorFunction = new BuiltinFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().GeneratorFunction, nullptr, 0));
+    m_generatorFunction->markThisObjectDontNeedStructureTransitionTable(state);
+    m_generatorFunction->setPrototype(state, m_functionPrototype);
 
+    // %Generator% : The initial value of the prototype property of %GeneratorFunction%
+    m_generator = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().GeneratorFunction, nullptr, 0, NativeFunctionInfo::Strict));
+    m_generatorFunction->setFunctionPrototype(state, m_generator);
+
+    m_generator->setPrototype(state, state.context()->globalObject()->functionPrototype());
+
+    // 25.2.3.1 The initial value of GeneratorFunction.prototype.constructor is the intrinsic object %GeneratorFunction%.
+    m_generator->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_generatorFunction, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // %GeneratorPrototype% : The initial value of the prototype property of %Generator%
     m_generatorPrototype = m_objectPrototype;
     m_generatorPrototype = new GeneratorObject(state);
+    m_generator->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().prototype), ObjectPropertyDescriptor(m_generatorPrototype, ObjectPropertyDescriptor::ConfigurablePresent));
+
+    // 25.2.3.3 GeneratorFunction.prototype [ @@toStringTag ]
+    // The initial value of the @@toStringTag property is the String value "GeneratorFunction"..
+    // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true }.
+    m_generator->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                                  ObjectPropertyDescriptor(Value(state.context()->staticStrings().GeneratorFunction.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_generatorPrototype->setPrototype(state, m_iteratorPrototype);
     m_generatorPrototype->markThisObjectDontNeedStructureTransitionTable(state);
+    // The initial value of Generator.prototype.constructor is the intrinsic object %Generator%.
     m_generatorPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_generator, ObjectPropertyDescriptor::ConfigurablePresent));
 
     m_generatorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
@@ -62,4 +82,4 @@ void GlobalObject::installGenerator(ExecutionState& state)
     m_generatorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
                                                            ObjectPropertyDescriptor(Value(state.context()->staticStrings().Generator.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

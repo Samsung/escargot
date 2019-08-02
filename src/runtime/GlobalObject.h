@@ -142,6 +142,7 @@ public:
         , m_weakMapPrototype(nullptr)
         , m_weakSet(nullptr)
         , m_weakSetPrototype(nullptr)
+        , m_generatorFunction(nullptr)
         , m_generator(nullptr)
         , m_generatorPrototype(nullptr)
     {
@@ -596,6 +597,16 @@ public:
         return m_weakSetPrototype;
     }
 
+    FunctionObject* generatorFunction()
+    {
+        return m_generatorFunction;
+    }
+
+    FunctionObject* generator()
+    {
+        return m_generator;
+    }
+
     Object* generatorPrototype()
     {
         return m_generatorPrototype;
@@ -761,8 +772,9 @@ private:
     Object* m_weakMapPrototype;
     FunctionObject* m_weakSet;
     Object* m_weakSetPrototype;
-    FunctionObject* m_generator; // TODO: remove if become unnecessary
-    Object* m_generatorPrototype;
+    FunctionObject* m_generatorFunction; // %GeneratorFunction%
+    FunctionObject* m_generator; // %Generator%
+    Object* m_generatorPrototype; // %GeneratorPrototype%
 };
 }
 

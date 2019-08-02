@@ -42,7 +42,15 @@ void FunctionObject::initStructureAndValues(ExecutionState& state)
 {
     if (isConstructor()) {
         m_structure = state.context()->defaultStructureForFunctionObject();
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(Object::createFunctionPrototypeObject(state, this)));
+        if (isGenerator()) {
+            // Unlike function instances, the object that is the value of the a GeneratorFunction’s prototype property
+            // does not have a constructor property whose value is the GeneratorFunction instance.
+            auto prototype = new Object(state);
+            prototype->setPrototype(state, state.context()->globalObject()->generatorPrototype());
+            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(prototype));
+        } else {
+            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(Object::createFunctionPrototypeObject(state, this)));
+        }
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionName().string()));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = (Value(m_codeBlock->parameterCount()));
     } else {
@@ -80,7 +88,11 @@ ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, CodeBlock* cod
     m_homeObject = nullptr;
 
     initStructureAndValues(state);
-    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
+    if (isGenerator()) {
+        Object::setPrototype(state, state.context()->globalObject()->generator());
+    } else {
+        Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
+    }
 }
 
 NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& state)
