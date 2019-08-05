@@ -23,6 +23,7 @@
 #include "AssignmentExpressionSimpleNode.h"
 #include "IdentifierNode.h"
 #include "ExpressionNode.h"
+#include "RestElementNode.h"
 #include "Node.h"
 #include "PatternNode.h"
 #include "RegisterReferenceNode.h"
@@ -154,7 +155,7 @@ public:
             size_t restIndex = context->getRegister();
             codeBlock->pushCode(BindingRestElement(ByteCodeLOC(m_loc.index), iteratorIdx, restIndex), context, this);
             RefPtr<RegisterReferenceNode> registerRef = adoptRef(new RegisterReferenceNode(restIndex));
-            RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(element.get(), registerRef.get()));
+            RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(((RestElementNode*)element.get())->argument(), registerRef.get()));
             assign->m_loc = m_loc;
             assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
             assign->giveupChildren();

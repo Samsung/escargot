@@ -122,7 +122,7 @@ public:
 
         if (LIKELY(codeBlock->canAllocateEnvironmentOnStack())) {
             // no capture, very simple case
-            record = new (alloca(sizeof(FunctionEnvironmentRecordSimple))) FunctionEnvironmentRecordSimple(self);
+            record = new (alloca(sizeof(FunctionEnvironmentRecordSimple))) FunctionEnvironmentRecordSimple(self, argc, argv);
             lexEnv = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, self->outerEnvironment());
         } else {
             if (LIKELY(codeBlock->canUseIndexedVariableStorage())) {
@@ -254,7 +254,7 @@ public:
 
             // FIXME
             if (UNLIKELY(codeBlock->usesArgumentsObject())) {
-                bool isMapped = !codeBlock->usesRestParameter() && !isStrict;
+                bool isMapped = !codeBlock->hasArgumentInitializers() && !isStrict;
                 self->generateArgumentsObject(*newState, record, stackStorage, isMapped);
             }
 
@@ -278,12 +278,8 @@ public:
 
         if (UNLIKELY(codeBlock->usesArgumentsObject())) {
             // FIXME check if formal parameters does not contain a rest parameter, any binding patterns, or any initializers.
-            bool isMapped = !codeBlock->usesRestParameter() && !isStrict;
+            bool isMapped = !codeBlock->hasArgumentInitializers() && !isStrict;
             self->generateArgumentsObject(newState, record, stackStorage, isMapped);
-        }
-
-        if (UNLIKELY(codeBlock->usesRestParameter())) {
-            self->generateRestParameter(newState, record, stackStorage + 2, argc, argv);
         }
 
         // run function

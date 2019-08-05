@@ -208,9 +208,9 @@ public:
         return m_usesArgumentsObject;
     }
 
-    bool usesRestParameter() const
+    bool hasArgumentInitializers() const
     {
-        return m_hasRestElement;
+        return m_hasArgumentInitializers;
     }
 
     AtomicString functionName() const
@@ -322,8 +322,7 @@ protected:
     bool m_isGenerator : 1;
     bool m_needsVirtualIDOperation : 1;
     bool m_needToLoadThisValue : 1;
-    bool m_hasRestElement : 1;
-    bool m_shouldReparseArguments : 1;
+    bool m_hasArgumentInitializers : 1;
     uint16_t m_parameterCount;
 
     AtomicString m_functionName;
@@ -507,11 +506,6 @@ public:
         return m_parentCodeBlock == nullptr;
     }
 
-    bool shouldReparseArguments()
-    {
-        return m_shouldReparseArguments;
-    }
-
     bool hasDescendantUsesNonIndexedVariableStorage()
     {
         return m_hasDescendantUsesNonIndexedVariableStorage;
@@ -670,7 +664,7 @@ public:
 
     const StringView& paramsSrc()
     {
-        ASSERT(m_shouldReparseArguments);
+        ASSERT(m_hasArgumentInitializers);
         return m_paramsSrc;
     }
 

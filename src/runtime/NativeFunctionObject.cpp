@@ -123,7 +123,7 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
     CallNativeFunctionData* code = m_codeBlock->nativeFunctionData();
 
     // TODO don't make LexicalEnvironment if possiable
-    FunctionEnvironmentRecordSimple record(this);
+    FunctionEnvironmentRecordSimple record(this, 0, nullptr);
     LexicalEnvironment env(&record, nullptr);
 
     size_t len = m_codeBlock->parameterCount();

@@ -318,6 +318,8 @@ public:
                 id = vector[i]->asDefaultArgument()->left()->asIdentifier()->name();
             } else if (vector[i]->isPattern()) {
                 id = this->createPatternName(i);
+            } else if (vector[i]->type() == RestElement) {
+                id = ((RestElementNode*)vector[i].get())->argument()->name();
             } else {
                 ASSERT(vector[i]->type() == ASTNodeType::ArrowParameterPlaceHolder);
                 scopeContexts.back()->m_parameters.resize(scopeContexts.back()->m_parameters.size() - 1);
@@ -1229,7 +1231,7 @@ public:
 
         options.paramSet.push_back(name);
 
-        if (scopeContexts.back()->m_hasRestElement || scopeContexts.back()->m_hasPatternNode || scopeContexts.back()->m_hasNonIdentArgument) {
+        if (scopeContexts.back()->m_hasRestElement || scopeContexts.back()->m_hasPatternArgument) {
             for (size_t i = 0; i < options.paramSet.size() - 1; i++) {
                 // Check if any identifier names are duplicated.
                 // Note: using this inner for loop because std::find didn't work for some reason.
@@ -1248,7 +1250,7 @@ public:
         return AtomicString(this->escargotContext, Value(index).toString(stateForTest));
     }
 
-    PassRefPtr<IdentifierNode> parseRestElement(ScannerResultVector& params, PunctuatorKind endKind = RightParenthesis)
+    PassRefPtr<RestElementNode> parseRestElement(ScannerResultVector& params, PunctuatorKind endKind = RightParenthesis)
     {
         MetaNode node = this->createNode();
 
@@ -1266,7 +1268,7 @@ public:
             this->throwError(Messages::ParameterAfterRestParameter);
         }
 
-        return this->finalize(node, new IdentifierNode(param.get()->name()));
+        return this->finalize(node, new RestElementNode(param.get()));
     }
 
     ScanExpressionResult scanRestElement(ScannerResultVector& params, PunctuatorKind endKind = RightParenthesis)
@@ -1432,8 +1434,7 @@ public:
     T pattern(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         if (this->match(LeftSquareBracket)) {
-            scopeContexts.back()->m_hasPatternNode = true;
-            scopeContexts.back()->m_hasNonIdentArgument |= this->context->inArgumentParsing;
+            scopeContexts.back()->m_hasPatternArgument |= this->context->inArgumentParsing;
             if (isParse) {
                 return T(this->arrayPattern<ParseAs(ArrayPatternNode)>(params, kind));
             } else {
@@ -1441,8 +1442,7 @@ public:
             }
 
         } else if (this->match(LeftBrace)) {
-            scopeContexts.back()->m_hasPatternNode = true;
-            scopeContexts.back()->m_hasNonIdentArgument |= this->context->inArgumentParsing;
+            scopeContexts.back()->m_hasPatternArgument |= this->context->inArgumentParsing;
             if (isParse) {
                 return T(this->objectPattern<ParseAs(ObjectPatternNode)>(params, kind));
             } else {
@@ -1468,8 +1468,7 @@ public:
 
         PassRefPtr<Node> pattern = this->pattern<Parse>(params, kind, isExplicitVariableDeclaration);
         if (this->match(PunctuatorKind::Substitution)) {
-            scopeContexts.back()->m_hasPatternNode = true;
-            scopeContexts.back()->m_hasNonIdentArgument |= this->context->inArgumentParsing;
+            scopeContexts.back()->m_hasPatternArgument |= this->context->inArgumentParsing;
             this->nextToken();
             const bool previousAllowYield = this->context->allowYield;
             this->context->allowYield = true;
@@ -1498,7 +1497,7 @@ public:
         if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::PeriodPeriodPeriod) {
             param = this->parseRestElement(params);
             scopeContexts.back()->m_hasRestElement = true;
-            this->validateParam(options, &params.back(), param->asIdentifier()->name());
+            this->validateParam(options, &params.back(), ((RestElementNode*)param.get())->argument()->name());
             options.params.push_back(param);
             trackUsingNames = true;
             return false;
@@ -6502,7 +6501,7 @@ RefPtr<Node> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock*
     parser.context->allowLexicalDeclaration = true;
     parser.config.parseSingleFunction = true;
     parser.config.parseSingleFunctionTarget = codeBlock;
-    parser.config.reparseArguments = codeBlock->shouldReparseArguments();
+    parser.config.reparseArguments = codeBlock->hasArgumentInitializers();
 
     scopeContext = new ASTFunctionScopeContext(codeBlock->isStrict());
     parser.pushScopeContext(scopeContext);

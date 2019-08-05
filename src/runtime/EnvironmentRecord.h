@@ -689,10 +689,26 @@ class FunctionEnvironmentRecordSimple : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
 
 public:
-    ALWAYS_INLINE explicit FunctionEnvironmentRecordSimple(FunctionObject* function)
+    ALWAYS_INLINE explicit FunctionEnvironmentRecordSimple(FunctionObject* function, size_t argc, Value* argv)
         : FunctionEnvironmentRecord(function)
+        , m_argc(argc)
+        , m_argv(argv)
     {
     }
+
+    virtual size_t argc() override
+    {
+        return m_argc;
+    }
+
+    virtual Value* argv() override
+    {
+        return m_argv;
+    }
+
+private:
+    size_t m_argc;
+    Value* m_argv;
 };
 
 class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecord {

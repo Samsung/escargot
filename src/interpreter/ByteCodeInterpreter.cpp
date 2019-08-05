@@ -1024,6 +1024,15 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 NEXT_INSTRUCTION();
             }
 
+            DEFINE_OPCODE(CreateRestElement)
+                :
+            {
+                CreateRestElement* code = (CreateRestElement*)programCounter;
+                registerFile[code->m_registerIndex] = createRestElementOperation(state, state.lexicalEnvironment()->record(), byteCodeBlock);
+                ADD_PROGRAM_COUNTER(CreateRestElement);
+                NEXT_INSTRUCTION();
+            }
+
             DEFINE_OPCODE(LoadThisBinding)
                 :
             {
@@ -2218,6 +2227,28 @@ NEVER_INLINE FunctionObject* ByteCodeInterpreter::createFunctionOperation(Execut
         return new ScriptClassMethodFunctionObject(state, code->m_codeBlock, state.lexicalEnvironment(), registerFile[code->m_homeObjectRegisterIndex].asObject());
     }
     return new ScriptFunctionObject(state, code->m_codeBlock, state.lexicalEnvironment(), true, code->m_codeBlock->isGenerator());
+}
+
+NEVER_INLINE ArrayObject* ByteCodeInterpreter::createRestElementOperation(ExecutionState& state, EnvironmentRecord* record, ByteCodeBlock* byteCodeBlock)
+{
+    ASSERT(record->isDeclarativeEnvironmentRecord() && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
+
+    ArrayObject* newArray;
+    size_t parameterLen = (size_t)byteCodeBlock->m_codeBlock->parameterCount();
+    size_t argc = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->argc();
+    Value* argv = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->argv();
+
+    if (argc > parameterLen) {
+        size_t arrLen = argc - parameterLen;
+        newArray = new ArrayObject(state, (double)arrLen);
+        for (size_t i = 0; i < arrLen; i++) {
+            newArray->setIndexedProperty(state, Value(i), argv[parameterLen + i]);
+        }
+    } else {
+        newArray = new ArrayObject(state);
+    }
+
+    return newArray;
 }
 
 NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, TryOperation* code, LexicalEnvironment* env, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
