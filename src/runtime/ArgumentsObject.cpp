@@ -179,16 +179,18 @@ bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPrope
     uint64_t index = P.tryToUseAsIndex();
     ObjectPropertyDescriptor newDesc(desc);
 
-    if (!desc.isAccessorDescriptor() && isMatchedArgument(index)) {
+    if (isMatchedArgument(index)) {
         if (desc.isValuePresent()) {
             setIndexedPropertyValueQuickly(state, index, desc.value());
         }
 
-        if (desc.isWritable() && desc.isConfigurable() && desc.isEnumerable() && !isModifiedArgument(index)) {
+        if (desc.isWritable() && desc.isConfigurable() && desc.isEnumerable() && !desc.isAccessorDescriptor() && !isModifiedArgument(index)) {
             return true;
         }
 
         if (!isModifiedArgument(index)) {
+            // first, initialize property on Object's property slot
+            // we should unset extensible limit
             setModifiedArgument(index);
 
             bool extensibleBefore = isExtensible(state);
@@ -201,13 +203,12 @@ bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPrope
                 rareData()->m_isExtensible = false;
             }
         }
-    }
 
-    if (isMatchedArgument(index)) {
         if ((desc.isWritablePresent() && !desc.isWritable()) || desc.isAccessorDescriptor()) {
             if (!desc.isAccessorDescriptor()) {
                 newDesc.setValue(getIndexedPropertyValueQuickly(state, index));
             }
+            // unmap arguments
             m_parameterMap[index].first = Value(Value::EmptyValue);
             setModifiedArgument(index);
         }
