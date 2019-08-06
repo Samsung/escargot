@@ -2026,7 +2026,7 @@ public:
         if (!this->config.parseSingleFunction && (method || isGet || isSet)) {
             AtomicString as;
             if (isParse ? keyNode->isIdentifier() : key == ASTNodeType::Identifier) {
-                AtomicString as = isParse ? keyNode->asIdentifier()->name() : key.string();
+                as = isParse ? keyNode->asIdentifier()->name() : key.string();
             }
             lastPoppedScopeContext->m_functionName = as;
             lastPoppedScopeContext->m_isClassMethod = true;

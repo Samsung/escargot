@@ -23,8 +23,18 @@
 #include "VMInstance.h"
 #include "GeneratorObject.h"
 #include "NativeFunctionObject.h"
+#include "runtime/ScriptFunctionObject.h"
 
 namespace Escargot {
+
+static Value builtinGeneratorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
+    Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
+    auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, true);
+
+    return new ScriptFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, true, false);
+}
 
 static Value builtinGeneratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
@@ -44,7 +54,7 @@ static Value builtinGeneratorThrow(ExecutionState& state, Value thisValue, size_
 void GlobalObject::installGenerator(ExecutionState& state)
 {
     // %GeneratorFunction% : The constructor of generator objects
-    m_generatorFunction = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().GeneratorFunction, nullptr, 0), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_generatorFunction = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().GeneratorFunction, builtinGeneratorFunction, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_generatorFunction->markThisObjectDontNeedStructureTransitionTable(state);
     m_generatorFunction->setPrototype(state, m_functionPrototype);
 
