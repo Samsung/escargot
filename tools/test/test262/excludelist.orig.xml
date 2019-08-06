@@ -86,14 +86,6 @@
   <test id="S15.4.4.2_A4.2"><reason>TODO</reason></test>
   <test id="S15.4.4.13_A3_T2"><reason>TODO</reason></test>
   <test id="S15.4.4.13_A5.2"><reason>TODO</reason></test>
-  <test id="args-mapped-expansion-after-exhaustion"><reason>TODO</reason></test>
-  <test id="args-mapped-expansion-before-exhaustion"><reason>TODO</reason></test>
-  <test id="args-mapped-iteration"><reason>TODO</reason></test>
-  <test id="args-mapped-truncation-before-exhaustion"><reason>TODO</reason></test>
-  <test id="args-unmapped-expansion-after-exhaustion"><reason>TODO</reason></test>
-  <test id="args-unmapped-expansion-before-exhaustion"><reason>TODO</reason></test>
-  <test id="args-unmapped-iteration"><reason>TODO</reason></test>
-  <test id="args-unmapped-truncation-before-exhaustion"><reason>TODO</reason></test>
   <test id="S15.6.1.1_A1_T1"><reason>TODO</reason></test>
   <test id="S15.6.1.1_A1_T2"><reason>TODO</reason></test>
   <test id="S15.6.1.1_A1_T3"><reason>TODO</reason></test>
@@ -748,7 +740,6 @@
   <test id="tv-line-continuation"><reason>TODO</reason></test>
   <test id="tv-line-terminator-sequence"><reason>TODO</reason></test>
   <test id="tv-null-character-escape-sequence"><reason>TODO</reason></test>
-  <test id="arguments-object-attributes"><reason>TODO</reason></test>
   <test id="expr-value-specified"><reason>TODO</reason></test>
   <test id="expr-value-unspecified"><reason>TODO</reason></test>
   <test id="formal-parameters-after-reassignment-non-strict"><reason>TODO</reason></test>
@@ -795,12 +786,6 @@
   <test id="no-label-continue"><reason>TODO</reason></test>
   <test id="shadowing-loop-variable-in-same-scope-as-continue"><reason>TODO</reason></test>
   <test id="simple-and-labeled"><reason>TODO</reason></test>
-  <test id="arguments-mapped-aliasing"><reason>TODO</reason></test>
-  <test id="arguments-mapped-mutation"><reason>TODO</reason></test>
-  <test id="arguments-mapped"><reason>TODO</reason></test>
-  <test id="arguments-unmapped-aliasing"><reason>TODO</reason></test>
-  <test id="arguments-unmapped-mutation"><reason>TODO</reason></test>
-  <test id="arguments-unmapped"><reason>TODO</reason></test>
   <test id="body-dstr-assign-error"><reason>TODO</reason></test>
   <test id="body-dstr-assign"><reason>TODO</reason></test>
   <test id="body-put-error"><reason>TODO</reason></test>
