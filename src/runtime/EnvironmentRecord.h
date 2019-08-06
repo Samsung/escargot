@@ -31,13 +31,13 @@
 
 namespace Escargot {
 
+class GlobalObject;
+class CodeBlock;
+class ArgumentsObject;
 class GlobalEnvironmentRecord;
 class DeclarativeEnvironmentRecord;
 class ObjectEnvironmentRecord;
 class FunctionEnvironmentRecord;
-class GlobalObject;
-class CodeBlock;
-class ArgumentsObject;
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-environment-records
 class EnvironmentRecord : public gc {
@@ -479,7 +479,7 @@ public:
                 return;
             }
         }
-        ASSERT_NOT_REACHED();
+        RELEASE_ASSERT_NOT_REACHED();
     }
 
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
@@ -492,7 +492,7 @@ public:
                 return;
             }
         }
-        ASSERT_NOT_REACHED();
+        RELEASE_ASSERT_NOT_REACHED();
     }
 
 private:
@@ -553,35 +553,163 @@ private:
     IdentifierRecordVector m_recordVector;
 };
 
-// http://www.ecma-international.org/ecma-262/6.0/index.html#sec-function-environment-records
+template <bool canBindThisValue, bool hasNewTarget>
+struct FunctionEnvironmentRecordPiece;
+
+template <>
+struct FunctionEnvironmentRecordPiece<false, false> {
+    void bindThisValue(ExecutionState& state, const Value& thisValue)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    Value getThisBinding(ExecutionState& state)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+        return Value();
+    }
+
+    Object* newTarget()
+    {
+        return nullptr;
+    }
+
+    void setNewTarget(Object* newTarget)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+};
+
+template <>
+struct FunctionEnvironmentRecordPiece<true, false> {
+    SmallValue m_thisValue;
+
+    FunctionEnvironmentRecordPiece()
+        : m_thisValue(SmallValue::EmptyValue)
+    {
+    }
+
+    void bindThisValue(ExecutionState& state, const Value& thisValue)
+    {
+        if (!m_thisValue.isEmpty()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, errorMessage_Initialized_This_Binding);
+        }
+
+        m_thisValue = thisValue;
+    }
+
+    Value getThisBinding(ExecutionState& state)
+    {
+        if (m_thisValue.isEmpty()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, errorMessage_UnInitialized_This_Binding);
+        }
+        return m_thisValue;
+    }
+
+    Object* newTarget()
+    {
+        return nullptr;
+    }
+
+    void setNewTarget(Object* newTarget)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+};
+
+template <>
+struct FunctionEnvironmentRecordPiece<false, true> {
+    Object* m_newTarget;
+
+    FunctionEnvironmentRecordPiece()
+        : m_newTarget(nullptr)
+    {
+    }
+
+    void bindThisValue(ExecutionState& state, const Value& thisValue)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    Value getThisBinding(ExecutionState& state)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+        return Value();
+    }
+
+    Object* newTarget()
+    {
+        return m_newTarget;
+    }
+
+    void setNewTarget(Object* newTarget)
+    {
+        m_newTarget = newTarget;
+    }
+};
+
+template <>
+struct FunctionEnvironmentRecordPiece<true, true> {
+    Object* m_newTarget;
+    SmallValue m_thisValue;
+
+    FunctionEnvironmentRecordPiece()
+        : m_newTarget(nullptr)
+        , m_thisValue(SmallValue::EmptyValue)
+    {
+    }
+
+    void bindThisValue(ExecutionState& state, const Value& thisValue)
+    {
+        if (!m_thisValue.isEmpty()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, errorMessage_Initialized_This_Binding);
+        }
+
+        m_thisValue = thisValue;
+    }
+
+    Value getThisBinding(ExecutionState& state)
+    {
+        if (m_thisValue.isEmpty()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, errorMessage_UnInitialized_This_Binding);
+        }
+        return m_thisValue;
+    }
+
+    Object* newTarget()
+    {
+        return m_newTarget;
+    }
+
+    void setNewTarget(Object* newTarget)
+    {
+        m_newTarget = newTarget;
+    }
+};
+
 class FunctionEnvironmentRecord : public DeclarativeEnvironmentRecord {
-    friend class LexicalEnvironment;
-    friend class FunctionObject;
-    friend class ByteCodeInterpreter;
-
 public:
-    enum ThisBindingStatus {
-        Lexical,
-        Initialized,
-        Uninitialized,
-    };
-
-    ALWAYS_INLINE explicit FunctionEnvironmentRecord(FunctionObject* function)
+    FunctionEnvironmentRecord(FunctionObject* function, size_t argc, Value* argv)
         : DeclarativeEnvironmentRecord()
         , m_functionObject(function)
-        , m_newTarget()
-        , m_thisValue()
+        , m_argc(argc)
+        , m_argv(argv)
     {
-        if (function->thisMode() == FunctionObject::ThisMode::Lexical) {
-            m_thisBindingStatus = ThisBindingStatus::Lexical;
-        } else {
-            m_thisBindingStatus = ThisBindingStatus::Uninitialized;
-        }
+    }
+
+    FunctionObject::ThisMode thisMode()
+    {
+        return m_functionObject->thisMode();
     }
 
     virtual bool isFunctionEnvironmentRecord() override
     {
         return true;
+    }
+
+    virtual bool isFunctionEnvironmentRecordOnStack()
+    {
+        return false;
     }
 
     virtual bool isFunctionEnvironmentRecordOnHeap()
@@ -594,33 +722,39 @@ public:
         return false;
     }
 
-    void bindThisValue(ExecutionState& state, Value thisValue)
+    virtual SmallValueTightVector& heapStorage()
     {
-        ASSERT(m_thisBindingStatus != ThisBindingStatus::Lexical);
-
-        if (m_thisBindingStatus == ThisBindingStatus::Initialized) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, errorMessage_Initialized_This_Binding);
-        }
-
-        m_thisValue = thisValue;
-
-        m_thisBindingStatus = ThisBindingStatus::Initialized;
+        RELEASE_ASSERT_NOT_REACHED();
     }
 
-    Value getThisBinding(ExecutionState& state)
+    Object* homeObject()
     {
-        ASSERT(m_thisBindingStatus != ThisBindingStatus::Lexical);
-
-        if (m_thisBindingStatus == ThisBindingStatus::Uninitialized) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, errorMessage_UnInitialized_This_Binding);
-        }
-
-        return m_thisValue;
+        return m_functionObject->homeObject();
     }
 
-    virtual bool hasSuperBinding() override
+    FunctionObject* functionObject()
     {
-        if (m_thisBindingStatus == ThisBindingStatus::Lexical) {
+        return m_functionObject;
+    }
+
+    size_t argc()
+    {
+        return m_argc;
+    }
+
+    Value* argv()
+    {
+        return m_argv;
+    }
+
+    Value createArgumentsObject(ExecutionState& state, bool isMapped)
+    {
+        return new ArgumentsObject(state, this, isMapped);
+    }
+
+    virtual bool hasSuperBinding()
+    {
+        if (thisMode() == FunctionObject::ThisMode::Lexical) {
             return false;
         }
 
@@ -629,7 +763,7 @@ public:
 
     virtual bool hasThisBinding() override
     {
-        return m_thisBindingStatus != ThisBindingStatus::Lexical;
+        return thisMode() != FunctionObject::ThisMode::Lexical;
     }
 
     Value getSuperBase(ExecutionState& state)
@@ -641,77 +775,86 @@ public:
         return homeObject()->getPrototype(state);
     }
 
-    FunctionObject* functionObject()
-    {
-        return m_functionObject;
-    }
-
-    Object* homeObject()
-    {
-        return m_functionObject->homeObject();
-    }
-
-    Object* newTarget()
-    {
-        return m_newTarget;
-    }
-
-    void setNewTarget(Object* newTarget)
-    {
-        m_newTarget = newTarget;
-    }
-
-    virtual size_t argc()
+    virtual void bindThisValue(ExecutionState& state, const Value& thisValue)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual Value* argv()
+    virtual Value getThisBinding(ExecutionState& state)
     {
         RELEASE_ASSERT_NOT_REACHED();
+        return Value();
     }
 
-    Value createArgumentsObject(ExecutionState& state, bool isMapped)
+    virtual Object* newTarget()
     {
-        return new ArgumentsObject(state, this, isMapped);
+        RELEASE_ASSERT_NOT_REACHED();
+        return nullptr;
+    }
+
+    virtual void setNewTarget(Object* newTarget)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
     }
 
 protected:
     FunctionObject* m_functionObject;
-
-    // TODO store these values into rare data
-    Object* m_newTarget;
-    ThisBindingStatus m_thisBindingStatus;
-    SmallValue m_thisValue;
-};
-
-class FunctionEnvironmentRecordSimple : public FunctionEnvironmentRecord {
-    friend class LexicalEnvironment;
-
-public:
-    ALWAYS_INLINE explicit FunctionEnvironmentRecordSimple(FunctionObject* function, size_t argc, Value* argv)
-        : FunctionEnvironmentRecord(function)
-        , m_argc(argc)
-        , m_argv(argv)
-    {
-    }
-
-    virtual size_t argc() override
-    {
-        return m_argc;
-    }
-
-    virtual Value* argv() override
-    {
-        return m_argv;
-    }
-
-private:
     size_t m_argc;
     Value* m_argv;
 };
 
-class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecord {
+template <bool canBindThisValue, bool hasNewTarget>
+class FunctionEnvironmentRecordWithExtraData : public FunctionEnvironmentRecord {
+    friend class LexicalEnvironment;
+    friend class FunctionObject;
+    friend class ByteCodeInterpreter;
+
+public:
+    ALWAYS_INLINE explicit FunctionEnvironmentRecordWithExtraData(FunctionObject* function, size_t argc, Value* argv)
+        : FunctionEnvironmentRecord(function, argc, argv)
+    {
+    }
+
+    void bindThisValue(ExecutionState& state, const Value& thisValue) override
+    {
+        m_piece.bindThisValue(state, thisValue);
+    }
+
+    Value getThisBinding(ExecutionState& state) override
+    {
+        return m_piece.getThisBinding(state);
+    }
+
+    Object* newTarget()
+    {
+        return m_piece.newTarget();
+    }
+
+    void setNewTarget(Object* newTarget)
+    {
+        m_piece.setNewTarget(newTarget);
+    }
+
+protected:
+    FunctionEnvironmentRecordPiece<canBindThisValue, hasNewTarget> m_piece;
+};
+
+template <bool canBindThisValue, bool hasNewTarget>
+class FunctionEnvironmentRecordOnStack : public FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget> {
+public:
+    FunctionEnvironmentRecordOnStack(FunctionObject* function, size_t argc, Value* argv)
+        : FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>(function, argc, argv)
+    {
+    }
+
+    virtual bool isFunctionEnvironmentRecordOnStack() override
+    {
+        return true;
+    }
+};
+
+template <bool canBindThisValue, bool hasNewTarget>
+class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget> {
     friend class LexicalEnvironment;
     friend class ByteCodeInterpreter;
     friend class ScriptFunctionObject;
@@ -734,28 +877,28 @@ public:
         return m_heapStorage[idx];
     }
 
-    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override
+    virtual EnvironmentRecord::GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override
     {
-        const auto& v = m_functionObject->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
+        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
 
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
-                return GetBindingValueResult(m_heapStorage[v[i].m_indexForIndexedStorage]);
+                return EnvironmentRecord::GetBindingValueResult(m_heapStorage[v[i].m_indexForIndexedStorage]);
             }
         }
-        return GetBindingValueResult();
+        return EnvironmentRecord::GetBindingValueResult();
     }
 
-    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& name) override
+    virtual EnvironmentRecord::BindingSlot hasBinding(ExecutionState& state, const AtomicString& name) override
     {
-        const auto& v = m_functionObject->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
+        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
 
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
-                return BindingSlot(this, v[i].m_indexForIndexedStorage, false);
+                return EnvironmentRecord::BindingSlot(this, v[i].m_indexForIndexedStorage, false);
             }
         }
-        return BindingSlot(this, SIZE_MAX, false);
+        return EnvironmentRecord::BindingSlot(this, SIZE_MAX, false);
     }
 
     virtual bool deleteBinding(ExecutionState& state, const AtomicString& name) override
@@ -763,7 +906,7 @@ public:
         return false;
     }
 
-    virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override;
+    virtual void setMutableBindingByBindingSlot(ExecutionState& state, const EnvironmentRecord::BindingSlot& slot, const AtomicString& name, const Value& v) override;
     virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const Value& v) override
     {
         m_heapStorage[idx] = v;
@@ -776,7 +919,7 @@ public:
 
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override
     {
-        const auto& v = m_functionObject->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
+        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
 
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
@@ -787,28 +930,17 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual size_t argc() override
-    {
-        return m_argc;
-    }
-
-    virtual Value* argv() override
-    {
-        return m_argv;
-    }
-
-    inline SmallValueTightVector& heapStorage()
+    SmallValueTightVector& heapStorage() override
     {
         return m_heapStorage;
     }
 
 private:
-    size_t m_argc;
-    Value* m_argv;
     SmallValueTightVector m_heapStorage;
 };
 
-class FunctionEnvironmentRecordNotIndexed : public FunctionEnvironmentRecord {
+template <bool canBindThisValue, bool hasNewTarget>
+class FunctionEnvironmentRecordNotIndexed : public FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget> {
     friend class LexicalEnvironment;
 
 public:
@@ -850,50 +982,37 @@ public:
         return false;
     }
 
-    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName) override
+    virtual EnvironmentRecord::BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName) override
     {
         size_t len = m_recordVector.size();
         for (size_t i = 0; i < len; i++) {
             if (m_recordVector[i].m_name == atomicName) {
-                return BindingSlot(this, i, false);
+                return EnvironmentRecord::BindingSlot(this, i, false);
             }
         }
-        return BindingSlot(this, SIZE_MAX, false);
+        return EnvironmentRecord::BindingSlot(this, SIZE_MAX, false);
     }
 
 
     virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true) override;
-    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
+    virtual EnvironmentRecord::GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
-    virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override;
-
-    virtual size_t argc() override
-    {
-        return m_argc;
-    }
-
-    virtual Value* argv() override
-    {
-        return m_argv;
-    }
-
+    virtual void setMutableBindingByBindingSlot(ExecutionState& state, const EnvironmentRecord::BindingSlot& slot, const AtomicString& name, const Value& v) override;
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
 
 private:
-    size_t m_argc;
-    Value* m_argv;
     SmallValueTightVector m_heapStorage;
     IdentifierRecordVector m_recordVector;
 };
 
-class FunctionEnvironmentRecordNotIndexedWithVirtualID : public FunctionEnvironmentRecordNotIndexed {
+class FunctionEnvironmentRecordNotIndexedWithVirtualID : public FunctionEnvironmentRecordNotIndexed<true, true> {
 public:
     FunctionEnvironmentRecordNotIndexedWithVirtualID(FunctionObject* function, size_t argc, Value* argv)
         : FunctionEnvironmentRecordNotIndexed(function, argc, argv)
     {
     }
 
-    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
+    virtual EnvironmentRecord::GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
 };
 }
 #endif

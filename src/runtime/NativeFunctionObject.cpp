@@ -122,10 +122,6 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
 
     CallNativeFunctionData* code = m_codeBlock->nativeFunctionData();
 
-    // TODO don't make LexicalEnvironment if possiable
-    FunctionEnvironmentRecordSimple record(this, 0, nullptr);
-    LexicalEnvironment env(&record, nullptr);
-
     size_t len = m_codeBlock->parameterCount();
     if (argc < len) {
         Value* newArgv = (Value*)alloca(sizeof(Value) * len);
@@ -139,7 +135,7 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
     }
 
     Value receiver = receiverSrc;
-    ExecutionState newState(ctx, &state, &env, isStrict, &receiver);
+    ExecutionState newState(ctx, &state, nullptr, this, isStrict);
 
     if (!isConstruct) {
         // prepare receiver
@@ -179,7 +175,7 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
         }
         return result;
     } catch (const Value& v) {
-        ByteCodeInterpreter::processException(newState, v, SIZE_MAX);
+        ByteCodeInterpreter::processException(newState, v, m_codeBlock, SIZE_MAX);
         return Value();
     }
 }

@@ -358,7 +358,7 @@ static Value builtinPromiseThen(ExecutionState& state, Value thisValue, size_t a
 Value getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     auto strings = &state.context()->staticStrings();
-    Object* executor = state.resolveCallee();
+    Object* executor = state.callee();
     executor->deleteOwnProperty(state, strings->name);
     Object* executorInternalSlot = executor->ensureInternalSlot(state);
     if (!executorInternalSlot->getOwnProperty(state, strings->resolve).value(state, executorInternalSlot).isUndefined()
@@ -378,7 +378,7 @@ Value getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, si
 Value promiseResolveFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     auto strings = &state.context()->staticStrings();
-    Object* callee = state.resolveCallee();
+    Object* callee = state.callee();
     Object* alreadyResolved = PromiseObject::resolvingFunctionAlreadyResolved(state, callee);
     Object* internalSlot = callee->internalSlot();
     PromiseObject* promise = internalSlot->getOwnProperty(state, strings->Promise).value(state, internalSlot).asObject()->asPromiseObject();
@@ -422,7 +422,7 @@ Value promiseResolveFunction(ExecutionState& state, Value thisValue, size_t argc
 Value promiseRejectFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     auto strings = &state.context()->staticStrings();
-    Object* callee = state.resolveCallee();
+    Object* callee = state.callee();
     Object* alreadyResolved = PromiseObject::resolvingFunctionAlreadyResolved(state, callee);
     Object* internalSlot = callee->internalSlot();
     PromiseObject* promise = internalSlot->getOwnProperty(state, strings->Promise).value(state, internalSlot).asObject()->asPromiseObject();
@@ -438,7 +438,7 @@ Value promiseRejectFunction(ExecutionState& state, Value thisValue, size_t argc,
 Value promiseAllResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     auto strings = &state.context()->staticStrings();
-    Object* callee = state.resolveCallee();
+    Object* callee = state.callee();
     Value x = argv[0];
     Object* internalSlot = callee->internalSlot();
 

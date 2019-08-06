@@ -86,7 +86,7 @@ public:
 
     static size_t tryOperation(ExecutionState& state, TryOperation* code, LexicalEnvironment* env, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 
-    static FunctionObject* createFunctionOperation(ExecutionState& state, CreateFunction* createFunction, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static void createFunctionOperation(ExecutionState& state, CreateFunction* createFunction, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static ArrayObject* createRestElementOperation(ExecutionState& state, EnvironmentRecord* record, ByteCodeBlock* byteCodeBlock);
     static void evalOperation(ExecutionState& state, CallEvalFunction* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static void classOperation(ExecutionState& state, CreateClass* code, Value* registerFile);
@@ -104,7 +104,7 @@ public:
     static Value incrementOperation(ExecutionState& state, const Value& value);
     static Value decrementOperation(ExecutionState& state, const Value& value);
 
-    static void processException(ExecutionState& state, const Value& value, size_t programCounter);
+    static void processException(ExecutionState& state, const Value& value, CodeBlock* codeBlock, size_t programCounter);
 };
 }
 
