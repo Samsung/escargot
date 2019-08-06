@@ -1,4 +1,5 @@
-
+#set -x
+NPROC="$(nproc)"
 TEST_ROOT=$(dirname $(readlink -f $0))
 BIN=
 
@@ -28,6 +29,12 @@ declare -a TABLE_PASS
 declare -a TABLE_FAIL
 declare -a TABLE_SKIP
 
+declare -a TABLE_RT_FILES
+declare -a TABLE_RT_BASELINE
+declare -a TABLE_RT_SKIP
+declare -a TABLE_RT_TZSET
+declare -a TABLE_RT_WAIT
+
 print_usage() {
 	echo "$ cd test/chakracore"
 	echo "$ ./run.sh \$BIN \$TESTDIR "
@@ -50,64 +57,92 @@ print_count() {
 	printf "%20s\t\t%d\t\t%d\t\t%d\t\t%d\t\t(%d%%)\n" $TESTNAME $COUNT		$PASS		$FAIL		$SKIP		$PASS_RATIO
 }
 
-run_test() {
-	FILES=$1
-	BASELINE=$2
-	SKIP=$3
-	TZSET=$4
+run_tcs () {
+	TC_SIZ=$1
+	FOR_MAX=$TC_SIZ
+	((FOR_MAX--))
 
-	CMD="$BIN $INCLUDE $FILES"
-	echo "==========================================================" >> $LOG_FILE
-	echo -n "[$DIR] $FILES .......... "
+	for IDX in $(seq 0 $FOR_MAX); do
+		RT_FILES=${TABLE_RT_FILES[$IDX]}
+		RT_BASELINE=${TABLE_RT_BASELINE[$IDX]}
+		RT_SKIP=${TABLE_RT_SKIP[$IDX]}
+		RT_TZSET=${TABLE_RT_TZSET[$IDX]}
+		RT_TEMP_OUTPUT_FILE=$TEMPORARY_OUTPUT_FILE"$IDX"
+		RT_TEMP_DIFF_FILE=$TEMPORARY_DIFF_FILE"$IDX"
+		RT_CMD="$BIN $INCLUDE $RT_FILES"
 
-	echo "[$DIR] $FILES" >> $LOG_FILE
-	echo $CMD >> $LOG_FILE
-
-	if [[ $SKIP != "" ]]; then
-		((LOCAL_SKIP+=1))
-		printf "Skip ($SKIP)\n" | tee -a $LOG_FILE
-	else
-		if [[ $TZSET != "" ]]; then
-			CMD="env TZ=US/Pacific $CMD";
-		fi
-		$($CMD \
-			> $TEMPORARY_OUTPUT_FILE 2>> $LOG_FILE)
-		ESCARGOT_EXIT_CODE=$?
-		sed -i 's/\[object global\]/[object Object]/g' "$TEMPORARY_OUTPUT_FILE"
-		#cat $TEMPORARY_OUTPUT_FILE
-
-		$($DIFF_CMD $TEMPORARY_OUTPUT_FILE $BASELINE 2>&1 > $TEMPORARY_DIFF_FILE)
-		DIFF_EXIT_CODE=$?
-		#echo $DIFF_EXIT_CODE
-
-		if [[ $BASELINE == $BASELINE_PATH/baseline1 ]]; then
-			#echo $ESCARGOT_EXIT_CODE
-			if [[ $ESCARGOT_EXIT_CODE == 0 ]]; then
-				#cat $TEMPORARY_OUTPUT_FILE
-				grep FAIL "$TEMPORARY_OUTPUT_FILE" > /dev/null
-				if [[ $? == 0 ]]
-				then
-					DIFF_EXIT_CODE=1
-				else
-					DIFF_EXIT_CODE=0
-				fi
-			else
-				DIFF_EXIT_CODE=1
+		if [[ $RT_SKIP == "" ]]; then
+			if [[ $RT_TZSET != "" ]]; then
+				RT_CMD="env TZ=US/Pacific $RT_CMD";
 			fi
-		fi
-		if [[ $TZSET != "" ]]; then
-			TZ=Asia/Seoul;
+#			$($RT_CMD > $RT_TEMP_OUTPUT_FILE 2>> $LOG_FILE) &
+			$RT_CMD &> $RT_TEMP_OUTPUT_FILE &
+			PID=$!
+			TABLE_RT_WAIT[$IDX]=$PID
 		fi
 
-		if [[ "$DIFF_EXIT_CODE" != "0" ]]; then
-			printf "Fail\n" | tee -a $LOG_FILE
-			cat $TEMPORARY_DIFF_FILE >> $LOG_FILE
-			((LOCAL_FAIL+=1))
+	done
+
+	for IDX in $(seq 0 $FOR_MAX); do
+		RT_FILES=${TABLE_RT_FILES[$IDX]}
+		RT_BASELINE=${TABLE_RT_BASELINE[$IDX]}
+		RT_SKIP=${TABLE_RT_SKIP[$IDX]}
+		RT_TZSET=${TABLE_RT_TZSET[$IDX]}
+		RT_TEMP_OUTPUT_FILE=$TEMPORARY_OUTPUT_FILE"$IDX"
+		RT_TEMP_DIFF_FILE=$TEMPORARY_DIFF_FILE"$IDX"
+
+
+		RT_CMD="$BIN $INCLUDE $RT_FILES"
+		echo "==========================================================" >> $LOG_FILE
+		echo -n "[$DIR] $RT_FILES .......... "
+
+		echo "[$DIR] $RT_FILES" >> $LOG_FILE
+		echo $RT_CMD >> $LOG_FILE
+
+		if [[ $RT_SKIP != "" ]]; then
+			((LOCAL_SKIP+=1))
+			printf "Skip ($RT_SKIP)\n" | tee -a $LOG_FILE
 		else
-			printf "Pass\n" | tee -a $LOG_FILE
-			((LOCAL_PASS+=1))
+			if [[ $RT_TZSET != "" ]]; then
+				RT_CMD="env TZ=US/Pacific $RT_CMD";
+			fi
+			ESCARGOT_EXIT_CODE=0
+			wait ${TABLE_RT_WAIT[$IDX]} || ESCARGOT_EXIT_CODE=1
+			sed -i 's/\[object global\]/[object Object]/g' "$RT_TEMP_OUTPUT_FILE"
+
+			$($DIFF_CMD $RT_TEMP_OUTPUT_FILE $RT_BASELINE 2>&1 > $RT_TEMP_DIFF_FILE)
+			DIFF_EXIT_CODE=$?
+
+			if [[ $RT_BASELINE == $BASELINE_PATH/baseline1 ]]; then
+				#echo $ESCARGOT_EXIT_CODE
+				if [[ $ESCARGOT_EXIT_CODE == 0 ]]; then
+					#cat $TEMPORARY_OUTPUT_FILE
+					grep FAIL "$RT_TEMP_OUTPUT_FILE" > /dev/null
+					if [[ $? == 0 ]]
+					then
+						DIFF_EXIT_CODE=1
+					else
+						DIFF_EXIT_CODE=0
+					fi
+				else
+					DIFF_EXIT_CODE=1
+				fi
+			fi
+			if [[ $RT_TZSET != "" ]]; then
+				TZ=Asia/Seoul;
+			fi
+			if [[ "$DIFF_EXIT_CODE" != "0" ]]; then
+				printf "Fail\n" | tee -a $LOG_FILE
+				cat $RT_TEMP_OUTPUT_FILE >> $LOG_FILE
+				((LOCAL_FAIL+=1))
+			else
+				printf "Pass\n" | tee -a $LOG_FILE
+				((LOCAL_PASS+=1))
+			fi
+			rm -f $RT_TEMP_OUTPUT_FILE
+			rm -f $RT_TEMP_OUTPUT_PATH
 		fi
-	fi
+	done
 }
 
 run_dir() {
@@ -118,6 +153,7 @@ run_dir() {
 	SKIP=
 	TZSET=
 
+	TC_INDEX=0
 	LOCAL_COUNT=0
 	LOCAL_PASS=0
 	LOCAL_FAIL=0
@@ -164,9 +200,27 @@ run_dir() {
 			else
 				REAL_BASELINE=$(find . -iname $BASELINE -printf "%P\n")
 			fi
-			run_test "$REAL_FILES" "$REAL_BASELINE" "$SKIP" "$TZSET"
+
+			RT_FILES=$REAL_FILES
+			RT_BASELINE=$REAL_BASELINE
+			RT_SKIP=$SKIP
+			RT_TZSET=$TZSET
+
+			TABLE_RT_FILES[$TC_INDEX]=$RT_FILES
+			TABLE_RT_BASELINE[$TC_INDEX]=$RT_BASELINE
+			TABLE_RT_SKIP[$TC_INDEX]=$RT_SKIP
+			TABLE_RT_TZSET[$TC_INDEX]=$RT_TZSET
+
+			((TC_INDEX+=1))
+
+			if [[ $TC_INDEX == $NPROC ]]; then
+				run_tcs $TC_INDEX
+				TC_INDEX=0
+			fi
 		fi
 	done < rlexe.xml;
+
+	run_tcs $TC_INDEX
 
 	ARRAY_KEYS+=($DIR)
 	TABLE_COUNT[$idx]=$LOCAL_COUNT
@@ -246,6 +300,3 @@ main() {
 }
 
 main $(pwd)/$1 $2
-rm $TEMPORARY_OUTPUT_FILE
-rm $TEMPORARY_DIFF_FILE
-

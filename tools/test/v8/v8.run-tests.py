@@ -554,9 +554,7 @@ def ProcessOptions(options):
     VARIANTS = ["default"]
 
   if options.j == 0:
-    # NOTE(Escargot): disable multiprocessing to check regression
-    options.j = 1
-    # options.j = multiprocessing.cpu_count()
+    options.j = multiprocessing.cpu_count()
 
   if options.random_seed_stress_count <= 1 and options.random_seed == 0:
     options.random_seed = RandomSeed()
