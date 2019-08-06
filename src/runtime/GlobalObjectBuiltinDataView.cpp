@@ -23,7 +23,6 @@
 #include "VMInstance.h"
 #include "TypedArrayObject.h"
 #include "DataViewObject.h"
-#include "BuiltinFunctionObject.h"
 #include "NativeFunctionObject.h"
 
 namespace Escargot {
@@ -153,7 +152,7 @@ static Value builtinDataViewByteOffsetGetter(ExecutionState& state, Value thisVa
 
 void GlobalObject::installDataView(ExecutionState& state)
 {
-    m_dataView = new BuiltinFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().DataView, builtinDataViewConstructor, 3));
+    m_dataView = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().DataView, builtinDataViewConstructor, 3), NativeFunctionObject::__ForBuiltinConstructor__);
     m_dataView->markThisObjectDontNeedStructureTransitionTable(state);
     m_dataView->setPrototype(state, m_functionPrototype);
 

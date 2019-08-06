@@ -63,14 +63,7 @@ public:
                 codeBlock->pushCode(ReturnFunctionWithValue(ByteCodeLOC(m_loc.index), index), context, this);
                 context->giveUpRegister();
             } else {
-                if (codeBlock->m_codeBlock->isClassConstructor()) {
-                    size_t idx = context->getRegister();
-                    codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(SIZE_MAX), idx), context, this);
-                    codeBlock->pushCode(ReturnFunctionWithValue(ByteCodeLOC(SIZE_MAX), idx), context, this);
-                    context->giveUpRegister();
-                } else {
-                    codeBlock->pushCode(ReturnFunction(ByteCodeLOC(m_loc.index)), context, this);
-                }
+                codeBlock->pushCode(ReturnFunction(ByteCodeLOC(m_loc.index)), context, this);
             }
         }
     }

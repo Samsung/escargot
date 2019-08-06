@@ -22,7 +22,6 @@
 #include "Context.h"
 #include "VMInstance.h"
 #include "SymbolObject.h"
-#include "BuiltinFunctionObject.h"
 #include "NativeFunctionObject.h"
 #include "ToStringRecursionPreventer.h"
 
@@ -121,7 +120,7 @@ Value builtinSymbolKeyFor(ExecutionState& state, Value thisValue, size_t argc, V
 
 void GlobalObject::installSymbol(ExecutionState& state)
 {
-    m_symbol = new BuiltinFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Symbol, builtinSymbolConstructor, 0));
+    m_symbol = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Symbol, builtinSymbolConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_symbol->markThisObjectDontNeedStructureTransitionTable(state);
     m_symbol->setPrototype(state, m_functionPrototype);
 

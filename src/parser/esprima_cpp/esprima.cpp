@@ -183,12 +183,6 @@ public:
     Scanner* scanner;
     Scanner scannerInstance;
 
-    /*
-    std::unordered_map<IdentifierNode*, RefPtr<Scanner::ScannerResult>,
-                       std::hash<IdentifierNode*>, std::equal_to<IdentifierNode*>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<IdentifierNode*, RefPtr<Scanner::ScannerResult>>>>
-        nodeExtraInfo;
-    */
-
     enum SourceType {
         Script,
         Module
@@ -209,6 +203,7 @@ public:
     bool trackUsingNames;
     AtomicString lastUsingName;
     size_t stackLimit;
+    size_t subCodeBlockIndex;
 
     LexicalBlockIndex lexicalBlockIndex;
     LexicalBlockIndex lexicalBlockCount;
@@ -335,6 +330,7 @@ public:
 
     void pushScopeContext(AtomicString functionName)
     {
+        this->subCodeBlockIndex++;
         if (this->config.parseSingleFunction) {
             fakeContext = ASTFunctionScopeContext();
             pushScopeContext(&fakeContext);
@@ -368,6 +364,7 @@ public:
         this->escargotContext = escargotContext;
         this->lexicalBlockIndex = 0;
         this->lexicalBlockCount = 0;
+        this->subCodeBlockIndex = 0;
         lastPoppedScopeContext = nullptr;
         trackUsingNames = true;
         config.range = false;
@@ -1556,6 +1553,8 @@ public:
         bool inArgumentParsingBefore = this->context->inArgumentParsing;
         this->context->inArgumentParsing = true;
 
+        size_t oldSubCodeBlockIndex = this->subCodeBlockIndex;
+
         if (!this->match(RightParenthesis)) {
             options.paramSet.clear();
             while (this->startMarker.index < this->scanner->length) {
@@ -1566,6 +1565,8 @@ public:
             }
         }
         this->expect(RightParenthesis);
+
+        this->subCodeBlockIndex = oldSubCodeBlockIndex;
 
         this->context->inArgumentParsing = inArgumentParsingBefore;
 
@@ -1647,7 +1648,6 @@ public:
         this->context->isAssignmentTarget = false;
         this->context->isBindingElement = false;
 
-        pushScopeContext(AtomicString());
         extractNamesFromFunctionParams(params.params);
         const bool previousStrict = this->context->strict;
         PassRefPtr<Node> body = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
@@ -1670,13 +1670,14 @@ public:
         this->context->allowYield = false;
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
+        pushScopeContext(AtomicString());
         ParseFormalParametersResult params = this->parseFormalParameters();
         RefPtr<Node> method = this->parsePropertyMethod(params);
         this->context->allowYield = previousAllowYield;
 
         scopeContexts.back()->m_paramsStart.index = node.index;
 
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method.get(), popScopeContext(node), isGenerator));
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method.get(), popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
 
     PassRefPtr<Node> parseObjectPropertyKey()
@@ -1806,6 +1807,14 @@ public:
         }
     }
 
+    AtomicString getPropertyComputedName(Node* key)
+    {
+        if (key->type() == Identifier) {
+            return ((IdentifierNode*)key)->name();
+        }
+
+        return AtomicString();
+    }
 
     bool isPropertyKey(Node* key, const char* value)
     {
@@ -2015,6 +2024,14 @@ public:
             usedNames.push_back(std::make_pair(as, kind));
         }
 
+        if (!this->config.parseSingleFunction && (method || isGet || isSet)) {
+            AtomicString as;
+            if (isParse ? keyNode->isIdentifier() : key == ASTNodeType::Identifier) {
+                AtomicString as = isParse ? keyNode->asIdentifier()->name() : key.string();
+            }
+            lastPoppedScopeContext->m_functionName = as;
+            lastPoppedScopeContext->m_isClassMethod = true;
+        }
         if (isParse) {
             // return this->finalize(node, new PropertyNode(kind, key, computed, value, method, shorthand));
             return T(this->finalize(node, new PropertyNode(keyNode.get(), valueNode.get(), kind, computed)));
@@ -2565,6 +2582,7 @@ public:
             }
         }
 
+        MetaNode node = this->createNode();
         if (isParse) {
             RefPtr<Node> callee = this->isolateCoverGrammar(&Parser::leftHandSideExpression<Parse>);
             ArgumentVector args;
@@ -2575,7 +2593,6 @@ public:
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
 
-            MetaNode node = this->createNode();
             return T(this->finalize(node, expr));
         }
 
@@ -2607,12 +2624,8 @@ public:
             }
 
             scopeContexts.back()->m_hasSuper = true;
-            if (this->context->inArrowFunction) {
-                scopeContexts.back()->m_hasArrowSuper = true;
-            }
 
             if (isParse) {
-                insertUsingName(this->escargotContext->staticStrings().stringThis);
                 exprNode = this->finalize(this->createNode(), new SuperExpressionNode(this->lookahead.valuePunctuatorKind == LeftParenthesis));
             } else {
                 expr = ScanExpressionResult(ASTNodeType::SuperExpression);
@@ -2710,9 +2723,6 @@ public:
         }
 
         scopeContexts.back()->m_hasSuper = true;
-        if (this->context->inArrowFunction) {
-            scopeContexts.back()->m_hasArrowSuper = true;
-        }
 
         if (isParse) {
             return T(this->finalize(node, new SuperExpressionNode(false)));
@@ -3646,9 +3656,12 @@ public:
                         LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
                         this->lexicalBlockIndex = 0;
                         this->lexicalBlockCount = 0;
+                        size_t oldSubCodeBlockIndex = this->subCodeBlockIndex;
+                        this->subCodeBlockIndex = 0;
 
                         body = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
 
+                        this->subCodeBlockIndex = oldSubCodeBlockIndex;
                         this->lexicalBlockIndex = lexicalBlockIndexBefore;
                         this->lexicalBlockCount = lexicalBlockCountBefore;
                     }
@@ -3677,7 +3690,7 @@ public:
                         this->throwUnexpectedToken(&list.stricted, list.message);
                     }
 
-                    exprNode = this->finalize(node, new ArrowFunctionExpressionNode(std::move(list.params), body.get(), popScopeContext(node), isExpression)); //TODO
+                    exprNode = this->finalize(node, new ArrowFunctionExpressionNode(std::move(list.params), body.get(), popScopeContext(node), isExpression, subCodeBlockIndex)); //TODO
                     if (!isParse) {
                         expr.setNodeType(ASTNodeType::ArrowFunctionExpression);
                     }
@@ -5701,6 +5714,9 @@ public:
         this->lexicalBlockIndex = 0;
         this->lexicalBlockCount = 0;
 
+        size_t oldSubCodeBlockIndex = this->subCodeBlockIndex;
+        this->subCodeBlockIndex = 0;
+
         bool oldInCatchClause = this->context->inCatchClause;
         this->context->inCatchClause = false;
 
@@ -5746,6 +5762,8 @@ public:
 
         this->lexicalBlockIndex = lexicalBlockIndexBefore;
         this->lexicalBlockCount = lexicalBlockCountBefore;
+
+        this->subCodeBlockIndex = oldSubCodeBlockIndex;
 
         this->context->labelSet = previousLabelSet;
         this->context->inIteration = previousInIteration;
@@ -5846,7 +5864,7 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
 
-        return this->finalize(node, new FunctionType(fnName, std::move(params), body.get(), popScopeContext(node), isGenerator));
+        return this->finalize(node, new FunctionType(fnName, std::move(params), body.get(), popScopeContext(node), isGenerator, subCodeBlockIndex));
     }
 
     PassRefPtr<FunctionDeclarationNode> parseFunctionDeclaration()
@@ -5935,12 +5953,13 @@ public:
         ParseFormalParametersResult params(PatternNodeVector(), nullptr);
         bool previousAllowYield = this->context->allowYield;
         this->context->allowYield = false;
+        pushScopeContext(AtomicString());
         RefPtr<Node> method = this->parsePropertyMethod(params);
         this->context->allowYield = previousAllowYield;
 
         extractNamesFromFunctionParams(params.params);
         scopeContexts.back()->m_paramsStart.index = node.index;
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method.get(), popScopeContext(node), isGenerator));
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method.get(), popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
 
     PassRefPtr<FunctionExpressionNode> parseSetterMethod()
@@ -5984,7 +6003,7 @@ public:
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowYield = previousAllowYield;
 
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(options.params), method.get(), popScopeContext(node), isGenerator));
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(options.params), method.get(), popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
 
     PassRefPtr<FunctionExpressionNode> parseGeneratorMethod()
@@ -6003,7 +6022,7 @@ public:
 
         extractNamesFromFunctionParams(formalParameters.params);
         scopeContexts.back()->m_paramsStart.index = node.index;
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(formalParameters.params), method.get(), popScopeContext(node), true));
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(formalParameters.params), method.get(), popScopeContext(node), true, this->subCodeBlockIndex));
     }
 
     // ECMA-262 14.4 Generator Function Definitions
@@ -6121,11 +6140,23 @@ public:
                 if (*constructor != nullptr) {
                     this->throwUnexpectedToken(token, Messages::DuplicateConstructor);
                 } else {
-                    lastPoppedScopeContext->m_isClassConstructor = true;
-                    lastPoppedScopeContext->m_isDerivedClassConstructor = hasSuperClass;
+                    if (!this->config.parseSingleFunction) {
+                        lastPoppedScopeContext->m_functionName = escargotContext->staticStrings().constructor;
+                        lastPoppedScopeContext->m_isClassConstructor = true;
+                        lastPoppedScopeContext->m_isDerivedClassConstructor = hasSuperClass;
+                    }
                     *constructor = value;
                     return nullptr;
                 }
+            }
+        }
+
+        if (!this->config.parseSingleFunction) {
+            lastPoppedScopeContext->m_functionName = getPropertyComputedName(key.get());
+            if (isStatic) {
+                lastPoppedScopeContext->m_isClassStaticMethod = true;
+            } else {
+                lastPoppedScopeContext->m_isClassMethod = true;
             }
         }
 

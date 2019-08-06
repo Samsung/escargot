@@ -171,7 +171,7 @@ public:
         bool isCalleeHasReceiver = false;
         bool isSuperCall = m_callee->isSuperNode() && ((SuperExpressionNode*)m_callee.get())->isCall();
 
-        if (m_callee->isMemberExpression() || isSuperCall) {
+        if (m_callee->isMemberExpression()) {
             isCalleeHasReceiver = true;
             context->m_inCallingExpressionScope = true;
             context->m_isHeadOfMemberExpression = true;
@@ -186,32 +186,26 @@ public:
 
         if (isCalleeHasReceiver) {
             receiverIndex = context->getLastRegisterIndex();
-
-            if (isSuperCall) {
-                // Load the this value as receiver
-                receiverIndex = REGULAR_REGISTER_LIMIT;
-            } else {
-                Node* object = ((MemberExpressionNode*)(m_callee.get()))->object();
-                if (object->isSuperNode()) {
-                    SuperExpressionNode* superRef = (SuperExpressionNode*)object;
-                    if (!superRef->isCall()) {
-                        codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(m_loc.index), receiverIndex), context, this);
-                    }
-                }
+            Node* object = ((MemberExpressionNode*)(m_callee.get()))->object();
+            if (object->isSuperNode()) {
+                ThisExpressionNode* nd = new (alloca(sizeof(ThisExpressionNode))) ThisExpressionNode();
+                nd->generateExpressionByteCode(codeBlock, context, receiverIndex);
             }
         }
 
         size_t argumentsStartIndex = generateArguments(codeBlock, context);
 
         // drop callee, receiver registers
-        if (isCalleeHasReceiver && !isSuperCall) {
+        if (isCalleeHasReceiver) {
             context->giveUpRegister();
             context->giveUpRegister();
         } else {
             context->giveUpRegister();
         }
 
-        if (m_hasSpreadElement) {
+        if (isSuperCall) {
+            codeBlock->pushCode(CallSuper(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, m_arguments.size(), dstRegister, m_hasSpreadElement), context, this);
+        } else if (m_hasSpreadElement) {
             codeBlock->pushCode(CallFunctionWithSpreadElement(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, m_arguments.size(), dstRegister), context, this);
         } else if (isCalleeHasReceiver) {
             codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, m_arguments.size(), dstRegister), context, this);

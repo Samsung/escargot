@@ -27,7 +27,6 @@
 #include "parser/CodeBlock.h"
 #include "runtime/Context.h"
 #include "runtime/FunctionObject.h"
-#include "runtime/BuiltinFunctionObject.h"
 #include "runtime/Value.h"
 #include "runtime/VMInstance.h"
 #include "runtime/SandBox.h"
@@ -1231,7 +1230,7 @@ static FunctionObjectRef* createFunction(ExecutionStateRef* state, FunctionObjec
     CodeBlock* cb = new CodeBlock(toImpl(state)->context(), toImpl(info.m_name), info.m_argumentCount, info.m_isStrict, info.m_isConstructor, data);
     FunctionObject* f;
     if (isBuiltin)
-        f = new BuiltinFunctionObject(*toImpl(state), cb);
+        f = new NativeFunctionObject(*toImpl(state), cb, NativeFunctionObject::__ForBuiltinConstructor__);
     else
         f = new NativeFunctionObject(*toImpl(state), cb);
     return toRef(f);

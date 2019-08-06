@@ -94,7 +94,12 @@ public:
             }
 
             size_t valueIndex = p->value()->getRegister(codeBlock, context);
+            const ClassContextInformation classInfoBefore = context->m_classInfo;
+            context->m_classInfo.m_prototypeIndex = dstRegister;
+            context->m_classInfo.m_constructorIndex = SIZE_MAX;
+            context->m_classInfo.m_superIndex = SIZE_MAX;
             p->value()->generateExpressionByteCode(codeBlock, context, valueIndex);
+            context->m_classInfo = classInfoBefore;
 
             if (p->kind() == PropertyNode::Kind::Init) {
                 if (hasKey) {

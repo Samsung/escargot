@@ -23,7 +23,6 @@
 #include "VMInstance.h"
 #include "DateObject.h"
 #include "ErrorObject.h"
-#include "BuiltinFunctionObject.h"
 #include "NativeFunctionObject.h"
 
 namespace Escargot {
@@ -510,7 +509,7 @@ static Value builtinDateToPrimitive(ExecutionState& state, Value thisValue, size
 
 void GlobalObject::installDate(ExecutionState& state)
 {
-    m_date = new BuiltinFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Date, builtinDateConstructor, 7));
+    m_date = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Date, builtinDateConstructor, 7), NativeFunctionObject::__ForBuiltinConstructor__);
     m_date->markThisObjectDontNeedStructureTransitionTable(state);
     m_date->setPrototype(state, m_functionPrototype);
     m_datePrototype = m_objectPrototype;

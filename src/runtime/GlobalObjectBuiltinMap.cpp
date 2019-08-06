@@ -23,7 +23,6 @@
 #include "VMInstance.h"
 #include "MapObject.h"
 #include "IteratorOperations.h"
-#include "BuiltinFunctionObject.h"
 #include "NativeFunctionObject.h"
 #include "ToStringRecursionPreventer.h"
 
@@ -200,7 +199,7 @@ static Value builtinMapIteratorNext(ExecutionState& state, Value thisValue, size
 
 void GlobalObject::installMap(ExecutionState& state)
 {
-    m_map = new BuiltinFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Map, builtinMapConstructor, 0));
+    m_map = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Map, builtinMapConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_map->markThisObjectDontNeedStructureTransitionTable(state);
     m_map->setPrototype(state, m_functionPrototype);
 

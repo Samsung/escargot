@@ -23,7 +23,6 @@
 #include "VMInstance.h"
 #include "ArrayObject.h"
 #include "IteratorOperations.h"
-#include "BuiltinFunctionObject.h"
 #include "interpreter/ByteCodeInterpreter.h"
 #include "ToStringRecursionPreventer.h"
 #include "ErrorObject.h"
@@ -1759,7 +1758,7 @@ static Value builtinArrayIteratorNext(ExecutionState& state, Value thisValue, si
 
 void GlobalObject::installArray(ExecutionState& state)
 {
-    m_array = new BuiltinFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Array, builtinArrayConstructor, 1));
+    m_array = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Array, builtinArrayConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_array->markThisObjectDontNeedStructureTransitionTable(state);
     m_array->setPrototype(state, m_functionPrototype);
 

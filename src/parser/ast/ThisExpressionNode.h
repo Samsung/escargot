@@ -34,16 +34,19 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ThisExpression; }
     virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
+        if (codeBlock->m_codeBlock->isClassConstructor()) {
+            return context->getRegister();
+        }
         context->pushRegister(REGULAR_REGISTER_LIMIT);
         return REGULAR_REGISTER_LIMIT;
     }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        if (codeBlock->m_codeBlock->isClassConstructor()) {
-            codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT), context, this);
+        if (codeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment()) {
+            codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(m_loc.index), dstRegister), context, this);
+            return;
         }
-
         if (dstRegister != REGULAR_REGISTER_LIMIT) {
             codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT, dstRegister), context, this);
         }

@@ -22,7 +22,6 @@
 #include "Context.h"
 #include "VMInstance.h"
 #include "ArrayObject.h"
-#include "BuiltinFunctionObject.h"
 #include "NativeFunctionObject.h"
 
 namespace Escargot {
@@ -723,7 +722,7 @@ void GlobalObject::installObject(ExecutionState& state)
     const StaticStrings& strings = state.context()->staticStrings();
 
     FunctionObject* emptyFunction = m_functionPrototype;
-    m_object = new BuiltinFunctionObject(state, NativeFunctionInfo(strings.Object, builtinObjectConstructor, 1));
+    m_object = new NativeFunctionObject(state, NativeFunctionInfo(strings.Object, builtinObjectConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_object->markThisObjectDontNeedStructureTransitionTable(state);
     m_object->setPrototype(state, emptyFunction);
     m_object->setFunctionPrototype(state, m_objectPrototype);

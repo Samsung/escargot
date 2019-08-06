@@ -186,17 +186,10 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 nd = nd->nextSilbing();
             }
             if (!(last && last->type() == ASTNodeType::ReturnStatement)) {
-                if (codeBlock->isClassConstructor()) {
-                    size_t idx = ctx.getRegister();
-                    block->pushCode(LoadThisBinding(ByteCodeLOC(SIZE_MAX), idx), &ctx, nullptr);
-                    block->pushCode(ReturnFunctionWithValue(ByteCodeLOC(SIZE_MAX), idx), &ctx, nullptr);
-                    ctx.giveUpRegister();
-                } else {
-                    if (codeBlock->isGenerator()) {
-                        block->pushCode(GeneratorComplete(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
-                    }
-                    block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
+                if (codeBlock->isGenerator()) {
+                    block->pushCode(GeneratorComplete(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
                 }
+                block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
             }
         }
     } catch (const ByteCodeGenerateError& err) {
@@ -577,7 +570,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
             }
             case CreateClassOpcode: {
                 CreateClass* cd = (CreateClass*)currentCode;
-                assignStackIndexIfNeeded(cd->m_classRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_classConstructorRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 assignStackIndexIfNeeded(cd->m_classPrototypeRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 assignStackIndexIfNeeded(cd->m_superClassRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
@@ -585,6 +578,12 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
             case SuperReferenceOpcode: {
                 SuperReference* cd = (SuperReference*)currentCode;
                 assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
+            case CallSuperOpcode: {
+                CallSuper* cd = (CallSuper*)currentCode;
+                assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case LoadThisBindingOpcode: {

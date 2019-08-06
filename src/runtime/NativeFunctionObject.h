@@ -28,20 +28,31 @@ class NativeFunctionObject : public FunctionObject {
 public:
     NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info);
     NativeFunctionObject(ExecutionState& state, CodeBlock* codeBlock);
+
     enum ForGlobalBuiltin { __ForGlobalBuiltin__ };
     NativeFunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForGlobalBuiltin);
+
+    enum ForBuiltinConstructor { __ForBuiltinConstructor__ };
+    NativeFunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltinConstructor);
+    NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinConstructor);
+
+    enum ForBuiltinProxyConstructor { __ForBuiltinProxyConstructor__ };
+    NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinProxyConstructor);
 
     virtual bool isNativeFunctionObject() const override
     {
         return true;
     }
 
+    virtual bool isConstructor() const override;
+
     friend class FunctionObjectProcessCallGenerator;
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override;
-    virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, const Value& newTarget) override;
+    virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget) override;
 
 protected:
-    Value processNativeFunctionCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, bool isNewExpression, const Value& newTarget);
+    template <bool isConstruct>
+    Value processNativeFunctionCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, Object* newTarget);
     NativeFunctionObject(ExecutionState& state, size_t defaultSpace); // function for derived classes. derived class MUST initlize member variable of FunctionObject.
 };
 }

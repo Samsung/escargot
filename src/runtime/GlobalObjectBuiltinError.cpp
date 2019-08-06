@@ -21,7 +21,6 @@
 #include "GlobalObject.h"
 #include "Context.h"
 #include "ErrorObject.h"
-#include "BuiltinFunctionObject.h"
 #include "NativeFunctionObject.h"
 #include "ToStringRecursionPreventer.h"
 
@@ -110,7 +109,7 @@ static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t
 
 void GlobalObject::installError(ExecutionState& state)
 {
-    m_error = new BuiltinFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Error, builtinErrorConstructor, 1));
+    m_error = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Error, builtinErrorConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_error->markThisObjectDontNeedStructureTransitionTable(state);
 
     m_error->setPrototype(state, m_functionPrototype);
@@ -133,7 +132,7 @@ void GlobalObject::installError(ExecutionState& state)
     m_throwerGetterSetterData = new JSGetterSetter(m_throwTypeError, m_throwTypeError);
 
 #define DEFINE_ERROR(errorname, bname)                                                                                                                                                                                                                                                                                                  \
-    m_##errorname##Error = new BuiltinFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bname##Error, builtin##bname##ErrorConstructor, 1));                                                                                                                                                                    \
+    m_##errorname##Error = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bname##Error, builtin##bname##ErrorConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);                                                                                                                    \
     m_##errorname##Error->setPrototype(state, m_functionPrototype);                                                                                                                                                                                                                                                                     \
     m_##errorname##ErrorPrototype = m_errorPrototype;                                                                                                                                                                                                                                                                                   \
     m_##errorname##ErrorPrototype = new bname##ErrorObject(state, String::emptyString);                                                                                                                                                                                                                                                 \

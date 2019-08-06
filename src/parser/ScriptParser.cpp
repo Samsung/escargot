@@ -72,7 +72,6 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
         }
 
         AtomicString arguments = ctx->staticStrings().arguments;
-        AtomicString stringThis = ctx->staticStrings().stringThis;
 
         for (size_t i = 0; i < scopeCtx->m_childBlockScopes.size(); i++) {
             for (size_t j = 0; j < scopeCtx->m_childBlockScopes[i]->m_usingNames.size(); j++) {
@@ -100,14 +99,6 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                             }
                         }
                     }
-                } else if (uname == stringThis) {
-                    ASSERT(codeBlock->isArrowFunctionExpression());
-                    if (!codeBlock->parentCodeBlock()->isGlobalScopeCodeBlock()) {
-                        codeBlock->parentCodeBlock()->captureThis();
-                        codeBlock->setNeedToLoadThisValue();
-                        codeBlock->markHeapAllocatedEnvironmentFromHere();
-                    }
-                    continue;
                 }
 
                 bool usingNameIsResolvedOnCompileTime = false;
@@ -196,6 +187,8 @@ void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView sc
             programNode->scopeContext()->m_hasYield = parentCodeBlock->hasYield();
             programNode->scopeContext()->m_isClassConstructor = parentCodeBlock->isClassConstructor();
             programNode->scopeContext()->m_isDerivedClassConstructor = parentCodeBlock->isDerivedClassConstructor();
+            programNode->scopeContext()->m_isClassMethod = parentCodeBlock->isClassMethod();
+            programNode->scopeContext()->m_isClassStaticMethod = parentCodeBlock->isClassStaticMethod();
             topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, scriptSource, script, programNode->scopeContext(), parentCodeBlock, isEvalMode, isEvalCodeInFunction);
         } else {
             topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, programNode.get(), isEvalMode, isEvalCodeInFunction);

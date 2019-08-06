@@ -21,7 +21,6 @@
 #include "GlobalObject.h"
 #include "Context.h"
 #include "BooleanObject.h"
-#include "BuiltinFunctionObject.h"
 #include "NativeFunctionObject.h"
 
 namespace Escargot {
@@ -30,7 +29,6 @@ static Value builtinBooleanConstructor(ExecutionState& state, Value thisValue, s
 {
     bool primitiveVal = (argv[0].isUndefined()) ? false : argv[0].toBoolean(state);
     if (isNewExpression) {
-        ASSERT(thisValue.isEmpty());
         BooleanObject* boolObj = new BooleanObject(state);
         boolObj->setPrimitiveValue(state, primitiveVal);
         return boolObj;
@@ -63,7 +61,7 @@ static Value builtinBooleanToString(ExecutionState& state, Value thisValue, size
 void GlobalObject::installBoolean(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    m_boolean = new BuiltinFunctionObject(state, NativeFunctionInfo(strings->Boolean, builtinBooleanConstructor, 1));
+    m_boolean = new NativeFunctionObject(state, NativeFunctionInfo(strings->Boolean, builtinBooleanConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_boolean->markThisObjectDontNeedStructureTransitionTable(state);
     m_boolean->setPrototype(state, m_functionPrototype);
     m_booleanPrototype = m_objectPrototype;

@@ -21,7 +21,6 @@
 #include "GlobalObject.h"
 #include "Context.h"
 #include "NumberObject.h"
-#include "BuiltinFunctionObject.h"
 #include "NativeFunctionObject.h"
 
 // dtoa
@@ -360,7 +359,7 @@ static Value builtinNumberIsSafeInteger(ExecutionState& state, Value thisValue, 
 void GlobalObject::installNumber(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    m_number = new BuiltinFunctionObject(state, NativeFunctionInfo(strings->Number, builtinNumberConstructor, 1));
+    m_number = new NativeFunctionObject(state, NativeFunctionInfo(strings->Number, builtinNumberConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_number->markThisObjectDontNeedStructureTransitionTable(state);
     m_number->setPrototype(state, m_functionPrototype);
     m_numberPrototype = m_objectPrototype;

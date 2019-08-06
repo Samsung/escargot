@@ -21,15 +21,9 @@
 #include "GlobalObject.h"
 #include "Context.h"
 #include "VMInstance.h"
-#include "BuiltinFunctionObject.h"
 #include "NativeFunctionObject.h"
-#include "parser/ScriptParser.h"
-#include "parser/esprima_cpp/esprima.h"
-#include "runtime/Environment.h"
-#include "runtime/EnvironmentRecord.h"
 #include "runtime/BoundFunctionObject.h"
-#include "interpreter/ByteCode.h"
-#include "parser/ast/ProgramNode.h"
+#include "runtime/ScriptFunctionObject.h"
 
 namespace Escargot {
 
@@ -50,68 +44,11 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
         }
     }
 
-    StringBuilder src, srcToTest;
-    src.appendString("function anonymous(");
-    srcToTest.appendString("function anonymous(");
+    size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
+    Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
+    auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false);
 
-    for (size_t i = 1; i < argc; i++) {
-        String* p = argv[i - 1].toString(state);
-        src.appendString(p);
-        srcToTest.appendString(p);
-        if (i != argc - 1) {
-            src.appendString(",");
-            srcToTest.appendString(",");
-
-            for (size_t j = 0; j < p->length(); j++) {
-                char16_t c = p->charAt(j);
-                if (c == '}' || c == '{' || c == ')' || c == '(') {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is a script parse error in parameter name");
-                }
-            }
-        }
-    }
-
-    try {
-        srcToTest.appendString("\r\n){ }");
-        String* cur = srcToTest.finalize(&state);
-        state.context()->vmInstance()->parsedSourceCodes().push_back(cur);
-        esprima::parseProgram(state.context(), StringView(cur, 0, cur->length()), false, false, SIZE_MAX);
-    } catch (esprima::Error& orgError) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is a script parse error in parameter name");
-    }
-
-    Value sourceValue = argc >= 1 ? argv[argc - 1] : Value();
-    String* source = sourceValue.toString(state);
-
-    auto data = source->bufferAccessData();
-
-    for (size_t i = 0; i < data.length; i++) {
-        char16_t c;
-        if (data.has8BitContent) {
-            c = ((LChar*)data.buffer)[i];
-        } else {
-            c = ((char16_t*)data.buffer)[i];
-        }
-        if (c == '{') {
-            break;
-        } else if (c == '}') {
-            ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is unbalanced braces(}) in Function Constructor input");
-        }
-    }
-    src.appendString("\n){\n");
-    if (argc > 0) {
-        src.appendString(source);
-    }
-    src.appendString("\n}");
-
-    ScriptParser parser(state.context());
-    String* scriptSource = src.finalize(&state);
-
-    Script* script = parser.initializeScript(state, StringView(scriptSource, 0, scriptSource->length()), new ASCIIString("Function Constructor input"), nullptr, false, false, false, false, SIZE_MAX, false);
-    InterpretedCodeBlock* cb = script->topCodeBlock()->childBlocks()[0];
-    cb->updateSourceElementStart(3, 1);
-    LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, script->topCodeBlock(), state.context()->globalObject(), &state.context()->globalDeclarativeRecord(), &state.context()->globalDeclarativeStorage()), nullptr);
-    return new ScriptFunctionObject(state, cb, globalEnvironment);
+    return new ScriptFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, true, false);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-function.prototype.tostring
@@ -284,7 +221,7 @@ void GlobalObject::installFunction(ExecutionState& state)
     m_functionPrototype->setPrototype(state, m_objectPrototype);
     m_functionPrototype->markThisObjectDontNeedStructureTransitionTable(state);
 
-    m_function = new BuiltinFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionConstructor, 1));
+    m_function = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_function->markThisObjectDontNeedStructureTransitionTable(state);
 
     m_function->setPrototype(state, emptyFunction);

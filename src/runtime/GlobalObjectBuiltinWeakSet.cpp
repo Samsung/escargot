@@ -26,7 +26,6 @@
 #include "IteratorOperations.h"
 #include "NativeFunctionObject.h"
 #include "ToStringRecursionPreventer.h"
-#include "BuiltinFunctionObject.h"
 
 namespace Escargot {
 
@@ -123,7 +122,7 @@ static Value builtinWeakSetHas(ExecutionState& state, Value thisValue, size_t ar
 
 void GlobalObject::installWeakSet(ExecutionState& state)
 {
-    m_weakSet = new BuiltinFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakSet, builtinWeakSetConstructor, 0));
+    m_weakSet = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakSet, builtinWeakSetConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_weakSet->markThisObjectDontNeedStructureTransitionTable(state);
     m_weakSet->setPrototype(state, m_functionPrototype);
     m_weakSetPrototype = m_objectPrototype;

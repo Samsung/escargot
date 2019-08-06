@@ -42,11 +42,7 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::SuperExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex)
     {
-        if (UNLIKELY(context->m_classInfo.isAssigmentTarget)) {
-            codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(m_loc.index), dstIndex), context, this);
-        } else {
-            codeBlock->pushCode(SuperReference(ByteCodeLOC(m_loc.index), dstIndex, m_isCall), context, this);
-        }
+        codeBlock->pushCode(SuperReference(ByteCodeLOC(m_loc.index), dstIndex, m_isCall), context, this);
     }
 
 private:

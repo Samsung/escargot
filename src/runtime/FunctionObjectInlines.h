@@ -36,240 +36,266 @@ namespace Escargot {
 // this is default version of ThisValueBinder
 class FunctionObjectThisValueBinder {
 public:
-    Value operator()(ExecutionState& state, Context* context, FunctionObject* self, const Value& receiverSrc, bool isStrict)
+    Value operator()(ExecutionState& calleeState, FunctionObject* self, const Value& thisArgument, bool isStrict)
     {
-        if (!isStrict) {
-            if (receiverSrc.isUndefinedOrNull()) {
-                return context->globalObject();
-            } else {
-                return receiverSrc.toObject(state);
-            }
+        // OrdinaryCallBindThis ( F, calleeContext, thisArgument )
+        // Let thisMode be the value of F’s [[ThisMode]] internal slot.
+        // If thisMode is lexical, return NormalCompletion(undefined).
+        // --> thisMode is always not lexcial because this is class ctor.
+        // Let calleeRealm be the value of F’s [[Realm]] internal slot.
+        // Let localEnv be the LexicalEnvironment of calleeContext.
+        ASSERT(calleeState.context() == self->codeBlock()->context());
+
+        if (isStrict) {
+            // If thisMode is strict, let thisValue be thisArgument.
+            return thisArgument;
         } else {
-            return receiverSrc;
+            // Else
+            // if thisArgument is null or undefined, then
+            // Let thisValue be calleeRealm.[[globalThis]]
+            if (thisArgument.isUndefinedOrNull()) {
+                return calleeState.context()->globalObject();
+            } else {
+                // Else
+                // Let thisValue be ToObject(thisArgument).
+                // Assert: thisValue is not an abrupt completion.
+                // NOTE ToObject produces wrapper objects using calleeRealm.
+                return thisArgument.toObject(calleeState);
+            }
         }
     }
 };
 
-template <typename FunctionObjectType, bool isConstructCall, typename ThisValueBinder>
-Value FunctionObjectProcessCallGenerator::processCall(ExecutionState& state, FunctionObjectType* self, const Value& receiverSrc, const size_t argc, Value* argv)
-{
-    volatile int sp;
-    size_t currentStackBase = (size_t)&sp;
-#ifdef STACK_GROWS_DOWN
-    if (UNLIKELY((state.stackBase() - currentStackBase) > STACK_LIMIT_FROM_BASE)) {
-#else
-    if (UNLIKELY((currentStackBase - state.stackBase()) > STACK_LIMIT_FROM_BASE)) {
-#endif
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
-    }
-
-    ASSERT(self->codeBlock()->isInterpretedCodeBlock());
-    ASSERT(!self->isBuiltin());
-
-    CodeBlock* codeBlock = self->codeBlock();
-    Context* ctx = codeBlock->context();
-    bool isStrict = codeBlock->isStrict();
-    bool isSuperCall = state.isOnGoingSuperCall();
-
-    if (UNLIKELY(!isConstructCall && self->functionKind() == FunctionObject::FunctionKind::ClassConstructor && !isSuperCall)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Class constructor cannot be invoked without 'new'");
-    }
-
-    // prepare ByteCodeBlock if needed
-    if (UNLIKELY(codeBlock->asInterpretedCodeBlock()->byteCodeBlock() == nullptr)) {
-        self->generateByteCodeBlock(state);
-    }
-
-    ByteCodeBlock* blk = codeBlock->asInterpretedCodeBlock()->byteCodeBlock();
-
-    size_t registerSize = blk->m_requiredRegisterFileSizeInValueSize;
-    size_t identifierOnStackCount = codeBlock->asInterpretedCodeBlock()->identifierOnStackCount();
-    size_t stackStorageSize = codeBlock->asInterpretedCodeBlock()->totalStackAllocatedVariableSize();
-    size_t literalStorageSize = blk->m_numeralLiteralData.size();
-    Value* literalStorageSrc = blk->m_numeralLiteralData.data();
-    size_t parameterCopySize = std::min(argc, (size_t)codeBlock->parameterCount());
-
-    // prepare env, ec
-    FunctionEnvironmentRecord* record;
-    LexicalEnvironment* lexEnv;
-
-    if (LIKELY(codeBlock->canAllocateEnvironmentOnStack())) {
-        // no capture, very simple case
-        record = new (alloca(sizeof(FunctionEnvironmentRecordSimple))) FunctionEnvironmentRecordSimple(self);
-        lexEnv = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, self->outerEnvironment());
-    } else {
-        if (LIKELY(codeBlock->canUseIndexedVariableStorage())) {
-            record = new FunctionEnvironmentRecordOnHeap(self, argc, argv);
-        } else {
-            if (LIKELY(!codeBlock->needsVirtualIDOperation())) {
-                record = new FunctionEnvironmentRecordNotIndexed(self, argc, argv);
-            } else {
-                record = new FunctionEnvironmentRecordNotIndexedWithVirtualID(self, argc, argv);
-            }
-        }
-        lexEnv = new LexicalEnvironment(record, self->outerEnvironment());
-    }
-
-    if (receiverSrc.isObject()) {
-        record->setNewTarget(receiverSrc.asObject());
-    }
-
-    Value* registerFile;
-
-    if (UNLIKELY(codeBlock->isGenerator())) {
-        if (isConstructCall) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Generator cannot be invoked with 'new'");
-        }
-        registerFile = (Value*)GC_MALLOC((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
-    } else {
-        registerFile = (Value*)alloca((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
-    }
-
-    Value* stackStorage = registerFile + registerSize;
-
+class FunctionObjectReturnValueBinder {
+public:
+    Value operator()(ExecutionState& calleeState, FunctionObject* self, const Value& interpreterReturnValue, const Value& thisArgument, FunctionEnvironmentRecord* record)
     {
-        Value* literalStorage = stackStorage + stackStorageSize;
-        for (size_t i = 0; i < literalStorageSize; i++) {
-            literalStorage[i] = literalStorageSrc[i];
+        return interpreterReturnValue;
+    }
+};
+
+class FunctionObjectNewTargetBinder {
+public:
+    void operator()(ExecutionState& calleeState, FunctionObject* self, Object* newTarget, FunctionEnvironmentRecord* record)
+    {
+    }
+};
+
+class FunctionObjectProcessCallGenerator {
+public:
+    template <typename FunctionObjectType, bool isConstructCall, typename ThisValueBinder, typename NewTargetBinder, typename ReturnValueBinder>
+    static inline Value processCall(ExecutionState& state, FunctionObjectType* self, const Value& thisArgument, const size_t argc, Value* argv, Object* newTarget) // newTarget is null on [[call]]
+    {
+        volatile int sp;
+        size_t currentStackBase = (size_t)&sp;
+#ifdef STACK_GROWS_DOWN
+        if (UNLIKELY((state.stackBase() - currentStackBase) > STACK_LIMIT_FROM_BASE)) {
+#else
+        if (UNLIKELY((currentStackBase - state.stackBase()) > STACK_LIMIT_FROM_BASE)) {
+#endif
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
         }
-    }
 
-    // prepare receiver(this variable)
-    ThisValueBinder thisValueBinder;
-    stackStorage[0] = thisValueBinder(state, ctx, self, receiverSrc, isStrict);
+        ASSERT(self->codeBlock()->isInterpretedCodeBlock());
 
-    if (self->constructorKind() == FunctionObject::ConstructorKind::Base && self->thisMode() != FunctionObject::ThisMode::Lexical) {
-        record->bindThisValue(state, stackStorage[0]);
-    }
+        CodeBlock* codeBlock = self->codeBlock();
+        Context* ctx = codeBlock->context();
+        bool isStrict = codeBlock->isStrict();
 
-    // binding function name
-    stackStorage[1] = self;
-    if (UNLIKELY(codeBlock->isFunctionNameSaveOnHeap())) {
-        if (codeBlock->canUseIndexedVariableStorage()) {
-            ASSERT(record->isFunctionEnvironmentRecordOnHeap());
-            ((FunctionEnvironmentRecordOnHeap*)record)->heapStorage()[0] = self;
+        // prepare ByteCodeBlock if needed
+        if (UNLIKELY(codeBlock->asInterpretedCodeBlock()->byteCodeBlock() == nullptr)) {
+            self->generateByteCodeBlock(state);
+        }
+
+        ByteCodeBlock* blk = codeBlock->asInterpretedCodeBlock()->byteCodeBlock();
+
+        size_t registerSize = blk->m_requiredRegisterFileSizeInValueSize;
+        size_t identifierOnStackCount = codeBlock->asInterpretedCodeBlock()->identifierOnStackCount();
+        size_t stackStorageSize = codeBlock->asInterpretedCodeBlock()->totalStackAllocatedVariableSize();
+        size_t literalStorageSize = blk->m_numeralLiteralData.size();
+        Value* literalStorageSrc = blk->m_numeralLiteralData.data();
+        size_t parameterCopySize = std::min(argc, (size_t)codeBlock->parameterCount());
+
+        // prepare env, ec
+        FunctionEnvironmentRecord* record;
+        LexicalEnvironment* lexEnv;
+
+        if (LIKELY(codeBlock->canAllocateEnvironmentOnStack())) {
+            // no capture, very simple case
+            record = new (alloca(sizeof(FunctionEnvironmentRecordSimple))) FunctionEnvironmentRecordSimple(self);
+            lexEnv = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, self->outerEnvironment());
         } else {
-            record->initializeBinding(state, codeBlock->functionName(), self);
-        }
-    }
-
-    if (UNLIKELY(codeBlock->isFunctionNameExplicitlyDeclared())) {
-        if (codeBlock->canUseIndexedVariableStorage()) {
-            if (UNLIKELY(codeBlock->isFunctionNameSaveOnHeap())) {
-                ASSERT(record->isFunctionEnvironmentRecordOnHeap());
-                ((FunctionEnvironmentRecordOnHeap*)record)->heapStorage()[0] = Value();
+            if (LIKELY(codeBlock->canUseIndexedVariableStorage())) {
+                record = new FunctionEnvironmentRecordOnHeap(self, argc, argv);
             } else {
-                stackStorage[1] = Value();
+                if (LIKELY(!codeBlock->needsVirtualIDOperation())) {
+                    record = new FunctionEnvironmentRecordNotIndexed(self, argc, argv);
+                } else {
+                    record = new FunctionEnvironmentRecordNotIndexedWithVirtualID(self, argc, argv);
+                }
             }
-        } else {
-            record->initializeBinding(state, codeBlock->functionName(), Value());
+            lexEnv = new LexicalEnvironment(record, self->outerEnvironment());
         }
-    }
 
-    // prepare parameters
-    if (UNLIKELY(codeBlock->needsComplexParameterCopy())) {
-        for (size_t i = 2; i < identifierOnStackCount; i++) {
-            stackStorage[i] = Value();
+        Value* registerFile;
+
+        if (UNLIKELY(codeBlock->isGenerator())) {
+            if (isConstructCall) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Generator cannot be invoked with 'new'");
+            }
+            registerFile = (Value*)GC_MALLOC((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
+        } else {
+            registerFile = (Value*)alloca((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
         }
+
+        Value* stackStorage = registerFile + registerSize;
+
+        {
+            Value* literalStorage = stackStorage + stackStorageSize;
+            for (size_t i = 0; i < literalStorageSize; i++) {
+                literalStorage[i] = literalStorageSrc[i];
+            }
+        }
+
+        // binding function name
+        stackStorage[1] = self;
+        if (UNLIKELY(codeBlock->isFunctionNameSaveOnHeap())) {
+            if (codeBlock->canUseIndexedVariableStorage()) {
+                ASSERT(record->isFunctionEnvironmentRecordOnHeap());
+                ((FunctionEnvironmentRecordOnHeap*)record)->heapStorage()[0] = self;
+            } else {
+                record->initializeBinding(state, codeBlock->functionName(), self);
+            }
+        }
+
+        if (UNLIKELY(codeBlock->isFunctionNameExplicitlyDeclared())) {
+            if (codeBlock->canUseIndexedVariableStorage()) {
+                if (UNLIKELY(codeBlock->isFunctionNameSaveOnHeap())) {
+                    ASSERT(record->isFunctionEnvironmentRecordOnHeap());
+                    ((FunctionEnvironmentRecordOnHeap*)record)->heapStorage()[0] = Value();
+                } else {
+                    stackStorage[1] = Value();
+                }
+            } else {
+                record->initializeBinding(state, codeBlock->functionName(), Value());
+            }
+        }
+
+        // prepare parameters
+        if (UNLIKELY(codeBlock->needsComplexParameterCopy())) {
+            for (size_t i = 2; i < identifierOnStackCount; i++) {
+                stackStorage[i] = Value();
+            }
 
 #ifndef NDEBUG
-        for (size_t i = identifierOnStackCount; i < stackStorageSize; i++) {
-            stackStorage[i] = Value(Value::EmptyValue);
-        }
-#endif
-        if (!codeBlock->canUseIndexedVariableStorage()) {
-            const InterpretedCodeBlock::FunctionParametersInfoVector& info = codeBlock->asInterpretedCodeBlock()->parametersInfomation();
-            for (size_t i = 0; i < parameterCopySize; i++) {
-                record->initializeBinding(state, info[i].m_name, argv[i]);
+            for (size_t i = identifierOnStackCount; i < stackStorageSize; i++) {
+                stackStorage[i] = Value(Value::EmptyValue);
             }
-            for (size_t i = parameterCopySize; i < info.size(); i++) {
-                record->initializeBinding(state, info[i].m_name, Value());
+#endif
+            if (!codeBlock->canUseIndexedVariableStorage()) {
+                const InterpretedCodeBlock::FunctionParametersInfoVector& info = codeBlock->asInterpretedCodeBlock()->parametersInfomation();
+                for (size_t i = 0; i < parameterCopySize; i++) {
+                    record->initializeBinding(state, info[i].m_name, argv[i]);
+                }
+                for (size_t i = parameterCopySize; i < info.size(); i++) {
+                    record->initializeBinding(state, info[i].m_name, Value());
+                }
+            } else {
+                Value* parameterStorageInStack = stackStorage + 2;
+                const InterpretedCodeBlock::FunctionParametersInfoVector& info = codeBlock->asInterpretedCodeBlock()->parametersInfomation();
+                for (size_t i = 0; i < info.size(); i++) {
+                    Value val(Value::ForceUninitialized);
+                    // NOTE: consider the special case with duplicated parameter names (**test262: S10.2.1_A3)
+                    if (i < argc)
+                        val = argv[i];
+                    else if (info[i].m_index >= (int32_t)argc)
+                        continue;
+                    else
+                        val = Value();
+                    if (info[i].m_isHeapAllocated) {
+                        ASSERT(record->isFunctionEnvironmentRecordOnHeap());
+                        ((FunctionEnvironmentRecordOnHeap*)record)->heapStorage()[info[i].m_index] = val;
+                    } else {
+                        parameterStorageInStack[info[i].m_index] = val;
+                    }
+                }
             }
         } else {
             Value* parameterStorageInStack = stackStorage + 2;
-            const InterpretedCodeBlock::FunctionParametersInfoVector& info = codeBlock->asInterpretedCodeBlock()->parametersInfomation();
-            for (size_t i = 0; i < info.size(); i++) {
-                Value val(Value::ForceUninitialized);
-                // NOTE: consider the special case with duplicated parameter names (**test262: S10.2.1_A3)
-                if (i < argc)
-                    val = argv[i];
-                else if (info[i].m_index >= (int32_t)argc)
-                    continue;
-                else
-                    val = Value();
-                if (info[i].m_isHeapAllocated) {
-                    ASSERT(record->isFunctionEnvironmentRecordOnHeap());
-                    ((FunctionEnvironmentRecordOnHeap*)record)->heapStorage()[info[i].m_index] = val;
-                } else {
-                    parameterStorageInStack[info[i].m_index] = val;
-                }
+            for (size_t i = 0; i < parameterCopySize; i++) {
+                parameterStorageInStack[i] = argv[i];
             }
-        }
-    } else {
-        Value* parameterStorageInStack = stackStorage + 2;
-        for (size_t i = 0; i < parameterCopySize; i++) {
-            parameterStorageInStack[i] = argv[i];
-        }
 
-        for (size_t i = parameterCopySize + 2; i < identifierOnStackCount; i++) {
-            stackStorage[i] = Value();
-        }
+            for (size_t i = parameterCopySize + 2; i < identifierOnStackCount; i++) {
+                stackStorage[i] = Value();
+            }
 
 #ifndef NDEBUG
-        for (size_t i = identifierOnStackCount; i < stackStorageSize; i++) {
-            stackStorage[i] = Value(Value::EmptyValue);
-        }
+            for (size_t i = identifierOnStackCount; i < stackStorageSize; i++) {
+                stackStorage[i] = Value(Value::EmptyValue);
+            }
 #endif
-    }
+        }
 
-    if (UNLIKELY(codeBlock->isGenerator())) {
-        ExecutionState* newState = new ExecutionState(ctx, &state, lexEnv, isStrict, registerFile);
+        ThisValueBinder thisValueBinder;
+        if (UNLIKELY(codeBlock->isGenerator())) {
+            ExecutionState* newState = new ExecutionState(ctx, &state, lexEnv, isStrict, registerFile);
+            // prepare receiver(this variable)
 
-        // FIXME
+            // we should use newState because
+            // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarycallbindthis
+            // NOTE ToObject produces wrapper objects using calleeRealm. <<----
+            stackStorage[0] = thisValueBinder(*newState, self, thisArgument, isStrict);
+
+            if (isConstructCall) {
+                NewTargetBinder newTargetBinder;
+                newTargetBinder(*newState, self, newTarget, record);
+            }
+
+            // FIXME
+            if (UNLIKELY(codeBlock->usesArgumentsObject())) {
+                bool isMapped = !codeBlock->usesRestParameter() && !isStrict;
+                self->generateArgumentsObject(*newState, record, stackStorage, isMapped);
+            }
+
+            GeneratorObject* gen = new GeneratorObject(state, newState, blk);
+            newState->setGeneratorTarget(gen);
+            return gen;
+        }
+
+        ExecutionState newState(ctx, &state, lexEnv, isStrict, registerFile);
+
+        // prepare receiver(this variable)
+        // we should use newState because
+        // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarycallbindthis
+        // NOTE ToObject produces wrapper objects using calleeRealm. <<----
+        stackStorage[0] = thisValueBinder(newState, self, thisArgument, isStrict);
+
+        if (isConstructCall) {
+            NewTargetBinder newTargetBinder;
+            newTargetBinder(newState, self, newTarget, record);
+        }
+
         if (UNLIKELY(codeBlock->usesArgumentsObject())) {
+            // FIXME check if formal parameters does not contain a rest parameter, any binding patterns, or any initializers.
             bool isMapped = !codeBlock->usesRestParameter() && !isStrict;
-            self->generateArgumentsObject(*newState, record, stackStorage, isMapped);
+            self->generateArgumentsObject(newState, record, stackStorage, isMapped);
         }
 
-        GeneratorObject* gen = new GeneratorObject(state, newState, blk);
-        newState->setGeneratorTarget(gen);
-        return gen;
-    }
-
-    ExecutionState newState(ctx, &state, lexEnv, isStrict, registerFile);
-
-    if (UNLIKELY(codeBlock->usesArgumentsObject())) {
-        // FIXME check if formal parameters does not contain a rest parameter, any binding patterns, or any initializers.
-        bool isMapped = !codeBlock->usesRestParameter() && !isStrict;
-        self->generateArgumentsObject(newState, record, stackStorage, isMapped);
-    }
-
-    if (UNLIKELY(codeBlock->usesRestParameter())) {
-        self->generateRestParameter(newState, record, stackStorage + 2, argc, argv);
-    }
-
-    // run function
-    const Value returnValue = ByteCodeInterpreter::interpret(newState, blk, 0, registerFile);
-    if (UNLIKELY(blk->m_shouldClearStack))
-        clearStack<512>();
-
-    if (UNLIKELY(isSuperCall)) {
-        if (returnValue.isNull()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InvalidDerivedConstructorReturnValue);
+        if (UNLIKELY(codeBlock->usesRestParameter())) {
+            self->generateRestParameter(newState, record, stackStorage + 2, argc, argv);
         }
 
-        FunctionEnvironmentRecord* thisEnvironmentRecord = state.getThisEnvironment()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-        if (returnValue.isObject()) {
-            thisEnvironmentRecord->bindThisValue(state, returnValue);
-            returnValue.asObject()->setPrototype(state, receiverSrc.toObject(state)->getPrototype(state));
-        } else {
-            thisEnvironmentRecord->bindThisValue(state, stackStorage[0]);
-        }
-        state.setOnGoingSuperCall(false);
-    }
+        // run function
+        ReturnValueBinder returnValueBinder;
+        const Value returnValue = returnValueBinder(newState, self, ByteCodeInterpreter::interpret(newState, blk, 0, registerFile), thisArgument, record);
 
-    return returnValue;
-}
+        if (UNLIKELY(blk->m_shouldClearStack))
+            clearStack<512>();
+
+        return returnValue;
+    }
+};
 }
 
 #endif

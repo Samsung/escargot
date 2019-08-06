@@ -76,7 +76,6 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        context->m_classInfo.isAssigmentTarget = true;
         if (m_left->isPattern()) {
             Node* pattern = m_left.get()->asPattern(m_right);
             pattern->generateExpressionByteCode(codeBlock, context, dstRegister);
@@ -92,14 +91,12 @@ public:
             context->m_canSkipCopyToRegister = false;
 
             m_left->generateResolveAddressByteCode(codeBlock, context);
-            context->m_classInfo.isAssigmentTarget = false;
             context->m_canSkipCopyToRegister = canSkipCopyToRegister;
 
             m_right->generateExpressionByteCode(codeBlock, context, rightRegister);
             m_left->generateStoreByteCode(codeBlock, context, rightRegister, false);
         } else {
             m_left->generateResolveAddressByteCode(codeBlock, context);
-            context->m_classInfo.isAssigmentTarget = false;
             m_right->generateExpressionByteCode(codeBlock, context, rightRegister);
             m_left->generateStoreByteCode(codeBlock, context, rightRegister, false);
         }
@@ -119,7 +116,6 @@ public:
         isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization && left->isIdentifier();
 
         bool isSlowMode = hasSlowAssigmentOperation(left, right);
-        context->m_classInfo.isAssigmentTarget = true;
 
         if (isSlowMode) {
             size_t rightRegister = right->getRegister(codeBlock, context);
@@ -128,7 +124,6 @@ public:
 
             left->generateResolveAddressByteCode(codeBlock, context);
             context->m_canSkipCopyToRegister = canSkipCopyToRegister;
-            context->m_classInfo.isAssigmentTarget = false;
 
             right->generateExpressionByteCode(codeBlock, context, rightRegister);
 
@@ -143,7 +138,6 @@ public:
             auto rt = right->type();
             if (left->isIdentifier() && (rt != ASTNodeType::RegisterReference && rt != ASTNodeType::ArrayExpression && rt != ASTNodeType::ObjectExpression) && !context->m_isGlobalScope && !context->m_isEvalCode) {
                 auto r = left->asIdentifier()->isAllocatedOnStack(context);
-                context->m_classInfo.isAssigmentTarget = false;
                 if (std::get<0>(r)) {
                     if (isLexicallyDeclaredBindingInitialization) {
                         context->addLexicallyDeclaredNames(left->asIdentifier()->name());
@@ -166,7 +160,6 @@ public:
 
             size_t rightRegister = right->getRegister(codeBlock, context);
             left->generateResolveAddressByteCode(codeBlock, context);
-            context->m_classInfo.isAssigmentTarget = false;
             right->generateExpressionByteCode(codeBlock, context, rightRegister);
             if (isLexicallyDeclaredBindingInitialization) {
                 context->addLexicallyDeclaredNames(left->asIdentifier()->name());

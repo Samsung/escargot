@@ -25,7 +25,6 @@
 #include "ArrayObject.h"
 #include "JobQueue.h"
 #include "SandBox.h"
-#include "BuiltinFunctionObject.h"
 #include "NativeFunctionObject.h"
 
 namespace Escargot {
@@ -471,7 +470,7 @@ static Value builtinPromiseToString(ExecutionState& state, Value thisValue, size
 void GlobalObject::installPromise(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    m_promise = new BuiltinFunctionObject(state, NativeFunctionInfo(strings->Promise, builtinPromiseConstructor, 1));
+    m_promise = new NativeFunctionObject(state, NativeFunctionInfo(strings->Promise, builtinPromiseConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_promise->markThisObjectDontNeedStructureTransitionTable(state);
     m_promise->setPrototype(state, m_functionPrototype);
 

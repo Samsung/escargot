@@ -22,7 +22,7 @@
 
 #include "runtime/FunctionObject.h"
 #include "runtime/RegExpObject.h"
-#include "runtime/BuiltinFunctionObject.h"
+#include "runtime/NativeFunctionObject.h"
 
 namespace Escargot {
 
@@ -45,7 +45,7 @@ struct RegExpStatus {
     }
 };
 
-class GlobalRegExpFunctionObject : public BuiltinFunctionObject {
+class GlobalRegExpFunctionObject : public NativeFunctionObject {
     friend class RegExpObject;
     friend struct GlobalRegExpFunctionObjectBuiltinFunctions;
 

@@ -56,9 +56,10 @@ private:
 class ArrowFunctionExpressionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    ArrowFunctionExpressionNode(PatternNodeVector&& params, Node* body, ASTFunctionScopeContext* scopeContext, bool expression)
+    ArrowFunctionExpressionNode(PatternNodeVector&& params, Node* body, ASTFunctionScopeContext* scopeContext, bool expression, size_t subCodeBlockIndex)
         : m_function(AtomicString(), std::move(params), body, scopeContext, false, this)
         , m_expression(expression)
+        , m_subCodeBlockIndex(subCodeBlockIndex - 1)
     {
         scopeContext->m_isArrowFunctionExpression = true;
     }
@@ -71,26 +72,14 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ArrowFunctionExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex)
     {
-        CodeBlock* blk = nullptr;
-        size_t cnt = 0;
-        for (size_t i = 0; i < context->m_codeBlock->asInterpretedCodeBlock()->childBlocks().size(); i++) {
-            CodeBlock* c = context->m_codeBlock->asInterpretedCodeBlock()->childBlocks()[i];
-            if (c->isFunctionExpression()) {
-                if (cnt == context->m_feCounter) {
-                    blk = c;
-                    break;
-                }
-                cnt++;
-            }
-        }
-        ASSERT(blk);
-        codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, blk), context, this);
-        context->m_feCounter++;
+        CodeBlock* blk = context->m_codeBlock->asInterpretedCodeBlock()->childBlocks()[m_subCodeBlockIndex];
+        codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, SIZE_MAX, blk), context, this);
     }
 
 private:
     FunctionNode m_function;
     bool m_expression : 1;
+    size_t m_subCodeBlockIndex;
     // defaults: [ Expression ];
     // rest: Identifier | null;
 };

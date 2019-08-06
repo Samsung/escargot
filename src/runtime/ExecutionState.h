@@ -56,7 +56,6 @@ public:
         , m_registerFile(nullptr)
         , m_parent(1)
         , m_inStrictMode(false)
-        , m_onGoingSuperCall(false)
     {
         volatile int sp;
         m_stackBase = (size_t)&sp;
@@ -69,7 +68,6 @@ public:
         , m_registerFile(registerFile)
         , m_parent((size_t)parent + 1)
         , m_inStrictMode(inStrictMode)
-        , m_onGoingSuperCall(false)
     {
     }
 
@@ -80,7 +78,6 @@ public:
         , m_registerFile(registerFile)
         , m_parent((size_t)parent + 1)
         , m_inStrictMode(inStrictMode)
-        , m_onGoingSuperCall(false)
     {
     }
 
@@ -158,21 +155,11 @@ public:
         return m_inStrictMode;
     }
 
-    bool isOnGoingSuperCall()
-    {
-        return m_onGoingSuperCall;
-    }
-
-    void setOnGoingSuperCall(bool onGoingSuperCall)
-    {
-        m_onGoingSuperCall = onGoingSuperCall;
-    }
-
     FunctionObject* resolveCallee();
-    Value getNewTarget();
+    Object* getNewTarget();
     EnvironmentRecord* getThisEnvironment();
-    Value makeSuperPropertyReference(ExecutionState& state);
-    Value getSuperConstructor(ExecutionState& state);
+    Value makeSuperPropertyReference();
+    Value getSuperConstructor();
 
 private:
     Context* m_context;
@@ -185,7 +172,6 @@ private:
     };
 
     bool m_inStrictMode : 1;
-    bool m_onGoingSuperCall : 1;
 };
 }
 

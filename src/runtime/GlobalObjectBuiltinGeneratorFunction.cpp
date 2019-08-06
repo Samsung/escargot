@@ -44,7 +44,7 @@ static Value builtinGeneratorThrow(ExecutionState& state, Value thisValue, size_
 void GlobalObject::installGenerator(ExecutionState& state)
 {
     // %GeneratorFunction% : The constructor of generator objects
-    m_generatorFunction = new BuiltinFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().GeneratorFunction, nullptr, 0));
+    m_generatorFunction = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().GeneratorFunction, nullptr, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_generatorFunction->markThisObjectDontNeedStructureTransitionTable(state);
     m_generatorFunction->setPrototype(state, m_functionPrototype);
 

@@ -24,7 +24,6 @@
 #include "WeakMapObject.h"
 #include "IteratorObject.h"
 #include "IteratorOperations.h"
-#include "BuiltinFunctionObject.h"
 #include "NativeFunctionObject.h"
 #include "ToStringRecursionPreventer.h"
 
@@ -145,7 +144,7 @@ static Value builtinWeakMapSet(ExecutionState& state, Value thisValue, size_t ar
 
 void GlobalObject::installWeakMap(ExecutionState& state)
 {
-    m_weakMap = new BuiltinFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakMap, builtinWeakMapConstructor, 0));
+    m_weakMap = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakMap, builtinWeakMapConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_weakMap->markThisObjectDontNeedStructureTransitionTable(state);
     m_weakMap->setPrototype(state, m_functionPrototype);
     m_weakMapPrototype = m_objectPrototype;

@@ -27,8 +27,9 @@ namespace Escargot {
 class FunctionExpressionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    FunctionExpressionNode(const AtomicString& id, PatternNodeVector&& params, Node* body, ASTFunctionScopeContext* scopeContext, bool isGenerator)
+    FunctionExpressionNode(const AtomicString& id, PatternNodeVector&& params, Node* body, ASTFunctionScopeContext* scopeContext, bool isGenerator, size_t subCodeBlockIndex)
         : m_function(id, std::move(params), body, scopeContext, isGenerator, this)
+        , m_subCodeBlockIndex(subCodeBlockIndex - 1)
     {
     }
 
@@ -40,32 +41,20 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::FunctionExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex)
     {
-        CodeBlock* blk = nullptr;
-        size_t cnt = 0;
-        const auto& childBlocks = context->m_codeBlock->asInterpretedCodeBlock()->childBlocks();
-        size_t len = childBlocks.size();
-        size_t counter = context->m_feCounter;
-        for (size_t i = 0; i < len; i++) {
-            CodeBlock* c = childBlocks[i];
-            if (c->isFunctionExpression()) {
-                if (cnt == counter) {
-                    blk = c;
-                    break;
-                }
-                cnt++;
-            }
-        }
-        ASSERT(blk);
+        CodeBlock* blk = context->m_codeBlock->asInterpretedCodeBlock()->childBlocks()[m_subCodeBlockIndex];
         if (UNLIKELY(blk->isClassConstructor())) {
-            codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_bodyIndex, context->m_classInfo.m_superIndex, context->m_classInfo.m_name, blk), context, this);
+            codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_prototypeIndex, context->m_classInfo.m_superIndex, context->m_classInfo.m_name, blk), context, this);
+        } else if (UNLIKELY(blk->isClassMethod() || blk->isClassStaticMethod())) {
+            size_t homeObjectIndex = blk->isClassStaticMethod() ? context->m_classInfo.m_constructorIndex : context->m_classInfo.m_prototypeIndex;
+            codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, homeObjectIndex, blk), context, this);
         } else {
-            codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, blk), context, this);
+            codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, SIZE_MAX, blk), context, this);
         }
-        context->m_feCounter++;
     }
 
 private:
     FunctionNode m_function;
+    size_t m_subCodeBlockIndex;
     // defaults: [ Expression ];
     // rest: Identifier | null;
 };

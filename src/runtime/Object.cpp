@@ -531,10 +531,6 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
         if (LIKELY(desc.isDataProperty())) {
             const Value& val = desc.isValuePresent() ? desc.value() : Value();
             m_values.pushBack(val, m_structure->propertyCount());
-
-            if (val.isObject() && val.asObject()->isFunctionObject()) {
-                val.asObject()->asFunctionObject()->setHomeObject(this);
-            }
         } else {
             m_values.pushBack(Value(new JSGetterSetter(desc.getterSetter())), m_structure->propertyCount());
         }
@@ -845,7 +841,7 @@ Value Object::getMethod(ExecutionState& state, const Value& object, const Object
 Value Object::call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
 {
     // If IsCallable(F) is false, throw a TypeError exception.
-    if (!callee.isCallable()) {
+    if (UNLIKELY(!callee.isCallable())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
     }
     // Return F.[[Call]](V, argumentsList).
@@ -853,19 +849,22 @@ Value Object::call(ExecutionState& state, const Value& callee, const Value& this
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-construct
-Object* Object::construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Value newTarget)
+Object* Object::construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Object* newTarget)
 {
-    if (!constructor.isConstructor()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor);
+    if (UNLIKELY(!constructor.isConstructor())) {
+        if (constructor.isFunction()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor, constructor.asFunction()->codeBlock()->functionName());
+        }
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Callee is not constructor");
     }
     // If newTarget was not passed, let newTarget be F.
-    if (newTarget.isEmpty()) {
-        newTarget = constructor;
+    if (newTarget == nullptr) {
+        newTarget = constructor.asObject();
     }
     // Assert: IsConstructor (F) is true.
     ASSERT(constructor.isConstructor());
     // Assert: IsConstructor (newTarget) is true.
-    ASSERT(newTarget.isConstructor());
+    ASSERT(newTarget->isConstructor());
     // Return F.[[Construct]](argumentsList, newTarget).
     return constructor.asObject()->construct(state, argc, argv, newTarget);
 }

@@ -24,7 +24,6 @@
 #include "RegExpObject.h"
 #include "ArrayObject.h"
 #include "GlobalRegExpFunctionObject.h"
-#include "BuiltinFunctionObject.h"
 #include "NativeFunctionObject.h"
 
 namespace Escargot {
@@ -342,7 +341,7 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
 }
 
 GlobalRegExpFunctionObject::GlobalRegExpFunctionObject(ExecutionState& state)
-    : BuiltinFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().RegExp, builtinRegExpConstructor, 2))
+    : NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().RegExp, builtinRegExpConstructor, 2), NativeFunctionObject::__ForBuiltinConstructor__)
 {
     initInternalProperties(state);
 }

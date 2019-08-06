@@ -53,7 +53,7 @@ FunctionObject* ExecutionState::resolveCallee()
     return nullptr;
 }
 
-Value ExecutionState::getNewTarget()
+Object* ExecutionState::getNewTarget()
 {
     EnvironmentRecord* envRec = getThisEnvironment();
 
@@ -61,7 +61,7 @@ Value ExecutionState::getNewTarget()
 
     FunctionEnvironmentRecord* funcEnvRec = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
 
-    return funcEnvRec->newTarget() ? funcEnvRec->newTarget() : Value();
+    return funcEnvRec->newTarget();
 }
 
 EnvironmentRecord* ExecutionState::getThisEnvironment()
@@ -79,38 +79,51 @@ EnvironmentRecord* ExecutionState::getThisEnvironment()
     }
 }
 
-Value ExecutionState::makeSuperPropertyReference(ExecutionState& state)
+Value ExecutionState::makeSuperPropertyReference()
 {
-    EnvironmentRecord* envRec = getThisEnvironment();
+    // Let env be GetThisEnvironment( ).
+    EnvironmentRecord* env = getThisEnvironment();
+    ASSERT(env->isDeclarativeEnvironmentRecord() && env->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
 
-    if (!envRec->hasSuperBinding()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, errorMessage_No_Super_Binding);
+    // If env.HasSuperBinding() is false, throw a ReferenceError exception.
+    if (!env->hasSuperBinding()) {
+        ErrorObject::throwBuiltinError(*this, ErrorObject::Code::TypeError, errorMessage_No_Super_Binding);
     }
 
-    ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
+    // Let actualThis be env.GetThisBinding().
+    // ReturnIfAbrupt(actualThis).
+    // auto actualThis = env->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getThisBinding(*this);
 
-    FunctionEnvironmentRecord* funcEnvRec = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-    Value bv = funcEnvRec->getSuperBase(state).toObject(state);
-
-    return bv;
+    // Let baseValue be env.GetSuperBase().
+    auto baseValue = env->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getSuperBase(*this);
+    // Let bv be RequireObjectCoercible(baseValue).
+    // ReturnIfAbrupt(bv).
+    // Return a value of type Reference that is a Super Reference whose base value is bv, whose referenced name is propertyKey, whose thisValue is actualThis, and whose strict reference flag is strict.
+    return baseValue.toObject(*this);
 }
 
-Value ExecutionState::getSuperConstructor(ExecutionState& state)
+Value ExecutionState::getSuperConstructor()
 {
+    // Let envRec be GetThisEnvironment( ).
     EnvironmentRecord* envRec = getThisEnvironment();
-
+    // Assert: envRec is a function Environment Record.
     ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
 
     FunctionEnvironmentRecord* funcEnvRec = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
 
-    Value activeFunction = funcEnvRec->functionObject() ? funcEnvRec->functionObject() : Value();
+    // Let activeFunction be envRec.[[FunctionObject]].
+    FunctionObject* activeFunction = funcEnvRec->functionObject();
 
-    Value superConstructor = activeFunction.asObject()->getPrototype(state);
+    // Let superConstructor be activeFunction.[[GetPrototypeOf]]().
+    // ReturnIfAbrupt(superConstructor).
+    Value superConstructor = activeFunction->getPrototype(*this);
 
+    // If IsConstructor(superConstructor) is false, throw a TypeError exception.
     if (!superConstructor.isConstructor()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_No_Super_Binding);
+        ErrorObject::throwBuiltinError(*this, ErrorObject::Code::TypeError, errorMessage_No_Super_Binding);
     }
 
+    // Return superConstructor.
     return superConstructor;
 }
 }

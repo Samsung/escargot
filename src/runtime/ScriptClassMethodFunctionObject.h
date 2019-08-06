@@ -17,23 +17,35 @@
  *  USA
  */
 
-#include "Escargot.h"
-#include "ScriptArrowFunctionObject.h"
+#ifndef __EscargotScriptClassMethodFunctionObject__
+#define __EscargotScriptClassMethodFunctionObject__
 
-#include "FunctionObjectInlines.h"
+#include "runtime/ScriptFunctionObject.h"
 
 namespace Escargot {
 
-class ScriptArrowFunctionObjectThisValueBinder {
+// {method, get, set} of object literal also uses this class
+class ScriptClassMethodFunctionObject : public ScriptFunctionObject {
 public:
-    Value operator()(ExecutionState& calleeState, ScriptArrowFunctionObject* self, const Value& receiverSrc, bool isStrict)
+    ScriptClassMethodFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject)
+        : ScriptFunctionObject(state, codeBlock, outerEnvironment, false, codeBlock->isGenerator())
+        , m_homeObject(homeObject)
     {
-        return self->thisValue();
     }
-};
 
-Value ScriptArrowFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
-{
-    return FunctionObjectProcessCallGenerator::processCall<ScriptArrowFunctionObject, false, ScriptArrowFunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, argc, argv, nullptr);
+    bool isConstructor() const
+    {
+        return false;
+    }
+
+    virtual Object* homeObject() override
+    {
+        return m_homeObject;
+    }
+
+private:
+    Object* m_homeObject;
+};
 }
-}
+
+#endif

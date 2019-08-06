@@ -33,14 +33,15 @@ class Node;
 
 struct ClassContextInformation {
     ClassContextInformation()
-        : m_bodyIndex(SIZE_MAX)
+        : m_constructorIndex(SIZE_MAX)
+        , m_prototypeIndex(SIZE_MAX)
         , m_superIndex(SIZE_MAX)
         , m_name(AtomicString())
-        , isAssigmentTarget(false)
     {
     }
 
-    size_t m_bodyIndex;
+    size_t m_constructorIndex;
+    size_t m_prototypeIndex;
     size_t m_superIndex;
     AtomicString m_name;
     bool isAssigmentTarget : 1;
@@ -92,7 +93,6 @@ struct ByteCodeGenerateContext {
         , m_complexJumpContinueIgnoreCount(0)
         , m_complexJumpLabeledBreakIgnoreCount(0)
         , m_complexJumpLabeledContinueIgnoreCount(0)
-        , m_feCounter(0)
         , m_lexicalBlockIndex(0)
         , m_numeralLiteralData(numeralLiteralData)
     {
@@ -128,7 +128,6 @@ struct ByteCodeGenerateContext {
         , m_complexJumpContinueIgnoreCount(contextBefore.m_complexJumpContinueIgnoreCount)
         , m_complexJumpLabeledBreakIgnoreCount(contextBefore.m_complexJumpLabeledBreakIgnoreCount)
         , m_complexJumpLabeledContinueIgnoreCount(contextBefore.m_complexJumpLabeledContinueIgnoreCount)
-        , m_feCounter(contextBefore.m_feCounter)
         , m_lexicalBlockIndex(contextBefore.m_lexicalBlockIndex)
         , m_classInfo(contextBefore.m_classInfo)
         , m_numeralLiteralData(contextBefore.m_numeralLiteralData)
@@ -151,7 +150,6 @@ struct ByteCodeGenerateContext {
         ctx.m_getObjectCodePositions.insert(ctx.m_getObjectCodePositions.end(), m_getObjectCodePositions.begin(), m_getObjectCodePositions.end());
         ctx.m_offsetToBasePointer = m_offsetToBasePointer;
         ctx.m_positionToContinue = m_positionToContinue;
-        ctx.m_feCounter = m_feCounter;
         ctx.m_lexicalBlockIndex = m_lexicalBlockIndex;
         ctx.m_classInfo = m_classInfo;
 
@@ -320,7 +318,6 @@ struct ByteCodeGenerateContext {
     int m_complexJumpContinueIgnoreCount;
     int m_complexJumpLabeledBreakIgnoreCount;
     int m_complexJumpLabeledContinueIgnoreCount;
-    size_t m_feCounter;
     size_t m_lexicalBlockIndex;
     ClassContextInformation m_classInfo;
     std::map<size_t, size_t> m_complexCaseStatementPositions;

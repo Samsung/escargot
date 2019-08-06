@@ -43,7 +43,8 @@ public:
         RefPtr<IdentifierNode> classIdent = m_class.id();
 
         const ClassContextInformation classInfoBefore = context->m_classInfo;
-        context->m_classInfo.m_bodyIndex = context->getRegister();
+        context->m_classInfo.m_constructorIndex = classIndex;
+        context->m_classInfo.m_prototypeIndex = context->getRegister();
         context->m_classInfo.m_superIndex = m_class.superClass() ? context->getRegister() : SIZE_MAX;
         context->m_classInfo.m_name = classIdent ? classIdent.get()->name() : AtomicString();
 
@@ -62,7 +63,7 @@ public:
         if (m_class.classBody()->hasConstructor()) {
             m_class.classBody()->constructor()->generateExpressionByteCode(codeBlock, context, classIndex);
         } else {
-            codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), classIndex, context->m_classInfo.m_bodyIndex, context->m_classInfo.m_superIndex, context->m_classInfo.m_name, nullptr), context, this);
+            codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), classIndex, context->m_classInfo.m_prototypeIndex, context->m_classInfo.m_superIndex, context->m_classInfo.m_name, nullptr), context, this);
         }
 
         m_class.classBody()->generateClassInitializer(codeBlock, context, classIndex);

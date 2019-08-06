@@ -594,6 +594,7 @@ public:
         return true;
     }
 
+    // internal [[prototype]]
     virtual Value getPrototype(ExecutionState&)
     {
         if (LIKELY(m_prototype != nullptr)) {
@@ -610,6 +611,7 @@ public:
         return Value(Value::Null);
     }
 
+    // internal [[prototype]]
     virtual Object* getPrototypeObject(ExecutionState&)
     {
         Object* prototype = m_prototype;
@@ -620,6 +622,7 @@ public:
         return prototype;
     }
 
+    // internal [[prototype]]
     virtual bool setPrototype(ExecutionState& state, const Value& proto);
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
@@ -758,7 +761,7 @@ public:
 
     static Value getMethod(ExecutionState& state, const Value& object, const ObjectPropertyName& propertyName);
     static Value call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv);
-    static Object* construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Value newTarget = Value(Value::EmptyValue));
+    static Object* construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Object* newTarget = nullptr);
     static bool hasInstance(ExecutionState& state, const Value& C, const Value O);
 
     static void throwCannotDefineError(ExecutionState& state, const PropertyName& P);
@@ -886,7 +889,7 @@ private:
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
-    virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, const Value& newTarget)
+    virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
