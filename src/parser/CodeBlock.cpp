@@ -113,8 +113,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_isGenerator(false)
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
-    , m_hasRestElement(false)
-    , m_shouldReparseArguments(false)
+    , m_hasArgumentInitializers(false)
     , m_parameterCount(info.m_argumentCount)
     , m_functionName(info.m_name)
 {
@@ -153,8 +152,7 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_isGenerator(false)
     , m_needsVirtualIDOperation(false)
     , m_needToLoadThisValue(false)
-    , m_hasRestElement(false)
-    , m_shouldReparseArguments(false)
+    , m_hasArgumentInitializers(false)
     , m_parameterCount(argc)
     , m_functionName(name)
     , m_nativeFunctionData(info)
@@ -219,7 +217,6 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isClassMethod = scopeCtx->m_isClassMethod;
     m_isClassStaticMethod = scopeCtx->m_isClassStaticMethod;
     m_isGenerator = scopeCtx->m_isGenerator;
-    m_hasRestElement = scopeCtx->m_hasRestElement;
 
     m_hasEval = scopeCtx->m_hasEval;
     m_hasWith = scopeCtx->m_hasWith;
@@ -231,7 +228,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isEvalCodeInFunction = isEvalCodeInFunction;
 
     m_usesArgumentsObject = false;
-    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith && !m_hasYield && !m_shouldReparseArguments && !m_isGenerator;
+    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith && !m_hasYield && !scopeCtx->m_hasPatternArgument && !m_isGenerator;
     m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage;
     m_canAllocateVariablesOnStack = m_canAllocateEnvironmentOnStack;
     m_hasDescendantUsesNonIndexedVariableStorage = false;
@@ -241,7 +238,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_needToLoadThisValue = false;
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;
-    m_shouldReparseArguments = false;
+    m_hasArgumentInitializers = false;
 
     const ASTFunctionScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_varNames;
     m_identifierInfos.resize(innerIdentifiers.size());
@@ -262,7 +259,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
 
 InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
     : m_script(script)
-    , m_paramsSrc(scopeCtx->m_hasNonIdentArgument ? StringView(src, scopeCtx->m_paramsStart.index, scopeCtx->m_locStart.index) : StringView())
+    , m_paramsSrc((scopeCtx->m_hasRestElement || scopeCtx->m_hasPatternArgument) ? StringView(src, scopeCtx->m_paramsStart.index, scopeCtx->m_locStart.index) : StringView())
     , m_src(StringView(src, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index))
     , m_sourceElementStart(sourceElementStart)
     , m_identifierOnStackCount(0)
@@ -292,8 +289,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_hasYield = scopeCtx->m_hasYield;
     m_hasSuper = scopeCtx->m_hasSuper;
     m_inWith = scopeCtx->m_inWith;
-    m_hasRestElement = scopeCtx->m_hasRestElement;
-    m_shouldReparseArguments = scopeCtx->m_hasNonIdentArgument;
+    m_hasArgumentInitializers = scopeCtx->m_hasRestElement || scopeCtx->m_hasPatternArgument;
 
     m_isEvalCode = isEvalCode;
     m_isEvalCodeInFunction = isEvalCodeInFunction;
@@ -319,7 +315,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
         m_parametersInfomation[i].m_isDuplicated = false;
     }
 
-    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith && !m_hasYield && !m_shouldReparseArguments && !m_isGenerator;
+    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith && !m_hasYield && !scopeCtx->m_hasPatternArgument && !m_isGenerator;
     m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage;
     m_canAllocateVariablesOnStack = true;
     m_hasDescendantUsesNonIndexedVariableStorage = false;

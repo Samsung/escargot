@@ -69,6 +69,7 @@ struct GlobalVariableAccessCacheItem;
     F(CreateSpreadObject, 1, 0)                       \
     F(CreateFunction, 1, 0)                           \
     F(CreateClass, 0, 0)                              \
+    F(CreateRestElement, 0, 0)                        \
     F(SuperReference, 1, 0)                           \
     F(CallSuper, -1, 0)                               \
     F(LoadThisBinding, 0, 0)                          \
@@ -433,6 +434,23 @@ public:
         } else {
             printf("create class r%d : r%d { r%d }", (int)m_classConstructorRegisterIndex, (int)m_superClassRegisterIndex, (int)m_classPrototypeRegisterIndex);
         }
+    }
+#endif
+};
+
+class CreateRestElement : public ByteCode {
+public:
+    CreateRestElement(const ByteCodeLOC& loc, const size_t registerIndex)
+        : ByteCode(Opcode::CreateRestElementOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_registerIndex;
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("Create RestElement -> r%d", (int)m_registerIndex);
     }
 #endif
 };
