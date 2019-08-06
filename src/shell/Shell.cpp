@@ -147,6 +147,11 @@ int main(int argc, char* argv[])
         }
     }
 
+    if (getenv("GC_FREE_SPACE_DIVISOR") && strlen(getenv("GC_FREE_SPACE_DIVISOR"))) {
+        int d = atoi(getenv("GC_FREE_SPACE_DIVISOR"));
+        GC_set_free_space_divisor(d);
+    }
+
     while (runShell) {
         static char buf[2048];
         printf("escargot> ");

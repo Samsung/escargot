@@ -49,7 +49,9 @@ EXCLUDE_LIST = xml.dom.minidom.parse(EXCLUDED_FILENAME)
 EXCLUDE_REASON = EXCLUDE_LIST.getElementsByTagName("reason")
 EXCLUDE_LIST = EXCLUDE_LIST.getElementsByTagName("test")
 EXCLUDE_LIST = [x.getAttribute("id") for x in EXCLUDE_LIST]
-
+ESCARGOT_LD_PRELOAD = os.environ.get('ESCARGOT_LD_PRELOAD')
+if ESCARGOT_LD_PRELOAD is None:
+    ESCARGOT_LD_PRELOAD = ""
 
 def BuildOptions():
   result = optparse.OptionParser()
@@ -327,11 +329,16 @@ class TestCase(object):
     stderr = TempFile(prefix="test262-err-")
     try:
       logging.info("exec: %s", str(args))
+
+      my_env = os.environ.copy()
+      my_env["LD_PRELOAD"] = ESCARGOT_LD_PRELOAD
+
       process = subprocess.Popen(
         args,
         shell = IsWindows(),
         stdout = stdout.fd,
-        stderr = stderr.fd
+        stderr = stderr.fd,
+        env = my_env
       )
       code = process.wait()
       out = stdout.Read()
