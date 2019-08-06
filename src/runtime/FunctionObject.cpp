@@ -72,16 +72,23 @@ FunctionObject::FunctionObject(ExecutionState& state, size_t defaultSpace)
 {
 }
 
-FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSource(ExecutionState& state, AtomicString functionName, size_t argumentValueArrayCount, Value* argumentValueArray, Value bodyString, bool useStrict)
+FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSource(ExecutionState& state, AtomicString functionName, size_t argumentValueArrayCount, Value* argumentValueArray, Value bodyString, bool useStrict, bool isGenerator)
 {
     StringBuilder src, srcToTest;
     if (useStrict) {
         src.appendString("'use strict'; ");
     }
-    src.appendString("function ");
+
+    if (isGenerator) {
+        src.appendString("function* ");
+        srcToTest.appendString("function* ");
+    } else {
+        src.appendString("function ");
+        srcToTest.appendString("function ");
+    }
+
     src.appendString(functionName.string());
     src.appendString("(");
-    srcToTest.appendString("function ");
     srcToTest.appendString(functionName.string());
     srcToTest.appendString("(");
 
