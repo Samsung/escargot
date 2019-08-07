@@ -946,6 +946,35 @@ static Value builtinLookupSetter(ExecutionState& state, Value thisValue, size_t 
     return Value();
 }
 
+static Value builtinCallerAndArgumentsGetterSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Note : this implementation of caller and arguments restrict-properties is non-normative and we don't fully support fully it at this time.
+    // If you decide to implement the same behavior as any other major JavaScript-engine, you'll need to reimplement it.
+    // Nevertheless, the following implementation is related to test262's restrict-properties related tests.
+
+    bool needThrow = false;
+    if (thisValue.isCallable()) {
+        if (thisValue.isFunction()) {
+            auto function = thisValue.asFunction();
+            if (function->codeBlock()->isStrict() || function->codeBlock()->isArrowFunctionExpression() || function->codeBlock()->isGenerator()) {
+                needThrow = true;
+            }
+        } else if (thisValue.isObject()) {
+            auto object = thisValue.asObject();
+            if (object->isBoundFunctionObject()) {
+                needThrow = true;
+            }
+        }
+    } else if (!thisValue.isPrimitive() && !thisValue.isObject()) {
+        needThrow = true;
+    }
+
+    if (needThrow) {
+        state.throwException(new TypeErrorObject(state, String::fromASCII("'caller' and 'arguments' restrict properties may not be accessed on strict mode functions or the arguments objects for calls to them")));
+    }
+    return Value(Value::Null);
+}
+
 void GlobalObject::installOthers(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
@@ -1091,6 +1120,17 @@ void GlobalObject::installOthers(ExecutionState& state)
 
     m_stringProxyObject = new StringObject(state);
     m_numberProxyObject = new NumberObject(state);
+
+    // 8.2.2 - 12
+    // AddRestrictedFunctionProperties(funcProto, realmRec).
+    auto fn = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().caller, builtinCallerAndArgumentsGetterSetter, 0, NativeFunctionInfo::Strict));
+    JSGetterSetter gs(fn, fn);
+    ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+    m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().caller), desc);
+    m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().arguments), desc);
+
+    m_generator->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().caller), desc);
+    m_generator->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().arguments), desc);
 }
 
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
