@@ -41,21 +41,12 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::LabeledStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        if (m_statementNode->type() == ASTNodeType::SwitchStatement) {
-            context->m_currentLabels->push_back(std::make_pair(m_label, 1));
-        } else {
-            context->m_currentLabels->push_back(std::make_pair(m_label, 0));
-        }
-
         size_t start = codeBlock->currentCodeSize();
         context->m_positionToContinue = start;
         m_statementNode->generateStatementByteCode(codeBlock, context);
         size_t end = codeBlock->currentCodeSize();
         context->consumeLabeledBreakPositions(codeBlock, end, m_label, context->m_tryStatementScopeCount);
         context->consumeLabeledContinuePositions(codeBlock, context->m_positionToContinue, m_label, context->m_tryStatementScopeCount);
-
-        RELEASE_ASSERT(context->m_currentLabels->back().first->equals(m_label));
-        context->m_currentLabels->erase(context->m_currentLabels->end() - 1);
     }
 
 private:

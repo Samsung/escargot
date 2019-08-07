@@ -85,7 +85,6 @@ struct ByteCodeGenerateContext {
         , m_forInOfVarBinding(false)
         , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
         , m_lexicallyDeclaredNames(new std::vector<std::pair<size_t, AtomicString>>())
-        , m_currentLabels(new std::vector<std::pair<String*, size_t>>())
         , m_offsetToBasePointer(0)
         , m_positionToContinue(0)
         , m_tryStatementScopeCount(0)
@@ -120,7 +119,6 @@ struct ByteCodeGenerateContext {
         , m_forInOfVarBinding(contextBefore.m_forInOfVarBinding)
         , m_registerStack(contextBefore.m_registerStack)
         , m_lexicallyDeclaredNames(contextBefore.m_lexicallyDeclaredNames)
-        , m_currentLabels(contextBefore.m_currentLabels)
         , m_offsetToBasePointer(contextBefore.m_offsetToBasePointer)
         , m_positionToContinue(contextBefore.m_positionToContinue)
         , m_tryStatementScopeCount(contextBefore.m_tryStatementScopeCount)
@@ -304,7 +302,6 @@ struct ByteCodeGenerateContext {
     std::shared_ptr<std::vector<std::pair<size_t, AtomicString>>> m_lexicallyDeclaredNames;
     std::vector<size_t> m_breakStatementPositions;
     std::vector<size_t> m_continueStatementPositions;
-    std::shared_ptr<std::vector<std::pair<String*, size_t>>> m_currentLabels;
     std::vector<std::pair<String*, size_t>> m_labeledBreakStatmentPositions;
     std::vector<std::pair<String*, size_t>> m_labeledContinueStatmentPositions;
     std::vector<size_t> m_getObjectCodePositions;
