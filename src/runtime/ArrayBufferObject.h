@@ -25,6 +25,18 @@
 
 namespace Escargot {
 
+enum TypedArrayType : unsigned {
+    Int8,
+    Int16,
+    Int32,
+    Uint8,
+    Uint16,
+    Uint32,
+    Uint8Clamped,
+    Float32,
+    Float64
+};
+
 typedef void* (*ArrayBufferObjectBufferMallocFunction)(size_t siz);
 typedef void (*ArrayBufferObjectBufferFreeFunction)(void* buffer);
 
@@ -94,6 +106,33 @@ public:
             *((typename TypeAdaptor::Type*)rawStart) = littleEndianVal;
         }
         return true;
+    }
+
+    Value getTypedValueFromBuffer(ExecutionState& state, unsigned byteindex, TypedArrayType type)
+    {
+        switch (type) {
+        case TypedArrayType::Int8:
+            return getValueFromBuffer<int8_t>(state, byteindex, true);
+        case TypedArrayType::Int16:
+            return getValueFromBuffer<int16_t>(state, byteindex, true);
+        case TypedArrayType::Int32:
+            return getValueFromBuffer<int32_t>(state, byteindex, true);
+        case TypedArrayType::Uint8:
+            return getValueFromBuffer<uint8_t>(state, byteindex, true);
+        case TypedArrayType::Uint16:
+            return getValueFromBuffer<uint16_t>(state, byteindex, true);
+        case TypedArrayType::Uint32:
+            return getValueFromBuffer<uint32_t>(state, byteindex, true);
+        case TypedArrayType::Uint8Clamped:
+            return getValueFromBuffer<uint8_t>(state, byteindex, true);
+        case TypedArrayType::Float32:
+            return getValueFromBuffer<float>(state, byteindex, true);
+        case TypedArrayType::Float64:
+            return getValueFromBuffer<double>(state, byteindex, true);
+        default:
+            RELEASE_ASSERT_NOT_REACHED();
+        }
+        RELEASE_ASSERT_NOT_REACHED();
     }
 
     bool isDetachedBuffer()
