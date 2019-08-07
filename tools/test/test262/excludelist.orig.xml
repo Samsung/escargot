@@ -164,7 +164,6 @@
   <test id="15.3.4.5-20-3"><reason>TODO</reason></test>
   <test id="15.3.4.5-21-2"><reason>TODO</reason></test>
   <test id="15.3.4.5-21-3"><reason>TODO</reason></test>
-  <test id="BoundFunction_restricted-properties"><reason>TODO</reason></test>
   <test id="S15.3.4.4_A9"><reason>TODO</reason></test>
   <test id="S15.3.4.2_A9"><reason>TODO</reason></test>
   <test id="Symbol.toStringTag"><reason>TODO</reason></test>
@@ -504,7 +503,6 @@
   <test id="number"><reason>TODO</reason></test>
   <test id="numbers-class"><reason>TODO</reason></test>
   <test id="numbers-object"><reason>TODO</reason></test>
-  <test id="ArrowFunction_restricted-properties"><reason>TODO</reason></test>
   <test id="lexical-bindings-overriden-by-formal-parameters-non-strict"><reason>TODO</reason></test>
   <test id="lexical-new.target-closure-returned"><reason>TODO</reason></test>
   <test id="lexical-new.target"><reason>TODO</reason></test>
@@ -740,7 +738,6 @@
   <test id="star-iterable"><reason>TODO</reason></test>
   <test id="star-string"><reason>TODO</reason></test>
   <test id="within-for"><reason>TODO</reason></test>
-  <test id="Generator_restricted-properties"><reason>TODO</reason></test>
   <test id="yield-as-label-in-sloppy"><reason>TODO</reason></test>
   <test id="let-non-strict-access"><reason>TODO</reason></test>
   <test id="let-non-strict-syntax"><reason>TODO</reason></test>
