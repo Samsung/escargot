@@ -82,6 +82,38 @@ NEVER_INLINE bool eval(Escargot::Context* context, Escargot::String* str, Escarg
     return true;
 }
 
+void doFullGCWithoutSeeingStack()
+{
+    GC_register_mark_stack_func([]() {
+        // do nothing for skip stack
+        // assume there is no gc-object on stack
+    });
+    GC_gcollect();
+    GC_gcollect();
+    GC_gcollect_and_unmap();
+    GC_register_mark_stack_func(nullptr);
+}
+
+void printEveryReachableGCObjects()
+{
+    ESCARGOT_LOG_INFO("print reachable pointers -->\n");
+    GC_gcollect();
+    GC_disable();
+    GC_enumerate_reachable_objects_inner(
+        [](void* obj, size_t bytes, void* cd) {
+            size_t size;
+            int kind = GC_get_kind_and_size(obj, &size);
+            void* ptr = GC_USR_PTR_FROM_BASE(obj);
+            ESCARGOT_LOG_INFO("@@@ kind %d pointer %p size %d\n", (int)kind, ptr, (int)size);
+#if !defined(NDEBUG)
+            GC_print_backtrace(ptr);
+#endif
+        },
+        nullptr);
+    GC_enable();
+    ESCARGOT_LOG_INFO("<-- end of print reachable pointers\n");
+}
+
 int main(int argc, char* argv[])
 {
 #ifndef NDEBUG
@@ -173,5 +205,12 @@ int main(int argc, char* argv[])
         Escargot::Heap::printGCHeapUsage();
     }
 
+    /*
+    // remove comment you want to find memory leak
+    doFullGCWithoutSeeingStack();
+    doFullGCWithoutSeeingStack();
+    doFullGCWithoutSeeingStack();
+    printEveryReachableGCObjects();
+     */
     return 0;
 }

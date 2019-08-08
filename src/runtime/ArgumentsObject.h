@@ -29,8 +29,6 @@ class FunctionEnvironmentRecord;
 class InterpretedCodeBlock;
 class ScriptFunctionObject;
 
-extern size_t g_argumentsObjectTag;
-
 class ArgumentsObject : public Object {
 public:
     ArgumentsObject(ExecutionState& state, ScriptFunctionObject* sourceFunctionObject, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, bool isMapped);
@@ -47,12 +45,27 @@ public:
         return "Arguments";
     }
 
+    virtual bool isInlineCacheable() override
+    {
+        return false;
+    }
+
+    virtual bool isArgumentsObject() const override
+    {
+        return true;
+    }
+
+    ScriptFunctionObject* sourceFunctionObject() const
+    {
+        return m_sourceFunctionObject;
+    }
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 private:
     FunctionEnvironmentRecord* m_targetRecord;
-    InterpretedCodeBlock* m_codeBlock;
+    ScriptFunctionObject* m_sourceFunctionObject;
     TightVector<std::pair<SmallValue, AtomicString>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<SmallValue, AtomicString>>> m_parameterMap;
     size_t m_argc;
     TightVector<bool, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<bool>> m_modifiedArguments;

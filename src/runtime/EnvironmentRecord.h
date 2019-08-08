@@ -22,8 +22,9 @@
 
 #include "parser/CodeBlock.h"
 #include "runtime/AtomicString.h"
-#include "runtime/FunctionObject.h"
 #include "runtime/Object.h"
+#include "runtime/FunctionObject.h"
+#include "runtime/ScriptFunctionObject.h"
 #include "runtime/ArgumentsObject.h"
 #include "runtime/String.h"
 #include "runtime/Value.h"
@@ -688,6 +689,8 @@ struct FunctionEnvironmentRecordPiece<true, true> {
 };
 
 class FunctionEnvironmentRecord : public DeclarativeEnvironmentRecord {
+    friend class ScriptFunctionObject;
+
 public:
     FunctionEnvironmentRecord(FunctionObject* function)
         : DeclarativeEnvironmentRecord()
@@ -697,7 +700,7 @@ public:
 
     FunctionObject::ThisMode thisMode()
     {
-        return m_functionObject->thisMode();
+        return functionObject()->thisMode();
     }
 
     virtual bool isFunctionEnvironmentRecord() override
@@ -727,11 +730,14 @@ public:
 
     Object* homeObject()
     {
-        return m_functionObject->homeObject();
+        return functionObject()->homeObject();
     }
 
     FunctionObject* functionObject()
     {
+        if (m_argumentsObject->isArgumentsObject()) {
+            return m_argumentsObject->sourceFunctionObject();
+        }
         return m_functionObject;
     }
 
@@ -780,8 +786,12 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-protected:
-    FunctionObject* m_functionObject;
+private:
+    // ArgumentsObject is constructed on EnsureArgumentsObject opcode
+    union {
+        FunctionObject* m_functionObject;
+        ArgumentsObject* m_argumentsObject;
+    };
 };
 
 template <bool canBindThisValue, bool hasNewTarget>

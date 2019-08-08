@@ -57,7 +57,7 @@ void* ArgumentsObject::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_prototype));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_values));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_targetRecord));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_codeBlock));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_sourceFunctionObject));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_parameterMap));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_modifiedArguments));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ArgumentsObject));
@@ -69,8 +69,8 @@ void* ArgumentsObject::operator new(size_t size)
 
 ArgumentsObject::ArgumentsObject(ExecutionState& state, ScriptFunctionObject* sourceFunctionObject, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, bool isMapped)
     : Object(state, isMapped ? ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3 : ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 4, true)
-    , m_targetRecord(environmentRecordWillArgumentsObjectBeLocatedIn)
-    , m_codeBlock(sourceFunctionObject->codeBlock()->asInterpretedCodeBlock())
+    , m_targetRecord(environmentRecordWillArgumentsObjectBeLocatedIn->isFunctionEnvironmentRecordOnStack() ? nullptr : environmentRecordWillArgumentsObjectBeLocatedIn)
+    , m_sourceFunctionObject(sourceFunctionObject)
     , m_argc(argc)
 {
     // FIXME Assert: formal parameters does not contain a rest parameter, any binding patterns, or any initializers. It may contain duplicate identifiers.
@@ -83,7 +83,7 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, ScriptFunctionObject* so
 
         // https://www.ecma-international.org/ecma-262/6.0/#sec-createmappedargumentsobject
         // Let numberOfParameters be the number of elements in parameterNames
-        int numberOfParameters = m_codeBlock->parametersInfomation().size();
+        int numberOfParameters = m_sourceFunctionObject->codeBlock()->asInterpretedCodeBlock()->parametersInfomation().size();
         // Let index be 0.
         int index = 0;
         // Repeat while index < len ,
@@ -108,7 +108,7 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, ScriptFunctionObject* so
         // Repeat while index ≥ 0 ,
         while (index >= 0) {
             // Let name be parameterNames[index].
-            AtomicString name = m_codeBlock->parametersInfomation()[index].m_name;
+            AtomicString name = m_sourceFunctionObject->codeBlock()->asInterpretedCodeBlock()->parametersInfomation()[index].m_name;
             // If name is not an element of mappedNames, then
             if (std::find(mappedNames.begin(), mappedNames.end(), name) == mappedNames.end()) {
                 // Add name as an element of the list mappedNames.
@@ -294,7 +294,10 @@ Value ArgumentsObject::getIndexedPropertyValueQuickly(ExecutionState& state, uin
     ASSERT(!m_parameterMap[index].first.isEmpty());
 
     if (m_parameterMap[index].second.string()->length()) {
-        return ArgumentsObjectNativeGetter(state, this, m_targetRecord, m_codeBlock, m_parameterMap[index].second);
+        // when there was parameter on source function,
+        // source function must uses heap env record
+        ASSERT(m_targetRecord != nullptr);
+        return ArgumentsObjectNativeGetter(state, this, m_targetRecord, m_sourceFunctionObject->codeBlock()->asInterpretedCodeBlock(), m_parameterMap[index].second);
     } else {
         return m_parameterMap[index].first;
     }
@@ -306,7 +309,10 @@ void ArgumentsObject::setIndexedPropertyValueQuickly(ExecutionState& state, uint
     ASSERT(!m_parameterMap[index].first.isEmpty());
 
     if (m_parameterMap[index].second.string()->length()) {
-        ArgumentsObjectNativeSetter(state, this, value, m_targetRecord, m_codeBlock, m_parameterMap[index].second);
+        // when there was parameter on source function,
+        // source function must uses heap env record
+        ASSERT(m_targetRecord != nullptr);
+        ArgumentsObjectNativeSetter(state, this, value, m_targetRecord, m_sourceFunctionObject->codeBlock()->asInterpretedCodeBlock(), m_parameterMap[index].second);
     } else {
         return m_parameterMap[index].first = value;
     }

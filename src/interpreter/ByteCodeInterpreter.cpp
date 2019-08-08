@@ -1424,6 +1424,14 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 NEXT_INSTRUCTION();
             }
 
+            DEFINE_OPCODE(EnsureArgumentsObject)
+                :
+            {
+                ensureArgumentsObjectOperation(state, byteCodeBlock, registerFile);
+                ADD_PROGRAM_COUNTER(EnsureArgumentsObject);
+                NEXT_INSTRUCTION();
+            }
+
             DEFINE_OPCODE(End)
                 :
             {
@@ -2771,6 +2779,22 @@ ALWAYS_INLINE Value ByteCodeInterpreter::decrementOperation(ExecutionState& stat
     } else {
         return Value(value.toNumber(state) - 1);
     }
+}
+
+NEVER_INLINE void ByteCodeInterpreter::ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+{
+    ExecutionState* es = &state;
+    while (es) {
+        if (es->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && es->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            break;
+        }
+        es = es->parent();
+    }
+
+    auto r = es->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+    auto functionObject = r->functionObject()->asScriptFunctionObject();
+    bool isMapped = !functionObject->codeBlock()->hasArgumentInitializers() && !functionObject->codeBlock()->isStrict();
+    r->functionObject()->asScriptFunctionObject()->generateArgumentsObject(state, state.argc(), state.argv(), r, registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize, isMapped);
 }
 
 NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, const Value& value, CodeBlock* codeBlock, size_t programCounter)

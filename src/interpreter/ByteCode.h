@@ -128,6 +128,7 @@ struct GlobalVariableAccessCacheItem;
     F(Yield, 0, 0)                                    \
     F(YieldDelegate, 1, 0)                            \
     F(BlockOperation, 0, 0)                           \
+    F(EnsureArgumentsObject, 0, 0)                    \
     F(End, 0, 0)
 
 enum Opcode {
@@ -2057,6 +2058,21 @@ public:
     void dump(const char* byteCodeStart)
     {
         printf("block operation (%p) -> end %d", m_blockInfo, (int)m_blockEndPosition);
+    }
+#endif
+};
+
+class EnsureArgumentsObject : public ByteCode {
+public:
+    EnsureArgumentsObject(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::EnsureArgumentsObjectOpcode, loc)
+    {
+    }
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("ensure arguments object");
     }
 #endif
 };

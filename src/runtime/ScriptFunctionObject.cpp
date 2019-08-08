@@ -183,6 +183,13 @@ Object* ScriptFunctionObject::construct(ExecutionState& state, const size_t argc
 
 void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, Value* stackStorage, bool isMapped)
 {
+    if (environmentRecordWillArgumentsObjectBeLocatedIn->m_argumentsObject->isArgumentsObject()) {
+        return;
+    }
+
+    auto newArgumentsObject = new ArgumentsObject(state, this, argc, argv, environmentRecordWillArgumentsObjectBeLocatedIn, isMapped);
+    environmentRecordWillArgumentsObjectBeLocatedIn->m_argumentsObject = newArgumentsObject;
+
     AtomicString arguments = state.context()->staticStrings().arguments;
     if (environmentRecordWillArgumentsObjectBeLocatedIn->isFunctionEnvironmentRecordNotIndexed()) {
         auto result = environmentRecordWillArgumentsObjectBeLocatedIn->hasBinding(state, arguments);
@@ -190,15 +197,15 @@ void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, size_t
             environmentRecordWillArgumentsObjectBeLocatedIn->createBinding(state, arguments, false, true);
             result = environmentRecordWillArgumentsObjectBeLocatedIn->hasBinding(state, arguments);
         }
-        environmentRecordWillArgumentsObjectBeLocatedIn->initializeBinding(state, arguments, new ArgumentsObject(state, this, argc, argv, environmentRecordWillArgumentsObjectBeLocatedIn, isMapped));
+        environmentRecordWillArgumentsObjectBeLocatedIn->initializeBinding(state, arguments, newArgumentsObject);
     } else {
         const InterpretedCodeBlock::IdentifierInfoVector& v = codeBlock()->asInterpretedCodeBlock()->identifierInfos();
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == arguments) {
                 if (v[i].m_needToAllocateOnStack) {
-                    stackStorage[v[i].m_indexForIndexedStorage] = new ArgumentsObject(state, this, argc, argv, environmentRecordWillArgumentsObjectBeLocatedIn, isMapped);
+                    stackStorage[v[i].m_indexForIndexedStorage] = newArgumentsObject;
                 } else {
-                    environmentRecordWillArgumentsObjectBeLocatedIn->heapStorage()[v[i].m_indexForIndexedStorage] = new ArgumentsObject(state, this, argc, argv, environmentRecordWillArgumentsObjectBeLocatedIn, isMapped);
+                    environmentRecordWillArgumentsObjectBeLocatedIn->heapStorage()[v[i].m_indexForIndexedStorage] = newArgumentsObject;
                 }
                 break;
             }

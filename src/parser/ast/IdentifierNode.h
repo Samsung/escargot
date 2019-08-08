@@ -70,6 +70,14 @@ public:
         }
     }
 
+    bool isPointsArgumentsObject(ByteCodeGenerateContext* context)
+    {
+        if (context->m_codeBlock->context()->staticStrings().arguments == m_name && context->m_codeBlock->usesArgumentsObject() && !context->m_codeBlock->isArrowFunctionExpression()) {
+            return true;
+        }
+        return false;
+    }
+
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
     {
         bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
@@ -79,6 +87,10 @@ public:
 
         if (isLexicallyDeclaredBindingInitialization) {
             context->addLexicallyDeclaredNames(m_name);
+        }
+
+        if (isPointsArgumentsObject(context)) {
+            codeBlock->pushCode(EnsureArgumentsObject(ByteCodeLOC(m_loc.index)), context, this);
         }
 
         if (context->m_codeBlock->canUseIndexedVariableStorage()) {
@@ -142,6 +154,10 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
+        if (isPointsArgumentsObject(context)) {
+            codeBlock->pushCode(EnsureArgumentsObject(ByteCodeLOC(m_loc.index)), context, this);
+        }
+
         if (context->m_codeBlock->canUseIndexedVariableStorage()) {
             InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
             addLexicalVariableErrorsIfNeeds(codeBlock, context, info, false);
@@ -186,6 +202,10 @@ public:
 
     std::tuple<bool, ByteCodeRegisterIndex, InterpretedCodeBlock::IndexedIdentifierInfo> isAllocatedOnStack(ByteCodeGenerateContext* context)
     {
+        if (isPointsArgumentsObject(context)) {
+            return std::make_tuple(false, REGISTER_LIMIT, InterpretedCodeBlock::IndexedIdentifierInfo());
+        }
+
         if (context->m_codeBlock->asInterpretedCodeBlock()->canUseIndexedVariableStorage()) {
             InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
             if (!info.m_isResultSaved) {
