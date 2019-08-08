@@ -299,7 +299,7 @@ public:
     void destroy();
 
     NullablePtr<FunctionObjectRef> resolveCallee(); // resolve nearest callee if exists
-    std::vector<std::pair<FunctionObjectRef*, ValueRef*>> resolveCallstack(); // resolve callee, this value
+    std::vector<FunctionObjectRef*> resolveCallstack(); // resolve list of callee
     GlobalObjectRef* resolveCallerLexicalGlobalObject(); // resolve caller's lexical global object
 
     void throwException(ValueRef* value);

@@ -38,21 +38,19 @@
 
 namespace Escargot {
 
-// function for derived classes. derived class MUST initlize member variable of FunctionObject.
-ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, size_t defaultSpace)
-    : FunctionObject(state, defaultSpace)
-#ifndef NDEBUG
-    , m_outerEnvironment((LexicalEnvironment*)SIZE_MAX)
-#endif
-{
-}
-
 ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnv, bool isConstructor, bool isGenerator)
     : FunctionObject(state,
                      ((isConstructor || isGenerator) ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)) + (codeBlock->isStrict() ? 2 : 0))
 {
     m_codeBlock = codeBlock;
     m_outerEnvironment = outerEnv;
+
+    if (m_outerEnvironment) {
+        ASSERT(m_outerEnvironment->isAllocatedOnHeap());
+        if (m_outerEnvironment->record()->isDeclarativeEnvironmentRecord() && m_outerEnvironment->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            ASSERT(!m_outerEnvironment->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isFunctionEnvironmentRecordOnStack());
+        }
+    }
 
     initStructureAndValues(state, isConstructor, isGenerator);
 
@@ -122,7 +120,7 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
 Value ScriptFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
 {
     ASSERT(!codeBlock()->hasCallNativeFunctionCode());
-    return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, false, FunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, argc, argv, nullptr);
+    return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, false, false, false, FunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, argc, argv, nullptr);
 }
 
 class ScriptFunctionObjectObjectThisValueBinderWithConstruct {
@@ -148,15 +146,6 @@ public:
         // If kind is "base", return NormalCompletion(thisArgument).
         // -> kind is always `base`
         return thisArgument;
-    }
-};
-
-class ScriptFunctionObjectNewTargetBinderWithConstruct {
-public:
-    void operator()(ExecutionState& calleeState, FunctionObject* self, Object* newTarget, FunctionEnvironmentRecord* record)
-    {
-        // TODO don't do this if possible
-        record->setNewTarget(newTarget);
     }
 };
 
@@ -189,7 +178,9 @@ Object* ScriptFunctionObject::construct(ExecutionState& state, const size_t argc
     thisArgument->setPrototype(state, proto);
     // ReturnIfAbrupt(thisArgument).
 
-    return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, true, ScriptFunctionObjectObjectThisValueBinderWithConstruct, ScriptFunctionObjectNewTargetBinderWithConstruct, ScriptFunctionObjectReturnValueBinderWithConstruct>(state, this, Value(thisArgument), argc, argv, newTarget).asObject();
+    // We don't need to setNewTarget here
+    // only `super` keyword uses getNewTarget on executing
+    return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, true, false, false, ScriptFunctionObjectObjectThisValueBinderWithConstruct, FunctionObjectNewTargetBinder, ScriptFunctionObjectReturnValueBinderWithConstruct>(state, this, Value(thisArgument), argc, argv, newTarget).asObject();
 }
 
 void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage, bool isMapped)
@@ -209,8 +200,7 @@ void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, Functi
                 if (v[i].m_needToAllocateOnStack) {
                     stackStorage[v[i].m_indexForIndexedStorage] = fnRecord->createArgumentsObject(state, isMapped);
                 } else {
-                    ASSERT(fnRecord->isFunctionEnvironmentRecordOnHeap());
-                    ((FunctionEnvironmentRecordOnHeap*)fnRecord)->m_heapStorage[v[i].m_indexForIndexedStorage] = fnRecord->createArgumentsObject(state, isMapped);
+                    fnRecord->heapStorage()[v[i].m_indexForIndexedStorage] = fnRecord->createArgumentsObject(state, isMapped);
                 }
                 break;
             }
@@ -237,8 +227,7 @@ void ScriptFunctionObject::generateRestParameter(ExecutionState& state, Function
     if (!m_codeBlock->canUseIndexedVariableStorage()) {
         record->initializeBinding(state, lastInfo.m_name, Value(newArray));
     } else if (lastInfo.m_isHeapAllocated) {
-        ASSERT(record->isFunctionEnvironmentRecordOnHeap());
-        ((FunctionEnvironmentRecordOnHeap*)record)->m_heapStorage[lastInfo.m_index] = newArray;
+        record->heapStorage()[lastInfo.m_index] = newArray;
     } else {
         parameterStorageInStack[lastInfo.m_index] = newArray;
     }

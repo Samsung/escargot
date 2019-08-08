@@ -992,7 +992,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 CreateFunction* code = (CreateFunction*)programCounter;
-                registerFile[code->m_registerIndex] = createFunctionOperation(state, code, byteCodeBlock, registerFile);
+                createFunctionOperation(state, code, byteCodeBlock, registerFile);
                 ADD_PROGRAM_COUNTER(CreateFunction);
                 NEXT_INSTRUCTION();
             }
@@ -1436,7 +1436,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             if (byteCodeBlock->m_codeBlock->isInterpretedCodeBlock() && byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->byteCodeBlock() == nullptr) {
                 byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->m_byteCodeBlock = byteCodeBlock;
             }
-            processException(state, v, programCounter);
+            processException(state, v, byteCodeBlock->m_codeBlock, programCounter);
         }
     }
 
@@ -2218,15 +2218,23 @@ NEVER_INLINE void ByteCodeInterpreter::initializeGlobalVariable(ExecutionState& 
     ASSERT_NOT_REACHED();
 }
 
-NEVER_INLINE FunctionObject* ByteCodeInterpreter::createFunctionOperation(ExecutionState& state, CreateFunction* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& state, CreateFunction* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     CodeBlock* cb = code->m_codeBlock;
-    if (cb->isArrowFunctionExpression()) {
-        return new ScriptArrowFunctionObject(state, code->m_codeBlock, state.lexicalEnvironment(), registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize]);
-    } else if (cb->isClassMethod() || cb->isClassStaticMethod()) {
-        return new ScriptClassMethodFunctionObject(state, code->m_codeBlock, state.lexicalEnvironment(), registerFile[code->m_homeObjectRegisterIndex].asObject());
+
+    LexicalEnvironment* outerLexicalEnvironment = state.lexicalEnvironment();
+
+    if (code->m_codeBlock->asInterpretedCodeBlock()->canAllocateEnvironmentOnStack() || byteCodeBlock->m_codeBlock->canAllocateEnvironmentOnStack()) {
+        outerLexicalEnvironment = nullptr;
     }
-    return new ScriptFunctionObject(state, code->m_codeBlock, state.lexicalEnvironment(), true, code->m_codeBlock->isGenerator());
+
+    if (cb->isArrowFunctionExpression()) {
+        registerFile[code->m_registerIndex] = new ScriptArrowFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize]);
+    } else if (cb->isClassMethod() || cb->isClassStaticMethod()) {
+        registerFile[code->m_registerIndex] = new ScriptClassMethodFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, registerFile[code->m_homeObjectRegisterIndex].asObject());
+    } else {
+        registerFile[code->m_registerIndex] = new ScriptFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, true, code->m_codeBlock->isGenerator());
+    }
 }
 
 NEVER_INLINE ArrayObject* ByteCodeInterpreter::createRestElementOperation(ExecutionState& state, EnvironmentRecord* record, ByteCodeBlock* byteCodeBlock)
@@ -2765,22 +2773,24 @@ ALWAYS_INLINE Value ByteCodeInterpreter::decrementOperation(ExecutionState& stat
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, const Value& value, size_t programCounter)
+NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, const Value& value, CodeBlock* codeBlock, size_t programCounter)
 {
     ASSERT(state.context()->m_sandBoxStack.size());
     SandBox* sb = state.context()->m_sandBoxStack.back();
 
-    LexicalEnvironment* env = state.lexicalEnvironment();
+    FunctionObject* callee = state.callee();
     ExecutionState* es = &state;
 
-    while (true) {
-        if (env->record()->isGlobalEnvironmentRecord()) {
-            break;
-        } else if (env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+    while (es) {
+        if (!es->lexicalEnvironment() || !es->lexicalEnvironment()->record()) {
             break;
         }
-        env = env->outerEnvironment();
-        es = state.parent();
+        if (es->lexicalEnvironment()->record()->isGlobalEnvironmentRecord()) {
+            break;
+        } else if (es->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && es->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            break;
+        }
+        es = es->parent();
     }
 
     bool alreadyExists = false;
@@ -2793,8 +2803,8 @@ NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, c
     }
 
     if (!alreadyExists) {
-        if (env->record()->isGlobalEnvironmentRecord()) {
-            CodeBlock* cb = env->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
+        if (!callee) {
+            CodeBlock* cb = es->lexicalEnvironment()->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
             ByteCodeBlock* b = cb->asInterpretedCodeBlock()->byteCodeBlock();
             ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
             if (programCounter != SIZE_MAX) {
@@ -2806,9 +2816,16 @@ NEVER_INLINE void ByteCodeInterpreter::processException(ExecutionState& state, c
             data.fileName = cb->asInterpretedCodeBlock()->script()->fileName();
             data.source = cb->asInterpretedCodeBlock()->script()->src();
             sb->m_stackTraceData.pushBack(std::make_pair(es, data));
+        } else if (codeBlock->isInterpretedCodeBlock() && codeBlock->asInterpretedCodeBlock()->isEvalCodeInFunction()) {
+            CodeBlock* cb = codeBlock;
+            ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
+            SandBox::StackTraceData data;
+            data.loc = loc;
+            data.fileName = cb->asInterpretedCodeBlock()->script()->fileName();
+            data.source = String::emptyString;
+            sb->m_stackTraceData.pushBack(std::make_pair(es, data));
         } else {
-            FunctionObject* fn = env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
-            CodeBlock* cb = fn->codeBlock();
+            CodeBlock* cb = callee->codeBlock();
             ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
             if (cb->isInterpretedCodeBlock()) {
                 ByteCodeBlock* b = cb->asInterpretedCodeBlock()->byteCodeBlock();

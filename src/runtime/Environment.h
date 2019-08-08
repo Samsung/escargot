@@ -32,11 +32,20 @@ class GlobalObject;
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-lexical-environments
 class LexicalEnvironment : public gc {
 public:
-    LexicalEnvironment(EnvironmentRecord* record, LexicalEnvironment* outerEnvironment)
+    LexicalEnvironment(EnvironmentRecord* record, LexicalEnvironment* outerEnvironment
+#ifndef NDEBUG
+                       ,
+                       bool isAllocatedOnHeap = true
+#endif
+                       )
         : m_record(record)
         , m_outerEnvironment(outerEnvironment)
+#ifndef NDEBUG
+        , m_isAllocatedOnHeap(isAllocatedOnHeap)
+#endif
     {
     }
+
     EnvironmentRecord* record()
     {
         return m_record;
@@ -59,9 +68,20 @@ public:
         return true;
     }
 
+#ifndef NDEBUG
+    bool isAllocatedOnHeap()
+    {
+        return m_isAllocatedOnHeap;
+    }
+#endif
+
 private:
     EnvironmentRecord* m_record;
     LexicalEnvironment* m_outerEnvironment;
+
+#ifndef NDEBUG
+    bool m_isAllocatedOnHeap;
+#endif
 };
 }
 #endif

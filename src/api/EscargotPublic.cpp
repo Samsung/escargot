@@ -1404,7 +1404,7 @@ NullablePtr<FunctionObjectRef> ExecutionStateRef::resolveCallee()
 {
     auto ec = toImpl(this);
     if (ec != nullptr) {
-        auto callee = ec->resolveCallee();
+        auto callee = ec->callee();
         if (callee != nullptr) {
             return toRef(callee);
         }
@@ -1412,19 +1412,18 @@ NullablePtr<FunctionObjectRef> ExecutionStateRef::resolveCallee()
     return nullptr;
 }
 
-std::vector<std::pair<FunctionObjectRef*, ValueRef*>> ExecutionStateRef::resolveCallstack()
+std::vector<FunctionObjectRef*> ExecutionStateRef::resolveCallstack()
 {
     ExecutionState* state = toImpl(this);
 
-    std::vector<std::pair<FunctionObjectRef*, ValueRef*>> result;
+    std::vector<FunctionObjectRef*> result;
 
     while (state) {
         if (state->lexicalEnvironment() && state->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord()
             && state->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
             auto r = state->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
             FunctionObject* callee = r->functionObject();
-            Value thisValue = state->registerFile()[0];
-            result.push_back(std::make_pair(toRef(callee), toRef(thisValue)));
+            result.push_back(toRef(callee));
         }
         state = state->parent();
     }

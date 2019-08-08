@@ -31,8 +31,6 @@ public:
     ScriptFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, bool isConstructor, bool isGenerator);
 
 protected:
-    ScriptFunctionObject(ExecutionState& state, size_t defaultSpace); // function for derived classes. derived class MUST initlize member variable of FunctionObject.
-
     friend class FunctionObjectProcessCallGenerator;
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override;

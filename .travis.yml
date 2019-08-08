@@ -16,7 +16,7 @@ matrix:
         - gcc -shared -fPIC -o backtrace-hooking.so tools/test/test262/backtrace-hooking.c
         - export GC_FREE_SPACE_DIVISOR=1
         - export ESCARGOT_LD_PRELOAD=${TRAVIS_BUILD_DIR}/backtrace-hooking.so
-        - tools/run-tests.py --arch=x86_64 test262
+        - travis_wait 30 tools/run-tests.py --arch=x86_64 test262
         - unset GC_FREE_SPACE_DIVISOR
         - unset ESCARGOT_LD_PRELOAD
         - rm -rf ./out
@@ -27,7 +27,7 @@ matrix:
         - gcc -shared -m32 -fPIC -o backtrace-hooking.so tools/test/test262/backtrace-hooking.c
         - export GC_FREE_SPACE_DIVISOR=1
         - export ESCARGOT_LD_PRELOAD=${TRAVIS_BUILD_DIR}/backtrace-hooking.so
-        - tools/run-tests.py --arch=x86 test262
+        - travis_wait 30 tools/run-tests.py --arch=x86 test262
 
     - name: "linux.x64.release"
       addons:
@@ -39,10 +39,10 @@ matrix:
         - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
         - ninja -Cout/linux/x64/release
         - cp ./out/linux/x64/release/escargot ./escargot
-        - tools/run-tests.py --arch=x86_64 octane
+        - travis_wait 30 tools/run-tests.py --arch=x86_64 octane
         - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js internal jsc-stress v8 spidermonkey regression-tests es2015 intl chakracore
         - export GC_FREE_SPACE_DIVISOR=1
-        - tools/run-tests.py --arch=x86_64 test262
+        - travis_wait 30 tools/run-tests.py --arch=x86_64 test262
 
 
     - name: "linux.x64.release.jetstream"
@@ -68,10 +68,10 @@ matrix:
         - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
         - ninja -Cout/linux/x86/release
         - cp ./out/linux/x86/release/escargot ./escargot
-        - tools/run-tests.py --arch=x86 octane
+        - travis_wait 30 tools/run-tests.py --arch=x86 octane
         - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js internal jsc-stress v8 spidermonkey regression-tests es2015 intl chakracore
         - export GC_FREE_SPACE_DIVISOR=1
-        - tools/run-tests.py --arch=x86 test262
+        - travis_wait 30 tools/run-tests.py --arch=x86 test262
 
 
     - name: "linux.x86.release.jetstream"

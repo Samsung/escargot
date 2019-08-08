@@ -188,16 +188,6 @@ public:
         return m_isGenerator;
     }
 
-    bool needToLoadThisValue() const
-    {
-        return m_needToLoadThisValue;
-    }
-
-    void setNeedToLoadThisValue()
-    {
-        m_needToLoadThisValue = true;
-    }
-
     bool hasCallNativeFunctionCode() const
     {
         return m_hasCallNativeFunctionCode;
@@ -238,6 +228,11 @@ public:
     bool isFunctionNameExplicitlyDeclared() const
     {
         return m_isFunctionNameExplicitlyDeclared;
+    }
+
+    bool isEvalCodeInFunction() const
+    {
+        return m_isEvalCodeInFunction;
     }
 
     void setHasEval()
@@ -306,7 +301,6 @@ protected:
     bool m_needsComplexParameterCopy : 1;
     bool m_hasEval : 1;
     bool m_hasWith : 1;
-    bool m_hasSuper : 1;
     bool m_hasYield : 1;
     bool m_inWith : 1;
     bool m_isEvalCode : 1;
@@ -321,7 +315,6 @@ protected:
     bool m_isClassStaticMethod : 1;
     bool m_isGenerator : 1;
     bool m_needsVirtualIDOperation : 1;
-    bool m_needToLoadThisValue : 1;
     bool m_hasArgumentInitializers : 1;
     uint16_t m_parameterCount;
 
@@ -348,8 +341,6 @@ public:
     {
         m_childBlocks.push_back(cb);
     }
-    bool needToStoreThisValue();
-    void captureThis();
     void captureArguments();
     bool tryCaptureIdentifiersFromChildCodeBlock(LexicalBlockIndex blockIndex, AtomicString name);
 
@@ -685,7 +676,7 @@ public:
         return m_byteCodeBlock;
     }
 
-    void markHeapAllocatedEnvironmentFromHere(LexicalBlockIndex blockIndex = 0);
+    void markHeapAllocatedEnvironmentFromHere(LexicalBlockIndex blockIndex = 0, InterpretedCodeBlock* to = nullptr);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;

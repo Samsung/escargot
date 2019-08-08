@@ -167,48 +167,6 @@ EnvironmentRecord::BindingSlot GlobalEnvironmentRecord::hasBinding(ExecutionStat
     }
 }
 
-FunctionEnvironmentRecordOnHeap::FunctionEnvironmentRecordOnHeap(FunctionObject* function, size_t argc, Value* argv)
-    : FunctionEnvironmentRecord(function)
-    , m_argc(argc)
-    , m_argv(argv)
-    , m_heapStorage(function->codeBlock()->asInterpretedCodeBlock()->identifierOnHeapCount())
-{
-}
-
-void FunctionEnvironmentRecordOnHeap::setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v)
-{
-    const auto& recordInfo = m_functionObject->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
-    if (UNLIKELY(!recordInfo[slot.m_index].m_isMutable)) {
-        if (state.inStrictMode()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable, name);
-        }
-        return;
-    }
-    m_heapStorage[slot.m_index] = v;
-}
-
-FunctionEnvironmentRecordNotIndexed::FunctionEnvironmentRecordNotIndexed(FunctionObject* function, size_t argc, Value* argv)
-    : FunctionEnvironmentRecord(function)
-    , m_argc(argc)
-    , m_argv(argv)
-    , m_heapStorage()
-{
-    const InterpretedCodeBlock::IdentifierInfoVector& vec = function->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
-    size_t len = vec.size();
-    m_recordVector.resizeWithUninitializedValues(len);
-    m_heapStorage.resizeWithUninitializedValues(len);
-
-    for (size_t i = 0; i < len; i++) {
-        IdentifierRecord record;
-        record.m_name = vec[i].m_name;
-        record.m_canDelete = false;
-        record.m_isVarDeclaration = true;
-        record.m_isMutable = vec[i].m_isMutable;
-        m_recordVector[i] = record;
-        m_heapStorage[i] = Value();
-    }
-}
-
 void DeclarativeEnvironmentRecordNotIndexed::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration)
 {
     if (isVarDeclaration) {
@@ -289,7 +247,49 @@ void DeclarativeEnvironmentRecordNotIndexed::initializeBinding(ExecutionState& s
     ASSERT_NOT_REACHED();
 }
 
-void FunctionEnvironmentRecordNotIndexed::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration)
+template <bool canBindThisValue, bool hasNewTarget>
+FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::FunctionEnvironmentRecordOnHeap(FunctionObject* function, size_t argc, Value* argv)
+    : FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>(function, argc, argv)
+    , m_heapStorage(function->codeBlock()->asInterpretedCodeBlock()->identifierOnHeapCount())
+{
+}
+
+template <bool canBindThisValue, bool hasNewTarget>
+void FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::setMutableBindingByBindingSlot(ExecutionState& state, const EnvironmentRecord::BindingSlot& slot, const AtomicString& name, const Value& v)
+{
+    const auto& recordInfo = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
+    if (UNLIKELY(!recordInfo[slot.m_index].m_isMutable)) {
+        if (state.inStrictMode()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable, name);
+        }
+        return;
+    }
+    m_heapStorage[slot.m_index] = v;
+}
+
+template <bool canBindThisValue, bool hasNewTarget>
+FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::FunctionEnvironmentRecordNotIndexed(FunctionObject* function, size_t argc, Value* argv)
+    : FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>(function, argc, argv)
+    , m_heapStorage()
+{
+    const InterpretedCodeBlock::IdentifierInfoVector& vec = function->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
+    size_t len = vec.size();
+    m_recordVector.resizeWithUninitializedValues(len);
+    m_heapStorage.resizeWithUninitializedValues(len);
+
+    for (size_t i = 0; i < len; i++) {
+        IdentifierRecord record;
+        record.m_name = vec[i].m_name;
+        record.m_canDelete = false;
+        record.m_isVarDeclaration = true;
+        record.m_isMutable = vec[i].m_isMutable;
+        m_recordVector[i] = record;
+        m_heapStorage[i] = Value();
+    }
+}
+
+template <bool canBindThisValue, bool hasNewTarget>
+void FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration)
 {
     ASSERT(isVarDeclaration);
 
@@ -305,7 +305,9 @@ void FunctionEnvironmentRecordNotIndexed::createBinding(ExecutionState& state, c
         m_recordVector[idx].m_isMutable = isMutable;
     }
 }
-EnvironmentRecord::GetBindingValueResult FunctionEnvironmentRecordNotIndexed::getBindingValue(ExecutionState& state, const AtomicString& name)
+
+template <bool canBindThisValue, bool hasNewTarget>
+EnvironmentRecord::GetBindingValueResult FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::getBindingValue(ExecutionState& state, const AtomicString& name)
 {
     size_t len = m_recordVector.size();
     for (size_t i = 0; i < len; i++) {
@@ -313,10 +315,11 @@ EnvironmentRecord::GetBindingValueResult FunctionEnvironmentRecordNotIndexed::ge
             return EnvironmentRecord::GetBindingValueResult(m_heapStorage[i]);
         }
     }
-    return GetBindingValueResult();
+    return EnvironmentRecord::GetBindingValueResult();
 }
 
-void FunctionEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+template <bool canBindThisValue, bool hasNewTarget>
+void FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
 {
     size_t len = m_recordVector.size();
     for (size_t i = 0; i < len; i++) {
@@ -333,7 +336,8 @@ void FunctionEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& stat
     ASSERT_NOT_REACHED();
 }
 
-void FunctionEnvironmentRecordNotIndexed::setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v)
+template <bool canBindThisValue, bool hasNewTarget>
+void FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::setMutableBindingByBindingSlot(ExecutionState& state, const EnvironmentRecord::BindingSlot& slot, const AtomicString& name, const Value& v)
 {
     if (UNLIKELY(!m_recordVector[slot.m_index].m_isMutable)) {
         if (state.inStrictMode())
@@ -343,7 +347,8 @@ void FunctionEnvironmentRecordNotIndexed::setMutableBindingByBindingSlot(Executi
     m_heapStorage[slot.m_index] = v;
 }
 
-void FunctionEnvironmentRecordNotIndexed::initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+template <bool canBindThisValue, bool hasNewTarget>
+void FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
 {
     for (size_t i = 0; i < m_recordVector.size(); i++) {
         if (m_recordVector[i].m_name == name) {
@@ -364,4 +369,13 @@ EnvironmentRecord::GetBindingValueResult FunctionEnvironmentRecordNotIndexedWith
 
     return FunctionEnvironmentRecordNotIndexed::getBindingValue(state, name);
 }
+
+template class FunctionEnvironmentRecordOnStack<false, false>;
+template class FunctionEnvironmentRecordOnStack<true, true>;
+
+template class FunctionEnvironmentRecordOnHeap<false, false>;
+template class FunctionEnvironmentRecordOnHeap<true, true>;
+
+template class FunctionEnvironmentRecordNotIndexed<false, false>;
+template class FunctionEnvironmentRecordNotIndexed<true, true>;
 }

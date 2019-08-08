@@ -33,10 +33,12 @@ typedef Vector<ControlFlowRecord*, GCUtil::gc_malloc_ignore_off_page_allocator<C
 struct ExecutionStateRareData : public gc {
     Vector<ControlFlowRecord*, GCUtil::gc_malloc_ignore_off_page_allocator<ControlFlowRecord*>>* m_controlFlowRecord;
     ExecutionState* m_parent;
+    Value* m_registerFile;
     Object* m_generatorTarget;
 
     ExecutionStateRareData()
     {
+        m_registerFile = nullptr;
         m_controlFlowRecord = nullptr;
         m_generatorTarget = nullptr;
         m_parent = nullptr;
@@ -53,7 +55,7 @@ public:
     ExecutionState(Context* context)
         : m_context(context)
         , m_lexicalEnvironment(nullptr)
-        , m_registerFile(nullptr)
+        , m_callee(nullptr)
         , m_parent(1)
         , m_inStrictMode(false)
     {
@@ -61,24 +63,35 @@ public:
         m_stackBase = (size_t)&sp;
     }
 
-    ExecutionState(ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, bool inStrictMode, Value* registerFile = nullptr)
+    ALWAYS_INLINE ExecutionState(ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, bool inStrictMode)
         : m_context(parent->context())
         , m_lexicalEnvironment(lexicalEnvironment)
         , m_stackBase(parent->stackBase())
-        , m_registerFile(registerFile)
+        , m_callee(parent->callee())
         , m_parent((size_t)parent + 1)
         , m_inStrictMode(inStrictMode)
     {
     }
 
-    ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, bool inStrictMode, Value* registerFile = nullptr)
+    ALWAYS_INLINE ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, FunctionObject* callee, bool inStrictMode)
         : m_context(context)
         , m_lexicalEnvironment(lexicalEnvironment)
         , m_stackBase(parent->stackBase())
-        , m_registerFile(registerFile)
+        , m_callee(callee)
         , m_parent((size_t)parent + 1)
         , m_inStrictMode(inStrictMode)
     {
+    }
+
+    ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, FunctionObject* callee, bool inStrictMode, Value* registerFile)
+        : m_context(context)
+        , m_lexicalEnvironment(lexicalEnvironment)
+        , m_stackBase(parent->stackBase())
+        , m_callee(callee)
+        , m_parent((size_t)parent + 1)
+        , m_inStrictMode(inStrictMode)
+    {
+        ensureRareData()->m_registerFile = registerFile;
     }
 
     Context* context()
@@ -107,7 +120,7 @@ public:
 
     Value* registerFile()
     {
-        return m_registerFile;
+        return rareData()->m_registerFile;
     }
 
     void throwException(const Value& e);
@@ -155,8 +168,14 @@ public:
         return m_inStrictMode;
     }
 
-    FunctionObject* resolveCallee();
+    FunctionObject* callee()
+    {
+        return m_callee;
+    }
+
+    // http://www.ecma-international.org/ecma-262/6.0/#sec-getnewtarget
     Object* getNewTarget();
+    // http://www.ecma-international.org/ecma-262/6.0/#sec-getthisenvironment
     EnvironmentRecord* getThisEnvironment();
     Value makeSuperPropertyReference();
     Value getSuperConstructor();
@@ -165,7 +184,8 @@ private:
     Context* m_context;
     LexicalEnvironment* m_lexicalEnvironment;
     size_t m_stackBase;
-    Value* m_registerFile;
+    FunctionObject* m_callee;
+
     union {
         size_t m_parent;
         ExecutionStateRareData* m_rareData;

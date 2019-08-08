@@ -102,34 +102,6 @@ ALWAYS_INLINE void assignStackIndexIfNeeded(ByteCodeRegisterIndex& registerIndex
     }
 }
 
-void ByteCodeGenerator::generateStoreThisValueByteCode(ByteCodeBlock* block, ByteCodeGenerateContext* context)
-{
-    InterpretedCodeBlock* codeBlock = block->m_codeBlock;
-    InterpretedCodeBlock::IndexedIdentifierInfo info = codeBlock->indexedIdentifierInfo(codeBlock->context()->staticStrings().stringThis, LEXICAL_BLOCK_INDEX_MAX);
-    ASSERT(!codeBlock->isGlobalScopeCodeBlock());
-
-    if (codeBlock->canUseIndexedVariableStorage() && info.m_isResultSaved) {
-        ASSERT(!info.m_isGlobalLexicalVariable);
-        block->pushCode(StoreByHeapIndex(ByteCodeLOC(SIZE_MAX), REGULAR_REGISTER_LIMIT, info.m_upperIndex, info.m_index), context, nullptr);
-    } else {
-        block->pushCode(StoreByName(ByteCodeLOC(SIZE_MAX), REGULAR_REGISTER_LIMIT, codeBlock->context()->staticStrings().stringThis), context, nullptr);
-    }
-}
-
-void ByteCodeGenerator::generateLoadThisValueByteCode(ByteCodeBlock* block, ByteCodeGenerateContext* context)
-{
-    InterpretedCodeBlock* codeBlock = block->m_codeBlock;
-    InterpretedCodeBlock::IndexedIdentifierInfo info = codeBlock->parentCodeBlock()->indexedIdentifierInfo(codeBlock->context()->staticStrings().stringThis, codeBlock->lexicalBlockIndexFunctionLocatedIn());
-    ASSERT(codeBlock->isArrowFunctionExpression());
-
-    if (codeBlock->canUseIndexedVariableStorage() && info.m_isResultSaved) {
-        ASSERT(!info.m_isGlobalLexicalVariable);
-        block->pushCode(LoadByHeapIndex(ByteCodeLOC(SIZE_MAX), REGULAR_REGISTER_LIMIT, info.m_upperIndex + 1, info.m_index), context, nullptr);
-    } else {
-        block->pushCode(LoadByName(ByteCodeLOC(SIZE_MAX), REGULAR_REGISTER_LIMIT, codeBlock->context()->staticStrings().stringThis), context, nullptr);
-    }
-}
-
 static const uint8_t byteCodeLengths[] = {
 #define ITER_BYTE_CODE(code, pushCount, popCount) \
     (uint8_t)sizeof(code),
@@ -162,15 +134,6 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
     ctx.m_shouldGenerateLOCData = shouldGenerateLOCData;
     if (shouldGenerateLOCData) {
         block->m_locData = new ByteCodeLOCData();
-    }
-
-    // load/store this value first
-    if (codeBlock->needToLoadThisValue()) {
-        generateLoadThisValueByteCode(block, &ctx);
-    }
-
-    if (codeBlock->needToStoreThisValue()) {
-        generateStoreThisValueByteCode(block, &ctx);
     }
 
     // generate common codes

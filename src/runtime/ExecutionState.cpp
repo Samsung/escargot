@@ -41,18 +41,6 @@ ExecutionStateRareData* ExecutionState::ensureRareData()
     return rareData();
 }
 
-FunctionObject* ExecutionState::resolveCallee()
-{
-    LexicalEnvironment* env = m_lexicalEnvironment;
-    while (env != nullptr) {
-        if (env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-            return env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
-        }
-        env = env->outerEnvironment();
-    }
-    return nullptr;
-}
-
 Object* ExecutionState::getNewTarget()
 {
     EnvironmentRecord* envRec = getThisEnvironment();

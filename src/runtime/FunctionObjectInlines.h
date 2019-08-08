@@ -83,7 +83,7 @@ public:
 
 class FunctionObjectProcessCallGenerator {
 public:
-    template <typename FunctionObjectType, bool isConstructCall, typename ThisValueBinder, typename NewTargetBinder, typename ReturnValueBinder>
+    template <typename FunctionObjectType, bool isConstructCall, bool hasNewTargetOnEnvironment, bool canBindThisValueOnEnvironment, typename ThisValueBinder, typename NewTargetBinder, typename ReturnValueBinder>
     static inline Value processCall(ExecutionState& state, FunctionObjectType* self, const Value& thisArgument, const size_t argc, Value* argv, Object* newTarget) // newTarget is null on [[call]]
     {
         volatile int sp;
@@ -122,14 +122,19 @@ public:
 
         if (LIKELY(codeBlock->canAllocateEnvironmentOnStack())) {
             // no capture, very simple case
-            record = new (alloca(sizeof(FunctionEnvironmentRecordSimple))) FunctionEnvironmentRecordSimple(self, argc, argv);
-            lexEnv = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, self->outerEnvironment());
+            record = new (alloca(sizeof(FunctionEnvironmentRecord))) FunctionEnvironmentRecordOnStack<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self, argc, argv);
+            lexEnv = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, self->outerEnvironment()
+#ifndef NDEBUG
+                                                                                             ,
+                                                                                 false
+#endif
+                                                                                 );
         } else {
             if (LIKELY(codeBlock->canUseIndexedVariableStorage())) {
-                record = new FunctionEnvironmentRecordOnHeap(self, argc, argv);
+                record = new FunctionEnvironmentRecordOnHeap<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self, argc, argv);
             } else {
                 if (LIKELY(!codeBlock->needsVirtualIDOperation())) {
-                    record = new FunctionEnvironmentRecordNotIndexed(self, argc, argv);
+                    record = new FunctionEnvironmentRecordNotIndexed<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self, argc, argv);
                 } else {
                     record = new FunctionEnvironmentRecordNotIndexedWithVirtualID(self, argc, argv);
                 }
@@ -162,7 +167,7 @@ public:
         if (UNLIKELY(codeBlock->isFunctionNameSaveOnHeap())) {
             if (codeBlock->canUseIndexedVariableStorage()) {
                 ASSERT(record->isFunctionEnvironmentRecordOnHeap());
-                ((FunctionEnvironmentRecordOnHeap*)record)->heapStorage()[0] = self;
+                ((FunctionEnvironmentRecordOnHeap<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>*)record)->heapStorage()[0] = self;
             } else {
                 record->initializeBinding(state, codeBlock->functionName(), self);
             }
@@ -172,7 +177,7 @@ public:
             if (codeBlock->canUseIndexedVariableStorage()) {
                 if (UNLIKELY(codeBlock->isFunctionNameSaveOnHeap())) {
                     ASSERT(record->isFunctionEnvironmentRecordOnHeap());
-                    ((FunctionEnvironmentRecordOnHeap*)record)->heapStorage()[0] = Value();
+                    ((FunctionEnvironmentRecordOnHeap<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>*)record)->heapStorage()[0] = Value();
                 } else {
                     stackStorage[1] = Value();
                 }
@@ -214,7 +219,7 @@ public:
                         val = Value();
                     if (info[i].m_isHeapAllocated) {
                         ASSERT(record->isFunctionEnvironmentRecordOnHeap());
-                        ((FunctionEnvironmentRecordOnHeap*)record)->heapStorage()[info[i].m_index] = val;
+                        ((FunctionEnvironmentRecordOnHeap<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>*)record)->heapStorage()[info[i].m_index] = val;
                     } else {
                         parameterStorageInStack[info[i].m_index] = val;
                     }
@@ -239,7 +244,7 @@ public:
 
         ThisValueBinder thisValueBinder;
         if (UNLIKELY(codeBlock->isGenerator())) {
-            ExecutionState* newState = new ExecutionState(ctx, &state, lexEnv, isStrict, registerFile);
+            ExecutionState* newState = new ExecutionState(ctx, &state, lexEnv, self, isStrict, registerFile);
             // prepare receiver(this variable)
 
             // we should use newState because
@@ -263,7 +268,7 @@ public:
             return gen;
         }
 
-        ExecutionState newState(ctx, &state, lexEnv, isStrict, registerFile);
+        ExecutionState newState(ctx, &state, lexEnv, self, isStrict);
 
         // prepare receiver(this variable)
         // we should use newState because

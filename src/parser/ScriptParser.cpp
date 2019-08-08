@@ -71,6 +71,17 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
             }
         }
 
+        if (scopeCtx->m_hasSuper) {
+            InterpretedCodeBlock* c = codeBlock;
+            while (c) {
+                c->m_canAllocateEnvironmentOnStack = false;
+                if (c->isClassConstructor() || c->isClassMethod() || c->isClassStaticMethod()) {
+                    break;
+                }
+                c = c->parentCodeBlock();
+            }
+        }
+
         AtomicString arguments = ctx->staticStrings().arguments;
 
         for (size_t i = 0; i < scopeCtx->m_childBlockScopes.size(); i++) {
@@ -81,22 +92,25 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                     if (UNLIKELY(codeBlock->hasParameter(arguments))) {
                         continue;
                     } else {
+                        InterpretedCodeBlock* argumentsVariableHolder = nullptr;
+                        InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
+                        while (c && !c->isGlobalScopeCodeBlock()) {
+                            if (c->hasParameter(arguments)) {
+                                argumentsVariableHolder = c;
+                                break;
+                            } else if (!c->isArrowFunctionExpression()) {
+                                argumentsVariableHolder = c;
+                                break;
+                            }
+                            c = c->parentCodeBlock();
+                        }
+
                         if (LIKELY(!codeBlock->isArrowFunctionExpression())) {
                             codeBlock->captureArguments();
-                            codeBlock->markHeapAllocatedEnvironmentFromHere();
+                            codeBlock->markHeapAllocatedEnvironmentFromHere(0, argumentsVariableHolder);
                             continue;
                         } else {
-                            InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
-                            while (c && !c->isGlobalScopeCodeBlock()) {
-                                if (c->hasParameter(arguments)) {
-                                    break;
-                                } else if (!c->isArrowFunctionExpression()) {
-                                    c->captureArguments();
-                                    c->markHeapAllocatedEnvironmentFromHere();
-                                    break;
-                                }
-                                c = c->parentCodeBlock();
-                            }
+                            codeBlock->markHeapAllocatedEnvironmentFromHere(0, argumentsVariableHolder);
                         }
                     }
                 }
@@ -110,7 +124,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                         InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
                         while (c && parentBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
                             if (c->tryCaptureIdentifiersFromChildCodeBlock(parentBlockIndex, uname)) {
-                                codeBlock->markHeapAllocatedEnvironmentFromHere(scopeCtx->m_childBlockScopes[i]->m_blockIndex);
+                                codeBlock->markHeapAllocatedEnvironmentFromHere(scopeCtx->m_childBlockScopes[i]->m_blockIndex, c);
                                 usingNameIsResolvedOnCompileTime = true;
                                 break;
                             }

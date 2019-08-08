@@ -323,9 +323,6 @@ struct ByteCodeGenerateContext {
 
 class ByteCodeGenerator {
 public:
-    static void generateStoreThisValueByteCode(ByteCodeBlock* block, ByteCodeGenerateContext* context);
-    static void generateLoadThisValueByteCode(ByteCodeBlock* block, ByteCodeGenerateContext* context);
-
     static ByteCodeBlock* generateByteCode(Context* c, InterpretedCodeBlock* codeBlock, Node* ast, ASTFunctionScopeContext* scopeCtx, bool isEvalMode = false, bool isOnGlobal = false, bool inWithFromRuntime = false, bool shouldGenerateLOCData = false);
 };
 }
