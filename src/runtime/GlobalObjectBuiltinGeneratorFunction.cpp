@@ -33,7 +33,7 @@ static Value builtinGeneratorFunction(ExecutionState& state, Value thisValue, si
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
     auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, true);
 
-    return new ScriptFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, true, false);
+    return new ScriptFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, true, true);
 }
 
 static Value builtinGeneratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
