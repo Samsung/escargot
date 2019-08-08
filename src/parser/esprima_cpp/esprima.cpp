@@ -3658,7 +3658,10 @@ public:
                         size_t oldSubCodeBlockIndex = this->subCodeBlockIndex;
                         this->subCodeBlockIndex = 0;
 
+                        bool parseSingleFunctionBefore = this->config.parseSingleFunction;
+                        this->config.parseSingleFunction = false;
                         body = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                        this->config.parseSingleFunction = parseSingleFunctionBefore;
 
                         this->subCodeBlockIndex = oldSubCodeBlockIndex;
                         this->lexicalBlockIndex = lexicalBlockIndexBefore;
@@ -3668,7 +3671,6 @@ public:
                     bool isExpression = body->type() != BlockStatement;
                     if (isExpression) {
                         if (this->config.parseSingleFunction) {
-                            ASSERT(this->config.parseSingleFunctionChildIndex > 0);
                             this->config.parseSingleFunctionChildIndex++;
                         }
                         scopeContexts.back()->m_locStart.line = nodeStart.line;
