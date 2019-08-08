@@ -1028,7 +1028,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 :
             {
                 CreateRestElement* code = (CreateRestElement*)programCounter;
-                registerFile[code->m_registerIndex] = createRestElementOperation(state, state.lexicalEnvironment()->record(), byteCodeBlock);
+                registerFile[code->m_registerIndex] = createRestElementOperation(state, byteCodeBlock);
                 ADD_PROGRAM_COUNTER(CreateRestElement);
                 NEXT_INSTRUCTION();
             }
@@ -2237,14 +2237,14 @@ NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& s
     }
 }
 
-NEVER_INLINE ArrayObject* ByteCodeInterpreter::createRestElementOperation(ExecutionState& state, EnvironmentRecord* record, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE ArrayObject* ByteCodeInterpreter::createRestElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock)
 {
-    ASSERT(record->isDeclarativeEnvironmentRecord() && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
+    ASSERT(state.callee());
 
     ArrayObject* newArray;
     size_t parameterLen = (size_t)byteCodeBlock->m_codeBlock->parameterCount();
-    size_t argc = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->argc();
-    Value* argv = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->argv();
+    size_t argc = state.argc();
+    Value* argv = state.argv();
 
     if (argc > parameterLen) {
         size_t arrLen = argc - parameterLen;

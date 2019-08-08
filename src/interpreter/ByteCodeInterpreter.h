@@ -87,7 +87,7 @@ public:
     static size_t tryOperation(ExecutionState& state, TryOperation* code, LexicalEnvironment* env, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 
     static void createFunctionOperation(ExecutionState& state, CreateFunction* createFunction, ByteCodeBlock* byteCodeBlock, Value* registerFile);
-    static ArrayObject* createRestElementOperation(ExecutionState& state, EnvironmentRecord* record, ByteCodeBlock* byteCodeBlock);
+    static ArrayObject* createRestElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock);
     static void evalOperation(ExecutionState& state, CallEvalFunction* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static void classOperation(ExecutionState& state, CreateClass* code, Value* registerFile);
     static void superOperation(ExecutionState& state, SuperReference* code, Value* registerFile);

@@ -56,6 +56,8 @@ public:
         : m_context(context)
         , m_lexicalEnvironment(nullptr)
         , m_callee(nullptr)
+        , m_argc(0)
+        , m_argv(nullptr)
         , m_parent(1)
         , m_inStrictMode(false)
     {
@@ -68,26 +70,32 @@ public:
         , m_lexicalEnvironment(lexicalEnvironment)
         , m_stackBase(parent->stackBase())
         , m_callee(parent->callee())
+        , m_argc(parent->argc())
+        , m_argv(parent->argv())
         , m_parent((size_t)parent + 1)
         , m_inStrictMode(inStrictMode)
     {
     }
 
-    ALWAYS_INLINE ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, FunctionObject* callee, bool inStrictMode)
+    ALWAYS_INLINE ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, FunctionObject* callee, size_t argc, Value* argv, bool inStrictMode)
         : m_context(context)
         , m_lexicalEnvironment(lexicalEnvironment)
         , m_stackBase(parent->stackBase())
         , m_callee(callee)
+        , m_argc(argc)
+        , m_argv(argv)
         , m_parent((size_t)parent + 1)
         , m_inStrictMode(inStrictMode)
     {
     }
 
-    ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, FunctionObject* callee, bool inStrictMode, Value* registerFile)
+    ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, FunctionObject* callee, size_t argc, Value* argv, bool inStrictMode, Value* registerFile)
         : m_context(context)
         , m_lexicalEnvironment(lexicalEnvironment)
         , m_stackBase(parent->stackBase())
         , m_callee(callee)
+        , m_argc(argc)
+        , m_argv(argv)
         , m_parent((size_t)parent + 1)
         , m_inStrictMode(inStrictMode)
     {
@@ -173,6 +181,16 @@ public:
         return m_callee;
     }
 
+    size_t argc()
+    {
+        return m_argc;
+    }
+
+    Value* argv()
+    {
+        return m_argv;
+    }
+
     // http://www.ecma-international.org/ecma-262/6.0/#sec-getnewtarget
     Object* getNewTarget();
     // http://www.ecma-international.org/ecma-262/6.0/#sec-getthisenvironment
@@ -185,6 +203,8 @@ private:
     LexicalEnvironment* m_lexicalEnvironment;
     size_t m_stackBase;
     FunctionObject* m_callee;
+    size_t m_argc;
+    Value* m_argv;
 
     union {
         size_t m_parent;

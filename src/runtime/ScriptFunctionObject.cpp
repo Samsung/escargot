@@ -72,14 +72,12 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
         std::vector<CodeBlock*, gc_allocator<CodeBlock*>> codeBlocksInCurrentStack;
 
         ExecutionState* es = &state;
-        while (es != nullptr) {
-            auto env = es->lexicalEnvironment();
-            if (env != nullptr && env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-                if (env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->isInterpretedCodeBlock()) {
-                    InterpretedCodeBlock* cblk = env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->asInterpretedCodeBlock();
-                    if (cblk->script() && cblk->byteCodeBlock() && std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), cblk) == codeBlocksInCurrentStack.end()) {
-                        codeBlocksInCurrentStack.push_back(cblk);
-                    }
+        while (es) {
+            FunctionObject* callee = es->callee();
+            if (callee && callee->codeBlock()->isInterpretedCodeBlock()) {
+                InterpretedCodeBlock* cblk = callee->codeBlock()->asInterpretedCodeBlock();
+                if (cblk->script() && cblk->byteCodeBlock() && std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), cblk) == codeBlocksInCurrentStack.end()) {
+                    codeBlocksInCurrentStack.push_back(cblk);
                 }
             }
             es = es->parent();
@@ -183,24 +181,24 @@ Object* ScriptFunctionObject::construct(ExecutionState& state, const size_t argc
     return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, true, false, false, ScriptFunctionObjectObjectThisValueBinderWithConstruct, FunctionObjectNewTargetBinder, ScriptFunctionObjectReturnValueBinderWithConstruct>(state, this, Value(thisArgument), argc, argv, newTarget).asObject();
 }
 
-void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* fnRecord, Value* stackStorage, bool isMapped)
+void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, Value* stackStorage, bool isMapped)
 {
     AtomicString arguments = state.context()->staticStrings().arguments;
-    if (fnRecord->isFunctionEnvironmentRecordNotIndexed()) {
-        auto result = fnRecord->hasBinding(state, arguments);
+    if (environmentRecordWillArgumentsObjectBeLocatedIn->isFunctionEnvironmentRecordNotIndexed()) {
+        auto result = environmentRecordWillArgumentsObjectBeLocatedIn->hasBinding(state, arguments);
         if (UNLIKELY(result.m_index == SIZE_MAX)) {
-            fnRecord->createBinding(state, arguments, false, true);
-            result = fnRecord->hasBinding(state, arguments);
+            environmentRecordWillArgumentsObjectBeLocatedIn->createBinding(state, arguments, false, true);
+            result = environmentRecordWillArgumentsObjectBeLocatedIn->hasBinding(state, arguments);
         }
-        fnRecord->initializeBinding(state, arguments, fnRecord->createArgumentsObject(state, isMapped));
+        environmentRecordWillArgumentsObjectBeLocatedIn->initializeBinding(state, arguments, new ArgumentsObject(state, this, argc, argv, environmentRecordWillArgumentsObjectBeLocatedIn, isMapped));
     } else {
-        const InterpretedCodeBlock::IdentifierInfoVector& v = fnRecord->functionObject()->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
+        const InterpretedCodeBlock::IdentifierInfoVector& v = codeBlock()->asInterpretedCodeBlock()->identifierInfos();
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == arguments) {
                 if (v[i].m_needToAllocateOnStack) {
-                    stackStorage[v[i].m_indexForIndexedStorage] = fnRecord->createArgumentsObject(state, isMapped);
+                    stackStorage[v[i].m_indexForIndexedStorage] = new ArgumentsObject(state, this, argc, argv, environmentRecordWillArgumentsObjectBeLocatedIn, isMapped);
                 } else {
-                    fnRecord->heapStorage()[v[i].m_indexForIndexedStorage] = fnRecord->createArgumentsObject(state, isMapped);
+                    environmentRecordWillArgumentsObjectBeLocatedIn->heapStorage()[v[i].m_indexForIndexedStorage] = new ArgumentsObject(state, this, argc, argv, environmentRecordWillArgumentsObjectBeLocatedIn, isMapped);
                 }
                 break;
             }

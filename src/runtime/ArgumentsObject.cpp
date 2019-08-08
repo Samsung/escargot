@@ -22,10 +22,9 @@
 #include "Context.h"
 #include "EnvironmentRecord.h"
 #include "Environment.h"
+#include "ScriptFunctionObject.h"
 
 namespace Escargot {
-
-size_t g_argumentsObjectTag;
 
 static Value ArgumentsObjectNativeGetter(ExecutionState& state, Object* self, FunctionEnvironmentRecord* targetRecord, InterpretedCodeBlock* codeBlock, AtomicString name)
 {
@@ -68,16 +67,15 @@ void* ArgumentsObject::operator new(size_t size)
 }
 
 
-ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* record, bool isMapped)
+ArgumentsObject::ArgumentsObject(ExecutionState& state, ScriptFunctionObject* sourceFunctionObject, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, bool isMapped)
     : Object(state, isMapped ? ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3 : ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 4, true)
-    , m_targetRecord(record)
-    , m_codeBlock(record->functionObject()->codeBlock()->asInterpretedCodeBlock())
+    , m_targetRecord(environmentRecordWillArgumentsObjectBeLocatedIn)
+    , m_codeBlock(sourceFunctionObject->codeBlock()->asInterpretedCodeBlock())
+    , m_argc(argc)
 {
-    g_argumentsObjectTag = *((size_t*)this);
-
     // FIXME Assert: formal parameters does not contain a rest parameter, any binding patterns, or any initializers. It may contain duplicate identifiers.
     // Let len be the number of elements in argumentsList.
-    int len = record->argc();
+    int len = argc;
     m_parameterMap.resizeWithUninitializedValues(len);
 
     if (isMapped) {
@@ -91,7 +89,7 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
         // Repeat while index < len ,
         while (index < len) {
             // Let val be argumentsList[index].
-            Value val = record->argv()[index];
+            Value val = argv[index];
             // Perform CreateDataProperty(obj, ToString(index), val).
             m_parameterMap[index].first = val;
             m_parameterMap[index].second = AtomicString();
@@ -128,7 +126,7 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
         // Perform DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor {[[Value]]:%ArrayProto_values%, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}).
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = state.context()->globalObject()->arrayPrototypeValues();
         // Perform DefinePropertyOrThrow(obj, "callee", PropertyDescriptor {[[Value]]: func, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}).
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = record->functionObject();
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = sourceFunctionObject;
     } else {
         m_structure = state.context()->defaultStructureForUnmappedArgumentsObject();
 
@@ -140,7 +138,7 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecor
         // Repeat while index < len,
         while (index < len) {
             // Let val be argumentsList[index].
-            Value val = record->argv()[index];
+            Value val = argv[index];
             // Perform CreateDataProperty(obj, ToString(index), val).
             m_parameterMap[index].first = val;
             m_parameterMap[index].second = AtomicString();
@@ -319,7 +317,7 @@ bool ArgumentsObject::isModifiedArgument(uint64_t index)
     if (m_modifiedArguments.size() == 0) {
         return false;
     }
-    if (LIKELY(index != Value::InvalidIndexValue) && index < m_modifiedArguments.size()) {
+    if (LIKELY(index != Value::InvalidIndexValue) && index < m_argc) {
         return m_modifiedArguments[index];
     }
     return false;
@@ -329,9 +327,9 @@ void ArgumentsObject::setModifiedArgument(uint64_t index)
 {
     if (LIKELY(index != Value::InvalidIndexValue)) {
         if (m_modifiedArguments.size() == 0) {
-            m_modifiedArguments.resize(m_targetRecord->argc(), false);
+            m_modifiedArguments.resize(m_argc, false);
         }
-        if (index < m_modifiedArguments.size()) {
+        if (index < m_argc) {
             m_modifiedArguments[index] = true;
         }
     }

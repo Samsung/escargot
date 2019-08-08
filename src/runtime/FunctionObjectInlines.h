@@ -122,7 +122,7 @@ public:
 
         if (LIKELY(codeBlock->canAllocateEnvironmentOnStack())) {
             // no capture, very simple case
-            record = new (alloca(sizeof(FunctionEnvironmentRecord))) FunctionEnvironmentRecordOnStack<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self, argc, argv);
+            record = new (alloca(sizeof(FunctionEnvironmentRecord))) FunctionEnvironmentRecordOnStack<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self);
             lexEnv = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, self->outerEnvironment()
 #ifndef NDEBUG
                                                                                              ,
@@ -131,12 +131,12 @@ public:
                                                                                  );
         } else {
             if (LIKELY(codeBlock->canUseIndexedVariableStorage())) {
-                record = new FunctionEnvironmentRecordOnHeap<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self, argc, argv);
+                record = new FunctionEnvironmentRecordOnHeap<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self);
             } else {
                 if (LIKELY(!codeBlock->needsVirtualIDOperation())) {
-                    record = new FunctionEnvironmentRecordNotIndexed<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self, argc, argv);
+                    record = new FunctionEnvironmentRecordNotIndexed<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self);
                 } else {
-                    record = new FunctionEnvironmentRecordNotIndexedWithVirtualID(self, argc, argv);
+                    record = new FunctionEnvironmentRecordNotIndexedWithVirtualID(self);
                 }
             }
             lexEnv = new LexicalEnvironment(record, self->outerEnvironment());
@@ -244,7 +244,9 @@ public:
 
         ThisValueBinder thisValueBinder;
         if (UNLIKELY(codeBlock->isGenerator())) {
-            ExecutionState* newState = new ExecutionState(ctx, &state, lexEnv, self, isStrict, registerFile);
+            Value* gcArgv = (Value*)GC_MALLOC(sizeof(Value) * argc);
+            memcpy(gcArgv, argv, sizeof(Value) * argc);
+            ExecutionState* newState = new ExecutionState(ctx, &state, lexEnv, self, argc, gcArgv, isStrict, registerFile);
             // prepare receiver(this variable)
 
             // we should use newState because
@@ -260,7 +262,7 @@ public:
             // FIXME
             if (UNLIKELY(codeBlock->usesArgumentsObject())) {
                 bool isMapped = !codeBlock->hasArgumentInitializers() && !isStrict;
-                self->generateArgumentsObject(*newState, record, stackStorage, isMapped);
+                self->generateArgumentsObject(*newState, argc, argv, record, stackStorage, isMapped);
             }
 
             GeneratorObject* gen = new GeneratorObject(state, newState, blk);
@@ -268,7 +270,7 @@ public:
             return gen;
         }
 
-        ExecutionState newState(ctx, &state, lexEnv, self, isStrict);
+        ExecutionState newState(ctx, &state, lexEnv, self, argc, argv, isStrict);
 
         // prepare receiver(this variable)
         // we should use newState because
@@ -284,7 +286,7 @@ public:
         if (UNLIKELY(codeBlock->usesArgumentsObject())) {
             // FIXME check if formal parameters does not contain a rest parameter, any binding patterns, or any initializers.
             bool isMapped = !codeBlock->hasArgumentInitializers() && !isStrict;
-            self->generateArgumentsObject(newState, record, stackStorage, isMapped);
+            self->generateArgumentsObject(newState, argc, argv, record, stackStorage, isMapped);
         }
 
         // run function
