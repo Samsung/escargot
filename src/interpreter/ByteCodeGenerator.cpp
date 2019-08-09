@@ -139,9 +139,10 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
     // generate common codes
     try {
         ast->generateStatementByteCode(block, &ctx);
+        // add return bytecode at the end of function body
         if (!isGlobalScope && !isEvalMode) {
-            ASSERT(ast->type() == ASTNodeType::BlockStatement);
-            BlockStatementNode* blk = (BlockStatementNode*)ast;
+            ASSERT(ast->type() == ASTNodeType::Function);
+            BlockStatementNode* blk = ((FunctionNode*)ast)->body();
             StatementNode* nd = blk->firstChild();
             StatementNode* last = nullptr;
             while (nd) {

@@ -194,8 +194,8 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_lexicalBlockIndexFunctionLocatedIn(0)
     , m_parentCodeBlock(nullptr)
 #ifndef NDEBUG
-    , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
-    , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+    , m_bodyStartLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+    , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_scopeContext(nullptr)
 #endif
 {
@@ -253,8 +253,9 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
 
 InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
     : m_script(script)
-    , m_paramsSrc((scopeCtx->m_hasRestElement || scopeCtx->m_hasPatternArgument) ? StringView(src, scopeCtx->m_paramsStart.index, scopeCtx->m_locStart.index) : StringView())
-    , m_src(StringView(src, scopeCtx->m_locStart.index, scopeCtx->m_locEnd.index))
+    , m_src(StringView(src, scopeCtx->m_paramsStartLOC.index, scopeCtx->m_bodyEndLOC.index))
+    // FIXME replace m_bodySrc by bodySrcLength
+    , m_bodySrc(StringView(src, scopeCtx->m_bodyStartLOC.index, scopeCtx->m_bodyEndLOC.index))
     , m_sourceElementStart(sourceElementStart)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
@@ -262,8 +263,8 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_lexicalBlockIndexFunctionLocatedIn(scopeCtx->m_lexicalBlockIndexFunctionLocatedIn)
     , m_parentCodeBlock(parentBlock)
 #ifndef NDEBUG
-    , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
-    , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+    , m_bodyStartLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+    , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_scopeContext(nullptr)
 #endif
 {

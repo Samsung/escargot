@@ -20,21 +20,16 @@
 #ifndef FunctionDeclarationNode_h
 #define FunctionDeclarationNode_h
 
-#include "FunctionNode.h"
-
 namespace Escargot {
 
 class FunctionDeclarationNode : public StatementNode {
 public:
     friend class ScriptParser;
     FunctionDeclarationNode(const AtomicString& id, PatternNodeVector&& params, Node* body, ASTFunctionScopeContext* scopeContext, bool isGenerator, size_t /*subCodeBlockIndex not used yet*/)
-        : m_function(id, std::move(params), body, scopeContext, isGenerator, this)
+        : m_isGenerator(isGenerator)
     {
-    }
-
-    FunctionNode& function()
-    {
-        return m_function;
+        scopeContext->m_nodeType = this->type();
+        scopeContext->m_isGenerator = isGenerator;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::FunctionDeclaration; }
@@ -43,8 +38,13 @@ public:
         // do nothing
     }
 
+    bool isGenerator() const
+    {
+        return m_isGenerator;
+    }
+
 private:
-    FunctionNode m_function;
+    bool m_isGenerator;
 };
 }
 

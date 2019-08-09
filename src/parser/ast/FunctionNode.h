@@ -20,51 +20,41 @@
 #ifndef FunctionNode_h
 #define FunctionNode_h
 
-#include "ExpressionNode.h"
+#include "Node.h"
 #include "StatementNode.h"
-#include "IdentifierNode.h"
+#include "BlockStatementNode.h"
 
 namespace Escargot {
 
-class FunctionNode {
+class FunctionNode : public StatementNode {
 public:
-    FunctionNode(const AtomicString& id, PatternNodeVector&& params, Node* body, ASTFunctionScopeContext* scopeContext, bool isGenerator, Node* node)
-        : m_isGenerator(isGenerator)
-        , m_id(id)
-        , m_params(std::move(params))
+    FunctionNode(StatementContainer* params, BlockStatementNode* body)
+        : StatementNode()
+        , m_params(params)
         , m_body(body)
-        , m_scopeContext(scopeContext)
-    {
-        m_scopeContext->m_nodeType = node->type();
-        m_scopeContext->m_isGenerator = isGenerator;
-    }
-    ~FunctionNode()
     {
     }
 
-    AtomicStringVector paramsToAtomicStringVector()
+    virtual ~FunctionNode()
     {
-        AtomicStringVector ret;
-
-        ret.resizeWithUninitializedValues(m_params.size());
-        for (size_t i = 0; i < m_params.size(); i++) {
-            ret[i] = m_params[i]->asIdentifier()->name();
-        }
-
-        return ret;
     }
 
-    inline const PatternNodeVector& params() { return m_params; }
-    inline Node* body() { return m_body.get(); }
-    inline const AtomicString& id() { return m_id; }
-    ASTFunctionScopeContext* scopeContext() { return m_scopeContext; }
-    inline bool isGenerator() { return m_isGenerator; };
+    virtual ASTNodeType type() { return ASTNodeType::Function; }
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        m_params->generateStatementByteCode(codeBlock, context);
+        m_body->generateStatementByteCode(codeBlock, context);
+    }
+
+    BlockStatementNode* body()
+    {
+        ASSERT(!!m_body);
+        return m_body.get();
+    }
+
 private:
-    bool m_isGenerator : 1;
-    AtomicString m_id; // id: Identifier;
-    PatternNodeVector m_params; // params: [ Pattern ];
-    RefPtr<Node> m_body;
-    ASTFunctionScopeContext* m_scopeContext;
+    RefPtr<StatementContainer> m_params;
+    RefPtr<BlockStatementNode> m_body;
 };
 }
 

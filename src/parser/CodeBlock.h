@@ -653,10 +653,9 @@ public:
         return m_src;
     }
 
-    const StringView& paramsSrc()
+    const StringView& bodySrc()
     {
-        ASSERT(m_hasArgumentInitializers);
-        return m_paramsSrc;
+        return m_bodySrc;
     }
 
     ExtendedNodeLOC sourceElementStart()
@@ -734,8 +733,8 @@ protected:
     }
 
     Script* m_script;
-    StringView m_paramsSrc; // function parameters elements src
-    StringView m_src; // function source elements src
+    StringView m_src; // function source including parameters
+    StringView m_bodySrc; // function body source
     ExtendedNodeLOC m_sourceElementStart;
 
     FunctionParametersInfoVector m_parametersInfomation;
@@ -750,8 +749,8 @@ protected:
     CodeBlockVector m_childBlocks;
 
 #ifndef NDEBUG
-    ExtendedNodeLOC m_locStart;
-    ExtendedNodeLOC m_locEnd;
+    ExtendedNodeLOC m_bodyStartLOC;
+    ExtendedNodeLOC m_bodyEndLOC;
     ASTFunctionScopeContext* m_scopeContext;
 #endif
 };

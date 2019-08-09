@@ -178,6 +178,7 @@ COMPILE_ASSERT(((int)BinaryExpressionGreaterThanOrEqual + 1) == (int)BinaryExpre
 COMPILE_ASSERT(((int)BinaryExpressionLessThan + 1) == (int)BinaryExpressionLessThanOrEqual, "");
 COMPILE_ASSERT(((int)BinaryExpressionLessThanOrEqual - (int)BinaryExpressionEqual) == 7, "");
 
+// Location in the script source code
 struct NodeLOC {
     size_t index;
     explicit NodeLOC(size_t index)
@@ -186,6 +187,7 @@ struct NodeLOC {
     }
 };
 
+// Extended location in the script source code
 struct ExtendedNodeLOC {
     union {
         size_t line;
@@ -218,8 +220,6 @@ class ObjectExpressionNode;
 class StatementNode;
 
 class Node : public RefCounted<Node> {
-    friend class ScriptParser;
-
 protected:
     Node()
         : m_loc(SIZE_MAX)
@@ -601,12 +601,12 @@ struct ASTFunctionScopeContext : public gc {
     // we can use atomic allocator here because there is no pointer value on Vector<m_numeralLiteralData>
     Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>> m_numeralLiteralData;
 
-    ExtendedNodeLOC m_locStart;
-    NodeLOC m_paramsStart;
+    ExtendedNodeLOC m_paramsStartLOC;
+    ExtendedNodeLOC m_bodyStartLOC;
 #ifndef NDEBUG
-    ExtendedNodeLOC m_locEnd;
+    ExtendedNodeLOC m_bodyEndLOC;
 #else
-    NodeLOC m_locEnd;
+    NodeLOC m_bodyEndLOC;
 #endif
 
     void *operator new(size_t size);
@@ -824,16 +824,16 @@ struct ASTFunctionScopeContext : public gc {
         , m_needsToComputeLexicalBlockStuffs(false)
         , m_nodeType(ASTNodeType::Program)
         , m_lexicalBlockIndexFunctionLocatedIn(LEXICAL_BLOCK_INDEX_MAX)
-        , m_locStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
-        , m_paramsStart(SIZE_MAX)
+        , m_paramsStartLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+        , m_bodyStartLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 #ifndef NDEBUG
-        , m_locEnd(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+        , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 #else
-        , m_locEnd(SIZE_MAX)
+        , m_bodyEndLOC(SIZE_MAX)
 #endif
     {
         // function is first block context
-        insertBlockScope(0, LEXICAL_BLOCK_INDEX_MAX, m_locStart);
+        insertBlockScope(0, LEXICAL_BLOCK_INDEX_MAX, m_bodyStartLOC);
     }
 };
 
