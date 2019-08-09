@@ -479,7 +479,9 @@ class TestSuite(object):
           if self.ShouldRun(rel_path, tests):
             basename = path.basename(full_path)[:-3]
             name = rel_path.split(path.sep)[:-1] + [basename]
-            if EXCLUDE_LIST.count(basename) >= 1:
+            if rel_path[0:rel_path.rindex('.')] in EXCLUDE_LIST :
+              print 'Excluded: ' + rel_path
+            elif EXCLUDE_LIST.count(basename) >= 1:
               print 'Excluded: ' + basename
             else:
               if not self.non_strict_only:

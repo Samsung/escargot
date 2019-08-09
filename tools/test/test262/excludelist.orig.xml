@@ -278,7 +278,7 @@
   <test id="S25.4.4.3_A4.1_T1"><reason>TODO</reason></test>
   <test id="targetdesc-not-compatible-descriptor-not-configurable-target"><reason>TODO</reason></test>
   <test id="targetdesc-not-compatible-descriptor"><reason>TODO</reason></test>
-  <test id="call-parameters"><reason>TODO</reason></test>
+  <test id="built-ins/Proxy/enumerate/call-parameters"><reason>This test is inconsistent with ECMAScript6.0, and related spec was already deplecated in ECMAScript8.0</reason></test>
   <test id="result-not-an-object-throws-boolean"><reason>TODO</reason></test>
   <test id="result-not-an-object-throws-number"><reason>TODO</reason></test>
   <test id="result-not-an-object-throws-string"><reason>TODO</reason></test>
