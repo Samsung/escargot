@@ -176,10 +176,10 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
             }
         }
 
-        if (fnRecord->hasBinding(newState, arguments).m_index == SIZE_MAX && fnRecord->functionObject()->isScriptFunctionObject()) {
+        if (fnRecord->hasBinding(newState, arguments).m_index == SIZE_MAX && state.callee()->isScriptFunctionObject()) {
             // FIXME check if formal parameters does not contain a rest parameter, any binding patterns, or any initializers.
-            bool isMapped = !fnRecord->functionObject()->codeBlock()->hasArgumentInitializers() && !inStrict;
-            fnRecord->functionObject()->asScriptFunctionObject()->generateArgumentsObject(newState, fnRecord, nullptr, isMapped);
+            bool isMapped = !state.callee()->codeBlock()->hasArgumentInitializers() && !inStrict;
+            state.callee()->asScriptFunctionObject()->generateArgumentsObject(newState, state.argc(), state.argv(), fnRecord, nullptr, isMapped);
         }
     }
 

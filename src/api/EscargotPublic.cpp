@@ -1212,7 +1212,7 @@ public:
 
 static Value publicFunctionBridge(ExecutionState& state, Value thisValue, size_t calledArgc, Value* calledArgv, bool isNewExpression)
 {
-    CodeBlock* dataCb = state.lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock();
+    CodeBlock* dataCb = state.callee()->codeBlock();
     CallPublicFunctionData* code = (CallPublicFunctionData*)(dataCb->nativeFunctionData());
     ValueRef** newArgv = ALLOCA(sizeof(ValueRef*) * calledArgc, ValueRef*, state);
     for (size_t i = 0; i < calledArgc; i++) {
@@ -1421,9 +1421,7 @@ std::vector<FunctionObjectRef*> ExecutionStateRef::resolveCallstack()
     while (state) {
         if (state->lexicalEnvironment() && state->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord()
             && state->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-            auto r = state->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-            FunctionObject* callee = r->functionObject();
-            result.push_back(toRef(callee));
+            result.push_back(toRef(state->callee()));
         }
         state = state->parent();
     }

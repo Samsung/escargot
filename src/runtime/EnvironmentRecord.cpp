@@ -248,8 +248,8 @@ void DeclarativeEnvironmentRecordNotIndexed::initializeBinding(ExecutionState& s
 }
 
 template <bool canBindThisValue, bool hasNewTarget>
-FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::FunctionEnvironmentRecordOnHeap(FunctionObject* function, size_t argc, Value* argv)
-    : FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>(function, argc, argv)
+FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::FunctionEnvironmentRecordOnHeap(FunctionObject* function)
+    : FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>(function)
     , m_heapStorage(function->codeBlock()->asInterpretedCodeBlock()->identifierOnHeapCount())
 {
 }
@@ -268,8 +268,8 @@ void FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::setMutable
 }
 
 template <bool canBindThisValue, bool hasNewTarget>
-FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::FunctionEnvironmentRecordNotIndexed(FunctionObject* function, size_t argc, Value* argv)
-    : FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>(function, argc, argv)
+FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::FunctionEnvironmentRecordNotIndexed(FunctionObject* function)
+    : FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>(function)
     , m_heapStorage()
 {
     const InterpretedCodeBlock::IdentifierInfoVector& vec = function->codeBlock()->asInterpretedCodeBlock()->identifierInfos();

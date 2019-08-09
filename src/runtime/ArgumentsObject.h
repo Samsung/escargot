@@ -27,12 +27,13 @@ namespace Escargot {
 
 class FunctionEnvironmentRecord;
 class InterpretedCodeBlock;
+class ScriptFunctionObject;
 
 extern size_t g_argumentsObjectTag;
 
 class ArgumentsObject : public Object {
 public:
-    ArgumentsObject(ExecutionState& state, FunctionEnvironmentRecord* record, bool isMapped);
+    ArgumentsObject(ExecutionState& state, ScriptFunctionObject* sourceFunctionObject, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, bool isMapped);
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
@@ -53,6 +54,7 @@ private:
     FunctionEnvironmentRecord* m_targetRecord;
     InterpretedCodeBlock* m_codeBlock;
     TightVector<std::pair<SmallValue, AtomicString>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<SmallValue, AtomicString>>> m_parameterMap;
+    size_t m_argc;
     TightVector<bool, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<bool>> m_modifiedArguments;
 
     Value getIndexedPropertyValueQuickly(ExecutionState& state, uint64_t index);

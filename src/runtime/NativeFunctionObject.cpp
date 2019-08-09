@@ -135,7 +135,7 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
     }
 
     Value receiver = receiverSrc;
-    ExecutionState newState(ctx, &state, nullptr, this, isStrict);
+    ExecutionState newState(ctx, &state, nullptr, this, argc, argv, isStrict);
 
     if (!isConstruct) {
         // prepare receiver

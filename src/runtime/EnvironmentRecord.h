@@ -689,11 +689,9 @@ struct FunctionEnvironmentRecordPiece<true, true> {
 
 class FunctionEnvironmentRecord : public DeclarativeEnvironmentRecord {
 public:
-    FunctionEnvironmentRecord(FunctionObject* function, size_t argc, Value* argv)
+    FunctionEnvironmentRecord(FunctionObject* function)
         : DeclarativeEnvironmentRecord()
         , m_functionObject(function)
-        , m_argc(argc)
-        , m_argv(argv)
     {
     }
 
@@ -735,21 +733,6 @@ public:
     FunctionObject* functionObject()
     {
         return m_functionObject;
-    }
-
-    size_t argc()
-    {
-        return m_argc;
-    }
-
-    Value* argv()
-    {
-        return m_argv;
-    }
-
-    Value createArgumentsObject(ExecutionState& state, bool isMapped)
-    {
-        return new ArgumentsObject(state, this, isMapped);
     }
 
     virtual bool hasSuperBinding()
@@ -799,8 +782,6 @@ public:
 
 protected:
     FunctionObject* m_functionObject;
-    size_t m_argc;
-    Value* m_argv;
 };
 
 template <bool canBindThisValue, bool hasNewTarget>
@@ -810,8 +791,8 @@ class FunctionEnvironmentRecordWithExtraData : public FunctionEnvironmentRecord 
     friend class ByteCodeInterpreter;
 
 public:
-    ALWAYS_INLINE explicit FunctionEnvironmentRecordWithExtraData(FunctionObject* function, size_t argc, Value* argv)
-        : FunctionEnvironmentRecord(function, argc, argv)
+    ALWAYS_INLINE explicit FunctionEnvironmentRecordWithExtraData(FunctionObject* function)
+        : FunctionEnvironmentRecord(function)
     {
     }
 
@@ -842,8 +823,8 @@ protected:
 template <bool canBindThisValue, bool hasNewTarget>
 class FunctionEnvironmentRecordOnStack : public FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget> {
 public:
-    FunctionEnvironmentRecordOnStack(FunctionObject* function, size_t argc, Value* argv)
-        : FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>(function, argc, argv)
+    FunctionEnvironmentRecordOnStack(FunctionObject* function)
+        : FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>(function)
     {
     }
 
@@ -860,7 +841,7 @@ class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecordWithExtr
     friend class ScriptFunctionObject;
 
 public:
-    FunctionEnvironmentRecordOnHeap(FunctionObject* function, size_t argc, Value* argv);
+    FunctionEnvironmentRecordOnHeap(FunctionObject* function);
 
     virtual bool isFunctionEnvironmentRecordOnHeap() override
     {
@@ -944,7 +925,7 @@ class FunctionEnvironmentRecordNotIndexed : public FunctionEnvironmentRecordWith
     friend class LexicalEnvironment;
 
 public:
-    FunctionEnvironmentRecordNotIndexed(FunctionObject* function, size_t argc, Value* argv);
+    FunctionEnvironmentRecordNotIndexed(FunctionObject* function);
 
     virtual bool isFunctionEnvironmentRecordNotIndexed() override
     {
@@ -1007,8 +988,8 @@ private:
 
 class FunctionEnvironmentRecordNotIndexedWithVirtualID : public FunctionEnvironmentRecordNotIndexed<true, true> {
 public:
-    FunctionEnvironmentRecordNotIndexedWithVirtualID(FunctionObject* function, size_t argc, Value* argv)
-        : FunctionEnvironmentRecordNotIndexed(function, argc, argv)
+    FunctionEnvironmentRecordNotIndexedWithVirtualID(FunctionObject* function)
+        : FunctionEnvironmentRecordNotIndexed(function)
     {
     }
 
