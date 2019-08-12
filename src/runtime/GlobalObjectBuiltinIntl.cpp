@@ -2547,11 +2547,7 @@ static Value builtinIntlGetCanonicalLocales(ExecutionState& state, Value thisVal
     // Let ll be ? CanonicalizeLocaleList(locales).
     ValueVector ll = canonicalizeLocaleList(state, argv[0]);
     // Return CreateArrayFromList(ll);
-    ArrayObject* ret = new ArrayObject(state, 0.0);
-    for (size_t i = 0; i < ll.size(); i++) {
-        ret->defineOwnProperty(state, ObjectPropertyName(state, Value(i)), ObjectPropertyDescriptor(ll[i], ObjectPropertyDescriptor::AllPresent));
-    }
-    return ret;
+    return Object::createArrayFromList(state, ll);
 }
 
 void GlobalObject::installIntl(ExecutionState& state)

@@ -93,6 +93,8 @@ public:
 
     virtual bool hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName) override;
 
+    virtual ValueVector ownPropertyKeys(ExecutionState& state) override;
+
     virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& propertyName) override;
     virtual bool set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, const Value& receiver) override;
 

@@ -854,9 +854,9 @@ bool ObjectRef::setPrototype(ExecutionStateRef* state, ValueRef* value)
     return toImpl(this)->setPrototype(*toImpl(state), toImpl(value));
 }
 
-ValueVectorRef* ObjectRef::getOwnPropertyKeys(ExecutionStateRef* state)
+ValueVectorRef* ObjectRef::ownPropertyKeys(ExecutionStateRef* state)
 {
-    ValueVector v = toImpl(this)->getOwnPropertyKeys(*toImpl(state));
+    ValueVector v = toImpl(this)->ownPropertyKeys(*toImpl(state));
 
     ValueVectorRef* result = ValueVectorRef::create(v.size());
     for (size_t i = 0; i < v.size(); i++) {

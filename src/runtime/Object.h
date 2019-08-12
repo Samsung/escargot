@@ -514,6 +514,24 @@ protected:
 
 extern size_t g_objectTag;
 
+enum class EnumerableOwnPropertiesType {
+    Key,
+    Value,
+    KeyAndValue
+};
+
+
+enum class ElementTypes : uint8_t {
+    Undefined = 1,
+    Null = 1 << 1,
+    Boolean = 1 << 2,
+    String = 1 << 3,
+    Symbol = 1 << 4,
+    Number = 1 << 5,
+    Object = 1 << 6,
+    ALL = Undefined | Null | Boolean | String | Symbol | Number | Object
+};
+
 class Object : public PointerValue {
     friend class VMInstance;
     friend class GlobalObject;
@@ -650,7 +668,7 @@ public:
         return get(state, propertyName).hasValue();
     }
 
-    ValueVector getOwnPropertyKeys(ExecutionState& state);
+    virtual ValueVector ownPropertyKeys(ExecutionState& state);
 
     virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P);
     virtual bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
@@ -766,6 +784,7 @@ public:
         ensureObjectRareData()->m_internalSlot = object;
     }
 
+    static Value get(ExecutionState& state, const Value& value, const ObjectPropertyName& propertyName);
     static Value getMethod(ExecutionState& state, const Value& object, const ObjectPropertyName& propertyName);
     static Value call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv);
     static Object* construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Object* newTarget = nullptr);
@@ -774,6 +793,10 @@ public:
     static void throwCannotDefineError(ExecutionState& state, const PropertyName& P);
     static void throwCannotWriteError(ExecutionState& state, const PropertyName& P);
     static void throwCannotDeleteError(ExecutionState& state, const PropertyName& P);
+    static ArrayObject* createArrayFromList(ExecutionState& state, const size_t size, Value* buffer);
+    static ArrayObject* createArrayFromList(ExecutionState& state, ValueVector& elements);
+    static ValueVector createListFromArrayLike(ExecutionState& state, Value obj, uint8_t types = (uint8_t)ElementTypes::ALL);
+    static ValueVector enumerableOwnProperties(ExecutionState& state, Object* object, EnumerableOwnPropertiesType kind);
 
     // this function differ with defineOwnProperty.
     // !hasOwnProperty(state, P) is needed for success

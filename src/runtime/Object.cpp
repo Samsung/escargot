@@ -722,16 +722,37 @@ void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState&
     }
 }
 
-ValueVector Object::getOwnPropertyKeys(ExecutionState& state)
+ValueVector Object::ownPropertyKeys(ExecutionState& state)
 {
-    ValueVector result;
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
+    struct Params {
+        ValueVector integers;
+        ValueVector strings;
+        ValueVector symbols;
+    } params;
+
     enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-        ValueVector* result = (ValueVector*)data;
-        result->pushBack(name.toPlainValue(state));
+        auto params = (Params*)data;
+        auto value = name.toPlainValue(state);
+
+        if (value.isSymbol()) {
+            params->symbols.pushBack(value);
+        } else if (value.toArrayIndex(state) != Value::InvalidArrayIndexValue) {
+            params->integers.pushBack(value.toString(state));
+        } else {
+            params->strings.pushBack(value);
+        }
         return true;
     },
-                &result, false);
-    return result;
+                &params, false);
+
+    for (size_t i = 0; i < params.strings.size(); ++i) {
+        params.integers.pushBack(params.strings[i]);
+    }
+    for (size_t i = 0; i < params.symbols.size(); ++i) {
+        params.integers.pushBack(params.symbols[i]);
+    }
+    return params.integers;
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-get-p-receiver
@@ -817,6 +838,18 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
     Value argv[] = { v };
     Object::call(state, setter, receiver, 1, argv);
     return true;
+}
+
+Value Object::get(ExecutionState& state, const Value& value, const ObjectPropertyName& propertyName)
+{
+    // 7.3.1 Get ( O, P )
+    // Assert: Type(O) is Object.
+    ASSERT(value.isObject());
+    // TODO : Assert: IsPropertyKey(P) is true.
+    // Return O.[[Get]](P, O).
+    auto o = value.asObject();
+    // 4. Return O.[[Get]](P, V).
+    return o->get(state, propertyName).value(state, value);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-getmethod
@@ -936,6 +969,71 @@ void Object::throwCannotWriteError(ExecutionState& state, const PropertyName& P)
 void Object::throwCannotDeleteError(ExecutionState& state, const PropertyName& P)
 {
     ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, errorMessage_DefineProperty_NotConfigurable);
+}
+
+ArrayObject* Object::createArrayFromList(ExecutionState& state, const size_t size, Value* buffer)
+{
+    // Let array be ! ArrayCreate(0).
+    // Let n be 0.
+    // For each element e of elements, do
+    // Let status be CreateDataProperty(array, ! ToString(n), e).
+    // Assert: status is true.
+    // Increment n by 1.
+    // Return array.
+    ArrayObject* array = new ArrayObject(state);
+    for (size_t n = 0; n < size; n++) {
+        array->defineOwnProperty(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(buffer[n], ObjectPropertyDescriptor::AllPresent));
+    }
+    return array;
+}
+
+ArrayObject* Object::createArrayFromList(ExecutionState& state, ValueVector& elements)
+{
+    return Object::createArrayFromList(state, elements.size(), elements.data());
+}
+
+ValueVector Object::createListFromArrayLike(ExecutionState& state, Value obj, uint8_t elementTypes)
+{
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-createlistfromarraylike
+    auto strings = &state.context()->staticStrings();
+
+    // 1. ReturnIfAbrupt(obj).
+    // 2. If elementTypes was not passed, let elementTypes be (Undefined, Null, Boolean, String, Symbol, Number, Object).
+
+    // 3. If Type(obj) is not Object, throw a TypeError exception.
+    if (!obj.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->object.string(), false, String::emptyString, "%s: obj is not Object");
+    }
+
+    // 4. Let len be ToLength(Get(obj, "length")).
+    // 5. ReturnIfAbrupt(len).
+    Object* o = obj.toObject(state);
+    auto len = o->lengthES6(state);
+
+    // 6. Let list be an empty List.
+    ValueVector list;
+    // 7. Let index be 0.
+    size_t index = 0;
+    //8. Repeat while index < len
+    while (index < len) {
+        // a. Let indexName be ToString(index).
+        auto indexName = Value(index).toString(state);
+        // b. Let next be Get(obj, indexName).
+        // c. ReturnIfAbrupt(next).
+        auto next = Object::get(state, o, ObjectPropertyName(state, indexName));
+
+        // d. If Type(next) is not an element of elementTypes, throw a TypeError exception.
+        if (!(((elementTypes & (uint8_t)ElementTypes::Undefined) && next.isUndefined()) || ((elementTypes & (uint8_t)ElementTypes::Null) && next.isNull()) || ((elementTypes & (uint8_t)ElementTypes::Boolean) && next.isBoolean()) || ((elementTypes & (uint8_t)ElementTypes::String) && next.isString()) || ((elementTypes & (uint8_t)ElementTypes::Symbol) && next.isSymbol()) || ((elementTypes & (uint8_t)ElementTypes::Number) && next.isNumber()) || ((elementTypes & (uint8_t)ElementTypes::Object) && next.isObject()))) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->object.string(), false, String::emptyString, "%s: Type(next) is not an element of elementTypes");
+        }
+        // e. Append next as the last element of list.
+        list.pushBack(next);
+        // f. Set index to index + 1.
+        index += 1;
+    }
+
+    // 9. Return list.
+    return list;
 }
 
 void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
@@ -1159,6 +1257,60 @@ IteratorObject* Object::keys(ExecutionState& state)
 IteratorObject* Object::entries(ExecutionState& state)
 {
     return new ArrayIteratorObject(state, this, ArrayIteratorObject::TypeKeyValue);
+}
+
+ValueVector Object::enumerableOwnProperties(ExecutionState& state, Object* object, EnumerableOwnPropertiesType kind)
+{
+    // https://www.ecma-international.org/ecma-262/8.0/#sec-enumerableownproperties
+
+    // 1. Assert: Type(O) is Object.
+    // 2. Let ownKeys be ? O.[[OwnPropertyKeys]]().
+    auto ownKeys = object->ownPropertyKeys(state);
+    // 3. Let properties be a new empty List.
+    ValueVector properties;
+
+    // 4. For each element key of ownKeys in List order, do
+    for (size_t i = 0; i < ownKeys.size(); ++i) {
+        auto& key = ownKeys[i];
+        // a. If Type(key) is String, then
+        if (key.isString()) {
+            auto propertyName = ObjectPropertyName(state, key);
+
+            // i. Let desc be ? O.[[GetOwnProperty]](key).
+            auto desc = object->getOwnProperty(state, propertyName);
+            // ii. If desc is not undefined and desc.[[Enumerable]] is true, then
+            if (desc.hasValue() && desc.isEnumerable()) {
+                if (kind == EnumerableOwnPropertiesType::Key) {
+                    // 1. If kind is "key", append key to properties
+                    properties.pushBack(key);
+                } else {
+                    // 2. Else
+                    // a. Let value be ? Get(O, key).
+                    Value value = Object::get(state, object, propertyName);
+                    // b. If kind is "value", append value to properties.
+                    if (kind == EnumerableOwnPropertiesType::Value) {
+                        properties.pushBack(value);
+                    } else {
+                        // c. else
+                        // i. Assert: kind is "key+value".
+                        ASSERT(kind == EnumerableOwnPropertiesType::KeyAndValue);
+                        // ii. Let entry be CreateArrayFromList(« key, value »).
+                        ValueVector vv;
+                        vv.pushBack(key);
+                        vv.pushBack(value);
+                        auto entry = createArrayFromList(state, vv);
+                        // iii. Append entry to properties.
+                        properties.push_back(entry);
+                    }
+                }
+            }
+        }
+    }
+    // 5. Order the elements of properties so they are in the same relative order as would be produced by
+    // the Iterator that would be returned if the EnumerateObjectProperties internal method were invoked with O.
+
+    // 6. Return properties.
+    return properties;
 }
 
 Value Object::speciesConstructor(ExecutionState& state, const Value& defaultConstructor)

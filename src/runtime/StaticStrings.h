@@ -334,6 +334,7 @@ namespace Escargot {
     F(alreadyCalled)              \
     F(values)                     \
     F(Reflect)                    \
+    F(ownKeys)                    \
     F(remainingElements)          \
     F(all)                        \
     F(race)                       \
