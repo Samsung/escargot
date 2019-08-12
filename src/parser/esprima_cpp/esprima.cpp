@@ -112,7 +112,6 @@ struct Config {
     bool loc : 1;
     bool tokens : 1;
     bool comment : 1;
-    bool reparseArguments : 1;
     bool parseSingleFunction : 1;
     uint32_t parseSingleFunctionChildIndex;
     CodeBlock* parseSingleFunctionTarget;
@@ -132,7 +131,6 @@ struct Context {
     bool inIteration : 1;
     bool inSwitch : 1;
     bool inArrowFunction : 1;
-    bool inParsingDirective : 1;
     bool inArgumentParsing : 1;
     bool inWith : 1;
     bool inCatchClause : 1;
@@ -409,7 +407,6 @@ public:
         this->context->inIteration = false;
         this->context->inSwitch = false;
         this->context->inArrowFunction = false;
-        this->context->inParsingDirective = false;
         this->context->inArgumentParsing = false;
         this->context->inWith = false;
         this->context->inCatchClause = false;
@@ -623,16 +620,6 @@ public:
         // Prime the next lookahead.
         this->lookahead = *token;
         this->nextToken();
-    }
-
-    bool shouldCreateAST()
-    {
-        return !inProgramParsingAndInFunctionSourceNode() || this->context->inParsingDirective;
-    }
-
-    bool inProgramParsingAndInFunctionSourceNode()
-    {
-        return !this->config.parseSingleFunction && this->scopeContexts.size() > 1;
     }
 
     MetaNode createNode()
@@ -1038,10 +1025,7 @@ public:
                     return ScanExpressionResult(ASTNodeType::Literal);
                 } else {
                     if (isParse) {
-                        if (shouldCreateAST()) {
-                            return T(this->finalize(node, new LiteralNode(token->valueStringLiteralForAST())));
-                        }
-                        return T(this->finalize(node, new LiteralNode(Value(String::emptyString))));
+                        return T(this->finalize(node, new LiteralNode(token->valueStringLiteralForAST())));
                     }
                     return ScanExpressionResult(ASTNodeType::Literal);
                 }
@@ -1674,7 +1658,9 @@ public:
         RefPtr<Node> method = this->parsePropertyMethod(params);
         this->context->allowYield = previousAllowYield;
 
-        scopeContexts.back()->m_paramsStart.index = node.index;
+        scopeContexts.back()->m_paramsStartLOC.index = node.index;
+        scopeContexts.back()->m_paramsStartLOC.column = node.column;
+        scopeContexts.back()->m_paramsStartLOC.line = node.line;
 
         return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method.get(), popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
@@ -3612,7 +3598,6 @@ public:
                 pushScopeContext(AtomicString());
 
                 if (type == Identifier) {
-                    list = ParseFormalParametersResult();
                     list.params.push_back(exprNode);
                     list.valid = true;
                 } else {
@@ -3623,8 +3608,11 @@ public:
                     this->expect(LeftParenthesis);
 
                     list = this->parseFormalParameters();
-                    scopeContexts.back()->m_paramsStart.index = startMarker.index;
                 }
+
+                scopeContexts.back()->m_paramsStartLOC.index = startNode.index;
+                scopeContexts.back()->m_paramsStartLOC.column = startNode.column;
+                scopeContexts.back()->m_paramsStartLOC.line = startNode.line;
 
                 if (isParse) {
                     exprNode.release();
@@ -3671,16 +3659,17 @@ public:
                     bool isExpression = body->type() != BlockStatement;
                     if (isExpression) {
                         if (this->config.parseSingleFunction) {
+                            //ASSERT(this->config.parseSingleFunctionChildIndex > 0);
                             this->config.parseSingleFunctionChildIndex++;
                         }
-                        scopeContexts.back()->m_locStart.line = nodeStart.line;
-                        scopeContexts.back()->m_locStart.column = nodeStart.column;
-                        scopeContexts.back()->m_locStart.index = nodeStart.index;
+                        scopeContexts.back()->m_bodyStartLOC.line = nodeStart.line;
+                        scopeContexts.back()->m_bodyStartLOC.column = nodeStart.column;
+                        scopeContexts.back()->m_bodyStartLOC.index = nodeStart.index;
 
-                        scopeContexts.back()->m_locEnd.index = this->lastMarker.index;
+                        scopeContexts.back()->m_bodyEndLOC.index = this->lastMarker.index;
 #ifndef NDEBUG
-                        scopeContexts.back()->m_locEnd.line = this->lastMarker.lineNumber;
-                        scopeContexts.back()->m_locEnd.column = this->lastMarker.index - this->lastMarker.lineStart;
+                        scopeContexts.back()->m_bodyEndLOC.line = this->lastMarker.lineNumber;
+                        scopeContexts.back()->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
 #endif
                     }
 
@@ -5575,73 +5564,10 @@ public:
         }
     }
 
-    PassRefPtr<Node> parseArrowFunctionSourceElements()
+    PassRefPtr<StatementContainer> parseFunctionParameters()
     {
-        ASSERT(this->config.parseSingleFunction);
+        RefPtr<StatementContainer> container = StatementContainer::create();
 
-        RefPtr<StatementContainer> argumentInitializers = nullptr;
-
-        if (this->config.reparseArguments) {
-            this->reparseFunctionArguments(argumentInitializers);
-        }
-
-        this->context->inArrowFunction = true;
-        if (this->match(LeftBrace)) {
-            return parseFunctionSourceElements();
-        }
-
-        auto previousLabelSet = this->context->labelSet;
-        bool previousInIteration = this->context->inIteration;
-        bool previousInSwitch = this->context->inSwitch;
-        bool previousInFunctionBody = this->context->inFunctionBody;
-
-        this->context->labelSet.clear();
-        this->context->inIteration = false;
-        this->context->inSwitch = false;
-        this->context->inFunctionBody = true;
-
-        bool previousStrict = this->context->strict;
-        bool previousAllowYield = this->context->allowYield;
-        this->context->allowYield = true;
-
-        this->expect(Arrow);
-        MetaNode nodeStart = this->createNode();
-
-        RefPtr<Node> expr = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
-
-        RefPtr<StatementContainer> body = StatementContainer::create();
-        body->appendChild(this->finalize(nodeStart, new ReturnStatmentNode(expr.get())), nullptr);
-
-        /*
-        if (this->context->strict && list.firstRestricted) {
-            this->throwUnexpectedToken(list.firstRestricted, list.message);
-        }
-        if (this->context->strict && list.stricted) {
-            this->throwUnexpectedToken(list.stricted, list.message);
-        }
-        */
-
-        this->context->strict = previousStrict;
-        this->context->allowYield = previousAllowYield;
-
-        this->context->labelSet = previousLabelSet;
-        this->context->inIteration = previousInIteration;
-        this->context->inSwitch = previousInSwitch;
-        this->context->inFunctionBody = previousInFunctionBody;
-
-        return this->finalize(nodeStart, new BlockStatementNode(body.get(), argumentInitializers.get()));
-    }
-
-    // ECMA-262 14.1 Function Definition
-
-    void reparseFunctionArguments(RefPtr<StatementContainer>& argumentInitializers)
-    {
-        InterpretedCodeBlock* currentTarget = this->config.parseSingleFunctionTarget->asInterpretedCodeBlock();
-        Scanner ParamsScannerInstance(this->escargotContext, currentTarget->paramsSrc(), 0, 0);
-        this->scanner = &ParamsScannerInstance;
-        this->setMarkers(ExtendedNodeLOC(0, 0, 0));
-
-        argumentInitializers = StatementContainer::create();
         this->expect(LeftParenthesis);
         ParseParameterOptions options;
         size_t i = 0;
@@ -5664,7 +5590,7 @@ public:
                 }
 
                 RefPtr<Node> statement = this->finalize(node, new ExpressionStatementNode(p.get()));
-                argumentInitializers->appendChild(statement->asStatementNode());
+                container->appendChild(statement->asStatementNode());
             }
 
             if (end) {
@@ -5675,41 +5601,73 @@ public:
         }
         this->expect(RightParenthesis);
 
-        this->scanner = &this->scannerInstance;
-        this->scanner->index = 0;
-        this->scanner->lineNumber = currentTarget->sourceElementStart().line;
-        this->scanner->lineStart = currentTarget->sourceElementStart().column;
-        this->setMarkers(currentTarget->sourceElementStart());
+        return container;
     }
 
-    PassRefPtr<Node> parseFunctionSourceElements()
+    PassRefPtr<BlockStatementNode> parseFunctionBody()
     {
-        RefPtr<StatementContainer> argumentInitializers = nullptr;
-        if (this->config.parseSingleFunction) {
-            if (this->config.parseSingleFunctionChildIndex > 0) {
-                size_t realIndex = this->config.parseSingleFunctionChildIndex - 1;
-                this->config.parseSingleFunctionChildIndex++;
-                InterpretedCodeBlock* currentTarget = this->config.parseSingleFunctionTarget->asInterpretedCodeBlock();
-                size_t orgIndex = this->lookahead.start;
-                this->expect(LeftBrace);
+        // only for parsing the body of callee function
+        ASSERT(this->config.parseSingleFunction);
 
-                StringView src = currentTarget->childBlocks()[realIndex]->src();
-                this->scanner->index = src.length() + orgIndex;
+        this->lexicalBlockIndex = 0;
+        this->lexicalBlockCount = 0;
 
-                this->scanner->lineNumber = currentTarget->childBlocks()[realIndex]->sourceElementStart().line;
-                this->scanner->lineStart = currentTarget->childBlocks()[realIndex]->sourceElementStart().index - currentTarget->childBlocks()[realIndex]->sourceElementStart().column;
-                this->lookahead.lineNumber = this->scanner->lineNumber;
-                this->lookahead.lineNumber = this->scanner->lineStart;
-                this->lookahead.type = Token::PunctuatorToken;
-                this->lookahead.valuePunctuatorKind = PunctuatorKind::RightBrace;
-                this->expect(RightBrace);
-                return this->finalize(this->createNode(), new BlockStatementNode(StatementContainer::create().get(), this->lexicalBlockIndex));
+        this->subCodeBlockIndex = 0;
+
+        this->context->inCatchClause = false;
+
+        MetaNode nodeStart = this->createNode();
+        RefPtr<StatementContainer> body = StatementContainer::create();
+
+        this->expect(LeftBrace);
+        this->parseDirectivePrologues(body.get());
+
+        this->context->labelSet.clear();
+        this->context->inIteration = false;
+        this->context->inSwitch = false;
+        this->context->inFunctionBody = true;
+
+        StatementNode* referNode = nullptr;
+        while (this->startMarker.index < this->scanner->length) {
+            if (this->match(RightBrace)) {
+                break;
             }
-            this->config.parseSingleFunctionChildIndex++;
-            if (this->config.reparseArguments) {
-                this->reparseFunctionArguments(argumentInitializers);
-            }
+            referNode = body->appendChild(this->statementListItem<ParseAs(StatementNode)>().get(), referNode);
         }
+        this->expect(RightBrace);
+
+        return this->finalize(nodeStart, new BlockStatementNode(body.get(), 0));
+    }
+
+    // ECMA-262 14.1 Function Definition
+
+    PassRefPtr<BlockStatementNode> parseFunctionSourceElements()
+    {
+        if (this->config.parseSingleFunction) {
+            // when parsing for function call,
+            // parseFunctionSourceElements should parse only for child functions
+            ASSERT(this->config.parseSingleFunctionChildIndex > 0);
+
+            size_t realIndex = this->config.parseSingleFunctionChildIndex - 1;
+            this->config.parseSingleFunctionChildIndex++;
+            InterpretedCodeBlock* currentTarget = this->config.parseSingleFunctionTarget->asInterpretedCodeBlock();
+            size_t orgIndex = this->lookahead.start;
+            this->expect(LeftBrace);
+
+            StringView src = currentTarget->childBlocks()[realIndex]->bodySrc();
+            this->scanner->index = src.length() + orgIndex;
+
+            this->scanner->lineNumber = currentTarget->childBlocks()[realIndex]->sourceElementStart().line;
+            this->scanner->lineStart = currentTarget->childBlocks()[realIndex]->sourceElementStart().index - currentTarget->childBlocks()[realIndex]->sourceElementStart().column;
+            this->lookahead.lineNumber = this->scanner->lineNumber;
+            this->lookahead.lineStart = this->scanner->lineStart;
+            this->lookahead.type = Token::PunctuatorToken;
+            this->lookahead.valuePunctuatorKind = PunctuatorKind::RightBrace;
+            this->expect(RightBrace);
+            return this->finalize(this->createNode(), new BlockStatementNode(StatementContainer::create().get(), this->lexicalBlockIndex));
+        }
+
+        ASSERT(!this->config.parseSingleFunction);
         LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
         LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
         this->lexicalBlockIndex = 0;
@@ -5724,9 +5682,10 @@ public:
         auto oldCatchClauseSimplyDeclaredVariableNames = std::move(this->context->catchClauseSimplyDeclaredVariableNames);
 
         MetaNode nodeStart = this->createNode();
+        RefPtr<StatementContainer> body = StatementContainer::create();
 
         this->expect(LeftBrace);
-        RefPtr<StatementContainer> body = this->parseDirectivePrologues();
+        this->parseDirectivePrologues(body.get());
 
         auto previousLabelSet = this->context->labelSet;
         bool previousInIteration = this->context->inIteration;
@@ -5738,22 +5697,12 @@ public:
         this->context->inSwitch = false;
         this->context->inFunctionBody = true;
 
-        if (shouldCreateAST()) {
-            StatementNode* referNode = nullptr;
-            while (this->startMarker.index < this->scanner->length) {
-                if (this->match(RightBrace)) {
-                    break;
-                }
-                referNode = body->appendChild(this->statementListItem<ParseAs(StatementNode)>().get(), referNode);
+        StatementNode* referNode = nullptr;
+        while (this->startMarker.index < this->scanner->length) {
+            if (this->match(RightBrace)) {
+                break;
             }
-        } else {
-            StatementNode* referNode = nullptr;
-            while (this->startMarker.index < this->scanner->length) {
-                if (this->match(RightBrace)) {
-                    break;
-                }
-                this->statementListItem<ScanAsVoid>();
-            }
+            this->statementListItem<ScanAsVoid>();
         }
 
         this->expect(RightBrace);
@@ -5772,21 +5721,17 @@ public:
         this->context->inFunctionBody = previousInFunctionBody;
 
         scopeContexts.back()->m_lexicalBlockIndexFunctionLocatedIn = lexicalBlockIndexBefore;
-        scopeContexts.back()->m_locStart.line = nodeStart.line;
-        scopeContexts.back()->m_locStart.column = nodeStart.column;
-        scopeContexts.back()->m_locStart.index = nodeStart.index;
+        scopeContexts.back()->m_bodyStartLOC.line = nodeStart.line;
+        scopeContexts.back()->m_bodyStartLOC.column = nodeStart.column;
+        scopeContexts.back()->m_bodyStartLOC.index = nodeStart.index;
 
-        scopeContexts.back()->m_locEnd.index = this->lastMarker.index;
+        scopeContexts.back()->m_bodyEndLOC.index = this->lastMarker.index;
 #ifndef NDEBUG
-        scopeContexts.back()->m_locEnd.line = this->lastMarker.lineNumber;
-        scopeContexts.back()->m_locEnd.column = this->lastMarker.index - this->lastMarker.lineStart;
+        scopeContexts.back()->m_bodyEndLOC.line = this->lastMarker.lineNumber;
+        scopeContexts.back()->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
 #endif
 
-        if (this->config.parseSingleFunction) {
-            return this->finalize(nodeStart, new BlockStatementNode(body.get(), 0, argumentInitializers.get()));
-        } else {
-            return this->finalize(nodeStart, new BlockStatementNode(StatementContainer::create().get(), this->lexicalBlockIndex));
-        }
+        return this->finalize(nodeStart, new BlockStatementNode(StatementContainer::create().get(), this->lexicalBlockIndex));
     }
 
     template <class FunctionType, bool isFunctionDeclaration>
@@ -5842,7 +5787,9 @@ public:
             scopeContexts.back()->insertUsingName(fnName, 0);
         }
 
-        scopeContexts.back()->m_paramsStart.index = paramsStart.index;
+        scopeContexts.back()->m_paramsStartLOC.index = paramsStart.index;
+        scopeContexts.back()->m_paramsStartLOC.column = paramsStart.column;
+        scopeContexts.back()->m_paramsStartLOC.line = paramsStart.line;
 
         ParseFormalParametersResult formalParameters = this->parseFormalParameters(&firstRestricted);
         PatternNodeVector params = std::move(formalParameters.params);
@@ -5904,12 +5851,12 @@ public:
         }
     }
 
-    PassRefPtr<StatementContainer> parseDirectivePrologues()
+    void parseDirectivePrologues(StatementContainer* container)
     {
+        ASSERT(container != nullptr);
+
         Scanner::ScannerResult firstRestricted;
 
-        this->context->inParsingDirective = true;
-        RefPtr<StatementContainer> body = StatementContainer::create();
         ALLOC_TOKEN(token);
         while (true) {
             *token = this->lookahead;
@@ -5918,7 +5865,7 @@ public:
             }
 
             RefPtr<Node> statement = this->parseDirective();
-            body->appendChild(statement->asStatementNode());
+            container->appendChild(statement->asStatementNode());
 
             if (statement->type() != Directive) {
                 break;
@@ -5936,10 +5883,6 @@ public:
                 }
             }
         }
-
-        this->context->inParsingDirective = false;
-
-        return body;
     }
 
     // ECMA-262 14.3 Method Definitions
@@ -5959,7 +5902,9 @@ public:
         this->context->allowYield = previousAllowYield;
 
         extractNamesFromFunctionParams(params.params);
-        scopeContexts.back()->m_paramsStart.index = node.index;
+        scopeContexts.back()->m_paramsStartLOC.index = node.index;
+        scopeContexts.back()->m_paramsStartLOC.column = node.column;
+        scopeContexts.back()->m_paramsStartLOC.line = node.line;
         return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method.get(), popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
 
@@ -5990,7 +5935,9 @@ public:
         this->context->isBindingElement = false;
 
         extractNamesFromFunctionParams(options.params);
-        scopeContexts.back()->m_paramsStart.index = node.index;
+        scopeContexts.back()->m_paramsStartLOC.index = node.index;
+        scopeContexts.back()->m_paramsStartLOC.column = node.column;
+        scopeContexts.back()->m_paramsStartLOC.line = node.line;
 
         const bool previousStrict = this->context->strict;
         PassRefPtr<Node> method = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
@@ -6022,7 +5969,9 @@ public:
         this->context->allowYield = previousAllowYield;
 
         extractNamesFromFunctionParams(formalParameters.params);
-        scopeContexts.back()->m_paramsStart.index = node.index;
+        scopeContexts.back()->m_paramsStartLOC.index = node.index;
+        scopeContexts.back()->m_paramsStartLOC.column = node.column;
+        scopeContexts.back()->m_paramsStartLOC.line = node.line;
         return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(formalParameters.params), method.get(), popScopeContext(node), true, this->subCodeBlockIndex));
     }
 
@@ -6135,7 +6084,7 @@ public:
                 this->throwUnexpectedToken(token, Messages::StaticPrototype);
             }
             if (!isStatic && this->isPropertyKey(key.get(), "constructor")) {
-                if (kind != ClassElementNode::Kind::Method || value->function().isGenerator()) {
+                if (kind != ClassElementNode::Kind::Method || value->isGenerator()) {
                     this->throwUnexpectedToken(token, Messages::ConstructorSpecialMethod);
                 }
                 if (*constructor != nullptr) {
@@ -6233,25 +6182,122 @@ public:
 
     PassRefPtr<ProgramNode> parseProgram()
     {
-        MetaNode node = this->createNode();
+        MetaNode startNode = this->createNode();
         pushScopeContext(new ASTFunctionScopeContext(this->context->strict));
         this->context->allowLexicalDeclaration = true;
-        RefPtr<StatementContainer> body = this->parseDirectivePrologues();
+        RefPtr<StatementContainer> container = StatementContainer::create();
+        this->parseDirectivePrologues(container.get());
         StatementNode* referNode = nullptr;
         while (this->startMarker.index < this->scanner->length) {
-            referNode = body->appendChild(this->statementListItem<ParseAs(StatementNode)>().get(), referNode);
+            referNode = container->appendChild(this->statementListItem<ParseAs(StatementNode)>().get(), referNode);
         }
-        scopeContexts.back()->m_locStart.line = node.line;
-        scopeContexts.back()->m_locStart.column = node.column;
-        scopeContexts.back()->m_locStart.index = node.index;
+        scopeContexts.back()->m_bodyStartLOC.line = startNode.line;
+        scopeContexts.back()->m_bodyStartLOC.column = startNode.column;
+        scopeContexts.back()->m_bodyStartLOC.index = startNode.index;
 
         MetaNode endNode = this->createNode();
 #ifndef NDEBUG
-        scopeContexts.back()->m_locEnd.line = endNode.line;
-        scopeContexts.back()->m_locEnd.column = endNode.column;
+        scopeContexts.back()->m_bodyEndLOC.line = endNode.line;
+        scopeContexts.back()->m_bodyEndLOC.column = endNode.column;
 #endif
-        scopeContexts.back()->m_locEnd.index = endNode.index;
-        return this->finalize(node, new ProgramNode(body.get(), scopeContexts.back() /*, this->sourceType*/));
+        scopeContexts.back()->m_bodyEndLOC.index = endNode.index;
+        return this->finalize(startNode, new ProgramNode(container.get(), scopeContexts.back() /*, this->sourceType*/));
+    }
+
+    PassRefPtr<FunctionNode> parseScriptFunction()
+    {
+        ASSERT(this->config.parseSingleFunction);
+
+        MetaNode node = this->createNode();
+        RefPtr<StatementContainer> params = this->parseFunctionParameters();
+        RefPtr<BlockStatementNode> body = this->parseFunctionBody();
+
+        return this->finalize(node, new FunctionNode(params.get(), body.get()));
+    }
+
+    PassRefPtr<FunctionNode> parseScriptArrowFunction()
+    {
+        ASSERT(this->config.parseSingleFunction);
+
+        MetaNode node = this->createNode();
+        RefPtr<StatementContainer> params = StatementContainer::create();
+        RefPtr<BlockStatementNode> body;
+
+        RefPtr<Node> parameters = this->conditionalExpression<Parse>();
+        ASSERT(parameters->type() == ArrowParameterPlaceHolder || this->match(Arrow));
+
+        // generate parameter statements
+        if (parameters->type() == ArrowParameterPlaceHolder) {
+            ExpressionNodeVector& paramList = ((ArrowParameterPlaceHolderNode*)parameters.get())->params();
+            for (size_t i = 0; i < paramList.size(); i++) {
+                RefPtr<Node> p = paramList[i];
+                if (!p->isIdentifier()) {
+                    if (p->isPattern()) {
+                        RefPtr<IdentifierNode> id = adoptRef(new IdentifierNode(this->createPatternName(i)));
+                        RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(p.get(), id.get()));
+                        p = assign;
+                    } else if (p->type() == AssignmentExpressionSimple) {
+                        DefaultArgumentNode* defaultNode = (DefaultArgumentNode*)p.get();
+                        p = adoptRef(new DefaultArgumentNode(defaultNode->left(), defaultNode->right()));
+                    } else {
+                        ASSERT(p->type() == RestElement);
+                    }
+
+                    RefPtr<Node> statement = this->finalize(node, new ExpressionStatementNode(p.get()));
+                    params->appendChild(statement->asStatementNode());
+                }
+            }
+        }
+
+        this->expect(Arrow);
+        this->context->inArrowFunction = true;
+
+        // generate body statements
+        if (this->match(LeftBrace)) {
+            body = parseFunctionBody();
+        } else {
+            MetaNode nodeStart = this->createNode();
+            RefPtr<StatementContainer> container = StatementContainer::create();
+
+            auto previousLabelSet = this->context->labelSet;
+            bool previousInIteration = this->context->inIteration;
+            bool previousInSwitch = this->context->inSwitch;
+            bool previousInFunctionBody = this->context->inFunctionBody;
+
+            this->context->labelSet.clear();
+            this->context->inIteration = false;
+            this->context->inSwitch = false;
+            this->context->inFunctionBody = true;
+
+            bool previousStrict = this->context->strict;
+            bool previousAllowYield = this->context->allowYield;
+            this->context->allowYield = true;
+
+            RefPtr<Node> expr = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+
+            container->appendChild(this->finalize(nodeStart, new ReturnStatmentNode(expr.get())), nullptr);
+
+            /*
+               if (this->context->strict && list.firstRestricted) {
+               this->throwUnexpectedToken(list.firstRestricted, list.message);
+               }
+               if (this->context->strict && list.stricted) {
+               this->throwUnexpectedToken(list.stricted, list.message);
+               }
+             */
+
+            this->context->strict = previousStrict;
+            this->context->allowYield = previousAllowYield;
+
+            this->context->labelSet = previousLabelSet;
+            this->context->inIteration = previousInIteration;
+            this->context->inSwitch = previousInSwitch;
+            this->context->inFunctionBody = previousInFunctionBody;
+
+            body = this->finalize(nodeStart, new BlockStatementNode(container.get()));
+        }
+
+        return this->finalize(node, new FunctionNode(params.get(), body.get()));
     }
 
     // ECMA-262 15.2.2 Imports
@@ -6496,23 +6542,24 @@ RefPtr<ProgramNode> parseProgram(::Escargot::Context* ctx, StringView source, bo
     return nd;
 }
 
-RefPtr<Node> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, ASTFunctionScopeContext*& scopeContext, size_t stackRemain)
+RefPtr<FunctionNode> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, ASTFunctionScopeContext*& scopeContext, size_t stackRemain)
 {
     Parser parser(ctx, codeBlock->src(), stackRemain, codeBlock->sourceElementStart());
     parser.trackUsingNames = false;
     parser.context->allowLexicalDeclaration = true;
     parser.config.parseSingleFunction = true;
     parser.config.parseSingleFunctionTarget = codeBlock;
-    parser.config.reparseArguments = codeBlock->hasArgumentInitializers();
+    // when parsing for function call, childindex should be set to index 1
+    parser.config.parseSingleFunctionChildIndex = 1;
 
     scopeContext = new ASTFunctionScopeContext(codeBlock->isStrict());
     parser.pushScopeContext(scopeContext);
     parser.context->allowYield = !codeBlock->isGenerator();
 
     if (codeBlock->isArrowFunctionExpression()) {
-        return parser.parseArrowFunctionSourceElements();
+        return parser.parseScriptArrowFunction();
     }
-    return parser.parseFunctionSourceElements();
+    return parser.parseScriptFunction();
 }
 
 } // namespace esprima

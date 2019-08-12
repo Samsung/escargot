@@ -55,7 +55,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
 static Value builtinFunctionToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // FIXME: If Type(func) is Object and is either a built-in function object or has an [[ECMAScriptCode]] internal slot, then
-    if (thisValue.isFunction()) {
+    if (LIKELY(thisValue.isFunction())) {
         FunctionObject* fn = thisValue.asFunction();
         StringBuilder builder;
         builder.appendString("function ");
@@ -73,7 +73,7 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
 
         builder.appendString(") ");
         if (fn->codeBlock()->isInterpretedCodeBlock() && fn->codeBlock()->asInterpretedCodeBlock()->script() != nullptr) {
-            StringView src = fn->codeBlock()->asInterpretedCodeBlock()->src();
+            StringView src = fn->codeBlock()->asInterpretedCodeBlock()->bodySrc();
             while (src[src.length() - 1] != '}') {
                 src = StringView(src, 0, src.length() - 1);
             }

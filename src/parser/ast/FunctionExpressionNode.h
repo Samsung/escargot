@@ -20,22 +20,17 @@
 #ifndef FunctionExpressionNode_h
 #define FunctionExpressionNode_h
 
-#include "FunctionNode.h"
-
 namespace Escargot {
 
 class FunctionExpressionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
     FunctionExpressionNode(const AtomicString& id, PatternNodeVector&& params, Node* body, ASTFunctionScopeContext* scopeContext, bool isGenerator, size_t subCodeBlockIndex)
-        : m_function(id, std::move(params), body, scopeContext, isGenerator, this)
+        : m_isGenerator(isGenerator)
         , m_subCodeBlockIndex(subCodeBlockIndex - 1)
     {
-    }
-
-    FunctionNode& function()
-    {
-        return m_function;
+        scopeContext->m_nodeType = this->type();
+        scopeContext->m_isGenerator = isGenerator;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::FunctionExpression; }
@@ -52,8 +47,13 @@ public:
         }
     }
 
+    bool isGenerator() const
+    {
+        return m_isGenerator;
+    }
+
 private:
-    FunctionNode m_function;
+    bool m_isGenerator;
     size_t m_subCodeBlockIndex;
     // defaults: [ Expression ];
     // rest: Identifier | null;

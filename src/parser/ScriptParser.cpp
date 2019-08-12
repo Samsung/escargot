@@ -41,7 +41,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
         // globalBlock
         codeBlock = new InterpretedCodeBlock(ctx, script, source, scopeCtx, ExtendedNodeLOC(1, 1, 0), isEvalCode, isEvalCodeInFunction);
     } else {
-        codeBlock = new InterpretedCodeBlock(ctx, script, source, scopeCtx, scopeCtx->m_locStart, parentCodeBlock, isEvalCode, isEvalCodeInFunction);
+        codeBlock = new InterpretedCodeBlock(ctx, script, source, scopeCtx, scopeCtx->m_paramsStartLOC, parentCodeBlock, isEvalCode, isEvalCodeInFunction);
     }
 
     // child scopes are don't need this
@@ -49,8 +49,8 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
     isEvalCodeInFunction = false;
 
 #ifndef NDEBUG
-    codeBlock->m_locStart = scopeCtx->m_locStart;
-    codeBlock->m_locEnd = scopeCtx->m_locEnd;
+    codeBlock->m_bodyStartLOC = scopeCtx->m_bodyStartLOC;
+    codeBlock->m_bodyEndLOC = scopeCtx->m_bodyEndLOC;
     codeBlock->m_scopeContext = scopeCtx;
 #endif
 
@@ -234,19 +234,19 @@ void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView sc
 
 void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain)
 {
-    RefPtr<Node> body;
+    RefPtr<FunctionNode> functionNode;
     ASTFunctionScopeContext* scopeContext = nullptr;
 
     // Parsing
     try {
-        body = esprima::parseSingleFunction(m_context, codeBlock, scopeContext, stackSizeRemain);
+        functionNode = esprima::parseSingleFunction(m_context, codeBlock, scopeContext, stackSizeRemain);
     } catch (esprima::Error& orgError) {
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, orgError.message->toUTF8StringData().data());
         RELEASE_ASSERT_NOT_REACHED();
     }
 
     // Generate ByteCode
-    codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), codeBlock, body.get(), scopeContext, false, false, false, false);
+    codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), codeBlock, functionNode.get(), scopeContext, false, false, false, false);
 }
 
 #ifndef NDEBUG
@@ -268,10 +268,10 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
         PRINT_TAB()
         printf("CodeBlock %s %s (%d:%d -> %d:%d, block %d)(%s, %s) (E:%d, W:%d, Y:%d, A:%d)\n", cb->m_functionName.string()->toUTF8StringData().data(),
                cb->m_isStrict ? "Strict" : "",
-               (int)cb->m_locStart.line,
-               (int)cb->m_locStart.column,
-               (int)cb->m_locEnd.line,
-               (int)cb->m_locEnd.column,
+               (int)cb->m_bodyStartLOC.line,
+               (int)cb->m_bodyStartLOC.column,
+               (int)cb->m_bodyEndLOC.line,
+               (int)cb->m_bodyEndLOC.column,
                (int)cb->lexicalBlockIndexFunctionLocatedIn(),
                cb->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap",
                cb->m_canUseIndexedVariableStorage ? "Indexed" : "Named",

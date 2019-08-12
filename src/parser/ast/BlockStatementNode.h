@@ -28,18 +28,9 @@ namespace Escargot {
 class BlockStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    explicit BlockStatementNode(StatementContainer* body, size_t lexicalBlockIndex = 0, StatementContainer* argumentInitializers = nullptr)
+    explicit BlockStatementNode(StatementContainer* body, size_t lexicalBlockIndex = 0)
         : StatementNode()
         , m_container(body)
-        , m_argumentInitializers(argumentInitializers)
-        , m_lexicalBlockIndex(lexicalBlockIndex)
-    {
-    }
-
-    explicit BlockStatementNode(StatementContainer* body, StatementContainer* argumentInitializers = nullptr, size_t lexicalBlockIndex = 0)
-        : StatementNode()
-        , m_container(body)
-        , m_argumentInitializers(argumentInitializers)
         , m_lexicalBlockIndex(lexicalBlockIndex)
     {
     }
@@ -50,10 +41,6 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::BlockStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        if (m_argumentInitializers != nullptr) {
-            m_argumentInitializers->generateStatementByteCode(codeBlock, context);
-        }
-
         size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
         ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;
         if (m_lexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
@@ -78,7 +65,6 @@ public:
 
 private:
     RefPtr<StatementContainer> m_container;
-    RefPtr<StatementContainer> m_argumentInitializers;
     LexicalBlockIndex m_lexicalBlockIndex;
 };
 }

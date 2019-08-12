@@ -52,6 +52,11 @@ public:
         return m_left.get();
     }
 
+    Node* right()
+    {
+        return m_right.get();
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::DefaultArgument; }
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {

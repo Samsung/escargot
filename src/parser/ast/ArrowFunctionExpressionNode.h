@@ -57,16 +57,12 @@ class ArrowFunctionExpressionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
     ArrowFunctionExpressionNode(PatternNodeVector&& params, Node* body, ASTFunctionScopeContext* scopeContext, bool expression, size_t subCodeBlockIndex)
-        : m_function(AtomicString(), std::move(params), body, scopeContext, false, this)
-        , m_expression(expression)
+        : m_expression(expression)
         , m_subCodeBlockIndex(subCodeBlockIndex - 1)
     {
         scopeContext->m_isArrowFunctionExpression = true;
-    }
-
-    FunctionNode& function()
-    {
-        return m_function;
+        scopeContext->m_nodeType = this->type();
+        scopeContext->m_isGenerator = false;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ArrowFunctionExpression; }
@@ -77,7 +73,6 @@ public:
     }
 
 private:
-    FunctionNode m_function;
     bool m_expression : 1;
     size_t m_subCodeBlockIndex;
     // defaults: [ Expression ];
