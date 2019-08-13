@@ -109,7 +109,7 @@ def run_sunspider(engine, arch):
 
 @runner('sunspider-js', default=True)
 def run_sunspider_js(engine, arch):
-    run([engine] + glob(join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'SunSpider', 'tests', 'sunspider-1.0.2', '*.js')))
+    run([engine] + sorted(glob(join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'SunSpider', 'tests', 'sunspider-1.0.2', '*.js'))))
 
 
 @runner('octane', default=True)
