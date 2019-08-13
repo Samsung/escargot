@@ -26,6 +26,7 @@ namespace Escargot {
 
 class ScriptFunctionObject : public FunctionObject {
     friend class Script;
+    friend class ByteCodeInterpreter;
 
 public:
     ScriptFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, bool isConstructor, bool isGenerator);

@@ -259,12 +259,6 @@ public:
                 newTargetBinder(*newState, self, newTarget, record);
             }
 
-            // FIXME
-            if (UNLIKELY(codeBlock->usesArgumentsObject())) {
-                bool isMapped = !codeBlock->hasArgumentInitializers() && !isStrict;
-                self->generateArgumentsObject(*newState, argc, argv, record, stackStorage, isMapped);
-            }
-
             GeneratorObject* gen = new GeneratorObject(state, newState, blk);
             newState->setGeneratorTarget(gen);
             return gen;
@@ -281,12 +275,6 @@ public:
         if (isConstructCall) {
             NewTargetBinder newTargetBinder;
             newTargetBinder(newState, self, newTarget, record);
-        }
-
-        if (UNLIKELY(codeBlock->usesArgumentsObject())) {
-            // FIXME check if formal parameters does not contain a rest parameter, any binding patterns, or any initializers.
-            bool isMapped = !codeBlock->hasArgumentInitializers() && !isStrict;
-            self->generateArgumentsObject(newState, argc, argv, record, stackStorage, isMapped);
         }
 
         // run function

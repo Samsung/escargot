@@ -148,6 +148,11 @@ public:
         return m_canAllocateEnvironmentOnStack;
     }
 
+    bool isKindOfFunction() const
+    {
+        return m_isFunctionDeclaration || m_isFunctionExpression || m_isArrowFunctionExpression || m_isClassConstructor || m_isClassMethod || m_isClassStaticMethod || m_isGenerator || m_hasCallNativeFunctionCode;
+    }
+
     bool isFunctionDeclaration() const
     {
         return m_isFunctionDeclaration;

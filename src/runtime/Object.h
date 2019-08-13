@@ -32,6 +32,7 @@ class Object;
 class FunctionObject;
 class RegExpObject;
 class ErrorObject;
+class ArgumentsObject;
 class ArrayBufferObject;
 class ArrayBufferView;
 class DataViewObject;
@@ -570,6 +571,12 @@ public:
     {
         ASSERT(isDataViewObject());
         return (DataViewObject*)this;
+    }
+
+    ArgumentsObject* asArgumentsObject()
+    {
+        ASSERT(isArgumentsObject());
+        return (ArgumentsObject*)this;
     }
 
     template <typename TypedArrayType>

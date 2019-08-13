@@ -87,44 +87,67 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
         for (size_t i = 0; i < scopeCtx->m_childBlockScopes.size(); i++) {
             for (size_t j = 0; j < scopeCtx->m_childBlockScopes[i]->m_usingNames.size(); j++) {
                 AtomicString uname = scopeCtx->m_childBlockScopes[i]->m_usingNames[j];
-
+                auto blockIndex = scopeCtx->m_childBlockScopes[i]->m_blockIndex;
                 if (uname == arguments) {
                     if (UNLIKELY(codeBlock->hasParameter(arguments))) {
                         continue;
                     } else {
-                        InterpretedCodeBlock* argumentsVariableHolder = nullptr;
-                        InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
-                        while (c && !c->isGlobalScopeCodeBlock()) {
-                            if (c->hasParameter(arguments)) {
-                                argumentsVariableHolder = c;
-                                break;
-                            } else if (!c->isArrowFunctionExpression()) {
-                                argumentsVariableHolder = c;
+                        bool hasKindOfArgumentsHolderOnAncestors = false;
+
+                        InterpretedCodeBlock* argumentsObjectHolder = codeBlock;
+                        while (argumentsObjectHolder) {
+                            if (argumentsObjectHolder->isKindOfFunction() && !argumentsObjectHolder->isArrowFunctionExpression()) {
+                                hasKindOfArgumentsHolderOnAncestors = true;
                                 break;
                             }
-                            c = c->parentCodeBlock();
+                            argumentsObjectHolder = argumentsObjectHolder->parentCodeBlock();
                         }
 
-                        if (LIKELY(!codeBlock->isArrowFunctionExpression())) {
-                            codeBlock->captureArguments();
-                            codeBlock->markHeapAllocatedEnvironmentFromHere(0, argumentsVariableHolder);
-                            continue;
-                        } else {
-                            codeBlock->markHeapAllocatedEnvironmentFromHere(0, argumentsVariableHolder);
+                        if (hasKindOfArgumentsHolderOnAncestors && !argumentsObjectHolder->hasParameter(arguments)) {
+                            InterpretedCodeBlock* argumentsVariableHolder = nullptr;
+                            InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
+                            while (c && !c->isGlobalScopeCodeBlock()) {
+                                if (c->hasParameter(arguments)) {
+                                    argumentsVariableHolder = c;
+                                    break;
+                                } else if (!c->isArrowFunctionExpression()) {
+                                    argumentsVariableHolder = c;
+                                    break;
+                                }
+                                c = c->parentCodeBlock();
+                            }
+
+                            if (LIKELY(!codeBlock->isArrowFunctionExpression())) {
+                                codeBlock->captureArguments();
+                                continue;
+                            } else {
+                                InterpretedCodeBlock* p = codeBlock;
+                                while (p) {
+                                    if (!p->isArrowFunctionExpression()) {
+                                        break;
+                                    }
+                                    p->m_usesArgumentsObject = true;
+                                    p = p->parentCodeBlock();
+                                }
+                                if (argumentsVariableHolder) {
+                                    argumentsVariableHolder->captureArguments();
+                                }
+                                codeBlock->markHeapAllocatedEnvironmentFromHere(blockIndex, argumentsVariableHolder);
+                            }
                         }
                     }
                 }
 
                 bool usingNameIsResolvedOnCompileTime = false;
                 if (codeBlock->canUseIndexedVariableStorage()) {
-                    if (codeBlock->hasName(scopeCtx->m_childBlockScopes[i]->m_blockIndex, uname)) {
+                    if (codeBlock->hasName(blockIndex, uname)) {
                         usingNameIsResolvedOnCompileTime = true;
                     } else {
                         auto parentBlockIndex = codeBlock->lexicalBlockIndexFunctionLocatedIn();
                         InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
                         while (c && parentBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
                             if (c->tryCaptureIdentifiersFromChildCodeBlock(parentBlockIndex, uname)) {
-                                codeBlock->markHeapAllocatedEnvironmentFromHere(scopeCtx->m_childBlockScopes[i]->m_blockIndex, c);
+                                codeBlock->markHeapAllocatedEnvironmentFromHere(blockIndex, c);
                                 usingNameIsResolvedOnCompileTime = true;
                                 break;
                             }
@@ -134,7 +157,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                     }
                     if (!usingNameIsResolvedOnCompileTime && codeBlock->hasAncestorUsesNonIndexedVariableStorage()) {
                         // {Load, Store}ByName needs this
-                        codeBlock->markHeapAllocatedEnvironmentFromHere(scopeCtx->m_childBlockScopes[i]->m_blockIndex);
+                        codeBlock->markHeapAllocatedEnvironmentFromHere(blockIndex);
                     }
                 }
             }

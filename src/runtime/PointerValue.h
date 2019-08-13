@@ -240,6 +240,11 @@ public:
         return false;
     }
 
+    virtual bool isArgumentsObject() const
+    {
+        return false;
+    }
+
     virtual bool isCallable() const
     {
         return false;

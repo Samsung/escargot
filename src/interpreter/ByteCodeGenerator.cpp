@@ -573,10 +573,6 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 assignStackIndexIfNeeded(cd->m_dstIdx, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
-            case BlockOperationOpcode: {
-                BlockOperation* cd = (BlockOperation*)currentCode;
-                break;
-            }
             case TryOperationOpcode: {
                 TryOperation* cd = (TryOperation*)currentCode;
                 assignStackIndexIfNeeded(cd->m_catchedValueRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
