@@ -52,14 +52,13 @@ void* ProxyObject::operator new(size_t size)
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-proxycreate
-Value ProxyObject::createProxy(ExecutionState& state, const Value& target, const Value& handler)
+ProxyObject* ProxyObject::createProxy(ExecutionState& state, const Value& target, const Value& handler)
 {
     auto strings = &state.context()->staticStrings();
 
     // 1. If Type(target) is not Object, throw a TypeError exception.
     if (!target.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: \'target\' argument of Proxy must be an object");
-        return Value();
     }
 
     // 2. If target is a Proxy exotic object and target.[[ProxyHandler]] is null, throw a TypeError exception.
@@ -67,14 +66,12 @@ Value ProxyObject::createProxy(ExecutionState& state, const Value& target, const
         ProxyObject* exotic = target.asObject()->asProxyObject();
         if (!exotic->handler()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: \'target\' Type Error");
-            return Value();
         }
     }
 
     // 3. If Type(handler) is not Object, throw a TypeError exception.
     if (!handler.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: \'handler\' argument of Proxy must be an object");
-        return Value();
     }
 
     // 4. If handler is a Proxy exotic object and handler.[[ProxyHandler]] is null, throw a TypeError exception.
@@ -82,7 +79,6 @@ Value ProxyObject::createProxy(ExecutionState& state, const Value& target, const
         ProxyObject* exotic = handler.asObject()->asProxyObject();
         if (!exotic->handler()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: \'handler\' Type Error");
-            return Value();
         }
     }
 

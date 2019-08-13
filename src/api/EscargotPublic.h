@@ -66,6 +66,7 @@ class SymbolObjectRef;
 class NumberObjectRef;
 class BooleanObjectRef;
 class RegExpObjectRef;
+class ProxyObjectRef;
 class ScriptRef;
 class ScriptParserRef;
 class ExecutionStateRef;
@@ -183,6 +184,8 @@ public:
     bool isTypedArrayPrototypeObject();
     bool isPromiseObject();
     PromiseObjectRef* asPromiseObject();
+    bool isProxyObject();
+    ProxyObjectRef* asProxyObject();
 };
 
 class EXPORT StringRef : public PointerValueRef {
@@ -845,6 +848,15 @@ public:
     static PromiseObjectRef* create(ExecutionStateRef* state);
     void fulfill(ExecutionStateRef* state, ValueRef* value);
     void reject(ExecutionStateRef* state, ValueRef* reason);
+};
+
+class EXPORT ProxyObjectRef : public ObjectRef {
+public:
+    static ProxyObjectRef* create(ExecutionStateRef* state, ObjectRef* target, ObjectRef* handler);
+    ObjectRef* target();
+    ObjectRef* handler();
+    bool isRevoked();
+    void revoke();
 };
 
 class EXPORT SandBoxRef {
