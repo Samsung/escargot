@@ -43,6 +43,7 @@
 #include "runtime/Job.h"
 #include "runtime/JobQueue.h"
 #include "runtime/PromiseObject.h"
+#include "runtime/ProxyObject.h"
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/TypedArrayObject.h"
 
@@ -86,6 +87,7 @@ DEFINE_CAST(GlobalObject);
 DEFINE_CAST(FunctionObject);
 DEFINE_CAST(DateObject);
 DEFINE_CAST(PromiseObject);
+DEFINE_CAST(ProxyObject);
 DEFINE_CAST(Job);
 DEFINE_CAST(Script);
 DEFINE_CAST(ScriptParser);
@@ -440,6 +442,16 @@ bool PointerValueRef::isPromiseObject()
 PromiseObjectRef* PointerValueRef::asPromiseObject()
 {
     return toRef(toImpl(this)->asPromiseObject());
+}
+
+bool PointerValueRef::isProxyObject()
+{
+    return toImpl(this)->isProxyObject();
+}
+
+ProxyObjectRef* PointerValueRef::asProxyObject()
+{
+    return toRef(toImpl(this)->asProxyObject());
 }
 
 VMInstanceRef* VMInstanceRef::create(const char* locale, const char* timezone)
@@ -2020,6 +2032,32 @@ void PromiseObjectRef::fulfill(ExecutionStateRef* state, ValueRef* value)
 void PromiseObjectRef::reject(ExecutionStateRef* state, ValueRef* reason)
 {
     toImpl(this)->rejectPromise(*toImpl(state), toImpl(reason));
+}
+
+ProxyObjectRef* ProxyObjectRef::create(ExecutionStateRef* state, ObjectRef* target, ObjectRef* handler)
+{
+    return toRef(ProxyObject::createProxy(*toImpl(state), toImpl(target), toImpl(handler)));
+}
+
+ObjectRef* ProxyObjectRef::target()
+{
+    return toRef(toImpl(this)->target());
+}
+
+ObjectRef* ProxyObjectRef::handler()
+{
+    return toRef(toImpl(this)->handler());
+}
+
+bool ProxyObjectRef::isRevoked()
+{
+    return (toImpl(this)->target() == nullptr) && (toImpl(this)->handler() == nullptr);
+}
+
+void ProxyObjectRef::revoke()
+{
+    toImpl(this)->setTarget(nullptr);
+    toImpl(this)->setHandler(nullptr);
 }
 
 ScriptRef* ScriptParserRef::initializeScript(ExecutionStateRef* state, StringRef* script, StringRef* fileName)
