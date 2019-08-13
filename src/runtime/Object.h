@@ -150,6 +150,15 @@ public:
         }
     }
 
+    Value toPropertyKeyValue() const
+    {
+        if (isUIntType()) {
+            return Value(String::fromDouble(uintValue()));
+        } else {
+            return propertyName().toValue();
+        }
+    }
+
 private:
     bool m_isUIntType : 1;
     union ObjectPropertyNameData {
