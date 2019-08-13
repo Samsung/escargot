@@ -206,6 +206,8 @@ public:
     LexicalBlockIndex lexicalBlockIndex;
     LexicalBlockIndex lexicalBlockCount;
 
+    ASTFunctionScopeContext fakeContext;
+
     class ScanExpressionResult;
 
     /* Structure for conversion. Do not use it for storing a value! */
@@ -277,7 +279,33 @@ public:
         AtomicString str;
     };
 
-    ASTFunctionScopeContext fakeContext;
+    struct ParseFormalParametersResult {
+        PatternNodeVector params;
+        Scanner::ScannerResult stricted;
+        Scanner::ScannerResult firstRestricted;
+        const char* message;
+        bool valid;
+
+        ParseFormalParametersResult()
+            : message(nullptr)
+            , valid(false)
+        {
+        }
+        ParseFormalParametersResult(PatternNodeVector params, const char* message)
+            : params(std::move(params))
+            , message(nullptr)
+            , valid(true)
+        {
+        }
+        ParseFormalParametersResult(PatternNodeVector params, Scanner::ScannerResult& stricted, Scanner::ScannerResult& firstRestricted, const char* message)
+            : params(std::move(params))
+            , stricted(stricted)
+            , firstRestricted(firstRestricted)
+            , message(nullptr)
+            , valid(true)
+        {
+        }
+    };
 
     ASTFunctionScopeContext* popScopeContext(const MetaNode& node)
     {
@@ -303,29 +331,46 @@ public:
         lastUsingName = name;
     }
 
-    void extractNamesFromFunctionParams(const PatternNodeVector& vector)
+    void extractNamesFromFunctionParams(const PatternNodeVector& params)
     {
-        if (this->config.parseSingleFunction)
+        if (this->config.parseSingleFunction) {
             return;
-        scopeContexts.back()->m_parameters.resizeWithUninitializedValues(vector.size());
-        for (size_t i = 0; i < vector.size(); i++) {
+        }
+
+        scopeContexts.back()->m_parameters.resizeWithUninitializedValues(params.size());
+        for (size_t i = 0; i < params.size(); i++) {
             AtomicString id;
-            if (vector[i]->isIdentifier()) {
-                id = vector[i]->asIdentifier()->name();
-            } else if (vector[i]->isDefaultArgument()) {
-                id = vector[i]->asDefaultArgument()->left()->asIdentifier()->name();
-            } else if (vector[i]->isPattern()) {
+            if (params[i]->isIdentifier()) {
+                id = params[i]->asIdentifier()->name();
+            } else if (params[i]->isDefaultArgument()) {
+                id = params[i]->asDefaultArgument()->left()->asIdentifier()->name();
+            } else if (params[i]->isPattern()) {
                 id = this->createPatternName(i);
-            } else if (vector[i]->type() == RestElement) {
-                id = ((RestElementNode*)vector[i].get())->argument()->name();
+            } else if (params[i]->type() == RestElement) {
+                // scopeContexts.back()->m_hasRestElement = true;
+                id = ((RestElementNode*)params[i].get())->argument()->name();
             } else {
-                ASSERT(vector[i]->type() == ASTNodeType::ArrowParameterPlaceHolder);
-                scopeContexts.back()->m_parameters.resize(scopeContexts.back()->m_parameters.size() - 1);
-                continue;
+                RELEASE_ASSERT_NOT_REACHED();
             }
             scopeContexts.back()->m_parameters[i] = id;
             scopeContexts.back()->insertVarName(id, 0, true);
         }
+
+        // FIXME check duplicated parameter names at here
+        // Check if any identifier names are duplicated.
+        /*
+        if (scopeContexts.back()->m_hasRestElement || scopeContexts.back()->m_hasPatternArgument) {
+            AtomicStringTightVector& paramNames = scopeContexts.back()->m_parameters;
+            for (size_t i = 0; i < paramNames.size() - 1; i++) {
+                // Note: using this inner for loop because std::find didn't work for some reason.
+                for (size_t j = i + 1; j < paramNames.size(); j++) {
+                    if (paramNames[i] == paramNames[j]) {
+                        this->throwError("duplicate argument names are not allowed in this context");
+                    }
+                }
+            }
+        }
+        */
     }
 
     void pushScopeContext(AtomicString functionName)
@@ -1215,6 +1260,7 @@ public:
 
         options.paramSet.push_back(name);
 
+        // FIXME remove this check code
         if (scopeContexts.back()->m_hasRestElement || scopeContexts.back()->m_hasPatternArgument) {
             for (size_t i = 0; i < options.paramSet.size() - 1; i++) {
                 // Check if any identifier names are duplicated.
@@ -1479,8 +1525,8 @@ public:
         ALLOC_TOKEN(token);
         *token = this->lookahead;
         if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::PeriodPeriodPeriod) {
-            param = this->parseRestElement(params);
             scopeContexts.back()->m_hasRestElement = true;
+            param = this->parseRestElement(params);
             this->validateParam(options, &params.back(), ((RestElementNode*)param.get())->argument()->name());
             options.params.push_back(param);
             trackUsingNames = true;
@@ -1496,34 +1542,6 @@ public:
         trackUsingNames = trackUsingNamesBefore;
         return !this->match(PunctuatorKind::RightParenthesis);
     }
-
-    struct ParseFormalParametersResult {
-        PatternNodeVector params;
-        Scanner::ScannerResult stricted;
-        Scanner::ScannerResult firstRestricted;
-        const char* message;
-        bool valid;
-
-        ParseFormalParametersResult()
-            : message(nullptr)
-            , valid(false)
-        {
-        }
-        ParseFormalParametersResult(PatternNodeVector params, const char* message)
-            : params(std::move(params))
-            , message(nullptr)
-            , valid(true)
-        {
-        }
-        ParseFormalParametersResult(PatternNodeVector params, Scanner::ScannerResult& stricted, Scanner::ScannerResult& firstRestricted, const char* message)
-            : params(std::move(params))
-            , stricted(stricted)
-            , firstRestricted(firstRestricted)
-            , message(nullptr)
-            , valid(true)
-        {
-        }
-    };
 
     ParseFormalParametersResult parseFormalParameters(Scanner::ScannerResult* firstRestricted = nullptr)
     {
@@ -1631,7 +1649,6 @@ public:
         this->context->isAssignmentTarget = false;
         this->context->isBindingElement = false;
 
-        extractNamesFromFunctionParams(params.params);
         const bool previousStrict = this->context->strict;
         PassRefPtr<Node> body = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
         if (this->context->strict && params.firstRestricted) {
@@ -1655,6 +1672,7 @@ public:
         this->expect(LeftParenthesis);
         pushScopeContext(AtomicString());
         ParseFormalParametersResult params = this->parseFormalParameters();
+        extractNamesFromFunctionParams(params.params);
         RefPtr<Node> method = this->parsePropertyMethod(params);
         this->context->allowYield = previousAllowYield;
 
@@ -1662,7 +1680,7 @@ public:
         scopeContexts.back()->m_paramsStartLOC.column = node.column;
         scopeContexts.back()->m_paramsStartLOC.line = node.line;
 
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method.get(), popScopeContext(node), isGenerator, this->subCodeBlockIndex));
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
 
     PassRefPtr<Node> parseObjectPropertyKey()
@@ -3594,9 +3612,11 @@ public:
                     exprNode = this->conditionalExpression<Parse>();
                 }
 
-                ParseFormalParametersResult list;
                 pushScopeContext(AtomicString());
 
+                ParseFormalParametersResult list;
+
+                // FIXME reinterpretAsCoverFormalsList
                 if (type == Identifier) {
                     list.params.push_back(exprNode);
                     list.valid = true;
@@ -3610,10 +3630,6 @@ public:
                     list = this->parseFormalParameters();
                 }
 
-                scopeContexts.back()->m_paramsStartLOC.index = startNode.index;
-                scopeContexts.back()->m_paramsStartLOC.column = startNode.column;
-                scopeContexts.back()->m_paramsStartLOC.line = startNode.line;
-
                 if (isParse) {
                     exprNode.release();
                 }
@@ -3624,54 +3640,76 @@ public:
                     }
                     this->context->firstCoverInitializedNameError.reset();
 
+                    scopeContexts.back()->m_paramsStartLOC.index = startNode.index;
+                    scopeContexts.back()->m_paramsStartLOC.column = startNode.column;
+                    scopeContexts.back()->m_paramsStartLOC.line = startNode.line;
+
                     extractNamesFromFunctionParams(list.params);
+
                     bool previousStrict = this->context->strict;
                     bool previousAllowYield = this->context->allowYield;
                     bool previousInArrowFunction = this->context->inArrowFunction;
                     this->context->allowYield = true;
                     this->context->inArrowFunction = true;
 
-                    MetaNode node = this->startNode(startToken);
-                    MetaNode nodeStart = this->createNode();
-
                     this->expect(Arrow);
+
+                    MetaNode node = this->startNode(startToken);
+                    MetaNode bodyStart = this->createNode();
+
                     RefPtr<Node> body;
                     if (this->match(LeftBrace)) {
                         body = this->parseFunctionSourceElements();
                     } else {
-                        LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
-                        LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
-                        this->lexicalBlockIndex = 0;
-                        this->lexicalBlockCount = 0;
-                        size_t oldSubCodeBlockIndex = this->subCodeBlockIndex;
-                        this->subCodeBlockIndex = 0;
+                        if (this->config.parseSingleFunction) {
+                            // when parsing for function call,
+                            // assignmentExpression should parse(scan) only child arrow functions
+                            ASSERT(this->config.parseSingleFunctionChildIndex > 0);
 
-                        bool parseSingleFunctionBefore = this->config.parseSingleFunction;
-                        this->config.parseSingleFunction = false;
-                        body = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
-                        this->config.parseSingleFunction = parseSingleFunctionBefore;
+                            size_t realIndex = this->config.parseSingleFunctionChildIndex - 1;
+                            this->config.parseSingleFunctionChildIndex++;
+                            InterpretedCodeBlock* currentTarget = this->config.parseSingleFunctionTarget->asInterpretedCodeBlock();
+                            size_t orgIndex = this->lookahead.start;
 
-                        this->subCodeBlockIndex = oldSubCodeBlockIndex;
-                        this->lexicalBlockIndex = lexicalBlockIndexBefore;
-                        this->lexicalBlockCount = lexicalBlockCountBefore;
+                            StringView src = currentTarget->childBlocks()[realIndex]->bodySrc();
+                            this->scanner->index = src.length() + orgIndex;
+
+                            this->scanner->lineNumber = currentTarget->childBlocks()[realIndex]->sourceElementStart().line;
+                            this->scanner->lineStart = currentTarget->childBlocks()[realIndex]->sourceElementStart().index - currentTarget->childBlocks()[realIndex]->sourceElementStart().column;
+                            this->lookahead.lineNumber = this->scanner->lineNumber;
+                            this->lookahead.lineStart = this->scanner->lineStart;
+                            this->nextToken();
+                        } else {
+                            ASSERT(!this->config.parseSingleFunction);
+                            LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
+                            LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
+                            this->lexicalBlockIndex = 0;
+                            this->lexicalBlockCount = 0;
+                            size_t oldSubCodeBlockIndex = this->subCodeBlockIndex;
+                            this->subCodeBlockIndex = 0;
+
+                            if (this->config.parseSingleFunction) {
+                                ASSERT(this->config.parseSingleFunctionChildIndex > 0);
+                                this->config.parseSingleFunctionChildIndex++;
+                            }
+                            body = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+
+                            this->subCodeBlockIndex = oldSubCodeBlockIndex;
+                            this->lexicalBlockIndex = lexicalBlockIndexBefore;
+                            this->lexicalBlockCount = lexicalBlockCountBefore;
+
+                            scopeContexts.back()->m_bodyStartLOC.line = bodyStart.line;
+                            scopeContexts.back()->m_bodyStartLOC.column = bodyStart.column;
+                            scopeContexts.back()->m_bodyStartLOC.index = bodyStart.index;
+
+                            scopeContexts.back()->m_bodyEndLOC.index = this->lastMarker.index;
+#ifndef NDEBUG
+                            scopeContexts.back()->m_bodyEndLOC.line = this->lastMarker.lineNumber;
+                            scopeContexts.back()->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
+#endif
+                        }
                     }
                     this->scopeContexts.back()->m_lexicalBlockIndexFunctionLocatedIn = this->lexicalBlockIndex;
-                    bool isExpression = body->type() != BlockStatement;
-                    if (isExpression) {
-                        if (this->config.parseSingleFunction) {
-                            //ASSERT(this->config.parseSingleFunctionChildIndex > 0);
-                            this->config.parseSingleFunctionChildIndex++;
-                        }
-                        scopeContexts.back()->m_bodyStartLOC.line = nodeStart.line;
-                        scopeContexts.back()->m_bodyStartLOC.column = nodeStart.column;
-                        scopeContexts.back()->m_bodyStartLOC.index = nodeStart.index;
-
-                        scopeContexts.back()->m_bodyEndLOC.index = this->lastMarker.index;
-#ifndef NDEBUG
-                        scopeContexts.back()->m_bodyEndLOC.line = this->lastMarker.lineNumber;
-                        scopeContexts.back()->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
-#endif
-                    }
 
                     if (this->context->strict && list.firstRestricted) {
                         this->throwUnexpectedToken(&list.firstRestricted, list.message);
@@ -3680,7 +3718,7 @@ public:
                         this->throwUnexpectedToken(&list.stricted, list.message);
                     }
 
-                    exprNode = this->finalize(node, new ArrowFunctionExpressionNode(std::move(list.params), body.get(), popScopeContext(node), isExpression, subCodeBlockIndex)); //TODO
+                    exprNode = this->finalize(node, new ArrowFunctionExpressionNode(std::move(list.params), popScopeContext(node), subCodeBlockIndex)); //TODO
                     if (!isParse) {
                         expr.setNodeType(ASTNodeType::ArrowFunctionExpression);
                     }
@@ -5792,14 +5830,13 @@ public:
         scopeContexts.back()->m_paramsStartLOC.line = paramsStart.line;
 
         ParseFormalParametersResult formalParameters = this->parseFormalParameters(&firstRestricted);
-        PatternNodeVector params = std::move(formalParameters.params);
         Scanner::ScannerResult stricted = formalParameters.stricted;
         firstRestricted = formalParameters.firstRestricted;
         if (formalParameters.message) {
             message = formalParameters.message;
         }
 
-        extractNamesFromFunctionParams(params);
+        extractNamesFromFunctionParams(formalParameters.params);
         bool previousStrict = this->context->strict;
         RefPtr<Node> body = this->parseFunctionSourceElements();
         if (this->context->strict && firstRestricted) {
@@ -5812,7 +5849,7 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
 
-        return this->finalize(node, new FunctionType(fnName, std::move(params), body.get(), popScopeContext(node), isGenerator, subCodeBlockIndex));
+        return this->finalize(node, new FunctionType(fnName, std::move(formalParameters.params), popScopeContext(node), isGenerator, subCodeBlockIndex));
     }
 
     PassRefPtr<FunctionDeclarationNode> parseFunctionDeclaration()
@@ -5898,14 +5935,14 @@ public:
         bool previousAllowYield = this->context->allowYield;
         this->context->allowYield = false;
         pushScopeContext(AtomicString());
+        extractNamesFromFunctionParams(params.params);
         RefPtr<Node> method = this->parsePropertyMethod(params);
         this->context->allowYield = previousAllowYield;
 
-        extractNamesFromFunctionParams(params.params);
         scopeContexts.back()->m_paramsStartLOC.index = node.index;
         scopeContexts.back()->m_paramsStartLOC.column = node.column;
         scopeContexts.back()->m_paramsStartLOC.line = node.line;
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), method.get(), popScopeContext(node), isGenerator, this->subCodeBlockIndex));
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
 
     PassRefPtr<FunctionExpressionNode> parseSetterMethod()
@@ -5951,7 +5988,7 @@ public:
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowYield = previousAllowYield;
 
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(options.params), method.get(), popScopeContext(node), isGenerator, this->subCodeBlockIndex));
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(options.params), popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
 
     PassRefPtr<FunctionExpressionNode> parseGeneratorMethod()
@@ -5964,15 +6001,15 @@ public:
         this->context->allowYield = true;
         ParseFormalParametersResult formalParameters = this->parseFormalParameters();
         this->context->allowYield = false;
+        extractNamesFromFunctionParams(formalParameters.params);
         // Note: Change it to parsePropertyMethod, if possible
         RefPtr<Node> method = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
         this->context->allowYield = previousAllowYield;
 
-        extractNamesFromFunctionParams(formalParameters.params);
         scopeContexts.back()->m_paramsStartLOC.index = node.index;
         scopeContexts.back()->m_paramsStartLOC.column = node.column;
         scopeContexts.back()->m_paramsStartLOC.line = node.line;
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(formalParameters.params), method.get(), popScopeContext(node), true, this->subCodeBlockIndex));
+        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(formalParameters.params), popScopeContext(node), true, this->subCodeBlockIndex));
     }
 
     // ECMA-262 14.4 Generator Function Definitions
