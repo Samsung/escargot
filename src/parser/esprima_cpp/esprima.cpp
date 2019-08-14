@@ -5272,6 +5272,7 @@ public:
     template <typename T, bool isParse>
     T throwStatement()
     {
+        auto metaNode = this->createNode();
         this->expectKeyword(ThrowKeyword);
 
         if (this->hasLineTerminator) {
@@ -5287,7 +5288,7 @@ public:
         this->consumeSemicolon();
 
         if (isParse) {
-            return T(this->finalize(this->createNode(), new ThrowStatementNode(argument.get())));
+            return T(this->finalize(metaNode, new ThrowStatementNode(argument.get())));
         }
         return T(nullptr);
     }
