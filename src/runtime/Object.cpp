@@ -722,6 +722,12 @@ void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState&
     }
 }
 
+bool Object::hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
+{
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-hasproperty-p
+    return ordinaryHasProperty(state, this, propertyName);
+}
+
 ValueVector Object::ownPropertyKeys(ExecutionState& state)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
@@ -838,6 +844,30 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
     Value argv[] = { v };
     Object::call(state, setter, receiver, 1, argv);
     return true;
+}
+
+bool Object::ordinaryHasProperty(ExecutionState& state, Object* object, const ObjectPropertyName& propertyName)
+{
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinaryhasproperty
+
+    // 1. Assert: IsPropertyKey(P) is true.
+    // 2. Let hasOwn be OrdinaryGetOwnProperty(O, P).
+    // TODO : Implement ordinaryGetOwnProperty use it instead of get
+    auto hasOwn = object->get(state, propertyName);
+    // 3. If hasOwn is not undefined, return true.
+    if (hasOwn.hasValue()) {
+        return true;
+    }
+    // 4. Let parent be O.[[GetPrototypeOf]]().
+    // 5. ReturnIfAbrupt(parent).
+    auto parent = object->getPrototypeObject(state);
+    // 6. If parent is not null, then
+    if (parent) {
+        // a. Return parent.[[HasProperty]](P).
+        return parent->hasProperty(state, propertyName);
+    }
+    // 7. Return false.
+    return false;
 }
 
 Value Object::get(ExecutionState& state, const Value& value, const ObjectPropertyName& propertyName)

@@ -627,6 +627,13 @@ bool ProxyObject::isExtensible(ExecutionState& state)
     return booleanTrapResult;
 }
 
+void ProxyObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey)
+{
+    // Note : the enumeration method is not [[Enumerate]] () in spec
+    // In our implementation, Object::enumeration method should be overridden properly, therefore when calling this functionm, must run enumeration of target
+    this->target()->enumeration(state, callback, data, shouldSkipSymbolKey);
+}
+
 // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-setprototypeof-v
 bool ProxyObject::setPrototype(ExecutionState& state, const Value& value)
 {
@@ -808,7 +815,7 @@ ObjectGetResult ProxyObject::get(ExecutionState& state, const ObjectPropertyName
     ObjectGetResult targetDesc = target.asObject()->getOwnProperty(state, propertyName);
 
     // 13. If targetDesc is not undefined, then
-    if (!targetDesc.value(state, target).isUndefined()) {
+    if (targetDesc.hasValue()) {
         // a. If IsDataDescriptor(targetDesc) and targetDesc.[[Configurable]] is false and targetDesc.[[Writable]] is false, then
         if (targetDesc.isDataProperty() && !targetDesc.isConfigurable() && !targetDesc.isWritable()) {
             // i. If SameValue(trapResult, targetDesc.[[Value]]) is false, throw a TypeError exception.
