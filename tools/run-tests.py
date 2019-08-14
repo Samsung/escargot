@@ -365,6 +365,20 @@ def _run_jetstream(engine, target_test):
     if 'NaN' in ''.join(readfile(join(JETSTREAM_OVERRIDE_DIR, 'jetstream-result-raw.res'))):
         raise Exception('result contains "NaN"')
 
+@runner('jetstream-only-simple-parallel-1')
+def run_jetstream_only_simple_parallel_1(engine, arch):
+    _run_jetstream(engine, 'simple-1')
+
+
+@runner('jetstream-only-simple-parallel-2')
+def run_jetstream_only_simple_parallel_2(engine, arch):
+    _run_jetstream(engine, 'simple-2')
+
+
+@runner('jetstream-only-simple-parallel-3')
+def run_jetstream_only_simple_parallel_3(engine, arch):
+    _run_jetstream(engine, 'simple-3')
+
 
 @runner('jetstream-only-simple', default=True)
 def run_jetstream_only_simple(engine, arch):
