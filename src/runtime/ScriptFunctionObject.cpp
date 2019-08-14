@@ -117,8 +117,7 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
 
 Value ScriptFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
 {
-    ASSERT(!codeBlock()->hasCallNativeFunctionCode());
-    return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, false, false, false, FunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, argc, argv, nullptr);
+    return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, false, false, false, false, FunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, argc, argv, nullptr);
 }
 
 class ScriptFunctionObjectObjectThisValueBinderWithConstruct {
@@ -149,7 +148,6 @@ public:
 
 Object* ScriptFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
 {
-    ASSERT(!codeBlock()->hasCallNativeFunctionCode());
     // Assert: Type(newTarget) is Object.
     ASSERT(newTarget->isObject());
     ASSERT(newTarget->isConstructor());
@@ -178,7 +176,7 @@ Object* ScriptFunctionObject::construct(ExecutionState& state, const size_t argc
 
     // We don't need to setNewTarget here
     // only `super` keyword uses getNewTarget on executing
-    return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, true, false, false, ScriptFunctionObjectObjectThisValueBinderWithConstruct, FunctionObjectNewTargetBinder, ScriptFunctionObjectReturnValueBinderWithConstruct>(state, this, Value(thisArgument), argc, argv, newTarget).asObject();
+    return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, false, true, false, false, ScriptFunctionObjectObjectThisValueBinderWithConstruct, FunctionObjectNewTargetBinder, ScriptFunctionObjectReturnValueBinderWithConstruct>(state, this, Value(thisArgument), argc, argv, newTarget).asObject();
 }
 
 void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, Value* stackStorage, bool isMapped)

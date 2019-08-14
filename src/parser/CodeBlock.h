@@ -347,7 +347,9 @@ public:
         m_childBlocks.push_back(cb);
     }
     void captureArguments();
-    bool tryCaptureIdentifiersFromChildCodeBlock(LexicalBlockIndex blockIndex, AtomicString name);
+
+    /* capture ok, block vector index(if not block variable, returns SIZE_MAX) */
+    std::pair<bool, size_t> tryCaptureIdentifiersFromChildCodeBlock(LexicalBlockIndex blockIndex, AtomicString name);
 
     struct FunctionParametersInfo {
         bool m_isHeapAllocated : 1;

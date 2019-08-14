@@ -38,6 +38,7 @@
 #include "runtime/ScriptArrowFunctionObject.h"
 #include "runtime/ScriptClassConstructorFunctionObject.h"
 #include "runtime/ScriptClassMethodFunctionObject.h"
+#include "runtime/ScriptGeneratorFunctionObject.h"
 #include "parser/ScriptParser.h"
 #include "util/Util.h"
 #include "../third_party/checked_arithmetic/CheckedArithmetic.h"
@@ -595,7 +596,15 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             {
                 CallFunction* code = (CallFunction*)programCounter;
                 const Value& callee = registerFile[code->m_calleeIndex];
-                registerFile[code->m_resultIndex] = Object::call(state, callee, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+
+                // https://www.ecma-international.org/ecma-262/6.0/#sec-call
+                // If IsCallable(F) is false, throw a TypeError exception.
+                if (UNLIKELY(!callee.isCallable())) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
+                }
+                // Return F.[[Call]](V, argumentsList).
+                registerFile[code->m_resultIndex] = callee.asObject()->call(state, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+
                 ADD_PROGRAM_COUNTER(CallFunction);
                 NEXT_INSTRUCTION();
             }
@@ -606,7 +615,15 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 CallFunctionWithReceiver* code = (CallFunctionWithReceiver*)programCounter;
                 const Value& callee = registerFile[code->m_calleeIndex];
                 const Value& receiver = registerFile[code->m_receiverIndex];
-                registerFile[code->m_resultIndex] = Object::call(state, callee, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+
+                // https://www.ecma-international.org/ecma-262/6.0/#sec-call
+                // If IsCallable(F) is false, throw a TypeError exception.
+                if (UNLIKELY(!callee.isCallable())) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
+                }
+                // Return F.[[Call]](V, argumentsList).
+                registerFile[code->m_resultIndex] = callee.asObject()->call(state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+
                 ADD_PROGRAM_COUNTER(CallFunctionWithReceiver);
                 NEXT_INSTRUCTION();
             }
@@ -2236,12 +2253,16 @@ NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& s
         outerLexicalEnvironment = nullptr;
     }
 
-    if (cb->isArrowFunctionExpression()) {
+    if (cb->isGenerator()) {
+        Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
+        Object* homeObject = (cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
+        registerFile[code->m_registerIndex] = new ScriptGeneratorFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
+    } else if (cb->isArrowFunctionExpression()) {
         registerFile[code->m_registerIndex] = new ScriptArrowFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize]);
     } else if (cb->isClassMethod() || cb->isClassStaticMethod()) {
         registerFile[code->m_registerIndex] = new ScriptClassMethodFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, registerFile[code->m_homeObjectRegisterIndex].asObject());
     } else {
-        registerFile[code->m_registerIndex] = new ScriptFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, true, code->m_codeBlock->isGenerator());
+        registerFile[code->m_registerIndex] = new ScriptFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, true, false);
     }
 }
 

@@ -146,9 +146,15 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                         auto parentBlockIndex = codeBlock->lexicalBlockIndexFunctionLocatedIn();
                         InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
                         while (c && parentBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
-                            if (c->tryCaptureIdentifiersFromChildCodeBlock(parentBlockIndex, uname)) {
-                                codeBlock->markHeapAllocatedEnvironmentFromHere(blockIndex, c);
+                            auto r = c->tryCaptureIdentifiersFromChildCodeBlock(parentBlockIndex, uname);
+
+                            if (r.first) {
                                 usingNameIsResolvedOnCompileTime = true;
+                                // if variable is global variable, we don't need capture it
+                                if (!codeBlock->hasAncestorUsesNonIndexedVariableStorage() && !c->isKindOfFunction() && (r.second == SIZE_MAX || c->blockInfos()[r.second]->m_parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX)) {
+                                } else {
+                                    codeBlock->markHeapAllocatedEnvironmentFromHere(blockIndex, c);
+                                }
                                 break;
                             }
                             parentBlockIndex = c->lexicalBlockIndexFunctionLocatedIn();
@@ -289,7 +295,7 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
     printf(" ");
 
         PRINT_TAB()
-        printf("CodeBlock %s %s (%d:%d -> %d:%d, block %d)(%s, %s) (E:%d, W:%d, Y:%d, A:%d)\n", cb->m_functionName.string()->toUTF8StringData().data(),
+        printf("CodeBlock %p %s %s (%d:%d -> %d:%d, block %d)(%s, %s) (E:%d, W:%d, Y:%d, A:%d)\n", cb, cb->m_functionName.string()->toUTF8StringData().data(),
                cb->m_isStrict ? "Strict" : "",
                (int)cb->m_bodyStartLOC.line,
                (int)cb->m_bodyStartLOC.column,
