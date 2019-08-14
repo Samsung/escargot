@@ -663,10 +663,7 @@ public:
         return getOwnProperty(state, propertyName).hasValue();
     }
 
-    virtual bool hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
-    {
-        return get(state, propertyName).hasValue();
-    }
+    virtual bool hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName);
 
     virtual ValueVector ownPropertyKeys(ExecutionState& state);
 
@@ -784,6 +781,7 @@ public:
         ensureObjectRareData()->m_internalSlot = object;
     }
 
+    static bool ordinaryHasProperty(ExecutionState& state, Object* object, const ObjectPropertyName& propertyName);
     static Value get(ExecutionState& state, const Value& value, const ObjectPropertyName& propertyName);
     static Value getMethod(ExecutionState& state, const Value& object, const ObjectPropertyName& propertyName);
     static Value call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv);
