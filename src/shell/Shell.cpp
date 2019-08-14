@@ -184,6 +184,9 @@ int main(int argc, char* argv[])
         GC_set_free_space_divisor(d);
     }
 
+
+    GC_set_free_space_divisor(1);
+
     while (runShell) {
         static char buf[2048];
         printf("escargot> ");
