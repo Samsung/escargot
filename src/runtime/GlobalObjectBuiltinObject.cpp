@@ -323,74 +323,62 @@ static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value 
     return desc.toPropertyDescriptor(state, O);
 }
 
+enum class GetOwnPropertyKeysType {
+    String,
+    Symbol
+};
+
+static ArrayObject* getOwnPropertyKeys(ExecutionState& state, Value o, GetOwnPropertyKeysType type)
+{
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-getownpropertykeys
+
+    // 1. Let obj be ToObject(O).
+    // 2. ReturnIfAbrupt(obj)
+    auto obj = o.asObject();
+    // 3. Let keys be obj.[[OwnPropertyKeys]]().
+    // 4. ReturnIfAbrupt(keys).
+    auto keys = obj->ownPropertyKeys(state);
+
+    // 5. Let nameList be a new empty List.
+    ValueVector nameList;
+
+    // 6. Repeat for each element nextKey of keys in List order,
+    //  a. If Type(nextKey) is Type, then
+    //      i. Append nextKey as the last element of nameList.
+    bool (Escargot::Value::*func)() const;
+    if (type == GetOwnPropertyKeysType::String) {
+        func = &Value::isString;
+    } else {
+        func = &Value::isSymbol;
+    }
+    for (size_t i = 0; i < keys.size(); ++i) {
+        if ((keys[i].*func)()) {
+            nameList.pushBack(keys[i]);
+        }
+    }
+
+    // 7. Return CreateArrayFromList(nameList).
+    return Object::createArrayFromList(state, nameList);
+}
+
 static Value builtinObjectGetOwnPropertyNames(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // If Type(O) is not Object throw a TypeError exception.
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-object.getownpropertynames
     if (!argv[0].isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().getOwnPropertyNames.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
     }
     Object* O = argv[0].asObject();
-
-    // Let array be the result of creating a new object as if by the expression new Array () where Array is the standard built-in constructor with that name.
-    ArrayObject* array = new ArrayObject(state);
-
-    // Let n be 0.
-    size_t n = 0;
-    struct Data {
-        ArrayObject* array;
-        size_t* n;
-    } data;
-    data.array = array;
-    data.n = &n;
-    // For each named own property P of O
-    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-        Data* a = (Data*)data;
-        // Let name be the String value that is the name of P.
-        Value name = P.toPlainValue(state).toString(state);
-        // Call the [[DefineOwnProperty]] internal method of array with arguments ToString(n), the PropertyDescriptor {[[Value]]: name, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
-        a->array->defineOwnProperty(state, ObjectPropertyName(state, Value(*a->n)), ObjectPropertyDescriptor(name, ObjectPropertyDescriptor::AllPresent));
-        // Increment n by 1.
-        (*a->n)++;
-        return true;
-    },
-                   &data);
-
-    // Return array.
-    return array;
+    return getOwnPropertyKeys(state, O, GetOwnPropertyKeysType::String);
 }
 
 static Value builtinObjectGetOwnPropertySymbols(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-object.getownpropertysymbols
+    if (!argv[0].isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().getOwnPropertySymbols.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+    }
     Object* O = argv[0].toObject(state);
-
-    // Let array be the result of creating a new object as if by the expression new Array () where Array is the standard built-in constructor with that name.
-    ArrayObject* array = new ArrayObject(state);
-
-    // Let n be 0.
-    size_t n = 0;
-    struct Data {
-        ArrayObject* array;
-        size_t* n;
-    } data;
-    data.array = array;
-    data.n = &n;
-    // For each named own property P of O
-    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-        Data* a = (Data*)data;
-        // Let name be the String value that is the name of P.
-        Value name = P.toPlainValue(state);
-        if (name.isSymbol()) {
-            // Call the [[DefineOwnProperty]] internal method of array with arguments ToString(n), the PropertyDescriptor {[[Value]]: name, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
-            a->array->defineOwnProperty(state, ObjectPropertyName(state, Value(*a->n)), ObjectPropertyDescriptor(name, ObjectPropertyDescriptor::AllPresent));
-            // Increment n by 1.
-            (*a->n)++;
-        }
-        return true;
-    },
-                   &data, false);
-
-    // Return array.
-    return array;
+    return getOwnPropertyKeys(state, O, GetOwnPropertyKeysType::Symbol);
 }
 
 static Value builtinObjectIsExtensible(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -462,40 +450,6 @@ static Value builtinObjectIsSealed(ExecutionState& state, Value thisValue, size_
     return Value(false);
 }
 
-static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    Object* O = argv[0].toObject(state);
-
-    // Let array be the result of creating a new object as if by the expression new Array(n) where Array is the standard built-in constructor with that name.
-    ArrayObject* array = new ArrayObject(state);
-
-    // Let index be 0.
-    size_t index = 0;
-
-    struct Data {
-        ArrayObject* array;
-        size_t* index;
-    } data;
-    data.array = array;
-    data.index = &index;
-
-    // For each own enumerable property of O whose name String is P
-    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-        if (desc.isEnumerable()) {
-            Data* aData = (Data*)data;
-            // Call the [[DefineOwnProperty]] internal method of array with arguments ToString(index), the PropertyDescriptor {[[Value]]: P, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
-            aData->array->defineOwnProperty(state, ObjectPropertyName(state, Value(*aData->index)), ObjectPropertyDescriptor(Value(P.toPlainValue(state).toString(state)), ObjectPropertyDescriptor::AllPresent));
-            // Increment index by 1.
-            (*aData->index)++;
-        }
-        return true;
-    },
-                   &data);
-
-    // Return array.
-    return array;
-}
-
 static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (!argv[0].isObject()) {
@@ -551,7 +505,7 @@ static Value builtinObjectAssign(ExecutionState& state, Value thisValue, size_t 
             // Let from be ! ToObject(nextSource).
             from = nextSource.toObject(state);
             // Let keys be ? from.[[OwnPropertyKeys]]().
-            keys = from->getOwnPropertyKeys(state);
+            keys = from->ownPropertyKeys(state);
         }
 
         // For each element nextKey of keys in List order, do
@@ -579,142 +533,40 @@ static Value builtinObjectIs(ExecutionState& state, Value thisValue, size_t argc
     return Value(argv[0].equalsToByTheSameValueAlgorithm(state, argv[1]));
 }
 
-static ArrayObject* createArrayFromList(ExecutionState& state, ValueVector& elements)
+static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // Let array be ! ArrayCreate(0).
-    // Let n be 0.
-    // For each element e of elements, do
-    // Let status be CreateDataProperty(array, ! ToString(n), e).
-    // Assert: status is true.
-    // Increment n by 1.
-    // Return array.
-    ArrayObject* array = new ArrayObject(state);
-    for (size_t n = 0; n < elements.size(); n++) {
-        array->defineOwnProperty(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(elements[n], ObjectPropertyDescriptor::AllPresent));
-    }
-    return array;
-}
+    // 19.1.2.16 Object.keys ( O )
 
-enum EnumerableOwnPropertiesType {
-    EnumerableOwnPropertiesTypeKey,
-    EnumerableOwnPropertiesTypeValue,
-    EnumerableOwnPropertiesTypeKeyValue
-};
-
-// https://www.ecma-international.org/ecma-262/8.0/#sec-enumerableownproperties
-static ValueVector enumerableOwnProperties(ExecutionState& state, Object* O, EnumerableOwnPropertiesType kind)
-{
-    ValueVector properties;
-    // Let ownKeys be ? O.[[OwnPropertyKeys]]().
-    // Let properties be a new empty List.
-    // For each element key of ownKeys in List order, do
-    struct Data {
-        ValueVector& properties;
-        EnumerableOwnPropertiesType kind;
-        Data(ValueVector& properties, EnumerableOwnPropertiesType kind)
-            : properties(properties)
-            , kind(kind)
-        {
-        }
-    };
-    Data sender(properties, kind);
-
-    double k = 0;
-
-    // Order the elements of properties so they are in the same relative order as would be produced by the Iterator that would be returned
-    // if the EnumerateObjectProperties internal method were invoked with O.
-    while (true) {
-        // Let exists be the result of calling the [[HasProperty]] internal method of E with P.
-        ObjectGetResult exists = O->getIndexedProperty(state, Value(k));
-        if (exists.hasValue() && exists.isEnumerable()) {
-            // If kind is "key", append key to properties.
-            if (sender.kind == EnumerableOwnPropertiesType::EnumerableOwnPropertiesTypeKey) {
-                sender.properties.push_back(Value(k));
-            } else {
-                // Else,
-                // Let value be ? Get(O, key).
-                Value value = exists.value(state, O);
-                // If kind is "value", append value to properties.
-                if (sender.kind == EnumerableOwnPropertiesType::EnumerableOwnPropertiesTypeValue) {
-                    sender.properties.push_back(value);
-                } else {
-                    // Else,
-                    // Assert: kind is "key+value".
-                    // Let entry be CreateArrayFromList(« key, value »).
-                    ArrayObject* entry = new ArrayObject(state);
-                    entry->defineOwnProperty(state, ObjectPropertyName(state, Value(0)), ObjectPropertyDescriptor(Value(k), ObjectPropertyDescriptor::AllPresent));
-                    entry->defineOwnProperty(state, ObjectPropertyName(state, Value(1)), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
-                    // Append entry to properties.
-                    sender.properties.push_back(entry);
-                }
-            }
-            k++;
-        } else {
-            Object::nextIndexForward(state, O, k, std::numeric_limits<double>::max(), false, k);
-            if (k == std::numeric_limits<double>::max()) {
-                break;
-            }
-        }
-    }
-
-    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& keyName, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-        Data* d = (Data*)data;
-        Value vv = keyName.toPlainValue(state);
-        if (vv.toArrayIndex(state) != Value::InvalidArrayIndexValue) {
-            return true;
-        }
-        // If Type(key) is String, then
-        // Let desc be ? O.[[GetOwnProperty]](key).
-        // If desc is not undefined and desc.[[Enumerable]] is true, then
-        if (desc.isEnumerable()) {
-            // If kind is "key", append key to properties.
-            if (d->kind == EnumerableOwnPropertiesType::EnumerableOwnPropertiesTypeKey) {
-                d->properties.push_back(keyName.toPlainValue(state));
-            } else {
-                // Else,
-                // Let value be ? Get(O, key).
-                Value value = self->get(state, keyName).value(state, self);
-                // If kind is "value", append value to properties.
-                if (d->kind == EnumerableOwnPropertiesType::EnumerableOwnPropertiesTypeValue) {
-                    d->properties.push_back(value);
-                } else {
-                    // Else,
-                    // Assert: kind is "key+value".
-                    // Let entry be CreateArrayFromList(« key, value »).
-                    ArrayObject* entry = new ArrayObject(state);
-                    entry->defineOwnProperty(state, ObjectPropertyName(state, Value(0)), ObjectPropertyDescriptor(keyName.toPlainValue(state), ObjectPropertyDescriptor::AllPresent));
-                    entry->defineOwnProperty(state, ObjectPropertyName(state, Value(1)), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
-                    // Append entry to properties.
-                    d->properties.push_back(entry);
-                }
-            }
-        }
-        return true;
-    },
-                   &sender, true);
-
-    // Return properties.
-    return properties;
+    // Let obj be ? ToObject(O).
+    Object* obj = argv[0].toObject(state);
+    // Let nameList be ? EnumerableOwnProperties(obj, "key").
+    auto nameList = Object::enumerableOwnProperties(state, obj, EnumerableOwnPropertiesType::Key);
+    // Return CreateArrayFromList(nameList).
+    return Object::createArrayFromList(state, nameList);
 }
 
 static Value builtinObjectValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+    // 19.1.2.21 Object.values ( O )
+
     // Let obj be ? ToObject(O).
     Object* obj = argv[0].toObject(state);
     // Let nameList be ? EnumerableOwnProperties(obj, "value").
-    auto nameList = enumerableOwnProperties(state, obj, EnumerableOwnPropertiesTypeValue);
+    auto nameList = Object::enumerableOwnProperties(state, obj, EnumerableOwnPropertiesType::Value);
     // Return CreateArrayFromList(nameList).
-    return createArrayFromList(state, nameList);
+    return Object::createArrayFromList(state, nameList);
 }
 
 static Value builtinObjectEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+    // 19.1.2.5 Object.entries ( O )
+
     // Let obj be ? ToObject(O).
     Object* obj = argv[0].toObject(state);
     // Let nameList be ? EnumerableOwnProperties(obj, "key+value").
-    auto nameList = enumerableOwnProperties(state, obj, EnumerableOwnPropertiesTypeKeyValue);
+    auto nameList = Object::enumerableOwnProperties(state, obj, EnumerableOwnPropertiesType::KeyAndValue);
     // Return CreateArrayFromList(nameList).
-    return createArrayFromList(state, nameList);
+    return Object::createArrayFromList(state, nameList);
 }
 
 void GlobalObject::installObject(ExecutionState& state)

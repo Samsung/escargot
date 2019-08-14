@@ -446,6 +446,140 @@ bool ProxyObject::hasProperty(ExecutionState& state, const ObjectPropertyName& p
     return booleanTrapResult;
 }
 
+ValueVector ProxyObject::ownPropertyKeys(ExecutionState& state)
+{
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-ownpropertykeys
+    auto strings = &state.context()->staticStrings();
+
+    // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
+    // 2. If handler is null, throw a TypeError exception.
+    if (this->handler() == nullptr) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
+        return ValueVector();
+    }
+    Value handler(this->handler());
+
+    // 3. Assert: Type(handler) is Object.
+    ASSERT(handler.isObject());
+
+    // 4. Let target be the value of the [[ProxyTarget]] internal slot of O.
+    Value target(this->target());
+
+    // 5. Let trap be GetMethod(handler, "ownKeys").
+    // 6. ReturnIfAbrupt(trap).
+    Value trap;
+    trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->ownKeys));
+
+    // 7. If trap is undefined, then
+    //  a. Return target.[[OwnPropertyKeys]]().
+    if (trap.isUndefined()) {
+        return target.asObject()->ownPropertyKeys(state);
+    }
+
+    // 8. Let trapResultArray be Call(trap, handler, «target»).
+    // 9. Let trapResult be CreateListFromArrayLike(trapResultArray, «‍String, Symbol»).
+    // 10. ReturnIfAbrupt(trapResult).
+    Value trapResultArray;
+    Value arguments[] = { target };
+    trapResultArray = Object::call(state, trap, handler, 1, arguments);
+    auto trapResult = Object::createListFromArrayLike(state, trapResultArray, ((uint8_t)ElementTypes::String | (uint8_t)ElementTypes::Symbol));
+
+    // 11. Let extensibleTarget be IsExtensible(target).
+    // 12. ReturnIfAbrupt(extensibleTarget).
+    bool extensibleTarget = target.asObject()->isExtensible(state);
+
+    // 13. Let targetKeys be target.[[OwnPropertyKeys]]().
+    // 14. ReturnIfAbrupt(targetKeys).
+    auto targetKeys = target.asObject()->ownPropertyKeys(state);
+    // 15. targetKeys is a List containing only String and Symbol values.
+    for (size_t i = 0; i < targetKeys.size(); ++i) {
+        ASSERT((targetKeys[i].isString() || targetKeys[i].isSymbol()));
+    }
+
+    // 16. Let targetConfigurableKeys be an empty List.
+    // 17. Let targetNonconfigurableKeys be an empty List.
+    ValueVector targetConfigurableKeys;
+    ValueVector targetNonconfigurableKeys;
+
+    // 18 .Repeat, for each element key of targetKeys,
+    for (size_t i = 0; i < targetKeys.size(); ++i) {
+        auto& key = targetKeys[i];
+        // a. Let desc be target.[[GetOwnProperty]](key).
+        // b. ReturnIfAbrupt(desc).
+        ObjectPropertyName propertyname = ObjectPropertyName(state, key);
+        auto desc = target.asObject()->getOwnProperty(state, propertyname);
+
+        // c. If desc is not undefined and desc.[[Configurable]] is false, then
+        if (desc.hasValue() && !desc.isConfigurable()) {
+            // i. Append key as an element of targetNonconfigurableKeys.
+            targetNonconfigurableKeys.pushBack(key);
+        } else { // d.Else,
+            // i. Append key as an element of targetConfigurableKeys.
+            targetConfigurableKeys.pushBack(key);
+        }
+    }
+    // 19. If extensibleTarget is true and targetNonconfigurableKeys is empty, then
+    if (extensibleTarget && targetNonconfigurableKeys.size() == 0) {
+        // a. Return trapResult.
+        return trapResult;
+    }
+
+    // 20. Let uncheckedResultKeys be a new List which is a copy of trapResult.
+    std::vector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> uncheckedResultKeys;
+    for (size_t i = 0; i < trapResult.size(); ++i) {
+        uncheckedResultKeys.push_back(trapResult[i]);
+    }
+
+    // 21. Repeat, for each key that is an element of targetNonconfigurableKeys,
+    size_t removedUncheckedResultKeys = 0;
+    for (size_t i = 0; i < targetNonconfigurableKeys.size(); ++i) {
+        auto& key = targetNonconfigurableKeys[i];
+        // a. If key is not an element of uncheckedResultKeys, throw a TypeError exception.
+        // b. Remove key from uncheckedResultKeys
+        bool found = false;
+        for (auto iter = uncheckedResultKeys.begin(); iter != uncheckedResultKeys.end(); iter++) {
+            if (iter->equalsTo(state, key)) {
+                uncheckedResultKeys.erase(iter);
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: the key of targetNonconfigurableKeys is not an element of uncheckedResultKeys.");
+        }
+    }
+
+    // 22. If extensibleTarget is true, return trapResult.
+    if (extensibleTarget) {
+        return trapResult;
+    }
+
+    // 23. Repeat, for each key that is an element of targetConfigurableKeys,
+    for (size_t i = 0; i < targetConfigurableKeys.size(); ++i) {
+        auto& key = targetConfigurableKeys[i];
+        // a. If key is not an element of uncheckedResultKeys, throw a TypeError exception.
+        // b. Remove key from uncheckedResultKeys
+        bool found = false;
+        for (auto iter = uncheckedResultKeys.begin(); iter != uncheckedResultKeys.end(); iter++) {
+            if (iter->equalsTo(state, key)) {
+                uncheckedResultKeys.erase(iter);
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: the key of targetConfigurableKeys is not an element of uncheckedResultKeys.");
+        }
+    }
+    // 24. If uncheckedResultKeys is not empty, throw a TypeError exception.
+    if (uncheckedResultKeys.size()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: uncheckedResultKeys is not empty");
+    }
+
+    // 25. Return trapResult.
+    return trapResult;
+}
+
 bool ProxyObject::isExtensible(ExecutionState& state)
 {
     auto strings = &state.context()->staticStrings();
@@ -796,10 +930,7 @@ Value ProxyObject::call(ExecutionState& state, const Value& receiver, const size
     }
 
     // 8. Let argArray be CreateArrayFromList(argumentsList).
-    ArrayObject* argArray = new ArrayObject(state);
-    for (size_t n = 0; n < argc; n++) {
-        argArray->defineOwnProperty(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(argv[n], ObjectPropertyDescriptor::AllPresent));
-    }
+    ArrayObject* argArray = Object::createArrayFromList(state, argc, argv);
 
     // 9. Return Call(trap, handler, «target, thisArgument, argArray»).
     Value arguments[] = { target, receiver, Value(argArray) };
@@ -839,10 +970,7 @@ Object* ProxyObject::construct(ExecutionState& state, const size_t argc, NULLABL
     }
 
     // 8. Let argArray be CreateArrayFromList(argumentsList).
-    ArrayObject* argArray = new ArrayObject(state);
-    for (size_t n = 0; n < argc; n++) {
-        argArray->defineOwnProperty(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(argv[n], ObjectPropertyDescriptor::AllPresent));
-    }
+    ArrayObject* argArray = Object::createArrayFromList(state, argc, argv);
 
     // 9. Let newObj be Call(trap, handler, «target, argArray, newTarget »).
     Value arguments[] = { target, Value(argArray), Value(newTarget) };
