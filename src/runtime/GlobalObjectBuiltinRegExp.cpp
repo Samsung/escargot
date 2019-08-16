@@ -340,6 +340,104 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
     return A;
 }
 
+static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    ASSERT(argc == 0 || argv != nullptr);
+    Value rx = thisValue;
+    if (!thisValue.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replace.string(), errorMessage_GlobalObject_ThisUndefinedOrNull);
+    }
+    String* str = argv[0].toString(state);
+    Value replaceValue = argv[1];
+    size_t lengthStr = str->length();
+    bool functionalReplace = replaceValue.isCallable();
+    bool fullUnicode = false;
+    String* replacement = String::emptyString;
+    size_t nextSourcePosition = 0;
+    StringBuilder builder;
+
+    if (!functionalReplace) {
+        replaceValue = replaceValue.toString(state);
+    }
+    bool global = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().global)).value(state, rx).toBoolean(state);
+    if (global) {
+        fullUnicode = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, rx).toBoolean(state);
+        rx.asObject()->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex), Value(0), rx);
+    }
+    ValueVector results;
+    Value strValue = Value(str);
+    while (true) {
+        Value result = builtinRegExpExec(state, rx.toObject(state), 1, &strValue, false);
+        if (result.isNull()) {
+            break;
+        }
+        results.push_back(result);
+        if (!global) {
+            break;
+        }
+        Value matchStr = result.asObject()->get(state, ObjectPropertyName(state, Value(0))).value(state, result);
+        if (matchStr.toString(state)->length() == 0 && global) {
+            size_t thisIndex = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, rx).toLength(state);
+            size_t nextIndex = str->advanceStringIndex(thisIndex, fullUnicode);
+            rx.asObject()->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex), Value(nextIndex), rx);
+        }
+    }
+    for (uint i = 0; i < results.size(); i++) {
+        Object* result = results[i].toObject(state);
+        size_t nCaptures = result->get(state, ObjectPropertyName(state.context()->staticStrings().length)).value(state, result).toLength(state) - 1;
+
+        if (nCaptures == SIZE_MAX) {
+            nCaptures = 0;
+        }
+        String* matched = result->get(state, ObjectPropertyName(state, Value(0))).value(state, result).toString(state);
+        size_t matchLength = matched->length();
+        size_t position = result->get(state, ObjectPropertyName(state.context()->staticStrings().index)).value(state, result).toInteger(state);
+
+        if (position > lengthStr) {
+            position = lengthStr;
+        }
+        if (position == SIZE_MAX) {
+            position = 0;
+        }
+        size_t n = 1;
+        StringVector captures;
+        Value* replacerArgs;
+        if (functionalReplace) {
+            replacerArgs = ALLOCA(sizeof(Value) * (nCaptures + 3), Value, state);
+            replacerArgs[0] = matched;
+        }
+        while (n <= nCaptures) {
+            Value capN = result->get(state, ObjectPropertyName(state, Value(n))).value(state, result);
+            if (!capN.isUndefined()) {
+                captures.push_back(capN.toString(state));
+            } else {
+                captures.push_back(String::emptyString);
+            }
+            if (functionalReplace) {
+                replacerArgs[n] = capN;
+            }
+            n++;
+        }
+        if (functionalReplace) {
+            replacerArgs[nCaptures + 1] = Value((size_t)position);
+            replacerArgs[nCaptures + 2] = Value(str);
+            replacement = Object::call(state, replaceValue, Value(), nCaptures + 3, replacerArgs).toString(state);
+        } else {
+            replacement = replacement->getSubstitution(state, matched, str, position, captures, replaceValue.toString(state));
+        }
+        if (position >= nextSourcePosition) {
+            builder.appendSubString(str, nextSourcePosition, position);
+            builder.appendSubString(replacement, 0, replacement->length());
+            nextSourcePosition = position + matchLength;
+        }
+    }
+    if (nextSourcePosition >= lengthStr) {
+        return Value(builder.finalize(&state));
+    }
+    builder.appendSubString(str, nextSourcePosition, str->length());
+    return Value(builder.finalize(&state));
+}
+
 GlobalRegExpFunctionObject::GlobalRegExpFunctionObject(ExecutionState& state)
     : NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().RegExp, builtinRegExpConstructor, 2), NativeFunctionObject::__ForBuiltinConstructor__)
 {
@@ -490,12 +588,17 @@ void GlobalObject::installRegExp(ExecutionState& state)
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->compile, builtinRegExpCompile, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $21.2.5.9 RegExp.prototype[@@search]
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().search),
-                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSymbolSearch, builtinRegExpSearch, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().symbolSearch, builtinRegExpSearch, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $21.2.5.11 RegExp.prototype[@@split]
     m_regexpSplitMethod = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().symbolSplit, builtinRegExpSplit, 1, NativeFunctionInfo::Strict));
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().split),
                                                         ObjectPropertyDescriptor(m_regexpSplitMethod, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // $21.2.5.8 RegExp.prototype [@@replace]
+    m_regexpReplaceMethod = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().symbolReplace, builtinRegExpReplace, 2, NativeFunctionInfo::Strict));
+    m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().replace),
+                                                        ObjectPropertyDescriptor(m_regexpReplaceMethod, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().RegExp),
                       ObjectPropertyDescriptor(m_regexp, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

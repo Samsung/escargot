@@ -23,6 +23,7 @@
 #include "runtime/PointerValue.h"
 #include "util/BasicString.h"
 #include <string>
+#include "util/Vector.h"
 
 namespace Escargot {
 
@@ -34,6 +35,7 @@ typedef BasicString<LChar, GCUtil::gc_malloc_atomic_allocator<LChar>> Latin1Stri
 typedef BasicString<char, GCUtil::gc_malloc_atomic_allocator<char>> UTF8StringData;
 typedef BasicString<char16_t, GCUtil::gc_malloc_atomic_allocator<char16_t>> UTF16StringData;
 typedef BasicString<char32_t, GCUtil::gc_malloc_atomic_allocator<char32_t>> UTF32StringData;
+typedef Vector<String*, GCUtil::gc_malloc_atomic_allocator<String*>> StringVector;
 
 typedef std::basic_string<char, std::char_traits<char>> ASCIIStringDataNonGCStd;
 typedef std::basic_string<LChar, std::char_traits<LChar>> Latin1StringDataNonGCStd;
@@ -218,7 +220,7 @@ public:
 
         return true;
     }
-
+    String* getSubstitution(ExecutionState& state, String* matched, String* str, size_t position, StringVector& captures, String* replacement);
     size_t find(String* str, size_t pos = 0);
     size_t rfind(String* str, size_t pos);
 

@@ -310,14 +310,32 @@ static Value builtinStringRepeat(ExecutionState& state, Value thisValue, size_t 
 
 static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(string, String, replace);
+    ASSERT(argc == 0 || argv != nullptr);
+    if (thisValue.isUndefinedOrNull()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replace.string(), errorMessage_GlobalObject_ThisUndefinedOrNull);
+    }
+
     Value searchValue = argv[0];
     Value replaceValue = argv[1];
-    String* replaceString = nullptr;
-    bool replaceValueIsFunction = replaceValue.isCallable();
+    bool isReplaceRegExp = searchValue.isPointerValue() && searchValue.asPointerValue()->isRegExpObject(state);
+
+
+    if (!searchValue.isUndefinedOrNull()) {
+        Value replacer = searchValue.toObject(state)->getMethod(state, searchValue, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().replace));
+        if (isReplaceRegExp && searchValue.isPointerValue() && searchValue.asPointerValue() == state.context()->globalObject()->regexpReplaceMethod()) {
+        } else {
+            if (!replacer.isUndefined()) {
+                Value parameters[2] = { thisValue, replaceValue };
+                return Object::call(state, replacer, searchValue, 2, parameters);
+            }
+        }
+    }
+    String* string = thisValue.toString(state);
+    String* searchString = searchValue.toString(state);
+    bool functionalReplace = replaceValue.isCallable();
     RegexMatchResult result;
 
-    if (searchValue.isPointerValue() && searchValue.asPointerValue()->isRegExpObject(state)) {
+    if (isReplaceRegExp) {
         RegExpObject* regexp = searchValue.asPointerValue()->asRegExpObject(state);
         bool isGlobal = regexp->option() & RegExpObject::Option::Global;
 
@@ -332,144 +350,34 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
         } else {
             regexp->setLastIndex(state, Value(0));
         }
+    }
+
+    if (!functionalReplace) {
+        replaceValue = replaceValue.toString(state);
+    }
+
+    size_t pos = string->find(searchString, 0);
+    String* matched = searchString;
+
+    //If no occurrences of searchString were found, return string.
+    if (pos == SIZE_MAX) {
+        return Value(string);
+    }
+    String* replStr = String::emptyString;
+    if (functionalReplace) {
+        Value parameters[3] = { Value(matched), Value(pos), Value(string) };
+        Value replValue = Object::call(state, replaceValue, Value(), 3, parameters);
+        replStr = replValue.toString(state);
     } else {
-        String* searchString = searchValue.toString(state);
-        size_t idx = string->find(searchString);
-        if (idx != (size_t)-1) {
-            std::vector<RegexMatchResult::RegexMatchResultPiece> piece;
-            RegexMatchResult::RegexMatchResultPiece p;
-            p.m_start = idx;
-            p.m_end = idx + searchString->length();
-            piece.push_back(std::move(p));
-            result.m_matchResults.push_back(std::move(piece));
-        }
+        StringVector captures;
+        replStr = replStr->getSubstitution(state, matched, string, pos, captures, replaceValue.toString(state));
     }
-
-    // NOTE: replaceValue.toString should be called after searchValue.toString
-    if (!replaceValueIsFunction) {
-        replaceString = replaceValue.toString(state);
-    }
-
-    if (result.m_matchResults.size() == 0) {
-        return string;
-    }
-
-    if (replaceValueIsFunction) {
-        uint32_t matchCount = result.m_matchResults.size();
-        Value callee = replaceValue;
-
-        StringBuilder builer;
-        builer.appendSubString(string, 0, result.m_matchResults[0][0].m_start);
-
-        for (uint32_t i = 0; i < matchCount; i++) {
-            int subLen = result.m_matchResults[i].size();
-            Value* arguments;
-            // #define ALLOCA(bytes, typenameWithoutPointer, ec) (typenameWithoutPointer*)alloca(bytes)
-            arguments = ALLOCA(sizeof(Value) * (subLen + 2), Value, state);
-            for (unsigned j = 0; j < (unsigned)subLen; j++) {
-                if (result.m_matchResults[i][j].m_start == std::numeric_limits<unsigned>::max())
-                    arguments[j] = Value();
-                else {
-                    StringBuilder argStrBuilder;
-                    argStrBuilder.appendSubString(string, result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end);
-                    arguments[j] = argStrBuilder.finalize(&state);
-                }
-            }
-            arguments[subLen] = Value((int)result.m_matchResults[i][0].m_start);
-            arguments[subLen + 1] = string;
-            // 21.1.3.14 (11) it should be called with this as undefined
-            String* res = Object::call(state, callee, Value(), subLen + 2, arguments).toString(state);
-            builer.appendSubString(res, 0, res->length());
-
-            if (i < matchCount - 1) {
-                builer.appendSubString(string, result.m_matchResults[i][0].m_end, result.m_matchResults[i + 1][0].m_start);
-            }
-        }
-        builer.appendSubString(string, result.m_matchResults[matchCount - 1][0].m_end, string->length());
-        return builer.finalize(&state);
-    } else {
-        ASSERT(replaceString);
-
-        bool hasDollar = false;
-        for (size_t i = 0; i < replaceString->length(); i++) {
-            if (replaceString->charAt(i) == '$') {
-                hasDollar = true;
-                break;
-            }
-        }
-
-        StringBuilder builder;
-        if (!hasDollar) {
-            // flat replace
-            int32_t matchCount = result.m_matchResults.size();
-            builder.appendSubString(string, 0, result.m_matchResults[0][0].m_start);
-            for (int32_t i = 0; i < matchCount; i++) {
-                String* res = replaceString;
-                builder.appendString(res);
-                if (i < matchCount - 1) {
-                    builder.appendSubString(string, result.m_matchResults[i][0].m_end, result.m_matchResults[i + 1][0].m_start);
-                }
-            }
-            builder.appendSubString(string, result.m_matchResults[matchCount - 1][0].m_end, string->length());
-        } else {
-            // dollar replace
-            int32_t matchCount = result.m_matchResults.size();
-            builder.appendSubString(string, 0, result.m_matchResults[0][0].m_start);
-            for (int32_t i = 0; i < matchCount; i++) {
-                for (unsigned j = 0; j < replaceString->length(); j++) {
-                    if (replaceString->charAt(j) == '$' && (j + 1) < replaceString->length()) {
-                        char16_t c = replaceString->charAt(j + 1);
-                        if (c == '$') {
-                            builder.appendChar(replaceString->charAt(j));
-                        } else if (c == '&') {
-                            builder.appendSubString(string, result.m_matchResults[i][0].m_start, result.m_matchResults[i][0].m_end);
-                        } else if (c == '\'') {
-                            builder.appendSubString(string, result.m_matchResults[i][0].m_end, string->length());
-                        } else if (c == '`') {
-                            builder.appendSubString(string, 0, result.m_matchResults[i][0].m_start);
-                        } else if ('0' <= c && c <= '9') {
-                            size_t idx = c - '0';
-                            bool usePeek = false;
-                            if (j + 2 < replaceString->length()) {
-                                int peek = replaceString->charAt(j + 2) - '0';
-                                if (0 <= peek && peek <= 9) {
-                                    idx *= 10;
-                                    idx += peek;
-                                    usePeek = true;
-                                }
-                            }
-
-                            if (idx < result.m_matchResults[i].size() && idx != 0) {
-                                builder.appendSubString(string, result.m_matchResults[i][idx].m_start, result.m_matchResults[i][idx].m_end);
-                                if (usePeek)
-                                    j++;
-                            } else {
-                                idx = c - '0';
-                                if (idx < result.m_matchResults[i].size() && idx != 0) {
-                                    builder.appendSubString(string, result.m_matchResults[i][idx].m_start, result.m_matchResults[i][idx].m_end);
-                                } else {
-                                    builder.appendChar('$');
-                                    builder.appendChar(c);
-                                }
-                            }
-                        } else {
-                            builder.appendChar('$');
-                            builder.appendChar(c);
-                        }
-                        j++;
-                    } else {
-                        builder.appendChar(replaceString->charAt(j));
-                    }
-                }
-                if (i < matchCount - 1) {
-                    builder.appendSubString(string, result.m_matchResults[i][0].m_end, result.m_matchResults[i + 1][0].m_start);
-                }
-            }
-            builder.appendSubString(string, result.m_matchResults[matchCount - 1][0].m_end, string->length());
-        }
-        return builder.finalize(&state);
-    }
-    RELEASE_ASSERT_NOT_REACHED();
+    size_t tailpos = pos + matched->length();
+    StringBuilder builder;
+    builder.appendSubString(string, 0, pos);
+    builder.appendSubString(replStr, 0, replStr->length());
+    builder.appendSubString(string, tailpos, string->length());
+    return Value(builder.finalize(&state));
 }
 
 static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

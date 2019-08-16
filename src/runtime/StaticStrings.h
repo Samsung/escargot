@@ -587,9 +587,10 @@ public:
     AtomicString getUnicode;
     AtomicString getSize;
     AtomicString getSymbolSpecies;
-    AtomicString getSymbolSearch;
     AtomicString getSymbolToStringTag;
     AtomicString symbolSplit;
+    AtomicString symbolReplace;
+    AtomicString symbolSearch;
     AtomicString $Ampersand;
     AtomicString $PlusSign;
     AtomicString $GraveAccent;
