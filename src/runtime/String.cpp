@@ -93,10 +93,21 @@ bool isAllLatin1(const char16_t* buf, const size_t len)
 bool isIndexString(String* str)
 {
     size_t len = str->length();
-    for (unsigned i = 0; i < len; i++) {
-        char16_t c = str->charAt(i);
+    if (len == 1) {
+        char16_t c = str->charAt(0);
         if (c < '0' || c > '9') {
             return false;
+        }
+    } else {
+        char16_t c = str->charAt(0);
+        if (c < '1' || c > '9') {
+            return false;
+        }
+        for (unsigned i = 1; i < len; i++) {
+            char16_t c = str->charAt(i);
+            if (c < '0' || c > '9') {
+                return false;
+            }
         }
     }
     return true;

@@ -732,9 +732,9 @@ ValueVector Object::ownPropertyKeys(ExecutionState& state)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
     struct Params {
-        ValueVector integers;
-        ValueVector strings;
-        ValueVector symbols;
+        std::vector<Value::ValueIndex> indexes;
+        std::vector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> strings;
+        std::vector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> symbols;
     } params;
 
     enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
@@ -742,23 +742,27 @@ ValueVector Object::ownPropertyKeys(ExecutionState& state)
         auto value = name.toPlainValue(state);
 
         if (value.isSymbol()) {
-            params->symbols.pushBack(value);
-        } else if (value.toArrayIndex(state) != Value::InvalidArrayIndexValue) {
-            params->integers.pushBack(value.toString(state));
+            params->symbols.push_back(value);
+        } else if (name.isIndexString() && value.toIndex(state) != Value::InvalidIndexValue) {
+            params->indexes.push_back(value.toIndex(state));
         } else {
-            params->strings.pushBack(value);
+            params->strings.push_back(value);
         }
         return true;
     },
                 &params, false);
 
-    for (size_t i = 0; i < params.strings.size(); ++i) {
-        params.integers.pushBack(params.strings[i]);
+    std::sort(params.indexes.begin(), params.indexes.end(), std::less<Value::ValueIndex>());
+    std::move(params.symbols.begin(), params.symbols.end(), std::back_inserter(params.strings));
+
+    ValueVector result;
+    for (auto& v : params.indexes) {
+        result.pushBack(Value(v).toString(state));
     }
-    for (size_t i = 0; i < params.symbols.size(); ++i) {
-        params.integers.pushBack(params.symbols[i]);
+    for (auto& v : params.strings) {
+        result.pushBack(v);
     }
-    return params.integers;
+    return result;
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-get-p-receiver

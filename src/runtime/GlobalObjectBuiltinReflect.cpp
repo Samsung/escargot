@@ -24,6 +24,7 @@
 #include "runtime/ProxyObject.h"
 #include "runtime/NativeFunctionObject.h"
 #include "interpreter/ByteCodeInterpreter.h"
+#include "ArrayObject.h"
 
 namespace Escargot {
 
@@ -247,6 +248,24 @@ static Value builtinReflectPreventExtensions(ExecutionState& state, Value thisVa
     return Value(target.asObject()->preventExtensions(state));
 }
 
+// https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.ownkeys
+static Value builtinReflectOwnKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    auto strings = &state.context()->staticStrings();
+    Value target = argv[0];
+
+    // 1. If Type(target) is not Object, throw a TypeError exception.
+    if (!target.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Reflect.string(), false, String::emptyString, "%s: The target of Reflect.preventExtension should be an Object");
+    }
+    // 2. Let keys be target.[[OwnPropertyKeys]]().
+    // 3. ReturnIfAbrupt(keys).
+    auto keys = target.asObject()->ownPropertyKeys(state);
+    // 4. Return CreateArrayFromList(keys).
+    return Object::createArrayFromList(state, keys);
+}
+
+
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.set
 static Value builtinReflectSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
@@ -326,6 +345,9 @@ void GlobalObject::installReflect(ExecutionState& state)
     m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().preventExtensions),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().preventExtensions, builtinReflectPreventExtensions, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().ownKeys),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().ownKeys, builtinReflectOwnKeys, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().set),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().set, builtinReflectSet, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
@@ -335,4 +357,4 @@ void GlobalObject::installReflect(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(strings->Reflect),
                       ObjectPropertyDescriptor(m_reflect, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot
