@@ -132,6 +132,34 @@ static Value builtinRun(ExecutionState& state, Value thisValue, size_t argc, Val
     return Value(DateObject::currentTime() - startTime);
 }
 
+static Value builtinIsFunctionAllocatedOnStack(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    bool result = false;
+
+    Value arg = argv[0];
+    if (arg.isFunction()) {
+        result = arg.asFunction()->codeBlock()->canAllocateEnvironmentOnStack();
+    }
+
+    return Value(result);
+}
+
+static Value builtinIsBlockAllocatedOnStack(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    bool result = false;
+
+    Value arg = argv[0];
+    auto blockIndex = argv[1].toInt32(state);
+    if (arg.isFunction() && arg.asFunction()->codeBlock()->isInterpretedCodeBlock()) {
+        auto bi = arg.asFunction()->codeBlock()->asInterpretedCodeBlock()->blockInfo((uint16_t)blockIndex);
+        if (bi) {
+            result = bi->m_canAllocateEnvironmentOnStack;
+        }
+    }
+
+    return Value(result);
+}
+
 #endif
 
 static Value builtinGc(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -1082,6 +1110,17 @@ void GlobalObject::installOthers(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(strings->run),
                       ObjectPropertyDescriptor(new NativeFunctionObject(state,
                                                                         NativeFunctionInfo(strings->run, builtinRun, 1, NativeFunctionInfo::Strict)),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+    AtomicString isFunctionAllocatedOnStackFunctionName(state, "isFunctionAllocatedOnStack");
+    defineOwnProperty(state, ObjectPropertyName(isFunctionAllocatedOnStackFunctionName),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(strings->run, builtinIsFunctionAllocatedOnStack, 1, NativeFunctionInfo::Strict)),
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+
+    AtomicString isBlockAllocatedOnStackFunctionName(state, "isBlockAllocatedOnStack");
+    defineOwnProperty(state, ObjectPropertyName(isBlockAllocatedOnStackFunctionName),
+                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                        NativeFunctionInfo(strings->run, builtinIsBlockAllocatedOnStack, 2, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 /*
     defineOwnProperty(state, ObjectPropertyName(strings->dbgBreak),

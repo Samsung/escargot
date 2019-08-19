@@ -132,7 +132,9 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                                 if (argumentsVariableHolder) {
                                     argumentsVariableHolder->captureArguments();
                                 }
-                                codeBlock->markHeapAllocatedEnvironmentFromHere(blockIndex, argumentsVariableHolder);
+                                if (!codeBlock->isKindOfFunction() || codeBlock->isArrowFunctionExpression()) {
+                                    codeBlock->markHeapAllocatedEnvironmentFromHere(blockIndex, argumentsVariableHolder);
+                                }
                             }
                         }
                     }
@@ -150,20 +152,22 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
 
                             if (r.first) {
                                 usingNameIsResolvedOnCompileTime = true;
-                                // if variable is global variable, we don't need capture it
+                                // if variable is global variable, we don't need to capture it
                                 if (!codeBlock->hasAncestorUsesNonIndexedVariableStorage() && !c->isKindOfFunction() && (r.second == SIZE_MAX || c->blockInfos()[r.second]->m_parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX)) {
                                 } else {
-                                    codeBlock->markHeapAllocatedEnvironmentFromHere(blockIndex, c);
+                                    if (r.second == SIZE_MAX) {
+                                        // captured variable is `var` declared variable
+                                        c->markHeapAllocatedEnvironmentFromHere(LEXICAL_BLOCK_INDEX_MAX, c);
+                                    } else {
+                                        // captured variable is `let` declared variable
+                                        c->markHeapAllocatedEnvironmentFromHere(r.second, c);
+                                    }
                                 }
                                 break;
                             }
                             parentBlockIndex = c->lexicalBlockIndexFunctionLocatedIn();
                             c = c->parentCodeBlock();
                         }
-                    }
-                    if (!usingNameIsResolvedOnCompileTime && codeBlock->hasAncestorUsesNonIndexedVariableStorage()) {
-                        // {Load, Store}ByName needs this
-                        codeBlock->markHeapAllocatedEnvironmentFromHere(blockIndex);
                     }
                 }
             }

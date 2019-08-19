@@ -349,12 +349,16 @@ void InterpretedCodeBlock::captureArguments()
         m_identifierInfos.pushBack(info);
     }
     if (m_parameterCount) {
-        m_canAllocateEnvironmentOnStack = false;
-        for (size_t j = 0; j < m_parametersInfomation.size(); j++) {
-            for (size_t k = 0; k < m_identifierInfos.size(); k++) {
-                if (m_identifierInfos[k].m_name == m_parametersInfomation[j].m_name) {
-                    m_identifierInfos[k].m_needToAllocateOnStack = false;
-                    break;
+        bool isMapped = !hasArgumentInitializers() && !isStrict();
+        // Unmapped arguments object doesn't connect arguments object property with arguments variable
+        if (isMapped) {
+            m_canAllocateEnvironmentOnStack = false;
+            for (size_t j = 0; j < m_parametersInfomation.size(); j++) {
+                for (size_t k = 0; k < m_identifierInfos.size(); k++) {
+                    if (m_identifierInfos[k].m_name == m_parametersInfomation[j].m_name) {
+                        m_identifierInfos[k].m_needToAllocateOnStack = false;
+                        break;
+                    }
                 }
             }
         }

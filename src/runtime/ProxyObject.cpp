@@ -905,6 +905,10 @@ bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyN
 // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-call-thisargument-argumentslist
 Value ProxyObject::call(ExecutionState& state, const Value& receiver, const size_t argc, NULLABLE Value* argv)
 {
+    if (UNLIKELY(!m_isCallable)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
+    }
+
     auto strings = &state.context()->staticStrings();
     // 2. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {

@@ -148,6 +148,9 @@ public:
 
 Object* ScriptFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
 {
+    if (UNLIKELY(!newTarget->isConstructor())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor_Function, codeBlock()->functionName());
+    }
     // Assert: Type(newTarget) is Object.
     ASSERT(newTarget->isObject());
     ASSERT(newTarget->isConstructor());

@@ -597,13 +597,14 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 CallFunction* code = (CallFunction*)programCounter;
                 const Value& callee = registerFile[code->m_calleeIndex];
 
+                // if PointerValue is not callable, PointerValue::call function throws builtin error
                 // https://www.ecma-international.org/ecma-262/6.0/#sec-call
                 // If IsCallable(F) is false, throw a TypeError exception.
-                if (UNLIKELY(!callee.isCallable())) {
+                if (UNLIKELY(!callee.isPointerValue())) {
                     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
                 }
                 // Return F.[[Call]](V, argumentsList).
-                registerFile[code->m_resultIndex] = callee.asObject()->call(state, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+                registerFile[code->m_resultIndex] = callee.asPointerValue()->call(state, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
 
                 ADD_PROGRAM_COUNTER(CallFunction);
                 NEXT_INSTRUCTION();
@@ -616,13 +617,14 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 const Value& callee = registerFile[code->m_calleeIndex];
                 const Value& receiver = registerFile[code->m_receiverIndex];
 
+                // if PointerValue is not callable, PointerValue::call function throws builtin error
                 // https://www.ecma-international.org/ecma-262/6.0/#sec-call
                 // If IsCallable(F) is false, throw a TypeError exception.
-                if (UNLIKELY(!callee.isCallable())) {
+                if (UNLIKELY(!callee.isPointerValue())) {
                     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
                 }
                 // Return F.[[Call]](V, argumentsList).
-                registerFile[code->m_resultIndex] = callee.asObject()->call(state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+                registerFile[code->m_resultIndex] = callee.asPointerValue()->call(state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
 
                 ADD_PROGRAM_COUNTER(CallFunctionWithReceiver);
                 NEXT_INSTRUCTION();
@@ -1131,7 +1133,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
                 WithOperation* code = (WithOperation*)programCounter;
                 size_t newPc = programCounter;
                 Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-                Value v = withOperation(state, code, registerFile[code->m_registerIndex].toObject(state), state.lexicalEnvironment(), newPc, byteCodeBlock, registerFile, stackStorage);
+                Value v = withOperation(state, code, registerFile[code->m_registerIndex].toObject(state), newPc, byteCodeBlock, registerFile, stackStorage);
                 if (!v.isEmpty()) {
                     return v;
                 }
@@ -2247,11 +2249,7 @@ NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& s
 {
     CodeBlock* cb = code->m_codeBlock;
 
-    LexicalEnvironment* outerLexicalEnvironment = state.lexicalEnvironment();
-
-    if (code->m_codeBlock->asInterpretedCodeBlock()->canAllocateEnvironmentOnStack() || byteCodeBlock->m_codeBlock->canAllocateEnvironmentOnStack()) {
-        outerLexicalEnvironment = nullptr;
-    }
+    LexicalEnvironment* outerLexicalEnvironment = state.mostNearestHeapAllocatedLexicalEnvironment();
 
     if (cb->isGenerator()) {
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
@@ -2495,8 +2493,9 @@ NEVER_INLINE void ByteCodeInterpreter::callSuperOperation(ExecutionState& state,
     registerFile[code->m_resultIndex] = result;
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, WithOperation* code, Object* obj, LexicalEnvironment* env, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage)
+NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, WithOperation* code, Object* obj, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage)
 {
+    LexicalEnvironment* env = state.lexicalEnvironment();
     if (!state.ensureRareData()->m_controlFlowRecord) {
         state.ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
     }
@@ -2506,7 +2505,9 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState& state, Wit
 
     // setup new env
     EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(obj);
+    ASSERT(env->isAllocatedOnHeap());
     LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
+    ASSERT(newEnv->isAllocatedOnHeap());
     ExecutionState newState(&state, newEnv, state.inStrictMode());
     newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
 
@@ -2567,6 +2568,7 @@ NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState& state, Bl
     }
 
     LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, state.lexicalEnvironment());
+    ASSERT(newEnv->isAllocatedOnHeap());
     ExecutionState newState(&state, newEnv, state.inStrictMode());
     newState.ensureRareData()->m_controlFlowRecord = state.rareData()->m_controlFlowRecord;
 

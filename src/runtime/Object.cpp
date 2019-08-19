@@ -918,33 +918,27 @@ Value Object::getMethod(ExecutionState& state, const Value& object, const Object
 // https://www.ecma-international.org/ecma-262/6.0/#sec-call
 Value Object::call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
 {
-    // If IsCallable(F) is false, throw a TypeError exception.
-    if (UNLIKELY(!callee.isCallable())) {
+    if (!callee.isPointerValue()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
     }
     // Return F.[[Call]](V, argumentsList).
-    return callee.asObject()->call(state, thisValue, argc, argv);
+    return callee.asPointerValue()->call(state, thisValue, argc, argv);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-construct
 Object* Object::construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Object* newTarget)
 {
-    if (UNLIKELY(!constructor.isConstructor())) {
+    if (!constructor.isConstructor()) {
         if (constructor.isFunction()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor, constructor.asFunction()->codeBlock()->functionName());
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor_Function, constructor.asFunction()->codeBlock()->functionName());
         }
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Callee is not constructor");
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor);
     }
     // If newTarget was not passed, let newTarget be F.
     if (newTarget == nullptr) {
         newTarget = constructor.asObject();
     }
-    // Assert: IsConstructor (F) is true.
-    ASSERT(constructor.isConstructor());
-    // Assert: IsConstructor (newTarget) is true.
-    ASSERT(newTarget->isConstructor());
-    // Return F.[[Construct]](argumentsList, newTarget).
-    return constructor.asObject()->construct(state, argc, argv, newTarget);
+    return constructor.asPointerValue()->construct(state, argc, argv, newTarget);
 }
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinaryhasinstance

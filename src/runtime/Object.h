@@ -911,16 +911,6 @@ protected:
 
     void markAsPrototypeObject(ExecutionState& state);
     void deleteOwnProperty(ExecutionState& state, size_t idx);
-
-private:
-    virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-    virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
 };
 }
 

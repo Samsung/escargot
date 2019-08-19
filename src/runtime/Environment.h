@@ -44,6 +44,11 @@ public:
         , m_isAllocatedOnHeap(isAllocatedOnHeap)
 #endif
     {
+#ifndef NDEBUG
+        if (m_isAllocatedOnHeap && m_outerEnvironment) {
+            ASSERT(m_outerEnvironment->m_isAllocatedOnHeap);
+        }
+#endif
     }
 
     EnvironmentRecord* record()

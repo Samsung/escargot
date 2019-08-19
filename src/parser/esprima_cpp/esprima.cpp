@@ -3072,22 +3072,9 @@ public:
                 if (isParse) {
                     MetaNode node = this->startNode(&this->lookahead);
                     RefPtr<Node> subExpr = this->inheritCoverGrammar(&Parser::unaryExpression<Parse>);
-
-                    if (subExpr->isIdentifier()) {
-                        AtomicString s = subExpr->asIdentifier()->name();
-                        if (!this->scopeContexts.back()->hasName(s, this->lexicalBlockIndex)) {
-                            this->scopeContexts.back()->m_hasEvaluateBindingId = true;
-                        }
-                    }
                     exprNode = this->finalize(node, new UnaryExpressionTypeOfNode(subExpr.get()));
                 } else {
-                    ScanExpressionResult subExpr = this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
-
-                    if (subExpr == ASTNodeType::Identifier) {
-                        if (!this->scopeContexts.back()->hasName(subExpr.string(), this->lexicalBlockIndex)) {
-                            this->scopeContexts.back()->m_hasEvaluateBindingId = true;
-                        }
-                    }
+                    this->scanInheritCoverGrammar(&Parser::unaryExpression<Scan>);
                 }
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
