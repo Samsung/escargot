@@ -5817,13 +5817,16 @@ public:
         AtomicString fnName = id ? id->name() : AtomicString();
 
         if (isFunctionDeclaration) {
+            ASSERT(id);
             addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword);
             insertUsingName(fnName);
             pushScopeContext(fnName);
         } else {
             pushScopeContext(fnName);
-            scopeContexts.back()->insertVarName(fnName, 0, false);
-            scopeContexts.back()->insertUsingName(fnName, 0);
+            if (id) {
+                scopeContexts.back()->insertVarName(fnName, 0, false);
+                scopeContexts.back()->insertUsingName(fnName, 0);
+            }
         }
 
         scopeContexts.back()->m_paramsStartLOC.index = paramsStart.index;
