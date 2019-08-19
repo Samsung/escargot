@@ -361,7 +361,7 @@ void InterpretedCodeBlock::captureArguments()
     }
 }
 
-bool InterpretedCodeBlock::tryCaptureIdentifiersFromChildCodeBlock(LexicalBlockIndex blockIndex, AtomicString name)
+std::pair<bool, size_t> InterpretedCodeBlock::tryCaptureIdentifiersFromChildCodeBlock(LexicalBlockIndex blockIndex, AtomicString name)
 {
     auto r = findNameWithinBlock(blockIndex, name);
 
@@ -369,16 +369,16 @@ bool InterpretedCodeBlock::tryCaptureIdentifiersFromChildCodeBlock(LexicalBlockI
         auto& id = m_blockInfos[std::get<1>(r)]->m_identifiers[std::get<2>(r)];
         ASSERT(id.m_name == name);
         id.m_needToAllocateOnStack = false;
-        return true;
+        return std::make_pair(true, std::get<1>(r));
     }
 
     for (size_t i = 0; i < m_identifierInfos.size(); i++) {
         if (m_identifierInfos[i].m_name == name) {
             m_identifierInfos[i].m_needToAllocateOnStack = false;
-            return true;
+            return std::make_pair(true, SIZE_MAX);
         }
     }
-    return false;
+    return std::make_pair(false, SIZE_MAX);
 }
 
 void InterpretedCodeBlock::markHeapAllocatedEnvironmentFromHere(LexicalBlockIndex blockIndex, InterpretedCodeBlock* to)
@@ -459,11 +459,6 @@ void InterpretedCodeBlock::computeBlockVariables(LexicalBlockIndex currentBlockI
     }
 
     bi->m_shouldAllocateEnvironment = isThereHeapVariable;
-#ifndef NDEBUG
-    if (isThereHeapVariable) {
-        ASSERT(!m_canAllocateEnvironmentOnStack);
-    }
-#endif
 
     for (size_t i = 0; i < m_blockInfos.size(); i++) {
         if (m_blockInfos[i]->m_parentBlockIndex == currentBlockIndex) {

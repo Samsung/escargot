@@ -122,7 +122,7 @@ Object* ScriptClassConstructorFunctionObject::construct(ExecutionState& state, c
     // Else, ReturnIfAbrupt(result).
     // Return envRec.GetThisBinding().
     // -> perform at ScriptClassConstructorFunctionObjectReturnValueBinderWithConstruct
-    return FunctionObjectProcessCallGenerator::processCall<ScriptClassConstructorFunctionObject, true, true, true, ScriptClassConstructorFunctionObjectThisValueBinder,
+    return FunctionObjectProcessCallGenerator::processCall<ScriptClassConstructorFunctionObject, false, true, true, true, ScriptClassConstructorFunctionObjectThisValueBinder,
                                                            ScriptClassConstructorFunctionObjectNewTargetBinderWithConstruct, ScriptClassConstructorFunctionObjectReturnValueBinderWithConstruct>(state, this, thisArgument, argc, argv, newTarget)
         .asObject();
 }

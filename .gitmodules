@@ -30,14 +30,6 @@
     path = test/test262
     url = https://github.com/tc39/test262.git
     ignore = untracked
-[submodule "test/test262-master"]
-    path = test/test262-master
-    url = https://github.com/tc39/test262.git
-    ignore = untracked
-[submodule "test/test262-harness-py"]
-    path = test/test262-harness-py
-    url = https://github.com/test262-utils/test262-harness-py
-    ignore = untracked
 [submodule "test/octane"]
     path = test/octane
     url = https://github.com/chromium/octane.git

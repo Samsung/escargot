@@ -23,7 +23,7 @@
 #include "VMInstance.h"
 #include "GeneratorObject.h"
 #include "NativeFunctionObject.h"
-#include "runtime/ScriptFunctionObject.h"
+#include "runtime/ScriptGeneratorFunctionObject.h"
 
 namespace Escargot {
 
@@ -33,7 +33,7 @@ static Value builtinGeneratorFunction(ExecutionState& state, Value thisValue, si
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
     auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, true);
 
-    return new ScriptFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, true, true);
+    return new ScriptGeneratorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment);
 }
 
 static Value builtinGeneratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

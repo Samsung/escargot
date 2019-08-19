@@ -34,6 +34,6 @@ public:
 
 Value ScriptArrowFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
 {
-    return FunctionObjectProcessCallGenerator::processCall<ScriptArrowFunctionObject, false, false, false, ScriptArrowFunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, argc, argv, nullptr);
+    return FunctionObjectProcessCallGenerator::processCall<ScriptArrowFunctionObject, false, false, false, false, ScriptArrowFunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, argc, argv, nullptr);
 }
 }

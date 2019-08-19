@@ -83,8 +83,8 @@ public:
 
 class FunctionObjectProcessCallGenerator {
 public:
-    template <typename FunctionObjectType, bool isConstructCall, bool hasNewTargetOnEnvironment, bool canBindThisValueOnEnvironment, typename ThisValueBinder, typename NewTargetBinder, typename ReturnValueBinder>
-    static inline Value processCall(ExecutionState& state, FunctionObjectType* self, const Value& thisArgument, const size_t argc, Value* argv, Object* newTarget) // newTarget is null on [[call]]
+    template <typename FunctionObjectType, bool isGenerator, bool isConstructCall, bool hasNewTargetOnEnvironment, bool canBindThisValueOnEnvironment, typename ThisValueBinder, typename NewTargetBinder, typename ReturnValueBinder>
+    static ALWAYS_INLINE Value processCall(ExecutionState& state, FunctionObjectType* self, const Value& thisArgument, const size_t argc, Value* argv, Object* newTarget) // newTarget is null on [[call]]
     {
         volatile int sp;
         size_t currentStackBase = (size_t)&sp;
@@ -144,10 +144,7 @@ public:
 
         Value* registerFile;
 
-        if (UNLIKELY(codeBlock->isGenerator())) {
-            if (isConstructCall) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Generator cannot be invoked with 'new'");
-            }
+        if (isGenerator) {
             registerFile = (Value*)GC_MALLOC((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
         } else {
             registerFile = (Value*)alloca((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
@@ -243,7 +240,7 @@ public:
         }
 
         ThisValueBinder thisValueBinder;
-        if (UNLIKELY(codeBlock->isGenerator())) {
+        if (isGenerator) {
             Value* gcArgv = (Value*)GC_MALLOC(sizeof(Value) * argc);
             memcpy(gcArgv, argv, sizeof(Value) * argc);
             ExecutionState* newState = new ExecutionState(ctx, &state, lexEnv, self, argc, gcArgv, isStrict, registerFile);

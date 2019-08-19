@@ -210,7 +210,7 @@ public:
         return m_data.payload == ValueEmpty;
     }
 
-    operator Value() const
+    ALWAYS_INLINE operator Value() const
     {
         if (HAS_SMI_TAG(m_data.payload)) {
             int32_t value = SmallValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
@@ -265,7 +265,7 @@ public:
         m_data.payload = (intptr_t)from;
     }
 
-    void operator=(const Value& from)
+    ALWAYS_INLINE void operator=(const Value& from)
     {
         if (from.isPointerValue()) {
 #ifdef ESCARGOT_32

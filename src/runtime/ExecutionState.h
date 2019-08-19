@@ -211,7 +211,7 @@ private:
         ExecutionStateRareData* m_rareData;
     };
 
-    bool m_inStrictMode : 1;
+    bool m_inStrictMode;
 };
 }
 

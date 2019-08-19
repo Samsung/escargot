@@ -236,20 +236,6 @@ def run_test262_nonstrict(engine, arch):
         print('test262-nonstrict: All tests passed')
 
 
-@runner('test262-master')
-def run_test262_master(engine, arch):
-    TEST262_HARNESS_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'test262')
-    TEST262_HARNESS_DIR = join(PROJECT_SOURCE_DIR, 'test', 'test262-harness-py')
-
-    copy(join(TEST262_HARNESS_OVERRIDE_DIR, 'test262-harness-py-excludelist.xml'), join(TEST262_HARNESS_DIR, 'excludelist.xml'))
-    copy(join(TEST262_HARNESS_OVERRIDE_DIR, 'test262-harness-py-test262.py'), join(TEST262_HARNESS_DIR, 'src', 'test262.py'))
-
-    run(['python', join(TEST262_HARNESS_DIR, 'src', 'test262.py'),
-         '--command', engine,
-         '--tests', join(PROJECT_SOURCE_DIR, 'test', 'test262-master'),
-         '--full-summary'])
-
-
 @runner('spidermonkey', default=True)
 def run_spidermonkey(engine, arch):
     SPIDERMONKEY_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'spidermonkey')
