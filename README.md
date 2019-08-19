@@ -1,7 +1,6 @@
 # Escargot
 
-[![Travis CI Build Status](https://travis-ci.org/Samsung/escargot.svg?branch=master)](https://travis-ci.org/Samsung/escargot)
-[![SonarCloud Status](https://sonarcloud.io/api/project_badges/measure?project=Samsung_escargot&metric=alert_status)](https://sonarcloud.io/dashboard?id=Samsung_escargot)
+![Build status](http://13.209.201.68:8080/job/escargot-pr/job/master/badge/icon)
 
 ## Prerequisites
 
