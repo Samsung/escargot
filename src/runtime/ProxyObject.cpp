@@ -672,10 +672,6 @@ bool ProxyObject::setPrototype(ExecutionState& state, const Value& value)
     bool booleanTrapResult;
     Value arguments[] = { target, value };
     booleanTrapResult = Object::call(state, trap, handler, 2, arguments).toBoolean(state);
-    if (!booleanTrapResult) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy setPrototypeOf could not set the prototype.");
-        return false;
-    }
 
     // 11. Let extensibleTarget be IsExtensible(target).
     bool extensibleTarget = target.asObject()->isExtensible(state);

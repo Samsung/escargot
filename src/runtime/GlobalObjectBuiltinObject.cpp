@@ -39,7 +39,9 @@ static Value builtinObject__proto__Setter(ExecutionState& state, Value thisValue
     if (!value.isObject() && !value.isNull()) {
         return Value();
     }
-    thisObject->setPrototype(state, value);
+    if (!thisObject->setPrototype(state, value)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().setPrototypeOf.string(), "can't set prototype of this object");
+    }
     return Value();
 }
 
@@ -233,23 +235,38 @@ static Value builtinObjectGetPrototypeOf(ExecutionState& state, Value thisValue,
 
 static Value builtinObjectSetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-setprototypeof-v
+    // 19.1.2.18 Object.setPrototypeOf ( O, proto )
     Value object = argv[0];
     Value proto = argv[1];
 
-    // 1. Let O be ? RequireObjectCoercible(O).
+    // 1. Let O be RequireObjectCoercible(O).
+    // 2. ReturnIfAbrupt(O).
     if (object.isUndefinedOrNull()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().setPrototypeOf.string(), "");
         return Value();
     }
 
-    // 2. If Type(proto) is neither Object nor Null, throw a TypeError exception.
+    // 3. If Type(proto) is neither Object nor Null, throw a TypeError exception.
     if (!proto.isObject() && !proto.isNull()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().setPrototypeOf.string(), "");
         return Value();
     }
 
+    // 4. If Type(O) is not Object, return O.
+    if (!object.isObject()) {
+        return object;
+    }
+
+    // 5. Let status be O.[[SetPrototypeOf]](proto).
     Object* obj = object.toObject(state);
-    obj->setPrototype(state, proto);
+    bool status = obj->setPrototype(state, proto);
+
+    // 7. If status is false, throw a TypeError exception.
+    if (!status) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().setPrototypeOf.string(), "can't set prototype of this object");
+        return Value();
+    }
 
     return object;
 }

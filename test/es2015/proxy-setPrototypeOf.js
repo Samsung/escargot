@@ -13,20 +13,26 @@
  * limitations under the License.
  */
 
-var handler1 = {
-setPrototypeOf : function (monster1, monsterProto) {
-                     monster1.geneticallyModified = true;
-                     return false;
-                 }
+var handler = {
+    setPrototypeOf: function (target, proto) {
+        target.geneticallyModified = true;
+        return false;
+    }
 };
-
 var monsterProto = {};
+
 var monster1 = {
-geneticallyModified : false
+    geneticallyModified: false
 };
+var proxy1 = new Proxy(monster1, handler);
 
-var proxy1 = new Proxy(monster1, handler1);
 assertThrows('Object.setPrototypeOf(proxy1, monsterProto)'); // throws a TypeError
+assert(monster1.geneticallyModified); // expected output: true
 
-assert(monster1.geneticallyModified);
-// expected output: true
+var monster2 = {
+    geneticallyModified: false
+};
+var proxy2 = new Proxy(monster2, handler);
+
+Reflect.setPrototypeOf(proxy2, monsterProto) // Don't throws a TypeError
+assert(monster2.geneticallyModified); // expected output: true
