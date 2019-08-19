@@ -429,39 +429,49 @@ Object* Object::createFunctionPrototypeObject(ExecutionState& state, FunctionObj
 
 bool Object::setPrototype(ExecutionState& state, const Value& proto)
 {
-    if (!proto.isObject() && !proto.isNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't set prototype of this object");
-        return false;
-    }
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-setprototypeof-v
+    // [[SetPrototypeOf]] (V)
 
-    Value object = this;
-    Value current = this->getPrototype(state);
+    // 1. Assert: Either Type(V) is Object or Type(V) is Null.
+    ASSERT(proto.isObject() || proto.isNull());
 
-    if (proto == current) {
+    // 3. Let current be the value of the [[Prototype]] internal slot of O.
+    // 4. If SameValue(V, current), return true.
+    if (proto == this->getPrototype(state)) {
         return true;
     }
 
-    if (UNLIKELY(!isOrdinary() || !isExtensible(state))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't set prototype of this object");
+    // 2. Let extensible be the value of the [[Extensible]] internal slot of O.
+    // 5. If extensible is false, return false.
+    if (!isExtensible(state)) {
         return false;
     }
 
-    Value nextProto = proto;
-    while (nextProto && nextProto.isObject()) {
-        if (nextProto.asObject() == this) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "cyclic __proto__");
+    // 6. Let p be V.
+    Value p = proto;
+    // 7. Let done be false.
+    bool done = false;
+    // 8. Repeat while done is false,
+    while (done == false) {
+        if (p.isNull()) { // If p is null, let done be true.
+            done = true;
+        } else if (p.isObject() && p.asObject() == this) { // Else, if SameValue(p, O) is true, return false.
             return false;
+        } else { // Else,
+            // i. If the [[GetPrototypeOf]] internal method of p is not the ordinary object internal method defined in 9.1.1, let done be true.
+            if (UNLIKELY(!p.isObject() && p.asObject()->isOrdinary())) {
+                done = true;
+            } else { // ii. Else, let p be the value of p’s [[Prototype]] internal slot.
+                p = p.asObject()->getPrototype(state);
+            }
         }
-        if (UNLIKELY(!nextProto.asObject()->isOrdinary())) {
-            break;
-        }
-        nextProto = nextProto.asObject()->getPrototype(state);
     }
 
+    //9. Set the value of the [[Prototype]] internal slot of O to V.
     Object* o = nullptr;
     if (LIKELY(proto.isObject())) {
-        proto.asObject()->markAsPrototypeObject(state);
         o = proto.asObject();
+        o->markAsPrototypeObject(state);
     }
 
     if (rareData()) {
@@ -470,6 +480,7 @@ bool Object::setPrototype(ExecutionState& state, const Value& proto)
         m_prototype = o;
     }
 
+    // 10. Return true.
     return true;
 }
 

@@ -294,8 +294,6 @@
   <test id="built-ins/Proxy/enumerate/null-handler"><reason>Deplecated in ECMAScript8.0</reason></test>
   <test id="built-ins/Proxy/enumerate/return-trap-result-no-value"><reason>Deplecated in ECMAScript8.0</reason></test>
   <test id="target-property-is-accessor-not-configurable-set-is-undefined"><reason>TODO</reason></test>
-  <test id="boolean-trap-result-extensible-target"><reason>TODO</reason></test>
-  <test id="not-extensible-trap-is-false-return-false"><reason>TODO</reason></test>
   <test id="unicode_restricted_brackets"><reason>TODO</reason></test>
   <test id="unicode_restricted_character_class_escape"><reason>TODO</reason></test>
   <test id="unicode_restricted_identity_escape"><reason>TODO</reason></test>
