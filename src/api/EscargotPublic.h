@@ -499,6 +499,7 @@ public:
         PresentAttribute m_attribute;
     };
 
+    bool defineOwnProperty(ExecutionStateRef* state, ValueRef* propertyName, ValueRef* desc);
     bool defineDataProperty(ExecutionStateRef* state, ValueRef* propertyName, const DataPropertyDescriptor& desc);
     bool defineDataProperty(ExecutionStateRef* state, ValueRef* propertyName, ValueRef* value, bool isWritable, bool isEnumerable, bool isConfigurable);
     bool defineAccessorProperty(ExecutionStateRef* state, ValueRef* propertyName, const AccessorPropertyDescriptor& desc);

@@ -272,7 +272,7 @@ SymbolRef* PointerValueRef::asSymbol()
 
 bool PointerValueRef::isObject()
 {
-    return toImpl(this)->isString();
+    return toImpl(this)->isObject();
 }
 
 ObjectRef* PointerValueRef::asObject()
@@ -759,6 +759,11 @@ COMPILE_ASSERT((int)ObjectRef::PresentAttribute::ConfigurablePresent == (int)Obj
 COMPILE_ASSERT((int)ObjectRef::PresentAttribute::NonWritablePresent == (int)ObjectPropertyDescriptor::NonWritablePresent, "");
 COMPILE_ASSERT((int)ObjectRef::PresentAttribute::NonEnumerablePresent == (int)ObjectPropertyDescriptor::NonEnumerablePresent, "");
 COMPILE_ASSERT((int)ObjectRef::PresentAttribute::NonConfigurablePresent == (int)ObjectPropertyDescriptor::NonConfigurablePresent, "");
+
+bool ObjectRef::defineOwnProperty(ExecutionStateRef* state, ValueRef* propertyName, ValueRef* desc)
+{
+    return toImpl(this)->defineOwnProperty(*toImpl(state), ObjectPropertyName(*toImpl(state), toImpl(propertyName)), ObjectPropertyDescriptor(*toImpl(state), toImpl(desc).asObject()));
+}
 
 bool ObjectRef::defineDataProperty(ExecutionStateRef* state, ValueRef* propertyName, const DataPropertyDescriptor& desc)
 {
